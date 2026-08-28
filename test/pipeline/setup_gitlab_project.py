@@ -400,7 +400,7 @@ def generate_cluster_trigger_job(cluster_name):
   variables:
     CLUSTER: "{prefix}"
     PIPELINE_MODE: "${{{upper_prefix}_PIPELINE_MODE}}"
-    DOMAIN: "${{{upper_prefix}_DOMAIN}}"
+    DOMAINS: "${{{upper_prefix}_DOMAINS}}"
     ENABLE_SETUP: "${{{upper_prefix}_ENABLE_SETUP}}"
     TEST_MODE: "${{{upper_prefix}_TEST_MODE}}"
     DRY_RUN: "${{{upper_prefix}_DRY_RUN}}"
@@ -419,7 +419,7 @@ def generate_cluster_variables(cluster_name):
     """Generate cluster-level variables for .gitlab-ci.yml."""
     upper_prefix = cluster_name.upper()
     return f"""  {upper_prefix}_PIPELINE_MODE: "default"
-  {upper_prefix}_DOMAIN: "default"
+  {upper_prefix}_DOMAINS: "default"
   {upper_prefix}_ENABLE_SETUP: "false"
   {upper_prefix}_TEST_MODE: "false"
   {upper_prefix}_DRY_RUN: "false"
@@ -681,10 +681,10 @@ def cmd_create(args, client):
         print(f"  {status}: {var_name} (masked, placeholder — update in GitLab UI)")
 
     # Cluster-level configuration variables
-    # Each cluster has its own PIPELINE_MODE, DOMAIN, tags, etc.
+    # Each cluster has its own PIPELINE_MODE, DOMAINS, tags, etc.
     per_cluster_keys = [
         ("PIPELINE_MODE", "default"),
-        ("DOMAIN", "default"),
+        ("DOMAINS", "default"),
         ("ENABLE_SETUP", "false"),
         ("TEST_MODE", "false"),
         ("DRY_RUN", "false"),
@@ -720,7 +720,7 @@ def cmd_create(args, client):
     for cluster in cluster_names:
         prefix = cluster.upper()
         print(f"  {prefix}: TARGET_IP, TARGET_USER, TARGET_PASS (masked)")
-        print(f"  {prefix}: PIPELINE_MODE, DOMAIN, ENABLE_SETUP, TEST_MODE, DRY_RUN, VERBOSE")
+        print(f"  {prefix}: PIPELINE_MODE, DOMAINS, ENABLE_SETUP, TEST_MODE, DRY_RUN, VERBOSE")
         print(f"  {prefix}: REPO_MANAGER_TAGS, IMAGE_BUILD_MANAGER_TAGS, ORCHESTRATOR_TAGS")
     print(f"\nNext steps:")
     print(f"  1. Update cluster passwords in GitLab UI: Settings > CI/CD > Variables")
@@ -817,7 +817,7 @@ def cmd_update(args, client):
         # Cluster-level configuration variables
         per_cluster_keys = [
             ("PIPELINE_MODE", "default"),
-            ("DOMAIN", "default"),
+            ("DOMAINS", "default"),
             ("ENABLE_SETUP", "false"),
             ("TEST_MODE", "false"),
             ("DRY_RUN", "false"),

@@ -52,7 +52,7 @@ python3 setup_gitlab_project.py --create \
 
 **Result:**
 - `.gitlab-ci.yml` has only cluster1 (simple!)
-- 6 cluster-level variables created: `CLUSTER1_PIPELINE_MODE`, `CLUSTER1_DOMAIN`, etc.
+- 6 cluster-level variables created: `CLUSTER1_PIPELINE_MODE`, `CLUSTER1_DOMAINS`, etc.
 - No confusing global variables
 - Easy to understand and use
 
@@ -103,9 +103,9 @@ Full cycle — setup, cleanup, then deploy. This is the **default** mode when
 |-------|-----|-------------|
 | 1. initialization | `initialization` | Load cluster config, validate SSH |
 | 2. setup_environment | `setup_environment` | Clone repo, setup venv, copy catalog |
-| 3. cleanup_repo_manager | `cleanup_repo_manager` | `repo_manager.yml` (tags via `CLEANUP_REPO_MANAGER_TAGS`) |
-| 4. cleanup_image_build | `cleanup_image_build_manager` | `image_build_manager.yml` (tags via `CLEANUP_IMAGE_BUILD_TAGS`) |
-| 5. cleanup_orchestrator | `cleanup_orchestrator` | `cleanup_orchestrator.yml` (tags via `CLEANUP_ORCHESTRATOR_TAGS`) |
+| 3. cleanup_repo_manager | `cleanup_repo_manager` | `repo_manager.yml --tags cleanup` |
+| 4. cleanup_image_build | `cleanup_image_build_manager` | `image_build_manager.yml --tags cleanup` |
+| 5. cleanup_orchestrator | `cleanup_orchestrator` | `orchestrator.yml --tags cleanup` |
 | 6. cleanup_omnia | `cleanup_omnia` | `omnia.sh --cleanup --all` |
 | 7. test_installation | `test_omnia_installation` | Only if `TEST_MODE=true` |
 | 8. repo_manager | `repo_manager` | Copy inputs, encrypt creds, run playbook (tags via `REPO_MANAGER_TAGS`) |
@@ -144,9 +144,9 @@ Setup is skipped unless `ENABLE_SETUP=true`.
 |-------|-----|-------------|
 | 1. initialization | `initialization` | Load cluster config, validate SSH |
 | 2. setup_environment | `setup_environment` | Only if `ENABLE_SETUP=true` |
-| 3. cleanup_repo_manager | `cleanup_repo_manager` | `repo_manager.yml` (tags via `CLEANUP_REPO_MANAGER_TAGS`) |
-| 4. cleanup_image_build | `cleanup_image_build_manager` | `image_build_manager.yml` (tags via `CLEANUP_IMAGE_BUILD_TAGS`) |
-| 5. cleanup_orchestrator | `cleanup_orchestrator` | `cleanup_orchestrator.yml` (tags via `CLEANUP_ORCHESTRATOR_TAGS`) |
+| 3. cleanup_repo_manager | `cleanup_repo_manager` | `repo_manager.yml --tags cleanup` |
+| 4. cleanup_image_build | `cleanup_image_build_manager` | `image_build_manager.yml --tags cleanup` |
+| 5. cleanup_orchestrator | `cleanup_orchestrator` | `orchestrator.yml --tags cleanup` |
 | 6. cleanup_omnia | `cleanup_omnia` | `omnia.sh --cleanup --all` |
 | 7. summary | `cleanup_summary` | Pipeline report + email notification |
 
@@ -155,13 +155,13 @@ Setup is skipped unless `ENABLE_SETUP=true`.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PIPELINE_MODE` | `default` | Pipeline mode: `default`, `deploy`, or `cleanup` |
-| `DOMAIN` | `default` | Domain to execute (mandatory) |
+| `DOMAINS` | `default` | Domains to execute (mandatory) — supports single or multiple domains |
 | `ENABLE_SETUP` | `false` | Force `setup_environment` in deploy/cleanup modes |
 | `TEST_MODE` | `false` | Enable test stages (`test_omnia_installation` + per-domain) |
 | `DRY_RUN` | `false` | Log commands without executing ansible playbooks |
 | `VERBOSE` | `false` | Run ansible playbooks with `-vvv` instead of `-v` |
 
-### Domain Selection (`DOMAIN` variable)
+### Domains Selection (`DOMAINS` variable)
 
 Select which domain(s) to execute. This is a mandatory variable with `default` as the
 default value, which runs all domains. Supports single domain or multiple domains using
@@ -183,21 +183,21 @@ regex patterns.
 
 ```bash
 # Single domain
-CLUSTER1_DOMAIN = repo_manager
+CLUSTER1_DOMAINS = repo_manager
 
 # Multiple domains (using pipe separator for regex)
-CLUSTER1_DOMAIN = repo_manager|image_build_manager
+CLUSTER1_DOMAINS = repo_manager|image_build_manager
 
 # Multiple domains (alternative format)
-CLUSTER1_DOMAIN = repo_manager|orchestrator
+CLUSTER1_DOMAINS = repo_manager|orchestrator
 
 # All domains
-CLUSTER1_DOMAIN = default
+CLUSTER1_DOMAINS = default
 ```
 
 **How it works:**
-- The pipeline uses regex matching (`=~`) to check if DOMAIN contains the domain name
-- `repo_manager|image_build_manager` matches if DOMAIN contains either `repo_manager` OR `image_build_manager`
+- The pipeline uses regex matching (`=~`) to check if DOMAINS contains the domain name
+- `repo_manager|image_build_manager` matches if DOMAINS contains either `repo_manager` OR `image_build_manager`
 - This allows flexible multi-domain selection without running all domains
 
 ### Test Stages (`TEST_MODE` variable)
@@ -210,7 +210,7 @@ When `TEST_MODE=true`, the following test stages are enabled:
 - **test_orchestrator** — Runs `test/orchestrator/run_validation.sh all verify`
 
 Test stages are `allow_failure: true` — test failures do not block the pipeline.
-Per-domain test stages are also gated by the `DOMAIN` selection.
+Per-domain test stages are also gated by the `DOMAINS` selection.
 
 ### Per-Stage Ansible Tags
 
@@ -222,14 +222,11 @@ stages run without tags (full playbook), and cleanup stages use `--tags cleanup`
 | `REPO_MANAGER_TAGS` | `""` (none) | `repo_manager` deploy |
 | `IMAGE_BUILD_MANAGER_TAGS` | `""` (none) | `image_build_manager` deploy |
 | `ORCHESTRATOR_TAGS` | `""` (none) | `orchestrator` deploy |
-| `CLEANUP_REPO_MANAGER_TAGS` | `cleanup` | `cleanup_repo_manager` |
-| `CLEANUP_IMAGE_BUILD_TAGS` | `cleanup` | `cleanup_image_build_manager` |
-| `CLEANUP_ORCHESTRATOR_TAGS` | `""` (none) | `cleanup_orchestrator` |
 
 **Examples:**
 - Run repo_manager with a specific tag: `REPO_MANAGER_TAGS=install_packages`
-- Run cleanup without tags (full playbook): `CLEANUP_REPO_MANAGER_TAGS=""`
 - Combine tags: `ORCHESTRATOR_TAGS="network,storage"`
+- Cleanup stages automatically use `--tags cleanup` (no configuration needed)
 
 ### Optional Setup (`ENABLE_SETUP` variable)
 
@@ -261,18 +258,18 @@ the global value is used automatically via GitLab lazy variable expansion.
 | Global Variable | Per-Cluster Override | Description |
 |-----------------|---------------------|-------------|
 | `PIPELINE_MODE` | `CLUSTER1_PIPELINE_MODE` | Pipeline mode for this cluster |
-| `DOMAIN` | `CLUSTER1_DOMAIN` | Domain selection for this cluster |
+| `DOMAINS` | `CLUSTER1_DOMAINS` | Domain selection for this cluster |
 | `ENABLE_SETUP` | `CLUSTER1_ENABLE_SETUP` | Force setup for this cluster |
 | `TEST_MODE` | `CLUSTER1_TEST_MODE` | Enable tests for this cluster |
 | `DRY_RUN` | `CLUSTER1_DRY_RUN` | Dry run for this cluster |
 | `VERBOSE` | `CLUSTER1_VERBOSE` | Verbose output for this cluster |
 
 Replace `CLUSTER1` with the uppercase cluster name (e.g. `CLUSTER2_PIPELINE_MODE`,
-`CLUSTER3_DOMAIN`).
+`CLUSTER3_DOMAINS`).
 
 ### How It Works
 
-1. **Global defaults** apply to all clusters: `PIPELINE_MODE=default`, `DOMAIN=default`
+1. **Global defaults** apply to all clusters: `PIPELINE_MODE=default`, `DOMAINS=default`
 2. **Per-cluster overrides** default to the global value: `CLUSTER1_PIPELINE_MODE=$PIPELINE_MODE`
 3. When the user sets a per-cluster override (via UI, API, or CI/CD variable), it
    takes precedence over the global default for that cluster only
@@ -302,7 +299,7 @@ For each variable, ask yourself: **"Do ALL clusters need the SAME value?"**
 ```bash
 # Set global variables only
 PIPELINE_MODE=deploy
-DOMAIN=repo_manager
+DOMAINS=repo_manager
 TEST_MODE=false
 # All clusters use these values
 ```
@@ -356,7 +353,7 @@ This means:
 **Same config for all clusters** (default behavior, no per-cluster overrides needed):
 ```
 PIPELINE_MODE=deploy
-DOMAIN=repo_manager
+DOMAINS=repo_manager
 CLUSTERS=cluster1,cluster2,cluster3
 ```
 All three clusters run deploy mode with repo_manager only.
@@ -365,10 +362,10 @@ All three clusters run deploy mode with repo_manager only.
 ```
 PIPELINE_MODE=default
 CLUSTER1_PIPELINE_MODE=deploy
-CLUSTER1_DOMAIN=repo_manager
+CLUSTER1_DOMAINS=repo_manager
 CLUSTER2_PIPELINE_MODE=cleanup
-CLUSTER2_DOMAIN=orchestrator
-# cluster3 uses global defaults: PIPELINE_MODE=default, DOMAIN=default
+CLUSTER2_DOMAINS=orchestrator
+# cluster3 uses global defaults: PIPELINE_MODE=default, DOMAINS=default
 ```
 - cluster1: deploys repo_manager only
 - cluster2: cleans up orchestrator only
@@ -391,7 +388,7 @@ CLUSTER1_DRY_RUN=true
 3. Add per-cluster override defaults in `.gitlab-ci.yml` variables section:
    ```yaml
    CLUSTER4_PIPELINE_MODE: "$PIPELINE_MODE"
-   CLUSTER4_DOMAIN: "$DOMAIN"
+   CLUSTER4_DOMAINS: "$DOMAINS"
    CLUSTER4_ENABLE_SETUP: "$ENABLE_SETUP"
    CLUSTER4_TEST_MODE: "$TEST_MODE"
    CLUSTER4_DRY_RUN: "$DRY_RUN"
@@ -499,11 +496,11 @@ These prompts allow you to configure cluster-specific connection details that wi
    - `CLUSTER<N>_TARGET_USER` - SSH user (default: root)
    - `CLUSTER<N>_TARGET_PASS` - SSH password (masked, placeholder)
 6. **Creates global pipeline control variables**:
-   - `PIPELINE_MODE`, `DOMAIN`, `ENABLE_SETUP`, `TEST_MODE`, `DRY_RUN`, `VERBOSE`
+   - `PIPELINE_MODE`, `DOMAINS`, `ENABLE_SETUP`, `TEST_MODE`, `DRY_RUN`, `VERBOSE`
    - `REPO_MANAGER_TAGS`, `IMAGE_BUILD_MANAGER_TAGS`, `ORCHESTRATOR_TAGS` (with tag support)
    - `CLEANUP_REPO_MANAGER_TAGS`, `CLEANUP_IMAGE_BUILD_TAGS`, `CLEANUP_ORCHESTRATOR_TAGS`
 7. **Creates per-cluster override defaults** (per cluster):
-   - `CLUSTER<N>_PIPELINE_MODE=$PIPELINE_MODE`, `CLUSTER<N>_DOMAIN=$DOMAIN`, etc.
+   - `CLUSTER<N>_PIPELINE_MODE=$PIPELINE_MODE`, `CLUSTER<N>_DOMAINS=$DOMAINS`, etc.
    - Uses GitLab lazy expansion to default to global values unless overridden
 8. **Optionally uploads credential files** as CI/CD File Variables
 
@@ -538,7 +535,7 @@ Configuring CI/CD Variables
   created: CLUSTER2_TARGET_USER = root
   created: CLUSTER2_TARGET_PASS (masked, placeholder — update in GitLab UI)
   created: PIPELINE_MODE = default
-  created: DOMAIN = default
+  created: DOMAINS = default
   created: ENABLE_SETUP = false
   created: TEST_MODE = false
   created: DRY_RUN = false
@@ -550,13 +547,13 @@ Configuring CI/CD Variables
   created: CLEANUP_IMAGE_BUILD_TAGS = cleanup
   created: CLEANUP_ORCHESTRATOR_TAGS = 
   created: CLUSTER1_PIPELINE_MODE = $PIPELINE_MODE
-  created: CLUSTER1_DOMAIN = $DOMAIN
+  created: CLUSTER1_DOMAINS = $DOMAINS
   created: CLUSTER1_ENABLE_SETUP = $ENABLE_SETUP
   created: CLUSTER1_TEST_MODE = $TEST_MODE
   created: CLUSTER1_DRY_RUN = $DRY_RUN
   created: CLUSTER1_VERBOSE = $VERBOSE
   created: CLUSTER2_PIPELINE_MODE = $PIPELINE_MODE
-  created: CLUSTER2_DOMAIN = $DOMAIN
+  created: CLUSTER2_DOMAINS = $DOMAINS
   created: CLUSTER2_ENABLE_SETUP = $ENABLE_SETUP
   created: CLUSTER2_TEST_MODE = $TEST_MODE
   created: CLUSTER2_DRY_RUN = $DRY_RUN
@@ -585,7 +582,7 @@ All variables are configured in **Project > Settings > CI/CD > Variables** — t
 |---|---|---|
 | `CLUSTERS` | Variable | Comma-separated list of clusters to run |
 | `PIPELINE_MODE` | Variable | Pipeline mode: `default`, `deploy`, or `cleanup` |
-| `DOMAIN` | Variable | Domain selection: `default`, `repo_manager`, `image_build_manager`, `orchestrator`, or regex patterns like `repo_manager\|orchestrator` |
+| `DOMAINS` | Variable | Domains selection: `default`, `repo_manager`, `image_build_manager`, `orchestrator`, or regex patterns like `repo_manager\|orchestrator` |
 | `ENABLE_SETUP` | Variable | Force setup stage in deploy/cleanup modes |
 | `TEST_MODE` | Variable | Enable test stages |
 | `DRY_RUN` | Variable | Log commands without executing |
@@ -616,7 +613,7 @@ Repeat `CLUSTER2_*` and `CLUSTER3_*` for additional clusters.
 | Variable | Type | Description |
 |---|---|---|
 | `CLUSTER1_PIPELINE_MODE` | Variable | Override pipeline mode for cluster1 |
-| `CLUSTER1_DOMAIN` | Variable | Override domain selection for cluster1 |
+| `CLUSTER1_DOMAINS` | Variable | Override domain selection for cluster1 |
 | `CLUSTER1_ENABLE_SETUP` | Variable | Override setup flag for cluster1 |
 | `CLUSTER1_TEST_MODE` | Variable | Override test mode for cluster1 |
 | `CLUSTER1_DRY_RUN` | Variable | Override dry-run flag for cluster1 |
@@ -648,7 +645,7 @@ via GitLab lazy variable expansion (e.g., `CLUSTER1_PIPELINE_MODE=$PIPELINE_MODE
 **From the GitLab UI:**
 1. Go to **CI/CD > Pipelines > Run pipeline**
 2. Set `CLUSTERS` to the clusters you want to run
-3. Set global defaults (`PIPELINE_MODE`, `DOMAIN`, etc.)
+3. Set global defaults (`PIPELINE_MODE`, `DOMAINS`, etc.)
 4. (Optional) Set per-cluster overrides (`CLUSTER1_PIPELINE_MODE`, etc.)
 5. (Optional) Set `TEST_MODE=true` to enable test stages
 6. (Optional) Set `DRY_RUN=true` to preview without execution
@@ -665,7 +662,7 @@ curl --request POST \
 curl --request POST \
   --form "ref=main" \
   --form "variables[PIPELINE_MODE]=deploy" \
-  --form "variables[DOMAIN]=repo_manager" \
+  --form "variables[DOMAINS]=repo_manager" \
   --form "variables[VERBOSE]=true" \
   --form "variables[CLUSTERS]=cluster1,cluster2" \
   "https://gitlab.example.com/api/v4/projects/<ID>/pipeline"
@@ -675,9 +672,9 @@ curl --request POST \
   --form "ref=main" \
   --form "variables[CLUSTERS]=cluster1,cluster2" \
   --form "variables[CLUSTER1_PIPELINE_MODE]=deploy" \
-  --form "variables[CLUSTER1_DOMAIN]=repo_manager" \
+  --form "variables[CLUSTER1_DOMAINS]=repo_manager" \
   --form "variables[CLUSTER2_PIPELINE_MODE]=cleanup" \
-  --form "variables[CLUSTER2_DOMAIN]=orchestrator" \
+  --form "variables[CLUSTER2_DOMAINS]=orchestrator" \
   "https://gitlab.example.com/api/v4/projects/<ID>/pipeline"
 
 # Dry-run one cluster, real deploy on the other
@@ -693,7 +690,7 @@ curl --request POST \
   --form "ref=main" \
   --form "variables[PIPELINE_MODE]=deploy" \
   --form "variables[CLUSTERS]=cluster1" \
-  --form "variables[DOMAIN]=repo_manager" \
+  --form "variables[DOMAINS]=repo_manager" \
   --form "variables[REPO_MANAGER_TAGS]=install_packages" \
   "https://gitlab.example.com/api/v4/projects/<ID>/pipeline"
 ```
@@ -783,7 +780,7 @@ will fail if the required CI/CD File Variable is not set.
 6. **Add per-cluster override defaults** in `.gitlab-ci.yml` variables section:
    ```yaml
    CLUSTER4_PIPELINE_MODE: "$PIPELINE_MODE"
-   CLUSTER4_DOMAIN: "$DOMAIN"
+   CLUSTER4_DOMAINS: "$DOMAINS"
    CLUSTER4_ENABLE_SETUP: "$ENABLE_SETUP"
    CLUSTER4_TEST_MODE: "$TEST_MODE"
    CLUSTER4_DRY_RUN: "$DRY_RUN"
@@ -801,7 +798,7 @@ will fail if the required CI/CD File Variable is not set.
      variables:
        CLUSTER: "cluster4"
        PIPELINE_MODE: "$CLUSTER4_PIPELINE_MODE"
-       DOMAIN: "$CLUSTER4_DOMAIN"
+       DOMAINS: "$CLUSTER4_DOMAINS"
        ENABLE_SETUP: "$CLUSTER4_ENABLE_SETUP"
        TEST_MODE: "$CLUSTER4_TEST_MODE"
        DRY_RUN: "$CLUSTER4_DRY_RUN"
@@ -847,7 +844,7 @@ Once added, you can configure the new cluster independently:
 ```bash
 # Via GitLab UI: Set per-cluster overrides
 CLUSTER4_PIPELINE_MODE=deploy
-CLUSTER4_DOMAIN=repo_manager
+CLUSTER4_DOMAINS=repo_manager
 CLUSTER4_TEST_MODE=true
 
 # Via API:
@@ -855,7 +852,7 @@ curl --request POST \
   --form "ref=main" \
   --form "variables[CLUSTERS]=cluster4" \
   --form "variables[CLUSTER4_PIPELINE_MODE]=deploy" \
-  --form "variables[CLUSTER4_DOMAIN]=repo_manager" \
+  --form "variables[CLUSTER4_DOMAINS]=repo_manager" \
   "https://gitlab.example.com/api/v4/projects/<ID>/pipeline"
 ```
 

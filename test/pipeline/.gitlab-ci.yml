@@ -31,7 +31,7 @@
 #     --clusters cluster1,cluster2,cluster3
 #
 # The script will automatically:
-#   - Add cluster variables (CLUSTER2_PIPELINE_MODE, CLUSTER2_DOMAIN, etc.)
+#   - Add cluster variables (CLUSTER2_PIPELINE_MODE, CLUSTER2_DOMAINS, etc.)
 #   - Add trigger jobs (trigger_cluster_cluster2, trigger_cluster_cluster3)
 #   - Update the .gitlab-ci.yml file
 #
@@ -39,30 +39,30 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~
 # Each cluster has its own configuration variables:
 #   CLUSTER1_PIPELINE_MODE  -> deploy, cleanup, or default
-#   CLUSTER1_DOMAIN         -> default, repo_manager, image_build_manager, orchestrator
+#   CLUSTER1_DOMAINS        -> default, repo_manager, image_build_manager, orchestrator, or regex patterns
 #   CLUSTER1_ENABLE_SETUP   -> true or false
 #   CLUSTER1_TEST_MODE      -> true or false
 #   CLUSTER1_DRY_RUN        -> true or false
 #   CLUSTER1_VERBOSE        -> true or false
 #
 # Example: Deploy repo_manager on cluster1, cleanup orchestrator on cluster2:
-#   CLUSTER1_PIPELINE_MODE=deploy   CLUSTER1_DOMAIN=repo_manager
-#   CLUSTER2_PIPELINE_MODE=cleanup  CLUSTER2_DOMAIN=orchestrator
+#   CLUSTER1_PIPELINE_MODE=deploy   CLUSTER1_DOMAINS=repo_manager
+#   CLUSTER2_PIPELINE_MODE=cleanup  CLUSTER2_DOMAINS=orchestrator
 #
 # Pipeline modes:
 #   PIPELINE_MODE=default  -> Full cycle (setup + cleanup + deploy + tests)
 #   PIPELINE_MODE=deploy   -> Deploy only (domain playbooks)
 #   PIPELINE_MODE=cleanup  -> Tear down all omnia domain state
 #
-# Domain selection:
-#   DOMAIN=default             -> All domains
-#   DOMAIN=repo_manager        -> Only repo_manager
-#   DOMAIN=image_build_manager -> Only image_build_manager
-#   DOMAIN=orchestrator        -> Only orchestrator
+# Domains selection:
+#   DOMAINS=default             -> All domains
+#   DOMAINS=repo_manager        -> Only repo_manager
+#   DOMAINS=image_build_manager -> Only image_build_manager
+#   DOMAINS=orchestrator        -> Only orchestrator
+#   DOMAINS=repo_manager|orchestrator -> Multiple domains (regex pattern)
 #
 # Per-stage ansible tags (global, applied to all clusters):
 #   REPO_MANAGER_TAGS, IMAGE_BUILD_MANAGER_TAGS, ORCHESTRATOR_TAGS
-#   CLEANUP_REPO_MANAGER_TAGS, CLEANUP_IMAGE_BUILD_TAGS, CLEANUP_ORCHESTRATOR_TAGS
 #
 # Repository layout in GitLab:
 #   .gitlab-ci.yml                              -> This parent pipeline
@@ -100,11 +100,11 @@ stages:
 variables:
   # ---- Cluster-Level Configuration Variables ----
   # Each cluster has its own configuration. Set via GitLab UI or CI/CD variables.
-  # Example: CLUSTER1_PIPELINE_MODE=deploy, CLUSTER1_DOMAIN=repo_manager
+  # Example: CLUSTER1_PIPELINE_MODE=deploy, CLUSTER1_DOMAINS=repo_manager
   #
   # Default cluster (cluster1):
   CLUSTER1_PIPELINE_MODE: "default"
-  CLUSTER1_DOMAIN: "default"
+  CLUSTER1_DOMAINS: "default"
   CLUSTER1_ENABLE_SETUP: "false"
   CLUSTER1_TEST_MODE: "false"
   CLUSTER1_DRY_RUN: "false"
@@ -130,7 +130,7 @@ trigger_cluster_cluster1:
   variables:
     CLUSTER: "cluster1"
     PIPELINE_MODE: "$CLUSTER1_PIPELINE_MODE"
-    DOMAIN: "$CLUSTER1_DOMAIN"
+    DOMAINS: "$CLUSTER1_DOMAINS"
     ENABLE_SETUP: "$CLUSTER1_ENABLE_SETUP"
     TEST_MODE: "$CLUSTER1_TEST_MODE"
     DRY_RUN: "$CLUSTER1_DRY_RUN"

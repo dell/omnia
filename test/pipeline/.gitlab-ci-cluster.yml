@@ -22,11 +22,12 @@
 #   PIPELINE_MODE=deploy   ->  Deploy only (domain playbooks)
 #   PIPELINE_MODE=cleanup  ->  Tear down all omnia domain state
 #
-# Domain selection (mandatory):
-#   DOMAIN=default             ->  All domains
-#   DOMAIN=repo_manager        ->  Only repo_manager
-#   DOMAIN=image_build_manager ->  Only image_build_manager
-#   DOMAIN=orchestrator        ->  Only orchestrator
+# Domains selection (mandatory):
+#   DOMAINS=default             ->  All domains
+#   DOMAINS=repo_manager        ->  Only repo_manager
+#   DOMAINS=image_build_manager ->  Only image_build_manager
+#   DOMAINS=orchestrator        ->  Only orchestrator
+#   DOMAINS=repo_manager|orchestrator -> Multiple domains (regex pattern)
 #
 # Stage control variables:
 #   ENABLE_SETUP=true      ->  Force setup_environment in deploy/cleanup modes
@@ -36,7 +37,6 @@
 #
 # Per-stage ansible tags (optional):
 #   REPO_MANAGER_TAGS, IMAGE_BUILD_MANAGER_TAGS, ORCHESTRATOR_TAGS
-#   CLEANUP_REPO_MANAGER_TAGS, CLEANUP_IMAGE_BUILD_TAGS, CLEANUP_ORCHESTRATOR_TAGS
 #
 # Repository layout:
 #   clusters/<name>/cluster.env           -> connection details
@@ -161,7 +161,7 @@ initialization:
     - echo "  Omnia Pipeline v${PIPELINE_VERSION} — Initialization"
     - echo "  Cluster — ${CLUSTER}"
     - echo "  Mode    — ${PIPELINE_MODE}"
-    - echo "  Domain  — ${DOMAIN}"
+    - echo "  Domains — ${DOMAINS}"
     - echo "  Setup   — ${ENABLE_SETUP}"
     - echo "  Test    — ${TEST_MODE}"
     - echo "  DryRun  — ${DRY_RUN}"
@@ -350,7 +350,7 @@ cleanup_repo_manager:
   timeout: 3h
   allow_failure: true
   rules:
-    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAIN == "default" || $DOMAIN =~ /repo_manager/)'
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /repo_manager/)'
       when: on_success
   needs:
     - job: setup_environment
@@ -396,7 +396,7 @@ cleanup_image_build_manager:
   timeout: 3h
   allow_failure: true
   rules:
-    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAIN == "default" || $DOMAIN =~ /image_build_manager/)'
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /image_build_manager/)'
       when: on_success
   needs:
     - job: cleanup_repo_manager
@@ -441,7 +441,7 @@ cleanup_orchestrator:
   timeout: 3h
   allow_failure: true
   rules:
-    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAIN == "default" || $DOMAIN =~ /orchestrator/)'
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /orchestrator/)'
       when: on_success
   needs:
     - job: cleanup_image_build_manager
@@ -641,7 +641,7 @@ repo_manager:
   stage: repo_manager
   timeout: 3h
   rules:
-    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && ($DOMAIN == "default" || $DOMAIN =~ /repo_manager/)'
+    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /repo_manager/)'
       when: on_success
   needs:
     - job: setup_environment
@@ -764,7 +764,7 @@ test_repo_manager:
   timeout: 3h
   allow_failure: true
   rules:
-    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true" && ($DOMAIN == "default" || $DOMAIN =~ /repo_manager/)'
+    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true" && ($DOMAINS == "default" || $DOMAINS =~ /repo_manager/)'
       when: on_success
   needs:
     - job: repo_manager
@@ -836,7 +836,7 @@ image_build_manager:
   stage: image_build_manager
   timeout: 3h
   rules:
-    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && ($DOMAIN == "default" || $DOMAIN =~ /image_build_manager/)'
+    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /image_build_manager/)'
       when: on_success
   needs:
     - job: repo_manager
@@ -961,7 +961,7 @@ test_image_build_manager:
   timeout: 3h
   allow_failure: true
   rules:
-    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true" && ($DOMAIN == "default" || $DOMAIN =~ /image_build_manager/)'
+    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true" && ($DOMAINS == "default" || $DOMAINS =~ /image_build_manager/)'
       when: on_success
   needs:
     - job: image_build_manager
@@ -1033,7 +1033,7 @@ orchestrator:
   stage: orchestrator
   timeout: 3h
   rules:
-    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && ($DOMAIN == "default" || $DOMAIN =~ /orchestrator/)'
+    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /orchestrator/)'
       when: on_success
   needs:
     - job: image_build_manager
@@ -1156,7 +1156,7 @@ test_orchestrator:
   timeout: 3h
   allow_failure: true
   rules:
-    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true" && ($DOMAIN == "default" || $DOMAIN =~ /orchestrator/)'
+    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true" && ($DOMAINS == "default" || $DOMAINS =~ /orchestrator/)'
       when: on_success
   needs:
     - job: orchestrator
