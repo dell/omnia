@@ -31,6 +31,7 @@
     local_config: "{{ result.local_config }}"
     log_dir: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
     additional_repos_config: "{{ result.additional_repos_config | default(omit) }}"
+    user_repos_config: "{{ result.user_repos_config | default(omit) }}"
     pulp_concurrency: "{{ pulp_concurrency }}"
     sw_archs: "{{ result.sw_archs }}"
     resync_repos: "{{ resync_repos | default(None) }}"

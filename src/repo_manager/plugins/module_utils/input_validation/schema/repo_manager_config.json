@@ -21,6 +21,11 @@
       "enum": ["always", "partial"],
       "description": "Global repository sync policy"
     },
+    "caching_policy": {
+      "type": "boolean",
+      "description": "Global caching policy that controls Pulp download behavior",
+      "default": true
+    },
     "registries": {
       "type": ["object", "null"],
       "description": "Container registry configurations keyed by registry name",
@@ -141,6 +146,12 @@
         "sslclientcert": {
           "type": ["string", "null"],
           "description": "Path to SSL client certificate (mTLS)"
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Repository priority for yum/dnf",
+          "minimum": 1,
+          "maximum": 100
         }
       },
       "additionalProperties": false
@@ -158,6 +169,13 @@
       "properties": {
         "additional_repos": {
           "$ref": "#/definitions/additional_repos_entry"
+        },
+        "user_repos": {
+          "type": ["object", "null"],
+          "description": "User custom repositories",
+          "additionalProperties": {
+            "$ref": "#/definitions/repo_entry"
+          }
         }
       },
       "additionalProperties": {

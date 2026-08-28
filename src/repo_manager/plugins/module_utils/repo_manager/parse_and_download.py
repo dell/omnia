@@ -44,7 +44,7 @@ def mask_sensitive_data(cmd_string):
     return cmd_string
 
 
-def execute_command(cmd_string, logger, type_json=False):  # pylint: disable=too-many-return-statements
+def execute_command(cmd_string, logger, type_json=False, enhanced_error_info=False):  # pylint: disable=too-many-return-statements
     """
     Executes a command and captures the output (both stdout and stderr).
 
@@ -55,11 +55,14 @@ def execute_command(cmd_string, logger, type_json=False):  # pylint: disable=too
         cmd_string (str): The command to execute.
         logger (logging.Logger): Logger instance for logging the process and errors.
         type_json (bool): If True, attempts to parse stdout as JSON.
+        enhanced_error_info (bool): If True, return dict on failure instead of False.
 
     Returns:
-        dict or bool: Command execution details or False on failure.
+        Success: dict with returncode, stdout, stderr
+        Failure (enhanced_error_info=False): False
+        Failure (enhanced_error_info=True): dict with returncode, stdout, stderr, success=False
     """
-    logger.info("#" * 30 + f" {execute_command.__name__} start " + "#" * 30)
+    logger.info(f"--- {execute_command.__name__} START ---")
     status = {}
 
     try:
@@ -82,38 +85,54 @@ def execute_command(cmd_string, logger, type_json=False):  # pylint: disable=too
         status["returncode"] = cmd.returncode
         status["stdout"] = cmd.stdout.strip() if cmd.stdout else None
         status["stderr"] = cmd.stderr.strip() if cmd.stderr else None
+        status["success"] = cmd.returncode == 0
 
         if cmd.returncode != 0:
-            logger.error(f"Command failed with return code {cmd.returncode}")
-            logger.error(f"Error: {status['stderr']}")
-            return False
+            logger.error(f"Command failed (rc={cmd.returncode})")
+            if status['stderr'] and status['stderr'].strip():
+                logger.error(f"STDERR: {status['stderr'].strip()}")
+
+            if enhanced_error_info:
+                return status  # Dict with error details
+            return False  # Existing behavior
 
         if type_json:
             if not status["stdout"]:
                 logger.error(
                     "Command succeeded but returned empty output when JSON was expected")
+                if enhanced_error_info:
+                    status["success"] = False
+                    return status
                 return False
             try:
                 status["stdout"] = json.loads(status["stdout"])
             except json.JSONDecodeError as error:
                 logger.error(f"Failed to parse JSON output: {error}")
-                logger.error(f"Raw output was: {status['stdout']}")
+                if enhanced_error_info:
+                    status["success"] = False
+                    return status
                 return False
 
-        logger.info(f"Command succeeded: {safe_cmd_string}")
+        logger.info("Command succeeded.")
         return status
     except subprocess.CalledProcessError as e:
         logger.error(f"Command failed: {safe_cmd_string} - {e}")
         return False
     except subprocess.TimeoutExpired as e:
         logger.error(f"Command timed out: {safe_cmd_string} - {e}")
+        if enhanced_error_info:
+            return {"success": False, "returncode": -1,
+                    "stdout": None, "stderr": str(e)}
         return False
     except OSError as e:
         logger.error(f"OS error during command: {safe_cmd_string} - {e}")
+        if enhanced_error_info:
+            return {"success": False, "returncode": -1,
+                    "stdout": None, "stderr": str(e)}
         return False
 
     finally:
-        logger.info("#" * 30 + f" {execute_command.__name__} end " + "#" * 30)
+        logger.info(f"--- {execute_command.__name__} END ---")
 
 
 def get_arch_from_status_path(status_file_path):
@@ -240,7 +259,7 @@ def write_status_to_file(status_file_path, package_name, package_type, status,
         repo_name: Optional repository name (for RPMs)
         catalog_name: Optional catalog name for multi-catalog tracking
     """
-    logger.info("#" * 30 + f" {write_status_to_file.__name__} start " + "#" * 30)
+    logger.info(f"--- {write_status_to_file.__name__} START ---")
 
     # Auto-prefix repo_name with architecture if needed
     repo_name = _prefix_repo_name_with_arch(repo_name, status_file_path, logger)
@@ -267,7 +286,7 @@ def write_status_to_file(status_file_path, package_name, package_type, status,
             f"Failed to write to status file: {status_file_path}. Error: {str(e)}"
         ) from e
     finally:
-        logger.info("#" * 30 + f" {write_status_to_file.__name__} end " + "#" * 30)
+        logger.info(f"--- {write_status_to_file.__name__} END ---")
 
 
 def _update_existing_file(status_file_path, package_name, package_type, status,

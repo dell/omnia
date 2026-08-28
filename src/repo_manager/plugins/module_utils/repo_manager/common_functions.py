@@ -48,7 +48,7 @@ def load_yaml_file(path):
     """
     if not os.path.isfile(path):
         raise FileNotFoundError(f"Config file not found: {path}")
-    with open(path, "r", encoding = "utf-8") as file:
+    with open(path, "r", encoding="utf-8") as file:
         return yaml.safe_load(file)
 
 
@@ -89,7 +89,7 @@ def is_encrypted(file_path):
     Returns:
         bool: True if the file encrypted, False otherwise.
     """
-    with open(file_path, 'r', encoding = 'utf-8') as f:
+    with open(file_path, 'r', encoding='utf-8') as f:
         first_line = f.readline()
     return "$ANSIBLE_VAULT" in first_line
 
@@ -251,7 +251,8 @@ def generate_vault_key(key_path):
 def get_arch_from_sw_config(software_name, sw_config_data):
     """
     For a given software, extract architecture list from catalog configuration.
-    If not found, fallback to arch defined in Groups in functional_groups_config.yml.
+    Extracts architecture from functional layer names (e.g., slurm_control_node_rhel_10_0_x86_64).
+
     Parameters
        software_name: name of the software
        sw_config_data: catalog configuration data
@@ -259,21 +260,36 @@ def get_arch_from_sw_config(software_name, sw_config_data):
     Returns:
         dict: {software_name: [arch list]}
     """
-    for software in sw_config_data.get("softwares", []):
-        if software.get("name") == software_name:
-            arch = software.get("arch")
+    # Extract architectures from functional layer names
+    functionallayer = sw_config_data.get("functionallayer", [])
+    archs = set()
 
-            # Depricated
-            # if arch is None:
-            #     # if arch is not defined for given software, fallback to functional_groups_config.yml
-            #     return get_arch_from_functional_groups_config(software_name, functional_groups_config_data)
+    for layer in functionallayer:
+        layer_name = layer.get("name", "")
+        # Extract architecture from layer name (e.g., x86_64, aarch64)
+        if "_x86_64" in layer_name:
+            archs.add("x86_64")
+        elif "_aarch64" in layer_name:
+            archs.add("aarch64")
 
-            if isinstance(arch, list) and arch:
-                arch_list = [a.strip() for a in arch]
-                return {software_name: arch_list}
-            else:
-                error_msg = f"'arch' field for '{software_name}' should not be an empty list"
-                raise ValueError(error_msg)
+    if archs:
+        return {software_name: list(archs)}
+
+    # Fallback: check if software is defined in packages with architecture info
+    packages = sw_config_data.get("packages", {})
+    if software_name in packages:
+        pkg = packages[software_name]
+        sources = pkg.get("sources", [])
+        pkg_archs = set()
+        for source in sources:
+            arch = source.get("architecture")
+            if arch:
+                pkg_archs.add(arch)
+        if pkg_archs:
+            return {software_name: list(pkg_archs)}
+
+    # Default to x86_64 if no architecture found
+    return {software_name: ["x86_64"]}
 
 
 def get_arch_from_functional_groups_config(software_name, functional_groups_config_data):

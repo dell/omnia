@@ -34,6 +34,8 @@ import os
 import csv
 
 from ansible.module_utils.basic import AnsibleModule
+
+OMNIA_BASE = os.environ.get('OMNIA_DATA_PATH', '/opt/omnia')
 DOCUMENTATION = r"""
 ---
 module: validate_input
@@ -64,7 +66,7 @@ author:
 EXAMPLES = r"""
 - name: Validate repo_manager configuration
   validate_input:
-    config_path: /opt/omnia/input/repo_manager_config.yml
+    config_path: "{{ omnia_base }}/input/repo_manager_config.yml"
     strict: true
   register: validation_result
 """

@@ -94,6 +94,14 @@ EMPTY_REPO_NAME_FIELD_MSG = "Each user repo entry must have a non-empty 'name' f
 DUPLICATE_REPO_NAMES_MSG = "Duplicate repo names found."
 REPO_NAME_DUPLICATE_MSG = "Repo with name {name} found more than once."
 NO_REQUIRED_REPO_URLS_MSG = "No required repo URLs found"
+DUPLICATE_REPO_NAME_IN_ARCH_MSG = "Duplicate repo name '{name}' in {arch}"
+PRIORITY_MUST_BE_INTEGER_MSG = "{repo_path}: priority must be integer"
+PRIORITY_MUST_BE_IN_RANGE_MSG = "{repo_path}: priority must be 1-100"
+MISSING_REPO_CONFIGURATION_MSG = (
+    "Catalog package references repository '{reponame}' for architecture(s) {archs}, "
+    "but this repository is not configured in repo_manager_config.yml under "
+    "repositories.{cluster_os_version}.{{arch}}. Please add the repository configuration."
+)
 
 
 def bmc_username_fail_msg(min_username_length, max_length):

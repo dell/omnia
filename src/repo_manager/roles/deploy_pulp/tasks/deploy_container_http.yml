@@ -89,6 +89,14 @@
       ansible.builtin.fail:
         msg: "{{ pulp_deployed_fail_msg }}"
 
+- name: Set fact for container status
+  ansible.builtin.set_fact:
+    pulp_container_status: >-
+      {{ pulp_container_status.containers[0].State.Status
+         if (pulp_container_status is defined and
+             pulp_container_status.containers | length > 0)
+         else 'not_running' }}
+
 - name: Reset Pulp Password
   containers.podman.podman_container_exec:
     name: "{{ pulp_container_name }}"

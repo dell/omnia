@@ -26,6 +26,8 @@ from ansible.module_utils.repo_manager.common_functions import (
     load_vault_yaml,
 )
 
+OMNIA_BASE = os.environ.get('OMNIA_DATA_PATH', '/opt/omnia')
+
 DOCUMENTATION = r"""
 ---
 module: vault_handler
@@ -56,14 +58,14 @@ author:
 EXAMPLES = r"""
 - name: Encrypt a credentials file
   vault_handler:
-    file_path: /opt/omnia/input/credentials.yml
-    vault_key: /opt/omnia/input/.vault_key
+    file_path: "{{ omnia_base }}/input/credentials.yml"
+    vault_key: "{{ omnia_base }}/input/.vault_key"
     mode: encrypt
 
 - name: Decrypt a credentials file
   vault_handler:
-    file_path: /opt/omnia/input/credentials.yml
-    vault_key: /opt/omnia/input/.vault_key
+    file_path: "{{ omnia_base }}/input/credentials.yml"
+    vault_key: "{{ omnia_base }}/input/.vault_key"
     mode: decrypt
 """
 

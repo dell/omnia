@@ -100,6 +100,15 @@ cleanup_pulp ──────────────────────�
 | Download status CSV | `/opt/omnia/repo_manager/output/<project_name>/` |
 | Validation logs | `/var/log/omnia/repo_manager/repo_manager.log` |
 
+## Environment Variables
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `OMNIA_DATA_PATH` | Base directory for Omnia installation | `/opt/omnia` |
+| `OMNIA_PROJECT_NAME` | Project name identifier | `project_default` |
+
+Paths can be customized using the `OMNIA_DATA_PATH` environment variable for portability across different installation locations.
+
 ## Key Paths
 
 | Path | Purpose |
@@ -221,4 +230,64 @@ plugins/
 └── module_utils/      # Module utilities
     ├── input_validation/  # Input validation framework
     └── repo_manager/       # Repo manager utilities
+```
+
+## Policy Configuration
+
+### Repository Configuration Policy
+
+Controls how repositories are configured and processed:
+
+```yaml
+repo_config: "partial"  # Options: always | partial
+```
+
+- `always`: Always configure all repositories regardless of existing state
+- `partial`: Only configure repositories that are not already configured
+
+### Caching Policy
+
+Controls content synchronization behavior:
+
+```yaml
+caching_policy: true    # Options: true (on_demand) | false (immediate)
+# Note: Per-repo 'caching' field overrides global caching_policy when set
+```
+
+- `true` (on_demand): Content is synchronized only when needed
+- `false` (immediate): Content is always synchronized immediately
+
+### Additional Repositories
+
+Additional repository configurations:
+
+```yaml
+additional_repos: {}
+```
+
+### User Repositories
+
+User-defined repository configurations:
+
+```yaml
+user_repos: {}
+```
+
+### Policy Prioritization
+
+Repository policies are prioritized in the following order:
+
+1. Per-repo `caching` field (highest priority)
+2. Global `caching_policy` setting
+3. Default behavior based on `repo_config` setting
+
+Example:
+```yaml
+# Global policy
+caching_policy: true  # on_demand by default
+
+# Per-repo override
+additional_repos:
+  custom_repo:
+    caching: false  # This repo uses immediate sync, overriding global policy
 ```

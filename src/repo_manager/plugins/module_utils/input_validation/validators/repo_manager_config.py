@@ -20,31 +20,32 @@ This module validates repo_manager_config.yml for:
 - User registry configuration
 - Repository URL validation
 - Subscription status checking
-- JSON file existence for softwares
+- Catalog package repository mapping validation
+- Catalog image registry mapping validation
 """
 import os
 import glob
 import re
+import json
 
 from ansible.module_utils.input_validation.core.config import (
     files, SYSTEM_ENTITLEMENT_PATH, SYSTEM_REDHAT_REPO,
     CONTAINER_ENTITLEMENT_PATH, CONTAINER_REDHAT_REPO,
     OMNIA_ENTITLEMENT_PATH, OMNIA_REDHAT_REPO,
-    ADDITIONAL_PACKAGES_SUPPORTED_SUBGROUPS
+    CATALOG_DIR, CATALOG_FILE_PATH, OMNIA_BASE_DIR
 )
 from ansible.module_utils.input_validation.core.utils import create_error_msg, create_file_path
 from ansible.module_utils.input_validation.core.file_utils import load_json
 from ansible.module_utils.input_validation.messages.common_messages import (
     CERTIFICATE_FILE_NOT_FOUND_MSG, KEY_FILE_NOT_FOUND_MSG,
-    EMPTY_REPO_NAME_FIELD_MSG, DUPLICATE_REPO_NAMES_MSG,
-    REPO_NAME_DUPLICATE_MSG, NO_REQUIRED_REPO_URLS_MSG
+    NO_REQUIRED_REPO_URLS_MSG, DUPLICATE_REPO_NAME_IN_ARCH_MSG,
+    PRIORITY_MUST_BE_INTEGER_MSG, PRIORITY_MUST_BE_IN_RANGE_MSG,
+    MISSING_REPO_CONFIGURATION_MSG
 )
-
-from ansible.module_utils.repo_manager.software_utils import get_json_file_path
 
 
 def validate(
-    input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
+    input_file_path, data, logger, _module, _omnia_base_dir, _module_utils_base, _project_name
 ):
     """
     Validates local repo configuration.
@@ -81,92 +82,121 @@ def validate(
                     repo_manager_config_yml, "user_registry",
                     f"{KEY_FILE_NOT_FOUND_MSG}: {key_path}"))
 
-    # Validate user_repo_url entries have a 'name' field
-    for repo_key in ("user_repo_url_x86_64", "user_repo_url_aarch64"):
-        user_repos = data.get(repo_key)
-        if user_repos:
-            for repo in user_repos:
-                repo_name = repo.get("name", "")
-                if not repo_name:
-                    errors.append(create_error_msg(
-                        repo_manager_config_yml, repo_key,
-                        EMPTY_REPO_NAME_FIELD_MSG
-                    ))
+    # Validate caching_policy parameter
+    caching_policy = data.get("caching_policy")
+    if caching_policy is not None and not isinstance(caching_policy, bool):
+        errors.append(create_error_msg(
+            repo_manager_config_yml, "caching_policy",
+            f"caching_policy must be a boolean, got {type(caching_policy).__name__}"
+        ))
 
     # Collect repo names and check for duplicates
-    repo_names = {}
     sub_result = _check_subscription_status(logger)
     logger.info(f"validate_repo_manager_config: Subscription status: {sub_result}")
 
     all_archs = ['x86_64', 'aarch64']
-    url_list = ["omnia_repo_url_rhel", "rhel_os_url", "user_repo_url"]
 
-    # Get cluster_os_type and cluster_os_version from repo_manager_config.yml (catalog-based approach)
-    cluster_os_type = data.get("cluster_os_type", "rhel")
+    # Get cluster_os_version from repo_manager_config.yml (catalog-based approach)
     cluster_os_version = data.get("cluster_os_version", "10.0")
 
+    # Check for duplicate repo names using new collection method
     for arch in all_archs:
-        arch_repo_names = []
-        arch_list = url_list + [url + '_' + arch for url in url_list]
-        base_subscription_repos = []
+        repos_section = data.get("repositories", {}).get(cluster_os_version, {}).get(arch, {})
+        names = _collect_all_repo_names(repos_section)
 
+        # Add base subscription repos if subscription is active
         if sub_result:
             base_subscription_repos = ["baseos", "appstream", "codeready-builder"]
-            logger.info(f"Base subscription repos for {arch}: {base_subscription_repos}")
+            names = names + base_subscription_repos
 
-        # Collect repo names from standard repo lists
-        for repurl in arch_list:
-            repos = data.get(repurl)
-            if repos:
-                for x in repos:
-                    raw_name = x.get('name')
-                    if raw_name:
-                        arch_repo_names.append(raw_name)
-
-        # Handle rhel_subscription_repo_config separately
-        subscription_config_key = f"rhel_subscription_repo_config_{arch}"
-        subscription_config = data.get(subscription_config_key, [])
-        if subscription_config:
-            for repo in subscription_config:
-                raw_name = repo.get('name')
-                if raw_name:
-                    if raw_name not in base_subscription_repos:
-                        arch_repo_names.append(raw_name)
-                        logger.info(f"Adding new subscription config repo: {raw_name}")
-                    else:
-                        logger.info(f"Skipping base repo override from duplicate check: {raw_name}")
-
-        # Add additional_repos names
-        additional_repos_key = f"additional_repos_{arch}"
-        additional_repos = data.get(additional_repos_key)
-        if additional_repos:
-            for x in additional_repos:
-                raw_name = x.get('name')
-                if raw_name:
-                    arch_repo_names.append(raw_name)
-
-        # Add base subscription repos
-        if sub_result:
-            arch_repo_names = arch_repo_names + base_subscription_repos
-
-        repo_names[arch] = arch_repo_names
-        logger.info(f"Total repos for {arch}: {repo_names[arch]}")
-
-    # Check for duplicate repo names
-    for k, v in repo_names.items():
-        if len(v) != len(set(v)):
-            errors.append(create_error_msg(repo_manager_config_yml, k, DUPLICATE_REPO_NAMES_MSG))
-            for c in set(v):
-                if v.count(c) > 1:
-                    errors.append(create_error_msg(
-                        repo_manager_config_yml, k,
-                        REPO_NAME_DUPLICATE_MSG.format(name=c)
-                    ))
+        # Check for duplicates
+        seen = set()
+        for name in names:
+            if name in seen:
+                errors.append(DUPLICATE_REPO_NAME_IN_ARCH_MSG.format(name=name, arch=arch))
+            seen.add(name)
 
     # Note: Software-specific validations are now handled by catalog-based approach
     # The catalog JSON files define packages and their dependencies directly
 
+    # Validate catalog package repository mapping
+    catalog_errors = _validate_catalog_repo_mapping(
+        data, cluster_os_version, all_archs, logger, omnia_base_dir
+    )
+    errors.extend(catalog_errors)
+
+    # Validate catalog image registry mapping
+    registry_errors = _validate_catalog_registry_mapping(
+        data, logger, omnia_base_dir
+    )
+    errors.extend(registry_errors)
+
     return errors
+
+
+def _collect_all_repo_names(repos_section):
+    """
+    Collect all repository names from both flat and nested structures.
+    Handles additional_repos and user_repos as nested containers.
+    """
+    names = []
+    for repo_name in repos_section:
+        if repo_name in ("additional_repos", "user_repos"):
+            nested = repos_section.get(repo_name, {}) or {}
+            for nested_name in nested:
+                names.append(nested_name)
+        else:
+            names.append(repo_name)
+    return names
+
+
+def _get_catalog_path(logger):
+    """
+    Get catalog path using consistent priority:
+    1. CATALOG_FILE_PATH environment variable (primary)
+    2. CATALOG_DIR discovery (fallback)
+    3. Hardcoded fallback (last resort)
+    
+    Args:
+        logger: Logger instance.
+    
+    Returns:
+        str: Catalog file path or None if not found.
+    """
+    # Priority 1: CATALOG_FILE_PATH environment variable
+    if CATALOG_FILE_PATH:
+        if os.path.exists(CATALOG_FILE_PATH):
+            logger.info("Using CATALOG_FILE_PATH env var: %s", CATALOG_FILE_PATH)
+            return CATALOG_FILE_PATH
+        logger.warning(f"CATALOG_FILE_PATH set but file not found: {CATALOG_FILE_PATH}")
+    
+    # Priority 2: CATALOG_DIR discovery
+    if os.path.exists(CATALOG_DIR):
+        catalog_files = glob.glob(os.path.join(CATALOG_DIR, "*.json"))
+        if catalog_files:
+            logger.info(f"Using discovered catalog from CATALOG_DIR: {catalog_files[0]}")
+            return catalog_files[0]
+        logger.warning(f"CATALOG_DIR exists but no JSON files found: {CATALOG_DIR}")
+    else:
+        logger.warning(f"CATALOG_DIR not found: {CATALOG_DIR}")
+    
+    # Priority 3: Hardcoded fallback
+    catalog_path = os.path.join(OMNIA_BASE_DIR, "catalog", "catalog_rhel.json")
+    logger.warning(f"Using fallback catalog path: {catalog_path}")
+    return catalog_path
+
+
+def _validate_priority(repo_config, repo_path, errors):
+    """
+    Validate priority field if present in repository configuration.
+    """
+    if repo_config and isinstance(repo_config, dict):
+        priority = repo_config.get("priority")
+        if priority is not None:
+            if not isinstance(priority, int):
+                errors.append(PRIORITY_MUST_BE_INTEGER_MSG.format(repo_path=repo_path))
+            elif priority < 1 or priority > 100:
+                errors.append(PRIORITY_MUST_BE_IN_RANGE_MSG.format(repo_path=repo_path))
 
 
 def _check_subscription_status(logger=None):
@@ -239,3 +269,173 @@ def _check_subscription_status(logger=None):
         )
 
     return subscription_enabled
+
+
+def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs, logger, _omnia_base_dir):
+    """
+    Validate that all catalog package reponame entries have corresponding repositories
+    in repo_manager_config.yml.
+
+    Args:
+        config_data (dict): Parsed repo_manager_config.yml data.
+        cluster_os_version (str): OS version (e.g., "10.0").
+        all_archs (list): List of architectures to validate.
+        logger: Logger instance.
+        _omnia_base_dir (str): Base directory for catalog path (unused).
+
+    Returns:
+        list: List of error messages.
+    """
+    errors = []
+
+    # Use unified catalog path resolution
+    catalog_path = _get_catalog_path(logger)
+    if not catalog_path or not os.path.exists(catalog_path):
+        logger.warning("Catalog file not found, skipping repo mapping validation")
+        return errors
+    
+    try:
+        catalog = load_json(catalog_path)
+        catalog_obj = catalog.get("catalog") or catalog.get("Catalog") or catalog
+        packages = catalog_obj.get("packages") or catalog_obj.get("Packages") or {}
+    except (json.JSONDecodeError, FileNotFoundError, KeyError, TypeError) as e:
+        logger.warning(f"Failed to load catalog from {catalog_path}: {e}, skipping repo mapping validation")
+        return errors
+
+    # Collect all configured repositories per architecture
+    configured_repos = {}
+    for arch in all_archs:
+        repos_section = config_data.get("repositories", {}).get(cluster_os_version, {}).get(arch, {})
+        repo_names = _collect_all_repo_names(repos_section)
+        configured_repos[arch] = set(repo_names)
+    
+    # Check each package's reponame against configured repositories
+    missing_repos = {}
+    for pkg_name, pkg_def in packages.items():
+        sources = pkg_def.get("sources") or pkg_def.get("Sources") or []
+        if not isinstance(sources, list):
+            continue
+        
+        for source in sources:
+            arch = source.get("architecture", "")
+            reponame = source.get("reponame") or source.get("RepoName", "")
+            
+            if not reponame or not arch:
+                continue
+            
+            # Skip if architecture not in our list
+            if arch not in all_archs:
+                continue
+            
+            # Check if reponame is configured
+            if arch in configured_repos and reponame not in configured_repos[arch]:
+                if reponame not in missing_repos:
+                    missing_repos[reponame] = []
+                missing_repos[reponame].append(arch)
+    
+    # Generate errors for missing repositories
+    for reponame, archs in missing_repos.items():
+        errors.append(
+            MISSING_REPO_CONFIGURATION_MSG.format(
+                reponame=reponame,
+                archs=archs,
+                cluster_os_version=cluster_os_version
+            )
+        )
+    
+    if errors:
+        logger.error(f"Found {len(errors)} missing repository mappings in config")
+    else:
+        logger.info("All catalog package repositories are configured in repo_manager_config.yml")
+    
+    return errors
+
+
+def _validate_catalog_registry_mapping(config_data, logger, _omnia_base_dir):
+    """
+    Validate that all catalog image registry entries have corresponding user registry
+    details in repo_manager_config.yml (for private registries only).
+
+    Public registries (docker.io, ghcr.io, quay.io, registry.k8s.io) are allowed
+    without user registry configuration.
+
+    Args:
+        config_data (dict): Parsed repo_manager_config.yml data.
+        logger: Logger instance.
+        _omnia_base_dir (str): Base directory for catalog path (unused).
+
+    Returns:
+        list: List of error messages.
+    """
+    errors = []
+
+    # Use unified catalog path resolution
+    catalog_path = _get_catalog_path(logger)
+    if not catalog_path or not os.path.exists(catalog_path):
+        logger.warning("Catalog file not found, skipping registry mapping validation")
+        return errors
+    
+    try:
+        catalog = load_json(catalog_path)
+        catalog_obj = catalog.get("catalog") or catalog.get("Catalog") or catalog
+        packages = catalog_obj.get("packages") or catalog_obj.get("Packages") or {}
+    except (json.JSONDecodeError, FileNotFoundError, KeyError, TypeError) as e:
+        logger.warning(f"Failed to load catalog from {catalog_path}: {e}, skipping registry mapping validation")
+        return errors
+
+    # Public registries that don't require user registry configuration
+    public_registries = {
+        "docker.io",
+        "ghcr.io",
+        "quay.io",
+        "registry.k8s.io",
+        "nvcr.io",
+        "public.ecr.aws",
+        "gcr.io"
+    }
+
+    # Collect configured user registries
+    configured_registries = set()
+    registries_section = config_data.get("registries", {})
+    if isinstance(registries_section, dict):
+        configured_registries = set(registries_section.keys())
+
+    # Check each image package's registry
+    private_registries_missing = set()
+    for pkg_name, pkg_def in packages.items():
+        packagetype = pkg_def.get("packagetype") or pkg_def.get("PackageType", "")
+        if packagetype != "image":
+            continue
+
+        sources = pkg_def.get("sources") or pkg_def.get("Sources") or []
+        if not isinstance(sources, list):
+            continue
+
+        for source in sources:
+            registry = source.get("registry") or source.get("Registry", "")
+
+            if not registry:
+                continue
+
+            # Skip public registries
+            if registry in public_registries:
+                continue
+
+            # Check if private registry is configured
+            if registry not in configured_registries:
+                private_registries_missing.add(registry)
+
+    # Generate errors for missing private registry configurations
+    for registry in sorted(private_registries_missing):
+        errors.append(
+            f"Catalog image references private registry '{registry}', "
+            f"but this registry is not configured in repo_manager_config.yml under 'registries'. "
+            f"Please add the registry configuration with BaseURL, Port, Auth, and TLS settings."
+        )
+
+    if errors:
+        logger.error(f"Found {len(errors)} missing private registry configurations")
+    else:
+        logger.info("All catalog image registries are properly configured in repo_manager_config.yml")
+
+    return errors
