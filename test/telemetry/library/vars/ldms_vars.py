@@ -55,7 +55,7 @@ LDMS_FUNCTIONAL_GROUPS = [
 # =============================================================================
 
 # Systemd service name for LDMS sampler
-LDMS_SAMPLER_SERVICE = "ldmsd.sampler.service"
+LDMS_SAMPLER_SERVICE = "ldmsd.service"
 
 # LDMS sampler configuration file path
 LDMS_SAMPLER_CONF_PATH = "/opt/ovis-ldms/etc/ldms/sampler.conf"
