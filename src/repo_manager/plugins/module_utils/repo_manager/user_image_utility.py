@@ -321,7 +321,13 @@ def process_user_registry(
     )
     remote_name = f"user_remote_{package['package'].replace('/', '_').replace(':', '_')}"
     package_identifier = package["package"]
-    policy_type = "immediate"
+
+    # Read container sync policy from config
+    from ansible.module_utils.repo_manager.repo_settings import (
+        _config, get_container_sync_policy
+    )
+    policy_type = get_container_sync_policy(_config)
+
     if not host.startswith(("http://", "https://")):
         protocol = "https" if (cacert and key) else "http"
         host = f"{protocol}://{host}"

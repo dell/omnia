@@ -51,6 +51,9 @@ pulp_python_commands = {
 pulp_container_commands = {
     "create_container_repo": "pulp container repository create --name %s",
     "show_container_repo": "pulp container repository show --name %s",
+    "container_distribution_show": "pulp container distribution show --name %s",
+    "show_repository_version": "pulp container repository version show --repository-href %s",
+    "list_image_tags": "pulp show --href '/pulp/api/v3/content/container/tags/?repository_version=%s'",
     "create_container_remote": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --include-tags '[\"%s\"]' --exclude-tags '[\"*sha256*.sig\"]'",
     "create_container_remote_for_digest": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --exclude-tags '[\"*sha256*.sig\"]'",
     "create_user_remote_tag": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --include-tags '[\"%s\"]' --exclude-tags '[\"*sha256*.sig\"]' --ca-cert %s --client-key %s --tls-validation false",
@@ -72,22 +75,7 @@ pulp_container_commands = {
     "create_user_remote_digest_auth": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --exclude-tags '[\"*sha256*.sig\"]' --ca-cert %s --client-key %s --tls-validation false --username %s --password '%s'",
     "update_user_remote_digest_auth": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --exclude-tags '[\"*sha256*.sig\"]' --ca-cert %s --client-key %s --tls-validation false --username %s --password '%s'",
     "create_container_remote_for_digest_auth": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --exclude-tags '[\"*sha256*.sig\"]' --username %s --password '%s'",
-    "update_remote_for_digest_auth": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --exclude-tags '[\"*sha256*.sig\"]' --username %s --password '%s'",
-    # Cleanup commands
-    "delete_repository": "pulp container repository destroy --name %s",
-    "delete_remote": "pulp container remote destroy --name %s",
-    "delete_distribution": "pulp container distribution destroy --name %s",
-    "list_repositories": "pulp container repository list --limit 1000",
-    "list_remotes": "pulp container remote list --limit 1000",
-    "list_distributions": "pulp container distribution list --limit 1000",
-    # Tag-specific cleanup commands
-    "get_repo_version": "pulp container repository show --href %s",
-    "list_tags_by_version": "pulp show --href /pulp/api/v3/content/container/tags/?repository_version=%s",
-    "rename_repository": "pulp container repository update --name %s --new-name %s",
-    "orphan_cleanup": "pulp orphan cleanup --protection-time 0",
-    "container_distribution_show": "pulp container distribution show --name %s | jq .repository",
-    "show_repository_version": "pulp container repository show --href %s | jq .latest_version_href",
-    "list_image_tags": "pulp show --href /pulp/api/v3/content/container/tags/?repository_version=%s"
+    "update_remote_for_digest_auth": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --exclude-tags '[\"*sha256*.sig\"]' --username %s --password '%s'"
 }
 
 pulp_rpm_commands = {

@@ -126,3 +126,15 @@
       - "========================================"
       - ""
       - "Deployment will {{ 'update existing' if pulp_container_exists else 'create new' }} container"
+
+# ═══ Check existing Pulp health (if container already exists) ═══
+- name: Check if Pulp container already exists
+  ansible.builtin.command:
+    cmd: podman container exists {{ pulp_container_name }}
+  register: _pulp_exists
+  changed_when: false
+  failed_when: false
+
+- name: Run health check on existing Pulp
+  ansible.builtin.include_tasks: pulp_health_check.yml
+  when: _pulp_exists.rc == 0

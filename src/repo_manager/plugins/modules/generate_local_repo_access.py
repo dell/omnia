@@ -37,6 +37,8 @@ from urllib.parse import urlparse, urlunparse
 
 from ansible.module_utils.basic import AnsibleModule
 
+OMNIA_BASE = os.environ.get('OMNIA_DATA_PATH', '/opt/omnia')
+
 __metaclass__ = type  # pylint: disable=invalid-name
 
 DOCUMENTATION = r'''
@@ -104,8 +106,8 @@ EXAMPLES = r'''
     cluster_os_version: "9.4"
     repo_config: partial
     output_path: "{{ output_dir }}/repo_status.yml"
-    certs_dir: /opt/omnia/pulp_config/settings/certs
-    local_repo_config_path: /opt/omnia/input/repo_manager_config.yml
+    certs_dir: "{{ omnia_base }}/pulp_config/settings/certs"
+    local_repo_config_path: "{{ omnia_base }}/input/repo_manager_config.yml"
 '''
 
 RETURN = r'''

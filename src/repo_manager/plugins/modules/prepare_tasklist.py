@@ -33,7 +33,9 @@ from ansible.module_utils.repo_manager.catalog_resolver import (
     build_global_package_index,
     parse_repo_urls_from_config,
     parse_additional_repos_from_config,
+    parse_user_repos_from_config,
 )
+from ansible.module_utils.repo_manager.repo_settings import get_caching_policy
 from ansible.module_utils.repo_manager.mirror_status import (
     load_mirror_index,
     save_mirror_index,
@@ -225,15 +227,18 @@ def main():
                     )
         save_mirror_index(mirror_index_path, mirror_data, logger)
 
+        # Get global caching policy from config
+        global_caching_policy = get_caching_policy(config_data)
+
         # Parse repository URLs from config
         local_config = []
         for arch in sw_archs:
             repos = parse_repo_urls_from_config(config_data, repo_config, arch,
-                                                 cluster_os_version, logger)
+                                                 cluster_os_version, logger, global_caching_policy)
             for repo in repos:
                 sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, repo["name"])
                 pulp_policy = resolve_pulp_policy(repo.get("policy", repo_config),
-                                                   repo.get("caching", True), logger)
+                                                   repo.get("caching", global_caching_policy), logger)
                 local_config.append({
                     "package": sw_name,
                     "url": repo["url"],
@@ -255,7 +260,7 @@ def main():
                         sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, name)
                         pulp_policy = resolve_pulp_policy(
                             url_entry.get("policy", repo_config),
-                            url_entry.get("caching", True), logger)
+                            url_entry.get("caching", global_caching_policy), logger)
                         local_config.append({
                             "package": sw_name,
                             "url": url_entry.get("url", ""),
@@ -272,11 +277,21 @@ def main():
         additional_repos_config = {}
         for arch in sw_archs:
             add_repos = parse_additional_repos_from_config(
-                config_data, repo_config, arch, cluster_os_version, logger)
+                config_data, repo_config, arch, cluster_os_version, logger, global_caching_policy)
             if add_repos:
                 additional_repos_config[arch] = add_repos
             else:
                 additional_repos_config[arch] = []
+
+        # Parse user repos from config
+        user_repos_config = {}
+        for arch in sw_archs:
+            user_repos = parse_user_repos_from_config(
+                config_data, cluster_os_version, arch, repo_config, logger, global_caching_policy)
+            if user_repos:
+                user_repos_config[arch] = user_repos
+            else:
+                user_repos_config[arch] = []
 
         logger.info(f"Package processing completed: {final_tasks_dict}")
         module.exit_json(
@@ -284,6 +299,7 @@ def main():
             software_dict=final_tasks_dict,
             local_config=local_config,
             additional_repos_config=additional_repos_config,
+            user_repos_config=user_repos_config,
             sw_archs=sw_archs
         )
 

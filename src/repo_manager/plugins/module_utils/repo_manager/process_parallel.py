@@ -211,7 +211,7 @@ def setup_logger(log_dir, log_file_path):
         # Create a file handler to write logs to the specified file
         file_handler = logging.FileHandler(log_file_path)
         # Define the format for log messages
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter('%(asctime)s - %(levelname)-7s - [%(filename)s] - %(message)s')
         # Apply the formatter to the file handler
         file_handler.setFormatter(formatter)
         # Add the file handler to the logger
@@ -288,7 +288,7 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
 
         # Log the success and return the result
         with log_lock:
-            logger.info(f"Task {function.__name__} succeeded.")
+            logger.info(f"Task {function.__name__} completed.")
             logger.info(f"### {execute_task.__name__} end ###")
 
         return {
@@ -436,13 +436,13 @@ def execute_parallel(
         tag = task.get('tag', '')
         digest = task.get('digest', '')
         package_key = f"{task.get('package', '')}:{tag}:{digest}"
-        
+
         if package_key not in seen_packages:
             seen_packages.add(package_key)
             deduplicated_tasks.append(task)
         else:
             standard_logger.info(f"Skipping duplicate task: {package_key}")
-    
+
     tasks = deduplicated_tasks
 
     # Create a pool of worker processes to handle the tasks

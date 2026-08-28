@@ -35,20 +35,26 @@ from ansible.module_utils.repo_manager.parse_and_download import execute_command
 from ansible.module_utils.repo_manager.config import (
     PACKAGE_TYPES,
     CSV_COLUMNS,
-    SOFTWARE_CONFIG_SUBDIR,
+    SOFTWARES_KEY,
     DEFAULT_STATUS_FILENAME,
     STATUS_CSV_HEADER,
     RPM_LABEL_TEMPLATE,
-
-    SOFTWARES_KEY,
     POLICY_CACHING_MAP,
     DEFAULT_POLICY,
-    DEFAULT_CACHING,
+    DEFAULT_CACHING_POLICY,
     ARCH_SUFFIXES,
-    ADDITIONAL_REPOS_KEY,
     REPO_NAME_FORMAT,
     REPO_NAME_PREFIX_FORMAT,
-    pulp_container_commands
+    iterate_all_repos,
+    get_repos_section,
+)
+from ansible.module_utils.repo_manager.pulp_commands import (
+    pulp_file_commands,
+    pulp_python_commands,
+    pulp_container_commands,
+    pulp_rpm_commands,
+    DNF_COMMANDS,
+    DNF_INFO_COMMANDS,
 )
 
 
@@ -79,6 +85,30 @@ def build_repo_name_prefix(arch, os_type, os_version):
     """
     return REPO_NAME_PREFIX_FORMAT.format(arch=arch, os_type=os_type,
                                           os_version=os_version)
+
+
+def normalize_repo_name(repo_name, arch, os_type, os_version):
+    """
+    Normalize repository name to standard format if not already in format.
+
+    Args:
+        repo_name (str): Repository name from config
+        arch (str): Architecture (e.g., "x86_64")
+        os_type (str): OS type (e.g., "rhel")
+        os_version (str): OS version (e.g., "10.0")
+
+    Returns:
+        str: Normalized repository name in standard format
+    """
+    # Check if already in standard format
+    expected_prefix = f"{arch}_{os_type}_{os_version}_"
+
+    if repo_name.startswith(expected_prefix):
+        # Already in standard format, return as-is
+        return repo_name
+    else:
+        # Not in standard format, convert it
+        return build_repo_name(arch, os_type, os_version, repo_name)
 
 
 def load_json(file_path):
@@ -120,39 +150,6 @@ def load_yaml(file_path):
     """
     with open(file_path, 'r', encoding='utf-8') as file:
         return yaml.safe_load(file)
-
-
-def get_json_file_path(software_name, cluster_os_type,
-                       cluster_os_version, user_json_path, arch, software_version=None):
-    """
-    Generate the file path for a JSON file based on the provided software name,
-     cluster OS type, cluster OS version, and user JSON path.
-
-    Parameters:
-        software_name (str): The name of the software.
-        cluster_os_type (str): The type of the cluster operating system.
-        cluster_os_version (str): The version of the cluster operating system.
-        user_json_path (str): The path to the user JSON file.
-        arch: Architecture for a particular software
-        software_version (str, optional): Version of the software for versioned JSON files.
-            Used for software like service_k8s that have versioned JSON files
-            (e.g., service_k8s_v1.35.1.json).
-
-    Returns:
-        str or None: The file path for the JSON file if it exists, otherwise None.
-    """
-    base_path = os.path.dirname(os.path.abspath(user_json_path))
-
-    # Handle versioned JSON files (e.g., service_k8s_v1.35.1.json)
-    if software_name == "service_k8s" and software_version:
-        json_filename = f"{software_name}_v{software_version}.json"
-    else:
-        json_filename = f"{software_name}.json"
-
-    json_path = os.path.join(base_path,
-            f'{SOFTWARE_CONFIG_SUBDIR}/{arch}/{cluster_os_type}/{cluster_os_version}/{json_filename}'
-        )
-    return json_path
 
 
 def get_csv_file_path(software_name, user_csv_dir, arch):
@@ -330,7 +327,7 @@ def resolve_pulp_policy(policy_str, caching_val, logger=None):
     elif isinstance(caching_val, bool):
         caching = caching_val
     else:
-        caching = DEFAULT_CACHING
+        caching = DEFAULT_CACHING_POLICY
     pulp_policy = POLICY_CACHING_MAP.get(
         (policy, caching), "on_demand"
     )
@@ -374,197 +371,84 @@ def parse_repo_urls(repo_config, local_repo_config_path,
     archs_to_process = sw_archs if sw_archs else ARCH_SUFFIXES
     logger.info(f"Processing repository URLs for architectures: {archs_to_process}")
 
-    for arch in archs_to_process:
+    # Get cluster OS version from config
+    cluster_os_version = local_yaml.get("cluster_os_version", "10.0")
 
-        # Always ensure these are lists
-        rhel_repo_entry[arch] = list(local_yaml.get(f"rhel_os_url_{arch}") or [])
-        repo_entries[arch] = list(local_yaml.get(f"omnia_repo_url_rhel_{arch}") or [])
-        user_repo_entry[arch] = list(local_yaml.get(f"user_repo_url_{arch}") or [])
-        # In case of Subscription, Subscription URLs take precedence if present and non-empty
+    for arch in archs_to_process:
+        # Extract repos from new structure
+        repos_section = local_yaml.get("repositories", {}).get(cluster_os_version, {}).get(arch, {})
+
+        # Collect all repos using shared utility
+        all_repos = []
+        for repo_name, repo_config in iterate_all_repos(repos_section):
+            entry = {"name": repo_name}
+            if repo_config and isinstance(repo_config, dict):
+                entry.update(repo_config)
+            all_repos.append(entry)
+
+        repo_entries[arch] = all_repos
+
+        # Handle subscription URLs if present
         if sub_urls and arch in sub_urls and sub_urls[arch]:
             logger.info(f"Subscription URLs detected for arch {arch}. Overriding RHEL URLs.")
-            if not isinstance(rhel_repo_entry.get(arch), list):
-                rhel_repo_entry[arch] = []
-            rhel_repo_entry[arch] = list(sub_urls[arch])
-            logger.info(f" Updated RHEL URLs: {rhel_repo_entry[arch]}")
+            # Merge subscription repos with existing repos
+            sub_repos = [{"name": "baseos", "url": url} for url in sub_urls[arch]]
+            repo_entries[arch] = sub_repos + repo_entries[arch]
+            logger.info(f" Updated repos with subscription: {repo_entries[arch]}")
 
     parsed_repos = []
     vault_key_path = os.path.join(
         vault_key_path, ".local_repo_credentials_key")
 
-    # Handle user repositories
-    for arch, repo_list in user_repo_entry.items():
+    # Process all repos from new structure
+    for arch, repo_list in repo_entries.items():
         if not repo_list:
-            logger.info(f"No user repository entries found for {arch}")
+            logger.info(f"No repository entries found for {arch}")
             continue
-        for url_ in repo_list:
-            name = url_.get("name", "unknown")
-            url = url_.get("url", "")
-            gpgkey = url_.get("gpgkey", "")
-            ca_cert = url_.get("sslcacert", "")
-            client_key = url_.get("sslclientkey", "")
-            client_cert = url_.get("sslclientcert", "")
-            policy_given = url_.get("policy", repo_config)
-            caching_given = url_.get("caching", True)
-            policy = resolve_pulp_policy(
-                policy_given, caching_given, logger
-            )
-
-            logger.info(f"Processing user repo '{name}' for arch '{arch}' - URL: {url}")
-
-            for path in [ca_cert, client_key, client_cert]:
-                mode = "decrypt"
-                if path and is_encrypted(path):
-                    result, message = process_file(path, vault_key_path, mode)
-                    if result is False:
-                        logger.error(f"Decryption failed for user repo path: {path} | Error: {message}")
-                        return f"Error during decrypt for user repository path:{path}", False
-
-            if not is_remote_url_reachable(url, client_cert=client_cert,
-                                           client_key=client_key, ca_cert=ca_cert):
-                logger.error(f"User repo URL unreachable: {url}")
-                return url, False
-
-            sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, name)
-            parsed_repos.append({
-                "package": sw_name,
-                "url": url,
-                "gpgkey": gpgkey if gpgkey else "null",
-                "version": "null",
-                "ca_cert": ca_cert,
-                "client_key": client_key,
-                "client_cert": client_cert,
-                "policy": policy,
-                "sw_arch": arch
-            })
-
-            logger.info(f"Added user repo entry: {sw_name}")
-
-    # Handle RHEL repositories (includes subscription-based repos)
-    for arch, repo_list in rhel_repo_entry.items():
-        for url_ in repo_list:
-            name = url_.get("name", "unknown")
-            url = url_.get("url", "")
-            gpgkey = url_.get("gpgkey", "")
-            ca_cert = url_.get("sslcacert", "")
-            client_key = url_.get("sslclientkey", "")
-            client_cert = url_.get("sslclientcert", "")
-            policy_given = url_.get("policy", repo_config)
-            caching_given = url_.get("caching", True)
-            policy = resolve_pulp_policy(
-                policy_given, caching_given, logger
-            )
-
-            logger.info(f"Processing RHEL repo '{name}' for arch '{arch}' - URL: {url}")
-            logger.info(f"RHEL SSL paths: ca_cert={ca_cert}, client_key={client_key}, client_cert={client_cert}")
-            logger.info(f"RHEL SSL files exist: ca_cert={os.path.exists(ca_cert) if ca_cert else 'N/A'}, "
-                         f"client_key={os.path.exists(client_key) if client_key else 'N/A'}, "
-                         f"client_cert={os.path.exists(client_cert) if client_cert else 'N/A'}")
-
-            for path in [ca_cert, client_key, client_cert]:
-                mode = "decrypt"
-                if path and is_encrypted(path):
-                    result, message = process_file(path, vault_key_path, mode)
-                    if result is False:
-                        logger.error(f"Decryption failed for RHEL repo path: {path} | Error: {message}")
-                        return f"Error during decrypt for rhel repository path:{path}", False
-
-            if not is_remote_url_reachable(url, client_cert=client_cert,
-                                           client_key=client_key, ca_cert=ca_cert):
-                logger.error(f"RHEL repo URL unreachable: {url}")
-                return url, False
-
-            # if not is_remote_url_reachable(url):
-            #     return url, False
-
-            sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, name)
-            parsed_repos.append({
-                "package": sw_name,
-                "url": url,
-                "gpgkey": gpgkey if gpgkey else "null",
-                "version": "null",
-                "ca_cert": ca_cert,
-                "client_key": client_key,
-                "client_cert": client_cert,
-                "policy": policy,
-                "sw_arch": arch
-            })
-            logger.info(f"Added RHEL repo entry: {sw_name}")
-
-    # Handle OMNIA repositories
-    seen_urls = set()
-    for arch, entries in repo_entries.items():
-        if not entries:
-            logger.info(f"No OMNIA repository entries found for {arch}")
-            continue
-
-        for repo in entries:
+        for repo in repo_list:
             name = repo.get("name", "unknown")
             url = repo.get("url", "")
             gpgkey = repo.get("gpgkey", "")
+            ca_cert = repo.get("sslcacert", "")
+            client_key = repo.get("sslclientkey", "")
+            client_cert = repo.get("sslclientcert", "")
             policy_given = repo.get("policy", repo_config)
             caching_given = repo.get("caching", True)
             policy = resolve_pulp_policy(
                 policy_given, caching_given, logger
             )
-            logger.info(f"Processing OMNIA repo '{name}' for arch '{arch}' - Template URL: {url}")
 
-            # Find unresolved template vars in URL
-            template_vars_url = re.findall(r"{{\s*(\w+)\s*}}", url)
-            unresolved_url = [var for var in template_vars_url if var not in version_variables]
-            if unresolved_url:
-                logger.info(f"Unresolved template vars in URL '{url}': {unresolved_url}")
-                continue
+            logger.info(f"Processing repo '{name}' for arch '{arch}' - URL: {url}")
 
-            try:
-                rendered_url = Template(url).render(version_variables)
-            except Exception as e:
-                logger.error(f"Failed to render URL template '{url}' | Error: {e}")
-                rendered_url = url  # fallback
+            for path in [ca_cert, client_key, client_cert]:
+                mode = "decrypt"
+                if path and is_encrypted(path):
+                    result, message = process_file(path, vault_key_path, mode)
+                    if result is False:
+                        logger.error(f"Decryption failed for repo path: {path} | Error: {message}")
+                        return f"Error during decrypt for repository path:{path}", False
 
-            if rendered_url in seen_urls:
-                logger.info(f"Skipping duplicate URL: {rendered_url}")
-                continue
-            seen_urls.add(rendered_url)
-
-            # # Skip reachability check for URLs containing k8s, cri-o, oneapi, snoopy, nvidia
-            if not any(skip_str in rendered_url for skip_str in ["k8s", "cri-o", "oneapi", "snoopy", "nvidia"]):
-                if not is_remote_url_reachable(rendered_url):
-                    logger.error(f"OMNIA repo URL unreachable: {rendered_url}")
-                    return rendered_url, False
-
-            # Handle gpgkey rendering (if present)
-            rendered_gpgkey = "null"
-            if gpgkey:
-                template_vars_gpg = re.findall(r"{{\s*(\w+)\s*}}", gpgkey)
-                unresolved_gpg = [var for var in template_vars_gpg if var not in version_variables]
-                if unresolved_gpg:
-                    continue
-
-                try:
-                    rendered_gpgkey = Template(gpgkey).render(version_variables)
-                except Exception:
-                    rendered_gpgkey = gpgkey  # fallback to original
+            if not is_remote_url_reachable(url, client_cert=client_cert,
+                                           client_key=client_key, ca_cert=ca_cert):
+                logger.error(f"Repo URL unreachable: {url}")
+                return url, False
 
             sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, name)
-            version = "null"
-            for var in template_vars_url:
-                if var in version_variables:
-                    version = version_variables[var]
-                    break
-
             parsed_repos.append({
                 "package": sw_name,
-                "url": rendered_url,
-                "gpgkey": rendered_gpgkey,
-                "version": version if version else "null",
+                "url": url,
+                "gpgkey": gpgkey if gpgkey else "null",
+                "version": "null",
+                "ca_cert": ca_cert,
+                "client_key": client_key,
+                "client_cert": client_cert,
                 "policy": policy,
                 "sw_arch": arch
             })
-            logger.info(f"Added OMNIA repo entry: {sw_name}")
 
-    logger.info(f"Successfully parsed {len(parsed_repos)} repository entries.")
-    return parsed_repos, True
+    logger.info(f"Total repos processed: {len(parsed_repos)}")
+
+    return parsed_repos
 
 
 def set_version_variables(user_data, software_names, cluster_os_version, logger):
@@ -581,12 +465,7 @@ def set_version_variables(user_data, software_names, cluster_os_version, logger)
     """
     version_variables = {}
 
-    for software in user_data.get(SOFTWARES_KEY, []):
-        name = software.get('name')
-        if name in software_names and 'version' in software:
-            version_variables[f"{name}_version"] = software['version']
-            logger.info("Added version variable from SOFTWARES_KEY: %s = %s", f"{name}_version", software['version'])
-
+    # Extract versions from catalog-based structure
     for key in software_names:
         for item in user_data.get(key, []):
             name = item.get('name')
@@ -703,7 +582,7 @@ def _sanitize_shell_arg(value, logger, field_name="value"):
 
 def check_additional_image_in_pulp(image_entry, logger):
     """
-    Checks if image present in additional_packages.json is configured in Pulp.
+    Checks if image present in catalog package definitions is configured in Pulp.
     """
     image_name = image_entry.get("package")
     image_tag = image_entry.get("tag", None)
@@ -806,16 +685,12 @@ def parse_json_data(file_path, package_types, logger, failed_list=None, subgroup
 
     filtered_list = []
 
-    # Check if file name is additional_packages.json
-    is_additional_packages = file_path.endswith("additional_packages.json")
-    logger.info("additional_packages present: %s", is_additional_packages)
-
     for key, package in data.items():
         if subgroup_list is None or key in subgroup_list:
             for value in package.values():
                 for item in value:
                     # For every image, check if it is present in Pulp
-                    if is_additional_packages and item.get("type") == "image":
+                    if item.get("type") == "image":
                         logger.info("Calling function to check %s existence in Pulp", item)
                         tag_missing_entry = check_additional_image_in_pulp(item, logger)
                         logger.info("tag_missing_entry: %s", tag_missing_entry)
@@ -1025,13 +900,6 @@ def remove_duplicates_from_trans(trans):
 
     for arch, groups in trans.items():
         for group, items in groups.items():
-
-            if group == "default_packages":  # Handle nested rpm_list case
-                for pkg in items:
-                    if pkg.get("type") in ("rpm", "rpm_repo") and "rpm_list" in pkg:
-                        pkg["rpm_list"] = list(dict.fromkeys(pkg["rpm_list"]))
-                continue
-
             unique = {}
             cleaned = []
 
@@ -1094,35 +962,37 @@ def parse_additional_repos(local_repo_config_path, repo_config, vault_key_path, 
 
     vault_key_full_path = os.path.join(vault_key_path, ".local_repo_credentials_key")
 
-    for arch in ARCH_SUFFIXES:
-        key = f"{ADDITIONAL_REPOS_KEY}_{arch}"
-        repo_list = local_yaml.get(key) or []
+    # Get cluster OS version from config
+    cluster_os_version = local_yaml.get("cluster_os_version", "10.0")
 
-        if not repo_list:
+    for arch in ARCH_SUFFIXES:
+        repos_section = get_repos_section(local_yaml, cluster_os_version, arch)
+        additional_repos = repos_section.get("additional_repos", {}) or {}
+
+        if not additional_repos:
             logger.info(f"No additional repos found for {arch}")
             additional_repos_config[arch] = []
             continue
 
         # Validate for duplicate names within this arch
-        names_seen = set()
-        for repo in repo_list:
-            name = repo.get("name", "")
-            if name in names_seen:
-                error_msg = f"Duplicate name '{name}' found in {key}. Each repo must have a unique name."
-                logger.error(error_msg)
-                return None, error_msg
-            names_seen.add(name)
+        names_seen = set(additional_repos.keys())
+        if len(names_seen) != len(additional_repos):
+            error_msg = f"Duplicate names found in additional_repos for {arch}. Each repo must have a unique name."
+            logger.error(error_msg)
+            return None, error_msg
 
         parsed_repos = []
-        for repo in repo_list:
-            name = repo.get("name", "unknown")
+        for repo_name, repo in additional_repos.items():
             url = repo.get("url", "")
             gpgkey = repo.get("gpgkey", "")
             ca_cert = repo.get("sslcacert", "")
             client_key = repo.get("sslclientkey", "")
             client_cert = repo.get("sslclientcert", "")
 
-            logger.info(f"Processing additional repo '{name}' for arch '{arch}' - URL: {url}")
+            logger.info(f"Processing additional repo '{repo_name}' for arch '{arch}' - URL: {url}")
+
+            # Normalize repo name to standard format
+            normalized_name = normalize_repo_name(repo_name, arch, "rhel", cluster_os_version)
 
             # Decrypt SSL certificates if encrypted
             for path in [ca_cert, client_key, client_cert]:
@@ -1141,7 +1011,8 @@ def parse_additional_repos(local_repo_config_path, repo_config, vault_key_path, 
                 return None, error_msg
 
             parsed_repos.append({
-                "name": name,
+                "name": normalized_name,
+                "original_name": repo_name,  # Keep original for reference
                 "url": url,
                 "gpgkey": gpgkey if gpgkey else "",
                 "ca_cert": ca_cert,
@@ -1150,7 +1021,7 @@ def parse_additional_repos(local_repo_config_path, repo_config, vault_key_path, 
                 "policy": global_policy,
                 "arch": arch
             })
-            logger.info(f"Added additional repo entry: {name}")
+            logger.info(f"Added additional repo entry: {repo_name} -> {normalized_name}")
 
         additional_repos_config[arch] = parsed_repos
 
@@ -1161,7 +1032,7 @@ def parse_additional_repos(local_repo_config_path, repo_config, vault_key_path, 
 
 def validate_additional_repos_names(local_repo_config_path, logger):
     """
-    Validates that names in additional_repos_* do not conflict with names in other repo keys.
+    Validates that names in additional_repos do not conflict with names in other repo keys.
 
     Args:
         local_repo_config_path (str): The path to the local repository configuration file.
@@ -1175,32 +1046,29 @@ def validate_additional_repos_names(local_repo_config_path, logger):
     logger.info("Starting validate_additional_repos_names()")
     local_yaml = load_yaml(local_repo_config_path)
 
-    # Keys to check for conflicts
-    other_repo_keys = {
-        "x86_64": ["user_repo_url_x86_64", "rhel_os_url_x86_64", "omnia_repo_url_rhel_x86_64"],
-        "aarch64": ["user_repo_url_aarch64", "rhel_os_url_aarch64", "omnia_repo_url_rhel_aarch64"]
-    }
+    # Get cluster OS version from config
+    cluster_os_version = local_yaml.get("cluster_os_version", "10.0")
 
     for arch in ARCH_SUFFIXES:
-        additional_key = f"{ADDITIONAL_REPOS_KEY}_{arch}"
-        additional_repos = local_yaml.get(additional_key) or []
+        repos_section = get_repos_section(local_yaml, cluster_os_version, arch)
+        additional_repos = repos_section.get("additional_repos", {}) or {}
 
         if not additional_repos:
             continue
 
         # Get all names from additional_repos for this arch
-        additional_names = {repo.get("name", "") for repo in additional_repos if repo.get("name")}
+        additional_names = set(additional_repos.keys())
 
-        # Check against other repo keys for the same arch
-        for other_key in other_repo_keys.get(arch, []):
-            other_repos = local_yaml.get(other_key) or []
-            for repo in other_repos:
-                other_name = repo.get("name", "")
-                if other_name in additional_names:
-                    error_msg = (f"Name '{other_name}' in {additional_key} conflicts with "
-                                 f"existing repo name in {other_key}. Please use a unique name.")
-                    logger.error(error_msg)
-                    return False, error_msg
+        # Get all other repo names from new structure
+        all_names = set(collect_all_repo_names(repos_section))
+        all_names -= additional_names  # Exclude additional repos from comparison
+
+        # Check for conflicts
+        conflicts = additional_names & all_names
+        if conflicts:
+            error_msg = f"Repo names conflict: {conflicts}. Additional repos must have unique names."
+            logger.error(error_msg)
+            return False, error_msg
 
     logger.info("Additional repos name validation passed.")
     return True, None

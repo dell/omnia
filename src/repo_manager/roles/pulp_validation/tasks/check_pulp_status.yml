@@ -56,13 +56,15 @@
         method: GET
         validate_certs: false
         return_content: true
+        status_code: [200]
       register: result
       retries: "{{ endpoint_retries }}"
       delay: "{{ endpoint_delay }}"
       timeout: "{{ endpoint_timeout }}"
       until: result.status == 200
+      failed_when: false
 
     - name: Fail when Pulp endpoint is not up
-      ansible.builtin.debug:
+      ansible.builtin.fail:
         msg: "{{ pulp_status_fail_msg }}"
-      when: result.status != 200
+      when: result.status | default(0) != 200
