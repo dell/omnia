@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: disable=import-error,no-name-in-module,too-many-branches,too-many-positional-arguments,too-many-arguments,too-many-locals,too-many-statements,broad-exception-caught,broad-exception-raised
+# pylint:
+# disable=import-error,no-name-in-module,too-many-branches,too-many-positional-arguments,too-many-arguments,too-many-locals,too-many-statements,broad-exception-caught,broad-exception-raised
 """This module handles mirroring of container images in the local repository."""
 
 import re
@@ -31,41 +32,45 @@ from ansible.module_utils.repo_manager.container_repo_utils import (
     sync_container_repository,
     repository_creation_lock
 )
+from ansible.module_utils.repo_manager.tag_validator import validate_tag_via_pulp_sync
 
 file_lock = Lock()
 
-# Per-tag lock manager to allow parallel processing of different versions
-_tag_locks = {}
-_tag_locks_lock = Lock()
+# Per-operation lock manager for thread-safe remote operations
+# Lock key is the remote name — ensures only one thread modifies a given remote at a time
+_operation_locks = {}
+_operation_locks_lock = Lock()
 
-def _get_tag_lock(tag):
+
+def _get_operation_lock(key):
     """
-    Get or create a lock for a specific tag.
-    
-    This allows different versions of the same image to be processed in parallel
-    while preventing race conditions for the same tag.
-    
+    Get or create a lock for a specific operation key.
+
+    Key is the remote name — ensures only one thread modifies a given remote at a time.
+    This prevents race conditions when multiple threads process different tags
+    for the same image (same remote).
+
     Args:
-        tag (str): The tag to get a lock for.
-    
+        key (str): The operation key (remote name) to get a lock for.
+
     Returns:
-        Lock: The lock for this specific tag.
+        Lock: The lock for this specific operation key.
     """
-    with _tag_locks_lock:
-        if tag not in _tag_locks:
-            _tag_locks[tag] = Lock()
-        return _tag_locks[tag]
+    with _operation_locks_lock:
+        if key not in _operation_locks:
+            _operation_locks[key] = Lock()
+        return _operation_locks[key]
 
 
 def _image_already_synced(repository_name, tag, logger):
     """
     Check if a specific tag already exists in the Pulp repository.
-    
+
     Args:
         repository_name (str): Name of the Pulp repository.
         tag (str): Specific tag to check.
         logger: Logger instance.
-    
+
     Returns:
         bool: True if the specific tag exists, False otherwise.
     """
@@ -73,7 +78,7 @@ def _image_already_synced(repository_name, tag, logger):
         # Check if repository has any content
         cmd = f"pulp container repository show --name {repository_name}"
         result = execute_command(cmd, logger, type_json=True)
-        
+
         if result and "stdout" in result:
             repo_data = result["stdout"]
             version_href = repo_data.get("latest_version_href")
@@ -100,7 +105,7 @@ def _image_already_synced(repository_name, tag, logger):
                         f"Skipping sync."
                     )
                     return True
-        
+
         return False
     except Exception as e:
         logger.warning(f"Error checking if image synced: {e}")
@@ -348,9 +353,27 @@ def get_repo_url_and_content(package):
 #     raise ValueError(f"Unsupported package prefix for package: {package}")
 
 def process_image(package, status_file_path, version_variables,
-                 user_registries, docker_username, docker_secret_token, logger):
+                  user_registries, docker_username, docker_secret_token, logger):
     """
-    Process an image.
+    Thread-safe image processing with mandatory tag validation.
+
+    ENFORCEMENTS:
+    1. Tag validation is REQUIRED before remote creation
+    2. Invalid tags are REJECTED (no fail-open)
+    3. Remote-level locking prevents concurrent modifications
+    4. Strict validation infrastructure requirements
+
+    PRESERVED:
+    - Repository naming (podman pull compatible)
+    - Distribution naming
+    - Remote naming (single remote per image)
+    - Tag accumulation in remote
+
+    THREAD SAFETY:
+    - Operation lock on remote name ensures only one thread modifies a given remote
+    - Different remotes can be processed in parallel
+    - No rollback needed - validation gate prevents bad state
+
     Args:
         package (dict): The package to process.
         repo_store_path (str): The path to the repository store.
@@ -362,16 +385,22 @@ def process_image(package, status_file_path, version_variables,
     Returns:
         str: "Success" if the image was processed successfully, "Failed" otherwise.
     """
-    logger.info("#" * 30 + f" {process_image.__name__} start " + "#" * 30)
+    logger.info(f"--- {process_image.__name__} START ---")
     status = "Success"
-    result =False
-    policy_type = "immediate"
+    result = False
+
+    # Read container sync policy from config
+    from ansible.module_utils.repo_manager.repo_settings import (
+        _config, get_container_sync_policy
+    )
+    policy_type = get_container_sync_policy(_config)
+
     base_url, package_content = get_repo_url_and_content(package['package'])
     package_identifier = None
     tag_val = None
 
-    # Only check user registries for additional_packages
-    if user_registries and "additional_packages" in status_file_path:
+    # Check user registries for image packages
+    if user_registries:
         result, package_identifier = handle_user_image_registry(
             package,
             package_content,
@@ -407,7 +436,7 @@ def process_image(package, status_file_path, version_variables,
             tag_val = package['digest']  # Use digest as tag for idempotency check
 
             # Get per-tag lock for this digest
-            tag_lock = _get_tag_lock(tag_val)
+            tag_lock = _get_operation_lock(tag_val)
 
             with tag_lock:
                 # Check idempotency for digest
@@ -430,10 +459,35 @@ def process_image(package, status_file_path, version_variables,
             tag_val = tag_template.render(**version_variables)
             package_identifier += f":{package['tag']}"
 
-            # Get per-tag lock for this tag
-            tag_lock = _get_tag_lock(tag_val)
+            # ═══ STEP 1: Pre-validate tag ═══
+            logger.info(f"Validating tag '{tag_val}' for {package['package']}...")
 
-            with tag_lock:
+            tag_valid = validate_tag_via_pulp_sync(
+                image_name=package['package'],
+                tag=tag_val,
+                logger=logger,
+                pulp_container_commands=pulp_container_commands,
+                execute_command=execute_command,
+                create_container_repository=create_container_repository,
+                get_repo_url_and_content=get_repo_url_and_content
+            )
+
+            if not tag_valid:
+                logger.error(
+                    f"SKIPPING: Tag '{tag_val}' does not exist upstream "
+                    f"for {package['package']}."
+                )
+                status = "Skipped-InvalidTag"
+                write_status_to_file(
+                    status_file_path, package_identifier, package['type'],
+                    status, logger, file_lock
+                )
+                return status
+
+            # Get operation lock for this remote
+            op_lock = _get_operation_lock(remote_name)
+
+            with op_lock:
                 # Check idempotency for tag
                 if _image_already_synced(repository_name, tag_val, logger):
                     logger.info(f"Image {package_identifier} already synced. Skipping.")
@@ -456,14 +510,14 @@ def process_image(package, status_file_path, version_variables,
                 if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
                     raise RuntimeError(f"Failed to create remote: {remote_name}")
 
-        # Sync and distribute
-        # Pass tag_val if it exists (for tag-based images), otherwise None (for digest-based images)
-        tag_to_pass = tag_val if "tag" in package else None
-        result = sync_container_repository(
-            repository_name, remote_name, package_content, logger, tag=tag_to_pass
-        )
-        if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
-            raise RuntimeError(f"Failed to sync repository: {repository_name}")
+                # Sync and distribute (inside operation lock)
+                # Pass tag_val if it exists (for tag-based images), otherwise None (for digest-based images)
+                tag_to_pass = tag_val if "tag" in package else None
+                result = sync_container_repository(
+                    repository_name, remote_name, package_content, logger, tag=tag_to_pass
+                )
+                if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
+                    raise RuntimeError(f"Failed to sync repository: {repository_name}")
 
     except Exception as e:
         status = "Failed"
@@ -472,5 +526,5 @@ def process_image(package, status_file_path, version_variables,
     write_status_to_file(
         status_file_path, package_identifier, package['type'], status, logger, file_lock
     )
-    logger.info("#" * 30 + f" {process_image.__name__} end " + "#" * 30)
+    logger.info(f"--- {process_image.__name__} END ---")
     return status

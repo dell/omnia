@@ -38,42 +38,55 @@ from ansible.module_utils.repo_manager.config import ARCH_SUFFIXES
 # Mirror Index (pulp_mirror_index.json)
 # ---------------------------------------------------------------------------
 
+def _empty_mirror_index():
+    """Return empty mirror index structure."""
+    return {
+        "MirrorIndex": {
+            "timestamp": "",
+            "summary": {
+                "total_unique": 0,
+                "mirrored": 0,
+                "failed": 0,
+                "pending": 0
+            },
+            "packages": {}
+        }
+    }
+
 def load_mirror_index(mirror_index_path, logger):
-    """Load the global mirror index from disk.
+    """Load the global mirror index from disk with corrupted JSON handling.
 
     Args:
         mirror_index_path (str): Path to pulp_mirror_index.json.
         logger: Logger instance.
 
     Returns:
-        dict: Mirror index data, or empty structure if file doesn't exist.
+        dict: Mirror index data, or empty structure if file doesn't exist or is corrupted.
     """
     if not os.path.isfile(mirror_index_path):
         logger.info("Mirror index not found at %s, starting fresh", mirror_index_path)
-        return {
-            "MirrorIndex": {
-                "timestamp": "",
-                "summary": {
-                    "total_unique": 0,
-                    "mirrored": 0,
-                    "failed": 0,
-                    "pending": 0
-                },
-                "packages": {}
-            }
-        }
+        return _empty_mirror_index()
 
-    with open(mirror_index_path, 'r', encoding='utf-8') as fh:
-        data = json.load(fh)
+    try:
+        with open(mirror_index_path, 'r', encoding='utf-8') as fh:
+            data = json.load(fh)
 
-    logger.info("Loaded mirror index from %s with %d packages",
-                mirror_index_path,
-                len(data.get("MirrorIndex", {}).get("packages", {})))
-    return data
+        logger.info("Loaded mirror index from %s with %d packages",
+                    mirror_index_path,
+                    len(data.get("MirrorIndex", {}).get("packages", {})))
+        return data
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.error(f"Mirror index file corrupted at {mirror_index_path}: {e}")
+        logger.info("Starting fresh with empty mirror index")
+        return _empty_mirror_index()
+    except Exception as e:
+        logger.error(f"Error loading mirror index from {mirror_index_path}: {e}")
+        logger.info("Starting fresh with empty mirror index")
+        return _empty_mirror_index()
 
 
 def save_mirror_index(mirror_index_path, mirror_data, logger):
-    """Save the global mirror index to disk.
+    """Save the global mirror index to disk using atomic write.
 
     Args:
         mirror_index_path (str): Path to pulp_mirror_index.json.
@@ -96,8 +109,12 @@ def save_mirror_index(mirror_index_path, mirror_data, logger):
     }
     mirror_data["MirrorIndex"]["summary"] = summary
 
-    with open(mirror_index_path, 'w', encoding='utf-8') as fh:
+    # Atomic write: write to temp file then replace
+    # Use unique temp filename per process to avoid race conditions in parallel execution
+    temp_path = f"{mirror_index_path}.tmp.{os.getpid()}"
+    with open(temp_path, 'w', encoding='utf-8') as fh:
         json.dump(mirror_data, fh, indent=2)
+    os.replace(temp_path, mirror_index_path)
 
     logger.info("Saved mirror index to %s: %d packages (mirrored=%d, failed=%d, pending=%d)",
                 mirror_index_path, summary["total_unique"],

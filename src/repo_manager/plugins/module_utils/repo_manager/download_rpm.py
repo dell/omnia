@@ -35,13 +35,13 @@ _rpm_locks_lock = Lock()
 def get_rpm_repository_lock(repo_name):
     """
     Get or create lock for specific RPM repository.
-    
+
     This allows different RPM repositories to be processed in parallel
     while preventing race conditions for the same repository.
-    
+
     Args:
         repo_name (str): The repository name to get a lock for.
-    
+
     Returns:
         Lock: The lock for this specific repository.
     """
@@ -135,7 +135,7 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
             str: "Success", "Partial", or "Failed".
     """
 
-    logger.info("#" * 30 + f" {process_rpm.__name__} start " + "#" * 30)
+    logger.info(f"--- {process_rpm.__name__} START ---")
 
     try:
         # Get repo_mapping for individual RPM repo names
@@ -164,13 +164,16 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
                 + rpm_list
             )
 
+            logger.info(f"Executing command: {' '.join(dnf_download_command)}")
             result = subprocess.run(
                 dnf_download_command,
                 check=False,
                 capture_output=True,
                 text=True
             )
-            logger.info(f"Return code {result.returncode}")
+            logger.info(f"Return code: {result.returncode}")
+            if result.returncode != 0 and result.stderr and result.stderr.strip():
+                logger.error(f"STDERR: {result.stderr.strip()}")
             logger.debug(f"STDOUT:\n{result.stdout}")
             logger.debug(f"STDERR:\n{result.stderr}")
 
@@ -211,7 +214,11 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
                 logger.warning(f"Retrying failed packages individually: {failed}")
                 for pkg in failed[:]:
                     cmd = DNF_COMMANDS[arch_key] + [f'--destdir={rpm_directory}', pkg]
+                    logger.info(f"Executing command: {' '.join(cmd)}")
                     retry_res = subprocess.run(cmd, check=False, capture_output=True, text=True)
+                    logger.info(f"Return code: {retry_res.returncode}")
+                    if retry_res.returncode != 0 and retry_res.stderr and retry_res.stderr.strip():
+                        logger.error(f"STDERR: {retry_res.stderr.strip()}")
                     # Get repo_name for this specific RPM from mapping
                     pkg_repo_name = repo_mapping.get(pkg, "")
 
@@ -283,12 +290,16 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
                     # Skip validation if no specific repo is defined
                     logger.warning(f"No repo_name defined for package '{pkg}', skipping validation")
                     continue
+                logger.info(f"Executing command: {' '.join(dnf_info_command)}")
                 result = subprocess.run(
                     dnf_info_command,
                     check=False,
                     capture_output=True,
                     text=True
                 )
+                logger.info(f"Return code: {result.returncode}")
+                if result.returncode != 0 and result.stderr and result.stderr.strip():
+                    logger.error(f"STDERR: {result.stderr.strip()}")
                 if result.returncode == 0:
                     # Package exists and is available
                     valid_packages.append(pkg)
@@ -332,5 +343,5 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
 
     finally:
         logger.info(f"Overall status for {package['package']}: {status}")
-        logger.info("#" * 30 + f" {process_rpm.__name__} end " + "#" * 30)
+        logger.info(f"--- {process_rpm.__name__} END ---")
     return status

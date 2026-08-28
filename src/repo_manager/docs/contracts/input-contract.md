@@ -108,19 +108,83 @@ user_repo_url_aarch64:
 
 ### Required Environment Variables
 
-| Variable | Purpose | Example |
-|----------|---------|---------|
-| `OMNIA_BASE_DIR` | Base directory for Omnia installation | `/opt/omnia` |
-| `REPO_MANAGER_BASE_DIR` | Base directory for repo manager | `/opt/omnia/repo_manager` |
-| `PYTHONPATH` | Python module search path | `/root/oim-multi-repo/omnia/src/repo_manager` |
+| Variable | Purpose | Default | Example |
+|----------|---------|---------|---------|
+| `OMNIA_DATA_PATH` | Base directory for Omnia installation | `/opt/omnia` | `/custom/omnia` |
+| `OMNIA_PROJECT_NAME` | Project name identifier | `project_default` | `my_project` |
 
 ### Optional Environment Variables
 
 | Variable | Purpose | Example |
 |----------|---------|---------|
-| `http_proxy` | HTTP proxy for downloads | `http://proxy.example.com:8080` |
-| `https_proxy` | HTTPS proxy for downloads | `http://proxy.example.com:8080` |
+| `https_proxy` | HTTPS proxy for downloads | `https://proxy.example.com:8080` |
 | `no_proxy` | No proxy for these hosts | `localhost,127.0.0.1` |
+
+## Policy Configuration
+
+### Repository Configuration Policy
+
+Controls how repositories are configured and processed:
+
+```yaml
+repo_config: "partial"  # Options: always | partial
+```
+
+- `always`: Always configure all repositories regardless of existing state
+- `partial`: Only configure repositories that are not already configured
+
+### Caching Policy
+
+Controls content synchronization behavior:
+
+```yaml
+caching_policy: true    # Options: true (on_demand) | false (immediate)
+# Note: Per-repo 'caching' field overrides global caching_policy when set
+```
+
+- `true` (on_demand): Content is synchronized only when needed
+- `false` (immediate): Content is always synchronized immediately
+
+### Additional Repositories
+
+Additional repository configurations:
+
+```yaml
+additional_repos:
+  custom_repo:
+    url: "http://custom-repo.example.com/rhel10/"
+    caching: false  # Override global caching_policy
+```
+
+### User Repositories
+
+User-defined repository configurations:
+
+```yaml
+user_repos:
+  custom_rhel_repo:
+    url: "http://my-repo.example.com/rhel10/"
+```
+
+### Policy Prioritization
+
+Repository policies are prioritized in the following order:
+
+1. Per-repo `caching` field (highest priority)
+2. Global `caching_policy` setting
+3. Default behavior based on `repo_config` setting
+
+Example:
+```yaml
+# Global policy
+caching_policy: true  # on_demand by default
+
+# Per-repo override
+additional_repos:
+  custom_repo:
+    url: "http://custom-repo.example.com/rhel10/"
+    caching: false  # This repo uses immediate sync, overriding global policy
+```
 
 ## Input Validation Process
 
@@ -158,8 +222,18 @@ user_repo_url_aarch64:
 
 ### Production Environment
 
+Input file locations can be customized using the `OMNIA_DATA_PATH` environment variable:
+
 ```
-/opt/omnia/input/project_default/
+$OMNIA_DATA_PATH/repo_manager/input/$OMNIA_PROJECT_NAME/
+├── repo_manager_config.yml
+├── software_config.json
+└── repo_manager_endpoint_config.json
+```
+
+Default production paths (when environment variables are not set):
+```
+/opt/omnia/repo_manager/input/project_default/
 ├── repo_manager_config.yml
 ├── software_config.json
 └── repo_manager_endpoint_config.json
@@ -188,6 +262,31 @@ pulp_protocol: "https"
 cluster_os_type: "rhel"
 cluster_os_version: "10.0"
 # repo_manager_output_path: "{{ output_project_dir }}"  # Optional - defaults to {{ output_project_dir }}
+```
+
+### repo_manager_config.yml with Policy Configuration
+
+```yaml
+pulp_server_ip: "192.168.1.100"
+pulp_server_port: 24817
+pulp_protocol: "https"
+cluster_os_type: "rhel"
+cluster_os_version: "10.0"
+
+# Policy Configuration
+repo_config: "partial"  # Options: always | partial
+caching_policy: true    # Options: true (on_demand) | false (immediate)
+
+# Additional Repositories
+additional_repos:
+  custom_repo:
+    url: "http://custom-repo.example.com/rhel10/"
+    caching: false  # Override global caching_policy
+
+# User Repositories
+user_repos:
+  custom_rhel_repo:
+    url: "http://my-repo.example.com/rhel10/"
 ```
 
 ### Minimal software_config.json

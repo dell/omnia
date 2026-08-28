@@ -36,6 +36,7 @@ REPO_MANAGER_LOG_DIR = os.path.join(OMNIA_BASE_DIR, 'repo_manager', 'log')
 REPO_MANAGER_DATA_DIR = os.path.join(REPO_MANAGER_BASE_DIR, '.data')
 REPO_MANAGER_INPUT_DIR = os.path.join(REPO_MANAGER_BASE_DIR, 'input')
 CATALOG_DIR = os.path.join(OMNIA_BASE_DIR, 'catalog')
+CATALOG_FILE_PATH = os.environ.get('CATALOG_FILE_PATH')
 
 # Log paths
 INPUT_VALIDATOR_LOG = os.path.join(REPO_MANAGER_LOG_DIR, "repo_manager_input_validator")
@@ -159,18 +160,6 @@ TYPE_REQUIREMENTS = {
 # =============================================================================
 # FUNCTIONAL GROUP CONFIGURATION
 # =============================================================================
-
-ADDITIONAL_PACKAGES_SUPPORTED_SUBGROUPS = {
-    "x86_64": [
-        "slurm_control_node", "slurm_node", "login_node", "login_compiler_node",
-        "service_kube_control_plane", "service_kube_control_plane_first", "service_kube_node",
-        "os"
-    ],
-    "aarch64": [
-        "slurm_node", "login_node", "login_compiler_node",
-        "os"
-    ]
-}
 
 FUNCTIONAL_GROUP_LAYER_MAP = {
     "service_kube_control_plane_first_x86_64": "management",

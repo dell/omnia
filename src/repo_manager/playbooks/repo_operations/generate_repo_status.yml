@@ -54,14 +54,14 @@
       when: not pulp_system_cli_check.stat.exists
 
     - name: Create symlink for pulp CLI at /usr/local/bin/pulp
-      ansible.builtin.file:
-        src: "{{ pulp_which_result.stdout }}"
-        dest: /usr/local/bin/pulp
-        state: link
       when:
         - not pulp_system_cli_check.stat.exists
         - pulp_which_result.rc | default(1) == 0
         - pulp_which_result.stdout | default('') | length > 0
+      ansible.builtin.file:
+        src: "{{ pulp_which_result.stdout }}"
+        dest: /usr/local/bin/pulp
+        state: link
 
     - name: Verify pulp CLI is accessible at /usr/local/bin/pulp
       ansible.builtin.command: /usr/local/bin/pulp --version
@@ -87,6 +87,9 @@
         name: ../../roles/pulp_validation
         tasks_from: read_endpoint_config.yml
 
+    - name: Verify Pulp is healthy before status generation
+      ansible.builtin.include_tasks: ../../roles/deploy_pulp/tasks/pulp_health_check.yml
+
     - name: Run pulp status command
       ansible.builtin.command: /usr/local/bin/pulp status
       register: pulp_status_output
@@ -108,11 +111,15 @@
         file: "{{ input_project_dir }}/repo_manager_config.yml"
         name: repo_manager_config_data
 
+    - name: Set omnia base path
+      ansible.builtin.set_fact:
+        omnia_base: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia') }}"
+
     - name: Set catalog path
       ansible.builtin.set_fact:
         catalog_path: >-
           {{ lookup('env', 'CATALOG_FILE_PATH') |
-             default('/opt/omnia/catalog/catalog_rhel.json', true) }}
+             default(omnia_base + '/catalog/catalog_rhel.json', true) }}
 
     - name: Load catalog JSON
       ansible.builtin.set_fact:

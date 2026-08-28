@@ -1438,10 +1438,9 @@ def update_metadata_after_cleanup(cleaned_repos: List[str], metadata_file: str, 
             def _section_matches_repo_arch(section: str, arch: str) -> bool:
                 """Return True if a metadata section belongs to the given arch.
 
-                Expected section naming patterns in localrepo_metadata.yml:
-                    - omnia_repo_url_rhel_x86_64 / omnia_repo_url_rhel_aarch64
-                    - rhel_subscription_url_x86_64 / rhel_subscription_url_aarch64
-                    - user_repo_url_x86_64 / user_repo_url_aarch64
+                Repository names sourced from repositories.{version}.{arch} structure.
+                Flat repos: baseos, appstream, epel, cuda, etc.
+                Nested repos: entries under user_repos and additional_repos.
                 """
                 suffix = f"_{arch}"
                 return isinstance(section, str) and section.endswith(suffix)

@@ -20,9 +20,12 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
 from ansible.module_utils.repo_manager.common_functions import process_file, load_yaml_file, generate_vault_key
 from ansible.module_utils.repo_manager.config import (
-    USER_REPO_URL,
-    CERT_KEYS
+    CERT_KEYS,
+    get_repos_section,
+    iterate_all_repos
 )
+
+OMNIA_BASE = os.environ.get('OMNIA_DATA_PATH', '/opt/omnia')
 
 DOCUMENTATION = r"""
 ---
@@ -54,8 +57,8 @@ author:
 EXAMPLES = r"""
 - name: Encrypt certificate file
   cert_vault_handler:
-    file_path: /opt/omnia/certs/server.crt
-    vault_key: /opt/omnia/.vault_key
+    file_path: "{{ omnia_base }}/certs/server.crt"
+    vault_key: "{{ omnia_base }}/.vault_key"
     mode: encrypt
 """
 
@@ -133,12 +136,27 @@ def main():
 
     local_repo_path = os.path.join(vault_key_path, "repo_manager_config.yml")
     local_repo_config = load_yaml_file(local_repo_path)
-    user_repos = local_repo_config.get(USER_REPO_URL, [])
-    if not user_repos:
-        log.info("No user repo found, proceeding without encryption")
+    
+    # Get cluster OS version from config
+    cluster_os_version = local_repo_config.get("cluster_os_version", "10.0")
+    
+    # Collect all repos with certificates from new structure
+    all_repos_with_certs = []
+    for arch in ["x86_64", "aarch64"]:
+        repos_section = get_repos_section(local_repo_config, cluster_os_version, arch)
+        for repo_name, repo_config in iterate_all_repos(repos_section):
+            if repo_config and isinstance(repo_config, dict):
+                # Check if repo has any certificate keys
+                has_certs = any(repo_config.get(key) for key in CERT_KEYS)
+                if has_certs:
+                    entry = {"name": repo_name, **repo_config}
+                    all_repos_with_certs.append(entry)
+    
+    if not all_repos_with_certs:
+        log.info("No repos with certificates found, proceeding without encryption")
         module.exit_json()
 
-    cert_entries = extract_repos_with_certs(user_repos, log)
+    cert_entries = extract_repos_with_certs(all_repos_with_certs, log)
     for entry in cert_entries:
         for key in CERT_KEYS:
             path = entry.get(key)

@@ -84,21 +84,11 @@
           Then run the playbook again to create the symlink automatically.
       when: pulp_cli_version.rc != 0
 
-    # Step 1: Load catalog to determine OS type and version
-    - name: Set catalog path
+    # Step 1: Set OS parameters for cleanup (module has defaults, catalog not required)
+    - name: Set OS parameters for cleanup
       ansible.builtin.set_fact:
-        catalog_path: >-
-          {{ lookup('env', 'CATALOG_FILE_PATH') |
-             default('/opt/omnia/catalog/catalog_rhel.json', true) }}
-
-    - name: Load catalog JSON
-      ansible.builtin.set_fact:
-        catalog_data: "{{ lookup('file', catalog_path) | from_json }}"
-
-    - name: Set OS type and version from catalog
-      ansible.builtin.set_fact:
-        cluster_os_type: "{{ (catalog_data.catalog.name | lower | regex_search('rhel')) | default('rhel') }}"
-        cluster_os_version: "{{ (catalog_data.catalog.name | regex_search('([0-9]+\\.[0-9]+)')) | default('10.0') }}"
+        cluster_os_type: "{{ cluster_os_type | default('rhel') }}"
+        cluster_os_version: "{{ cluster_os_version | default('10.0') }}"
 
     # Step 1: Input Validation
     - name: Set cleanup input presence flag
@@ -123,21 +113,39 @@
     - name: Parse cleanup lists - repos
       ansible.builtin.set_fact:
         repo_list: >-
-          {{ cleanup_repos.split(',') | map('trim') | select | list
+          {{ ((cleanup_repos | from_yaml).get('cleanup_repos', []))
+          if (cleanup_repos is defined and cleanup_repos is string and cleanup_repos.startswith('{'))
+          else (cleanup_repos | from_yaml)
+          if (cleanup_repos is defined and cleanup_repos is string and cleanup_repos.startswith('['))
+          else (cleanup_repos.split(',') | map('trim') | select | list)
+          if (cleanup_repos is defined and cleanup_repos is string and ',' in cleanup_repos)
+          else ([cleanup_repos])
           if (cleanup_repos is defined and cleanup_repos is string)
           else (cleanup_repos | default([])) }}
 
     - name: Parse cleanup lists - containers
       ansible.builtin.set_fact:
         container_list: >-
-          {{ cleanup_containers.split(',') | map('trim') | select | list
+          {{ ((cleanup_containers | from_yaml).get('cleanup_containers', []))
+          if (cleanup_containers is defined and cleanup_containers is string and cleanup_containers.startswith('{'))
+          else (cleanup_containers | from_yaml)
+          if (cleanup_containers is defined and cleanup_containers is string and cleanup_containers.startswith('['))
+          else (cleanup_containers.split(',') | map('trim') | select | list)
+          if (cleanup_containers is defined and cleanup_containers is string and ',' in cleanup_containers)
+          else ([cleanup_containers])
           if (cleanup_containers is defined and cleanup_containers is string)
           else (cleanup_containers | default([])) }}
 
     - name: Parse cleanup lists - files
       ansible.builtin.set_fact:
         file_list: >-
-          {{ cleanup_files.split(',') | map('trim') | select | list
+          {{ ((cleanup_files | from_yaml).get('cleanup_files', []))
+          if (cleanup_files is defined and cleanup_files is string and cleanup_files.startswith('{'))
+          else (cleanup_files | from_yaml)
+          if (cleanup_files is defined and cleanup_files is string and cleanup_files.startswith('['))
+          else (cleanup_files.split(',') | map('trim') | select | list)
+          if (cleanup_files is defined and cleanup_files is string and ',' in cleanup_files)
+          else ([cleanup_files])
           if (cleanup_files is defined and cleanup_files is string)
           else (cleanup_files | default([])) }}
 
@@ -198,6 +206,7 @@
         REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"
         REPO_MANAGER_INPUT_PROJECT_DIR: "{{ input_project_dir }}"
         OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
+        REPO_MANAGER_CONFIG_PATH: "{{ playbook_dir }}/../../vars/default.yml"
       register: cleanup_result
       when: (repo_list | default([]) | length > 0) or
             (container_list | default([]) | length > 0) or
