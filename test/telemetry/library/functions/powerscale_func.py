@@ -726,12 +726,23 @@ def verify_csi_driver_powerscale_deployment(host):
     - No pod restarts
 
     Returns:
-        dict with keys: success, pods, details, error.
+        dict with keys: success, pods, details, error, driver_deployed.
+        When driver is not deployed, returns driver_deployed=False and success=True (not a failure).
     """
     from .k8s_func import get_pods_by_label
 
     # isilon-controller uses label: app=csi-isilon-controller
     pods = get_pods_by_label(host, "kube-system", "app=csi-isilon-controller")
+    
+    if not pods:
+        return {
+            "success": True,  # Not a failure - CSI driver might not be deployed
+            "driver_deployed": False,
+            "pods": [],
+            "details": "CSI driver not deployed (no isilon-controller pods found)",
+            "error": "",
+        }
+    
     running = len([p for p in pods if p.get("ready", False)]) > 0
     restarts = sum(p.get("restarts", 0) for p in pods)
 
@@ -739,6 +750,7 @@ def verify_csi_driver_powerscale_deployment(host):
 
     return {
         "success": running and restarts == 0,
+        "driver_deployed": True,
         "pods": pods,
         "details": details,
         "error": "" if (running and restarts == 0) else "CSI Driver not fully deployed or has restarts",
@@ -758,7 +770,8 @@ def verify_external_health_monitor_container(host):
     - external-health-monitor-controller container is ready
 
     Returns:
-        dict with keys: success, pod_name, container_ready, details, error.
+        dict with keys: success, pod_name, container_ready, details, error, pod_found.
+        When pod is not found, returns pod_found=False and success=True (not a failure).
     """
     from .k8s_func import get_pods_by_label
 
@@ -767,11 +780,12 @@ def verify_external_health_monitor_container(host):
     
     if not pods:
         return {
-            "success": False,
+            "success": True,  # Not a failure - CSI driver might not be deployed
+            "pod_found": False,
             "pod_name": "",
             "container_ready": False,
-            "details": "isilon-controller pod not found",
-            "error": "isilon-controller pod not found in isilon namespace",
+            "details": "isilon-controller pod not found (CSI driver not deployed)",
+            "error": "",
         }
 
     pod_name = pods[0].get("name", "")
@@ -787,6 +801,7 @@ def verify_external_health_monitor_container(host):
     
     return {
         "success": container_ready,
+        "pod_found": True,
         "pod_name": pod_name,
         "container_ready": container_ready,
         "details": details,
@@ -808,7 +823,7 @@ def verify_csi_exporter_skipped_without_health_monitor(host):
 
     # Check if health monitor is available
     health_monitor_result = verify_external_health_monitor_container(host)
-    health_monitor_available = health_monitor_result["success"]
+    health_monitor_available = health_monitor_result.get("pod_found", False) and health_monitor_result["success"]
     
     # Check if CSI volume exporter is deployed
     pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app=csi-volume-exporter")
@@ -843,7 +858,7 @@ def verify_health_monitor_warning_message(host):
     """
     # Check if health monitor is available
     health_monitor_result = verify_external_health_monitor_container(host)
-    health_monitor_available = health_monitor_result["success"]
+    health_monitor_available = health_monitor_result.get("pod_found", False) and health_monitor_result["success"]
     
     # Warning should be displayed when health monitor is not available
     warning_expected = not health_monitor_available

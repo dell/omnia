@@ -70,8 +70,6 @@ TEST_LOG_MSGS = {
     "ldms_not_cleaned": "{count} LDMS pod(s) still present",
     "ome_cleaned": "No OME pods remaining",
     "ome_not_cleaned": "{count} OME pod(s) still present",
-    "dcgm_cleaned": "No DCGM pods remaining",
-    "dcgm_not_cleaned": "{count} DCGM pod(s) still present",
     "ufm_cleaned": "No UFM resources remaining",
     "ufm_not_cleaned": "UFM resources still present",
     "vast_cleaned": "No VAST resources remaining",
@@ -344,12 +342,6 @@ TEST_ASSERT_MSGS = {
         "HOW TO FIX:\n"
         "  1. kubectl get pods -n telemetry -l app=vector-ome\n"
         "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_ome\n"
-    ),
-    "dcgm_not_cleaned": (
-        "{count} DCGM pod(s) still present after cleanup\n"
-        "HOW TO FIX:\n"
-        "  1. kubectl get pods -n telemetry | grep dcgm\n"
-        "  2. Re-run cleanup\n"
     ),
     "ufm_not_cleaned": (
         "UFM resources still present after cleanup\n"

@@ -137,9 +137,6 @@ LDMS_AGG_STS_NAME = "nersc-ldms-aggr"
 LDMS_STORE_NAME = "nersc-ldms-store"
 LDMS_KAFKA_TOPIC = "ldms"
 
-# DCGM (from deploy_dcgm/vars/main.yml)
-DCGM_POD_PREFIX = "dcgm-exporter"
-
 # PowerScale (from deploy_powerscale/vars/main.yml)
 POWERSCALE_DEPLOY_NAME = "karavi-metrics-powerscale"
 POWERSCALE_OTEL_DEPLOY_NAME = "otel-collector"

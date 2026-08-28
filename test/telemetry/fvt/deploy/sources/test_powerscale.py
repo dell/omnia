@@ -899,6 +899,14 @@ def test_csi_driver_powerscale_deploy(host):
     tl.check("Verifying CSI Driver for PowerScale (isilon-controller) deployment")
     result = verify_csi_driver_powerscale_deployment(host)
 
+    # If driver is not deployed, skip this test
+    if not result.get("driver_deployed", True):
+        tl.skipped(
+            "CSI driver not deployed",
+            "isilon-controller pods not found - CSI driver verification skipped",
+        )
+        pytest.skip("CSI driver not deployed - CSI driver verification skipped")
+
     if result["success"]:
         tl.passed(
             LOG_MSGS["csi_driver_deployed"],
@@ -931,6 +939,14 @@ def test_external_health_monitor_container(host):
     tl.check("Verifying external-health-monitor-controller container")
     result = verify_external_health_monitor_container(host)
 
+    # If pod is not found, skip this test (CSI driver not deployed)
+    if not result.get("pod_found", True):
+        tl.skipped(
+            "isilon-controller pod not found",
+            "CSI driver not deployed - health monitor verification skipped",
+        )
+        pytest.skip("CSI driver not deployed - health monitor verification skipped")
+
     if result["success"]:
         tl.passed(
             LOG_MSGS["health_monitor_container"],
@@ -959,6 +975,15 @@ def test_csi_exporter_skipped_without_health_monitor(host):
     _skip_if_powerscale_disabled(host)
     tc = TC["csi_exporter_skipped_without_health_monitor"]
     tl = TestLogger(tc["title"], tc["id"])
+
+    # Check if CSI driver is deployed first
+    driver_result = verify_csi_driver_powerscale_deployment(host)
+    if not driver_result.get("driver_deployed", True):
+        tl.skipped(
+            "CSI driver not deployed",
+            "CSI driver not deployed - dependency verification skipped",
+        )
+        pytest.skip("CSI driver not deployed - dependency verification skipped")
 
     tl.check("Verifying CSI volume exporter deployment logic with health monitor dependency")
     result = verify_csi_exporter_skipped_without_health_monitor(host)

@@ -365,30 +365,26 @@ TEST_CASES = {
         "id": "TC_CL_007",
         "title": "Verify OME pods removed after cleanup",
     },
-    "cleanup_dcgm": {
-        "id": "TC_CL_008",
-        "title": "Verify DCGM pods removed after cleanup",
-    },
     "cleanup_ufm": {
-        "id": "TC_CL_009",
+        "id": "TC_CL_008",
         "title": "Verify UFM resources removed after cleanup",
     },
     "cleanup_vast": {
-        "id": "TC_CL_010",
+        "id": "TC_CL_009",
         "title": "Verify VAST resources removed after cleanup",
     },
     "cleanup_sfm": {
-        "id": "TC_CL_011",
+        "id": "TC_CL_010",
         "title": "Verify SFM pods removed after cleanup",
     },
 
     # -- Cleanup: Final State -----------------------------------------------
     "no_pods_after_full_cleanup": {
-        "id": "TC_CL_012",
+        "id": "TC_CL_011",
         "title": "Verify no pods remain after full cleanup",
     },
     "no_pvcs_after_full_cleanup": {
-        "id": "TC_CL_013",
+        "id": "TC_CL_012",
         "title": "Verify no PVCs remain after full cleanup",
     },
 
