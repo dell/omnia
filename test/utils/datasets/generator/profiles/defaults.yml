@@ -54,6 +54,7 @@ network_device: ""
 netmask: "255.255.255.0"
 gateway: ""
 dns_server: ""
+ssh_public_key_path: ""
 install_disk: "sda"
 timezone: "UTC"
 rebuild_iso: false

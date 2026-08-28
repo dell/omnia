@@ -94,6 +94,19 @@ pytest fvt/precheck/ -v --marker sanity
 
 ## Configuration
 
+### install_os_config.yml
+
+For faster testing, keep `rebuild_iso: false` to skip rebuilding the ISO if it already exists. This significantly reduces test execution time.
+
+```yaml
+# Recommended for testing
+rebuild_iso: false  # Skip ISO rebuild if it exists (faster testing)
+force_reinstall: false
+ssh_verify_enabled: true
+ssh_verify_retries: 60
+ssh_verify_delay: 30
+```
+
 ### test_config.yml
 
 ```yaml

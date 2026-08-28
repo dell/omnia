@@ -34,6 +34,7 @@ network_device: "{{ network_device | default('') }}"
 netmask: "{{ netmask | default('255.255.255.0') }}"
 gateway: "{{ gateway | default('') }}"
 dns_server: "{{ dns_server | default('') }}"
+ssh_public_key_path: "{{ ssh_public_key_path | default('') }}"
 install_disk: "{{ install_disk | default('sda') }}"
 timezone: "{{ timezone | default('UTC') }}"
 

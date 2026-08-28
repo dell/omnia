@@ -71,6 +71,20 @@ warning_powerscale_volume_health_disabled: |
   To enable Volume Health Monitoring, set node.healthMonitor.enabled: true in CSI driver values.yaml.
   Volume Health Monitoring exposes capacity metrics (used/free capacity, used/free inodes) via Kubernetes metrics API.
 
+# Usage: validate_storage_config.yml
+storage_config_file: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/storage_config.yml"
+omnia_config_file: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/omnia_config.yml"
+nfs_name_not_found_msg: >-
+  Failed. nfs_storage_name referenced in omnia_config.yml does not match any mount entry in storage_config.yml.
+nfs_source_empty_msg: >-
+  Failed. Mount entry has an empty or missing 'source' field in storage_config.yml.
+nfs_source_format_msg: >-
+  Failed. NFS mount source does not contain ':' separator.
+nfs_ip_empty_msg: >-
+  Failed. NFS server IP/hostname is empty in mount source.
+nfs_unreachable_msg: >-
+  Failed. NFS server is unreachable from OIM.
+
 pause_time_15: 15
 bmc_group_data_filename: "{{ hostvars['localhost']['orchestrator_output_dir'] }}/bmc_group_data.csv"
 
