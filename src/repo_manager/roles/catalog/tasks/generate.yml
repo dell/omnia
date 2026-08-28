@@ -27,6 +27,10 @@
     state: directory
     mode: "0755"
 
+- name: "Set output file (use output_file if provided, otherwise catalog_file)"
+  ansible.builtin.set_fact:
+    _output_file: "{{ output_file | default(catalog_file, true) }}"
+
 - name: "Generate catalog from input file"
   ansible.builtin.command:
     cmd: >-
@@ -34,7 +38,7 @@
       --log-dir {{ catalog_log_dir }}
       generate
       --input {{ input_file }}
-      --output {{ catalog_file }}
+      --output {{ _output_file }}
       --name {{ catalog_name }}
       --default-arch {{ default_arch }}
       --default-os {{ default_os }}

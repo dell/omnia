@@ -81,7 +81,12 @@ def cmd_generate(args):
         logger.error("Failed to parse input file: %s", e)
         return 1
 
-    catalog = new_catalog(args.name, parsed['groups'], parsed['packages'])
+    catalog = new_catalog(
+        args.name,
+        parsed['groups'],
+        parsed['packages'],
+        functional_layers=parsed.get('functional_layers', [])
+    )
     write_catalog(catalog, args.output)
 
     # Optional validation
@@ -93,9 +98,10 @@ def cmd_generate(args):
             if errors:
                 logger.warning("Catalog generated with validation errors")
 
+    fl_count = len(parsed.get('functional_layers', []))
     group_count = len(parsed['groups'])
     pkg_count = len(parsed['packages'])
-    print(f"Catalog generated: {group_count} groups, {pkg_count} packages -> {args.output}")
+    print(f"Catalog generated: {fl_count} functional layers, {group_count} groups, {pkg_count} packages -> {args.output}")
     return 0
 
 
@@ -185,6 +191,9 @@ def cmd_validate(args):
 
 def main():
     """Main entry point."""
+    # Get CATALOG_FILE_PATH environment variable as default
+    catalog_file_path = os.environ.get('CATALOG_FILE_PATH', '')
+    
     parser = argparse.ArgumentParser(
         description='Catalog Manager - Generate, modify, and validate service catalogs',
         formatter_class=argparse.RawDescriptionHelpFormatter
@@ -195,8 +204,9 @@ def main():
 
     # Generate command
     gen_parser = subparsers.add_parser('generate', help='Generate new catalog from input file')
-    gen_parser.add_argument('--input', '-i', required=True, help='Input file path')
-    gen_parser.add_argument('--output', '-o', required=True, help='Output catalog file path')
+    gen_parser.add_argument('--input', '-i', help='Input file path')
+    gen_parser.add_argument('--output', '-o', default=catalog_file_path, 
+                            help=f'Output catalog file path (default: $CATALOG_FILE_PATH={catalog_file_path})')
     gen_parser.add_argument('--name', '-n', default='default', help='Catalog name')
     gen_parser.add_argument('--force', '-f', action='store_true', help='Overwrite existing file')
     gen_parser.add_argument('--default-arch', default='x86_64', help='Default architecture')
@@ -209,8 +219,9 @@ def main():
 
     # Add command
     add_parser = subparsers.add_parser('add', help='Add packages to existing catalog')
-    add_parser.add_argument('--input', '-i', required=True, help='Input file with packages to add')
-    add_parser.add_argument('--catalog', '-c', required=True, help='Existing catalog file')
+    add_parser.add_argument('--input', '-i', help='Input file with packages to add')
+    add_parser.add_argument('--catalog', '-c', default=catalog_file_path,
+                            help=f'Existing catalog file (default: $CATALOG_FILE_PATH={catalog_file_path})')
     add_parser.add_argument('--output', '-o', help='Output file (default: overwrite catalog)')
     add_parser.add_argument('--default-arch', default='x86_64', help='Default architecture')
     add_parser.add_argument('--default-os', default='rhel', help='Default OS')
@@ -222,8 +233,9 @@ def main():
 
     # Delete command
     del_parser = subparsers.add_parser('delete', help='Delete packages from catalog')
-    del_parser.add_argument('--input', '-i', required=True, help='Input file with packages to delete')
-    del_parser.add_argument('--catalog', '-c', required=True, help='Existing catalog file')
+    del_parser.add_argument('--input', '-i', help='Input file with packages to delete')
+    del_parser.add_argument('--catalog', '-c', default=catalog_file_path,
+                            help=f'Existing catalog file (default: $CATALOG_FILE_PATH={catalog_file_path})')
     del_parser.add_argument('--output', '-o', help='Output file (default: overwrite catalog)')
     del_parser.add_argument('--schema', help='Schema file for validation')
     del_parser.add_argument('--validate', action='store_true', default=True,
@@ -232,11 +244,28 @@ def main():
 
     # Validate command
     val_parser = subparsers.add_parser('validate', help='Validate a catalog')
-    val_parser.add_argument('--catalog', '-c', required=True, help='Catalog file to validate')
+    val_parser.add_argument('--catalog', '-c', default=catalog_file_path,
+                            help=f'Catalog file to validate (default: $CATALOG_FILE_PATH={catalog_file_path})')
     val_parser.add_argument('--schema', '-s', help='JSON schema file')
     val_parser.set_defaults(func=cmd_validate)
 
     args = parser.parse_args()
+    
+    # Validate required arguments
+    if args.command == 'generate':
+        if not args.input:
+            parser.error("generate: --input is required")
+        if not args.output:
+            parser.error("generate: --output is required (set CATALOG_FILE_PATH or use -o)")
+    elif args.command in ('add', 'delete'):
+        if not args.input:
+            parser.error(f"{args.command}: --input is required")
+        if not args.catalog:
+            parser.error(f"{args.command}: --catalog is required (set CATALOG_FILE_PATH or use -c)")
+    elif args.command == 'validate':
+        if not args.catalog:
+            parser.error("validate: --catalog is required (set CATALOG_FILE_PATH or use -c)")
+    
     setup_logging(args.log_dir)
 
     return args.func(args)

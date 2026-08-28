@@ -22,13 +22,17 @@
     state: directory
     mode: "0755"
 
+- name: "Set catalog input file (use catalog_input if provided, otherwise catalog_file)"
+  ansible.builtin.set_fact:
+    _catalog_input: "{{ catalog_input | default(catalog_file, true) }}"
+
 - name: "Validate catalog"
   ansible.builtin.command:
     cmd: >-
       python3 {{ catalog_scripts_dir }}/catalog_manager.py
       --log-dir {{ catalog_log_dir }}
       validate
-      --catalog {{ catalog_file }}
+      --catalog {{ _catalog_input }}
       --schema {{ schema_file }}
   register: val_result
   changed_when: false
