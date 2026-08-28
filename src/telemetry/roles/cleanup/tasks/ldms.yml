@@ -144,6 +144,7 @@
          + (groups['login_compiler_node'] | default([])) }}
 
 - name: LDMS | Cleanup sampler on all LDMS-enabled nodes
+  when: _ldms_sampler_hosts | length > 0
   block:
     - name: LDMS | Stop ldmsd sampler service
       ansible.builtin.systemd:
@@ -180,8 +181,6 @@
     - name: LDMS | Sampler cleanup complete
       ansible.builtin.debug:
         msg: "LDMS sampler cleanup completed on {{ _ldms_sampler_hosts | length }} nodes"
-  when: _ldms_sampler_hosts | length > 0
-
 - name: LDMS | Cleanup complete
   ansible.builtin.debug:
     msg: "LDMS telemetry cleanup completed (K8s + Slurm nodes)"
