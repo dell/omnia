@@ -86,7 +86,10 @@
     ssh_verify_enabled: "{{ install_os_config.ssh_verify_enabled | default(true) }}"
     ssh_verify_retries: "{{ install_os_config.ssh_verify_retries | default(60) }}"
     ssh_verify_delay: "{{ install_os_config.ssh_verify_delay | default(30) }}"
-    ssh_public_key_path: "{{ (install_os_config.ssh_public_key_path | default('')) if (install_os_config.ssh_public_key_path | default('')) | length > 0 else '/root/.ssh/id_rsa.pub' }}"
+    ssh_public_key_path: >-
+      {{ (install_os_config.ssh_public_key_path | default(''))
+      if (install_os_config.ssh_public_key_path | default('')) | length > 0
+      else '/root/.ssh/id_rsa.pub' }}
     cacheable: true
 
 # Step 6: Validate kickstart_delivery_method
