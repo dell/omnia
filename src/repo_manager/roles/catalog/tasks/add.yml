@@ -27,6 +27,11 @@
     state: directory
     mode: "0755"
 
+- name: "Set catalog input file (use catalog_input if provided, otherwise catalog_file)"
+  ansible.builtin.set_fact:
+    _catalog_input: "{{ catalog_input | default(catalog_file, true) }}"
+    _output_file: "{{ output_file | default(catalog_file, true) }}"
+
 - name: "Add packages to catalog"
   ansible.builtin.command:
     cmd: >-
@@ -34,8 +39,8 @@
       --log-dir {{ catalog_log_dir }}
       add
       --input {{ input_file }}
-      --catalog {{ catalog_file }}
-      --output {{ output_file | default(catalog_file) }}
+      --catalog {{ _catalog_input }}
+      --output {{ _output_file }}
       --default-arch {{ default_arch }}
       --default-os {{ default_os }}
       --default-os-version {{ default_os_version }}

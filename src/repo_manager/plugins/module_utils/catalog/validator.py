@@ -91,7 +91,7 @@ def _validate_referential_integrity(catalog):
 
 def _validate_business_rules(catalog):
     """
-    Check business rules for packages and groups.
+    Check business rules for functional layers, packages, and groups.
 
     Returns:
         list: List of issue dicts.
@@ -101,6 +101,43 @@ def _validate_business_rules(catalog):
     functional_layers = cat.get('functionallayer', [])
     groups = cat.get('groups', {})
     packages = cat.get('packages', {})
+    
+    # Check functional layers are not empty
+    if not functional_layers:
+        issues.append({
+            'severity': 'error',
+            'message': 'Catalog must have at least one functional layer'
+        })
+    
+    # Check each functional layer
+    for layer in functional_layers:
+        layer_name = layer.get('name', '<unnamed>')
+        components = layer.get('components', [])
+        
+        # Check components are not empty
+        if not components:
+            issues.append({
+                'severity': 'error',
+                'message': f"Functional layer '{layer_name}' has no components"
+            })
+        
+        # Check for exactly one base_os group in components
+        base_os_count = 0
+        for comp_ref in components:
+            comp_group = groups.get(comp_ref, {})
+            if comp_group.get('type') == 'base_os':
+                base_os_count += 1
+        
+        if base_os_count == 0:
+            issues.append({
+                'severity': 'error',
+                'message': f"Functional layer '{layer_name}' must have exactly one base_os group (found 0)"
+            })
+        elif base_os_count > 1:
+            issues.append({
+                'severity': 'error',
+                'message': f"Functional layer '{layer_name}' must have exactly one base_os group (found {base_os_count})"
+            })
 
     # Check for duplicate entries in group components
     for group_key, group in groups.items():

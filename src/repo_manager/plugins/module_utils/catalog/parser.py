@@ -114,7 +114,7 @@ def parse_input_file(filepath, default_arch='x86_64', default_os='rhel', default
         default_os_version: Default OS version if not specified.
 
     Returns:
-        dict: {'groups': {...}, 'packages': {...}}
+        dict: {'functional_layers': [...], 'groups': {...}, 'packages': {...}}
 
     Raises:
         ValueError: On parse errors (duplicate groups, package before group, etc.)
@@ -125,9 +125,11 @@ def parse_input_file(filepath, default_arch='x86_64', default_os='rhel', default
         'os': default_os,
         'os_version': default_os_version
     }
+    functional_layers = []
     groups = {}
     packages = {}
-    current_group = None
+    current_section = None
+    current_section_type = None
     line_num = 0
 
     with open(filepath, 'r', encoding='utf-8') as fh:
@@ -141,39 +143,52 @@ def parse_input_file(filepath, default_arch='x86_64', default_os='rhel', default
 
             # Check for [defaults] header
             if DEFAULTS_HEADER.match(line):
-                current_group = '__defaults__'  # Mark that we're in defaults section
+                current_section = '__defaults__'
+                current_section_type = 'defaults'
                 continue
 
-            # Check for group header
-            group_match = GROUP_HEADER.match(line)
-            if group_match:
-                group_key = group_match.group(1).strip()
-                metadata_str = group_match.group(2) or ''
+            # Check for section header (group or functional layer)
+            section_match = GROUP_HEADER.match(line)
+            if section_match:
+                section_key = section_match.group(1).strip()
+                metadata_str = section_match.group(2) or ''
 
-                if group_key in groups:
-                    raise ValueError(f"Line {line_num}: Duplicate group '{group_key}'")
-
-                # Parse group metadata
+                # Parse section metadata
                 meta = _parse_kv_pairs(metadata_str)
-                group_type = meta.get('type', 'group')
-                group_desc = meta.get('description', '')
+                section_type = meta.get('type', 'group')
+                section_desc = meta.get('description', '')
 
-                group_entry = {
-                    "name": group_key,
-                    "type": group_type,
-                    "description": group_desc,
-                    "components": []
-                }
-                if group_type == 'base_os':
-                    group_entry['os'] = meta.get('os', defaults['os'])
-                    group_entry['os_version'] = meta.get('os_version', defaults['os_version'])
+                if section_type == 'functional_layer':
+                    # Functional layer: components are group references
+                    fl_entry = {
+                        "name": section_key,
+                        "components": []
+                    }
+                    functional_layers.append(fl_entry)
+                    current_section = fl_entry
+                    current_section_type = 'functional_layer'
+                else:
+                    # Regular group or base_os group
+                    if section_key in groups:
+                        raise ValueError(f"Line {line_num}: Duplicate group '{section_key}'")
 
-                groups[group_key] = group_entry
-                current_group = group_key
+                    group_entry = {
+                        "name": section_key,
+                        "type": section_type,
+                        "description": section_desc,
+                        "components": []
+                    }
+                    if section_type == 'base_os':
+                        group_entry['os'] = meta.get('os', defaults['os'])
+                        group_entry['os_version'] = meta.get('os_version', defaults['os_version'])
+
+                    groups[section_key] = group_entry
+                    current_section = section_key
+                    current_section_type = 'group'
                 continue
 
             # If we're in the defaults section, parse key=value pairs
-            if current_group == '__defaults__':
+            if current_section_type == 'defaults':
                 # Line like: arch=x86_64, os=rhel, os_version=10.0
                 kv = _parse_kv_pairs(line)
                 if 'arch' in kv:
@@ -184,10 +199,19 @@ def parse_input_file(filepath, default_arch='x86_64', default_os='rhel', default
                     defaults['os_version'] = kv['os_version']
                 continue
 
-            # Package line
-            if current_group is None:
-                raise ValueError(f"Line {line_num}: Package line before any group header")
+            # Content line
+            if current_section is None:
+                raise ValueError(f"Line {line_num}: Content before any section header")
 
+            # If we're in a functional layer, the line is a group reference
+            if current_section_type == 'functional_layer':
+                # Remove quotes and trailing comma if present
+                group_ref = line.strip().strip(',').strip('"').strip("'")
+                if group_ref:
+                    current_section['components'].append(group_ref)
+                continue
+
+            # Otherwise, it's a package line in a group
             # Split by comma, strip each field
             fields = [f.strip() for f in line.split(',')]
             if len(fields) < 2:
@@ -207,10 +231,11 @@ def parse_input_file(filepath, default_arch='x86_64', default_os='rhel', default
             overrides = _parse_trailing_overrides(fields, override_start)
             pkg_entry = _build_package_entry(pkg_type, fields, defaults, overrides)
             packages[pkg_key] = pkg_entry
-            groups[current_group]['components'].append(pkg_key)
+            groups[current_section]['components'].append(pkg_key)
 
-    logger.info("Parsed input file: %d groups, %d packages", len(groups), len(packages))
-    return {'groups': groups, 'packages': packages}
+    logger.info("Parsed input file: %d functional layers, %d groups, %d packages",
+                len(functional_layers), len(groups), len(packages))
+    return {'functional_layers': functional_layers, 'groups': groups, 'packages': packages}
 
 
 def parse_delete_file(filepath):

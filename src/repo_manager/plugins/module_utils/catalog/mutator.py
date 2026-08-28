@@ -26,16 +26,38 @@ def upsert_packages(catalog, parsed):
 
     Args:
         catalog: Catalog dict (with 'catalog' root key).
-        parsed: Parsed input dict with 'groups' and 'packages'.
+        parsed: Parsed input dict with 'functional_layers', 'groups', and 'packages'.
 
     Returns:
-        dict: Summary with counts {'added', 'updated', 'groups_created'}.
+        dict: Summary with counts {'added', 'updated', 'groups_created', 'fl_created'}.
     """
     cat = catalog['catalog']
+    functional_layers = cat.setdefault('functionallayer', [])
     groups = cat.setdefault('groups', {})
     packages = cat.setdefault('packages', {})
 
-    summary = {'added': 0, 'updated': 0, 'groups_created': 0}
+    summary = {'added': 0, 'updated': 0, 'groups_created': 0, 'fl_created': 0}
+
+    # Process functional layers
+    input_fl = parsed.get('functional_layers', [])
+    existing_fl_names = {fl['name'] for fl in functional_layers}
+    for fl_entry in input_fl:
+        fl_name = fl_entry.get('name')
+        if fl_name not in existing_fl_names:
+            # Add new functional layer
+            functional_layers.append(fl_entry)
+            summary['fl_created'] += 1
+            logger.info("Created new functional layer: %s", fl_name)
+        else:
+            # Merge components into existing functional layer
+            for existing_fl in functional_layers:
+                if existing_fl['name'] == fl_name:
+                    existing_comps = set(existing_fl.get('components', []))
+                    for comp in fl_entry.get('components', []):
+                        if comp not in existing_comps:
+                            existing_fl['components'].append(comp)
+                            logger.debug("Added %s to functional layer %s", comp, fl_name)
+                    break
 
     # Process groups
     for group_key, group_entry in parsed['groups'].items():

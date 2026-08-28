@@ -77,7 +77,7 @@ def write_catalog(catalog, filepath):
         json.dump(catalog, fh, indent=2)
 
 
-def new_catalog(name, groups, packages, description='', version='1.0'):
+def new_catalog(name, groups, packages, functional_layers=None, description='', version='1.0'):
     """
     Create a new catalog structure.
 
@@ -85,19 +85,23 @@ def new_catalog(name, groups, packages, description='', version='1.0'):
         name: Catalog name.
         groups: Dict of group_key -> group_entry.
         packages: Dict of pkg_key -> package_entry.
+        functional_layers: List of functional layer entries (optional).
         description: Optional catalog description.
         version: Catalog version string.
 
     Returns:
         dict: Complete catalog structure.
     """
+    if functional_layers is None:
+        functional_layers = []
+    
     return {
         "catalog": {
             "name": name,
             "version": version,
             "identifier": slugify(name),
             "description": description,
-            "functionallayer": [],
+            "functionallayer": functional_layers,
             "groups": groups,
             "packages": packages
         }
