@@ -1,0 +1,270 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+OME Automation - Configuration Variables.
+
+Contains all OME (OpenManage Enterprise) related constants and command templates.
+"""
+
+from typing import Dict, List
+
+
+# =============================================================================
+# OME K8s Resources
+# =============================================================================
+
+# Vector-OME bridge deployment
+VECTOR_OME_APP_NAME = "vector-ome"
+
+# OME KafkaUser CR name
+OME_KAFKA_USER = "vector-ome-user"
+
+
+# =============================================================================
+# OME Kafka Topics (created dynamically by OME)
+# =============================================================================
+
+# Topic prefix used by OME forwarder
+OME_KAFKA_TOPIC_PREFIX = "ome"
+
+# All OME Kafka topics (created when OME connects and forwards data)
+OME_KAFKA_TOPICS: List[str] = [
+    "ome.telemetry",
+    "ome.inventory",
+    "ome.alerts",
+    "ome.health",
+    "ome.auditlogs",
+]
+
+
+# =============================================================================
+# OME External Kafka TLS Certificates
+# =============================================================================
+
+# Subdirectory under output_project_dir for external_kafka certs
+OME_KAFKA_CERT_SUBDIR = "external_kafka"
+
+# TLS certificate files extracted by external_kafka playbook
+OME_KAFKA_CERT_FILES: List[str] = ["ca.crt", "user.crt", "user.key"]
+
+
+# =============================================================================
+# Kafka REST Proxy (Bridge) Constants
+# =============================================================================
+
+# Kafka bridge LoadBalancer service name
+KAFKA_BRIDGE_SERVICE = "bridge-bridge-lb"
+
+# Default HTTP port (will be read from service if available)
+KAFKA_BRIDGE_DEFAULT_PORT = "8080"
+
+
+# =============================================================================
+# Test Report Display Limits
+# =============================================================================
+
+# Caps on how much of a consumed record is rendered in the test report,
+# so a topic carrying hundreds of devices stays readable.
+OME_MAX_ENTRIES_SHOWN = 3
+OME_MAX_METRICS_SHOWN = 5
+OME_MAX_FIELDS_SHOWN = 6
+
+
+# =============================================================================
+# OME REST API Constants
+# =============================================================================
+
+# Default Kafka forwarder ID in OME
+OME_FORWARDER_ID = 10
+
+
+# =============================================================================
+# OME Command Templates
+# =============================================================================
+
+OME_CMD_TEMPLATES: Dict[str, str] = {
+    # -------------------------------------------------------------------------
+    # Kafka Bridge Commands (REST Proxy)
+    # -------------------------------------------------------------------------
+
+    # Get Kafka bridge LoadBalancer IP
+    "get_bridge_lb_ip": (
+        "kubectl get svc {service} -n {namespace} "
+        "-o jsonpath={{.status.loadBalancer.ingress[0].ip}}"
+    ),
+
+    # Get Kafka bridge LoadBalancer port
+    "get_bridge_lb_port": (
+        "kubectl get svc {service} -n {namespace} "
+        "-o jsonpath={{.spec.ports[0].port}}"
+    ),
+
+    # REST proxy - list topics
+    "rest_list_topics": "curl -s http://{bridge_ip}:{port}/topics",
+
+    # REST proxy - create consumer group
+    "rest_create_consumer": (
+        'curl -s -X POST http://{bridge_ip}:{port}/consumers/{consumer_group} '
+        '-H "content-type: application/vnd.kafka.v2+json" '
+        '-d \'{{"name": "{consumer_name}", "format": "json", '
+        '"auto.offset.reset": "{offset}", "enable.auto.commit": true}}\''
+    ),
+
+    # REST proxy - subscribe to topic
+    "rest_subscribe_topic": (
+        'curl -s -X POST http://{bridge_ip}:{port}/consumers/{consumer_group}'
+        '/instances/{consumer_name}/subscription '
+        '-H "content-type: application/vnd.kafka.v2+json" '
+        '-d \'{{"topics": ["{topic}"]}}\''
+    ),
+
+    # REST proxy - consume records
+    "rest_consume_records": (
+        'curl -s -X GET http://{bridge_ip}:{port}/consumers/{consumer_group}'
+        '/instances/{consumer_name}/records '
+        '-H "accept: application/vnd.kafka.json.v2+json"'
+    ),
+
+    # REST proxy - delete consumer
+    "rest_delete_consumer": (
+        'curl -s -X DELETE http://{bridge_ip}:{port}/consumers/{consumer_group}'
+        '/instances/{consumer_name}'
+    ),
+
+    # -------------------------------------------------------------------------
+    # OME REST API Commands
+    # -------------------------------------------------------------------------
+
+    # Get forwarder details
+    "ome_get_forwarder": (
+        "curl -sk -u '{user}:{secret}' --max-time 15"
+        " 'https://{ome_ip}/api/DataForwardingService/"
+        "Forwarders({forwarder_id})'"
+    ),
+
+    # Get forwarder connectivity status
+    "ome_get_forwarder_status": (
+        "curl -sk -u '{user}:{secret}' --max-time 15"
+        " 'https://{ome_ip}/api/DataForwardingService/"
+        "Forwarders({forwarder_id})/ConnectivityStatus'"
+    ),
+
+    # Get all forwarders
+    "ome_get_forwarders_list": (
+        "curl -sk -u '{user}:{secret}' --max-time 15"
+        " 'https://{ome_ip}/api/DataForwardingService/Forwarders'"
+    ),
+
+    # Upload server certificate (CA) - cert content sent as base64 in JSON
+    "ome_upload_server_cert": (
+        "curl -sk -u '{user}:{secret}' --max-time 30"
+        " -w 'HTTP_CODE:%{{http_code}}'"
+        " -X POST -H 'Content-Type: application/json'"
+        " -d '{{\"CertData\": \"{cert_data_b64}\","
+        " \"CertFormat\": \"X_509\", \"ClientType\": \"KAFKA\"}}'"
+        " 'https://{ome_ip}/api/ApplicationService/"
+        "Actions/ApplicationService.UploadServerCertificate'"
+    ),
+
+    # Upload client certificate (PFX) - cert content sent as base64 in JSON
+    "ome_upload_client_cert": (
+        "curl -sk -u '{user}:{secret}' --max-time 30"
+        " -w 'HTTP_CODE:%{{http_code}}'"
+        " -X POST -H 'Content-Type: application/json'"
+        " -d '{{\"CertData\": \"{cert_data_b64}\","
+        " \"CertFormat\": \"PKCS_12\", \"ClientType\": \"KAFKA\","
+        " \"Passphrase\": \"{pfx_secret}\"}}'"
+        " 'https://{ome_ip}/api/ApplicationService/"
+        "Actions/ApplicationService.UploadClientCertificate'"
+    ),
+
+    # View uploaded client certificate
+    "ome_view_client_cert": (
+        "curl -sk -u '{user}:{secret}' --max-time 15"
+        " -X POST"
+        " -H 'Content-Type: application/json'"
+        " -d '{{\"ClientType\": \"KAFKA\"}}'"
+        " 'https://{ome_ip}/api/ApplicationService/"
+        "Actions/ApplicationService.ViewClientCertificate'"
+    ),
+
+    # Test Kafka connection
+    "ome_test_kafka_connection": (
+        "curl -sk -u '{user}:{secret}' --max-time 30"
+        " -w 'HTTP_CODE:%{{http_code}}'"
+        " -X POST -H 'Content-Type: application/json'"
+        " -d '["
+        "{{\"ConfigurationName\": \"OMEIdentifier\", \"ConfigurationValue\": \"{ome_identifier}\"}},"
+        "{{\"ConfigurationName\": \"ClientType\", \"ConfigurationValue\": \"KAFKA\"}},"
+        "{{\"ConfigurationName\": \"BrokerList\", \"ConfigurationValue\": \"{broker_list}\"}},"
+        "{{\"ConfigurationName\": \"AuthMode\", \"ConfigurationValue\": \"2\"}}"
+        "]'"
+        " 'https://{ome_ip}/api/DataForwardingService/"
+        "Forwarders({forwarder_id})/Actions/Forwarder.TestConnection'"
+    ),
+
+    # Update forwarder settings
+    "ome_update_forwarder": (
+        "curl -sk -u '{user}:{secret}' --max-time 30"
+        " -w 'HTTP_CODE:%{{http_code}}'"
+        " -X POST -H 'Content-Type: application/json'"
+        " -d '["
+        "{{\"ConfigurationName\": \"OMEIdentifier\", \"ConfigurationValue\": \"{ome_identifier}\"}},"
+        "{{\"ConfigurationName\": \"ClientType\", \"ConfigurationValue\": \"KAFKA\"}},"
+        "{{\"ConfigurationName\": \"BrokerList\", \"ConfigurationValue\": \"{broker_list}\"}},"
+        "{{\"ConfigurationName\": \"AuthMode\", \"ConfigurationValue\": \"2\"}}"
+        "]'"
+        " 'https://{ome_ip}/api/DataForwardingService/"
+        "Forwarders({forwarder_id})/Actions/Forwarder.Save'"
+    ),
+
+    # -------------------------------------------------------------------------
+    # Certificate Commands
+    # -------------------------------------------------------------------------
+
+    # Convert PEM to PFX
+    "openssl_create_pfx": (
+        "openssl pkcs12 -export"
+        " -out {cert_dir}/user.pfx"
+        " -inkey {cert_dir}/user.key"
+        " -in {cert_dir}/user.crt"
+        " -passout pass:{secret}"
+    ),
+
+    # Read local certificate subject/issuer/validity for comparison
+    "openssl_cert_details": (
+        "openssl x509 -in {cert_path} -noout"
+        " -subject -issuer -dates -serial"
+    ),
+
+    # Check file exists
+    "file_exists": "test -f {path} && echo 'exists' || echo 'missing'",
+
+    # -------------------------------------------------------------------------
+    # K8s Resource Commands
+    # -------------------------------------------------------------------------
+
+    # Get KafkaUser CR status
+    "kafka_user_exists": (
+        "kubectl get kafkauser {user} -n {namespace}"
+        " -o jsonpath={{.metadata.name}} 2>/dev/null"
+    ),
+
+    # Get deployment ready replicas
+    "deploy_ready": (
+        "kubectl get deploy {name} -n {namespace}"
+        " -o jsonpath={{.status.readyReplicas}} 2>/dev/null"
+    ),
+}

@@ -71,6 +71,8 @@ from .functions.host_func import (
     read_remote_yaml,
     read_yaml_key,
     resolve_domain_input_path,
+    get_inventory_hosts,
+    get_inventory_host_var,
 )
 
 # --- Report ---
@@ -96,9 +98,11 @@ from .functions.credential_func import (
     vault_encrypt,
     vault_decrypt_to_dict,
     read_credential_field,
+    read_all_fields,
     write_credential_fields,
     prompt_credential,
     prompt_and_confirm,
+    prompt_fields_interactive,
 )
 
 # --- Credential Vars ---
@@ -141,6 +145,8 @@ __all__ = [
     "read_remote_yaml",
     "read_yaml_key",
     "resolve_domain_input_path",
+    "get_inventory_hosts",
+    "get_inventory_host_var",
     # Report
     "TestReport",
     "get_current_report",
@@ -158,9 +164,11 @@ __all__ = [
     "vault_encrypt",
     "vault_decrypt_to_dict",
     "read_credential_field",
+    "read_all_fields",
     "write_credential_fields",
     "prompt_credential",
     "prompt_and_confirm",
+    "prompt_fields_interactive",
     # Credential Vars
     "get_data_path",
     "get_project_name",

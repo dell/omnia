@@ -1,5 +1,11 @@
 [
-{% set slurm_nodes = slurm_inv.all.children.slurm_node.hosts | default({}) | dict2items %}
+{# Collect Slurm nodes from all possible inventory group names #}
+{% set x86_nodes = slurm_inv.all.children.slurm_node_x86_64.hosts | default({}) %}
+{% set aarch64_nodes = slurm_inv.all.children.slurm_node_aarch64.hosts | default({}) %}
+{% set generic_nodes = slurm_inv.all.children.slurm_node.hosts | default({}) %}
+{# Merge all node dictionaries - x86_64 and aarch64 take precedence over generic #}
+{% set all_nodes = generic_nodes | combine(x86_nodes) | combine(aarch64_nodes) %}
+{% set slurm_nodes = all_nodes | dict2items %}
 {% for item in slurm_nodes %}
     {
         "hostname": "{{ item.key }}.{{ hostvars['localhost']['domain_name'] | default('localdomain') }}",

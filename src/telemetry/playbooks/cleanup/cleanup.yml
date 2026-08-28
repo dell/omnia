@@ -263,3 +263,19 @@
           - ""
           - "To delete the entire namespace:"
           - "  kubectl delete namespace telemetry"
+
+    - name: "Update telemetry_status.yml with cleanup status"
+      vars:
+        _status_file: "{{ output_project_dir | default('/opt/omnia/telemetry/output/project_default') }}/telemetry_status.yml"
+      ansible.builtin.blockinfile:
+        path: "{{ _status_file }}"
+        marker: "# {mark} CLEANUP STATUS"
+        block: |
+          cleanup:
+            status: "cleaned"
+            timestamp: "{{ ansible_date_time.iso8601 | default(lookup('pipe', 'date -Iseconds')) }}"
+            components: "{{ ansible_run_tags | default(['cleanup']) | join(', ') }}"
+        create: true
+        mode: '0644'
+      delegate_to: localhost
+      failed_when: false

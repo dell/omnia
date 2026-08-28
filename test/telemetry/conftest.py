@@ -132,6 +132,8 @@ def pytest_configure(config):
         "deploy": "Playbook deployment tests",
         "sink": "Sink (VictoriaMetrics/VictoriaLogs/Kafka) tests",
         "source": "Source (iDRAC/LDMS/OME) tests",
+        "ome": "OME (OpenManage Enterprise) specific tests",
+        "ldms": "LDMS (Lightweight Distributed Metric Service) specific tests",
         "nft": "Non-functional tests (performance, idempotency)",
         "performance": "Performance tests (execution time thresholds)",
         "idempotency": "Idempotency tests (re-run verification)",

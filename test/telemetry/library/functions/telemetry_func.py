@@ -48,6 +48,7 @@ from ..vars.common_vars import (
     SVC_VMSELECT,
     SVC_VLSELECT,
     SVC_PORT_NAME_HTTP,
+    KAFKA_EXTERNAL_BOOTSTRAP_SVC,
 )
 
 # Module-level cache for kube_vip IP
@@ -339,6 +340,28 @@ def _get_svc_endpoint(host, svc_name, port_name=None):
     port = result.stdout.strip() if result.rc == 0 else ""
 
     return ip, port
+
+
+# -------------------------------------------------------------------------
+# Kafka — dynamic endpoint resolution
+# -------------------------------------------------------------------------
+
+def get_kafka_external_bootstrap(host):
+    """Get the Kafka external bootstrap LoadBalancer IP and port.
+
+    Reads from ``kubectl get svc kafka-kafka-external-bootstrap``
+    in the telemetry namespace.
+
+    Args:
+        host: Testinfra host connection to the OIM.
+
+    Returns:
+        str: ``"<ip>:<port>"`` or empty string if not found.
+    """
+    ip, port = _get_svc_endpoint(host, KAFKA_EXTERNAL_BOOTSTRAP_SVC, None)
+    if ip and port:
+        return f"{ip}:{port}"
+    return ""
 
 
 # -------------------------------------------------------------------------
