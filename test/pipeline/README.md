@@ -163,8 +163,9 @@ Setup is skipped unless `ENABLE_SETUP=true`.
 
 ### Domain Selection (`DOMAIN` variable)
 
-Select which domain to execute. This is a mandatory variable with `default` as the
-default value, which runs all domains.
+Select which domain(s) to execute. This is a mandatory variable with `default` as the
+default value, which runs all domains. Supports single domain or multiple domains using
+regex patterns.
 
 **Valid values:**
 
@@ -174,6 +175,30 @@ default value, which runs all domains.
 | `repo_manager` | Run only repo_manager (+ init, summary) |
 | `image_build_manager` | Run only image_build_manager (+ init, summary) |
 | `orchestrator` | Run only orchestrator (+ init, summary) |
+| `repo_manager\|image_build_manager` | Run repo_manager AND image_build_manager (regex) |
+| `repo_manager\|orchestrator` | Run repo_manager AND orchestrator (regex) |
+| `image_build_manager\|orchestrator` | Run image_build_manager AND orchestrator (regex) |
+
+**Examples:**
+
+```bash
+# Single domain
+CLUSTER1_DOMAIN = repo_manager
+
+# Multiple domains (using pipe separator for regex)
+CLUSTER1_DOMAIN = repo_manager|image_build_manager
+
+# Multiple domains (alternative format)
+CLUSTER1_DOMAIN = repo_manager|orchestrator
+
+# All domains
+CLUSTER1_DOMAIN = default
+```
+
+**How it works:**
+- The pipeline uses regex matching (`=~`) to check if DOMAIN contains the domain name
+- `repo_manager|image_build_manager` matches if DOMAIN contains either `repo_manager` OR `image_build_manager`
+- This allows flexible multi-domain selection without running all domains
 
 ### Test Stages (`TEST_MODE` variable)
 
@@ -560,7 +585,7 @@ All variables are configured in **Project > Settings > CI/CD > Variables** — t
 |---|---|---|
 | `CLUSTERS` | Variable | Comma-separated list of clusters to run |
 | `PIPELINE_MODE` | Variable | Pipeline mode: `default`, `deploy`, or `cleanup` |
-| `DOMAIN` | Variable | Domain selection: `default`, `repo_manager`, `image_build_manager`, `orchestrator` |
+| `DOMAIN` | Variable | Domain selection: `default`, `repo_manager`, `image_build_manager`, `orchestrator`, or regex patterns like `repo_manager\|orchestrator` |
 | `ENABLE_SETUP` | Variable | Force setup stage in deploy/cleanup modes |
 | `TEST_MODE` | Variable | Enable test stages |
 | `DRY_RUN` | Variable | Log commands without executing |
@@ -617,8 +642,6 @@ via GitLab lazy variable expansion (e.g., `CLUSTER1_PIPELINE_MODE=$PIPELINE_MODE
 | `EMAIL_SENDER` | From address for emails |
 | `SMTP_SERVER` | SMTP relay host |
 | `SMTP_PORT` | SMTP relay port (default: 25) |
-| `SMTP_USER` | SMTP username (optional) |
-| `SMTP_PASSWORD` | SMTP password (optional) |
 
 ### Triggering the Pipeline
 
