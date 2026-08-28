@@ -49,6 +49,12 @@
 #
 #   # Rollback repo_manager (placeholder)
 #   ansible-playbook repo_manager.yml --tags rollback
+#
+#   # Catalog operations
+#   ansible-playbook repo_manager.yml --tags catalog_generate -e "input_file=input/packages.txt"
+#   ansible-playbook repo_manager.yml --tags catalog_add -e "input_file=input/additions.txt"
+#   ansible-playbook repo_manager.yml --tags catalog_delete -e "input_file=input/removals.txt"
+#   ansible-playbook repo_manager.yml --tags catalog_validate
 # =============================================================================
 
 # -------------------------------------------------------------------------
@@ -149,3 +155,21 @@
   tags:
     - never
     - rollback
+
+# -------------------------------------------------------------------------
+# CATALOG OPERATIONS
+# -------------------------------------------------------------------------
+- name: Catalog Operations
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir | dirname }}/vars/default.yml"
+  roles:
+    - role: catalog
+  tags:
+    - never
+    - catalog_generate
+    - catalog_add
+    - catalog_delete
+    - catalog_validate
