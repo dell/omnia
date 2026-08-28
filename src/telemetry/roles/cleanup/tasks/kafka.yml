@@ -153,3 +153,9 @@
 - name: Kafka | Cleanup complete
   ansible.builtin.debug:
     msg: "Kafka cleanup completed (cluster + bridge + operator)"
+
+- name: "Kafka | Register cleanup result"
+  ansible.builtin.set_fact:
+    _cleanup_result_kafka: "cleaned"
+  delegate_to: localhost
+  delegate_facts: true

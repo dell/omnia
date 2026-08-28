@@ -1,25 +1,46 @@
 ---
-# telemetry_status.yml — Telemetry deployment status
-# Producer: write_telemetry_status (Phase 5 of deploy)
+# telemetry_status.yml — Telemetry status (deploy/cleanup)
+# Producer: write_telemetry_status / write_cleanup_status
 # Consumer: omnia-cli check, operators
 
 domain: "telemetry"
+type: "{{ _status_type | default('deploy') }}"
 project_name: "{{ project_name | default('project_default') }}"
-deployment_status: "{{ _deployment_status }}"
+{% if _status_type | default('deploy') == 'cleanup' %}
+deployment_status: "{{ 'cleaned' if _cleanup_status == 'passed' else _cleanup_status | default('skipped') }}"
+{% else %}
+deployment_status: "{{ 'deployed' if _deployment_status == 'passed' else _deployment_status | default('skipped') }}"
+{% endif %}
 generated_at: "{{ ansible_date_time.iso8601 }}"
 namespace: "{{ telemetry_namespace }}"
 kube_vip: "{{ kube_vip | default('') }}"
 
+{% if _status_type | default('deploy') == 'deploy' %}
 packages:
   install_mode: "{{ telemetry_packages_config.install_mode | default('offline') }}"
   repo_url: "{{ telemetry_packages_config.repo_url | default('') }}"
+{% endif %}
 
 sinks:
+{% if _status_type | default('deploy') == 'cleanup' %}
+  kafka: "{{ _cleanup_results.kafka | default('skipped') }}"
+  victoria_metrics: "{{ _cleanup_results.victoria_metrics | default('skipped') }}"
+  victoria_logs: "{{ _cleanup_results.victoria_logs | default('skipped') }}"
+{% else %}
   kafka: "{{ _sink_results.kafka | default('skipped') }}"
   victoria_metrics: "{{ _sink_results.victoria_metrics | default('skipped') }}"
   victoria_logs: "{{ _sink_results.victoria_logs | default('skipped') }}"
+{% endif %}
 
 sources:
+{% if _status_type | default('deploy') == 'cleanup' %}
+  idrac: "{{ _cleanup_results.idrac | default('skipped') }}"
+  ldms: "{{ _cleanup_results.ldms | default('skipped') }}"
+  powerscale: "{{ _cleanup_results.powerscale | default('skipped') }}"
+  ufm: "{{ _cleanup_results.ufm | default('skipped') }}"
+  vast: "{{ _cleanup_results.vast | default('skipped') }}"
+  ome: "{{ _cleanup_results.ome | default('skipped') }}"
+{% else %}
   idrac:
     metrics: "{{ _source_results.idrac_metrics | default('skipped') }}"
   ldms:
@@ -36,7 +57,10 @@ sources:
   ome:
     metrics: "{{ _source_results.ome_metrics | default('skipped') }}"
     logs: "{{ _source_results.ome_logs | default('skipped') }}"
+{% endif %}
 
+{% if _status_type | default('deploy') == 'deploy' %}
 bridges:
   vector_ldms: "{{ _bridge_results.vector_ldms | default('skipped') }}"
   vector_ome: "{{ _bridge_results.vector_ome | default('skipped') }}"
+{% endif %}

@@ -132,10 +132,12 @@
 # -----------------------------------------------------------------------------
 
 - name: Check if firewalld is running
-  ansible.builtin.command: systemctl is-active firewalld
+  ansible.builtin.systemd:
+    name: firewalld
   register: firewalld_status
   changed_when: false
   failed_when: false
+  check_mode: true
 
 - name: Open LDMS sampler port in firewall
   ansible.posix.firewalld:
@@ -144,13 +146,13 @@
     state: enabled
     immediate: true
   loop: "{{ ldms_firewall_ports }}"
-  when: firewalld_status.rc == 0
+  when: firewalld_status.status.ActiveState | default('inactive') == 'active'
   register: firewall_result
 
 - name: Log firewall configuration
   ansible.builtin.debug:
     msg: "{{ ldms_sampler_firewall_msg }}"
-  when: firewalld_status.rc == 0
+  when: firewalld_status.status.ActiveState | default('inactive') == 'active'
 
 # -----------------------------------------------------------------------------
 # Phase 4: Configure and start ldmsd systemd service
@@ -171,7 +173,7 @@
   when: not ldmsd_service_stat.stat.exists
   register: ldmsd_service_created
 
-- name: Reload systemd daemon
+- name: Reload systemd daemon  # noqa: no-handler
   ansible.builtin.systemd:
     daemon_reload: true
   when: ldmsd_service_created is changed
@@ -191,11 +193,12 @@
   register: ldmsd_start_result
 
 - name: Wait for ldmsd service to be active
-  ansible.builtin.command: "systemctl is-active {{ ldms_sampler.service_name }}"
+  ansible.builtin.systemd:
+    name: "{{ ldms_sampler.service_name }}"
   register: ldmsd_status
   retries: 5
   delay: 3
-  until: ldmsd_status.rc == 0
+  until: ldmsd_status.status.ActiveState == 'active'
   changed_when: false
 
 - name: Verify ldmsd is listening on sampler port

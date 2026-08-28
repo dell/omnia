@@ -104,3 +104,9 @@
 - name: LDMS | Cleanup complete
   ansible.builtin.debug:
     msg: "LDMS telemetry cleanup completed (includes Vector-LDMS bridge)"
+
+- name: LDMS | Register cleanup result
+  ansible.builtin.set_fact:
+    _cleanup_result_ldms: "cleaned"
+  delegate_to: localhost
+  delegate_facts: true
