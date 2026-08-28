@@ -17,9 +17,11 @@
 
 - name: Generate cloud-init mounts module compatible format form mounts
   ansible.builtin.include_tasks: cloud_init.yml
+  when: mount_config_mode | default('cloud-init') == 'cloud-init'
 
 - name: Generate cloud-init swap module compatible format from swap
   ansible.builtin.include_tasks: swap_config.yml
+  when: mount_config_mode | default('cloud-init') == 'cloud-init'
 
 - name: Initialize mount filter lists
   ansible.builtin.set_fact:

@@ -257,8 +257,9 @@ def pytest_sessionstart(session):
 
     # Initialize test report
     valid_scenarios = {
-        "gitlab_install", "gitlab_cleanup",
+        "buildstream_install", "gitlab_cleanup",
         "buildstream_cleanup", "health",
+        "build_pipeline",
     }
     module_name = "build_stream"
     test_paths = (

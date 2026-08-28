@@ -15,9 +15,13 @@
 """
 BuildStream Domain Cleanup — Playbook Deployment.
 
-Runs cleanup_build_stream.yml to clean up the entire BuildStream
-domain (containers, services, directories, credentials). Used in
-regression runs to execute the cleanup before verifying results.
+Runs cleanup_build_stream.yml with -e standalone_mode=true to clean up
+the entire BuildStream domain (containers, services, directories,
+credentials). Used in regression runs to execute the cleanup before
+verifying results.
+
+The standalone_mode=true flag tells the playbook to use local paths
+instead of requiring container-based paths.
 """
 
 import pytest
@@ -32,16 +36,21 @@ from library.messages import (
 
 
 @pytest.mark.deploy
-@pytest.mark.regression
+@pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_buildstream_cleanup(host):
-    """Deploy cleanup_build_stream playbook."""
+    """Run cleanup/cleanup_build_stream.yml -e standalone_mode=true.
+
+    Cleans up the entire BuildStream domain (containers, services,
+    directories, credentials).
+    """
     tc = TC["deploy_buildstream_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
 
     result = run_playbook(
         playbook="cleanup/cleanup_build_stream.yml",
         timeout=1800,
+        extra_vars={"standalone_mode": True},
     )
 
     if result["success"]:

@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "schemaVersion": "1.0",
+  "title": "catalog",
+  "description": "Schema for catalog JSON consumed by image_build_manager parse_catalog module. Validates the three-level hierarchy: functionallayer -> groups -> packages.",
+  "type": "object",
+  "properties": {
+    "catalog": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable catalog name."
+        },
+        "version": {
+          "type": "string",
+          "description": "Catalog version string."
+        },
+        "identifier": {
+          "type": "string",
+          "description": "Unique catalog identifier used in build artifacts."
+        },
+        "description": {
+          "type": "string",
+          "description": "Catalog description."
+        },
+        "functionallayer": {
+          "type": "array",
+          "description": "Functional layers that map to OS images. Layer names ending with _{arch} are filtered by build_arch.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Layer name (e.g., slurm_node_rhel_10_0_x86_64)."
+              },
+              "components": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "List of group names referenced by this layer."
+              }
+            },
+            "required": ["name", "components"]
+          },
+          "minItems": 1
+        },
+        "groups": {
+          "type": "object",
+          "description": "Named groups of package references. Groups with type=base_os provide OS metadata.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Group display name."
+              },
+              "type": {
+                "type": "string",
+                "description": "Group type: 'base_os' for OS base packages, 'group' for functional groups."
+              },
+              "os_version": {
+                "type": "string",
+                "description": "OS version (only for base_os groups, e.g., '10.0')."
+              },
+              "os": {
+                "type": "string",
+                "description": "OS type (only for base_os groups, e.g., 'rhel')."
+              },
+              "description": {
+                "type": "string",
+                "description": "Group description."
+              },
+              "components": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "List of package keys in the packages dict."
+              }
+            },
+            "required": ["name", "components"]
+          }
+        },
+        "packages": {
+          "type": "object",
+          "description": "Package definitions keyed by package key. Each entry has name, packagetype, and sources.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Actual RPM package name (e.g., 'systemd-udev')."
+              },
+              "packagetype": {
+                "type": "string",
+                "description": "Package type (e.g., 'rpm')."
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "architecture": {
+                      "type": "string",
+                      "description": "Target architecture (e.g., 'x86_64', 'aarch64')."
+                    },
+                    "reponame": {
+                      "type": "string",
+                      "description": "Repository name (e.g., 'baseos', 'appstream')."
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "OS name (e.g., 'rhel')."
+                    },
+                    "version": {
+                      "type": "array",
+                      "items": {"type": "string"},
+                      "description": "Supported OS versions."
+                    }
+                  },
+                  "required": ["architecture"]
+                },
+                "description": "Package source definitions with architecture filtering."
+              }
+            },
+            "required": ["name", "packagetype"]
+          }
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "identifier",
+        "functionallayer",
+        "groups",
+        "packages"
+      ]
+    }
+  },
+  "required": ["catalog"]
+}

@@ -21,6 +21,7 @@
 #   ansible-playbook image_build_manager.yml                        # Default: prepare + build
 #   ansible-playbook image_build_manager.yml --tags precheck        # Env + connectivity precheck only
 #   ansible-playbook image_build_manager.yml --tags validate        # Validate config only (no credentials)
+#   ansible-playbook image_build_manager.yml --tags credentials     # Collect/update credentials only
 #   ansible-playbook image_build_manager.yml --tags prepare         # Deploy MinIO + Registry only
 #   ansible-playbook image_build_manager.yml --tags execute         # Build images (alias for build)
 #   ansible-playbook image_build_manager.yml --tags build           # Build images only (skip prepare)
@@ -34,27 +35,28 @@
 #   ansible-playbook image_build_manager.yml --tags rollback        # Rollback flow (placeholder)
 #
 # Tags (mutually exclusive — pick ONE):
-#   (none)    — Default flow: always + prepare + build (with credentials)
-#   precheck  — Environment precheck (env vars, connectivity) — no credentials
-#   validate  — Validate configuration only (skips credentials)
-#   prepare   — Deploy MinIO + Registry (with credentials)
-#   execute   — Build OS images (alias for 'build') (with credentials)
-#   build     — Build OS images (x86_64 + aarch64) + write build_status (with credentials)
-#   cleanup   — Remove MinIO, registry, build artifacts (skips credentials)
+#   (none)       — Default flow: always + prepare + build (with credentials)
+#   precheck     — Environment precheck (env vars, connectivity) — no credentials
+#   validate     — Validate configuration only (skips credentials)
+#   credentials  — Collect/update S3 + aarch64 credentials only (no build/prepare)
+#   prepare      — Deploy MinIO + Registry (with credentials)
+#   execute      — Build OS images (alias for 'build') (with credentials)
+#   build        — Build OS images (x86_64 + aarch64) + write build_status (with credentials)
+#   cleanup      — Remove MinIO, registry, build artifacts (skips credentials)
 #   cleanup_images — Delete built images from S3 + registry (by pattern or all)
-#   upgrade   — Upgrade flow (placeholder — future release)
-#   rollback  — Rollback flow (placeholder — future release)
+#   upgrade      — Upgrade flow (placeholder — future release)
+#   rollback     — Rollback flow (placeholder — future release)
 #
 # Tag Validation:
 #   - Invalid tags will fail with error message
 #   - Invalid combinations (e.g., prepare + cleanup) will fail
-#   - precheck, cleanup, and validate tags skip credential prompting
+#   - precheck, cleanup, cleanup_images, and validate tags skip credential prompting
 #
 # Internal steps (always):
 #   Step 0: Setup — load env vars (omnia.env), validate host, check prereqs
 #           repo_status.yml is loaded only for build-related tags (build/execute/default)
 #   Step 1: Input validation (schema + logic)
-#   Step 2: Credential collection (skipped for precheck/cleanup/validate tags)
+#   Step 2: Credential collection (skipped for precheck/cleanup/cleanup_images/validate tags)
 
 # =========================================================================
 # Step 0: Setup — load config, validate host, check prereqs, load repos
@@ -78,7 +80,7 @@
     - validate
 
 # =========================================================================
-# Step 2: Credential collection (skipped for cleanup/validate)
+# Step 2: Credential collection (skipped for cleanup/cleanup_images/validate/precheck)
 # =========================================================================
 - name: Get build credentials
   ansible.builtin.import_playbook: credentials/get_build_credentials.yml
@@ -93,6 +95,13 @@
   tags:
     - never
     - precheck
+
+# =========================================================================
+# FLOW: credentials — Standalone credential collection
+# =========================================================================
+# No dedicated play needed — the 'always'-tagged credential step (Step 2)
+# fires automatically because 'credentials' is not in skip_credential_tags.
+# Running --tags credentials only triggers: setup + validate + credential prompt.
 
 # =========================================================================
 # FLOW: prepare — Deploy MinIO + Registry (idempotent)

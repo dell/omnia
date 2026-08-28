@@ -1,0 +1,93 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# =============================================================================
+# Test Run Configuration -- Build Stream
+# =============================================================================
+#
+# Configure which test categories to run, execution order, and marker filters.
+#
+# Usage:
+#   1. Edit this file to enable/disable scenarios and set markers
+#   2. Run: ./run_validation.sh --config
+#
+# -----------------------------------------------------------------------------
+# Category Structure
+# -----------------------------------------------------------------------------
+# Top-level categories match the run_validation.sh first argument:
+#
+#   fvt_build_stream  -- Functional Verification Tests (playbook tags)
+#
+# FVT scenarios (nested under fvt_build_stream):
+#   Each scenario maps to an FVT subdirectory.  Fields:
+#     run:          true/false    - Whether to execute this scenario
+#     command:      <string>      - deploy, verify, or test (default: test)
+#                                   deploy = Run the playbook / trigger only
+#                                   verify = Run verification tests only
+#                                   test   = Deploy + Verify (full flow)
+#     suite:        <folder>      - FVT subfolder filter (empty = all suites)
+#     marker:       <expression>  - Marker filter expression (empty = all)
+#
+# -----------------------------------------------------------------------------
+# Marker Expression Syntax
+# -----------------------------------------------------------------------------
+#   Single:   "sanity"                  -- tests with @pytest.mark.sanity
+#   OR:       "sanity,functional"       -- tests with EITHER marker
+#   AND:      "sanity+functional"       -- tests with BOTH markers
+#
+# Available markers:
+#   Quality:       sanity, functional, regression
+#   Execution:     deploy
+#
+# -----------------------------------------------------------------------------
+# Available FVT Suites (subfolders under fvt/<tag>/)
+# -----------------------------------------------------------------------------
+#   buildstream_install:  health, buildstream_install
+#   gitlab_cleanup:      (none)
+#   buildstream_cleanup: (none)
+#   build_pipeline:      build_pipeline
+#
+# =============================================================================
+
+---
+
+# =============================================================================
+# Execution Options
+# =============================================================================
+skip_on_failure: false
+
+# =============================================================================
+# FVT -- Functional Verification Tests
+# =============================================================================
+fvt_build_stream:
+  buildstream_install:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+  gitlab_cleanup:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+  buildstream_cleanup:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+  build_pipeline:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"

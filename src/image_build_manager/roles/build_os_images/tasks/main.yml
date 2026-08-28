@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -54,22 +54,48 @@
 # The build_status manifest must reference the actual S3 object keys so
 # downstream consumers (BSS, provision) can fetch them by exact path.
 # ---------------------------------------------------------------------------
+# S3 artifact discovery uses a two-stage lookup:
+#   1. Try the current image name (with current catalog suffix)
+#   2. If empty, fall back to prefix match (finds images from previous catalog IDs)
+# This handles catalog ID changes where builds were cached and S3 still has old names.
 - name: Discover actual S3 artifact filenames per functional group
   ansible.builtin.shell: |
     set -o pipefail
     _s3_bucket="{{ s3_configurations.bucket | default('boot-images') }}"
     _image_name="rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }}"
+    _image_prefix="rhel-{{ item.key }}{{ omnia_suffix }}"
 
-    # EFI artifacts (kernel + initrd)
+    # EFI artifacts (kernel + initrd) — try exact name first, then prefix
     _efi_prefix="s3://${_s3_bucket}/efi-images/{{ item.key }}/${_image_name}/"
     kernel=$(s3cmd ls "${_efi_prefix}" 2>/dev/null | awk '{print $NF}' | xargs -I{} basename {} | grep -E '^vmlinuz' | head -1)
     initrd=$(s3cmd ls "${_efi_prefix}" 2>/dev/null | awk '{print $NF}' | xargs -I{} basename {} | grep -E '^initramfs' | head -1)
 
-    # Rootfs image
+    # Fallback: prefix match for EFI (handles catalog ID change)
+    if [ -z "$kernel" ] || [ -z "$initrd" ]; then
+      _efi_fallback="s3://${_s3_bucket}/efi-images/{{ item.key }}/"
+      _found_dir=$(s3cmd ls "${_efi_fallback}" 2>/dev/null | awk '{print $NF}' | grep "${_image_prefix}" | head -1)
+      if [ -n "$_found_dir" ]; then
+        [ -z "$kernel" ] && kernel=$(s3cmd ls "${_found_dir}" 2>/dev/null | awk '{print $NF}' | xargs -I{} basename {} | grep -E '^vmlinuz' | head -1)
+        [ -z "$initrd" ] && initrd=$(s3cmd ls "${_found_dir}" 2>/dev/null | awk '{print $NF}' | xargs -I{} basename {} | grep -E '^initramfs' | head -1)
+        # Update _image_name to the actual directory name for rootfs lookup
+        _image_name=$(basename "$_found_dir")
+      fi
+    fi
+
+    # Rootfs image — try exact name first, then prefix
     _img_prefix="s3://${_s3_bucket}/{{ item.key }}/${_image_name}/"
     rootfs=$(s3cmd ls "${_img_prefix}" 2>/dev/null | awk '{print $NF}' | xargs -I{} basename {} | grep -vE '^$' | head -1)
 
-    echo "{{ item.key }}|${kernel:-}|${initrd:-}|${rootfs:-}"
+    if [ -z "$rootfs" ]; then
+      _img_fallback="s3://${_s3_bucket}/{{ item.key }}/"
+      _found_dir=$(s3cmd ls "${_img_fallback}" 2>/dev/null | awk '{print $NF}' | grep "${_image_prefix}" | head -1)
+      if [ -n "$_found_dir" ]; then
+        rootfs=$(s3cmd ls "${_found_dir}" 2>/dev/null | awk '{print $NF}' | xargs -I{} basename {} | grep -vE '^$' | head -1)
+        _image_name=$(basename "$_found_dir")
+      fi
+    fi
+
+    echo "{{ item.key }}|${kernel:-}|${initrd:-}|${rootfs:-}|${_image_name}"
   args:
     executable: /bin/bash
   register: _s3_artifact_discovery
@@ -80,29 +106,40 @@
     loop_var: item
     label: "{{ item.key }}"
 
+# Parse S3 discovery output: group|kernel|initrd|rootfs|actual_image_name
+# The 5th field is the resolved image name (may differ from current suffix
+# when catalog ID changed and builds were cached).
 - name: Build artifact filename lookup from S3 discovery
   ansible.builtin.set_fact:
     _s3_artifacts: >-
       {%- set result = {} -%}
       {%- for r in _s3_artifact_discovery.results -%}
         {%- set parts = r.stdout.split('|') -%}
-        {%- if parts | length == 4 -%}
-          {%- set _ = result.update({parts[0]: {'kernel': parts[1], 'initrd': parts[2], 'rootfs': parts[3]}}) -%}
+        {%- if parts | length >= 4 -%}
+          {%- set _ = result.update({parts[0]: {
+            'kernel': parts[1],
+            'initrd': parts[2],
+            'rootfs': parts[3],
+            'image_name': parts[4] | default(parts[0], true)
+          }}) -%}
         {%- endif -%}
       {%- endfor -%}
       {{ result }}
 
 - name: Build image list entries (using actual S3 filenames)
   vars:
-    _image_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }}"
+    _resolved_name: >-
+      {{ _s3_artifacts[item.key].image_name
+      | default('rhel-' + item.key + omnia_suffix
+      + (compute_image_suffix | default('')) + _build_type_suffix) }}
     _kernel_file: "{{ _s3_artifacts[item.key].kernel | default('') }}"
     _initrd_file: "{{ _s3_artifacts[item.key].initrd | default('') }}"
     _rootfs_file: "{{ _s3_artifacts[item.key].rootfs | default('') }}"
     _current_image:
       functional_group: "{{ item.key }}"
-      kernel: "boot-images/efi-images/{{ item.key }}/{{ _image_name }}/{{ _kernel_file }}"
-      initrd: "boot-images/efi-images/{{ item.key }}/{{ _image_name }}/{{ _initrd_file }}"
-      image: "boot-images/{{ item.key }}/{{ _image_name }}{{ ('/' + _rootfs_file) if (_rootfs_file | length > 0) else '' }}"
+      kernel: "boot-images/efi-images/{{ item.key }}/{{ _resolved_name }}/{{ _kernel_file }}"
+      initrd: "boot-images/efi-images/{{ item.key }}/{{ _resolved_name }}/{{ _initrd_file }}"
+      image: "boot-images/{{ item.key }}/{{ _resolved_name }}{{ ('/' + _rootfs_file) if (_rootfs_file | length > 0) else '' }}"
   ansible.builtin.set_fact:
     _new_images: "{{ (_new_images | default([])) + [_current_image] }}"
   loop: "{{ compute_images_dict | dict2items }}"

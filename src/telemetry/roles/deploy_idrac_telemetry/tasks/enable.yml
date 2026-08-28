@@ -43,7 +43,8 @@
   ansible.builtin.include_role:
     name: common
     tasks_from: install_python_dependencies
-  when: inventory_hostname != 'localhost'
+  vars:
+    component: idrac
 
 - name: Generate iDRAC telemetry manifests
   ansible.builtin.include_tasks: generate_manifests.yml

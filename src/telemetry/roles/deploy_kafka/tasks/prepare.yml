@@ -18,11 +18,11 @@
 # =============================================================================
 
 - name: Create telemetry directories
-  when: cluster_mount | default('') != ''
+  when: k8s_cluster_mount | default('') != ''
   block:
     - name: Create telemetry subdirectory
       ansible.builtin.file:
-        path: "{{ cluster_mount }}/telemetry"
+        path: "{{ k8s_cluster_mount }}/telemetry"
         state: directory
         mode: "{{ kafka_dir_mode }}"
 
@@ -34,19 +34,19 @@
 
 - name: Download Strimzi Kafka operator package
   when:
-    - cluster_mount | default('') != ''
+    - k8s_cluster_mount | default('') != ''
     - telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | default('') != ''
   run_once: true
   block:
     - name: Check if Strimzi Kafka operator tarball exists
       ansible.builtin.stat:
-        path: "{{ cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}"
+        path: "{{ k8s_cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}"
       register: strimzi_tarball_stat
 
     - name: Download Strimzi Kafka operator tarball
       ansible.builtin.get_url:
         url: "{{ telemetry_packages_config.telemetry_packages.strimzi_kafka_operator }}"
-        dest: "{{ cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}"
+        dest: "{{ k8s_cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}"
         mode: "{{ kafka_file_mode }}"
         timeout: "{{ kafka_download_timeout }}"
         validate_certs: false
@@ -55,7 +55,7 @@
 
     - name: Verify Strimzi tarball was downloaded
       ansible.builtin.stat:
-        path: "{{ cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}"
+        path: "{{ k8s_cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}"
       register: strimzi_tarball_verify
 
     - name: Fail if Strimzi tarball not available
@@ -65,9 +65,9 @@
 
 - name: Set strimzi_kafka_pkg path
   ansible.builtin.set_fact:
-    strimzi_kafka_pkg: "{{ cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}"
+    strimzi_kafka_pkg: "{{ k8s_cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}"
   when:
-    - cluster_mount | default('') != ''
+    - k8s_cluster_mount | default('') != ''
     - telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | default('') != ''
 
 - name: Generate Kafka cluster manifest

@@ -808,6 +808,7 @@ def validate_install_os_config(host, path: str) -> Dict[str, Any]:
         "kickstart_delivery_method": str,
         "kickstart_file": str,
         "kickstart_template": str,
+        "ssh_public_key_path": str,
         "rebuild_iso": bool,
         "force_reinstall": bool,
         "ssh_verify_enabled": bool,

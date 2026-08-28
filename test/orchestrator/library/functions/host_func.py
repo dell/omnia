@@ -18,13 +18,13 @@ Orchestrator — Host Synchronization Functions
 Functions for syncing project code and input datasets to the target host.
 """
 
+import os
 from typing import Any, Dict
 
 from omnia_auto import (
     load_test_config,
     get_module_root,
     sync_files,
-    clone_repo,
 )
 from ..vars.common_vars import (
     DOMAIN_NAME,
@@ -33,25 +33,45 @@ from ..vars.common_vars import (
 )
 
 
-def sync_project_to_remote(host) -> Dict[str, Any]:
-    """Clone or sync the Omnia repo to the remote target.
+def sync_project_to_remote(_host) -> Dict[str, Any]:
+    """Sync the local omnia project tree to clone_path on target.
 
-    Args:
-        host: Testinfra host connection.
+    Copies the complete project from the local monorepo to the remote
+    clone_path. This replaces git-clone when the code is already
+    available locally.
 
-    Returns:
-        Dict with keys: success (bool), details (str), error (str).
+    Source: <repo_root>/ (the omnia monorepo root)
+    Dest:   <clone_path>/ on the target server
     """
     config = load_test_config()
+    oim_server_ip = config.get("oim_server_ip", "")
     clone_path = config.get("clone_path", "/root/omnia")
+
+    # Repo root: test/orchestrator/ -> test/ -> omnia/
+    repo_root = os.path.dirname(os.path.dirname(get_module_root()))
+
     try:
-        result = clone_repo(host, target_path=clone_path)
+        if oim_server_ip:
+            result = sync_files(
+                mode="remote",
+                src=repo_root,
+                dest=clone_path,
+                ip=oim_server_ip,
+                user=config.get("oim_ssh_user", "root"),
+                password=None,
+            )
+        else:
+            result = sync_files(
+                mode="local",
+                src=repo_root,
+                dest=clone_path,
+            )
         return result
     except Exception as exc:  # pylint: disable=broad-except
         return {
             "success": False,
             "details": "",
-            "error": f"Clone failed: {exc}",
+            "error": f"Sync failed: {exc}",
         }
 
 
@@ -68,16 +88,27 @@ def sync_orchestrator_input(host) -> Dict[str, Any]:
     dataset = config.get("dataset", "data_set_01")
     project = config.get("project_name", "project_default")
     module_root = get_module_root()
+    oim_server_ip = config.get("oim_server_ip", "")
 
     local_input = f"{module_root}/datasets/{dataset}/input"
     remote_input = INPUT_PATH_TEMPLATE.format(project=project)
 
     try:
-        result = sync_files(
-            host,
-            local_path=local_input,
-            remote_path=remote_input,
-        )
+        if oim_server_ip:
+            result = sync_files(
+                mode="remote",
+                src=local_input,
+                dest=remote_input,
+                ip=oim_server_ip,
+                user=config.get("oim_ssh_user", "root"),
+                password=None,
+            )
+        else:
+            result = sync_files(
+                mode="local",
+                src=local_input,
+                dest=remote_input,
+            )
         return result
     except Exception as exc:  # pylint: disable=broad-except
         return {
@@ -100,6 +131,7 @@ def sync_repo_manager_output(host) -> Dict[str, Any]:
     dataset = config.get("dataset", "data_set_01")
     project = config.get("project_name", "project_default")
     module_root = get_module_root()
+    oim_server_ip = config.get("oim_server_ip", "")
 
     local_output = f"{module_root}/datasets/{dataset}/repo_manager_output"
     remote_path = REPO_MANAGER_OUTPUT_TEMPLATE.format(project=project)
@@ -108,11 +140,21 @@ def sync_repo_manager_output(host) -> Dict[str, Any]:
     remote_dir = os.path.dirname(remote_path)
 
     try:
-        result = sync_files(
-            host,
-            local_path=local_output,
-            remote_path=remote_dir,
-        )
+        if oim_server_ip:
+            result = sync_files(
+                mode="remote",
+                src=local_output,
+                dest=remote_dir,
+                ip=oim_server_ip,
+                user=config.get("oim_ssh_user", "root"),
+                password=None,
+            )
+        else:
+            result = sync_files(
+                mode="local",
+                src=local_output,
+                dest=remote_dir,
+            )
         return result
     except Exception as exc:  # pylint: disable=broad-except
         return {

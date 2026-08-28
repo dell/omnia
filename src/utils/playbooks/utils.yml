@@ -20,7 +20,6 @@
 #   ansible-playbook utils.yml --tags precheck        # Env precheck only
 #   ansible-playbook utils.yml --tags setup           # Setup only
 #   ansible-playbook utils.yml --tags collect         # Collect logs
-#   ansible-playbook utils.yml --tags pxe             # PXE boot utility
 #   ansible-playbook utils.yml --tags slurm           # Slurm config utility
 #   ansible-playbook utils.yml --tags cleanup         # Cleanup flow (placeholder)
 #   ansible-playbook utils.yml --tags upgrade         # Upgrade flow (placeholder)
@@ -31,7 +30,6 @@
 #   precheck  - Environment precheck (env vars, connectivity)
 #   setup     - Setup and configuration
 #   collect   - Log collection utility
-#   pxe       - PXE boot utility
 #   slurm     - Slurm configuration utility
 #   cleanup   - Cleanup flow (placeholder)
 #   upgrade   - Upgrade flow (placeholder)
@@ -65,15 +63,6 @@
   tags:
     - never
     - collect
-
-# =========================================================================
-# FLOW: pxe - PXE boot utility
-# =========================================================================
-- name: PXE boot utility
-  ansible.builtin.import_playbook: set_pxe_boot.yml
-  tags:
-    - never
-    - pxe
 
 # =========================================================================
 # FLOW: slurm - Slurm configuration utility
