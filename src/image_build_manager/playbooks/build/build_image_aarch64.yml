@@ -110,6 +110,17 @@
         msg: "Catalog mode: functional groups will be resolved from catalog JSON"
       when: hostvars['localhost']['functional_groups_source'] | default('config') == 'catalog'
 
+- name: Setup SSH connectivity to aarch64 node
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Setup passwordless SSH to aarch64 build host
+      ansible.builtin.include_role:
+        name: prepare_aarch64_node
+        tasks_from: setup_ssh.yml
+        vars_from: main
+
 - name: Prepare aarch64 nodes
   hosts: admin_aarch64
   gather_facts: false

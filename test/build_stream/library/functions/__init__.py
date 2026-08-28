@@ -74,6 +74,58 @@ from library.functions.build_stream_func import (
     check_playbook_watcher,
 )
 
+# --- Pipeline verification ---
+from library.functions.pipeline_func import (
+    # Trigger
+    trigger_build_pipeline_auto,
+    # GitLab API
+    list_pipelines,
+    cancel_pipeline,
+    trigger_pipeline_with_variables,
+    upload_catalog_file,
+    get_catalog_content,
+    wait_for_pipeline_triggered,
+    # Database
+    get_latest_job,
+    get_stage_state,
+    verify_stage_completed,
+    get_image_groups_for_job,
+    get_images_for_job,
+    # Stage monitoring
+    poll_stage_until_complete,
+    # GitLab CI/CD stage tracking
+    get_child_pipeline_id,
+    get_gitlab_pipeline_jobs,
+    poll_gitlab_ci_stages,
+    # BSM API
+    get_catalog_roles,
+    verify_registry_images,
+    verify_s3_boot_images,
+    clear_bsm_token_cache,
+    # Initialization verification
+    verify_initialization_health,
+    verify_initialization_auth,
+    verify_initialization_job,
+    verify_initialization_upload,
+    # Stage convenience wrappers
+    verify_create_local_repository,
+    verify_build_image,
+    verify_build_image_meta,
+    get_pipeline_summary,
+    # Repo manager output
+    check_repo_status,
+    # Registry & S3 direct checks
+    check_registry_images_exist,
+    check_s3_boot_images_exist,
+    # Server credentials
+    load_server_credentials,
+    check_server_credentials,
+    clear_server_creds_cache,
+    # Catalog from examples
+    push_catalog_from_examples,
+    update_job_id_in_config,
+)
+
 # --- Cleanup verification ---
 from library.functions.cleanup_func import (
     # GitLab cleanup
@@ -196,6 +248,43 @@ __all__ = [
     "check_buildstream_directories_removed",
     "check_buildstream_credentials_removed",
     "check_buildstream_oauth_credentials_removed",
+    # Pipeline
+    "trigger_build_pipeline_auto",
+    "list_pipelines",
+    "cancel_pipeline",
+    "trigger_pipeline_with_variables",
+    "upload_catalog_file",
+    "get_catalog_content",
+    "wait_for_pipeline_triggered",
+    "get_latest_job",
+    "get_stage_state",
+    "verify_stage_completed",
+    "get_image_groups_for_job",
+    "get_images_for_job",
+    "poll_stage_until_complete",
+    "get_child_pipeline_id",
+    "get_gitlab_pipeline_jobs",
+    "poll_gitlab_ci_stages",
+    "get_catalog_roles",
+    "verify_registry_images",
+    "verify_s3_boot_images",
+    "clear_bsm_token_cache",
+    "verify_initialization_health",
+    "verify_initialization_auth",
+    "verify_initialization_job",
+    "verify_initialization_upload",
+    "verify_create_local_repository",
+    "verify_build_image",
+    "verify_build_image_meta",
+    "get_pipeline_summary",
+    "check_repo_status",
+    "check_registry_images_exist",
+    "check_s3_boot_images_exist",
+    "load_server_credentials",
+    "check_server_credentials",
+    "clear_server_creds_cache",
+    "push_catalog_from_examples",
+    "update_job_id_in_config",
     # Validation
     "validate_test_config",
     "validate_all",

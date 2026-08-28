@@ -53,7 +53,7 @@ PLAYBOOK_ENTRY_POINT = "build_stream.yml"
 PLAYBOOK_WORKDIR = "src/build_stream/playbooks"
 
 PLAYBOOK_TAGS: List[str] = [
-    "gitlab_install",
+    "buildstream_install",
     "gitlab_cleanup",
 ]
 
@@ -119,8 +119,28 @@ OMNIA_VENV_PATH_DEFAULT = "/opt/omnia/venv"
 # NFS / PLAYBOOK WATCHER
 # =============================================================================
 
-NFS_QUEUE_DIR_DEFAULT = "/opt/omnia/build_stream_root/queue"
+NFS_QUEUE_DIR_DEFAULT = "/opt/omnia/playbook_queue"
 NFS_ARTIFACT_BASE_DEFAULT = "/opt/omnia/build_stream_root"
+
+# =============================================================================
+# TLS CERTIFICATE PATHS
+# =============================================================================
+
+BSM_TLS_CERT_PATH = "/opt/omnia/build_stream_ssl/ssl/bs_cert.pem"
+BSM_TLS_KEY_PATH = "/opt/omnia/build_stream_ssl/ssl/bs_key.pem"
+
+# =============================================================================
+# SERVER CREDENTIALS (source of truth on target host)
+# =============================================================================
+
+BUILD_STREAM_CREDENTIALS_FILE = "build_stream_credentials.yml"
+BUILD_STREAM_CREDENTIALS_KEY = ".build_stream_credentials_key"
+
+# Required fields that must be present in build_stream_credentials.yml
+BUILD_STREAM_REQUIRED_CREDS: List[str] = [
+    "gitlab_root_password",
+    "gitlab_ssh_password",
+]
 
 # =============================================================================
 # GITLAB CONFIGURATION
@@ -245,6 +265,96 @@ BUILDSTREAM_OAUTH_CREDENTIAL_FILES: List[str] = [
     "build_stream_oauth_credentials.yml",
     ".build_stream_oauth_credentials_key",
 ]
+
+# =============================================================================
+# BUILD PIPELINE STAGES (2.3 domain-segregated)
+# =============================================================================
+
+# Stage names match the BSM StageType enum in
+# src/build_stream/app/core/jobs/value_objects.py
+STAGE_CREATE_LOCAL_REPO = "create-local-repository"
+STAGE_BUILD_IMAGE = "build-image"
+STAGE_VALIDATE = "validate"
+STAGE_RESTART = "restart"
+STAGE_UPLOAD = "upload"
+STAGE_DEPLOY = "deploy"
+
+BUILD_PIPELINE_STAGES: List[str] = [
+    STAGE_CREATE_LOCAL_REPO,
+    STAGE_BUILD_IMAGE,
+]
+
+# Stages that belong to the BUILD pipeline only
+# (excludes deploy-pipeline stages: deploy, restart, validate)
+BUILD_PIPELINE_ONLY_STAGES: List[str] = [
+    STAGE_UPLOAD,
+    STAGE_CREATE_LOCAL_REPO,
+    STAGE_BUILD_IMAGE,
+]
+
+# GitLab CI/CD stage names (from .gitlab-ci-build.yml)
+# These are the stages in the child build pipeline, not BSM database stages.
+GITLAB_CI_BUILD_STAGES: List[str] = [
+    "initialization",
+    "copy-input-files",
+    "configure-local-repository",
+    "build-images",
+    "summary",
+]
+
+# =============================================================================
+# STAGE AND JOB STATES (from build_stream_db)
+# =============================================================================
+
+STAGE_STATE_PENDING = "PENDING"
+STAGE_STATE_RUNNING = "RUNNING"
+STAGE_STATE_COMPLETED = "COMPLETED"
+STAGE_STATE_FAILED = "FAILED"
+
+JOB_STATE_PENDING = "PENDING"
+JOB_STATE_IN_PROGRESS = "IN_PROGRESS"
+JOB_STATE_COMPLETED = "COMPLETED"
+JOB_STATE_FAILED = "FAILED"
+
+# =============================================================================
+# IMAGE GROUP STATES
+# =============================================================================
+
+IMAGE_GROUP_STATUS_BUILT = "BUILT"
+IMAGE_GROUP_STATUS_CLEANED = "CLEANED"
+
+# =============================================================================
+# PIPELINE TRIGGER VARIABLES
+# =============================================================================
+
+PIPELINE_TYPE_KEY = "PIPELINE_TYPE"
+PIPELINE_TYPE_BUILD = "build"
+PIPELINE_TYPE_DEPLOY = "deploy"
+PIPELINE_TYPE_CLEANUP = "cleanup"
+
+# Catalog file path in GitLab repo (2.3)
+CATALOG_FILE_PATH = "catalog_rhel.json"
+CATALOG_DEFAULT_FILENAME = "catalog_rhel_x86_64_with_slurm_only.json"
+
+# =============================================================================
+# POLLING CONFIGURATION
+# =============================================================================
+
+STAGE_POLL_INTERVAL: int = 30
+STAGE_POLL_TIMEOUT: int = 10800   # 3 hours
+PIPELINE_POLL_INTERVAL: int = 5
+PIPELINE_POLL_TIMEOUT: int = 180  # 3 minutes
+JOB_WAIT_TIMEOUT: int = 120
+
+# =============================================================================
+# REGISTRY AND S3 CONFIGURATION
+# =============================================================================
+
+REGISTRY_PORT: int = 5000
+REGISTRY_IMAGE_PREFIX = "rhel-"
+S3_BOOT_IMAGES_BUCKET = "s3://boot-images/"
+S3_EFI_IMAGES_PREFIX = "s3://boot-images/efi-images/"
+BOOT_IMAGE_ARTIFACTS_PER_ROLE: int = 3
 
 # =============================================================================
 # SHELL COMMANDS — all commands MUST be in this dict.
@@ -373,5 +483,100 @@ CMDS: Dict[str, str] = {
         "systemctl list-units --type=service --all"
         " --no-legend 2>/dev/null"
         " | grep {pattern} || true"
+    ),
+
+    # --- GitLab Pipeline API ---
+    "gitlab_api_list_pipelines": (
+        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
+        " '{api_url}/projects/{project_id}/pipelines"
+        "?per_page={per_page}' 2>/dev/null"
+    ),
+    "gitlab_api_pipeline_status": (
+        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
+        " '{api_url}/projects/{project_id}/pipelines/{pipeline_id}'"
+        " 2>/dev/null"
+    ),
+    "gitlab_api_pipeline_jobs": (
+        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
+        " '{api_url}/projects/{project_id}/pipelines/{pipeline_id}/jobs'"
+        " 2>/dev/null"
+    ),
+    "gitlab_api_pipeline_bridges": (
+        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
+        " '{api_url}/projects/{project_id}/pipelines/{pipeline_id}/bridges'"
+        " 2>/dev/null"
+    ),
+    "gitlab_api_cancel_pipeline": (
+        "curl -sk -X POST --header 'PRIVATE-TOKEN: {token}'"
+        " '{api_url}/projects/{project_id}/pipelines/{pipeline_id}/cancel'"
+        " 2>/dev/null"
+    ),
+    "gitlab_api_trigger_pipeline": (
+        "curl -sk -X POST --header 'PRIVATE-TOKEN: {token}'"
+        " --header 'Content-Type: application/json'"
+        " -d '{json_data}'"
+        " '{api_url}/projects/{project_id}/pipeline'"
+        " 2>/dev/null"
+    ),
+    "gitlab_api_update_file": (
+        "curl -sk -X PUT --header 'PRIVATE-TOKEN: {token}'"
+        " --header 'Content-Type: application/json'"
+        " -d '{json_data}'"
+        " '{api_url}/projects/{project_id}/repository/files/{file_path}'"
+        " 2>/dev/null"
+    ),
+    "gitlab_api_get_file": (
+        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
+        " '{api_url}/projects/{project_id}/repository/files/"
+        "{file_path}?ref={branch}' 2>/dev/null"
+    ),
+
+    # --- Database (psql via podman) ---
+    "psql_query": (
+        "podman exec {container} psql -U {user} -d {db}"
+        " -t -c \"{sql}\" 2>/dev/null"
+    ),
+
+    # --- BSM API ---
+    "bsm_api_auth_token": (
+        "curl -sk -X POST 'https://{host}:{port}/api/v1/auth/token'"
+        " -H 'Content-Type: application/x-www-form-urlencoded'"
+        " -d 'grant_type=client_credentials"
+        "&client_id={client_id}&client_secret={client_secret}'"
+        " 2>/dev/null"
+    ),
+    "bsm_api_get_job": (
+        "curl -sk -H 'Authorization: Bearer {token}'"
+        " 'https://{host}:{port}/api/v1/jobs/{job_id}' 2>/dev/null"
+    ),
+    "bsm_api_catalog_roles": (
+        "curl -sk -H 'Authorization: Bearer {token}'"
+        " 'https://{host}:{port}/api/v1/jobs/{job_id}/catalog/roles'"
+        " 2>/dev/null"
+    ),
+
+    # --- Registry ---
+    "regctl_repo_ls": (
+        "regctl repo ls --limit 500 {registry_url} 2>/dev/null"
+    ),
+
+    # --- S3 ---
+    "s3cmd_ls_recursive": (
+        "s3cmd ls -r {bucket} 2>/dev/null"
+    ),
+    "s3cmd_ls_bucket": (
+        "s3cmd ls {bucket} 2>/dev/null"
+    ),
+
+    # --- Vault decrypt ---
+    "vault_decrypt_creds": (
+        "ansible-vault decrypt --vault-password-file {key_path} "
+        "--output - {creds_path} 2>/dev/null"
+    ),
+
+    # --- Registry catalog ---
+    "curl_registry_catalog": (
+        "curl -sk https://localhost:{port}/v2/_catalog 2>/dev/null"
+        " || curl -sk http://localhost:{port}/v2/_catalog 2>/dev/null"
     ),
 }

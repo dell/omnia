@@ -120,3 +120,32 @@ report_name: build_stream_test_report
 # Leave empty to auto-generate from timestamp.
 # No spaces allowed. Only letters, numbers, underscores, hyphens.
 report_id: ""
+
+# =============================================================================
+# BUILD PIPELINE SETTINGS
+# =============================================================================
+# Controls for build pipeline automation tests (auto-trigger and manual).
+
+# When true, automation auto-cancels running/pending pipelines before
+# triggering a new one. When false, the test fails with instructions
+# to cancel manually in GitLab.
+allow_pipeline_cancel: false
+
+# Catalog filename to use for build pipeline trigger.
+# Must be a JSON file from src/main/samples/ only.
+# Available catalogs:
+#   catalog_rhel.json
+#
+# Required: must be set before running --test or --verify.
+catalog_name: "catalog_rhel.json"
+
+# Job ID from the most recent build pipeline run.
+# Automatically populated by test_playbook.py during --test mode.
+# Must be set manually before running --verify if no prior --test was run.
+# Format: UUID (e.g. 019bf590-1234-7890-abcd-ef1234567890)
+job_id: ""
+
+# Image group identifier for deploy/cleanup tests.
+# When set, automation uses this specific image group.
+# When empty, automation auto-selects the latest BUILT image group.
+image_identifier: ""

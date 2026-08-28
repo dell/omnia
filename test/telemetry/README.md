@@ -1,6 +1,6 @@
 # Telemetry Test Automation
 
-Functional Verification Testing (FVT) for the `telemetry` Ansible domain.
+Functional Verification Testing (FVT) and Non-Functional Testing (NFT) for the `telemetry` Ansible domain.
 
 ## Quick Start
 
@@ -47,6 +47,13 @@ Run from inside the `test/telemetry/` directory:
 | `cleanup` | `--tags cleanup` | Cleanup resources (pods, services, topics) |
 | *(none)* | *(no tag)* | Full end-to-end (all tags) |
 
+### NFT Tags
+
+| Tag | What It Tests |
+|-----|---------------|
+| `performance` | Validate, deploy, and cleanup performance thresholds |
+| `idempotency` | Deploy and cleanup idempotency (second run exits 0) |
+
 ### Options
 
 | Option | Description |
@@ -64,7 +71,7 @@ Run from inside the `test/telemetry/` directory:
 | AND (`+`) | `--marker source+sanity` | Tests with BOTH markers |
 | OR (`,`) | `--marker sink,source` | Tests with EITHER marker |
 
-Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`
+Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`, `nft`, `performance`, `idempotency`
 
 ### Examples
 
@@ -73,7 +80,13 @@ Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`
 ./run_validation.sh fvt_telemetry deploy test --marker sanity
 ./run_validation.sh fvt_telemetry deploy verify --suite sources
 ./run_validation.sh fvt_telemetry deploy verify --suite sinks
+./run_validation.sh fvt_telemetry cleanup test
 ./run_validation.sh fvt_telemetry list
+
+# NFT
+./run_validation.sh nft test                          # All NFT tests
+./run_validation.sh nft test --marker performance     # Performance only
+./run_validation.sh nft test --marker idempotency     # Idempotency only
 
 # Config-driven batch
 ./run_validation.sh --config
@@ -114,8 +127,8 @@ test/telemetry/
 ├── test_run_config.yml       # Batch execution: scenario order, markers, suites
 │
 ├── library/                  # Reusable automation library
-│   ├── functions/            # telemetry_func, k8s_func, powerscale_func, etc.
-│   ├── vars/                 # Constants, component names (common_vars, domain_vars)
+│   ├── functions/            # telemetry_func, k8s_func, cleanup_func, etc.
+│   ├── vars/                 # Constants, component names (common_vars, test_case_vars)
 │   └── messages/             # Test names, log/assert messages
 │
 ├── fvt/                      # Functional Verification Tests
@@ -126,7 +139,7 @@ test/telemetry/
 │   │   ├── test_playbook.py  # Playbook --tags validate
 │   │   └── input/            # Config validation
 │   ├── deploy/               # Deploy tag tests
-│   │   ├── test_playbook.py  # Playbook (tag from OMNIA_DEPLOY_TAG)
+│   │   ├── test_playbook.py  # Playbook --tags execute
 │   │   ├── test_namespace.py # All-pods-running check
 │   │   ├── sinks/
 │   │   │   ├── test_kafka.py
@@ -141,24 +154,39 @@ test/telemetry/
 │   │       └── test_vast.py
 │   └── cleanup/              # Cleanup tag tests
 │       ├── test_playbook.py  # Playbook --tags cleanup
-│       └── cleanup/          # Verify pods removed, topics removed
+│       └── status/           # Verify sources/sinks/pods/PVCs removed
+│           ├── test_cleanup_sources.py
+│           ├── test_cleanup_sinks.py
+│           └── test_cleanup_final.py
+│
+└── nft/                      # Non-Functional Tests
+    ├── test_performance.py   # Performance thresholds (validate, deploy, cleanup)
+    └── test_idempotency.py   # Idempotency tests (deploy, cleanup)
 ```
 
 ## Test Case Summary
 
+### FVT (Functional Verification Tests)
+
 | Area | TCs | Marker |
 |------|-----|--------|
-| Namespace | 1 | sanity |
-| Sinks: Kafka | 3 | sanity |
-| Sinks: VictoriaMetrics | 2 | sanity |
-| Sinks: VictoriaLogs | 2 | sanity |
-| Sources: iDRAC | 6 | sanity + functional |
-| Sources: LDMS | 2 | sanity |
-| Sources: OME | 3 | sanity + functional |
-| Sources: PowerScale | 6 | sanity + functional |
-| Sources: UFM | 4 | sanity + functional |
-| Sources: VAST | 5 | sanity + functional |
-| **Total** | **34** | |
+| Precheck | 7 | sanity |
+| Validate | 6 | sanity |
+| Deploy | 1 | deploy |
+| Sinks | 12 | sanity + sink |
+| Sources | 27 | sanity + functional + source |
+| Cleanup | 13 | sanity + functional |
+| **FVT Total** | **66** | |
+
+### NFT (Non-Functional Tests)
+
+| Area | TCs | Marker |
+|------|-----|--------|
+| Performance | 3 | nft + performance |
+| Idempotency | 4 | nft + idempotency |
+| **NFT Total** | **7** | |
+
+### Grand Total: **73 Tests**
 
 ## Output Format
 

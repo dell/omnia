@@ -69,3 +69,9 @@
 
 - name: Validate provisioning
   ansible.builtin.import_playbook: validate/validate_provisioning.yml
+
+# PXE boot step — skipped by default unless enable_pxe_boot is true.
+# Run standalone: ansible-playbook orchestrator.yml --tags setpxe
+- name: Set PXE boot on iDRAC nodes
+  ansible.builtin.import_playbook: setpxe/set_pxe_boot.yml
+  tags: [setpxe, set_pxe, pxe_boot]

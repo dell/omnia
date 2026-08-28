@@ -47,7 +47,9 @@ containers, lose data, or produce errors on re-execution.
 
 ## Prerequisites
 
-NFT tests require a **fully deployed** environment. Run FVT first:
+NFT tests require a **fully deployed** environment with `OMNIA_DATA_PATH` and
+`OMNIA_PROJECT_NAME` set on the target host (via `omnia.sh --setup-venv`).
+Run FVT first:
 
 ```bash
 # Deploy the environment

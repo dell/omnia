@@ -29,10 +29,10 @@ from library.vars.common_vars import (
     TELEMETRY_NAMESPACE,
     IDRAC_POD_PREFIX,
     IDRAC_STS_NAME,
-    LDMS_AGG_POD,
-    LDMS_STORE_POD,
-    VECTOR_LDMS_PREFIX,
-    VECTOR_OME_PREFIX,
+    LDMS_AGG_STS_NAME,
+    LDMS_STORE_NAME,
+    VECTOR_LDMS_APP_NAME,
+    VECTOR_OME_APP_NAME,
     VM_POD_PREFIXES,
     VMAGENT_POD_PREFIX,
     VL_POD_PREFIXES,
@@ -136,9 +136,9 @@ def verify_ldms_cleaned(host, namespace=None) -> Dict[str, Any]:
     ns = namespace or TELEMETRY_NAMESPACE
     remaining = []
     for prefix, label in [
-        (LDMS_AGG_POD, "LDMS aggregator"),
-        (LDMS_STORE_POD, "LDMS store"),
-        (VECTOR_LDMS_PREFIX, "Vector-LDMS bridge"),
+        (LDMS_AGG_STS_NAME, "LDMS aggregator"),
+        (LDMS_STORE_NAME, "LDMS store"),
+        (VECTOR_LDMS_APP_NAME, "Vector-LDMS bridge"),
     ]:
         count = _get_pod_count_by_prefix(host, prefix, ns)
         if count > 0:
@@ -168,7 +168,7 @@ def verify_ome_cleaned(host, namespace=None) -> Dict[str, Any]:
         dict with keys: success (bool), details (str), error (str).
     """
     ns = namespace or TELEMETRY_NAMESPACE
-    count = _get_pod_count_by_prefix(host, VECTOR_OME_PREFIX, ns)
+    count = _get_pod_count_by_prefix(host, VECTOR_OME_APP_NAME, ns)
     if count == 0:
         return {
             "success": True,

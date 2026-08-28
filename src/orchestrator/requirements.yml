@@ -4,3 +4,5 @@ collections:
     version: "2.0.0"
   - name: community.general
     version: "10.3.0"
+  - name: dellemc.openmanage
+    version: ">=10.0.3"

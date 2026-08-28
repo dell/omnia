@@ -57,11 +57,47 @@ TEST_LOG_MSGS = {
     "nodes_ready": "All {count} K8s nodes are Ready",
     "nodes_not_ready": "{not_ready_count} node(s) not Ready",
 
-    # Cleanup
+    # Cleanup - General
     "cleanup_pods_ok": "All telemetry pods removed",
     "cleanup_pods_remaining": "{count} pod(s) still running after cleanup",
     "cleanup_topics_ok": "All Kafka topics removed",
     "cleanup_topics_remaining": "{count} topic(s) still present after cleanup",
+
+    # Cleanup - Sources
+    "idrac_cleaned": "No iDRAC pods remaining",
+    "idrac_not_cleaned": "{count} iDRAC pod(s) still present",
+    "ldms_cleaned": "No LDMS pods remaining",
+    "ldms_not_cleaned": "{count} LDMS pod(s) still present",
+    "ome_cleaned": "No OME pods remaining",
+    "ome_not_cleaned": "{count} OME pod(s) still present",
+    "dcgm_cleaned": "No DCGM pods remaining",
+    "dcgm_not_cleaned": "{count} DCGM pod(s) still present",
+    "ufm_cleaned": "No UFM resources remaining",
+    "ufm_not_cleaned": "UFM resources still present",
+    "vast_cleaned": "No VAST resources remaining",
+    "vast_not_cleaned": "VAST resources still present",
+    "sfm_cleaned": "No SFM pods remaining",
+    "sfm_not_cleaned": "{count} SFM pod(s) still present",
+
+    # Cleanup - Sinks
+    "kafka_cleaned": "No Kafka pods remaining",
+    "kafka_not_cleaned": "{count} Kafka pod(s) still present",
+    "vm_cleaned": "No VictoriaMetrics pods remaining",
+    "vm_not_cleaned": "{count} VictoriaMetrics pod(s) still present",
+    "vl_cleaned": "No VictoriaLogs pods remaining",
+    "vl_not_cleaned": "{count} VictoriaLogs pod(s) still present",
+
+    # Cleanup - Final State
+    "no_pods_remaining": "No pods remaining in telemetry namespace",
+    "pods_remaining": "{count} pod(s) still present in telemetry namespace",
+    "no_pvcs_remaining": "No PVCs remaining in telemetry namespace",
+    "pvcs_remaining": "{count} PVC(s) still present in telemetry namespace",
+
+    # Cleanup - Idempotency / Playbook
+    "cleanup_failed": "Cleanup playbook failed",
+    "deploy_failed": "Deploy playbook failed",
+    "idempotent_passed": "Idempotency verified: second run exited 0 (duration={duration}s)",
+    "idempotent_failed": "Idempotency failed: second run exited {rc}",
 
     # All pods running
     "all_pods_running": "All {total} pods running in telemetry namespace",
@@ -282,12 +318,98 @@ TEST_ASSERT_MSGS = {
         " -out user.pfx -inkey user.key -in user.crt\n"
     ),
 
-    # Cleanup
+    # Cleanup - General
     "cleanup_pods_remaining": (
         "{count} pod(s) still running after cleanup\n"
         "HOW TO FIX:\n"
         "  1. kubectl get pods -n telemetry\n"
         "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+    ),
+
+    # Cleanup - Sources
+    "idrac_not_cleaned": (
+        "{count} iDRAC pod(s) still present after cleanup\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry -l app=idrac-telemetry\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_idrac\n"
+    ),
+    "ldms_not_cleaned": (
+        "{count} LDMS pod(s) still present after cleanup\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry | grep ldms\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_ldms\n"
+    ),
+    "ome_not_cleaned": (
+        "{count} OME pod(s) still present after cleanup\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry -l app=vector-ome\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_ome\n"
+    ),
+    "dcgm_not_cleaned": (
+        "{count} DCGM pod(s) still present after cleanup\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry | grep dcgm\n"
+        "  2. Re-run cleanup\n"
+    ),
+    "ufm_not_cleaned": (
+        "UFM resources still present after cleanup\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get svc,vmservicescrape,secret -n telemetry | grep ufm\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_ufm\n"
+    ),
+    "vast_not_cleaned": (
+        "VAST resources still present after cleanup\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get svc,vmservicescrape,secret -n telemetry | grep vast\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_vast\n"
+    ),
+    "sfm_not_cleaned": (
+        "{count} SFM pod(s) still present after cleanup\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry | grep sfm\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_sfm\n"
+    ),
+
+    # Cleanup - Sinks
+    "kafka_not_cleaned": (
+        "{count} Kafka pod(s) still present after cleanup\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry | grep kafka\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+    ),
+    "vm_not_cleaned": (
+        "{count} VictoriaMetrics pod(s) still present after cleanup\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry | grep vm\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+    ),
+    "vl_not_cleaned": (
+        "{count} VictoriaLogs pod(s) still present after cleanup\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry | grep vl\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+    ),
+
+    # Cleanup - Final State
+    "pods_remaining": (
+        "{count} pod(s) still present in telemetry namespace\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+    ),
+    "pvcs_remaining": (
+        "{count} PVC(s) still present in telemetry namespace\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pvc -n telemetry\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+    ),
+
+    # Idempotency
+    "idempotent_failed": (
+        "Idempotency check failed: second run exited {rc}\n"
+        "HOW TO FIX:\n"
+        "  1. Check the playbook output for tasks that failed on second run\n"
+        "  2. Ensure tasks use proper idempotency guards\n"
     ),
 
     # UFM
