@@ -369,16 +369,15 @@ cleanup_repo_manager:
     - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
 
     - echo "Running repo_manager cleanup"
-    - 'TAGS_FLAG=$( [ -n "$CLEANUP_REPO_MANAGER_TAGS" ] && echo "--tags $CLEANUP_REPO_MANAGER_TAGS" || echo "" )'
-    - echo "  Tags: ${CLEANUP_REPO_MANAGER_TAGS:-<none>}"
+    - echo "  Tags: cleanup"
     - |
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute repo_manager.yml $TAGS_FLAG on $TARGET"
+        echo "DRY_RUN: Would execute repo_manager.yml --tags cleanup on $TARGET"
       else
         $SSH_CMD $TARGET "
           source /opt/omnia/activate-omnia.sh
           cd $OMNIA_INSTALL_PATH/src/repo_manager/playbooks/
-          ansible-playbook repo_manager.yml $TAGS_FLAG \
+          ansible-playbook repo_manager.yml --tags cleanup \
             -e cleanup_credentials=true -e cleanup_logs=true $ANSIBLE_VERBOSITY
         " || echo 'repo_manager cleanup skipped (no previous state or not applicable)'
       fi
@@ -415,16 +414,15 @@ cleanup_image_build_manager:
     - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
 
     - echo "Running image_build_manager cleanup"
-    - 'TAGS_FLAG=$( [ -n "$CLEANUP_IMAGE_BUILD_TAGS" ] && echo "--tags $CLEANUP_IMAGE_BUILD_TAGS" || echo "" )'
-    - echo "  Tags: ${CLEANUP_IMAGE_BUILD_TAGS:-<none>}"
+    - echo "  Tags: cleanup"
     - |
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute image_build_manager.yml $TAGS_FLAG on $TARGET"
+        echo "DRY_RUN: Would execute image_build_manager.yml --tags cleanup on $TARGET"
       else
         $SSH_CMD $TARGET "
           source /opt/omnia/activate-omnia.sh
           cd $OMNIA_INSTALL_PATH/src/image_build_manager/playbooks
-          ansible-playbook image_build_manager.yml $TAGS_FLAG $ANSIBLE_VERBOSITY
+          ansible-playbook image_build_manager.yml --tags cleanup $ANSIBLE_VERBOSITY
         " || echo 'image_build_manager cleanup skipped (no previous state or not applicable)'
       fi
 
@@ -460,16 +458,15 @@ cleanup_orchestrator:
     - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
 
     - echo "Running orchestrator cleanup"
-    - 'TAGS_FLAG=$( [ -n "$CLEANUP_ORCHESTRATOR_TAGS" ] && echo "--tags $CLEANUP_ORCHESTRATOR_TAGS" || echo "" )'
-    - echo "  Tags: ${CLEANUP_ORCHESTRATOR_TAGS:-<none>}"
+    - echo "  Tags: cleanup"
     - |
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute cleanup_orchestrator.yml $TAGS_FLAG on $TARGET"
+        echo "DRY_RUN: Would execute cleanup_orchestrator.yml --tags cleanup on $TARGET"
       else
         $SSH_CMD $TARGET "
           source /opt/omnia/activate-omnia.sh
           cd $OMNIA_INSTALL_PATH/src/orchestrator/playbooks/cleanup
-          ansible-playbook cleanup_orchestrator.yml $TAGS_FLAG $ANSIBLE_VERBOSITY
+          ansible-playbook cleanup_orchestrator.yml --tags cleanup $ANSIBLE_VERBOSITY
         " || echo 'orchestrator cleanup skipped (no previous state or not applicable)'
       fi
 
