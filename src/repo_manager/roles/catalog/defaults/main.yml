@@ -1,0 +1,36 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# CATALOG ROLE DEFAULTS
+# =============================================================================
+
+# ── Paths ──
+catalog_scripts_dir: "{{ playbook_dir | dirname }}/plugins/module_utils/catalog"
+# Use CATALOG_FILE_PATH env var if set, otherwise use default location
+catalog_file: "{{ lookup('env', 'CATALOG_FILE_PATH') | default('/opt/omnia/catalog/catalog_rhel.json', true) }}"
+schema_file: "{{ playbook_dir | dirname }}/schemas/catalog_schema.json"
+catalog_log_dir: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}/repo_manager/log/catalog"
+
+# ── Generate defaults ──
+catalog_name: "default"
+force: false
+
+# ── Package defaults (used when [defaults] header absent in input file) ──
+default_arch: "x86_64"
+default_os: "rhel"
+default_os_version: "10.0"
+
+# ── Post-operation validation ──
+validate_after: true
