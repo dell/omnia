@@ -18,10 +18,13 @@
 
 FROM cgr.dev/chainguard/wolfi-base
 
-# Install OpenLDAP 2.7 server, MDB backend, clients, and matching library
+# Install OpenLDAP 2.7 server, backends (MDB + LDAP + Meta for proxy),
+# clients, and matching library
 RUN apk update && apk add --no-cache \
     openldap \
     openldap-back-mdb \
+    openldap-back-ldap \
+    openldap-back-meta \
     openldap-clients \
     libldap-2.7 \
     ca-certificates-bundle
