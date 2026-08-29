@@ -127,6 +127,7 @@
       no_log: true
       when:
         - _is_vault_encrypted.rc | default(1) == 0
+        - _cred_decrypt_result is defined
         - _cred_decrypt_result.rc | default(1) == 0
 
 - name: Validate stored Pulp password

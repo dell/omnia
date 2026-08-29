@@ -77,6 +77,15 @@
         name: "{{ pulp_container_name }}"
       register: pulp_container_status
 
+    - name: Verify Pulp container is running after deployment
+      ansible.builtin.assert:
+        that:
+          - >-
+            (pulp_container_status.containers | default([]) | length > 0)
+            and
+            (pulp_container_status.containers[0].State.Status | default('') == 'running')
+        fail_msg: "Pulp container {{ pulp_container_name }} is not running after deployment."
+
     - name: Notify user of Pulp container deployment status
       ansible.builtin.debug:
         msg: "{{ pulp_deployed_msg }}"
@@ -87,7 +96,9 @@
   rescue:
     - name: Pulp container deployment failed
       ansible.builtin.fail:
-        msg: "{{ pulp_deployed_fail_msg }}"
+        msg: >-
+          {{ pulp_deployed_fail_msg }}
+          Root cause: {{ ansible_failed_result.msg | default('Unknown deployment error') }}
 
 - name: Set fact for container status
   ansible.builtin.set_fact:

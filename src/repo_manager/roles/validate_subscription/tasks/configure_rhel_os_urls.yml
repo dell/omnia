@@ -98,8 +98,11 @@
         sslclientcert: "{{ lookup('pipe', 'ls {{ omnia_rhel_cert_dir }}/*.pem | grep -v -- -key.pem | head -n1') }}"
         sub_rhel_x86_64_urls: []
         sub_rhel_aarch64_urls: []
-        sub_policy_default: "{{ sw_config.repo_config | default('on_demand') }}"
-        sub_caching_default: true
+        # Subscription-discovered repositories inherit the same global policy
+        # settings as repositories with configured URLs. Per-repository values
+        # are merged below and take precedence over these defaults.
+        sub_policy_default: "{{ local_config.repo_config | default('partial') }}"
+        sub_caching_default: "{{ local_config.caching_policy | default(true) | bool }}"
         sub_x86_64_override_config: "{{ local_config['repositories'][cluster_os_version]['x86_64'] | default({}) }}"
         sub_aarch64_override_config: "{{ local_config['repositories'][cluster_os_version]['aarch64'] | default({}) }}"
 
@@ -153,12 +156,12 @@
         sub_rhel_x86_64_urls: >-
           {%- set result = [] -%}
           {%- for repo in sub_rhel_x86_64_urls -%}
-            {%- set override = (sub_x86_64_override_config | selectattr('name', 'equalto', repo.name) | first | default({})) -%}
+            {%- set override = sub_x86_64_override_config.get(repo.name, {}) -%}
             {%- if override -%}
               {%- set updated_repo = repo | combine({
-                'url': override.url | default(repo.url),
+                'url': override.url | default(repo.url, true),
                 'gpgkey': override.gpgkey | default(repo.gpgkey),
-                'policy': override.policy | default(repo.policy),
+                'policy': override.policy | default(repo.policy, true),
                 'caching': override.caching | default(repo.caching)
               }) -%}
             {%- else -%}
@@ -202,12 +205,12 @@
         sub_rhel_aarch64_urls: >-
           {%- set result = [] -%}
           {%- for repo in sub_rhel_aarch64_urls -%}
-            {%- set override = (sub_aarch64_override_config | selectattr('name', 'equalto', repo.name) | first | default({})) -%}
+            {%- set override = sub_aarch64_override_config.get(repo.name, {}) -%}
             {%- if override -%}
               {%- set updated_repo = repo | combine({
-                'url': override.url | default(repo.url),
+                'url': override.url | default(repo.url, true),
                 'gpgkey': override.gpgkey | default(repo.gpgkey),
-                'policy': override.policy | default(repo.policy),
+                'policy': override.policy | default(repo.policy, true),
                 'caching': override.caching | default(repo.caching)
               }) -%}
             {%- else -%}

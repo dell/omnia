@@ -386,7 +386,7 @@ def show_rpm_repository(repo_name, log):
 
 def create_rpm_remote(repo, log):
     """
-    Create a remote for the RPM repository if it doesn't already exist.
+    Create an RPM remote or update its URL, policy, and certificates.
 
     Args:
         repo (dict): A dictionary containing the repository information.
@@ -410,47 +410,41 @@ def create_rpm_remote(repo, log):
 
         remote_name = repo_name
 
-        # Check if remote already exists - skip if it does
-        if show_rpm_remote(remote_name, log):
-            log.info("Remote '%s' already exists. Skipping.", remote_name)
-            return True, repo_name
-
-        # Remote doesn't exist - create it
+        remote_exists = show_rpm_remote(remote_name, log)
         repo_keys = repo.keys()
         if "ca_cert" in repo_keys and repo["ca_cert"]:
             ca_cert = f"@{repo['ca_cert']}"
             client_cert = f"@{repo['client_cert']}"
             client_key = f"@{repo['client_key']}"
-            if not show_rpm_remote(remote_name, log):
+            if remote_exists:
+                command = pulp_rpm_commands["update_remote_cert"] % (
+                    remote_name, remote_url, policy_type, ca_cert, client_cert, client_key
+                )
+                log.info("Remote '%s' exists. Updating URL, policy, and certificates.", remote_name)
+            else:
                 command = pulp_rpm_commands["create_remote_cert"] % (
                     remote_name, remote_url, policy_type, ca_cert, client_cert, client_key
                 )
                 log.info("Remote '%s' does not exist. Executing creation command with certs.", remote_name)
-                result = execute_command(command, log)
-                # Handle duplicate remote error - treat as success since remote already exists
-                if result is False:
-                    log.warning(
-                        "Remote creation command failed for '%s', checking if remote already exists",
-                        remote_name
-                    )
-                    if show_rpm_remote(remote_name, log):
-                        log.info("Remote '%s' already exists (duplicate creation error). Treating as success.", remote_name)
-                        return True, repo_name
-                log.info("Remote %s created.", remote_name)
+            result = execute_command(command, log)
+            # Handle a concurrent create of the same remote as success.
+            if result is False and not remote_exists and show_rpm_remote(remote_name, log):
+                log.info("Remote '%s' was created concurrently. Treating as success.", remote_name)
+                return True, repo_name
         else:
             log.info("Repository does not use SSL certificates for remote")
-            if not show_rpm_remote(remote_name, log):
+            if remote_exists:
+                command = pulp_rpm_commands["update_remote"] % (remote_name, remote_url, policy_type)
+                log.info("Remote '%s' exists. Updating URL and policy.", remote_name)
+            else:
                 command = pulp_rpm_commands["create_remote"] % (remote_name, remote_url, policy_type)
                 log.info("Remote '%s' does not exist. Executing creation command.", remote_name)
-                result = execute_command(command, log)
-                # Handle duplicate remote error - treat as success since remote already exists
-                if result is False:
-                    log.warning("Remote creation command failed for '%s', checking if remote already exists", remote_name)
-                    if show_rpm_remote(remote_name, log):
-                        log.info("Remote '%s' already exists (duplicate creation error). Treating as success.", remote_name)
-                        return True, repo_name
-                log.info("Remote %s created.", remote_name)
-        # Return True if result is truthy (success) or if remote exists, False otherwise
+            result = execute_command(command, log)
+            # Handle a concurrent create of the same remote as success.
+            if result is False and not remote_exists and show_rpm_remote(remote_name, log):
+                log.info("Remote '%s' was created concurrently. Treating as success.", remote_name)
+                return True, repo_name
+        # Both create and update commands return a truthy result on success.
         return bool(result), repo_name
 
     except subprocess.CalledProcessError as e:

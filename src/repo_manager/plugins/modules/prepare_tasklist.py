@@ -232,6 +232,7 @@ def main():
 
         # Parse repository URLs from config
         local_config = []
+        explicitly_configured_repos = set()
         for arch in sw_archs:
             repos = parse_repo_urls_from_config(config_data, repo_config, arch,
                                                  cluster_os_version, logger, global_caching_policy)
@@ -250,13 +251,23 @@ def main():
                     "policy": pulp_policy,
                     "sw_arch": arch,
                 })
+                explicitly_configured_repos.add((arch, repo["name"]))
 
-        # Handle subscription URLs override
+        # Add subscription-discovered URLs only when a repository does not have
+        # an explicit configured URL. This makes a user-provided URL the highest
+        # priority and prevents duplicate Pulp entries for the same repository.
         if sub_urls:
             for arch in sw_archs:
                 if arch in sub_urls and sub_urls[arch]:
                     for url_entry in sub_urls[arch]:
                         name = url_entry.get("name", "unknown")
+                        if (arch, name) in explicitly_configured_repos:
+                            logger.info(
+                                "Using explicitly configured URL for repository %s (%s); "
+                                "skipping subscription-discovered URL",
+                                name, arch
+                            )
+                            continue
                         sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, name)
                         pulp_policy = resolve_pulp_policy(
                             url_entry.get("policy", repo_config),
