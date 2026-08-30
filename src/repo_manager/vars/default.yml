@@ -136,7 +136,7 @@ max_retries: 10
 parallel_config:
   # Worker processes for catalog package downloads (1-5).
   # Keep at 1 for maximum stability; increase only after validating the Pulp host.
-  default_nthreads: 1
+  default_nthreads: 3
   default_timeout_seconds: 60
   task_poll_interval_seconds: 10
 
