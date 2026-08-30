@@ -39,11 +39,20 @@
     mode: "{{ dir_permissions_644 }}"
 
 # --- Base image cache check ---
-# Compute a hash of base_image_packages to detect changes.
+# Compute a hash of base_image_packages and repository configuration to detect changes.
 # If the hash matches the previous build, skip the rebuild.
-- name: Compute base image package hash
+- name: Load repository configuration for cache detection
+  ansible.builtin.include_vars:
+    file: "{{ repo_manager_output_path }}"
+  failed_when: false
+  register: _repo_status_vars
+
+- name: Compute base image package and repository hash
   ansible.builtin.set_fact:
-    _base_pkg_hash: "{{ base_image_packages | sort | join(',') | hash('sha256') }}"
+    _base_pkg_hash: >-
+      {% set repo_config_string = _repo_status_vars.ansible_facts | default({}) | string -%}
+      {% set hash_input = base_image_packages | sort | join(',') ~ repo_config_string -%}
+      {{ hash_input | hash('sha256') }}
 
 - name: Set base image hash file path
   ansible.builtin.set_fact:

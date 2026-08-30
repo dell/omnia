@@ -33,6 +33,7 @@
     functional_groups_source: "{{ functional_groups_source | default('config') }}"
     image_build_type: "{{ image_build_type | default('image-builder') }}"
     catalog_file: "{{ lookup('ansible.builtin.env', 'CATALOG_FILE_PATH') | default('', true) }}"
+    repo_manager_output_path: "{{ repo_manager_output_path | default('/opt/omnia/repo_manager/output/project_default/repo_status.yml') }}"
     cacheable: true
   when: build_image is defined
 

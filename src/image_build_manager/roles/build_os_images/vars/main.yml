@@ -51,6 +51,7 @@ build_timeout: "{{ hostvars['localhost']['build_image_build_timeout'] | default(
 max_parallel: "{{ hostvars['localhost']['build_image_max_parallel'] | default(0) }}"
 force_rebuild: "{{ hostvars['localhost']['build_image_force_rebuild'] | default(false) | bool }}"
 backup_s3_images: "{{ hostvars['localhost']['build_image_backup_s3_images'] | default(false) | bool }}"
+repo_manager_output_path: "{{ hostvars['localhost']['repo_manager_output_path'] | default('/opt/omnia/repo_manager/output/project_default/repo_status.yml') }}"
 
 # ---------------------------------------------------------------------------
 # Build type switching: image-builder vs image-thrillhouse

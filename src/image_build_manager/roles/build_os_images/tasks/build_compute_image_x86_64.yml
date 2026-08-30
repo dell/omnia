@@ -60,14 +60,22 @@
         loop_var: item
 
     # --- Compute image cache check ---
-    # Per-group hash of packages to detect changes. Skip groups whose
-    # package hash matches the previous build (unless force_rebuild is set).
-    - name: Compute per-group package hashes
+    # Per-group hash of packages and repository configuration to detect changes.
+    # Skip groups whose combined hash matches the previous build (unless force_rebuild is set).
+    - name: Load repository configuration for cache detection
+      ansible.builtin.include_vars:
+        file: "{{ repo_manager_output_path }}"
+      failed_when: false
+      register: _repo_status_vars
+
+    - name: Compute per-group package and repository hashes
       ansible.builtin.set_fact:
         _compute_pkg_hashes: >-
           {% set result = {} -%}
           {% for fg_name, fg_data in compute_images_dict.items() -%}
-            {% set _ = result.update({fg_name: (fg_data.packages | sort | join(',') | hash('sha256'))}) -%}
+            {% set repo_config_string = _repo_status_vars.ansible_facts | default({}) | string -%}
+            {% set hash_input = fg_data.packages | sort | join(',') ~ repo_config_string -%}
+            {% set _ = result.update({fg_name: (hash_input | hash('sha256'))}) -%}
           {% endfor -%}
           {{ result }}
 
