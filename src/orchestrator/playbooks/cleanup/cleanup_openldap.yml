@@ -1,0 +1,66 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Cleanup OpenLDAP --- Remove OpenLDAP container, Quadlet unit, and data
+# Can be run standalone or imported by orchestrator.yml
+#
+# Responsibilities:
+#   1. Stop and disable OpenLDAP (omnia_auth) container service
+#   2. Remove the container
+#   3. Remove the Quadlet unit file
+#   4. Reload systemd
+#   5. Remove OpenLDAP data and configuration directories
+#
+# Safe and idempotent. Ignores already-removed resources gracefully.
+
+- name: Cleanup OpenLDAP services and data
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  vars:
+    auth_container_name: omnia_auth
+    auth_base_dir: /opt/omnia/auth
+    auth_quadlet_file: /etc/containers/systemd/omnia_auth.container
+  tasks:
+    - name: Stop OpenLDAP service
+      ansible.builtin.systemd:
+        name: omnia_auth
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Remove OpenLDAP container
+      ansible.builtin.command: podman rm -f -i {{ auth_container_name }}
+      changed_when: true
+      failed_when: false
+
+    - name: Remove OpenLDAP Quadlet unit
+      ansible.builtin.file:
+        path: "{{ auth_quadlet_file }}"
+        state: absent
+
+    - name: Reload systemd after Quadlet removal
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Remove OpenLDAP data and configuration
+      ansible.builtin.file:
+        path: "{{ auth_base_dir }}"
+        state: absent
+      failed_when: false
+
+    - name: OpenLDAP cleanup completed
+      ansible.builtin.debug:
+        msg: "OpenLDAP (omnia_auth) container stopped and data removed."

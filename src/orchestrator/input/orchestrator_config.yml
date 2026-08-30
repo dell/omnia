@@ -78,6 +78,14 @@ boot_kernel_params: ""
 # Default: "/opt/omnia/catalog/catalog_rhel.json" (from CATALOG_FILE_PATH env)
 catalog_file_path: ""
 
+#### Optional
+# Enable PXE boot support via iDRAC (default: true)
+# Set to true for physical (bare-metal) servers with Dell iDRAC.
+# Set to false for virtual machines or environments without iDRAC/BMC.
+# When false, the setpxe flow (--tags setpxe) is skipped with a message.
+# Default: true
+enable_pxe_boot: true
+
 image_build_manager_output_path: "/opt/omnia/image_build_manager/output/project_default/build_status.yml"
 
 #### Optional

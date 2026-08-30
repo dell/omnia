@@ -16,7 +16,7 @@ The `set_pxe_boot` utility configures Dell iDRAC nodes to boot from PXE and opti
 
 1. **Orchestrator credentials**: BMC credentials must be provisioned first
    ```bash
-   ansible-playbook prepare/prepare_orchestrator.yml
+   ansible-playbook orchestrator.yml --tags prepare
    ```
 
 2. **PXE mapping file**: `pxe_mapping_file.csv` must exist in orchestrator input directory
@@ -144,7 +144,7 @@ When `enable_phone_home: true`:
 FAILED! => BMC credentials not found. Run orchestrator credentials first
 ```
 
-**Solution**: Run `ansible-playbook prepare/prepare_orchestrator.yml` to provision credentials.
+**Solution**: Run `ansible-playbook orchestrator.yml --tags prepare` to provision credentials.
 
 ### pxe_mapping_file.csv not found
 

@@ -2,7 +2,7 @@
   members:
     ids:
 {% for item in nodes | sort(attribute='value.XNAME') %}
-{% if item.value.FUNCTIONAL_GROUP_NAME == functional_group_name %}
+{% if item.value.FUNCTIONAL_GROUP_NAME | replace('_first_', '_') == functional_group_name %}
       - {{ item.value.XNAME }}
 {% endif %}
 {% endfor %}
