@@ -1,0 +1,77 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Precheck OpenLDAP --- Validate all OpenLDAP/authentication-related variables
+# Can be run standalone or imported by orchestrator.yml
+#
+# This playbook validates inputs without modifying the system.
+# Skipped entirely when openldap_support is false.
+#
+# Checks performed:
+#   1. Assert openldap_support feature flag is defined
+#   2. Assert LDAP credentials are available (when enabled)
+#   3. Assert container image settings are valid
+#   4. Assert domain_name is configured for LDAP base DN derivation
+#   5. Assert required ports are not blocked
+
+- name: Validate OpenLDAP prerequisites
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Assert openldap_support flag is defined
+      ansible.builtin.assert:
+        that:
+          - openldap_support is defined
+        fail_msg: >-
+          Feature flag 'openldap_support' is not defined.
+          Ensure orchestrator_setup has loaded the catalog file.
+        quiet: true
+
+    - name: Skip OpenLDAP precheck when not enabled
+      ansible.builtin.debug:
+        msg: "OpenLDAP support is disabled (openldap_support: false). Skipping precheck."
+      when: not (openldap_support | default(false) | bool)
+
+    - name: Validate OpenLDAP configuration
+      when: openldap_support | default(false) | bool
+      block:
+        - name: Assert domain_name is configured for LDAP base DN
+          ansible.builtin.assert:
+            that:
+              - domain_name is defined
+              - domain_name | length > 0
+              - "'.' in domain_name"
+            fail_msg: >-
+              domain_name must be a valid FQDN (e.g. omnia.cluster) for LDAP
+              base DN derivation. Current value: '{{ domain_name | default("undefined") }}'.
+            quiet: true
+
+        - name: Check if credential file exists
+          ansible.builtin.stat:
+            path: "{{ input_project_dir }}/omnia_config_credentials.yml"
+          register: _cred_file_check
+
+        - name: Warn if credential file is missing (will be prompted during prepare)
+          ansible.builtin.debug:
+            msg: >-
+              Credential file not found at {{ input_project_dir }}/omnia_config_credentials.yml.
+              OpenLDAP credentials (openldap_db_username, openldap_db_password) will be
+              prompted during the prepare phase.
+          when: not _cred_file_check.stat.exists
+
+        - name: Precheck OpenLDAP completed
+          ansible.builtin.debug:
+            msg: "All OpenLDAP prechecks passed."

@@ -12,6 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# ─── Bulk SSH parallelism (bulk_update_hosts module) ───
+# Maximum number of concurrent SSH connections for parallel host updates.
+# Conservative default for production HPC clusters to avoid SSH connection
+# storms and sshd MaxStartups throttling. Typical sshd MaxStartups is 10:30:100.
+# Increase cautiously if sshd is tuned (e.g., MaxStartups 100:30:1000).
+# Recommended range: 10-50 for production, up to 100 for tuned clusters.
+bulk_ssh_max_parallel: 20
+
+# SSH connect timeout in seconds for each remote host connection.
+# Applied to both reachability checks (wait_for) and bulk module SSH calls.
+# 10s is reasonable for well-connected HPC networks; increase for WAN/VPN.
+bulk_ssh_connect_timeout: 10
+
+# ─── Bulk iDRAC parallelism (bulk_discover_node_specs module) ───
+# Maximum number of concurrent iDRAC Redfish connections for parallel
+# hardware discovery. iDRAC firmware supports limited concurrent sessions
+# (~4-6 per BMC). With 20 parallel across 1000 nodes each iDRAC sees at
+# most 1 concurrent request (safe). Do not exceed 50 without validating
+# iDRAC firmware tolerance.
+bulk_idrac_max_parallel: 20
+
+# Redfish API connect timeout in seconds per iDRAC request.
+# 60s accommodates slower iDRAC firmware. Reduce to 30s for responsive BMCs.
+bulk_idrac_connect_timeout: 60
+
 slurm_db_port_default: 3306
 slurm_db_type_default: mariadb
 slurm_db_username_default: root

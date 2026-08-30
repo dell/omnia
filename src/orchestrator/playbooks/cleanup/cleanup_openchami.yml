@@ -13,28 +13,22 @@
 # limitations under the License.
 ---
 
-# Cleanup Orchestrator — Remove OpenCHAMI services, artifacts, and credentials
-# Can be run standalone: cd playbooks/cleanup && ansible-playbook cleanup_orchestrator.yml
+# Cleanup OpenCHAMI --- Remove OpenCHAMI services, containers, and artifacts
+# Can be run standalone or imported by orchestrator.yml
 #
-# Workflow per §6.9:
-#   1. Stop OpenCHAMI services
-#   2. Remove OpenCHAMI containers and data
-#   3. Remove generated inventories
-#   4. Remove functional_groups_config.yml
-#   5. Remove orchestrator output directory
-#   6. Remove credentials (opt-in, tag-gated)
-
-- name: Setup orchestrator environment
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - role: orchestrator_setup
-      vars:
-        openchami_vars_support: true
-        omnia_metadata_support: true
-        oim_group: true
-  tags: always
+# Responsibilities:
+#   1. Stop and disable OpenCHAMI services (openchami.target)
+#   2. Remove OpenCHAMI containers and pods
+#   3. Remove OpenCHAMI configuration directories
+#   4. Remove OpenCHAMI workdir (nodes, inventories, boot, metadata-service)
+#   5. Remove OpenCHAMI logs
+#   6. Remove generated inventories
+#   7. Revert DNS/resolv.conf changes
+#   8. Remove orchestrator artifacts (FG config, state, output dir)
+#   9. Remove upgrade lock file
+#  10. Remove credentials (opt-in, tag-gated)
+#
+# Safe and idempotent. Ignores already-removed resources gracefully.
 
 - name: Cleanup OpenCHAMI services and data
   hosts: oim
@@ -115,7 +109,6 @@
           ansible.builtin.command: nmcli general reload dns-rc
           changed_when: true
           failed_when: false
-  tags: always
 
 - name: Cleanup orchestrator artifacts
   hosts: localhost
@@ -140,13 +133,12 @@
         path: "/opt/omnia/.data/upgrade_in_progress.lock"
         state: absent
 
-    - name: Cleanup completed
+    - name: OpenCHAMI cleanup completed
       ansible.builtin.debug:
         msg: >-
           OpenCHAMI cleanup completed. Services stopped, containers removed,
           configuration and workdir cleaned. Credentials were NOT removed
           (use --tags credentials to include credential cleanup).
-  tags: always
 
 - name: Cleanup credentials (opt-in)
   hosts: localhost

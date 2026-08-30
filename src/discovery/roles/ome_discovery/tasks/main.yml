@@ -13,23 +13,45 @@
 # limitations under the License.
 ---
 
-- name: Include OME credential handling
-  ansible.builtin.include_tasks: get_ome_credentials.yml
+- name: Run OME discovery pipeline
+  block:
+    - name: Include OME credential handling
+      ansible.builtin.include_tasks: get_ome_credentials.yml
 
-- name: Collect server inventory from OME
-  ansible.builtin.include_tasks: collect_inventory.yml
+    - name: Collect server inventory from OME
+      ansible.builtin.include_tasks: collect_inventory.yml
 
-- name: Generate PXE mapping file
-  ansible.builtin.include_tasks: generate_pxe_mapping.yml
+    - name: Generate PXE mapping file
+      ansible.builtin.include_tasks: generate_pxe_mapping.yml
 
-- name: Generate BMC discovery report
-  ansible.builtin.include_tasks: generate_discovery_report.yml
+    - name: Generate BMC discovery report
+      ansible.builtin.include_tasks: generate_discovery_report.yml
 
-- name: Write discovery status file
-  ansible.builtin.copy:
-    content: |
-      discovery_status: complete
-      discovery_mechanism: "{{ discovery_mechanism | default('ome') }}"
-      timestamp: "{{ ansible_date_time.iso8601 | default('unknown') }}"
-    dest: "{{ discovery_output_dir | default('/opt/omnia/output/project_default/discovery') }}/discovery_status.yml"
-    mode: '0644'
+    - name: Write discovery status file (success)
+      ansible.builtin.copy:
+        content: |
+          overall_status: "success"
+          discovery_mechanism: "{{ discovery_mechanism | default('ome') }}"
+          bmc_pxe_mapping_file: "{{ pxe_mapping_output_file | default('') }}"
+          servers_discovered: {{ discovered_servers | default([]) | length }}
+          timestamp: "{{ ansible_date_time.iso8601 | default('unknown') }}"
+        dest: "{{ discovery_output_dir | default('/opt/omnia/output/project_default/discovery') }}/discovery_status.yml"
+        mode: '0644'
+
+  rescue:
+    - name: Write discovery status file (failed)
+      ansible.builtin.copy:
+        content: |
+          overall_status: "failed"
+          discovery_mechanism: "{{ discovery_mechanism | default('ome') }}"
+          bmc_pxe_mapping_file: "{{ pxe_mapping_output_file | default('') }}"
+          servers_discovered: {{ discovered_servers | default([]) | length }}
+          failed_task: "{{ ansible_failed_task.name | default('unknown') }}"
+          failure_reason: "{{ ansible_failed_result.msg | default('unknown error') }}"
+          timestamp: "{{ ansible_date_time.iso8601 | default('unknown') }}"
+        dest: "{{ discovery_output_dir | default('/opt/omnia/output/project_default/discovery') }}/discovery_status.yml"
+        mode: '0644'
+
+    - name: Re-raise the original failure
+      ansible.builtin.fail:
+        msg: "{{ ansible_failed_result.msg | default('OME discovery failed — see discovery_status.yml for details') }}"
