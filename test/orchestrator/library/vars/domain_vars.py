@@ -35,10 +35,15 @@ DOMAIN_NAME: str = "orchestrator"
 # =====================================================================
 
 FVT_TAGS: List[str] = [
+    "precheck",
     "validate",
     "prepare",
+    "deploy",
     "provision",
+    "pxeboot",
     "cleanup",
+    "upgrade",
+    "rollback",
 ]
 
 # =====================================================================
@@ -57,10 +62,15 @@ MARKERS: List[str] = [
 # =====================================================================
 
 SUITES: Dict[str, List[str]] = {
+    "precheck": [],
     "validate": ["status"],
     "prepare": ["openchami"],
+    "deploy": ["status"],
     "provision": [],
+    "pxeboot": [],
     "cleanup": ["status"],
+    "upgrade": [],
+    "rollback": [],
 }
 
 # =====================================================================
@@ -69,4 +79,7 @@ SUITES: Dict[str, List[str]] = {
 
 EXCLUDE_TAGS: List[str] = [
     "cleanup",
+    "pxeboot",
+    "upgrade",
+    "rollback",
 ]

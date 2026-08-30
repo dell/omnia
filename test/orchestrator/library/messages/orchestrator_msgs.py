@@ -23,7 +23,7 @@ from typing import Dict
 
 # =============================================================================
 TEST_NAMES: Dict[str, str] = {
-    # Deploy
+    # Deploy (playbook execution)
     "deploy_playbook": (
         "Deploy: orchestrator.yml --tags {tag}"
     ),
@@ -32,6 +32,11 @@ TEST_NAMES: Dict[str, str] = {
     ),
     "deploy_validate": (
         "Deploy: orchestrator.yml (validate)"
+    ),
+
+    # Precheck
+    "precheck_playbook": (
+        "Precheck: orchestrator.yml --tags precheck"
     ),
 
     # Validate
@@ -62,6 +67,14 @@ TEST_NAMES: Dict[str, str] = {
         "Verify OpenCHAMI API is reachable"
     ),
 
+    # Deploy — Status
+    "deploy_openchami_running": (
+        "Verify OpenCHAMI containers running after deploy"
+    ),
+    "deploy_openldap_running": (
+        "Verify OpenLDAP services active after deploy"
+    ),
+
     # Provision — Nodes
     "nodes_provisioned": (
         "Verify nodes are provisioned and reachable"
@@ -73,6 +86,11 @@ TEST_NAMES: Dict[str, str] = {
         "Verify Slurm nodes are in idle state"
     ),
 
+    # PXE Boot
+    "pxeboot_playbook": (
+        "PXE Boot: orchestrator.yml --tags pxeboot"
+    ),
+
     # Cleanup
     "containers_removed": (
         "Verify OpenCHAMI containers removed after cleanup"
@@ -82,6 +100,22 @@ TEST_NAMES: Dict[str, str] = {
     ),
     "firewall_ports_closed": (
         "Verify firewall ports closed after cleanup"
+    ),
+
+    # Upgrade
+    "upgrade_playbook": (
+        "Upgrade: orchestrator.yml --tags upgrade"
+    ),
+    "upgrade_openchami_running": (
+        "Verify OpenCHAMI running after upgrade"
+    ),
+
+    # Rollback
+    "rollback_playbook": (
+        "Rollback: orchestrator.yml --tags rollback"
+    ),
+    "rollback_openchami_running": (
+        "Verify OpenCHAMI running after rollback"
     ),
 
     # Clone / sync
@@ -140,13 +174,43 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "slurm_nodes_ok": "All Slurm nodes idle",
     "slurm_nodes_not_idle": "{count} node(s) not idle",
 
-    # Deploy
+    # Deploy (playbook execution)
     "playbook_success": (
         "Playbook completed (rc=0, duration={duration:.1f}s)"
     ),
     "playbook_failed": (
         "Playbook failed (rc={rc}, duration={duration:.1f}s)"
     ),
+
+    # Precheck
+    "precheck_ok": "Precheck passed (read-only validation)",
+    "precheck_failed": "Precheck failed — fix input errors before deploy",
+
+    # Deploy — Status
+    "deploy_openchami_ok": (
+        "OpenCHAMI containers running after deploy"
+    ),
+    "deploy_openchami_failed": (
+        "OpenCHAMI containers NOT running after deploy"
+    ),
+    "deploy_openldap_ok": (
+        "OpenLDAP services active after deploy"
+    ),
+    "deploy_openldap_failed": (
+        "OpenLDAP services NOT active after deploy"
+    ),
+
+    # PXE Boot
+    "pxeboot_ok": "PXE boot completed",
+    "pxeboot_failed": "PXE boot failed",
+
+    # Upgrade
+    "upgrade_ok": "Upgrade completed successfully",
+    "upgrade_failed": "Upgrade failed",
+
+    # Rollback
+    "rollback_ok": "Rollback completed successfully",
+    "rollback_failed": "Rollback failed",
 
     # Clone
     "clone_ok": "Repository cloned and synced",

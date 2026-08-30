@@ -66,7 +66,7 @@ _run_validation_completions() {
     local cur="${COMP_WORDS[COMP_CWORD]}"
     local prev="${COMP_WORDS[COMP_CWORD-1]}"
     local domain="orchestrator"
-    local tags="validate prepare provision cleanup"
+    local tags="precheck validate prepare deploy provision pxeboot cleanup upgrade rollback"
     local commands="exec verify test list help"
     local options="--suite --marker -v --verbose --debug --config"
     local markers="sanity functional regression deploy"

@@ -228,8 +228,9 @@ def pytest_sessionstart(session):
 
     # Initialize test report
     valid_scenarios = {
-        "orchestrator", "validate", "prepare",
-        "provision", "cleanup",
+        "orchestrator", "precheck", "validate", "prepare",
+        "deploy", "provision", "pxeboot", "cleanup",
+        "upgrade", "rollback",
     }
     module_name = "orchestrator"
     test_paths = session.config.args if hasattr(session.config, 'args') else []

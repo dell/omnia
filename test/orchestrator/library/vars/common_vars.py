@@ -53,16 +53,15 @@ PLAYBOOK_ENTRY_POINT = "orchestrator.yml"
 PLAYBOOK_WORKDIR = "src/orchestrator/playbooks"
 
 # Valid playbook tags (mapped to sub-playbooks)
+# Matches supported_tags from orchestrator_setup/vars/main.yml
 PLAYBOOK_TAGS: List[str] = [
+    "precheck",
     "prepare",
-    "validate",
-    "credentials",
-    "deploy_openchami",
-    "provision_kubernetes",
-    "provision_slurm",
-    "provision_os",
-    "provision_custom",
+    "deploy",
+    "provision",
+    "pxeboot",
     "cleanup",
+    "validate",
     "upgrade",
     "rollback",
 ]

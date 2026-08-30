@@ -45,10 +45,15 @@ vi test_config.yml             # Set oim_server_ip, dataset, etc.
 
 | Scenario | Description |
 |----------|-------------|
+| `precheck` | Read-only input validation (no system changes) |
 | `validate` | Verify input files (orchestrator_config.yml, network_spec.yml, etc.) |
-| `prepare` | Deploy OpenCHAMI + verify containers and API |
+| `prepare` | Credentials + functional groups + OpenLDAP config prep |
+| `deploy` | Deploy OpenCHAMI + OpenLDAP + validate readiness gates |
 | `provision` | Full provisioning (K8s, Slurm, OS nodes) |
+| `pxeboot` | PXE boot on iDRAC nodes (physical servers only) |
 | `cleanup` | Cleanup + verify container/service removal |
+| `upgrade` | In-place upgrade of OpenCHAMI + OpenLDAP |
+| `rollback` | Revert OpenCHAMI + OpenLDAP to previous state |
 
 ## Test Cases
 
@@ -84,6 +89,8 @@ test/orchestrator/
 │
 └── fvt/                        # Functional Verification Tests
     ├── TEST_CASES.md
+    ├── precheck/               # Precheck scenario (read-only validation)
+    │   └── test_playbook.py
     ├── validate/               # Validate scenario
     │   ├── status/
     │   │   └── test_status.py
@@ -91,11 +98,21 @@ test/orchestrator/
     ├── prepare/                # Prepare scenario
     │   └── openchami/
     │       └── test_openchami.py
+    ├── deploy/                 # Deploy scenario (OpenCHAMI + OpenLDAP)
+    │   ├── status/
+    │   │   └── test_status.py
+    │   └── test_playbook.py
     ├── provision/              # Provision scenario
     │   └── test_playbook.py
-    └── cleanup/                # Cleanup scenario
-        └── status/
-            └── test_status.py
+    ├── pxeboot/                # PXE Boot scenario (iDRAC)
+    │   └── test_playbook.py
+    ├── cleanup/                # Cleanup scenario
+    │   └── status/
+    │       └── test_status.py
+    ├── upgrade/                # Upgrade scenario
+    │   └── test_playbook.py
+    └── rollback/               # Rollback scenario
+        └── test_playbook.py
 ```
 
 ## Using the omnia-auto Pip Package
