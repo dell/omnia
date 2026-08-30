@@ -17,7 +17,7 @@
 # NOTE: This config uses the catalog-based approach (Omnia 2.2+).
 #       Package resolution is driven by the catalog.
 #       Registry and repository configurations are defined below and
-#       linked to catalog package Sources via Registry and RepoName fields.
+#       linked to catalog package sources via registry and reponame fields.
 #
 # ================================
 # REPOSITORY FIELD REFERENCE TABLE
@@ -58,31 +58,31 @@
 #      false   : Use immediate policy when repo_config=always (download all)
 #    This can be overridden per-repository using the 'caching' field.
 #    Default: true (on_demand for backward compatibility)
+#    Catalog entries with packagetype "rpm_repo" require retained Pulp content.
+#    Their mapped repository must not resolve to the streamed policy; keep
+#    caching enabled globally or override that repository with caching: true.
 #
 # 3. registries
 # --------------------------
 #    Container registry configurations.
-#    Format: registry_name → { BaseURL, Port, Auth, TLS, Mirror }
+#    Format: registry_name → { base_url, port, auth, tls }
 #
 #    LINK TO CATALOG:
-#      Each catalog package Source with a "Registry" field is resolved by looking
+#      Each catalog package source with a "registry" field is resolved by looking
 #      up that name here. If the registry is not found, image syncing will fail.
 #
 #    Fields per registry entry:
-#      BaseURL : Full base URL of the registry (required)
-#      Port    : HTTPS/HTTP port (required)
-#      Auth    : Authentication block
-#        Type        : none | basic | token
-#        Credentials : VaultPath pointing to credentials secret
-#      TLS     : TLS settings
-#        CAPath         : Path to CA certificate (leave empty for public CAs)
-#        ClientCertPath : Path to client cert (mTLS)
-#        ClientKeyPath  : Path to client key (mTLS)
-#        Insecure       : true to skip TLS verification (not recommended)
-#      Mirror  : Pulp mirror configuration
-#        PulpURL     : Pulp content URL for this registry
-#        PullThrough : true to enable pull-through caching
-#        Prefix      : Registry prefix used inside Pulp
+#      base_url : Full base URL of the registry (required)
+#      port     : HTTPS/HTTP port (required)
+#      auth     : Authentication block
+#        type        : none | basic
+#        credentials : Credential lookup block
+#          vault_path: Key under registry_credentials in the encrypted credential file
+#      tls      : TLS settings
+#        ca_path         : Path to CA certificate (leave empty for public CAs)
+#        client_cert_path: Path to client certificate (mTLS)
+#        client_key_path : Path to client key (mTLS)
+#        insecure        : true to skip TLS verification (not recommended)
 #
 # 3. repositories
 # --------------------------
@@ -90,7 +90,7 @@
 #    Format: version → architecture → repo_name → { url, gpgkey, sslcacert, sslclientkey, sslclientcert }
 #
 #    LINK TO CATALOG:
-#      Each catalog package Source with a "RepoName" field is resolved by looking
+#      Each catalog package source with a "reponame" field is resolved by looking
 #      up that name here (for the matching version and architecture). If the repo
 #      is not found, RPM syncing will fail.
 #
@@ -117,34 +117,31 @@ caching_policy: true    # Options: true (on_demand) | false (immediate)
 # ------------------------------------------------------------
 # 2. REGISTRIES
 #    Container registry configurations.
-#    Format: registry_name → { BaseURL, Port, Auth, TLS, Mirror }
+#    Format: registry_name → { base_url, port, auth, tls }
 #
 #    LINK TO CATALOG:
-#      Each catalog package Source with a "Registry" field (e.g. "Registry": "docker.io")
+#      Each catalog package source with a "registry" field (e.g. "registry": "docker.io")
 #      is resolved by looking up that name here. If the registry is not found,
 #      image syncing will fail.
 #
 #    Add custom/on-prem registries here. Known public registries (docker.io, ghcr.io,
-#    quay.io, registry.k8s.io) should be pre-configured by the system.
+#    quay.io, registry.k8s.io, and others listed by Repo Manager) are handled
+#    directly and do not require an entry unless custom auth/TLS is needed.
 # ------------------------------------------------------------
 # Example:
 #   registries:
 #     my-reg.example.com:
-#       BaseURL: "https://my-reg.example.com"
-#       Port: 443
-#       Auth:
-#         Type: basic
-#         Credentials:
-#           VaultPath: "secret/omnia/registries/my-reg.example.com"
-#       TLS:
-#         CAPath: ""
-#         ClientCertPath: ""
-#         ClientKeyPath: ""
-#         Insecure: false
-#       Mirror:
-#         PulpURL: "https://pulp.omnia.local/pulp/content/my-reg.example.com/"
-#         PullThrough: true
-#         Prefix: "my-reg.example.com/"
+#       base_url: "https://my-reg.example.com"
+#       port: 443
+#       auth:
+#         type: basic
+#         credentials:
+#           vault_path: "registries/my-reg.example.com"
+#       tls:
+#         ca_path: ""
+#         client_cert_path: ""
+#         client_key_path: ""
+#         insecure: false
 registries:
 
 # ------------------------------------------------------------
@@ -153,7 +150,7 @@ registries:
 #    Format: version → architecture → repo_name → { url, gpgkey, sslcacert, sslclientkey, sslclientcert }
 #
 #    LINK TO CATALOG:
-#      Each catalog package Source with a "RepoName" field is resolved by looking
+#      Each catalog package source with a "reponame" field is resolved by looking
 #      up that name here (for the matching version and architecture). If the repo
 #      is not found, RPM syncing will fail.
 # ------------------------------------------------------------
@@ -238,6 +235,7 @@ repositories:
       #       gpgkey: "https://rpm.grafana.com/gpg.key"
       #       policy: "partial"
       #       caching: true
+      #       priority: 99
       #       sslcacert: ""
       #       sslclientkey: ""
       #       sslclientcert: ""

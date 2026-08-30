@@ -97,10 +97,28 @@ NO_REQUIRED_REPO_URLS_MSG = "No required repo URLs found"
 DUPLICATE_REPO_NAME_IN_ARCH_MSG = "Duplicate repo name '{name}' in {arch}"
 PRIORITY_MUST_BE_INTEGER_MSG = "{repo_path}: priority must be integer"
 PRIORITY_MUST_BE_IN_RANGE_MSG = "{repo_path}: priority must be 1-100"
+ADDITIONAL_REPO_PRIORITY_CONFLICT_MSG = (
+    "{repo_path}: additional_repos are published as one Pulp repository and "
+    "must use one effective priority; found {priorities}"
+)
 MISSING_REPO_CONFIGURATION_MSG = (
     "Catalog package references repository '{reponame}' for architecture(s) {archs}, "
     "but this repository is not configured in repo_manager_config.yml under "
     "repositories.{cluster_os_version}.{{arch}}. Please add the repository configuration."
+)
+MISSING_REPO_URL_MSG = (
+    "Catalog-selected repository '{reponame}' for architecture '{arch}' has no "
+    "usable URL in repositories.{cluster_os_version}.{arch}"
+)
+MISSING_ARCH_SOURCE_MSG = (
+    "Catalog-selected package '{package_name}' has no source for architecture "
+    "'{arch}' or an explicit 'noarch' source"
+)
+RPM_REPO_STREAMED_POLICY_MSG = (
+    "Catalog package '{package_name}' uses packagetype 'rpm_repo' from repository "
+    "'{reponame}' for architecture '{arch}', but its effective Pulp policy is "
+    "'streamed'. rpm_repo requires retained package payloads. Enable caching for "
+    "this repository (caching: true) or select a non-streamed policy."
 )
 
 

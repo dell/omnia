@@ -1,127 +1,126 @@
-# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
-#
-#  Licensed under the Apache License, Version 2.0 (the "License");
-#  you may not use this file except in compliance with the License.
-#  You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
-
 ---
-- name: Load repo_manager endpoint configuration
-  ansible.builtin.include_vars:
-    file: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
-    name: endpoint_config
+- name: Validate Pulp administrator credentials
+  ansible.builtin.assert:
+    that:
+      - pulp_username | default('') | length > 0
+      - pulp_password | default('') | length > 0
+    fail_msg: >-
+      Pulp username and password are required in the encrypted Repo Manager
+      credential file.
+  no_log: true
 
-- name: Set Pulp server IP from endpoint config or environment
-  ansible.builtin.set_fact:
-    pulp_server_ip: "{{ endpoint_config.pulp_server_ip | default(admin_nic_ip) }}"
+- name: Wait for Pulp before configuring credentials
+  ansible.builtin.uri:
+    url: "{{ pulp_status_url }}"
+    validate_certs: true
+    ca_path: "{{ pulp_server_crt }}"
+    status_code: 200
+    timeout: 30
+  register: _pulp_preconfigure_status
+  retries: "{{ endpoint_retries }}"
+  delay: "{{ endpoint_delay }}"
+  until: _pulp_preconfigure_status.status | default(-1) == 200
 
-- name: Validate Pulp password is provided
-  ansible.builtin.fail:
-    msg: "Pulp password is required. Set pulp_password in {{ input_project_dir }}/repo_manager_config_credentials.yml or pass -e pulp_password=..."
-  when: pulp_password | default('') | length == 0
+- name: Test configured Pulp administrator credentials
+  ansible.builtin.uri:
+    url: "{{ pulp_base_url }}/pulp/api/v3/users/?limit=1"
+    url_username: "{{ pulp_username }}"
+    url_password: "{{ pulp_password }}"
+    force_basic_auth: true
+    validate_certs: true
+    ca_path: "{{ pulp_server_crt }}"
+    status_code: [200, 401, 403]
+    timeout: 30
+  register: _pulp_credential_check
+  changed_when: false
+  failed_when: false
+  no_log: true
 
-- name: Ensure config default directory exists
+- name: Apply requested Pulp administrator credentials when needed
+  ansible.builtin.command:
+    argv:
+      - podman
+      - exec
+      - -i
+      - "{{ pulp_container_name }}"
+      - pulpcore-manager
+      - shell
+    stdin: |
+      from django.contrib.auth import get_user_model
+      user, _ = get_user_model().objects.get_or_create(
+          username={{ pulp_username | to_json }},
+          defaults={"is_superuser": True, "is_staff": True},
+      )
+      user.is_superuser = True
+      user.is_staff = True
+      user.set_password({{ pulp_password | to_json }})
+      user.save()
+  register: _pulp_password_update
+  changed_when: true
+  when: _pulp_credential_check.status | default(0) in [401, 403]
+  no_log: true
+
+- name: Verify Pulp administrator credentials
+  ansible.builtin.uri:
+    url: "{{ pulp_base_url }}/pulp/api/v3/users/?limit=1"
+    url_username: "{{ pulp_username }}"
+    url_password: "{{ pulp_password }}"
+    force_basic_auth: true
+    validate_certs: true
+    ca_path: "{{ pulp_server_crt }}"
+    status_code: 200
+    timeout: 30
+  register: _pulp_credential_verification
+  retries: 6
+  delay: 5
+  until: _pulp_credential_verification.status | default(-1) == 200
+  no_log: true
+
+- name: Render secure Pulp CLI configuration
+  ansible.builtin.template:
+    src: cli.toml.j2
+    dest: "{{ pulp_config_filepath }}"
+    mode: "{{ pulp_cli_permissions }}"
+  no_log: true
+
+- name: Ensure system Pulp CLI configuration directory exists
   ansible.builtin.file:
     path: "{{ config_default_dir }}"
     state: directory
-    mode: '0755'
+    owner: root
+    group: root
+    mode: "0755"
 
-- name: Create or overwrite Pulp HTTPS config
-  ansible.builtin.command:
-    cmd: "{{ pulp_config_cmd_overwrite_https }}"
-  changed_when: false
-
-- name: Copy config file to default path
+- name: Install secure system Pulp CLI configuration
   ansible.builtin.copy:
     src: "{{ pulp_config_filepath }}"
     dest: "{{ config_default_loc }}"
-    mode: "{{ logs_dir_permission }}"
     remote_src: true
+    owner: root
+    group: root
+    mode: "{{ pulp_cli_permissions }}"
+  no_log: true
 
-- name: Ensure user config directory exists
+- name: Ensure root Pulp CLI configuration directory exists
   ansible.builtin.file:
     path: /root/.config/pulp
     state: directory
-    mode: '0755'
+    owner: root
+    group: root
+    mode: "0700"
 
-- name: Create symbolic link to CLI config in user directory
+- name: Link root Pulp CLI configuration to the canonical file
   ansible.builtin.file:
     src: "{{ pulp_config_filepath }}"
     dest: /root/.config/pulp/cli.toml
     state: link
     force: true
 
-- name: Run pulp status command
-  ansible.builtin.command: /usr/local/bin/pulp status
+- name: Verify Pulp CLI configuration
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/pulp
+      - status
+  register: _pulp_cli_status
   changed_when: false
-  register: pulp_status_output
-  failed_when: false
-
-- name: Check if track file exists
-  ansible.builtin.stat:
-    path: "{{ track_file_path }}"
-  register: file_check
-
-- name: Tasks to generate pulp crt
-  when: >
-    (
-      (pulp_status_output.rc != 0) and
-      (not file_check.stat.exists)
-    )
-  block:
-    - name: Set cert_san fact based on IP
-      ansible.builtin.set_fact:
-        cert_san: subjectAltName=IP:{{ pulp_server_ip }},DNS:pulp,DNS:localhost
-
-    - name: Ensure certs directory exists
-      ansible.builtin.file:
-        path: "{{ certs_dir }}"
-        state: directory
-        mode: '0755'
-
-    - name: Generating Pulp SSL Certificate
-      ansible.builtin.command:
-        cmd: "{{ generate_cert_cmd }}"
-      changed_when: false
-
-    - name: Ensure the pulp group exists
-      ansible.builtin.group:
-        name: pulp
-        state: present
-
-    - name: Change group ownership of SSL certificate and key
-      ansible.builtin.file:
-        path: "{{ item }}"
-        group: pulp
-        state: file
-      loop: "{{ cert_items.values() }}"
-
-    - name: Copy Pulp crt to container trust
-      ansible.builtin.copy:
-        src: "{{ pulp_cert_src }}"
-        dest: "{{ ca_trust_path }}"
-        mode: "{{ logs_dir_permission }}"
-
-    - name: Add Pulp Certificate to TrustStore
-      ansible.builtin.command:
-        cmd: update-ca-trust extract
-      changed_when: false
-
-    - name: Create a track file
-      ansible.builtin.file:
-        path: "{{ track_file_path }}"
-        state: touch
-        mode: "{{ logs_dir_permission }}"
-
-    - name: Record current timestamp in track file
-      ansible.builtin.copy:
-        dest: "{{ track_file_path }}"
-        content: "Timestamp: {{ ansible_facts.date_time.iso8601 }}"
-        mode: "{{ logs_dir_permission }}"
+  failed_when: _pulp_cli_status.rc != 0

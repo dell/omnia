@@ -18,7 +18,6 @@
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager.common_functions import (
     load_yaml_file,
-    get_repo_list,
 )
 from ansible.module_utils.repo_manager.registry_utils import (
     validate_user_registry,
@@ -35,10 +34,10 @@ description:
   - It checks connectivity and authentication to specified registries.
 version_added: "1.0.0"
 options:
-    registries:
-      description: List of registry configurations to validate
+    config_file:
+      description: Path to repo_manager_config.yml
       required: true
-      type: list
+      type: str
     timeout:
       description: Connection timeout in seconds
       required: false
@@ -50,12 +49,10 @@ author:
 """
 
 EXAMPLES = r"""
-- name: Check user registry connectivity
+- name: Check configured registry connectivity
   check_user_registry:
-    registries:
-      - host: registry.example.com
-        username: admin
-        password: secret
+    config_file: "{{ repo_manager_runtime_dir }}/input/project_default/repo_manager_config.yml"
+    timeout: 5
 """
 
 RETURN = r"""
@@ -104,46 +101,27 @@ def main():
     except FileNotFoundError as e:
         module.fail_json(msg=str(e))
 
-    user_registry = get_repo_list(config_data, "user_registry")
-    # if user_registry:
-    #     # Load credentials
-    #     if is_encrypted(user_reg_cred_input):
-    #         process_file(user_reg_cred_input, user_reg_key_path, 'decrypt')
+    registries = config_data.get("registries") or {}
 
-    #     file2_data = load_yaml_file(user_reg_cred_input)
-    #     cred_lookup = {
-    #         entry['name']: entry
-    #         for entry in file2_data.get('user_registry_credential', [])
-    #     }
-
-    #     # Update user_registry entries with credentials if required
-    #     for registry in user_registry:
-    #         if registry.get("requires_auth"):
-    #             creds = cred_lookup.get(registry.get("name"))
-    #             if creds:
-    #                 registry["username"] = creds.get("username")
-    #                 registry["password"] = creds.get("password")
-
-    # Exit early if user_registry is empty
-    if not user_registry:
+    if not registries:
         module.exit_json(
             changed=False,
-            msg="No user registry entries found. Skipping validation.",
+            msg="No configured registry entries found. Skipping validation.",
             reachable_registries=[],
             unreachable_registries=[],
             unreachable_count=0
         )
 
     # Validate entries
-    is_valid, error_msg = validate_user_registry(user_registry)
+    is_valid, error_msg = validate_user_registry(registries)
     if not is_valid:
         module.fail_json(msg=f"[Validation Error] {error_msg}")
 
     # Reachability
-    reachable, unreachable = check_reachability(user_registry, timeout)
+    reachable, unreachable = check_reachability(registries, timeout)
 
     # Cert path validation
-    invalid_paths = find_invalid_cert_paths(user_registry)
+    invalid_paths = find_invalid_cert_paths(registries)
     if invalid_paths:
         module.fail_json(msg=f"[Cert Path Error] Invalid cert_path(s): {invalid_paths}")
 

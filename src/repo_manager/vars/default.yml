@@ -38,7 +38,21 @@ repo_manager_metadata_support: false
 # Runtime-generated files (Pulp config, RHEL entitlement certificates) live
 # outside the repo_manager source tree.
 # Reads from OMNIA_DATA_PATH environment variable (default: /opt/omnia)
-omnia_base_dir: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+omnia_data_path: >-
+  {{ (lookup('env', 'OMNIA_DATA_PATH')
+      | default(lookup('env', 'OMNIA_BASE_DIR'), true)
+      | default('/opt/omnia', true))
+     | ansible.builtin.normpath }}
+
+# Optional Repo Manager-specific override. When unset, runtime data follows
+# <OMNIA_DATA_PATH>/repo_manager, matching the Image Build Manager pattern.
+repo_manager_runtime_dir: >-
+  {{ (lookup('env', 'REPO_MANAGER_DATA_PATH')
+      | default(omnia_data_path + '/repo_manager', true))
+     | ansible.builtin.normpath }}
+
+# Backward-compatible alias used by existing roles and module environments.
+omnia_base_dir: "{{ omnia_data_path }}"
 
 # Project name from environment variable (default: project_default)
 # Reads from OMNIA_PROJECT_NAME environment variable
@@ -47,22 +61,26 @@ omnia_project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default(project_de
 # -----------------------------------------------------------------------------
 # DATA DIRECTORIES (organized under repo_manager domain)
 # -----------------------------------------------------------------------------
-repo_manager_data_dir: "{{ omnia_base_dir }}/repo_manager/.data"
-repo_manager_log_dir: "{{ omnia_base_dir }}/repo_manager/log"
-repo_manager_offline_repo_dir: "{{ omnia_base_dir }}/repo_manager/offline_repo"
+repo_manager_data_dir: "{{ repo_manager_runtime_dir }}/.data"
+repo_manager_log_dir: "{{ repo_manager_runtime_dir }}/log"
+repo_manager_offline_repo_dir: "{{ repo_manager_runtime_dir }}/offline_repo"
 
 # -----------------------------------------------------------------------------
 # CONSTRUCTED PATHS
 # -----------------------------------------------------------------------------
 # Input path: <OMNIA_DATA_PATH>/repo_manager/input/<OMNIA_PROJECT_NAME>/
 # Example: /opt/omnia/repo_manager/input/project_default/
-input_project_dir: "{{ omnia_base_dir }}/repo_manager/input/{{ project_name | default(omnia_project_name) }}"
+input_project_dir: >-
+  {{ (lookup('env', 'REPO_MANAGER_INPUT_PROJECT_DIR')
+      | default(repo_manager_runtime_dir + '/input/' +
+                (project_name | default(omnia_project_name, true)), true))
+     | ansible.builtin.normpath }}
 # Output path: <OMNIA_DATA_PATH>/repo_manager/output/<OMNIA_PROJECT_NAME>/
-output_project_dir: "{{ omnia_base_dir }}/repo_manager/output/{{ project_name | default(omnia_project_name) }}"
+output_project_dir: "{{ repo_manager_runtime_dir }}/output/{{ project_name | default(omnia_project_name, true) }}"
 output_dir: "{{ output_project_dir }}"
 log_dir: "{{ repo_manager_log_dir }}"
-repo_store_path: "{{ omnia_base_dir }}/repo_manager"
-omnia_metadata_file: "{{ omnia_base_dir }}/repo_manager/.data/oim_metadata.yml"
+repo_store_path: "{{ repo_manager_runtime_dir }}"
+omnia_metadata_file: "{{ repo_manager_runtime_dir }}/.data/oim_metadata.yml"
 
 # -----------------------------------------------------------------------------
 # ENDPOINT CONFIGURATION
@@ -75,23 +93,28 @@ endpoint_config_syntax_fail_msg: "Failed. Syntax errors present in repo_manager_
 # PULP SERVER CONFIGURATION
 # -----------------------------------------------------------------------------
 # Pulp directories organized under repo_manager domain
-pulp_config_dir: "{{ omnia_base_dir }}/repo_manager/pulp_config"
+pulp_config_dir: "{{ repo_manager_runtime_dir }}/pulp_config"
 pulp_certs_dir: "{{ pulp_config_dir }}/settings/certs"
 pulp_server_crt: "{{ pulp_certs_dir }}/pulp_webserver.crt"
-pulp_crt_track_file: "{{ pulp_config_dir }}/pulp_crt_track.txt"
-pulp_logs_dir: "{{ omnia_base_dir }}/repo_manager/log/pulp"
+pulp_server_key: "{{ pulp_certs_dir }}/pulp_webserver.key"
+pulp_server_csr: "{{ pulp_certs_dir }}/pulp_webserver.csr"
+pulp_secret_key_file: "{{ pulp_config_dir }}/settings/.pulp_secret_key"
+pulp_ca_trust_file: "/etc/pki/ca-trust/source/anchors/omnia-pulp.crt"
+pulp_cli_executable: "/usr/local/bin/pulp"
+pulp_cli_backend: "/usr/local/libexec/omnia-pulp-cli"
+# Repo Manager versions before the HTTPS deployment rewrite used this name.
+# Remove it during deployment/cleanup so a rotated self-signed certificate
+# cannot leave two trust anchors with the same subject but different keys.
+pulp_legacy_ca_trust_files:
+  - "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
+pulp_logs_dir: "{{ repo_manager_runtime_dir }}/log/pulp"
 pulp_container_name: "pulp"
 pulp_image: "docker.io/pulp/pulp:3.114.2"
-pulp_protocol_https: true
-
-# Pulp server IP fallback: Use SYSTEM_ADMIN_NIC_IPV4 from environment if not set in config
-# This allows the playbook to work without manual IP configuration if env var is set
-pulp_server_ip_default: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('127.0.0.1', true) }}"
 
 # -----------------------------------------------------------------------------
 # RHEL SUBSCRIPTION CERTIFICATES
 # -----------------------------------------------------------------------------
-rhel_repo_certs_dir: "{{ omnia_base_dir }}/repo_manager/rhel_repo_certs"
+rhel_repo_certs_dir: "{{ repo_manager_runtime_dir }}/rhel_repo_certs"
 rhel_redhat_repo_file: "{{ rhel_repo_certs_dir }}/redhat.repo"
 rhel_uep_cert_file: "{{ rhel_repo_certs_dir }}/redhat-uep.pem"
 
@@ -111,9 +134,17 @@ max_retries: 10
 # PARALLEL EXECUTION CONFIGURATION
 # -----------------------------------------------------------------------------
 parallel_config:
+  # Worker processes for catalog package downloads (1-5).
+  # Keep at 1 for maximum stability; increase only after validating the Pulp host.
   default_nthreads: 1
   default_timeout_seconds: 60
   task_poll_interval_seconds: 10
+
+# Keep DNF command concurrency independent from the general artifact worker
+# pool. This protects the shared per-architecture DNF metadata cache even when
+# parallel_config.default_nthreads is increased for images and other artifacts.
+dnf_config:
+  max_concurrent_commands: 1  # ENV: REPO_MANAGER_DNF_MAX_CONCURRENT_COMMANDS
 
 # -----------------------------------------------------------------------------
 # DOWNLOAD CONFIGURATION
@@ -143,7 +174,8 @@ container_sync_policy: "immediate"
 # RPM REPOSITORY PROCESSING CONFIGURATION
 # -----------------------------------------------------------------------------
 rpm_repo_config:
-  # Number of repos to process in parallel (1-10)
+  # Number of RPM repositories to process in parallel in every Pulp stage (1-10).
+  # Keep at 1 for NFS-backed Pulp storage; increase gradually after validation.
   thread_pool_size: 1      # ENV: REPO_MANAGER_THREAD_POOL_SIZE
 
   # Maximum time for any single Pulp command in seconds

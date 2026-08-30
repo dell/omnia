@@ -30,6 +30,7 @@ All catalog keys are normalized to lowercase during loading.
 import os
 import json
 import hashlib
+import copy
 from collections import OrderedDict
 
 from ansible.module_utils.repo_manager.config import (
@@ -172,7 +173,8 @@ def load_catalog(catalog_file, logger):
                         "version": ["Version", "version"],
                         "reponame": ["RepoName", "repoName", "reponame"],
                         "registry": ["Registry", "registry"],
-                        "url": ["URL", "url"]
+                        "url": ["URL", "url"],
+                        "path": ["Path", "path"],
                     }
                     for norm_key, possible_keys in source_fields.items():
                         for key in possible_keys:
@@ -292,14 +294,17 @@ def resolve_catalog_groups(catalog, arch, logger):
     packages = catalog.get("packages", {})
     functional_layers = catalog.get("functionallayer", [])
 
-    # Determine which groups apply to this architecture
-    relevant_groups = set()
+    # Determine which groups apply to this architecture. Preserve catalog order
+    # because global package deduplication intentionally uses first-wins.
+    relevant_groups = []
+    seen_groups = set()
     for fl in functional_layers:
         fl_name = fl.get("name", "")
-        # Match architecture by suffix in functional layer name
-        if arch in fl_name:
+        if fl_name.endswith(f"_{arch}"):
             for component in fl.get("components", []):
-                relevant_groups.add(component)
+                if component not in seen_groups:
+                    relevant_groups.append(component)
+                    seen_groups.add(component)
 
     # If no functional layers matched, skip this architecture
     if not relevant_groups:
@@ -321,10 +326,12 @@ def resolve_catalog_groups(catalog, arch, logger):
                 # Package entry might be a dict or nested structure
                 if isinstance(pkg_entry, dict):
                     # Single package entry - prefer 'name' field over dict key
+                    pkg_entry = copy.deepcopy(pkg_entry)
                     pkg_entry.setdefault("package", pkg_entry.get("name", comp_name))
                     group_pkgs.append(pkg_entry)
                 elif isinstance(pkg_entry, list):
                     for p in pkg_entry:
+                        p = copy.deepcopy(p)
                         p.setdefault("package", p.get("name", comp_name))
                         group_pkgs.append(p)
         if group_pkgs:
@@ -333,6 +340,26 @@ def resolve_catalog_groups(catalog, arch, logger):
     logger.info("Resolved %d non-empty groups with packages for arch %s",
                 len(group_packages), arch)
     return group_packages
+
+
+def select_package_source(package, arch):
+    """Return the source explicitly compatible with ``arch``.
+
+    Exact architecture entries take priority.  A ``noarch`` source is accepted
+    only when the catalog explicitly declares it; sources for another target
+    architecture are never used implicitly.
+    """
+    sources = package.get("sources", [])
+    if not isinstance(sources, list):
+        return None
+
+    for source in sources:
+        if source.get("architecture") == arch:
+            return source
+    for source in sources:
+        if source.get("architecture") == "noarch":
+            return source
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -397,38 +424,32 @@ def build_global_package_index(catalogs, logger):
                     repo_name = None
                     source_url = None
                     source_path = None
-                    if sources and isinstance(sources, list):
-                        # First try exact arch match
-                        for source in sources:
-                            source_arch = source.get("architecture", "")
-                            if source_arch == arch:
-                                repo_name = source.get("reponame", "")
-                                source_url = source.get("url", None)
-                                source_path = source.get("path", None)
-                                break
-                        # Fallback: for arch-independent types (tarball, iso, git),
-                        # use the first source if no arch-specific match found
-                        if source_url is None and source_path is None:
-                            fallback_types = ("tarball", "iso", "git")
-                            if pkg_type in fallback_types and sources:
-                                fallback = sources[0]
-                                repo_name = repo_name or fallback.get("reponame", "")
-                                source_url = fallback.get("url", None)
-                                source_path = fallback.get("path", None)
-                                if source_url or source_path:
-                                    logger.debug("Using fallback source for package '%s' on arch '%s'",
-                                                 pkg_name, arch)
+                    source_registry = None
+                    selected_source = select_package_source(pkg, arch)
+                    if sources and selected_source is None:
+                        raise ValueError(
+                            f"Catalog package '{pkg_name}' in group '{group_name}' "
+                            f"has no source for architecture '{arch}' or 'noarch'"
+                        )
+                    if selected_source:
+                        repo_name = selected_source.get("reponame", "")
+                        source_url = selected_source.get("url")
+                        source_path = selected_source.get("path")
+                        source_registry = selected_source.get("registry")
+                        pkg["selected_source"] = copy.deepcopy(selected_source)
 
                     # Promote repo_name to package definition
                     if repo_name:
                         pkg["repo_name"] = repo_name
+                    if source_registry:
+                        pkg["source_registry"] = source_registry
 
                     # Promote url/path from sources to package definition for tarball/iso types
-                    if source_url and "url" not in pkg:
+                    if source_url:
                         pkg["url"] = source_url
                         logger.debug("Promoted url from sources to package '%s' for arch '%s'",
                                      pkg_name, arch)
-                    if source_path and "path" not in pkg:
+                    if source_path:
                         pkg["path"] = source_path
                         logger.debug("Promoted path from sources to package '%s' for arch '%s'",
                                      pkg_name, arch)
@@ -578,6 +599,7 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
         sslcacert = repo_def.get("sslcacert", "")
         sslclientkey = repo_def.get("sslclientkey", "")
         sslclientcert = repo_def.get("sslclientcert", "")
+        priority = repo_def.get("priority")
 
         parsed.append({
             "name": repo_name,
@@ -588,6 +610,7 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
             "sslcacert": sslcacert,
             "sslclientkey": sslclientkey,
             "sslclientcert": sslclientcert,
+            "priority": priority,
         })
 
     logger.info("Parsed %d repository entries for arch %s, version %s",
@@ -639,6 +662,7 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
             "sslcacert": repo_def.get("sslcacert", ""),
             "sslclientkey": repo_def.get("sslclientkey", ""),
             "sslclientcert": repo_def.get("sslclientcert", ""),
+            "priority": repo_def.get("priority"),
         })
 
     logger.info("Parsed %d additional repo entries for arch %s", len(parsed), arch)

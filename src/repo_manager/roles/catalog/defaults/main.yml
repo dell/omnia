@@ -19,9 +19,11 @@
 # ── Paths ──
 catalog_scripts_dir: "{{ playbook_dir | dirname }}/plugins/module_utils/catalog"
 # Use CATALOG_FILE_PATH env var if set, otherwise use default location
-catalog_file: "{{ lookup('env', 'CATALOG_FILE_PATH') | default('/opt/omnia/catalog/catalog_rhel.json', true) }}"
+catalog_file: >-
+  {{ lookup('env', 'CATALOG_FILE_PATH')
+     | default(omnia_data_path + '/catalog/catalog_rhel.json', true) }}
 schema_file: "{{ playbook_dir | dirname }}/schemas/catalog_schema.json"
-catalog_log_dir: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}/repo_manager/log/catalog"
+catalog_log_dir: "{{ repo_manager_log_dir }}/catalog"
 
 # ── Generate defaults ──
 catalog_name: "default"

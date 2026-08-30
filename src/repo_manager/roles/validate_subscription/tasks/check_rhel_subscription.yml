@@ -42,9 +42,12 @@
     subscription_status: >-
       {{
         (entitlement_certs_count.stdout | default('0') | trim | int > 0)
-        or ((repo_urls.stdout_lines | default([])) | length > 0)
-        or ('Overall Status: Registered' in (subscription_manager_status.stdout | default('')))
-        or ('Overall Status: Current' in (subscription_manager_status.stdout | default('')))
+        and
+        (
+          ((repo_urls.stdout_lines | default([])) | length > 0)
+          or ('Overall Status: Registered' in (subscription_manager_status.stdout | default('')))
+          or ('Overall Status: Current' in (subscription_manager_status.stdout | default('')))
+        )
       }}
 
 - name: Debug subscription status

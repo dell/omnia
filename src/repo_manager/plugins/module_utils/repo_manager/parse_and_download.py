@@ -25,26 +25,78 @@ import subprocess
 import json
 import re
 import shlex
+import tempfile
 from multiprocessing import Lock
 from ansible.module_utils.repo_manager.config import ARCH_SUFFIXES, STATUS_CSV_HEADER
 from ansible.module_utils.repo_manager.mirror_status import (
     load_mirror_index,
     save_mirror_index,
-    update_mirror_index_entry
+    update_mirror_index_entry,
+    find_mirror_entry,
 )
 
 
-def mask_sensitive_data(cmd_string):
+_SHARED_STATUS_FILE_LOCK = None
+
+
+def configure_status_file_lock(file_lock):
+    """Configure the process-safe lock supplied by the parent worker manager."""
+    global _SHARED_STATUS_FILE_LOCK  # pylint: disable=global-statement
+    _SHARED_STATUS_FILE_LOCK = file_lock
+
+
+def _atomic_write_lines(destination, lines):
+    """Durably replace a text file using a unique temporary file beside it."""
+    directory = os.path.dirname(destination) or "."
+    os.makedirs(directory, exist_ok=True)
+    file_descriptor, temp_path = tempfile.mkstemp(
+        prefix=f".{os.path.basename(destination)}.", suffix=".tmp", dir=directory
+    )
+    try:
+        with os.fdopen(file_descriptor, "w", encoding="utf-8") as file:
+            file.writelines(lines)
+            file.flush()
+            os.fsync(file.fileno())
+        os.replace(temp_path, destination)
+    finally:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+
+
+def mask_sensitive_data(command):
     """
-    Masks sensitive data in command strings such as passwords, usernames, and tokens.
+    Mask sensitive command arguments and return a log-safe command string.
     """
-    cmd_string = re.sub(r'(--password\s+)([^\s]+)', r'\1******', cmd_string)
-    cmd_string = re.sub(r'(--username\s+)([^\s]+)', r'\1******', cmd_string)
-    cmd_string = re.sub(r'(--token\s+)([^\s]+)', r'\1******', cmd_string)
+    if isinstance(command, (list, tuple)):
+        safe_args = [str(value) for value in command]
+        for index, value in enumerate(safe_args[:-1]):
+            if value in ("--password", "--username", "--token"):
+                safe_args[index + 1] = "******"
+        return shlex.join(safe_args)
+
+    cmd_string = str(command)
+    cmd_string = re.sub(r'(--password\s+)(\'[^\']*\'|"[^"]*"|[^\s]+)', r'\1******', cmd_string)
+    cmd_string = re.sub(r'(--username\s+)(\'[^\']*\'|"[^"]*"|[^\s]+)', r'\1******', cmd_string)
+    cmd_string = re.sub(r'(--token\s+)(\'[^\']*\'|"[^"]*"|[^\s]+)', r'\1******', cmd_string)
     return cmd_string
 
 
-def execute_command(cmd_string, logger, type_json=False, enhanced_error_info=False):  # pylint: disable=too-many-return-statements
+def redact_sensitive_output(output, command):
+    """Remove credential argument values if a command repeats them in output."""
+    if not output or not isinstance(command, (list, tuple)):
+        return output
+
+    redacted = str(output)
+    command_values = [str(value) for value in command]
+    for index, value in enumerate(command_values[:-1]):
+        if value in ("--password", "--username", "--token"):
+            secret = command_values[index + 1]
+            if secret:
+                redacted = redacted.replace(secret, "******")
+    return redacted
+
+
+def execute_command(command, logger, type_json=False, enhanced_error_info=False):  # pylint: disable=too-many-return-statements
     """
     Executes a command and captures the output (both stdout and stderr).
 
@@ -52,7 +104,7 @@ def execute_command(cmd_string, logger, type_json=False, enhanced_error_info=Fal
     Commands are parsed using shlex.split() to handle proper argument separation.
 
     Args:
-        cmd_string (str): The command to execute.
+        command (str or list): The command to execute.
         logger (logging.Logger): Logger instance for logging the process and errors.
         type_json (bool): If True, attempts to parse stdout as JSON.
         enhanced_error_info (bool): If True, return dict on failure instead of False.
@@ -67,11 +119,15 @@ def execute_command(cmd_string, logger, type_json=False, enhanced_error_info=Fal
 
     try:
         # Mask sensitive info before logging
-        safe_cmd_string = mask_sensitive_data(cmd_string)
+        safe_cmd_string = mask_sensitive_data(command)
         logger.info(f"Executing command: {safe_cmd_string}")
 
-        # Always use shell=False with list arguments to avoid shell injection
-        cmd_args = shlex.split(cmd_string)
+        # Always use shell=False with list arguments to avoid shell injection.
+        cmd_args = (
+            [str(value) for value in command]
+            if isinstance(command, (list, tuple))
+            else shlex.split(command)
+        )
 
         # Run the command with list arguments
         cmd = subprocess.run(
@@ -84,7 +140,9 @@ def execute_command(cmd_string, logger, type_json=False, enhanced_error_info=Fal
         )
         status["returncode"] = cmd.returncode
         status["stdout"] = cmd.stdout.strip() if cmd.stdout else None
-        status["stderr"] = cmd.stderr.strip() if cmd.stderr else None
+        status["stderr"] = (
+            redact_sensitive_output(cmd.stderr.strip(), command) if cmd.stderr else None
+        )
         status["success"] = cmd.returncode == 0
 
         if cmd.returncode != 0:
@@ -227,11 +285,13 @@ def _update_existing_line(line: str, package_name: str, package_type: str, statu
     parts = line.strip().split(',')
     final_repo_name = _prefix_repo_name_with_arch(repo_name, status_file_path, None)
     if len(parts) >= 5:
+        parts[1] = package_type
         parts[2] = final_repo_name if final_repo_name else ''
         parts[3] = status
         parts[4] = catalog_name
         return ','.join(parts) + '\n'
     if len(parts) >= 4:
+        parts[1] = package_type
         parts[2] = final_repo_name if final_repo_name else ''
         parts[3] = status
         parts.append(catalog_name)
@@ -255,7 +315,7 @@ def write_status_to_file(status_file_path, package_name, package_type, status,
         package_type: Type of the package (rpm, image, etc.)
         status: Status (Success, Failed, etc.)
         logger: Logger instance
-        file_lock: Lock for thread safety
+        file_lock: Backward-compatible local lock used outside parallel workers
         repo_name: Optional repository name (for RPMs)
         catalog_name: Optional catalog name for multi-catalog tracking
     """
@@ -265,7 +325,8 @@ def write_status_to_file(status_file_path, package_name, package_type, status,
     repo_name = _prefix_repo_name_with_arch(repo_name, status_file_path, logger)
 
     try:
-        with file_lock:  # Ensure only one process can write at a time
+        effective_lock = _SHARED_STATUS_FILE_LOCK or file_lock
+        with effective_lock:
             if os.path.exists(status_file_path):
                 _update_existing_file(status_file_path, package_name, package_type,
                                        status, repo_name, catalog_name)
@@ -317,13 +378,7 @@ def _update_existing_file(status_file_path, package_name, package_type, status,
         lines.append(
             f"{package_name},{package_type},{repo_val},{status},{catalog_name}\n")
 
-    # Write to temp file first (atomic write)
-    temp_path = status_file_path + ".tmp"
-    with open(temp_path, "w", encoding='utf-8') as f:
-        f.writelines(lines)
-
-    # Atomic rename
-    os.replace(temp_path, status_file_path)
+    _atomic_write_lines(status_file_path, lines)
 
 
 def _create_new_file(status_file_path, package_name, package_type, status,
@@ -338,13 +393,7 @@ def _create_new_file(status_file_path, package_name, package_type, status,
         f"{package_name},{package_type},{repo_val},{status},{catalog_name}\n"
     ]
 
-    # Write to temp file first (atomic write)
-    temp_path = status_file_path + ".tmp"
-    with open(temp_path, "w", encoding='utf-8') as f:
-        f.writelines(lines)
-
-    # Atomic rename
-    os.replace(temp_path, status_file_path)
+    _atomic_write_lines(status_file_path, lines)
 
 
 def _update_mirror_index_for_package(status_file_path, package_name, package_type,
@@ -394,25 +443,16 @@ def _update_mirror_index_for_package(status_file_path, package_name, package_typ
             logger.warning(f"Failed to load mirror index from {mirror_index_path}")
             return
 
-        # Check if package exists in mirror index
-        packages = mirror_data["MirrorIndex"].get("packages", {})
-
-        # For images, the package_name in status.csv includes tag
-        # but mirror_index.json stores it without tag
-        # Try to find the package with and without tag
-        package_key = package_name
-        if package_type == "image" and package_name not in packages:
-            # Try removing tag/version after last colon
-            if ':' in package_name:
-                package_key = package_name.rsplit(':', 1)[0]
-                logger.debug(
-                    f"Image package '{package_name}' not found, "
-                    f"trying without tag: '{package_key}'")
-
-        if package_key not in packages:
+        arch = get_arch_from_status_path(status_file_path)
+        identity_key, pkg_info = find_mirror_entry(
+            mirror_data, package_name, package_type, arch
+        )
+        if identity_key is None:
             logger.debug(
-                f"Package '{package_name}' (key: '{package_key}') "
-                f"not found in mirror index, skipping update")
+                "No unique mirror identity found for package '%s' "
+                "(type=%s, arch=%s); skipping update",
+                package_name, package_type, arch
+            )
             return
 
         # Map status.csv status to mirror index status
@@ -421,17 +461,14 @@ def _update_mirror_index_for_package(status_file_path, package_name, package_typ
         mirror_status = "mirrored" if status == "Success" else "failed"
         error_msg = "" if status == "Success" else "Package download/verification failed"
 
-        # Get package info from mirror index
-        pkg_info = packages[package_key]
-
         # Update mirror index entry
         update_mirror_index_entry(
             mirror_data=mirror_data,
-            package_name=package_key,
-            pkg_type=package_type,
+            package_name=pkg_info.get("package_name", package_name),
+            pkg_type=pkg_info.get("type", package_type),
             version=pkg_info.get("version", ""),
-            arch=pkg_info.get("arch", ""),
-            composite_hash=pkg_info.get("hash", ""),
+            arch=pkg_info.get("arch", arch),
+            composite_hash=identity_key,
             source=pkg_info.get("source", ""),
             catalogs=pkg_info.get("catalogs", [catalog_name] if catalog_name else []),
             status=mirror_status,
@@ -442,7 +479,7 @@ def _update_mirror_index_for_package(status_file_path, package_name, package_typ
         # Save updated mirror index
         save_mirror_index(mirror_index_path, mirror_data, logger)
         logger.debug(
-            f"Updated mirror index for package '{package_key}' "
+            f"Updated mirror index identity '{identity_key}' "
             f"(original: '{package_name}') with status '{mirror_status}'")
 
     except Exception as exc:  # pylint: disable=broad-exception-caught

@@ -33,6 +33,8 @@ from datetime import datetime, timezone
 
 from ansible.module_utils.repo_manager.config import ARCH_SUFFIXES
 
+MIRROR_INDEX_SCHEMA_VERSION = 2
+
 
 # ---------------------------------------------------------------------------
 # Mirror Index (pulp_mirror_index.json)
@@ -42,6 +44,7 @@ def _empty_mirror_index():
     """Return empty mirror index structure."""
     return {
         "MirrorIndex": {
+            "schema_version": MIRROR_INDEX_SCHEMA_VERSION,
             "timestamp": "",
             "summary": {
                 "total_unique": 0,
@@ -52,6 +55,74 @@ def _empty_mirror_index():
             "packages": {}
         }
     }
+
+
+def migrate_mirror_index(mirror_data, global_index, logger):
+    """Migrate legacy name-keyed entries to composite-hash keys in memory.
+
+    Existing status is preserved when its stored hash matches the current
+    global package index.  Entries no longer present in the catalog are retained
+    under their stored hash so cleanup can still remove them.  Identities that
+    were previously collapsed by a name collision remain absent and are
+    naturally scheduled as new work by change detection.
+
+    Returns:
+        bool: ``True`` when the in-memory structure changed.
+    """
+    mirror_root = mirror_data.setdefault("MirrorIndex", {})
+    packages = mirror_root.setdefault("packages", {})
+    schema_version = mirror_root.get("schema_version", 1)
+
+    already_current = (
+        schema_version == MIRROR_INDEX_SCHEMA_VERSION
+        and all(key == entry.get("hash") and entry.get("package_name")
+                for key, entry in packages.items())
+    )
+    if already_current:
+        return False
+
+    global_by_hash = {
+        composite_hash: pkg_info
+        for arch_packages in global_index.values()
+        for composite_hash, pkg_info in arch_packages.items()
+    }
+    migrated = {}
+    for legacy_key, legacy_entry in packages.items():
+        if not isinstance(legacy_entry, dict):
+            logger.warning("Skipping malformed mirror-index entry '%s'", legacy_key)
+            continue
+
+        entry = dict(legacy_entry)
+        composite_hash = entry.get("hash", "")
+        current = global_by_hash.get(composite_hash)
+        if current:
+            entry.update({
+                "package_name": current["package_name"],
+                "type": current["type"],
+                "version": current["version"],
+                "arch": current["arch"],
+                "hash": composite_hash,
+                "source": current.get("group_name", entry.get("source", "")),
+                "repo_name": current.get("repo_name", ""),
+                "catalogs": sorted(set(
+                    entry.get("catalogs", []) + current.get("catalogs", [])
+                )),
+            })
+        else:
+            entry.setdefault("package_name", legacy_key)
+
+        # Legacy files produced by Repo Manager already contain a composite
+        # hash. Preserve unmatched/stale entries by that hash for cleanup.
+        identity_key = composite_hash or f"legacy:{legacy_key}"
+        migrated[identity_key] = entry
+
+    mirror_root["packages"] = migrated
+    mirror_root["schema_version"] = MIRROR_INDEX_SCHEMA_VERSION
+    logger.info(
+        "Migrated mirror index from schema %s to %s (%d entries)",
+        schema_version, MIRROR_INDEX_SCHEMA_VERSION, len(migrated)
+    )
+    return True
 
 def load_mirror_index(mirror_index_path, logger):
     """Load the global mirror index from disk with corrupted JSON handling.
@@ -96,6 +167,7 @@ def save_mirror_index(mirror_index_path, mirror_data, logger):
     os.makedirs(os.path.dirname(mirror_index_path), exist_ok=True)
 
     # Update timestamp
+    mirror_data["MirrorIndex"]["schema_version"] = MIRROR_INDEX_SCHEMA_VERSION
     mirror_data["MirrorIndex"]["timestamp"] = datetime.now(timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ")
 
@@ -143,7 +215,7 @@ def save_global_package_index(global_index_path, global_index, logger):
     total_packages = 0
     for arch, packages in global_index.items():
         arch_packages = []
-        for composite_hash, pkg_info in packages.items():
+        for _composite_hash, pkg_info in packages.items():
             arch_packages.append({
                 "package_name": pkg_info["package_name"],
                 "type": pkg_info["type"],
@@ -188,24 +260,37 @@ def update_mirror_index_entry(mirror_data, package_name, pkg_type, version, arch
         repo_name (str): Repository name where package is sourced from.
     """
     packages = mirror_data["MirrorIndex"].setdefault("packages", {})
+    if not composite_hash:
+        raise ValueError(
+            f"Composite hash is required for mirror-index entry '{package_name}'"
+        )
 
-    if package_name in packages:
+    if composite_hash in packages:
         # Update existing entry
-        entry = packages[package_name]
-        entry["hash"] = composite_hash
+        entry = packages[composite_hash]
+        entry.update({
+            "package_name": package_name,
+            "type": pkg_type,
+            "version": version,
+            "arch": arch,
+            "hash": composite_hash,
+            "source": source,
+            "repo_name": repo_name,
+        })
         entry["status"] = status
         if status == "mirrored":
-            entry["last_mirrored"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            entry["last_mirrored"] = datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
         entry["error"] = error
-        if repo_name:
-            entry["repo_name"] = repo_name
         # Merge catalogs
         existing_catalogs = set(entry.get("catalogs", []))
         existing_catalogs.update(catalogs)
         entry["catalogs"] = sorted(existing_catalogs)
     else:
         # Create new entry
-        packages[package_name] = {
+        packages[composite_hash] = {
+            "package_name": package_name,
             "type": pkg_type,
             "version": version,
             "arch": arch,
@@ -213,10 +298,44 @@ def update_mirror_index_entry(mirror_data, package_name, pkg_type, version, arch
             "source": source,
             "repo_name": repo_name,
             "status": status,
-            "last_mirrored": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if status == "mirrored" else "",
+            "last_mirrored": (
+                datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                if status == "mirrored" else ""
+            ),
             "catalogs": sorted(set(catalogs)),
             "error": error
         }
+
+
+def find_mirror_entry(mirror_data, package_name, pkg_type, arch):
+    """Find one exact mirror entry for a status.csv package identity.
+
+    Image rows include the tag in ``package_name`` while mirror entries keep the
+    image name and tag/version in separate fields.  Type and architecture
+    disambiguate identities such as ``papi`` being both an RPM and a tarball.
+
+    Returns:
+        tuple[str, dict] | tuple[None, None]: Composite key and entry.
+    """
+    packages = mirror_data.get("MirrorIndex", {}).get("packages", {})
+    candidates = []
+    for identity_key, entry in packages.items():
+        if entry.get("type") != pkg_type or entry.get("arch") != arch:
+            continue
+
+        entry_name = entry.get("package_name", "")
+        if pkg_type == "image":
+            version = entry.get("version", "")
+            display_name = f"{entry_name}:{version}" if version else entry_name
+            if package_name not in (entry_name, display_name):
+                continue
+        elif package_name != entry_name:
+            continue
+        candidates.append((identity_key, entry))
+
+    if len(candidates) == 1:
+        return candidates[0]
+    return None, None
 
 
 # ---------------------------------------------------------------------------
@@ -249,7 +368,7 @@ def detect_package_changes(global_index, mirror_data, arch, logger):
     arch_index = global_index.get(arch, {})
     for composite_hash, pkg_info in arch_index.items():
         pkg_name = pkg_info["package_name"]
-        existing = existing_packages.get(pkg_name)
+        existing = existing_packages.get(composite_hash)
 
         if existing is None:
             # New package - needs mirroring
@@ -367,7 +486,7 @@ def save_catalog_status(status_path, catalog_status, logger):
 
 
 def update_catalog_status_entry(catalog_status, package_name, pkg_type, version,
-                                 composite_hash, status, error=""):
+                                 arch, composite_hash, status, error=""):
     """Update a package entry in a per-catalog status file.
 
     Args:
@@ -375,17 +494,23 @@ def update_catalog_status_entry(catalog_status, package_name, pkg_type, version,
         package_name (str): Package name.
         pkg_type (str): Package type.
         version (str): Package version.
+        arch (str): Target architecture.
         composite_hash (str): Composite key hash.
         status (str): Status (mirrored/failed/skipped).
         error (str): Error message if failed.
     """
     packages = catalog_status["MirrorStatus"].setdefault("packages", {})
-    packages[package_name] = {
+    packages[composite_hash] = {
+        "package_name": package_name,
         "type": pkg_type,
         "version": version,
+        "arch": arch,
         "hash": composite_hash,
         "status": status,
-        "last_mirrored": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if status == "mirrored" else "",
+        "last_mirrored": (
+            datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            if status == "mirrored" else ""
+        ),
         "error": error
     }
 
@@ -475,17 +600,22 @@ def generate_multi_catalog_status(global_index, mirror_data, catalogs,
             }
         }
 
-        # Populate packages for this catalog
-        for pkg_name, pkg_info in existing_packages.items():
-            if catalog_id in pkg_info.get("catalogs", []):
+        # Populate packages for this catalog from the current global index so
+        # same-name tags, types, and architectures remain separate.
+        for arch, arch_index in global_index.items():
+            for composite_hash, pkg_info in arch_index.items():
+                if catalog_id not in pkg_info.get("catalogs", []):
+                    continue
+                mirror_entry = existing_packages.get(composite_hash, {})
                 update_catalog_status_entry(
                     catalog_status,
-                    pkg_name,
+                    pkg_info["package_name"],
                     pkg_info.get("type", ""),
                     pkg_info.get("version", ""),
-                    pkg_info.get("hash", ""),
-                    pkg_info.get("status", "pending"),
-                    pkg_info.get("error", "")
+                    arch,
+                    composite_hash,
+                    mirror_entry.get("status", "pending"),
+                    mirror_entry.get("error", "")
                 )
 
         # Save per-catalog status JSON
@@ -514,7 +644,9 @@ def generate_multi_catalog_status(global_index, mirror_data, catalogs,
                     if group not in groups_packages:
                         groups_packages[group] = []
                     pkg_name = pkg_info["package_name"]
-                    mirror_entry = existing_packages.get(pkg_name, {})
+                    if pkg_info["type"] == "image" and pkg_info.get("version"):
+                        pkg_name = f"{pkg_name}:{pkg_info['version']}"
+                    mirror_entry = existing_packages.get(_hash, {})
                     groups_packages[group].append({
                         "name": pkg_name,
                         "type": pkg_info["type"],

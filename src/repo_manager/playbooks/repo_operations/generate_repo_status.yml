@@ -37,6 +37,8 @@
   gather_facts: false
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
+  environment:
+    PULP_CA_BUNDLE: "{{ pulp_server_crt }}"
   tasks:
     # -------------------------------------------------------------------------
     # PHASE 0: SETUP PULP CLI
@@ -113,7 +115,7 @@
 
     - name: Set omnia base path
       ansible.builtin.set_fact:
-        omnia_base: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia') }}"
+        omnia_base: "{{ omnia_data_path }}"
 
     - name: Set catalog path
       ansible.builtin.set_fact:
@@ -156,13 +158,10 @@
       generate_local_repo_access:
         pulp_server_ip: "{{ pulp_server_ip }}"
         pulp_server_port: "{{ pulp_server_port | int }}"
-        pulp_protocol: "{{ pulp_protocol }}"
         cluster_os_type: "{{ cluster_os_type }}"
         cluster_os_version: "{{ cluster_os_version }}"
         repo_config: "{{ repo_config }}"
         output_path: "{{ output_dir }}/repo_status.yml"
-        certs_dir: "{{ pulp_certs_dir }}"
-        ssl_certificates: "{{ ssl_certificates | default({}) }}"
         local_repo_config_path: "{{ input_project_dir }}/repo_manager_config.yml"
       register: generate_result
 

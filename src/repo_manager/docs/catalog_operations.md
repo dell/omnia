@@ -1,221 +1,224 @@
 # Catalog Operations Guide
 
-This document describes how to use the catalog management system in repo_manager.
-
 ## Overview
 
-The catalog management system provides operations to:
-- **Generate**: Create a new catalog from an input text file
-- **Add**: Add or update packages in an existing catalog (upsert semantics)
-- **Delete**: Remove packages from a catalog
-- **Validate**: Validate a catalog against the schema and business rules
+Repo Manager provides four catalog operations:
+
+| Operation | Purpose |
+|-----------|---------|
+| `catalog_generate` | Create a catalog from a text input file |
+| `catalog_add` | Add new packages or update existing packages |
+| `catalog_delete` | Remove package references and unreferenced packages |
+| `catalog_validate` | Validate structure, references and business rules |
+
+The configured catalog is the exact `.json` file from `CATALOG_FILE_PATH`.
+Repo Manager's top-level environment validation requires this variable for
+catalog operations.
+
+---
 
 ## Quick Start
 
+Run from `src/repo_manager/playbooks`:
+
 ```bash
-cd /path/to/repo_manager/playbooks
-
-# Generate a new catalog
+# Create a catalog
 ansible-playbook repo_manager.yml --tags catalog_generate \
-  -e "input_file=input/packages.txt"
+  -e "input_file=/path/to/packages.txt"
 
-# Add packages to existing catalog
+# Add or update packages
 ansible-playbook repo_manager.yml --tags catalog_add \
-  -e "input_file=input/additions.txt"
+  -e "input_file=/path/to/additions.txt"
 
-# Delete packages from catalog
+# Delete packages
 ansible-playbook repo_manager.yml --tags catalog_delete \
-  -e "input_file=input/removals.txt"
+  -e "input_file=/path/to/removals.txt"
 
-# Validate a catalog
+# Validate the configured catalog
 ansible-playbook repo_manager.yml --tags catalog_validate
 ```
 
-## Input File Format
+Catalog writes are separate from Pulp synchronization. Run `precheck` and
+`download` after changing a catalog.
 
-### For Generate and Add Operations
+---
 
-The input file uses an INI-like format with optional defaults header:
+## Generate and Add Input Format
+
+The text input uses an INI-like structure:
 
 ```ini
-# Optional defaults section (applies to all packages unless overridden)
 [defaults]
 arch=x86_64, os=rhel, os_version=10.0
 
-# Group headers with optional metadata
-# Format: [group_key | key=value, key=value, ...]
-# Supported metadata: type, description, os, os_version
-# 'type' defaults to "group" if omitted
-
-[baseos_group_10.0 | type=base_os, description=base os packages, os=rhel, os_version=10.0]
+[baseos_group_10.0 | type=base_os, description=base OS packages, os=rhel, os_version=10.0]
 systemd, rpm, systemd, baseos
 wget, rpm, wget, appstream
-glibc_langpack_en, rpm, glibc-langpack-en, baseos
 
-[slurm_custom_group | description=slurm custom packages]
+[slurm_custom_group | description=Slurm packages]
 clustershell, rpm, clustershell, epel
-papi, tarball, papi, https://github.com/icl-utk-edu/papi/releases/download/papi-7-2-0-t/papi-7.2.0.tar.gz
+papi, tarball, papi, https://example.com/papi-7.2.0.tar.gz
 curl, image, docker.io/curlimages/curl, docker.io, 8.17.0
 
-# Override arch for a specific package
+# Override one package source
 doca_ofed, rpm_repo, doca-ofed, doca, arch=aarch64
 ```
 
-### Package Line Formats
+### Group Header
+
+```text
+[group_key | key=value, key=value]
+```
+
+| Metadata | Description |
+|----------|-------------|
+| `type` | Group type; defaults to `group` |
+| `description` | Human-readable description |
+| `os` | OS name, normally `rhel` |
+| `os_version` | OS version, for example `10.0` |
+
+### Package Lines
 
 | Type | Format | Example |
 |------|--------|---------|
 | `rpm` | `key, rpm, name, reponame` | `wget, rpm, wget, appstream` |
 | `rpm_repo` | `key, rpm_repo, name, reponame` | `doca_ofed, rpm_repo, doca-ofed, doca` |
 | `tarball` | `key, tarball, name, url` | `papi, tarball, papi, https://...` |
-| `image` | `key, image, image_path, registry, tag` | `curl, image, docker.io/curl, docker.io, 8.17.0` |
+| `image` | `key, image, image_path, registry, tag` | `curl, image, docker.io/curlimages/curl, docker.io, 8.17.0` |
 
-### Trailing Overrides
+Trailing overrides supported on package lines:
 
-Any package line can have trailing key=value overrides:
-- `arch=aarch64` - Override architecture
-- `os=rhel` - Override OS
-- `os_version=9.4` - Override OS version
+- `arch=x86_64` or `arch=aarch64`
+- `os=rhel`
+- `os_version=10.0`
 
-### For Delete Operations
+`rpm_repo` downloads the named package and its dependencies through DNF. The
+mapped repository must retain content and therefore cannot use streamed policy.
 
-The delete input file is simpler - just group headers and package keys:
+---
+
+## Delete Input Format
+
+List package keys under their group:
 
 ```ini
 [baseos_group_10.0]
 wget
-glibc_langpack_en
 
 [slurm_custom_group]
 papi
 ```
 
-## Operations Reference
+Deletion behavior:
 
-### catalog_generate
+- Remove the package key from the specified group.
+- Remove a package object when no group references it.
+- Remove an empty group when appropriate.
+- Warn and continue for a missing group or package key.
 
-Creates a new catalog from an input file.
+---
+
+## Operation Reference
+
+### Generate
 
 ```bash
 ansible-playbook repo_manager.yml --tags catalog_generate \
-  -e "input_file=input/packages.txt"
+  -e "input_file=/path/to/packages.txt" \
+  -e "output_file=/path/to/catalog.json" \
+  -e "catalog_name=my_catalog"
 ```
 
-**Parameters:**
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `input_file` | Yes | -- | Text definition file |
+| `output_file` | No | Configured catalog | Output JSON file |
+| `catalog_name` | No | `default` | Catalog name and initial identifier |
+| `force` | No | `false` | Allow replacement of an existing output |
+| `validate_after` | No | `true` | Validate generated JSON |
+| `default_arch` | No | `x86_64` | Default source architecture |
+| `default_os` | No | `rhel` | Default source OS |
+| `default_os_version` | No | `10.0` | Default source OS version |
 
-| Parameter | Required | Default | Description |
-|-----------|----------|---------|-------------|
-| `input_file` | Yes | - | Path to input text file |
-| `catalog_file` | No | `catalogs/catalog.json` | Output catalog path |
-| `catalog_name` | No | `default` | Name for the catalog |
-| `force` | No | `false` | Overwrite existing file |
-| `validate_after` | No | `true` | Run validation after generate |
+Generate fails when the output exists unless `force=true`.
 
-**Behavior:**
-- Fails if output file exists (unless `force=true`)
-- Creates parent directories automatically
-
-### catalog_add
-
-Adds or updates packages in an existing catalog.
+### Add
 
 ```bash
 ansible-playbook repo_manager.yml --tags catalog_add \
-  -e "input_file=input/additions.txt"
+  -e "input_file=/path/to/additions.txt" \
+  -e "catalog_input=/path/to/source.json" \
+  -e "output_file=/path/to/updated.json"
 ```
 
-**Parameters:**
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `input_file` | Yes | -- | Add/update definitions |
+| `catalog_input` | No | Configured catalog | Source catalog |
+| `output_file` | No | Configured catalog | Output catalog |
+| `validate_after` | No | `true` | Validate updated JSON |
 
-| Parameter | Required | Default | Description |
-|-----------|----------|---------|-------------|
-| `input_file` | Yes | - | Path to input text file |
-| `catalog_file` | No | `catalogs/catalog.json` | Source catalog path |
-| `output_file` | No | Same as `catalog_file` | Output path (preserves source if different) |
-| `validate_after` | No | `true` | Run validation after add |
+Add uses upsert semantics, creates missing groups and avoids duplicate component
+references.
 
-**Behavior:**
-- **Upsert semantics**: Updates existing packages, adds new ones
-- Auto-creates groups that don't exist
-- No duplicates in `components[]` arrays
-
-### catalog_delete
-
-Removes packages from a catalog.
+### Delete
 
 ```bash
 ansible-playbook repo_manager.yml --tags catalog_delete \
-  -e "input_file=input/removals.txt"
+  -e "input_file=/path/to/removals.txt" \
+  -e "catalog_input=/path/to/source.json" \
+  -e "output_file=/path/to/updated.json"
 ```
 
-**Parameters:**
+The variables have the same source/output meaning as `catalog_add`.
 
-| Parameter | Required | Default | Description |
-|-----------|----------|---------|-------------|
-| `input_file` | Yes | - | Path to delete input file |
-| `catalog_file` | No | `catalogs/catalog.json` | Source catalog path |
-| `output_file` | No | Same as `catalog_file` | Output path |
-| `validate_after` | No | `true` | Run validation after delete |
-
-**Behavior:**
-- Removes packages from specified groups
-- Deletes packages entirely when unreferenced by any group
-- Removes empty groups automatically
-- Skips (with warning) missing groups/packages
-
-### catalog_validate
-
-Validates a catalog against schema and business rules.
+### Validate
 
 ```bash
-ansible-playbook repo_manager.yml --tags catalog_validate
+ansible-playbook repo_manager.yml --tags catalog_validate \
+  -e "catalog_input=/path/to/catalog.json"
 ```
 
-**Parameters:**
+| Validation layer | Checks |
+|------------------|--------|
+| JSON schema | Required fields, types and patterns |
+| Referential integrity | Functional layers -> groups -> packages |
+| Business rules | Supported types and type-specific fields |
+| Duplicate checks | Repeated component references |
+| Warnings | Unreferenced groups or packages |
 
-| Parameter | Required | Default | Description |
-|-----------|----------|---------|-------------|
-| `catalog_file` | No | `catalogs/catalog.json` | Catalog to validate |
-| `schema_file` | No | `schemas/catalog_schema.json` | JSON schema file |
+Validation does not modify the catalog.
 
-**Validation Layers:**
+---
 
-1. **Structural (JSON Schema)**: Required fields, types, patterns
-2. **Referential Integrity**: FunctionalLayer → Groups → Packages
-3. **Business Rules**:
-   - No duplicate components in arrays
-   - Valid package types
-   - Type-specific required fields (reponame for rpm, url for tarball, etc.)
-   - base_os groups must have os and os_version
-4. **Warnings**:
-   - Orphan packages (unreferenced by any group)
-   - Orphan groups (unreferenced by any functional layer)
-
-## Catalog JSON Structure
+## Catalog JSON Shape
 
 ```json
 {
   "catalog": {
-    "name": "default",
+    "name": "example",
     "version": "1.0",
-    "identifier": "default",
-    "description": "",
+    "identifier": "example",
+    "description": "Example RHEL catalog",
     "functionallayer": [
       {
-        "name": "layer_name",
-        "components": ["group_key_1", "group_key_2"]
+        "name": "baseos_rhel_10_0_x86_64",
+        "components": ["baseos_group_10.0"]
       }
     ],
     "groups": {
-      "group_key": {
-        "name": "group_key",
-        "type": "group",
-        "description": "Group description",
-        "components": ["pkg_key_1", "pkg_key_2"]
+      "baseos_group_10.0": {
+        "name": "baseos_group_10.0",
+        "type": "base_os",
+        "description": "Base OS packages",
+        "components": ["systemd"],
+        "os": "rhel",
+        "os_version": "10.0"
       }
     },
     "packages": {
-      "pkg_key": {
-        "name": "package_name",
+      "systemd": {
+        "name": "systemd",
         "packagetype": "rpm",
         "sources": [
           {
@@ -231,76 +234,22 @@ ansible-playbook repo_manager.yml --tags catalog_validate
 }
 ```
 
-## Default Values
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `default_arch` | `x86_64` | Default architecture |
-| `default_os` | `rhel` | Default OS |
-| `default_os_version` | `10.0` | Default OS version |
-| `catalog_file` | `catalogs/catalog.json` | Default catalog path |
-| `schema_file` | `schemas/catalog_schema.json` | Default schema path |
-
 ## Logging
 
-All operations write logs to `$OMNIA_DATA_PATH/repo_manager/log/catalog/`.
+Catalog operations write:
 
-## Examples
-
-### Complete Workflow
-
-```bash
-# 1. Create input file
-cat > input/my_catalog.txt <<'EOF'
-[defaults]
-arch=x86_64, os=rhel, os_version=10.0
-
-[baseos_group_10.0 | type=base_os, description=base os packages, os=rhel, os_version=10.0]
-systemd, rpm, systemd, baseos
-wget, rpm, wget, appstream
-
-[slurm_group | description=slurm packages]
-clustershell, rpm, clustershell, epel
-EOF
-
-# 2. Generate catalog
-ansible-playbook repo_manager.yml --tags catalog_generate \
-  -e "input_file=input/my_catalog.txt"
-
-# 3. Add more packages
-cat > input/add_packages.txt <<'EOF'
-[slurm_group]
-geopm, tarball, geopm, https://github.com/geopm/geopm/releases/geopm-3.1.0.tar.gz
-EOF
-
-ansible-playbook repo_manager.yml --tags catalog_add \
-  -e "input_file=input/add_packages.txt"
-
-# 4. Validate
-ansible-playbook repo_manager.yml --tags catalog_validate
-
-# 5. Delete a package
-cat > input/remove.txt <<'EOF'
-[baseos_group_10.0]
-wget
-EOF
-
-ansible-playbook repo_manager.yml --tags catalog_delete \
-  -e "input_file=input/remove.txt"
+```text
+<REPO_MANAGER_DATA_PATH>/log/catalog/catalog_manager.log
 ```
 
-### Using Custom Paths
+## Safe Workflow
 
-```bash
-# Custom output path
-ansible-playbook repo_manager.yml --tags catalog_generate \
-  -e "input_file=input/packages.txt" \
-  -e "catalog_file=catalogs/custom.json" \
-  -e "catalog_name=my_custom_catalog"
+1. Write the text input.
+2. Generate or update a new output path when reviewing a major change.
+3. Run `catalog_validate`.
+4. Set `CATALOG_FILE_PATH` to the approved `.json` file.
+5. Run Repo Manager `precheck`.
+6. Run `download` and then `status`.
 
-# Preserve source catalog
-ansible-playbook repo_manager.yml --tags catalog_add \
-  -e "input_file=input/additions.txt" \
-  -e "catalog_file=catalogs/v1.json" \
-  -e "output_file=catalogs/v2.json"
-```
+See [Content Configuration Guide](content-configuration-guide.md) for how catalog
+sources map to repositories and registries.

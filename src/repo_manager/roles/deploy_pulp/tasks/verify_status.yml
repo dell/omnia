@@ -62,14 +62,12 @@
   when: not container_is_running
 
 # -----------------------------------------------------------------------------
-# API ENDPOINT VERIFICATION (HTTPS only)
+# API ENDPOINT VERIFICATION
 # -----------------------------------------------------------------------------
 
 - name: Run comprehensive Pulp health verification
   ansible.builtin.include_tasks: pulp_health_check.yml
-  when:
-    - container_is_running
-    - pulp_protocol_https | default(true) | bool
+  when: container_is_running
 
 # -----------------------------------------------------------------------------
 # DEPLOYMENT SUMMARY

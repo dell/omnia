@@ -41,7 +41,7 @@ from ansible.module_utils.repo_manager.parse_and_download import write_status_to
 from ansible.module_utils.repo_manager.rest_client import RestClient
 from ansible.module_utils.repo_manager.common_functions import load_pulp_config
 from ansible.module_utils.repo_manager.config import (
-    OMNIA_BASE_DIR,
+    REPO_MANAGER_RUNTIME_DIR,
     pulp_file_commands,
     pulp_rpm_commands,
     CLI_FILE_PATH,
@@ -185,7 +185,9 @@ def get_pulp_base_path(absolute_path):
         idx = normalized.find(marker) + 1
         return normalized[idx:].strip('/')
     # Fallback: compute relative to the Omnia base directory
-    repo_base = os.environ.get('OMNIA_BASE_DIR', OMNIA_BASE_DIR)
+    repo_base = os.environ.get(
+        'REPO_MANAGER_DATA_PATH', REPO_MANAGER_RUNTIME_DIR
+    )
     return os.path.relpath(absolute_path, repo_base).strip('/')
 
 
