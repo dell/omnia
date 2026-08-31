@@ -29,13 +29,13 @@ OME Architecture:
         OME -> Kafka (mTLS) -> Vector-OME -> VictoriaMetrics/VictoriaLogs
 
 Test cases (always run):
-    TC_SR_050: Verify Vector-OME bridge deployment ready
-    TC_SR_051: Verify OME KafkaUser CR exists
+    TC_SR_070: Verify Vector-OME bridge deployment ready
+    TC_SR_071: Verify OME KafkaUser CR exists
 
 Test cases (only when configure_ome=true in test_config.yml):
-    TC_SR_052: Verify external Kafka TLS certificates exist
-    TC_SR_053: Verify user.pfx certificate created for OME mTLS
-    TC_SR_054: Verify OME Kafka forwarder connectivity status
+    TC_SR_072: Verify external Kafka TLS certificates exist
+    TC_SR_073: Verify user.pfx certificate created for OME mTLS
+    TC_SR_074: Verify OME Kafka forwarder connectivity status
 """
 
 from datetime import datetime
@@ -159,7 +159,7 @@ def _get_ome_config(host=None):
 
 
 # =========================================================================
-# TC_SR_050: Verify Vector-OME bridge deployment ready
+# TC_SR_070: Verify Vector-OME bridge deployment ready
 #   Always runs when OME source is enabled
 # =========================================================================
 
@@ -205,7 +205,7 @@ def test_ome_vector_bridge(host):
 
 
 # =========================================================================
-# TC_SR_051: Verify OME KafkaUser CR exists
+# TC_SR_071: Verify OME KafkaUser CR exists
 #   Always runs when OME source is enabled
 # =========================================================================
 
@@ -242,7 +242,7 @@ def test_ome_kafka_user(host):
 
 
 # =========================================================================
-# TC_SR_052: Verify external Kafka TLS certificates exist
+# TC_SR_072: Verify external Kafka TLS certificates exist
 #   Only runs when configure_ome=true
 #   Runs external_kafka playbook first, then checks certs
 # =========================================================================
@@ -316,7 +316,7 @@ def test_ome_external_kafka_certs(host):
 
 
 # =========================================================================
-# TC_SR_053: Verify user.pfx certificate created for OME mTLS
+# TC_SR_073: Verify user.pfx certificate created for OME mTLS
 #   Only runs when configure_ome=true, after certs are verified
 # =========================================================================
 
@@ -357,7 +357,7 @@ def test_ome_pfx_conversion(host):
 
 
 # =========================================================================
-# TC_SR_054: Verify TLS certificates uploaded to OME
+# TC_SR_074: Verify TLS certificates uploaded to OME
 #   Only runs when configure_ome=true and ome_ip is set
 #   Uploads both server cert (CA) and client cert (PFX)
 # =========================================================================
@@ -475,7 +475,7 @@ def test_ome_upload_certs(host):
 
 
 # =========================================================================
-# TC_SR_055: Verify OME Kafka forwarder connectivity status
+# TC_SR_075: Verify OME Kafka forwarder connectivity status
 #   Only runs when configure_ome=true and ome_ip is set
 #   If not connected, attempts to configure and test the connection
 # =========================================================================

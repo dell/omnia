@@ -27,11 +27,11 @@ VAST Architecture:
         VAST syslog -> VLAgent -> VictoriaLogs
 
 Test cases:
-    TC_SR_060: Verify VAST external service exists with correct endpoint
-    TC_SR_061: Verify VAST VMServiceScrape CR exists
-    TC_SR_062: Verify VAST credentials K8s secret exists
-    TC_SR_063: Verify VAST storage metrics in VictoriaMetrics
-    TC_SR_064: Verify VAST logs in VictoriaLogs
+    TC_SR_080: Verify VAST external service exists with correct endpoint
+    TC_SR_081: Verify VAST VMServiceScrape CR exists
+    TC_SR_082: Verify VAST credentials K8s secret exists
+    TC_SR_083: Verify VAST storage metrics in VictoriaMetrics
+    TC_SR_084: Verify VAST logs in VictoriaLogs
 """
 
 from datetime import datetime
@@ -84,7 +84,7 @@ def _format_metric_lines(metric_details):
 
 
 # =========================================================================
-# TC_SR_060: Verify VAST external service exists with correct endpoint
+# TC_SR_080: Verify VAST external service exists with correct endpoint
 # =========================================================================
 
 @pytest.mark.source
@@ -126,7 +126,7 @@ def test_vast_external_service(host):
 
 
 # =========================================================================
-# TC_SR_061: Verify VAST VMServiceScrape CR exists
+# TC_SR_081: Verify VAST VMServiceScrape CR exists
 # =========================================================================
 
 @pytest.mark.source
@@ -163,7 +163,7 @@ def test_vast_vmscrape(host):
 
 
 # =========================================================================
-# TC_SR_062: Verify VAST credentials K8s secret exists
+# TC_SR_082: Verify VAST credentials K8s secret exists
 # =========================================================================
 
 @pytest.mark.source
@@ -201,7 +201,7 @@ def test_vast_credentials_secret(host):
 
 
 # =========================================================================
-# TC_SR_063: Verify VAST storage metrics in VictoriaMetrics
+# TC_SR_083: Verify VAST storage metrics in VictoriaMetrics
 # =========================================================================
 
 @pytest.mark.source
@@ -249,7 +249,7 @@ def test_vast_metrics_in_vm(host):
 
 
 # =========================================================================
-# TC_SR_064: Verify VAST logs in VictoriaLogs
+# TC_SR_084: Verify VAST logs in VictoriaLogs
 # =========================================================================
 
 @pytest.mark.source

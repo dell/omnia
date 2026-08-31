@@ -66,37 +66,98 @@ test/orchestrator/
 ├── test_creds.yml              # SSH credentials (Ansible Vault)
 ├── test_run_config.yml         # Batch execution config
 ├── requirements.txt            # Python dependencies
-│
+
 ├── docs/                       # Configuration documentation
 │   ├── test_config.md
 │   ├── test_creds.md
 │   └── test_run_config.md
-│
+
 ├── datasets/                   # Test input datasets
-│   └── data_set_01/
-│       ├── input/              # orchestrator_config, network_spec
-│       └── repo_manager_output/# repo_status.yml
-│
+│   ├── data_set_01/
+│   │   ├── input/              # orchestrator_config, network_spec
+│   │   └── repo_manager_output/ # repo_status.yml
+│   ├── slurm_only/             # SLURM-specific test dataset
+│   │   └── input/
+│   └── generator/               # Dataset generation tools
+│       └── generate_dataset.py
+
 ├── library/                    # Reusable automation library
-│   ├── functions/              # orchestrator_func, host_func, validation_func
-│   ├── vars/                   # Constants, paths, commands (common_vars, domain_vars)
+│   ├── functions/              # Test helper functions
+│   │   ├── slurm_func.py       # SLURM verification functions
+│   │   ├── orchestrator_module_tester.py   # Module structure testing
+│   │   ├── orchestrator_playbook_tester.py  # Playbook testing
+│   │   ├── orchestrator_role_tester.py     # Role structure testing
+│   │   ├── openchami_config_func.py  # OpenCHAMI config testing
+│   │   ├── validation_func.py # Validation utilities
+│   │   └── __init__.py
+│   ├── vars/                   # Constants, paths, commands
+│   │   ├── common_vars.py      # Common variables and paths
+│   │   ├── domain_vars.py      # Domain-specific variables
+│   │   ├── slurm_vars.py       # SLURM-specific variables
+│   │   └── __init__.py
 │   └── messages/               # Test names, log/assert messages
-│
+│       ├── orchestrator_msgs.py
+│       ├── orchestrator_test_msgs.py
+│       ├── slurm_msgs.py       # SLURM test messages
+│       └── __init__.py
+
 └── fvt/                        # Functional Verification Tests
     ├── TEST_CASES.md
-    ├── validate/               # Validate scenario
+    ├── modules/                 # Module structure validation tests
+    │   └── test_validate_orchestrator_config.py
+    ├── playbooks/                # Playbook validation tests
+    │   └── test_orchestrator_yml.py
+    ├── roles/                    # Role structure validation tests
+    │   └── test_orchestrator_setup.py
+    ├── validate/                # Validate scenario
     │   ├── status/
     │   │   └── test_status.py
+    │   ├── slurm/              # SLURM validation tests
+    │   │   ├── test_slurm_status.py
+    │   │   ├── test_slurm_infrastructure.py
+    │   │   ├── test_slurm_nodes.py
+    │   │   └── test_slurm_ssh.py
     │   └── test_dcgm_config.py
-    ├── prepare/                # Prepare scenario
+    ├── prepare/                 # Prepare scenario
     │   └── openchami/
     │       └── test_openchami.py
-    ├── provision/              # Provision scenario
-    │   └── test_playbook.py
-    └── cleanup/                # Cleanup scenario
+    ├── provision/               # Provision scenario
+    │   └── slurm/
+    │       └── test_slurm_provision.py
+    ├── slurm/                   # SLURM comprehensive tests
+    │   └── test_slurm.py
+    └── cleanup/                 # Cleanup scenario
         └── status/
             └── test_status.py
 ```
+
+## Test Categories
+
+The test framework is organized into several categories:
+
+| Category | Description | Test Count |
+|----------|-------------|------------|
+| **Module Tests** | Validate Ansible module structure and dependencies | 3 |
+| **Playbook Tests** | Validate playbook syntax and tags | 4 |
+| **Role Tests** | Validate role structure and metadata | 4 |
+| **SLURM Status Tests** | Verify SLURM services, directories, config files | 9 |
+| **SLURM Infrastructure Tests** | Verify SLURM nodes, partitions, SSH connectivity | 12 |
+| **SLURM Job Tests** | Test SLURM job execution (srun, sbatch, queueing) | 15 |
+| **OpenCHAMI Tests** | Validate OpenCHAMI configuration and services | 7 |
+| **Status Tests** | Verify input files and configurations | 5 |
+| **Deploy Tests** | Full deployment playbook tests (skipped by default) | 5 |
+
+## Test Markers
+
+Tests can be filtered using pytest markers:
+
+- `sanity`: Quick sanity tests
+- `slurm`: SLURM-related tests
+- `modules`: Module validation tests
+- `playbooks`: Playbook validation tests
+- `roles`: Role validation tests
+- `openchami`: OpenCHAMI configuration tests
+- `deploy`: Full deployment tests (requires `--marker deploy`)
 
 ## Using the omnia-auto Pip Package
 
