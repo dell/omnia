@@ -36,6 +36,9 @@ from ..vars.validation_vars import COMMANDS
 
 # Regex for safe identifiers from config YAML (no shell metacharacters)
 _SAFE_IDENT_RE = re.compile(r"^[a-zA-Z0-9_\-./]+$")
+_SAFE_MARKER_RE = re.compile(
+    r"^[A-Za-z_][A-Za-z0-9_]*(?:[+,][A-Za-z_][A-Za-z0-9_]*)*$"
+)
 
 
 def _validate_config_value(value: str, label: str) -> str:
@@ -58,6 +61,25 @@ def _validate_config_value(value: str, label: str) -> str:
     if value and not _SAFE_IDENT_RE.match(value):
         raise ValueError(
             f"Unsafe {label} value in config: {value!r}"
+        )
+    return value
+
+
+def _validate_marker_value(value: str) -> str:
+    """Validate a safe Single, AND, or OR marker expression.
+
+    Marker names follow pytest's identifier style. A compound expression
+    may use ``+`` for AND or ``,`` for OR, but not both operators.
+    """
+    if not isinstance(value, str):
+        raise ValueError("Marker expression must be a string")
+    if value and (
+        ("+" in value and "," in value)
+        or not _SAFE_MARKER_RE.fullmatch(value)
+    ):
+        raise ValueError(
+            "Unsafe marker expression: marker names must be joined "
+            "using only '+' (AND) or ',' (OR)"
         )
     return value
 
@@ -353,7 +375,9 @@ class ValidationRunner:
                 args[i] == "--marker"
                 and i + 1 < len(args)
             ):
-                opts["marker"] = args[i + 1]
+                opts["marker"] = _validate_marker_value(
+                    args[i + 1]
+                )
                 i += 2
             elif args[i] in ("-v", "--verbose"):
                 opts["verbose"] = "-v"
@@ -782,9 +806,7 @@ class ValidationRunner:
     def _build_config_extra(sc: dict) -> List[str]:
         """Build extra CLI args from a config scenario."""
         extra: List[str] = []
-        marker = _validate_config_value(
-            str(sc.get("marker", "")), "marker",
-        )
+        marker = _validate_marker_value(sc.get("marker", ""))
         if marker:
             extra.extend(["--marker", marker])
         suite = _validate_config_value(

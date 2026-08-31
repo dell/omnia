@@ -862,7 +862,7 @@ Both must return empty results.
 cd test/<domain_name>/
 
 # Step 1: Run setup script to create venv and install dependencies
-bash setup_env.sh --venv
+./setup_env.sh --venv
 
 # Step 2: Activate the virtual environment
 source .venv/bin/activate
@@ -875,11 +875,11 @@ cd ../..
 # Step 4: Configure test settings
 vi test_config.yml        # Set oim_server_ip, dataset, paths, options
 
-# Step 5: Set SSH password (remote mode only, requires oim_server_ip)
-bash setup_env.sh --set-password
+# Step 5: Set SSH credentials (password-based remote mode only)
+./setup_env.sh --set-creds
 
 # Step 5b: Set domain credentials (no oim_server_ip needed)
-bash setup_env.sh --set-domain-creds
+./setup_env.sh --set-domain-creds
 ```
 
 `setup_env.sh` installs all dependencies from `requirements.txt` (including `omnia-auto`
