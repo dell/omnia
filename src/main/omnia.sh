@@ -1,4 +1,4 @@
-#!/bin/bash
+ #!/bin/bash
 
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
@@ -870,10 +870,6 @@ prepare_base_domains() {
         echo -e "  Failed domains: ${RED}${failed_domains[*]}${NC}"
     fi
 
-    local elapsed=$(( SECONDS - start_time ))
-    local mins=$(( elapsed / 60 ))
-    local secs=$(( elapsed % 60 ))
-    echo -e "  Duration: ${mins}m ${secs}s"
     echo ""
 
     if [ $failed -eq 0 ]; then
