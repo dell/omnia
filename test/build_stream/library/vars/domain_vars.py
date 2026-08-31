@@ -39,7 +39,6 @@ FVT_TAGS: List[str] = [
     "gitlab_cleanup",
     "buildstream_cleanup",
     "build_pipeline",
-    "prepare_buildstream",
 ]
 
 # =====================================================================
@@ -62,7 +61,6 @@ SUITES: Dict[str, List[str]] = {
     "gitlab_cleanup": [],
     "buildstream_cleanup": [],
     "build_pipeline": ["build_pipeline"],
-    "prepare_buildstream": ["prepare_buildstream"],
 }
 
 # =====================================================================

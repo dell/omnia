@@ -39,10 +39,6 @@ test/build_stream/
     │   └── test_playbook.py        # Deploy cleanup playbook
     ├── gitlab_cleanup/             # Scenario: GitLab cleanup
     │   └── test_playbook.py        # Deploy GitLab cleanup playbook
-    ├── prepare_buildstream/        # Scenario: Prepare buildstream infrastructure
-    │   ├── test_playbook.py        # Deploy: repo_manager + image_build_manager prepare
-    │   └── prepare_buildstream/    # Suite: infrastructure verification
-    │       └── test_prepare_buildstream.py
     └── build_pipeline/             # Scenario: Build pipeline
         ├── test_playbook.py        # Deploy: push catalog, trigger pipeline
         └── build_pipeline/         # Suite: pipeline verification
@@ -92,22 +88,6 @@ bash setup_env.sh --domain-creds '{
 ```
 
 ## Test Scenarios
-
-### Prepare BuildStream Infrastructure
-
-**Deploy (--test):** Runs `repo_manager.yml --tags prepare` and `image_build_manager.yml --tags prepare`
-
-```bash
-# Deploy Pulp server, MinIO S3, and local container registry
-./run_validation.sh fvt_build_stream prepare_buildstream test --marker sanity
-```
-
-**Verify (--verify):** Verifies infrastructure without running playbooks
-
-```bash
-# Verify Pulp, MinIO, and Registry are running
-./run_validation.sh fvt_build_stream prepare_buildstream verify --marker sanity
-```
 
 ### BuildStream Installation
 
@@ -167,7 +147,6 @@ bash setup_env.sh --domain-creds '{
 
 | Scenario | Test Cases | Description |
 |----------|------------|-------------|
-| **prepare_buildstream** | 12 TCs | Pulp, MinIO, Registry deployment + verification (including credential validation) |
 | **buildstream_install** | 1 TC | BuildStream playbook deployment + verification |
 | **build_pipeline** | 11 TCs | Catalog push, pipeline trigger, stage monitoring, artifact verification |
 | **buildstream_cleanup** | 1 TC | BuildStream domain cleanup |
@@ -180,19 +159,16 @@ See `fvt/README.md` for the full test case list.
 ### Full End-to-End Test
 
 ```bash
-# 1. Prepare buildstream infrastructure (Pulp, MinIO, Registry)
-./run_validation.sh fvt_build_stream prepare_buildstream test --marker sanity
-
-# 2. Install BuildStream
+# 1. Install BuildStream
 ./run_validation.sh fvt_build_stream buildstream_install test --marker sanity
 
-# 3. Run build pipeline
+# 2. Run build pipeline
 ./run_validation.sh fvt_build_stream build_pipeline test --marker sanity
 
-# 4. Verify pipeline results
+# 3. Verify pipeline results
 ./run_validation.sh fvt_build_stream build_pipeline verify --marker sanity
 
-# 5. Clean up
+# 4. Clean up
 ./run_validation.sh fvt_build_stream buildstream_cleanup test --marker sanity
 ```
 
