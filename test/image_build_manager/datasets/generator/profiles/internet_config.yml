@@ -12,6 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-description: "Production-like offline repositories with catalog package groups"
-repo_variant: "offline"
-patches: {}
+description: >-
+  Public repositories with minimal groups; easiest independent setup
+repo_variant: "internet"
+patches:
+  image_build_config:
+    functional_groups_source: "config"
+replacements:
+  package_groups:
+    functional_groups:
+      os_x86_64:
+        packages:
+          - bash
+      os_aarch64:
+        packages:
+          - bash
