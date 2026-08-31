@@ -56,10 +56,14 @@
   failed_when: false
   when: kafka_support | default(false) | bool
 
-- name: Check LDMS sampler configuration on NFS
-  ansible.builtin.stat:
-    path: "{{ ldms_sampler_share_path }}/samplers/sampler.conf"
-  register: sampler_conf_check
+- name: Read shared LDMS sampler configuration result
+  ansible.builtin.set_fact:
+    ldms_sampler_config_prepared: >-
+      {{
+        hostvars[_ldms_deploy_aggregator_control_host]
+        ['ldms_sampler_shared_config_prepared'] | default(false)
+      }}
+  when: _ldms_deploy_aggregator_control_host | default('') | length > 0
 
 - name: Display LDMS telemetry verification summary
   ansible.builtin.debug:
@@ -82,5 +86,5 @@
 
       Kafka Topic 'ldms': {{ 'EXISTS' if (ldms_topic_check.rc | default(1) == 0) else 'NOT FOUND or KAFKA DISABLED' }}
 
-      Sampler Config: {{ 'PRESENT' if (sampler_conf_check.stat.exists | default(false)) else 'MISSING' }}
+      Sampler Config: {{ 'PREPARED' if (ldms_sampler_config_prepared | default(false) | bool) else 'NOT PREPARED' }}
       ============================================================

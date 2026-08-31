@@ -6,6 +6,15 @@ The telemetry domain reads its configuration from three input files located in
 the `input/` directory. These files are copied to the runtime data path by
 `domain-init.sh` during setup.
 
+## Cleanup extra variables
+
+Cleanup accepts either spelling below as an Ansible extra variable. The value
+must be a boolean (or `yes`/`no`, `1`/`0`).
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `Delete_volume` / `delete_volume` | `false` | When `true`, delete component PVCs and Kafka identity metadata. When `false`, preserve persistent data and the metadata required for safe redeployment. |
+
 ## Input Files
 
 ### telemetry_config.yml

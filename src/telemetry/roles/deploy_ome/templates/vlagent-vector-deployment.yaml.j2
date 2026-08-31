@@ -14,7 +14,7 @@
 ---
 # vlagent-vector Deployment
 # Purpose: Dedicated vlagent instance acting as log write-buffer between Vector pods and vlinsert
-# Architecture: Vector pods → vlagent-vector:9427 (HTTP JSON Lines) → vlinsert:9481
+# Architecture: Vector pods → vlagent-vector:9427 (HTTP JSON Lines) → vlinsert:9481 (TLS)
 
 apiVersion: apps/v1
 kind: Deployment
@@ -40,11 +40,14 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: vlagent
-          image: "{{ vector.vlagent_vector.image }}"
+          image: "{{ vector.vlagent_vector.image | trim }}"
           args:
             - "-httpListenAddr=:9427"
             - "-remoteWrite.url={{ vector.vlagent_vector.remote_write_url }}"
             - "-remoteWrite.tmpDataPath={{ vector.vlagent_vector.tmp_data_path | default('/tmp/vlagent-buffer') }}"
+{% if victoria_logs_cluster.tls_enabled | default(false) | bool %}
+            - "-remoteWrite.tlsCAFile=/etc/vlagent/victoria-certs/ca.crt"
+{% endif %}
           ports:
             - name: http
               containerPort: 9427
@@ -73,6 +76,19 @@ spec:
           volumeMounts:
             - name: buffer
               mountPath: {{ vector.vlagent_vector.tmp_data_path | default('/tmp/vlagent-buffer') }}
+{% if victoria_logs_cluster.tls_enabled | default(false) | bool %}
+            - name: victoria-certs
+              mountPath: /etc/vlagent/victoria-certs
+              readOnly: true
+{% endif %}
       volumes:
         - name: buffer
           emptyDir: {}
+{% if victoria_logs_cluster.tls_enabled | default(false) | bool %}
+        - name: victoria-certs
+          secret:
+            secretName: victoria-tls-certs
+            items:
+              - key: ca.crt
+                path: ca.crt
+{% endif %}

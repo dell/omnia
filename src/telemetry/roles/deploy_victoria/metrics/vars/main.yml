@@ -26,7 +26,7 @@ vmagent:
   image: "{{ hostvars['localhost']['telemetry_registry'].images.victoria.vmagent | default('victoriametrics/vmagent:v1.149.0') }}"
   remote_write_url_cluster: "https://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc:8480/insert/0/prometheus/"
   remote_write_url: "http://vminsert-single.{{ telemetry_namespace }}.svc:8428/insert/0/prometheus/"
-  target_pod_label: "idrac-telemetry-receiver"
+  target_pod_label: "idrac-telemetry"
   kubernetes_sd_namespace: "{{ telemetry_namespace }}"
   metrics_container_name: "victoria-pump"
   global:

@@ -16,7 +16,7 @@
 # =============================================================================
 # Kafka Cleanup
 # =============================================================================
-# Removes Kafka bridge, users, cluster, node pools, PVCs, secrets, services, and Strimzi operator.
+# Removes Kafka resources and Strimzi. PVCs are removed only with Delete_volume=true.
 #
 # Standalone usage:
 #   ansible-playbook cleanup/sinks/cleanup_kafka.yml

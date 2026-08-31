@@ -13,6 +13,12 @@
 # limitations under the License.
 ---
 
+- name: OME | Discover Strimzi API resources
+  ansible.builtin.command: >
+    kubectl api-resources --namespaced=true --api-group=kafka.strimzi.io --output=name
+  register: _ome_strimzi_api_resources
+  changed_when: false
+
 - name: OME | Delete Vector-OME bridge resources
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
@@ -21,21 +27,16 @@
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
-  failed_when: false
+  when: >-
+    item.type != 'kafkauser'
+    or 'kafkausers.kafka.strimzi.io' in _ome_strimzi_api_resources.stdout_lines
 
 - name: OME | Force delete Vector-OME pods
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pod -l {{ vector_ome_pod_label }}
     --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
   changed_when: false
-  failed_when: false
 
 - name: OME | Cleanup complete
   ansible.builtin.debug:
     msg: "OME telemetry cleanup completed (includes Vector-OME bridge)"
-
-- name: "Ome | Register cleanup result"
-  ansible.builtin.set_fact:
-    _cleanup_result_ome: "cleaned"
-  delegate_to: localhost
-  delegate_facts: true
