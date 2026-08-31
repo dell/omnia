@@ -181,13 +181,17 @@ Run from inside the `test/image_build_manager/` directory:
 
 ### Commands
 
-For FVT runs, the commands control deployment and verification separately:
+For FVT runs, use `test` for the normal end-to-end scenario flow:
 
 | Command | Description |
 |---------|-------------|
 | `exec` | Run the Ansible playbook only |
 | `verify` | Run verification tests only (no playbook) |
 | `test` | Full flow: exec + verify |
+
+Use `exec` or `verify` separately only when intentionally running one phase.
+Marker and suite filters are most useful with `verify` when rerunning focused
+checks against an environment that has already been deployed.
 
 NFT and UT accept the same command names for CLI consistency, but all three
 names run their complete pytest suite; use `test` as the conventional form.
@@ -247,8 +251,10 @@ Available markers: `sanity`, `x86_64`, `aarch64`, `functional`, `deploy`
 ### Examples
 
 ```bash
-# FVT: deploy first, then filter verification tests
-./run_validation.sh fvt_image_build_manager build exec
+# FVT: recommended full build flow (deploy + verify)
+./run_validation.sh fvt_image_build_manager build test
+
+# Optional focused verification reruns against the deployed build
 ./run_validation.sh fvt_image_build_manager build verify --marker x86_64+sanity
 ./run_validation.sh fvt_image_build_manager build verify --suite registry
 ./run_validation.sh fvt_image_build_manager build verify --suite naming
@@ -270,10 +276,9 @@ Available markers: `sanity`, `x86_64`, `aarch64`, `functional`, `deploy`
 ./run_validation.sh fvt_image_build_manager precheck verify             # 0. Precheck environment
 ./run_validation.sh fvt_image_build_manager validate test               # 1. Validate inputs
 ./run_validation.sh fvt_image_build_manager prepare test                # 2. Prepare infrastructure
-./run_validation.sh fvt_image_build_manager build exec                  # 3. Build images
-./run_validation.sh fvt_image_build_manager build verify --marker x86_64 # 4. Verify x86_64
-./run_validation.sh fvt_image_build_manager verify --marker sanity      # 5. Full sanity verification
-./run_validation.sh nft_image_build_manager test                        # 6. Performance + cleanup
+./run_validation.sh fvt_image_build_manager build test                  # 3. Build + verify
+./run_validation.sh fvt_image_build_manager verify --marker sanity      # 4. Full sanity verification
+./run_validation.sh nft_image_build_manager test                        # 5. Performance + cleanup
 ```
 
 ### Complete Commands by Flow
@@ -289,23 +294,24 @@ Available markers: `sanity`, `x86_64`, `aarch64`, `functional`, `deploy`
 ./run_validation.sh fvt_image_build_manager cleanup test         # Cleanup + verify
 ```
 
-#### x86_64 Verification
+#### Build and x86_64 Verification
 
 The build deployment uses `--tags build` and therefore targets every configured
-architecture; the marker filters only the subsequent verification tests.
+architecture. Run the complete build flow first, then optionally rerun only the
+x86_64 sanity checks.
 
 ```bash
-./run_validation.sh fvt_image_build_manager build exec
+./run_validation.sh fvt_image_build_manager build test
 ./run_validation.sh fvt_image_build_manager build verify --marker x86_64+sanity
 ```
 
-#### AArch64 Verification
+#### Build and AArch64 Verification
 
-The build deployment uses `--tags build`; the marker filters only the
-subsequent verification tests.
+The complete build flow builds every configured architecture. The second
+command is an optional focused verification rerun.
 
 ```bash
-./run_validation.sh fvt_image_build_manager build exec
+./run_validation.sh fvt_image_build_manager build test
 ./run_validation.sh fvt_image_build_manager build verify --marker aarch64+sanity
 ```
 
