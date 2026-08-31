@@ -19,13 +19,12 @@
 #
 # Usage (run ONE tag at a time — no comma-separated tags):
 #   cd src/orchestrator
-#   ansible-playbook playbooks/orchestrator.yml                        # Default: precheck + prepare + deploy + provision
+#   ansible-playbook playbooks/orchestrator.yml                        # Default: precheck + prepare + execute
 #   ansible-playbook playbooks/orchestrator.yml --tags precheck        # Validate inputs + prerequisites (read-only)
 #   ansible-playbook playbooks/orchestrator.yml --tags validate        # Validate input files only (schema + logic)
 #   ansible-playbook playbooks/orchestrator.yml --tags credentials     # Prompt for credentials (standalone, idempotent)
-#   ansible-playbook playbooks/orchestrator.yml --tags prepare         # Credentials + functional groups + OpenLDAP prep
-#   ansible-playbook playbooks/orchestrator.yml --tags deploy          # Deploy OpenCHAMI + OpenLDAP + validate gates
-#   ansible-playbook playbooks/orchestrator.yml --tags provision       # SSH + provision all categories + validate
+#   ansible-playbook playbooks/orchestrator.yml --tags prepare         # Credentials + functional groups + OpenLDAP prep + deploy containers
+#   ansible-playbook playbooks/orchestrator.yml --tags execute         # Provision only (SSH + provision all categories)
 #   ansible-playbook playbooks/orchestrator.yml --tags validate-deployment # Validate OpenCHAMI + OpenLDAP + provisioning
 #   ansible-playbook playbooks/orchestrator.yml --tags pxeboot         # PXE boot on iDRAC nodes
 #   ansible-playbook playbooks/orchestrator.yml --tags cleanup         # Remove OpenCHAMI + OpenLDAP services + artifacts
@@ -33,13 +32,12 @@
 #   ansible-playbook playbooks/orchestrator.yml --tags rollback        # Revert OpenCHAMI + OpenLDAP to previous state
 #
 # Tags (mutually exclusive — pick ONE):
-#   (none)       — Default flow: precheck + prepare + deploy + provision
+#   (none)       — Default flow: precheck + prepare + execute
 #   precheck     — Validate inputs, parameters, boot images (read-only, no system changes)
 #   validate     — Validate input files only (schema + logic, no health checks)
 #   credentials  — Prompt for credentials (standalone, idempotent)
-#   prepare      — Credential management, functional group generation, OpenLDAP config prep
-#   deploy       — Deploy OpenCHAMI + OpenLDAP containers, validate readiness gates
-#   provision    — SSH preamble, provision K8s/Slurm/OS/custom, validate provisioning
+#   prepare      — Credential management, functional group generation, OpenLDAP config prep, deploy containers
+#   execute      — SSH preamble, provision K8s/Slurm/OS/custom, validate provisioning
 #   validate-deployment — Validate OpenCHAMI, OpenLDAP, and provisioning readiness
 #   pxeboot      — PXE boot on iDRAC nodes (opt-in only)
 #   cleanup      — Remove OpenCHAMI + OpenLDAP services, containers, artifacts (opt-in only)
@@ -68,14 +66,12 @@
 #     6. Credential management (prompt, encrypt, vault)
 #     7. Generate functional groups from pxe_mapping_file.csv
 #     8. Prepare OpenLDAP (dirs, TLS certs, configs — when enabled)
-#
-#   deploy:
-#     9. Configure S3 access + deploy OpenCHAMI containers
+#     9. Deploy OpenCHAMI containers
 #    10. Deploy OpenLDAP container (when enabled)
 #    11. Validate OpenCHAMI readiness (gate)
 #    12. Validate OpenLDAP readiness (gate, when enabled)
 #
-#   provision:
+#   execute:
 #    13. SSH preamble (key distribution + OpenCHAMI auth)
 #    14. Provision Kubernetes cluster
 #    15. Provision Slurm cluster
@@ -86,7 +82,8 @@
 # Component Mapping:
 #   precheck  -> precheck_openchami.yml  + precheck_openldap.yml
 #   prepare   -> prepare_openchami.yml   + prepare_openldap.yml
-#   deploy    -> deploy_openchami.yml    + deploy_openldap.yml
+#               + deploy_openchami.yml    + deploy_openldap.yml
+#   execute   -> provision_preamble.yml + provision_*.yml
 #   cleanup   -> cleanup_openchami.yml   + cleanup_openldap.yml
 #   upgrade   -> upgrade_openchami.yml   + upgrade_openldap.yml
 #   rollback  -> rollback_openchami.yml  + rollback_openldap.yml
@@ -163,7 +160,7 @@
     - credentials
 
 # =========================================================================
-# FLOW: prepare — Credentials, functional groups, OpenLDAP config prep
+# FLOW: prepare — Credentials, functional groups, OpenLDAP prep, deploy containers
 # =========================================================================
 
 # Step 6: Credential management (prompt, encrypt, vault)
@@ -178,26 +175,97 @@
   tags:
     - prepare
 
+# Step 9: Configure S3 access + deploy OpenCHAMI containers on OIM
+- name: Deploy OpenCHAMI
+  ansible.builtin.import_playbook: deploy/deploy_openchami.yml
+  tags:
+    - prepare
+
+# Step 10: Deploy OpenLDAP container on OIM (when enabled)
+- name: Deploy OpenLDAP
+  ansible.builtin.import_playbook: deploy/deploy_openldap.yml
+  tags:
+    - prepare
+
+# Step 11: Gate — verify OpenCHAMI readiness before provisioning
+- name: Validate OpenCHAMI readiness
+  ansible.builtin.import_playbook: validate/validate_openchami.yml
+  tags:
+    - prepare
+    - validate-deployment
+
+# Step 12: Gate — verify OpenLDAP readiness (when enabled)
+- name: Validate OpenLDAP readiness
+  ansible.builtin.import_playbook: validate/validate_openldap.yml
+  tags:
+    - prepare
+    - validate-deployment
+
+# =========================================================================
+# FLOW: execute — Provision only (SSH + provision all categories)
+# =========================================================================
+
+# Step 13: SSH key distribution + OpenCHAMI auth (runs once for all categories)
+- name: Provision preamble (SSH + auth)
+  ansible.builtin.import_playbook: provision/provision_preamble.yml
+  tags:
+    - execute
+
+# Step 14: Register K8s FGs, configure BSS/metadata-service, run bolt-ons
+- name: Provision Kubernetes cluster
+  ansible.builtin.import_playbook: provision/provision_kubernetes.yml
+  tags:
+    - execute
+
+# Step 15: Register Slurm+Login FGs, configure BSS/metadata-service, run bolt-ons
+- name: Provision Slurm cluster
+  ansible.builtin.import_playbook: provision/provision_slurm.yml
+  tags:
+    - execute
+
+# Step 16: Register OS-only FGs, configure BSS/metadata-service (no bolt-ons)
+- name: Provision OS-only nodes
+  ansible.builtin.import_playbook: provision/provision_os.yml
+  tags:
+    - execute
+
+# Step 17: Register user-defined FGs (catch-all for unmatched categories)
+- name: Provision custom nodes
+  ansible.builtin.import_playbook: provision/provision_custom.yml
+  tags:
+    - execute
+
+# Step 18: Generate inventories + post-provision validation
+- name: Validate provisioning
+  ansible.builtin.import_playbook: validate/validate_provisioning.yml
+  tags:
+    - execute
+    - validate-deployment
+
 # =========================================================================
 # FLOW: deploy — Deploy services + validate readiness gates
+# (DEPRECATED: Use execute tag instead for combined deploy + provision)
 # =========================================================================
 
 # Step 9: Configure S3 access + deploy OpenCHAMI containers on OIM
 - name: Deploy OpenCHAMI
   ansible.builtin.import_playbook: deploy/deploy_openchami.yml
   tags:
+    - never
     - deploy
 
 # Step 10: Deploy OpenLDAP container on OIM (when enabled)
 - name: Deploy OpenLDAP
   ansible.builtin.import_playbook: deploy/deploy_openldap.yml
   tags:
+    - never
     - deploy
 
 # Step 11: Gate — verify OpenCHAMI readiness before provisioning
 - name: Validate OpenCHAMI readiness
   ansible.builtin.import_playbook: validate/validate_openchami.yml
   tags:
+    - never
     - deploy
     - validate-deployment
 
@@ -205,6 +273,7 @@
 - name: Validate OpenLDAP readiness
   ansible.builtin.import_playbook: validate/validate_openldap.yml
   tags:
+    - never
     - deploy
     - validate-deployment
 
@@ -222,42 +291,49 @@
 
 # =========================================================================
 # FLOW: provision — SSH preamble + provision all categories + validate
+# (DEPRECATED: Use execute tag instead for combined deploy + provision)
 # =========================================================================
 
 # Step 13: SSH key distribution + OpenCHAMI auth (runs once for all categories)
 - name: Provision preamble (SSH + auth)
   ansible.builtin.import_playbook: provision/provision_preamble.yml
   tags:
+    - never
     - provision
 
 # Step 14: Register K8s FGs, configure BSS/metadata-service, run bolt-ons
 - name: Provision Kubernetes cluster
   ansible.builtin.import_playbook: provision/provision_kubernetes.yml
   tags:
+    - never
     - provision
 
 # Step 15: Register Slurm+Login FGs, configure BSS/metadata-service, run bolt-ons
 - name: Provision Slurm cluster
   ansible.builtin.import_playbook: provision/provision_slurm.yml
   tags:
+    - never
     - provision
 
 # Step 16: Register OS-only FGs, configure BSS/metadata-service (no bolt-ons)
 - name: Provision OS-only nodes
   ansible.builtin.import_playbook: provision/provision_os.yml
   tags:
+    - never
     - provision
 
 # Step 17: Register user-defined FGs (catch-all for unmatched categories)
 - name: Provision custom nodes
   ansible.builtin.import_playbook: provision/provision_custom.yml
   tags:
+    - never
     - provision
 
 # Step 18: Generate inventories + post-provision validation
 - name: Validate provisioning
   ansible.builtin.import_playbook: validate/validate_provisioning.yml
   tags:
+    - never
     - provision
     - validate-deployment
 
