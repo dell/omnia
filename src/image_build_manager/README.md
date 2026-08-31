@@ -167,6 +167,22 @@ See `samples/` for example input and output files.
 - **No NFS**: Build artifacts use local directories on the aarch64 node
   (no shared filesystem required).
 
+### Cross-Architecture Building
+
+**Important**: Cross-architecture building is **NOT supported**.
+
+- image-thrillhouse requires native architecture builds
+- aarch64 builds require a separate aarch64 host
+- x86_64 builds run on the OIM host
+- The `--arch` flag in image-thrillhouse is for manifest expansion, not cross-compilation
+- No QEMU/emulation support for cross-arch builds
+
+**Current Implementation**:
+- x86_64 builds: Run directly on OIM host
+- aarch64 builds: Orchestrate via SSH to dedicated aarch64 node
+- Both architectures use `ghcr.io/openchami/image-thrillhouse:v0.0.24`
+- Separate hosts are required for each architecture
+
 ### Configuration
 
 Set in `image_build_config.yml`:
