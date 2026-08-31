@@ -8,3 +8,4 @@ scenarios:
   - download
   - status
   - cleanup
+  - catalog

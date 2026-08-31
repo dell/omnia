@@ -33,5 +33,17 @@ from .repo_manager_func import (
     verify_repo_status_pulp_mode,
     check_global_repo_config,
     check_global_caching_policy,
+    # Catalog verification functions
+    check_catalog_file_exists,
+    check_catalog_structure,
+    check_catalog_functional_layers,
+    check_catalog_groups,
+    check_catalog_packages,
+    check_catalog_has_group,
+    check_catalog_has_package,
+    check_catalog_package_type,
+    check_catalog_input_file_exists,
+    check_catalog_log_file_exists,
+    parse_catalog_input_file,
 )
 from omnia_auto import TestLogger

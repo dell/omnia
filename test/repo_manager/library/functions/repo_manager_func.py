@@ -1223,3 +1223,277 @@ def verify_policy_resolution(host, repo_name: str, arch: str = "x86_64", os_vers
             "actual_policy": actual_pulp_policy,
             "match": False
         }
+
+
+# =============================================================================
+# CATALOG VERIFICATION FUNCTIONS
+# =============================================================================
+
+def check_catalog_file_exists(host) -> Dict[str, Any]:
+    """Verify catalog JSON file exists."""
+    catalog_path = "/opt/omnia/catalog/catalog_rhel.json"
+    result = _cmd_file_exists(host, catalog_path)
+    if result.rc == 0 and "exists" in result.stdout:
+        return {
+            "success": True,
+            "details": f"Catalog file found at {catalog_path}",
+            "error": "",
+        }
+    return {
+        "success": False,
+        "details": f"Checked path: {catalog_path}",
+        "error": f"Catalog file not found at {catalog_path}",
+    }
+
+
+def check_catalog_structure(host) -> Dict[str, Any]:
+    """Verify catalog JSON has valid structure (catalog root key)."""
+    catalog_path = "/opt/omnia/catalog/catalog_rhel.json"
+    cmd = "python3 -c \"import json; data = json.load(open('" + catalog_path + "')); print('valid' if 'catalog' in data else 'invalid')\""
+    result = run_on_host(host, cmd)
+    
+    if result.rc == 0 and "valid" in result.stdout:
+        return {
+            "success": True,
+            "details": "Catalog JSON has valid structure with 'catalog' root key",
+            "error": "",
+        }
+    return {
+        "success": False,
+        "details": f"Catalog structure check failed: {result.stdout.strip()}",
+        "error": "Catalog JSON missing 'catalog' root key or invalid JSON",
+    }
+
+
+def check_catalog_functional_layers(host) -> Dict[str, Any]:
+    """Verify catalog has functional layers."""
+    catalog_path = "/opt/omnia/catalog/catalog_rhel.json"
+    cmd = "python3 -c \"import json; data = json.load(open('" + catalog_path + "')); fl = data.get('catalog', {}).get('functionallayer', []); print(len(fl))\""
+    result = run_on_host(host, cmd)
+    
+    if result.rc == 0:
+        try:
+            fl_count = int(result.stdout.strip())
+            if fl_count > 0:
+                return {
+                    "success": True,
+                    "details": f"Catalog has {fl_count} functional layer(s)",
+                    "error": "",
+                }
+            return {
+                "success": False,
+                "details": f"Catalog has {fl_count} functional layers (must have at least 1)",
+                "error": "Catalog must have at least one functional layer",
+            }
+        except ValueError:
+            return {
+                "success": False,
+                "details": f"Could not parse functional layer count: {result.stdout.strip()}",
+                "error": "Functional layer count parsing failed",
+            }
+    return {
+        "success": False,
+        "details": f"Command failed: {result.stderr}",
+        "error": "Failed to read functional layers from catalog",
+    }
+
+
+def check_catalog_groups(host) -> Dict[str, Any]:
+    """Verify catalog has groups."""
+    catalog_path = "/opt/omnia/catalog/catalog_rhel.json"
+    cmd = "python3 -c \"import json; data = json.load(open('" + catalog_path + "')); groups = data.get('catalog', {}).get('groups', {}); print(len(groups))\""
+    result = run_on_host(host, cmd)
+    
+    if result.rc == 0:
+        try:
+            group_count = int(result.stdout.strip())
+            if group_count > 0:
+                return {
+                    "success": True,
+                    "details": f"Catalog has {group_count} group(s)",
+                    "error": "",
+                }
+            return {
+                "success": False,
+                "details": f"Catalog has {group_count} groups (must have at least 1)",
+                "error": "Catalog must have at least one group",
+            }
+        except ValueError:
+            return {
+                "success": False,
+                "details": f"Could not parse group count: {result.stdout.strip()}",
+                "error": "Group count parsing failed",
+            }
+    return {
+        "success": False,
+        "details": f"Command failed: {result.stderr}",
+        "error": "Failed to read groups from catalog",
+    }
+
+
+def check_catalog_packages(host) -> Dict[str, Any]:
+    """Verify catalog has packages."""
+    catalog_path = "/opt/omnia/catalog/catalog_rhel.json"
+    cmd = "python3 -c \"import json; data = json.load(open('" + catalog_path + "')); packages = data.get('catalog', {}).get('packages', {}); print(len(packages))\""
+    result = run_on_host(host, cmd)
+    
+    if result.rc == 0:
+        try:
+            pkg_count = int(result.stdout.strip())
+            if pkg_count > 0:
+                return {
+                    "success": True,
+                    "details": f"Catalog has {pkg_count} package(s)",
+                    "error": "",
+                }
+            return {
+                "success": False,
+                "details": f"Catalog has {pkg_count} packages (must have at least 1)",
+                "error": "Catalog must have at least one package",
+            }
+        except ValueError:
+            return {
+                "success": False,
+                "details": f"Could not parse package count: {result.stdout.strip()}",
+                "error": "Package count parsing failed",
+            }
+    return {
+        "success": False,
+        "details": f"Command failed: {result.stderr}",
+        "error": "Failed to read packages from catalog",
+    }
+
+
+def check_catalog_has_group(host, group_name: str) -> Dict[str, Any]:
+    """Verify catalog contains a specific group."""
+    catalog_path = "/opt/omnia/catalog/catalog_rhel.json"
+    cmd = "python3 -c \"import json; data = json.load(open('" + catalog_path + "')); groups = data.get('catalog', {}).get('groups', {}); print('found' if '" + group_name + "' in groups else 'not_found')\""
+    result = run_on_host(host, cmd)
+    
+    if result.rc == 0 and "found" in result.stdout:
+        return {
+            "success": True,
+            "details": f"Group '{group_name}' found in catalog",
+            "error": "",
+        }
+    return {
+        "success": False,
+        "details": f"Group '{group_name}' not found in catalog",
+        "error": f"Group '{group_name}' missing from catalog",
+    }
+
+
+def check_catalog_has_package(host, package_key: str) -> Dict[str, Any]:
+    """Verify catalog contains a specific package."""
+    catalog_path = "/opt/omnia/catalog/catalog_rhel.json"
+    cmd = "python3 -c \"import json; data = json.load(open('" + catalog_path + "')); packages = data.get('catalog', {}).get('packages', {}); print('found' if '" + package_key + "' in packages else 'not_found')\""
+    result = run_on_host(host, cmd)
+    
+    if result.rc == 0 and "found" in result.stdout:
+        return {
+            "success": True,
+            "details": f"Package '{package_key}' found in catalog",
+            "error": "",
+        }
+    return {
+        "success": False,
+        "details": f"Package '{package_key}' not found in catalog",
+        "error": f"Package '{package_key}' missing from catalog",
+    }
+
+
+def check_catalog_package_type(host, package_key: str, expected_type: str) -> Dict[str, Any]:
+    """Verify a package has the expected type (rpm, tarball, image)."""
+    catalog_path = "/opt/omnia/catalog/catalog_rhel.json"
+    cmd = "python3 -c \"import json; data = json.load(open('" + catalog_path + "')); pkg = data.get('catalog', {}).get('packages', {}).get('" + package_key + "', {}); print(pkg.get('packagetype', 'unknown'))\""
+    result = run_on_host(host, cmd)
+    
+    if result.rc == 0:
+        actual_type = result.stdout.strip()
+        if actual_type == expected_type:
+            return {
+                "success": True,
+                "details": f"Package '{package_key}' has type '{actual_type}'",
+                "error": "",
+            }
+        return {
+            "success": False,
+            "details": f"Package '{package_key}' has type '{actual_type}' (expected '{expected_type}')",
+            "error": f"Package type mismatch: expected '{expected_type}', got '{actual_type}'",
+        }
+    return {
+        "success": False,
+        "details": f"Command failed: {result.stderr}",
+        "error": "Failed to read package type from catalog",
+    }
+
+
+def check_catalog_input_file_exists(host) -> Dict[str, Any]:
+    """Verify catalog input file exists for testing."""
+    input_path = "/opt/omnia/repo_manager/input/project_default"
+    result = _cmd_dir_exists(host, input_path)
+    if result.rc == 0 and "exists" in result.stdout:
+        return {
+            "success": True,
+            "details": f"Catalog input directory exists at {input_path}",
+            "error": "",
+        }
+    return {
+        "success": False,
+        "details": f"Checked path: {input_path}",
+        "error": f"Catalog input directory not found at {input_path}",
+    }
+
+
+def check_catalog_log_file_exists(host) -> Dict[str, Any]:
+    """Verify catalog log file exists."""
+    log_path = "/opt/omnia/repo_manager/log/catalog/catalog_manager.log"
+    result = _cmd_file_exists(host, log_path)
+    if result.rc == 0 and "exists" in result.stdout:
+        return {
+            "success": True,
+            "details": f"Catalog log file found at {log_path}",
+            "error": "",
+        }
+    return {
+        "success": False,
+        "details": f"Checked path: {log_path}",
+        "error": f"Catalog log file not found at {log_path}",
+    }
+
+
+def parse_catalog_input_file(host, input_file: str) -> Dict[str, Any]:
+    """Parse catalog input file to extract groups and packages."""
+    result = run_on_host(host, f"cat {input_file}")
+    
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Could not read input file: {input_file}",
+            "error": result.stderr,
+            "groups": [],
+            "packages": []
+        }
+    
+    groups = []
+    packages = []
+    current_group = None
+    
+    for line in result.stdout.strip().split('\n'):
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        elif line.startswith('[') and line.endswith(']'):
+            current_group = line[1:-1]
+            if current_group not in groups:
+                groups.append(current_group)
+        elif current_group:
+            packages.append(line)
+    
+    return {
+        "success": True,
+        "details": f"Parsed {len(groups)} groups and {len(packages)} packages from input file",
+        "error": "",
+        "groups": groups,
+        "packages": packages
+    }
