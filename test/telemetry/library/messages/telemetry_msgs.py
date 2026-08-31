@@ -173,12 +173,20 @@ TEST_LOG_MSGS = {
     "csi_exporter_deployed": "CSI Volume Exporter deployment verified: {details}",
     "csi_exporter_failed": "CSI Volume Exporter deployment failed: {details}",
     "csi_exporter_endpoint": "CSI Volume Exporter metrics endpoint: {details}",
-    "csi_exporter_endpoint_failed": "CSI Volume Exporter metrics endpoint not accessible: {details}",
+    "csi_exporter_endpoint_failed": (
+        "CSI Volume Exporter metrics endpoint not accessible: {details}"
+    ),
     "csi_exporter_metrics": "CSI Volume Exporter metrics: {details}",
-    "csi_driver_deployed": "CSI Driver for PowerScale (isilon-controller) deployment verified: {details}",
-    "csi_driver_failed": "CSI Driver for PowerScale (isilon-controller) deployment failed: {details}",
+    "csi_driver_deployed": (
+        "CSI Driver for PowerScale (isilon-controller) deployment verified: {details}"
+    ),
+    "csi_driver_failed": (
+        "CSI Driver for PowerScale (isilon-controller) deployment failed: {details}"
+    ),
     "health_monitor_container": "external-health-monitor-controller container verified: {details}",
-    "health_monitor_container_failed": "external-health-monitor-controller container check failed: {details}",
+    "health_monitor_container_failed": (
+        "external-health-monitor-controller container check failed: {details}"
+    ),
     "csi_exporter_dependency": "CSI volume exporter dependency validation: {details}",
     "csi_exporter_dependency_failed": "CSI volume exporter dependency validation failed: {details}",
     "health_monitor_warning": "Health monitor warning message behavior: {details}",
@@ -198,7 +206,9 @@ TEST_LOG_MSGS = {
     "vast_vmscrape_missing": "VAST VMServiceScrape '{name}' not found",
     "vast_secret_exists": "VAST credentials secret '{secret}' exists",
     "vast_secret_missing": "VAST credentials secret '{secret}' not found",
-    "vast_metrics_found": "{count} VAST metric(s) found in VictoriaMetrics",
+    "vast_metrics_found": (
+        "{count} VAST metric(s) found in VictoriaMetrics"
+    ),
     "vast_metrics_missing": "Missing VAST metrics in VictoriaMetrics: {missing}",
     "vast_logs_found": "{count} VAST log entries found in VictoriaLogs",
     "vast_logs_missing": "No VAST logs found in VictoriaLogs",
@@ -210,7 +220,6 @@ TEST_LOG_MSGS = {
     "git_repo_cloned": "Git repo cloned: {repo}",
     "git_repo_not_cloned": "Git repo not cloned: {repo}",
     "deployment_success": "Deployment successful: {component}",
-    "deployment_failed": "Deployment failed: {component}",
 }
 
 # --- Assertion Messages ---
@@ -581,7 +590,8 @@ TEST_ASSERT_MSGS = {
     "csm_otel_flow_failed": (
         "CSM Metrics to OTEL Collector data flow failed: {details}\n"
         "HOW TO FIX:\n"
-        "  1. Check CSM Metrics PowerScale pod logs: kubectl logs deployment/karavi-metrics-powerscale -n telemetry\n"
+        "  1. Check CSM Metrics PowerScale pod logs: kubectl logs "
+        "deployment/karavi-metrics-powerscale -n telemetry\n"
         "  2. Verify CSM Metrics is exposing metrics on expected port\n"
         "  3. Check OTEL Collector pod logs: kubectl logs deployment/otel-collector -n telemetry\n"
         "  4. Verify OTEL Collector configuration includes CSM Metrics as receiver\n"
@@ -696,4 +706,5 @@ LDMS_ASSERT_MSGS = {
         "Found hostnames: {found}\n"
     ),
 }
+
 
