@@ -74,6 +74,7 @@ PLAYBOOK_TAGS = [
     "cleanup",
     "upgrade",
     "rollback",
+    "external_kafka",
 ]
 
 # =============================================================================
@@ -114,6 +115,7 @@ KAFKA_POD_PREFIXES = {
 
 KAFKA_BRIDGE_PREFIX = "bridge-bridge"
 KAFKA_CR_NAME = "kafka"
+KAFKA_EXTERNAL_BOOTSTRAP_SVC = "kafka-kafka-external-bootstrap"
 
 # =============================================================================
 # SOURCE COMPONENT NAMES
@@ -132,35 +134,61 @@ IDRAC_CONTAINERS = [
 ]
 IDRAC_KAFKA_TOPIC = "idrac"
 
-# LDMS (from deploy_ldms/vars/main.yml)
-LDMS_AGG_STS_NAME = "nersc-ldms-aggr"
-LDMS_STORE_NAME = "nersc-ldms-store"
-LDMS_KAFKA_TOPIC = "ldms"
-
-# DCGM (from deploy_dcgm/vars/main.yml)
-DCGM_POD_PREFIX = "dcgm-exporter"
+# LDMS - see ldms_vars.py for all LDMS-specific constants
+# Kept here for backward compatibility
+from .ldms_vars import (  # noqa: F401, E402
+    LDMS_AGG_STS_NAME,
+    LDMS_STORE_NAME,
+    LDMS_KAFKA_TOPIC,
+    LDMS_FUNCTIONAL_GROUPS,
+    LDMS_SAMPLER_SERVICE,
+    LDMS_SAMPLER_CONF_PATH,
+)
 
 # PowerScale (from deploy_powerscale/vars/main.yml)
 POWERSCALE_DEPLOY_NAME = "karavi-metrics-powerscale"
 POWERSCALE_OTEL_DEPLOY_NAME = "otel-collector"
+POWERSCALE_CSI_EXPORTER_DEPLOY_NAME = "csi-volume-exporter"
+POWERSCALE_CSI_DRIVER_DEPLOY_NAME = "isilon-controller"
 POWERSCALE_SECRET_NAME = "isilon-creds"
-POWERSCALE_EXPECTED_METRICS = [
+# Karavi Observability metrics (from CSM Metrics PowerScale + OTEL Collector)
+POWERSCALE_KARAVI_METRICS = [
+    "karavi_topology_metrics",
     "powerscale_cluster_cpu_use_rate",
     "powerscale_cluster_disk_read_operation_rate",
+    "powerscale_cluster_disk_write_operation_rate",
     "powerscale_cluster_disk_throughput_read_rate_megabytes_per_second",
     "powerscale_cluster_disk_throughput_write_rate_megabytes_per_second",
-    "powerscale_cluster_disk_write_operation_rate",
-    "powerscale_cluster_remaining_capacity_terabytes",
     "powerscale_cluster_total_capacity_terabytes",
+    "powerscale_cluster_remaining_capacity_terabytes",
     "powerscale_cluster_used_capacity_percentage",
-    "karavi_topology_metrics",
 ]
+
+# CSI Volume Exporter metrics (from health monitor)
+POWERSCALE_CSI_EXPORTER_METRICS = [
+    "powerscale_volume_status",
+    "powerscale_volume_count",
+    "powerscale_volume_capacity_bytes",
+    "powerscale_volume_info",
+    "powerscale_volume_age_seconds",
+    "powerscale_pvc_status_phase",
+    "powerscale_pvc_requested_bytes",
+    "powerscale_pvc_count",
+    "powerscale_volume_health_abnormal",
+    "powerscale_volume_abnormal_events_total",
+    "powerscale_node_failure_events_total",
+    "powerscale_node_ready",
+    "powerscale_storageclass_info",
+    "powerscale_total_capacity_bytes",
+]
+
+# Combined expected metrics (for backward compatibility)
+POWERSCALE_EXPECTED_METRICS = POWERSCALE_KARAVI_METRICS
 
 # PowerScale syslog port (OneFS default)
 POWERSCALE_SYSLOG_PORT = 514
 
 # Telemetry config key paths (dot notation for read_yaml_key)
-CFG_KEY_PS_SECRET_PATH = "powerscale_configurations.csi_powerscale_secret_path"
 CFG_KEY_PS_METRICS_ENABLED = "telemetry_sources.powerscale.metrics_enabled"
 CFG_KEY_PS_LOGS_ENABLED = "telemetry_sources.powerscale.logs_enabled"
 
@@ -175,13 +203,6 @@ SVC_PORT_NAME_HTTP = "http"
 # Vector bridges
 VECTOR_LDMS_APP_NAME = "vector-ldms"
 VECTOR_OME_APP_NAME = "vector-ome"
-
-# OME Kafka user
-OME_KAFKA_USER = "vector-ome-user"
-
-# OME external Kafka TLS cert subdirectory (under output_project_dir)
-OME_KAFKA_CERT_SUBDIR = "external_kafka"
-OME_KAFKA_CERT_FILES = ["ca.crt", "user.crt", "user.key"]
 
 # UFM (from deploy_ufm/vars/main.yml)
 UFM_SVC_NAME = "ufm-external"
@@ -228,8 +249,8 @@ CFG_KEY_VAST_PORT = "vast_configuration.vast_metrics_port"
 
 # Telemetry sources list
 TELEMETRY_SOURCES = [
-    "idrac", "ldms", "dcgm", "powerscale", "ufm",
-    "vast", "ome", "sfm", "skyway", "powervault",
+    "idrac", "ldms", "powerscale", "ufm",
+    "vast", "ome", "sfm",
 ]
 
 # Telemetry sinks list
@@ -308,9 +329,6 @@ CMDS = {
         "kubectl get svc -n {namespace}"
         " --no-headers"
         " -o custom-columns='NAME:.metadata.name'"
-    ),
-    "kubectl_get_svc_json": (
-        "kubectl get svc -n {namespace} -o json 2>/dev/null"
     ),
     "kubectl_get_nodes_ready": (
         "kubectl get nodes --no-headers"
@@ -413,6 +431,10 @@ CMDS = {
     ),
 
     # --- PowerScale / isilon-creds secret ---
+    "kubectl_get_secret": (
+        "kubectl get secret {name} -n {namespace}"
+        " -o json 2>/dev/null"
+    ),
     "kubectl_get_secret_data": (
         "kubectl get secret {name} -n {namespace}"
         " -o jsonpath='{{.data.{key}}}' 2>/dev/null"
@@ -446,6 +468,10 @@ CMDS = {
         "kubectl get svc {name} -n {namespace}"
         " -o jsonpath='{{.status.loadBalancer.ingress[0].ip}}'"
         " 2>/dev/null"
+    ),
+    "kubectl_get_svc_json": (
+        "kubectl get svc {name} -n {namespace}"
+        " -o json 2>/dev/null"
     ),
     "kubectl_get_svc_port": (
         "kubectl get svc {name} -n {namespace}"
@@ -483,14 +509,86 @@ CMDS = {
         " -passout pass:{password} 2>&1"
     ),
 
-    # --- OME REST API: upload certificate ---
-    "ome_upload_cert": (
+    # --- OME REST API: upload certificates ---
+    # Upload server certificate (CA cert) - X.509 format, base64 encoded
+    "ome_upload_server_cert": (
         "curl -sk -u '{user}:{password}' --max-time 30"
         " -X POST"
-        " -H 'Content-Type: application/octet-stream'"
-        " --data-binary '@{cert_path}'"
+        " -H 'Content-Type: application/json'"
+        " -d '{{\"CertData\": \"{cert_data_b64}\","
+        " \"CertFormat\": \"X_509\","
+        " \"ClientType\": \"KAFKA\"}}'"
         " 'https://{ome_ip}/api/ApplicationService/"
-        "Actions/ApplicationService.UploadCertificate'"
+        "Actions/ApplicationService.UploadServerCertificate'"
+        " -w '\\nHTTP_CODE:%{{http_code}}'"
+    ),
+    # Upload client certificate (PFX) - PKCS12 format, base64 encoded
+    "ome_upload_client_cert": (
+        "curl -sk -u '{user}:{password}' --max-time 30"
+        " -X POST"
+        " -H 'Content-Type: application/json'"
+        " -d '{{\"CertData\": \"{cert_data_b64}\","
+        " \"CertFormat\": \"PKCS_12\","
+        " \"ClientType\": \"KAFKA\","
+        " \"Passphrase\": \"{pfx_secret}\"}}'"
+        " 'https://{ome_ip}/api/ApplicationService/"
+        "Actions/ApplicationService.UploadClientCertificate'"
+        " -w '\\nHTTP_CODE:%{{http_code}}'"
+    ),
+    # View client certificate
+    "ome_view_client_cert": (
+        "curl -sk -u '{user}:{password}' --max-time 15"
+        " -X POST"
+        " -H 'Content-Type: application/json'"
+        " -d '{{\"ClientType\": \"KAFKA\"}}'"
+        " 'https://{ome_ip}/api/ApplicationService/"
+        "Actions/ApplicationService.ViewClientCertificate'"
+    ),
+    # Test Kafka connection
+    "ome_test_kafka_connection": (
+        "curl -sk -u '{user}:{password}' --max-time 30"
+        " -X POST"
+        " -H 'Content-Type: application/json'"
+        " -d '{{\"Id\": {forwarder_id},"
+        " \"ForwarderConfigurations\": ["
+        "{{\"ConfigurationName\": \"OMEIdentifier\", "
+        "\"ConfigurationValue\": \"{ome_identifier}\"}},"
+        "{{\"ConfigurationName\": \"ClientType\", \"ConfigurationValue\": \"KAFKA\"}},"
+        "{{\"ConfigurationName\": \"BrokerList\", \"ConfigurationValue\": \"{broker_list}\"}},"
+        "{{\"ConfigurationName\": \"AuthMode\", \"ConfigurationValue\": \"2\"}},"
+        "{{\"ConfigurationName\": \"ServerCert\", \"ConfigurationValue\": \"true\"}},"
+        "{{\"ConfigurationName\": \"ClientCert\", \"ConfigurationValue\": \"true\"}}"
+        "]}}'"
+        " 'https://{ome_ip}/api/DataForwardingService/"
+        "Actions/DataForwardingService.TestConnection'"
+        " -w '\\nHTTP_CODE:%{{http_code}}'"
+    ),
+    # Update forwarder settings
+    "ome_update_forwarder_settings": (
+        "curl -sk -u '{user}:{password}' --max-time 30"
+        " -X POST"
+        " -H 'Content-Type: application/json'"
+        " -d '{{\"Id\": {forwarder_id},"
+        " \"Enabled\": true,"
+        " \"ForwarderConfigurations\": ["
+        "{{\"ConfigurationName\": \"OMEIdentifier\", "
+        "\"ConfigurationValue\": \"{ome_identifier}\"}},"
+        "{{\"ConfigurationName\": \"ClientType\", \"ConfigurationValue\": \"KAFKA\"}},"
+        "{{\"ConfigurationName\": \"BrokerList\", \"ConfigurationValue\": \"{broker_list}\"}},"
+        "{{\"ConfigurationName\": \"AuthMode\", \"ConfigurationValue\": \"2\"}},"
+        "{{\"ConfigurationName\": \"ServerCert\", \"ConfigurationValue\": \"true\"}},"
+        "{{\"ConfigurationName\": \"ClientCert\", \"ConfigurationValue\": \"true\"}},"
+        "{{\"ConfigurationName\": \"HeartBeat\", \"ConfigurationValue\": \"120\"}}"
+        "]}}'"
+        " 'https://{ome_ip}/api/DataForwardingService/"
+        "Actions/DataForwardingService.ForwarderSettings'"
+        " -w '\\nHTTP_CODE:%{{http_code}}'"
+    ),
+    # Get forwarder configuration
+    "ome_get_forwarder_config": (
+        "curl -sk -u '{user}:{password}' --max-time 15"
+        " 'https://{ome_ip}/api/DataForwardingService/"
+        "Forwarders({forwarder_id})/ForwarderConfigurations'"
     ),
 
     # --- PowerScale syslog config via SSH ---
@@ -517,3 +615,4 @@ CMDS = {
         " --no-headers --ignore-not-found 2>/dev/null"
     ),
 }
+

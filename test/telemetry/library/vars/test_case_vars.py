@@ -63,6 +63,10 @@ TEST_CASES = {
         "id": "TC_PC_004",
         "title": "Verify kube_vip is reachable",
     },
+    "powerscale_privileges": {
+        "id": "TC_PC_005",
+        "title": "Verify PowerScale user has required privileges",
+    },
 
     # -- Sinks: Kafka -------------------------------------------------------
     "kafka_pods": {
@@ -142,6 +146,32 @@ TEST_CASES = {
         "title": "Verify iDRAC telemetry data in VictoriaMetrics",
     },
 
+    # -- Sources: Install Mode (unified online/offline) -----------------------
+    "install_mode_config": {
+        "id": "TC_SR_100",
+        "title": "Verify telemetry_packages.yml has a valid install_mode",
+    },
+    "install_mode_python_packages": {
+        "id": "TC_SR_101",
+        "title": "Verify Python packages installed for current mode",
+    },
+    "install_mode_idrac_deployment": {
+        "id": "TC_SR_102",
+        "title": "Verify iDRAC deployment succeeded in current mode",
+    },
+    "install_mode_idrac_pods": {
+        "id": "TC_SR_103",
+        "title": "Verify iDRAC pods running in current mode",
+    },
+    "install_mode_powerscale_deps": {
+        "id": "TC_SR_104",
+        "title": "Verify PowerScale dependencies for current mode",
+    },
+    "install_mode_powerscale_deployment": {
+        "id": "TC_SR_105",
+        "title": "Verify PowerScale deployment succeeded in current mode",
+    },
+
     # -- Sources: LDMS ------------------------------------------------------
     "ldms_aggr_pod": {
         "id": "TC_SR_020",
@@ -155,9 +185,29 @@ TEST_CASES = {
         "id": "TC_SR_022",
         "title": "Verify Vector-LDMS bridge deployment ready",
     },
-    "ldms_kafka_topic": {
+    "ldms_package_installed": {
         "id": "TC_SR_023",
+        "title": "Verify LDMS package installed on Slurm nodes",
+    },
+    "ldms_sampler_service": {
+        "id": "TC_SR_024",
+        "title": "Verify LDMS sampler service running on Slurm nodes",
+    },
+    "ldms_sampler_plugins": {
+        "id": "TC_SR_025",
+        "title": "Verify LDMS sampler plugins configured",
+    },
+    "ldms_kafka_topic": {
+        "id": "TC_SR_026",
         "title": "Verify LDMS Kafka topic exists",
+    },
+    "ldms_earliest_data": {
+        "id": "TC_SR_027",
+        "title": "Verify earliest LDMS data in Kafka topic",
+    },
+    "ldms_kafka_data": {
+        "id": "TC_SR_028",
+        "title": "Verify latest LDMS data in Kafka topic",
     },
 
     # -- Sources: PowerScale ------------------------------------------------
@@ -185,71 +235,172 @@ TEST_CASES = {
         "id": "TC_SR_035",
         "title": "Verify PowerScale syslog forwarding configured",
     },
+    "powerscale_comprehensive_deployment": {
+        "id": "TC_SR_036",
+        "title": "Verify comprehensive PowerScale deployment",
+    },
+    "powerscale_feature_flags": {
+        "id": "TC_SR_037",
+        "title": "Verify PowerScale feature flags",
+    },
+    "powerscale_health_metrics": {
+        "id": "TC_SR_038",
+        "title": "Verify PowerScale health metrics",
+    },
+
+    "powerscale_tls_enforcement": {
+        "id": "TC_SR_040",
+        "title": "Verify PowerScale TLS enforcement",
+    },
+    "powerscale_label_compliance": {
+        "id": "TC_SR_041",
+        "title": "Verify PowerScale pod label compliance",
+    },
+    "powerscale_scrape_interval": {
+        "id": "TC_SR_042",
+        "title": "Verify PowerScale scrape interval",
+    },
+    "powerscale_csi_auth_mode": {
+        "id": "TC_SR_043",
+        "title": "Verify PowerScale CSI authorization mode",
+    },
+    "powerscale_deployment_mode": {
+        "id": "TC_SR_044",
+        "title": "Verify PowerScale deployment mode",
+    },
+    "csi_volume_exporter_deploy": {
+        "id": "TC_SR_045",
+        "title": "Verify CSI Volume Exporter deployment",
+    },
+    "csi_volume_exporter_endpoint": {
+        "id": "TC_SR_046",
+        "title": "Verify CSI Volume Exporter metrics endpoint",
+    },
+    "csi_volume_exporter_metrics": {
+        "id": "TC_SR_047",
+        "title": "Verify CSI Volume Exporter metrics in VictoriaMetrics",
+    },
+    "csi_driver_powerscale_deploy": {
+        "id": "TC_SR_048",
+        "title": "Verify CSI Driver for PowerScale (isilon-controller) deployment",
+    },
+    "external_health_monitor_container": {
+        "id": "TC_SR_049",
+        "title": "Verify external-health-monitor-controller container is running",
+    },
+    "csi_exporter_skipped_without_health_monitor": {
+        "id": "TC_SR_050",
+        "title": "Verify CSI volume exporter deployment skipped when health monitor missing",
+    },
+    "health_monitor_warning_message": {
+        "id": "TC_SR_051",
+        "title": "Verify warning message displayed for missing health monitor",
+    },
+    "csm_otel_data_flow": {
+        "id": "TC_SR_052",
+        "title": "Verify CSM Metrics to OTEL Collector data flow",
+    },
+    "otel_vm_export": {
+        "id": "TC_SR_053",
+        "title": "Verify OTEL Collector to VictoriaMetrics export",
+    },
+    "cert_manager_tls_certs": {
+        "id": "TC_SR_054",
+        "title": "Verify cert-manager TLS certificate generation",
+    },
 
     # -- Sources: UFM --------------------------------------------------------
     "ufm_external_svc": {
-        "id": "TC_SR_040",
+        "id": "TC_SR_060",
         "title": "Verify UFM external service exists with correct endpoint",
     },
     "ufm_vmscrape": {
-        "id": "TC_SR_041",
+        "id": "TC_SR_061",
         "title": "Verify UFM VMServiceScrape CR exists",
     },
     "ufm_credentials_secret": {
-        "id": "TC_SR_042",
+        "id": "TC_SR_062",
         "title": "Verify UFM credentials K8s secret exists",
     },
     "ufm_metrics_in_vm": {
-        "id": "TC_SR_043",
+        "id": "TC_SR_063",
         "title": "Verify UFM InfiniBand metrics in VictoriaMetrics",
     },
 
     # -- Sources: VAST -------------------------------------------------------
     "vast_external_svc": {
-        "id": "TC_SR_060",
+        "id": "TC_SR_080",
         "title": "Verify VAST external service exists with correct endpoint",
     },
     "vast_vmscrape": {
-        "id": "TC_SR_061",
+        "id": "TC_SR_081",
         "title": "Verify VAST VMServiceScrape CR exists",
     },
     "vast_credentials_secret": {
-        "id": "TC_SR_062",
+        "id": "TC_SR_082",
         "title": "Verify VAST credentials K8s secret exists",
     },
     "vast_metrics_in_vm": {
-        "id": "TC_SR_063",
+        "id": "TC_SR_083",
         "title": "Verify VAST storage metrics in VictoriaMetrics",
     },
     "vast_logs_in_vl": {
-        "id": "TC_SR_064",
+        "id": "TC_SR_084",
         "title": "Verify VAST logs in VictoriaLogs",
     },
 
     # -- Sources: OME -------------------------------------------------------
     "ome_vector_bridge": {
-        "id": "TC_SR_050",
+        "id": "TC_SR_070",
         "title": "Verify Vector-OME bridge deployment ready",
     },
     "ome_kafka_user": {
-        "id": "TC_SR_051",
+        "id": "TC_SR_071",
         "title": "Verify OME KafkaUser CR exists",
     },
     "ome_external_kafka_certs": {
-        "id": "TC_SR_052",
+        "id": "TC_SR_072",
         "title": "Verify external Kafka TLS certificates exist",
     },
     "ome_pfx_conversion": {
-        "id": "TC_SR_053",
+        "id": "TC_SR_073",
         "title": "Verify user.pfx certificate created for OME mTLS",
     },
     "ome_upload_certs": {
-        "id": "TC_SR_054",
+        "id": "TC_SR_074",
         "title": "Verify TLS certificates uploaded to OME",
     },
     "ome_kafka_connectivity": {
-        "id": "TC_SR_055",
+        "id": "TC_SR_075",
         "title": "Verify OME Kafka forwarder connectivity status",
+    },
+    "ome_cert_verify": {
+        "id": "TC_SR_056",
+        "title": "Verify uploaded certificate matches generated certificate",
+    },
+    "ome_kafka_topics": {
+        "id": "TC_SR_057",
+        "title": "Verify OME Kafka topics exist",
+    },
+    "ome_telemetry_data": {
+        "id": "TC_SR_058",
+        "title": "Verify OME telemetry data in Kafka (ome.telemetry)",
+    },
+    "ome_inventory_data": {
+        "id": "TC_SR_059",
+        "title": "Verify OME inventory data in Kafka (ome.inventory)",
+    },
+    "ome_alerts_data": {
+        "id": "TC_SR_060",
+        "title": "Verify OME alerts data in Kafka (ome.alerts)",
+    },
+    "ome_health_data": {
+        "id": "TC_SR_061",
+        "title": "Verify OME health data in Kafka (ome.health)",
+    },
+    "ome_auditlogs_data": {
+        "id": "TC_SR_062",
+        "title": "Verify OME audit logs data in Kafka (ome.auditlogs)",
     },
 
     # -- Cleanup ------------------------------------------------------------
@@ -289,30 +440,26 @@ TEST_CASES = {
         "id": "TC_CL_007",
         "title": "Verify OME pods removed after cleanup",
     },
-    "cleanup_dcgm": {
-        "id": "TC_CL_008",
-        "title": "Verify DCGM pods removed after cleanup",
-    },
     "cleanup_ufm": {
-        "id": "TC_CL_009",
+        "id": "TC_CL_008",
         "title": "Verify UFM resources removed after cleanup",
     },
     "cleanup_vast": {
-        "id": "TC_CL_010",
+        "id": "TC_CL_009",
         "title": "Verify VAST resources removed after cleanup",
     },
     "cleanup_sfm": {
-        "id": "TC_CL_011",
+        "id": "TC_CL_010",
         "title": "Verify SFM pods removed after cleanup",
     },
 
     # -- Cleanup: Final State -----------------------------------------------
     "no_pods_after_full_cleanup": {
-        "id": "TC_CL_012",
+        "id": "TC_CL_011",
         "title": "Verify no pods remain after full cleanup",
     },
     "no_pvcs_after_full_cleanup": {
-        "id": "TC_CL_013",
+        "id": "TC_CL_012",
         "title": "Verify no PVCs remain after full cleanup",
     },
 

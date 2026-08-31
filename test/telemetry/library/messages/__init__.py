@@ -23,7 +23,16 @@ from .telemetry_msgs import (
     TEST_ASSERT_MSGS,
 )
 
+from .ome_msgs import (
+    OME_TEST_NAMES,
+    OME_LOG_MSGS,
+    OME_ASSERT_MSGS,
+)
+
 __all__ = [
     "TEST_LOG_MSGS",
     "TEST_ASSERT_MSGS",
+    "OME_TEST_NAMES",
+    "OME_LOG_MSGS",
+    "OME_ASSERT_MSGS",
 ]

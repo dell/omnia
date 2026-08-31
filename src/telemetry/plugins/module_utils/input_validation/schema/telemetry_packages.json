@@ -15,11 +15,17 @@
       "default": "",
       "description": "Pulp repository base URL for offline mode. All package URLs are auto-derived from this base."
     },
-    "cluster_mount": {
+    "k8s_cluster_mount": {
       "type": "string",
       "minLength": 1,
       "description": "NFS mount point on Kubernetes cluster nodes where telemetry packages are staged.",
-      "errorMessage": "cluster_mount is required and must be a non-empty path (e.g., '/share_omnia_k8s')."
+      "errorMessage": "k8s_cluster_mount is required and must be a non-empty path (e.g., '/opt/omnia/k8s_mount')."
+    },
+    "slurm_cluster_mount": {
+      "type": "string",
+      "minLength": 1,
+      "description": "NFS mount point on Slurm cluster nodes where LDMS configuration and data are stored.",
+      "errorMessage": "slurm_cluster_mount is required and must be a non-empty path (e.g., '/share_omnia')."
     },
     "container_registry": {
       "type": "string",
@@ -70,5 +76,5 @@
       }
     }
   },
-  "required": ["cluster_mount"]
+  "required": ["k8s_cluster_mount", "slurm_cluster_mount"]
 }

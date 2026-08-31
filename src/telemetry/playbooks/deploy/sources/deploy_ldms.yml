@@ -126,18 +126,58 @@
           loop_control:
             label: "{{ item.key }}"
           when: slurm_inv.all.children.slurm_node_aarch64.hosts is defined
+
+        - name: Add login nodes to in-memory inventory (x86_64)
+          ansible.builtin.add_host:
+            name: "{{ item.value.ansible_host | default(item.key) }}"
+            groups: login_node
+            ansible_user: root
+          loop: "{{ slurm_inv.all.children.login_node_x86_64.hosts | default({}) | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          when: slurm_inv.all.children.login_node_x86_64.hosts is defined
+
+        - name: Add login nodes to in-memory inventory (aarch64)
+          ansible.builtin.add_host:
+            name: "{{ item.value.ansible_host | default(item.key) }}"
+            groups: login_node
+            ansible_user: root
+          loop: "{{ slurm_inv.all.children.login_node_aarch64.hosts | default({}) | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          when: slurm_inv.all.children.login_node_aarch64.hosts is defined
+
+        - name: Add login compiler nodes to in-memory inventory (x86_64)
+          ansible.builtin.add_host:
+            name: "{{ item.value.ansible_host | default(item.key) }}"
+            groups: login_compiler_node
+            ansible_user: root
+          loop: "{{ slurm_inv.all.children.login_compiler_node_x86_64.hosts | default({}) | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          when: slurm_inv.all.children.login_compiler_node_x86_64.hosts is defined
+
+        - name: Add login compiler nodes to in-memory inventory (aarch64)
+          ansible.builtin.add_host:
+            name: "{{ item.value.ansible_host | default(item.key) }}"
+            groups: login_compiler_node
+            ansible_user: root
+          loop: "{{ slurm_inv.all.children.login_compiler_node_aarch64.hosts | default({}) | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          when: slurm_inv.all.children.login_compiler_node_aarch64.hosts is defined
   tasks:
     - name: Check if Kafka is needed for LDMS telemetry
       ansible.builtin.set_fact:
         kafka_needed: "{{ 'kafka' in (telemetry_config.telemetry_sources.ldms.collection_targets | default([])) }}"
       when: telemetry_config is defined
 
-    - name: Deploy Kafka if needed and not already deployed
+    - name: Deploy Kafka if needed and not already deployed (standalone only)
       ansible.builtin.include_role:
         name: deploy_kafka
       when:
         - kafka_needed | default(false) | bool
-        - hostvars['localhost']['kafka_support'] | default(false) | bool
+        - hostvars['localhost']['kafka_support'] is not defined
 
     - name: Check if VictoriaMetrics is needed for LDMS telemetry
       ansible.builtin.set_fact:
@@ -149,14 +189,14 @@
         victoria_deployment_mode: "cluster"
       when:
         - victoria_metrics_needed | default(false) | bool
-        - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+        - hostvars['localhost']['victoria_metrics_support'] is not defined
 
-    - name: Deploy VictoriaMetrics if needed and not already deployed
+    - name: Deploy VictoriaMetrics if needed and not already deployed (standalone only)
       ansible.builtin.include_role:
         name: deploy_victoria
       when:
         - victoria_metrics_needed | default(false) | bool
-        - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+        - hostvars['localhost']['victoria_metrics_support'] is not defined
 
     - name: Include deploy_ldms role (K8s deployment only)
       ansible.builtin.include_role:
@@ -241,10 +281,15 @@
         name: deploy_ldms
         tasks_from: deploy_ldms_aggregator_k8s
 
+# =============================================================================
+# LDMS Sampler Configuration on ALL LDMS-enabled nodes
+# Nodes: slurm_node, slurm_control_node, login_node, login_compiler_node
+# =============================================================================
 - name: Configure LDMS Sampler on Slurm Compute Nodes
   hosts: slurm_node
   gather_facts: true
-  any_errors_fatal: true
+  any_errors_fatal: false
+  max_fail_percentage: 100
   tasks:
     - name: Set telemetry credentials from localhost
       ansible.builtin.set_fact:
@@ -256,9 +301,82 @@
       ansible.builtin.set_fact:
         telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
         k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] }}"
+        slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] }}"
       when: hostvars['localhost']['telemetry_config'] is defined
 
     - name: Configure LDMS sampler on compute nodes
+      ansible.builtin.include_role:
+        name: deploy_ldms
+        tasks_from: configure_ldms_sampler
+
+- name: Configure LDMS Sampler on Slurm Control Node
+  hosts: slurm_control_node
+  gather_facts: true
+  any_errors_fatal: false
+  max_fail_percentage: 100
+  tasks:
+    - name: Set telemetry credentials from localhost
+      ansible.builtin.set_fact:
+        telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
+      no_log: true
+      when: hostvars['localhost']['telemetry_credentials'] is defined
+
+    - name: Set required variables from localhost
+      ansible.builtin.set_fact:
+        telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
+        k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] }}"
+        slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] }}"
+      when: hostvars['localhost']['telemetry_config'] is defined
+
+    - name: Configure LDMS sampler on control node
+      ansible.builtin.include_role:
+        name: deploy_ldms
+        tasks_from: configure_ldms_sampler
+
+- name: Configure LDMS Sampler on Login Nodes
+  hosts: login_node
+  gather_facts: true
+  any_errors_fatal: false
+  max_fail_percentage: 100
+  tasks:
+    - name: Set telemetry credentials from localhost
+      ansible.builtin.set_fact:
+        telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
+      no_log: true
+      when: hostvars['localhost']['telemetry_credentials'] is defined
+
+    - name: Set required variables from localhost
+      ansible.builtin.set_fact:
+        telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
+        k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] }}"
+        slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] }}"
+      when: hostvars['localhost']['telemetry_config'] is defined
+
+    - name: Configure LDMS sampler on login nodes
+      ansible.builtin.include_role:
+        name: deploy_ldms
+        tasks_from: configure_ldms_sampler
+
+- name: Configure LDMS Sampler on Login Compiler Nodes
+  hosts: login_compiler_node
+  gather_facts: true
+  any_errors_fatal: false
+  max_fail_percentage: 100
+  tasks:
+    - name: Set telemetry credentials from localhost
+      ansible.builtin.set_fact:
+        telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
+      no_log: true
+      when: hostvars['localhost']['telemetry_credentials'] is defined
+
+    - name: Set required variables from localhost
+      ansible.builtin.set_fact:
+        telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
+        k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] }}"
+        slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] }}"
+      when: hostvars['localhost']['telemetry_config'] is defined
+
+    - name: Configure LDMS sampler on login compiler nodes
       ansible.builtin.include_role:
         name: deploy_ldms
         tasks_from: configure_ldms_sampler

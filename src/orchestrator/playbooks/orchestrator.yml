@@ -179,6 +179,18 @@
     - validate
 
 # =========================================================================
+# FLOW: validate — Standalone health check (read-only)
+# Loads cluster config from OIM, authenticates, then runs all validations.
+# No-op when running as part of deploy/provision (prerequisites already set).
+# =========================================================================
+
+# Validate preamble: load cluster config + auth for standalone --tags validate
+- name: Validate preamble (standalone prerequisites)
+  ansible.builtin.import_playbook: validate/validate_preamble.yml
+  tags:
+    - validate
+
+# =========================================================================
 # FLOW: provision — SSH preamble + provision all categories + validate
 # =========================================================================
 

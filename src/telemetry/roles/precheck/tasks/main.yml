@@ -31,6 +31,3 @@
 
 - name: Check PowerScale (isilon) namespace pods
   ansible.builtin.include_tasks: check_powerscale_namespace.yml
-  when: >-
-    (hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
-    (hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.logs_enabled | default(false) | bool)

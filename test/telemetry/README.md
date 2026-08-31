@@ -84,9 +84,9 @@ Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`, `nft`, `p
 ./run_validation.sh fvt_telemetry list
 
 # NFT
-./run_validation.sh nft test                          # All NFT tests
-./run_validation.sh nft test --marker performance     # Performance only
-./run_validation.sh nft test --marker idempotency     # Idempotency only
+./run_validation.sh nft_telemetry test                          # All NFT tests
+./run_validation.sh nft_telemetry test --marker performance     # Performance only
+./run_validation.sh nft_telemetry test --marker idempotency     # Idempotency only
 
 # Config-driven batch
 ./run_validation.sh --config
@@ -109,7 +109,7 @@ Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`, `nft`, `p
 ```
 SOURCES (collectors) -> BRIDGES (Vector) -> SINKS (backends)
 
-Sources: iDRAC, LDMS, DCGM, PowerScale, UFM, VAST, OME, SFM, Skyway, PowerVault
+Sources: iDRAC, LDMS, PowerScale, UFM, VAST, OME, SFM
 Sinks:   VictoriaMetrics, VictoriaLogs, Kafka (Strimzi)
 ```
 
@@ -172,11 +172,9 @@ test/telemetry/
 |------|-----|--------|
 | Precheck | 7 | sanity |
 | Validate | 6 | sanity |
-| Deploy | 1 | deploy |
-| Sinks | 12 | sanity + sink |
-| Sources | 27 | sanity + functional + source |
-| Cleanup | 13 | sanity + functional |
-| **FVT Total** | **66** | |
+| Deploy | 62 | sanity + functional + source + sink |
+| Cleanup | 14 | sanity + functional |
+| **FVT Total** | **89** | |
 
 ### NFT (Non-Functional Tests)
 
@@ -186,7 +184,7 @@ test/telemetry/
 | Idempotency | 4 | nft + idempotency |
 | **NFT Total** | **7** | |
 
-### Grand Total: **73 Tests**
+### Grand Total: **89 Tests**
 
 ## Output Format
 

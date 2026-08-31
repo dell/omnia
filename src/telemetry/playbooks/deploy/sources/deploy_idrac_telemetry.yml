@@ -75,12 +75,12 @@
         kafka_needed: "{{ 'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) }}"
       when: telemetry_config is defined
 
-    - name: Deploy Kafka if needed and not already deployed
+    - name: Deploy Kafka if needed and not already deployed (standalone only)
       ansible.builtin.include_role:
         name: deploy_kafka
       when:
         - kafka_needed | default(false) | bool
-        - hostvars['localhost']['kafka_support'] | default(false) | bool
+        - hostvars['localhost']['kafka_support'] is not defined
 
     - name: Check if VictoriaMetrics is needed for iDRAC telemetry
       ansible.builtin.set_fact:
@@ -92,14 +92,14 @@
         victoria_deployment_mode: "cluster"
       when:
         - victoria_metrics_needed | default(false) | bool
-        - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+        - hostvars['localhost']['victoria_metrics_support'] is not defined
 
-    - name: Deploy VictoriaMetrics if needed and not already deployed
+    - name: Deploy VictoriaMetrics if needed and not already deployed (standalone only)
       ansible.builtin.include_role:
         name: deploy_victoria
       when:
         - victoria_metrics_needed | default(false) | bool
-        - hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+        - hostvars['localhost']['victoria_metrics_support'] is not defined
 
     - name: Include deploy_idrac_telemetry role
       ansible.builtin.include_role:

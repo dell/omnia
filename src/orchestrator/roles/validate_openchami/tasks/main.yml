@@ -60,6 +60,56 @@
       delay: 5
       until: tokensmith_health.status.ActiveState == "active"
 
+    - name: Verify metadata-service is reachable
+      ansible.builtin.uri:
+        url: "{{ openchami_base_url }}/metadata-service/health"
+        method: GET
+        status_code: 200
+        validate_certs: "{{ openchami_validate_certs | default(true) }}"
+        headers:
+          Authorization: "Bearer {{ openchami_access_token }}"
+      register: metadata_service_health
+      retries: 3
+      delay: 5
+      until: metadata_service_health.status == 200
+
+    - name: Verify ACME certificate service is active
+      ansible.builtin.systemd:
+        name: acme-deploy.service
+      register: acme_health
+      changed_when: false
+      failed_when: acme_health.status.ActiveState != "active"
+
+    - name: Check HAProxy TLS certificate directory
+      ansible.builtin.stat:
+        path: /etc/haproxy/certs/
+      register: haproxy_cert_dir
+
+    - name: Verify HAProxy TLS certificates are present
+      ansible.builtin.find:
+        paths: /etc/haproxy/certs/
+        patterns: "*.pem"
+      register: haproxy_certs
+      when: haproxy_cert_dir.stat.isdir | default(false)
+
+    - name: Report HAProxy TLS certificate status
+      ansible.builtin.debug:
+        msg: >-
+          HAProxy TLS certificates: {{ 'found' if (haproxy_certs.matched | default(0)) > 0 else 'not found (warning)' }}
+      when: haproxy_cert_dir.stat.isdir | default(false)
+
+    - name: Verify S3 endpoint is reachable
+      ansible.builtin.uri:
+        url: "{{ s3_configurations.endpoint_url }}/minio/health/live"
+        method: GET
+        status_code: 200
+        validate_certs: false
+      register: s3_health
+      retries: 3
+      delay: 5
+      until: s3_health.status == 200
+      when: s3_configurations is defined
+
     - name: Set openchami_ready fact
       ansible.builtin.set_fact:
         openchami_ready: true
@@ -75,4 +125,7 @@
           OpenCHAMI is not ready for provisioning. Check that all services are
           running and accessible. SMD: {{ smd_health.status | default('N/A') }},
           Boot-Service: {{ boot_service_health.status | default('N/A') }},
-          Tokensmith: {{ tokensmith_health.status.ActiveState | default('N/A') }}.
+          Metadata-Service: {{ metadata_service_health.status | default('N/A') }},
+          Tokensmith: {{ tokensmith_health.status.ActiveState | default('N/A') }},
+          ACME: {{ acme_health.status.ActiveState | default('N/A') }},
+          S3: {{ s3_health.status | default('N/A') }}.
