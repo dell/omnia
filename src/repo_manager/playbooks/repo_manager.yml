@@ -127,6 +127,8 @@
 #   ansible-playbook repo_manager.yml --tags catalog_add -e "input_file=input/additions.txt"
 #   ansible-playbook repo_manager.yml --tags catalog_delete -e "input_file=input/removals.txt"
 #   ansible-playbook repo_manager.yml --tags catalog_validate
+#   ansible-playbook repo_manager.yml --tags catalog_transform -e "input_file=input/catalog_1.0.json"
+#   ansible-playbook repo_manager.yml --tags catalog_optimize
 # =============================================================================
 # yamllint enable rule:line-length
 
@@ -266,3 +268,5 @@
     - catalog_add
     - catalog_delete
     - catalog_validate
+    - catalog_transform
+    - catalog_optimize
