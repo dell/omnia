@@ -50,11 +50,12 @@ DOCUMENTATION = r"""
 """
 
 # Pattern to detect the 2.19/2.20 [ERROR] task-failure context block
+# NOTE: Only suppress [ERROR] blocks that are part of task failure context
+# rendering. Do NOT suppress standalone [ERROR] messages (e.g. module-not-found)
+# which are critical for debugging parser errors (exit code 4).
 _ERROR_CONTEXT_PATTERN = re.compile(
     r"\[ERROR\]:\s*Task failed:|"
-    r"\[ERROR\]:\s*Action failed:|"
-    r"Origin:\s+\S+\.ya?ml:\d+:\d+|"
-    r"\s+\^\s+column\s+\d+"
+    r"\[ERROR\]:\s*Action failed:"
 )
 
 
