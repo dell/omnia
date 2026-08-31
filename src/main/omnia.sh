@@ -65,8 +65,8 @@ readonly DOMAINS=(
     "utils"
 )
 
-# Core infrastructure domain prepare order for --prepare-all
-# Only these three domains are prepared by --prepare-all
+# Core infrastructure domain prepare order for --prepare-base
+# Only these three domains are prepared by --prepare-base
 readonly PREPARE_ORDER=(
     "repo_manager"          # First: Pulp server for package repos
     "image_build_manager"   # Second: MinIO + Registry for image building
@@ -703,10 +703,10 @@ run_domain() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Prepare All Domains
+# Prepare Base Domains
 # Orchestrates prepare steps of core infrastructure domains in dependency order
 # ─────────────────────────────────────────────────────────────────────────────
-prepare_all_domains() {
+prepare_base_domains() {
     local skip_filter="${SKIP_DOMAINS:-}"
     local dry_run="${DRY_RUN:-false}"
     local start_time=$SECONDS
@@ -714,7 +714,7 @@ prepare_all_domains() {
     load_env
 
     echo -e "${BLUE}================================================================================${NC}"
-    echo -e "${BLUE}               Prepare All Infrastructure Domains${NC}"
+    echo -e "${BLUE}               Prepare Base Infrastructure Domains${NC}"
     echo -e "${BLUE}================================================================================${NC}"
     echo ""
 
@@ -751,7 +751,7 @@ prepare_all_domains() {
             done
             if [ "$valid" = false ]; then
                 echo -e "${RED}ERROR: Unknown domain in --skip: '$skip_domain'${NC}"
-                echo -e "${YELLOW}Valid domains for --prepare-all: ${PREPARE_ORDER[*]}${NC}"
+                echo -e "${YELLOW}Valid domains for --prepare-base: ${PREPARE_ORDER[*]}${NC}"
                 exit 1
             fi
         done
@@ -839,9 +839,9 @@ prepare_all_domains() {
             if [ "${domain_failed[$domain]}" = true ]; then
                 echo ""
                 echo -e "${RED}================================================================================${NC}"
-                echo -e "${RED}  FAILED: $domain failed in $tag phase. Stopping --prepare-all.${NC}"
+                echo -e "${RED}  FAILED: $domain failed in $tag phase. Stopping --prepare-base.${NC}"
                 echo -e "${RED}================================================================================${NC}"
-                echo -e "${YELLOW}  Fix the issue above and re-run: ./omnia.sh --prepare-all${NC}"
+                echo -e "${YELLOW}  Fix the issue above and re-run: ./omnia.sh --prepare-base${NC}"
                 deactivate 2>/dev/null || true
                 return 1
             fi
@@ -883,12 +883,7 @@ prepare_all_domains() {
     echo ""
 
     if [ $failed -eq 0 ]; then
-        echo -e "${GREEN}All domains prepared successfully!${NC}"
-        echo -e "${BLUE}Next steps:${NC}"
-        echo -e "  ${BLUE}1. Run discovery (if needed): ./omnia.sh --run discovery${NC}"
-        echo -e "  ${BLUE}2. Prepare build_stream:     ./omnia.sh --run build_stream --tags prepare${NC}"
-        echo -e "  ${BLUE}3. Run build_stream:          ./omnia.sh --run build_stream${NC}"
-        echo -e "  ${BLUE}4. Deploy orchestrator:       ./omnia.sh --run orchestrator${NC}"
+        echo -e "${GREEN}Prepared domains: ${target_domains[*]}${NC}"
     else
         echo -e "${RED}Some domains failed to prepare. Check the errors above.${NC}"
         deactivate 2>/dev/null || true
@@ -1217,18 +1212,17 @@ SETUP COMMANDS (run once, in order):
                           ./omnia.sh -i repo_manager,telemetry  # specific set
 
 EXECUTION COMMANDS:
-  --prepare-all [options]
-                        Prepare three core infrastructure domains in dependency order.
+  --prepare-base [options]
+                        Prepare three base infrastructure domains in dependency order.
                         For each domain, runs lifecycle phases: validate → credentials → prepare
-                        Prepares: repo_manager, image_build_manager, orchestrator
-                        Does NOT prepare: discovery, build_stream, telemetry (run separately)
+                        Domains: repo_manager, image_build_manager, orchestrator
                         Options:
-                          --skip <list>       Comma-separated domains to skip (from the 3 above)
+                          --skip <list>       Comma-separated domains to skip
                           --dry-run           Show what would be prepared
                         Example:
-                          ./omnia.sh --prepare-all
-                          ./omnia.sh --prepare-all --skip orchestrator
-                          ./omnia.sh --prepare-all --dry-run
+                          ./omnia.sh --prepare-base
+                          ./omnia.sh --prepare-base --skip orchestrator
+                          ./omnia.sh --prepare-base --dry-run
 
   --run, -r <domain> [--tags <tags>] [extra ansible args]
                         Activate venv and run the specified domain's playbook.
@@ -1376,10 +1370,10 @@ EXAMPLES:
   # Check dependency versions across all domains:
   ./omnia.sh --check-deps                      # Lists any pip/Galaxy version mismatches
 
-  # Prepare all infrastructure domains:
-  ./omnia.sh --prepare-all                     # Prepare repo_manager, image_build_manager, orchestrator
-  ./omnia.sh --prepare-all --skip orchestrator # Skip orchestrator if not needed
-  ./omnia.sh --prepare-all --dry-run           # Preview what would be prepared
+  # Prepare base infrastructure domains:
+  ./omnia.sh --prepare-base                     # Prepare repo_manager, image_build_manager, orchestrator
+  ./omnia.sh --prepare-base --skip orchestrator # Skip orchestrator if not needed
+  ./omnia.sh --prepare-base --dry-run           # Preview what would be prepared
 
   # Run a domain playbook:
   ./omnia.sh --run image_build_manager --tags prepare
@@ -1430,8 +1424,8 @@ main() {
                 command="setup-venv"
                 shift
                 ;;
-            --prepare-all)
-                command="prepare-all"
+            --prepare-base)
+                command="prepare-base"
                 shift
                 ;;
             --deps-only)
@@ -1526,9 +1520,9 @@ main() {
         echo -e "${YELLOW}Usage: $0 -s --force-deps or $0 -i --force-deps${NC}"
         exit 1
     fi
-    if [ -n "$SKIP_DOMAINS" ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ] && [ "$command" != "prepare-all" ]; then
-        echo -e "${RED}ERROR: --skip requires --setup-venv (-s), --init (-i), or --prepare-all${NC}"
-        echo -e "${YELLOW}Usage: $0 -s --skip telemetry or $0 -i --skip telemetry or $0 --prepare-all --skip orchestrator${NC}"
+    if [ -n "$SKIP_DOMAINS" ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ] && [ "$command" != "prepare-base" ]; then
+        echo -e "${RED}ERROR: --skip requires --setup-venv (-s), --init (-i), or --prepare-base${NC}"
+        echo -e "${YELLOW}Usage: $0 -s --skip telemetry or $0 -i --skip telemetry or $0 --prepare-base --skip orchestrator${NC}"
         exit 1
     fi
     if [ -n "$SKIP_DOMAINS" ] && [ -n "$init_domain_filter" ]; then
@@ -1537,9 +1531,9 @@ main() {
         echo -e "${YELLOW}Not both.${NC}"
         exit 1
     fi
-    if [ "$DRY_RUN" = true ] && [ "$command" != "init" ] && [ "$command" != "setup-venv" ] && [ "$command" != "prepare-all" ]; then
-        echo -e "${RED}ERROR: --dry-run requires --init (-i), --setup-venv (-s), or --prepare-all${NC}"
-        echo -e "${YELLOW}Usage: $0 -i --dry-run or $0 --prepare-all --dry-run${NC}"
+    if [ "$DRY_RUN" = true ] && [ "$command" != "init" ] && [ "$command" != "setup-venv" ] && [ "$command" != "prepare-base" ]; then
+        echo -e "${RED}ERROR: --dry-run requires --init (-i), --setup-venv (-s), or --prepare-base${NC}"
+        echo -e "${YELLOW}Usage: $0 -i --dry-run or $0 --prepare-base --dry-run${NC}"
         exit 1
     fi
 
@@ -1583,8 +1577,8 @@ main() {
             echo -e "  ${GREEN}source ${OMNIA_DATA_PATH}/activate-omnia.sh${NC}"
             echo ""
             ;;
-        prepare-all)
-            prepare_all_domains
+        prepare-base)
+            prepare_base_domains
             ;;
         init)
             init_domains "$init_domain_filter"
