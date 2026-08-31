@@ -12,7 +12,7 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 |-------|------|-------|---------|-------------|
 | TC_PC_001 | `test_deploy_precheck` | *(root)* | deploy, sanity | Deploy image_build_manager --tags precheck |
 | TC_PC_002 | `test_env_vars_present` | connectivity/ | sanity | Verify all omnia.env vars present on target |
-| TC_PC_003 | `test_target_connectivity` | connectivity/ | sanity | Verify target host SSH connectivity |
+| TC_PC_003 | `test_target_connectivity` | connectivity/ | sanity | Verify target connectivity (SSH in remote mode) |
 | TC_PC_004 | `test_hostname_domain` | connectivity/ | sanity | Verify hostname and domain match omnia.env |
 | TC_PC_005 | `test_admin_ip_assigned` | connectivity/ | sanity | Verify admin IP assigned to local interface |
 | TC_PC_006 | `test_omnia_setup` | connectivity/ | sanity | Verify omnia.sh setup completed |
@@ -25,7 +25,8 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 |-------|------|-------|---------|-------------|
 | TC_VL_001 | `test_deploy_validate` | *(root)* | deploy, sanity | Deploy image_build_manager --tags validate |
 | TC_VL_002 | `test_input_config_exists` | status/ | sanity | Verify image_build_config.yml exists on target |
-| TC_VL_003 | `test_credentials_present` | status/ | sanity | Verify credentials file is synced to target |
+| TC_VL_003 | `test_credentials_present` | status/ | sanity | Verify credentials file exists on the target |
+| TC_VL_004 | `test_repo_ssl_verify_config` | status/ | sanity | Verify effective repo_ssl_verify configuration |
 
 ---
 
@@ -37,7 +38,7 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_PR_002 | `test_storage_backend_after_prepare` | container/ | sanity | Verify S3 storage backend after prepare |
 | TC_PR_003 | `test_registry_after_prepare` | container/ | sanity | Verify registry container running |
 | TC_PR_004 | `test_services_active` | container/ | sanity | Verify systemd services active (minio, registry) |
-| TC_PR_005 | `test_firewall_ports_open` | container/ | sanity | Verify firewall ports open (9000, 9001, 5000) |
+| TC_PR_005 | `test_firewall_ports_open` | container/ | sanity | Verify service ports are listening (9000, 9001, 5000) |
 | TC_PR_006 | `test_s3cmd_configured` | container/ | sanity | Verify s3cmd installed and configured |
 | TC_PR_007 | `test_registry_reachable` | container/ | sanity | Verify registry is reachable via HTTP |
 | TC_PR_008 | `test_s3_buckets_after_prepare` | s3/ | sanity | Verify S3 buckets created |
@@ -48,7 +49,7 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 
 | TC ID | Test | Suite | Order | Markers | Description |
 |-------|------|-------|-------|---------|-------------|
-| TC_BD_001 | `test_deploy_build` | *(root)* | 0 | deploy, sanity | Deploy image_build_manager --tags build |
+| TC_BD_001 | `test_deploy_image_build_manager` | *(root)* | 0 | deploy, sanity | Deploy image_build_manager --tags build |
 | TC_BD_002 | `test_s3_images_x86_64` | s3/ | 1 | x86_64, sanity | Verify x86_64 images pushed to S3 |
 | TC_BD_003 | `test_s3_images_aarch64` | s3/ | 2 | aarch64, sanity | Verify aarch64 images pushed to S3 |
 | TC_BD_004 | `test_registry_images_x86_64` | registry/ | 3 | x86_64, sanity | Verify x86_64 images in registry |
@@ -58,7 +59,7 @@ All test case IDs follow the format `TC_<AREA>_<SEQ>`.
 | TC_BD_013 | `test_functional_groups_aarch64` | registry/ | 7 | aarch64, sanity | Verify all aarch64 functional groups built |
 | TC_BD_014 | `test_image_packages_x86_64` | image_verification/ | 13 | x86_64, sanity | Verify packages installed in x86_64 S3 images |
 | TC_BD_015 | `test_image_packages_aarch64` | image_verification/ | 14 | aarch64, sanity | Verify packages installed in aarch64 S3 images |
-| TC_BD_016 | `test_repo_ssl_verify_applied` | *(validate/status)* | 4 | x86_64, functional | Verify repo_ssl_verify is applied in build templates |
+| TC_BD_016 | `test_repo_ssl_verify_applied` | validate/status/ | 4 | x86_64, functional | Verify repo_ssl_verify is wired into build templates |
 
 ### AArch64 infrastructure
 
@@ -66,9 +67,11 @@ These tests verify that the aarch64 build node was correctly prepared by
 `build_image_aarch64.yml` (SSH setup, work dirs, builder image, regctl).
 All auto-skip when `aarch64_inventory_host_ip` is not configured.
 
-> **Path resolution**: All tests derive runtime paths from the target's
-> `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` environment variables.
-> No hardcoded `/opt/omnia` paths are used in test assertions.
+> **Path resolution**: OIM-side tests derive runtime paths from the target's
+> `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` environment variables. The remote
+> aarch64 builder work directory is intentionally fixed at
+> `/opt/omnia/image_build_manager`, matching the product role contract because
+> that node does not run `omnia.sh`.
 >
 > **regctl installation**: `regctl` for aarch64 is downloaded on the OIM host
 > during `gather_oim_data.yml`, then SCP'd to the aarch64 node during
@@ -82,27 +85,41 @@ All auto-skip when `aarch64_inventory_host_ip` is not configured.
 | TC_BD_020 | `test_aarch64_regctl_installed` | aarch64/ | 13 | aarch64, functional | Verify regctl installed on aarch64 node |
 | TC_BD_021 | `test_aarch64_architecture` | aarch64/ | 14 | aarch64, functional | Verify aarch64 node is ARM architecture |
 
-### Build-type naming convention
+### Build-type suffix checks
 
-These cases verify that the `-imgbld` / `-imgth` artifact suffix is applied correctly
-so the two build engines never overwrite each other's registry images or S3 objects.
+These cases inspect the `-imgbld` / `-imgth` artifact suffixes. The four
+build-type-specific cases require at least one artifact with the configured
+suffix and allow artifacts from the other build type to coexist.
 
 | TC ID | Test | Suite | Order | Markers | image_build_type | Description |
 |-------|------|-------|-------|---------|-----------------|-------------|
-| TC_BD_007 | `test_registry_naming_image_builder_x86_64` | naming/ | 8 | x86_64, sanity | image-builder | Registry repos carry `-imgbld` suffix |
-| TC_BD_008 | `test_s3_naming_image_builder_x86_64` | naming/ | 9 | x86_64, sanity | image-builder | S3 boot-images paths carry `-imgbld` |
-| TC_BD_009 | `test_registry_naming_image_thrillhouse_x86_64` | naming/ | 10 | x86_64, sanity | image-thrillhouse | Registry repos carry `-imgth` suffix |
-| TC_BD_010 | `test_s3_naming_image_thrillhouse_x86_64` | naming/ | 11 | x86_64, sanity | image-thrillhouse | S3 boot-images paths carry `-imgth` |
-| TC_BD_011 | `test_artifact_suffix_isolation` | naming/ | 12 | x86_64, functional | both | `-imgbld` and `-imgth` paths never collide |
+| TC_BD_007 | `test_registry_naming_image_builder_x86_64` | naming/ | 8 | x86_64, sanity | image-builder | Find at least one registry repo ending in `-imgbld` |
+| TC_BD_008 | `test_s3_naming_image_builder_x86_64` | naming/ | 9 | x86_64, sanity | image-builder | Find at least one S3 image path containing `-imgbld` |
+| TC_BD_009 | `test_registry_naming_image_thrillhouse_x86_64` | naming/ | 10 | x86_64, sanity | image-thrillhouse | Find at least one registry repo ending in `-imgth` |
+| TC_BD_010 | `test_s3_naming_image_thrillhouse_x86_64` | naming/ | 11 | x86_64, sanity | image-thrillhouse | Find at least one S3 image path containing `-imgth` |
+| TC_BD_011 | `test_artifact_suffix_isolation` | naming/ | 12 | x86_64, functional | both | Require a current-suffix artifact and report suffix populations |
 
 > **Skip behaviour**: TC_BD_007/008 skip automatically when `image_build_type = image-thrillhouse`
-> and TC_BD_009/010 skip when `image_build_type = image-builder`.  TC_BD_011 runs in all cases.
+> and TC_BD_009/010 skip when `image_build_type = image-builder`. TC_BD_011
+> runs for either type. All five cases skip when their required current-suffix
+> artifact is absent.
 
 > **Running naming tests only**:
 > ```bash
 > ./run_validation.sh fvt_image_build_manager build verify --suite naming
 > ./run_validation.sh fvt_image_build_manager build verify --suite naming --marker x86_64+sanity
 > ```
+
+---
+
+## full-stack deploy
+
+| TC ID | Test | Suite | Markers | Description |
+|-------|------|-------|---------|-------------|
+| TC_IB_001 | `test_deploy_image_build_manager` | build *(root)* | deploy, sanity | Deploy the complete image_build_manager playbook when no tag is selected |
+
+The build deploy function reports `TC_BD_001` when the runner selects the
+`build` tag and `TC_IB_001` when it runs without a deploy tag.
 
 ---
 
@@ -113,11 +130,16 @@ so the two build engines never overwrite each other's registry images or S3 obje
 | TC_CL_001 | `test_deploy_cleanup` | *(root)* | deploy, sanity | Deploy image_build_manager --tags cleanup |
 | TC_CL_002 | `test_containers_removed` | cleanup/ | sanity | Verify containers removed |
 | TC_CL_003 | `test_services_removed` | cleanup/ | sanity | Verify systemd services stopped |
-| TC_CL_004 | `test_firewall_ports_closed` | cleanup/ | sanity | Verify firewall ports closed |
+| TC_CL_004 | `test_firewall_ports_closed` | cleanup/ | sanity | Verify service ports are not listening |
 | TC_CL_005 | `test_s3_artifacts_removed` | cleanup/ | sanity | Verify S3 buckets removed |
 | TC_CL_006 | `test_s3cfg_removed` | cleanup/ | sanity | Verify s3cmd configuration removed |
 | TC_CL_007 | `test_build_output_removed` | cleanup/ | sanity | Verify build_status.yml removed |
-| TC_CL_008 | `test_registry_cleaned` | cleanup/ | sanity | Verify registry has no images |
+| TC_CL_008 | `test_registry_cleaned` | cleanup/ | sanity | Verify no tagged registry images remain |
+
+`TC_CL_005` and `TC_CL_006` describe the default MinIO cleanup contract.
+PowerScale cleanup intentionally retains the external buckets and
+`/root/.s3cfg`, so those two provider-neutral assertions are not applicable to
+the retained PowerScale state.
 
 ---
 
@@ -126,29 +148,29 @@ so the two build engines never overwrite each other's registry images or S3 obje
 | TC ID | Test | Suite | Markers | Description |
 |-------|------|-------|---------|-------------|
 | TC_CI_001 | `test_deploy_cleanup_images` | *(root)* | deploy, sanity | Deploy image_build_manager --tags cleanup_images |
-| TC_CI_002 | `test_s3_images_cleaned` | *(root)* | sanity | Verify S3 images deleted after cleanup_images |
-| TC_CI_003 | `test_registry_images_cleaned` | *(root)* | sanity | Verify registry images deleted after cleanup_images |
+| TC_CI_002 | `test_s3_images_cleaned` | cleanup_images/ | sanity | Verify S3 images deleted after cleanup_images |
+| TC_CI_003 | `test_registry_images_cleaned` | cleanup_images/ | sanity | Verify no tagged registry images remain after cleanup_images |
 
 ---
 
 ## Summary
 
-| Tag | Prefix | Test Count | Notes |
-|-----|--------|------------|-------|
+| ID area | Prefix | ID count | Notes |
+|---------|--------|----------|-------|
 | precheck | TC_PC_ | 6 (001–006) | |
 | validate | TC_VL_ | 4 (001–004) | 004 = repo_ssl_verify_config |
 | prepare | TC_PR_ | 8 (001–008) | |
-| build | TC_BD_ | 21 (001–021) | 007–011 naming, 012–015 aarch64+packages, 016 repo_ssl_verify, 017–021 aarch64 infra |
+| build | TC_BD_ | 21 (001–021) | TC_BD_016 physically runs under `validate/status` |
 | cleanup | TC_CL_ | 8 (001–008) | |
 | cleanup_images | TC_CI_ | 3 (001–003) | |
-| **Total** | | **50** | Plus TC_IB_001 (full-stack deploy) |
+| **Tagged IDs** | | **50** | TC_IB_001 is an alternate ID for the build deploy function, not an additional function |
 
 ### Naming Convention Test Matrix
 
 | TC ID | Runs when | Skips when |
 |-------|-----------|------------|
-| TC_BD_007 | `image_build_type: image-builder` | `image_build_type: image-thrillhouse` |
-| TC_BD_008 | `image_build_type: image-builder` | `image_build_type: image-thrillhouse` |
-| TC_BD_009 | `image_build_type: image-thrillhouse` | `image_build_type: image-builder` |
-| TC_BD_010 | `image_build_type: image-thrillhouse` | `image_build_type: image-builder` |
-| TC_BD_011 | always | — |
+| TC_BD_007 | `image_build_type: image-builder` and a current registry artifact exists | Other build type or no current registry artifact |
+| TC_BD_008 | `image_build_type: image-builder` and a current S3 artifact exists | Other build type or no current S3 artifact |
+| TC_BD_009 | `image_build_type: image-thrillhouse` and a current registry artifact exists | Other build type or no current registry artifact |
+| TC_BD_010 | `image_build_type: image-thrillhouse` and a current S3 artifact exists | Other build type or no current S3 artifact |
+| TC_BD_011 | either supported build type with a current-suffix artifact | no current-suffix artifact exists |

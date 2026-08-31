@@ -17,9 +17,10 @@
 # LDMS Telemetry Cleanup
 # =============================================================================
 # Removes LDMS resources from:
-#   - Kubernetes (Helm releases, StatefulSets, services, secrets, PVCs, Vector-LDMS bridge)
-#   - Slurm compute nodes (ldmsd.sampler service, config files)
-#   - Slurm control node (ldmsd.aggregator service, config files)
+#   - Kubernetes (Helm releases, StatefulSets, services, secrets, Vector-LDMS bridge)
+#   - Legacy PVCs only when Delete_volume=true
+#   - Slurm compute, control, login, and login-compiler nodes
+#     (ldmsd sampler service and config files)
 #
 # Standalone usage:
 #   ansible-playbook cleanup/sources/cleanup_ldms.yml -e kube_vip=<VIP_IP>
@@ -28,7 +29,7 @@
 #   ansible-playbook cleanup/cleanup.yml --tags cleanup_ldms
 # =============================================================================
 
-- name: "Cleanup LDMS Telemetry — Load Inventory"
+- name: "Cleanup LDMS Telemetry — Prepare Target"
   hosts: localhost
   gather_facts: false
   vars_files:
@@ -40,50 +41,19 @@
         tasks_from: load_telemetry_config
       when: telemetry_config is not defined
 
-    - name: Set slurm inventory file
-      ansible.builtin.set_fact:
-        slurm_inventory_file: >-
-          {{ telemetry_config.cluster_inventory | default('') }}
-      when: slurm_inventory_file is not defined
+    - name: Validate kube_vip is set
+      ansible.builtin.assert:
+        that:
+          - kube_vip is defined
+          - kube_vip | length > 0
+        fail_msg: >-
+          kube_vip is required for standalone LDMS cleanup.
 
-    - name: Check if slurm inventory exists
-      ansible.builtin.stat:
-        path: "{{ slurm_inventory_file }}"
-      register: slurm_inv_stat
-      when: slurm_inventory_file | default('') | length > 0
-
-    - name: Load slurm inventory
-      when:
-        - slurm_inventory_file | default('') | length > 0
-        - slurm_inv_stat.stat.exists | default(false)
-      block:
-        - name: Read slurm inventory
-          ansible.builtin.include_vars:
-            file: "{{ slurm_inventory_file }}"
-            name: slurm_inv
-
-        - name: Add Slurm control nodes to inventory
-          ansible.builtin.add_host:
-            name: "{{ item.value.ansible_host | default(item.key) }}"
-            groups: slurm_control_node
-            ansible_user: root
-          loop: >-
-            {{ slurm_inv.all.children.slurm_control_node_x86_64.hosts | default({}) | dict2items
-               + slurm_inv.all.children.slurm_control_node.hosts | default({}) | dict2items }}
-          loop_control:
-            label: "{{ item.key }}"
-
-        - name: Add Slurm compute nodes to inventory
-          ansible.builtin.add_host:
-            name: "{{ item.value.ansible_host | default(item.key) }}"
-            groups: slurm_node
-            ansible_user: root
-          loop: >-
-            {{ slurm_inv.all.children.slurm_node_x86_64.hosts | default({}) | dict2items
-               + slurm_inv.all.children.slurm_node.hosts | default({}) | dict2items
-               + slurm_inv.all.children.slurm_node_aarch64.hosts | default({}) | dict2items }}
-          loop_control:
-            label: "{{ item.key }}"
+    - name: Add kube_vip to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ kube_vip }}"
+        groups: kube_vip_group
+        ansible_user: root
 
 - name: "Cleanup LDMS Telemetry — All Resources"
   hosts: kube_vip_group

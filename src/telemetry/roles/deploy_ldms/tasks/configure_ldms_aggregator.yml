@@ -14,16 +14,11 @@
 ---
 
 # =============================================================================
-# Configure LDMS aggregator (nersc-ldms-aggr Helm chart)
+# Prepare LDMS aggregator authentication on a Slurm control node
 # =============================================================================
-# Prepares the LDMS aggregator Helm chart files on NFS share, including
-# machine config, host map, values.yaml, ldmsauth.conf, and munge key.
-# The aggregator runs as a StatefulSet in the telemetry namespace.
-#
-# This task runs on the slurm_control_node to fetch the munge key.
-# File operations on the kube_vip host and K8s deployment tasks are
-# handled by deploy_ldms_aggregator_k8s.yml, called from a separate
-# play targeting kube_vip_group.
+# This task file only fetches current Munge authentication material from the
+# selected control node. Chart rendering, secret reconciliation, and the Helm
+# deployment run separately on kube_vip_group in deploy_ldms_aggregator_k8s.yml.
 # =============================================================================
 
 - name: Check if munge key exists
@@ -31,17 +26,20 @@
     path: "{{ munge_key_path }}"
   register: munge_key_check
 
+- name: Validate current munge key on selected control node
+  ansible.builtin.assert:
+    that:
+      - munge_key_check.stat.exists | default(false)
+      - munge_key_check.stat.isreg | default(false)
+    fail_msg: >-
+      The munge key disappeared from {{ munge_key_path }} on the selected
+      Slurm control node. Refusing to reuse stale aggregator authentication.
+
 - name: Fetch munge key from slurm control node
   ansible.builtin.fetch:
     src: "{{ munge_key_path }}"
     dest: "/tmp/munge.key"
     flat: true
-  when: munge_key_check.stat.exists
-
-- name: Warn if munge key not found
-  ansible.builtin.debug:
-    msg: "WARNING: Munge key not found at {{ munge_key_path }}. LDMS authentication may not work properly."
-  when: not munge_key_check.stat.exists
 
 - name: Ensure ldms_sampler_password is available for aggregator
   ansible.builtin.set_fact:
@@ -55,6 +53,6 @@
   ansible.builtin.set_fact:
     munge_key_check_result: "{{ munge_key_check.stat.exists | default(false) }}"
 
-- name: Log LDMS aggregator configuration on control node complete
+- name: Log LDMS aggregator authentication preparation complete
   ansible.builtin.debug:
-    msg: "Munge key and credentials prepared on slurm control node"
+    msg: "Munge key and credentials prepared from selected Slurm control node"

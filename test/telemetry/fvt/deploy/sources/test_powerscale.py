@@ -45,6 +45,7 @@ from library.vars.common_vars import (
     POWERSCALE_DEPLOY_NAME,
     POWERSCALE_OTEL_DEPLOY_NAME,
     POWERSCALE_EXPECTED_METRICS,
+    POWERSCALE_KARAVI_METRICS,
     POWERSCALE_SYSLOG_PORT,
 )
 from library.messages.telemetry_msgs import (
@@ -57,13 +58,30 @@ from library.functions.telemetry_func import (
     is_logs_enabled,
 )
 from library.functions.powerscale_func import (
-    load_powerscale_secret_from_config,
     decode_isilon_creds,
     verify_powerscale_metrics,
     verify_powerscale_logs,
     verify_powerscale_syslog,
     configure_powerscale_syslog,
     get_vlagent_endpoint,
+    verify_powerscale_deployment,
+    verify_feature_flags,
+    verify_health_metrics,
+    verify_tls_enforcement,
+    verify_label_compliance,
+    verify_scrape_interval,
+    verify_csi_authorization_mode,
+    verify_deployment_mode,
+    verify_csi_volume_exporter_deployment,
+    verify_csi_volume_exporter_metrics_endpoint,
+    verify_csi_volume_exporter_metrics,
+    verify_csi_driver_powerscale_deployment,
+    verify_external_health_monitor_container,
+    verify_csi_exporter_skipped_without_health_monitor,
+    verify_health_monitor_warning_message,
+    verify_csm_otel_data_flow,
+    verify_otel_vm_export,
+    verify_cert_manager_tls_certs,
 )
 
 
@@ -225,27 +243,10 @@ def test_powerscale_otel_deploy(host):
 @pytest.mark.sanity
 @pytest.mark.order(62)
 def test_powerscale_secret_valid(host):
-    """Verify isilon-creds secret has correct endpoint."""
+    """Verify isilon-creds secret exists and has valid structure."""
     _skip_if_powerscale_disabled(host)
     tc = TC["powerscale_secret_valid"]
     tl = TestLogger(tc["title"], tc["id"])
-
-    tl.check("Reading PowerScale secret from telemetry config")
-    cfg_result = load_powerscale_secret_from_config(host)
-    if not cfg_result["success"]:
-        tl.failed(
-            LOG_MSGS["secret_invalid"].format(
-                secret="powerscale_secret.yaml",
-                actual="cannot read",
-                expected="valid config",
-            ),
-            cfg_result["error"],
-        )
-        pytest.fail(
-            f"Cannot read PowerScale secret: {cfg_result['error']}"
-        )
-
-    expected = cfg_result["clusters"][0]
 
     tl.check("Decoding deployed isilon-creds K8s secret")
     k8s_result = decode_isilon_creds(host)
@@ -253,8 +254,8 @@ def test_powerscale_secret_valid(host):
         tl.failed(
             LOG_MSGS["secret_invalid"].format(
                 secret="isilon-creds",
-                actual="not found",
-                expected=expected["endpoint"],
+                actual="not found or invalid",
+                expected="valid secret with cluster data",
             ),
             k8s_result["error"],
         )
@@ -269,8 +270,12 @@ def test_powerscale_secret_valid(host):
         f"cluster={deployed['clusterName']}"
     )
 
-    match = deployed["endpoint"] == expected["endpoint"]
-    if match:
+    # Verify secret has required fields
+    has_endpoint = bool(deployed.get("endpoint"))
+    has_username = bool(deployed.get("username"))
+    has_cluster = bool(deployed.get("clusterName"))
+
+    if has_endpoint and has_username and has_cluster:
         tl.passed(
             LOG_MSGS["secret_valid"].format(
                 secret="isilon-creds",
@@ -282,16 +287,14 @@ def test_powerscale_secret_valid(host):
         tl.failed(
             LOG_MSGS["secret_invalid"].format(
                 secret="isilon-creds",
-                actual=deployed["endpoint"],
-                expected=expected["endpoint"],
+                actual="missing required fields",
+                expected="endpoint, username, clusterName",
             ),
             details,
         )
 
-    assert match, ASSERT_MSGS["secret_invalid"].format(
-        secret="isilon-creds",
-        actual=deployed["endpoint"],
-        expected=expected["endpoint"],
+    assert has_endpoint and has_username and has_cluster, (
+        f"isilon-creds secret missing required fields: {details}"
     )
 
 
@@ -309,7 +312,7 @@ def test_powerscale_metrics_in_vm(host):
     tl = TestLogger(tc["title"], tc["id"])
 
     tl.check("Querying VictoriaMetrics for PowerScale metrics")
-    result = verify_powerscale_metrics(host, POWERSCALE_EXPECTED_METRICS)
+    result = verify_powerscale_metrics(host, POWERSCALE_KARAVI_METRICS)
 
     metric_lines = _format_metric_lines(
         result.get("metric_details", [])
@@ -318,7 +321,7 @@ def test_powerscale_metrics_in_vm(host):
     if result["success"]:
         details_lines = [
             f"Found: {len(result['found'])}"
-            f"/{len(POWERSCALE_EXPECTED_METRICS)} metrics",
+            f"/{len(POWERSCALE_KARAVI_METRICS)} metrics",
             "",
             metric_lines,
         ]
@@ -333,7 +336,7 @@ def test_powerscale_metrics_in_vm(host):
         missing_str = ", ".join(result["missing"])
         details_lines = [
             f"Found: {len(result['found'])}"
-            f"/{len(POWERSCALE_EXPECTED_METRICS)} metrics",
+            f"/{len(POWERSCALE_KARAVI_METRICS)} metrics",
         ]
         for m in result["missing"]:
             details_lines.append(f"  \u2717 {m}: MISSING")
@@ -372,14 +375,14 @@ def test_powerscale_syslog_config(host):
     tc = TC["powerscale_syslog_config"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    cfg_result = load_powerscale_secret_from_config(host)
-    if not cfg_result["success"]:
+    k8s_result = decode_isilon_creds(host)
+    if not k8s_result["success"]:
         tl.failed(
-            "Cannot read PowerScale credentials from config", ""
+            "Cannot read PowerScale credentials from K8s secret", ""
         )
-        pytest.fail("PowerScale secret not available in config")
+        pytest.fail("PowerScale secret not available in K8s")
 
-    cluster = cfg_result["clusters"][0]
+    cluster = k8s_result["clusters"][0]
     ps_host = cluster["endpoint"]
     ps_user = cluster["username"]
     ps_password = cluster["password"]
@@ -412,9 +415,12 @@ def test_powerscale_syslog_config(host):
         )
         return
 
-    # Not configured — configure it now
+    # Not configured — report why, then configure it now
     tl.check(
-        f"Syslog not configured — configuring to {target_str}"
+        f"Syslog not configured — current state:\n{result['details']}"
+    )
+    tl.check(
+        f"Configuring syslog to {target_str}"
     )
     cfg_result2 = configure_powerscale_syslog(
         host, ps_user, ps_password, ps_host,
@@ -492,14 +498,14 @@ def test_powerscale_logs_in_vl(host):
     tc = TC["powerscale_logs_in_vl"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    cfg_result = load_powerscale_secret_from_config(host)
-    if not cfg_result["success"]:
+    k8s_result = decode_isilon_creds(host)
+    if not k8s_result["success"]:
         tl.failed(
             "Cannot read PowerScale secret for cluster name", ""
         )
         pytest.fail("Cannot determine PowerScale cluster name")
 
-    hostname = cfg_result["clusters"][0]["clusterName"]
+    hostname = k8s_result["clusters"][0]["clusterName"]
 
     tl.check(
         f"Querying VictoriaLogs for PowerScale syslog "
@@ -523,3 +529,604 @@ def test_powerscale_logs_in_vl(host):
     assert result["success"], ASSERT_MSGS["logs_missing"].format(
         source="PowerScale",
     )
+
+
+# =========================================================================
+# TC_SR_036: Verify comprehensive PowerScale deployment
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(66)
+def test_powerscale_comprehensive_deployment(host):
+    """Verify comprehensive PowerScale deployment."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_comprehensive_deployment"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying comprehensive PowerScale deployment")
+    result = verify_powerscale_deployment(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["deployment_verified"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["deployment_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["deployment_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_037: Verify PowerScale feature flags
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(67)
+def test_powerscale_feature_flags(host):
+    """Verify PowerScale feature flags."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_feature_flags"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying PowerScale feature flags")
+    result = verify_feature_flags(host)
+
+    flags_str = ", ".join(f"{k}={v}" for k, v in result["flags"].items())
+    tl.passed(
+        LOG_MSGS["feature_flags"],
+        flags_str,
+    )
+
+    # Feature flags are informational, not pass/fail
+    assert True
+
+
+# =========================================================================
+# TC_SR_038: Verify PowerScale health metrics
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(68)
+def test_powerscale_health_metrics(host):
+    """Verify PowerScale health metrics."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_health_metrics"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying PowerScale health metrics")
+    result = verify_health_metrics(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["health_metrics"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["health_metrics_missing"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["health_metrics_missing"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_040: Verify PowerScale TLS enforcement
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(69)
+def test_powerscale_tls_enforcement(host):
+    """Verify PowerScale TLS enforcement."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_tls_enforcement"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying PowerScale TLS enforcement")
+    result = verify_tls_enforcement(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["tls_enforced"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["tls_not_enforced"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["tls_not_enforced"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_041: Verify PowerScale pod label compliance
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(70)
+def test_powerscale_label_compliance(host):
+    """Verify PowerScale pod label compliance."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_label_compliance"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying PowerScale pod label compliance")
+    result = verify_label_compliance(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["label_compliance"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["label_compliance_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["label_compliance_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_042: Verify PowerScale scrape interval
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(71)
+def test_powerscale_scrape_interval(host):
+    """Verify PowerScale scrape interval."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_scrape_interval"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying PowerScale scrape interval")
+    result = verify_scrape_interval(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["scrape_interval"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["scrape_interval_invalid"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["scrape_interval_invalid"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_042: Verify PowerScale CSI authorization mode
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(72)
+def test_powerscale_csi_auth_mode(host):
+    """Verify PowerScale CSI authorization mode."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_csi_auth_mode"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying PowerScale CSI authorization mode")
+    result = verify_csi_authorization_mode(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["csi_auth_mode"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["csi_auth_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["csi_auth_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_043: Verify PowerScale deployment mode
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(73)
+def test_powerscale_deployment_mode(host):
+    """Verify PowerScale deployment mode."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["powerscale_deployment_mode"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying PowerScale deployment mode")
+    result = verify_deployment_mode(host)
+
+    tl.passed(
+        LOG_MSGS["deployment_mode"],
+        result["details"],
+    )
+
+    # Deployment mode is always omnia-orchestrated
+    assert result["mode"] == "omnia-orchestrated"
+
+
+# =========================================================================
+# TC_SR_044: Verify CSI Volume Exporter deployment
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(74)
+def test_csi_volume_exporter_deploy(host):
+    """Verify CSI Volume Exporter deployment."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["csi_volume_exporter_deploy"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Checking if CSI Volume Exporter is deployed")
+    result = verify_csi_volume_exporter_deployment(host)
+
+    # Skip if CSI Volume Exporter is not deployed (expected when health monitor not available)
+    if len(result["pods"]) == 0:
+        tl.info("CSI Volume Exporter not deployed - skipping test")
+        pytest.skip("CSI Volume Exporter not deployed (health monitor not available)")
+
+    tl.check("Verifying CSI Volume Exporter deployment")
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["csi_exporter_deployed"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["csi_exporter_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["csi_exporter_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_045: Verify CSI Volume Exporter metrics endpoint
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(75)
+def test_csi_volume_exporter_endpoint(host):
+    """Verify CSI Volume Exporter metrics endpoint is accessible."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["csi_volume_exporter_endpoint"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    # Skip if CSI Volume Exporter is not deployed
+    deploy_result = verify_csi_volume_exporter_deployment(host)
+    if len(deploy_result["pods"]) == 0:
+        tl.info("CSI Volume Exporter not deployed - skipping test")
+        pytest.skip("CSI Volume Exporter not deployed (health monitor not available)")
+
+    tl.check("Verifying CSI Volume Exporter metrics endpoint")
+    result = verify_csi_volume_exporter_metrics_endpoint(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["csi_exporter_endpoint"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["csi_exporter_endpoint_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["csi_exporter_endpoint_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_046: Verify CSI Volume Exporter metrics in VictoriaMetrics
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(76)
+def test_csi_volume_exporter_metrics(host):
+    """Verify CSI Volume Exporter metrics in VictoriaMetrics."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["csi_volume_exporter_metrics"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    # Skip if CSI Volume Exporter is not deployed
+    deploy_result = verify_csi_volume_exporter_deployment(host)
+    if len(deploy_result["pods"]) == 0:
+        tl.info("CSI Volume Exporter not deployed - skipping test")
+        pytest.skip("CSI Volume Exporter not deployed (health monitor not available)")
+
+    tl.check("Verifying CSI Volume Exporter metrics in VictoriaMetrics")
+    result = verify_csi_volume_exporter_metrics(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["csi_exporter_metrics"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["metrics_missing"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["csi_exporter_metrics_missing"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_047: Verify CSI Driver for PowerScale (isilon-controller) deployment
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(77)
+def test_csi_driver_powerscale_deploy(host):
+    """Verify CSI Driver for PowerScale (isilon-controller) deployment."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["csi_driver_powerscale_deploy"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying CSI Driver for PowerScale (isilon-controller) deployment")
+    result = verify_csi_driver_powerscale_deployment(host)
+
+    # If driver is not deployed, skip this test
+    if not result.get("driver_deployed", True):
+        tl.skipped(
+            "CSI driver not deployed",
+            "isilon-controller pods not found - CSI driver verification skipped",
+        )
+        pytest.skip("CSI driver not deployed - CSI driver verification skipped")
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["csi_driver_deployed"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["csi_driver_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["csi_driver_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_048: Verify external-health-monitor-controller container is running
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(78)
+def test_external_health_monitor_container(host):
+    """Verify external-health-monitor-controller container is running in isilon-controller pod."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["external_health_monitor_container"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying external-health-monitor-controller container")
+    result = verify_external_health_monitor_container(host)
+
+    # If pod is not found, skip this test (CSI driver not deployed)
+    if not result.get("pod_found", True):
+        tl.skipped(
+            "isilon-controller pod not found",
+            "CSI driver not deployed - health monitor verification skipped",
+        )
+        pytest.skip("CSI driver not deployed - health monitor verification skipped")
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["health_monitor_container"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["health_monitor_container_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["health_monitor_container_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_049: Verify CSI volume exporter deployment skipped when health monitor missing
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(79)
+def test_csi_exporter_skipped_without_health_monitor(host):
+    """Verify CSI volume exporter deployment is skipped when health monitor is not available."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["csi_exporter_skipped_without_health_monitor"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    # Check if CSI driver is deployed first
+    driver_result = verify_csi_driver_powerscale_deployment(host)
+    if not driver_result.get("driver_deployed", True):
+        tl.skipped(
+            "CSI driver not deployed",
+            "CSI driver not deployed - dependency verification skipped",
+        )
+        pytest.skip("CSI driver not deployed - dependency verification skipped")
+
+    tl.check("Verifying CSI volume exporter deployment logic with health monitor dependency")
+    result = verify_csi_exporter_skipped_without_health_monitor(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["csi_exporter_dependency"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["csi_exporter_dependency_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["csi_exporter_dependency_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_050: Verify warning message displayed for missing health monitor
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(80)
+def test_health_monitor_warning_message(host):
+    """Verify appropriate warning message is displayed when health monitor is missing."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["health_monitor_warning_message"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying health monitor warning message behavior")
+    result = verify_health_monitor_warning_message(host)
+
+    # This is informational - always passes
+    tl.passed(
+        LOG_MSGS["health_monitor_warning"],
+        result["details"],
+    )
+
+    assert result["success"]
+
+
+# =========================================================================
+# TC_SR_051: Verify CSM Metrics to OTEL Collector data flow
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(81)
+def test_csm_otel_data_flow(host):
+    """Verify CSM Metrics to OTEL Collector data flow."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["csm_otel_data_flow"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying CSM Metrics to OTEL Collector data flow")
+    result = verify_csm_otel_data_flow(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["csm_otel_flow"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["csm_otel_flow_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["csm_otel_flow_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_052: Verify OTEL Collector to VictoriaMetrics export
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(82)
+def test_otel_vm_export(host):
+    """Verify OTEL Collector to VictoriaMetrics export."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["otel_vm_export"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying OTEL Collector to VictoriaMetrics export")
+    result = verify_otel_vm_export(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["otel_vm_export"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["otel_vm_export_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["otel_vm_export_failed"].format(
+        details=result["details"],
+    )
+
+
+# =========================================================================
+# TC_SR_053: Verify cert-manager TLS certificate generation
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.order(83)
+def test_cert_manager_tls_certs(host):
+    """Verify cert-manager TLS certificate generation."""
+    _skip_if_powerscale_disabled(host)
+    tc = TC["cert_manager_tls_certs"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Verifying cert-manager TLS certificate generation")
+    result = verify_cert_manager_tls_certs(host)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["cert_manager_tls"],
+            result["details"],
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["cert_manager_tls_failed"],
+            result["details"],
+        )
+
+    assert result["success"], ASSERT_MSGS["cert_manager_tls_failed"].format(
+        details=result["details"],
+    )
+

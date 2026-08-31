@@ -24,11 +24,17 @@ telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 # Internal namespace constants (not user-configurable)
 csm_namespace: "telemetry"
 
+# Installation mode (offline or online)
+# Read from telemetry_packages_config (populated from telemetry_packages.yml)
+install_mode: "{{ telemetry_packages_config.install_mode | default('offline') }}"
+
 # Offline pip paths for air-gapped CSI volume exporter deployment
-# Read from telemetry_packages_config.telemetry_packages (populated from telemetry_packages.yml)
+# Read from telemetry_packages_config (populated from telemetry_packages.yml)
 # pip install falls back to online if the offline path is unreachable
 offline_pip_module_path: "{{ telemetry_packages_config.telemetry_packages.offline_pip_module_path | default('') }}"
-pulp_server_ip: "{{ telemetry_packages_config.telemetry_packages.offline_pip_module_path | default('') | urlsplit('hostname') | default('localhost') }}"
+pulp_server_ip: >-
+  {{ telemetry_packages_config.telemetry_packages.offline_pip_module_path
+     | default('') | urlsplit('hostname') | default('localhost') }}
 
 # Karavi Observability offline installer variables
 karavi_observability_git: "karavi-observability.tar.gz"
@@ -69,13 +75,31 @@ ps_cert_manager_disabled_msg: >-
 ps_auth_mode_direct_msg: "PowerScale telemetry authentication mode: Direct Authentication (Mode A)"
 ps_auth_mode_karavi_msg: "PowerScale telemetry authentication mode: Karavi Authorization (Mode B)"
 
-ps_clusters_found_msg: >-
-  PowerScale clusters configured in Helm values file:
-  {{ user_helm_values.isilon | default([]) | length }} cluster(s) found.
+ps_clusters_found_msg: "PowerScale clusters detected in CSM Observability configuration"
 
 ps_telemetry_prepared_msg: >-
   PowerScale telemetry files prepared on NFS share.
   Proceeding with karavi-observability Helm deployment.
+
+ps_health_monitor_not_running_msg: >-
+  WARNING: external-health-monitor-controller container is not running in the isilon-controller pod.
+  CSI volume exporter requires this container to be running to collect health metrics.
+  Please deploy CSI driver with health monitor enabled in CSI driver values.yml.
+  After deploying CSI driver with health monitor enabled, run telemetry.yml again.
+  Skipping CSI volume exporter deployment.
+
+ps_isilon_pod_not_found_msg: >-
+  WARNING: Could not find isilon-controller pod to verify external-health-monitor-controller status.
+  CSI volume exporter requires this container to be running to collect health metrics.
+  Please deploy CSI driver with health monitor enabled in CSI driver values.yml.
+  After deploying CSI driver with health monitor enabled, run telemetry.yml again.
+  Skipping CSI volume exporter deployment.
+
+# PowerScale privilege check messages
+ps_privilege_check_success_msg: "PowerScale privilege check passed. User has all required privileges."
+ps_privilege_check_skipped_msg: "PowerScale privilege check skipped (PowerScale not accessible or credentials not available)."
+ps_metrics_privilege_warning_msg: "PowerScale user is missing required privileges for metrics collection."
+ps_log_privilege_warning_msg: "PowerScale user is missing required privileges for log collection (syslog configuration)."
 
 # CSI Volume Exporter Configuration
 # ============================================================================
@@ -88,7 +112,7 @@ csi_volume_exporter:
   service_account_name: "csi-volume-exporter"
   cluster_role_name: "csi-volume-exporter"
   cluster_role_binding_name: "csi-volume-exporter"
-  image: "{{ telemetry_registry.images.powerscale.python | default('docker.io/library/python:3.12-slim') }}"
+  image: "{{ telemetry_registry.images.powerscale.python | default('quay.io/prometheus/python-exporter:latest') }}"
   metrics_port: 9090
   scrape_interval: "30s"
   scrape_interval_seconds: 30

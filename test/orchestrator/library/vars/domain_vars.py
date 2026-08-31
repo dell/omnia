@@ -39,6 +39,10 @@ FVT_TAGS: List[str] = [
     "prepare",
     "provision",
     "cleanup",
+    "modules",
+    "roles",
+    "playbooks",
+    "slurm",
 ]
 
 # =====================================================================
@@ -50,6 +54,7 @@ MARKERS: List[str] = [
     "functional",
     "regression",
     "deploy",
+    "slurm",
 ]
 
 # =====================================================================
@@ -57,10 +62,14 @@ MARKERS: List[str] = [
 # =====================================================================
 
 SUITES: Dict[str, List[str]] = {
-    "validate": ["status"],
+    "validate": ["status", "slurm"],
     "prepare": ["openchami"],
-    "provision": [],
+    "provision": ["slurm"],
     "cleanup": ["status"],
+    "modules": [],
+    "roles": [],
+    "playbooks": [],
+    "slurm": [],
 }
 
 # =====================================================================

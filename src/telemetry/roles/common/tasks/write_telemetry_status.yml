@@ -16,7 +16,8 @@
 # Write telemetry_status.yml to the output project directory
 # ============================================================================
 # Writes a single authoritative status file after deployment completes.
-# Status values: passed, failed, skipped
+# External component status values: deployed, failed, skipped
+# The writer also accepts legacy internal "passed" values during migration.
 #
 # Expected to run on localhost after all deployment tasks complete.
 # Deployment results are collected from hostvars set during Phase 4.
@@ -30,6 +31,15 @@
     path: "{{ _output_base }}"
     state: directory
     mode: "0755"
+
+- name: Normalize unreachable deployment nodes
+  ansible.builtin.set_fact:
+    _deploy_unreachable_nodes:
+      ldms: >-
+        {{
+          ((_deploy_unreachable_nodes | default({})).ldms | default([]))
+          | unique | sort
+        }}
 
 # -- Aggregate deployment results from Phase 4 hostvars ----------------------
 - name: Aggregate sink deployment results
@@ -71,10 +81,10 @@
          + [_source_results.ome_metrics, _source_results.ome_logs]
          + [_bridge_results.vector_ldms, _bridge_results.vector_ome] }}
     _has_failed: "{{ 'failed' in _all_results }}"
-    _has_passed: "{{ 'passed' in _all_results }}"
+    _has_deployed: "{{ 'deployed' in _all_results or 'passed' in _all_results }}"
   ansible.builtin.set_fact:
     _deployment_status: >-
-      {% if _has_failed %}failed{%- elif _has_passed %}passed{%- else %}skipped{% endif %}
+      {% if _has_failed %}failed{%- elif _has_deployed %}passed{%- else %}skipped{% endif %}
 
 # -- Write the template ------------------------------------------------------
 - name: Write telemetry_status.yml
@@ -110,4 +120,24 @@
       - "Bridges:"
       - "  vector_ldms:       {{ _bridge_results.vector_ldms }}"
       - "  vector_ome:        {{ _bridge_results.vector_ome }}"
+      - ""
+      - >-
+        Unreachable deployment nodes (non-fatal):
+        {{ _deploy_unreachable_nodes.ldms | length }}
+      - >-
+        LDMS sampler nodes skipped:
+        {{
+          _deploy_unreachable_nodes.ldms | join(', ')
+          if _deploy_unreachable_nodes.ldms | length > 0
+          else 'none'
+        }}
       - "======================================================"
+
+- name: Fail playbook if deployment has failures
+  ansible.builtin.fail:
+    msg: >-
+      Telemetry deployment completed with failures.
+      Review the status summary above and check
+      /opt/omnia/telemetry/output/{{ project_name | default('project_default') }}/telemetry_status.yml
+      for details.
+  when: _deployment_status | trim == 'failed'

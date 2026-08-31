@@ -201,11 +201,11 @@ TEST_CASES = {
     # ── Validate — repo_ssl_verify ──────────────────────────────────────
     "repo_ssl_verify_config": {
         "id": "TC_VL_004",
-        "title": "Verify repo_ssl_verify is configured in image_build_config",
+        "title": "Verify effective repo_ssl_verify configuration",
     },
     "repo_ssl_verify_applied": {
         "id": "TC_BD_016",
-        "title": "Verify repo_ssl_verify is applied in build templates",
+        "title": "Verify repo_ssl_verify is wired into build templates",
     },
 
     # ── Cleanup ───────────────────────────────────────────────────────────

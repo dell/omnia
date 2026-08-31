@@ -33,12 +33,6 @@
 - name: Display usage information
   ansible.builtin.include_tasks: display_usage.yml
 
-- name: Install Python dependencies for telemetry modules
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: install_python_dependencies
-  when: inventory_hostname != 'localhost'
-
 - name: Set telemetry setup guard fact
   ansible.builtin.set_fact:
     telemetry_setup_done: true

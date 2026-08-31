@@ -339,6 +339,35 @@ def verify_services_exist(host, service_names, namespace=None):
     }
 
 
+def get_service(host, service_name, namespace=None):
+    """Get K8s service details.
+
+    Args:
+        host: Testinfra host (OIM).
+        service_name: Service name.
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        dict with service details (cluster_ip, ports, etc.) or None if not found.
+    """
+    ns = namespace or TELEMETRY_NAMESPACE
+    cmd = CMDS["kubectl_get_svc_json"].format(name=service_name, namespace=ns)
+    result = run_on_kube_vip(host, cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return None
+
+    try:
+        service_data = json.loads(result.stdout)
+        return {
+            "name": service_data.get("metadata", {}).get("name", ""),
+            "cluster_ip": service_data.get("spec", {}).get("clusterIP", ""),
+            "ports": service_data.get("spec", {}).get("ports", []),
+        }
+    except json.JSONDecodeError:
+        return None
+
+
 def verify_deploy_pods_detail(host, deploy_name, namespace=None):
     """Get detailed pod info for a Deployment (name, status, node, restarts, age).
 
@@ -427,6 +456,63 @@ def verify_deploy_pods_detail(host, deploy_name, namespace=None):
     }
 
 
+def get_pods_by_label(host, namespace, label_selector):
+    """Get pods by label selector.
+
+    Args:
+        host: Testinfra host (OIM).
+        namespace: K8s namespace.
+        label_selector: Label selector string (e.g., "app=karavi-metrics-powerscale").
+
+    Returns:
+        list of pod dicts with keys: name, ready, restarts.
+    """
+    cmd = CMDS["kubectl_get_pods_json_by_selector"].format(
+        namespace=namespace, label_selector=label_selector,
+    )
+    result = run_on_kube_vip(host, cmd)
+    pods = []
+
+    if result.rc == 0 and result.stdout.strip():
+        try:
+            data = json.loads(result.stdout)
+            for item in data.get("items", []):
+                name = item.get("metadata", {}).get("name", "")
+                status = item.get("status", {})
+                phase = status.get("phase", "Unknown")
+
+                # Check if pod is ready
+                ready = False
+                container_statuses = status.get("containerStatuses", [])
+                if container_statuses:
+                    ready = all(cs.get("ready", False) for cs in container_statuses)
+
+                # Count restarts and get last restart time
+                restarts = 0
+                last_restart_time = None
+                for cs in container_statuses:
+                    restarts += cs.get("restartCount", 0)
+                    # Get last restart time from lastState
+                    last_state = cs.get("lastState", {})
+                    if last_state.get("terminated") and last_state["terminated"].get("finishedAt"):
+                        last_restart_time = last_state["terminated"]["finishedAt"]
+
+                # Get labels
+                labels = item.get("metadata", {}).get("labels", {})
+
+                pods.append({
+                    "name": name,
+                    "ready": ready,
+                    "restarts": restarts,
+                    "last_restart_time": last_restart_time,
+                    "labels": labels,
+                })
+        except json.JSONDecodeError:
+            pass
+
+    return pods
+
+
 def verify_services_detail(host, service_names, namespace=None):
     """Get detailed service info (name, type, clusterIP, externalIP, ports).
 
@@ -439,7 +525,7 @@ def verify_services_detail(host, service_names, namespace=None):
         dict with keys: success, found, missing, services (list of dicts).
     """
     ns = namespace or TELEMETRY_NAMESPACE
-    cmd = CMDS["kubectl_get_svc_json"].format(namespace=ns)
+    cmd = f"kubectl get svc -n {ns} -o json 2>/dev/null"
     result = run_on_kube_vip(host, cmd)
 
     if result.rc != 0 or not result.stdout.strip():
@@ -499,3 +585,4 @@ def verify_services_detail(host, service_names, namespace=None):
         "missing": missing,
         "services": services,
     }
+

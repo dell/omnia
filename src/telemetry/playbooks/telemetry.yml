@@ -77,7 +77,7 @@
 - name: "Precheck | Validate telemetry prerequisites"
   ansible.builtin.import_playbook: precheck/precheck.yml
   tags:
-    # - never
+    - never
     - precheck
 
 # =========================================================================

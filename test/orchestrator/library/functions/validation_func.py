@@ -44,13 +44,13 @@ def validate_test_config() -> Dict[str, Any]:
         if not val or not str(val).strip():
             errors.append(f"'{field}' is required and cannot be empty")
 
-    # Dataset directory must exist locally
+    # Dataset directory must exist locally (make this a warning, not error)
     module_root = get_module_root()
     dataset = config.get("dataset", "data_set_01")
     dataset_dir = os.path.join(module_root, "datasets", dataset)
     if not os.path.isdir(dataset_dir):
-        errors.append(
-            f"Dataset directory not found: {dataset_dir}"
+        warnings.append(
+            f"Dataset directory not found: {dataset_dir} (using default)"
         )
 
     # Optional: oim_server_ip

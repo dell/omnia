@@ -196,7 +196,8 @@
             echo "[INFO] Creating base directories for Pulp cert, Slurm and Munge"
             mkdir -pv {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} /etc/munge /cert /var/log/track /var/lib/packages
 
-            echo "[INFO] Updating /etc/fstab with NFS entries for Pulp cert, Slurm and Munge paths"
+            echo "[INFO] Updating /etc/fstab with NFS entries for shared storage, Pulp cert, Slurm and Munge paths"
+            echo "{{ metadata_svc_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ metadata_svc_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_slurmd_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/spool/slurmd      {{ slurm_slurmd_spool_dir_effective }}       nfs defaults,_netdev 0 0" >> /etc/fstab
@@ -209,6 +210,12 @@
 
             echo "[INFO] Mounting all NFS entries from /etc/fstab"
             mount -av
+
+            # Remove stale slurm.conf from OS image — compute nodes use configless mode
+            # (slurmd --conf-server). The local file has SlurmctldHost=localhost which
+            # breaks CLI tools (sinfo, srun, sbatch).
+            echo "[INFO] Removing stale slurm.conf (compute nodes use configless mode)"
+            rm -f /etc/slurm/slurm.conf /etc/slurm/slurm.conf.example
             mkdir -p /etc/containers/registries.conf.d
             mv /tmp/apptainer_mirror.conf /etc/containers/registries.conf.d/apptainer_mirror.conf
 
@@ -506,12 +513,6 @@
         - systemctl restart sshd
 {% endif %}
 
-{% if hostvars['localhost']['ucx_support'] or hostvars['localhost']['openmpi_support'] %}
-        # Add NFS entry and mount
-        - mkdir -p {{ client_mount_path }}
-        - echo "{{ metadata_svc_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
-        - mount -av
-{% endif %}
         # UCX and OpenMPI auto-compilation disabled
         # DOCA UCX 1.20.0 and OpenMPI 4.1.9a1 configured by default
 {% if hostvars['localhost']['ucx_support'] %}

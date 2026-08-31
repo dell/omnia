@@ -33,6 +33,14 @@ MODULE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
 # From vars/ -> library/ -> test/ -> repo root
 REPO_ROOT = os.path.dirname(MODULE_ROOT)
 
+# Omnia monorepo root: omnia/
+MONOREPO_ROOT = os.path.dirname(REPO_ROOT)
+
+# src/ paths — used for module/role/playbook testing
+SRC_ORCHESTRATOR_DIR = os.path.join(
+    MONOREPO_ROOT, "src", "orchestrator"
+)
+
 # Domain name used for remote path resolution
 DOMAIN_NAME = "orchestrator"
 
@@ -197,4 +205,6 @@ CMDS: Dict[str, str] = {
     # --- Slurm ---
     "sinfo": "sinfo -N -l 2>/dev/null",
     "scontrol_show_nodes": "scontrol show nodes 2>/dev/null",
+    "scontrol_ping": "scontrol ping 2>/dev/null",
+    "sbatch_test_only": "sbatch --wrap='sleep 1' --test-only 2>/dev/null",
 }
