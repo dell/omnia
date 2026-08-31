@@ -37,8 +37,11 @@ MODULE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)
 )))
 
+# Test root: test/ directory
+TEST_ROOT = os.path.dirname(MODULE_ROOT)
+
 # Repository root: omnia-bsm/
-REPO_ROOT = os.path.dirname(MODULE_ROOT)
+REPO_ROOT = os.path.dirname(TEST_ROOT)
 
 # =============================================================================
 # DOMAIN IDENTITY
