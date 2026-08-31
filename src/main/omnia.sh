@@ -830,13 +830,6 @@ prepare_base_domains() {
                 local rc=$?
                 echo -e "${RED}    ✗ $domain $tag failed (exit code: $rc)${NC}"
                 domain_failed["$domain"]=true
-            fi
-            echo ""
-        done
-
-        # If any domain failed in this phase, stop everything
-        for domain in "${target_domains[@]}"; do
-            if [ "${domain_failed[$domain]}" = true ]; then
                 echo ""
                 echo -e "${RED}================================================================================${NC}"
                 echo -e "${RED}  FAILED: $domain failed in $tag phase. Stopping --prepare-base.${NC}"
@@ -845,6 +838,7 @@ prepare_base_domains() {
                 deactivate 2>/dev/null || true
                 return 1
             fi
+            echo ""
         done
 
         echo -e "${GREEN}Phase $tag completed${NC}"
