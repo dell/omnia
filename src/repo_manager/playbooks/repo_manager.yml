@@ -35,6 +35,9 @@
 #   ansible-playbook repo_manager.yml --tags prepare
 #   ansible-playbook repo_manager.yml --tags prepare -e "pulp_password=your_password"
 #
+#   # Collect or update credentials without deploying Pulp.
+#   ansible-playbook repo_manager.yml --tags credentials
+#
 #   # Validate the environment, catalog and Repo Manager input files.
 #   ansible-playbook repo_manager.yml --tags precheck
 #
@@ -141,8 +144,8 @@
     - name: Repo Manager Orchestrator - Usage
       ansible.builtin.debug:
         msg: >-
-          Run with --tags to specify operation (prepare, precheck, download,
-          status, cleanup_pulp, cleanup_repos)
+          Run with --tags to specify operation (credentials, prepare, precheck,
+          download, status, cleanup_pulp, cleanup_repos)
   tags: always
 
 # -------------------------------------------------------------------------
@@ -156,6 +159,10 @@
     - "{{ playbook_dir | dirname }}/vars/default.yml"
   roles:
     - role: precheck_environment
+      when: >-
+        not ('credentials' in (ansible_run_tags | default([])) and
+             ((ansible_run_tags | default([]) |
+               difference(['credentials'])) | length == 0))
   tags:
     - precheck
     - always
@@ -171,7 +178,21 @@
     - "{{ playbook_dir | dirname }}/vars/default.yml"
   roles:
     - role: repo_manager_setup
+      when: >-
+        not ('credentials' in (ansible_run_tags | default([])) and
+             ((ansible_run_tags | default([]) |
+               difference(['credentials'])) | length == 0))
   tags: always
+
+# -------------------------------------------------------------------------
+# COLLECT CREDENTIALS ONLY
+# -------------------------------------------------------------------------
+- name: Collect Repo Manager credentials
+  ansible.builtin.import_playbook: >-
+    {{ playbook_dir }}/credentials/get_repo_credentials.yml
+  tags:
+    - never
+    - credentials
 
 # -------------------------------------------------------------------------
 # PREPARE CREDENTIALS AND DEPLOY PULP
