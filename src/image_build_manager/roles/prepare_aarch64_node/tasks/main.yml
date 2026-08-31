@@ -157,10 +157,10 @@
   register: _upstream_name_info
   when: _local_tag_info.images | length == 0
 
-- name: Check if builder image exists under Pulp mirror name
+- name: Check if builder image exists under repo_manager mirror name
   containers.podman.podman_image_info:
     name: "{{ builder_image_path }}"
-  register: _pulp_name_info
+  register: _repo_manager_name_info
   when:
     - _local_tag_info.images | length == 0
     - (_upstream_name_info.images | default([])) | length == 0
@@ -170,11 +170,11 @@
     _builder_image_found: >-
       {{ (_local_tag_info.images | length > 0)
          or ((_upstream_name_info.images | default([])) | length > 0)
-         or ((_pulp_name_info.images | default([])) | length > 0) }}
+         or ((_repo_manager_name_info.images | default([])) | length > 0) }}
     _builder_image_source: >-
       {%- if _local_tag_info.images | length > 0 -%}local_tag
       {%- elif (_upstream_name_info.images | default([])) | length > 0 -%}upstream
-      {%- elif (_pulp_name_info.images | default([])) | length > 0 -%}pulp
+      {%- elif (_repo_manager_name_info.images | default([])) | length > 0 -%}repo_manager
       {%- else -%}none{%- endif -%}
 
 - name: Display skip notice — builder image already available
@@ -194,7 +194,7 @@
     - _builder_image_found | bool
     - _builder_image_source == 'upstream'
 
-- name: Tag existing Pulp image as local_tag
+- name: Tag existing repo_manager image as local_tag
   containers.podman.podman_tag:
     image: "{{ builder_image_path }}"
     target_names:
