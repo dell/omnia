@@ -33,6 +33,11 @@ _TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TEST_DIR not in sys.path:
     sys.path.insert(0, _TEST_DIR)
 
+# Add plugins directory to path for omnia_auto
+_PLUGINS_DIR = os.path.join(os.path.dirname(_TEST_DIR), "plugins")
+if _PLUGINS_DIR not in sys.path:
+    sys.path.insert(0, _PLUGINS_DIR)
+
 # --- Load Omnia environment variables into the current Python process ---
 # Ansible playbooks run by tests inherit this environment.
 _OMNIA_ENV_FILE = "/etc/omnia/omnia.env"

@@ -37,6 +37,7 @@ Scenarios:
   download        Download and sync repositories
   status          Generate repo_status.yml
   cleanup         Cleanup Pulp server and data
+  catalog         Catalog operations (generate, add, delete, validate, negative)
   repo_manager    Full end-to-end run (validate + deploy + download + status)
   all             Run all scenarios
 
@@ -125,9 +126,18 @@ if [[ "$SCENARIO" == "repo_manager" ]]; then
 fi
 
 if [[ "$SCENARIO" == "all" ]]; then
-    for s in validate deploy download status cleanup; do
+    for s in validate deploy download status cleanup catalog; do
         echo "===== Running scenario: $s ====="
         pytest "${SCRIPT_DIR}/fvt/${s}" "${PYTEST_ARGS[@]}" --tb=short
+    done
+    exit 0
+fi
+
+if [[ "$SCENARIO" == "catalog" ]]; then
+    # Run all catalog sub-scenarios in order
+    for s in generate add delete validate negative; do
+        echo "===== Running catalog scenario: $s ====="
+        pytest "${SCRIPT_DIR}/fvt/catalog/${s}" "${PYTEST_ARGS[@]}" --tb=short
     done
     exit 0
 fi
