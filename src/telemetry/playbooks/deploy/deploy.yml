@@ -280,10 +280,27 @@
     - ../../roles/common/vars/main.yml
   tags: deploy
   tasks:
+    - name: Resolve kube_vip host
+      ansible.builtin.set_fact:
+        _kube_vip_host: "{{ kube_vip | default('') }}"
+
     - name: Get kubectl results from kube_vip
       ansible.builtin.set_fact:
-        _kv: "{{ hostvars[kube_vip]['_kv'] }}"
+        _kv: "{{ hostvars[_kube_vip_host]['_kv'] | default({}) }}"
         _cfg: "{{ telemetry_config }}"
+      when: _kube_vip_host | length > 0
+
+    - name: Warn if kube_vip was unreachable
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: kube_vip host '{{ _kube_vip_host }}' was unreachable or did not
+          report deployment results. All components will be marked as 'failed'.
+      when: _kube_vip_host | length > 0 and (_kv | default({}) | length == 0)
+
+    - name: Set fallback config when kube_vip results are unavailable
+      ansible.builtin.set_fact:
+        _cfg: "{{ telemetry_config }}"
+      when: _cfg is not defined
 
     # -- Sinks ----------------------------------------------------------------
     - name: Set sink results
