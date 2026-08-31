@@ -25,6 +25,11 @@
     file: "{{ role_path }}/../slurm_config/vars/main.yml"
   failed_when: false
 
+# Re-load openchami configs_vars to restore cluster_name / cluster_domain
+# which slurm_config/vars/main.yml clobbers with its own cluster_name.
+- name: Reload openchami cluster vars after slurm_config include
+  ansible.builtin.include_vars: "{{ openchami_config_vars_path }}"
+
 - name: Include vars from configure_ochami role
   ansible.builtin.include_vars:
     file: "{{ role_path }}/../configure_ochami/vars/main.yml"

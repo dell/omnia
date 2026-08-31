@@ -20,6 +20,8 @@ upgrade_lock_file: "{{ omnia_data_path | default('/opt/omnia') }}/.data/upgrade_
 default_build_status_path: >-
   {{ omnia_data_path | default('/opt/omnia') }}/image_build_manager/output/{{ project_name | default('project_default') }}/build_status.yml
 default_repo_status_path: "{{ omnia_data_path | default('/opt/omnia') }}/repo_manager/output/{{ project_name | default('project_default') }}/repo_status.yml"
+default_pxe_mapping_file_path: >-
+  {{ omnia_data_path | default('/opt/omnia') }}/orchestrator/input/{{ project_name | default('project_default') }}/pxe_mapping_file.csv
 default_catalog_file_path: "{{ lookup('env', 'CATALOG_FILE_PATH') | default(omnia_data_path | default('/opt/omnia') + '/catalog/catalog_rhel.json', true) }}"
 
 # --- Tag validation ---

@@ -1,5 +1,12 @@
 ---
 # Variables for validate_openchami role
-# Uses cluster_name and cluster_domain facts set by deploy_openchami/refresh_openchami_configs.yml
-openchami_base_url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443"
+# Derive OpenCHAMI base URL from stable localhost facts (oim_node_name, domain_name)
+# rather than cluster_name which may be overwritten by slurm_config/k8s_config roles.
+openchami_base_url: >-
+  https://{{ hostvars['localhost']['oim_node_name'] }}.{{
+    hostvars['localhost']['domain_name'] | regex_replace(
+      '^' + hostvars['localhost']['oim_node_name'] + '\\.',
+      ''
+    )
+  }}:8443
 openchami_validate_certs: false

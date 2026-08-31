@@ -45,3 +45,4 @@
 
 - name: Update hosts file
   ansible.builtin.include_tasks: update_hosts.yml
+  when: "'precheck' not in (hostvars['localhost']['omnia_run_tags'] | default([]))"
