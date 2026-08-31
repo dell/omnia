@@ -70,7 +70,8 @@ vi test_config.yml       # See "Execution Modes" below
 ./setup_env.sh --set-creds        # Interactive prompt (2x confirmation)
 ./setup_env.sh --creds '<password>'  # Non-interactive
 
-# Step 4b — Set domain credentials (S3 + aarch64)
+# Step 4b — On the execution OIM, set domain credentials (S3 + aarch64)
+# For remote mode, run this from test/image_build_manager on the target OIM.
 ./setup_env.sh --set-domain-creds  # Interactive prompt for S3 access/secret + aarch64
 
 # Step 5 — Activate environment (if using --venv mode)
@@ -83,7 +84,8 @@ cd datasets/generator/
 cd ../..
 # Set: dataset: "my_dataset" in test_config.yml
 # Enable sync_image_build_input/sync_output when the dataset should be copied
-# Or leave dataset: "" to use input from target's $OMNIA_DATA_PATH
+# Leave dataset: "" and sync disabled to keep the target's existing input
+# (with sync enabled, an empty name uses the canonical src/ examples)
 
 # Step 7 — Run tests
 ./run_validation.sh fvt_image_build_manager precheck test
@@ -101,25 +103,25 @@ cd ../..
 
 ### Credential Management
 
-Two separate credential files are managed by `setup_env.sh`:
+Two separate credential stores are managed by `setup_env.sh`:
 
 | File | Location | Purpose |
 |------|----------|---------|
 | `test_creds.yml` | Local (this directory) | SSH credentials for remote test execution |
 | `.test_creds.key` | Local (this directory) | Vault key for `test_creds.yml` (auto-created) |
-| `image_build_credentials.yml` | `$OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME/` | S3 + aarch64 domain credentials |
-| `.image_build_credentials_key` | Same directory as above | Vault key for domain credentials |
+| `image_build_credentials.yml` | `$OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME/` on the execution OIM | S3 + aarch64 domain credentials |
+| `.image_build_credentials_key` | Same execution-OIM directory as above | Vault key for domain credentials |
 
 The two YAML credential files are encrypted with Ansible Vault. Their private
 vault-key files remain mode `0600`. SSH artifacts stay in this gitignored test
-directory. Domain artifacts stay under `$OMNIA_DATA_PATH`; generic project and
-dataset sync never copies them.
+directory. Domain artifacts stay under `$OMNIA_DATA_PATH` on the execution OIM.
+The framework never copies or syncs the domain credential YAML, its vault key,
+or backups.
 
-For remote execution, export the target's `OMNIA_DATA_PATH` and
-`OMNIA_PROJECT_NAME` on the controller before running
-`./setup_env.sh --set-domain-creds`. At session start, the framework transfers
-the encrypted domain file and its vault key together to the matching target
-path. For local execution, create the pair directly in the local runtime path.
+From `test/image_build_manager` on the execution OIM, run
+`./setup_env.sh --set-domain-creds` with that OIM's `OMNIA_DATA_PATH` and
+`OMNIA_PROJECT_NAME`. In local mode, the execution OIM is the current machine.
+In remote mode, SSH to the target OIM and run the command there.
 
 #### SSH Credentials (OIM server access)
 
@@ -155,7 +157,7 @@ stored in a separate file (`image_build_credentials.yml`) at
 > **Note**: `--set-creds` and `--set-domain-creds` are independent — run each separately:
 > ```bash
 > ./setup_env.sh --set-creds          # SSH creds (saved locally)
-> ./setup_env.sh --set-domain-creds   # S3 + aarch64 (saved to $OMNIA_DATA_PATH)
+> ./setup_env.sh --set-domain-creds   # Run on execution OIM; saved to $OMNIA_DATA_PATH
 > ```
 > Existing fields not updated by a given flag are **preserved**.
 
@@ -301,7 +303,8 @@ NFT is an independent destructive flow, not the cleanup phase of the FVT
 workflow. A full NFT run measures prepare, build, and cleanup performance and
 checks repeated prepare execution. Its final timed cleanup removes the deployed
 environment and domain credentials, so restore credentials before any later
-playbook run.
+playbook run by rerunning `./setup_env.sh --set-domain-creds` on the execution
+OIM.
 
 ### Complete Commands by Flow
 
@@ -430,7 +433,7 @@ cleanup tag before verification.
 |---------|----------|---------|-------------|
 | `oim_server_ip` | No | `""` (local) | Target server IP. Leave empty for local mode. |
 | `clone_path` | Remote only | `/omnia` | Non-empty absolute path on the target where project code is synced. Ignored in local mode. |
-| `dataset` | No | `""` | Selects the local sync source: canonical `src/` files when empty, or a generated dataset by name. Nothing is copied unless its sync flag is enabled. |
+| `dataset` | No | `""` | Selects local sync sources. Empty uses `src/image_build_manager/input/` and `src/image_build_manager/samples/repo_manager_output/`; a name uses only `datasets/<name>/input/` and `datasets/<name>/repo_manager_output/`. Nothing is copied unless its sync flag is enabled. |
 
 ### Batch Runs with `test_run_config.yml`
 
@@ -523,14 +526,17 @@ In remote mode, session startup performs:
    virtual environments, and caches are excluded
 2. **Input sync** (only when `sync_image_build_input: true`) — reads
    `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the target's
-   `/etc/omnia/omnia.env`, creates the target directory if needed, and syncs
-   input files to
-   `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/`; credential files,
-   backup files, and vault keys are excluded
-3. **Credential sync** — when a matching encrypted domain credential pair
-   exists on the controller, transfers both artifacts with mode `0600`
-4. **Repo manager output sync** (only when `sync_output: true`) — syncs
-   `repo_manager_output` to the target repo manager output directory
+   `/etc/omnia/omnia.env` and creates the target directory if needed. A
+   non-empty `dataset` syncs only `datasets/<name>/input/`; an empty name syncs
+   canonical `src/image_build_manager/input/`. Credential files, keys, and
+   backups are excluded.
+3. **Repo manager output sync** (only when `sync_output: true`) — uses
+   `datasets/<name>/repo_manager_output/` for a named dataset or
+   `src/image_build_manager/samples/repo_manager_output/` when the name is
+   empty, then syncs it to the target Repo Manager output directory.
+
+Domain credentials are never part of session sync. Configure them directly on
+the execution OIM with `./setup_env.sh --set-domain-creds`.
 
 ### Input Files
 
@@ -589,9 +595,9 @@ The generator publishes these five files:
 | `dataset_manifest.yml` | `datasets/<name>/` |
 | `README.md` | `datasets/<name>/` |
 
-Credentials are never generated in a dataset. From `test/image_build_manager`,
-configure the separate encrypted runtime pair with
-`./setup_env.sh --set-domain-creds`.
+Credentials are never generated in a dataset or synced by the framework. From
+`test/image_build_manager` on the execution OIM, configure the separate
+encrypted runtime pair with `./setup_env.sh --set-domain-creds`.
 
 ---
 

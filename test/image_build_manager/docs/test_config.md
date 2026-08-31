@@ -53,7 +53,7 @@ clone_path: "/omnia"            # MANDATORY — absolute path on target
 
 | Field | Required | Description | Default |
 |-------|----------|-------------|---------|
-| `dataset` | No | Empty selects canonical `src/` files as the optional sync source. A name selects a generated dataset as that source. | `""` |
+| `dataset` | No | Empty selects canonical `src/` files as optional sync sources. A name selects only that generated dataset's `input/` and `repo_manager_output/`. | `""` |
 
 **Empty dataset (`dataset: ""`)**: With sync disabled, the playbook reads the
 files already present under the target's
@@ -80,16 +80,16 @@ sync option below for the scenario being executed.
 | `sync_image_build_input` | No | Push input files to target before tests | `false` |
 | `sync_output` | No | Push repo_manager_output to target | `false` |
 
-When `sync_image_build_input: true`, the framework syncs input files
-(from `src/` or the configured dataset) to the target server at
-`<OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/`.
-Datasets never contain credentials. Generic input sync also excludes any
-credential artifacts; domain credentials are managed separately as an
-encrypted pair.
+When `sync_image_build_input: true`, a non-empty dataset name syncs only
+`datasets/<name>/input/`; an empty name syncs canonical
+`src/image_build_manager/input/`. The destination is
+`<OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/` on the execution
+OIM. Credential files, keys, and backups are excluded.
 
-When `sync_output: true`, the framework syncs `repo_manager_output/`
-to the target. The remote path is derived from `repo_manager_output_path`
-in `image_build_config.yml`.
+When `sync_output: true`, a non-empty dataset name syncs only
+`datasets/<name>/repo_manager_output/`; an empty name syncs the canonical
+`src/image_build_manager/samples/repo_manager_output/` directory. The remote
+path is derived from `repo_manager_output_path` in `image_build_config.yml`.
 
 ### Credentials
 
@@ -101,12 +101,13 @@ credential store:
 ./setup_env.sh --set-domain-creds
 ```
 
-For local execution, run that command on the OIM with `OMNIA_DATA_PATH` and
-`OMNIA_PROJECT_NAME` set for the runtime project. For remote execution, export
-the target's same two values on the controller before running the command; the
-framework transfers the encrypted credential file and vault key together.
-Plaintext domain values are never read from `test_creds.yml` or copied from a
-dataset. Full cleanup removes the runtime credential pair.
+Run that command from `test/image_build_manager` directly on the execution OIM
+with its `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` set for the runtime project.
+For remote execution, SSH to the target OIM and run it there. The framework
+never syncs the encrypted credential file, vault key, or backups. Domain values
+are never read from `test_creds.yml` or copied from a dataset. Full cleanup
+removes the runtime credential pair, so configure it again before the next
+credential-dependent run.
 
 ### Report Settings
 

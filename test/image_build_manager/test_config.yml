@@ -24,7 +24,8 @@
 #     to the target server before running tests.
 #   - Sensitive credentials (SSH password) go in test_creds.yml
 #     (auto-encrypted with Ansible Vault on first run).
-#   - S3/ARM credentials use the separate encrypted domain credential store.
+#   - S3/ARM credentials use a separate encrypted store created on the
+#     execution OIM with ./setup_env.sh --set-domain-creds.
 # =============================================================================
 
 ---
@@ -39,9 +40,9 @@
 # When a remote IP is set, the framework will:
 #   1. Sync the local project code to clone_path on the target (rsync)
 #   2. Sync image_build input only when sync_image_build_input is true
-#   3. Sync the matching encrypted domain credential pair when available
-#   4. Sync repo_manager output only when sync_output is true
-#   5. Run all verification tests via SSH/Testinfra
+#   3. Sync repo_manager output only when sync_output is true
+#   4. Run all verification tests via SSH/Testinfra
+# Domain credentials are never synced by the framework.
 oim_server_ip: ""
 
 # SSH username for remote server (only needed for remote mode).
@@ -69,8 +70,9 @@ clone_path: "/omnia"
 #
 # Default (empty):
 #   Leaves the target runtime files unchanged when both sync flags are false.
-#   If a sync flag is enabled, src/image_build_manager is the corresponding
-#   local sync source.
+#   If input sync is enabled, src/image_build_manager/input/ is its source.
+#   If output sync is enabled, its source is
+#   src/image_build_manager/samples/repo_manager_output/.
 #
 # Custom dataset:
 #   Set to a folder name under test/image_build_manager/datasets/<name>/.
@@ -89,7 +91,9 @@ dataset: ""
 # SYNC — REPO MANAGER OUTPUT
 # =============================================================================
 # When true, pushes repo_manager_output/ from the selected local source to the
-# target. The source is datasets/<dataset>/ when set, otherwise the src sample.
+# target. A non-empty dataset uses only
+# datasets/<dataset>/repo_manager_output/; an empty name uses
+# src/image_build_manager/samples/repo_manager_output/.
 # Target path: parent of repo_manager_output_path from image_build_config.yml
 # Default:     /opt/omnia/repo_manager/output/<project_name>/
 #
@@ -100,9 +104,10 @@ sync_output: false
 # SYNC — IMAGE BUILD INPUT
 # =============================================================================
 # When true, pushes input files from the selected local source to the target.
-# The source is datasets/<dataset>/input/ when set, otherwise src input.
-# Datasets never contain credentials. Generic sync also excludes any credential
-# artifacts; runtime credentials are managed separately by setup_env.sh.
+# A non-empty dataset uses only datasets/<dataset>/input/; an empty name uses
+# src/image_build_manager/input/. Credential files, keys, and backups are
+# excluded. Domain credentials are never synced; configure them on the
+# execution OIM with ./setup_env.sh --set-domain-creds.
 # Destination: <OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/
 #
 # This ensures the target server has the selected image_build_config.yml and

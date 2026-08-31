@@ -26,7 +26,7 @@ def external_inputs(
 ) -> list[str]:
     """Describe inputs that must exist outside the generated dataset."""
     inputs = [
-        "Encrypted domain credential pair configured outside the dataset"
+        "Encrypted domain credential pair configured on the execution OIM"
     ]
     config = documents["image_build_config"]
     if config.get("functional_groups_source") == "catalog":
@@ -185,13 +185,10 @@ def _usage_sections(plan: dict[str, Any], regenerate: str) -> list[str]:
     """Return credential, review, regeneration, and execution instructions."""
     dataset = plan["dataset"]
     return [
-        "Credentials are never generated in or copied from a dataset. From",
-        "`test/image_build_manager`, run `./setup_env.sh --set-domain-creds` on",
-        "the target, or export the target's `OMNIA_DATA_PATH` and",
-        "`OMNIA_PROJECT_NAME` on the controller before running it there. When a",
-        "matching controller pair exists, the framework transfers the encrypted",
-        "credential file and vault key separately. `test_creds.yml` remains",
-        "SSH-only.",
+        "Credentials are never generated in or copied from a dataset, and the",
+        "framework never syncs domain credentials. On the execution OIM, from",
+        "`test/image_build_manager`, run `./setup_env.sh --set-domain-creds`.",
+        "`test_creds.yml` remains SSH-only.",
         "",
         "From `test/image_build_manager`, find every required value replacement:",
         "",
@@ -212,8 +209,9 @@ def _usage_sections(plan: dict[str, Any], regenerate: str) -> list[str]:
         "## Use",
         "",
         f"Set `dataset: \"{dataset}\"` in `test_config.yml`. On a clean target,",
-        "enable both `sync_image_build_input` and `sync_output` so the generated",
-        "input files and `repo_status.yml` are copied. On a prepared target, enable",
-        "only the sync operations needed for that environment.",
+        "enable both `sync_image_build_input` and `sync_output` so only this",
+        "dataset's non-secret input files and `repo_status.yml` are copied. On a",
+        "prepared target, enable only the sync operations needed for that",
+        "environment.",
         "",
     ]

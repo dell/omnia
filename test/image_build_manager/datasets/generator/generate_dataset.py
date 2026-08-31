@@ -128,6 +128,10 @@ _EXTENSIBLE_PATCH_ROOTS = {
 _SENSITIVE_PARTS = {
     "access_id", "access_key", "credential", "password", "secret", "token",
 }
+_DOMAIN_CREDENTIAL_GUIDANCE = (
+    "from test/image_build_manager on the execution OIM run "
+    "./setup_env.sh --set-domain-creds"
+)
 
 _IBM = "image_build_config"
 _LEGACY_VAR_PATHS = {
@@ -440,7 +444,7 @@ def _parse_assignment(assignment: str, option: str) -> tuple[str, Any]:
     if _is_sensitive_target(target):
         raise GeneratorError(
             "Credentials cannot be stored in profiles or CLI overrides; "
-            "from test/image_build_manager run ./setup_env.sh --set-domain-creds"
+            f"{_DOMAIN_CREDENTIAL_GUIDANCE}"
         )
     loader = YAML(typ="safe")
     loader.allow_duplicate_keys = False
@@ -532,7 +536,7 @@ def _validate_patch_paths(
         if _is_sensitive_target(display):
             raise GeneratorError(
                 "Credentials cannot be stored in profile patches; "
-                "from test/image_build_manager run ./setup_env.sh --set-domain-creds"
+                f"{_DOMAIN_CREDENTIAL_GUIDANCE}"
             )
         if key not in source:
             if _is_extensible_patch_path(document_name, path):
@@ -592,7 +596,7 @@ def _reject_sensitive_patch_keys(value: Any, display: str) -> None:
         if _is_sensitive_target(nested_display):
             raise GeneratorError(
                 "Credentials cannot be stored in profile patches; "
-                "from test/image_build_manager run ./setup_env.sh --set-domain-creds"
+                f"{_DOMAIN_CREDENTIAL_GUIDANCE}"
             )
         _reject_sensitive_patch_keys(nested_value, nested_display)
 
@@ -623,7 +627,7 @@ def _apply_set_overrides(
         if _is_sensitive_target(target):
             raise GeneratorError(
                 "Credentials cannot be stored in profiles or CLI overrides; "
-                "from test/image_build_manager run ./setup_env.sh --set-domain-creds"
+                f"{_DOMAIN_CREDENTIAL_GUIDANCE}"
             )
         _set_existing_path(documents[document_name], path, value)
         _record_patch(combined_patches, document_name, path, value)
@@ -657,7 +661,7 @@ def _apply_legacy_overrides(
         if _is_sensitive_target(key):
             raise GeneratorError(
                 "Credentials cannot be stored in profiles or CLI overrides; "
-                "from test/image_build_manager run ./setup_env.sh --set-domain-creds"
+                f"{_DOMAIN_CREDENTIAL_GUIDANCE}"
             )
         destination = _LEGACY_VAR_PATHS.get(key)
         if destination is None:

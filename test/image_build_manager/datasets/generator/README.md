@@ -24,7 +24,10 @@ cd test/image_build_manager/datasets/generator/
 Then set `dataset: "my_dataset"` in `test_config.yml`. A dataset is a local
 sync source; also enable `sync_image_build_input` and/or `sync_output` when the
 files must be copied to the execution target. Selecting a name alone does not
-modify the target.
+modify the target. With a non-empty name, input sync copies only that dataset's
+non-secret `input/`, and output sync copies only its `repo_manager_output/`.
+An empty name selects `src/image_build_manager/input/` and
+`src/image_build_manager/samples/repo_manager_output/`.
 
 `internet-config` is the easiest independent setup. It uses public CentOS
 Stream/EPEL repositories and replaces the source Slurm/login mappings with
@@ -136,12 +139,10 @@ cd ../..
 ./setup_env.sh --set-domain-creds
 ```
 
-For local execution, run that command on the OIM with the runtime
-`OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME`. For remote execution, either run it
-on the target, or export the target's same two values on the controller before
-running it there. When a matching controller pair exists, the framework
-transfers the encrypted credential YAML and vault key as a separate `0600`
-pair. `test_creds.yml` remains SSH-only.
+Run that command directly on the execution OIM with that OIM's
+`OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME`. For remote execution, SSH to the
+target OIM and run it there. The framework never syncs the encrypted credential
+YAML, its vault key, or backups. `test_creds.yml` remains SSH-only.
 
 ## Common commands
 

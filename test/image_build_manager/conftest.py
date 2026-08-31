@@ -63,7 +63,6 @@ from library.functions.host_func import (  # noqa: E402 - depends on configurati
     sync_project_to_remote,
     sync_image_build_input,
     sync_repo_manager_output,
-    sync_build_credentials,
 )
 from library.functions.build_image_func import (  # noqa: E402 - configured import
     check_target_connectivity,
@@ -286,20 +285,6 @@ def pytest_sessionstart(session):
             log(sync_result["details"], "OK")
         else:
             message = f"Input sync failed: {sync_result['error']}"
-            log(message, "FAIL")
-            pytest.exit(message, returncode=1)
-
-    # Sync the separately managed encrypted domain credential file and vault
-    # key. test_creds.yml remains SSH-only and is never used for S3/ARM values.
-    if not is_local_execution():
-        cred_result = sync_build_credentials(host)
-        if cred_result["success"]:
-            if cred_result["details"]:
-                # Distinguish between "synced" and "skipped (empty)" messages
-                level = "WARN" if "skipping sync" in cred_result["details"] else "OK"
-                log(cred_result["details"], level)
-        else:
-            message = f"Build credential sync failed: {cred_result['error']}"
             log(message, "FAIL")
             pytest.exit(message, returncode=1)
 

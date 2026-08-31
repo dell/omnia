@@ -67,11 +67,11 @@ datasets/<name>/
   README.md
 ```
 
-Datasets never contain credentials. From `test/image_build_manager`, create the
-separate encrypted runtime pair with `./setup_env.sh --set-domain-creds`. For a
-remote target, run the command on the target, or export its `OMNIA_DATA_PATH`
-and `OMNIA_PROJECT_NAME` on the controller before creating a pair that the
-framework can transfer separately.
+Datasets never contain credentials. From `test/image_build_manager` on the
+execution OIM, create the separate encrypted runtime pair with
+`./setup_env.sh --set-domain-creds`. The framework never transfers that YAML,
+its vault key, or backups. For remote execution, run the command on the target
+OIM.
 
 ## Switching Datasets
 
@@ -104,8 +104,10 @@ then the `test_config.yml` default.
 
 | Setting | What gets synced |
 |---------|------------------|
-| `sync_image_build_input: true` | Non-secret `input/` files → target server; any credential artifacts are excluded |
-| `sync_output: true` | `repo_manager_output/` → target server |
+| `sync_image_build_input: true`, named dataset | Only `datasets/<name>/input/` → execution OIM; credential artifacts are excluded |
+| `sync_image_build_input: true`, empty dataset | Canonical `src/image_build_manager/input/` → execution OIM; credential artifacts are excluded |
+| `sync_output: true`, named dataset | Only `datasets/<name>/repo_manager_output/` → execution OIM |
+| `sync_output: true`, empty dataset | `src/image_build_manager/samples/repo_manager_output/` → execution OIM |
 
 The framework reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the
 target server to resolve sync destinations.

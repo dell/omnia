@@ -141,7 +141,7 @@ def check_services_active(host) -> Dict[str, Any]:
 
 
 def check_credentials_present(host) -> Dict[str, Any]:
-    """Verify credentials file is present after prepare syncs it.
+    """Verify credentials are configured on the execution OIM.
 
     Returns:
         Dict with 'success', 'details'.

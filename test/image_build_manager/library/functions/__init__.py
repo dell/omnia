@@ -41,8 +41,6 @@ from omnia_auto import (
 from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
 
 # --- Build Image verification ---
-from .host_func import sync_build_credentials
-
 from .build_image_func import (
     check_container_running,
     check_s3_containers,
