@@ -257,3 +257,16 @@
       loop: "{{ topic_files.files }}"
       register: topic_apply
       changed_when: "'created' in (topic_apply.stdout | default('')) or 'configured' in (topic_apply.stdout | default(''))"
+
+    - name: Wait for Kafka topics to be ready
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - wait
+          - --for=condition=Ready
+          - "--filename={{ item.path }}"
+          - "--timeout={{ kafka_deploy_timeout }}"
+      loop: "{{ topic_files.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      changed_when: false

@@ -19,8 +19,8 @@
 
 - name: Set offline path variables from telemetry_packages
   ansible.builtin.set_fact:
-    _offline_git_path: "{{ telemetry_packages_config.offline_git_path | default('') }}"
-    _offline_tarball_path: "{{ telemetry_packages_config.offline_tarball_path | default('') }}"
+    _offline_git_path: "{{ telemetry_packages_config.telemetry_packages.offline_git_path | default('') }}"
+    _offline_tarball_path: "{{ telemetry_packages_config.telemetry_packages.offline_tarball_path | default('') }}"
     _karavi_obs_url: "{{ telemetry_packages_config.telemetry_packages.karavi_observability_git | default('') }}"
     _karavi_helm_url: "{{ telemetry_packages_config.telemetry_packages.karavi_helm_charts_git | default('') }}"
     _cert_manager_url: "{{ telemetry_packages_config.telemetry_packages.cert_manager_tarball | default('') }}"
