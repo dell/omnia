@@ -1,0 +1,143 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Normalize interrupted component cleanup
+  vars:
+    _interrupted_component: "{{ _cleanup_active_component | default('') }}"
+  ansible.builtin.set_fact:
+    _cleanup_abort: true
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        _cleanup_component_results
+        | combine({_interrupted_component: 'failed'})
+      }}
+    _cleanup_failures: >-
+      {{
+        _cleanup_failures
+        + [{
+            'component': _interrupted_component,
+            'task': 'Component execution',
+            'host': kube_vip | default('unknown'),
+            'rc': '',
+            'message': 'Cleanup execution was interrupted or the target host became unreachable'
+          }]
+      }}
+  when:
+    - _interrupted_component | length > 0
+    - _cleanup_component_results[_interrupted_component] | default('') == 'attempted'
+
+- name: Normalize interrupted cleanup verification
+  ansible.builtin.set_fact:
+    _cleanup_abort: true
+    _cleanup_verification_attempted: false
+    _cleanup_volume_verification_failed: >-
+      {{
+        (_cleanup_volume_verification_failed | default(false) | bool)
+        or (_cleanup_delete_volume | bool)
+      }}
+    _cleanup_failures: >-
+      {{
+        _cleanup_failures
+        + [{
+            'component': 'verification',
+            'task': 'Final cleanup verification',
+            'host': kube_vip | default('unknown'),
+            'rc': '',
+            'message': 'Cleanup verification was interrupted or the target host became unreachable'
+          }]
+      }}
+  when: _cleanup_verification_attempted | default(false) | bool
+
+- name: Write telemetry_status.yml with cleanup status
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: write_cleanup_status
+
+- name: Display cleanup resource summary
+  vars:
+    kube_vip_host: "{{ kube_vip | default('unknown') }}"
+    _kube_hostvars: >-
+      {{ hostvars[kube_vip] | default({}) if kube_vip is defined else {} }}
+    _pods_lines: >-
+      {{
+        (_kube_hostvars.remaining_pods | default({})).stdout_lines
+        | default([]) | map('trim') | reject('equalto', '') | list
+      }}
+    _pvcs_lines: >-
+      {{
+        (_kube_hostvars.remaining_pvcs | default({})).stdout_lines
+        | default([]) | map('trim') | reject('equalto', '') | list
+      }}
+    _svcs_lines: >-
+      {{
+        (_kube_hostvars.remaining_svcs | default({})).stdout_lines
+        | default([]) | map('trim') | reject('equalto', '') | list
+      }}
+    _workload_lines: >-
+      {{
+        (_kube_hostvars.remaining_workloads | default({})).stdout_lines
+        | default([]) | map('trim') | reject('equalto', '') | list
+      }}
+    _helm_release_lines: >-
+      {{
+        (_kube_hostvars.remaining_helm_releases | default({})).stdout_lines
+        | default([]) | map('trim') | reject('equalto', '') | list
+      }}
+    _pod_count: "{{ _pods_lines | length }}"
+    _pvc_count: "{{ _pvcs_lines | length }}"
+    _svc_count: "{{ _svcs_lines | length }}"
+    _workload_count: "{{ _workload_lines | length }}"
+    _helm_release_count: "{{ _helm_release_lines | length }}"
+    _helm_release_display: >-
+      {{
+        _helm_release_count
+        if _cleanup_all | bool
+        else 'not checked for granular cleanup'
+      }}
+    _pvc_status_display: >-
+      {{ _cleanup_volume_status | default('preserved') }}
+  ansible.builtin.debug:
+    msg:
+      - "======================================================"
+      - "Telemetry Cleanup Resource Summary"
+      - "======================================================"
+      - "Target Host: {{ kube_vip_host }}"
+      - ""
+      - "Remaining pods:     {{ _pod_count }}"
+      - >-
+        Namespace PVCs: {{ _pvc_count }}
+        (selected component volume cleanup: {{ _pvc_status_display }})
+      - "Remaining services: {{ _svc_count }}"
+      - "Remaining workloads: {{ _workload_count }}"
+      - "Remaining Helm releases: {{ _helm_release_display }}"
+      - "======================================================"
+      - ""
+      - "Deleting the telemetry namespace also deletes preserved PVC objects."
+  when:
+    - _cleanup_status != 'failed'
+    - _kube_hostvars.remaining_pods is defined
+    - _kube_hostvars.remaining_pvcs is defined
+    - _kube_hostvars.remaining_svcs is defined
+
+- name: Fail telemetry cleanup after status is written
+  vars:
+    _failed_components: >-
+      {{ _cleanup_failures | map(attribute='component') | unique | list }}
+  ansible.builtin.fail:
+    msg: >-
+      Telemetry cleanup failed in {{ _failed_components | join(', ') }}.
+      Status was written to {{ _output_base }}/telemetry_status.yml.
+  when: _cleanup_status == 'failed'

@@ -64,13 +64,13 @@ kafka:
 # Note: When a private registry host is set, strip the 'docker.io/' prefix from image names
 # since private registries store images without the docker.io prefix.
 vector:
-  image: >-
-    {% if telemetry_registry.host | default('') %}
+  image: |-
+    {%- if telemetry_registry.host | default('') -%}
     {{ telemetry_registry.host }}/{{ (telemetry_images['timberio/vector'] |
     default('docker.io/timberio/vector:0.54.0-debian')) | regex_replace('^docker\\.io/', '') }}
-    {% else %}
+    {%- else -%}
     {{ telemetry_images['timberio/vector'] | default('docker.io/timberio/vector:0.54.0-debian') }}
-    {% endif %}
+    {%- endif -%}
   ldms:
     app_name: "vector-ldms"
     service_name: "vector-ldms"
@@ -93,14 +93,20 @@ vector:
     service_name: "vmagent-vector"
     port: 8429
     replicas: 2
-    image: >-
-      {% if telemetry_registry.host | default('') %}
+    image: |-
+      {%- if telemetry_registry.host | default('') -%}
       {{ telemetry_registry.host }}/{{ (telemetry_registry.images.victoria.vmagent |
       default('victoriametrics/vmagent:v1.149.0')) | regex_replace('^docker\\.io/', '') }}
-      {% else %}
+      {%- else -%}
       {{ telemetry_registry.images.victoria.vmagent | default('victoriametrics/vmagent:v1.149.0') }}
-      {% endif %}
-    remote_write_url: "http://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc:8480/insert/0/prometheus/api/v1/write"
+      {%- endif -%}
+    remote_write_url: >-
+      {{
+        ('https' if victoria_cluster.tls_enabled | default(false) | bool else 'http')
+        ~ '://vminsert-victoria-cluster.'
+        ~ telemetry_namespace
+        ~ '.svc.cluster.local:8480/insert/0/prometheus/api/v1/write'
+      }}
     tmp_data_path: "/tmp/vmagent-buffer"
     resources:
       requests:

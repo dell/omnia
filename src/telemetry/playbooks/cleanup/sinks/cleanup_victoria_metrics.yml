@@ -16,7 +16,7 @@
 # =============================================================================
 # VictoriaMetrics Cleanup
 # =============================================================================
-# Removes VictoriaMetrics cluster, agents, PVCs, secrets, and operator (if VictoriaLogs not running).
+# Removes VictoriaMetrics resources. PVCs are removed only with Delete_volume=true.
 #
 # Standalone usage:
 #   ansible-playbook cleanup/sinks/cleanup_victoria_metrics.yml

@@ -1,58 +1,24 @@
 [
-{# =============================================================================
-   LDMS Host Map — Includes ALL LDMS-enabled nodes
-   - slurm_node (compute nodes)
-   - slurm_control_node (control node — also runs sampler)
-   - login_node (login nodes)
-   - login_compiler_node (login compiler nodes)
-   ============================================================================= #}
-
-{# Collect compute nodes from all possible inventory group names #}
-{% set compute_x86 = slurm_inv.all.children.slurm_node_x86_64.hosts | default({}) %}
-{% set compute_aarch64 = slurm_inv.all.children.slurm_node_aarch64.hosts | default({}) %}
-{% set compute_generic = slurm_inv.all.children.slurm_node.hosts | default({}) %}
-{% set all_compute = compute_generic | combine(compute_x86) | combine(compute_aarch64) %}
-
-{# Collect control nodes #}
-{% set control_x86 = slurm_inv.all.children.slurm_control_node_x86_64.hosts | default({}) %}
-{% set control_aarch64 = slurm_inv.all.children.slurm_control_node_aarch64.hosts | default({}) %}
-{% set control_generic = slurm_inv.all.children.slurm_control_node.hosts | default({}) %}
-{% set all_control = control_generic | combine(control_x86) | combine(control_aarch64) %}
-
-{# Collect login nodes #}
-{% set login_x86 = slurm_inv.all.children.login_node_x86_64.hosts | default({}) %}
-{% set login_aarch64 = slurm_inv.all.children.login_node_aarch64.hosts | default({}) %}
-{% set login_generic = slurm_inv.all.children.login_node.hosts | default({}) %}
-{% set all_login = login_generic | combine(login_x86) | combine(login_aarch64) %}
-
-{# Collect login compiler nodes #}
-{% set login_compiler_x86 = slurm_inv.all.children.login_compiler_node_x86_64.hosts | default({}) %}
-{% set login_compiler_aarch64 = slurm_inv.all.children.login_compiler_node_aarch64.hosts | default({}) %}
-{% set login_compiler_generic = slurm_inv.all.children.login_compiler_node.hosts | default({}) %}
-{% set all_login_compiler = login_compiler_generic | combine(login_compiler_x86) | combine(login_compiler_aarch64) %}
-
-{# Build list of all nodes with their subroles #}
-{% set all_entries = [] %}
-{% for item in all_control | dict2items %}
-{% set _ = all_entries.append({"key": item.key, "value": item.value, "subrole": "Control"}) %}
-{% endfor %}
-{% for item in all_compute | dict2items %}
-{% set _ = all_entries.append({"key": item.key, "value": item.value, "subrole": "Compute"}) %}
-{% endfor %}
-{% for item in all_login | dict2items %}
-{% set _ = all_entries.append({"key": item.key, "value": item.value, "subrole": "Login"}) %}
-{% endfor %}
-{% for item in all_login_compiler | dict2items %}
-{% set _ = all_entries.append({"key": item.key, "value": item.value, "subrole": "LoginCompiler"}) %}
-{% endfor %}
-
-{% for entry in all_entries %}
+{# Build the aggregator map from the same deduplicated, reachable inventory used
+   by sampler deployment. Group membership is retained only for LDMS subroles. #}
+{% set deploy_hosts = (_ldms_deploy_reachable_hosts | default([])) | unique | sort %}
+{% for host_name in deploy_hosts %}
+{% if host_name in (groups['slurm_control_node'] | default([])) %}
+{% set ldms_subrole = 'Control' %}
+{% elif host_name in (groups['slurm_node'] | default([])) %}
+{% set ldms_subrole = 'Compute' %}
+{% elif host_name in (groups['login_node'] | default([])) %}
+{% set ldms_subrole = 'Login' %}
+{% elif host_name in (groups['login_compiler_node'] | default([])) %}
+{% set ldms_subrole = 'LoginCompiler' %}
+{% else %}
+{% set ldms_subrole = 'Unknown' %}
+{% endif %}
     {
-        "hostname": "{{ entry.key }}.{{ hostvars['localhost']['domain_name'] | default('localdomain') }}",
-        "hostaddr": "{{ entry.value.ansible_host | default(entry.key) }}",
-        "ip_address": "{{ entry.value.ansible_host | default(entry.key) }}",
-        "subrole": "{{ entry.subrole }}"
+        "hostname": "{{ host_name }}.{{ hostvars['localhost']['domain_name'] | default('localdomain') }}",
+        "hostaddr": "{{ hostvars[host_name].ansible_host | default(host_name) }}",
+        "ip_address": "{{ hostvars[host_name].ansible_host | default(host_name) }}",
+        "subrole": "{{ ldms_subrole }}"
     }{% if not loop.last %},{% endif %}
 {% endfor %}
-
 ]

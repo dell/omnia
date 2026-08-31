@@ -21,35 +21,68 @@
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
-  failed_when: false
 
 - name: IDRAC | Delete ConfigMaps by label
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete configmap -l {{ idrac_configmap_label }}
     --ignore-not-found=true --wait=false
   changed_when: false
-  failed_when: false
 
 - name: IDRAC | Delete PVCs
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pvc -l {{ idrac_pvc_label }}
     --ignore-not-found=true --wait=false
   changed_when: false
-  failed_when: false
+  when: _cleanup_delete_volume_enabled | bool
+
+- name: IDRAC | Delete named PVCs
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete pvc {{ item }}
+    --ignore-not-found=true --wait=false
+  loop: "{{ idrac_pvc_resources }}"
+  changed_when: false
+  when: _cleanup_delete_volume_enabled | bool
 
 - name: IDRAC | Force delete pods
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pod -l {{ idrac_pod_label }}
     --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
   changed_when: false
-  failed_when: false
+  when: _cleanup_delete_volume_enabled | bool
+
+- name: IDRAC | Wait for pods to terminate
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get pod -l {{ idrac_pod_label }}
+    --output=name --ignore-not-found=true
+  register: _idrac_pod_wait
+  changed_when: false
+  until: _idrac_pod_wait.stdout | trim | length == 0
+  retries: "{{ cleanup_custom_resource_retries }}"
+  delay: "{{ cleanup_custom_resource_delay }}"
+
+- name: IDRAC | Wait for label-selected PVCs to terminate
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get pvc -l {{ idrac_pvc_label }}
+    --output=name --ignore-not-found=true
+  register: _idrac_pvc_label_wait
+  changed_when: false
+  until: _idrac_pvc_label_wait.stdout | trim | length == 0
+  retries: "{{ cleanup_custom_resource_retries }}"
+  delay: "{{ cleanup_custom_resource_delay }}"
+  when: _cleanup_delete_volume_enabled | bool
+
+- name: IDRAC | Wait for named PVCs to terminate
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get pvc {{ item }}
+    --output=name --ignore-not-found=true
+  loop: "{{ idrac_pvc_resources }}"
+  register: _idrac_pvc_name_wait
+  changed_when: false
+  until: _idrac_pvc_name_wait.stdout | trim | length == 0
+  retries: "{{ cleanup_custom_resource_retries }}"
+  delay: "{{ cleanup_custom_resource_delay }}"
+  when: _cleanup_delete_volume_enabled | bool
 
 - name: IDRAC | Cleanup complete
   ansible.builtin.debug:
     msg: "iDRAC telemetry cleanup completed"
-
-- name: "Idrac | Register cleanup result"
-  ansible.builtin.set_fact:
-    _cleanup_result_idrac: "cleaned"
-  delegate_to: localhost
-  delegate_facts: true

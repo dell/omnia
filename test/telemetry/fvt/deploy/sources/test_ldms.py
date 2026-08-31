@@ -42,6 +42,8 @@ from library.vars.common_vars import (
     LDMS_STORE_NAME,
     VECTOR_LDMS_APP_NAME,
     LDMS_KAFKA_TOPIC,
+    LDMS_KAFKA_LATEST_TIMEOUT_SECONDS,
+    LDMS_KAFKA_EARLIEST_TIMEOUT_SECONDS,
 )
 from library.messages.telemetry_msgs import (
     TEST_LOG_MSGS as LOG_MSGS,
@@ -542,7 +544,7 @@ def _build_ldms_host_lines(host_result):
 
 
 # =========================================================================
-# TC_SR_026: Verify earliest LDMS data in Kafka topic
+# TC_SR_027: Verify earliest LDMS data in Kafka topic
 # =========================================================================
 
 @pytest.mark.source
@@ -563,19 +565,26 @@ def test_ldms_earliest_data(host):
     tl = TestLogger(tc["title"], tc["id"])
 
     tl.check("Verifying earliest LDMS data in Kafka topic")
-    result = verify_ldms_earliest_data_in_kafka(host, timeout_seconds=60)
+    result = verify_ldms_earliest_data_in_kafka(
+        host,
+        timeout_seconds=LDMS_KAFKA_EARLIEST_TIMEOUT_SECONDS,
+    )
 
     if result.get("skipped"):
         tl.skipped(result.get("reason", "LDMS earliest data verification skipped"))
         pytest.skip(result.get("reason", "LDMS earliest data verification skipped"))
 
     # Build details output (omnia-containers 2.2 format)
+    expected_count = result.get("expected_instance_count", 0)
+    found_count = result.get("found_instance_count", 0)
     details_lines = _build_ldms_summary_lines(result)
     details_lines.extend([
         f"Total records read: {result.get('total_records_read', 0)}",
-        f"Found instances: {result.get('found_instance_count', 0)}",
+        f"Expected instances (hostname\u00d7plugin): {expected_count}",
+        f"Found instances: {found_count}/{expected_count}",
         f"Found hostnames: {result.get('found_hostnames', [])}",
         f"Missing hostnames: {result.get('missing_hostnames', [])}",
+        f"Missing instances: {result.get('missing_instances', [])}",
         "",
         "Earliest data per hostname (by functional group):",
     ])
@@ -588,21 +597,21 @@ def test_ldms_earliest_data(host):
 
     details = "\n".join(details_lines)
 
-    # Pass if we found any data
-    found_count = result.get("found_instance_count", 0)
-    if found_count > 0:
+    if result["success"]:
         tl.passed(
-            f"LDMS earliest data found for {len(result.get('found_hostnames', []))} hosts",
+            f"LDMS earliest data verified for all {expected_count} instances",
             details,
         )
     else:
-        tl.failed("No LDMS earliest data found in Kafka topic", details)
+        tl.failed("LDMS earliest data is incomplete", details)
 
-    assert found_count > 0, "No LDMS earliest data found in Kafka topic"
+    assert result["success"], result.get(
+        "error", "LDMS earliest data verification failed"
+    )
 
 
 # =========================================================================
-# TC_SR_027: Verify latest LDMS data in Kafka topic
+# TC_SR_028: Verify latest LDMS data in Kafka topic
 # =========================================================================
 
 @pytest.mark.source
@@ -623,7 +632,10 @@ def test_ldms_kafka_data(host):
     tl = TestLogger(tc["title"], tc["id"])
 
     tl.check("Verifying latest LDMS data in Kafka topic")
-    result = verify_ldms_data_in_kafka(host, timeout_seconds=60)
+    result = verify_ldms_data_in_kafka(
+        host,
+        timeout_seconds=LDMS_KAFKA_LATEST_TIMEOUT_SECONDS,
+    )
 
     if result.get("skipped"):
         tl.skipped(result.get("reason", "LDMS data verification skipped"))
@@ -636,6 +648,14 @@ def test_ldms_kafka_data(host):
     details_lines.extend([
         f"Expected instances (hostname\u00d7plugin): {expected_count}",
         f"Found instances: {found_count}/{expected_count}",
+        "Verification started: "
+        f"{_format_unix_timestamp(result.get('verification_started_at'))}",
+        "Freshness threshold: "
+        f"{_format_unix_timestamp(result.get('fresh_after'))}",
+        "Ignored stale records: "
+        f"{result.get('ignored_stale_record_count', 0)}",
+        "Ignored invalid timestamps: "
+        f"{result.get('invalid_timestamp_record_count', 0)}",
         "",
         "Latest data per hostname (by functional group):",
     ])

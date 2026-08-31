@@ -33,6 +33,12 @@ set -a; source src/main/omnia.env; set +a
 cd src/telemetry
 ansible-playbook playbooks/telemetry.yml --tags deploy
 
+# Cleanup preserves PVCs and required Kafka identity metadata by default
+ansible-playbook playbooks/telemetry.yml --tags cleanup
+
+# Explicitly delete PVCs during cleanup
+ansible-playbook playbooks/telemetry.yml --tags cleanup -e Delete_volume=true
+
 # Default (no tags) = validate + deploy (safe — cleanup never runs by default)
 ansible-playbook playbooks/telemetry.yml
 ```
@@ -67,7 +73,7 @@ ansible-playbook playbooks/telemetry.yml
 | `precheck` | No | Validate K8s prerequisites (kube_vip, nodes, pods) |
 | `validate` | Yes | L1 schema + L2 logic validation of all input files |
 | `deploy` / `execute` | Yes | Deploy sinks + sources + kustomize apply |
-| `cleanup` | No | Remove all telemetry components (opt-in only) |
+| `cleanup` | No | Remove telemetry runtime resources; preserve PVCs and Kafka identity metadata by default |
 | `upgrade` | No | Upgrade telemetry (placeholder) |
 | `rollback` | No | Rollback telemetry (placeholder) |
 
@@ -75,7 +81,7 @@ ansible-playbook playbooks/telemetry.yml
 
 | Tag | Scope |
 |-----|-------|
-| `cleanup_kafka` | Kafka cluster + Strimzi operator |
+| `cleanup_kafka` | Kafka runtime + Strimzi operator; preserve data/identity metadata unless volume deletion is requested |
 | `cleanup_victoria_metrics` | VictoriaMetrics + vmagent-vector |
 | `cleanup_victoria_logs` | VictoriaLogs + vlagent-vector |
 | `cleanup_idrac` | iDRAC telemetry (receiver, pumps, DB) |

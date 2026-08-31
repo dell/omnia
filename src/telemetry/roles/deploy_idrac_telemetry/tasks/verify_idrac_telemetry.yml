@@ -19,7 +19,7 @@
 # Checks:
 #   1. StatefulSet pods are Ready
 #   2. All containers in the pod are running (mysqldb, activemq, receiver, kafkapump, victoriapump)
-#   3. Kafka topic 'idrac' exists and has messages
+#   3. Kafka topic 'idrac' exists and is Ready
 #   4. VictoriaMetrics has iDRAC metrics ingested
 
 - name: Verify iDRAC StatefulSet is ready
@@ -54,24 +54,14 @@
   ansible.builtin.debug:
     msg: "{{ container_status.stdout_lines }}"
 
-- name: Verify Kafka 'idrac' topic exists
+- name: Verify Kafka 'idrac' topic is ready
   ansible.builtin.command: >
-    kubectl exec -n {{ telemetry_namespace }}
-    kafka-kafka-0 -- /opt/kafka/bin/kafka-topics.sh
-    --bootstrap-server localhost:9092
-    --list
-  register: kafka_topics
+    kubectl wait kafkatopic/{{ kafka.topics.idrac.name }}
+    -n {{ telemetry_namespace }}
+    --for=condition=Ready
+    --timeout={{ idrac_verify_timeout }}
+  register: kafka_topic_ready
   changed_when: false
-  failed_when: false
-
-- name: Check iDRAC topic in topic list
-  ansible.builtin.assert:
-    that:
-      - "'idrac' in kafka_topics.stdout"
-    fail_msg: "Kafka topic 'idrac' not found. Topics: {{ kafka_topics.stdout_lines | default([]) }}"
-    success_msg: "Kafka topic 'idrac' exists."
-  when: kafka_topics.rc == 0
-  failed_when: false
 
 - name: Verify VictoriaMetrics has iDRAC metrics (via victoriapump scrape target)
   ansible.builtin.command: >
@@ -101,6 +91,6 @@
       Pod:             {{ idrac_pod_name.stdout }}
       Containers:
       {{ container_status.stdout | default('  (unknown)') }}
-      Kafka topic:     {{ 'idrac FOUND' if ('idrac' in kafka_topics.stdout | default('')) else 'idrac NOT FOUND' }}
+      Kafka topic:     {{ kafka.topics.idrac.name }} {{ 'READY' if kafka_topic_ready.rc | default(1) == 0 else 'NOT READY' }}
       VictoriaPump:    {{ 'ACTIVE' if victoria_metrics_check.rc | default(1) == 0 else 'PENDING' }}
       ===================================================
