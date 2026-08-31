@@ -42,6 +42,23 @@
 | TC_BH_008 | test_nfs_queue_directory_accessible | Verify NFS queue dir (2.3) |
 | TC_BH_009 | test_playbook_watcher_running | Verify watcher service (2.3) |
 
+## Section C: Prepare BuildStream Infrastructure (12 test cases)
+
+|| TC ID | Test Function | Description | Mode |
+||-------|---------------|-------------|------|
+|| TC_PREP_000 | test_deploy_prepare_buildstream | Deploy repo_manager + image_build_manager prepare | --test only |
+|| TC_PREP_001 | test_pulp_container_running | Verify Pulp container is running | --test, --verify |
+|| TC_PREP_002 | test_pulp_health_endpoint | Verify Pulp health endpoint is accessible | --test, --verify |
+|| TC_PREP_003 | test_pulp_cli_available | Verify pulp CLI is available | --test, --verify |
+|| TC_PREP_004 | test_minio_container_running | Verify MinIO container is running | --test, --verify |
+|| TC_PREP_005 | test_minio_health_endpoint | Verify MinIO health endpoint is accessible | --test, --verify |
+|| TC_PREP_006 | test_registry_container_running | Verify local container registry is running | --test, --verify |
+|| TC_PREP_007 | test_registry_health_endpoint | Verify registry health endpoint is accessible | --test, --verify |
+|| TC_PREP_008 | test_repo_manager_credentials_exist | Verify repo_manager credentials file exists | --test, --verify |
+|| TC_PREP_009 | test_image_build_credentials_exist | Verify image_build_credentials.yml exists | --test, --verify |
+|| TC_PREP_010 | test_repo_manager_credentials_filled | Verify repo_manager credentials are filled with valid data | --test, --verify |
+|| TC_PREP_011 | test_image_build_credentials_filled | Verify image_build credentials are filled with valid data | --test, --verify |
+
 ## Section D: Build Pipeline (13 test cases)
 
 | TC ID | Test Function | Description | Mode |
@@ -68,6 +85,12 @@ source .venv/bin/activate
 
 # Configure
 vi test_config.yml    # Set catalog_name, oim_server_ip
+
+# Prepare buildstream infrastructure (Pulp, MinIO, Registry)
+./run_validation.sh fvt_build_stream prepare_buildstream test --marker sanity
+
+# Verify prepare_buildstream infrastructure
+./run_validation.sh fvt_build_stream prepare_buildstream verify --marker sanity
 
 # Run buildstream install verification
 ./run_validation.sh fvt_build_stream buildstream_install verify --marker sanity

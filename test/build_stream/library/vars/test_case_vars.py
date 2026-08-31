@@ -347,4 +347,54 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": "TC_BP_011",
         "title": "Build pipeline final result",
     },
+
+    # --- Prepare BuildStream (TC_PREP_xxx) ---
+    "deploy_prepare_buildstream": {
+        "id": "TC_PREP_000",
+        "title": "Deploy prepare_buildstream (repo_manager + image_build_manager prepare)",
+    },
+    "pulp_container_running": {
+        "id": "TC_PREP_001",
+        "title": "Verify Pulp container is running",
+    },
+    "pulp_health_endpoint": {
+        "id": "TC_PREP_002",
+        "title": "Verify Pulp health endpoint is accessible",
+    },
+    "pulp_cli_available": {
+        "id": "TC_PREP_003",
+        "title": "Verify pulp CLI is available",
+    },
+    "minio_container_running": {
+        "id": "TC_PREP_004",
+        "title": "Verify MinIO container is running",
+    },
+    "minio_health_endpoint": {
+        "id": "TC_PREP_005",
+        "title": "Verify MinIO health endpoint is accessible",
+    },
+    "registry_container_running": {
+        "id": "TC_PREP_006",
+        "title": "Verify local container registry is running",
+    },
+    "registry_health_endpoint": {
+        "id": "TC_PREP_007",
+        "title": "Verify registry health endpoint is accessible",
+    },
+    "repo_manager_credentials_exist": {
+        "id": "TC_PREP_008",
+        "title": "Verify repo_manager credentials file exists",
+    },
+    "repo_manager_credentials_filled": {
+        "id": "TC_PREP_010",
+        "title": "Verify repo_manager credentials are filled with valid data",
+    },
+    "image_build_credentials_exist": {
+        "id": "TC_PREP_009",
+        "title": "Verify image_build_credentials.yml exists",
+    },
+    "image_build_credentials_filled": {
+        "id": "TC_PREP_011",
+        "title": "Verify image_build credentials are filled with valid data",
+    },
 }
