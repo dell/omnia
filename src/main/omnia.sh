@@ -738,6 +738,24 @@ prepare_all_domains() {
     if [ -n "$skip_filter" ]; then
         IFS=',' read -ra skip_list <<< "$skip_filter"
         local filtered_domains=()
+
+        # Validate skip domains
+        for skip_domain in "${skip_list[@]}"; do
+            skip_domain="$(echo "$skip_domain" | xargs)"
+            local valid=false
+            for domain in "${PREPARE_ORDER[@]}"; do
+                if [ "$domain" = "$skip_domain" ]; then
+                    valid=true
+                    break
+                fi
+            done
+            if [ "$valid" = false ]; then
+                echo -e "${RED}ERROR: Unknown domain in --skip: '$skip_domain'${NC}"
+                echo -e "${YELLOW}Valid domains for --prepare-all: ${PREPARE_ORDER[*]}${NC}"
+                exit 1
+            fi
+        done
+
         for domain in "${target_domains[@]}"; do
             local skip=false
             for skip_domain in "${skip_list[@]}"; do
