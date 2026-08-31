@@ -14,176 +14,108 @@
 # limitations under the License.
 
 # =============================================================================
-# Orchestrator — Test Environment Setup
+# Orchestrator — One-Time Environment Setup
 # =============================================================================
-set -euo pipefail
+# Creates a Python venv, installs dependencies, and sets up tab-completion.
+#
+# Usage:
+#   source setup_env.sh     # Create venv + install deps + activate
+#   source setup_env.sh -f  # Force recreate venv
+# =============================================================================
+
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${SCRIPT_DIR}/.venv"
-REQUIREMENTS="${SCRIPT_DIR}/requirements.txt"
-
 FORCE=false
-DEBUG=false
-PIP_QUIET="--quiet"
 
 for arg in "$@"; do
     case "$arg" in
-        --force) FORCE=true ;;
-        --debug) DEBUG=true; PIP_QUIET="" ;;
-        *)
-            echo "Usage: bash setup_env.sh [--force] [--debug]"
-            echo "  --force   Delete existing .venv and recreate"
-            echo "  --debug   Show verbose pip install output"
-            exit 1
-            ;;
+        -f|--force) FORCE=true ;;
     esac
 done
 
-echo ""
-echo "================================================================="
-echo "  Orchestrator — Test Environment Setup"
-echo "================================================================="
-echo ""
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-# -----------------------------------------------
-PYTHON_CMD=""
-for cmd in python3.12 python3 python; do
-    if command -v "$cmd" &>/dev/null; then
-        version=$("$cmd" --version 2>&1 | grep -oP '\d+\.\d+')
-        major=$(echo "$version" | cut -d. -f1)
-        minor=$(echo "$version" | cut -d. -f2)
-        if [ "$major" -ge 3 ] && [ "$minor" -ge 12 ]; then
-            PYTHON_CMD="$cmd"
-            break
-        fi
-    fi
-done
-
-if [ -z "$PYTHON_CMD" ]; then
-    echo "  [ERROR] Python 3.12+ is required but not found."
-    echo "          Install: dnf install python3.12 python3.12-pip"
-    exit 1
-fi
-
-echo "  [OK] Python: $($PYTHON_CMD --version)"
-
-# -----------------------------------------------
+# Create venv
 if [ "$FORCE" = true ] && [ -d "$VENV_DIR" ]; then
-    echo "  [...] Removing existing virtual environment (--force)"
+    echo -e "${YELLOW}Removing existing venv...${NC}"
     rm -rf "$VENV_DIR"
 fi
 
-if [ -d "$VENV_DIR" ]; then
-    echo "  [OK] Virtual environment already exists: .venv/"
-else
-    echo "  [...] Creating virtual environment: .venv/"
-    "$PYTHON_CMD" -m venv "$VENV_DIR"
-    echo "  [OK] Virtual environment created"
+if [ ! -d "$VENV_DIR" ]; then
+    echo -e "${GREEN}Creating Python venv at ${VENV_DIR}...${NC}"
+    python3 -m venv "$VENV_DIR"
 fi
 
+# Activate
 # shellcheck disable=SC1091
 source "${VENV_DIR}/bin/activate"
 
-echo "  [...] Upgrading pip"
-pip install --upgrade pip $PIP_QUIET
+# Install deps
+echo -e "${GREEN}Installing dependencies...${NC}"
+pip install --upgrade pip -q
+pip install -r "${SCRIPT_DIR}/requirements.txt" -q
 
-echo "  [...] Installing dependencies from requirements.txt"
-pip install -r "$REQUIREMENTS" $PIP_QUIET
-
-# pytest-order for test ordering
-if ! pip show pytest-order &>/dev/null; then
-    echo "  [...] Installing pytest-order"
-    pip install pytest-order $PIP_QUIET
-fi
-
-echo "  [OK] All dependencies installed"
-
-# - Tab completion for run_validation (scenarios + commands + options)
-ACTIVATE_SCRIPT="${VENV_DIR}/bin/activate"
-MARKER="# >>> orchestrator-test >>>"
-MARKER_END="# <<< orchestrator-test <<<"
-
-# Remove any previous block (idempotent)
-if grep -q "${MARKER}" "${ACTIVATE_SCRIPT}" 2>/dev/null; then
-    sed -i "/${MARKER}/,/${MARKER_END}/d" "${ACTIVATE_SCRIPT}"
-fi
-
-cat >> "${ACTIVATE_SCRIPT}" << 'ORCH_ACTIVATE_EOF'
-
-# Shell function so run_validation works without ./
-run_validation() {
-    "${VIRTUAL_ENV%/.venv}/run_validation.sh" "$@"
-}
-
-# Tab-completion for run_validation
+# Tab-completion for run_validation.sh
+# Usage: ./run_validation.sh orchestrator [tag] <command> [options]
 _run_validation_completions() {
-    local cur prev
-    cur="${COMP_WORDS[COMP_CWORD]}"
-    prev="${COMP_WORDS[COMP_CWORD-1]}"
-    local fvt_dir="${VIRTUAL_ENV%/.venv}/fvt"
-    local scenarios=""
-    if [ -d "${fvt_dir}" ]; then
-        for d in "${fvt_dir}"/*/; do
-            [ -d "$d" ] || continue
-            local name
-            name="$(basename "$d")"
-            [ "$name" = "__pycache__" ] && continue
-            scenarios="${scenarios} ${name}"
-        done
-    fi
-    local commands="deploy verify test"
-    local special="all list help --config --help"
-    local options="--suite --marker -v --verbose --debug"
+    local cur="${COMP_WORDS[COMP_CWORD]}"
+    local prev="${COMP_WORDS[COMP_CWORD-1]}"
+    local domain="orchestrator"
+    local tags="validate prepare provision cleanup"
+    local commands="exec verify test list help"
+    local options="--suite --marker -v --verbose --debug --config"
     local markers="sanity functional regression deploy"
+
     case "$COMP_CWORD" in
-        1) COMPREPLY=( $(compgen -W "${scenarios} ${special}" -- "$cur") ) ;;
+        1)
+            # First arg is always the domain name
+            COMPREPLY=( $(compgen -W "${domain} --config help --completion" -- "$cur") )
+            ;;
         2)
-            case "$prev" in
-                list|help|--help|-h|--config) COMPREPLY=() ;;
-                *) COMPREPLY=( $(compgen -W "${commands}" -- "$cur") ) ;;
-            esac ;;
+            # After domain: tag or command
+            COMPREPLY=( $(compgen -W "${tags} ${commands}" -- "$cur") )
+            ;;
+        3)
+            # After tag: command; after command: options
+            if echo " ${tags} " | grep -q " ${prev} "; then
+                COMPREPLY=( $(compgen -W "${commands}" -- "$cur") )
+            else
+                COMPREPLY=( $(compgen -W "${options}" -- "$cur") )
+            fi
+            ;;
         *)
             case "$prev" in
                 --suite)
-                    local scenario="${COMP_WORDS[1]}"
                     local suites=""
-                    if [ -d "${fvt_dir}/${scenario}" ]; then
-                        for d in "${fvt_dir}/${scenario}"/*/; do
-                            [ -d "$d" ] || continue
-                            local name
-                            name="$(basename "$d")"
-                            [ "$name" = "__pycache__" ] && continue
-                            suites="${suites} ${name}"
-                        done
+                    local tag_dir=""
+                    for w in "${COMP_WORDS[@]}"; do
+                        if echo " ${tags} " | grep -q " ${w} "; then
+                            tag_dir="${SCRIPT_DIR}/fvt/${w}"
+                            break
+                        fi
+                    done
+                    if [ -n "${tag_dir}" ] && [ -d "${tag_dir}" ]; then
+                        suites=$(find "${tag_dir}" -mindepth 1 -maxdepth 1 -type d -not -name '__pycache__' -printf '%f\n' 2>/dev/null || true)
                     fi
-                    COMPREPLY=( $(compgen -W "${suites}" -- "$cur") ) ;;
-                --marker) COMPREPLY=( $(compgen -W "${markers}" -- "$cur") ) ;;
-                *) COMPREPLY=( $(compgen -W "${options}" -- "$cur") ) ;;
-            esac ;;
+                    COMPREPLY=( $(compgen -W "${suites}" -- "$cur") )
+                    ;;
+                --marker)
+                    COMPREPLY=( $(compgen -W "${markers}" -- "$cur") )
+                    ;;
+                *)
+                    COMPREPLY=( $(compgen -W "${options}" -- "$cur") )
+                    ;;
+            esac
+            ;;
     esac
 }
-complete -F _run_validation_completions run_validation
 
-# <<< orchestrator-test <<<
-ORCH_ACTIVATE_EOF
+complete -F _run_validation_completions ./run_validation.sh
 
-echo "  [OK] Registered run_validation and tab-completion in venv activate"
-
-echo ""
-echo "================================================================="
-echo "  Environment Ready"
-echo "================================================================="
-echo ""
-echo "  Next steps:"
-echo "    source .venv/bin/activate"
-echo "    vi test_config.yml                  # See docs/test_config.md"
-echo "    run_validation --help               # Full usage (no ./ needed)"
-echo "    run_validation validate verify --marker sanity"
-echo ""
-echo "  Documentation:"
-echo "    docs/test_config.md                 # Configuration reference"
-echo "    docs/test_creds.md                  # Credentials setup"
-echo "    docs/test_run_config.md             # Batch execution config"
-echo ""
-echo "================================================================="
-echo ""
+echo -e "${GREEN}Environment ready. Tab-completion enabled.${NC}"
+echo -e "${GREEN}Run: ./run_validation.sh orchestrator [tag] <command>${NC}"

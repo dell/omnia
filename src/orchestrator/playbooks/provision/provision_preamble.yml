@@ -17,8 +17,7 @@
 # Runs ONCE before all provisioning playbooks to avoid 4x redundant setup.
 # Can be run standalone or imported by orchestrator.yml
 #
-# Prerequisites: prepare_orchestrator.yml, deploy_openchami.yml,
-#                validate_openchami.yml must have run first.
+# Prerequisites: precheck, prepare, and deploy phases must have run first.
 
 # Step 1: Setup orchestrator vars (needed for standalone runs)
 - name: Setup orchestrator environment

@@ -37,7 +37,10 @@
     pulp_container_running: >-
       {{ (pulp_container_info.containers | length > 0) and
          (pulp_container_info.containers[0].State.Status == 'running') }}
-    pulp_container_status: "{{ pulp_container_info.containers[0].State.Status | default('not_found') }}"
+    pulp_container_status: >-
+      {{ pulp_container_info.containers[0].State.Status
+         if (pulp_container_info.containers | length > 0)
+         else 'not_found' }}
 
 - name: Display existing container status
   ansible.builtin.debug:

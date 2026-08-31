@@ -50,6 +50,18 @@
     - "{{ playbook_dir | dirname | dirname }}/vars/credential_vars.yml"
   tags: pulp
   tasks:
+    - name: Report non-destructive full-cleanup check mode
+      ansible.builtin.debug:
+        msg: >-
+          Check mode: full Pulp cleanup was not executed. Container, Quadlet,
+          data, credentials, logs, CLI configuration and yum configuration
+          remain unchanged.
+      when: ansible_check_mode
+
+    - name: End full-cleanup play in check mode
+      ansible.builtin.meta: end_play
+      when: ansible_check_mode
+
     # -------------------------------------------------------------------------
     # PHASE 1: VALIDATION
     # -------------------------------------------------------------------------
@@ -57,7 +69,6 @@
       containers.podman.podman_container_info:
         name: "{{ pulp_container_name }}"
       register: pulp_container_check
-      failed_when: false
 
     - name: Check if Pulp quadlet file exists
       ansible.builtin.stat:
@@ -76,6 +87,24 @@
           - "Pulp container exists: {{ pulp_container_exists }}"
           - "Pulp quadlet exists: {{ pulp_quadlet_exists }}"
           - "========================================="
+
+    - name: Validate Pulp cleanup targets are not broad system paths
+      ansible.builtin.assert:
+        that:
+          - repo_manager_runtime_dir is match('^/')
+          - (repo_manager_runtime_dir | regex_replace('/+$', '')) not in ['', '/opt', '/var', '/etc', '/usr', '/root']
+          - item is string
+          - item is match('^/')
+          - item | length > 5
+          - item not in ['/', '/opt', '/var', '/etc', '/usr', '/root']
+          - item != omnia_data_path
+          - item != repo_manager_base_dir
+        fail_msg: "Unsafe Pulp cleanup target refused: {{ item }}"
+        quiet: true
+      loop: >-
+        {{ pulp_cleanup_directory
+           + (pulp_cleanup_log_directories
+              if cleanup_logs | default(true) | bool else []) }}
 
     # -------------------------------------------------------------------------
     # PHASE 2: FETCH CREDENTIALS (OPTIONAL - NOT REQUIRED FOR CLEANUP)
@@ -107,7 +136,6 @@
     - name: Reload systemd daemon
       ansible.builtin.systemd:
         daemon_reload: true
-      failed_when: false
 
     - name: Populate service facts
       ansible.builtin.service_facts:
@@ -116,10 +144,9 @@
       ansible.builtin.systemd_service:
         name: "{{ pulp_container_name }}.service"
         state: stopped
+        enabled: false
       when:
-        - "('pulp.service' in ansible_facts['services'])"
-        - ansible_facts['services']['pulp.service'].state == 'running'
-      failed_when: false
+        - (pulp_container_name ~ '.service') in ansible_facts['services']
 
     - name: Remove Pulp systemd unit files
       ansible.builtin.file:
@@ -132,26 +159,35 @@
       ansible.builtin.systemd:
         daemon_reload: true
       when: pulp_quadlet_exists
-      failed_when: false
 
-    - name: Stop the Pulp container
-      ansible.builtin.command:
-        cmd: "podman stop {{ pulp_container_name }}"
-      when: pulp_container_exists
-      failed_when: false
-      changed_when: true
+    - name: Remove Pulp container after stopping its service
+      containers.podman.podman_container:
+        name: "{{ pulp_container_name }}"
+        state: absent
+      register: pulp_container_removed
 
-    - name: Remove Pulp container
-      ansible.builtin.command:
-        cmd: "podman rm -f {{ pulp_container_name }}"
-      failed_when: false
-      changed_when: true
+    - name: Verify Pulp container is absent
+      containers.podman.podman_container_info:
+        name: "{{ pulp_container_name }}"
+      register: pulp_container_verify
+
+    - name: Fail when Pulp runtime objects remain
+      ansible.builtin.assert:
+        that:
+          - pulp_container_verify.containers | default([]) | length == 0
+        fail_msg: "Pulp container still exists; refusing to delete Pulp data directories"
+
+    - name: Check whether the Pulp container image exists
+      containers.podman.podman_image_info:
+        name: "{{ pulp_image }}"
+      register: pulp_image_check
 
     - name: Remove Pulp container image
-      ansible.builtin.command:
-        cmd: "podman rmi -f {{ pulp_image }}"
-      changed_when: true
-      failed_when: false
+      containers.podman.podman_image:
+        name: "{{ pulp_image }}"
+        state: absent
+      when: pulp_image_check.images | default([]) | length > 0
+      register: pulp_image_removed
 
     - name: Remove Pulp directories
       ansible.builtin.file:
@@ -162,12 +198,6 @@
       until: directory_deletion is not failed
       retries: "{{ max_retries }}"
       with_items: "{{ pulp_cleanup_directory }}"
-
-    - name: Remove track file when Pulp is configured for HTTPS
-      ansible.builtin.file:
-        path: "{{ track_file_path }}"
-        state: absent
-      when: pulp_protocol_https | bool
 
     - name: Check if omnia target file exists
       ansible.builtin.stat:
@@ -190,10 +220,11 @@
       ansible.builtin.debug:
         msg: "Log cleanup: {{ 'Enabled - removing entire log directory' if (cleanup_logs | default(true) | bool) else 'Disabled - preserving logs' }}"
 
-    - name: Remove entire log directory
+    - name: Remove configured Pulp log directories
       ansible.builtin.file:
-        path: "{{ repo_manager_log_dir }}"
+        path: "{{ item }}"
         state: absent
+      loop: "{{ pulp_cleanup_log_directories }}"
       when: cleanup_logs | default(true) | bool
 
     - name: Recreate empty log directory
@@ -201,12 +232,6 @@
         path: "{{ repo_manager_log_dir }}"
         state: directory
         mode: "0755"
-      when: cleanup_logs | default(true) | bool
-
-    - name: Remove legacy log directory
-      ansible.builtin.file:
-        path: "{{ repo_manager_base_dir }}/log"
-        state: absent
       when: cleanup_logs | default(true) | bool
 
     # -------------------------------------------------------------------------
@@ -221,7 +246,6 @@
         path: "{{ item }}"
         state: absent
       loop: "{{ pulp_cli_config_files }}"
-      failed_when: false
 
     - name: Verify Pulp CLI config directory is removed
       ansible.builtin.stat:
@@ -232,29 +256,30 @@
       ansible.builtin.debug:
         msg: "Pulp CLI config removed: {{ not pulp_cli_config_check.stat.exists }}"
 
-    # -------------------------------------------------------------------------
-    # PHASE 6: CLEANUP PULP CLI SYMLINK AND YUM REPO FILE
-    # -------------------------------------------------------------------------
-    - name: Remove pulp CLI symlink from /usr/local/bin/pulp
-      ansible.builtin.file:
-        path: /usr/local/bin/pulp
-        state: absent
-      failed_when: false
+    - name: Remove Pulp host integration
+      ansible.builtin.include_role:
+        name: ../../roles/deploy_pulp
+        tasks_from: cleanup_system_integration.yml
 
-    - name: Verify pulp CLI symlink is removed
+    # -------------------------------------------------------------------------
+    # PHASE 6: PRESERVE PULP CLI AND CLEAN YUM REPO FILE
+    # -------------------------------------------------------------------------
+    - name: Verify Pulp CLI executable is preserved
       ansible.builtin.stat:
         path: /usr/local/bin/pulp
-      register: pulp_symlink_check
+      register: pulp_cli_executable_check
 
-    - name: Display pulp CLI symlink cleanup status
+    - name: Display preserved Pulp CLI status
       ansible.builtin.debug:
-        msg: "Pulp CLI symlink removed: {{ not pulp_symlink_check.stat.exists }}"
+        msg: >-
+          {{ 'Pulp CLI executable preserved at /usr/local/bin/pulp'
+             if pulp_cli_executable_check.stat.exists
+             else 'Pulp CLI executable was not installed at /usr/local/bin/pulp' }}
 
     - name: Remove Pulp yum repo file
       ansible.builtin.file:
         path: /etc/yum.repos.d/pulp.repo
         state: absent
-      failed_when: false
 
     - name: Verify pulp.repo is removed
       ansible.builtin.stat:
@@ -316,7 +341,6 @@
         state: absent
       loop: "{{ credential_files_to_cleanup }}"
       when: cleanup_credentials | bool
-      failed_when: false
 
     - name: Verify credential files are removed
       ansible.builtin.stat:

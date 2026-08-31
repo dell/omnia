@@ -12,5 +12,8 @@ PyYAML>=6.0
 # Ansible for playbook execution
 ansible-core>=2.15
 
+# Validation (required by telemetry validation module)
+jsonschema>=4.17
+
 # omnia_auto shared plugin (local wheel — build from test/plugins/)
 ../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl

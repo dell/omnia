@@ -80,7 +80,7 @@ def main():
     module_args = {
         "local_repo_config_path": {"type": "str", "required": True},
         "certs_path": {"type": "str", "required": True},
-        "repo_key": {"type": "str", "required": False, "default": "user_repo_url"},
+        "cluster_os_version": {"type": "str", "required": False, "default": "10.0"},
     }
 
     result = {
@@ -98,7 +98,7 @@ def main():
         validation_result = validate_certificates(
             local_repo_config_path=module.params['local_repo_config_path'],
             certs_path=module.params['certs_path'],
-            repo_key=module.params['repo_key']
+            cluster_os_version=module.params['cluster_os_version']
         )
 
         if validation_result.get("status") == "error":
@@ -112,7 +112,7 @@ def main():
                     f"{module.params['certs_path']}/{repo_name}/\n"
                 )
         else:
-            result["msg"] = f"All certificate checks passed for '{module.params['repo_key']}'."
+            result["msg"] = "All certificate checks passed for repositories."
     except Exception as e:
         # Catching general exception at top level to return a clean failure via Ansible
         result["failed"] = True

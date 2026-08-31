@@ -36,6 +36,7 @@ import subprocess
 from urllib.parse import urlparse, urlunparse
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.repo_manager.path_resolver import get_repo_manager_data_path
 
 __metaclass__ = type  # pylint: disable=invalid-name
 
@@ -55,10 +56,6 @@ options:
         description: Pulp server port
         required: true
         type: int
-    pulp_protocol:
-        description: Protocol (http or https)
-        required: true
-        type: str
     cluster_os_type:
         description: Cluster OS type (rhel)
         required: true
@@ -69,10 +66,6 @@ options:
         type: str
     output_path:
         description: Path to write repo_status.yml
-        required: true
-        type: str
-    certs_dir:
-        description: Certificate directory path
         required: true
         type: str
     local_repo_config_path:
@@ -99,13 +92,11 @@ EXAMPLES = r'''
   generate_local_repo_access:
     pulp_server_ip: 192.168.1.100
     pulp_server_port: 2225
-    pulp_protocol: https
     cluster_os_type: rhel
     cluster_os_version: "9.4"
     repo_config: partial
     output_path: "{{ output_dir }}/repo_status.yml"
-    certs_dir: /opt/omnia/pulp_config/settings/certs
-    local_repo_config_path: /opt/omnia/input/repo_manager_config.yml
+    local_repo_config_path: "{{ omnia_base }}/input/repo_manager_config.yml"
 '''
 
 RETURN = r'''
@@ -130,6 +121,101 @@ except ImportError:
     HAS_YAML = False
 
 
+DEFAULT_DNF_REPOSITORY_PRIORITY = 99
+AGGREGATED_REPOSITORY_NAME = 'repo_manager-additional'
+
+
+def _validated_priority(value, config_path):
+    """Return a valid DNF priority or raise a configuration error."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{config_path}.priority must be an integer")
+    if value < 1 or value > 100:
+        raise ValueError(f"{config_path}.priority must be between 1 and 100")
+    return value
+
+
+def _repo_version_config(config, cluster_os_version):
+    """Return the repository configuration for the requested OS version."""
+    repositories = config.get('repositories') or {}
+    if not isinstance(repositories, dict):
+        return {}
+    for version, version_config in repositories.items():
+        if str(version) == str(cluster_os_version):
+            return version_config if isinstance(version_config, dict) else {}
+    return {}
+
+
+def _build_repo_priority_map(config, cluster_os_version):
+    """Map ``(architecture, output repository name)`` to explicit priority.
+
+    Pulp exposes all ``additional_repos`` as one distribution per architecture,
+    so those source repositories must resolve to one effective DNF priority.
+    """
+    priorities = {}
+    version_config = _repo_version_config(config, cluster_os_version)
+
+    for arch, arch_config in version_config.items():
+        if not isinstance(arch_config, dict):
+            continue
+
+        for repo_name, repo_config in arch_config.items():
+            repo_path = f"repositories.{cluster_os_version}.{arch}.{repo_name}"
+            if repo_name == 'user_repos':
+                if not isinstance(repo_config, dict):
+                    continue
+                for user_name, user_config in repo_config.items():
+                    if not isinstance(user_config, dict):
+                        continue
+                    priority = _validated_priority(
+                        user_config.get('priority'), f"{repo_path}.{user_name}"
+                    )
+                    if priority is not None:
+                        priorities[(arch, user_name)] = priority
+                continue
+
+            if repo_name == 'additional_repos':
+                if not isinstance(repo_config, dict):
+                    continue
+                effective_priorities = set()
+                has_explicit_priority = False
+                for additional_name, additional_config in repo_config.items():
+                    if not isinstance(additional_config, dict):
+                        continue
+                    if not str(additional_config.get('url') or '').strip():
+                        continue
+                    priority = _validated_priority(
+                        additional_config.get('priority'),
+                        f"{repo_path}.{additional_name}",
+                    )
+                    if priority is None:
+                        effective_priorities.add(DEFAULT_DNF_REPOSITORY_PRIORITY)
+                    else:
+                        has_explicit_priority = True
+                        effective_priorities.add(priority)
+
+                if len(effective_priorities) > 1:
+                    values = ', '.join(str(value) for value in sorted(effective_priorities))
+                    raise ValueError(
+                        f"{repo_path} is published as one Pulp repository and "
+                        f"must use one effective priority; found {values}"
+                    )
+                if has_explicit_priority and effective_priorities:
+                    priorities[(arch, AGGREGATED_REPOSITORY_NAME)] = next(
+                        iter(effective_priorities)
+                    )
+                continue
+
+            if not isinstance(repo_config, dict):
+                continue
+            priority = _validated_priority(repo_config.get('priority'), repo_path)
+            if priority is not None:
+                priorities[(arch, repo_name)] = priority
+
+    return priorities
+
+
 class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
     """Generate repo_status.yml with repository URLs from Pulp distributions."""
 
@@ -141,20 +227,22 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
         self.module = module
         self.pulp_server_ip = module.params['pulp_server_ip']
         self.pulp_server_port = module.params['pulp_server_port']
-        self.pulp_protocol = module.params['pulp_protocol']
+        self.pulp_protocol = 'https'
         self.cluster_os_type = module.params['cluster_os_type']
         self.cluster_os_version = module.params['cluster_os_version']
         self.output_path = module.params['output_path']
-        self.certs_dir = module.params['certs_dir']
+        self.certs_dir = os.path.join(
+            get_repo_manager_data_path(), 'pulp_config', 'settings', 'certs'
+        )
         self.local_repo_config_path = module.params.get('local_repo_config_path', '')
         self.repo_config = module.params.get('repo_config', 'partial')
         self.overall_status = module.params.get('overall_status', 'success')
-        self.ssl_certificates = module.params.get('ssl_certificates', {})
 
         self.base_url = f"{self.pulp_protocol}://{self.pulp_server_ip}:{self.pulp_server_port}"
         self.rpm_distributions = []
         self.file_distributions = []
         self.python_distributions = []
+        self._local_repo_config = None
 
     def run_pulp_command(self, cmd):
         """Run a pulp CLI command and return JSON output."""
@@ -307,6 +395,9 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
             }
         """
         repositories = {}
+        priority_map = _build_repo_priority_map(
+            self._load_local_repo_config(), self.cluster_os_version
+        )
 
         for dist in self.rpm_distributions:
             base_url = dist.get('base_url', '')
@@ -327,7 +418,11 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
             # Use hyphen-friendly key
             key = self._yaml_key(repo_name)
             if base_url:
-                repositories[version][arch][key] = {'url': self._normalise_base_url(base_url)}
+                repo_output = {'url': self._normalise_base_url(base_url)}
+                priority = priority_map.get((arch, repo_name))
+                if priority is not None:
+                    repo_output['priority'] = priority
+                repositories[version][arch][key] = repo_output
             else:
                 repositories[version][arch][key] = {}
 
@@ -388,6 +483,27 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
             f"/{self.cluster_os_version}/{content_type}/"
         )
 
+    def _load_local_repo_config(self):
+        """Load and cache repo_manager_config.yml without exposing credentials."""
+        if self._local_repo_config is not None:
+            return self._local_repo_config
+
+        self._local_repo_config = {}
+        if not self.local_repo_config_path or not os.path.exists(self.local_repo_config_path):
+            return self._local_repo_config
+
+        try:
+            with open(self.local_repo_config_path, 'r', encoding='utf-8') as config_file:
+                config = yaml.safe_load(config_file)
+            if isinstance(config, dict):
+                self._local_repo_config = config
+        except (OSError, yaml.YAMLError):
+            # Preserve the existing status-generation behavior when the optional
+            # source configuration cannot be read.
+            self._local_repo_config = {}
+
+        return self._local_repo_config
+
     def load_user_registries(self):
         """Load user registry configurations from repo_manager_config.yml.
 
@@ -396,49 +512,22 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
         """
         registries = {}
 
-        if not self.local_repo_config_path or not os.path.exists(self.local_repo_config_path):
-            return registries
+        config = self._load_local_repo_config()
+        configured_registries = config.get('registries') or {}
+        for name, registry in configured_registries.items():
+            if not isinstance(registry, dict):
+                continue
 
-        try:
-            with open(self.local_repo_config_path, 'r', encoding='utf-8') as config_file:
-                config = yaml.safe_load(config_file)
+            registry_config = {
+                'base_url': registry.get('base_url', ''),
+                'port': registry.get('port'),
+            }
+            tls_config = registry.get('tls') or {}
+            if tls_config:
+                registry_config['tls'] = tls_config
 
-            if not config:
-                return registries
-
-            # Load user_registry entries
-            user_registries = config.get('user_registry', []) or []
-            for reg in user_registries:
-                if not isinstance(reg, dict) or not reg.get('name'):
-                    continue
-
-                name = reg['name']
-                registry_config = {}
-
-                if reg.get('host'):
-                    registry_config['host'] = reg['host']
-                if reg.get('port'):
-                    registry_config['port'] = reg['port']
-
-                # TLS configuration
-                tls_config = {}
-                if reg.get('cert_path'):
-                    tls_config['capath'] = reg['cert_path']
-                if reg.get('client_cert_path'):
-                    tls_config['clientcertpath'] = reg['client_cert_path']
-                if reg.get('client_key_path'):
-                    tls_config['clientkeypath'] = reg['client_key_path']
-                if 'insecure' in reg:
-                    tls_config['insecure'] = reg['insecure']
-
-                if tls_config:
-                    registry_config['tls'] = tls_config
-
-                if registry_config:
-                    registries[name] = registry_config
-
-        except (OSError, yaml.YAMLError):
-            pass
+            if registry_config:
+                registries[name] = registry_config
 
         return registries
 
@@ -458,13 +547,13 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
             'repo_manager': {
                 'port': self.pulp_server_port,
                 'certificates': {
-                    'server_crt': self.ssl_certificates.get(
-                        'server_crt', f"{self.certs_dir}/pulp_webserver.crt"
+                    'server_crt': os.path.join(
+                        self.certs_dir, 'pulp_webserver.crt'
                     ),
-                    'server_key': self.ssl_certificates.get(
-                        'server_key', f"{self.certs_dir}/pulp_webserver.key"
+                    'server_key': os.path.join(
+                        self.certs_dir, 'pulp_webserver.key'
                     ),
-                    'certs_dir': self.ssl_certificates.get('certs_dir', self.certs_dir),
+                    'certs_dir': self.certs_dir,
                 }
             },
             'repositories': repositories,
@@ -547,15 +636,12 @@ def main():
         argument_spec={
             'pulp_server_ip': {'type': 'str', 'required': True},
             'pulp_server_port': {'type': 'int', 'required': True},
-            'pulp_protocol': {'type': 'str', 'required': True, 'choices': ['http', 'https']},
             'cluster_os_type': {'type': 'str', 'required': True},
             'cluster_os_version': {'type': 'str', 'required': True},
             'output_path': {'type': 'str', 'required': True},
-            'certs_dir': {'type': 'str', 'required': True},
             'local_repo_config_path': {'type': 'str', 'default': ''},
             'repo_config': {'type': 'str', 'default': 'partial'},
             'overall_status': {'type': 'str', 'default': 'success'},
-            'ssl_certificates': {'type': 'dict', 'default': {}}
         },
         supports_check_mode=True
     )
@@ -578,7 +664,7 @@ def main():
             file_repos_count=file_count,
             msg=f"Generated repo_status.yml with {rpm_count} RPM repos and {file_count} file repos"
         )
-    except (OSError, yaml.YAMLError) as err:
+    except (OSError, ValueError, yaml.YAMLError) as err:
         module.fail_json(msg=f"Failed to generate repo_status.yml: {str(err)}")
 
 

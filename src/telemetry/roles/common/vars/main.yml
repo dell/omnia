@@ -21,7 +21,7 @@
 telemetry_namespace: "telemetry"
 
 # Deploy directory on NFS share (where manifests are staged)
-telemetry_deploy_dir: "{{ cluster_mount }}/telemetry"
+telemetry_deploy_dir: "{{ k8s_cluster_mount }}/telemetry"
 telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 
 # Input files (project directory based — input_project_dir set by telemetry_setup role)
@@ -37,3 +37,22 @@ telemetry_packages_file: "{{ input_project_dir }}/telemetry_packages.yml"
 # Verification timeouts (shared defaults)
 deploy_timeout: "600s"
 verify_timeout: "300s"
+
+# =============================================================================
+# Python dependency installation
+# =============================================================================
+# Offline Python packages directory - derived from telemetry_data_path
+# This is a fallback when repo_url is not accessible
+# The primary source is always repo_url from telemetry_packages.yml
+offline_python_packages_dir: "{{ telemetry_data_path | default('/opt/omnia/telemetry') }}/packages/python"
+
+# Error message for kubernetes module installation failure
+kubernetes_install_failure_msg: >-
+  Failed to install Python kubernetes module.
+  - Online installation failed (no internet or pip unavailable)
+  - Offline packages not found at {{ offline_python_packages_dir }}
+
+  To fix:
+  1. Ensure internet connectivity, OR
+  2. Download packages: pip3 download kubernetes -d {{ offline_python_packages_dir }}/
+  3. Re-run the playbook

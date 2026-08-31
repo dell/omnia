@@ -21,6 +21,7 @@ execution, test listing, and result summarization.
 
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -32,6 +33,33 @@ import yaml
 
 from .formatting_func import Colors, _render_summary
 from ..vars.validation_vars import COMMANDS
+
+# Regex for safe identifiers from config YAML (no shell metacharacters)
+_SAFE_IDENT_RE = re.compile(r"^[a-zA-Z0-9_\-./]+$")
+
+
+def _validate_config_value(value: str, label: str) -> str:
+    """Validate that a config-derived value is a safe identifier.
+
+    Rejects values containing shell metacharacters or whitespace to
+    prevent command injection when config values are passed as
+    subprocess arguments.
+
+    Args:
+        value: The string to validate.
+        label: Descriptive label for error messages.
+
+    Returns:
+        The validated value (unchanged).
+
+    Raises:
+        ValueError: If the value contains unsafe characters.
+    """
+    if value and not _SAFE_IDENT_RE.match(value):
+        raise ValueError(
+            f"Unsafe {label} value in config: {value!r}"
+        )
+    return value
 
 
 # =====================================================================
@@ -574,14 +602,16 @@ class ValidationRunner:
     # CONFIG BATCH
     # -----------------------------------------------------------------
 
-    def _cmd_config(self) -> int:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+    def _cmd_config(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+        self,
+    ) -> int:
         """Batch execution from test_run_config.yml."""
         if not os.path.isfile(self.config_file):
             _err(f"Config not found: {self.config_file}")
             return 1
 
-        with open(self.config_file, encoding="utf-8") as fh:
-            cfg = yaml.safe_load(fh) or {}
+        with open(self.config_file, encoding="utf-8") as cfg_stream:
+            cfg = yaml.safe_load(cfg_stream) or {}
 
         report_id = _timestamp()
         os.environ["REPORT_ID"] = report_id
@@ -614,6 +644,7 @@ class ValidationRunner:
             for name, sc in fvt_cfg.items():
                 if not isinstance(sc, dict):
                     continue
+                _validate_config_value(str(name), "scenario name")
                 total += 1
                 if not sc.get("run", False):
                     _skip(f"fvt/{name}")
@@ -624,16 +655,31 @@ class ValidationRunner:
                     sc, g_dataset, g_sync_in, g_sync_out,
                 )
                 extra = self._build_config_extra(sc)
+                sc_command = sc.get("command", "test")
+                if sc_command not in COMMANDS:
+                    _err(
+                        f"Invalid command '{sc_command}'"
+                        f" in config for {name}"
+                    )
+                    failed += 1
+                    continue
+                run_script = os.path.join(
+                    self.script_dir, "_run.py",
+                )
+                if not os.path.isfile(run_script):
+                    _err(f"Run script not found: {run_script}")
+                    failed += 1
+                    continue
                 cmd_args = [
-                    sys.executable,
-                    os.path.join(
-                        self.script_dir, "_run.py",
-                    ),
-                    self.cat_fvt, name,
-                    sc.get("command", "test"),
+                    sys.executable, run_script,
+                    self.cat_fvt,
+                    _validate_config_value(name, "name"),
+                    sc_command,
                 ] + extra
 
-                rc = subprocess.call(cmd_args, env=env)
+                rc = subprocess.call(  # nosec B603
+                    cmd_args, env=env,
+                )
                 if rc == 0:
                     _pass(f"fvt/{name}")
                     passed += 1
@@ -651,15 +697,29 @@ class ValidationRunner:
             total += 1
             if cat_cfg.get("run", False):
                 extra = self._build_config_extra(cat_cfg)
+                cat_command = cat_cfg.get("command", "test")
+                if cat_command not in COMMANDS:
+                    _err(
+                        f"Invalid command '{cat_command}'"
+                        f" in config for {cat_name}"
+                    )
+                    failed += 1
+                    continue
+                run_script = os.path.join(
+                    self.script_dir, "_run.py",
+                )
+                if not os.path.isfile(run_script):
+                    _err(f"Run script not found: {run_script}")
+                    failed += 1
+                    continue
                 cmd_args = [
-                    sys.executable,
-                    os.path.join(
-                        self.script_dir, "_run.py",
-                    ),
-                    cat_key,
-                    cat_cfg.get("command", "test"),
+                    sys.executable, run_script,
+                    _validate_config_value(cat_key, "category"),
+                    cat_command,
                 ] + extra
-                rc = subprocess.call(cmd_args)
+                rc = subprocess.call(  # nosec B603
+                    cmd_args,
+                )
                 if rc == 0:
                     _pass(cat_name)
                     passed += 1
@@ -699,7 +759,9 @@ class ValidationRunner:
     ) -> dict:
         """Build env dict for a config scenario."""
         env = os.environ.copy()
-        ds = g_dataset or sc.get("dataset", "")
+        ds = _validate_config_value(
+            g_dataset or str(sc.get("dataset", "")), "dataset",
+        )
         si = (
             str(g_sync_in).lower() if g_sync_in != ""
             else str(sc.get("sync_input", "")).lower()
@@ -720,10 +782,14 @@ class ValidationRunner:
     def _build_config_extra(sc: dict) -> List[str]:
         """Build extra CLI args from a config scenario."""
         extra: List[str] = []
-        marker = sc.get("marker", "")
+        marker = _validate_config_value(
+            str(sc.get("marker", "")), "marker",
+        )
         if marker:
             extra.extend(["--marker", marker])
-        suite = sc.get("suite", "")
+        suite = _validate_config_value(
+            str(sc.get("suite", "")), "suite",
+        )
         if suite:
             extra.extend(["--suite", suite])
         return extra
@@ -758,6 +824,9 @@ class ValidationRunner:
         sys.stdout.flush()
 
         log_file = os.environ.get("OMNIA_LOG_FILE", "")
+        # Disable auto-loaded plugins to avoid conflicts (e.g., pulp_rpm)
+        env = os.environ.copy()
+        env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
         if log_file:
             shell_cmd = (
                 f"set -o pipefail; "
@@ -765,11 +834,11 @@ class ValidationRunner:
             )
             return subprocess.run(
                 ["bash", "-c", shell_cmd],
-                cwd=self.script_dir, check=False,
+                cwd=self.script_dir, check=False, env=env,
             ).returncode
         return subprocess.run(
             ["bash", "-c", cmd_str],
-            cwd=self.script_dir, check=False,
+            cwd=self.script_dir, check=False, env=env,
         ).returncode
 
     def _invoke_pytest_with_summary(
@@ -887,8 +956,8 @@ class ValidationRunner:
         try:
             with open(
                 results_file, encoding="utf-8",
-            ) as fh:
-                results = json.load(fh)
+            ) as results_fh:
+                results = json.load(results_fh)
         except (json.JSONDecodeError, OSError):
             return
         if results:
@@ -940,9 +1009,9 @@ class ValidationRunner:
         )
         print()
         _yellow("COMMANDS")
-        print("  exec       Run Ansible playbook only")
-        print("  verify     Run verification tests only")
-        print("  test       exec + verify (full flow)")
+        print("  exec       Run Ansible playbook only (no tests)")
+        print("  verify     Run tests only (no playbook)")
+        print("  test       Run playbook + tests (full flow)")
         print()
         _yellow("FVT TAGS")
         for tag in self._get_fvt_tags():
@@ -958,11 +1027,25 @@ class ValidationRunner:
         n = self.cat_nft
         u = self.cat_ut
         _yellow("EXAMPLES")
+        # Dynamic examples based on domain config
+        tags = self._get_fvt_tags()
+        ex_tag = tags[0] if tags else "deploy"
+        ex_suite = ""
+        if ex_tag in self._domain_suites:
+            suites = self._domain_suites[ex_tag]
+            ex_suite = suites[0] if suites else ""
+        ex_marker = (
+            self._domain_markers[0]
+            if self._domain_markers else "sanity"
+        )
         print(f"  ./run_validation.sh {f} verify")
-        print(f"  ./run_validation.sh {f} build verify"
-              f" --suite registry")
-        print(f"  ./run_validation.sh {f} build test"
-              f" --marker x86_64+sanity")
+        if ex_suite:
+            print(f"  ./run_validation.sh {f} {ex_tag} verify"
+                  f" --suite {ex_suite}")
+        else:
+            print(f"  ./run_validation.sh {f} {ex_tag} verify")
+        print(f"  ./run_validation.sh {f} {ex_tag} test"
+              f" --marker {ex_marker}")
         print(f"  ./run_validation.sh {f} list")
         print(f"  ./run_validation.sh {n} test")
         print(f"  ./run_validation.sh {u} test")
@@ -982,9 +1065,9 @@ class ValidationRunner:
         print(f"  ./run_validation.sh {f} list")
         print()
         _yellow("COMMANDS")
-        print("  exec       Run Ansible playbook only")
-        print("  verify     Run verification tests only")
-        print("  test       exec + verify (full flow)")
+        print("  exec       Run Ansible playbook only (no tests)")
+        print("  verify     Run tests only (no playbook)")
+        print("  test       Run playbook + tests (full flow)")
         print()
         _yellow("TAGS")
         for tag in self._get_fvt_tags():
@@ -1012,11 +1095,23 @@ class ValidationRunner:
                 print(f"  {m}")
             print()
         _yellow("EXAMPLES")
-        print(f"  ./run_validation.sh {f} precheck verify")
-        print(f"  ./run_validation.sh {f} build verify"
-              f" --suite registry")
-        print(f"  ./run_validation.sh {f} build test"
-              f" --marker x86_64+sanity")
+        # Dynamic examples based on domain config
+        tags = self._get_fvt_tags()
+        ex_tag = tags[0] if tags else "deploy"
+        ex_suite = ""
+        if ex_tag in self._domain_suites:
+            suites = self._domain_suites[ex_tag]
+            ex_suite = suites[0] if suites else ""
+        ex_marker = (
+            self._domain_markers[0]
+            if self._domain_markers else "sanity"
+        )
+        print(f"  ./run_validation.sh {f} {ex_tag} verify")
+        if ex_suite:
+            print(f"  ./run_validation.sh {f} {ex_tag} verify"
+                  f" --suite {ex_suite}")
+        print(f"  ./run_validation.sh {f} {ex_tag} test"
+              f" --marker {ex_marker}")
         print(f"  ./run_validation.sh {f} list")
         print()
 
@@ -1038,8 +1133,8 @@ class ValidationRunner:
         print(f"  ./run_validation.sh {cat_name} list")
         print()
         _yellow("COMMANDS")
-        print("  test       Run all tests (default)")
-        print("  verify     Run tests only")
+        print("  test       Run playbook + tests (full flow)")
+        print("  verify     Run tests only (no playbook)")
         print()
         _yellow("OPTIONS")
         print("  --marker <expr>   Filter by marker")

@@ -250,15 +250,22 @@
       ansible.builtin.debug:
         msg: "{{ verify_compute_osimages.stdout_lines }}"
 
+    # Registry verification uses prefix matching to handle catalog ID changes.
+    # When a build is cached (packages unchanged), old images remain in the
+    # registry with the previous catalog suffix. Exact-name matching would
+    # fail because compute_image_suffix reflects the *current* catalog ID.
+    # Prefix match: host_name/rhel-{group_key}_omnia_{version}  covers any suffix.
     - name: Verify each aarch64 compute image exists in registry
       ansible.builtin.fail:
         msg: >-
-          Compute image not found in registry:
-          {{ host_name }}/rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }}.
-          Check log: {{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix | default('') }}_compute_image.log
+          Compute image not found in registry for group {{ item.key }}.
+          Expected prefix: {{ host_name }}/rhel-{{ item.key }}{{ omnia_suffix }}.
+          Registry repos: {{ verify_compute_osimages.stdout_lines | default([]) }}.
+          Check logs: ls {{ image_build_log_dir }}/{{ item.key }}*_compute_image.log
       when: >-
-        (host_name + '/rhel-' + item.key + omnia_suffix + (compute_image_suffix | default('')) + _build_type_suffix)
-        not in verify_compute_osimages.stdout_lines
+        verify_compute_osimages.stdout_lines | default([])
+        | select('match', '^' + host_name + '/rhel-' + item.key + omnia_suffix + '.*' + _build_type_suffix + '$')
+        | list | length == 0
       loop: "{{ compute_images_dict | dict2items }}"
       loop_control:
         loop_var: item
@@ -283,8 +290,8 @@
       ansible.builtin.fail:
         msg: >-
           Compute image {{ host_name }}/rhel-{{ item.item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }}
-          exists in registry but has no tags. Check log:
-          {{ image_build_log_dir }}/{{ item.item.key }}{{ compute_image_suffix | default('') }}_compute_image.log
+          exists in registry but has no tags.
+          Check logs: ls {{ image_build_log_dir }}/{{ item.item.key }}*_compute_image.log
       when: item.stdout_lines | default([]) | length == 0
       loop: "{{ _compute_tag_check.results | default([]) }}"
       loop_control:
@@ -314,7 +321,7 @@
         msg: >-
           Compute image for group {{ item.item.key }} not found in
           s3://{{ s3_configurations.bucket | default('boot-images') }}/{{ item.item.key }}/.
-          Check log: {{ image_build_log_dir }}/{{ item.item.key }}{{ compute_image_suffix | default('') }}_compute_image.log
+          Check logs: ls {{ image_build_log_dir }}/{{ item.item.key }}*_compute_image.log
       when: (item.stdout | default('0') | trim | int) == 0
       loop: "{{ _compute_s3_check.results | default([]) }}"
       loop_control:

@@ -1,15 +1,10 @@
-{% if pulp_protocol_https %}
-CONTENT_ORIGIN='https://{{ pulp_server_ip }}:{{ pulp_container_port_https }}'
-{% else %}
-CONTENT_ORIGIN='http://{{ pulp_server_ip }}:{{ pulp_container_port_http }}'
-{% endif %}
-TOKEN_AUTH_DISABLED=True
-{% set chars = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)' %}
-{% set random_key = [] -%}
-{% for _ in range(50) -%}
-    {% set _ = random_key.append(chars | random) %}
-{% endfor -%}
-{% set random_key = ''.join(random_key) -%}
-SECRET_KEY='{{ random_key }}'
+CONTENT_ORIGIN = {{ pulp_base_url | to_json }}
+TOKEN_AUTH_DISABLED = True
+SECRET_KEY = {{ pulp_secret_key | to_json }}
+
 import aiohttp
-aiohttp.client.DEFAULT_TIMEOUT = aiohttp.ClientTimeout(total=7200, sock_connect=600, sock_read=600)
+aiohttp.client.DEFAULT_TIMEOUT = aiohttp.ClientTimeout(
+    total=7200,
+    sock_connect=600,
+    sock_read=600,
+)

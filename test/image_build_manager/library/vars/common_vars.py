@@ -90,8 +90,11 @@ PLAYBOOK_TAGS = [
 # =============================================================================
 # SHARED PATH DEFAULTS (runtime output on target host)
 # =============================================================================
+# Derived from OMNIA_DATA_PATH env var when available; falls back for dev boxes.
 
-SHARED_PATH = "/opt/omnia/image_build_manager"
+SHARED_PATH = os.environ.get(
+    ENV_OMNIA_DATA_PATH, "/opt/omnia"
+) + "/image_build_manager"
 
 # =============================================================================
 # CONTAINER NAMES
@@ -185,7 +188,6 @@ IPV4_PATTERN = re.compile(
 
 # Required fields in test_config.yml
 REQUIRED_CONFIG_FIELDS = [
-    "project_name",
     "clone_path",
     "report_path",
     "report_name",

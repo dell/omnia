@@ -57,11 +57,16 @@ options:
       description: List of tasks to execute
       required: true
       type: list
-    max_workers:
+    nthreads:
       description: Maximum number of parallel workers
       required: false
       type: int
-      default: 4
+      default: 1
+    dnf_max_concurrent_commands:
+      description: Maximum number of RPM tasks allowed to use DNF concurrently
+      required: false
+      type: int
+      default: 1
     timeout:
       description: Timeout per task in seconds
       required: false
@@ -76,7 +81,8 @@ EXAMPLES = r"""
 - name: Execute parallel sync tasks
   parallel_tasks:
     tasks: "{{ sync_tasks }}"
-    max_workers: 4
+    nthreads: 4
+    dnf_max_concurrent_commands: 1
     timeout: 7200
   register: parallel_result
 """
@@ -111,6 +117,7 @@ from ansible.module_utils.repo_manager.catalog_resolver import (
 from ansible.module_utils.repo_manager.config import (
     DEFAULT_NTHREADS,
     DEFAULT_TIMEOUT,
+    DNF_MAX_CONCURRENT_COMMANDS,
     LOG_DIR_DEFAULT,
     DEFAULT_LOG_FILE,
     DEFAULT_SLOG_FILE,
@@ -193,9 +200,30 @@ def update_status_csv(csv_dir, software, overall_status, slogger):
     slogger.info(f"Successfully updated status CSV at {status_file}")
 
 
+def initialize_package_status_file(csv_file_path):
+    """Create or repair the package status file before workers start."""
+    os.makedirs(csv_file_path, exist_ok=True)
+    status_file = os.path.join(csv_file_path, DEFAULT_STATUS_FILENAME)
+
+    if not os.path.exists(status_file) or os.stat(status_file).st_size == 0:
+        with open(status_file, "w", encoding="utf-8") as file:
+            file.write(STATUS_CSV_HEADER)
+        return status_file
+
+    with open(status_file, "r", encoding="utf-8") as file:
+        lines = file.readlines()
+
+    if lines and lines[0].strip() != STATUS_CSV_HEADER.strip():
+        with open(status_file, "w", encoding="utf-8") as file:
+            file.write(STATUS_CSV_HEADER)
+            file.writelines(lines)
+
+    return status_file
+
+
 def determine_function(
     task, repo_store_path, csv_file_path, user_data, version_variables, arc,
-    user_registries, docker_username, docker_secret_token
+    registry_contexts, docker_username, docker_secret_token
 ):
     """
     Determines the appropriate function and its arguments to process a given task.
@@ -216,27 +244,12 @@ def determine_function(
         RuntimeError: If an error occurs while determining the function.
     """
     try:
-        # Ensure the CSV directory exists.
-        os.makedirs(csv_file_path, exist_ok=True)
         cluster_os_type = user_data['cluster_os_type']
         cluster_os_version = user_data['cluster_os_version']
         repo_config_value = user_data.get("repo_config")
 
         # Construct the status file path using DEFAULT_STATUS_FILENAME.
         status_file = os.path.join(csv_file_path, DEFAULT_STATUS_FILENAME)
-
-        # Ensure file exists with valid header
-        if not os.path.exists(status_file) or os.stat(status_file).st_size == 0:
-            with open(status_file, 'w', encoding="utf-8") as file:
-                file.write(STATUS_CSV_HEADER)
-        else:
-            with open(status_file, 'r', encoding="utf-8") as file:
-                lines = file.readlines()
-                if lines and lines[0].strip() != STATUS_CSV_HEADER.strip():
-                    # Header missing or invalid - prepend header to existing data
-                    with open(status_file, 'w', encoding="utf-8") as wfile:
-                        wfile.write(STATUS_CSV_HEADER)
-                        wfile.writelines(lines)
 
         task_type = task.get("type")
 
@@ -284,7 +297,7 @@ def determine_function(
             ]
         if task_type == "image":
             return process_image, [
-                task, status_file, version_variables, user_registries,
+                task, status_file, version_variables, registry_contexts,
                 docker_username, docker_secret_token
             ]
         if task_type == "rpm_file":
@@ -437,6 +450,10 @@ def main():
     module_args = {
         "tasks": {"type": "list", "required": True},
         "nthreads": {"type": "int", "required": False, "default": DEFAULT_NTHREADS},
+        "dnf_max_concurrent_commands": {
+            "type": "int", "required": False,
+            "default": DNF_MAX_CONCURRENT_COMMANDS
+        },
         "timeout": {"type": "int", "required": False, "default": DEFAULT_TIMEOUT},
         "log_dir": {"type": "str", "required": False, "default": LOG_DIR_DEFAULT},
         "log_file": {"type": "str", "required": False, "default": DEFAULT_LOG_FILE},
@@ -467,6 +484,7 @@ def main():
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
     tasks = module.params["tasks"]
     nthreads = module.params["nthreads"]
+    dnf_max_concurrent_commands = module.params["dnf_max_concurrent_commands"]
     log_dir = module.params["log_dir"]
     log_file = module.params["log_file"]
     slog_file = module.params["slog_file"]
@@ -493,6 +511,9 @@ def main():
     slogger.info(f"Start execution time: {formatted_start_time}")
     slogger.info(f"Task list: {tasks}")
     slogger.info(f"Number of threads: {nthreads}")
+    slogger.info(
+        "Maximum concurrent DNF commands: %d", dnf_max_concurrent_commands
+    )
     slogger.info(f"Timeout: {timeout}")
     slogger.info(f"overall_status_dict: {overall_status_dict}")
     slogger.info(f"show_softwares_status: {show_softwares_status}")
@@ -502,6 +523,11 @@ def main():
         # Generate a formatted status table from the overall_status_dict parameter
         status_table = generate_software_status_table(overall_status_dict, slogger)
         module.exit_json(changed=False, msg=status_table)
+
+    if not 1 <= nthreads <= 5:
+        module.fail_json(msg="nthreads must be between 1 and 5")
+    if not 1 <= dnf_max_concurrent_commands <= 5:
+        module.fail_json(msg="dnf_max_concurrent_commands must be between 1 and 5")
 
     try:
         # Build user_data from catalog config and module params.
@@ -552,11 +578,14 @@ def main():
         #         msg=f"Unable to generate local_repo key at path: {user_reg_key_path}"
         #     )
 
+        initialize_package_status_file(csv_file_path)
+
         overall_status, task_results = execute_parallel(
             tasks, determine_function, nthreads, repo_store_path, csv_file_path,
             log_dir, user_data, version_variables, arc, slogger,
             local_repo_config_path, omnia_credentials_yaml_path,
-            omnia_credentials_vault_path, timeout
+            omnia_credentials_vault_path, timeout,
+            dnf_max_concurrent_commands=dnf_max_concurrent_commands
         )
 
         # if not is_encrypted(user_reg_cred_input):

@@ -32,7 +32,7 @@
 
 - name: "VAST | Remove generated manifests"
   ansible.builtin.file:
-    path: "{{ telemetry_deployments_dir | default('/share_omnia_k8s/telemetry/deployments') }}/{{ item }}"
+    path: "{{ telemetry_deployments_dir | default('/opt/omnia/k8s_mount/telemetry/deployments') }}/{{ item }}"
     state: absent
   loop:
     - vast-telemetry-secret.yaml
@@ -42,3 +42,9 @@
 - name: "VAST | Cleanup complete"
   ansible.builtin.debug:
     msg: "VAST telemetry cleanup completed"
+
+- name: "Vast | Register cleanup result"
+  ansible.builtin.set_fact:
+    _cleanup_result_vast: "cleaned"
+  delegate_to: localhost
+  delegate_facts: true

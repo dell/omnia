@@ -155,9 +155,29 @@ TEST_CASES = {
         "id": "TC_SR_022",
         "title": "Verify Vector-LDMS bridge deployment ready",
     },
-    "ldms_kafka_topic": {
+    "ldms_package_installed": {
         "id": "TC_SR_023",
+        "title": "Verify LDMS package installed on Slurm nodes",
+    },
+    "ldms_sampler_service": {
+        "id": "TC_SR_024",
+        "title": "Verify LDMS sampler service running on Slurm nodes",
+    },
+    "ldms_sampler_plugins": {
+        "id": "TC_SR_025",
+        "title": "Verify LDMS sampler plugins configured",
+    },
+    "ldms_kafka_topic": {
+        "id": "TC_SR_026",
         "title": "Verify LDMS Kafka topic exists",
+    },
+    "ldms_earliest_data": {
+        "id": "TC_SR_027",
+        "title": "Verify earliest LDMS data in Kafka topic",
+    },
+    "ldms_kafka_data": {
+        "id": "TC_SR_028",
+        "title": "Verify latest LDMS data in Kafka topic",
     },
 
     # -- Sources: PowerScale ------------------------------------------------
@@ -204,6 +224,28 @@ TEST_CASES = {
         "title": "Verify UFM InfiniBand metrics in VictoriaMetrics",
     },
 
+    # -- Sources: VAST -------------------------------------------------------
+    "vast_external_svc": {
+        "id": "TC_SR_060",
+        "title": "Verify VAST external service exists with correct endpoint",
+    },
+    "vast_vmscrape": {
+        "id": "TC_SR_061",
+        "title": "Verify VAST VMServiceScrape CR exists",
+    },
+    "vast_credentials_secret": {
+        "id": "TC_SR_062",
+        "title": "Verify VAST credentials K8s secret exists",
+    },
+    "vast_metrics_in_vm": {
+        "id": "TC_SR_063",
+        "title": "Verify VAST storage metrics in VictoriaMetrics",
+    },
+    "vast_logs_in_vl": {
+        "id": "TC_SR_064",
+        "title": "Verify VAST logs in VictoriaLogs",
+    },
+
     # -- Sources: OME -------------------------------------------------------
     "ome_vector_bridge": {
         "id": "TC_SR_050",
@@ -229,6 +271,34 @@ TEST_CASES = {
         "id": "TC_SR_055",
         "title": "Verify OME Kafka forwarder connectivity status",
     },
+    "ome_cert_verify": {
+        "id": "TC_SR_056",
+        "title": "Verify uploaded certificate matches generated certificate",
+    },
+    "ome_kafka_topics": {
+        "id": "TC_SR_057",
+        "title": "Verify OME Kafka topics exist",
+    },
+    "ome_telemetry_data": {
+        "id": "TC_SR_058",
+        "title": "Verify OME telemetry data in Kafka (ome.telemetry)",
+    },
+    "ome_inventory_data": {
+        "id": "TC_SR_059",
+        "title": "Verify OME inventory data in Kafka (ome.inventory)",
+    },
+    "ome_alerts_data": {
+        "id": "TC_SR_060",
+        "title": "Verify OME alerts data in Kafka (ome.alerts)",
+    },
+    "ome_health_data": {
+        "id": "TC_SR_061",
+        "title": "Verify OME health data in Kafka (ome.health)",
+    },
+    "ome_auditlogs_data": {
+        "id": "TC_SR_062",
+        "title": "Verify OME audit logs data in Kafka (ome.auditlogs)",
+    },
 
     # -- Cleanup ------------------------------------------------------------
     "cleanup_pods_removed": {
@@ -238,5 +308,83 @@ TEST_CASES = {
     "cleanup_topics_removed": {
         "id": "TC_CL_003",
         "title": "Verify Kafka topics removed after cleanup",
+    },
+
+    # -- Cleanup: Sinks -----------------------------------------------------
+    "cleanup_kafka": {
+        "id": "TC_CL_002",
+        "title": "Verify Kafka pods removed after cleanup",
+    },
+    "cleanup_victoria_metrics": {
+        "id": "TC_CL_003",
+        "title": "Verify VictoriaMetrics pods removed after cleanup",
+    },
+    "cleanup_victoria_logs": {
+        "id": "TC_CL_004",
+        "title": "Verify VictoriaLogs pods removed after cleanup",
+    },
+
+    # -- Cleanup: Sources ---------------------------------------------------
+    "cleanup_idrac": {
+        "id": "TC_CL_005",
+        "title": "Verify iDRAC pods removed after cleanup",
+    },
+    "cleanup_ldms": {
+        "id": "TC_CL_006",
+        "title": "Verify LDMS pods removed after cleanup",
+    },
+    "cleanup_ome": {
+        "id": "TC_CL_007",
+        "title": "Verify OME pods removed after cleanup",
+    },
+    "cleanup_dcgm": {
+        "id": "TC_CL_008",
+        "title": "Verify DCGM pods removed after cleanup",
+    },
+    "cleanup_ufm": {
+        "id": "TC_CL_009",
+        "title": "Verify UFM resources removed after cleanup",
+    },
+    "cleanup_vast": {
+        "id": "TC_CL_010",
+        "title": "Verify VAST resources removed after cleanup",
+    },
+    "cleanup_sfm": {
+        "id": "TC_CL_011",
+        "title": "Verify SFM pods removed after cleanup",
+    },
+
+    # -- Cleanup: Final State -----------------------------------------------
+    "no_pods_after_full_cleanup": {
+        "id": "TC_CL_012",
+        "title": "Verify no pods remain after full cleanup",
+    },
+    "no_pvcs_after_full_cleanup": {
+        "id": "TC_CL_013",
+        "title": "Verify no PVCs remain after full cleanup",
+    },
+
+    # -- NFT: Performance ---------------------------------------------------
+    "nft_validate_perf": {
+        "id": "NFT_TL_001",
+        "title": "Validate playbook performance (< 30s)",
+    },
+    "nft_deploy_perf": {
+        "id": "NFT_TL_002",
+        "title": "Deploy playbook performance (< 600s)",
+    },
+    "nft_cleanup_perf": {
+        "id": "NFT_TL_003",
+        "title": "Cleanup playbook performance (< 300s)",
+    },
+
+    # -- NFT: Idempotency ---------------------------------------------------
+    "nft_deploy_idempotent": {
+        "id": "NFT_TL_004",
+        "title": "Deploy playbook idempotency (second run exits 0)",
+    },
+    "nft_cleanup_idempotent": {
+        "id": "NFT_TL_005",
+        "title": "Cleanup playbook idempotency (second run exits 0)",
     },
 }

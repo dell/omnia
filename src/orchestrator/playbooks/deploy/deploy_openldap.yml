@@ -16,7 +16,7 @@
 # Deploy OpenLDAP — Build and start the omnia_auth container on OIM
 # Can be run standalone or imported by orchestrator.yml
 #
-# Prerequisites: prepare_orchestrator.yml must have run first.
+# Prerequisites: precheck + prepare phases must have run first.
 
 - name: Deploy OpenLDAP container on OIM
   hosts: oim

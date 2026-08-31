@@ -33,6 +33,13 @@
   changed_when: false
   failed_when: false
 
+- name: Kafka | Delete KafkaTopic CRDs
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete kafkatopic -l {{ kafka_topic_label }}
+    --ignore-not-found=true --wait=false
+  changed_when: false
+  failed_when: false
+
 - name: Kafka | Delete Kafka cluster
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
@@ -146,3 +153,9 @@
 - name: Kafka | Cleanup complete
   ansible.builtin.debug:
     msg: "Kafka cleanup completed (cluster + bridge + operator)"
+
+- name: "Kafka | Register cleanup result"
+  ansible.builtin.set_fact:
+    _cleanup_result_kafka: "cleaned"
+  delegate_to: localhost
+  delegate_facts: true

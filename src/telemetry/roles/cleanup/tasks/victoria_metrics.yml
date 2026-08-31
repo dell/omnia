@@ -163,3 +163,9 @@
 - name: VictoriaMetrics | Cleanup complete
   ansible.builtin.debug:
     msg: "VictoriaMetrics cleanup completed (includes vmagent-vector write-buffer)"
+
+- name: "Victoria_metrics | Register cleanup result"
+  ansible.builtin.set_fact:
+    _cleanup_result_victoria_metrics: "cleaned"
+  delegate_to: localhost
+  delegate_facts: true

@@ -44,7 +44,7 @@
 # Available tags:
 #   Sinks:   cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs
 #   Sources: cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale,
-#            cleanup_ufm, cleanup_vast, cleanup_sfm
+#            cleanup_ufm, cleanup_vast
 # Design: Sinks (Kafka, VictoriaMetrics, VictoriaLogs) are shared
 # infrastructure that multiple sources depend on. They are ONLY cleaned
 # when --tags cleanup (all) is used, never individually.
@@ -63,7 +63,17 @@
   connection: local
   gather_facts: false
   any_errors_fatal: true
-  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_ufm, cleanup_vast, cleanup_sfm, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
+  tags:
+    - cleanup
+    - cleanup_idrac
+    - cleanup_ldms
+    - cleanup_ome
+    - cleanup_powerscale
+    - cleanup_ufm
+    - cleanup_vast
+    - cleanup_kafka
+    - cleanup_victoria_metrics
+    - cleanup_victoria_logs
   tasks:
     - name: Load telemetry configuration
       ansible.builtin.include_role:
@@ -93,8 +103,56 @@
         _cleanup_powerscale: "{{ 'cleanup_powerscale' in ansible_run_tags }}"
         _cleanup_ufm: "{{ 'cleanup_ufm' in ansible_run_tags }}"
         _cleanup_vast: "{{ 'cleanup_vast' in ansible_run_tags }}"
-        _cleanup_sfm: "{{ 'cleanup_sfm' in ansible_run_tags }}"
         cacheable: true
+
+    - name: Set slurm inventory file from telemetry config
+      ansible.builtin.set_fact:
+        slurm_inventory_file: "{{ telemetry_config.cluster_inventory | default('') }}"
+      when:
+        - _cleanup_all | bool or _cleanup_ldms | bool
+        - slurm_inventory_file is not defined
+
+    - name: Check if slurm inventory file exists
+      ansible.builtin.stat:
+        path: "{{ slurm_inventory_file }}"
+      register: slurm_inv_stat
+      when:
+        - _cleanup_all | bool or _cleanup_ldms | bool
+        - slurm_inventory_file | default('') | length > 0
+
+    - name: Load slurm inventory for LDMS cleanup
+      when:
+        - _cleanup_all | bool or _cleanup_ldms | bool
+        - slurm_inventory_file | default('') | length > 0
+        - slurm_inv_stat.stat.exists | default(false)
+      block:
+        - name: Read slurm inventory
+          ansible.builtin.include_vars:
+            file: "{{ slurm_inventory_file }}"
+            name: slurm_inv
+
+        - name: Add Slurm control nodes to inventory
+          ansible.builtin.add_host:
+            name: "{{ item.value.ansible_host | default(item.key) }}"
+            groups: slurm_control_node
+            ansible_user: root
+          loop: >-
+            {{ slurm_inv.all.children.slurm_control_node_x86_64.hosts | default({}) | dict2items
+               + slurm_inv.all.children.slurm_control_node.hosts | default({}) | dict2items }}
+          loop_control:
+            label: "{{ item.key }}"
+
+        - name: Add Slurm compute nodes to inventory
+          ansible.builtin.add_host:
+            name: "{{ item.value.ansible_host | default(item.key) }}"
+            groups: slurm_node
+            ansible_user: root
+          loop: >-
+            {{ slurm_inv.all.children.slurm_node_x86_64.hosts | default({}) | dict2items
+               + slurm_inv.all.children.slurm_node.hosts | default({}) | dict2items
+               + slurm_inv.all.children.slurm_node_aarch64.hosts | default({}) | dict2items }}
+          loop_control:
+            label: "{{ item.key }}"
 
 # ---------------------------------------------------------------------------
 # Play 2: Component cleanups (conditional on run tags)
@@ -102,6 +160,17 @@
 - name: "Telemetry Cleanup | Remove selected components"
   hosts: kube_vip_group
   gather_facts: false
+  tags:
+    - cleanup
+    - cleanup_idrac
+    - cleanup_ldms
+    - cleanup_ome
+    - cleanup_powerscale
+    - cleanup_ufm
+    - cleanup_vast
+    - cleanup_kafka
+    - cleanup_victoria_metrics
+    - cleanup_victoria_logs
   tasks:
     # -- Source cleanups --
     - name: "Cleanup iDRAC telemetry"
@@ -140,12 +209,6 @@
         tasks_from: vast
       when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_vast'] | bool
 
-    - name: "Cleanup SFM telemetry"
-      ansible.builtin.include_role:
-        name: cleanup
-        tasks_from: sfm
-      when: hostvars['localhost']['_cleanup_all'] | bool or hostvars['localhost']['_cleanup_sfm'] | bool
-
     # -- Pre-sink guard: verify source pods have terminated --
     - name: "Check for remaining source pods before sink cleanup"
       vars:
@@ -153,7 +216,7 @@
         _source_apps: >-
           idrac-telemetry,nersc-ldms,vector-ome,vector-ldms,
           karavi-metrics-powerscale,otel-collector,
-          csi-volume-exporter,sfm-telemetry,
+          csi-volume-exporter,
           ufm-external,vast-external,skyway-telemetry,powervault-telemetry
       ansible.builtin.command: >
         kubectl get pods -n {{ telemetry_namespace }}
@@ -179,7 +242,7 @@
         _source_apps: >-
           idrac-telemetry,nersc-ldms,vector-ome,vector-ldms,
           karavi-metrics-powerscale,otel-collector,
-          csi-volume-exporter,sfm-telemetry,
+          csi-volume-exporter,
           ufm-external,vast-external,skyway-telemetry,powervault-telemetry
       ansible.builtin.command: >
         kubectl wait --for=delete pods
@@ -211,12 +274,22 @@
       when: hostvars['localhost']['_cleanup_all'] | bool
 
 # ---------------------------------------------------------------------------
-# Play 4: Final verification and summary
+# Play 3: Final verification and summary
 # ---------------------------------------------------------------------------
 - name: "Telemetry Cleanup | Verification"
   hosts: kube_vip_group
   gather_facts: false
-  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_ufm, cleanup_vast, cleanup_sfm, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
+  tags:
+    - cleanup
+    - cleanup_idrac
+    - cleanup_ldms
+    - cleanup_ome
+    - cleanup_powerscale
+    - cleanup_ufm
+    - cleanup_vast
+    - cleanup_kafka
+    - cleanup_victoria_metrics
+    - cleanup_victoria_logs
   vars:
     telemetry_namespace: "telemetry"
   tasks:
@@ -245,7 +318,17 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: [cleanup, cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale, cleanup_ufm, cleanup_vast, cleanup_sfm, cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs]  # noqa: yaml[line-length]
+  tags:
+    - cleanup
+    - cleanup_idrac
+    - cleanup_ldms
+    - cleanup_ome
+    - cleanup_powerscale
+    - cleanup_ufm
+    - cleanup_vast
+    - cleanup_kafka
+    - cleanup_victoria_metrics
+    - cleanup_victoria_logs
   tasks:
     - name: Display cleanup summary
       vars:
@@ -270,3 +353,8 @@
           - ""
           - "To delete the entire namespace:"
           - "  kubectl delete namespace telemetry"
+
+    - name: "Write telemetry_status.yml with cleanup status"
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: write_cleanup_status

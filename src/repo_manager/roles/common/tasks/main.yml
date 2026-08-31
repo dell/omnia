@@ -28,7 +28,10 @@
 
 - name: Initialize SELinux policy
   ansible.builtin.set_fact:
-    selinux_option: ":z"
+    selinux_option: >-
+      {{ ':z'
+         if (ansible_selinux.status | default('disabled')) == 'enabled'
+         else '' }}
   tags: always
 
 - name: Set SELinux policy for external NFS

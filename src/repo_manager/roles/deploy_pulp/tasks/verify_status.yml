@@ -62,29 +62,12 @@
   when: not container_is_running
 
 # -----------------------------------------------------------------------------
-# API ENDPOINT VERIFICATION (HTTPS only)
+# API ENDPOINT VERIFICATION
 # -----------------------------------------------------------------------------
 
-- name: Verify Pulp API endpoint (HTTPS)
-  when:
-    - container_is_running
-    - pulp_protocol_https | default(true) | bool
-  block:
-    - name: Wait for Pulp API to be ready
-      ansible.builtin.uri:
-        url: "{{ pulp_status_url }}"
-        method: GET
-        validate_certs: false
-        status_code: [200, 401]
-      register: api_check
-      retries: "{{ endpoint_retries }}"
-      delay: "{{ endpoint_delay }}"
-      until: api_check.status in [200, 401]
-      failed_when: false
-
-    - name: Set API status fact
-      ansible.builtin.set_fact:
-        pulp_api_ready: "{{ api_check.status | default(0) in [200, 401] }}"
+- name: Run comprehensive Pulp health verification
+  ansible.builtin.include_tasks: pulp_health_check.yml
+  when: container_is_running
 
 # -----------------------------------------------------------------------------
 # DEPLOYMENT SUMMARY
@@ -97,7 +80,7 @@
       - "Container: {{ pulp_container_name }}"
       - "Status: {{ container_uptime }}"
       - "Running: {{ container_is_running }}"
-      - "API Ready: {{ pulp_api_ready | default('N/A (HTTP mode)') }}"
+      - "Health Check: Passed (comprehensive)"
       - "============================================="
 
 - name: Pulp deployment verified successfully

@@ -1,96 +1,79 @@
 ---
-# telemetry_status.yml — telemetry domain output
-# Producer: write_telemetry_status (Phase 5 of deploy)
+# telemetry_status.yml — Telemetry status (deploy/cleanup)
+# Producer: write_telemetry_status / write_cleanup_status
 # Consumer: omnia-cli check, operators
 
 domain: "telemetry"
+type: "{{ _status_type | default('deploy') }}"
 project_name: "{{ project_name | default('project_default') }}"
-overall_status: "{{ _overall_status }}"
-generated_at: "{{ ansible_date_time.iso8601 }}"
+{% if _status_type | default('deploy') == 'cleanup' %}
+deployment_status: "{{ 'cleaned' if _cleanup_status == 'passed' else _cleanup_status | default('skipped') }}"
+{% else %}
+deployment_status: "{{ 'deployed' if _deployment_status == 'passed' else _deployment_status | default('skipped') }}"
+{% endif %}
+generated_at: "{{ ansible_date_time.iso8601 | default(lookup('pipe', 'date -Iseconds')) }}"
 namespace: "{{ telemetry_namespace }}"
 kube_vip: "{{ kube_vip | default('') }}"
 
+{% if _status_type | default('deploy') == 'deploy' %}
 packages:
   install_mode: "{{ telemetry_packages_config.install_mode | default('offline') }}"
   repo_url: "{{ telemetry_packages_config.repo_url | default('') }}"
-  container_registry: "{{ telemetry_registry.host | default('') }}"
+{% endif %}
 
 sinks:
-  kafka:
-    deployed: {{ _kafka_deployed | default(false) | lower }}
-{% if _kafka_deployed | default(false) | bool %}
-    version: "{{ telemetry_registry.images.kafka.broker | default('') }}"
-{% if _kafka_topics | default([]) | length > 0 %}
-    topics_created:
-{% for t in _kafka_topics %}
-      - "{{ t }}"
-{% endfor %}
+{% if _status_type | default('deploy') == 'cleanup' %}
+  kafka: "{{ _cleanup_results.kafka | default('skipped') }}"
+  victoria_metrics: "{{ _cleanup_results.victoria_metrics | default('skipped') }}"
+  victoria_logs: "{{ _cleanup_results.victoria_logs | default('skipped') }}"
 {% else %}
-    topics_created: []
-{% endif %}
-{% endif %}
-  victoria_metrics:
-    deployed: {{ _victoria_metrics_deployed | default(false) | lower }}
-{% if _victoria_metrics_deployed | default(false) | bool %}
-    version: "{{ telemetry_registry.images.victoria.vmstorage | default('') }}"
-    deployment_mode: "cluster"
-    operator: "{{ telemetry_registry.images.victoria.operator | default('') }}"
-{% endif %}
-  victoria_logs:
-    deployed: {{ _victoria_logs_deployed | default(false) | lower }}
-{% if _victoria_logs_deployed | default(false) | bool %}
-    version: "{{ telemetry_registry.images.victoria.vlstorage | default('') }}"
+  kafka: "{{ _sink_results.kafka | default('skipped') }}"
+  victoria_metrics: "{{ _sink_results.victoria_metrics | default('skipped') }}"
+  victoria_logs: "{{ _sink_results.victoria_logs | default('skipped') }}"
 {% endif %}
 
 sources:
+{% if _status_type | default('deploy') == 'cleanup' %}
   idrac:
-    deployed: {{ (_deployed_sources.idrac | default(false)) | lower }}
-{% if _deployed_sources.idrac | default(false) | bool %}
-    version: "{{ telemetry_registry.images.idrac.telemetry_receiver | default('') }}"
-    bmc_servers_configured: {{ _idrac_bmc_count | default(0) }}
-{% endif %}
+    metrics: "{{ _cleanup_results.idrac | default('skipped') }}"
   ldms:
-    deployed: {{ (_deployed_sources.ldms | default(false)) | lower }}
-{% if _deployed_sources.ldms | default(false) | bool %}
-    version: "{{ telemetry_registry.images.ldms.sampler | default('') }}"
-    sampler_nodes: {{ _ldms_sampler_nodes | default(0) }}
-{% endif %}
-  ome:
-    deployed: {{ (_deployed_sources.ome | default(false)) | lower }}
+    metrics: "{{ _cleanup_results.ldms | default('skipped') }}"
   powerscale:
-    deployed: {{ (_deployed_sources.powerscale | default(false)) | lower }}
+    metrics: "{{ _cleanup_results.powerscale | default('skipped') }}"
+    logs: "{{ _cleanup_results.powerscale | default('skipped') }}"
   ufm:
-    deployed: {{ (_deployed_sources.ufm | default(false)) | lower }}
+    metrics: "{{ _cleanup_results.ufm | default('skipped') }}"
+    logs: "{{ _cleanup_results.ufm | default('skipped') }}"
   vast:
-    deployed: {{ (_deployed_sources.vast | default(false)) | lower }}
-  sfm:
-    deployed: {{ (_deployed_sources.sfm | default(false)) | lower }}
-  skyway:
-    deployed: {{ (_deployed_sources.skyway | default(false)) | lower }}
-  powervault:
-    deployed: {{ (_deployed_sources.powervault | default(false)) | lower }}
+    metrics: "{{ _cleanup_results.vast | default('skipped') }}"
+    logs: "{{ _cleanup_results.vast | default('skipped') }}"
+  ome:
+    metrics: "{{ _cleanup_results.ome | default('skipped') }}"
+    logs: "{{ _cleanup_results.ome | default('skipped') }}"
+{% else %}
+  idrac:
+    metrics: "{{ _source_results.idrac_metrics | default('skipped') }}"
+  ldms:
+    metrics: "{{ _source_results.ldms_metrics | default('skipped') }}"
+  powerscale:
+    metrics: "{{ _source_results.powerscale_metrics | default('skipped') }}"
+    logs: "{{ _source_results.powerscale_logs | default('skipped') }}"
+  ufm:
+    metrics: "{{ _source_results.ufm_metrics | default('skipped') }}"
+    logs: "{{ _source_results.ufm_logs | default('skipped') }}"
+  vast:
+    metrics: "{{ _source_results.vast_metrics | default('skipped') }}"
+    logs: "{{ _source_results.vast_logs | default('skipped') }}"
+  ome:
+    metrics: "{{ _source_results.ome_metrics | default('skipped') }}"
+    logs: "{{ _source_results.ome_logs | default('skipped') }}"
+{% endif %}
 
 bridges:
-  vector_ome:
-    deployed: {{ _ome_deployed | default(false) | lower }}
-{% if _ome_deployed | default(false) | bool %}
-    version: "{{ telemetry_registry.images.vector.vector | default('') }}"
-    metrics_enabled: {{ (telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false)) | lower }}
-    logs_enabled: {{ (telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false)) | lower }}
-{% endif %}
-  vector_ldms:
-    deployed: {{ _vector_ldms_deployed | default(false) | lower }}
-{% if _vector_ldms_deployed | default(false) | bool %}
-    version: "{{ telemetry_registry.images.vector.vector | default('') }}"
-{% endif %}
-
-pods:
-  total: {{ _pod_total | default(0) }}
-  ready: {{ _pod_ready | default(0) }}
-  failed: {{ _pod_failed | default(0) }}
-{% if (_pod_failed | default(0) | int) > 0 %}
-  failed_pods:
-{% for pod in _failed_pod_names | default([]) %}
-    - "{{ pod }}"
-{% endfor %}
+{% if _status_type | default('deploy') == 'cleanup' %}
+  vector_ldms: "{{ _cleanup_results.ldms | default('skipped') }}"
+  vector_ome: "{{ _cleanup_results.ome | default('skipped') }}"
+{% else %}
+  vector_ldms: "{{ _bridge_results.vector_ldms | default('skipped') }}"
+  vector_ome: "{{ _bridge_results.vector_ome | default('skipped') }}"
 {% endif %}

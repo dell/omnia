@@ -13,22 +13,17 @@
 # limitations under the License.
 ---
 
-repo_manager_offline_repo_dir: "{{ omnia_base_dir }}/repo_manager/offline_repo"
+repo_manager_offline_repo_dir: "{{ repo_manager_runtime_dir }}/offline_repo"
 
 local_repo_access_dest_path: "{{ output_dir }}/repo_status.yml"
-nfs_shared_path: "{{ omnia_base_dir }}/repo_manager"
-repo_store_path: "{{ omnia_base_dir }}/repo_manager"
+nfs_shared_path: "{{ repo_manager_runtime_dir }}"
+repo_store_path: "{{ repo_manager_runtime_dir }}"
 base_path: "{{ repo_manager_log_dir }}"
 local_repo_config_path: "{{ project_input_path }}/repo_manager_config.yml"
 clean_rpms: true
 rpm_dir_path: "{{ repo_manager_offline_repo_dir }}/cluster/{{ item }}/rhel/{{ cluster_os_version }}/rpm"
 localrepo_completion_msg1: |
   The playbook repo_manager.yml has completed successfully.
-# Pulp concurrency for sync/publish operations
-# For NFS storage: Use 1 (prevents 500/502/504 errors)
-# For local storage: Use 2 for optimal performance
-# For high-performance SAN: Can try 3-4 (monitor for errors)
-pulp_concurrency: 1
 # Resync repos control
 # - null/omit: Skip already synced repos (default)
 # - "all": Force resync all repos
@@ -37,33 +32,24 @@ pulp_concurrency: 1
 local_repo_py_module_vars:
   default_vars: &sw_defaults
     timeout: 7200  # Timeout in seconds for each thread
-    nthreads: 8  # Number of threads
   amdgpu:
     <<: *sw_defaults
   default_packages:
     timeout: 7200
-    nthreads: 1
   openldap:
     timeout: 7200
-    nthreads: 2
   nfs:
     timeout: 7200
-    nthreads: 1
   service_k8s:
     timeout: 7200
-    nthreads: 8
   slurm_custom:
     timeout: 7200
-    nthreads: 3
   ucx:
     timeout: 7200
-    nthreads: 2
   openmpi:
     timeout: 7200
-    nthreads: 2
   csi_driver_powerscale:
     timeout: 7200
-    nthreads: 6
 
 sw_download_msg: "The specified software packages have already been downloaded."
 # Usage create_metadata.yml

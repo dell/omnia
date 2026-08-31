@@ -23,11 +23,15 @@ telemetry_status_file: "{{ telemetry_output_dir }}/telemetry_status.yml"
 telemetry_namespace: "telemetry"
 
 # Deploy directory on NFS share (where manifests are staged)
-telemetry_deploy_dir: "{{ cluster_mount }}/telemetry"
+telemetry_deploy_dir: "{{ k8s_cluster_mount }}/telemetry"
 telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 
-# LDMS NFS share path
-ldms_share_path: "{{ cluster_mount }}/telemetry/ldms"
+# LDMS NFS share paths
+# Sampler configuration (on slurm nodes): uses slurm_cluster_mount
+ldms_sampler_share_path: "{{ slurm_cluster_mount }}/telemetry/ldms"
+
+# Aggregator configuration (on k8s nodes): uses k8s_cluster_mount
+ldms_aggregator_share_path: "{{ k8s_cluster_mount }}/telemetry/ldms"
 
 # File permissions
 file_permissions_644: "0644"
@@ -41,6 +45,7 @@ ldms_store_name: "nersc-ldms-store"
 
 # Slurm config path (for munge key)
 slurm_config_path: "/etc/slurm"
+munge_key_path: "/etc/munge/munge.key"
 
 # LDMS backup path for PXE change detection
 backup_pxe_mapping_ldms_path: "{{ telemetry_data_path | default('/opt/omnia/telemetry') }}/backup_pxe_mapping_ldms.csv"
@@ -116,6 +121,62 @@ pod_ready_retries: 30
 pod_ready_delay: 10
 ldms_store_restart_wait_seconds: 10
 
+# =============================================================================
+# LDMS Sampler Configuration (deployed to compute nodes)
+# =============================================================================
+# These settings configure the LDMS sampler daemon on Slurm compute nodes.
+# Values are read from telemetry_config.yml ldms_configurations section.
+
+# LDMS sampler paths
+ldms_sampler:
+  # Installation paths
+  install_dir: "/opt/ovis-ldms"
+  config_dir: "/opt/ovis-ldms/etc/ldms"
+  bin_dir: "/opt/ovis-ldms/sbin"
+  lib_dir: "/opt/ovis-ldms/lib/ovis-ldms"
+  # Configuration files
+  config_file: "sampler.conf"
+  auth_file: "ldmsauth.conf"
+  env_file: "ldmsd.sampler.env"
+  # Systemd service
+  service_name: "ldmsd"
+  service_file: "/etc/systemd/system/ldmsd.service"
+  # Service configuration
+  transport: "sock"
+  auth_plugin: "ovis"
+  memory: "512K"
+  log_level: "INFO"
+
+# Firewall ports to open on compute nodes for LDMS sampler
+# The sampler_port is read from telemetry_config.ldms_configurations.sampler_port
+ldms_firewall_ports:
+  - port: "{{ telemetry_config.ldms_configurations.sampler_port | default(10001) }}"
+    protocol: "tcp"
+    description: "LDMS sampler daemon"
+
+# LDMS sampler service template
+ldms_service_template: |
+  [Unit]
+  Description=LDMS Daemon (Sampler)
+  After=network.target
+
+  [Service]
+  Type=simple
+  EnvironmentFile={{ ldms_sampler.config_dir }}/{{ ldms_sampler.env_file }}
+  Environment="HOSTNAME=%H"
+  ExecStart={{ ldms_sampler.bin_dir }}/ldmsd -F \
+    -x ${LDMSD_XPRT}:${LDMSD_PORT} \
+    -a ${LDMSD_AUTH_PLUGIN} \
+    -A conf=${LDMS_AUTH_FILE} \
+    -c ${LDMSD_PLUGIN_CONFIG_FILE} \
+    -v ${LDMSD_VERBOSE} \
+    -m ${LDMSD_MEM}
+  Restart=on-failure
+  RestartSec=10
+
+  [Install]
+  WantedBy=multi-user.target
+
 # Messages
 pxe_first_run_msg: "First provision run detected. Saving PXE mapping backup. LDMS restart not required."
 pxe_no_change_msg: "PXE mapping file has not changed since last run. Skipping LDMS restart."
@@ -124,3 +185,5 @@ ldms_pod_ready_msg: "LDMS aggregator pod is ready."
 ldms_pod_not_ready_msg: "WARNING: LDMS aggregator pod did not become ready within 120s."
 ldms_store_pod_ready_msg: "LDMS store daemon pod restarted successfully and is ready."
 ldms_store_pod_not_ready_msg: "LDMS store daemon pod restart failed or not ready within timeout."
+ldms_sampler_started_msg: "LDMS sampler service started on {{ inventory_hostname }} listening on port {{ telemetry_config.ldms_configurations.sampler_port }}"
+ldms_sampler_firewall_msg: "Firewall port {{ telemetry_config.ldms_configurations.sampler_port }}/tcp opened for LDMS sampler"

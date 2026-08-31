@@ -16,8 +16,20 @@
 # Validate OpenLDAP — Verify OpenLDAP container is running (when enabled)
 # Can be run standalone or imported by orchestrator.yml
 #
-# Prerequisites: deploy_openldap.yml must have run first.
+# Prerequisites: deploy phase must have run first.
 # Skipped entirely when openldap_support is false.
+
+- name: Setup orchestrator environment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  roles:
+    - role: orchestrator_setup
+      vars:
+        openchami_vars_support: true
+        omnia_metadata_support: true
+        oim_group: true
 
 - name: Validate OpenLDAP readiness
   hosts: oim

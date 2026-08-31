@@ -20,5 +20,4 @@ galaxy_info:
     - vault
     - repository
 
-dependencies:
-  - role: repo_manager_setup
+dependencies: []

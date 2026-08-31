@@ -48,7 +48,6 @@ from core.jobs.exceptions import (
     StageNotFoundError,
     StageAlreadyCompletedError,
     InvalidStateTransitionError,
-    TerminalStateViolationError,
     UpstreamStageNotCompletedError,
 )
 from core.jobs.repositories import (
@@ -658,7 +657,14 @@ class CreateBuildImageUseCase:
     # ========================================================================
 
     def _validate_stage_unified(self, command: CreateBuildImageCommand) -> Stage:
-        """Validate unified BUILD_IMAGE stage exists and is in PENDING state."""
+        """Validate unified BUILD_IMAGE stage exists; reset if FAILED for retry.
+
+        Follows the same pattern as create-local-repository and other stages:
+        - FAILED  → auto-reset to PENDING (retry) + resume job state
+        - COMPLETED → reject (build stages are immutable once complete)
+        - IN_PROGRESS → reject (already running)
+        - PENDING → proceed
+        """
         # Verify upstream stage is completed
         self._verify_upstream_stage_completed(command)
 

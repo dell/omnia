@@ -58,11 +58,6 @@ oim_ssh_port: 22
 #               resolved automatically from the source tree.
 clone_path: "/root/monorepo/omnia"
 
-# venv_path:    Path to Python virtual environment on the target server.
-#               If set, the venv is activated before running ansible-playbook.
-#               Leave empty to use system-wide ansible.
-venv_path: ""
-
 # =============================================================================
 # DATASET CONFIGURATION
 # =============================================================================
@@ -81,12 +76,6 @@ venv_path: ""
 #     input/telemetry_storage_config.yml  (optional)
 #     input/telemetry_packages.yml
 dataset: ""
-
-# Project name on the target server.
-# Must match OMNIA_PROJECT_NAME env var on the target (default: project_default).
-# Input read from: <OMNIA_DATA_PATH>/telemetry/input/<project_name>/
-# Output read from: <OMNIA_DATA_PATH>/telemetry/output/<project_name>/
-project_name: "project_default"
 
 # =============================================================================
 # SYNC — TELEMETRY INPUT
@@ -111,10 +100,21 @@ ome_ip: ""
 #   1. Run the external_kafka_connect playbook to extract TLS certs
 #   2. Verify ca.crt, user.crt, user.key exist
 #   3. Convert user.crt + user.key to user.pfx
-#   4. Verify OME Kafka forwarder connectivity via REST API
+#   4. Upload certificates to OME via REST API
+#   5. Configure and test OME Kafka forwarder connectivity
 # When false, only the OME deployment tests (Vector-OME bridge, KafkaUser)
 # are run; connectivity/certificate tests are skipped.
-configure_ome: false
+configure_ome: true
+
+# OME identifier string used in Kafka forwarder configuration.
+# This identifies the OME instance in Kafka messages.
+# Kafka bootstrap server is auto-discovered from K8s services.
+ome_identifier: "ome"
+
+# Force re-run of external_kafka playbook even if certs already exist.
+# When true, always runs the playbook to regenerate certificates.
+# When false (default), skips playbook if certs already exist.
+force_external_kafka_playbook: false
 
 # =============================================================================
 # REPORT CONFIGURATION

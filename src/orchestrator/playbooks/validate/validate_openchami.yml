@@ -13,11 +13,16 @@
 # limitations under the License.
 ---
 
-# Validate OpenCHAMI — Verify OpenCHAMI readiness before provisioning
+# Validate OpenCHAMI — Verify orchestrator input + OpenCHAMI readiness
 # Can be run standalone or imported by orchestrator.yml
 #
-# Prerequisites: deploy_openchami.yml must have run first.
+# Prerequisites: deploy phase must have run first.
 # GATE: Provisioning is blocked until all checks pass.
+#
+# Includes:
+#   - Orchestrator input validation (L1 schema + L2 logic)
+#   - OpenCHAMI authentication
+#   - OpenCHAMI service readiness checks
 
 - name: Setup orchestrator environment
   hosts: localhost
@@ -30,6 +35,14 @@
         openchami_vars_support: true
         omnia_metadata_support: true
         oim_group: true
+
+- name: Validate orchestrator input configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: validate_orchestrator_input
+      when: not config_file_status | default(false) | bool
 
 - name: Authenticate with OpenCHAMI
   hosts: oim

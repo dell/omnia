@@ -32,7 +32,7 @@
 
 - name: "UFM | Remove generated manifests"
   ansible.builtin.file:
-    path: "{{ telemetry_deployments_dir | default('/share_omnia_k8s/telemetry/deployments') }}/{{ item }}"
+    path: "{{ telemetry_deployments_dir | default('/opt/omnia/k8s_mount/telemetry/deployments') }}/{{ item }}"
     state: absent
   loop:
     - ufm-telemetry-secret.yaml
@@ -42,3 +42,9 @@
 - name: "UFM | Cleanup complete"
   ansible.builtin.debug:
     msg: "UFM telemetry cleanup completed"
+
+- name: "Ufm | Register cleanup result"
+  ansible.builtin.set_fact:
+    _cleanup_result_ufm: "cleaned"
+  delegate_to: localhost
+  delegate_facts: true

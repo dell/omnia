@@ -95,7 +95,21 @@ from .ome_func import (
     verify_external_kafka_certs,
     convert_certs_to_pfx,
     verify_ome_kafka_user_cr,
-    upload_ome_certs,
+    upload_ome_server_cert,
+    upload_ome_client_cert,
+    view_ome_client_cert,
+    send_ome_kafka_test_connection,
+    update_ome_forwarder_settings,
+)
+
+# --- VAST verification ---
+from .vast_func import (
+    verify_vast_external_service,
+    verify_vast_vmscrape,
+    verify_vast_credentials_secret,
+    verify_vast_metrics,
+    verify_vast_logs,
+    get_vast_endpoint_from_config,
 )
 
 # --- Validation ---
@@ -173,7 +187,18 @@ __all__ = [
     "verify_external_kafka_certs",
     "convert_certs_to_pfx",
     "verify_ome_kafka_user_cr",
-    "upload_ome_certs",
+    "upload_ome_server_cert",
+    "upload_ome_client_cert",
+    "view_ome_client_cert",
+    "send_ome_kafka_test_connection",
+    "update_ome_forwarder_settings",
+    # vast
+    "verify_vast_external_service",
+    "verify_vast_vmscrape",
+    "verify_vast_credentials_secret",
+    "verify_vast_metrics",
+    "verify_vast_logs",
+    "get_vast_endpoint_from_config",
     # validation
     "validate_test_config",
     "validate_all",

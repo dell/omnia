@@ -20,6 +20,11 @@ used across the input validation framework.
 from datetime import datetime
 import os
 
+from ansible.module_utils.repo_manager.path_resolver import (
+    get_omnia_data_path,
+    get_repo_manager_data_path,
+)
+
 # =============================================================================
 # PATH CONFIGURATION
 # =============================================================================
@@ -28,14 +33,15 @@ import os
 REPO_MANAGER_BASE_DIR = os.environ.get('REPO_MANAGER_BASE_DIR') or os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
-# Omnia base directory for runtime-generated files outside the source tree.
-OMNIA_BASE_DIR = os.environ.get('OMNIA_BASE_DIR') or os.path.abspath(
-    os.path.join(REPO_MANAGER_BASE_DIR, '..', '..'))
+# Runtime data is resolved from the same environment contract as Repo Manager.
+OMNIA_BASE_DIR = get_omnia_data_path()
+REPO_MANAGER_RUNTIME_DIR = get_repo_manager_data_path()
 
-REPO_MANAGER_LOG_DIR = os.path.join(OMNIA_BASE_DIR, 'repo_manager', 'log')
-REPO_MANAGER_DATA_DIR = os.path.join(REPO_MANAGER_BASE_DIR, '.data')
-REPO_MANAGER_INPUT_DIR = os.path.join(REPO_MANAGER_BASE_DIR, 'input')
+REPO_MANAGER_LOG_DIR = os.path.join(REPO_MANAGER_RUNTIME_DIR, 'log')
+REPO_MANAGER_DATA_DIR = os.path.join(REPO_MANAGER_RUNTIME_DIR, '.data')
+REPO_MANAGER_INPUT_DIR = os.path.join(REPO_MANAGER_RUNTIME_DIR, 'input')
 CATALOG_DIR = os.path.join(OMNIA_BASE_DIR, 'catalog')
+CATALOG_FILE_PATH = os.environ.get('CATALOG_FILE_PATH')
 
 # Log paths
 INPUT_VALIDATOR_LOG = os.path.join(REPO_MANAGER_LOG_DIR, "repo_manager_input_validator")
@@ -54,12 +60,12 @@ SYSTEM_ENTITLEMENT_PATH = '/etc/pki/entitlement/*.pem'
 CONTAINER_ENTITLEMENT_PATH = '/run/secrets/etc-pki-entitlement/*.pem'
 SYSTEM_REDHAT_REPO = '/etc/yum.repos.d/redhat.repo'
 CONTAINER_REDHAT_REPO = '/run/secrets/redhat.repo'
-# Omnia base directory for runtime-generated files (Pulp, RHEL certs) outside the source tree.
-OMNIA_BASE_DIR = os.environ.get('OMNIA_BASE_DIR') or os.path.abspath(
-    os.path.join(REPO_MANAGER_BASE_DIR, '..', '..'))
-
-OMNIA_ENTITLEMENT_PATH = os.path.join(OMNIA_BASE_DIR, "rhel_repo_certs", "*.pem")
-OMNIA_REDHAT_REPO = os.path.join(OMNIA_BASE_DIR, "rhel_repo_certs", "redhat.repo")
+OMNIA_ENTITLEMENT_PATH = os.path.join(
+    REPO_MANAGER_RUNTIME_DIR, "rhel_repo_certs", "*.pem"
+)
+OMNIA_REDHAT_REPO = os.path.join(
+    REPO_MANAGER_RUNTIME_DIR, "rhel_repo_certs", "redhat.repo"
+)
 
 # =============================================================================
 # FILE CONFIGURATION
@@ -68,6 +74,8 @@ OMNIA_REDHAT_REPO = os.path.join(OMNIA_BASE_DIR, "rhel_repo_certs", "redhat.repo
 files = {
     "repo_manager_config": "repo_manager_config.yml",
     "repo_manager_endpoint_config": "repo_manager_endpoint_config.yml",
+    # Internal schema selector only. The user catalog input path is resolved
+    # from CATALOG_FILE_PATH and is not required to have this basename.
     "catalog_config": "catalog_rhel.json",
     "omnia_config": "omnia_config.yml",
     "provision_config": "provision_config.yml",
@@ -84,8 +92,24 @@ extensions = {
 # =============================================================================
 
 input_file_inventory = {
-    "local_repo": [files["repo_manager_config"], files["catalog_config"]],
-    "repo_manager": [files["repo_manager_config"], files["catalog_config"]],
+    "endpoint": [files["repo_manager_endpoint_config"]],
+    "prepare": [files["repo_manager_endpoint_config"]],
+    "deploy": [files["repo_manager_endpoint_config"]],
+    "precheck": [
+        files["repo_manager_config"],
+        files["repo_manager_endpoint_config"],
+        files["catalog_config"]
+    ],
+    "local_repo": [
+        files["repo_manager_config"],
+        files["repo_manager_endpoint_config"],
+        files["catalog_config"]
+    ],
+    "repo_manager": [
+        files["repo_manager_config"],
+        files["repo_manager_endpoint_config"],
+        files["catalog_config"]
+    ],
     "all": [
         files["repo_manager_config"],
         files["repo_manager_endpoint_config"],
@@ -159,18 +183,6 @@ TYPE_REQUIREMENTS = {
 # =============================================================================
 # FUNCTIONAL GROUP CONFIGURATION
 # =============================================================================
-
-ADDITIONAL_PACKAGES_SUPPORTED_SUBGROUPS = {
-    "x86_64": [
-        "slurm_control_node", "slurm_node", "login_node", "login_compiler_node",
-        "service_kube_control_plane", "service_kube_control_plane_first", "service_kube_node",
-        "os"
-    ],
-    "aarch64": [
-        "slurm_node", "login_node", "login_compiler_node",
-        "os"
-    ]
-}
 
 FUNCTIONAL_GROUP_LAYER_MAP = {
     "service_kube_control_plane_first_x86_64": "management",

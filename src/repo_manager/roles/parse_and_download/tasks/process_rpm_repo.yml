@@ -24,6 +24,9 @@
     REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"
     REPO_MANAGER_INPUT_PROJECT_DIR: "{{ input_project_dir }}"
     OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
+    OMNIA_DATA_PATH: "{{ omnia_data_path }}"
+    REPO_MANAGER_DATA_PATH: "{{ repo_manager_runtime_dir }}"
+    CATALOG_FILE_PATH: "{{ lookup('env', 'CATALOG_FILE_PATH') }}"
   register: result
 
 - name: Process URL mirrors from repo_manager_config
@@ -31,7 +34,8 @@
     local_config: "{{ result.local_config }}"
     log_dir: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
     additional_repos_config: "{{ result.additional_repos_config | default(omit) }}"
-    pulp_concurrency: "{{ pulp_concurrency }}"
+    user_repos_config: "{{ result.user_repos_config | default(omit) }}"
+    thread_pool_size: "{{ rpm_repo_config.thread_pool_size | int }}"
     sw_archs: "{{ result.sw_archs }}"
     resync_repos: "{{ resync_repos | default(None) }}"
     cluster_os_type: "{{ cluster_os_type }}"
@@ -40,13 +44,17 @@
     REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"
     REPO_MANAGER_INPUT_PROJECT_DIR: "{{ input_project_dir }}"
     OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
+    OMNIA_DATA_PATH: "{{ omnia_data_path }}"
+    REPO_MANAGER_DATA_PATH: "{{ repo_manager_runtime_dir }}"
   register: rpm_result
 
 - name: Display RPM processing result
   ansible.builtin.debug:
     msg: "{{ rpm_result.result }}"
 
-- name: Regenerate DNF cache
-  ansible.builtin.dnf:
-    update_cache: true
-  changed_when: false
+- name: Reset Repo Manager DNF metadata cache
+  ansible.builtin.file:
+    path: "{{ repo_store_path }}/.data/dnf_cache"
+    state: absent
+  # DNF commands recreate this private cache with fresh, architecture-specific
+  # Pulp metadata. Do not clean the host's shared /var/cache/dnf.

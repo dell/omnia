@@ -71,6 +71,8 @@ from .functions.host_func import (
     read_remote_yaml,
     read_yaml_key,
     resolve_domain_input_path,
+    get_inventory_hosts,
+    get_inventory_host_var,
 )
 
 # --- Report ---
@@ -88,6 +90,27 @@ from .functions.sync_func import clone_repo, sync_files
 
 # --- Validation Runner ---
 from .functions.validation_runner import ValidationRunner
+
+# --- Credential Management ---
+from .functions.credential_func import (
+    ensure_vault_key,
+    is_vault_encrypted,
+    vault_encrypt,
+    vault_decrypt_to_dict,
+    read_credential_field,
+    read_all_fields,
+    write_credential_fields,
+    prompt_credential,
+    prompt_and_confirm,
+    prompt_fields_interactive,
+)
+
+# --- Credential Vars ---
+from .vars.credential_vars import (
+    get_data_path,
+    get_project_name,
+    get_domain_input_path,
+)
 
 __all__ = [
     "__version__",
@@ -122,6 +145,8 @@ __all__ = [
     "read_remote_yaml",
     "read_yaml_key",
     "resolve_domain_input_path",
+    "get_inventory_hosts",
+    "get_inventory_host_var",
     # Report
     "TestReport",
     "get_current_report",
@@ -133,4 +158,19 @@ __all__ = [
     "sync_files",
     # Validation Runner
     "ValidationRunner",
+    # Credential Management
+    "ensure_vault_key",
+    "is_vault_encrypted",
+    "vault_encrypt",
+    "vault_decrypt_to_dict",
+    "read_credential_field",
+    "read_all_fields",
+    "write_credential_fields",
+    "prompt_credential",
+    "prompt_and_confirm",
+    "prompt_fields_interactive",
+    # Credential Vars
+    "get_data_path",
+    "get_project_name",
+    "get_domain_input_path",
 ]

@@ -1,224 +1,219 @@
-# Repo Manager — Architecture Overview
+# Repo Manager -- Architecture
 
 ## System Context
 
+```text
+ catalog JSON                  Repo Manager                         downstream consumers
+ repo_manager_config.yml       +-------------------------------+    +-------------------+
+ endpoint config              | validate -> prepare -> sync    |    | image_build_manager|
+ Vault credentials ---------->|          -> status             |--->| cluster workflows  |
+ RHEL subscription            |                               |    | administrators     |
+                               +---------------+---------------+    +-------------------+
+                                               |
+                                    HTTPS Pulp content server
+                              RPM | OCI images | File | Python
 ```
-                    ┌─────────────────────────────────────────────┐
-                    │           Repo Manager                       │
-                    │                                             │
-  ┌──────────┐      │  ┌────────────┐  ┌────────────┐  ┌────────┐│      ┌──────────┐
-  │ repo_    │─────▶│  │ Deploy     │─▶│ Download   │─▶│ Status ││─────▶│ repo_    │
-  │ manager_ │      │  │  Pulp      │  │  Content   │  │  Gen   ││      │ status.  │
-  │ config. │      │  │  (Podman)  │  │            │  │        ││      │ yml      │
-  │ yml +    │      │  └────────────┘  └────────────┘  └────────┘│      └──────────┘
-  │ software_│      │                                             │
-  │ config. │      │  ┌────────────┐  ┌────────────┐             │
-  │ json     │      │  │ Validate    │─▶│ Cleanup    │             │
-  └──────────┘      │  │  Config    │  │  Pulp      │             │
-                    │  └────────────┘  └────────────┘             │
-                    └─────────────────────────────────────────────┘
-```
+
+Repo Manager validates catalog sources, deploys a local Pulp server, synchronizes
+content and generates `repo_status.yml` for downstream Omnia components.
 
 ## Execution Mode
 
-**Bare-metal** — the only supported execution mode. The playbook runs
-directly on the RHEL host via `ansible-playbook`. All tasks execute locally
-(`hosts: localhost`) with no SSH dependencies.
+**Bare-metal only.** Repo Manager runs on the OIM host with
+`connection: local`. It does not SSH to cluster nodes.
+
+Runtime paths are derived from `OMNIA_DATA_PATH` and can be overridden with
+`REPO_MANAGER_DATA_PATH`. `/opt/omnia` is only the default data root.
+
+---
+
+## Tag Reference
+
+Run from `src/repo_manager/playbooks`:
+
+```bash
+ansible-playbook repo_manager.yml                                  # standard workflow
+ansible-playbook repo_manager.yml --tags precheck                  # validate inputs
+ansible-playbook repo_manager.yml --tags prepare                   # credentials + Pulp
+ansible-playbook repo_manager.yml --tags download                  # synchronize content
+ansible-playbook repo_manager.yml --tags status                    # write repo_status.yml
+ansible-playbook repo_manager.yml --tags cleanup_repos             # selective cleanup
+ansible-playbook repo_manager.yml --tags cleanup_pulp              # remove Pulp deployment
+ansible-playbook repo_manager.yml --tags catalog_validate          # validate catalog
+```
+
+Standard tags can be combined. Plays still execute in their order in
+`repo_manager.yml`:
+
+```bash
+ansible-playbook repo_manager.yml --tags "prepare,precheck,download,status"
+```
+
+### Tag Behavior Matrix
+
+| Tag | Main action | Credentials | Running Pulp required | Destructive |
+|-----|-------------|-------------|-----------------------|-------------|
+| *(none)* | prepare, validate, download and status | Yes | Created by workflow | No |
+| `precheck` | Environment, schema and catalog validation | No | No | No |
+| `prepare` / `deploy` | Collect credentials and deploy Pulp | Yes | No | No |
+| `download` / `execute` | Resolve catalog and synchronize content | Yes | Yes | No |
+| `status` | Generate `repo_status.yml` from Pulp | No prompt | Yes | No |
+| `cleanup_repos` | Remove selected Pulp content | No | Yes | Yes |
+| `cleanup_pulp` / `cleanup` | Remove Pulp service and runtime data | No | No | Yes |
+| `catalog_generate` | Generate a catalog | No | No | Writes catalog |
+| `catalog_add` | Add entries to a catalog | No | No | Writes catalog |
+| `catalog_delete` | Delete catalog entries | No | No | Writes catalog |
+| `catalog_validate` | Validate a catalog | No | No | No |
+
+Cleanup, catalog, upgrade and rollback plays use the `never` tag. They run only
+when explicitly selected. Do not combine cleanup tags with the standard workflow.
+
+---
 
 ## Execution Flow
 
-### 1. Deploy Pulp (`--tags deploy`)
+### Step 0: Environment setup (tag: always)
 
-- Deploy Pulp content server using Podman containers
-- Configure Pulp CLI with system-wide symlink to `/usr/local/bin/pulp`
-- Set up SSL/TLS certificates for HTTPS access
-- Create repositories for RPM, file, and Python distributions
-- Pre-flight checks to detect existing healthy Pulp deployment
+- Load the Omnia environment.
+- Resolve `OMNIA_DATA_PATH`, project name, runtime, input, output and log paths.
+- Require `SYSTEM_ADMIN_NIC_IPV4` and `CATALOG_FILE_PATH`.
+- Load `repo_manager_config.yml` and endpoint configuration.
 
-### 2. Precheck Config (`--tags precheck`)
+### Step 1: Precheck (tag: precheck)
 
-- Schema validation of `repo_manager_config.yml` against JSON schema
-- Logic validation (subscription URLs, user repositories, OS versions)
-- Validate RHEL subscription and OS URLs
-- No credentials required for basic precheck
+- Validate the host environment and required files.
+- Validate YAML syntax and JSON schemas.
+- Validate catalog-to-repository and catalog-to-registry mappings.
+- Validate lowercase configuration keys, repository policies and registry TLS.
+- Detect missing URLs when RHEL subscription content is unavailable.
 
-### 3. Download Content (`--tags download`)
+### Step 2: Prepare (tag: prepare)
 
-- Download RPM repositories based on `software_config.json`
-- Download container images (tarball, git, manifest types)
-- Download Python pip modules
-- Download ISO images and shell scripts
-- Download Ansible Galaxy collections
-- Parallel download with configurable concurrency
-- Generate download status reports
+- Collect or reuse Pulp, Docker Hub and configured-registry credentials.
+- Store credentials with Ansible Vault and mode `0600`.
+- Generate a self-signed Pulp HTTPS certificate when needed.
+- Deploy Pulp as a Podman Quadlet and enable `pulp.service`.
+- Publish the configured host port to container port `443`.
+- Configure the Pulp CLI and host CA trust.
+- Verify the container and Pulp status endpoint.
 
-### 4. Generate Status (`--tags status`)
+### Step 3: Download (tag: download)
 
-- Query Pulp for all available distributions
-- Generate `repo_status.yml` with repository URLs
-- Include RPM repos, file repos, user repos, and base URLs
-- Map repository names to Pulp distribution URLs
-- Support for x86_64 and aarch64 architectures
+1. Load and reconcile credentials.
+2. Detect the RHEL subscription state.
+3. Populate empty BaseOS, AppStream and CodeReady Builder entries from the
+   subscription when available.
+4. Resolve functional layers, groups and packages from the catalog.
+5. Match RPM sources by OS version, architecture and `reponame`.
+6. Match container sources by `registry`.
+7. Synchronize RPM, OCI image, File and Python content to Pulp.
+8. Update group status CSVs and the mirror index.
 
-### 5. Cleanup (`--tags cleanup`)
+General catalog workers, RPM-repository workers and DNF command concurrency are
+separate controls. DNF command concurrency defaults to one to protect its shared
+metadata cache.
 
-- Stop and remove Pulp containers
-- Remove Pulp data and configuration
-- Clean up temporary files and logs
-- Remove system-wide Pulp CLI symlink
+### Step 4: Status (tag: status)
 
-## Role Dependency Graph
+- Verify the Pulp endpoint.
+- Read actual Pulp distributions.
+- Generate `<REPO_MANAGER_DATA_PATH>/output/<project>/repo_status.yml`.
+- Include HTTPS repository URLs, file-content URLs and certificate paths.
 
-```
-deploy_pulp ─────────────────────────────────────────────┐
-       │                                                 │
-       ▼                                                 │
-validate_subscription ───────────────────────────────────┤
-       │                                                 │
-       ▼                                                 │
-download ──────────────────────────────────▶ generate_repo_status
-       │                                                 │
-       ▼                                                 │
-cleanup_pulp ───────────────────────────────────────────┘
-```
+The status file is generated only when the `status` tag runs. Run it again after
+selective cleanup if downstream consumers need an updated view.
 
-## Data Contract
+### Step 5: Selective cleanup (tag: cleanup_repos)
 
-### Inputs
+- `cleanup_repos`: RPM repositories.
+- `cleanup_files`: File and Python artifacts.
+- Tagged `cleanup_containers`: only the exact OCI tag.
+- Untagged `cleanup_containers`: the repository, all tags, distribution and remote.
+- `all`: every Pulp object in that cleanup category.
+- Update status rows, group state and the mirror index only after verified deletion.
+- Run Pulp orphan cleanup after successful changes.
 
-| File | Source | Purpose |
-|------|--------|---------|
-| `repo_manager_config.yml` | `input/project_default/` | Repository configuration, user repos, OS settings |
-| `software_config.json` | `input/project_default/` | Software packages and download configuration |
-| `repo_manager_endpoint_config.json` | `input/project_default/` | Endpoint configuration for services |
+### Step 6: Full cleanup (tag: cleanup_pulp)
 
-### Outputs
+- Disable and remove `pulp.service` and its Quadlet.
+- Remove the Pulp container, image, configuration and data.
+- Remove Pulp CLI configuration and host integration.
+- Optionally preserve credentials and Repo Manager runtime logs.
 
-| File | Purpose |
-|------|---------|
-| `repo_status.yml` | Repository URLs, cert paths, OS metadata for cluster nodes |
-| Download status CSV | `/opt/omnia/repo_manager/output/<project_name>/` |
-| Validation logs | `/var/log/omnia/repo_manager/repo_manager.log` |
+---
 
-## Key Paths
+## Pulp Deployment
 
-| Path | Purpose |
-|------|---------|
-| `/opt/omnia/repo_manager/` | Base directory for all repo manager data |
-| `/opt/omnia/repo_manager/input/<project_name>/` | Input configuration files |
-| `/opt/omnia/repo_manager/output/<project_name>/` | Output directory for repo_status.yml and status files |
-| `/opt/omnia/repo_manager/log/` | Log files for repo manager operations |
-| `/opt/omnia/repo_manager/log/pulp/` | Pulp server logs |
-| `/opt/omnia/repo_manager/pulp_config/` | Pulp configuration and data |
-| `/opt/omnia/repo_manager/pulp_config/settings/certs/` | Pulp SSL/TLS certificates |
-| `/opt/omnia/repo_manager/rhel_repo_certs/` | RHEL subscription certificates |
-| `/opt/omnia/repo_manager/offline_repo/` | Offline repository storage |
-| `/opt/omnia/catalog/` | Catalog JSON files (shared across modules) |
-| `/usr/local/bin/pulp` | System-wide Pulp CLI symlink |
+| Item | Behavior |
+|------|----------|
+| Protocol | HTTPS only |
+| Host endpoint | `https://<pulp_server_ip>:<pulp_server_port>` |
+| Container endpoint | nginx on port `443` |
+| Service | `pulp.service` generated from a Podman Quadlet |
+| Persistence | `<REPO_MANAGER_DATA_PATH>/pulp_config/` |
+| Certificate | Generated under `pulp_config/settings/certs/` |
+| CLI trust | `PULP_CA_BUNDLE` plus an installed host CA anchor |
 
-## Complete Directory Structure
+The user selects the host port in `repo_manager_endpoint_config.yml`. The
+container port remains `443`.
 
-```
-/opt/omnia/
-├── repo_manager/                          # All repo_manager data (domain-based organization)
-│   ├── input/                             # Input configurations
-│   │   └── project_default/
-│   │       ├── repo_manager_config.yml
-│   │       └── repo_manager_endpoint_config.yml
-│   ├── output/                            # Generated outputs
-│   │   └── project_default/
-│   │       └── repo_status.yml
-│   ├── log/                               # All logs
-│   │   ├── pulp/                          # Pulp server logs
-│   │   ├── rhel/10.0/x86_64/              # Download logs by OS/arch
-│   │   │   ├── slurm_control_node_group/
-│   │   │   └── mirror_status/
-│   │   │       ├── pulp_mirror_index.json
-│   │   │       └── global_package_index.json
-│   │   └── validation_omnia_project_default.log
-│   ├── pulp_config/                       # Pulp configuration and data
-│   │   ├── settings/
-│   │   │   ├── certs/                     # SSL/TLS certificates
-│   │   │   │   ├── pulp_webserver.crt
-│   │   │   │   └── pulp_webserver.key
-│   │   │   ├── pulp_storage/              # Pulp content storage
-│   │   │   ├── pgsql/                     # PostgreSQL database
-│   │   │   ├── containers/                # Container storage
-│   │   │   └── settings.py                # Pulp configuration
-│   │   ├── pulp_ha/                       # Pulp CLI config
-│   │   │   └── cli.toml
-│   │   └── nginx/                         # Nginx configuration (HTTPS)
-│   │       └── nginx.conf
-│   ├── rhel_repo_certs/                   # RHEL subscription certificates
-│   │   ├── redhat.repo
-│   │   └── redhat-uep.pem
-│   ├── offline_repo/                      # Offline repository storage
-│   │   └── cluster/
-│   │       └── x86_64/rhel/10.0/rpms/
-│   └── .data/                             # Metadata files
-│       └── oim_metadata.yml
-└── catalog/                               # Catalog files (shared across modules)
-    └── catalog_rhel.json
-```
+## Content Model
 
-## Content Types
+| Catalog type | Resolution | Pulp content |
+|--------------|------------|--------------|
+| `rpm` | Package name and mapped `reponame` | RPM repository |
+| `rpm_repo` | DNF resolves package and dependencies | RPM repository |
+| `rpm_file` | Direct RPM file | RPM repository |
+| `image` | Image name, tag and mapped registry | Container repository |
+| `pip_module` | Package and version | Python repository |
+| `tarball`, `manifest`, `git`, `iso`, `shell`, `ansible_galaxy_collection` | Type-specific source | File repository |
 
-Repo Manager supports the following content types in Pulp:
+See [Content Configuration Guide](content-configuration-guide.md) for catalog
+mapping and policy behavior.
 
-| Type | Description | Examples |
-|------|-------------|----------|
-| RPM | RPM repositories | OS repositories, custom RPM repos |
-| Tarball | Container image tarballs | Docker images, Singularity images |
-| Manifest | Container manifests | Image manifests, signatures |
-| Git | Git repositories | Source code repositories |
-| Pip Module | Python packages | PyPI packages, custom Python modules |
-| ISO | ISO images | OS installation media |
-| Shell | Shell scripts | Installation scripts, utilities |
-| Ansible Galaxy Collection | Ansible collections | Automation collections |
+## Runtime Paths
 
-## Key Design Decisions
+| Purpose | Path |
+|---------|------|
+| Input | `<REPO_MANAGER_DATA_PATH>/input/<project>/` |
+| Output | `<REPO_MANAGER_DATA_PATH>/output/<project>/` |
+| Operational logs | `<REPO_MANAGER_DATA_PATH>/log/` |
+| Pulp settings and data | `<REPO_MANAGER_DATA_PATH>/pulp_config/` |
+| RHEL entitlement copy | `<REPO_MANAGER_DATA_PATH>/rhel_repo_certs/` |
+| Local content staging | `<REPO_MANAGER_DATA_PATH>/offline_repo/` |
+| Top-level Ansible log | `/var/log/omnia/repo_manager/repo_manager.log` |
 
-1. **Localhost-only execution** — No SSH dependencies, all tasks run on localhost
-2. **Pulp as content server** — Uses Pulp for content management and distribution
-3. **System-wide Pulp CLI** — Creates `/usr/local/bin/pulp` symlink for easy access
-4. **Tag-based execution** — Supports selective execution via tags (deploy, precheck, download, status, cleanup)
-5. **Parallel downloads** — Configurable concurrency for content downloads
-6. **Architecture support** — Supports both x86_64 and aarch64 architectures
-7. **Subscription validation** — Validates RHEL subscription before OS URL configuration
-8. **User repository support** — Allows custom user repositories in addition to standard repos
-9. **SSL/TLS support** — Configures HTTPS for Pulp server with certificate management
-10. **Pre-flight checks** — Detects existing healthy Pulp deployment to avoid unnecessary redeployment
+`REPO_MANAGER_DATA_PATH` defaults to `<OMNIA_DATA_PATH>/repo_manager`.
 
-## Custom Modules
+---
 
-Repo Manager includes custom Ansible modules for Pulp operations:
+## Validation
 
-| Module | Purpose |
+### Schema Validation
+
+| Schema | Purpose |
 |--------|---------|
-| `generate_local_repo_access` | Generate repo_status.yml from Pulp distributions |
-| `pulp_cleanup` | Cleanup Pulp repositories and distributions |
-| `pulp_repo_name_migration` | Migrate repository names between versions |
-| `validate_input` | Validate input configuration files |
-| `validate_credentials` | Validate credential storage and access |
-| `validate_user_repo` | Validate user repository configurations |
-| `process_rpm_config` | Process RPM configuration and download tasks |
-| `parallel_tasks` | Execute tasks in parallel with concurrency control |
-| `prepare_tasklist` | Prepare and organize download task lists |
-| `localrepo_metadata_manager` | Manage local repository metadata |
-| `check_user_registry` | Check user registry access and authentication |
-| `fetch_credential_rule` | Fetch credential rules for validation |
-| `cert_vault_handler` | Handle certificate vault operations |
-| `vault_handler` | General vault operations for secrets |
+| `repo_manager_config.json` | Repository, registry and policy structure |
+| `repo_manager_endpoint_config.json` | Pulp IP and host port |
+| Catalog schema | Functional layers, groups, packages and sources |
 
-## Plugin Structure
+### Logic and Runtime Validation
 
-Following Ansible standard structure:
+| Check | Failure behavior |
+|-------|------------------|
+| Required environment and files | Fail before deployment or download |
+| Catalog source mappings | Report exact missing repository or registry |
+| Repository policy combinations | Reject unsupported or unsafe combinations |
+| Subscription repository resolution | Require URLs when subscription content is unavailable |
+| Private-registry credentials | Require matching Vault entry for basic auth |
+| Pulp health | Stop download, status or cleanup operations immediately |
+| Cleanup verification | Update local tracking only after Pulp confirms deletion |
 
-```
-plugins/
-├── callback/          # Output callbacks (omnia_default)
-├── modules/           # Custom Ansible modules
-└── module_utils/      # Module utilities
-    ├── input_validation/  # Input validation framework
-    └── repo_manager/       # Repo manager utilities
-```
+## Related Documentation
+
+- [Input Contract](contracts/input-contract.md)
+- [Output Contract](contracts/output-contract.md)
+- [Content Configuration Guide](content-configuration-guide.md)
+- [Catalog Operations](catalog_operations.md)
+- [Security](security.md)
+- [Troubleshooting](troubleshooting.md)

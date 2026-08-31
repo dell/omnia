@@ -34,16 +34,17 @@ repository_creation_lock = multiprocessing.Lock()
 _container_distribution_locks = {}
 _container_dist_locks_lock = multiprocessing.Lock()
 
+
 def get_container_distribution_lock(dist_name):
     """
     Get or create lock for specific container distribution.
-    
+
     This allows different container distributions to be processed in parallel
     while preventing race conditions for the same distribution.
-    
+
     Args:
         dist_name (str): The distribution name to get a lock for.
-    
+
     Returns:
         Lock: The lock for this specific distribution.
     """
@@ -64,7 +65,7 @@ def create_container_repository(repo_name, logger):
     """
     try:
         if not execute_command(pulp_container_commands["show_container_repo"] % (repo_name),
-                              logger):
+                               logger):
             command = pulp_container_commands["create_container_repo"] % (repo_name)
             result = execute_command(command, logger)
             logger.info(f"Repository created successfully: {repo_name}")
@@ -98,7 +99,9 @@ def extract_existing_tags(remote_name, logger):
             logger.error("Unexpected data format for remote tags.")
             return []
 
-        return remotes[0].get("include_tags", [])
+        # pulp-cli exposes ContainerRemote.include_tags as ``includes``.
+        # Keep the old key as a compatibility alias for older responses.
+        return remotes[0].get("includes", remotes[0].get("include_tags", []))
 
     except Exception as e:
         logger.error(f"Error extracting tags: {e}")
@@ -108,6 +111,7 @@ def extract_existing_tags(remote_name, logger):
 def create_container_distribution(repo_name, package_content, logger):
     """
     Create or update a distribution for a repository.
+
     Args:
         repo_name (str): The name of the repository.
         package_content (str): The content of the package.
@@ -120,16 +124,16 @@ def create_container_distribution(repo_name, package_content, logger):
     try:
         # Get lock for this specific distribution
         dist_lock = get_container_distribution_lock(repo_name)
-        
+
         with dist_lock:
             if not execute_command(pulp_container_commands["show_container_distribution"] % (repo_name),
-                logger):
+                                   logger):
                 command = pulp_container_commands["distribute_container_repository"] % (repo_name,
-                          repo_name, package_content)
+                                                                                        repo_name, package_content)
                 return execute_command(command, logger)
             else:
                 command = pulp_container_commands["update_container_distribution"] % (repo_name,
-                          repo_name, package_content)
+                                                                                      repo_name, package_content)
                 return execute_command(command, logger)
     except Exception as e:
         logger.error(f"Error creating distribution {repo_name}: {e}")
@@ -179,7 +183,7 @@ def sync_container_repository(repo_name, remote_name, package_content, logger, t
 
                 if not version_after or version_after.endswith("/versions/0/"):
                     logger.error(f"Sync completed but no content was downloaded for {repo_name}. "
-                               f"The specified image tag likely does not exist in the upstream registry.")
+                                 f"The specified image tag likely does not exist in the upstream registry.")
                     return False
 
                 if version_before and version_after and version_before == version_after:
@@ -190,7 +194,8 @@ def sync_container_repository(repo_name, remote_name, package_content, logger, t
                         dist_result = execute_command(dist_command, logger, type_json=True)
 
                         if not dist_result or not isinstance(dist_result, dict) or "stdout" not in dist_result:
-                            logger.info(f"Distribution {repo_name} does not exist yet - skipping tag validation, will create distribution")
+                            logger.info(
+                                f"Distribution {repo_name} does not exist yet - skipping tag validation, will create distribution")
                         # Skip tag validation but continue to create distribution at line 221
                         else:
                             # Distribution exists, validate the tag
@@ -206,7 +211,8 @@ def sync_container_repository(repo_name, remote_name, package_content, logger, t
                             repo_result = execute_command(repo_command, logger, type_json=True)
 
                             if not repo_result or not isinstance(repo_result, dict) or "stdout" not in repo_result:
-                                logger.error(f"Failed to get repository info for {repo_href}. Assuming tag doesn't exist.")
+                                logger.error(
+                                    f"Failed to get repository info for {repo_href}. Assuming tag doesn't exist.")
                                 return False
 
                             repo_data = repo_result["stdout"]
@@ -226,7 +232,8 @@ def sync_container_repository(repo_name, remote_name, package_content, logger, t
                             tags_result = execute_command(tags_command, logger, type_json=True)
 
                             if not tags_result or not isinstance(tags_result, dict) or "stdout" not in tags_result:
-                                logger.error(f"Failed to get content tags for {repo_ver_href}. Assuming tag doesn't exist.")
+                                logger.error(
+                                    f"Failed to get content tags for {repo_ver_href}. Assuming tag doesn't exist.")
                                 return False
 
                             tags_data = tags_result["stdout"]
@@ -241,17 +248,19 @@ def sync_container_repository(repo_name, remote_name, package_content, logger, t
                             tag_to_check = tag if tag else package_content
 
                             for tag_item in tags:
-                                if isinstance(tag_item, dict) and "name" in tag_item and tag_item["name"] == tag_to_check:
+                                if isinstance(
+                                        tag_item, dict) and "name" in tag_item and tag_item["name"] == tag_to_check:
                                     tag_exists = True
                                     break
 
                             if tag_exists:
-                                logger.info(f"Tag '{tag_to_check}' already exists in Pulp repository {repo_name}. No sync needed - image is already available.")
+                                logger.info(
+                                    f"Tag '{tag_to_check}' already exists in Pulp repository {repo_name}. No sync needed - image is already available.")
                             else:
                                 logger.error(f"Sync completed but repository version did not change for {repo_name}. "
-                                        f"Version remained at {version_after}. "
-                                        f"Tag '{tag_to_check}' does not exist in Pulp repository content. "
-                                        f"This indicates the tag likely does not exist in the upstream registry.")
+                                             f"Version remained at {version_after}. "
+                                             f"Tag '{tag_to_check}' does not exist in Pulp repository content. "
+                                             f"This indicates the tag likely does not exist in the upstream registry.")
                                 return False
 
                     except Exception as e:

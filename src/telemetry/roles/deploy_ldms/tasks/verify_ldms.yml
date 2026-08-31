@@ -58,7 +58,7 @@
 
 - name: Check LDMS sampler configuration on NFS
   ansible.builtin.stat:
-    path: "{{ ldms_share_path }}/samplers/sampler.conf"
+    path: "{{ ldms_sampler_share_path }}/samplers/sampler.conf"
   register: sampler_conf_check
 
 - name: Display LDMS telemetry verification summary

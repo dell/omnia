@@ -22,7 +22,7 @@ telemetry_namespace: "telemetry"
 cleanup_resource_grace_period: 0
 cleanup_post_delete_pause: 5
 cleanup_helm_timeout: "5m"
-telemetry_deployments_dir: "{{ cluster_mount | default('/share_omnia_k8s') }}/telemetry/deployments"
+telemetry_deployments_dir: "{{ k8s_cluster_mount | default('/opt/omnia/k8s_mount') }}/telemetry/deployments"
 
 # =============================================================================
 # Kafka cleanup resources
@@ -66,6 +66,7 @@ kafka_service_resources:
   - "kafka-kafka-brokers"
   - "kafka-kafka-controllers"
 
+kafka_topic_label: "strimzi.io/cluster=kafka"
 kafka_pvc_label: "strimzi.io/cluster=kafka"
 kafka_secret_label: "strimzi.io/cluster=kafka"
 kafka_pod_labels:
@@ -222,6 +223,18 @@ vector_ldms_resources:
 
 vector_ldms_pod_label: "app=vector-ldms"
 
+# LDMS sampler cleanup (all LDMS-enabled nodes)
+ldms_sampler_service_name: "ldmsd.sampler"
+ldms_sampler_service_file: "/etc/systemd/system/ldmsd.sampler.service"
+ldms_sampler_config_dir: "/opt/ovis-ldms/etc/ldms"
+
+# LDMS functional groups that have sampler installed
+ldms_sampler_groups:
+  - slurm_node
+  - slurm_control_node
+  - login_node
+  - login_compiler_node
+
 # =============================================================================
 # OME cleanup resources
 # =============================================================================
@@ -288,15 +301,4 @@ vast_resources:
   - { type: "endpoints", name: "vast-external" }
   - { type: "service", name: "vast-external" }
   - { type: "vmservicescrape", name: "vast-storage-metrics" }
-
 vast_pod_label: "app=vast-external"
-
-# =============================================================================
-# SFM cleanup resources
-# =============================================================================
-sfm_resources:
-  - { type: "deployment", name: "sfm-exporter" }
-  - { type: "service", name: "sfm-exporter" }
-  - { type: "configmap", name: "sfm-scrape-config" }
-
-sfm_pod_label: "app=sfm-telemetry"
