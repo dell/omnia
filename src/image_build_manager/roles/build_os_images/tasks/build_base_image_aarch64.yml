@@ -45,9 +45,13 @@
   connection: ssh
 
 # --- Base image cache check ---
+# Hash includes packages + repo config (URLs, priorities, names) so that
+# repo configuration changes also trigger rebuilds.
 - name: Compute base image package hash
   ansible.builtin.set_fact:
-    _base_pkg_hash: "{{ base_image_packages | sort | join(',') | hash('sha256') }}"
+    _base_pkg_hash: >-
+      {{ (base_image_packages | sort | join(',') + '|repos:' + _repo_config_hash)
+         | hash('sha256') }}
 
 - name: Set base image hash file path
   ansible.builtin.set_fact:

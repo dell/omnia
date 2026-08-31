@@ -63,12 +63,13 @@
       connection: ssh
 
     # --- Compute image cache check ---
+    # Including _repo_config_hash ensures repo URL/priority changes trigger rebuilds.
     - name: Compute per-group package hashes
       ansible.builtin.set_fact:
         _compute_pkg_hashes: >-
           {% set result = {} -%}
           {% for fg_name, fg_data in compute_images_dict.items() -%}
-            {% set _ = result.update({fg_name: (fg_data.packages | sort | join(',') | hash('sha256'))}) -%}
+            {% set _ = result.update({fg_name: (fg_data.packages | sort | join(',') + '|repos:' + _repo_config_hash) | hash('sha256')}) -%}
           {% endfor -%}
           {{ result }}
 
@@ -190,7 +191,7 @@
             item.value.os_version | default(rhel_tag, true) }}.yaml:{{ _config_mount_path }}:z
             {{ ochami_image | join(' ') }}
             {{ ochami_base_command | join(' ') }}
-          log_path: "{{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log"
+          log_path: "{{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix }}{{ _build_type_suffix }}_compute_image.log"
       loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
       loop_control:
         loop_var: item

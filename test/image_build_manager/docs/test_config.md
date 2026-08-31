@@ -15,8 +15,9 @@ Run tests directly on the machine where `image_build_manager` is deployed.
 oim_server_ip: ""    # Leave empty — tests run locally
 ```
 
-No SSH, no sync, no clone settings needed. The playbook must already be
-deployed on this machine.
+No SSH or clone setting is used, and project sync does not run. Optional input
+and repo-manager-output sync still run locally when their flags are enabled.
+Tests and playbooks use the current Omnia checkout.
 
 ### Remote Mode
 
@@ -26,6 +27,7 @@ Run tests against a remote OIM server over SSH.
 oim_server_ip: "<target_ip>"   # MANDATORY — target server IP
 oim_ssh_user: root              # SSH user (default: root)
 oim_ssh_port: 22                # SSH port (default: 22)
+clone_path: "/omnia"            # MANDATORY — absolute path on target
 ```
 
 ---

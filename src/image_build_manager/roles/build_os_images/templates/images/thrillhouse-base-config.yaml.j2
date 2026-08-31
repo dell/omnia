@@ -17,11 +17,19 @@ layer:
         [{{ repo.name }}]
         name={{ repo.name }}
         baseurl={{ repo.base_url }}
-        gpgcheck={{ '0' if not (repo_ssl_verify | default(true) | bool) else '1' }}
+        gpgcheck=0
         sslverify={{ '0' if not (repo_ssl_verify | default(true) | bool) else '1' }}
+{% if (repo_ssl_verify | default(true) | bool) and (repo_cert_path | default('') | length > 0) %}
+        sslcacert={{ anchors_path }}
+{% endif %}
         priority={{ repo.priority | default("99") }}
 {% endif %}
 {% endfor %}
+{% if (repo_ssl_verify | default(true) | bool) and (repo_cert_path | default('') | length > 0) %}
+  files:
+    - path: {{ anchors_path }}
+      src: {{ anchors_path }}
+{% endif %}
   actions:
     install:
       groups:

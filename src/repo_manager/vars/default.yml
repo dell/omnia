@@ -176,7 +176,7 @@ container_sync_policy: "immediate"
 rpm_repo_config:
   # Number of RPM repositories to process in parallel in every Pulp stage (1-10).
   # Keep at 1 for NFS-backed Pulp storage; increase gradually after validation.
-  thread_pool_size: 1      # ENV: REPO_MANAGER_THREAD_POOL_SIZE
+  thread_pool_size: 3      # ENV: REPO_MANAGER_THREAD_POOL_SIZE
 
   # Maximum time for any single Pulp command in seconds
   pulp_timeout: 86400      # ENV: REPO_MANAGER_PULP_TIMEOUT (24 hours)

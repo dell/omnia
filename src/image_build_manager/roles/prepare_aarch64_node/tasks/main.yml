@@ -137,13 +137,78 @@
     builder_image_path: >-
       {{ hostvars['localhost']['oim_pxe_ip'] }}:{{ hostvars['localhost']['repo_port'] | default(2225) }}/{{ repo_builder_image }}
 
-- name: Check if builder image already exists locally
+# ---------------------------------------------------------------------------
+# Multi-name local image detection (aarch64)
+# ---------------------------------------------------------------------------
+# The builder image can exist locally under any of three names:
+#   1. local_tag           — the build-time tag (e.g. aarch64-image-thrillhouse/ochami)
+#   2. repo_builder_image  — upstream name (e.g. ghcr.io/.../image-thrillhouse:v0.0.24)
+#   3. builder_image_path  — Pulp mirror path (e.g. 10.20.0.1:2225/ghcr.io/...)
+# If the image is found under ANY name, we tag it as local_tag and skip pulling.
+# ---------------------------------------------------------------------------
+- name: Check if builder image already exists locally (local_tag)
   containers.podman.podman_image_info:
     name: "{{ local_tag }}"
-  register: local_image_info
+  register: _local_tag_info
 
+- name: Check if builder image exists under upstream name
+  containers.podman.podman_image_info:
+    name: "{{ repo_builder_image }}"
+  register: _upstream_name_info
+  when: _local_tag_info.images | length == 0
+
+- name: Check if builder image exists under repo_manager mirror name
+  containers.podman.podman_image_info:
+    name: "{{ builder_image_path }}"
+  register: _repo_manager_name_info
+  when:
+    - _local_tag_info.images | length == 0
+    - (_upstream_name_info.images | default([])) | length == 0
+
+- name: Set builder image availability fact
+  ansible.builtin.set_fact:
+    _builder_image_found: >-
+      {{ (_local_tag_info.images | length > 0)
+         or ((_upstream_name_info.images | default([])) | length > 0)
+         or ((_repo_manager_name_info.images | default([])) | length > 0) }}
+    _builder_image_source: >-
+      {%- if _local_tag_info.images | length > 0 -%}local_tag
+      {%- elif (_upstream_name_info.images | default([])) | length > 0 -%}upstream
+      {%- elif (_repo_manager_name_info.images | default([])) | length > 0 -%}repo_manager
+      {%- else -%}none{%- endif -%}
+
+- name: Display skip notice — builder image already available
+  ansible.builtin.debug:
+    msg: >-
+      Builder image already present locally (found as {{ _builder_image_source }}).
+      Skipping pull from registry. Image: {{ local_tag }}
+  when: _builder_image_found | bool
+
+- name: Tag existing upstream image as local_tag
+  containers.podman.podman_tag:
+    image: "{{ repo_builder_image }}"
+    target_names:
+      - "{{ local_tag }}"
+  changed_when: false
+  when:
+    - _builder_image_found | bool
+    - _builder_image_source == 'upstream'
+
+- name: Tag existing repo_manager image as local_tag
+  containers.podman.podman_tag:
+    image: "{{ builder_image_path }}"
+    target_names:
+      - "{{ local_tag }}"
+  changed_when: false
+  when:
+    - _builder_image_found | bool
+    - _builder_image_source == 'pulp'
+
+# ---------------------------------------------------------------------------
+# Pull only when the image is NOT available locally under any name
+# ---------------------------------------------------------------------------
 - name: Pull and tag aarch64 builder image
-  when: local_image_info.images | length == 0
+  when: not (_builder_image_found | bool)
   block:
     - name: Pull aarch64 image from repo manager registry (Pulp)
       containers.podman.podman_image:
