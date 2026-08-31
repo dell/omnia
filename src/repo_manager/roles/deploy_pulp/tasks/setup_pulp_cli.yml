@@ -13,16 +13,17 @@
 # limitations under the License.
 ---
 # =============================================================================
-# SETUP PULP CLI - Ensure pulp CLI is available at /usr/local/bin/pulp
+# SETUP PULP CLI - Ensure pulp CLI is available with managed TLS trust
 # =============================================================================
-# This task file ensures the pulp CLI is available system-wide.
-# It creates a symlink from the virtual environment's pulp binary to
-# /usr/local/bin/pulp so all scripts and modules can use it.
+# Preserve the installed console entry point as a backend and install a small
+# launcher at /usr/local/bin/pulp. The launcher supplies PULP_CA_BUNDLE so the
+# pip-installed CLI can validate Repo Manager's private certificate without a
+# manual shell export. Caller-provided PULP_CA_BUNDLE values still take priority.
 # =============================================================================
 
 - name: Check if pulp CLI exists at /usr/local/bin/pulp
   ansible.builtin.stat:
-    path: /usr/local/bin/pulp
+    path: "{{ pulp_cli_executable }}"
   register: pulp_system_cli_check
 
 - name: Find pulp CLI path from current environment
@@ -35,16 +36,19 @@
 - name: Create symlink for pulp CLI at /usr/local/bin/pulp
   ansible.builtin.file:
     src: "{{ pulp_which_result.stdout }}"
-    dest: /usr/local/bin/pulp
+    dest: "{{ pulp_cli_executable }}"
     state: link
   when:
     - not pulp_system_cli_check.stat.exists
     - pulp_which_result.rc | default(1) == 0
     - pulp_which_result.stdout | default('') | length > 0
 
-- name: Verify pulp CLI is accessible at /usr/local/bin/pulp
-  ansible.builtin.command: /usr/local/bin/pulp --version
-  register: pulp_cli_version
+- name: Verify installed Pulp CLI before configuring its launcher
+  ansible.builtin.command:
+    argv:
+      - "{{ pulp_cli_executable }}"
+      - --version
+  register: _pulp_cli_installed_version
   changed_when: false
   failed_when: false
 
@@ -56,7 +60,78 @@
         source <venv_path>/bin/activate
         pip install pulp-cli
       Then run the playbook again to create the symlink automatically.
-  when: pulp_cli_version.rc != 0
+  when: _pulp_cli_installed_version.rc != 0
+
+- name: Check whether the Pulp CLI launcher is managed by Repo Manager
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -Fqx
+      - "# Managed by Omnia Repo Manager"
+      - "{{ pulp_cli_executable }}"
+  register: _pulp_cli_launcher_check
+  changed_when: false
+  failed_when: false
+
+- name: Ensure Pulp CLI backend directory exists
+  ansible.builtin.file:
+    path: "{{ pulp_cli_backend | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Resolve the installed Pulp CLI entry point
+  ansible.builtin.command:
+    argv:
+      - readlink
+      - -f
+      - "{{ pulp_cli_executable }}"
+  register: _pulp_cli_source
+  changed_when: false
+  when: _pulp_cli_launcher_check.rc != 0
+
+- name: Preserve installed Pulp CLI as managed backend
+  ansible.builtin.copy:
+    src: "{{ _pulp_cli_source.stdout }}"
+    dest: "{{ pulp_cli_backend }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+  when: _pulp_cli_launcher_check.rc != 0
+
+- name: Verify managed Pulp CLI backend exists
+  ansible.builtin.stat:
+    path: "{{ pulp_cli_backend }}"
+  register: _pulp_cli_backend_state
+
+- name: Require a valid managed Pulp CLI backend
+  ansible.builtin.assert:
+    that:
+      - _pulp_cli_backend_state.stat.exists
+      - _pulp_cli_backend_state.stat.isreg
+      - _pulp_cli_backend_state.stat.executable
+    fail_msg: >-
+      The managed Pulp CLI backend is unavailable. Reinstall pulp-cli and run
+      the prepare operation again.
+
+- name: Install managed Pulp CLI launcher
+  ansible.builtin.template:
+    src: pulp_cli_launcher.sh.j2
+    dest: "{{ pulp_cli_executable }}"
+    owner: root
+    group: root
+    mode: "0755"
+    force: true
+
+- name: Verify managed Pulp CLI launcher
+  ansible.builtin.command:
+    argv:
+      - "{{ pulp_cli_executable }}"
+      - --version
+  register: pulp_cli_version
+  changed_when: false
 
 - name: Display pulp CLI status
   ansible.builtin.debug:

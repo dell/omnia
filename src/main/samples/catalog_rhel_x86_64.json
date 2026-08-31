@@ -342,6 +342,7 @@
           "strimzi_kafka_operator_helm_3_chart_1_1_0",
           "quay_io/strimzi/kafka_bridge",
           "docker_io/victoriametrics/operator",
+          "docker_io/victoriametrics/operator",
           "victoria_metrics_operator_0_59_3",
           "docker_io/timberio/vector",
           "apptainer",
@@ -388,6 +389,7 @@
           "docker_io/victoriametrics/vmselect",
           "docker_io/victoriametrics/victoria_logs",
           "docker_io/victoriametrics/vlagent",
+          "docker_io/victoriametrics/operator",
           "docker_io/victoriametrics/operator",
           "docker_io/apache/activemq",
           "docker_io/library/mysql",
@@ -1374,7 +1376,7 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "reponame": "baseos",
+            "reponame": "appstream",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1388,7 +1390,7 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "reponame": "baseos",
+            "reponame": "appstream",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1444,7 +1446,7 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "reponame": "codeready-builder",
+            "reponame": "appstream",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1514,7 +1516,7 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "reponame": "baseos",
+            "reponame": "appstream",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1528,7 +1530,7 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "reponame": "codeready-builder",
+            "reponame": "appstream",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1542,7 +1544,7 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "reponame": "codeready-builder",
+            "reponame": "appstream",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1696,7 +1698,7 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "reponame": "codeready-builder",
+            "reponame": "appstream",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1819,7 +1821,7 @@
       },
       "doca_ofed": {
         "name": "doca-ofed",
-        "packagetype": "rpm_repo",
+        "packagetype": "rpm",
         "sources": [
           {
             "architecture": "x86_64",

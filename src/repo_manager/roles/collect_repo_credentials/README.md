@@ -6,11 +6,11 @@ Collects and manages repository manager credentials with support for multiple au
 
 ## Features
 
-- **Flexible Authentication**: Supports basic auth, TLS certificates, and no-authentication modes
+- **Flexible Authentication**: Supports basic auth and no-authentication modes
 - **Interactive Prompting**: Prompts users for credentials when values are missing or empty
 - **Credential Encryption**: Encrypts credential files using Ansible Vault
 - **Multiple Registry Support**: Handles Pulp, Docker Hub, and custom container registries
-- **TLS Configuration**: Manages CA certificates, client certificates, and client keys
+- **Atomic Persistence**: Never decrypts the canonical credential file in place
 - **Credential Persistence**: Preserves credentials across deployments unless explicitly deleted
 
 ## Requirements
@@ -31,20 +31,22 @@ Collects and manages repository manager credentials with support for multiple au
 
 ### Registry Configuration
 
-Registry credentials are configured in `repo_manager_config.yml`:
+Registry authentication is configured using lowercase keys in `repo_manager_config.yml`:
 
 ```yaml
-registry_credentials:
-  - registry_name: "my-registry"
-    auth_type: "basic"  # or "none"
-    username_field: "my_registry_username"
-    password_field: "my_registry_password"
-    password_required: true
-    vault_path: "/path/to/vault/key"
-    tls_ca_path: "my_registry_ca_path"
-    tls_cert_path: "my_registry_cert_path"
-    tls_key_path: "my_registry_key_path"
-    insecure_skip_verify: "my_registry_skip_verify"
+registries:
+  harbor.example.com:
+    base_url: "https://harbor.example.com"
+    port: 443
+    auth:
+      type: basic
+      credentials:
+        vault_path: "registries/harbor-production"
+    tls:
+      ca_path: ""
+      client_cert_path: ""
+      client_key_path: ""
+      insecure: false
 ```
 
 ## Dependencies
@@ -88,26 +90,24 @@ pulp_password: "encrypted_password"
 docker_username: "docker_user"
 docker_password: "encrypted_password"
 
-# Registry Credentials (optional)
-my_registry_username: "registry_user"
-my_registry_password: "encrypted_password"
-my_registry_ca_path: "/path/to/ca.crt"
-my_registry_cert_path: "/path/to/client.crt"
-my_registry_key_path: "/path/to/client.key"
-my_registry_skip_verify: "false"
+# Configured registry credentials (optional)
+registry_credentials:
+  registries/harbor-production:
+    registry: "harbor.example.com"
+    username: "registry_user"
+    password: "encrypted_password"
 ```
 
 ## Authentication Types
 
 ### Basic Authentication
 - Requires both username and password
-- Password can be mandatory or optional
+- Username and password are mandatory for `type: basic`
 - Encrypted using Ansible Vault
 
 ### TLS Authentication
-- Supports CA certificates, client certificates, and client keys
-- Configurable TLS verification skip option
-- Certificate paths are stored in credential file
+- CA certificates, client certificates, and client keys are configured in
+  `repo_manager_config.yml`; they are not credentials and are not prompted
 
 ### No Authentication
 - Used for public registries
@@ -132,7 +132,7 @@ my_registry_skip_verify: "false"
 - The role automatically detects if credentials are already loaded
 - Missing mandatory credentials trigger interactive prompts
 - Optional credentials can be skipped by pressing Enter
-- Vault keys are stored in `.local_repo_credentials_key` files
+- The vault key is stored in `.repo_manager_config_credentials_key`
 
 ## Troubleshooting
 

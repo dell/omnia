@@ -11,208 +11,208 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# pylint: disable=import-error,no-name-in-module
+"""Container registry configuration and resolution helpers."""
+
+import os
 import socket
-import ssl
-from ansible.module_utils.repo_manager.common_functions import is_file_exists
+from urllib.parse import urlsplit, urlunsplit
 
 
-def is_https(host, timeout=1):
+PUBLIC_REGISTRY_URLS = {
+    "docker.io": "https://registry-1.docker.io",
+    "ghcr.io": "https://ghcr.io",
+    "quay.io": "https://quay.io",
+    "registry.k8s.io": "https://registry.k8s.io",
+    "nvcr.io": "https://nvcr.io",
+    "public.ecr.aws": "https://public.ecr.aws",
+    "gcr.io": "https://gcr.io",
+}
+
+
+def is_public_registry(registry_name):
+    """Return whether *registry_name* is supported without user configuration."""
+    return registry_name in PUBLIC_REGISTRY_URLS
+
+
+def build_registry_base_url(registry_config):
+    """Build the upstream base URL from a validated lowercase registry config."""
+    if not isinstance(registry_config, dict):
+        raise TypeError("Registry configuration must be a mapping")
+
+    base_url_value = registry_config.get("base_url", "")
+    if not isinstance(base_url_value, str):
+        raise ValueError("Registry base_url must be a string")
+    base_url = base_url_value.rstrip("/")
+    port = registry_config.get("port")
+    parsed = urlsplit(base_url)
+    if not parsed.scheme or not parsed.hostname:
+        raise ValueError(f"Invalid registry base_url: {base_url}")
+
+    # Keep a port explicitly present in base_url. Otherwise add the configured port.
+    if parsed.port is not None or port is None:
+        return base_url
+
+    hostname = parsed.hostname
+    if ":" in hostname and not hostname.startswith("["):
+        hostname = f"[{hostname}]"
+    netloc = f"{hostname}:{port}"
+    return urlunsplit((parsed.scheme, netloc, parsed.path.rstrip("/"), "", ""))
+
+
+def get_image_path_for_registry(package_name, registry_name):
+    """Return the upstream image path after validating its catalog registry prefix."""
+    prefix = f"{registry_name}/"
+    if not package_name.startswith(prefix):
+        raise ValueError(
+            f"Image '{package_name}' must start with its catalog registry '{prefix}'"
+        )
+    image_path = package_name[len(prefix):]
+    if not image_path:
+        raise ValueError(f"Image path is empty for '{package_name}'")
+    return image_path
+
+
+def resolve_registry_contexts(registries, credential_data):
+    """Resolve configured registries and their Ansible Vault credential records.
+
+    The returned mapping is safe to pass to image tasks. Fixed keys are lowercase;
+    user-provided values are preserved exactly.
     """
-    Check whether the given host is serving HTTPS (TLS).
+    contexts = {}
+    registry_credentials = (credential_data or {}).get("registry_credentials") or {}
+    if not isinstance(registry_credentials, dict):
+        raise ValueError("registry_credentials must be a mapping")
 
-    Attempts a TLS handshake without verifying the server certificate.
+    if registries is not None and not isinstance(registries, dict):
+        raise ValueError("registries must be a mapping")
 
-    Args:
-        host (str): The host address in "ip:port" format.
-        timeout (int, optional): Connection timeout in seconds. Defaults to 1.
+    for registry_name, registry_config in (registries or {}).items():
+        if not isinstance(registry_config, dict):
+            raise ValueError(f"Registry '{registry_name}' must be a mapping")
+        auth = registry_config.get("auth") or {"type": "none"}
+        if not isinstance(auth, dict):
+            raise ValueError(f"Registry '{registry_name}' auth must be a mapping")
+        auth_type = auth.get("type", "none")
+        if auth_type not in ("none", "basic"):
+            raise ValueError(
+                f"Registry '{registry_name}' has unsupported auth type '{auth_type}'"
+            )
+        tls = registry_config.get("tls") or {}
+        if not isinstance(tls, dict):
+            raise ValueError(f"Registry '{registry_name}' tls must be a mapping")
+        context = {
+            "name": registry_name,
+            "base_url": build_registry_base_url(registry_config),
+            "auth_type": auth_type,
+            "username": "",
+            "password": "",
+            "tls": tls,
+        }
 
-    Returns:
-        bool: True if the host supports HTTPS/TLS, False otherwise.
-    """
-    ip, port = host.rsplit(":", 1)
-    port = int(port)
+        if auth_type == "basic":
+            credentials_config = auth.get("credentials") or {}
+            vault_path = credentials_config.get("vault_path", "")
+            credentials = registry_credentials.get(vault_path) or {}
+            if not isinstance(credentials, dict):
+                raise ValueError(
+                    f"Credential record '{vault_path}' must be a mapping"
+                )
+            credential_registry = credentials.get("registry", "")
+            if credential_registry and credential_registry != registry_name:
+                raise ValueError(
+                    f"Credential record '{vault_path}' is mapped to registry "
+                    f"'{credential_registry}', not '{registry_name}'"
+                )
+            username = credentials.get("username", "")
+            password = credentials.get("password", "")
+            if not username or not password:
+                raise ValueError(
+                    f"Basic authentication credentials are missing for registry '{registry_name}'"
+                )
+            context["username"] = username
+            context["password"] = password
+            context["vault_path"] = vault_path
 
-    context = ssl.create_default_context()
-    context.check_hostname = False  # NOSONAR - TLS capability probe requires unverified connection
-    context.verify_mode = ssl.CERT_NONE  # NOSONAR - TLS capability probe requires unverified connection
+        contexts[registry_name] = context
 
-    result = False
-    sock = None
-    wrapped_sock = None
-
-    try:
-        sock = socket.create_connection((ip, port), timeout=timeout)
-        wrapped_sock = context.wrap_socket(sock, server_hostname=ip)
-        result = True
-
-    except (ssl.SSLError, OSError):
-        result = False
-
-    finally:
-        # Close wrapped socket first
-        if wrapped_sock is not None:
-            try:
-                wrapped_sock.shutdown(socket.SHUT_RDWR)
-            except Exception:
-                pass
-            try:
-                wrapped_sock.close()
-            except Exception:
-                pass
-
-        # Then explicitly close original socket
-        if sock is not None:
-            try:
-                sock.close()
-            except Exception:
-                pass
-
-    return result
+    return contexts
 
 
-def validate_user_registry(user_registry):
-    """
-    Validates a list of user registry entries with connectivity and credential check.
-    Args:
-        user_registry (list): List of user registry dictionaries.
-    Returns:
-        tuple: (bool, str) indicating overall validity and error message if invalid.
-    """
-    if not isinstance(user_registry, list):
-        return False, "user_registry must be a list."
+def validate_user_registry(registries):
+    """Validate the lowercase configured-registry structure."""
+    if registries is None:
+        return True, ""
+    if not isinstance(registries, dict):
+        return False, "registries must be a mapping."
 
-    for idx, item in enumerate(user_registry):
-        if not isinstance(item, dict):
-            return False, f"Entry at index {idx} must be a dictionary."
+    for registry_name, registry_config in registries.items():
+        if not isinstance(registry_config, dict):
+            return False, f"Registry '{registry_name}' must be a mapping."
+        try:
+            build_registry_base_url(registry_config)
+        except (TypeError, ValueError) as exc:
+            return False, f"Registry '{registry_name}': {exc}"
 
-        host = item.get('host')
-        if not host:
-            return False, f"Missing or empty 'host' in entry at index {idx}: {item}"
-        https = is_https(host)
-
-        cert_path = (item.get("cert_path") or "").strip()
-        key_path  = (item.get("key_path")  or "").strip()
-
-        if https and (not cert_path or not key_path):
-            return False, f"{host} is an HTTPS registry and requires cert_path and key_path. Please provide cert_path and key_path in local_repo_config.yml under user_registry section"
+        tls = registry_config.get("tls") or {}
+        client_cert = tls.get("client_cert_path") or ""
+        client_key = tls.get("client_key_path") or ""
+        if bool(client_cert) != bool(client_key):
+            return False, (
+                f"Registry '{registry_name}' must configure client_cert_path and "
+                "client_key_path together."
+            )
 
     return True, ""
 
-        # requires_auth = item.get('requires_auth', False)
 
-        # # Check basic username/password presence
-        # if requires_auth:
-        #     if not item.get('username') or not item.get('password'):
-        #         return False, (
-        #             f"'requires_auth' is true but 'username' or 'password' is missing or empty "
-        #             f"in entry for (host: {host})"
-        #         )
-
-        #     cert_path = item.get('cert_path')
-        #     key_path = item.get('key_path')
-
-    #         if bool(cert_path) != bool(key_path):
-    #             return False, (
-    #                 f"If authentication is enabled, both 'cert_path' and 'key_path' must be present "
-    #                 f"or both omitted in entry for (host: {host})"
-    #             )
-    #         try:
-    #             url = f"https://{host}/api/v2.0/users/current"
-    #             response = requests.get(
-    #                 url,
-    #                 auth=HTTPBasicAuth(item['username'], item['password']),
-    #                 verify=True  # Set to True if using valid SSL certs
-    #             )
-
-    #             if response.status_code == 401:
-    #                 return False, f"Invalid credentials for host: {host}"
-    #             elif response.status_code != 200:
-    #                 return False, f"Unexpected status {response.status_code} while validating host: {host}"
-
-    #         except requests.exceptions.RequestException as e:
-    #             return False, f"Failed to connect to {host}: {str(e)}"
-
-    # return True, ""
+def _registry_host_port(registry_config):
+    """Return a registry hostname and port for reachability checks."""
+    parsed = urlsplit(registry_config.get("base_url", ""))
+    return parsed.hostname, parsed.port or registry_config.get("port")
 
 
-def tcp_ping(host, timeout=1):
-    """
-    Check if a host:port is reachable via TCP.
-
-    Args:
-        host (str): User registry host with port
-        timeout (int): Timeout in seconds
-    Returns:
-        bool: True if reachable, False otherwise
-    """
+def tcp_ping(hostname, port, timeout=1):
+    """Return whether a TCP connection can be established."""
     try:
-        if ":" in host:
-            hostname, port = host.split(":")
-            port = int(port)
-        else:
-            hostname = host
-            port = 443
-
-        with socket.create_connection((hostname, port), timeout=timeout):
+        with socket.create_connection((hostname, int(port)), timeout=timeout):
             return True
-    except Exception:
+    except (OSError, TypeError, ValueError):
         return False
 
 
-def check_reachability(user_registry, timeout=1):
-    """
-    Check reachability of hosts in a user registry.
-
-    Args:
-        user_registry (list): List of dicts, each with a 'host' key
-        timeout (int): TCP connection timeout in seconds
-    Returns:
-        tuple: (reachable_hosts, unreachable_hosts)
-    """
+def check_reachability(registries, timeout=1):
+    """Return configured registry names split into reachable and unreachable lists."""
     reachable, unreachable = [], []
-    for item in user_registry:
-        host = item['host']
-        if tcp_ping(host, timeout):
-            reachable.append(host)
+    for registry_name, registry_config in (registries or {}).items():
+        hostname, port = _registry_host_port(registry_config)
+        if hostname and port and tcp_ping(hostname, port, timeout):
+            reachable.append(registry_name)
         else:
-            unreachable.append(host)
+            unreachable.append(registry_name)
     return reachable, unreachable
 
 
-def find_invalid_cert_paths(user_registry):
-    """
-    Finds invalid certificate/key path configurations in the user registry.
-
-    Rules:
-    - If cert_path is provided, key_path must also be provided, and vice versa.
-    - If either path is provided, the corresponding file must exist.
-
-    Args:
-        user_registry (list): List of dictionaries representing user registry entries.
-
-    Returns:
-        list: A list of error strings describing invalid entries.
-    """
+def find_invalid_cert_paths(registries):
+    """Return configured TLS certificate paths that are missing or incomplete."""
     invalid_entries = []
+    for registry_name, registry_config in (registries or {}).items():
+        tls = registry_config.get("tls") or {}
+        ca_path = tls.get("ca_path") or ""
+        client_cert = tls.get("client_cert_path") or ""
+        client_key = tls.get("client_key_path") or ""
 
-    for idx, item in enumerate(user_registry):
-        cert_path = item.get('cert_path')
-        key_path = item.get('key_path')
-        name_or_host = item.get('name') or item.get('host') or f"entry {idx}"
-
-        # If only one of cert or key is provided
-        if bool(cert_path) != bool(key_path):
+        if bool(client_cert) != bool(client_key):
             invalid_entries.append(
-                f"{name_or_host}: Both 'cert_path' and 'key_path' must be provided together or not at all."
+                f"{registry_name}: client_cert_path and client_key_path must be provided together."
             )
             continue
 
-        # If both are provided, validate file existence
-        if cert_path and not is_file_exists(cert_path):
-            invalid_entries.append(f"{name_or_host}: cert_path '{cert_path}' does not exist.")
-
-        if key_path and not is_file_exists(key_path):
-            invalid_entries.append(f"{name_or_host}: key_path '{key_path}' does not exist.")
+        for key, path in (
+            ("ca_path", ca_path),
+            ("client_cert_path", client_cert),
+            ("client_key_path", client_key),
+        ):
+            if path and not os.path.isfile(path):
+                invalid_entries.append(f"{registry_name}: {key} '{path}' does not exist.")
 
     return invalid_entries

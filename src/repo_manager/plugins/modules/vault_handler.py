@@ -15,18 +15,19 @@
 #!/usr/bin/python
 # pylint: disable=import-error,no-name-in-module
 
-"""Ansible module for encrypting, decrypting, or viewing Ansible Vault files."""
+"""Ansible module for atomically writing or operating on Ansible Vault files."""
 
 import os
+import tempfile
+import yaml
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager.common_functions import (
     is_encrypted,
     process_file,
     load_vault_yaml,
+    run_vault_command,
 )
-
-OMNIA_BASE = os.environ.get('OMNIA_DATA_PATH', '/opt/omnia')
 
 DOCUMENTATION = r"""
 ---
@@ -49,7 +50,11 @@ options:
       description: Operation mode
       required: true
       type: str
-      choices: ['encrypt', 'decrypt', 'view']
+      choices: ['encrypt', 'decrypt', 'view', 'write']
+    data:
+      description: YAML mapping to write atomically when mode is write
+      required: false
+      type: dict
 
 author:
   - Dell Technologies (@dell)
@@ -90,8 +95,9 @@ def main():
             "mode": {
                 "type": "str",
                 "required": True,
-                "choices": ["encrypt", "decrypt", "view"]
+                "choices": ["encrypt", "decrypt", "view", "write"]
             },
+            "data": {"type": "dict", "required": False, "default": None, "no_log": True},
         },
         supports_check_mode=True,
     )
@@ -99,9 +105,50 @@ def main():
     file_path = module.params["file_path"]
     vault_key = module.params["vault_key"]
     mode = module.params["mode"]
+    data = module.params["data"]
 
-    if not os.path.isfile(file_path):
+    if mode != "write" and not os.path.isfile(file_path):
         module.fail_json(msg=f"File not found: {file_path}")
+
+    if mode == "write":
+        if data is None:
+            module.fail_json(msg="data is required when mode is write")
+        if not os.path.isfile(vault_key):
+            module.fail_json(msg=f"Vault key not found: {vault_key}")
+
+        current_data = None
+        current_encrypted = False
+        if os.path.isfile(file_path):
+            current_encrypted = is_encrypted(file_path)
+            try:
+                current_data = load_vault_yaml(file_path, vault_key)
+            except Exception as exc:  # pylint: disable=broad-exception-caught
+                module.fail_json(msg=f"Failed to read existing credential file: {exc}")
+        if current_encrypted and current_data == data:
+            module.exit_json(changed=False, msg="Credential file is already current and encrypted")
+        if module.check_mode:
+            module.exit_json(changed=True, msg="Credential file would be updated and encrypted")
+
+        parent_dir = os.path.dirname(file_path)
+        os.makedirs(parent_dir, mode=0o755, exist_ok=True)
+        temp_fd, temp_path = tempfile.mkstemp(
+            prefix=".repo_manager_credentials.", dir=parent_dir, text=True
+        )
+        try:
+            with os.fdopen(temp_fd, "w", encoding="utf-8") as temp_file:
+                yaml.safe_dump(data, temp_file, default_flow_style=False, sort_keys=False)
+            os.chmod(temp_path, 0o600)
+            return_code, _stdout, stderr = run_vault_command(
+                "encrypt", temp_path, vault_key
+            )
+            if return_code != 0:
+                module.fail_json(msg=f"Failed to encrypt updated credential file: {stderr}")
+            os.replace(temp_path, file_path)
+            os.chmod(file_path, 0o600)
+        finally:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+        module.exit_json(changed=True, msg="Credential file updated and encrypted atomically")
 
     file_is_encrypted = is_encrypted(file_path)
 

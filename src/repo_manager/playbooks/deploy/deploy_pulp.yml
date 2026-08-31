@@ -2,193 +2,69 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 ---
-# =============================================================================
-# PULP DEPLOYMENT PLAYBOOK
-# =============================================================================
-# This playbook deploys and configures the Pulp repository server container.
-# All tasks run on localhost (OIM).
-#
-# NOTE: Input precheck is NOT included in this playbook.
-#       Run precheck separately before deployment:
-#       ansible-playbook playbooks/validate/validate_config.yml --tags precheck
-#
-# PREREQUISITES:
-#   - Credentials: Will be prompted automatically if not already configured
-#     (Credentials are preserved across deployments unless explicitly deleted)
-#
-# Workflow:
-#   1. Pre-flight: Check and load credentials (prompt if missing)
-#   2. Pre-checks: Verify existing container status
-#   3. Deployment: Pull image and deploy Pulp container (HTTP/HTTPS)
-#   4. Configuration: Configure Pulp CLI and certificates
-#   5. Verification: Verify Pulp is running and healthy
-#
-# Usage:
-#   ansible-playbook playbooks/deploy/deploy_pulp.yml -e 'project_name=project_default'
-# =============================================================================
-
-- name: Deploy Pulp container
+- name: Deploy Pulp HTTPS container
   hosts: localhost
   connection: local
   gather_facts: true
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
     - "{{ playbook_dir | dirname | dirname }}/vars/credential_vars.yml"
+  environment:
+    PULP_CA_BUNDLE: "{{ pulp_server_crt }}"
   tags: pulp
   tasks:
-    # -------------------------------------------------------------------------
-    # PHASE 1: PRE-FLIGHT SETUP
-    # -------------------------------------------------------------------------
     - name: Display deployment start
       ansible.builtin.debug:
         msg:
-          - "========== PULP DEPLOYMENT =========="
+          - "========== PULP HTTPS DEPLOYMENT =========="
           - "Project: {{ project_name | default(project_default) }}"
-          - "======================================"
+          - "==========================================="
 
-    # -------------------------------------------------------------------------
-    # CREDENTIAL MANAGEMENT
-    # -------------------------------------------------------------------------
-    # Always run collect_repo_credentials role - it handles:
-    #   1. If file doesn't exist: create from template and prompt for values
-    #   2. If file exists: load values and prompt only if mandatory fields are empty
-    # -------------------------------------------------------------------------
-    - name: Set omnia_run_tags for credential prompting
+    - name: Select endpoint validation contract
       ansible.builtin.set_fact:
-        omnia_run_tags: []
+        omnia_run_tags: [endpoint]
 
-    - name: Check if pulp_password is provided via command line
-      ansible.builtin.set_fact:
-        pulp_password_provided: "{{ pulp_password is defined and (pulp_password | default('') | length > 0) }}"
-
-    - name: Display credential mode
-      ansible.builtin.debug:
-        msg: "Credential mode: {{ 'Using provided password' if pulp_password_provided else 'Will prompt for password' }}"
-
-    - name: Collect repo manager credentials (create if missing, prompt if empty)
+    - name: Validate Pulp endpoint input
       ansible.builtin.include_role:
-        name: ../../roles/collect_repo_credentials
-      when: not pulp_password_provided
+        name: ../../roles/validate_input
 
-    - name: Verify pulp_password is set after credential management
-      ansible.builtin.fail:
-        msg: |
-          Pulp password is required but not provided.
-          Please run the playbook again and enter the pulp_password when prompted,
-          or pass it via command line: -e pulp_password='your_password'
-      when: (pulp_password | default('') | length) == 0
-
-    - name: Display credential status
-      ansible.builtin.debug:
-        msg: "Credentials loaded successfully"
-
-    - name: Read endpoint configuration
+    - name: Read Pulp endpoint configuration
       ansible.builtin.include_role:
         name: ../../roles/pulp_validation
         tasks_from: read_endpoint_config.yml
 
-    # -------------------------------------------------------------------------
-    # PHASE 2: PRE-DEPLOYMENT CHECKS
-    # -------------------------------------------------------------------------
-    - name: Run pre-flight checks
+    - name: Collect encrypted Repo Manager credentials
+      ansible.builtin.include_role:
+        name: ../../roles/collect_repo_credentials
+
+    - name: Require Pulp credentials
+      ansible.builtin.assert:
+        that:
+          - pulp_username | default('') | length > 0
+          - pulp_password | default('') | length > 0
+        fail_msg: "Pulp administrator credentials are required for deployment."
+      no_log: true
+
+    - name: Run Pulp deployment preflight checks
       ansible.builtin.include_role:
         name: ../../roles/deploy_pulp
         tasks_from: preflight_checks.yml
 
-    # -------------------------------------------------------------------------
-    # PHASE 2.5: CHECK IF PULP IS ALREADY DEPLOYED
-    # -------------------------------------------------------------------------
-    - name: Check if Pulp container is already running
-      containers.podman.podman_container_info:
-        name: "{{ pulp_container_name }}"
-      register: existing_container_check
-      failed_when: false
-
-    - name: Set container status fact
-      ansible.builtin.set_fact:
-        pulp_container_running: >-
-          {{ (existing_container_check.containers | length > 0) and
-             (existing_container_check.containers[0].State.Status == 'running') }}
-
-    - name: Check pulp status if container is running
-      ansible.builtin.command: /usr/local/bin/pulp status
-      register: pulp_status_check
-      changed_when: false
-      failed_when: false
-      when: pulp_container_running | default(false)
-
-    - name: Set pulp healthy fact
-      ansible.builtin.set_fact:
-        pulp_healthy: >-
-          {{ pulp_status_check.rc == 0 and
-             (pulp_status_check.stdout | from_json).database_connection.connected }}
-      when: pulp_container_running | default(false)
-
-    - name: Display Pulp already deployed message
-      ansible.builtin.debug:
-        msg:
-          - "========== PULP ALREADY DEPLOYED =========="
-          - "Pulp container is running and healthy"
-          - "Skipping deployment process"
-          - "Container: {{ pulp_container_name }}"
-          - "Status: {{ existing_container_check.containers[0].State.Status }}"
-          - "Protocol: {{ 'HTTPS' if pulp_protocol_https else 'HTTP' }}"
-          - "Port: 2225"
-          - "=========================================="
-      when: pulp_healthy | default(false)
-
-    - name: Skip deployment if Pulp is already healthy
-      ansible.builtin.meta: end_play
-      when: pulp_healthy | default(false)
-
-    # -------------------------------------------------------------------------
-    # PHASE 3: DEPLOY PULP CONTAINER
-    # -------------------------------------------------------------------------
-    - name: Display deployment info
-      ansible.builtin.debug:
-        msg:
-          - "========== DEPLOYING PULP =========="
-          - "Protocol: {{ 'HTTPS' if pulp_protocol_https else 'HTTP' }}"
-          - "Image: {{ pulp_image }}"
-          - "===================================="
-
-    - name: Run common role setup
+    - name: Configure SELinux, firewall, and registry access
       ansible.builtin.include_role:
         name: ../../roles/common
 
-    - name: Deploy Pulp container
+    - name: Deploy or update Pulp over HTTPS
       ansible.builtin.include_role:
         name: ../../roles/deploy_pulp
 
-    # -------------------------------------------------------------------------
-    # PHASE 4: CONFIGURE PULP CLI
-    # -------------------------------------------------------------------------
-    - name: Configure Pulp CLI for HTTP
-      ansible.builtin.include_role:
-        name: ../../roles/deploy_pulp
-        tasks_from: configure_cli_http.yml
-      when: not pulp_protocol_https | bool
-
-    - name: Configure Pulp CLI for HTTPS
+    - name: Configure secure Pulp CLI access
       ansible.builtin.include_role:
         name: ../../roles/deploy_pulp
         tasks_from: configure_cli_https.yml
-      when: pulp_protocol_https | bool
 
-    # -------------------------------------------------------------------------
-    # PHASE 5: VERIFICATION
-    # -------------------------------------------------------------------------
-    - name: Verify Pulp container status
+    - name: Verify Pulp deployment
       ansible.builtin.include_role:
         name: ../../roles/deploy_pulp
         tasks_from: verify_status.yml
@@ -197,7 +73,6 @@
       ansible.builtin.debug:
         msg:
           - "========== DEPLOYMENT COMPLETE =========="
-          - "Pulp container is running successfully"
-          - "Protocol: {{ 'HTTPS' if pulp_protocol_https else 'HTTP' }}"
-          - "Port: 2225"
-          - "=========================================="
+          - "Pulp endpoint: https://{{ pulp_server_ip }}:{{ pulp_server_port }}"
+          - "Systemd service: {{ pulp_container_name }}.service (enabled)"
+          - "========================================="

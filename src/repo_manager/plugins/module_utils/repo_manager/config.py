@@ -24,7 +24,9 @@ Concrete definitions have been split into:
 
 from ansible.module_utils.repo_manager.repo_paths import (
     REPO_MANAGER_BASE_DIR,
+    OMNIA_DATA_PATH,
     OMNIA_BASE_DIR,
+    REPO_MANAGER_RUNTIME_DIR,
     PROJECT_DEFAULT_DIR,
     REPO_MANAGER_LOG_DIR,
     REPO_MANAGER_OFFLINE_REPO_DIR,
@@ -38,6 +40,7 @@ from ansible.module_utils.repo_manager.repo_paths import (
 from ansible.module_utils.repo_manager.repo_settings import (
     DEFAULT_NTHREADS,
     DEFAULT_TIMEOUT,
+    DNF_MAX_CONCURRENT_COMMANDS,
     LOG_DIR_DEFAULT,
     DEFAULT_LOG_FILE,
     DEFAULT_SLOG_FILE,
@@ -111,7 +114,9 @@ from ansible.module_utils.repo_manager.pulp_commands import (
 __all__ = (
     [
         "REPO_MANAGER_BASE_DIR",
+        "OMNIA_DATA_PATH",
         "OMNIA_BASE_DIR",
+        "REPO_MANAGER_RUNTIME_DIR",
         "PROJECT_DEFAULT_DIR",
         "REPO_MANAGER_LOG_DIR",
         "REPO_MANAGER_OFFLINE_REPO_DIR",
@@ -125,6 +130,7 @@ __all__ = (
     + [
         "DEFAULT_NTHREADS",
         "DEFAULT_TIMEOUT",
+        "DNF_MAX_CONCURRENT_COMMANDS",
         "LOG_DIR_DEFAULT",
         "DEFAULT_LOG_FILE",
         "DEFAULT_SLOG_FILE",

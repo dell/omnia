@@ -4,6 +4,7 @@
   "properties": {
     "pulp_server_ip": {
       "type": "string",
+      "format": "ipv4",
       "description": "Pulp server IP address (also used for OIM SSH connection)."
     },
     "pulp_server_port": {
@@ -12,36 +13,8 @@
       "maximum": 65535,
       "default": 2225,
       "description": "Pulp server port."
-    },
-    "pulp_protocol": {
-      "type": "string",
-      "enum": ["https", "http"],
-      "default": "https",
-      "description": "Pulp protocol (https or http)."
-    },
-    "pulp_https_enabled": {
-      "type": "boolean",
-      "default": true,
-      "description": "Enable HTTPS for Pulp server."
-    },
-    "ssl_certificates": {
-      "type": "object",
-      "properties": {
-        "server_crt": {
-          "type": "string",
-          "description": "Path to SSL certificate file."
-        },
-        "server_key": {
-          "type": "string",
-          "description": "Path to SSL private key file."
-        },
-        "certs_dir": {
-          "type": "string",
-          "description": "Path to certificates directory."
-        }
-      },
-      "description": "SSL certificate configuration."
     }
   },
-  "required": ["pulp_server_port", "pulp_protocol"]
+  "required": ["pulp_server_port"],
+  "additionalProperties": false
 }

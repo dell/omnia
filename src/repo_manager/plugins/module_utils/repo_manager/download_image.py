@@ -24,43 +24,24 @@ from ansible.module_utils.repo_manager.process_parallel import docker_password_c
 from ansible.module_utils.repo_manager.parse_and_download import (
     execute_command, write_status_to_file
 )
-from ansible.module_utils.repo_manager.user_image_utility import handle_user_image_registry
+from ansible.module_utils.repo_manager.user_image_utility import (
+    create_or_update_configured_remote,
+)
+from ansible.module_utils.repo_manager.registry_utils import (
+    get_image_path_for_registry,
+    is_public_registry,
+)
 from ansible.module_utils.repo_manager.config import pulp_container_commands
 from ansible.module_utils.repo_manager.container_repo_utils import (
     create_container_repository,
     extract_existing_tags,
     sync_container_repository,
-    repository_creation_lock
+    remote_creation_lock,
+    repository_creation_lock,
 )
 from ansible.module_utils.repo_manager.tag_validator import validate_tag_via_pulp_sync
 
 file_lock = Lock()
-
-# Per-operation lock manager for thread-safe remote operations
-# Lock key is the remote name — ensures only one thread modifies a given remote at a time
-_operation_locks = {}
-_operation_locks_lock = Lock()
-
-
-def _get_operation_lock(key):
-    """
-    Get or create a lock for a specific operation key.
-
-    Key is the remote name — ensures only one thread modifies a given remote at a time.
-    This prevents race conditions when multiple threads process different tags
-    for the same image (same remote).
-
-    Args:
-        key (str): The operation key (remote name) to get a lock for.
-
-    Returns:
-        Lock: The lock for this specific operation key.
-    """
-    with _operation_locks_lock:
-        if key not in _operation_locks:
-            _operation_locks[key] = Lock()
-        return _operation_locks[key]
-
 
 def _image_already_synced(repository_name, tag, logger):
     """
@@ -316,44 +297,91 @@ def get_repo_url_and_content(package):
             package_content = match.group(3).lstrip("/")
             return base_url, package_content
 
-    # fallback for private / IP-based registries
-    match = re.match(r"^(?P<registry>[^/]+)(?P<path>/.*)$", package)
-    if match:
-        return f"https://{match.group('registry')}", match.group("path").lstrip("/")
-
-    raise ValueError(f"Invalid package format: {package}")
+    raise ValueError(f"Unsupported public registry in package: {package}")
 
 
-# def get_repo_url_and_content(package):
-#     """
-#     Get the repository URL and content from a given package.
-#     Parameters:
-#         package (str): The package to extract the URL and content from.
-#     Returns:
-#         tuple: A tuple containing the repository URL and content.
-#     Raises:
-#         ValueError: If the package prefix is not supported.
-#     """
-#     patterns = {
-#          r"^(ghcr\.io)(/.+)": "https://ghcr.io",
-#          r"^(docker\.io)(/.+)": "https://registry-1.docker.io",
-#          r"^(quay\.io)(/.+)": "https://quay.io",
-#          r"^(registry\.k8s\.io)(/.+)": "https://registry.k8s.io",
-#          r"^(nvcr\.io)(/.+)": "https://nvcr.io",
-#          r"^(public\.ecr\.aws)(/.+)": "https://public.ecr.aws",
-#          r"^(gcr\.io)(/.+)": "https://gcr.io"
-#     }
-#     for pattern, repo_url in patterns.items():
-#         match = re.match(pattern, package)
-#         if match:
-#             base_url = repo_url
-#             package_content = match.group(2).lstrip("/")  # Remove leading slash
-#             return base_url, package_content
+def _process_configured_registry_image(
+    package, version_variables, registry_context, policy_type, logger
+):
+    """Process one image from its exact catalog-mapped configured registry."""
+    source_registry = package["source_registry"]
+    package_content = get_image_path_for_registry(package["package"], source_registry)
+    repository_name = (
+        f"container_repo_{package['package'].replace('/', '_').replace(':', '_')}"
+    )
+    remote_name = f"remote_{package['package'].replace('/', '_').replace(':', '_')}"
+    package_identifier = package["package"]
 
-#     raise ValueError(f"Unsupported package prefix for package: {package}")
+    tag_val = None
+    if "tag" in package:
+        tag_val = Template(package["tag"]).render(**version_variables)
+        package_identifier += f":{package['tag']}"
+    elif "digest" in package:
+        tag_val = package["digest"]
+        package_identifier += f":{package['digest']}"
+
+    if "tag" in package:
+        tag_valid = validate_tag_via_pulp_sync(
+            image_name=package["package"],
+            tag=tag_val,
+            logger=logger,
+            pulp_container_commands=pulp_container_commands,
+            execute_command=execute_command,
+            create_container_repository=create_container_repository,
+            get_repo_url_and_content=get_repo_url_and_content,
+            registry_context=registry_context,
+            package_content=package_content,
+            create_configured_remote=create_or_update_configured_remote,
+        )
+        if not tag_valid:
+            logger.error(
+                "SKIPPING: Tag '%s' does not exist upstream for %s.",
+                tag_val, package["package"]
+            )
+            return "Skipped-InvalidTag", package_identifier
+
+    with repository_creation_lock:
+        result = create_container_repository(repository_name, logger)
+    if result is False or (
+        isinstance(result, dict) and result.get("returncode", 1) != 0
+    ):
+        raise RuntimeError(f"Failed to create repository: {repository_name}")
+
+    # This lock is created before the worker pool and is therefore shared by
+    # worker processes. It prevents concurrent tag updates from losing tags.
+    with remote_creation_lock:
+        result = create_or_update_configured_remote(
+            remote_name,
+            registry_context,
+            package_content,
+            policy_type,
+            logger,
+            tag=tag_val if "tag" in package else None,
+        )
+        if not result:
+            raise RuntimeError(f"Failed to reconcile remote: {remote_name}")
+
+        if tag_val and _image_already_synced(repository_name, tag_val, logger):
+            logger.info("Image %s is already synchronized.", package_identifier)
+            return "Success", package_identifier
+
+        result = sync_container_repository(
+            repository_name,
+            remote_name,
+            package_content,
+            logger,
+            tag=tag_val if "tag" in package else None,
+        )
+        if result is False or (
+            isinstance(result, dict) and result.get("returncode", 1) != 0
+        ):
+            raise RuntimeError(f"Failed to sync repository: {repository_name}")
+
+    return "Success", package_identifier
+
 
 def process_image(package, status_file_path, version_variables,
-                  user_registries, docker_username, docker_secret_token, logger):
+                  registry_contexts, docker_username, docker_secret_token, logger):
     """
     Thread-safe image processing with mandatory tag validation.
 
@@ -380,7 +408,7 @@ def process_image(package, status_file_path, version_variables,
         status_file_path (str): The path to the status file.
         cluster_os_type (str): The type of the cluster operating system.
         cluster_os_version (str): The version of the cluster operating system.
-        user_registry_flag (bool): if image needs to be processed from user_registry
+        registry_contexts (dict): Configured registry contexts keyed by catalog registry.
         logger (Logger): The logger.
     Returns:
         str: "Success" if the image was processed successfully, "Failed" otherwise.
@@ -395,28 +423,41 @@ def process_image(package, status_file_path, version_variables,
     )
     policy_type = get_container_sync_policy(_config)
 
-    base_url, package_content = get_repo_url_and_content(package['package'])
     package_identifier = None
     tag_val = None
 
-    # Check user registries for image packages
-    if user_registries:
-        result, package_identifier = handle_user_image_registry(
-            package,
-            package_content,
-            version_variables,
-            user_registries,
-            logger
-        )
-
-        if not result:
-            logger.info(f"Image {package['package']} will not be synced to Pulp.")
+    source_registry = package.get("source_registry", "")
+    registry_context = (registry_contexts or {}).get(source_registry)
+    if registry_context:
+        try:
+            status, package_identifier = _process_configured_registry_image(
+                package, version_variables, registry_context, policy_type, logger
+            )
+        except Exception as error:  # pylint: disable=broad-exception-caught
             status = "Failed"
-            return status
-
-        logger.info(f"Image {package['package']} synced to Pulp.")
-        status = "Success"
+            package_identifier = package_identifier or package.get("package", "unknown")
+            logger.error(
+                "Failed to process configured registry image %s: %s",
+                package_identifier, error
+            )
+        write_status_to_file(
+            status_file_path, package_identifier, package["type"], status, logger, file_lock
+        )
+        logger.info(f"--- {process_image.__name__} END ---")
         return status
+
+    if source_registry and not is_public_registry(source_registry):
+        status = "Failed"
+        package_identifier = package.get("package", "unknown")
+        logger.error(
+            "Catalog registry '%s' has no configured registry context.", source_registry
+        )
+        write_status_to_file(
+            status_file_path, package_identifier, package["type"], status, logger, file_lock
+        )
+        return status
+
+    base_url, package_content = get_repo_url_and_content(package['package'])
 
     try:
         repo_name_prefix = "container_repo_"
@@ -435,10 +476,7 @@ def process_image(package, status_file_path, version_variables,
             package_identifier += f":{package['digest']}"
             tag_val = package['digest']  # Use digest as tag for idempotency check
 
-            # Get per-tag lock for this digest
-            tag_lock = _get_operation_lock(tag_val)
-
-            with tag_lock:
+            with remote_creation_lock:
                 # Check idempotency for digest
                 if _image_already_synced(repository_name, tag_val, logger):
                     logger.info(f"Image {package_identifier} already synced. Skipping.")
@@ -484,10 +522,7 @@ def process_image(package, status_file_path, version_variables,
                 )
                 return status
 
-            # Get operation lock for this remote
-            op_lock = _get_operation_lock(remote_name)
-
-            with op_lock:
+            with remote_creation_lock:
                 # Check idempotency for tag
                 if _image_already_synced(repository_name, tag_val, logger):
                     logger.info(f"Image {package_identifier} already synced. Skipping.")

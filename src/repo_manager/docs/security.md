@@ -1,85 +1,138 @@
-# Security Considerations
+# Repo Manager -- Security
 
-## SSL/TLS Verification
+## Security Model
 
-### Pulp Server Communication
-- Pulp server communication may use self-signed certificates
-- SSL verification is disabled for internal infrastructure
-- **Recommendation**: Use proper certificates in production environments
+Repo Manager runs with elevated local privileges because it manages Podman,
+systemd, firewall rules, CA trust, subscription certificates and Pulp content.
+Restrict execution and runtime files to trusted administrators.
 
-### User Registries
-- User registries can be configured with HTTP (not recommended for production)
-- Support for self-signed certificates with custom CA paths
-- **Recommendation**: Use HTTPS with valid certificates in production
+---
 
-### Registry TLS Capability Probes
-- Registry connectivity checks use unverified TLS connections
-- This is intentional for capability detection
-- **Recommendation**: Acceptable for probe operations
+## Pulp HTTPS
 
-## Credential Management
+| Control | Behavior |
+|---------|----------|
+| External protocol | HTTPS only |
+| Certificate | Generated under `<REPO_MANAGER_DATA_PATH>/pulp_config/settings/certs/` |
+| Container TLS port | `443` |
+| Host port | User-selected `pulp_server_port` |
+| CLI verification | Uses the generated CA through the managed Pulp CLI launcher |
+| Host trust | Installs `omnia-pulp.crt` in the RHEL CA trust store |
 
-### Ansible Vault Integration
-- All credentials encrypted using Ansible Vault
-- Vault keys stored with owner-only permissions (0600)
-- **Recommendation**: Keep vault keys secure and rotate regularly
+Users do not configure protocol or certificate paths in the endpoint input. The
+managed `pulp` command supplies the CA automatically; a persistent shell export
+of `PULP_CA_BUNDLE` is not required.
 
-### Docker Password Encryption
-- Docker passwords encrypted in memory using Fernet (AES-128-CBC)
-- Per-process key generation for isolation
-- **Recommendation**: Ensure proper memory cleanup on process exit
+The generated private key is a path in `repo_status.yml`, never the key content.
 
-### Credential Logging Protection
-- All credential operations use `no_log: true`
-- Prevents credential exposure in Ansible logs
-- **Recommendation**: Monitor logs for any credential leaks
+---
 
-## Input Validation
+## Credential Protection
 
-### Command Injection Prevention
-- All user inputs validated against strict regex patterns
-- Shell commands use argument lists (not shell strings)
-- Pulp API hrefs validated with strict format patterns
-- **Recommendation**: Maintain input validation patterns
+### Files
 
-### Shell Escaping
-- Extensive use of `shlex.quote()` for shell argument escaping
-- Prevents command injection via user input
-- **Recommendation**: Continue using shell=False with argument lists
+| File | Protection |
+|------|------------|
+| `repo_manager_config_credentials.yml` | Ansible Vault encrypted, mode `0600` |
+| `.repo_manager_config_credentials_key` | Root-owned, mode `0600` |
+
+The credential role writes encrypted canonical state and does not leave the
+credential file decrypted after normal processing. A re-encryption failure is a
+fatal security error.
+
+### Values Stored
+
+- Pulp administrator username and password.
+- Optional Docker Hub username and password/token.
+- Private-registry username and password/token keyed by `vault_path`.
+
+Passwords and tokens must not appear in catalog JSON, `repo_manager_config.yml`,
+`repo_status.yml`, command output or logs.
+
+### Logging
+
+Credential collection, Vault operations and authenticated Pulp commands use
+Ansible `no_log` or redacted command handling. Troubleshooting output should show
+only key names, presence, type and file permissions.
+
+---
+
+## Private Registry TLS
+
+```yaml
+registries:
+  harbor.example.com:
+    base_url: "https://harbor.example.com"
+    port: 443
+    auth:
+      type: basic
+      credentials:
+        vault_path: "registries/harbor-production"
+    tls:
+      ca_path: "/path/to/harbor-ca.crt"
+      client_cert_path: ""
+      client_key_path: ""
+      insecure: false
+```
+
+| Setting | Guidance |
+|---------|----------|
+| `ca_path` | Use for a private CA |
+| `client_cert_path` and `client_key_path` | Use together for mTLS |
+| `insecure: true` | Disables verification; use only for controlled testing |
+| `base_url: http://...` | Schema-compatible but not recommended for production |
+
+Registry credentials are passed to the Pulp remote for synchronization. They are
+not embedded in distribution URLs.
+
+---
+
+## RHEL Subscription Certificates
+
+- Entitlement certificates are copied to
+  `<REPO_MANAGER_DATA_PATH>/rhel_repo_certs/`.
+- Certificate and key paths are supplied to the matching Pulp RPM remotes.
+- SELinux context is set to permit container access.
+- User-provided repository URLs and TLS fields take precedence over automatic
+  subscription resolution.
+- Do not copy subscription keys into catalogs or logs.
+
+---
+
+## Input and Command Safety
+
+| Control | Purpose |
+|---------|---------|
+| JSON Schema with `additionalProperties: false` | Reject unknown configuration keys |
+| Catalog logic validation | Reject unresolved repositories and registries |
+| Exact Pulp object names/hrefs | Avoid substring deletion |
+| Argument-list subprocess execution | Keep user values out of shell parsing |
+| Cleanup path validation | Refuse broad system and parent-directory targets |
+| Atomic status/mirror writes | Avoid partially written tracking state |
+| Pulp post-delete verification | Update local state only after confirmed deletion |
+
+Digest-based container cleanup is rejected. Tagged cleanup addresses exactly one
+tag; untagged cleanup intentionally removes the complete image repository.
+
+---
 
 ## File Permissions
 
-### Standard Permissions
-- Directories: `mode: "0755"` (owner rwx, group rx, other rx)
-- Files: `mode: "0644"` (owner rw, group r, other r)
-- Vault keys: `mode: "0600"` (owner-only access)
-- **Recommendation**: Audit file permissions regularly
+| Content | Typical mode |
+|---------|--------------|
+| Runtime directories | `0755` |
+| Public configuration and generated status | `0644` |
+| Credentials, Vault key and private keys | `0600` |
 
-### Atomic File Writes
-- Uses temp file + rename pattern for atomic writes
-- Prevents file corruption during concurrent operations
-- **Recommendation**: Continue atomic write pattern
+Do not relax credential or private-key permissions to solve container access.
+Correct SELinux labels and mounts instead.
 
-## Security Best Practices
+## Operational Recommendations
 
-### Implemented
-- ✅ No `shell=True` usage (eliminates shell injection)
-- ✅ Comprehensive input validation
-- ✅ Credential encryption (Ansible Vault + Fernet)
-- ✅ Secure file permissions
-- ✅ Atomic file writes
-- ✅ No dangerous functions (eval/exec/pickle)
-- ✅ Credential logging protection
-- ✅ Shell escaping (shlex.quote)
-
-### Security Trade-offs
-- ⚠️ SSL verification disabled for internal infrastructure
-- ⚠️ HTTP support for user registries (user-controlled)
-- ⚠️ TLS capability probes use unverified connections
-
-### Recommendations
-1. Use proper SSL certificates in production
-2. Implement certificate pinning for Pulp server
-3. Regular security audits of credential management
-4. Monitor logs for security events
-5. Keep dependencies updated
+1. Keep `tls.insecure` false.
+2. Protect `/etc/omnia/omnia.env` and all runtime input directories.
+3. Run one Repo Manager instance at a time.
+4. Review cleanup scope before using `force=true`.
+5. Back up Vault credentials and their matching key together.
+6. Rotate Pulp and registry credentials after suspected disclosure.
+7. Inspect logs for secrets before sharing them externally.

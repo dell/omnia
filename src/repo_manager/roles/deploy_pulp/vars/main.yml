@@ -2,51 +2,38 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 ---
-# =============================================================================
-# DEPLOY PULP ROLE VARIABLES
-# =============================================================================
-# This file contains role-specific Pulp variables and template paths.
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# PATH CONFIGURATION (using repo_manager domain structure)
-# -----------------------------------------------------------------------------
-# Use pulp_config_dir (defined in vars/default.yml) to consolidate all Pulp data
-# pulp_config_dir = {{ omnia_base_dir }}/repo_manager/pulp_config
-# pulp_logs_dir is already defined in vars/default.yml
+# Pulp always uses HTTPS. The configured port is the host-facing port; the
+# container's built-in nginx terminates TLS on port 443.
 pulp_shared_path: "{{ pulp_config_dir }}"
 pulp_ha_dir: "{{ pulp_config_dir }}/pulp_ha"
 settings_py_path: "{{ pulp_config_dir }}/settings/settings.py"
+pulp_config_filepath: "{{ pulp_ha_dir }}/cli.toml"
+config_default_dir: "/etc/pulp"
+config_default_loc: "{{ config_default_dir }}/cli.toml"
 
-# -----------------------------------------------------------------------------
-# DIRECTORY PERMISSIONS
-# -----------------------------------------------------------------------------
 pulp_dir_permissions: "0755"
-logs_dir_permission: "0644"
+pulp_public_dir_permissions: "0755"
+logs_dir_permission: "0755"
 pulp_pgsql_dir_permissions: "0700"
+pulp_settings_permissions: "0644"
+pulp_secret_permissions: "0600"
+pulp_cli_permissions: "0600"
+pulp_certificate_permissions: "0644"
+pulp_private_key_permissions: "0600"
+pulp_csr_permissions: "0600"
 
-# -----------------------------------------------------------------------------
-# CONTAINER CONFIGURATION
-# -----------------------------------------------------------------------------
-# NOTE: pulp_container_name, pulp_image, pulp_protocol_https are defined
-#       in vars/default.yml to avoid duplication.
 device_name: "/dev/fuse:/dev/fuse:rwm"
+pulp_container_https_port: 443
+pulp_publish_port: "{{ pulp_server_port }}:{{ pulp_container_https_port }}"
+pulp_base_url: "https://{{ pulp_server_ip }}:{{ pulp_server_port }}"
+pulp_status_url: "{{ pulp_base_url }}/pulp/api/v3/status/"
 
-# Retry configuration
 pull_image_retries: 5
 pull_image_delay: 10
+endpoint_retries: 30
+endpoint_delay: 10
 
-# Environment arguments
 arg_list:
   - "-e PULP_WORKERS=10"
   - "-e PULP_API_WORKERS=10"
@@ -55,47 +42,19 @@ arg_list:
   - "-e PULP_API_WORKERS_MAX_REQUESTS=1000"
   - "-e PULP_API_WORKERS_MAX_REQUESTS_JITTER=50"
 
-# -----------------------------------------------------------------------------
-# HTTP DEPLOYMENT CONFIGURATION
-# -----------------------------------------------------------------------------
-pulp_directories_http:
-  - { path: "{{ pulp_shared_path }}", mode: "{{ pulp_dir_permissions }}" }
-  - { path: "{{ pulp_logs_dir }}", mode: "{{ logs_dir_permission }}" }
-  - { path: "{{ pulp_certs_dir }}", mode: "{{ pulp_dir_permissions }}" }
-  - { path: "{{ pulp_shared_path }}/settings/pulp_storage", mode: "{{ pulp_dir_permissions }}" }
-  - { path: "{{ pulp_shared_path }}/settings/pgsql", mode: "{{ pulp_pgsql_dir_permissions }}" }
-  - { path: "{{ pulp_shared_path }}/settings/containers", mode: "{{ pulp_dir_permissions }}" }
-  - { path: "{{ pulp_shared_path }}/pulp_ha", mode: "{{ pulp_dir_permissions }}" }
-
-pulp_container_port_http: "2225"
-pulp_port: "2225:80"
-
-volumes_http:
-  - "{{ pulp_shared_path }}/settings:/etc/pulp{{ selinux_option }}"
-  - "{{ pulp_shared_path }}/settings/pulp_storage:/var/lib/pulp{{ selinux_option }}"
-  - "{{ pulp_shared_path }}/settings/pgsql:/var/lib/pgsql{{ selinux_option }}"
-  - "{{ pulp_shared_path }}/settings/containers:/var/lib/containers{{ selinux_option }}"
-  - "{{ pulp_logs_dir }}:/var/log/pulp{{ selinux_option }}"
-  - "{{ pulp_shared_path }}/pulp_ha:/root/.config/pulp{{ selinux_option }}"
-
-# -----------------------------------------------------------------------------
-# HTTPS DEPLOYMENT CONFIGURATION
-# -----------------------------------------------------------------------------
-certs_dir: "{{ pulp_certs_dir }}"
-
 pulp_directories_https:
   - { path: "{{ pulp_shared_path }}", mode: "{{ pulp_dir_permissions }}" }
   - { path: "{{ pulp_logs_dir }}", mode: "{{ logs_dir_permission }}" }
+  - { path: "{{ pulp_shared_path }}/settings", mode: "{{ pulp_dir_permissions }}" }
   - { path: "{{ pulp_certs_dir }}", mode: "{{ pulp_dir_permissions }}" }
-  - { path: "{{ pulp_shared_path }}/settings/pulp_storage", mode: "{{ pulp_dir_permissions }}" }
+  - { path: "{{ pulp_shared_path }}/settings/pulp_storage", mode: "{{ pulp_public_dir_permissions }}" }
   - { path: "{{ pulp_shared_path }}/settings/pgsql", mode: "{{ pulp_pgsql_dir_permissions }}" }
-  - { path: "{{ pulp_shared_path }}/settings/containers", mode: "{{ pulp_dir_permissions }}" }
-  - { path: "{{ pulp_shared_path }}/pulp_ha", mode: "{{ pulp_dir_permissions }}" }
-  - { path: "{{ pulp_shared_path }}/nginx", mode: "{{ pulp_dir_permissions }}" }
+  - { path: "{{ pulp_shared_path }}/settings/containers", mode: "{{ pulp_public_dir_permissions }}" }
+  - { path: "{{ pulp_ha_dir }}", mode: "{{ pulp_dir_permissions }}" }
 
-nginx_conf_path: "{{ role_path }}/templates/nginx_conf.j2"
-nginx_conf_dest: "{{ pulp_config_dir }}/nginx/nginx.conf"
-settings_tmp_path: "{{ role_path }}/templates/settings_template.j2"
+pulp_legacy_deployment_paths:
+  - "{{ pulp_shared_path }}/nginx"
+  - "{{ pulp_shared_path }}/pulp_crt_track.txt"
 
 volumes_https:
   - "{{ pulp_shared_path }}/settings:/etc/pulp{{ selinux_option }}"
@@ -103,116 +62,19 @@ volumes_https:
   - "{{ pulp_shared_path }}/settings/pgsql:/var/lib/pgsql{{ selinux_option }}"
   - "{{ pulp_shared_path }}/settings/containers:/var/lib/containers{{ selinux_option }}"
   - "{{ pulp_logs_dir }}:/var/log/pulp{{ selinux_option }}"
-  - "{{ pulp_shared_path }}/pulp_ha:/root/.config/pulp{{ selinux_option }}"
-  - "{{ pulp_shared_path }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro{{ selinux_option | replace(':', ',') }}"
+  - "{{ pulp_ha_dir }}:/root/.config/pulp{{ selinux_option }}"
 
-pulp_container_port_https: "2225"
-pulp_port_https: "2225:2225"
-
-# -----------------------------------------------------------------------------
-# NGINX TEMPLATE CONFIGURATION
-# -----------------------------------------------------------------------------
-nginx_template_vars:
-  worker_processes: 1
-  worker_connections: 1024
-  accept_mutex: 'off'
-  types_hash_max_size: 4096
-  server_content_ip: 127.0.0.1
-  pulp_content_port: 24816
-  server_api_ip: 127.0.0.1
-  pulp_api_port: 24817
-  pulp_server_crt_path: "/etc/pulp/certs/pulp_webserver.crt"
-  pulp_server_key_path: "/etc/pulp/certs/pulp_webserver.key"
-  http_port: 80
-  client_max_body_size: 10m
-  keepalive_timeout: 5
-
-# -----------------------------------------------------------------------------
-# CLI CONFIGURATION
-# -----------------------------------------------------------------------------
-pulp_config_cmd_http: >-
-  pulp config create
-  --username {{ pulp_username | default('admin', true) }}
-  --base-url http://{{ pulp_server_ip }}:{{ pulp_container_port_http }}
-  --password {{ pulp_password }}
-  --location {{ pulp_ha_dir }}/cli.toml
-pulp_config_cmd_overwrite_http: >-
-  pulp config create
-  --username {{ pulp_username | default('admin', true) }}
-  --base-url http://{{ pulp_server_ip }}:{{ pulp_container_port_http }}
-  --password {{ pulp_password }}
-  --location {{ pulp_ha_dir }}/cli.toml
-  --overwrite
-pulp_config_cmd_https: >-
-  pulp config create
-  --username {{ pulp_username | default('admin', true) }}
-  --base-url https://{{ pulp_server_ip }}:{{ pulp_container_port_https }}
-  --password {{ pulp_password }}
-  --location {{ pulp_ha_dir }}/cli.toml
-  --no-verify-ssl
-pulp_config_cmd_overwrite_https: >-
-  pulp config create
-  --username {{ pulp_username | default('admin', true) }}
-  --base-url https://{{ pulp_server_ip }}:{{ pulp_container_port_https }}
-  --password {{ pulp_password }}
-  --location {{ pulp_ha_dir }}/cli.toml
-  --no-verify-ssl
-  --overwrite
-
-pulp_config_filepath: "{{ pulp_ha_dir }}/cli.toml"
-config_default_dir: "/etc/pulp"
-config_default_loc: "{{ config_default_dir }}/cli.toml"
-track_file_path: "{{ pulp_crt_track_file }}"
-
-# -----------------------------------------------------------------------------
-# CERTIFICATE CONFIGURATION
-# -----------------------------------------------------------------------------
-cert_san_ip: 0.0.0.0
 cert_validity_days: 3650
-cert_items:
-  crt_path: "{{ certs_dir }}/pulp_webserver.crt"
-  key_path: "{{ certs_dir }}/pulp_webserver.key"
+cert_renewal_threshold_seconds: 2592000
+cert_subject_alt_names:
+  - "IP:{{ pulp_server_ip }}"
+  - "DNS:pulp"
+  - "DNS:localhost"
 
-generate_cert_cmd: >
-  openssl req -x509 -nodes -newkey rsa:2048
-  -keyout {{ cert_items.key_path }}
-  -out {{ cert_items.crt_path }}
-  -days {{ cert_validity_days }}
-  -subj "/CN={{ pulp_server_ip }}"
-  -addext {{ cert_san }}
-
-pulp_cert_src: "{{ pulp_server_crt }}"
-ca_trust_path: "/etc/pki/ca-trust/source/anchors/"
-
-# -----------------------------------------------------------------------------
-# RETRY/TIMEOUT CONFIGURATION
-# -----------------------------------------------------------------------------
-retries_var: 8
-delay_var: 30
-delay_var_sixty: 30
-endpoint_retries: 10
-endpoint_delay: 10
-endpoint_timeout: 60
-nginx_retries_var: 11
-
-# -----------------------------------------------------------------------------
-# COMMANDS
-# -----------------------------------------------------------------------------
-reset_password_cmd: "bash -c \"pulpcore-manager reset-admin-password --password {{ pulp_password }}\""
-nginx_reload_cmd: "nginx -s reload"
-
-# -----------------------------------------------------------------------------
-# STATUS MESSAGES
-# -----------------------------------------------------------------------------
 pulp_deployed_msg: "The {{ pulp_container_name }} container has been successfully deployed."
 pulp_deployed_fail_msg: |
   The {{ pulp_container_name }} container deployment failed. Common causes:
-  - Missing or inaccessible pulp container image
-  - Pulp service not starting successfully
-  - NFS storage not reachable or not mounted
-  Run utility/oim_cleanup.yml to cleanup, then re-run the playbook.
-
-# -----------------------------------------------------------------------------
-# MISCELLANEOUS
-# -----------------------------------------------------------------------------
-pulp_status_url: "https://{{ pulp_server_ip }}:{{ pulp_container_port_https }}/pulp/api/v3/status/"
+  - Missing or inaccessible Pulp container image
+  - The configured host port is already in use
+  - Pulp storage is unavailable or incorrectly labelled
+  - Insufficient memory or disk space

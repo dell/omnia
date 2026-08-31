@@ -18,37 +18,40 @@
 # All variables for cleanup_pulp playbook are defined here.
 # Import this file at the start of cleanup playbooks.
 #
-# NOTE: pulp_container_name, pulp_image, pulp_protocol_https, max_retries
+# NOTE: pulp_container_name, pulp_image, and max_retries
 #       are defined in vars/default.yml to avoid duplication.
 # =============================================================================
 
 # Directories/files to remove during Pulp cleanup (runs on OIM)
 # NOTE: We clean both current paths (under repo_manager) and stale paths (old locations)
 pulp_cleanup_directory:
-  # Clean up current Pulp data (entire pulp_config_dir - /opt/omnia/repo_manager/pulp_config/)
+  # Clean up current Pulp data under repo_manager_runtime_dir.
   - "{{ pulp_config_dir }}"
-  - "{{ pulp_logs_dir }}"
   - "{{ rhel_repo_certs_dir }}"
   - "{{ repo_manager_offline_repo_dir }}"
-  - "{{ repo_manager_log_dir }}"
   - "{{ repo_manager_data_dir }}"
   # Clean up output directory (repo_status.yml, status files)
   - "{{ output_project_dir }}"
   # Clean up STALE Pulp data (old /opt/omnia/pulp_config/ structure)
   - "{{ omnia_base_dir }}/pulp_config"
-  - "{{ omnia_base_dir }}/log/pulp"
-  - "{{ omnia_base_dir }}/log/repo_manager"
   - "{{ omnia_base_dir }}/rhel_repo_certs"
   - "{{ omnia_base_dir }}/offline_repo"
   # Clean up STALE Pulp data (old /opt/omnia/pulp/ structure)
   - "{{ omnia_base_dir }}/pulp"
   # Clean up STALE Pulp data (old oim_shared_path structure - /opt/omnia/omnia/pulp/)
   - "{{ oim_shared_path }}/omnia/pulp"
+
+# Log paths are separate so cleanup_logs=false genuinely preserves them.
+pulp_cleanup_log_directories:
+  - "{{ repo_manager_log_dir }}"
+  - "{{ omnia_base_dir }}/log/pulp"
+  - "{{ omnia_base_dir }}/log/repo_manager"
   - "{{ oim_shared_path }}/omnia/log/pulp"
 
 # Pulp CLI config files to remove
 pulp_cli_config_files:
   - "{{ pulp_config_dir }}/pulp_ha/cli.toml"
+  - "/etc/pulp/cli.toml"
   - "/root/.config/pulp/cli.toml"
   - "/root/.config/pulp"
 
@@ -56,9 +59,6 @@ pulp_cli_config_files:
 credential_files_to_cleanup:
   - "{{ input_project_dir }}/repo_manager_config_credentials.yml"
   - "{{ input_project_dir }}/.repo_manager_config_credentials_key"
-
-# Track file created by Pulp HTTPS config
-track_file_path: "{{ pulp_crt_track_file }}"
 
 # Omnia target file that may reference pulp.service
 omnia_target: "/etc/systemd/system/omnia.target"

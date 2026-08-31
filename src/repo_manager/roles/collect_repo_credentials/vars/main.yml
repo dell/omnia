@@ -35,7 +35,7 @@ repo_manager_cred_config:
 
 # Set default username (no prompting)
 pulp_username: 'admin'
-registry_credentials: []  # Will be dynamically populated from repo_manager_config.yml
+registry_credentials: {}
 
 # Messages
 repo_manager_mandatory_warning_msg: "WARNING: The following are mandatory repo manager credentials and cannot be left empty."

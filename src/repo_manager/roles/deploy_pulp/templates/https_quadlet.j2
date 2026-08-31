@@ -1,5 +1,8 @@
 [Unit]
-Description=Pulp https Quadlet Container
+Description=Omnia Pulp HTTPS container
+Wants=network-online.target
+After=network-online.target
+
 [Container]
 Image={{ pulp_image }}
 Exec=/init
@@ -7,22 +10,17 @@ ContainerName={{ pulp_container_name }}
 AddDevice={{ device_name }}
 HostName={{ pulp_container_name }}
 PodmanArgs=--privileged
-# Volumes
 {% for vol in volumes_https %}
 Volume={{ vol }}
 {% endfor %}
-
-# Environment
 Environment=PULP_HTTPS=true
-Environment=PULP_TLS_CERT=/etc/pulp/certs/pulp.crt
-Environment=PULP_TLS_KEY=/etc/pulp/certs/pulp.key
 {% for env_arg in arg_list %}
 PodmanArgs={{ env_arg }}
 {% endfor %}
+PublishPort={{ pulp_publish_port }}
 
-# HTTPS Port mapping
-PublishPort={{ pulp_port_https }}
 [Service]
 Restart=always
+
 [Install]
-WantedBy=multi-user.target default.target
+WantedBy=multi-user.target

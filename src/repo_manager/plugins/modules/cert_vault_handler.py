@@ -21,11 +21,10 @@ from ansible.module_utils.repo_manager.standard_logger import setup_standard_log
 from ansible.module_utils.repo_manager.common_functions import process_file, load_yaml_file, generate_vault_key
 from ansible.module_utils.repo_manager.config import (
     CERT_KEYS,
+    REPO_MANAGER_LOG_DIR,
     get_repos_section,
     iterate_all_repos
 )
-
-OMNIA_BASE = os.environ.get('OMNIA_DATA_PATH', '/opt/omnia')
 
 DOCUMENTATION = r"""
 ---
@@ -117,10 +116,10 @@ def main():
     module = AnsibleModule(
     argument_spec={
         'mode': {'type': 'str', 'required': True, 'choices': ['encrypt', 'decrypt']},
-        # nosec B108 - Default path uses OMNIA_DATA_PATH env var for portability
-        'log_dir': {'type': 'str', 'required': False, 
-                   'default': os.path.join(os.environ.get('OMNIA_DATA_PATH', '/opt/omnia'), 
-                                          'log/repo_manager/thread_logs')},
+        'log_dir': {
+            'type': 'str', 'required': False,
+            'default': os.path.join(REPO_MANAGER_LOG_DIR, 'thread_logs')
+        },
         'key_path': {'type': 'str', 'required': True}
     },
     supports_check_mode=False
