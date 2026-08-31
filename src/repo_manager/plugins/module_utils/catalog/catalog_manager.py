@@ -34,6 +34,8 @@ from catalog.parser import parse_input_file, parse_delete_file
 from catalog.catalog_io import read_catalog, write_catalog, new_catalog, catalog_exists
 from catalog.mutator import upsert_packages, delete_packages
 from catalog.validator import validate_catalog, format_issues
+from catalog.transformer import detect_schema_version, transform, write_keymap
+from catalog.optimizer import optimize
 
 
 def setup_logging(log_dir=None, log_file='catalog_manager.log'):
@@ -189,6 +191,186 @@ def cmd_validate(args):
     return 1 if errors else 0
 
 
+def cmd_transform(args):
+    """Transform catalog from 1.0 to 2.0 format."""
+    logger = logging.getLogger(__name__)
+    
+    # Check if output file exists
+    output_file = args.output
+    if catalog_exists(output_file) and not args.force:
+        logger.error("Output file '%s' already exists. Use --force to overwrite.", output_file)
+        return 1
+    
+    # Read input file
+    try:
+        with open(args.input, 'r', encoding='utf-8') as f:
+            import json
+            data = json.load(f)
+    except FileNotFoundError:
+        logger.error("Input file '%s' not found", args.input)
+        return 1
+    except json.JSONDecodeError as e:
+        logger.error("Failed to parse input JSON: %s", e)
+        return 1
+    
+    # Detect schema version
+    try:
+        version = detect_schema_version(data)
+    except ValueError as e:
+        logger.error(str(e))
+        return 1
+    
+    if version == '2.0':
+        logger.warning("Input catalog is already Schema 2.0 - no transformation needed")
+        return 0
+    
+    # Transform
+    print("═══ Catalog Transform: 1.0 → 2.0 ═══")
+    print(f"Input:   {args.input}  (Schema {version} detected)")
+    print(f"Output:  {output_file}")
+    
+    old_catalog = data['Catalog']
+    new_catalog, key_map, warnings = transform(old_catalog)
+    
+    # Write output
+    write_catalog(new_catalog, output_file)
+    
+    # Write keymap
+    keymap_path = output_file + ".keymap.json"
+    total_groups = len(new_catalog['catalog']['groups'])
+    total_layers = len(new_catalog['catalog']['functionallayer'])
+    write_keymap(key_map, args.input, output_file, keymap_path, total_groups, total_layers)
+    print(f"Keymap:  {keymap_path}")
+    
+    # Print package transformation report
+    print("\n── Package Transformation ──")
+    total_packages = len(new_catalog['catalog']['packages'])
+    print(f"  Total packages: {total_packages}")
+    
+    # Count by type
+    type_counters = {}
+    for pkg in new_catalog['catalog']['packages'].values():
+        ptype = pkg['packagetype']
+        type_counters[ptype] = type_counters.get(ptype, 0) + 1
+    
+    for ptype in sorted(type_counters.keys()):
+        print(f"  {ptype:12s}: {type_counters[ptype]}")
+    
+    # Print group creation report
+    print("\n── Group Creation ──")
+    baseos_groups = [k for k, v in new_catalog['catalog']['groups'].items() if v['type'] == 'base_os']
+    other_groups = [k for k, v in new_catalog['catalog']['groups'].items() if v['type'] != 'base_os']
+    print(f"  BaseOS groups:          {len(baseos_groups)} ({', '.join(baseos_groups)})")
+    print(f"  FunctionalLayer groups: {len(other_groups)}")
+    
+    # Print functional layer rewiring
+    print("\n── FunctionalLayer Rewiring ──")
+    print(f"  Layers rewired: {total_layers}")
+    if baseos_groups:
+        print(f"  Each layer includes: {', '.join(baseos_groups)} + layer-specific group")
+    
+    # Print warnings
+    print(f"\n── Warnings ──")
+    if warnings:
+        print(f"  {len(warnings)} warning(s)")
+        for w in warnings[:10]:  # Limit to first 10
+            print(f"  - {w}")
+        if len(warnings) > 10:
+            print(f"  ... and {len(warnings) - 10} more (see log)")
+    else:
+        print("  No warnings")
+    
+    # Auto-validate if schema provided
+    print("\n── Post-Transform Validation ──")
+    if args.schema:
+        issues = validate_catalog(new_catalog, args.schema)
+        errors = [i for i in issues if i['severity'] == 'error']
+        if errors:
+            print(f"  ⚠ Validation found {len(errors)} error(s) - review recommended")
+            for issue in errors[:5]:
+                print(f"    - {issue['message']}")
+            if len(errors) > 5:
+                print(f"    ... and {len(errors) - 5} more")
+        else:
+            print("  ✔ Validation passed")
+    else:
+        print("  (skipped - no schema provided)")
+    
+    print("\n✔ Transform complete")
+    return 0
+
+
+def cmd_optimize(args):
+    """Optimize catalog by extracting common packages."""
+    logger = logging.getLogger(__name__)
+    
+    # Read catalog
+    try:
+        catalog = read_catalog(args.catalog)
+    except (FileNotFoundError, ValueError) as e:
+        logger.error("Failed to read catalog: %s", e)
+        return 1
+    
+    # Verify 2.0 format
+    try:
+        version = detect_schema_version(catalog)
+        if version != '2.0':
+            logger.error("Optimize requires a Schema 2.0 catalog (found %s)", version)
+            return 1
+    except ValueError as e:
+        logger.error(str(e))
+        return 1
+    
+    print("═══ Catalog Optimize ═══")
+    print(f"Input:   {args.catalog}")
+    print(f"Output:  {args.output}")
+    print(f"Threshold: {args.threshold} common packages\n")
+    
+    # Optimize
+    optimized_catalog, summary = optimize(catalog, args.threshold)
+    
+    # Check if any changes were made
+    if summary.get('message') and 'nothing to optimize' in summary['message'].lower():
+        print(summary['message'])
+        # Write unchanged catalog to output
+        if args.output != args.catalog:
+            write_catalog(catalog, args.output)
+        return 0
+    
+    if summary.get('message') and ('already exists' in summary['message'] or 'already covers' in summary['message']):
+        print(summary['message'])
+        # Write unchanged catalog to output
+        if args.output != args.catalog:
+            write_catalog(catalog, args.output)
+        return 0
+    
+    # Write optimized catalog
+    write_catalog(optimized_catalog, args.output)
+    
+    # Print detailed report
+    print("── Optimization Summary ──")
+    print(f"  Iterations: {summary['iterations']}")
+    print(f"  Shared groups created: {len(summary['shared_groups_created'])}")
+    for sg in summary['shared_groups_created']:
+        print(f"    - {sg}")
+    
+    print(f"\n── Common Packages ──")
+    print(f"  Total unique common packages extracted: {summary['total_common_packages']}")
+    
+    print(f"\n── Group Refactoring ──")
+    print(f"  Groups refactored: {summary['groups_refactored']}")
+    if summary['groups_removed']:
+        print(f"  Groups removed (empty): {len(summary['groups_removed'])} ({', '.join(summary['groups_removed'])})")
+    
+    print(f"\n── Duplication Reduction ──")
+    print(f"  Component references before: {summary['before_refs']}")
+    print(f"  Component references after:  {summary['after_refs']}")
+    print(f"  Reduction: {summary['reduction_pct']}%")
+    
+    print("\n✔ Optimization complete")
+    return 0
+
+
 def main():
     """Main entry point."""
     # Get CATALOG_FILE_PATH environment variable as default
@@ -248,6 +430,22 @@ def main():
                             help=f'Catalog file to validate (default: $CATALOG_FILE_PATH={catalog_file_path})')
     val_parser.add_argument('--schema', '-s', help='JSON schema file')
     val_parser.set_defaults(func=cmd_validate)
+    
+    # Transform command
+    trans_parser = subparsers.add_parser('transform', help='Transform catalog from 1.0 to 2.0 format')
+    trans_parser.add_argument('--input', '-i', required=True, help='Input 1.0 catalog file')
+    trans_parser.add_argument('--output', '-o', required=True, help='Output 2.0 catalog file')
+    trans_parser.add_argument('--schema', '-s', help='Schema file for post-transform validation')
+    trans_parser.add_argument('--force', '-f', action='store_true', help='Overwrite existing output file')
+    trans_parser.set_defaults(func=cmd_transform)
+    
+    # Optimize command
+    opt_parser = subparsers.add_parser('optimize', help='Optimize catalog by extracting common packages')
+    opt_parser.add_argument('--catalog', '-c', required=True, help='Input 2.0 catalog file')
+    opt_parser.add_argument('--output', '-o', required=True, help='Output optimized catalog file')
+    opt_parser.add_argument('--threshold', '-t', type=int, default=10, 
+                           help='Minimum number of common packages to extract (default: 10)')
+    opt_parser.set_defaults(func=cmd_optimize)
 
     args = parser.parse_args()
     
