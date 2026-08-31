@@ -21,11 +21,12 @@
 #   cd src/orchestrator
 #   ansible-playbook playbooks/orchestrator.yml                        # Default: precheck + prepare + deploy + provision
 #   ansible-playbook playbooks/orchestrator.yml --tags precheck        # Validate inputs + prerequisites (read-only)
+#   ansible-playbook playbooks/orchestrator.yml --tags validate        # Validate input files only (schema + logic)
 #   ansible-playbook playbooks/orchestrator.yml --tags credentials     # Prompt for credentials (standalone, idempotent)
 #   ansible-playbook playbooks/orchestrator.yml --tags prepare         # Credentials + functional groups + OpenLDAP prep
 #   ansible-playbook playbooks/orchestrator.yml --tags deploy          # Deploy OpenCHAMI + OpenLDAP + validate gates
 #   ansible-playbook playbooks/orchestrator.yml --tags provision       # SSH + provision all categories + validate
-#   ansible-playbook playbooks/orchestrator.yml --tags validate        # Validate OpenCHAMI + OpenLDAP + provisioning
+#   ansible-playbook playbooks/orchestrator.yml --tags validate-deployment # Validate OpenCHAMI + OpenLDAP + provisioning
 #   ansible-playbook playbooks/orchestrator.yml --tags pxeboot         # PXE boot on iDRAC nodes
 #   ansible-playbook playbooks/orchestrator.yml --tags cleanup         # Remove OpenCHAMI + OpenLDAP services + artifacts
 #   ansible-playbook playbooks/orchestrator.yml --tags upgrade         # In-place upgrade OpenCHAMI + OpenLDAP
@@ -34,11 +35,12 @@
 # Tags (mutually exclusive — pick ONE):
 #   (none)       — Default flow: precheck + prepare + deploy + provision
 #   precheck     — Validate inputs, parameters, boot images (read-only, no system changes)
+#   validate     — Validate input files only (schema + logic, no health checks)
 #   credentials  — Prompt for credentials (standalone, idempotent)
 #   prepare      — Credential management, functional group generation, OpenLDAP config prep
 #   deploy       — Deploy OpenCHAMI + OpenLDAP containers, validate readiness gates
 #   provision    — SSH preamble, provision K8s/Slurm/OS/custom, validate provisioning
-#   validate     — Validate OpenCHAMI, OpenLDAP, and provisioning readiness
+#   validate-deployment — Validate OpenCHAMI, OpenLDAP, and provisioning readiness
 #   pxeboot      — PXE boot on iDRAC nodes (opt-in only)
 #   cleanup      — Remove OpenCHAMI + OpenLDAP services, containers, artifacts (opt-in only)
 #   upgrade      — In-place upgrade of OpenCHAMI + OpenLDAP (opt-in only)
@@ -47,7 +49,7 @@
 # Tag Validation:
 #   - Invalid tags will fail with error message
 #   - Invalid combinations (e.g., prepare + cleanup) will fail
-#   - cleanup and validate tags skip credential prompting
+#   - cleanup, validate, and validate-deployment tags skip credential prompting
 #
 # PXE Boot (physical servers only):
 #   - Controlled by enable_pxe_boot in orchestrator_config.yml (default: true)
@@ -135,6 +137,19 @@
     - precheck
 
 # =========================================================================
+# FLOW: validate — Validate input files only (schema + logic)
+# =========================================================================
+
+- name: Validate input files
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - validate_input
+  tags:
+    - validate
+
+# =========================================================================
 # FLOW: credentials — Standalone credential collection (idempotent)
 # =========================================================================
 
@@ -184,26 +199,26 @@
   ansible.builtin.import_playbook: validate/validate_openchami.yml
   tags:
     - deploy
-    - validate
+    - validate-deployment
 
 # Step 12: Gate — verify OpenLDAP readiness (when enabled)
 - name: Validate OpenLDAP readiness
   ansible.builtin.import_playbook: validate/validate_openldap.yml
   tags:
     - deploy
-    - validate
+    - validate-deployment
 
 # =========================================================================
-# FLOW: validate — Standalone health check (read-only)
+# FLOW: validate-deployment — Standalone health check (read-only)
 # Loads cluster config from OIM, authenticates, then runs all validations.
 # No-op when running as part of deploy/provision (prerequisites already set).
 # =========================================================================
 
-# Validate preamble: load cluster config + auth for standalone --tags validate
+# Validate preamble: load cluster config + auth for standalone --tags validate-deployment
 - name: Validate preamble (standalone prerequisites)
   ansible.builtin.import_playbook: validate/validate_preamble.yml
   tags:
-    - validate
+    - validate-deployment
 
 # =========================================================================
 # FLOW: provision — SSH preamble + provision all categories + validate
@@ -244,7 +259,7 @@
   ansible.builtin.import_playbook: validate/validate_provisioning.yml
   tags:
     - provision
-    - validate
+    - validate-deployment
 
 # =========================================================================
 # FLOW: pxeboot — PXE boot on iDRAC nodes (opt-in only)

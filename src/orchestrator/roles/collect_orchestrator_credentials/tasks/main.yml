@@ -155,6 +155,11 @@
         orchestrator_loaded_creds: {}
       when: orchestrator_loaded_creds is not defined
 
+    - name: Debug loaded credentials (for troubleshooting)
+      ansible.builtin.debug:
+        msg: "Loaded credentials keys: {{ orchestrator_loaded_creds.keys() | list }}"
+      when: orchestrator_loaded_creds is defined
+
     # Step 5: Prompt for mandatory credentials (only if value is empty)
     - name: Prompt for mandatory orchestrator credentials
       ansible.builtin.include_tasks: prompt_credential_field.yml
