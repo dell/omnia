@@ -132,3 +132,12 @@
           else 'none'
         }}
       - "======================================================"
+
+- name: Fail playbook if deployment has failures
+  ansible.builtin.fail:
+    msg: >-
+      Telemetry deployment completed with failures.
+      Review the status summary above and check
+      /opt/omnia/telemetry/output/{{ project_name | default('project_default') }}/telemetry_status.yml
+      for details.
+  when: _deployment_status | trim == 'failed'

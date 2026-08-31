@@ -65,8 +65,8 @@ kafka_file_mode: "0644"
 # Error messages
 kafka_strimzi_tarball_not_found_msg: >-
   Strimzi Kafka operator tarball not found at
-  {{ k8s_cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.strimzi_kafka_operator | basename) }}.
-  Download from {{ telemetry_packages_config.telemetry_packages.strimzi_kafka_operator }} may have failed.
+  {{ k8s_cluster_mount }}/telemetry/{{ (telemetry_packages_config.strimzi_kafka_operator | basename) }}.
+  Download from {{ telemetry_packages_config.strimzi_kafka_operator }} may have failed.
 
 kafka_operator_install_failed_msg: >-
   Failed to install/upgrade Strimzi operator. Verify Helm chart tarball exists at {{ strimzi_kafka_pkg }}

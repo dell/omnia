@@ -15,18 +15,89 @@
 
 # Generate PowerScale telemetry manifests to NFS deployments/ (root level)
 
+# --- Check for external-health-monitor-controller container ---
+
+- name: Find isilon-controller pod
+  ansible.builtin.command: >
+    kubectl get pods -n isilon -l app=isilon-controller -o jsonpath='{.items[0].metadata.name}'
+  register: isilon_pod
+  changed_when: false
+  failed_when: false
+
+- name: Check if external-health-monitor-controller container is running
+  ansible.builtin.command: >
+    kubectl get pod {{ isilon_pod.stdout }} -n isilon -o jsonpath='{.status.containerStatuses[?(@.name=="external-health-monitor-controller")].ready}'
+  register: health_monitor_ready
+  changed_when: false
+  failed_when: false
+  when: isilon_pod.stdout | length > 0
+
+- name: Set health monitor status fact
+  ansible.builtin.set_fact:
+    health_monitor_available: >-
+      {{ (health_monitor_ready.stdout | default('false')) == 'true' }}
+  when: isilon_pod.stdout | length > 0
+
+- name: Set health monitor status to false if pod not found
+  ansible.builtin.set_fact:
+    health_monitor_available: false
+  when: isilon_pod.stdout | length == 0
+
+- name: Warn if external-health-monitor-controller is not running
+  ansible.builtin.debug:
+    msg: "WARNING: {{ ps_health_monitor_not_running_msg }}"
+  when:
+    - isilon_pod.stdout | length > 0
+    - not (health_monitor_available | default(false) | bool)
+
+- name: Pause for 10 seconds after health monitor warning
+  ansible.builtin.pause:
+    seconds: 10
+  when:
+    - isilon_pod.stdout | length > 0
+    - not (health_monitor_available | default(false) | bool)
+
+- name: Warn if isilon-controller pod not found (cannot verify health monitor)
+  ansible.builtin.debug:
+    msg: "WARNING: {{ ps_isilon_pod_not_found_msg }}"
+  when: isilon_pod.stdout | length == 0
+
+- name: Pause for 10 seconds after isilon pod not found warning
+  ansible.builtin.pause:
+    seconds: 10
+  when: isilon_pod.stdout | length == 0
+
+- name: Set deployment condition fact
+  ansible.builtin.set_fact:
+    deploy_csi_exporter: >-
+      {{ health_monitor_available | default(false) | bool }}
+
+- name: Set powerscale_volume_health_enabled fact on localhost
+  ansible.builtin.set_fact:
+    powerscale_volume_health_enabled: "{{ health_monitor_available | default(false) | bool }}"
+  delegate_to: localhost
+  delegate_facts: true
+
+- name: Skip CSI Volume Exporter deployment if health monitor not available
+  ansible.builtin.debug:
+    msg: "Skipping CSI Volume Exporter deployment due to missing external-health-monitor-controller"
+  when: not deploy_csi_exporter
+
 - name: Render CSI Volume Exporter manifest
   ansible.builtin.template:
     src: "csi-volume-exporter.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/csi-volume-exporter.yaml"
     mode: '0644'
+  when: deploy_csi_exporter
 
 - name: Apply CSI Volume Exporter manifest
   ansible.builtin.command: >
     kubectl apply -f {{ telemetry_deployments_dir }}/csi-volume-exporter.yaml
   changed_when: false
+  when: deploy_csi_exporter
 
 - name: Display PowerScale manifest generation complete
   ansible.builtin.debug:
     msg: "PowerScale telemetry manifests generated and applied"
     verbosity: 2
+  when: deploy_csi_exporter
