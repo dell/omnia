@@ -103,9 +103,52 @@
     mode: "{{ victoria_file_mode }}"
     force: true
 
+- name: Check health monitor status for CSI volume exporter scrape
+  ansible.builtin.command: >
+    kubectl get pods -n isilon -l app=isilon-controller -o jsonpath='{.items[0].metadata.name}'
+  register: isilon_pod
+  changed_when: false
+  failed_when: false
+  when: telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
+
+- name: Check if external-health-monitor-controller container is running
+  ansible.builtin.command: >
+    kubectl get pod {{ isilon_pod.stdout }} -n isilon -o jsonpath='{.status.containerStatuses[?(@.name=="external-health-monitor-controller")].ready}'
+  register: health_monitor_ready
+  changed_when: false
+  failed_when: false
+  when:
+    - isilon_pod.stdout | length > 0
+    - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
+
+- name: Set powerscale_volume_health_enabled fact
+  ansible.builtin.set_fact:
+    powerscale_volume_health_enabled: >-
+      {{ (health_monitor_ready.stdout | default('false')) == 'true' }}
+  when:
+    - isilon_pod.stdout | length > 0
+    - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
+
+- name: Set powerscale_volume_health_enabled to false if pod not found
+  ansible.builtin.set_fact:
+    powerscale_volume_health_enabled: false
+  when:
+    - isilon_pod.stdout | length == 0
+    - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
+
+- name: Set powerscale_volume_health_enabled to false if PowerScale metrics not enabled
+  ansible.builtin.set_fact:
+    powerscale_volume_health_enabled: false
+  when: not (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool)
+
 - name: Generate VMPodScrape CR manifest
   ansible.builtin.template:
     src: "{{ role_path }}/metrics/templates/victoria-operator-vmscrape.yaml.j2"
     dest: "{{ telemetry_deployments_dir }}/victoria-operator-vmscrape.yaml"
     mode: "{{ victoria_file_mode }}"
     force: true
+  vars:
+    csi_volume_exporter:
+      app_name: "csi-volume-exporter"
+      metrics_port: 9090
+      scrape_interval: "30s"

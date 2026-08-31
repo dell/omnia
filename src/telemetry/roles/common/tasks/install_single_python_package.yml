@@ -1,0 +1,80 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Install a Single Python Package
+# =============================================================================
+# Called in a loop by install_python_dependencies.yml
+#
+# Parameters:
+#   - package_name: Python package name (e.g., kubernetes)
+#   - package_version: Package version (e.g., 33.1.0)
+#   - component_name: Component name for logging (e.g., idrac, powerscale)
+#   - install_mode: 'online' or 'offline' (set by caller)
+#   - pip_index_url: Pulp repo URL for offline mode (set by caller)
+# =============================================================================
+
+- name: Check if Python module is installed
+  ansible.builtin.command: python3 -c "import {{ package_name }}"
+  register: module_check
+  failed_when: false
+  changed_when: false
+
+- name: Install Python module
+  when: module_check.rc != 0
+  block:
+    - name: Log Python dependency installation
+      ansible.builtin.debug:
+        msg: "Installing Python {{ package_name }} module for {{ component_name }} - Mode: {{ install_mode }}"
+
+    - name: Install Python module in online mode (from PyPI)
+      when: install_mode == "online"
+      ansible.builtin.command: >
+        python3 -m pip install {{ package_name }}=={{ package_version }}
+      register: pip_install_online
+      changed_when: true
+
+    - name: Fail if online installation failed
+      ansible.builtin.fail:
+        msg: "Failed to install {{ package_name }} module from PyPI. Check internet connectivity."
+      when:
+        - install_mode == "online"
+        - pip_install_online.rc is defined
+        - pip_install_online.rc != 0
+
+    - name: Install Python module in offline mode (from Pulp repo)
+      when: install_mode == "offline"
+      ansible.builtin.command: >
+        python3 -m pip install --index-url {{ pip_index_url }}
+        {{ package_name }}=={{ package_version }}
+      register: pip_install_offline
+      changed_when: true
+
+    - name: Fail if offline installation failed
+      ansible.builtin.fail:
+        msg: "Failed to install {{ package_name }}=={{ package_version }} from {{ pip_index_url }}. Check Pulp repo availability."
+      when:
+        - install_mode == "offline"
+        - pip_install_offline.rc is defined
+        - pip_install_offline.rc != 0
+
+- name: Verify Python module is now available
+  ansible.builtin.command: python3 -c "import {{ package_name }}; print({{ package_name }}.__version__)"
+  register: module_verify
+  changed_when: false
+
+- name: Log successful installation
+  ansible.builtin.debug:
+    msg: "Python {{ package_name }} module version {{ module_verify.stdout }} is available (installed via {{ install_mode }} mode)"

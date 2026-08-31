@@ -7,7 +7,6 @@ bmc_group_data_path: "/opt/omnia/input/project_default/bmc_group_data.csv"
 # Sources
 idrac_metrics_enabled: true
 ldms_metrics_enabled: true
-dcgm_metrics_enabled: true
 powerscale_metrics_enabled: true
 ufm_metrics_enabled: true
 vast_metrics_enabled: true
@@ -24,6 +23,7 @@ victoria_persistence_size: "8Gi"
 victoria_retention_period: "7d"
 kafka_persistence_size: "8Gi"
 k8s_cluster_mount: "/opt/omnia/k8s_mount"
+slurm_cluster_mount: "/share_omnia"
 
 # Project
 project_name: "project_default"
