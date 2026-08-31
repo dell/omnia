@@ -215,7 +215,9 @@ TEST_LOG_MSGS = {
 
     # Online/Offline Mode
     "config_value_correct": "Configuration value correct: {key}={value}",
-    "config_value_incorrect": "Configuration value incorrect: {key} expected {expected}, got {actual}",
+    "config_value_incorrect": (
+        "Configuration value incorrect: {key} expected {expected}, got {actual}"
+    ),
     "python_package_installed": "Python package installed: {package}",
     "git_repo_cloned": "Git repo cloned: {repo}",
     "git_repo_not_cloned": "Git repo not cloned: {repo}",
@@ -528,7 +530,8 @@ TEST_ASSERT_MSGS = {
     "label_compliance_failed": (
         "PowerScale pod label compliance failed: {details}\n"
         "HOW TO FIX:\n"
-        "  1. Check pod labels: kubectl get pods -n telemetry -o jsonpath='{{.items[*].metadata.labels}}'\n"
+        "  1. Check pod labels: kubectl get pods -n telemetry "
+        "-o jsonpath='{{.items[*].metadata.labels}}'\n"
         "  2. Review Helm chart values for label configuration\n"
     ),
     "scrape_interval_invalid": (
@@ -576,7 +579,8 @@ TEST_ASSERT_MSGS = {
         "HOW TO FIX:\n"
         "  1. kubectl get pods -n isilon | grep isilon-controller\n"
         "  2. kubectl describe pod <isilon-controller-pod> -n isilon\n"
-        "  3. Check container status: kubectl get pod <isilon-controller-pod> -n isilon -o jsonpath='{.status.containerStatuses}'\n"
+        "  3. Check container status: kubectl get pod <isilon-controller-pod> -n isilon "
+        "-o jsonpath='{.status.containerStatuses}'\n"
         "  4. Deploy CSI driver with health monitor enabled in CSI driver values.yml\n"
     ),
     "csi_exporter_dependency_failed": (
@@ -600,14 +604,16 @@ TEST_ASSERT_MSGS = {
         "OTEL Collector to VictoriaMetrics export failed: {details}\n"
         "HOW TO FIX:\n"
         "  1. Check OTEL Collector export configuration\n"
-        "  2. Verify VictoriaMetrics vmagent is running: kubectl get pods -n telemetry | grep vmagent\n"
+        "  2. Verify VictoriaMetrics vmagent is running: kubectl get pods -n telemetry "
+        "| grep vmagent\n"
         "  3. Check vmagent scrape targets include OTEL Collector\n"
         "  4. Verify network connectivity between OTEL Collector and VictoriaMetrics\n"
     ),
     "otel_service_patch_failed": (
         "OTEL Collector service patch failed: {details}\n"
         "HOW TO FIX:\n"
-        "  1. Check OTEL Collector service annotations: kubectl get svc otel-collector -n telemetry -o yaml\n"
+        "  1. Check OTEL Collector service annotations: kubectl get svc otel-collector "
+        "-n telemetry -o yaml\n"
         "  2. Verify prometheus.io/scrape annotation is set to 'true'\n"
         "  3. Verify prometheus.io/port annotation points to metrics port\n"
         "  4. Re-run deployment to apply service patch\n"
@@ -706,5 +712,4 @@ LDMS_ASSERT_MSGS = {
         "Found hostnames: {found}\n"
     ),
 }
-
 
