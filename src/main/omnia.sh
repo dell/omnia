@@ -774,6 +774,13 @@ prepare_base_domains() {
         target_domains=("${filtered_domains[@]}")
     fi
 
+    # ── Bail if nothing to prepare ──
+    if [ ${#target_domains[@]} -eq 0 ]; then
+        echo -e "${YELLOW}No domains to prepare (all were skipped).${NC}"
+        deactivate 2>/dev/null || true
+        return 0
+    fi
+
     # ── Show prepare order ──
     echo -e "${BLUE}Preparing domains in order:${NC}"
     for domain in "${target_domains[@]}"; do
@@ -783,22 +790,19 @@ prepare_base_domains() {
 
     # ── Dry-run mode ──
     if [ "$dry_run" = true ]; then
-        echo -e "${BLUE}DRY RUN — would prepare these domains with lifecycle phases:${NC}"
+        echo -e "${BLUE}DRY RUN — would prepare these domains (phase-by-phase, fail-fast):${NC}"
+        echo ""
         for tag in "${LIFECYCLE_TAGS[@]}"; do
             echo -e "  ${BLUE}Phase: $tag${NC}"
             for domain in "${target_domains[@]}"; do
                 echo -e "    ${GREEN}${domain}${NC}"
             done
+            echo ""
         done
+        echo -e "${YELLOW}Note: Execution stops immediately if any domain fails in any phase.${NC}"
         deactivate 2>/dev/null || true
         return 0
     fi
-
-    # ── Track domain failures ──
-    declare -A domain_failed
-    for domain in "${target_domains[@]}"; do
-        domain_failed["$domain"]=false
-    done
 
     # ── Run phases across all domains (phase-by-phase, not domain-by-domain) ──
     for tag in "${LIFECYCLE_TAGS[@]}"; do
@@ -811,9 +815,10 @@ prepare_base_domains() {
             local playbook="$SRC_DIR/$domain/playbooks/${domain}.yml"
 
             if [ ! -f "$playbook" ]; then
-                echo -e "${YELLOW}  WARNING: No playbook found for $domain — skipping${NC}"
-                domain_failed["$domain"]=true
-                continue
+                echo -e "${RED}  ERROR: No playbook found for $domain at $playbook${NC}"
+                echo -e "${YELLOW}  Fix the issue above and re-run: ./omnia.sh --prepare-base${NC}"
+                deactivate 2>/dev/null || true
+                return 1
             fi
 
             echo -e "${BLUE}  Running: $domain --tags $tag${NC}"
@@ -829,7 +834,6 @@ prepare_base_domains() {
             else
                 local rc=$?
                 echo -e "${RED}    ✗ $domain $tag failed (exit code: $rc)${NC}"
-                domain_failed["$domain"]=true
                 echo ""
                 echo -e "${RED}================================================================================${NC}"
                 echo -e "${RED}  FAILED: $domain failed in $tag phase. Stopping --prepare-base.${NC}"
@@ -845,40 +849,15 @@ prepare_base_domains() {
         echo ""
     done
 
-    # ── Summary ──
-    local prepared=0
-    local failed=0
-    local failed_domains=()
-
-    for domain in "${target_domains[@]}"; do
-        if [ "${domain_failed[$domain]}" = false ]; then
-            prepared=$((prepared + 1))
-        else
-            failed=$((failed + 1))
-            failed_domains+=("$domain")
-        fi
-    done
-
+    # ── Summary (only reached on full success due to fail-fast) ──
     echo -e "${BLUE}================================================================================${NC}"
     echo -e "${BLUE}               Prepare Summary${NC}"
     echo -e "${BLUE}================================================================================${NC}"
     echo ""
-    echo -e "  Prepared: ${GREEN}${prepared}${NC}"
-    echo -e "  Failed:   ${RED}${failed}${NC}"
-
-    if [ $failed -gt 0 ]; then
-        echo -e "  Failed domains: ${RED}${failed_domains[*]}${NC}"
-    fi
-
+    echo -e "  Prepared: ${GREEN}${#target_domains[@]}${NC}"
+    echo -e "  Failed:   ${RED}0${NC}"
     echo ""
-
-    if [ $failed -eq 0 ]; then
-        echo -e "${GREEN}Prepared domains: ${target_domains[*]}${NC}"
-    else
-        echo -e "${RED}Some domains failed to prepare. Check the errors above.${NC}"
-        deactivate 2>/dev/null || true
-        return 1
-    fi
+    echo -e "${GREEN}Prepared domains: ${target_domains[*]}${NC}"
 
     deactivate 2>/dev/null || true
 }
