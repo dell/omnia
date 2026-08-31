@@ -19,9 +19,23 @@ from .orchestrator_msgs import (
     TEST_LOG_MSGS,
     TEST_ASSERT_MSGS,
 )
+from .orchestrator_test_msgs import (
+    TEST_NAMES as TEST_FRAMEWORK_NAMES,
+    TEST_LOG_MSGS as TEST_FRAMEWORK_LOG_MSGS,
+    TEST_ASSERT_MSGS as TEST_FRAMEWORK_ASSERT_MSGS,
+)
+from .slurm_msgs import (
+    TEST_LOG_MSGS as SLURM_TEST_LOG_MSGS,
+    TEST_ASSERT_MSGS as SLURM_TEST_ASSERT_MSGS,
+)
 
 __all__ = [
     "TEST_NAMES",
     "TEST_LOG_MSGS",
     "TEST_ASSERT_MSGS",
+    "TEST_FRAMEWORK_NAMES",
+    "TEST_FRAMEWORK_LOG_MSGS",
+    "TEST_FRAMEWORK_ASSERT_MSGS",
+    "SLURM_TEST_LOG_MSGS",
+    "SLURM_TEST_ASSERT_MSGS",
 ]

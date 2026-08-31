@@ -1093,8 +1093,8 @@ def check_global_caching_policy(host) -> Dict[str, Any]:
 
 def check_pulp_remote_policy(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
     """Check the actual Pulp remote policy via Pulp CLI (integration test)."""
-    # Construct the full remote name
-    full_remote_name = f"{arch}_{os_version}_{repo_name}"
+    # Construct the full remote name (actual naming convention includes "rhel")
+    full_remote_name = f"{arch}_rhel_{os_version}_{repo_name}"
     
     # Use Pulp CLI to get the actual remote policy
     cmd = f"pulp rpm remote show --name {full_remote_name}"
@@ -1127,8 +1127,8 @@ def check_pulp_remote_policy(host, repo_name: str, arch: str = "x86_64", os_vers
 
 def check_pulp_repository_exists(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
     """Check if a Pulp repository exists via Pulp CLI (integration test)."""
-    # Construct the full repository name
-    full_repo_name = f"{arch}_{os_version}_{repo_name}"
+    # Construct the full repository name (actual naming convention includes "rhel")
+    full_repo_name = f"{arch}_rhel_{os_version}_{repo_name}"
     
     # Use Pulp CLI to check if repository exists
     cmd = f"pulp rpm repository show --name {full_repo_name}"

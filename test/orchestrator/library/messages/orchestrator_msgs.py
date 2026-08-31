@@ -61,6 +61,18 @@ TEST_NAMES: Dict[str, str] = {
     "openchami_api_reachable": (
         "Verify OpenCHAMI API is reachable"
     ),
+    "openchami_config_files": (
+        "Verify OpenCHAMI configuration files exist"
+    ),
+    "tokensmith_config": (
+        "Verify tokensmith.json configuration file exists"
+    ),
+    "postgres_init_script": (
+        "Verify PostgreSQL initialization script exists"
+    ),
+    "rpm_file_integrity": (
+        "Verify RPM configuration files are not missing"
+    ),
 
     # Provision — Nodes
     "nodes_provisioned": (
@@ -131,6 +143,16 @@ TEST_LOG_MSGS: Dict[str, str] = {
     # API
     "api_reachable_ok": "OpenCHAMI API reachable",
     "api_not_reachable": "OpenCHAMI API not reachable",
+
+    # Configuration files
+    "config_files_ok": "All OpenCHAMI configuration files present",
+    "config_files_missing": "Missing configuration files: {files}",
+    "tokensmith_config_ok": "tokensmith.json is valid and present",
+    "tokensmith_config_missing": "tokensmith.json is missing or invalid",
+    "postgres_init_script_ok": "PostgreSQL init script exists and is executable",
+    "postgres_init_script_missing": "PostgreSQL init script is missing or not executable",
+    "rpm_integrity_ok": "All RPM files present, no missing files",
+    "rpm_integrity_failed": "RPM verification failed, missing files: {files}",
 
     # Nodes
     "nodes_ok": "All {count} nodes provisioned",
@@ -211,6 +233,61 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551   1. Run repo_manager domain first\n"
         "\u2551   2. Verify output at /opt/omnia/repo_manager/output/<project>/\n"
         "\u2551   3. Check orchestrator_config.yml repo_manager_output_path\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "config_files_missing": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 OPENCHAMI CONFIGURATION FILES MISSING\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Missing files: {files}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check orchestrator deployment logs\n"
+        "\u2551   2. Verify OpenCHAMI RPM is installed: rpm -q openchami\n"
+        "\u2551   3. Check RPM file integrity: rpm -qV openchami\n"
+        "\u2551   4. Re-run orchestrator with --tags prepare\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "tokensmith_config_missing": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 TOKENSMITH CONFIGURATION FILE MISSING\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 File: /etc/openchami/configs/tokensmith.json\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. This is a known bug in orchestrator deployment\n"
+        "\u2551   2. The orchestrator overwrites RPM files without restoring critical ones\n"
+        "\u2551   3. Manual fix: reinstall OpenCHAMI RPM: dnf install -y /path/to/openchami.rpm\n"
+        "\u2551   4. Or fix orchestrator to include tokensmith.json.j2 template\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "postgres_init_script_missing": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 POSTGRESQL INITIALIZATION SCRIPT MISSING\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 File: /etc/openchami/pg-init/multi-psql-db.sh\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. This is a known bug in orchestrator deployment\n"
+        "\u2551   2. The orchestrator overwrites RPM files without restoring critical ones\n"
+        "\u2551   3. Manual fix: reinstall OpenCHAMI RPM: dnf install -y /path/to/openchami.rpm\n"
+        "\u2551   4. Or fix orchestrator to include multi-psql-db.sh.j2 template\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "rpm_integrity_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 RPM FILE INTEGRITY CHECK FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Missing files: {files}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Reinstall OpenCHAMI RPM: dnf install -y /path/to/openchami.rpm\n"
+        "\u2551   2. Verify installation: rpm -qV openchami\n"
+        "\u2551   3. Check orchestrator deployment logs for file overwrites\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 }
