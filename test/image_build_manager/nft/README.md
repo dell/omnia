@@ -64,9 +64,10 @@ validate first is recommended:
 ```
 
 NFT_003 executes the cleanup tag. A full NFT run therefore removes local
-MinIO/registry data and services, build output/logs, s3cmd configuration, and
-`image_build_credentials.yml` with its vault key. External PowerScale S3
-storage is retained.
+MinIO/registry data and services, build output/logs, and
+`image_build_credentials.yml` with its vault key. The default MinIO flow also
+removes s3cmd configuration. External PowerScale S3 storage and
+`/root/.s3cfg` are retained.
 
 ---
 

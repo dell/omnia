@@ -136,6 +136,11 @@ The build deploy function reports `TC_BD_001` when the runner selects the
 | TC_CL_007 | `test_build_output_removed` | cleanup/ | sanity | Verify build_status.yml removed |
 | TC_CL_008 | `test_registry_cleaned` | cleanup/ | sanity | Verify no tagged registry images remain |
 
+`TC_CL_005` and `TC_CL_006` describe the default MinIO cleanup contract.
+PowerScale cleanup intentionally retains the external buckets and
+`/root/.s3cfg`, so those two provider-neutral assertions are not applicable to
+the retained PowerScale state.
+
 ---
 
 ## cleanup_images

@@ -79,14 +79,13 @@ source .venv/bin/activate            # For --venv mode
 
 # Step 6 — (Optional) Generate a dataset for custom input
 cd datasets/generator/
-python3 generate_dataset.py my_dataset defaults
+python generate_dataset.py my_dataset defaults
 cd ../..
-# Set dataset: "my_dataset" and sync_image_build_input: true in test_config.yml
-# Set sync_output: true too when the generated repo_manager_output is required
+# Set: dataset: "my_dataset" in test_config.yml
 # Or leave dataset: "" to use input from target's $OMNIA_DATA_PATH
 
 # Step 7 — Run tests
-./run_validation.sh fvt_image_build_manager precheck verify
+./run_validation.sh fvt_image_build_manager precheck test
 ```
 
 ### Setup Modes
@@ -209,7 +208,7 @@ followed by the same non-cleanup verification set.
 | `validate` | `--tags validate` | Input/credentials presence, effective `repo_ssl_verify`, and template wiring |
 | `prepare` | `--tags prepare` | MinIO, registry, systemd, S3 buckets |
 | `build` | `--tags build` | S3 images, registry images, build_status, **naming convention** |
-| `cleanup` | `--tags cleanup` | Remove local MinIO/registry data and services, build output/logs, s3cmd config, and domain credentials; external PowerScale storage is retained |
+| `cleanup` | `--tags cleanup` | Remove local MinIO/registry data and services, build output/logs, MinIO s3cmd config, and domain credentials; external PowerScale storage and s3cmd config are retained |
 | `cleanup_images` | `--tags cleanup_images` | Delete S3 + registry images |
 | *(none)* | *(no tag)* | Full end-to-end (prepare + build) |
 
@@ -248,6 +247,8 @@ back to the entire tag when the suite directory does not exist.
 
 Available markers: `sanity`, `x86_64`, `aarch64`, `functional`, `deploy`
 
+Use either AND or OR in one expression; do not mix `+` and `,`.
+
 ### Examples
 
 ```bash
@@ -270,29 +271,58 @@ Available markers: `sanity`, `x86_64`, `aarch64`, `functional`, `deploy`
 ./run_validation.sh --config
 ```
 
-### Typical Workflow
+### Recommended Functional Workflow (default MinIO backend)
 
 ```bash
-./run_validation.sh fvt_image_build_manager precheck verify             # 0. Precheck environment
+./run_validation.sh fvt_image_build_manager precheck test               # 0. Run precheck + verify environment
 ./run_validation.sh fvt_image_build_manager validate test               # 1. Validate inputs
 ./run_validation.sh fvt_image_build_manager prepare test                # 2. Prepare infrastructure
 ./run_validation.sh fvt_image_build_manager build test                  # 3. Build + verify
 ./run_validation.sh fvt_image_build_manager verify --marker sanity      # 4. Full sanity verification
-./run_validation.sh nft_image_build_manager test                        # 5. Performance + cleanup
+./run_validation.sh fvt_image_build_manager cleanup_images test         # 5. Delete images; keep infrastructure
+./run_validation.sh fvt_image_build_manager cleanup test                # 6. Remove infrastructure + verify cleanup
 ```
+
+`cleanup_images` and `cleanup` are separate FVT tags. When validating both,
+run `cleanup_images` first: it removes built S3 and registry images while the
+storage services remain available. Run `cleanup` last to remove the local
+MinIO/registry deployment, build output, configuration, and domain credentials.
+
+For PowerScale, see the [full cleanup](#full-cleanup) caveat before using
+`cleanup test`.
+
+NFT is an independent destructive flow, not the cleanup phase of the FVT
+workflow. A full NFT run measures prepare, build, and cleanup performance and
+checks repeated prepare execution. Its final timed cleanup removes the deployed
+environment and domain credentials, so restore credentials before any later
+playbook run.
 
 ### Complete Commands by Flow
 
-#### End-to-End (full lifecycle)
+#### Complete FVT Lifecycle (both cleanup tags, default MinIO backend)
 
 ```bash
-./run_validation.sh fvt_image_build_manager precheck verify     # Env check
+./run_validation.sh fvt_image_build_manager precheck test       # Precheck tag + environment verification
 ./run_validation.sh fvt_image_build_manager validate test        # Validate + verify
 ./run_validation.sh fvt_image_build_manager prepare test         # Prepare + verify
 ./run_validation.sh fvt_image_build_manager build test           # Build + verify (all configured architectures)
-./run_validation.sh nft_image_build_manager test                 # Performance + idempotency
-./run_validation.sh fvt_image_build_manager cleanup test         # Cleanup + verify
+./run_validation.sh fvt_image_build_manager cleanup_images test  # Delete S3/registry images + verify
+./run_validation.sh fvt_image_build_manager cleanup test         # Full cleanup + verify
 ```
+
+#### Non-Functional Flow (includes timed cleanup)
+
+```bash
+./run_validation.sh fvt_image_build_manager precheck verify      # Check target prerequisites
+./run_validation.sh fvt_image_build_manager validate verify      # Check existing inputs and credentials
+./run_validation.sh nft_image_build_manager test                 # Prepare/build timing, repeated prepare, cleanup timing
+```
+
+The NFT suite performs its own prepare, build, and cleanup playbook runs. It
+does not run the FVT cleanup verification cases. Run
+`./run_validation.sh fvt_image_build_manager cleanup verify` immediately
+after NFT when those assertions are required; the cleanup playbook has already
+run.
 
 #### Build and x86_64 Verification
 
@@ -328,7 +358,27 @@ command is an optional focused verification rerun.
 ```
 
 The runner supplies `skip_approval=true` and uses the playbook's default `*`
-pattern, so this command deletes all built S3 and registry images.
+pattern, so this command deletes all built S3 and registry images. It retains
+the MinIO/registry infrastructure and the S3 buckets.
+
+#### Full Cleanup
+
+```bash
+./run_validation.sh fvt_image_build_manager cleanup test
+```
+
+This runs the `cleanup` playbook tag, which also removes build logs and domain
+credentials. The post-cleanup FVT cases verify local MinIO/registry services
+and data, listening ports, S3 state, s3cmd configuration, build output, and
+registry state.
+
+With PowerScale, the product intentionally retains the external buckets and
+`/root/.s3cfg`. The current `TC_CL_005` and `TC_CL_006` assertions are
+MinIO-oriented and expect those resources to be absent, so a PowerScale
+`cleanup test` can fail after a successful cleanup. Use
+`./run_validation.sh fvt_image_build_manager cleanup exec` for the PowerScale
+cleanup playbook, then verify the applicable local container, service, port,
+build-output, and registry state separately.
 
 #### Unit Tests
 
@@ -343,8 +393,13 @@ pattern, so this command deletes all built S3 and registry images.
 ./run_validation.sh fvt_image_build_manager precheck verify
 ./run_validation.sh fvt_image_build_manager prepare verify
 ./run_validation.sh fvt_image_build_manager build verify
+./run_validation.sh fvt_image_build_manager cleanup_images verify
 ./run_validation.sh fvt_image_build_manager cleanup verify
 ```
+
+The cleanup `verify` commands only inspect the current target state; they do
+not delete anything. Use the corresponding `test` command to execute the
+cleanup tag before verification.
 
 #### Config-Driven Batch Run
 
@@ -361,7 +416,7 @@ pattern, so this command deletes all built S3 and registry images.
 | `test_config.yml` | Target server IP, sync settings, dataset, report options | Tracked |
 | `test_creds.yml` | SSH creds (created by `--set-creds`, auto-encrypted) | **Gitignored** |
 | `.test_creds.key` | Vault key for `test_creds.yml` (auto-created) | **Gitignored** |
-| `test_run_config.yml` | Batch execution: scenario order, markers, suites | Tracked |
+| `test_run_config.yml` | Batch execution: enabled flows, commands, markers, suites, and sync overrides | Tracked |
 
 ### Key Settings in `test_config.yml`
 
@@ -370,6 +425,52 @@ pattern, so this command deletes all built S3 and registry images.
 | `oim_server_ip` | No | `""` (local) | Target server IP. Leave empty for local mode. |
 | `clone_path` | Remote only | `/omnia` | Non-empty absolute path on the target where project code is synced. Ignored in local mode. |
 | `dataset` | No | `""` | Empty = input from target's `$OMNIA_DATA_PATH/image_build_manager/input/<project>/`. Set to a generated dataset name for custom inputs. |
+
+### Batch Runs with `test_run_config.yml`
+
+Use `./run_validation.sh --config` to run the entries enabled in
+`test_run_config.yml`. See [the complete batch configuration
+reference](docs/test_run_config.md) for the schema and examples.
+
+The top-level sections are `fvt_image_build_manager`,
+`nft_image_build_manager`, and `ut_image_build_manager`. FVT tags run by their
+numeric `order`; NFT runs after all FVT entries, followed by UT. The tracked
+order is `precheck`, `validate`, `prepare`, `build`, `cleanup_images`, then
+`cleanup`, which keeps image-only cleanup ahead of full infrastructure cleanup.
+
+Each FVT tag supports these fields:
+
+| Field | Meaning |
+|-------|---------|
+| `order` | Non-negative FVT batch order; lower values run first. |
+| `run` | Enable or skip the tag. All tracked entries default to `false`. |
+| `command` | `exec`, `verify`, or `test`; use `test` for deploy + verify. |
+| `suite` | Verification subfolder; empty runs the complete tag. |
+| `marker` | Marker expression applied to the selected pytest phase(s). |
+| `dataset` | Non-empty per-tag dataset override; empty inherits `test_config.yml`. |
+| `sync_input` | Explicit per-tag override for `sync_image_build_input`. |
+| `sync_output` | Explicit per-tag override for `sync_output`. |
+
+For `command: "test"`, the marker applies to both playbook execution and
+verification. Use `marker: ""` to run every applicable case, or
+`marker: "sanity"` for the sanity lifecycle; an architecture-only marker such
+as `x86_64` does not select the deploy test.
+Suite filtering affects verification only. If a named suite directory is not
+present under the selected tag, the current runner falls back to the complete
+tag, so verify suite names with `./run_validation.sh fvt_image_build_manager
+list` before a destructive run.
+
+The optional top-level `dataset_override`, `sync_input_override`, and
+`sync_output_override` values take precedence over per-FVT settings. These
+overrides apply to FVT entries only; NFT and UT use `test_config.yml` directly.
+
+`skip_on_failure` controls later batch entries. With the tracked value `false`,
+the runner attempts every enabled entry. Set it to `true` to skip all later
+enabled FVT, NFT, and UT entries after the first failed entry. It does not stop
+the currently running pytest suite at its first failing test.
+
+Run NFT separately from a complete FVT cleanup batch. FVT `cleanup` removes the
+domain credentials that the later NFT build would require.
 
 ### Execution Modes
 
@@ -448,21 +549,17 @@ then set `dataset: "<name>"` in `test_config.yml`:
 cd datasets/generator/
 
 # Generate from a profile
-python3 generate_dataset.py my_dataset defaults
+python generate_dataset.py my_dataset defaults
 
 # Generate with overrides
-python3 generate_dataset.py my_dataset defaults --var build_image_force_rebuild=true
+python generate_dataset.py my_dataset defaults --var s3_provider=powerscale
 
 # Copy directly from src/ (quick bootstrap)
-python3 generate_dataset.py my_dataset --from-src
+python generate_dataset.py my_dataset --from-src
 
 # List available profiles
-python3 generate_dataset.py --list-profiles
+python generate_dataset.py --list-profiles
 ```
-
-Selecting `dataset: "my_dataset"` chooses the local sync source; it does not
-copy files by itself. Enable `sync_image_build_input` and, when needed,
-`sync_output` so the generated files reach the execution target.
 
 The generated dataset contains all required input files:
 
@@ -470,9 +567,7 @@ The generated dataset contains all required input files:
 |------|----------|
 | `image_build_config.yml` | `datasets/<name>/input/` |
 | `image_build_credentials.yml` | `datasets/<name>/input/` |
-| `package_groups.yml` | `datasets/<name>/input/` |
 | `repo_status.yml` | `datasets/<name>/repo_manager_output/` |
-| `functional_group_packages.yml` | `datasets/<name>/repo_manager_output/` (profile-controlled) |
 
 ---
 

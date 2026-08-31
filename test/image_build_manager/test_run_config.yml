@@ -16,7 +16,7 @@
 # Test Run Configuration — Image Build Manager
 # =============================================================================
 #
-# Configure which test categories to run, execution order, and marker filters.
+# Configure which test categories to run, their execution order, and filters.
 #
 # Usage:
 #   1. Edit this file to enable/disable scenarios and set markers
@@ -33,6 +33,7 @@
 #
 # FVT scenarios (nested under fvt_image_build_manager):
 #   Each scenario maps to an Ansible playbook tag.  Fields:
+#     order:        <integer>     - Batch order (lower values run first)
 #     run:          true/false    - Whether to execute this scenario
 #     command:      <string>      - exec, verify, or test (default: test)
 #                                   exec   = Run the playbook only
@@ -47,7 +48,8 @@
 #
 # NFT / UT (top-level, no nested scenarios):
 #   run:          true/false    - Whether to execute
-#   command:      <string>      - test or verify
+#   command:      <string>      - use test (exec/verify are accepted aliases
+#                                   and run the same complete NFT/UT suite)
 #   marker:       <expression>  - Marker filter (empty = all tests)
 #
 # -----------------------------------------------------------------------------
@@ -69,9 +71,9 @@
 #   precheck:       connectivity
 #   validate:       status
 #   prepare:        container, s3
-#   build:          s3, registry, naming, image_verification
+#   build:          s3, registry, naming, aarch64, image_verification
 #   cleanup:        cleanup
-#   cleanup_images: (no suites)
+#   cleanup_images: cleanup_images
 #
 # =============================================================================
 
@@ -80,25 +82,26 @@
 # =============================================================================
 # Global Overrides
 # =============================================================================
-# dataset_override: Override the dataset from test_config.yml for ALL scenarios.
+# dataset_override: Override the dataset for ALL FVT scenarios.
 #   When set, this takes precedence over both test_config.yml dataset and
 #   per-scenario dataset overrides below.
 #   Must be a valid folder name under datasets/.
 #   Leave commented out to use per-scenario or test_config.yml defaults.
 # dataset_override: "my_custom_ds"
 
-# sync_input_override: Override sync_image_build_input for ALL scenarios.
+# sync_input_override: Override sync_image_build_input for ALL FVT scenarios.
 #   When set, applies to every scenario regardless of per-scenario settings.
 # sync_input_override: true
 
-# sync_output_override: Override sync_output for ALL scenarios.
+# sync_output_override: Override sync_output for ALL FVT scenarios.
 # sync_output_override: false
 
 # =============================================================================
-# Execution Options
+# Execution Behavior
 # =============================================================================
-# skip_on_failure: Stop the current suite on first test failure.
-#                  When false (default), all tests run regardless of failures.
+# skip_on_failure: When true, do not schedule later enabled batch entries after
+#                  the first failed entry. It does not stop tests inside the
+#                  currently running pytest suite. False runs every entry.
 skip_on_failure: false
 
 # =============================================================================
@@ -106,6 +109,7 @@ skip_on_failure: false
 # =============================================================================
 fvt_image_build_manager:
   precheck:
+    order: 1
     run: false
     command: "test"
     suite: ""
@@ -114,6 +118,7 @@ fvt_image_build_manager:
     sync_input: false
     sync_output: false
   validate:
+    order: 2
     run: false
     command: "test"
     suite: ""
@@ -122,6 +127,7 @@ fvt_image_build_manager:
     sync_input: false
     sync_output: false
   prepare:
+    order: 3
     run: false
     command: "test"
     suite: ""
@@ -130,14 +136,7 @@ fvt_image_build_manager:
     sync_input: false
     sync_output: false
   build:
-    run: false
-    command: "test"
-    suite: ""
-    marker: "sanity"
-    dataset: ""
-    sync_input: false
-    sync_output: false
-  cleanup:
+    order: 4
     run: false
     command: "test"
     suite: ""
@@ -146,6 +145,16 @@ fvt_image_build_manager:
     sync_input: false
     sync_output: false
   cleanup_images:
+    order: 5
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+    sync_output: false
+  cleanup:
+    order: 6
     run: false
     command: "test"
     suite: ""
