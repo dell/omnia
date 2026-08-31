@@ -833,13 +833,27 @@ prepare_all_domains() {
             if "${cmd[@]}"; then
                 echo -e "${GREEN}    ✓ $domain $tag completed${NC}"
             else
-                echo -e "${RED}    ✗ $domain $tag failed${NC}"
+                local rc=$?
+                echo -e "${RED}    ✗ $domain $tag failed (exit code: $rc)${NC}"
                 domain_failed["$domain"]=true
+                echo -e "${YELLOW}    $domain will be skipped in remaining phases${NC}"
             fi
             echo ""
         done
 
-        echo -e "${GREEN}Phase $tag completed for all domains${NC}"
+        # Show which domains failed in this phase
+        local phase_failed_domains=()
+        for domain in "${target_domains[@]}"; do
+            if [ "${domain_failed[$domain]}" = true ]; then
+                phase_failed_domains+=("$domain")
+            fi
+        done
+
+        if [ ${#phase_failed_domains[@]} -gt 0 ]; then
+            echo -e "${YELLOW}Domains that failed and will be skipped: ${phase_failed_domains[*]}${NC}"
+        fi
+
+        echo -e "${GREEN}Phase $tag completed${NC}"
         echo ""
     done
 
