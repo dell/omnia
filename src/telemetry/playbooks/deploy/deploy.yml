@@ -263,9 +263,33 @@
   tags: deploy
   tasks:
     - name: Get kubectl results from kube_vip
-      ansible.builtin.set_fact:
-        _kv: "{{ hostvars[kube_vip]['_kv'] }}"
-        _cfg: "{{ telemetry_config }}"
+      block:
+        - name: Retrieve kube_vip from hostvars
+          ansible.builtin.set_fact:
+            _kube_vip_host: "{{ hostvars['localhost'].get('kube_vip', '') }}"
+
+        - name: Get kubectl results from kube_vip
+          ansible.builtin.set_fact:
+            _kv: "{{ hostvars[_kube_vip_host]['_kv'] | default({}) }}"
+            _cfg: "{{ telemetry_config }}"
+          when: _kube_vip_host | length > 0
+
+        - name: Set fallback empty results when kube_vip is not available
+          ansible.builtin.set_fact:
+            _kv:
+              _kafka_pods: {}
+              _vm_pods: {}
+              _vl_pods: {}
+              _idrac_pods: {}
+              _ldms_pods: {}
+              _powerscale_pods: {}
+              _ufm_check: {}
+              _vast_check: {}
+              _vector_ome_pods: {}
+              _vector_ldms_pods: {}
+              _vlagent_pods: {}
+            _cfg: "{{ telemetry_config }}"
+          when: _kube_vip_host | length == 0
 
     # -- Sinks ----------------------------------------------------------------
     - name: Set sink results
