@@ -42,3 +42,9 @@
 - name: "UFM | Cleanup complete"
   ansible.builtin.debug:
     msg: "UFM telemetry cleanup completed"
+
+- name: "Ufm | Register cleanup result"
+  ansible.builtin.set_fact:
+    _cleanup_result_ufm: "cleaned"
+  delegate_to: localhost
+  delegate_facts: true

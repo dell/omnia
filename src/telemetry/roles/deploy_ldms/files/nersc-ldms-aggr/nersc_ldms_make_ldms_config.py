@@ -574,6 +574,8 @@ class LdmsdManager:  # pylint: disable=too-many-instance-attributes
             f"strgp_add name=kafka regex=.* plugin=store_avro_kafka "
             f"container=kafka-kafka-bootstrap.{self.namespace}.svc.cluster.local:9093 "
             "decomposition=/ldms_bin/decomp.json",
+            # strgp_prdcr_add tells the storage policy which producers to store data from
+            "strgp_prdcr_add name=kafka regex=prdcr.*",
             "strgp_start name=kafka"
         ])
         with open(out_file, 'w', encoding='utf-8') as fh:

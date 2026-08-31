@@ -25,7 +25,7 @@ This module handles:
 
 
 #!/usr/bin/python
-# pylint: disable=import-error,no-name-in-module,too-many-lines,too-many-branches,too-many-statements,too-many-locals,too-many-return-statements,too-many-arguments
+# pylint: disable=import-error,no-name-in-module,too-many-lines,too-many-branches,too-many-statements,too-many-locals,too-many-return-statements,too-many-arguments,too-many-positional-arguments
 import subprocess
 import multiprocessing
 import os
@@ -39,13 +39,84 @@ import json
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
 from ansible.module_utils.repo_manager.config import (
-    OMNIA_BASE_DIR,
+    PULP_SSL_CA_CERT,
+    REPO_MANAGER_LOG_DIR,
     pulp_rpm_commands,
     AGGREGATED_REPO_SUFFIX,
     AGGREGATED_BASE_PATH_TEMPLATE,
-    PULP_CONCURRENCY
+    RPM_SYNC_STUCK_TIMEOUT,
+    RPM_PROGRESS_CHECK_INTERVAL,
+    RPM_CLEANUP_ON_TIMEOUT,
+    RPM_CLEANUP_ORPHANS_ONLY,
+    ARCH_SUFFIXES,
 )
-from ansible.module_utils.repo_manager.software_utils import build_repo_name
+from ansible.module_utils.repo_manager.repo_settings import (
+    RPM_CONTINUE_ON_FAILURE,
+    RPM_THREAD_POOL_SIZE,
+    MIN_THREAD_POOL_SIZE,
+    MAX_THREAD_POOL_SIZE,
+    POLICY_CACHING_MAP,
+    get_caching_policy
+)
+from ansible.module_utils.repo_manager.software_utils import build_repo_name, normalize_repo_name
+
+def _log(log, level, repo_name, msg):
+    """All repo logs go through here — grep-friendly."""
+    text = f"[{repo_name}] - {msg}" if repo_name else msg
+    getattr(log, level)(text)
+
+
+def _effective_worker_count(configured_workers, item_count):
+    """Validate a configured RPM limit and cap it to the available work."""
+    configured_workers = int(configured_workers)
+    if not MIN_THREAD_POOL_SIZE <= configured_workers <= MAX_THREAD_POOL_SIZE:
+        raise ValueError(
+            f"thread_pool_size must be between {MIN_THREAD_POOL_SIZE} "
+            f"and {MAX_THREAD_POOL_SIZE}"
+        )
+    return min(configured_workers, max(1, item_count))
+
+
+def _log_summary(log, results, failures, start_time):
+    """Simple summary — grep for SUMMARY, FAILED, Overall."""
+    elapsed = int(time.time() - start_time)
+    m, s = elapsed // 60, elapsed % 60
+
+    # results format: (success, repo_name, success, version_changed)
+    ok = [r for r in results if r[0] and r[2]]  # success=True and synced=True
+    fail = [r for r in results if not r[0]]  # success=False
+    skip = [r for r in results if r[0] and not r[2]]  # success=True but not synced
+
+    log.info("=" * 60)
+    log.info("RPM REPO SYNC SUMMARY")
+    log.info("=" * 60)
+    log.info(f"Total repos:  {len(results)}")
+    log.info(f"Successful:   {len(ok)}")
+    log.info(f"Failed:       {len(fail)}")
+    log.info(f"Skipped:      {len(skip)}")
+    log.info(f"Duration:     {m}m {s}s")
+
+    if fail:
+        log.info("-" * 44)
+        log.info("FAILED REPOS:")
+        for _, name, _, _ in fail:
+            stage = next((f.split(":")[0] for f in failures if name in f), "unknown")
+            log.error(f"  {name} — {stage}")
+
+    if skip:
+        log.info("-" * 44)
+        log.info("SKIPPED REPOS (already up to date):")
+        for _, name, _, _ in skip:
+            log.info(f"  {name}")
+
+    log.info("=" * 60)
+    if failures:
+        log.info("Overall Status: PARTIAL")
+    elif not ok and skip:
+        log.info("Overall Status: SKIPPED (all up to date)")
+    else:
+        log.info("Overall Status: SUCCESS")
+    log.info("=" * 60)
 
 DOCUMENTATION = r"""
 ---
@@ -76,7 +147,7 @@ author:
 EXAMPLES = r"""
 - name: Process RPM configuration
   process_rpm_config:
-    config_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia') }}/input/repo_manager_config.yml"
+    config_path: "{{ repo_manager_runtime_dir }}/input/project_default/repo_manager_config.yml"
     arch: x86_64
     os_version: "9.4"
   register: rpm_config
@@ -160,7 +231,7 @@ def validate_pulp_href(href):
     return quoted.strip("'")
 
 
-def execute_command(cmd_string, log, type_json=None, seconds=None):
+def execute_command(cmd_string, log, type_json=None, seconds=None, repo_name=None):
     """
     Executes a shell command and returns its output.
 
@@ -172,13 +243,15 @@ def execute_command(cmd_string, log, type_json=None, seconds=None):
         seconds (float, optional): The maximum time allowed for the command to execute.
             If `None`,
         no timeout is enforced.
+        repo_name (str, optional): Repository name for log tagging.
 
     Returns:
         str or bool: Returns the command's output as a string, or `False` if the command failed.
     """
 
     try:
-        log.info("Executing Command: %s", cmd_string)
+        tag = f"[{repo_name}] - " if repo_name else ""
+        log.info(f"{tag}Executing command: {cmd_string}")
         # Use shlex.split to safely parse the command string into a list of arguments
         # This prevents command injection by using list arguments with shell=False
         cmd_list = shlex.split(cmd_string)
@@ -191,8 +264,11 @@ def execute_command(cmd_string, log, type_json=None, seconds=None):
             shell=False,
             check=False
         )
-        log.info(f"execute command return code : {cmd}")
         if cmd.returncode != 0:
+            log.error(f"{tag}Command failed (rc={cmd.returncode})")
+            if cmd.stderr and cmd.stderr.strip():
+                stderr_clean = cmd.stderr.strip().rstrip('.')
+                log.error(f"{tag}STDERR: {stderr_clean}")
             return False
         if type_json:
             return json.loads(cmd.stdout)
@@ -261,7 +337,8 @@ def create_rpm_repository(repo, log):
         repo_name = repo["package"]
         version = repo.get("version")
 
-        if version != "null":
+        # Handle version properly - only append if it's a non-null, non-empty string
+        if version and version != "null" and str(version).strip():
             repo_name = f"{repo_name}_{version}"
         if not show_rpm_repository(repo_name, log):
             command = pulp_rpm_commands["create_repository"] % repo_name
@@ -325,7 +402,7 @@ def show_rpm_repository(repo_name, log):
 
 def create_rpm_remote(repo, log):
     """
-    Create a remote for the RPM repository if it doesn't already exist.
+    Create an RPM remote or update its URL, policy, and certificates.
 
     Args:
         repo (dict): A dictionary containing the repository information.
@@ -340,68 +417,67 @@ def create_rpm_remote(repo, log):
         remote_url = repo["url"]
         policy_type = repo["policy"]
         version = repo.get("version")
-        repo_name = repo["package"]
+        repo_name = repo.get("package") or repo.get("name")  # Handle both keys for compatibility
         result = None
 
-        if version != "null":
+        # Handle version properly - only append if it's a non-null, non-empty string
+        if version and version != "null" and str(version).strip():
             repo_name = f"{repo_name}_{version}"
 
         remote_name = repo_name
 
-        # Check if remote already exists - skip if it does
-        if show_rpm_remote(remote_name, log):
-            log.info("Remote '%s' already exists. Skipping.", remote_name)
-            return True, repo_name
-
-        # Remote doesn't exist - create it
+        remote_exists = show_rpm_remote(remote_name, log)
         repo_keys = repo.keys()
         if "ca_cert" in repo_keys and repo["ca_cert"]:
             ca_cert = f"@{repo['ca_cert']}"
             client_cert = f"@{repo['client_cert']}"
             client_key = f"@{repo['client_key']}"
-            if not show_rpm_remote(remote_name, log):
+            if remote_exists:
+                command = pulp_rpm_commands["update_remote_cert"] % (
+                    remote_name, remote_url, policy_type, ca_cert, client_cert, client_key
+                )
+                log.info("Remote '%s' exists. Updating URL, policy, and certificates.", remote_name)
+            else:
                 command = pulp_rpm_commands["create_remote_cert"] % (
                     remote_name, remote_url, policy_type, ca_cert, client_cert, client_key
                 )
                 log.info("Remote '%s' does not exist. Executing creation command with certs.", remote_name)
-                result = execute_command(command, log)
-                # Handle duplicate remote error - treat as success since remote already exists
-                if result is False:
-                    log.warning(
-                        "Remote creation command failed for '%s', checking if remote already exists",
-                        remote_name
-                    )
-                    if show_rpm_remote(remote_name, log):
-                        log.info("Remote '%s' already exists (duplicate creation error). Treating as success.", remote_name)
-                        return True, repo_name
-                log.info("Remote %s created.", remote_name)
+            result = execute_command(command, log)
+            # Handle a concurrent create of the same remote as success.
+            if result is False and not remote_exists and show_rpm_remote(remote_name, log):
+                log.info("Remote '%s' was created concurrently. Treating as success.", remote_name)
+                return True, repo_name
         else:
             log.info("Repository does not use SSL certificates for remote")
-            if not show_rpm_remote(remote_name, log):
+            if remote_exists:
+                command = pulp_rpm_commands["update_remote"] % (remote_name, remote_url, policy_type)
+                log.info("Remote '%s' exists. Updating URL and policy.", remote_name)
+            else:
                 command = pulp_rpm_commands["create_remote"] % (remote_name, remote_url, policy_type)
                 log.info("Remote '%s' does not exist. Executing creation command.", remote_name)
-                result = execute_command(command, log)
-                # Handle duplicate remote error - treat as success since remote already exists
-                if result is False:
-                    log.warning("Remote creation command failed for '%s', checking if remote already exists", remote_name)
-                    if show_rpm_remote(remote_name, log):
-                        log.info("Remote '%s' already exists (duplicate creation error). Treating as success.", remote_name)
-                        return True, repo_name
-                log.info("Remote %s created.", remote_name)
-        # Return True if result is truthy (success) or if remote exists, False otherwise
+            result = execute_command(command, log)
+            # Handle a concurrent create of the same remote as success.
+            if result is False and not remote_exists and show_rpm_remote(remote_name, log):
+                log.info("Remote '%s' was created concurrently. Treating as success.", remote_name)
+                return True, repo_name
+        # Both create and update commands return a truthy result on success.
         return bool(result), repo_name
 
     except subprocess.CalledProcessError as e:
-        log.error("CalledProcessError while creating remote '%s': %s", repo.get("package", "unknown"), str(e))
-        return False, repo.get("package", "unknown")
+        repo_name_for_error = repo.get("package") or repo.get("name", "unknown")
+        log.error("CalledProcessError while creating remote '%s': %s", repo_name_for_error, str(e))
+        return False, repo_name_for_error
     except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
-        log.error("Subprocess error while creating remote '%s': %s", repo.get("package", "unknown"), str(e))
-        return False, repo.get("package", "unknown")
+        repo_name_for_error = repo.get("package") or repo.get("name", "unknown")
+        log.error("Subprocess error while creating remote '%s': %s", repo_name_for_error, str(e))
+        return False, repo_name_for_error
     except Exception as e:
-        log.error("Unexpected error while creating remote '%s': %s", repo.get("package", "unknown"), str(e))
-        return False, repo.get("package", "unknown")
+        repo_name_for_error = repo.get("package") or repo.get("name", "unknown")
+        log.error("Unexpected error while creating remote '%s': %s", repo_name_for_error, str(e))
+        return False, repo_name_for_error
     finally:
-        log.info("Completed RPM remote creation process for '%s'", repo.get("package", "unknown"))
+        repo_name_for_error = repo.get("package") or repo.get("name", "unknown")
+        log.info("Completed RPM remote creation process for '%s'", repo_name_for_error)
 
 
 def show_rpm_remote(remote_name, log):
@@ -453,12 +529,15 @@ def sync_rpm_repository(repo, log, resync_repos=None):
 
     repo_name = repo["package"]
     version = repo.get("version")
+    start = time.time()
 
     if version and version != "null":
         repo_name = f"{repo_name}_{version}"
 
+    _log(log, "info", repo_name, "=== START REPO ===")
+
     try:
-        log.info("Starting synchronization for RPM repository")
+        _log(log, "info", repo_name, "Step 4/5: Sync started")
         # Determine if we should skip sync check
         force_sync = False
 
@@ -466,7 +545,7 @@ def sync_rpm_repository(repo, log, resync_repos=None):
         resync_list = None
         if resync_repos == "all":
             force_sync = True
-            log.info("Force resync enabled for all repos")
+            _log(log, "debug", repo_name, "Force resync enabled for all repos")
         elif isinstance(resync_repos, str) and resync_repos:
             # Handle comma-separated string: "repo1,repo2"
             resync_list = [r.strip() for r in resync_repos.split(",")]
@@ -477,50 +556,368 @@ def sync_rpm_repository(repo, log, resync_repos=None):
         if resync_list:
             if repo_name in resync_list:
                 force_sync = True
-                log.info(f"Force resync enabled for {repo_name}")
+                _log(log, "debug", repo_name, f"Force resync enabled")
             else:
-                # log.info(f"{repo_name} not in resync list. Skipping.")
+                elapsed = int(time.time() - start)
+                _log(log, "info", repo_name, f"Step 4/5: Sync — SKIPPED (not in resync list)")
+                _log(log, "info", repo_name, f"=== END REPO — SKIPPED ({elapsed}s) ===")
                 return True, repo_name, False, False # Not actually synced, no version change
 
         # Check if already synced (skip check if force_sync is True)
         if not force_sync and check_repository_synced(repo_name, log):
-            # log.info(f"{repo_name} already synced. Skipping sync.")
+            elapsed = int(time.time() - start)
+            _log(log, "info", repo_name, f"Step 4/5: Sync — SKIPPED (already synced)")
+            _log(log, "info", repo_name, f"=== END REPO — SKIPPED ({elapsed}s) ===")
             return True, repo_name, False, False # Not actually synced, no version change
 
         # Get version before sync
         version_before = get_repo_version(repo_name, log)
-        log.info(f"{repo_name} version before sync: {version_before}")
+        _log(log, "debug", repo_name, f"Version before sync: {version_before}")
 
         remote_name = repo_name
         command = pulp_rpm_commands["sync_repository"] % (repo_name, remote_name)
-        log.info("SYNC STARTED: %s", repo_name)
-        log.info("Command: %s", command)
 
-        start_time = time.time()
-        result = execute_command(command, log)
-        elapsed_time = time.time() - start_time
+        result = execute_command(command, log, repo_name=repo_name)
+        elapsed = int(time.time() - start)
 
         success = bool(result)
 
         # Get version after sync
         version_after = get_repo_version(repo_name, log)
         version_changed = version_after > version_before
-        log.info(f"{repo_name} version after sync: {version_after} (changed: {version_changed})")
+        _log(log, "debug", repo_name, f"Version after sync: {version_after} (changed: {version_changed})")
 
         if success:
-            log.info("SYNC SUCCESS: %s (Duration: %.2f seconds)", repo_name, elapsed_time)
+            _log(log, "info", repo_name, f"Step 4/5: Sync — SYNCED ({elapsed}s)")
+            _log(log, "info", repo_name, f"=== END REPO — SUCCESS ({elapsed}s) ===")
+            return success, repo_name, success, version_changed  # Return version_changed flag
         else:
-            log.error("SYNC FAILED: %s (Duration: %.2f seconds)", repo_name, elapsed_time)
-
-        return success, repo_name, success, version_changed  # Return version_changed flag
+            _log(log, "error", repo_name, f"Step 4/5: Sync — FAILED")
+            _log(log, "error", repo_name, f"Command: {command}")
+            _log(log, "info", repo_name, f"=== END REPO — FAILED ({elapsed}s) ===")
+            return False, repo_name, False, False
     except subprocess.CalledProcessError as e:
-        log.error("CalledProcessError during synchronization of repository '%s': %s", repo_name, str(e))
+        elapsed = int(time.time() - start)
+        _log(log, "error", repo_name, f"CalledProcessError: {str(e)}")
+        _log(log, "info", repo_name, f"=== END REPO — FAILED ({elapsed}s) ===")
         return False, repo_name, False, False
     except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
-        log.error("Subprocess error during synchronization of repository '%s': %s", repo_name, str(e))
+        elapsed = int(time.time() - start)
+        _log(log, "error", repo_name, f"Subprocess error: {str(e)}")
+        _log(log, "info", repo_name, f"=== END REPO — FAILED ({elapsed}s) ===")
         return False, repo_name, False, False
     except Exception as e:
-        log.error("Unexpected error during synchronization of repository '%s': %s", repo_name, str(e))
+        elapsed = int(time.time() - start)
+        _log(log, "error", repo_name, f"Unexpected error: {str(e)}")
+        _log(log, "info", repo_name, f"=== END REPO — FAILED ({elapsed}s) ===")
+        return False, repo_name, False, False
+
+
+def _get_repo_uuid(repo_name, log):
+    """
+    Get Pulp UUID for a repository. Called once before monitoring loop.
+    
+    Args:
+        repo_name (str): Repository name
+        log (logging.Logger): Logger instance
+    
+    Returns:
+        str: Repository UUID or None if not found
+    """
+    try:
+        result = subprocess.run(
+            ["pulp", "rpm", "repository", "show", "--name", repo_name],
+            capture_output=True, text=True, timeout=15, check=False
+        )
+        if result.returncode != 0:
+            _log(log, "debug", repo_name, "Failed to get repository UUID")
+            return None
+        repo_data = json.loads(result.stdout)
+        href = repo_data.get("pulp_href", "")
+        # /pulp/api/v3/repositories/rpm/rpm/UUID/ → extract UUID
+        parts = href.strip("/").split("/")
+        return parts[-1] if parts else None
+    except Exception as e:
+        _log(log, "warning", repo_name, f"Error getting repository UUID: {e}")
+        return None
+
+
+def _get_pulp_task_progress(repo_uuid, log):
+    """
+    Get download progress for a repo's running sync task.
+    
+    Matches by repo UUID in reserved_resources_record.
+    
+    Args:
+        repo_uuid (str): Repository UUID to match tasks
+        log (logging.Logger): Logger instance
+    
+    Returns:
+        tuple: (done_count, total_count, task_href) or (-1, -1, None)
+    """
+    if not repo_uuid:
+        return -1, -1, None
+    try:
+        result = subprocess.run(
+            ["pulp", "task", "list", "--state", "running", "--limit", "50"],
+            capture_output=True, text=True, timeout=30, check=False
+        )
+        if result.returncode != 0:
+            return -1, -1, None
+        
+        tasks = json.loads(result.stdout)
+        
+        for task in tasks:
+            reserved = str(task.get("reserved_resources_record", []))
+            if repo_uuid not in reserved:
+                continue
+            
+            for report in task.get("progress_reports", []):
+                code = report.get("code", "")
+                state = report.get("state", "")
+                if ("downloading" in code or "parsing" in code) and state == "running":
+                    done = report.get("done", 0)
+                    total = report.get("total")
+                    return done, total, task.get("pulp_href")
+        
+        return -1, -1, None
+    except Exception as e:
+        return -1, -1, None
+
+
+def _cancel_pulp_task(task_href, log, repo_name):
+    """
+    Cancel a Pulp task by href.
+    
+    Args:
+        task_href (str): Pulp task href to cancel
+        log (logging.Logger): Logger instance
+        repo_name (str): Repository name for logging
+    
+    Returns:
+        bool: True if cancellation succeeded, False otherwise
+    """
+    try:
+        result = subprocess.run(
+            ["pulp", "task", "cancel", "--href", task_href],
+            capture_output=True, text=True, timeout=30, check=False
+        )
+        if result.returncode == 0:
+            _log(log, "info", repo_name, f"Successfully cancelled Pulp task: {task_href}")
+            return True
+        else:
+            _log(log, "error", repo_name, f"Failed to cancel Pulp task: {result.stderr}")
+            return False
+    except Exception as e:
+        _log(log, "error", repo_name, f"Error cancelling Pulp task: {e}")
+        return False
+
+
+def _cleanup_partial_repo(repo_name, log):
+    """
+    Clean up a repository that was left in partial state after cancellation.
+    
+    This ensures clean re-sync on next run by deleting the repository,
+    which cascades to versions, publications, and distributions.
+    
+    Args:
+        repo_name (str): Repository name to clean up
+        log (logging.Logger): Logger instance
+    
+    Returns:
+        bool: True if cleanup succeeded, False otherwise
+    """
+    try:
+        if not RPM_CLEANUP_ON_TIMEOUT:
+            _log(log, "info", repo_name, "Cleanup disabled by configuration")
+            return True
+        
+        if RPM_CLEANUP_ORPHANS_ONLY:
+            _log(log, "info", repo_name, "Cleaning up orphaned content only...")
+            result = subprocess.run(
+                ["pulp", "orphan", "cleanup", "--protection-time", "0"],
+                capture_output=True, text=True, timeout=60, check=False
+            )
+            if result.returncode == 0:
+                _log(log, "info", repo_name, "Orphaned content cleaned up successfully")
+                return True
+            else:
+                _log(log, "warning", repo_name, f"Orphan cleanup failed: {result.stderr}")
+                return False
+        else:
+            _log(log, "info", repo_name, "Cleaning up partial repository state...")
+            
+            # Delete repository (this cascades to versions, publications, distributions)
+            result = subprocess.run(
+                ["pulp", "rpm", "repository", "destroy", "--name", repo_name],
+                capture_output=True, text=True, timeout=30, check=False
+            )
+            
+            if result.returncode == 0:
+                _log(log, "info", repo_name, "Repository cleaned up successfully")
+                return True
+            else:
+                _log(log, "warning", repo_name, f"Cleanup failed: {result.stderr}")
+                return False
+    except Exception as e:
+        _log(log, "error", repo_name, f"Error during cleanup: {e}")
+        return False
+
+
+def sync_rpm_repository_with_monitoring(repo, log, resync_repos=None):
+    """
+    Sync RPM repository with progress-based stuck detection.
+    
+    Drop-in replacement for sync_rpm_repository().
+    Same args, same return format.
+    
+    Monitors Pulp task progress. If no change for
+    RPM_SYNC_STUCK_TIMEOUT seconds, kills process and cancels task.
+    
+    Args:
+        repo (dict): Repository configuration
+        log (logging.Logger): Logger instance
+        resync_repos (str/list): Controls sync behavior
+    
+    Returns:
+        tuple: (success, repo_name, actually_synced, version_changed)
+    """
+    repo_name = repo["package"]
+    version = repo.get("version")
+    start = time.time()
+    
+    if version and version != "null":
+        repo_name = f"{repo_name}_{version}"
+    
+    _log(log, "info", repo_name, "=== START REPO ===")
+    
+    try:
+        _log(log, "info", repo_name, "Step 4/5: Sync started with progress monitoring")
+        
+        # Skip logic (same as original)
+        force_sync = False
+        resync_list = None
+        
+        if resync_repos == "all":
+            force_sync = True
+        elif isinstance(resync_repos, str) and resync_repos:
+            resync_list = [r.strip() for r in resync_repos.split(",")]
+        elif isinstance(resync_repos, list):
+            resync_list = resync_repos
+        
+        if resync_list:
+            if repo_name in resync_list:
+                force_sync = True
+            else:
+                elapsed = int(time.time() - start)
+                _log(log, "info", repo_name, f"Step 4/5: Sync — SKIPPED (not in resync list)")
+                _log(log, "info", repo_name, f"=== END REPO — SKIPPED ({elapsed}s) ===")
+                return True, repo_name, False, False
+        
+        if not force_sync and check_repository_synced(repo_name, log):
+            elapsed = int(time.time() - start)
+            _log(log, "info", repo_name, f"Step 4/5: Sync — SKIPPED (already synced)")
+            _log(log, "info", repo_name, f"=== END REPO — SKIPPED ({elapsed}s) ===")
+            return True, repo_name, False, False
+        
+        version_before = get_repo_version(repo_name, log)
+        _log(log, "debug", repo_name, f"Version before sync: {version_before}")
+        
+        # Get repo UUID for task matching
+        repo_uuid = _get_repo_uuid(repo_name, log)
+        
+        # Start sync
+        remote_name = repo_name
+        command = pulp_rpm_commands["sync_repository"] % (repo_name, remote_name)
+        
+        process = subprocess.Popen(
+            shlex.split(command),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        _log(log, "info", repo_name, f"Sync started (PID: {process.pid})")
+        _log(log, "debug", repo_name, f"Stuck timeout: {RPM_SYNC_STUCK_TIMEOUT}s, Check interval: {RPM_PROGRESS_CHECK_INTERVAL}s")
+        
+        # Monitoring variables — all local, thread-safe
+        last_done_count = -1
+        last_progress_time = time.time()
+        last_log_time = start
+        task_href = None
+        
+        # Monitor loop
+        while process.poll() is None:
+            time.sleep(RPM_PROGRESS_CHECK_INTERVAL)
+            current_time = time.time()
+            elapsed = int(current_time - start)
+            
+            # Get progress
+            current_done, total, current_task_href = _get_pulp_task_progress(repo_uuid, log)
+            if current_task_href:
+                task_href = current_task_href
+            
+            if current_done == -1:
+                # Cannot read progress
+                if current_time - last_log_time >= 60:
+                    _log(log, "info", repo_name, f"Sync running... ({elapsed}s elapsed)")
+                    last_log_time = current_time
+                continue
+            
+            if current_done != last_done_count:
+                # Progress made — reset timer
+                last_done_count = current_done
+                last_progress_time = current_time
+                progress_str = f"{current_done}" if total is None else f"{current_done}/{total}"
+                _log(log, "info", repo_name, f"Progress: {progress_str} artifacts ({elapsed}s)")
+            else:
+                # No progress
+                stuck_seconds = int(current_time - last_progress_time)
+                
+                if stuck_seconds >= RPM_SYNC_STUCK_TIMEOUT:
+                    # STUCK — kill and cancel
+                    _log(log, "error", repo_name,
+                          f"TIMEOUT: Stuck at {current_done} for {stuck_seconds}s. Cancelling.")
+                    process.kill()
+                    process.wait()
+                    if task_href:
+                        _cancel_pulp_task(task_href, log, repo_name)
+                    
+                    # Clean up partial repository state
+                    _cleanup_partial_repo(repo_name, log)
+                    
+                    elapsed = int(time.time() - start)
+                    _log(log, "info", repo_name, f"=== END REPO — TIMEOUT ({elapsed}s) ===")
+                    return False, repo_name, False, False
+                
+                elif current_time - last_log_time >= 60:
+                    _log(log, "warning", repo_name,
+                          f"Stalled at {current_done} for {stuck_seconds}s "
+                          f"(timeout: {RPM_SYNC_STUCK_TIMEOUT}s)")
+                    last_log_time = current_time
+        
+        # Process finished
+        stdout, stderr = process.communicate()
+        elapsed = int(time.time() - start)
+        
+        if process.returncode != 0:
+            _log(log, "error", repo_name, f"Sync failed (rc={process.returncode})")
+            if stderr and stderr.strip():
+                _log(log, "error", repo_name, f"{stderr.strip()}")
+            return False, repo_name, False, False
+        
+        version_after = get_repo_version(repo_name, log)
+        version_changed = version_after > version_before
+        _log(log, "debug", repo_name, f"Version after sync: {version_after} (changed: {version_changed})")
+        
+        _log(log, "info", repo_name, f"Step 4/5: Sync — SYNCED ({elapsed}s)")
+        _log(log, "info", repo_name, f"=== END REPO — SUCCESS ({elapsed}s) ===")
+        return True, repo_name, True, version_changed
+    
+    except Exception as e:
+        elapsed = int(time.time() - start)
+        _log(log, "error", repo_name, f"Error: {e}")
+        _log(log, "info", repo_name, f"=== END REPO — FAILED ({elapsed}s) ===")
         return False, repo_name, False, False
 
 
@@ -607,34 +1004,31 @@ def check_publication_exists(repo_name, log):
     """
     try:
         command = pulp_rpm_commands["check_publication"] % repo_name
-        log.info("Checking if publication exists for repository '%s'", repo_name)
         cmd_list = shlex.split(command)
         result = subprocess.run(cmd_list, shell=False, capture_output=True, text=True, check=False)
-        log.info("check_publication_exists command return code: %s", result.returncode)
 
         if result.returncode != 0:
-            log.info("Publication check command failed for '%s'", repo_name)
             return False
 
         # Parse the JSON output - publication list returns [] when empty
-        publications = json.loads(result.stdout)
+        publications = json.loads(result.stdout) if result.stdout.strip() else []
         if publications:
-            log.info("Publication exists for '%s' (%d found)", repo_name, len(publications))
+            log.debug(f"[{repo_name}] - Publication exists ({len(publications)} found)")
             return True
         else:
-            log.info("No publications found for '%s' (empty list)", repo_name)
+            log.debug(f"[{repo_name}] - No existing publication")
             return False
     except (json.JSONDecodeError, ValueError) as e:
-        log.error("Error parsing publication list for '%s': %s", repo_name, str(e))
+        log.error(f"[{repo_name}] - Error parsing publication list: {str(e)}")
         return False
     except subprocess.CalledProcessError as e:
-        log.error("CalledProcessError checking publication for '%s': %s", repo_name, str(e))
+        log.error(f"[{repo_name}] - CalledProcessError: {str(e)}")
         return False
     except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
-        log.error("Subprocess error checking publication for '%s': %s", repo_name, str(e))
+        log.error(f"[{repo_name}] - Subprocess error: {str(e)}")
         return False
     except Exception as e:
-        log.error("Error checking publication for '%s': %s", repo_name, str(e))
+        log.error(f"[{repo_name}] - Unexpected error: {str(e)}")
         return False
 
 
@@ -785,14 +1179,12 @@ def create_publication(repo, log, resync_repos=None):
     """
 
     try:
-        log.info("Starting publication creation for RPM repository")
         repo_name = repo["package"]
         version = repo.get("version")
 
-        if version != "null":
+        # Handle version properly - only append if it's a non-null, non-empty string
+        if version and version != "null" and str(version).strip():
             repo_name = f"{repo_name}_{version}"
-
-        log.info("Processing publication for repository: '%s'", repo_name)
 
         # Check if version changed during sync (passed via _version_changed flag)
         version_changed = repo.get("_version_changed", True)  # Default True for safety
@@ -800,19 +1192,16 @@ def create_publication(repo, log, resync_repos=None):
         # If publication exists and version didn't change, keep existing publication
         if check_publication_exists(repo_name, log):
             if not version_changed:
-                log.info(f"{repo_name} version unchanged. Keeping existing publication.")
+                _log(log, "info", repo_name, "Step 5/5: Publication — EXISTS (kept)")
                 return True, repo_name
             else:
-                log.info(f"{repo_name} version changed. Deleting old publication and creating new one.")
+                _log(log, "info", repo_name, "Step 5/5: Publication — recreating (version changed)")
                 delete_old_publications(repo_name, log)
         else:
-            log.info(f"{repo_name} publication not found. Creating new one.")
+            _log(log, "info", repo_name, "Step 5/5: Publication — creating")
 
-        log.info("Processing repository: '%s'", repo_name)
         command = pulp_rpm_commands["publish_repository"] % repo_name
-        log.info("Executing publication command: %s", command)
-
-        result = execute_command(command, log)
+        result = execute_command(command, log, repo_name=repo_name)
 
         # Initialize
         success = False
@@ -830,23 +1219,20 @@ def create_publication(repo, log, resync_repos=None):
             success = bool(result)
 
         if success:
-            log.info("Publication created for %s.", repo_name)
+            _log(log, "info", repo_name, "Step 5/5: Publication — CREATED")
         else:
-            log.error("Failed to create publication for %s. Error: %s", repo_name, error_message or "Unknown error")
+            _log(log, "error", repo_name, f"Step 5/5: Publication — FAILED: {error_message or 'Unknown error'}")
 
         return success, repo_name
     except subprocess.CalledProcessError as e:
-        log.error("CalledProcessError during publication creation for repository '%s': %s", repo.get("package", "unknown"), str(e))
+        _log(log, "error", repo.get("package", "unknown"), f"CalledProcessError: {str(e)}")
         return False, repo.get("package", "unknown")
     except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
-        log.error("Subprocess error during publication creation for repository '%s': %s", repo.get("package", "unknown"), str(e))
+        _log(log, "error", repo.get("package", "unknown"), f"Subprocess error: {str(e)}")
         return False, repo.get("package", "unknown")
     except Exception as e:
-        log.error("Unexpected error during publication creation for repository '%s': %s", repo.get("package", "unknown"), str(e))
+        _log(log, "error", repo.get("package", "unknown"), f"Unexpected error: {str(e)}")
         return False, repo.get("package", "unknown")
-
-    finally:
-        log.info("Completed publication process for repository '%s'", repo.get("package", "unknown"))
 
 
 def create_distribution(repo, log, resync_repos=None, cluster_os_version="10.0"):
@@ -956,7 +1342,23 @@ def get_base_urls(log):
     return distributions
 
 
-def create_yum_repo_file(distributions, log, sslcacert=None):
+def build_repo_priority_map(rpm_config):
+    """Return configured DNF priorities keyed by the final Pulp repo name."""
+    priorities = {}
+    for repo in rpm_config:
+        priority = repo.get("priority")
+        if priority is None:
+            continue
+
+        repo_name = repo["package"]
+        version = repo.get("version")
+        if version and version != "null":
+            repo_name = f"{repo_name}_{version}"
+        priorities[repo_name] = int(priority)
+    return priorities
+
+
+def create_yum_repo_file(distributions, log, sslcacert=None, repo_priorities=None):
     """
     Creates a new 'pulp.repo' file in /etc/yum.repos.d and adds multiple repositories.
 
@@ -964,6 +1366,7 @@ def create_yum_repo_file(distributions, log, sslcacert=None):
         distributions (list): A list of dictionaries containing the base URLs and names of all distributions.
         log (logging.Logger): Logger instance for logging the process and errors.
         sslcacert (str): Optional path to SSL CA certificate for HTTPS repos.
+        repo_priorities (dict): Optional mapping of Pulp repo name to DNF priority.
 
     Returns:
         None
@@ -996,10 +1399,7 @@ def create_yum_repo_file(distributions, log, sslcacert=None):
         # Auto-detect sslcacert if not provided and HTTPS is used
         if uses_https and not sslcacert:
             # Check common certificate locations
-            cert_locations = [
-                os.path.join(OMNIA_BASE_DIR, "pulp", "settings", "certs", "pulp_webserver.crt"),
-                "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
-            ]
+            cert_locations = [PULP_SSL_CA_CERT]
             for cert_path in cert_locations:
                 if os.path.exists(cert_path):
                     sslcacert = cert_path
@@ -1007,6 +1407,7 @@ def create_yum_repo_file(distributions, log, sslcacert=None):
                     break
 
         repo_content = ""
+        repo_priorities = repo_priorities or {}
         enabled_count = 0
         disabled_count = 0
 
@@ -1017,7 +1418,11 @@ def create_yum_repo_file(distributions, log, sslcacert=None):
             # Determine if repo should be enabled based on architecture
             # Only enable repos that match the system architecture
             # Repo names follow pattern: {arch}_{os_type}_{version}_{repo_name}
-            repo_arch = repo_name.split('_')[0] if '_' in repo_name else None
+            repo_arch = next(
+                (candidate for candidate in ARCH_SUFFIXES
+                 if repo_name.startswith(f"{candidate}_")),
+                None,
+            )
             
             # Enable repo only if it matches system architecture
             # x86_64 system: enable x86_64 repos, disable aarch64 repos
@@ -1041,6 +1446,9 @@ name={repo_name} repo
 baseurl={base_url}
 enabled={enabled}
 gpgcheck=0"""
+
+            if repo_name in repo_priorities:
+                repo_entry += f"\npriority={repo_priorities[repo_name]}"
 
             # Add SSL configuration for HTTPS URLs
             if base_url.startswith("https://") and sslcacert:
@@ -1544,6 +1952,13 @@ def manage_aggregated_repos(additional_repos_config, log, cluster_os_type="rhel"
             sync_failures = []
 
             for repo_entry in repos:
+                # Ensure repo name is normalized
+                repo_name_entry = repo_entry["name"]
+                expected_prefix = f"{arch}_{cluster_os_type}_{cluster_os_version}_"
+                if not repo_name_entry.startswith(expected_prefix):
+                    repo_name_entry = normalize_repo_name(repo_name_entry, arch, cluster_os_type, cluster_os_version)
+                    repo_entry["name"] = repo_name_entry  # Update the entry
+                
                 # Create remote
                 log.info(f"Step 3: Creating remote for '{repo_entry['name']}'")
                 success, remote_name = create_aggregated_remote(repo_entry, repo_name, log)
@@ -1578,7 +1993,10 @@ def manage_aggregated_repos(additional_repos_config, log, cluster_os_type="rhel"
     return True, "success"
 
 
-def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_repos=None, cluster_os_version="10.0"):
+def manage_rpm_repositories_multiprocess(
+        rpm_config, log, sw_archs=None, resync_repos=None,
+        cluster_os_version="10.0", continue_on_failure=True,
+        thread_pool_size=RPM_THREAD_POOL_SIZE):
     """
     Manage RPM repositories using multiprocessing.
 
@@ -1592,9 +2010,13 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
             - "all": Force resync all repos
             - list of repo names: Only sync specified repos
         cluster_os_version (str): The cluster OS version (e.g., '10.0', '10.1').
+        thread_pool_size (int): Maximum worker processes used by every RPM stage.
     Returns:
         tuple: (bool, str) indicating success and a message
     """
+    # Accumulate all failures across stages with stage prefixes
+    all_failures = []
+    total_start_time = time.time()
 
     # Filter rpm_config by sw_archs if provided
     if sw_archs:
@@ -1611,10 +2033,9 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
     if not is_valid:
         return False, error_msg
 
-    cpu_count = os.cpu_count()
-    process = min(cpu_count, len(rpm_config))
-    # log.info(f"Number of processes = {process}")
-    log.info(f"Number of processes for lightweight operations = {process}")
+    process = _effective_worker_count(thread_pool_size, len(rpm_config))
+    log.info(f"Configured RPM worker processes = {thread_pool_size}")
+    log.info(f"Effective processes for lightweight operations = {process}")
 
     # Calculate actual repos to process based on resync_repos
     # This determines the effective concurrency for sync/publish/distribute
@@ -1630,27 +2051,28 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
 
     log.info(f"Repos to actually process (based on resync_repos): {repos_to_process_count}")
 
-    # Use configurable concurrency from config.py for resource-intensive operations
-    # This prevents overwhelming the Pulp server, especially on NFS storage
-    # Adjust PULP_CONCURRENCY via Ansible or in config.py::
-    #   - For NFS storage: Use 1 (prevents 500/502/504 errors)
-    #   - For local storage: Use 2 for optimal performance
-    #   - For high-performance SAN: Can try 3-4 (monitor for errors)
-    # Cap by actual repos to process, not total rpm_config
-    pulp_process = min(PULP_CONCURRENCY, repos_to_process_count)
-    # pulp_process = min(PULP_CONCURRENCY, process)
+    # One stability-oriented limit controls every stage. Cap resource-intensive
+    # work by the number of repositories that can actually be processed.
+    pulp_process = _effective_worker_count(thread_pool_size, repos_to_process_count)
 
-    log.info(f"Configured pulp concurrency: {PULP_CONCURRENCY}")
     log.info(f"Actual pulp processes (capped by repo to process): {pulp_process}")
+    log.info(f"Continue on failure: {continue_on_failure}")
 
     # Step 1: Concurrent repository creation
     log.info("Step 1: Starting concurrent RPM repository creation")
     with multiprocessing.Pool(processes=process) as pool:
         result = pool.map(partial(create_rpm_repository, log=log), rpm_config)
-    failed = [name for success, name in result if not success]
-    if failed:
-        log.error("Failed during creation of RPM repository for: %s", ", ".join(failed))
-        return False, f"During creation of RPM repository for: {', '.join(failed)}"
+
+    # Step 1.5: Validate repository creation
+    log.info("Step 1.5: Validating repository creation")
+    failed_repos = [name for success, name in result if not success]
+    if failed_repos:
+        log.error(f"Failed to create {len(failed_repos)} repositories: {', '.join(failed_repos)}")
+        if not continue_on_failure:
+            return False, f"Failed to create repositories: {', '.join(failed_repos)}"
+        log.warning("Continuing despite repository creation failures (continue_on_failure=True)")
+    else:
+        log.info("All repositories created successfully")
 
     # Step 2: Concurrent remote creation
     log.info("Step 2: Starting concurrent RPM remote creation")
@@ -1664,11 +2086,18 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
     # Step 3: Concurrent synchronization
     log.info("Step 3: Starting concurrent RPM repository synchronization")
     with multiprocessing.Pool(processes=pulp_process) as pool:
-        sync_results = pool.map(partial(sync_rpm_repository, log=log, resync_repos=resync_repos), rpm_config)
-    failed = [name for success, name, _, _ in sync_results if not success]
-    if failed:
-        log.error("Failed during synchronization of RPM repository for: %s", ", ".join(failed))
-        return False, f"During synchronization of RPM repository for: {', '.join(failed)}. Please refer to the troubleshooting guide for more information."
+        sync_results = pool.map(partial(sync_rpm_repository_with_monitoring, log=log, resync_repos=resync_repos), rpm_config)
+
+    sync_failed = [name for success, name, _, _ in sync_results if not success]
+    if sync_failed:
+        log.error("Failed during synchronization of RPM repository for: %s", ", ".join(sync_failed))
+        all_failures.extend([f"sync:{name}" for name in sync_failed])
+        if not continue_on_failure:
+            return False, f"During synchronization of RPM repository for: {', '.join(sync_failed)}. Please refer to the troubleshooting guide for more information."
+        log.warning("Continuing with remaining repositories (continue_on_failure=True)")
+        # Remove failed repos from further processing - they can't be published if sync failed
+        rpm_config = [r for r in rpm_config if r.get("package") not in sync_failed]
+        log.info(f"Removed {len(sync_failed)} failed repos from publication/distribution processing")
 
     # Process sync results and get repos for publication/distribution
     repos_for_pub_dist, should_skip, skip_message  = process_sync_results(sync_results, rpm_config, resync_repos, log)
@@ -1679,22 +2108,39 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
         # Deletes old publications and creates new ones
         log.info("Step 4: Starting concurrent RPM publication creation")
         log.info(f"Processing publication for {len(repos_for_pub_dist)} repos")
-        with multiprocessing.Pool(processes=min(pulp_process, len(repos_for_pub_dist))) as pool:
+        publication_processes = _effective_worker_count(
+            thread_pool_size, len(repos_for_pub_dist)
+        )
+        with multiprocessing.Pool(processes=publication_processes) as pool:
             result = pool.map(partial(create_publication, log=log, resync_repos=resync_repos), repos_for_pub_dist)
-        failed = [name for success, name in result if not success]
-        if failed:
-            log.error("Failed during publication of RPM repository for: %s", ", ".join(failed))
-            return False, f"During publication of RPM repository for: {', '.join(failed)}. Please refer to the troubleshooting guide for more information."
+
+        pub_failed = [name for success, name in result if not success]
+        if pub_failed:
+            log.error("Failed during publication of RPM repository for: %s", ", ".join(pub_failed))
+            all_failures.extend([f"publish:{name}" for name in pub_failed])
+            if not continue_on_failure:
+                return False, f"During publication of RPM repository for: {', '.join(pub_failed)}. Please refer to the troubleshooting guide for more information."
+            log.warning("Continuing with remaining repositories (continue_on_failure=True)")
+            # Remove failed repos from distribution processing
+            repos_for_pub_dist = [r for r in repos_for_pub_dist if r.get("package") not in pub_failed]
+            log.info(f"Removed {len(pub_failed)} failed repos from distribution processing")
 
         # Step 5: Concurrent distribution creation/update
         log.info("Step 5: Starting concurrent RPM distribution creation/update")
         log.info(f"Processing distribution for {len(repos_for_pub_dist)} repos")
-        with multiprocessing.Pool(processes=min(pulp_process, len(repos_for_pub_dist))) as pool:
+        distribution_processes = _effective_worker_count(
+            thread_pool_size, len(repos_for_pub_dist)
+        )
+        with multiprocessing.Pool(processes=distribution_processes) as pool:
             result = pool.map(partial(create_distribution, log=log, resync_repos=resync_repos, cluster_os_version=cluster_os_version), repos_for_pub_dist)
-        failed = [name for success, name in result if not success]
-        if failed:
-            log.error("Failed during distribution of RPM repository for: %s", ", ".join(failed))
-            return False, f"During distribution of RPM repository for: {', '.join(failed)}"
+
+        dist_failed = [name for success, name in result if not success]
+        if dist_failed:
+            log.error("Failed during distribution of RPM repository for: %s", ", ".join(dist_failed))
+            all_failures.extend([f"dist:{name}" for name in dist_failed])
+            if not continue_on_failure:
+                return False, f"During distribution of RPM repository for: {', '.join(dist_failed)}"
+            log.warning("Continuing despite distribution failures (continue_on_failure=True)")
     else:
         log.info("Skipping publication/distribution steps - repos already up to date")
 
@@ -1709,23 +2155,19 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
         return False, "Base URLs fetch failed — repo file not created."
 
     log.info(f"Fetched {len(base_urls)} base URLs from Pulp.")
-    create_yum_repo_file(base_urls, log)
+    create_yum_repo_file(
+        base_urls, log,
+        repo_priorities=build_repo_priority_map(rpm_config)
+    )
     log.info("Successfully created/updated pulp.repo file with fetched base URLs.")
 
-    # Return appropriate success message based on resync_repos and skip status
-    if should_skip:
-        return True, skip_message
+    # Final summary
+    _log_summary(log, sync_results, all_failures, total_start_time)
 
-    if resync_repos == "all":
-        return True, "Resync completed successfully for all repositories"
-    elif resync_repos:
-        if isinstance(resync_repos, str):
-            repos_list = resync_repos
-        else:
-            repos_list = ", ".join(resync_repos)
-        return True, f"Resync completed successfully for specified repositories: {repos_list}"
-
-    return True, "RPM repository sync and configuration completed successfully"
+    if all_failures:
+        failure_summary = ", ".join(all_failures)
+        return True, f"Completed with failures: {failure_summary}"
+    return True, "All repositories processed successfully"
 
 
 def main():
@@ -1754,10 +2196,13 @@ def main():
     module_args = {
         "local_config": {"type": "list", "required": True},
         # nosec B108 - Default path uses OMNIA_DATA_PATH env var for portability
-        "log_dir": {"type": "str", "required": False, 
-                   "default": os.path.join(os.environ.get('OMNIA_DATA_PATH', '/opt/omnia'), 
-                                          'log/repo_manager/thread_logs')},
+        "log_dir": {
+            "type": "str", "required": False,
+            "default": os.path.join(REPO_MANAGER_LOG_DIR, "thread_logs")
+        },
         "additional_repos_config": {"type": "dict", "required": False, "default": None},
+        "user_repos_config": {"type": "dict", "required": False, "default": None},
+        "thread_pool_size": {"type": "int", "required": False, "default": None},
         "pulp_concurrency": {"type": "int", "required": False, "default": None},
         "sw_archs": {"type": "list", "required": False, "default": None},
         "resync_repos": {"type": "raw", "required": False, "default": None},
@@ -1771,6 +2216,8 @@ def main():
     rpm_config = module.params["local_config"]
     log_dir = module.params["log_dir"]
     additional_repos_config = module.params["additional_repos_config"]
+    user_repos_config = module.params["user_repos_config"]
+    thread_pool_size = module.params["thread_pool_size"]
     pulp_concurrency = module.params["pulp_concurrency"]
     sw_archs = module.params["sw_archs"]
     resync_repos = module.params["resync_repos"]
@@ -1780,15 +2227,70 @@ def main():
     log = setup_standard_logger(log_dir)
     standard_log_path = os.path.join(log_dir, "standard.log")
 
-    # Optional override from Ansible (keep config.py defaults if unset)
-    global PULP_CONCURRENCY
+    # Convert user_repos_config to rpm_config format and merge
+    if user_repos_config:
+        log.info("Processing user_repos_config")
+        for arch, repos in user_repos_config.items():
+            for repo in repos:
+                # Get policy and caching settings
+                policy_str = repo.get("policy", "partial")
+                caching = repo.get("caching", True)
+                
+                # Resolve policy using POLICY_CACHING_MAP
+                resolved_policy = POLICY_CACHING_MAP.get((policy_str, caching), "on_demand")
+                
+                # Use normalized name if already present, otherwise normalize
+                repo_name = repo["name"]
+                original_name = repo.get("original_name", repo_name)
+                
+                # Check if already normalized (has expected prefix)
+                expected_prefix = f"{arch}_{cluster_os_type}_{cluster_os_version}_"
+                if repo_name.startswith(expected_prefix):
+                    normalized_name = repo_name  # Already normalized
+                else:
+                    normalized_name = normalize_repo_name(repo_name, arch, cluster_os_type, cluster_os_version)
+                
+                # Convert user repo to rpm_config format
+                user_repo_entry = {
+                    "package": normalized_name,  # Use normalized name for compatibility with create_rpm_remote
+                    "name": normalized_name,     # Use normalized name for other uses
+                    "original_name": original_name,  # Keep original for reference
+                    "url": repo["url"],
+                    "gpgkey": repo.get("gpgkey", ""),
+                    "policy": resolved_policy,  # Use resolved Pulp policy
+                    "caching": caching,
+                    "sslcacert": repo.get("sslcacert", ""),
+                    "sslclientkey": repo.get("sslclientkey", ""),
+                    "sslclientcert": repo.get("sslclientcert", ""),
+                    "sw_arch": arch,
+                    "os_type": cluster_os_type,
+                    "os_version": cluster_os_version,
+                    "version": "null",  # Set to "null" string to prevent _None suffix
+                    "priority": repo.get("priority", 100)
+                }
+                rpm_config.append(user_repo_entry)
+                log.info(f"Added user repo: {original_name} -> {normalized_name} for arch {arch} with policy: {resolved_policy}")
 
-    if pulp_concurrency is not None:
-        if pulp_concurrency < 1:
-            module.fail_json(msg="pulp_concurrency must be >= 1")
-        PULP_CONCURRENCY = pulp_concurrency
+    # ``pulp_concurrency`` remains a compatibility alias for direct callers.
+    # The role passes ``thread_pool_size`` and therefore always takes priority.
+    configured_thread_pool_size = thread_pool_size
+    if configured_thread_pool_size is None and pulp_concurrency is not None:
+        configured_thread_pool_size = pulp_concurrency
+        log.warning(
+            "pulp_concurrency is deprecated; use rpm_repo_config.thread_pool_size"
+        )
+    if configured_thread_pool_size is None:
+        configured_thread_pool_size = RPM_THREAD_POOL_SIZE
 
-    log.info(f"Configured pulp concurrency: {PULP_CONCURRENCY}")
+    if not MIN_THREAD_POOL_SIZE <= configured_thread_pool_size <= MAX_THREAD_POOL_SIZE:
+        module.fail_json(
+            msg=(
+                "thread_pool_size must be between "
+                f"{MIN_THREAD_POOL_SIZE} and {MAX_THREAD_POOL_SIZE}"
+            )
+        )
+
+    log.info(f"Configured RPM thread pool size: {configured_thread_pool_size}")
 
     start_time = datetime.now().strftime("%I:%M:%S %p")
 
@@ -1797,7 +2299,11 @@ def main():
     log.info(f"Architectures to process: {sw_archs}")
     log.info(f"Resync repos setting: {resync_repos}")
     # Call the function to manage RPM repositories
-    result, output = manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs, resync_repos, cluster_os_version)
+    result, output = manage_rpm_repositories_multiprocess(
+        rpm_config, log, sw_archs, resync_repos, cluster_os_version,
+        continue_on_failure=RPM_CONTINUE_ON_FAILURE,
+        thread_pool_size=configured_thread_pool_size
+    )
 
     if result is False:
         module.fail_json(msg=f"Error {output}, check {standard_log_path}")

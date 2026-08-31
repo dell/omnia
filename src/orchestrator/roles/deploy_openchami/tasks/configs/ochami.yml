@@ -52,28 +52,33 @@
   register: openchami_rpm_install
   changed_when: "'Nothing to do' not in openchami_rpm_install.stdout"
 
-- name: Ensure openchami.env exists
-  ansible.builtin.file:
-    path: /etc/openchami/configs/openchami.env
-    state: touch
+- name: Template openchami.env with all required environment variables
+  ansible.builtin.template:
+    src: openchami.env.j2
+    dest: "{{ openchami_config_dir }}/openchami.env"
     mode: "{{ file_perm_rw }}"
 
-- name: Update openchami.env with cluster settings
-  ansible.builtin.lineinfile:
-    path: /etc/openchami/configs/openchami.env
-    regexp: "{{ item.regexp }}"
-    line: "{{ item.line }}"
-  loop:
-    - { regexp: '^DOCKER_STEPCA_INIT_DNS_NAMES=', line: 'DOCKER_STEPCA_INIT_DNS_NAMES=step-ca,step-ca.{{ cluster_domain }}' }
-    - { regexp: '^TOKENSMITH_CLUSTER_ID=', line: 'TOKENSMITH_CLUSTER_ID={{ cluster_name }}-cluster' }
-    - { regexp: '^TOKENSMITH_OPENCHAMI_ID=', line: 'TOKENSMITH_OPENCHAMI_ID={{ cluster_name }}-openchami' }
-    - { regexp: '^SMD_DBHOST=', line: 'SMD_DBHOST={{ smd_dbhost }}' }
-    - { regexp: '^SMD_DBPORT=', line: 'SMD_DBPORT={{ smd_dbport }}' }
-    - { regexp: '^SMD_DBNAME=', line: 'SMD_DBNAME={{ smd_dbname }}' }
-    - { regexp: '^SMD_DBUSER=', line: 'SMD_DBUSER={{ smd_dbuser }}' }
-    - { regexp: '^SMD_DBOPTS=', line: 'SMD_DBOPTS={{ smd_dbopts }}' }
-  loop_control:
-    label: "{{ item.regexp }}"
+- name: Template tokensmith config
+  ansible.builtin.template:
+    src: tokensmith.json.j2
+    dest: "{{ openchami_config_dir }}/tokensmith.json"
+    mode: "{{ file_perm_rw }}"
+
+- name: Ensure pg-init directory exists
+  ansible.builtin.file:
+    path: "{{ openchami_dir }}/pg-init"
+    state: directory
+    mode: "{{ file_perm_rwx }}"
+
+- name: Restore pg-init script if missing
+  ansible.builtin.shell: |
+    set -o pipefail
+    rpm -V openchami 2>/dev/null | grep -q 'missing.*/pg-init/multi-psql-db.sh' && \
+      rpm2cpio {{ openchami_work_dir }}/{{ openchami_rpm_name }} | \
+      cpio -idmu --quiet --directory=/ './etc/openchami/pg-init/multi-psql-db.sh' && \
+      echo "RESTORED" || echo "PRESENT"
+  register: _pg_init_restore
+  changed_when: "'RESTORED' in _pg_init_restore.stdout"
 
 - name: Create tokensmith quadlet override directory
   ansible.builtin.file:

@@ -73,6 +73,8 @@
         - name: Configure mounts
           ansible.builtin.include_role:
             name: mount_config
+          vars:
+            mount_config_mode: "oim-mount"
           when: "'mount_config' in category_bolt_ons"
 
         - name: Configure Slurm

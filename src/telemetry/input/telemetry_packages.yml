@@ -225,10 +225,17 @@ git_repos:
 #       ...
 #
 # Available components:
+#   - base: Telemetry custom Ansible modules (K8s API client), installed during setup
 #   - idrac: iDRAC telemetry (MySQL operations via kubernetes module)
 #   - powerscale: PowerScale / CSI volume exporter (K8s API + PowerScale API)
 # =============================================================================
 pip_modules:
+  # Telemetry setup baseline
+  # Required for: custom Ansible modules that interact with the K8s API
+  # Used when install_python_dependencies is called without a component
+  base:
+    kubernetes: "33.1.0"
+
   # iDRAC telemetry
   # Required for: MySQL operations via kubernetes module
   idrac:

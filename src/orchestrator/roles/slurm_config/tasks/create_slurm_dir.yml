@@ -170,6 +170,21 @@
             (compiler_login_list | default([])) +
             (login_list | default([])) }}"
 
+- name: Display munge key restart warnings
+  ansible.builtin.debug:
+    msg: >-
+      Munge key updated on NFS for {{ item.item }} ({{ ip_name_map[item.item] | default(item.item) }}).
+      Please restart munge service on {{ ip_name_map[item.item] | default(item.item) }}
+      followed by the dependent slurm services.
+    verbosity: 1
+  loop: "{{ munge_key_copy.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - item.changed | default(false)
+    - restart_slurm_services
+  no_log: "{{ _no_log }}"
+
 - name: Conf merge and write using slurm_conf module
   ansible.builtin.include_tasks: confs.yml
 

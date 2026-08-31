@@ -9,8 +9,9 @@ __pycache__/
 # Test reports
 reports/
 
-# Credentials key (auto-generated, NEVER commit)
+# Credentials (auto-generated, NEVER commit)
 .test_creds.key
+test_creds.yml
 
 # IDE
 .idea/

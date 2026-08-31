@@ -37,6 +37,8 @@
   gather_facts: false
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
+  environment:
+    PULP_CA_BUNDLE: "{{ pulp_server_crt }}"
   tasks:
     # -------------------------------------------------------------------------
     # PHASE 0: SETUP PULP CLI
@@ -54,14 +56,14 @@
       when: not pulp_system_cli_check.stat.exists
 
     - name: Create symlink for pulp CLI at /usr/local/bin/pulp
-      ansible.builtin.file:
-        src: "{{ pulp_which_result.stdout }}"
-        dest: /usr/local/bin/pulp
-        state: link
       when:
         - not pulp_system_cli_check.stat.exists
         - pulp_which_result.rc | default(1) == 0
         - pulp_which_result.stdout | default('') | length > 0
+      ansible.builtin.file:
+        src: "{{ pulp_which_result.stdout }}"
+        dest: /usr/local/bin/pulp
+        state: link
 
     - name: Verify pulp CLI is accessible at /usr/local/bin/pulp
       ansible.builtin.command: /usr/local/bin/pulp --version
@@ -87,6 +89,9 @@
         name: ../../roles/pulp_validation
         tasks_from: read_endpoint_config.yml
 
+    - name: Verify Pulp is healthy before status generation
+      ansible.builtin.include_tasks: ../../roles/deploy_pulp/tasks/pulp_health_check.yml
+
     - name: Run pulp status command
       ansible.builtin.command: /usr/local/bin/pulp status
       register: pulp_status_output
@@ -108,11 +113,15 @@
         file: "{{ input_project_dir }}/repo_manager_config.yml"
         name: repo_manager_config_data
 
+    - name: Set omnia base path
+      ansible.builtin.set_fact:
+        omnia_base: "{{ omnia_data_path }}"
+
     - name: Set catalog path
       ansible.builtin.set_fact:
         catalog_path: >-
           {{ lookup('env', 'CATALOG_FILE_PATH') |
-             default('/opt/omnia/catalog/catalog_rhel.json', true) }}
+             default(omnia_base + '/catalog/catalog_rhel.json', true) }}
 
     - name: Load catalog JSON
       ansible.builtin.set_fact:
@@ -149,13 +158,10 @@
       generate_local_repo_access:
         pulp_server_ip: "{{ pulp_server_ip }}"
         pulp_server_port: "{{ pulp_server_port | int }}"
-        pulp_protocol: "{{ pulp_protocol }}"
         cluster_os_type: "{{ cluster_os_type }}"
         cluster_os_version: "{{ cluster_os_version }}"
         repo_config: "{{ repo_config }}"
         output_path: "{{ output_dir }}/repo_status.yml"
-        certs_dir: "{{ pulp_certs_dir }}"
-        ssl_certificates: "{{ ssl_certificates | default({}) }}"
         local_repo_config_path: "{{ input_project_dir }}/repo_manager_config.yml"
       register: generate_result
 

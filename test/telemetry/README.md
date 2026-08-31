@@ -170,11 +170,11 @@ test/telemetry/
 
 | Area | TCs | Marker |
 |------|-----|--------|
-| Precheck | 4 | sanity |
-| Validate | 2 | sanity |
+| Precheck | 7 | sanity |
+| Validate | 6 | sanity |
 | Deploy | 62 | sanity + functional + source + sink |
 | Cleanup | 14 | sanity + functional |
-| **FVT Total** | **82** | |
+| **FVT Total** | **89** | |
 
 ### NFT (Non-Functional Tests)
 

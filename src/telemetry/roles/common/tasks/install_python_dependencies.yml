@@ -29,15 +29,18 @@
 #   - offline: Install from Pulp repo (pip install --index-url <repo_url>/pip_module/ <package>==<version>)
 #
 # Parameters:
-#   component: Component name to look up in telemetry_packages.yml (required)
+#   component: Component name to look up in telemetry_packages.yml (optional).
+#              Defaults to 'base', the packages required by the telemetry
+#              custom Ansible modules (K8s API client).
 # =============================================================================
 
-- name: Validate component is provided
-  ansible.builtin.assert:
-    that:
-      - component is defined
-      - component | length > 0
-    fail_msg: "component variable must be provided (e.g., idrac, powerscale)"
+- name: Load telemetry packages config when not already loaded
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: load_telemetry_config
+  when:
+    - telemetry_packages is not defined
+    - hostvars['localhost']['telemetry_packages'] is not defined
 
 - name: Use telemetry_packages fact loaded by load_telemetry_config
   ansible.builtin.set_fact:
@@ -63,6 +66,11 @@
     repo_url: "{{ _telemetry_packages_raw.repo_url | default('') }}"
     pip_modules: "{{ _telemetry_packages_raw.pip_modules | default({}) }}"
 
+- name: Log install mode
+  ansible.builtin.debug:
+    msg: "Python dependency install mode: {{ install_mode }}"
+    verbosity: 1
+
 - name: Validate repo_url is set for offline mode
   ansible.builtin.assert:
     that:
@@ -75,15 +83,19 @@
     pip_index_url: "{{ repo_url }}/pip_module/"
   when: install_mode == "offline"
 
+- name: Resolve component to install packages for
+  ansible.builtin.set_fact:
+    _component: "{{ component | default('base', true) }}"
+
 - name: Get packages for component from telemetry_packages.yml
   ansible.builtin.set_fact:
-    component_packages: "{{ pip_modules[component] | default({}) }}"
+    component_packages: "{{ pip_modules[_component] | default({}) }}"
 
 - name: Validate component exists in pip_modules
   ansible.builtin.assert:
     that:
       - component_packages | length > 0
-    fail_msg: "Component '{{ component }}' not found in telemetry_packages.yml pip_modules section"
+    fail_msg: "Component '{{ _component }}' not found in telemetry_packages.yml pip_modules section"
 
 - name: Install Python packages for component
   loop: "{{ component_packages | dict2items }}"
@@ -93,4 +105,4 @@
   vars:
     package_name: "{{ item.key }}"
     package_version: "{{ item.value }}"
-    component_name: "{{ component }}"
+    component_name: "{{ _component }}"

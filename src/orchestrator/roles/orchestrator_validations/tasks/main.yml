@@ -19,6 +19,10 @@
     bmc_username: "{{ hostvars['localhost']['bmc_username'] }}"
     bmc_password: "{{ hostvars['localhost']['bmc_password'] }}"
   no_log: true
+  when:
+    - hostvars['localhost']['provision_password'] is defined
+    - hostvars['localhost']['bmc_username'] is defined
+    - hostvars['localhost']['bmc_password'] is defined
 
 - name: Include orchestrator inputs
   ansible.builtin.include_tasks: include_inputs.yml
@@ -33,6 +37,11 @@
 - name: Validate mapping file
   ansible.builtin.include_tasks: validate_mapping_file.yml
   when: mapping_file_status
+
+- name: Validate NFS storage configuration
+  ansible.builtin.include_tasks: validate_storage_config.yml
+  when: (hostvars['localhost']['slurm_support'] | default(false) | bool) or
+        (hostvars['localhost']['service_k8s_support'] | default(false) | bool)
 
 - name: Update hosts file
   ansible.builtin.include_tasks: update_hosts.yml

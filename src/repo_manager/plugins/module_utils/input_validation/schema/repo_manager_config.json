@@ -21,71 +21,84 @@
       "enum": ["always", "partial"],
       "description": "Global repository sync policy"
     },
+    "caching_policy": {
+      "type": "boolean",
+      "description": "Global caching policy that controls Pulp download behavior",
+      "default": true
+    },
     "registries": {
       "type": ["object", "null"],
       "description": "Container registry configurations keyed by registry name",
       "additionalProperties": {
         "type": "object",
+        "additionalProperties": false,
         "properties": {
-          "BaseURL": {
+          "base_url": {
             "type": "string",
             "pattern": "^https?:\\/\\/.+"
           },
-          "Port": {
+          "port": {
             "type": "integer",
             "minimum": 1,
             "maximum": 65535
           },
-          "Auth": {
-            "type": ["object", "null"],
+          "auth": {
+            "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "Type": {
+              "type": {
                 "type": "string",
-                "enum": ["none", "basic", "token"]
+                "enum": ["none", "basic"]
               },
-              "Credentials": {
+              "credentials": {
                 "type": ["object", "null"],
+                "additionalProperties": false,
                 "properties": {
-                  "VaultPath": {
-                    "type": "string"
+                  "vault_path": {
+                    "type": "string",
+                    "minLength": 1
                   }
                 }
               }
-            }
-          },
-          "TLS": {
-            "type": ["object", "null"],
-            "properties": {
-              "CAPath": {
-                "type": ["string", "null"]
-              },
-              "ClientCertPath": {
-                "type": ["string", "null"]
-              },
-              "ClientKeyPath": {
-                "type": ["string", "null"]
-              },
-              "Insecure": {
-                "type": "boolean"
+            },
+            "required": ["type"],
+            "allOf": [
+              {
+                "if": {
+                  "properties": {"type": {"const": "basic"}}
+                },
+                "then": {
+                  "required": ["credentials"],
+                  "properties": {
+                    "credentials": {
+                      "type": "object",
+                      "required": ["vault_path"]
+                    }
+                  }
+                }
               }
-            }
+            ]
           },
-          "Mirror": {
+          "tls": {
             "type": ["object", "null"],
+            "additionalProperties": false,
             "properties": {
-              "PulpURL": {
-                "type": "string"
+              "ca_path": {
+                "type": ["string", "null"]
               },
-              "PullThrough": {
+              "client_cert_path": {
+                "type": ["string", "null"]
+              },
+              "client_key_path": {
+                "type": ["string", "null"]
+              },
+              "insecure": {
                 "type": "boolean"
-              },
-              "Prefix": {
-                "type": "string"
               }
             }
           }
         },
-        "required": ["BaseURL", "Port"]
+        "required": ["base_url", "port", "auth"]
       }
     },
     "repositories": {
@@ -141,6 +154,12 @@
         "sslclientcert": {
           "type": ["string", "null"],
           "description": "Path to SSL client certificate (mTLS)"
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Repository priority for yum/dnf",
+          "minimum": 1,
+          "maximum": 100
         }
       },
       "additionalProperties": false
@@ -158,6 +177,13 @@
       "properties": {
         "additional_repos": {
           "$ref": "#/definitions/additional_repos_entry"
+        },
+        "user_repos": {
+          "type": ["object", "null"],
+          "description": "User custom repositories",
+          "additionalProperties": {
+            "$ref": "#/definitions/repo_entry"
+          }
         }
       },
       "additionalProperties": {

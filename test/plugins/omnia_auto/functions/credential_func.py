@@ -387,14 +387,131 @@ def prompt_and_confirm(
         )
 
 
+def prompt_fields_interactive(
+    field_spec: list,
+    existing: Dict[str, str] = None,
+) -> Dict[str, str]:
+    """Prompt interactively for multiple credential fields.
+
+    Each field spec is a dict with keys:
+        - field: YAML field name (required)
+        - label: Display label (optional, defaults to field)
+        - group: Group header to print before this field (optional)
+        - secret: If True, use getpass (no echo) (default True)
+        - confirm: If True and secret, prompt twice and verify match (default False)
+        - optional: If True, allow empty value (default False)
+
+    Args:
+        field_spec: List of field specification dicts.
+        existing: Dict of existing values to show as defaults.
+
+    Returns:
+        Dict of field_name -> entered_value (only non-empty values).
+
+    Example::
+
+        fields = prompt_fields_interactive([
+            {"field": "bmc_username", "label": "BMC Username", "group": "iDRAC BMC"},
+            {"field": "bmc_password", "label": "BMC Password", "secret": True, "confirm": True},
+        ])
+    """
+    if existing is None:
+        existing = {}
+
+    result = {}
+    current_group = None
+
+    for spec in field_spec:
+        field_name = spec.get("field")
+        if not field_name:
+            continue
+
+        label = spec.get("label", field_name)
+        group = spec.get("group")
+        is_secret = spec.get("secret", True)
+        is_optional = spec.get("optional", False)
+        needs_confirm = spec.get("confirm", False) and is_secret
+
+        # Print group header if changed
+        if group and group != current_group:
+            print(f"\n  \033[1;33m{group}:\033[0m", file=sys.stderr, flush=True)
+            current_group = group
+
+        # Get existing value
+        existing_val = existing.get(field_name, "")
+
+        # Build prompt with existing value hint
+        if is_secret:
+            # For secrets, show [set] if exists
+            if existing_val:
+                prompt_text = f"  {label} [set]: "
+            else:
+                prompt_text = f"  {label}: "
+            entered = getpass.getpass(prompt=prompt_text)
+
+            # Confirm if requested and value was entered
+            if needs_confirm and entered:
+                confirm_text = f"  Confirm {label}: "
+                confirmed = getpass.getpass(prompt=confirm_text)
+                if entered != confirmed:
+                    print(
+                        f"  \033[0;31m[ERROR]\033[0m {label} entries do not match!",
+                        file=sys.stderr, flush=True,
+                    )
+                    raise ValueError(f"{label} confirmation failed")
+        else:
+            # For non-secrets, show existing value in brackets
+            if existing_val:
+                prompt_text = f"  {label} [{existing_val}]: "
+            else:
+                prompt_text = f"  {label}: "
+            entered = input(prompt_text)
+
+        # Use entered value or fall back to existing
+        final_value = entered if entered else existing_val
+
+        # Store if non-empty (or always store if optional allows empty)
+        if final_value or is_optional:
+            result[field_name] = final_value
+
+    return result
+
+
+def read_all_fields(
+    creds_path: str,
+    key_path: str,
+) -> Dict[str, Any]:
+    """Read all fields from a (possibly encrypted) credentials file.
+
+    Args:
+        creds_path: Path to the credentials file.
+        key_path: Path to the vault key file.
+
+    Returns:
+        Dict with keys: success (bool), data (dict), error (str).
+    """
+    if not os.path.exists(creds_path):
+        return {"success": True, "data": {}, "error": ""}
+
+    if is_vault_encrypted(creds_path):
+        return vault_decrypt_to_dict(creds_path, key_path)
+
+    try:
+        with open(creds_path, "r", encoding="utf-8") as creds_fh:
+            data = yaml.safe_load(creds_fh) or {}
+        return {"success": True, "data": data, "error": ""}
+    except Exception as exc:
+        return {"success": False, "data": {}, "error": str(exc)}
+
+
 # =====================================================================
 # CLI ENTRY POINT
 # =====================================================================
 
 _CLI_COMMANDS = frozenset({
-    "ensure-key", "encrypt", "read-field",
+    "ensure-key", "encrypt", "read-field", "read-all",
     "write-fields", "prompt", "prompt-and-confirm",
-    "is-encrypted",
+    "prompt-fields", "is-encrypted",
 })
 
 
@@ -465,6 +582,26 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Check if vault-encrypted (exit 0=yes, 1=no).",
     )
     ie.add_argument("--creds-path", required=True)
+
+    # read-all
+    ra = sub.add_parser(
+        "read-all",
+        help="Read all fields from credentials as JSON.",
+    )
+    ra.add_argument("--creds-path", required=True)
+    ra.add_argument("--key-path", required=True)
+
+    # prompt-fields
+    pf = sub.add_parser(
+        "prompt-fields",
+        help="Interactive prompt for multiple fields, write to file.",
+    )
+    pf.add_argument("--creds-path", required=True)
+    pf.add_argument("--key-path", required=True)
+    pf.add_argument(
+        "--spec", required=True,
+        help='JSON array: [{"field":"x","label":"X","group":"G","secret":true}]',
+    )
 
     return parser
 
@@ -543,6 +680,44 @@ def main(argv=None) -> int:
             return 0
         print("NO", flush=True)
         return 1
+
+    elif args.command == "read-all":
+        result = read_all_fields(args.creds_path, args.key_path)
+        if result["success"]:
+            print(json.dumps(result["data"]), flush=True)
+        else:
+            print(
+                f"ERROR: {result['error']}",
+                file=sys.stderr, flush=True,
+            )
+            return 1
+
+    elif args.command == "prompt-fields":
+        # Parse field spec
+        field_spec = json.loads(args.spec)
+
+        # Read existing values
+        existing_result = read_all_fields(args.creds_path, args.key_path)
+        existing = existing_result.get("data", {})
+
+        # Prompt for fields
+        entered = prompt_fields_interactive(field_spec, existing)
+
+        # Write to file
+        if entered:
+            result = write_credential_fields(
+                args.creds_path, args.key_path, entered,
+            )
+            if result["success"]:
+                print("OK", flush=True)
+            else:
+                print(
+                    f"ERROR: {result['error']}",
+                    file=sys.stderr, flush=True,
+                )
+                return 2
+        else:
+            print("SKIPPED", flush=True)
 
     else:
         parser.print_help()

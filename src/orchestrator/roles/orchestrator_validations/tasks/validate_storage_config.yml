@@ -1,0 +1,86 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# validate_storage_config.yml — Validate NFS server reachability for storage mounts.
+#
+# Runs only when slurm_support or service_k8s_support is enabled.
+# Resolves nfs_storage_name from omnia_config.yml → looks up the matching
+# mount entry in storage_config.yml → extracts the NFS server IP from
+# the source field → pings the server to verify reachability.
+#
+# Local/non-NFS sources (/dev/*, UUID=*, LABEL=*, //*) are skipped.
+#
+# Prerequisites:
+#   - storage_config.yml and omnia_config.yml already loaded via include_inputs.yml
+#   - slurm_support / service_k8s_support flags set by orchestrator_setup
+
+- name: Load storage_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ storage_config_file }}"
+    name: storage_config
+
+- name: Load omnia_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ omnia_config_file }}"
+    name: omnia_config
+
+# Build the list of NFS storage names that need validation
+- name: Collect NFS storage names referenced by enabled features
+  ansible.builtin.set_fact:
+    nfs_names_to_validate: >-
+      {{
+        ((omnia_config.slurm_cluster | default([]) | map(attribute='nfs_storage_name') | select('defined') | list)
+          if (hostvars['localhost']['slurm_support'] | default(false) | bool)
+          else [])
+        +
+        ((omnia_config.service_k8s_cluster | default([]) | map(attribute='nfs_storage_name') | select('defined') | list)
+          if (hostvars['localhost']['service_k8s_support'] | default(false) | bool)
+          else [])
+      }}
+
+- name: Skip validation when no NFS storage names are configured
+  ansible.builtin.debug:
+    msg: "No NFS storage names referenced by enabled features (slurm/k8s). Skipping NFS validation."
+  when: nfs_names_to_validate | length == 0
+
+- name: Validate referenced NFS mounts
+  when: nfs_names_to_validate | length > 0
+  block:
+    # Verify each referenced name exists in storage_config.yml mounts
+    - name: Check that all referenced nfs_storage_name entries exist in storage_config.yml
+      ansible.builtin.fail:
+        msg: >-
+          {{ nfs_name_not_found_msg }}
+          Missing: {{ item }}.
+          Available mount names: {{ storage_config.mounts | default([]) | map(attribute='name') | list }}.
+      when: item not in (storage_config.mounts | default([]) | map(attribute='name') | list)
+      loop: "{{ nfs_names_to_validate }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # Filter to only the mounts we need to validate
+    - name: Select mount entries matching referenced NFS storage names
+      ansible.builtin.set_fact:
+        nfs_mounts_to_validate: >-
+          {{ storage_config.mounts | default([])
+             | selectattr('name', 'in', nfs_names_to_validate)
+             | list }}
+
+    # Validate each NFS mount
+    - name: Validate each NFS mount entry
+      ansible.builtin.include_tasks: validate_single_nfs_mount.yml
+      loop: "{{ nfs_mounts_to_validate }}"
+      loop_control:
+        loop_var: nfs_mount
+        label: "{{ nfs_mount.name }}"

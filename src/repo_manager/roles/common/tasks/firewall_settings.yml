@@ -1,44 +1,47 @@
-# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
-#
-#  Licensed under the Apache License, Version 2.0 (the "License");
-#  you may not use this file except in compliance with the License.
-#  You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
 ---
-
-- name: Ensure firewalld is installed
-  block:
-    - name: Install firewalld
-      ansible.builtin.dnf:
-        name: firewalld
-        state: present
-      tags: always
-
-  rescue:
-    - name: Failed to install firewalld
-      ansible.builtin.fail:
-        msg: "{{ oim_os_repo_fail_msg }}"
+- name: Install firewalld
+  ansible.builtin.dnf:
+    name: firewalld
+    state: present
+  register: _firewalld_install
+  retries: 3
+  delay: 5
+  until: _firewalld_install is succeeded
 
 - name: Start and enable firewalld
   ansible.builtin.service:
     name: firewalld
     state: started
     enabled: true
-  tags: always
 
-- name: Add NTP service to firewalld
+- name: Install managed Pulp firewall service
+  ansible.builtin.template:
+    src: omnia-pulp.xml.j2
+    dest: /etc/firewalld/services/omnia-pulp.xml
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload firewalld
+  when: pulp_server_port is defined
+
+- name: Load managed Pulp firewall service definition
+  ansible.builtin.meta: flush_handlers
+  when: pulp_server_port is defined
+
+- name: Enable configured Pulp HTTPS port
+  ansible.posix.firewalld:
+    service: omnia-pulp
+    permanent: true
+    immediate: true
+    state: enabled
+  when: pulp_server_port is defined
+
+- name: Enable NTP service in firewalld
   ansible.posix.firewalld:
     service: "{{ ntp_firewall_service }}"
     permanent: true
-    state: enabled
     immediate: true
+    state: enabled
   when: ntp_firewall_service is defined
 
 - name: Enable NFS-related services
@@ -46,16 +49,19 @@
     service: "{{ item }}"
     state: enabled
     permanent: true
+    immediate: true
   loop: "{{ internal_nfs_services }}"
   when: internal_nfs_services is defined
-  tags: always
 
-- name: Reload firewalld to apply changes
-  ansible.builtin.command: firewall-cmd --reload
-  changed_when: true
-  tags: always
+- name: Display active firewall configuration
+  ansible.builtin.command:
+    argv:
+      - firewall-cmd
+      - --list-all
+  register: _firewall_configuration
+  changed_when: false
 
-- name: Display open ports for verification
-  ansible.builtin.command: firewall-cmd --list-all
-  changed_when: true
-  tags: always
+- name: Show active firewall configuration
+  ansible.builtin.debug:
+    var: _firewall_configuration.stdout_lines
+    verbosity: 1

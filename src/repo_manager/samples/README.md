@@ -32,7 +32,6 @@ To use these samples:
 
 - **cluster_os_type**: Operating system type (default: "rhel")
 - **cluster_os_version**: OS version (default: "10.0")
-- **pulp_protocol**: Pulp server protocol ("http" or "https")
 - **repositories**: Repository configuration for different architectures
 - **user_repo_url_x86_64**: Custom x86_64 repository URLs
 - **user_repo_url_aarch64**: Custom aarch64 repository URLs
@@ -42,9 +41,8 @@ To use these samples:
 ### repo_manager_endpoint_config.yml
 
 - **pulp_server_port**: Pulp server port (default: 2225)
-- **pulp_protocol**: Protocol ("http" or "https")
-- **pulp_https_enabled**: Enable HTTPS (true/false)
-- **ssl_certificates**: SSL certificate paths for HTTPS
+- **pulp_server_ip**: Optional endpoint IP; defaults to `SYSTEM_ADMIN_NIC_IPV4`
+- HTTPS is mandatory; certificate paths are generated from the runtime data path
 
 ## Notes
 
