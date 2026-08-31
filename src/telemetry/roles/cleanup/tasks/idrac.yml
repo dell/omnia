@@ -47,3 +47,9 @@
 - name: IDRAC | Cleanup complete
   ansible.builtin.debug:
     msg: "iDRAC telemetry cleanup completed"
+
+- name: "Idrac | Register cleanup result"
+  ansible.builtin.set_fact:
+    _cleanup_result_idrac: "cleaned"
+  delegate_to: localhost
+  delegate_facts: true

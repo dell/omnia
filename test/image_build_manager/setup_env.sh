@@ -367,12 +367,21 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 # Domain credential dispatch  (--set-domain-creds / --update-domain-creds / --domain-creds)
 # ─────────────────────────────────────────────────────────────────────────────
+
+# Domain credential field spec (JSON for prompt-fields CLI)
+DOMAIN_CRED_SPEC='[
+  {"field":"s3_access_id","label":"S3 Access ID","group":"S3/MinIO Credentials","secret":false},
+  {"field":"s3_secret_key","label":"S3 Secret Key","secret":true},
+  {"field":"aarch64_ssh_password","label":"aarch64 SSH Password","group":"aarch64 Build Host","secret":true,"optional":true}
+]'
+
 if [ -n "$DOMAIN_CREDS_JSON" ]; then
     info "Setting domain credentials from --domain-creds flag"
     _write_domain_creds "$DOMAIN_CREDS_JSON"
 
 elif [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
     _domain_path=$(_domain_creds_path)
+    _domain_key=$(_domain_creds_key_path)
 
     if [ "$SET_DOMAIN_CREDS" = true ] && [ -f "$_domain_path" ]; then
         warn "Domain credentials already exist: $_domain_path"
@@ -385,49 +394,17 @@ elif [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
     if [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
         echo ""
         echo -e "  ${CYAN}Image Build Credentials — S3/MinIO + aarch64 build host${NC}"
-        echo -e "  ${CYAN}Press Enter to keep existing value (shown in brackets).${NC}"
+        echo -e "  ${CYAN}Press Enter to keep existing value.${NC}"
+
+        # Use the prompt-fields CLI to handle all prompting
+        mkdir -p "$(_resolve_domain_creds_dir)"
+        $CRED_CLI prompt-fields \
+            --creds-path "$_domain_path" \
+            --key-path "$_domain_key" \
+            --spec "$DOMAIN_CRED_SPEC"
+
         echo ""
-
-        # Read existing
-        _e_s3_id=$(_read_domain_field "s3_access_id")
-        _e_s3_key=$(_read_domain_field "s3_secret_key")
-        _e_aarch64=$(_read_domain_field "aarch64_ssh_password")
-
-        # S3 Access ID
-        _p="  S3 Access ID"; [ -n "$_e_s3_id" ] && _p="${_p} [${_e_s3_id}]"
-        read -r -p "${_p}: " _n; _s3_id="${_n:-$_e_s3_id}"
-
-        # S3 Secret Key (hidden, confirm)
-        echo -e "  S3 Secret Key ${CYAN}(hidden input)${NC}:"
-        read -s -r -p "  S3 Secret Key: " _k1; echo ""
-        if [ -n "$_k1" ]; then
-            read -s -r -p "  Confirm:       " _k2; echo ""
-            if [ "$_k1" != "$_k2" ]; then
-                fail "S3 secret keys do not match. Re-run --set-domain-creds."
-            fi
-            _s3_key="$_k1"
-        else
-            _s3_key="$_e_s3_key"
-            warn "S3 secret key unchanged."
-        fi
-
-        # aarch64 SSH password (optional)
-        _p="  aarch64 SSH password (optional — Enter to skip/keep)"
-        [ -n "$_e_aarch64" ] && _p="${_p} [set]"
-        read -s -r -p "${_p}: " _n; echo ""
-        _aarch64="${_n:-$_e_aarch64}"
-
-        # Build JSON and write
-        _json=$(python3 -c "
-import json
-d = {}
-for k, v in [('s3_access_id','${_s3_id}'),('s3_secret_key','${_s3_key}'),('aarch64_ssh_password','${_aarch64}')]:
-    if v:
-        d[k] = v
-print(json.dumps(d))
-")
-        echo ""
-        _write_domain_creds "$_json"
+        ok "Domain credentials saved: $_domain_path (encrypted)"
     fi
 fi
 

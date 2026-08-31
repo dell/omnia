@@ -131,6 +131,12 @@ TEST_LOG_MSGS = {
     "ome_certs_uploaded": "TLS certificates uploaded to OME at {ome_ip}",
     "ome_certs_upload_failed": "Failed to upload certs to OME: {error}",
 
+    # OME Kafka topics
+    "ome_topics_found": "All {count} OME Kafka topics found",
+    "ome_topics_missing": "OME Kafka topics missing: {missing}",
+    "ome_kafka_data_found": "OME data found in Kafka topic '{topic}': {count} record(s)",
+    "ome_kafka_data_missing": "No OME data found in Kafka topic '{topic}'",
+
     # Config skip
     "source_disabled": "{source} source not enabled in telemetry_config.yml",
 
@@ -287,6 +293,22 @@ TEST_ASSERT_MSGS = {
         " /opt/omnia/telemetry/external_kafka/\n"
         "  2. Run manually: openssl pkcs12 -export"
         " -out user.pfx -inkey user.key -in user.crt\n"
+    ),
+
+    # OME Kafka topics
+    "ome_topics_missing": (
+        "OME Kafka topics missing: {missing}\n"
+        "HOW TO FIX:\n"
+        "  1. Verify OME Kafka forwarder is connected\n"
+        "  2. Check OME → Configuration → Data Forwarding Service\n"
+        "  3. Verify OME is sending data to Kafka\n"
+    ),
+    "ome_kafka_data_missing": (
+        "No OME data found in Kafka topic '{topic}'\n"
+        "HOW TO FIX:\n"
+        "  1. Verify OME Kafka forwarder status: Connected\n"
+        "  2. Check OME Transfer Status shows recent activity\n"
+        "  3. curl http://<bridge-ip>:8080/topics to list topics\n"
     ),
 
     # Cleanup - General
@@ -474,5 +496,45 @@ TEST_ASSERT_MSGS = {
         "  1. Check VAST syslog config in VAST UI: Settings > Notifications > Syslog Setup\n"
         "  2. Verify VLAgent is listening: kubectl get svc vlagent-vlagent -n telemetry\n"
         "  3. Check VLAgent logs: kubectl logs vlagent-vlagent-0 -n telemetry\n"
+    ),
+
+    # LDMS Kafka Data
+    "ldms_data_missing": (
+        "LDMS data missing for hostnames: {missing}\n"
+        "HOW TO FIX:\n"
+        "  1. Check LDMS sampler running on compute nodes: systemctl status ldmsd\n"
+        "  2. Check LDMS aggregator logs: kubectl logs nersc-ldms-aggr-0 -n telemetry\n"
+        "  3. Check LDMS store logs: kubectl logs nersc-ldms-store-0 -n telemetry\n"
+        "  4. Verify Kafka ldms topic has data: curl http://<bridge>:8080/topics\n"
+    ),
+    "ldms_plugins_missing": (
+        "LDMS plugins missing for host {hostname}: {plugins}\n"
+        "HOW TO FIX:\n"
+        "  1. Check sampler.conf on compute node for plugin configuration\n"
+        "  2. Verify LDMS sampler is running: ldms_ls -h localhost -p 10001\n"
+    ),
+}
+
+
+# --- LDMS Log Messages ---
+LDMS_LOG_MSGS = {
+    "ldms_data_found": "LDMS data verified for {count} instances from {hosts} hosts",
+    "ldms_data_missing": "LDMS data missing for {count} instance(s)",
+    "ldms_verifying": "Verifying LDMS data in Kafka topic '{topic}'",
+    "ldms_earliest_found": "Earliest LDMS data found for {count} hosts",
+    "ldms_earliest_missing": "Earliest LDMS data missing for hosts: {missing}",
+}
+
+
+# --- LDMS Assert Messages ---
+LDMS_ASSERT_MSGS = {
+    "ldms_data_missing": (
+        "LDMS data missing for {count} expected instance(s)\n"
+        "Missing: {missing}\n"
+        "Found: {found}\n"
+    ),
+    "ldms_hostnames_missing": (
+        "LDMS data missing from hostnames: {missing}\n"
+        "Found hostnames: {found}\n"
     ),
 }

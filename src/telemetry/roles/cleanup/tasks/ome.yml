@@ -33,3 +33,9 @@
 - name: OME | Cleanup complete
   ansible.builtin.debug:
     msg: "OME telemetry cleanup completed (includes Vector-OME bridge)"
+
+- name: "Ome | Register cleanup result"
+  ansible.builtin.set_fact:
+    _cleanup_result_ome: "cleaned"
+  delegate_to: localhost
+  delegate_facts: true
