@@ -433,20 +433,19 @@ Use `./run_validation.sh --config` to run the entries enabled in
 reference](docs/test_run_config.md) for the schema and examples.
 
 The top-level sections are `fvt_image_build_manager`,
-`nft_image_build_manager`, and `ut_image_build_manager`. FVT tags run by their
-numeric `order`; NFT runs after all FVT entries, followed by UT. The tracked
-order is `precheck`, `validate`, `prepare`, `build`, `cleanup_images`, then
+`nft_image_build_manager`, and `ut_image_build_manager`. FVT tags run in their
+YAML mapping order; NFT runs after all FVT entries, followed by UT. The tracked
+sequence is `precheck`, `validate`, `prepare`, `build`, `cleanup_images`, then
 `cleanup`, which keeps image-only cleanup ahead of full infrastructure cleanup.
 
 Each FVT tag supports these fields:
 
 | Field | Meaning |
 |-------|---------|
-| `order` | Non-negative FVT batch order; lower values run first. |
 | `run` | Enable or skip the tag. All tracked entries default to `false`. |
 | `command` | `exec`, `verify`, or `test`; use `test` for deploy + verify. |
 | `suite` | Verification subfolder; empty runs the complete tag. |
-| `marker` | Marker expression applied to the selected pytest phase(s). |
+| `marker` | Single marker name applied to the selected pytest phase(s). |
 | `dataset` | Non-empty per-tag dataset override; empty inherits `test_config.yml`. |
 | `sync_input` | Explicit per-tag override for `sync_image_build_input`. |
 | `sync_output` | Explicit per-tag override for `sync_output`. |
@@ -464,10 +463,9 @@ The optional top-level `dataset_override`, `sync_input_override`, and
 `sync_output_override` values take precedence over per-FVT settings. These
 overrides apply to FVT entries only; NFT and UT use `test_config.yml` directly.
 
-`skip_on_failure` controls later batch entries. With the tracked value `false`,
-the runner attempts every enabled entry. Set it to `true` to skip all later
-enabled FVT, NFT, and UT entries after the first failed entry. It does not stop
-the currently running pytest suite at its first failing test.
+The batch runner attempts every enabled entry even when an earlier entry fails,
+then returns non-zero if any entry failed. The image build manager batch file
+does not define a skip-after-failure setting.
 
 Run NFT separately from a complete FVT cleanup batch. FVT `cleanup` removes the
 domain credentials that the later NFT build would require.

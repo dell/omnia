@@ -16,7 +16,8 @@
 # Test Run Configuration — Image Build Manager
 # =============================================================================
 #
-# Configure which test categories to run, their execution order, and filters.
+# Configure which test categories to run and their marker/suite filters.
+# FVT entries execute in the YAML order shown below.
 #
 # Usage:
 #   1. Edit this file to enable/disable scenarios and set markers
@@ -33,14 +34,13 @@
 #
 # FVT scenarios (nested under fvt_image_build_manager):
 #   Each scenario maps to an Ansible playbook tag.  Fields:
-#     order:        <integer>     - Batch order (lower values run first)
 #     run:          true/false    - Whether to execute this scenario
 #     command:      <string>      - exec, verify, or test (default: test)
 #                                   exec   = Run the playbook only
 #                                   verify = Run verification tests only
 #                                   test   = Exec + Verify (full flow)
 #     suite:        <folder>      - FVT subfolder filter (empty = all suites)
-#     marker:       <expression>  - Marker filter expression (empty = all)
+#     marker:       <name>        - Single marker filter (empty = all)
 #     dataset:      <name>        - Override dataset from test_config.yml
 #                                   Must be a valid folder under datasets/
 #     sync_input:   true/false    - Override sync_image_build_input
@@ -50,15 +50,13 @@
 #   run:          true/false    - Whether to execute
 #   command:      <string>      - use test (exec/verify are accepted aliases
 #                                   and run the same complete NFT/UT suite)
-#   marker:       <expression>  - Marker filter (empty = all tests)
+#   marker:       <name>        - Single marker filter (empty = all tests)
 #
 # -----------------------------------------------------------------------------
-# Marker Expression Syntax
+# Batch Marker Syntax
 # -----------------------------------------------------------------------------
-#   Single:   "x86_64"                  — tests with @pytest.mark.x86_64
-#   OR:       "x86_64,aarch64"          — tests with EITHER marker
-#   AND:      "x86_64+sanity"           — tests with BOTH markers
-#   Standard: "sanity"                  — tests with @pytest.mark.sanity
+#   Use one marker name, for example "sanity" or "x86_64".
+#   For compound AND/OR expressions, use the direct CLI --marker option.
 #
 # Available markers:
 #   Architecture:  x86_64, aarch64
@@ -97,19 +95,10 @@
 # sync_output_override: false
 
 # =============================================================================
-# Execution Behavior
-# =============================================================================
-# skip_on_failure: When true, do not schedule later enabled batch entries after
-#                  the first failed entry. It does not stop tests inside the
-#                  currently running pytest suite. False runs every entry.
-skip_on_failure: false
-
-# =============================================================================
 # FVT — Functional Verification Tests
 # =============================================================================
 fvt_image_build_manager:
   precheck:
-    order: 1
     run: false
     command: "test"
     suite: ""
@@ -118,7 +107,6 @@ fvt_image_build_manager:
     sync_input: false
     sync_output: false
   validate:
-    order: 2
     run: false
     command: "test"
     suite: ""
@@ -127,7 +115,6 @@ fvt_image_build_manager:
     sync_input: false
     sync_output: false
   prepare:
-    order: 3
     run: false
     command: "test"
     suite: ""
@@ -136,7 +123,6 @@ fvt_image_build_manager:
     sync_input: false
     sync_output: false
   build:
-    order: 4
     run: false
     command: "test"
     suite: ""
@@ -145,7 +131,6 @@ fvt_image_build_manager:
     sync_input: false
     sync_output: false
   cleanup_images:
-    order: 5
     run: false
     command: "test"
     suite: ""
@@ -154,7 +139,6 @@ fvt_image_build_manager:
     sync_input: false
     sync_output: false
   cleanup:
-    order: 6
     run: false
     command: "test"
     suite: ""

@@ -69,10 +69,8 @@
 # =============================================================================
 # Execution Options
 # =============================================================================
-# skip_on_failure: When true, do not schedule later enabled batch entries after
-#                  the first failed entry. The current test suite still
-#                  finishes.
-#                  When false (default), every enabled entry is attempted.
+# skip_on_failure: Stop the current suite on first test failure.
+#                  When false (default), all tests run regardless of failures.
 skip_on_failure: false
 
 # =============================================================================

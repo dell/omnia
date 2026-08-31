@@ -36,9 +36,6 @@ from ..vars.validation_vars import COMMANDS
 
 # Regex for safe identifiers from config YAML (no shell metacharacters)
 _SAFE_IDENT_RE = re.compile(r"^[a-zA-Z0-9_\-./]+$")
-_SAFE_MARKER_RE = re.compile(
-    r"^[a-zA-Z0-9_\-]+(?:[+,][a-zA-Z0-9_\-]+)*$"
-)
 
 
 def _validate_config_value(value: str, label: str) -> str:
@@ -61,23 +58,6 @@ def _validate_config_value(value: str, label: str) -> str:
     if value and not _SAFE_IDENT_RE.match(value):
         raise ValueError(
             f"Unsafe {label} value in config: {value!r}"
-        )
-    return value
-
-
-def _validate_marker_value(value: str) -> str:
-    """Validate a config marker expression.
-
-    Batch configuration supports the same single, AND (``+``), and OR
-    (``,``) expressions as the direct CLI while rejecting whitespace and
-    shell metacharacters.
-    """
-    mixed_operators = "+" in value and "," in value
-    if value and (
-        mixed_operators or not _SAFE_MARKER_RE.fullmatch(value)
-    ):
-        raise ValueError(
-            f"Unsafe marker value in config: {value!r}"
         )
     return value
 
@@ -630,58 +610,8 @@ class ValidationRunner:
             _err(f"Config not found: {self.config_file}")
             return 1
 
-        try:
-            with open(self.config_file, encoding="utf-8") as cfg_stream:
-                loaded_cfg = yaml.safe_load(cfg_stream)
-        except (OSError, yaml.YAMLError) as exc:
-            _err(f"Unable to load test_run_config.yml: {exc}")
-            return 1
-        cfg = {} if loaded_cfg is None else loaded_cfg
-        if not isinstance(cfg, dict):
-            _err("test_run_config.yml must contain a mapping")
-            return 1
-
-        try:
-            skip_on_failure = cfg.get("skip_on_failure", False)
-            if not isinstance(skip_on_failure, bool):
-                raise ValueError(
-                    "'skip_on_failure' must be true or false"
-                )
-
-            fvt_cfg = cfg.get(self.cat_fvt, {})
-            if not isinstance(fvt_cfg, dict):
-                raise ValueError(
-                    f"'{self.cat_fvt}' must be a mapping"
-                )
-            ordered_fvt = self._ordered_config_items(fvt_cfg)
-
-            g_dataset = cfg.get("dataset_override", "")
-            g_sync_in = cfg.get("sync_input_override", "")
-            g_sync_out = cfg.get("sync_output_override", "")
-            self._validate_global_overrides(
-                g_dataset, g_sync_in, g_sync_out,
-            )
-
-            for name, settings in ordered_fvt:
-                if not isinstance(name, str):
-                    raise ValueError(
-                        "FVT scenario names must be strings"
-                    )
-                self._validate_batch_entry(
-                    name, settings, is_fvt=True,
-                )
-                self._build_config_env(
-                    settings, g_dataset, g_sync_in, g_sync_out,
-                )
-
-            for cat_key in (self.cat_nft, self.cat_ut):
-                if cat_key in cfg:
-                    self._validate_batch_entry(
-                        cat_key, cfg[cat_key], is_fvt=False,
-                    )
-        except ValueError as exc:
-            _err(str(exc))
-            return 1
+        with open(self.config_file, encoding="utf-8") as cfg_stream:
+            cfg = yaml.safe_load(cfg_stream) or {}
 
         report_id = _timestamp()
         os.environ["REPORT_ID"] = report_id
@@ -696,32 +626,28 @@ class ValidationRunner:
         _separator()
         _info("  Batch Execution from test_run_config.yml")
         _info(f"  Report ID : {report_id}")
-        _info(
-            "  Skip after failure: "
-            f"{'enabled' if skip_on_failure else 'disabled'}"
-        )
         _separator()
         print()
+
+        g_dataset = cfg.get("dataset_override", "")
+        g_sync_in = cfg.get("sync_input_override", "")
+        g_sync_out = cfg.get("sync_output_override", "")
 
         total = 0
         passed = 0
         failed = 0
         skipped = 0
 
+        fvt_cfg = cfg.get(self.cat_fvt, {})
         if isinstance(fvt_cfg, dict) and fvt_cfg:
             _yellow("FVT Scenarios:")
-            for name, sc in ordered_fvt:
+            for name, sc in fvt_cfg.items():
                 if not isinstance(sc, dict):
                     continue
                 _validate_config_value(str(name), "scenario name")
                 total += 1
                 if not sc.get("run", False):
                     _skip(f"fvt/{name}")
-                    skipped += 1
-                    continue
-
-                if skip_on_failure and failed:
-                    _skip(f"fvt/{name} (previous failure)")
                     skipped += 1
                     continue
 
@@ -765,17 +691,11 @@ class ValidationRunner:
         for cat_key, cat_name in (
             (self.cat_nft, "nft"), (self.cat_ut, "ut"),
         ):
-            if cat_key not in cfg:
-                continue
             cat_cfg = cfg.get(cat_key, {})
             if not isinstance(cat_cfg, dict):
                 continue
             total += 1
             if cat_cfg.get("run", False):
-                if skip_on_failure and failed:
-                    _skip(f"{cat_name} (previous failure)")
-                    skipped += 1
-                    continue
                 extra = self._build_config_extra(cat_cfg)
                 cat_command = cat_cfg.get("command", "test")
                 if cat_command not in COMMANDS:
@@ -833,111 +753,6 @@ class ValidationRunner:
         return 1 if failed > 0 else 0
 
     @staticmethod
-    def _validate_global_overrides(
-        dataset, sync_input, sync_output,
-    ) -> None:
-        """Validate optional batch-wide FVT overrides."""
-        if not isinstance(dataset, str):
-            raise ValueError(
-                "'dataset_override' must be a string"
-            )
-        _validate_config_value(dataset, "dataset_override")
-
-        for name, value in (
-            ("sync_input_override", sync_input),
-            ("sync_output_override", sync_output),
-        ):
-            if value != "" and not isinstance(value, bool):
-                raise ValueError(
-                    f"'{name}' must be true or false"
-                )
-
-    @staticmethod
-    def _validate_batch_entry(
-        name: str, settings, is_fvt: bool,
-    ) -> None:
-        """Validate one FVT, NFT, or UT batch entry."""
-        _validate_config_value(name, "scenario name")
-        if not isinstance(settings, dict):
-            raise ValueError(
-                f"Configuration for '{name}' must be a mapping"
-            )
-
-        run_enabled = settings.get("run", False)
-        if not isinstance(run_enabled, bool):
-            raise ValueError(
-                f"'run' for '{name}' must be true or false"
-            )
-
-        command = settings.get("command", "test")
-        if not isinstance(command, str) or command not in COMMANDS:
-            raise ValueError(
-                f"Invalid command {command!r} in config for {name}"
-            )
-
-        for field in ("marker", "suite"):
-            value = settings.get(field, "")
-            if not isinstance(value, str):
-                raise ValueError(
-                    f"'{field}' for '{name}' must be a string"
-                )
-        ValidationRunner._build_config_extra(settings)
-
-        if not is_fvt:
-            return
-
-        dataset = settings.get("dataset", "")
-        if not isinstance(dataset, str):
-            raise ValueError(
-                f"'dataset' for '{name}' must be a string"
-            )
-        _validate_config_value(dataset, "dataset")
-
-        for field in ("sync_input", "sync_output"):
-            if (
-                field in settings
-                and not isinstance(settings[field], bool)
-            ):
-                raise ValueError(
-                    f"'{field}' for '{name}' must be true or false"
-                )
-
-    @staticmethod
-    def _ordered_config_items(section: Dict) -> List:
-        """Return config entries sorted by optional numeric ``order``.
-
-        Entries without ``order`` retain their YAML order after explicitly
-        ordered entries. Equal order values retain their YAML order.
-        """
-        if not isinstance(section, dict):
-            return []
-
-        indexed_items = list(enumerate(section.items()))
-
-        def _sort_key(indexed_item):
-            position, (name, settings) = indexed_item
-            if not isinstance(settings, dict) or "order" not in settings:
-                return (1, position, position)
-
-            order = settings["order"]
-            if (
-                isinstance(order, bool)
-                or not isinstance(order, int)
-                or order < 0
-            ):
-                raise ValueError(
-                    f"Invalid order for '{name}': expected a "
-                    "non-negative integer"
-                )
-            return (0, order, position)
-
-        return [
-            item for _, item in sorted(
-                indexed_items, key=_sort_key,
-            )
-        ]
-
-    @staticmethod
     def _build_config_env(
         sc: dict, g_dataset: str,
         g_sync_in: str, g_sync_out: str,
@@ -967,8 +782,8 @@ class ValidationRunner:
     def _build_config_extra(sc: dict) -> List[str]:
         """Build extra CLI args from a config scenario."""
         extra: List[str] = []
-        marker = _validate_marker_value(
-            str(sc.get("marker", "")),
+        marker = _validate_config_value(
+            str(sc.get("marker", "")), "marker",
         )
         if marker:
             extra.extend(["--marker", marker])
@@ -1133,25 +948,24 @@ class ValidationRunner:
         results_file: str,
     ) -> None:
         """Print combined summary from JSON results."""
-        if not results_file:
+        if (
+            not results_file
+            or not os.path.isfile(results_file)
+        ):
             return
         try:
-            if not os.path.isfile(results_file):
-                return
             with open(
                 results_file, encoding="utf-8",
             ) as results_fh:
                 results = json.load(results_fh)
         except (json.JSONDecodeError, OSError):
+            return
+        if results:
+            _render_summary(results)
+        try:
+            os.unlink(results_file)
+        except OSError:
             pass
-        else:
-            if results:
-                _render_summary(results)
-        finally:
-            try:
-                os.unlink(results_file)
-            except OSError:
-                pass
 
     # -----------------------------------------------------------------
     # HELP

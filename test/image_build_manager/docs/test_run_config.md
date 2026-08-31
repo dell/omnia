@@ -2,7 +2,7 @@
 
 `test_run_config.yml` controls batch runs started with
 `./run_validation.sh --config`. It selects test entries and supplies their
-order, command, suite, marker, dataset, and sync overrides.
+command, suite, marker, dataset, and sync overrides.
 
 This file is separate from `test_config.yml`: `test_config.yml` describes the
 target and default inputs, while `test_run_config.yml` selects what the batch
@@ -28,8 +28,6 @@ flows that should execute.
 ## Top-Level Structure
 
 ```yaml
-skip_on_failure: false
-
 # Optional global overrides for FVT entries
 # dataset_override: "my_dataset"
 # sync_input_override: true
@@ -37,7 +35,6 @@ skip_on_failure: false
 
 fvt_image_build_manager:
   precheck:
-    order: 1
     run: false
     command: "test"
     suite: ""
@@ -62,17 +59,10 @@ Do not add a `scenarios:` wrapper. FVT tags belong directly under
 
 ---
 
-## Order and Failure Handling
+## Execution Order and Failure Handling
 
-FVT entries with an `order` value run from the lowest value to the highest.
-`order` must be a non-negative integer. Equal values retain their YAML file
-order. Entries without `order` retain their YAML order after explicitly
-ordered entries.
-
-After FVT, the runner processes `nft_image_build_manager` and then
-`ut_image_build_manager` when they are enabled.
-
-The tracked FVT order is:
+FVT entries run in their YAML mapping order. Keep them in dependency order in
+the file; the tracked sequence is:
 
 1. `precheck`
 2. `validate`
@@ -81,20 +71,17 @@ The tracked FVT order is:
 5. `cleanup_images`
 6. `cleanup`
 
+After FVT, the runner processes `nft_image_build_manager` and then
+`ut_image_build_manager` when they are enabled.
+
 Keep `cleanup_images` before `cleanup` when both are enabled. Image-only
 cleanup deletes built S3 and registry images while the services remain
 available. Full cleanup then removes the local infrastructure, data, output,
 configuration, and domain credentials.
 
-`skip_on_failure` is a Boolean:
-
-| Value | Batch behavior |
-|-------|----------------|
-| `false` | Attempt every enabled entry and return non-zero if any entry failed. |
-| `true` | After the first failed entry, report every later enabled FVT/NFT/UT entry as skipped and return non-zero. |
-
-This setting does not stop the currently running pytest suite at its first test
-failure; it controls whether later batch entries are scheduled.
+The shared runner attempts every enabled entry even when an earlier entry
+fails, then returns non-zero if any entry failed. This configuration has no
+stop-on-failure or skip-after-failure field.
 
 ---
 
@@ -104,11 +91,10 @@ Each key under `fvt_image_build_manager` must be an existing FVT tag.
 
 | Field | Type | Required | Behavior |
 |-------|------|----------|----------|
-| `order` | int | No | Batch order. Missing values run after explicitly ordered entries. |
 | `run` | bool | Yes | `true` executes the entry; `false` reports it as skipped. |
 | `command` | string | No | `exec`, `verify`, or `test`. Default: `test`. |
 | `suite` | string | No | Verification subfolder. Empty selects the complete tag. |
-| `marker` | string | No | Pytest marker expression. Empty selects all applicable tests. |
+| `marker` | string | No | Single pytest marker name. Empty selects all applicable tests. |
 | `dataset` | string | No | Non-empty dataset environment override for this entry. |
 | `sync_input` | bool | No | Overrides `sync_image_build_input` for this entry. |
 | `sync_output` | bool | No | Overrides `sync_output` for this entry. |
@@ -155,17 +141,11 @@ suite names with:
 ./run_validation.sh fvt_image_build_manager list
 ```
 
-### Marker Expressions
+### Marker Values
 
-| Expression | Meaning |
-|------------|---------|
-| `sanity` | Match one marker. |
-| `x86_64+sanity` | Match both markers (AND). |
-| `x86_64,aarch64` | Match either marker (OR). |
-
-Only marker names, `+`, and `,` are accepted in the batch file; whitespace and
-shell metacharacters are rejected. Use either AND or OR in one expression; do
-not mix `+` and `,`.
+The batch file accepts one marker name, such as `sanity`, `x86_64`, or
+`aarch64`. Use the direct CLI `--marker` option for compound AND (`+`) or OR
+(`,`) expressions.
 
 ---
 
@@ -209,11 +189,8 @@ This example exercises every applicable FVT case and both cleanup tags in
 dependency order. NFT remains a separate destructive run.
 
 ```yaml
-skip_on_failure: true
-
 fvt_image_build_manager:
   precheck:
-    order: 1
     run: true
     command: "test"
     suite: ""
@@ -222,7 +199,6 @@ fvt_image_build_manager:
     sync_input: false
     sync_output: false
   validate:
-    order: 2
     run: true
     command: "test"
     suite: ""
@@ -231,7 +207,6 @@ fvt_image_build_manager:
     sync_input: false
     sync_output: false
   prepare:
-    order: 3
     run: true
     command: "test"
     suite: ""
@@ -240,7 +215,6 @@ fvt_image_build_manager:
     sync_input: false
     sync_output: false
   build:
-    order: 4
     run: true
     command: "test"
     suite: ""
@@ -249,7 +223,6 @@ fvt_image_build_manager:
     sync_input: false
     sync_output: false
   cleanup_images:
-    order: 5
     run: true
     command: "test"
     suite: ""
@@ -258,7 +231,6 @@ fvt_image_build_manager:
     sync_input: false
     sync_output: false
   cleanup:
-    order: 6
     run: true
     command: "test"
     suite: ""
