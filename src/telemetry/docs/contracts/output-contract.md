@@ -22,7 +22,6 @@ domain: "telemetry"
 type: "deploy"
 project_name: "project_default"
 overall_status: "success"
-deployment_status: "deployed"
 generated_at: "2026-08-04T12:00:00Z"
 namespace: "telemetry"
 kube_vip: "192.168.13.150"
@@ -70,7 +69,6 @@ deploy_unreachable_nodes:
 | `type` | string | `"deploy"` for a deployment report |
 | `project_name` | string | Active project name |
 | `overall_status` | string | `"success"`, `"failed"`, or `"partial"` |
-| `deployment_status` | string | `"deployed"`, `"failed"`, or `"skipped"` |
 | `generated_at` | string | ISO 8601 timestamp |
 | `namespace` | string | K8s namespace (always `"telemetry"`) |
 | `kube_vip` | string | K8s control plane VIP used for deployment |

@@ -11,10 +11,8 @@ type: "{{ _status_type | default('deploy') }}"
 project_name: "{{ project_name | default('project_default') }}"
 {% if _status_type | default('deploy') == 'cleanup' %}
 overall_status: "{{ 'success' if _cleanup_status == 'passed' else ('failed' if _cleanup_status == 'failed' else 'partial') }}"
-deployment_status: "{{ 'cleaned' if _cleanup_status == 'passed' else _cleanup_status | default('skipped') }}"
 {% else %}
 overall_status: "{{ 'success' if _deployment_status == 'passed' else ('failed' if _deployment_status == 'failed' else 'partial') }}"
-deployment_status: "{{ 'deployed' if _deployment_status == 'passed' else _deployment_status | default('skipped') }}"
 {% endif %}
 generated_at: "{{ ansible_date_time.iso8601 | default(lookup('pipe', 'date -Iseconds')) }}"
 namespace: "{{ telemetry_namespace }}"
