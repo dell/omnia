@@ -1,4 +1,4 @@
- #!/bin/bash
+#!/bin/bash
 
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
@@ -39,9 +39,12 @@ set -euo pipefail
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly SRC_DIR="$(dirname "$SCRIPT_DIR")"
-readonly REPO_ROOT="$(dirname "$SRC_DIR")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+SRC_DIR="$(dirname "$SCRIPT_DIR")"
+readonly SRC_DIR
+REPO_ROOT="$(dirname "$SRC_DIR")"
+readonly REPO_ROOT
 
 # Color definitions
 readonly RED='\033[0;31m'
