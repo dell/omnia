@@ -24,8 +24,8 @@ Before running tests, the target server must have the omnia environment
 configured. This is done via `omnia.sh` in `src/main/`:
 
 ```bash
-# On the target server:
-cd <omnia_repo>/src/main/
+# On the target server (replace /path/to/omnia with the checkout path):
+cd /path/to/omnia/src/main/
 vi omnia.env                  # Set SYSTEM_ADMIN_NIC_IPV4 at minimum
 ./omnia.sh --setup-venv       # Installs env vars system-wide + creates venv
 ```
@@ -79,9 +79,10 @@ source .venv/bin/activate            # For --venv mode
 
 # Step 6 — (Optional) Generate a dataset for custom input
 cd datasets/generator/
-python generate_dataset.py my_dataset defaults
+./generate_dataset.py create my_dataset --profile internet-config
 cd ../..
 # Set: dataset: "my_dataset" in test_config.yml
+# Enable sync_image_build_input/sync_output when the dataset should be copied
 # Or leave dataset: "" to use input from target's $OMNIA_DATA_PATH
 
 # Step 7 — Run tests
@@ -109,11 +110,16 @@ Two separate credential files are managed by `setup_env.sh`:
 | `image_build_credentials.yml` | `$OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME/` | S3 + aarch64 domain credentials |
 | `.image_build_credentials_key` | Same directory as above | Vault key for domain credentials |
 
-The local SSH credential file is Ansible Vault-encrypted. Its key is plaintext
-secret material; both files are gitignored. Domain credentials are encrypted
-under `$OMNIA_DATA_PATH`, with their key stored alongside them outside the
-checkout. For remote execution, provision the domain credential file on the
-target OIM server.
+The two YAML credential files are encrypted with Ansible Vault. Their private
+vault-key files remain mode `0600`. SSH artifacts stay in this gitignored test
+directory. Domain artifacts stay under `$OMNIA_DATA_PATH`; generic project and
+dataset sync never copies them.
+
+For remote execution, export the target's `OMNIA_DATA_PATH` and
+`OMNIA_PROJECT_NAME` on the controller before running
+`./setup_env.sh --set-domain-creds`. At session start, the framework transfers
+the encrypted domain file and its vault key together to the matching target
+path. For local execution, create the pair directly in the local runtime path.
 
 #### SSH Credentials (OIM server access)
 
@@ -136,9 +142,9 @@ stored in a separate file (`image_build_credentials.yml`) at
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `s3_access_id` | Yes | MinIO / S3 access key ID |
-| `s3_secret_key` | Yes | MinIO / S3 secret key |
-| `aarch64_ssh_password` | No | SSH auth for the aarch64 build host. Leave empty for key-based auth or if no aarch64 build is needed. |
+| `s3_access_id` | PowerScale only | PowerScale S3 access key ID; it may be empty for MinIO. |
+| `s3_secret_key` | Yes | MinIO password or PowerScale S3 secret key (minimum 8 characters). |
+| `aarch64_ssh_password` | When ARM host is set | Required when `aarch64_inventory_host_ip` is non-empty; otherwise leave it empty. |
 
 | Flag | Description |
 |------|-------------|
@@ -152,8 +158,6 @@ stored in a separate file (`image_build_credentials.yml`) at
 > ./setup_env.sh --set-domain-creds   # S3 + aarch64 (saved to $OMNIA_DATA_PATH)
 > ```
 > Existing fields not updated by a given flag are **preserved**.
-> Run the domain credential command on the target OIM server when tests execute
-> remotely; it writes to `$OMNIA_DATA_PATH` on the current machine.
 
 ---
 
@@ -426,7 +430,7 @@ cleanup tag before verification.
 |---------|----------|---------|-------------|
 | `oim_server_ip` | No | `""` (local) | Target server IP. Leave empty for local mode. |
 | `clone_path` | Remote only | `/omnia` | Non-empty absolute path on the target where project code is synced. Ignored in local mode. |
-| `dataset` | No | `""` | Empty = input from target's `$OMNIA_DATA_PATH/image_build_manager/input/<project>/`. Set to a generated dataset name for custom inputs. |
+| `dataset` | No | `""` | Selects the local sync source: canonical `src/` files when empty, or a generated dataset by name. Nothing is copied unless its sync flag is enabled. |
 
 ### Batch Runs with `test_run_config.yml`
 
@@ -514,14 +518,18 @@ mode, copying into paths resolved on the current machine.
 
 In remote mode, session startup performs:
 
-1. **Project sync** — rsyncs the local Omnia checkout to the target's absolute
-   `clone_path`
+1. **Project sync** — stages and rsyncs the local Omnia working tree to the
+   target's absolute `clone_path`; local credentials, vault keys, VCS metadata,
+   virtual environments, and caches are excluded
 2. **Input sync** (only when `sync_image_build_input: true`) — reads
    `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the target's
    `/etc/omnia/omnia.env`, creates the target directory if needed, and syncs
    input files to
-   `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/`
-3. **Repo manager output sync** (only when `sync_output: true`) — syncs
+   `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/`; credential files,
+   backup files, and vault keys are excluded
+3. **Credential sync** — when a matching encrypted domain credential pair
+   exists on the controller, transfers both artifacts with mode `0600`
+4. **Repo manager output sync** (only when `sync_output: true`) — syncs
    `repo_manager_output` to the target repo manager output directory
 
 ### Input Files
@@ -534,8 +542,9 @@ When `dataset` is empty, the playbook reads input files from the **target server
 $OMNIA_DATA_PATH/image_build_manager/input/<project_name>/
 ```
 
-No input files are synced from the local machine. Files must already exist on the
-target (placed by `omnia.sh` setup or a prior deployment). This is the **production behavior**.
+With `sync_image_build_input: false`, no input files are synced from the local
+machine. Files must already exist on the target (placed by `omnia.sh` setup or a
+prior deployment). This is the **production behavior**.
 
 When `sync_image_build_input: true` AND `dataset: ""`, the framework syncs from
 `src/image_build_manager/input/` to the target path as a development convenience.
@@ -548,26 +557,41 @@ then set `dataset: "<name>"` in `test_config.yml`:
 ```bash
 cd datasets/generator/
 
-# Generate from a profile
-python generate_dataset.py my_dataset defaults
+# Inspect profiles and generate the recommended independent dataset
+./generate_dataset.py profiles
+./generate_dataset.py create my_dataset --profile internet-config
 
-# Generate with overrides
-python generate_dataset.py my_dataset defaults --var s3_provider=powerscale
+# Generate an offline dataset with one real host applied to every repo URL
+./generate_dataset.py create my_offline --profile offline-config \
+  --repo-host repo.company.internal
 
-# Copy directly from src/ (quick bootstrap)
-python generate_dataset.py my_dataset --from-src
+# Preview without publishing
+./generate_dataset.py create my_dataset --profile internet-config --dry-run
 
-# List available profiles
-python generate_dataset.py --list-profiles
+# Use canonical source values without a profile patch
+./generate_dataset.py create my_snapshot --from-src
+
+# Inspect all inline customer-edit markers after generation
+grep -R -n 'REPLACE WITH REAL VALUE' \
+  ../my_dataset/input/ ../my_dataset/repo_manager_output/
 ```
 
-The generated dataset contains all required input files:
+Replace `repo.company.internal` with the real Repo Manager hostname or IP
+reachable from the execution environment.
+
+The generator publishes these five files:
 
 | File | Location |
 |------|----------|
 | `image_build_config.yml` | `datasets/<name>/input/` |
-| `image_build_credentials.yml` | `datasets/<name>/input/` |
+| `package_groups.yml` | `datasets/<name>/input/` |
 | `repo_status.yml` | `datasets/<name>/repo_manager_output/` |
+| `dataset_manifest.yml` | `datasets/<name>/` |
+| `README.md` | `datasets/<name>/` |
+
+Credentials are never generated in a dataset. From `test/image_build_manager`,
+configure the separate encrypted runtime pair with
+`./setup_env.sh --set-domain-creds`.
 
 ---
 
