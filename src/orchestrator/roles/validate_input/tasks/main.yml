@@ -84,6 +84,7 @@
   register: storage_spec_stat
 
 - name: Validate storage_config.yml if present
+  when: storage_spec_stat.stat.exists
   block:
     - name: Load storage_config.yml
       ansible.builtin.include_vars:
@@ -94,7 +95,6 @@
       ansible.builtin.debug:
         msg: "storage_config.yml loaded successfully"
       when: storage_spec_vars.storage_config is defined
-  when: storage_spec_stat.stat.exists
 
 # =========================================================================
 # Step 4: Validate pxe_mapping_file.csv (required)
