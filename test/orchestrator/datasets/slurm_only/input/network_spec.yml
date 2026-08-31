@@ -13,14 +13,18 @@
 # limitations under the License.
 
 # =============================================================================
-# Orchestrator — Test Credentials
-# =============================================================================
-# This file is auto-encrypted with Ansible Vault on first test run.
-# Fill in values below, then run tests — the file will be encrypted in-place.
-#
-# oim_password: SSH password for the remote target server (oim_server_ip).
-#               Leave empty if using passwordless SSH (key-based auth).
+# Orchestrator — Network Specification (Generated from Template)
 # =============================================================================
 
 ---
-oim_password: ""
+Networks:
+  - name: "slurm_network"
+    type: "vlan"
+    vlan_id: 100
+    subnet: "192.168.100.0/24"
+    gateway: "192.168.100.1"
+    domain_name: "slurm.local"
+    ntp_servers:
+      - "192.168.100.1"
+    dns_servers:
+      - "192.168.100.1"
