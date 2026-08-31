@@ -29,10 +29,21 @@ from .ome_msgs import (
     OME_ASSERT_MSGS,
 )
 
+from .sfm_msgs import (
+    SFM_LOG_MSGS,
+    SFM_ASSERT_MSGS,
+    SFM_ERROR_MSGS,
+    SFM_DETAIL_MSGS,
+)
+
 __all__ = [
     "TEST_LOG_MSGS",
     "TEST_ASSERT_MSGS",
     "OME_TEST_NAMES",
     "OME_LOG_MSGS",
     "OME_ASSERT_MSGS",
+    "SFM_LOG_MSGS",
+    "SFM_ASSERT_MSGS",
+    "SFM_ERROR_MSGS",
+    "SFM_DETAIL_MSGS",
 ]
