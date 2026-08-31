@@ -21,8 +21,6 @@ All configuration is read from GitLab CI/CD variables (environment):
     EMAIL_SENDER      - From address (required)
     SMTP_SERVER       - SMTP relay host (required)
     SMTP_PORT         - SMTP relay port (default: 25)
-    SMTP_USER         - SMTP username (optional, for authenticated relay)
-    SMTP_PASSWORD     - SMTP password (optional, for authenticated relay)
     REPORT_PATH       - Path to pipeline_summary.txt (required)
 
 GitLab-provided variables used automatically:

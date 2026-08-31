@@ -42,6 +42,31 @@ Usage:
     --gitlab-url https://gitlab.example.com \\
     --token glpat-xxxx
 
+  # Update a specific file in the project
+  python3 setup_gitlab_project.py --update-file \\
+    --gitlab-url https://gitlab.example.com \\
+    --token glpat-xxxx \\
+    --project-name omnia-pipeline \\
+    --file /path/to/local/.gitlab-ci-cluster.yml \\
+    --repo-path .gitlab-ci-cluster.yml
+
+  # Update a cluster input file
+  python3 setup_gitlab_project.py --update-file \\
+    --gitlab-url https://gitlab.example.com \\
+    --token glpat-xxxx \\
+    --project-name omnia-pipeline \\
+    --file /path/to/omnia.env \\
+    --repo-path clusters/cluster1/inputs/omnia.env \\
+    --commit-message "Update omnia.env for cluster1"
+
+  # Upload a local directory (recursive) to the repo
+  python3 setup_gitlab_project.py --upload-dir \\
+    --gitlab-url https://gitlab.example.com \\
+    --token glpat-xxxx \\
+    --project-name omnia-pipeline \\
+    --dir /path/to/local/test_configs/ \\
+    --repo-path clusters/cluster1/inputs/test/orchestrator/
+
   # List CI/CD variables (names only)
   python3 setup_gitlab_project.py --list-vars \\
     --gitlab-url https://gitlab.example.com \\
@@ -70,6 +95,11 @@ try:
 except ImportError:
     print("ERROR: 'requests' library is required. Install with: pip install requests")
     sys.exit(1)
+
+try:
+    import yaml
+except ImportError:
+    yaml = None  # Optional — only needed when --config is used
 
 # Suppress SSL warnings for self-signed certificates
 import urllib3
@@ -115,6 +145,172 @@ def _validate_project_name(name):
     if not _VALID_PROJECT_RE.match(name):
         raise ValueError(f"Invalid project name: {name}")
     return name
+
+
+# ---------------------------------------------------------------------------
+# Pipeline config file parser
+# ---------------------------------------------------------------------------
+
+def load_pipeline_config(config_path):
+    """Load and parse pipeline_config.yml into a flat CI/CD variable map.
+
+    Returns:
+        (cluster_names, variables) where:
+            cluster_names: list of cluster names from the config
+            variables: dict of {VAR_NAME: value} ready for GitLab CI/CD
+    """
+    if yaml is None:
+        print("ERROR: 'pyyaml' library is required for --config. Install with: pip install pyyaml")
+        sys.exit(1)
+
+    with open(config_path, "r") as f:
+        cfg = yaml.safe_load(f)
+
+    if not cfg:
+        print(f"ERROR: Config file is empty: {config_path}")
+        sys.exit(1)
+
+    # Extract global settings
+    global_cfg = cfg.get("global", {}) or {}
+    clusters_str = global_cfg.get("clusters", "cluster1")
+    cluster_names = [c.strip() for c in clusters_str.split(",") if c.strip()]
+
+    variables = {}
+    variables["CLUSTERS"] = ",".join(cluster_names)
+
+    # -- Global Omnia repository configuration
+    omnia_cfg = global_cfg.get("omnia", {}) or {}
+    if omnia_cfg.get("repo"):
+        variables["OMNIA_REPO"] = omnia_cfg["repo"]
+    if omnia_cfg.get("branch"):
+        variables["OMNIA_BRANCH"] = omnia_cfg["branch"]
+    if omnia_cfg.get("install_path"):
+        variables["OMNIA_INSTALL_PATH"] = omnia_cfg["install_path"]
+
+    # -- Global email configuration
+    email_cfg = global_cfg.get("email", {}) or {}
+    if email_cfg.get("recipients"):
+        variables["EMAIL_RECIPIENTS"] = email_cfg["recipients"]
+    if email_cfg.get("sender"):
+        variables["EMAIL_SENDER"] = email_cfg["sender"]
+    if email_cfg.get("smtp_server"):
+        variables["SMTP_SERVER"] = email_cfg["smtp_server"]
+    if email_cfg.get("smtp_port"):
+        variables["SMTP_PORT"] = email_cfg["smtp_port"]
+
+    for cluster in cluster_names:
+        cluster_cfg = cfg.get(cluster)
+        if not cluster_cfg:
+            print(f"WARNING: No configuration section found for '{cluster}' — skipping")
+            continue
+
+        prefix = cluster.upper()
+
+        # -- Connection details
+        conn = cluster_cfg.get("connection", {}) or {}
+        if conn.get("target_ip"):
+            variables[f"{prefix}_TARGET_IP"] = conn["target_ip"]
+        if conn.get("target_user"):
+            variables[f"{prefix}_TARGET_USER"] = conn["target_user"]
+
+        # Prompt for password at runtime (never stored in config file)
+        target_ip = conn.get("target_ip", cluster)
+        password = getpass.getpass(f"  Enter SSH password for {cluster} ({target_ip}): ")
+        if password:
+            variables[f"{prefix}_TARGET_PASS"] = password
+
+        # -- Pipeline behaviour
+        pipeline = cluster_cfg.get("pipeline", {}) or {}
+        var_map = {
+            "pipeline_mode": "PIPELINE_MODE",
+            "domains": "DOMAINS",
+            "enable_setup": "ENABLE_SETUP",
+            "test_mode": "TEST_MODE",
+            "dry_run": "DRY_RUN",
+            "verbose": "VERBOSE",
+            "skip_stages": "SKIP_STAGES",
+        }
+        for cfg_key, var_suffix in var_map.items():
+            val = pipeline.get(cfg_key)
+            if val is not None:
+                variables[f"{prefix}_{var_suffix}"] = str(val)
+
+        # -- Deploy tags
+        deploy_tags = cluster_cfg.get("deploy_tags", {}) or {}
+        tag_map = {
+            "repo_manager": "REPO_MANAGER_TAGS",
+            "image_build_manager": "IMAGE_BUILD_MANAGER_TAGS",
+            "orchestrator": "ORCHESTRATOR_TAGS",
+            "telemetry": "TELEMETRY_TAGS",
+        }
+        for cfg_key, var_suffix in tag_map.items():
+            val = deploy_tags.get(cfg_key)
+            if val is not None:
+                variables[f"{prefix}_{var_suffix}"] = str(val)
+
+        # -- Test tags
+        test_tags = cluster_cfg.get("test_tags", {}) or {}
+        test_tag_map = {
+            "repo_manager": "TEST_REPO_MANAGER_TAGS",
+            "image_build_manager": "TEST_IMAGE_BUILD_MANAGER_TAGS",
+            "orchestrator": "TEST_ORCHESTRATOR_TAGS",
+            "telemetry": "TEST_TELEMETRY_TAGS",
+        }
+        for cfg_key, var_suffix in test_tag_map.items():
+            val = test_tags.get(cfg_key)
+            if val is not None:
+                variables[f"{prefix}_{var_suffix}"] = str(val)
+
+        # -- Credential file paths (stored as File type variables)
+        creds = cluster_cfg.get("credentials", {}) or {}
+        cred_map = {
+            "repo_manager_creds": "REPO_MANAGER_CREDS",
+            "image_build_creds": "IMAGE_BUILD_CREDS",
+            "orchestrator_creds": "ORCHESTRATOR_CREDS",
+            "telemetry_creds": "TELEMETRY_CREDS",
+            "test_creds": "TEST_CREDS",
+        }
+        for cfg_key, var_suffix in cred_map.items():
+            val = creds.get(cfg_key)
+            if val and os.path.isfile(val):
+                variables[f"{prefix}_{var_suffix}"] = val
+
+    return cluster_names, variables
+
+
+# Credential variable suffixes — these use File type in GitLab
+_FILE_TYPE_VARS = {
+    "REPO_MANAGER_CREDS", "IMAGE_BUILD_CREDS",
+    "ORCHESTRATOR_CREDS", "TELEMETRY_CREDS", "TEST_CREDS",
+}
+
+
+def apply_config_variables(client, project_id, variables):
+    """Apply CI/CD variables from the parsed config to a GitLab project.
+
+    File-type credential variables are uploaded with their file content.
+    All other variables are set as regular env_var type.
+    """
+    print("\nApplying CI/CD variables from config...")
+    for var_name, value in sorted(variables.items()):
+        # Determine if this is a file-type credential variable
+        suffix = var_name.split("_", 1)[1] if "_" in var_name else var_name
+        # Check all possible suffixes (strip cluster prefix)
+        is_file_var = any(var_name.endswith(f"_{s}") for s in _FILE_TYPE_VARS)
+
+        if is_file_var and os.path.isfile(value):
+            file_content = Path(value).read_text(encoding="utf-8")
+            is_sensitive = "PASS" in var_name or "CREDS" in var_name
+            status = client.set_variable(
+                project_id, var_name, file_content,
+                var_type="file", masked=False,
+            )
+            print(f"  {status}: {var_name} (file: {value})")
+        else:
+            is_sensitive = "PASS" in var_name
+            display = "********" if is_sensitive and value else value
+            status = client.set_variable(project_id, var_name, value)
+            print(f"  {status}: {var_name} = {display}")
 
 
 # ---------------------------------------------------------------------------
@@ -257,6 +453,33 @@ class GitLabClient:
             "content": content,
         }
 
+    def list_tree(self, project_id, path="", ref="main", recursive=True):
+        """List all files under a directory in the repo.
+        Returns a list of file paths (blobs only, no directories).
+        """
+        files = []
+        page = 1
+        while True:
+            params = {
+                "ref": ref,
+                "per_page": 100,
+                "page": page,
+                "recursive": str(recursive).lower(),
+            }
+            if path:
+                params["path"] = path
+            resp = self._get(f"/projects/{project_id}/repository/tree", params=params)
+            if resp.status_code != 200:
+                break
+            items = resp.json()
+            if not items:
+                break
+            for item in items:
+                if item.get("type") == "blob":
+                    files.append(item["path"])
+            page += 1
+        return files
+
     # -- CI/CD variables ----------------------------------------------------
 
     def set_variable(self, project_id, key, value, var_type="env_var",
@@ -303,17 +526,47 @@ class GitLabClient:
 # File sourcing - collect files from omnia src/ tree
 # ---------------------------------------------------------------------------
 # Domain input files source mapping:
-#   src/repo_manager/input/        -> clusters/<name>/Inputs/repo_manager/
-#   src/image_build_manager/input/  -> clusters/<name>/Inputs/image_build_manager/
-#   src/orchestrator/input/         -> clusters/<name>/Inputs/orchestrator/
+#   src/repo_manager/input/        -> clusters/<name>/inputs/repo_manager/
+#   src/image_build_manager/input/  -> clusters/<name>/inputs/image_build_manager/
+#   src/orchestrator/input/         -> clusters/<name>/inputs/orchestrator/
 #   src/main/samples/catalog_rhel.json -> clusters/<name>/catalogs/catalog_rhel.json
-#   src/main/omnia.env              -> clusters/<name>/Inputs/omnia.env
+#   src/main/omnia.env              -> clusters/<name>/inputs/omnia.env
 
 DOMAIN_INPUT_MAP = {
     "repo_manager": "src/repo_manager/input",
     "image_build_manager": "src/image_build_manager/input",
     "orchestrator": "src/orchestrator/input",
+    "telemetry": "src/telemetry/input",
 }
+
+# Test configuration files per domain.
+# Maps domain -> (test_dir_in_repo, list_of_config_files_to_collect)
+# These template files are sourced from test/<test_dir>/ and committed
+# to clusters/<cluster>/inputs/test/<domain>/ in the GitLab repo.
+DOMAIN_TEST_MAP = {
+    "main": {
+        "src_dir": "test/main",
+        "files": ["test_config.yml", "test_run_config.yml"],
+    },
+    "repo_manager": {
+        "src_dir": "test/repo_manager",
+        "files": ["test_config.yml", "test_run_config.yml"],
+    },
+    "image_build_manager": {
+        "src_dir": "test/image_build_manager",
+        "files": ["test_config.yml", "test_run_config.yml"],
+    },
+    "orchestrator": {
+        "src_dir": "test/orchestrator",
+        "files": ["test_config.yml", "test_run_config.yml"],
+    },
+    "telemetry": {
+        "src_dir": "test/telemetry",
+        "files": ["test_config.yml", "test_run_config.yml"],
+    },
+}
+# NOTE: test_creds.yml files contain sensitive data and are NOT committed to the repo.
+# They should be set as a CI/CD File Variable (CLUSTER1_TEST_CREDS) in GitLab UI.
 
 
 def _find_omnia_root(omnia_src_path):
@@ -349,18 +602,47 @@ def collect_input_files(omnia_root, cluster_names):
             if src_dir.is_dir():
                 for f in sorted(src_dir.iterdir()):
                     if f.is_file():
-                        repo_path = f"clusters/{cluster}/Inputs/{domain}/{f.name}"
+                        repo_path = f"clusters/{cluster}/inputs/{domain}/{f.name}"
                         files.append((str(f), repo_path))
 
-        # Catalog
-        catalog = omnia_root / "src" / "main" / "samples" / "catalog_rhel.json"
-        if catalog.exists():
-            files.append((str(catalog), f"clusters/{cluster}/catalogs/catalog_rhel.json"))
+        # Catalog files (all files from src/main/samples/)
+        samples_dir = omnia_root / "src" / "main" / "samples"
+        if samples_dir.is_dir():
+            for f in sorted(samples_dir.iterdir()):
+                if f.is_file():
+                    files.append((str(f), f"clusters/{cluster}/catalogs/{f.name}"))
 
         # omnia.env template
         omnia_env = omnia_root / "src" / "main" / "omnia.env"
         if omnia_env.exists():
-            files.append((str(omnia_env), f"clusters/{cluster}/Inputs/omnia.env"))
+            files.append((str(omnia_env), f"clusters/{cluster}/inputs/omnia.env"))
+
+    return files
+
+
+def collect_test_files(omnia_root, cluster_names):
+    """Collect test configuration template files for each domain per cluster.
+
+    These are the test_config.yml and test_run_config.yml files that users
+    customize per cluster before triggering the pipeline.
+    NOTE: test_creds.yml is excluded — it is set as a CI/CD File Variable.
+
+    Returns a list of (local_path, repo_path) tuples.
+    Files are placed at: clusters/<cluster>/inputs/test/<domain>/<file>
+    """
+    files = []
+    omnia_root = Path(omnia_root)
+
+    for cluster in cluster_names:
+        for domain, info in DOMAIN_TEST_MAP.items():
+            src_dir = omnia_root / info["src_dir"]
+            if not src_dir.is_dir():
+                continue
+            for fname in info["files"]:
+                src_file = src_dir / fname
+                if src_file.exists():
+                    repo_path = f"clusters/{cluster}/inputs/test/{domain}/{fname}"
+                    files.append((str(src_file), repo_path))
 
     return files
 
@@ -376,6 +658,7 @@ def collect_pipeline_files():
         (".gitlab-ci.yml", ".gitlab-ci.yml"),
         (".gitlab-ci-cluster.yml", ".gitlab-ci-cluster.yml"),
         ("send_email.py", "send_email.py"),
+        ("pipeline_config.yml", "pipeline_config.yml"),
     ]:
         fpath = script_dir / name
         if fpath.exists():
@@ -408,6 +691,12 @@ def generate_cluster_trigger_job(cluster_name):
     REPO_MANAGER_TAGS: "${{{upper_prefix}_REPO_MANAGER_TAGS}}"
     IMAGE_BUILD_MANAGER_TAGS: "${{{upper_prefix}_IMAGE_BUILD_MANAGER_TAGS}}"
     ORCHESTRATOR_TAGS: "${{{upper_prefix}_ORCHESTRATOR_TAGS}}"
+    TELEMETRY_TAGS: "${{{upper_prefix}_TELEMETRY_TAGS}}"
+    TEST_REPO_MANAGER_TAGS: "${{{upper_prefix}_TEST_REPO_MANAGER_TAGS}}"
+    TEST_IMAGE_BUILD_MANAGER_TAGS: "${{{upper_prefix}_TEST_IMAGE_BUILD_MANAGER_TAGS}}"
+    TEST_ORCHESTRATOR_TAGS: "${{{upper_prefix}_TEST_ORCHESTRATOR_TAGS}}"
+    TEST_TELEMETRY_TAGS: "${{{upper_prefix}_TEST_TELEMETRY_TAGS}}"
+    SKIP_STAGES: "${{{upper_prefix}_SKIP_STAGES}}"
   allow_failure: true
   rules:
     - if: '$CLUSTERS =~ /{prefix}/'
@@ -427,6 +716,12 @@ def generate_cluster_variables(cluster_name):
   {upper_prefix}_REPO_MANAGER_TAGS: ""
   {upper_prefix}_IMAGE_BUILD_MANAGER_TAGS: ""
   {upper_prefix}_ORCHESTRATOR_TAGS: ""
+  {upper_prefix}_TELEMETRY_TAGS: ""
+  {upper_prefix}_TEST_REPO_MANAGER_TAGS: ""
+  {upper_prefix}_TEST_IMAGE_BUILD_MANAGER_TAGS: ""
+  {upper_prefix}_TEST_ORCHESTRATOR_TAGS: ""
+  {upper_prefix}_TEST_TELEMETRY_TAGS: ""
+  {upper_prefix}_SKIP_STAGES: ""
 """
 
 
@@ -528,6 +823,7 @@ def prompt_credentials(cluster_names, domains):
         "repo_manager": "REPO_MANAGER_CREDS",
         "image_build_manager": "IMAGE_BUILD_CREDS",
         "orchestrator": "ORCHESTRATOR_CREDS",
+        "telemetry": "TELEMETRY_CREDS",
     }
 
     creds = {}
@@ -565,13 +861,20 @@ def cmd_create(args, client):
     omnia_root = _find_omnia_root(args.omnia_src)
     print(f"Omnia root: {omnia_root}")
 
-    # Parse clusters
-    cluster_names = [c.strip() for c in args.clusters.split(",") if c.strip()]
+    # Parse clusters — from config file or --clusters arg
+    config_vars = {}
+    if args.config:
+        config_cluster_names, config_vars = load_pipeline_config(args.config)
+        print(f"Loaded config: {args.config}")
+        cluster_names = config_cluster_names
+    else:
+        cluster_names = [c.strip() for c in args.clusters.split(",") if c.strip()]
+
     if not cluster_names:
-        print("ERROR: No clusters specified. Use --clusters cluster1,cluster2")
+        print("ERROR: No clusters specified. Use --clusters cluster1,cluster2 or --config pipeline_config.yml")
         return False
 
-    domains = ["repo_manager", "image_build_manager", "orchestrator"]
+    domains = ["repo_manager", "image_build_manager", "orchestrator", "telemetry"]
     print(f"Clusters: {', '.join(cluster_names)}")
     print(f"Domains:  {', '.join(domains)}")
 
@@ -595,12 +898,17 @@ def cmd_create(args, client):
     print("\nCollecting files...")
     pipeline_files = collect_pipeline_files()
     input_files = collect_input_files(omnia_root, cluster_names)
+    test_files = collect_test_files(omnia_root, cluster_names)
     print(f"  Pipeline files: {len(pipeline_files)}")
     print(f"  Input files:    {len(input_files)}")
+    print(f"  Test files:     {len(test_files)}")
 
-    # Prompt for cluster details
-    print("\nCluster connection details:")
-    cluster_details = prompt_cluster_details(cluster_names)
+    # Prompt for cluster details (skip if config file provides them)
+    if not config_vars:
+        print("\nCluster connection details:")
+        cluster_details = prompt_cluster_details(cluster_names)
+    else:
+        cluster_details = None
 
     # Build commit actions
     actions = []
@@ -613,6 +921,11 @@ def cmd_create(args, client):
 
     # Input template files
     for local_path, repo_path in input_files:
+        actions.append(client.build_file_action(project_id, local_path, repo_path))
+        file_list.append(repo_path)
+
+    # Test configuration template files
+    for local_path, repo_path in test_files:
         actions.append(client.build_file_action(project_id, local_path, repo_path))
         file_list.append(repo_path)
 
@@ -653,85 +966,122 @@ def cmd_create(args, client):
     print("Configuring CI/CD Variables")
     print("=" * 60)
 
-    # CLUSTERS variable
-    clusters_val = ",".join(cluster_names)
-    status = client.set_variable(project_id, "CLUSTERS", clusters_val)
-    print(f"  {status}: CLUSTERS = {clusters_val}")
+    if config_vars:
+        # ---- Config-file mode: apply all variables from pipeline_config.yml
+        apply_config_variables(client, project_id, config_vars)
 
-    # Cluster connection details (from cluster_details)
-    for cluster in cluster_names:
-        prefix = cluster.upper()
-        details = cluster_details[cluster]
-        
-        # TARGET_IP
-        var_name = f"{prefix}_TARGET_IP"
-        status = client.set_variable(project_id, var_name, details["ip"])
-        print(f"  {status}: {var_name} = {details['ip']}")
-        
-        # TARGET_USER
-        var_name = f"{prefix}_TARGET_USER"
-        status = client.set_variable(project_id, var_name, details["user"])
-        print(f"  {status}: {var_name} = {details['user']}")
-        
-        # TARGET_PASS (masked, placeholder)
-        var_name = f"{prefix}_TARGET_PASS"
-        status = client.set_variable(
-            project_id, var_name, "CHANGE_ME_IN_GITLAB_UI", masked=True
-        )
-        print(f"  {status}: {var_name} (masked, placeholder — update in GitLab UI)")
+        # Also set global defaults that aren't in the config file
+        global_keys = [
+            ("OMNIA_REPO", "https://github.com/dell/omnia.git"),
+            ("OMNIA_BRANCH", "main"),
+            ("OMNIA_INSTALL_PATH", "/root/omnia"),
+            ("EMAIL_RECIPIENTS", ""),
+            ("EMAIL_SENDER", ""),
+            ("SMTP_SERVER", ""),
+            ("SMTP_PORT", "25"),
+        ]
+        for key, default_val in global_keys:
+            if key not in config_vars:
+                status = client.set_variable(project_id, key, default_val)
+                print(f"  {status}: {key} = {default_val}")
 
-    # Cluster-level configuration variables
-    # Each cluster has its own PIPELINE_MODE, DOMAINS, tags, etc.
-    per_cluster_keys = [
-        ("PIPELINE_MODE", "default"),
-        ("DOMAINS", "default"),
-        ("ENABLE_SETUP", "false"),
-        ("TEST_MODE", "false"),
-        ("DRY_RUN", "false"),
-        ("VERBOSE", "false"),
-        ("REPO_MANAGER_TAGS", ""),
-        ("IMAGE_BUILD_MANAGER_TAGS", ""),
-        ("ORCHESTRATOR_TAGS", ""),
-    ]
-    for cluster in cluster_names:
-        prefix = cluster.upper()
-        for key, default_val in per_cluster_keys:
-            var_name = f"{prefix}_{key}"
-            status = client.set_variable(project_id, var_name, default_val)
-            print(f"  {status}: {var_name} = {default_val}")
+    else:
+        # ---- Interactive mode: prompt for details and set defaults
 
-    # Credential files (optional)
-    creds = prompt_credentials(cluster_names, domains)
-    for var_name, file_path in creds.items():
-        content = Path(file_path).read_text(encoding="utf-8")
-        status = client.set_variable(
-            project_id, var_name, content, var_type="file", masked=False
-        )
-        print(f"  {status}: {var_name} (file variable)")
+        # CLUSTERS variable
+        clusters_val = ",".join(cluster_names)
+        status = client.set_variable(project_id, "CLUSTERS", clusters_val)
+        print(f"  {status}: CLUSTERS = {clusters_val}")
+
+        # Cluster connection details (from cluster_details)
+        for cluster in cluster_names:
+            prefix = cluster.upper()
+            details = cluster_details[cluster]
+            
+            var_name = f"{prefix}_TARGET_IP"
+            status = client.set_variable(project_id, var_name, details["ip"])
+            print(f"  {status}: {var_name} = {details['ip']}")
+            
+            var_name = f"{prefix}_TARGET_USER"
+            status = client.set_variable(project_id, var_name, details["user"])
+            print(f"  {status}: {var_name} = {details['user']}")
+            
+            var_name = f"{prefix}_TARGET_PASS"
+            status = client.set_variable(
+                project_id, var_name, "CHANGE_ME_IN_GITLAB_UI", masked=True
+            )
+            print(f"  {status}: {var_name} (masked, placeholder — update in GitLab UI)")
+
+        # Global pipeline variables
+        global_keys = [
+            ("OMNIA_REPO", "https://github.com/dell/omnia.git"),
+            ("OMNIA_BRANCH", "main"),
+            ("OMNIA_INSTALL_PATH", "/root/omnia"),
+            ("EMAIL_RECIPIENTS", ""),
+            ("EMAIL_SENDER", ""),
+            ("SMTP_SERVER", ""),
+            ("SMTP_PORT", "25"),
+        ]
+        for key, default_val in global_keys:
+            status = client.set_variable(project_id, key, default_val)
+            print(f"  {status}: {key} = {default_val}")
+
+        # Cluster-level configuration variables
+        per_cluster_keys = [
+            ("PIPELINE_MODE", "default"),
+            ("DOMAINS", "default"),
+            ("ENABLE_SETUP", "false"),
+            ("TEST_MODE", "false"),
+            ("DRY_RUN", "false"),
+            ("VERBOSE", "false"),
+            ("REPO_MANAGER_TAGS", ""),
+            ("IMAGE_BUILD_MANAGER_TAGS", ""),
+            ("ORCHESTRATOR_TAGS", ""),
+            ("TELEMETRY_TAGS", ""),
+            ("TEST_REPO_MANAGER_TAGS", ""),
+            ("TEST_IMAGE_BUILD_MANAGER_TAGS", ""),
+            ("TEST_ORCHESTRATOR_TAGS", ""),
+            ("TEST_TELEMETRY_TAGS", ""),
+            ("SKIP_STAGES", ""),
+        ]
+        for cluster in cluster_names:
+            prefix = cluster.upper()
+            for key, default_val in per_cluster_keys:
+                var_name = f"{prefix}_{key}"
+                status = client.set_variable(project_id, var_name, default_val)
+                print(f"  {status}: {var_name} = {default_val}")
+
+        # Credential files (optional)
+        creds = prompt_credentials(cluster_names, domains)
+        for var_name, file_path in creds.items():
+            content = Path(file_path).read_text(encoding="utf-8")
+            status = client.set_variable(
+                project_id, var_name, content, var_type="file", masked=False
+            )
+            print(f"  {status}: {var_name} (file variable)")
 
     # Summary
+    clusters_val = ",".join(cluster_names)
     print("\n" + "=" * 60)
     print("Setup Complete")
     print("=" * 60)
     print(f"Project URL:  {project.get('web_url', f'{client.url}/{project_path}')}")
     print(f"Clusters:     {clusters_val}")
     print(f"Files:        {len(file_list)} committed")
-    print(f"\nCI/CD Variables Created:")
-    for cluster in cluster_names:
-        prefix = cluster.upper()
-        print(f"  {prefix}: TARGET_IP, TARGET_USER, TARGET_PASS (masked)")
-        print(f"  {prefix}: PIPELINE_MODE, DOMAINS, ENABLE_SETUP, TEST_MODE, DRY_RUN, VERBOSE")
-        print(f"  {prefix}: REPO_MANAGER_TAGS, IMAGE_BUILD_MANAGER_TAGS, ORCHESTRATOR_TAGS")
+    if config_vars:
+        print(f"Config:       {args.config}")
+        print(f"Variables:    {len(config_vars)} applied from config")
     print(f"\nNext steps:")
-    print(f"  1. Update cluster passwords in GitLab UI: Settings > CI/CD > Variables")
-    print(f"     Variables: {', '.join(c.upper() + '_TARGET_PASS' for c in cluster_names)}")
-    print(f"  2. Set credential file variables (if not done above):")
-    for cluster in cluster_names:
-        prefix = cluster.upper()
-        for suffix in ["REPO_MANAGER_CREDS", "IMAGE_BUILD_CREDS", "ORCHESTRATOR_CREDS"]:
-            print(f"     - {prefix}_{suffix} (File type)")
-    print(f"  3. Edit cluster-specific input files in the GitLab repo (clusters/<name>/Inputs/)")
-    print(f"  4. Trigger pipeline: CI/CD > Pipelines > Run pipeline")
+    if not config_vars:
+        print(f"  1. Update cluster passwords in GitLab UI: Settings > CI/CD > Variables")
+        print(f"     Variables: {', '.join(c.upper() + '_TARGET_PASS' for c in cluster_names)}")
+        print(f"  2. Set credential file variables (if not done above):")
+        for cluster in cluster_names:
+            prefix = cluster.upper()
+            for suffix in ["REPO_MANAGER_CREDS", "IMAGE_BUILD_CREDS", "ORCHESTRATOR_CREDS", "TELEMETRY_CREDS"]:
+                print(f"     - {prefix}_{suffix} (File type)")
+    print(f"  {'3' if not config_vars else '1'}. Edit cluster-specific input files in the GitLab repo (clusters/<name>/inputs/)")
+    print(f"  {'4' if not config_vars else '2'}. Trigger pipeline: CI/CD > Pipelines > Run pipeline")
     return True
 
 
@@ -786,6 +1136,11 @@ def cmd_update(args, client):
                 actions.append(client.build_file_action(project_id, local_path, repo_path))
             print(f"  Input files refreshed for clusters: {', '.join(cluster_names)}")
 
+            test_files = collect_test_files(omnia_root, cluster_names)
+            for local_path, repo_path in test_files:
+                actions.append(client.build_file_action(project_id, local_path, repo_path))
+            print(f"  Test files refreshed for clusters: {', '.join(cluster_names)} ({len(test_files)} files)")
+
     print(f"  Committing {len(actions)} file updates...")
     client.commit_files(
         project_id, actions,
@@ -810,10 +1165,29 @@ def cmd_update(args, client):
         print("\nUpdating .gitlab-ci.yml with cluster trigger jobs...")
         update_gitlab_ci_yml_with_clusters(update_clusters)
 
-    # Optionally update CI/CD variables
-    if args.update_vars:
-        print("\nUpdating CI/CD variables...")
-        
+    # Apply CI/CD variables from config file or --update-vars
+    if args.config:
+        config_cluster_names, config_vars = load_pipeline_config(args.config)
+        print(f"\nApplying variables from config: {args.config}")
+        apply_config_variables(client, project_id, config_vars)
+        print(f"  {len(config_vars)} variables applied")
+    elif args.update_vars:
+        print("\nUpdating CI/CD variables (defaults)...")
+
+        # Global pipeline variables
+        global_keys = [
+            ("OMNIA_REPO", "https://github.com/dell/omnia.git"),
+            ("OMNIA_BRANCH", "main"),
+            ("OMNIA_INSTALL_PATH", "/root/omnia"),
+            ("EMAIL_RECIPIENTS", ""),
+            ("EMAIL_SENDER", ""),
+            ("SMTP_SERVER", ""),
+            ("SMTP_PORT", "25"),
+        ]
+        for key, default_val in global_keys:
+            status = client.set_variable(project_id, key, default_val)
+            print(f"  {status}: {key} = {default_val}")
+
         # Cluster-level configuration variables
         per_cluster_keys = [
             ("PIPELINE_MODE", "default"),
@@ -825,6 +1199,12 @@ def cmd_update(args, client):
             ("REPO_MANAGER_TAGS", ""),
             ("IMAGE_BUILD_MANAGER_TAGS", ""),
             ("ORCHESTRATOR_TAGS", ""),
+            ("TELEMETRY_TAGS", ""),
+            ("TEST_REPO_MANAGER_TAGS", ""),
+            ("TEST_IMAGE_BUILD_MANAGER_TAGS", ""),
+            ("TEST_ORCHESTRATOR_TAGS", ""),
+            ("TEST_TELEMETRY_TAGS", ""),
+            ("SKIP_STAGES", ""),
         ]
         for cluster in update_clusters:
             prefix = cluster.upper()
@@ -921,6 +1301,252 @@ def cmd_list_vars(args, client):
     return True
 
 
+def cmd_update_file(args, client):
+    """Update a specific file in the GitLab project repository."""
+    print("\n" + "=" * 60)
+    print("Updating File in GitLab Project")
+    print("=" * 60)
+
+    namespace = args.namespace or "root"
+    project_name = _validate_project_name(args.project_name)
+    project_path = f"{namespace}/{project_name}"
+
+    project = client.find_project(project_path)
+    if not project:
+        print(f"ERROR: Project not found: {project_path}")
+        print("  Use --create to create a new project.")
+        return False
+
+    project_id = project["id"]
+    print(f"Found project: {project.get('web_url', project_path)} (ID: {project_id})")
+
+    local_path = args.file
+    repo_path = args.repo_path
+
+    # Validate local file exists
+    if not os.path.isfile(local_path):
+        print(f"ERROR: Local file not found: {local_path}")
+        return False
+
+    # If no repo_path specified, derive it from the local file name
+    if not repo_path:
+        repo_path = os.path.basename(local_path)
+        print(f"  No --repo-path specified, using filename: {repo_path}")
+    elif repo_path.endswith("/"):
+        # repo_path is a directory — append the source filename
+        repo_path = repo_path + os.path.basename(local_path)
+        print(f"  --repo-path is a directory, resolved to: {repo_path}")
+
+    print(f"  Local file:  {local_path}")
+    print(f"  Repo path:   {repo_path}")
+
+    # Read local file content
+    content = Path(local_path).read_text(encoding="utf-8")
+
+    actions = []
+
+    # Check if a conflicting file exists at a parent path
+    # e.g. if repo_path is "a/b/file.json", check if "a/b/" exists as a file (not a dir)
+    # This can happen if a previous run accidentally created a file with a trailing slash
+    parts = repo_path.rstrip("/").split("/")
+    for i in range(1, len(parts)):
+        parent = "/".join(parts[:i])
+        if client.file_exists(project_id, parent):
+            print(f"  WARNING: Conflicting file found at '{parent}' — deleting it first")
+            actions.append({"action": "delete", "file_path": parent})
+            break  # only one conflict possible per path
+
+    # Check if file exists in repo to decide create vs update
+    exists = client.file_exists(project_id, repo_path)
+    action_type = "update" if exists else "create"
+    print(f"  Action:      {action_type} ({'overwrite existing' if exists else 'new file'})")
+
+    actions.append({
+        "action": action_type,
+        "file_path": repo_path,
+        "content": content,
+    })
+
+    commit_msg = args.commit_message or f"Update {repo_path}\n\nAuto-committed by setup_gitlab_project.py --update-file"
+    print(f"\nCommitting {len(actions)} action(s) for {repo_path}...")
+    client.commit_files(project_id, actions, commit_msg)
+    print(f"  File {action_type}d successfully: {repo_path}")
+
+    print(f"\nFile updated in project: {project.get('web_url', project_path)}")
+    return True
+
+
+def cmd_upload_dir(args, client):
+    """Upload all files from a local directory to a GitLab repo path."""
+    print("\n" + "=" * 60)
+    print("Uploading Directory to GitLab Project")
+    print("=" * 60)
+
+    namespace = args.namespace or "root"
+    project_name = _validate_project_name(args.project_name)
+    project_path = f"{namespace}/{project_name}"
+
+    project = client.find_project(project_path)
+    if not project:
+        print(f"ERROR: Project not found: {project_path}")
+        print("  Use --create to create a new project.")
+        return False
+
+    project_id = project["id"]
+    print(f"Found project: {project.get('web_url', project_path)} (ID: {project_id})")
+
+    local_dir = args.dir
+    repo_dir = args.repo_path
+
+    # Validate local directory exists
+    if not os.path.isdir(local_dir):
+        print(f"ERROR: Local directory not found: {local_dir}")
+        return False
+
+    # Ensure repo_dir ends with /
+    if repo_dir and not repo_dir.endswith("/"):
+        repo_dir += "/"
+
+    # If no repo_path specified, use the directory basename
+    if not repo_dir:
+        repo_dir = os.path.basename(local_dir.rstrip("/")) + "/"
+        print(f"  No --repo-path specified, using: {repo_dir}")
+
+    # Collect all files from the local directory (recursively)
+    local_dir_path = Path(local_dir)
+    collected = []
+    for fpath in sorted(local_dir_path.rglob("*")):
+        if fpath.is_file():
+            rel = fpath.relative_to(local_dir_path)
+            # Skip hidden files and common non-essential files
+            if any(part.startswith(".") for part in rel.parts):
+                continue
+            if rel.name.endswith((".pyc", ".pyo")):
+                continue
+            if "__pycache__" in rel.parts:
+                continue
+            collected.append((str(fpath), f"{repo_dir}{rel}"))
+
+    if not collected:
+        print(f"ERROR: No files found in {local_dir}")
+        return False
+
+    print(f"  Local dir:   {local_dir}")
+    print(f"  Repo dir:    {repo_dir}")
+    print(f"  Files found: {len(collected)}")
+    for _, repo_file in collected[:15]:
+        print(f"    {repo_file}")
+    if len(collected) > 15:
+        print(f"    ... and {len(collected) - 15} more")
+
+    # Build commit actions
+    actions = []
+    created = 0
+    updated = 0
+    for local_path, repo_file_path in collected:
+        try:
+            content = Path(local_path).read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            print(f"  SKIP (binary): {repo_file_path}")
+            continue
+
+        exists = client.file_exists(project_id, repo_file_path)
+        action_type = "update" if exists else "create"
+        if exists:
+            updated += 1
+        else:
+            created += 1
+        actions.append({
+            "action": action_type,
+            "file_path": repo_file_path,
+            "content": content,
+        })
+
+    print(f"\n  New files:     {created}")
+    print(f"  Updated files: {updated}")
+
+    # Commit in batches
+    commit_msg = args.commit_message or f"Upload directory {repo_dir}\n\nAuto-committed by setup_gitlab_project.py --upload-dir"
+    batch_size = 50
+    total_batches = (len(actions) + batch_size - 1) // batch_size
+
+    print(f"\nCommitting {len(actions)} files...")
+    for i in range(0, len(actions), batch_size):
+        batch = actions[i:i + batch_size]
+        batch_num = i // batch_size + 1
+        msg = commit_msg if total_batches == 1 else f"{commit_msg} (batch {batch_num}/{total_batches})"
+        client.commit_files(project_id, batch, msg)
+        print(f"  Batch {batch_num}/{total_batches}: {len(batch)} files committed")
+        if i + batch_size < len(actions):
+            time.sleep(2)
+
+    print(f"\n{len(actions)} files uploaded to {repo_dir} in project: {project.get('web_url', project_path)}")
+    return True
+
+
+def cmd_delete_dir(args, client):
+    """Delete a directory and all its files from the GitLab project repo."""
+    print("\n" + "=" * 60)
+    print("Deleting Directory from GitLab Project")
+    print("=" * 60)
+
+    namespace = args.namespace or "root"
+    project_name = _validate_project_name(args.project_name)
+    project_path = f"{namespace}/{project_name}"
+
+    project = client.find_project(project_path)
+    if not project:
+        print(f"ERROR: Project not found: {project_path}")
+        return False
+
+    project_id = project["id"]
+    print(f"Found project: {project.get('web_url', project_path)} (ID: {project_id})")
+
+    repo_dir = args.repo_path
+    if not repo_dir:
+        print("ERROR: --repo-path is required (directory to delete)")
+        return False
+
+    # Strip trailing slash for the tree API
+    repo_dir = repo_dir.rstrip("/")
+
+    # List all files under the directory
+    print(f"\n  Scanning: {repo_dir}/")
+    files = client.list_tree(project_id, path=repo_dir)
+
+    if not files:
+        print(f"  No files found under {repo_dir}/ — nothing to delete")
+        return True
+
+    print(f"  Found {len(files)} file(s) to delete:")
+    for f in files[:20]:
+        print(f"    {f}")
+    if len(files) > 20:
+        print(f"    ... and {len(files) - 20} more")
+
+    # Build delete actions
+    actions = [{"action": "delete", "file_path": f} for f in files]
+
+    commit_msg = args.commit_message or f"Delete directory {repo_dir}/\n\nAuto-committed by setup_gitlab_project.py --delete-dir"
+
+    # Commit in batches
+    batch_size = 50
+    total_batches = (len(actions) + batch_size - 1) // batch_size
+
+    print(f"\nDeleting {len(actions)} files...")
+    for i in range(0, len(actions), batch_size):
+        batch = actions[i:i + batch_size]
+        batch_num = i // batch_size + 1
+        msg = commit_msg if total_batches == 1 else f"{commit_msg} (batch {batch_num}/{total_batches})"
+        client.commit_files(project_id, batch, msg)
+        print(f"  Batch {batch_num}/{total_batches}: {len(batch)} files deleted")
+        if i + batch_size < len(actions):
+            time.sleep(2)
+
+    print(f"\nDeleted {len(files)} files from {repo_dir}/ in project: {project.get('web_url', project_path)}")
+    return True
+
+
 def cmd_delete(args, client):
     """Delete a GitLab project."""
     print("\n" + "=" * 60)
@@ -991,6 +1617,12 @@ def main():
                            help="Validate pipeline YAML via GitLab CI lint API")
     cmd_group.add_argument("--list-vars", action="store_true",
                            help="List CI/CD variable names for the project")
+    cmd_group.add_argument("--update-file", action="store_true",
+                           help="Update a specific file in the GitLab project repo")
+    cmd_group.add_argument("--upload-dir", action="store_true",
+                           help="Upload all files from a local directory to the GitLab project")
+    cmd_group.add_argument("--delete-dir", action="store_true",
+                           help="Delete a directory and all its files from the GitLab project repo")
     cmd_group.add_argument("--delete", action="store_true",
                            help="Delete a GitLab project (requires confirmation)")
 
@@ -1002,8 +1634,8 @@ def main():
                              "(prompted if not provided)")
 
     # Project
-    parser.add_argument("--project-name", default="omnia-pipeline",
-                        help="GitLab project name (default: omnia-pipeline)")
+    parser.add_argument("--project-name", required=True,
+                        help="GitLab project name (required)")
     parser.add_argument("--namespace", default="root",
                         help="GitLab namespace/group (default: root)")
 
@@ -1013,9 +1645,24 @@ def main():
     parser.add_argument("--clusters", default="cluster1",
                         help="Comma-separated cluster names (default: cluster1)")
 
+    # Config file
+    parser.add_argument("--config",
+                        help="Path to pipeline_config.yml — sets CI/CD variables from the file "
+                             "instead of prompting interactively")
+
     # Update options
     parser.add_argument("--update-vars", action="store_true",
                         help="Also update CI/CD variables when using --update")
+
+    # File update options (for --update-file / --upload-dir)
+    parser.add_argument("--file",
+                        help="Local file path to upload (required for --update-file)")
+    parser.add_argument("--dir",
+                        help="Local directory to upload (required for --upload-dir)")
+    parser.add_argument("--repo-path",
+                        help="Destination path in the GitLab repo (default: same as filename/dirname)")
+    parser.add_argument("--commit-message",
+                        help="Custom commit message (default: auto-generated)")
 
     # SSL
     parser.add_argument("--no-verify-ssl", action="store_true",
@@ -1064,6 +1711,24 @@ def main():
             success = cmd_create(args, client)
         elif args.update:
             success = cmd_update(args, client)
+        elif args.update_file:
+            if not args.file:
+                print("ERROR: --file is required with --update-file")
+                print("  Example: --update-file --file /path/to/local/file.yml --repo-path .gitlab-ci-cluster.yml")
+                sys.exit(1)
+            success = cmd_update_file(args, client)
+        elif args.upload_dir:
+            if not args.dir:
+                print("ERROR: --dir is required with --upload-dir")
+                print("  Example: --upload-dir --dir /path/to/local/dir --repo-path clusters/cluster1/inputs/telemetry/")
+                sys.exit(1)
+            success = cmd_upload_dir(args, client)
+        elif args.delete_dir:
+            if not args.repo_path:
+                print("ERROR: --repo-path is required with --delete-dir")
+                print("  Example: --delete-dir --repo-path clusters/cluster1/inputs/test/orchestrator")
+                sys.exit(1)
+            success = cmd_delete_dir(args, client)
         elif args.validate:
             success = cmd_validate(args, client)
         elif args.list_vars:

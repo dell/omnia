@@ -1,0 +1,213 @@
+# =============================================================================
+# Omnia Multi-Domain Pipeline Configuration
+# =============================================================================
+#
+# This file defines all CI/CD variables for the Omnia pipeline automation.
+# Users fill in this file once, then the setup_gitlab_project.py script
+# automatically applies all variables to GitLab.
+#
+# QUICK START:
+#   1. Fill in the values below (especially cluster connection details)
+#   2. Run: python3 setup_gitlab_project.py --create \
+#            --gitlab-url https://gitlab.example.com \
+#            --token glpat-xxxx \
+#            --project-name my-omnia-project \
+#            --config pipeline_config.yml
+#   3. The script will prompt for SSH passwords (not stored in this file)
+#   4. All variables are applied to GitLab automatically
+#
+# ADDING MORE CLUSTERS:
+#   Copy the entire "cluster1:" section below, rename to "cluster2:", etc.
+#   Update global.clusters to include all cluster names: "cluster1,cluster2"
+#
+# =============================================================================
+
+# ---- GLOBAL SETTINGS -------------------------------------------------------
+# These variables apply to the entire project (all clusters).
+# They are NOT cluster-specific.
+
+global:
+  # List of clusters to manage (comma-separated, must match section names below)
+  # Example: "cluster1,cluster2,cluster3"
+  clusters: "cluster1"
+
+  # ---- Omnia Repository Configuration ----
+  # Where to clone Omnia and where to install it on the target server.
+  omnia:
+    # GitHub repository URL for Omnia
+    # Default: https://github.com/dell/omnia.git
+    # Change only if using a fork or mirror
+    repo: "https://github.com/dell/omnia.git"
+
+    # Git branch to checkout (main, develop, or a specific tag)
+    # Default: main (latest stable release)
+    branch: "main"
+
+    # Installation path on the target server
+    # This is where Omnia will be cloned and executed
+    # Default: /root/omnia
+    # Note: Must be an absolute path with write permissions
+    install_path: "/root/omnia"
+
+  # ---- Email Notifications (Optional) ----
+  # Configure email alerts when pipeline stages complete or fail.
+  # Leave all fields empty to disable email notifications.
+  email:
+    # Comma-separated list of email addresses to receive notifications
+    # Example: "admin@example.com,ops@example.com"
+    recipients: ""
+
+    # Email address that notifications will be sent from
+    # Example: "omnia-pipeline@example.com"
+    sender: ""
+
+    # SMTP server hostname or IP address
+    # Example: "smtp.gmail.com" or "mail.example.com"
+    smtp_server: ""
+
+    # SMTP server port (usually 25, 465, or 587)
+    # 25 = unencrypted, 465 = SSL/TLS, 587 = STARTTLS
+    smtp_port: "25"
+
+
+# ---- CLUSTER CONFIGURATION -------------------------------------------------
+# Each cluster section defines all variables for that cluster.
+# The section name (e.g. "cluster1") becomes the cluster identifier.
+# To add more clusters, copy this entire section and rename it.
+
+cluster1:
+
+  # ---- SSH Connection Details ----
+  # How to connect to the target server where Omnia will run.
+  connection:
+    # IP address or hostname of the target server
+    # Example: "10.0.0.100" or "omnia-server.example.com"
+    target_ip: ""
+
+    # SSH username to login with
+    # Default: "root" (most Omnia deployments use root)
+    # Change only if using a non-root user with sudo access
+    target_user: "root"
+
+    # SSH password will be prompted at runtime (not stored in this file)
+    # The script will ask you to enter it securely when you run it
+
+  # ---- Pipeline Execution Mode ----
+  # Controls what the pipeline does when triggered.
+  pipeline:
+    # Pipeline mode determines the execution flow:
+    #   "default"  = Full flow: cleanup → setup → deploy → test → summary
+    #   "deploy"   = Deploy only (skip cleanup, setup, and test)
+    #   "cleanup"  = Cleanup only (remove deployed resources)
+    # Default: "default"
+    pipeline_mode: "default"
+
+    # Which domains to deploy (controls which stages run):
+    #   "default"  = All domains (repo_manager, image_build_manager, orchestrator, telemetry)
+    #   "repo_manager"  = Deploy only repo_manager
+    #   "orchestrator"  = Deploy only orchestrator
+    #   "repo_manager|orchestrator"  = Deploy repo_manager OR orchestrator (regex pattern)
+    # Default: "default"
+    domains: "default"
+
+    # Force environment setup even in deploy/cleanup modes
+    # Normally, setup_environment only runs in "default" mode
+    # Set to "true" if target doesn't have Omnia installed yet
+    # Default: "false"
+    enable_setup: "false"
+
+    # Enable test stages after deployment
+    # When "true", runs validation tests for each deployed domain
+    # When "false", skips all test stages
+    # Default: "false"
+    test_mode: "true"
+
+    # Dry-run mode (simulate without making changes)
+    # When "true", pipeline shows what would happen but doesn't execute
+    # Useful for testing configuration before actual deployment
+    # Default: "false"
+    dry_run: "false"
+
+    # Verbose output (more detailed logging)
+    # When "true", shows detailed debug information
+    # Default: "false"
+    verbose: "false"
+
+    # Stages to skip (comma-separated list)
+    # Useful for disabling specific domains or stages without modifying config
+    # Valid values:
+    #   - repo_manager, image_build_manager, orchestrator, telemetry (skip cleanup+deploy+test)
+    #   - setup_environment, setup_main, cleanup_omnia (skip specific stages)
+    # Example: "repo_manager,telemetry" (skip both domains entirely)
+    # Default: "" (skip nothing)
+    skip_stages: ""
+
+  # ---- Deploy-Time Ansible Tags ----
+  # Ansible tags to pass to each domain's deployment playbook.
+  # Tags allow running only specific parts of a playbook.
+  # Leave empty to run the entire playbook.
+  deploy_tags:
+    # Repo Manager (Pulp repository server) deployment tags
+    # Examples: "deploy", "cleanup_idrac", "validate"
+    # Leave empty to run full deployment
+    repo_manager: ""
+
+    # Image Build Manager (container image building) deployment tags
+    # Examples: "deploy", "validate"
+    image_build_manager: ""
+
+    # Orchestrator (Kubernetes/container orchestration) deployment tags
+    # Examples: "deploy", "validate"
+    orchestrator: ""
+
+    # Telemetry (monitoring and observability) deployment tags
+    # Examples: "deploy", "validate"
+    telemetry: ""
+
+  # ---- Test-Time Pytest Markers ----
+  # Pytest marker expressions to filter which tests run.
+  # Markers allow running only specific test categories.
+  # Leave empty to run all tests.
+  # Syntax: Use "+" for AND, "," for OR
+  # Examples:
+  #   "sanity"              = Run only sanity tests
+  #   "functional"          = Run only functional tests
+  #   "sanity+positive"     = Run sanity AND positive tests
+  #   "sanity,functional"   = Run sanity OR functional tests
+  test_tags:
+    # Repo Manager test markers
+    repo_manager: ""
+
+    # Image Build Manager test markers
+    image_build_manager: ""
+
+    # Orchestrator test markers
+    orchestrator: ""
+
+    # Telemetry test markers
+    telemetry: ""
+
+  # ---- Credential Files (Optional) ----
+  # Paths to local credential files to upload as GitLab CI/CD variables.
+  # These files are mounted during pipeline execution.
+  # Leave commented out to skip (you can set these in GitLab UI instead).
+  credentials:
+    # Repo Manager credentials (Ansible vault or credentials file)
+    # Example: "/home/user/credentials/repo_manager_creds.yml"
+    # repo_manager_creds: ""
+
+    # Image Build Manager credentials
+    # Example: "/home/user/credentials/image_build_creds.yml"
+    # image_build_creds: ""
+
+    # Orchestrator credentials
+    # Example: "/home/user/credentials/orchestrator_creds.yml"
+    # orchestrator_creds: ""
+
+    # Telemetry credentials
+    # Example: "/home/user/credentials/telemetry_creds.yml"
+    # telemetry_creds: ""
+
+    # Test credentials (shared across all test stages)
+    # Example: "/home/user/credentials/test_creds.yml"
+    # test_creds: ""

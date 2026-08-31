@@ -59,16 +59,24 @@
 #   DOMAINS=repo_manager        -> Only repo_manager
 #   DOMAINS=image_build_manager -> Only image_build_manager
 #   DOMAINS=orchestrator        -> Only orchestrator
+#   DOMAINS=telemetry           -> Only telemetry
 #   DOMAINS=repo_manager|orchestrator -> Multiple domains (regex pattern)
 #
+# Skip specific stages:
+#   SKIP_STAGES=""                    -> Nothing skipped (default)
+#   SKIP_STAGES="telemetry"           -> Skip telemetry cleanup, deploy, and test
+#   SKIP_STAGES="repo_manager,telemetry" -> Skip multiple domains
+#   Valid values: repo_manager, image_build_manager, orchestrator, telemetry,
+#                 setup_environment, setup_main, test (skips all test_* stages)
+#
 # Per-stage ansible tags (global, applied to all clusters):
-#   REPO_MANAGER_TAGS, IMAGE_BUILD_MANAGER_TAGS, ORCHESTRATOR_TAGS
+#   REPO_MANAGER_TAGS, IMAGE_BUILD_MANAGER_TAGS, ORCHESTRATOR_TAGS, TELEMETRY_TAGS
 #
 # Repository layout in GitLab:
 #   .gitlab-ci.yml                              -> This parent pipeline
 #   .gitlab-ci-cluster.yml                      -> Child pipeline (per-cluster stages)
 #   clusters/<name>/cluster.env                 -> Per-cluster connection details
-#   clusters/<name>/Inputs/omnia.env            -> Per-cluster Omnia environment config
+#   clusters/<name>/inputs/omnia.env            -> Per-cluster Omnia environment config
 #   clusters/<name>/catalogs/                   -> Per-cluster catalog files (optional)
 #
 # To add a new cluster:
@@ -112,6 +120,12 @@ variables:
   CLUSTER1_REPO_MANAGER_TAGS: ""
   CLUSTER1_IMAGE_BUILD_MANAGER_TAGS: ""
   CLUSTER1_ORCHESTRATOR_TAGS: ""
+  CLUSTER1_TELEMETRY_TAGS: ""
+  CLUSTER1_TEST_REPO_MANAGER_TAGS: ""
+  CLUSTER1_TEST_IMAGE_BUILD_MANAGER_TAGS: ""
+  CLUSTER1_TEST_ORCHESTRATOR_TAGS: ""
+  CLUSTER1_TEST_TELEMETRY_TAGS: ""
+  CLUSTER1_SKIP_STAGES: ""
 
 # ---------------------------------------------------------------------------
 # Child pipeline trigger — one per cluster.
@@ -138,6 +152,12 @@ trigger_cluster_cluster1:
     REPO_MANAGER_TAGS: "$CLUSTER1_REPO_MANAGER_TAGS"
     IMAGE_BUILD_MANAGER_TAGS: "$CLUSTER1_IMAGE_BUILD_MANAGER_TAGS"
     ORCHESTRATOR_TAGS: "$CLUSTER1_ORCHESTRATOR_TAGS"
+    TELEMETRY_TAGS: "$CLUSTER1_TELEMETRY_TAGS"
+    TEST_REPO_MANAGER_TAGS: "$CLUSTER1_TEST_REPO_MANAGER_TAGS"
+    TEST_IMAGE_BUILD_MANAGER_TAGS: "$CLUSTER1_TEST_IMAGE_BUILD_MANAGER_TAGS"
+    TEST_ORCHESTRATOR_TAGS: "$CLUSTER1_TEST_ORCHESTRATOR_TAGS"
+    TEST_TELEMETRY_TAGS: "$CLUSTER1_TEST_TELEMETRY_TAGS"
+    SKIP_STAGES: "$CLUSTER1_SKIP_STAGES"
   allow_failure: true
   rules:
     - if: '$CLUSTERS =~ /cluster1/'
