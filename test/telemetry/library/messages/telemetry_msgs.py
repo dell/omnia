@@ -156,10 +156,13 @@ TEST_LOG_MSGS = {
     "deployment_failed": "PowerScale deployment verification failed: {details}",
     "feature_flags": "PowerScale feature flags: {flags}",
     "health_metrics": "PowerScale health metrics: {details}",
+    "health_metrics_missing": "PowerScale health metrics not found: {details}",
     "tls_enforced": "PowerScale TLS enforcement: {details}",
     "label_compliance": "PowerScale pod label compliance: {details}",
+    "label_compliance_failed": "PowerScale pod label compliance failed: {details}",
     "scrape_interval": "PowerScale scrape interval: {details}",
     "csi_auth_mode": "PowerScale CSI authorization mode: {details}",
+    "csi_auth_failed": "PowerScale CSI authorization check failed: {details}",
     "deployment_mode": "PowerScale deployment mode: {details}",
     "csi_exporter_deployed": "CSI Volume Exporter deployment verified: {details}",
     "csi_exporter_failed": "CSI Volume Exporter deployment failed: {details}",
@@ -193,6 +196,15 @@ TEST_LOG_MSGS = {
     "vast_metrics_missing": "Missing VAST metrics in VictoriaMetrics: {missing}",
     "vast_logs_found": "{count} VAST log entries found in VictoriaLogs",
     "vast_logs_missing": "No VAST logs found in VictoriaLogs",
+
+    # Online/Offline Mode
+    "config_value_correct": "Configuration value correct: {key}={value}",
+    "config_value_incorrect": "Configuration value incorrect: {key} expected {expected}, got {actual}",
+    "python_package_installed": "Python package installed: {package}",
+    "git_repo_cloned": "Git repo cloned: {repo}",
+    "git_repo_not_cloned": "Git repo not cloned: {repo}",
+    "deployment_success": "Deployment successful: {component}",
+    "deployment_failed": "Deployment failed: {component}",
 }
 
 # --- Assertion Messages ---
@@ -485,7 +497,7 @@ TEST_ASSERT_MSGS = {
     "label_compliance_failed": (
         "PowerScale pod label compliance failed: {details}\n"
         "HOW TO FIX:\n"
-        "  1. Check pod labels: kubectl get pods -n telemetry -o jsonpath='{.items[*].metadata.labels}'\n"
+        "  1. Check pod labels: kubectl get pods -n telemetry -o jsonpath='{{.items[*].metadata.labels}}'\n"
         "  2. Review Helm chart values for label configuration\n"
     ),
     "scrape_interval_invalid": (
@@ -612,4 +624,14 @@ TEST_ASSERT_MSGS = {
         "  2. Verify VLAgent is listening: kubectl get svc vlagent-vlagent -n telemetry\n"
         "  3. Check VLAgent logs: kubectl logs vlagent-vlagent-0 -n telemetry\n"
     ),
+
+    # Online/Offline Mode
+    "config_value_incorrect": (
+        "Configuration value incorrect: {key} expected {expected}, got {actual}\n"
+        "HOW TO FIX:\n"
+        "  1. Edit /abc/omnia/telemetry/input/project_default/telemetry_packages.yml\n"
+        "  2. Set {key} to {expected}\n"
+        "  3. Re-run deployment\n"
+    ),
 }
+

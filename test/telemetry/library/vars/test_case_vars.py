@@ -63,6 +63,10 @@ TEST_CASES = {
         "id": "TC_PC_004",
         "title": "Verify kube_vip is reachable",
     },
+    "powerscale_privileges": {
+        "id": "TC_PC_005",
+        "title": "Verify PowerScale user has required privileges",
+    },
 
     # -- Sinks: Kafka -------------------------------------------------------
     "kafka_pods": {
@@ -142,6 +146,32 @@ TEST_CASES = {
         "title": "Verify iDRAC telemetry data in VictoriaMetrics",
     },
 
+    # -- Sources: Install Mode (unified online/offline) -----------------------
+    "install_mode_config": {
+        "id": "TC_SR_100",
+        "title": "Verify telemetry_packages.yml has a valid install_mode",
+    },
+    "install_mode_python_packages": {
+        "id": "TC_SR_101",
+        "title": "Verify Python packages installed for current mode",
+    },
+    "install_mode_idrac_deployment": {
+        "id": "TC_SR_102",
+        "title": "Verify iDRAC deployment succeeded in current mode",
+    },
+    "install_mode_idrac_pods": {
+        "id": "TC_SR_103",
+        "title": "Verify iDRAC pods running in current mode",
+    },
+    "install_mode_powerscale_deps": {
+        "id": "TC_SR_104",
+        "title": "Verify PowerScale dependencies for current mode",
+    },
+    "install_mode_powerscale_deployment": {
+        "id": "TC_SR_105",
+        "title": "Verify PowerScale deployment succeeded in current mode",
+    },
+
     # -- Sources: LDMS ------------------------------------------------------
     "ldms_aggr_pod": {
         "id": "TC_SR_020",
@@ -197,65 +227,62 @@ TEST_CASES = {
         "id": "TC_SR_038",
         "title": "Verify PowerScale health metrics",
     },
+
     "powerscale_tls_enforcement": {
-        "id": "TC_SR_039",
+        "id": "TC_SR_040",
         "title": "Verify PowerScale TLS enforcement",
     },
     "powerscale_label_compliance": {
-        "id": "TC_SR_040",
+        "id": "TC_SR_041",
         "title": "Verify PowerScale pod label compliance",
     },
     "powerscale_scrape_interval": {
-        "id": "TC_SR_041",
+        "id": "TC_SR_042",
         "title": "Verify PowerScale scrape interval",
     },
     "powerscale_csi_auth_mode": {
-        "id": "TC_SR_042",
+        "id": "TC_SR_043",
         "title": "Verify PowerScale CSI authorization mode",
     },
     "powerscale_deployment_mode": {
-        "id": "TC_SR_043",
+        "id": "TC_SR_044",
         "title": "Verify PowerScale deployment mode",
     },
     "csi_volume_exporter_deploy": {
-        "id": "TC_SR_044",
+        "id": "TC_SR_045",
         "title": "Verify CSI Volume Exporter deployment",
     },
     "csi_volume_exporter_endpoint": {
-        "id": "TC_SR_045",
+        "id": "TC_SR_046",
         "title": "Verify CSI Volume Exporter metrics endpoint",
     },
     "csi_volume_exporter_metrics": {
-        "id": "TC_SR_046",
+        "id": "TC_SR_047",
         "title": "Verify CSI Volume Exporter metrics in VictoriaMetrics",
     },
     "csi_driver_powerscale_deploy": {
-        "id": "TC_SR_047",
+        "id": "TC_SR_048",
         "title": "Verify CSI Driver for PowerScale (isilon-controller) deployment",
     },
     "external_health_monitor_container": {
-        "id": "TC_SR_048",
+        "id": "TC_SR_049",
         "title": "Verify external-health-monitor-controller container is running",
     },
     "csi_exporter_skipped_without_health_monitor": {
-        "id": "TC_SR_049",
+        "id": "TC_SR_050",
         "title": "Verify CSI volume exporter deployment skipped when health monitor missing",
     },
     "health_monitor_warning_message": {
-        "id": "TC_SR_050",
+        "id": "TC_SR_051",
         "title": "Verify warning message displayed for missing health monitor",
     },
     "csm_otel_data_flow": {
-        "id": "TC_SR_051",
+        "id": "TC_SR_052",
         "title": "Verify CSM Metrics to OTEL Collector data flow",
     },
     "otel_vm_export": {
-        "id": "TC_SR_052",
-        "title": "Verify OTEL Collector to VictoriaMetrics export",
-    },
-    "otel_service_patch": {
         "id": "TC_SR_053",
-        "title": "Verify OTEL Collector service patch for vmagent",
+        "title": "Verify OTEL Collector to VictoriaMetrics export",
     },
     "cert_manager_tls_certs": {
         "id": "TC_SR_054",
@@ -412,3 +439,4 @@ TEST_CASES = {
         "title": "Cleanup playbook idempotency (second run exits 0)",
     },
 }
+

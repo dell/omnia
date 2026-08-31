@@ -33,6 +33,30 @@
     state: directory
     mode: "0755"
 
+- name: Check if external-health-monitor-controller container is running in isilon-controller pod
+  ansible.builtin.shell:
+    cmd: kubectl get pod -n isilon -l app=isilon-controller -o jsonpath='{.items[0].status.containerStatuses[?(@.name=="external-health-monitor-controller")].ready}' 2>/dev/null || echo "false"
+  register: health_monitor_container_status
+  changed_when: false
+  failed_when: false
+  when:
+    - telemetry_config is defined
+    - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
+
+- name: Set powerscale_volume_health_enabled fact based on external-health-monitor-controller container
+  ansible.builtin.set_fact:
+    powerscale_volume_health_enabled: "{{ health_monitor_container_status.stdout == 'true' }}"
+  when:
+    - telemetry_config is defined
+    - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
+
+- name: Set powerscale_volume_health_enabled to false by default
+  ansible.builtin.set_fact:
+    powerscale_volume_health_enabled: false
+  when:
+    - telemetry_config is defined
+    - not (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool)
+
 - name: Render root kustomization.yaml
   ansible.builtin.template:
     src: "{{ role_path }}/templates/kustomization.yaml.j2"
@@ -54,3 +78,4 @@
       Root kustomization.yaml generated at {{ telemetry_deployments_dir }}/kustomization.yaml.
       Full-stack deploy: kubectl apply -k {{ telemetry_deployments_dir }}/
       iDRAC-only deploy: kubectl apply -k {{ telemetry_deployments_dir }}/idrac/
+

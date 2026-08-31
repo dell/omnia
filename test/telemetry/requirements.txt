@@ -1,6 +1,9 @@
 # Telemetry FVT — Python Dependencies
 # Install: pip install -r requirements.txt
-
+#
+# System Dependencies (installed via setup_env.sh):
+#   sshpass - Required for PowerScale syslog configuration via SSH
+#
 # Core test framework
 pytest>=9.0
 pytest-testinfra>=10.0

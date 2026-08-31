@@ -40,7 +40,9 @@
 #     8. All pods (outside telemetry namespace) are Running or Succeeded
 #     9. [Conditional] isilon namespace exists and all its pods are Running
 #          — only when powerscale.metrics_enabled or powerscale.logs_enabled = true
-#    10. [Conditional] LDMS Slurm cluster validation:
+#    10. [Conditional] PowerScale user has required privileges
+#          — only when powerscale.metrics_enabled or powerscale.logs_enabled = true
+#    11. [Conditional] LDMS Slurm cluster validation:
 #          - At least 1 slurm_control_node and 1 slurm_node in cluster inventory
 #          - slurmctld running on all slurm_control_node hosts
 #          - slurmd running on all slurm_node hosts
@@ -108,6 +110,14 @@
         (hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
         (hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.logs_enabled | default(false) | bool)
 
+    - name: Check PowerScale user privileges
+      ansible.builtin.include_role:
+        name: precheck
+        tasks_from: check_powerscale_privileges
+      when: >-
+        (hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
+        (hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.logs_enabled | default(false) | bool)
+
     - name: Check LDMS Slurm cluster nodes and services
       ansible.builtin.include_role:
         name: precheck
@@ -125,5 +135,7 @@
           - "  Control plane    : ✓  All nodes Ready"
           - "  Worker nodes     : ✓  Minimum threshold met"
           - "  Pod health       : ✓  All pods Running/Succeeded"
+          - "{% if hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool or hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.logs_enabled | default(false) | bool %}  PowerScale       : ⊘ Privilege check skipped (SSH not available){% endif %}"
+          - "{% if hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool or hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.logs_enabled | default(false) | bool %}                    WARNING: Ensure PowerScale user has required privileges{% endif %}"
           - "  Cluster is ready for telemetry deployment."
           - "════════════════════════════════════════════════════════════"

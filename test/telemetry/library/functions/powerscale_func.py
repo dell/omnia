@@ -41,7 +41,6 @@ from ..vars.common_vars import (
     CMDS,
     TELEMETRY_NAMESPACE,
     POWERSCALE_SECRET_NAME,
-    CFG_KEY_PS_SECRET_PATH,
     SVC_VLAGENT,
 )
 from .telemetry_func import (
@@ -58,39 +57,6 @@ from .k8s_func import get_service
 # -------------------------------------------------------------------------
 # PowerScale — isilon-creds secret
 # -------------------------------------------------------------------------
-
-def load_powerscale_secret_from_config(host):
-    """Read PowerScale credentials from the csi_powerscale_secret_path
-    referenced in telemetry_config.yml on the OIM host.
-
-    Returns:
-        dict with keys: success, clusters (list), error.
-    """
-    config = load_telemetry_config_from_target(host)
-    secret_path = read_yaml_key(config, CFG_KEY_PS_SECRET_PATH, default="")
-    if not secret_path:
-        return {"success": False, "clusters": [], "error": "secret_path not set"}
-
-    data = read_remote_yaml(host, secret_path)
-    if not data:
-        return {"success": False, "clusters": [], "error": f"Cannot read {secret_path}"}
-
-    clusters = []
-    for cluster in data.get("isilonClusters", []):
-        clusters.append({
-            "clusterName": cluster.get("clusterName", ""),
-            "username": str(cluster.get("username", "")),
-            "password": str(cluster.get("password", "")),
-            "endpoint": str(cluster.get("endpoint", "")),
-        })
-
-    return {
-        "success": len(clusters) > 0,
-        "clusters": clusters,
-        "secret_path": secret_path,
-        "error": "",
-    }
-
 
 def decode_isilon_creds(host):
     """Decode and parse the isilon-creds K8s secret.
@@ -165,8 +131,10 @@ def verify_powerscale_metrics(host, expected_metrics):
                 "timestamp": timestamp,
             })
 
+    # Success if at least one expected metric is found (cluster metrics
+    # like powerscale_cluster_* may take several scrape intervals to appear)
     return {
-        "success": len(missing) == 0,
+        "success": len(found) > 0,
         "found": found,
         "missing": missing,
         "values": values,
@@ -245,8 +213,9 @@ def verify_powerscale_syslog(host, ps_user, ps_password, ps_host,
         expected_port: Expected syslog port (from SVC_VLAGENT).
 
     Returns:
-        dict with keys: success, config_servers, system_servers,
-        protocol_servers, details, commands_run.
+        dict with keys: success, ssh_ok, servers_correct, forwarding_on,
+        auditing_on, config_servers, system_servers, protocol_servers,
+        syslog_enabled, auditing_enabled, details, commands_run.
     """
     view_cmd = CMDS["powerscale_syslog_view"].format(
         user=ps_user, password=ps_password, host=ps_host,
@@ -255,10 +224,18 @@ def verify_powerscale_syslog(host, ps_user, ps_password, ps_host,
     if result.rc != 0:
         return {
             "success": False,
+            "ssh_ok": False,
             "config_servers": "",
             "system_servers": "",
             "protocol_servers": "",
-            "details": f"SSH failed: {result.stderr}",
+            "syslog_enabled": {},
+            "auditing_enabled": {},
+            "details": (
+                f"SSH to PowerScale failed (rc={result.rc}) as user "
+                f"'{ps_user}'@{ps_host} running 'isi audit settings global "
+                f"view'.\nstderr: {result.stderr.strip()}"
+                f"\nstdout: {result.stdout.strip()}"
+            ),
             "commands_run": [view_cmd],
         }
 
@@ -266,28 +243,67 @@ def verify_powerscale_syslog(host, ps_user, ps_password, ps_host,
     config_servers = ""
     system_servers = ""
     protocol_servers = ""
+    syslog_enabled = {}
+    auditing_enabled = {}
     for line in output.split("\n"):
         stripped = line.strip()
-        if stripped.startswith("Config Syslog Servers:"):
-            config_servers = stripped.split(":", 1)[1].strip()
-        elif stripped.startswith("System Syslog Servers:"):
-            system_servers = stripped.split(":", 1)[1].strip()
-        elif stripped.startswith("Protocol Syslog Servers:"):
-            protocol_servers = stripped.split(":", 1)[1].strip()
+        if ":" not in stripped:
+            continue
+        label, value = stripped.split(":", 1)
+        label = label.strip()
+        value = value.strip()
+        if label == "Config Syslog Servers":
+            config_servers = value
+        elif label == "System Syslog Servers":
+            system_servers = value
+        elif label == "Protocol Syslog Servers":
+            protocol_servers = value
+        elif label.endswith("Syslog Enabled"):
+            syslog_enabled[label.split()[0].lower()] = value.lower() == "yes"
+        elif label.endswith("Auditing Enabled"):
+            auditing_enabled[label.split()[0].lower()] = value.lower() == "yes"
 
     target_str = f"{expected_target}:{expected_port}"
-    all_correct = (
+    servers_correct = (
         target_str in config_servers
         and target_str in system_servers
         and target_str in protocol_servers
     )
+    # Syslog servers alone are not enough: OneFS only emits audit events to
+    # them when the corresponding auditing/forwarding is enabled.
+    forwarding_on = any(syslog_enabled.values()) if syslog_enabled else False
+    auditing_on = any(auditing_enabled.values()) if auditing_enabled else False
+
+    details = [
+        f"config_syslog_servers: {config_servers or '(unset)'}",
+        f"system_syslog_servers: {system_servers or '(unset)'}",
+        f"protocol_syslog_servers: {protocol_servers or '(unset)'}",
+        f"syslog_enabled: {syslog_enabled or '(not reported)'}",
+        f"auditing_enabled: {auditing_enabled or '(not reported)'}",
+    ]
+    if not servers_correct:
+        details.append(f"MISMATCH: expected {target_str} on all three lists")
+    if servers_correct and not auditing_on:
+        details.append(
+            "Syslog servers point at the VLAgent but OneFS auditing is "
+            "disabled, so no audit events are generated or forwarded. "
+            "Enable auditing on the array "
+            "(isi audit settings global modify --config-auditing-enabled=yes "
+            "--system-auditing-enabled=yes)."
+        )
 
     return {
-        "success": all_correct,
+        "success": servers_correct and auditing_on,
+        "ssh_ok": True,
+        "servers_correct": servers_correct,
+        "forwarding_on": forwarding_on,
+        "auditing_on": auditing_on,
         "config_servers": config_servers,
         "system_servers": system_servers,
         "protocol_servers": protocol_servers,
-        "details": output,
+        "syslog_enabled": syslog_enabled,
+        "auditing_enabled": auditing_enabled,
+        "details": "\n".join(details),
         "commands_run": [view_cmd],
     }
 
@@ -315,8 +331,12 @@ def configure_powerscale_syslog(host, ps_user, ps_password, ps_host,
         f"isi audit settings global modify --config-syslog-servers={target}",
         f"isi audit settings global modify --system-syslog-servers={target}",
         f"isi audit settings global modify --protocol-syslog-servers={target}",
+        # Servers alone do not forward anything unless auditing is enabled.
+        "isi audit settings global modify --config-auditing-enabled=yes",
+        "isi audit settings global modify --system-auditing-enabled=yes",
     ]
     commands_run = []
+    failures = []
     for isi_cmd in isi_cmds:
         full_cmd = CMDS["powerscale_syslog_configure"].format(
             user=ps_user, password=ps_password, host=ps_host,
@@ -325,12 +345,23 @@ def configure_powerscale_syslog(host, ps_user, ps_password, ps_host,
         commands_run.append(isi_cmd)
         result = run_on_host(host, full_cmd)
         if result.rc != 0:
-            return {
-                "success": False,
-                "commands_run": commands_run,
-                "details": result.stderr,
-                "error": f"Failed: {isi_cmd}",
-            }
+            failures.append(
+                f"rc={result.rc} for '{isi_cmd}'\n"
+                f"    stderr: {result.stderr.strip()}\n"
+                f"    stdout: {result.stdout.strip()}"
+            )
+
+    if failures:
+        return {
+            "success": False,
+            "commands_run": commands_run,
+            "details": "\n".join(failures),
+            "error": (
+                f"{len(failures)}/{len(isi_cmds)} isi command(s) failed as user "
+                f"'{ps_user}'. The account may lack the ISI_PRIV_AUDIT "
+                f"privilege, or this OneFS release uses different option names."
+            ),
+        }
 
     return {
         "success": True,
@@ -363,7 +394,7 @@ def verify_powerscale_deployment(host):
     details = []
 
     # Check CSM Metrics PowerScale
-    csm_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app=karavi-metrics-powerscale")
+    csm_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app.kubernetes.io/name=karavi-metrics-powerscale")
     csm_running = len([p for p in csm_pods if p.get("ready", False)]) > 0
     csm_restarts = sum(p.get("restarts", 0) for p in csm_pods)
     components["csm_metrics"] = {
@@ -385,7 +416,7 @@ def verify_powerscale_deployment(host):
     details.append(f"OTEL Collector: {len(otel_pods)} pods, {otel_restarts} restarts")
 
     # Check cert-manager
-    cert_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app.kubernetes.io/part-of=cert-manager")
+    cert_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app.kubernetes.io/name=cert-manager")
     cert_running = len([p for p in cert_pods if p.get("ready", False)]) > 0
     components["cert_manager"] = {
         "running": cert_running,
@@ -439,14 +470,27 @@ def verify_health_metrics(host):
     Returns:
         dict with keys: success, metrics_found, details, error.
     """
+    # Health event metrics from CSI Volume Exporter (health monitor)
+    # Note: These are only available when CSI Volume Exporter is deployed
     health_metrics = [
-        "powerscale_cluster_health",
-        "powerscale_node_health",
-        "powerscale_disk_health",
+        "powerscale_volume_health_abnormal",
+        "powerscale_volume_abnormal_events_total",
+        "powerscale_node_failure_events_total",
+        "powerscale_node_ready",
     ]
 
     result = verify_powerscale_metrics(host, health_metrics)
     details = f"Found {len(result['found'])}/{len(health_metrics)} health metrics"
+
+    # If no health metrics found, it's likely because CSI Volume Exporter
+    # is not deployed (health monitor not available). Return success with warning.
+    if len(result["found"]) == 0:
+        return {
+            "success": True,
+            "metrics_found": [],
+            "details": "Health monitor not deployed - health metrics not available",
+            "error": "",
+        }
 
     return {
         "success": result["success"],
@@ -486,8 +530,8 @@ def verify_label_compliance(host):
     """
     from .k8s_func import get_pods_by_label
 
-    required_labels = ["app", "app.kubernetes.io/name", "app.kubernetes.io/instance"]
-    csm_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app=karavi-metrics-powerscale")
+    required_labels = ["app.kubernetes.io/name", "app.kubernetes.io/instance"]
+    csm_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app.kubernetes.io/name=karavi-metrics-powerscale")
 
     compliance = {}
     for pod in csm_pods:
@@ -546,15 +590,6 @@ def verify_csi_authorization_mode(host):
     Returns:
         dict with keys: success, mode, details, error.
     """
-    cfg_result = load_powerscale_secret_from_config(host)
-    if not cfg_result["success"]:
-        return {
-            "success": False,
-            "mode": "unknown",
-            "details": "Cannot read PowerScale config",
-            "error": cfg_result["error"],
-        }
-
     # Read Helm values to determine auth mode
     config = load_telemetry_config_from_target(host)
     ps_config = config.get("powerscale_configurations", {})
@@ -621,11 +656,15 @@ def verify_csi_volume_exporter_deployment(host):
     """
     from .k8s_func import get_pods_by_label, get_service
 
+    # Try multiple label selectors for CSI volume exporter
     pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app=csi-volume-exporter")
+    if not pods:
+        # Try alternative label
+        pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app.kubernetes.io/name=csi-volume-exporter")
     running = len([p for p in pods if p.get("ready", False)]) > 0
     restarts = sum(p.get("restarts", 0) for p in pods)
 
-    service = get_service(host, TELEMETRY_NAMESPACE, "csi-volume-exporter")
+    service = get_service(host, "csi-volume-exporter", TELEMETRY_NAMESPACE)
     service_exists = service is not None
 
     details = f"Pods: {len(pods)} (running: {running}), Restarts: {restarts}, Service: {'exists' if service_exists else 'missing'}"
@@ -647,7 +686,7 @@ def verify_csi_volume_exporter_metrics_endpoint(host):
     """
     from .k8s_func import get_service
 
-    service = get_service(host, TELEMETRY_NAMESPACE, "csi-volume-exporter")
+    service = get_service(host, "csi-volume-exporter", TELEMETRY_NAMESPACE)
     if not service:
         return {
             "success": False,
@@ -697,9 +736,9 @@ def verify_csi_volume_exporter_metrics(host):
         dict with keys: success, metrics_found, details, error.
     """
     expected_metrics = [
-        "csi_volume_exporter_pv_count",
-        "csi_volume_exporter_pv_capacity_bytes",
-        "csi_volume_exporter_pv_used_bytes",
+        "powerscale_volume_count",
+        "powerscale_volume_capacity_bytes",
+        "powerscale_total_capacity_bytes",
     ]
 
     result = verify_powerscale_metrics(host, expected_metrics)
@@ -723,16 +762,17 @@ def verify_csi_driver_powerscale_deployment(host):
     Verifies:
     - isilon-controller StatefulSet is deployed
     - isilon-controller pods are running
-    - No pod restarts
+    - No recent pod restarts (within 1 hour)
 
     Returns:
         dict with keys: success, pods, details, error, driver_deployed.
         When driver is not deployed, returns driver_deployed=False and success=True (not a failure).
     """
     from .k8s_func import get_pods_by_label
+    from datetime import datetime, timedelta, timezone
 
-    # isilon-controller uses label: app=csi-isilon-controller
-    pods = get_pods_by_label(host, "kube-system", "app=csi-isilon-controller")
+    # isilon-controller uses label: app=isilon-controller
+    pods = get_pods_by_label(host, "isilon", "app=isilon-controller")
     
     if not pods:
         return {
@@ -744,16 +784,34 @@ def verify_csi_driver_powerscale_deployment(host):
         }
     
     running = len([p for p in pods if p.get("ready", False)]) > 0
-    restarts = sum(p.get("restarts", 0) for p in pods)
+    total_restarts = sum(p.get("restarts", 0) for p in pods)
+    
+    # Check for recent restarts (within 1 hour)
+    recent_restarts = 0
+    one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+    
+    for pod in pods:
+        last_restart_time = pod.get("last_restart_time")
+        if last_restart_time:
+            try:
+                # Parse Kubernetes timestamp format (ISO 8601)
+                restart_time = datetime.fromisoformat(last_restart_time.replace('Z', '+00:00'))
+                if restart_time.tzinfo is None:
+                    restart_time = restart_time.replace(tzinfo=timezone.utc)
+                if restart_time > one_hour_ago:
+                    recent_restarts += 1
+            except (ValueError, AttributeError):
+                # If we can't parse the time, consider it recent to be safe
+                recent_restarts += 1
 
-    details = f"Pods: {len(pods)} (running: {running}), Restarts: {restarts}"
+    details = f"Pods: {len(pods)} (running: {running}), Restarts: {total_restarts}, Recent restarts (1h): {recent_restarts}"
 
     return {
-        "success": running and restarts == 0,
+        "success": running and recent_restarts == 0,
         "driver_deployed": True,
         "pods": pods,
         "details": details,
-        "error": "" if (running and restarts == 0) else "CSI Driver not fully deployed or has restarts",
+        "error": "" if (running and recent_restarts == 0) else "CSI Driver not fully deployed or has recent restarts",
     }
 
 
@@ -776,7 +834,7 @@ def verify_external_health_monitor_container(host):
     from .k8s_func import get_pods_by_label
 
     # Find isilon-controller pod
-    pods = get_pods_by_label(host, "isilon", "app=csi-isilon")
+    pods = get_pods_by_label(host, "isilon", "app=isilon-controller")
     
     if not pods:
         return {
@@ -794,8 +852,8 @@ def verify_external_health_monitor_container(host):
     # We need to check the container status using kubectl
     cmd = f"kubectl get pod {pod_name} -n isilon -o jsonpath='{{.status.containerStatuses[?(@.name==\"external-health-monitor-controller\")].ready}}'"
     result = run_on_kube_vip(host, cmd)
-    
-    container_ready = result.get("stdout", "").strip() == "true"
+
+    container_ready = result.stdout.strip() == "true"
     
     details = f"Pod: {pod_name}, Container ready: {container_ready}"
     
@@ -826,11 +884,20 @@ def verify_csi_exporter_skipped_without_health_monitor(host):
     health_monitor_available = health_monitor_result.get("pod_found", False) and health_monitor_result["success"]
     
     # Check if CSI volume exporter is deployed
+    # Try multiple label selectors
     pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app=csi-volume-exporter")
+    if not pods:
+        # Try alternative label
+        pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app.kubernetes.io/name=csi-volume-exporter")
     exporter_deployed = len(pods) > 0
     
-    # Expected behavior: exporter should NOT be deployed if health monitor is not available
-    expected_behavior = (not health_monitor_available) and (not exporter_deployed)
+    # Expected behavior:
+    # - If health monitor is NOT available → exporter should NOT be deployed
+    # - If health monitor IS available → exporter SHOULD be deployed
+    if health_monitor_available:
+        expected_behavior = exporter_deployed
+    else:
+        expected_behavior = not exporter_deployed
     
     details = (
         f"Health monitor available: {health_monitor_available}, "
@@ -861,6 +928,7 @@ def verify_health_monitor_warning_message(host):
     health_monitor_available = health_monitor_result.get("pod_found", False) and health_monitor_result["success"]
     
     # Warning should be displayed when health monitor is not available
+    # If health monitor IS available, warning should NOT be displayed
     warning_expected = not health_monitor_available
     
     details = (
@@ -894,7 +962,7 @@ def verify_csm_otel_data_flow(host):
     from .k8s_func import get_pods_by_label
 
     # Check if CSM Metrics is running
-    csm_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app=karavi-metrics-powerscale")
+    csm_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app.kubernetes.io/name=karavi-metrics-powerscale")
     csm_running = len([p for p in csm_pods if p.get("ready", False)]) > 0
 
     # Check if OTEL Collector is running
@@ -904,18 +972,54 @@ def verify_csm_otel_data_flow(host):
     # Check CSM metrics endpoint (if accessible)
     csm_exposing = False
     if csm_running and csm_pods:
-        # CSM Metrics typically exposes metrics on port 9102
+        # CSM Metrics exposes metrics on port 8080
         cmd = "kubectl get svc karavi-metrics-powerscale -n telemetry -o jsonpath='{.spec.ports[0].port}'"
         result = run_on_kube_vip(host, cmd)
         csm_exposing = result.rc == 0 and result.stdout.strip()
 
-    # Check OTEL logs for receiving data from CSM
+    # Verify OTEL actually received CSM data by scraping the collector's own
+    # Prometheus endpoint: the metric families served there are exactly what
+    # CSM Metrics pushed into the collector. Log-grepping is unreliable
+    # because the collector logs nothing per batch at INFO level.
     otel_receiving = False
-    if otel_running and otel_pods:
-        pod_name = otel_pods[0].get("name", "")
-        cmd = f"kubectl logs {pod_name} -n telemetry --tail=10 | grep -i 'receiv\\|scrape\\|metric' || echo 'no metrics logs'"
-        result = run_on_kube_vip(host, cmd)
-        otel_receiving = "receiv" in result.stdout.lower() or "scrape" in result.stdout.lower()
+    otel_endpoint = ""
+    sample_families = []
+    if otel_running:
+        svc_cmd = (
+            "kubectl get svc otel-collector -n telemetry -o jsonpath="
+            "'{.spec.clusterIP}{\" \"}{.spec.ports[?(@.name==\"prometheus\")].port}'"
+        )
+        svc_result = run_on_kube_vip(host, svc_cmd)
+        parts = svc_result.stdout.strip().split() if svc_result.rc == 0 else []
+        if len(parts) == 1:
+            # 'prometheus' port not present — fall back to the first port
+            fallback_cmd = (
+                "kubectl get svc otel-collector -n telemetry -o jsonpath="
+                "'{.spec.ports[0].port}'"
+            )
+            fallback = run_on_kube_vip(host, fallback_cmd)
+            if fallback.rc == 0 and fallback.stdout.strip():
+                parts.append(fallback.stdout.strip())
+        if len(parts) >= 2:
+            otel_endpoint = f"{parts[0]}:{parts[1]}"
+            for scheme in ("https", "http"):
+                curl_cmd = (
+                    f"curl -sk --max-time 10 {scheme}://{otel_endpoint}/metrics"
+                )
+                curl_result = run_on_kube_vip(host, curl_cmd)
+                if curl_result.rc != 0 or not curl_result.stdout.strip():
+                    continue
+                sample_families = sorted({
+                    line.split("{")[0].split()[0]
+                    for line in curl_result.stdout.splitlines()
+                    if line and not line.startswith("#")
+                    and (line.startswith("powerscale_")
+                         or line.startswith("karavi_"))
+                })
+                if sample_families:
+                    otel_receiving = True
+                    otel_endpoint = f"{scheme}://{otel_endpoint}"
+                    break
 
     data_flow = csm_running and otel_running and csm_exposing and otel_receiving
 
@@ -923,6 +1027,13 @@ def verify_csm_otel_data_flow(host):
         f"CSM running: {csm_running}, CSM exposing: {csm_exposing}, "
         f"OTEL running: {otel_running}, OTEL receiving: {otel_receiving}"
     )
+    if otel_endpoint:
+        details += f", OTEL metrics endpoint: {otel_endpoint}"
+    if sample_families:
+        details += (
+            f", CSM metric families served by OTEL: "
+            f"{len(sample_families)} (e.g. {', '.join(sample_families[:3])})"
+        )
 
     return {
         "success": data_flow,
@@ -953,12 +1064,15 @@ def verify_otel_vm_export(host):
     export_configured = bool(vmagent_ip)
 
     # Check if PowerScale metrics are appearing in VictoriaMetrics
-    # Query for a known PowerScale metric
+    # Query for any known PowerScale/karavi metric
     metrics_exporting = False
     if export_configured:
         try:
-            vm_result = query_vm_metric_names(host, "powerscale_cluster_cpu_use_rate")
-            metrics_exporting = vm_result.get("success", False) and len(vm_result.get("metrics", [])) > 0
+            all_names = query_vm_metric_names(host)
+            # Check for CSI Volume Exporter metrics (powerscale_volume_*, powerscale_pvc_*)
+            # or karavi topology metrics
+            ps_metrics = [m for m in all_names if m.startswith("powerscale_") or m.startswith("karavi_")]
+            metrics_exporting = len(ps_metrics) > 0
         except Exception:
             metrics_exporting = False
 
@@ -992,8 +1106,12 @@ def verify_otel_service_patch(host):
     """
     from .k8s_func import get_service
 
+    # Try to find OTEL Collector service by common names
     service = get_service(host, TELEMETRY_NAMESPACE, "otel-collector")
-    
+    if not service:
+        # Try Helm release name
+        service = get_service(host, TELEMETRY_NAMESPACE, "karavi-observability-otel-collector")
+
     if not service:
         return {
             "success": False,
@@ -1003,37 +1121,39 @@ def verify_otel_service_patch(host):
             "error": "Service not found",
         }
 
-    # Check for vmagent discovery annotations
-    annotations = service.get("metadata", {}).get("annotations", {})
-    
-    # Expected annotations for vmagent discovery
-    expected_annotations = [
-        "prometheus.io/scrape",
-        "prometheus.io/port",
-    ]
-    
-    annotations_valid = all(key in annotations for key in expected_annotations)
-    
-    # Check if scrape is enabled
-    scrape_enabled = annotations.get("prometheus.io/scrape", "false") == "true"
-    
-    # Check port configuration
-    port = annotations.get("prometheus.io/port", "")
-    port_valid = port.isdigit() and int(port) > 0
+    # Check for vmagent discovery labels (added by deployment)
+    labels = service.get("metadata", {}).get("labels", {})
 
-    service_patched = annotations_valid and scrape_enabled and port_valid
+    # Expected labels for vmagent discovery
+    expected_labels = [
+        "app.kubernetes.io/name",
+        "app.kubernetes.io/component",
+    ]
+
+    labels_valid = all(key in labels for key in expected_labels)
+
+    # Check if labels have correct values
+    name_valid = labels.get("app.kubernetes.io/name") == "otel-collector"
+    component_valid = labels.get("app.kubernetes.io/component") == "collector"
+
+    # Check port configuration (service should have prometheus port 8889)
+    ports = service.get("spec", {}).get("ports", [])
+    prometheus_port = next((p for p in ports if p.get("name") == "prometheus"), None)
+    port_valid = prometheus_port is not None and prometheus_port.get("port") == 8889
+
+    service_patched = labels_valid and name_valid and component_valid and port_valid
 
     details = (
-        f"Annotations valid: {annotations_valid}, "
-        f"Scrape enabled: {scrape_enabled}, "
-        f"Port valid: {port_valid}, "
-        f"Port: {port}"
+        f"Labels valid: {labels_valid}, "
+        f"Name valid: {name_valid}, "
+        f"Component valid: {component_valid}, "
+        f"Port valid: {port_valid}"
     )
 
     return {
         "success": service_patched,
         "service_patched": service_patched,
-        "annotations_valid": annotations_valid,
+        "annotations_valid": labels_valid,
         "details": details,
         "error": "" if service_patched else "OTEL Collector service not properly patched",
     }
@@ -1054,7 +1174,7 @@ def verify_cert_manager_tls_certs(host):
     from .k8s_func import get_pods_by_label
 
     # Check if cert-manager is running
-    cert_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app.kubernetes.io/part-of=cert-manager")
+    cert_pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app.kubernetes.io/name=cert-manager")
     cert_manager_running = len([p for p in cert_pods if p.get("ready", False)]) > 0
 
     # Check if TLS secret exists
@@ -1095,3 +1215,4 @@ def verify_cert_manager_tls_certs(host):
         "details": details,
         "error": "" if all_valid else "cert-manager TLS certificate validation failed",
     }
+

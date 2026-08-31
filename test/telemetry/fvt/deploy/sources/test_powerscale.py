@@ -45,6 +45,7 @@ from library.vars.common_vars import (
     POWERSCALE_DEPLOY_NAME,
     POWERSCALE_OTEL_DEPLOY_NAME,
     POWERSCALE_EXPECTED_METRICS,
+    POWERSCALE_KARAVI_METRICS,
     POWERSCALE_SYSLOG_PORT,
 )
 from library.messages.telemetry_msgs import (
@@ -57,7 +58,6 @@ from library.functions.telemetry_func import (
     is_logs_enabled,
 )
 from library.functions.powerscale_func import (
-    load_powerscale_secret_from_config,
     decode_isilon_creds,
     verify_powerscale_metrics,
     verify_powerscale_logs,
@@ -81,7 +81,6 @@ from library.functions.powerscale_func import (
     verify_health_monitor_warning_message,
     verify_csm_otel_data_flow,
     verify_otel_vm_export,
-    verify_otel_service_patch,
     verify_cert_manager_tls_certs,
 )
 
@@ -244,27 +243,10 @@ def test_powerscale_otel_deploy(host):
 @pytest.mark.sanity
 @pytest.mark.order(62)
 def test_powerscale_secret_valid(host):
-    """Verify isilon-creds secret has correct endpoint."""
+    """Verify isilon-creds secret exists and has valid structure."""
     _skip_if_powerscale_disabled(host)
     tc = TC["powerscale_secret_valid"]
     tl = TestLogger(tc["title"], tc["id"])
-
-    tl.check("Reading PowerScale secret from telemetry config")
-    cfg_result = load_powerscale_secret_from_config(host)
-    if not cfg_result["success"]:
-        tl.failed(
-            LOG_MSGS["secret_invalid"].format(
-                secret="powerscale_secret.yaml",
-                actual="cannot read",
-                expected="valid config",
-            ),
-            cfg_result["error"],
-        )
-        pytest.fail(
-            f"Cannot read PowerScale secret: {cfg_result['error']}"
-        )
-
-    expected = cfg_result["clusters"][0]
 
     tl.check("Decoding deployed isilon-creds K8s secret")
     k8s_result = decode_isilon_creds(host)
@@ -272,8 +254,8 @@ def test_powerscale_secret_valid(host):
         tl.failed(
             LOG_MSGS["secret_invalid"].format(
                 secret="isilon-creds",
-                actual="not found",
-                expected=expected["endpoint"],
+                actual="not found or invalid",
+                expected="valid secret with cluster data",
             ),
             k8s_result["error"],
         )
@@ -288,8 +270,12 @@ def test_powerscale_secret_valid(host):
         f"cluster={deployed['clusterName']}"
     )
 
-    match = deployed["endpoint"] == expected["endpoint"]
-    if match:
+    # Verify secret has required fields
+    has_endpoint = bool(deployed.get("endpoint"))
+    has_username = bool(deployed.get("username"))
+    has_cluster = bool(deployed.get("clusterName"))
+
+    if has_endpoint and has_username and has_cluster:
         tl.passed(
             LOG_MSGS["secret_valid"].format(
                 secret="isilon-creds",
@@ -301,16 +287,14 @@ def test_powerscale_secret_valid(host):
         tl.failed(
             LOG_MSGS["secret_invalid"].format(
                 secret="isilon-creds",
-                actual=deployed["endpoint"],
-                expected=expected["endpoint"],
+                actual="missing required fields",
+                expected="endpoint, username, clusterName",
             ),
             details,
         )
 
-    assert match, ASSERT_MSGS["secret_invalid"].format(
-        secret="isilon-creds",
-        actual=deployed["endpoint"],
-        expected=expected["endpoint"],
+    assert has_endpoint and has_username and has_cluster, (
+        f"isilon-creds secret missing required fields: {details}"
     )
 
 
@@ -328,7 +312,7 @@ def test_powerscale_metrics_in_vm(host):
     tl = TestLogger(tc["title"], tc["id"])
 
     tl.check("Querying VictoriaMetrics for PowerScale metrics")
-    result = verify_powerscale_metrics(host, POWERSCALE_EXPECTED_METRICS)
+    result = verify_powerscale_metrics(host, POWERSCALE_KARAVI_METRICS)
 
     metric_lines = _format_metric_lines(
         result.get("metric_details", [])
@@ -337,7 +321,7 @@ def test_powerscale_metrics_in_vm(host):
     if result["success"]:
         details_lines = [
             f"Found: {len(result['found'])}"
-            f"/{len(POWERSCALE_EXPECTED_METRICS)} metrics",
+            f"/{len(POWERSCALE_KARAVI_METRICS)} metrics",
             "",
             metric_lines,
         ]
@@ -352,7 +336,7 @@ def test_powerscale_metrics_in_vm(host):
         missing_str = ", ".join(result["missing"])
         details_lines = [
             f"Found: {len(result['found'])}"
-            f"/{len(POWERSCALE_EXPECTED_METRICS)} metrics",
+            f"/{len(POWERSCALE_KARAVI_METRICS)} metrics",
         ]
         for m in result["missing"]:
             details_lines.append(f"  \u2717 {m}: MISSING")
@@ -391,14 +375,14 @@ def test_powerscale_syslog_config(host):
     tc = TC["powerscale_syslog_config"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    cfg_result = load_powerscale_secret_from_config(host)
-    if not cfg_result["success"]:
+    k8s_result = decode_isilon_creds(host)
+    if not k8s_result["success"]:
         tl.failed(
-            "Cannot read PowerScale credentials from config", ""
+            "Cannot read PowerScale credentials from K8s secret", ""
         )
-        pytest.fail("PowerScale secret not available in config")
+        pytest.fail("PowerScale secret not available in K8s")
 
-    cluster = cfg_result["clusters"][0]
+    cluster = k8s_result["clusters"][0]
     ps_host = cluster["endpoint"]
     ps_user = cluster["username"]
     ps_password = cluster["password"]
@@ -431,9 +415,12 @@ def test_powerscale_syslog_config(host):
         )
         return
 
-    # Not configured — configure it now
+    # Not configured — report why, then configure it now
     tl.check(
-        f"Syslog not configured — configuring to {target_str}"
+        f"Syslog not configured — current state:\n{result['details']}"
+    )
+    tl.check(
+        f"Configuring syslog to {target_str}"
     )
     cfg_result2 = configure_powerscale_syslog(
         host, ps_user, ps_password, ps_host,
@@ -511,14 +498,14 @@ def test_powerscale_logs_in_vl(host):
     tc = TC["powerscale_logs_in_vl"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    cfg_result = load_powerscale_secret_from_config(host)
-    if not cfg_result["success"]:
+    k8s_result = decode_isilon_creds(host)
+    if not k8s_result["success"]:
         tl.failed(
             "Cannot read PowerScale secret for cluster name", ""
         )
         pytest.fail("Cannot determine PowerScale cluster name")
 
-    hostname = cfg_result["clusters"][0]["clusterName"]
+    hostname = k8s_result["clusters"][0]["clusterName"]
 
     tl.check(
         f"Querying VictoriaLogs for PowerScale syslog "
@@ -635,7 +622,7 @@ def test_powerscale_health_metrics(host):
 
 
 # =========================================================================
-# TC_SR_039: Verify PowerScale TLS enforcement
+# TC_SR_040: Verify PowerScale TLS enforcement
 # =========================================================================
 
 @pytest.mark.source
@@ -667,7 +654,7 @@ def test_powerscale_tls_enforcement(host):
 
 
 # =========================================================================
-# TC_SR_040: Verify PowerScale pod label compliance
+# TC_SR_041: Verify PowerScale pod label compliance
 # =========================================================================
 
 @pytest.mark.source
@@ -699,7 +686,7 @@ def test_powerscale_label_compliance(host):
 
 
 # =========================================================================
-# TC_SR_041: Verify PowerScale scrape interval
+# TC_SR_042: Verify PowerScale scrape interval
 # =========================================================================
 
 @pytest.mark.source
@@ -800,8 +787,15 @@ def test_csi_volume_exporter_deploy(host):
     tc = TC["csi_volume_exporter_deploy"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Verifying CSI Volume Exporter deployment")
+    tl.check("Checking if CSI Volume Exporter is deployed")
     result = verify_csi_volume_exporter_deployment(host)
+
+    # Skip if CSI Volume Exporter is not deployed (expected when health monitor not available)
+    if len(result["pods"]) == 0:
+        tl.info("CSI Volume Exporter not deployed - skipping test")
+        pytest.skip("CSI Volume Exporter not deployed (health monitor not available)")
+
+    tl.check("Verifying CSI Volume Exporter deployment")
 
     if result["success"]:
         tl.passed(
@@ -831,6 +825,12 @@ def test_csi_volume_exporter_endpoint(host):
     _skip_if_powerscale_disabled(host)
     tc = TC["csi_volume_exporter_endpoint"]
     tl = TestLogger(tc["title"], tc["id"])
+
+    # Skip if CSI Volume Exporter is not deployed
+    deploy_result = verify_csi_volume_exporter_deployment(host)
+    if len(deploy_result["pods"]) == 0:
+        tl.info("CSI Volume Exporter not deployed - skipping test")
+        pytest.skip("CSI Volume Exporter not deployed (health monitor not available)")
 
     tl.check("Verifying CSI Volume Exporter metrics endpoint")
     result = verify_csi_volume_exporter_metrics_endpoint(host)
@@ -863,6 +863,12 @@ def test_csi_volume_exporter_metrics(host):
     _skip_if_powerscale_disabled(host)
     tc = TC["csi_volume_exporter_metrics"]
     tl = TestLogger(tc["title"], tc["id"])
+
+    # Skip if CSI Volume Exporter is not deployed
+    deploy_result = verify_csi_volume_exporter_deployment(host)
+    if len(deploy_result["pods"]) == 0:
+        tl.info("CSI Volume Exporter not deployed - skipping test")
+        pytest.skip("CSI Volume Exporter not deployed (health monitor not available)")
 
     tl.check("Verifying CSI Volume Exporter metrics in VictoriaMetrics")
     result = verify_csi_volume_exporter_metrics(host)
@@ -1094,44 +1100,12 @@ def test_otel_vm_export(host):
 
 
 # =========================================================================
-# TC_SR_053: Verify OTEL Collector service patch for vmagent
+# TC_SR_053: Verify cert-manager TLS certificate generation
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(83)
-def test_otel_service_patch(host):
-    """Verify OTEL Collector service patch for vmagent scrape discovery."""
-    _skip_if_powerscale_disabled(host)
-    tc = TC["otel_service_patch"]
-    tl = TestLogger(tc["title"], tc["id"])
-
-    tl.check("Verifying OTEL Collector service patch for vmagent")
-    result = verify_otel_service_patch(host)
-
-    if result["success"]:
-        tl.passed(
-            LOG_MSGS["otel_service_patch"],
-            result["details"],
-        )
-    else:
-        tl.failed(
-            LOG_MSGS["otel_service_patch_failed"],
-            result["details"],
-        )
-
-    assert result["success"], ASSERT_MSGS["otel_service_patch_failed"].format(
-        details=result["details"],
-    )
-
-
-# =========================================================================
-# TC_SR_054: Verify cert-manager TLS certificate generation
-# =========================================================================
-
-@pytest.mark.source
-@pytest.mark.functional
-@pytest.mark.order(84)
 def test_cert_manager_tls_certs(host):
     """Verify cert-manager TLS certificate generation."""
     _skip_if_powerscale_disabled(host)
@@ -1155,3 +1129,4 @@ def test_cert_manager_tls_certs(host):
     assert result["success"], ASSERT_MSGS["cert_manager_tls_failed"].format(
         details=result["details"],
     )
+

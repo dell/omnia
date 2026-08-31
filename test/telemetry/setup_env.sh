@@ -207,7 +207,33 @@ fi
 ok "Python: $($PYTHON_CMD --version 2>&1)"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 2: Determine install mode
+# Step 2: Install system dependencies (sshpass for PowerScale syslog config)
+# ─────────────────────────────────────────────────────────────────────────────
+if command -v dnf &>/dev/null; then
+    info "Checking for sshpass (required for PowerScale syslog configuration)"
+    if ! command -v sshpass &>/dev/null; then
+        info "Installing sshpass via dnf"
+        dnf install -y sshpass
+        ok "sshpass installed"
+    else
+        ok "sshpass already installed"
+    fi
+elif command -v apt-get &>/dev/null; then
+    info "Checking for sshpass (required for PowerScale syslog configuration)"
+    if ! command -v sshpass &>/dev/null; then
+        info "Installing sshpass via apt-get"
+        apt-get update -qq && apt-get install -y sshpass
+        ok "sshpass installed"
+    else
+        ok "sshpass already installed"
+    fi
+else
+    warn "Could not install sshpass (dnf/apt-get not found)"
+    warn "PowerScale syslog configuration tests may fail"
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 3: Determine install mode
 # ─────────────────────────────────────────────────────────────────────────────
 INSTALL_MODE="baremetal"
 PIP_USER_FLAG="--user"
@@ -247,7 +273,7 @@ fi
 echo -e "  ${CYAN}Mode:${NC} ${INSTALL_MODE}"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 3: Install dependencies
+# Step 4: Install dependencies
 # ─────────────────────────────────────────────────────────────────────────────
 info "Upgrading pip"
 pip install --upgrade pip $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
@@ -266,7 +292,7 @@ fi
 ok "All dependencies installed"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 4: Credential helpers (delegate to omnia_auto credential CLI)
+# Step 5: Credential helpers (delegate to omnia_auto credential CLI)
 # ─────────────────────────────────────────────────────────────────────────────
 
 _show_oim_server_ip() {
@@ -330,7 +356,7 @@ _ask_yes_no() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SSH credential dispatch  (--set-creds / --update-creds / --creds)
+# Step 6: SSH credential dispatch  (--set-creds / --update-creds / --creds)
 # ─────────────────────────────────────────────────────────────────────────────
 if [ -n "$CREDS_VALUE" ]; then
     _show_oim_server_ip
@@ -365,7 +391,7 @@ elif [ "$SET_CREDS" = true ]; then
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Domain credential dispatch  (--set-domain-creds / --update-domain-creds / --domain-creds)
+# Step 7: Domain credential dispatch  (--set-domain-creds / --update-domain-creds / --domain-creds)
 # ─────────────────────────────────────────────────────────────────────────────
 if [ -n "$DOMAIN_CREDS_JSON" ]; then
     info "Setting domain credentials from --domain-creds flag"
@@ -461,7 +487,7 @@ print(json.dumps(d))
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# No credential flags — status report
+# Step 8: No credential flags — status report
 # ─────────────────────────────────────────────────────────────────────────────
 if [ -z "$CREDS_VALUE" ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = false ] \
    && [ -z "$DOMAIN_CREDS_JSON" ] && [ "$SET_DOMAIN_CREDS" = false ] \
@@ -482,7 +508,7 @@ if [ -z "$CREDS_VALUE" ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = fals
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 5: Make scripts executable
+# Step 9: Make scripts executable
 # ─────────────────────────────────────────────────────────────────────────────
 chmod +x "${SCRIPT_DIR}/run_validation.sh" 2>/dev/null || true
 

@@ -14,15 +14,17 @@
 ---
 
 # Downloads karavi-observability git repos and cert-manager Helm chart
-# from Pulp local mirror to the NFS share for air-gapped deployment.
+# For online mode: clones git repos and downloads Helm charts from upstream
+# For offline mode: downloads from Pulp local mirror to the NFS share
 
 - name: Set offline path variables from telemetry_packages
   ansible.builtin.set_fact:
-    _offline_git_path: "{{ telemetry_packages_config.telemetry_packages.offline_git_path | default('') }}"
-    _offline_tarball_path: "{{ telemetry_packages_config.telemetry_packages.offline_tarball_path | default('') }}"
+    _offline_git_path: "{{ telemetry_packages_config.offline_git_path | default('') }}"
+    _offline_tarball_path: "{{ telemetry_packages_config.offline_tarball_path | default('') }}"
     _karavi_obs_url: "{{ telemetry_packages_config.telemetry_packages.karavi_observability_git | default('') }}"
     _karavi_helm_url: "{{ telemetry_packages_config.telemetry_packages.karavi_helm_charts_git | default('') }}"
     _cert_manager_url: "{{ telemetry_packages_config.telemetry_packages.cert_manager_tarball | default('') }}"
+    _install_mode: "{{ telemetry_packages_config.install_mode | default('offline') }}"
 
 - name: Create karavi-observability directory on NFS share
   ansible.builtin.file:
@@ -30,33 +32,61 @@
     state: directory
     mode: '0755'
 
-- name: Download karavi-observability git tar from Pulp
+- name: Clone karavi-observability git repo (online mode)
+  ansible.builtin.git:
+    repo: "{{ _karavi_obs_url }}"
+    dest: "{{ telemetry_deploy_dir }}/karavi-observability/karavi-observability"
+    version: "{{ telemetry_packages_config.git_repos.karavi_observability.version | default('main') }}"
+    force: true
+  when:
+    - _install_mode == 'online'
+    - _karavi_obs_url | length > 0
+
+- name: Download karavi-observability git tar from Pulp (offline mode)
   ansible.builtin.get_url:
     url: "{{ _karavi_obs_url }}"
     dest: "{{ telemetry_deploy_dir }}/karavi-observability/{{ karavi_observability_git }}"
     mode: "{{ file_permissions_644 }}"
-  when: _karavi_obs_url | length > 0
+  when:
+    - _install_mode == 'offline'
+    - _karavi_obs_url | length > 0
 
-- name: Extract karavi-observability tar
+- name: Extract karavi-observability tar (offline mode)
   ansible.builtin.unarchive:
     src: "{{ telemetry_deploy_dir }}/karavi-observability/{{ karavi_observability_git }}"
     dest: "{{ telemetry_deploy_dir }}/karavi-observability/"
     remote_src: true
-  when: _karavi_obs_url | length > 0
+  when:
+    - _install_mode == 'offline'
+    - _karavi_obs_url | length > 0
 
-- name: Download dell/helm-charts git tar from Pulp
+- name: Clone dell/helm-charts git repo (online mode)
+  ansible.builtin.git:
+    repo: "{{ _karavi_helm_url }}"
+    dest: "{{ telemetry_deploy_dir }}/karavi-observability/helm-charts"
+    version: "{{ telemetry_packages_config.git_repos.helm_charts.version | default('main') }}"
+    force: true
+  when:
+    - _install_mode == 'online'
+    - _karavi_helm_url | length > 0
+
+- name: Download dell/helm-charts git tar from Pulp (offline mode)
   ansible.builtin.get_url:
     url: "{{ _karavi_helm_url }}"
     dest: "{{ telemetry_deploy_dir }}/karavi-observability/{{ karavi_helm_charts_git }}"
     mode: "{{ file_permissions_644 }}"
-  when: _karavi_helm_url | length > 0
+  when:
+    - _install_mode == 'offline'
+    - _karavi_helm_url | length > 0
 
-- name: Extract dell/helm-charts tar
+- name: Extract dell/helm-charts tar (offline mode)
   ansible.builtin.unarchive:
     src: "{{ telemetry_deploy_dir }}/karavi-observability/{{ karavi_helm_charts_git }}"
     dest: "{{ telemetry_deploy_dir }}/karavi-observability/"
     remote_src: true
-  when: _karavi_helm_url | length > 0
+  when:
+    - _install_mode == 'offline'
+    - _karavi_helm_url | length > 0
 
 - name: Create charts/ directory for Helm dependencies
   ansible.builtin.file:
@@ -64,12 +94,23 @@
     state: directory
     mode: '0755'
 
-- name: Download cert-manager Helm chart from Pulp
+- name: Download cert-manager Helm chart from upstream (online mode)
   ansible.builtin.get_url:
     url: "{{ _cert_manager_url }}"
     dest: "{{ karavi_helm_chart_path }}/charts/cert-manager.tar.gz"
     mode: "{{ file_permissions_644 }}"
   when:
+    - _install_mode == 'online'
+    - _cert_manager_url | length > 0
+    - user_helm_values['cert-manager']['enabled'] | default(false) | bool
+
+- name: Download cert-manager Helm chart from Pulp (offline mode)
+  ansible.builtin.get_url:
+    url: "{{ _cert_manager_url }}"
+    dest: "{{ karavi_helm_chart_path }}/charts/cert-manager.tar.gz"
+    mode: "{{ file_permissions_644 }}"
+  when:
+    - _install_mode == 'offline'
     - _cert_manager_url | length > 0
     - user_helm_values['cert-manager']['enabled'] | default(false) | bool
 

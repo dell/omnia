@@ -1,0 +1,35 @@
+---
+- name: Load configs on localhost
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Load telemetry configuration
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: load_telemetry_config
+
+    - name: Collect telemetry credentials
+      ansible.builtin.include_role:
+        name: collect_telemetry_credentials
+
+    - name: Add kube_vip to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ kube_vip }}"
+        groups: kube_vip_group
+        ansible_user: root
+
+- name: Test BMC sync
+  hosts: kube_vip_group
+  gather_facts: false
+  vars_files:
+    - roles/common/vars/main.yml
+    - roles/deploy_idrac_telemetry/vars/main.yml
+  pre_tasks:
+    - name: Load telemetry config from localhost
+      ansible.builtin.set_fact:
+        telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
+        telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
+        cluster_inv: "{{ hostvars['localhost']['cluster_inv'] | default({}) }}"
+  tasks:
+    - name: Include BMC sync tasks
+      ansible.builtin.include_tasks: roles/deploy_idrac_telemetry/tasks/initiate_telemetry_service_cluster.yml

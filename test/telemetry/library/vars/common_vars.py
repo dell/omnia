@@ -143,23 +143,44 @@ POWERSCALE_OTEL_DEPLOY_NAME = "otel-collector"
 POWERSCALE_CSI_EXPORTER_DEPLOY_NAME = "csi-volume-exporter"
 POWERSCALE_CSI_DRIVER_DEPLOY_NAME = "isilon-controller"
 POWERSCALE_SECRET_NAME = "isilon-creds"
-POWERSCALE_EXPECTED_METRICS = [
+# Karavi Observability metrics (from CSM Metrics PowerScale + OTEL Collector)
+POWERSCALE_KARAVI_METRICS = [
+    "karavi_topology_metrics",
     "powerscale_cluster_cpu_use_rate",
     "powerscale_cluster_disk_read_operation_rate",
+    "powerscale_cluster_disk_write_operation_rate",
     "powerscale_cluster_disk_throughput_read_rate_megabytes_per_second",
     "powerscale_cluster_disk_throughput_write_rate_megabytes_per_second",
-    "powerscale_cluster_disk_write_operation_rate",
-    "powerscale_cluster_remaining_capacity_terabytes",
     "powerscale_cluster_total_capacity_terabytes",
+    "powerscale_cluster_remaining_capacity_terabytes",
     "powerscale_cluster_used_capacity_percentage",
-    "karavi_topology_metrics",
 ]
+
+# CSI Volume Exporter metrics (from health monitor)
+POWERSCALE_CSI_EXPORTER_METRICS = [
+    "powerscale_volume_status",
+    "powerscale_volume_count",
+    "powerscale_volume_capacity_bytes",
+    "powerscale_volume_info",
+    "powerscale_volume_age_seconds",
+    "powerscale_pvc_status_phase",
+    "powerscale_pvc_requested_bytes",
+    "powerscale_pvc_count",
+    "powerscale_volume_health_abnormal",
+    "powerscale_volume_abnormal_events_total",
+    "powerscale_node_failure_events_total",
+    "powerscale_node_ready",
+    "powerscale_storageclass_info",
+    "powerscale_total_capacity_bytes",
+]
+
+# Combined expected metrics (for backward compatibility)
+POWERSCALE_EXPECTED_METRICS = POWERSCALE_KARAVI_METRICS
 
 # PowerScale syslog port (OneFS default)
 POWERSCALE_SYSLOG_PORT = 514
 
 # Telemetry config key paths (dot notation for read_yaml_key)
-CFG_KEY_PS_SECRET_PATH = "powerscale_configurations.csi_powerscale_secret_path"
 CFG_KEY_PS_METRICS_ENABLED = "telemetry_sources.powerscale.metrics_enabled"
 CFG_KEY_PS_LOGS_ENABLED = "telemetry_sources.powerscale.logs_enabled"
 
@@ -308,9 +329,6 @@ CMDS = {
         " --no-headers"
         " -o custom-columns='NAME:.metadata.name'"
     ),
-    "kubectl_get_svc_json": (
-        "kubectl get svc -n {namespace} -o json 2>/dev/null"
-    ),
     "kubectl_get_nodes_ready": (
         "kubectl get nodes --no-headers"
         " -o custom-columns='NAME:.metadata.name,"
@@ -412,6 +430,10 @@ CMDS = {
     ),
 
     # --- PowerScale / isilon-creds secret ---
+    "kubectl_get_secret": (
+        "kubectl get secret {name} -n {namespace}"
+        " -o json 2>/dev/null"
+    ),
     "kubectl_get_secret_data": (
         "kubectl get secret {name} -n {namespace}"
         " -o jsonpath='{{.data.{key}}}' 2>/dev/null"
@@ -448,8 +470,7 @@ CMDS = {
     ),
     "kubectl_get_svc_json": (
         "kubectl get svc {name} -n {namespace}"
-        " -o json"
-        " 2>/dev/null"
+        " -o json 2>/dev/null"
     ),
     "kubectl_get_svc_port": (
         "kubectl get svc {name} -n {namespace}"
@@ -521,3 +542,4 @@ CMDS = {
         " --no-headers --ignore-not-found 2>/dev/null"
     ),
 }
+
