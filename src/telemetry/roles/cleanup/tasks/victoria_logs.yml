@@ -123,3 +123,9 @@
 - name: VictoriaLogs | Cleanup complete
   ansible.builtin.debug:
     msg: "VictoriaLogs cleanup completed (includes vlagent-vector write-buffer)"
+
+- name: "Victoria_logs | Register cleanup result"
+  ansible.builtin.set_fact:
+    _cleanup_result_victoria_logs: "cleaned"
+  delegate_to: localhost
+  delegate_facts: true

@@ -77,12 +77,11 @@ repo_store_path_fail_msg: "Failed. Ensure repo_store_path is defined and it shou
 omnia_registry_fail_msg: "Failed. omnia_registry should be defined in repo_manager_config.yml."
 omnia_registry_string_fail_msg: "Each item in omnia_registry should be a string."
 
-# Usage: validate_user_registry.yml
-user_registry_fail_msg: "Failed. Please ensure user_registry is non empty list and
-    check if there is any indentation error in {{ project_input_path }}/repo_manager_config.yml"
-user_registry_fail_host_cert_path_msg: "Failed. Each item in user_registry should have 'host' and 'cert_path' keys defined"
+# Usage: configured registry validation
+user_registry_fail_msg: "Failed. Please ensure registries is a valid mapping in {{ project_input_path }}/repo_manager_config.yml"
+user_registry_fail_host_cert_path_msg: "Failed. Registry TLS paths must use the lowercase tls configuration keys"
 time_out: 30
-user_registry_msg: "Above user registries is/are not reachable. Please make sure the user registry is accessible from the Omnia Infrastructure Manager."   # noqa: yaml[line-length]
+user_registry_msg: "Above configured registries are not reachable. Please make sure each registry is accessible from the Omnia Infrastructure Manager."   # noqa: yaml[line-length]
 unreachable_registries_fail_msg: "Unreachable registries detected: {{ registry_check_result.unreachable_registries | join(', ') }}. {{ user_registry_msg }} Please check registry connectivity and configuration before proceeding."  # noqa: yaml[line-length]
 cert_path_failure_msg: "Certificate file path {{ item.item.cert_path }} does not exist on the Omnia Infrastructure Manager for host {{ item.item.host }}. Please verify that correct cert_path is given in {{ project_input_path }}/repo_manager_config.yml"  # noqa: yaml[line-length]
 

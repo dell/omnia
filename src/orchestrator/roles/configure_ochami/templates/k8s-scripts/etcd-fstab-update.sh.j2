@@ -115,12 +115,16 @@ runq systemctl daemon-reload
 
 # ── etcd permissions ─────────────────────────────────────────────────────────
 echo "$(ts) [STEP] Setting etcd permissions"
+# Ensure etcd user/group exist (may be missing after reboot)
+getent group etcd >/dev/null || run groupadd --system etcd
+id etcd >/dev/null 2>&1     || run useradd --system -M -s /sbin/nologin -g etcd etcd
+
 if id etcd >/dev/null 2>&1; then
     run chown etcd:etcd "$MOUNT"
     run chmod 700 "$MOUNT"
     echo "$(ts) [OK] Permissions set: etcd:etcd 700"
 else
-    echo "$(ts) [INFO] etcd user not found — skipping"
+    echo "$(ts) [WARN] etcd user could not be created — skipping chown"
 fi
 
 # ── Final Summary ────────────────────────────────────────────────────────────

@@ -1,0 +1,9 @@
+#!/bin/sh
+# Managed by Omnia Repo Manager
+
+if [ -z "${PULP_CA_BUNDLE:-}" ]; then
+    PULP_CA_BUNDLE={{ pulp_server_crt | quote }}
+    export PULP_CA_BUNDLE
+fi
+
+exec {{ pulp_cli_backend | quote }} "$@"

@@ -1625,7 +1625,11 @@ def regenerate_yum_repo_file(logger) -> Dict[str, Any]:
 
             # Determine if repo should be enabled based on architecture
             # Repo names follow pattern: {arch}_{os_type}_{version}_{repo_name}
-            repo_arch = name.split('_')[0] if '_' in name else None
+            repo_arch = next(
+                (candidate for candidate in ARCH_SUFFIXES
+                 if name.startswith(f"{candidate}_")),
+                None,
+            )
             
             # Enable repo only if it matches system architecture
             if repo_arch == system_arch:

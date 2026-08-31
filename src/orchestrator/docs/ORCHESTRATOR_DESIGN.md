@@ -6,12 +6,15 @@
 ## 1. Overview
 
 The **orchestrator** is a self-contained Ansible domain that manages the full post-discovery
-lifecycle: OpenCHAMI deployment, PXE boot orchestration, image resolution, node provisioning,
-and service deployment (K8s, Slurm, telemetry, storage, LDAP).
+lifecycle: OpenCHAMI deployment, OpenLDAP authentication, PXE boot orchestration, image
+resolution, node provisioning, and service deployment (K8s, Slurm, telemetry, storage, LDAP).
 
 The domain is fully decoupled from `src/playbooks/utils/` and `src/common/` shared utilities.
 It owns its own library (modules + module_utils), validation framework, credential management,
 and cleanup lifecycle.
+
+OpenCHAMI and OpenLDAP have **independent lifecycle management** — each component has dedicated
+precheck, prepare, deploy, cleanup, upgrade, and rollback playbooks that can be managed separately.
 
 **Key Inputs**: `build_status.yml` (from image_build_manager), `pxe_mapping_file.csv` (from discovery).
 **Key Outputs**: BSS/cloud-init boot configurations, functional groups, deployed OpenCHAMI services.
@@ -22,71 +25,104 @@ and cleanup lifecycle.
 
 ```
 src/orchestrator/
-├── orchestrator.yml                    # Top-level orchestrator
 ├── ansible.cfg                         # Domain config (fully local paths)
-├── callback_plugins/
-│   └── omnia_default.py                # Local copy — stdout callback
-├── library/                            # Domain-specific Python modules
-│   ├── modules/
-│   │   ├── generate_functional_groups.py
-│   │   ├── generate_xname_in_mapping_file.py
-│   │   ├── slurm_conf.py
-│   │   ├── fetch_credential_rule.py
-│   │   ├── validate_credentials.py
-│   │   ├── generate_argon2_password.py
-│   │   ├── fetch_telemetry_status.py
-│   │   └── validate_orchestrator_config.py   # Domain-specific validation
-│   └── module_utils/
-│       ├── orchestrator_validation/          # Domain-specific validation
-│       │   ├── orchestrator_validation_flow.py
-│       │   └── schema/
-│       │       ├── orchestrator_config.json
-│       │       ├── network_spec.json
-│       │       └── credential_rules.json
-│       └── slurm/
-│           └── slurm_conf_utils.py
 ├── playbooks/
+│   ├── orchestrator.yml                # Top-level thin routing wrapper
 │   ├── ansible.cfg                     # Sub-playbook config
-│   ├── prepare_orchestrator.yml        # Deploy OpenCHAMI + S3 setup
-│   ├── validate_orchestrator.yml       # Standalone validation
-│   ├── orchestrator_credentials.yml    # Credential management
-│   ├── cleanup_orchestrator.yml        # Cleanup OpenCHAMI + artifacts
-│   ├── upgrade_orchestrator.yml        # Upgrade flow
-│   └── rollback_orchestrator.yml       # Rollback flow
+│   │
+│   ├── precheck/                       # Read-only input validation
+│   │   ├── ansible.cfg
+│   │   ├── precheck_openchami.yml      # Validate inputs, params, boot images, config vars
+│   │   └── precheck_openldap.yml       # Validate LDAP prerequisites (when enabled)
+│   │
+│   ├── prepare/                        # Credentials + configuration preparation
+│   │   ├── ansible.cfg
+│   │   ├── prepare_openchami.yml       # Credential management (prompt, encrypt, vault)
+│   │   └── prepare_openldap.yml        # LDAP dirs, TLS certs, config templating
+│   │
+│   ├── deploy/                         # Service deployment
+│   │   ├── ansible.cfg
+│   │   ├── deploy_openchami.yml        # S3 access + OpenCHAMI containers on OIM
+│   │   └── deploy_openldap.yml         # OpenLDAP container on OIM (when enabled)
+│   │
+│   ├── validate/                       # Readiness gates + post-provision checks
+│   │   ├── ansible.cfg
+│   │   ├── validate_openchami.yml      # Input validation + OpenCHAMI health checks
+│   │   ├── validate_openldap.yml       # OpenLDAP container health (when enabled)
+│   │   └── validate_provisioning.yml   # Post-provision inventory gen + verification
+│   │
+│   ├── provision/                      # Node provisioning (category-scoped)
+│   │   ├── ansible.cfg
+│   │   ├── provision_preamble.yml      # SSH key distribution + OpenCHAMI auth
+│   │   ├── provision_kubernetes.yml    # K8s FGs + bolt-ons
+│   │   ├── provision_slurm.yml         # Slurm+Login FGs + bolt-ons
+│   │   ├── provision_os.yml            # OS-only FGs (minimal)
+│   │   └── provision_custom.yml        # User-defined FGs (catch-all)
+│   │
+│   ├── pxeboot/                        # PXE boot on iDRAC nodes
+│   │   ├── ansible.cfg
+│   │   ├── pxeboot.yml                 # BMC inventory, reboot, phone-home verify
+│   │   └── README.md
+│   │
+│   ├── cleanup/                        # Component teardown
+│   │   ├── ansible.cfg
+│   │   ├── cleanup_openchami.yml       # Stop services, remove containers/config/artifacts
+│   │   └── cleanup_openldap.yml        # Stop container, remove Quadlet/data
+│   │
+│   ├── upgrade/                        # In-place upgrade
+│   │   ├── ansible.cfg
+│   │   ├── upgrade_openchami.yml       # Version detect, backup, migrate, verify
+│   │   └── upgrade_openldap.yml        # Fedora→Wolfi container migration
+│   │
+│   ├── rollback/                       # Revert to previous state
+│   │   ├── ansible.cfg
+│   │   ├── rollback_openchami.yml      # Backup restore, restart, verify
+│   │   └── rollback_openldap.yml       # Wolfi→Fedora container rollback
+│   │
+│   └── credentials/                    # Standalone credential management
+│       ├── ansible.cfg
+│       └── orchestrator_credentials.yml
+│
 ├── roles/
-│   ├── orchestrator_setup/             # Upgrade guard, input dir, OIM group, guard facts
+│   ├── orchestrator_setup/             # Upgrade guard, input dir, OIM group, vars
 │   ├── orchestrator_functional_groups/ # Generate functional_groups_config.yml
 │   ├── validate_orchestrator_input/    # L1 schema + L2 logic validation
 │   ├── orchestrator_credentials/       # Credential prompt, encrypt, vault
+│   ├── orchestrator_common/            # Shared: openchami_auth, S3, decrypt helpers
+│   ├── orchestrator_validations/       # Runtime L2/L3 pre-checks
 │   ├── deploy_openchami/              # OpenCHAMI container deployment
-│   ├── configure_ochami/             # BSS, cloud-init, node orchestration
-│   ├── orchestrator_validations/      # Runtime L2/L3 pre-checks
+│   ├── deploy_openldap/               # OpenLDAP container deployment
+│   ├── validate_openchami/            # OpenCHAMI health checks
+│   ├── configure_ochami/              # BSS, cloud-init, node orchestration
+│   ├── generate_inventories/          # Query SMD, generate inventories
+│   ├── validate_provisioning/         # Post-provision verification
 │   ├── passwordless_ssh/              # SSH key distribution
 │   ├── k8s_config/                    # Kubernetes configuration
 │   ├── slurm_config/                  # Slurm scheduler configuration
 │   ├── mount_config/                  # Storage mount configuration
-│   ├── openldap/                      # OpenLDAP configuration
 │   └── telemetry/                     # Telemetry deployment
+│
+├── plugins/
+│   ├── modules/                        # Domain-specific Python modules
+│   ├── module_utils/                   # Validation schemas + utils
+│   └── callback/                       # Stdout callback
+│
 ├── vars/
-│   ├── common_vars.yml                # Shared constants (permissions, retries)
-│   ├── openchami_vars.yml             # OpenCHAMI auth/cert constants
-│   └── openchami_image_cmd.yml        # OpenCHAMI build commands
-├── tasks/
-│   ├── configure_s3_access.yml        # Bridge build_status.yml → s3_configurations
-│   ├── openchami_auth.yml             # OpenCHAMI cluster authentication
-│   └── decrypt_include_encrypt.yml    # Vault credential helper
-├── input/                             # Default input templates
+│   ├── common_vars.yml                 # Shared constants (permissions, retries)
+│   └── openchami_vars.yml              # OpenCHAMI auth/cert constants
+│
+├── input/                              # Default input templates
 │   ├── orchestrator_config.yml
 │   ├── network_spec.yml
 │   ├── pxe_mapping_file.csv
-│   ├── omnia_config.yml
-│   ├── storage_config.yml
-│   ├── security_config.yml
-│   ├── additional_cloud_init.yml
-│   └── high_availability_config.yml
+│   └── ...
+│
+├── docs/
+│   ├── ORCHESTRATOR_DESIGN.md          # This file
+│   └── ORCHESTRATOR_MODERNIZATION.md   # Architecture & implementation plan
+│
 ├── INPUT_CONTRACT.md
-├── OUTPUT_CONTRACT.md
-└── ORCHESTRATOR_DESIGN.md             # This file
+└── OUTPUT_CONTRACT.md
 ```
 
 ---
@@ -95,7 +131,7 @@ src/orchestrator/
 
 | Item | Value |
 |------|-------|
-| Main playbook | `orchestrator.yml` |
+| Main playbook | `playbooks/orchestrator.yml` |
 | Input config | `orchestrator_config.yml` |
 | Credential file | `omnia_config_credentials.yml` |
 | Credential key | `.omnia_config_credentials_key` |
@@ -106,10 +142,10 @@ src/orchestrator/
 ### Ansible Config (ansible.cfg)
 
 ```ini
-library = library/modules
-module_utils = library/module_utils
 roles_path = roles
-callback_plugins = callback_plugins
+library = plugins/modules
+module_utils = plugins/module_utils
+callback_plugins = plugins/callback
 ```
 
 All paths are fully local — **zero references to `../common/`**.
@@ -119,75 +155,75 @@ All paths are fully local — **zero references to `../common/`**.
 ## 4. End-to-End Execution Flow
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                           ORCHESTRATOR — EXECUTION FLOW                             │
-└─────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                         ORCHESTRATOR — EXECUTION FLOW                            │
+└──────────────────────────────────────────────────────────────────────────────────┘
 
-  ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐
-  │  User /  │      │  Setup   │      │ Validate │      │  Deploy  │      │ Provision│
-  │ omnia.sh │      │  Role    │      │  Role    │      │ OpenCHAMI│      │  Nodes   │
-  └────┬─────┘      └────┬─────┘      └────┬─────┘      └────┬─────┘      └────┬─────┘
-       │                 │                 │                 │                 │
-       │  Step 0: Setup  │                 │                 │                 │
-       │────────────────>│                 │                 │                 │
-       │                 │ ┌─────────────────────────────┐   │                 │
-       │                 │ │ 1. Upgrade guard check      │   │                 │
-       │                 │ │ 2. Load project config      │   │                 │
-       │                 │ │ 3. Load OIM metadata        │   │                 │
-       │                 │ │ 4. Create OIM host group    │   │                 │
-       │                 │ │ 5. Set guard facts          │   │                 │
-       │                 │ └─────────────────────────────┘   │                 │
-       │                 │                 │                 │                 │
-       │  Step 1: Validate                 │                 │                 │
-       │──────────────────────────────────>│                 │                 │
-       │                 │                 │ ┌─────────────────────────────┐   │
-       │                 │                 │ │ L1: Schema validation       │   │
-       │                 │                 │ │ L2: Cross-field logic       │   │
-       │                 │                 │ └─────────────────────────────┘   │
-       │                 │                 │                 │                 │
-       │  Step 2: Credentials              │                 │                 │
-       │────────────────────────────────────────────────────>│                 │
-       │                 │                 │                 │                 │
-       │  Step 3: Generate functional groups                 │                 │
-       │────────────────────────────────────────────────────>│                 │
-       │                 │                 │                 │                 │
-       │  Step 4: Configure S3 + Deploy OpenCHAMI            │                 │
-       │────────────────────────────────────────────────────>│                 │
-       │                 │                 │                 │                 │
-       │  Step 5: Provision nodes (BSS, cloud-init, services) │                │
-       │──────────────────────────────────────────────────────────────────────>│
-       │                 │                 │                 │                 │
-  ┌────┴─────┐      ┌────┴─────┐      ┌────┴─────┐      ┌────┴─────┐      ┌────┴─────┐
-  │  User /  │      │  Setup   │      │ Validate │      │  Deploy  │      │ Provision│
-  │ omnia.sh │      │  Role    │      │  Role    │      │ OpenCHAMI│      │  Nodes   │
-  └──────────┘      └──────────┘      └──────────┘      └──────────┘      └──────────┘
+  ┌─────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
+  │  Setup   │   │ Precheck │   │ Prepare  │   │  Deploy  │   │ Provision│
+  │ (always) │──>│ (read-   │──>│ (creds + │──>│ (services│──>│  (nodes) │
+  │          │   │  only)   │   │  config) │   │  + gates)│   │          │
+  └─────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘
+       │              │              │              │              │
+       │ Upgrade      │              │              │              │
+       │ guard,       │ L1 schema    │ Credential   │ S3 access    │ SSH keys
+       │ project      │ L2 logic     │ prompt/      │ OpenCHAMI    │ OpenCHAMI auth
+       │ dirs,        │ params       │ encrypt      │ containers   │ K8s/Slurm/
+       │ vars,        │ boot images  │ OpenLDAP     │ OpenLDAP     │ OS/custom
+       │ OIM group    │ OIM timezone │ dirs/TLS     │ container    │ provisioning
+       │ FG gen       │ LDAP prereqs │              │ Validate     │ Inventories
+       │              │              │              │ readiness    │ Validation
+       └──────────────┴──────────────┴──────────────┴──────────────┘
 
-Figure: orchestrator.yml execution flow
+  ┌──────────┐   ┌──────────┐   ┌──────────┐
+  │ PXE Boot │   │ Cleanup  │   │ Upgrade/ │
+  │ (opt-in) │   │ (opt-in) │   │ Rollback │
+  │          │   │          │   │ (opt-in) │
+  └──────────┘   └──────────┘   └──────────┘
+
+Figure: orchestrator.yml tag-based execution flow
 ```
 
-### Execution Steps
+### Component Mapping (tag → playbooks)
 
-| Step | Play | Host | Description |
-|------|------|------|-------------|
-| 0 | Setup | localhost | `orchestrator_setup` role — upgrade guard, dirs, metadata, OIM group |
-| 1 | Validate | localhost | `validate_orchestrator_input` role — L1 schema + L2 logic |
-| 2 | Credentials | localhost | `orchestrator_credentials` role — prompt, encrypt, vault |
-| 3 | Functional Groups | localhost | `orchestrator_functional_groups` role — generate from pxe_mapping |
-| 4a | S3 Access | oim (SSH) | `configure_s3_access.yml` — load build_status.yml, set s3_configurations |
-| 4b | Deploy OpenCHAMI | oim (SSH) | `deploy_openchami` role — OpenCHAMI containers |
-| 5a | Orchestrate | oim (SSH) | `configure_ochami` — BSS, cloud-init, node mapping |
-| 5b | Services | oim (SSH) | `mount_config`, `k8s_config`, `slurm_config`, `openldap`, `telemetry` |
+| Tag | OpenCHAMI Playbook | OpenLDAP Playbook |
+|-----|-------------------|-------------------|
+| `precheck` | `precheck/precheck_openchami.yml` | `precheck/precheck_openldap.yml` |
+| `prepare` | `prepare/prepare_openchami.yml` | `prepare/prepare_openldap.yml` |
+| `deploy` | `deploy/deploy_openchami.yml` + `validate/validate_openchami.yml` | `deploy/deploy_openldap.yml` + `validate/validate_openldap.yml` |
+| `provision` | `provision/provision_preamble.yml` + `provision_*.yml` | — |
+| `validate` | `validate/validate_openchami.yml` | `validate/validate_openldap.yml` + `validate/validate_provisioning.yml` |
+| `pxeboot` | `pxeboot/pxeboot.yml` | — |
+| `cleanup` | `cleanup/cleanup_openchami.yml` | `cleanup/cleanup_openldap.yml` |
+| `upgrade` | `upgrade/upgrade_openchami.yml` | `upgrade/upgrade_openldap.yml` |
+| `rollback` | `rollback/rollback_openchami.yml` | `rollback/rollback_openldap.yml` |
 
-### Tags
+### Execution Steps by Tag
 
-| Tag | What runs |
-|-----|-----------|
-| *(none)* | Full flow: setup → validate → credentials → deploy → provision |
-| `openchami` | Steps 0–4b (deploy OpenCHAMI only) |
-| `validate` | Steps 0–1 only (validation) |
-| `cleanup` | Cleanup OpenCHAMI, artifacts |
-| `upgrade` | Upgrade flow (placeholder) |
-| `rollback` | Rollback flow (placeholder) |
+#### Default (no tag): precheck + prepare + deploy + provision
+
+| Step | Phase | Play | Host | Description |
+|------|-------|------|------|-------------|
+| 0 | setup | Setup orchestrator environment | localhost | `orchestrator_setup` role — upgrade guard, dirs, metadata, OIM group |
+| 0 | setup | Generate functional groups | localhost | `orchestrator_functional_groups` role — generate from pxe_mapping |
+| 1 | precheck | Validate input configuration | localhost | `validate_orchestrator_input` role — L1 schema + L2 logic |
+| 2 | precheck | Validate parameters | localhost | `orchestrator_validations` role — mapping, software, images |
+| 3 | precheck | Validate OIM timezone | oim (SSH) | Timezone drift detection |
+| 4 | precheck | Validate boot images | oim (SSH) | S3 image availability per FG |
+| 5 | precheck | Validate OpenCHAMI config | localhost | Assert domain_name, admin_nic_ip, input files |
+| 6 | precheck | Validate OpenLDAP prereqs | localhost | Assert LDAP credentials, domain (when enabled) |
+| 7 | prepare | Credential management | localhost | `orchestrator_credentials` role — prompt, encrypt, vault |
+| 8 | prepare | Prepare OpenLDAP | oim (SSH) | Load creds, create dirs, TLS certs, template configs |
+| 9 | deploy | Configure S3 + Deploy OpenCHAMI | oim (SSH) | `deploy_openchami` role — OpenCHAMI containers |
+| 10 | deploy | Deploy OpenLDAP | oim (SSH) | `deploy_openldap` role — OpenLDAP container (when enabled) |
+| 11 | deploy | Validate OpenCHAMI readiness | oim (SSH) | Gate: SMD, BSS, cloud-init-server health |
+| 12 | deploy | Validate OpenLDAP readiness | oim (SSH) | Gate: LDAP container health (when enabled) |
+| 13 | provision | SSH preamble + auth | localhost + oim | `passwordless_ssh` + `openchami_auth` |
+| 14 | provision | Provision Kubernetes | oim (SSH) | Register K8s FGs, BSS/cloud-init, k8s bolt-ons |
+| 15 | provision | Provision Slurm | oim (SSH) | Register Slurm+Login FGs, BSS/cloud-init, slurm bolt-ons |
+| 16 | provision | Provision OS-only | oim (SSH) | Register OS FGs, BSS/cloud-init, minimal config |
+| 17 | provision | Provision custom | oim (SSH) | Register custom FGs, BSS/cloud-init, no bolt-ons |
+| 18 | provision | Validate provisioning | oim (SSH) | Generate inventories, verify SMD state |
 
 ---
 
@@ -200,43 +236,25 @@ All modules, module_utils, callback plugins, and roles are local.
 
 | Source (common) | Local Copy | Why |
 |-----------------|-----------|-----|
-| `common/callback_plugins/omnia_default.py` | `callback_plugins/omnia_default.py` | Stdout callback — needed by ansible.cfg |
-| `common/library/modules/generate_functional_groups.py` | `library/modules/generate_functional_groups.py` | Used by `orchestrator_functional_groups` role |
-| `common/library/modules/generate_xname_in_mapping_file.py` | `library/modules/generate_xname_in_mapping_file.py` | Used by `orchestrator_validations` role |
-| `common/library/modules/slurm_conf.py` | `library/modules/slurm_conf.py` | Used by `slurm_config` role |
-| `common/library/modules/fetch_credential_rule.py` | `library/modules/fetch_credential_rule.py` | Used by credential prompting (prompt_password/prompt_username) to validate input against `credential_rules.json` |
-| `common/library/modules/validate_credentials.py` | `library/modules/validate_credentials.py` | Used by credential validation to check credential fields against `credential_rules.json` |
-| `common/library/modules/generate_argon2_password.py` | `library/modules/generate_argon2_password.py` | Argon2 password hash generation for credential management |
-| `common/library/modules/fetch_telemetry_status.py` | `library/modules/fetch_telemetry_status.py` | Used by `orchestrator_credentials` pre-requisite to check telemetry status |
-| `common/library/module_utils/input_validation/schema/orchestrator_config.json` | `library/module_utils/orchestrator_validation/schema/orchestrator_config.json` | Orchestrator-specific schema |
-| `common/library/module_utils/input_validation/schema/network_spec.json` | `library/module_utils/orchestrator_validation/schema/network_spec.json` | Network spec schema |
-| `common/library/module_utils/input_validation/schema/credential_rules.json` | `library/module_utils/orchestrator_validation/schema/credential_rules.json` | Credential rules |
-| `common/library/module_utils/input_validation/common_utils/slurm_conf_utils.py` | `library/module_utils/slurm/slurm_conf_utils.py` | Slurm configuration parser |
-| *(new)* | `library/modules/validate_orchestrator_config.py` | Domain-specific validation module (L1+L2) |
-| *(new)* | `library/module_utils/orchestrator_validation/orchestrator_validation_flow.py` | Orchestrator L2 validation logic |
-| `common/vars/common_vars.yml` | `vars/common_vars.yml` | Shared constants (permissions, retries) |
+| `common/callback_plugins/omnia_default.py` | `plugins/callback/omnia_default.py` | Stdout callback — needed by ansible.cfg |
+| `common/library/modules/generate_functional_groups.py` | `plugins/modules/generate_functional_groups.py` | Used by `orchestrator_functional_groups` role |
+| `common/library/modules/generate_xname_in_mapping_file.py` | `plugins/modules/generate_xname_in_mapping_file.py` | Used by `orchestrator_validations` role |
+| `common/library/modules/slurm_conf.py` | `plugins/modules/slurm_conf.py` | Used by `slurm_config` role |
+| `common/library/modules/fetch_credential_rule.py` | `plugins/modules/fetch_credential_rule.py` | Used by credential prompting |
+| `common/library/modules/validate_credentials.py` | `plugins/modules/validate_credentials.py` | Used by credential validation |
+| `common/library/modules/generate_argon2_password.py` | `plugins/modules/generate_argon2_password.py` | Argon2 password hash generation |
+| `common/library/modules/fetch_telemetry_status.py` | `plugins/modules/fetch_telemetry_status.py` | Telemetry status check |
+| `common/library/module_utils/input_validation/schema/*.json` | `plugins/module_utils/orchestrator_validation/schema/*.json` | Orchestrator-specific schemas |
+| `common/vars/common_vars.yml` | `vars/common_vars.yml` | Shared constants |
 | `common/vars/openchami_vars.yml` | `vars/openchami_vars.yml` | OpenCHAMI auth constants |
-| `common/tasks/common/decrypt_include_encrypt.yml` | `tasks/decrypt_include_encrypt.yml` | Vault credential helper |
-| `common/vars/encrypt_files_vars.yml` | `vars/encrypt_files_vars.yml` | Error messages for vault ops |
+| *(new)* | `plugins/modules/validate_orchestrator_config.py` | Domain-specific validation module (L1+L2) |
+| *(new)* | `plugins/module_utils/orchestrator_validation/orchestrator_validation_flow.py` | Orchestrator L2 validation logic |
 
-### 5.2 What Was Eliminated (Not Needed)
-
-| Dependency | Reason Not Needed |
-|------------|-------------------|
-| `../playbooks/utils/upgrade_checkup.yml` | Absorbed into `orchestrator_setup` role |
-| `../playbooks/utils/include_input_dir.yml` | Absorbed into `orchestrator_setup` role |
-| `../playbooks/utils/create_container_group.yml` | Absorbed into `orchestrator_setup` role |
-| `../playbooks/utils/generate_functional_groups.yml` | Replaced by `orchestrator_functional_groups` role |
-| `../playbooks/input_validation/validate_config.yml` | Replaced by `validate_orchestrator_input` role |
-| `../playbooks/utils/credential_utility/` | Replaced by `orchestrator_credentials` role |
-| `tasks/clone_dependencies.yml` (rsync common/) | Eliminated — all deps local |
-
-### 5.3 Verification
+### 5.2 Verification
 
 ```bash
-# Confirm zero external references in ansible.cfg
+# Confirm zero external references
 grep -c '\.\./common' src/orchestrator/ansible.cfg             # expect: 0
-grep -c '\.\./common' src/orchestrator/playbooks/ansible.cfg   # expect: 0
 grep -c 'playbooks/utils' src/orchestrator/**/*.yml            # expect: 0
 ```
 
@@ -272,6 +290,7 @@ functional_group_images:
 **Location**: `output/project_default/orchestrator/`
 
 - `functional_groups_config.yml` — Generated functional groups
+- `orchestrator_state.yml` — Support flags for standalone runs
 - BSS boot parameter configurations
 - Cloud-init default/group/node configurations
 - `/opt/omnia/hosts` — Ansible inventory
@@ -347,22 +366,35 @@ Return keys: `validation_failed`, `errors`, `valid_files`, `invalid_files`, `log
 
 ## 9. Tag Support
 
-| Tag | Supported | Description |
-|-----|-----------|-------------|
-| `prepare` | ✅ | Deploy OpenCHAMI + S3 setup |
-| `provision` | ✅ | Provision nodes |
-| `pxe` | ✅ | PXE boot only |
-| `cleanup` | ✅ | Cleanup OpenCHAMI + artifacts |
-| `validate` | ✅ | Validate config only |
-| `upgrade` | ✅ | Upgrade flow |
-| `rollback` | ✅ | Rollback flow |
+### 9.1 Supported Tags
 
-### Invalid Combinations
+| Tag | Type | Description |
+|-----|------|-------------|
+| *(none)* | Default | Full flow: precheck + prepare + deploy + provision |
+| `precheck` | Read-only | Validate inputs, parameters, boot images (no system changes) |
+| `prepare` | Preparation | Credential management, FG generation, OpenLDAP config prep |
+| `deploy` | Deployment | Deploy OpenCHAMI + OpenLDAP containers, validate readiness gates |
+| `provision` | Provisioning | SSH preamble, provision K8s/Slurm/OS/custom, validate provisioning |
+| `validate` | Validation | Validate OpenCHAMI + OpenLDAP readiness + provisioning state |
+| `pxeboot` | Opt-in | PXE boot on iDRAC nodes (physical servers only) |
+| `cleanup` | Opt-in | Remove OpenCHAMI + OpenLDAP services, containers, artifacts |
+| `upgrade` | Opt-in | In-place upgrade of OpenCHAMI + OpenLDAP |
+| `rollback` | Opt-in | Revert OpenCHAMI + OpenLDAP to previous state from backup |
 
-`prepare+cleanup`, `provision+cleanup`, `pxe+cleanup`, `prepare+upgrade`,
+### 9.2 Invalid Combinations
+
+`precheck+cleanup`, `prepare+cleanup`, `deploy+cleanup`, `provision+cleanup`,
+`pxeboot+cleanup`, `precheck+upgrade`, `prepare+upgrade`, `deploy+upgrade`,
 `provision+upgrade`, `cleanup+upgrade`, `upgrade+rollback`.
 
-Credential prompting is skipped for `cleanup` and `validate` tags.
+### 9.3 Credential Skipping
+
+Credential prompting is skipped for `precheck`, `cleanup`, and `validate` tags.
+
+### 9.4 Opt-In Tags
+
+`pxeboot`, `cleanup`, `upgrade`, and `rollback` use the `never` tag to prevent
+accidental execution during the default flow. They must be explicitly requested.
 
 ---
 
@@ -376,7 +408,8 @@ Credential prompting is skipped for `cleanup` and `validate` tags.
 | Validation flow | `<domain>_validation_flow.py` | `orchestrator_validation_flow.py` |
 | Schema dir | `<domain>_validation/schema/` | `orchestrator_validation/schema/` |
 | Credential file | `omnia_config_credentials.yml` | Shared naming |
-| Sub-playbooks | `<verb>_<domain>.yml` | `prepare_orchestrator.yml` |
+| Phase directories | `<phase>/` | `precheck/`, `prepare/`, `deploy/`, `cleanup/` |
+| Component playbooks | `<phase>_<component>.yml` | `precheck_openchami.yml`, `cleanup_openldap.yml` |
 | Log path | `/opt/omnia/log/core/<domain>/` | `/opt/omnia/log/core/orchestrator/` |
 
 ---
@@ -387,3 +420,4 @@ Credential prompting is skipped for `cleanup` and `validate` tags.
 - `orchestrator_config.yml` is **required** — no legacy fallback.
 - Sub-playbooks work independently with standalone setup guards.
 - All `../playbooks/utils/` references eliminated.
+- Each validate playbook includes its own `orchestrator_setup` always-tagged play for standalone use.

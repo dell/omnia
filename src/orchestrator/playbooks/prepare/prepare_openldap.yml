@@ -1,0 +1,117 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Prepare OpenLDAP --- Validate credentials and prepare configuration
+# Can be run standalone or imported by orchestrator.yml
+#
+# This playbook performs OpenLDAP preparation steps required before deployment.
+# No deployment or installation actions are performed here.
+# Skipped entirely when openldap_support is false.
+#
+# Steps:
+#   1. Load and validate OpenLDAP credentials from encrypted store
+#   2. Set LDAP configuration facts (base DN, server IP, connection type)
+#   3. Create OpenLDAP directory structure
+#   4. Generate TLS certificates
+#   5. Template OpenLDAP configuration files (slapd.conf, bootstrap.ldif)
+#
+# Prerequisites: prepare_openchami.yml must have run first (for credentials).
+
+- name: Prepare OpenLDAP configuration
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tasks:
+    - name: Skip OpenLDAP prepare when not enabled
+      ansible.builtin.debug:
+        msg: "OpenLDAP support is disabled. Skipping prepare."
+      when: not (hostvars['localhost']['openldap_support'] | default(false) | bool)
+
+    - name: Prepare OpenLDAP environment
+      when: hostvars['localhost']['openldap_support'] | default(false) | bool
+      block:
+        - name: Load OpenLDAP credentials from encrypted store
+          ansible.builtin.include_role:
+            name: orchestrator_common
+            tasks_from: decrypt_include_encrypt.yml
+          vars:
+            credential_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml"
+            vault_password_file: "{{ hostvars['localhost']['input_project_dir'] }}/.omnia_config_credentials_key"
+
+        - name: Assert OpenLDAP credentials are available
+          ansible.builtin.assert:
+            that:
+              - openldap_db_username is defined
+              - openldap_db_username | length > 0
+              - openldap_db_password is defined
+              - openldap_db_password | length > 0
+            fail_msg: >-
+              OpenLDAP credentials (openldap_db_username, openldap_db_password) are
+              required. Run 'ansible-playbook orchestrator.yml --tags prepare' to be
+              prompted for credentials.
+            quiet: true
+
+        - name: Set OpenLDAP configuration facts
+          ansible.builtin.set_fact:
+            ldap_search_base: "{{ (hostvars['localhost']['domain_name'].split('.') | map('regex_replace', '^', 'dc=') | list) | join(',') }}"
+            ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
+            ldap_connection_type: "{{ hostvars['localhost']['ldap_connection_type'] | default('TLS') }}"
+            domain_name: "{{ hostvars['localhost']['domain_name'] }}"
+
+        - name: Include deploy_openldap vars for directory paths
+          ansible.builtin.include_vars:
+            file: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}/roles/deploy_openldap/vars/main.yml"
+
+        - name: Create OpenLDAP directories
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: directory
+            owner: root
+            group: root
+            mode: "0755"
+          loop:
+            - "{{ auth_base_dir }}"
+            - "{{ auth_config_dir }}"
+            - "{{ auth_certs_dir }}"
+            - "{{ auth_data_dir }}"
+            - "{{ auth_init_dir }}"
+
+        - name: Generate TLS certificates
+          ansible.builtin.include_role:
+            name: deploy_openldap
+            tasks_from: generate_tls_certs.yml
+
+        - name: Template slapd.conf
+          ansible.builtin.template:
+            src: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}/roles/deploy_openldap/templates/slapd.conf.j2"
+            dest: "{{ auth_config_dir }}/slapd.conf"
+            owner: root
+            group: root
+            mode: "0600"
+          no_log: true
+
+        - name: Template bootstrap.ldif
+          ansible.builtin.template:
+            src: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}/roles/deploy_openldap/templates/bootstrap.ldif.j2"
+            dest: "{{ auth_init_dir }}/bootstrap.ldif"
+            owner: root
+            group: root
+            mode: "0644"
+
+        - name: Prepare OpenLDAP completed
+          ansible.builtin.debug:
+            msg: >-
+              OpenLDAP preparation complete. Directories created, TLS certificates
+              generated, configuration files templated at {{ auth_base_dir }}.

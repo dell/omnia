@@ -41,6 +41,8 @@
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
     - "{{ playbook_dir | dirname | dirname }}/vars/credential_vars.yml"
+  environment:
+    PULP_CA_BUNDLE: "{{ pulp_server_crt }}"
   tasks:
     # -------------------------------------------------------------------------
     # PHASE 0: SETUP PULP CLI
@@ -124,11 +126,9 @@
     # -------------------------------------------------------------------------
     # PHASE 2: CREDENTIALS
     # -------------------------------------------------------------------------
-    - name: Load credentials
+    - name: Load and reconcile credentials
       ansible.builtin.include_role:
-        name: ../../roles/credential
-      vars:
-        credential_action: all
+        name: ../../roles/collect_repo_credentials
 
     # -------------------------------------------------------------------------
     # PHASE 3: RHEL SUBSCRIPTION CHECK
@@ -205,13 +205,13 @@
     - name: Set SELinux context for Local flow
       ansible.builtin.command: >-
         chcon -R system_u:object_r:container_file_t:s0
-        "{{ oim_shared_path }}/repo_manager/"
+        "{{ repo_manager_runtime_dir }}/"
       changed_when: true
       failed_when: false
       when:
         - pulp_validation_passed | default(false)
         - omnia_share_option == 'Local'
-        - oim_shared_path | length > 0
+        - repo_manager_runtime_dir | length > 0
 
     - name: Set SELinux context for NFS internal flow
       ansible.builtin.command: >-
@@ -271,12 +271,10 @@
       generate_local_repo_access:
         pulp_server_ip: "{{ pulp_server_ip }}"
         pulp_server_port: "{{ pulp_server_port | int }}"
-        pulp_protocol: "{{ pulp_protocol }}"
         cluster_os_type: "{{ cluster_os_type }}"
         cluster_os_version: "{{ cluster_os_version }}"
         repo_config: "{{ repo_config | default('partial') }}"
         output_path: "{{ output_dir }}/repo_status.yml"
-        certs_dir: "{{ pulp_certs_dir }}"
         local_repo_config_path: "{{ input_project_dir }}/repo_manager_config.yml"
         overall_status: "{{ 'success' if final_status | default('') | lower == 'success' else 'failed' }}"
       when:

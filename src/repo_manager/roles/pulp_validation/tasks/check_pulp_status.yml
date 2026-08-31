@@ -54,7 +54,8 @@
       ansible.builtin.uri:
         url: "{{ pulp_status_url }}"
         method: GET
-        validate_certs: false
+        validate_certs: true
+        ca_path: "{{ pulp_server_crt }}"
         return_content: true
         status_code: [200]
       register: result

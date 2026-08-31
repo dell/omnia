@@ -1,112 +1,77 @@
-# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
-#
-#  Licensed under the Apache License, Version 2.0 (the "License");
-#  you may not use this file except in compliance with the License.
-#  You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
-
 ---
-- name: Create directories for Pulp in shared storage
+- name: Create Pulp runtime directories
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: directory
     mode: "{{ item.mode }}"
   loop: "{{ pulp_directories_https }}"
 
-- name: Create nginx.conf file for Pulp
-  ansible.builtin.template:
-    src: "{{ nginx_conf_path }}"
-    dest: "{{ nginx_conf_dest }}"
-    mode: "{{ pulp_dir_permissions }}"
+- name: Remove obsolete Pulp HTTP and custom nginx artifacts
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ pulp_legacy_deployment_paths }}"
 
-- name: Create settings.py for Pulp
+- name: Prepare persistent Pulp secret key
+  ansible.builtin.include_tasks: prepare_secret.yml
+
+- name: Prepare Pulp TLS certificate
+  ansible.builtin.include_tasks: prepare_tls.yml
+
+- name: Render Pulp settings
   ansible.builtin.template:
-    src: "{{ settings_tmp_path }}"
+    src: settings_template.j2
     dest: "{{ settings_py_path }}"
-    mode: "{{ pulp_dir_permissions }}"
+    mode: "{{ pulp_settings_permissions }}"
+  register: _pulp_settings_render
+  no_log: true
 
-- name: Deploy Pulp container and check deployment status
-  block:
-    - name: Create quadlet file
-      ansible.builtin.template:
-        src: "https_quadlet.j2"
-        dest: "/etc/containers/systemd/{{ pulp_container_name }}.container"
-        mode: "0644"
-      register: quad_out
+- name: Deploy Pulp HTTPS Quadlet
+  ansible.builtin.template:
+    src: https_quadlet.j2
+    dest: "/etc/containers/systemd/{{ pulp_container_name }}.container"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  register: _pulp_quadlet_render
+  notify: reload pulp systemd
 
-    - name: Reload daemon if changes
-      ansible.builtin.systemd_service:
-        daemon_reload: true
-      when: quad_out.changed  # noqa: no-handler
+- name: Apply pending trust and systemd changes
+  ansible.builtin.meta: flush_handlers
 
-    - name: Make sure container unit is running
-      ansible.builtin.systemd_service:
-        state: started
-        name: "{{ pulp_container_name }}"
-        enabled: true
+- name: Start or restart Pulp service and enable it for reboot
+  ansible.builtin.systemd_service:
+    name: "{{ pulp_container_name }}.service"
+    state: >-
+      {{ 'restarted'
+         if ((_pulp_settings_render.changed | default(false)) or
+             (_pulp_quadlet_render.changed | default(false)) or
+             (_pulp_certificate_generation.changed | default(false)))
+         else 'started' }}
+    enabled: true
 
-    - name: Check if Pulp container is already running
-      containers.podman.podman_container_info:
-        name: "{{ pulp_container_name }}"
-      register: pulp_running_check
-      failed_when: false
+- name: Wait for the Pulp HTTPS API
+  ansible.builtin.uri:
+    url: "{{ pulp_status_url }}"
+    validate_certs: true
+    ca_path: "{{ pulp_server_crt }}"
+    timeout: 30
+    status_code: 200
+  register: _pulp_deployment_api
+  retries: "{{ endpoint_retries }}"
+  delay: "{{ endpoint_delay }}"
+  until: _pulp_deployment_api.status | default(-1) == 200
 
-    - name: Check current timeout setting in running Pulp container
-      containers.podman.podman_container_exec:
-        name: "{{ pulp_container_name }}"
-        command: python3 -c "import aiohttp; print(aiohttp.client.DEFAULT_TIMEOUT.total if hasattr(aiohttp.client, 'DEFAULT_TIMEOUT') else 'not_set')"
-      register: current_timeout
-      failed_when: false
-      when:
-        - pulp_running_check.containers | length > 0
-        - pulp_running_check.containers[0].State.Status == 'running'
-
-    - name: Determine if timeout is already correct
-      ansible.builtin.set_fact:
-        timeout_correct: "{{ (current_timeout.rc | default(1) == 0) and (current_timeout.stdout | default('') | trim == '7200') }}"
-
-    - name: Restart pulp container
-      ansible.builtin.systemd_service:
-        state: restarted
-        name: "{{ pulp_container_name }}"
-      when: quad_out.changed or not timeout_correct  # noqa: no-handler
-
-    - name: Check if Pulp container is running after deployment
-      containers.podman.podman_container_info:
-        name: "{{ pulp_container_name }}"
-      register: pulp_container_status
-
-    - name: Notify user of Pulp container deployment status
-      ansible.builtin.debug:
-        msg: "{{ pulp_deployed_msg }}"
-      when:
-        - pulp_container_status.containers | length > 0
-        - pulp_container_status.containers[0].State.Status == 'running'
-
-  rescue:
-    - name: Pulp container deployment failed
-      ansible.builtin.fail:
-        msg: "{{ pulp_deployed_fail_msg }}"
-
-- name: Set fact for container status
-  ansible.builtin.set_fact:
-    pulp_container_status: >-
-      {{ pulp_container_status.containers[0].State.Status
-         if (pulp_container_status is defined and
-             pulp_container_status.containers | length > 0)
-         else 'not_running' }}
-
-- name: Reset Pulp Password
-  containers.podman.podman_container_exec:
+- name: Inspect deployed Pulp container
+  containers.podman.podman_container_info:
     name: "{{ pulp_container_name }}"
-    command: "{{ reset_password_cmd }}"
-  retries: "{{ retries_var }}"
-  delay: "{{ delay_var }}"
-  when: pulp_password | length > 1
+  register: _pulp_deployed_container
+
+- name: Verify deployed Pulp container is running
+  ansible.builtin.assert:
+    that:
+      - (_pulp_deployed_container.containers | default([]) | length) > 0
+      - _pulp_deployed_container.containers[0].State.Status | default('') == 'running'
+    fail_msg: "Pulp container {{ pulp_container_name }} is not running after deployment."
+    success_msg: "{{ pulp_deployed_msg }}"

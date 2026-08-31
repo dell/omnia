@@ -16,7 +16,7 @@
 # Deploy OpenCHAMI — Configure S3 access + deploy OpenCHAMI containers on OIM
 # Can be run standalone or imported by orchestrator.yml
 #
-# Prerequisites: prepare_orchestrator.yml must have run first.
+# Prerequisites: precheck + prepare phases must have run first.
 
 - name: Configure S3 access from build_status.yml
   hosts: oim

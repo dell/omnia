@@ -18,16 +18,22 @@ General settings and constants for Ansible repo_manager module utilities.
 """
 
 import os
+import logging
 import yaml
 
 from ansible.module_utils.repo_manager.repo_paths import (
     OMNIA_BASE_DIR,
+    REPO_MANAGER_RUNTIME_DIR,
     PROJECT_DEFAULT_DIR,
     REPO_MANAGER_LOG_DIR,
 )
 
+logger = logging.getLogger(__name__)
+
 # Configuration file path
-CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "vars", "default.yml")
+CONFIG_FILE_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "vars", "default.yml")
+)
 
 def load_config():
     """
@@ -38,7 +44,7 @@ def load_config():
     """
     try:
         if os.path.exists(CONFIG_FILE_PATH):
-            with open(CONFIG_FILE_PATH, 'r') as f:
+            with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as f:
                 return yaml.safe_load(f) or {}
     except Exception:
         pass
@@ -98,15 +104,20 @@ def _get_nested_value(dct, keys):
 # ----------------------------
 DEFAULT_NTHREADS = get_config_value('parallel_config.default_nthreads', 1, 'REPO_MANAGER_NTHREADS')
 DEFAULT_TIMEOUT = get_config_value('parallel_config.default_timeout_seconds', 60, 'REPO_MANAGER_TIMEOUT')
+DNF_MAX_CONCURRENT_COMMANDS = get_config_value(
+    'dnf_config.max_concurrent_commands', 1,
+    'REPO_MANAGER_DNF_MAX_CONCURRENT_COMMANDS'
+)
 # nosec B108 - These are default paths, actual paths are configurable via parameters
 LOG_DIR_DEFAULT = os.path.join(REPO_MANAGER_LOG_DIR, "thread_logs")  # nosec B108
 DEFAULT_LOG_FILE = os.path.join(REPO_MANAGER_LOG_DIR, "task_results_table.log")  # nosec B108
-DEFAULT_SLOG_FILE = os.path.join(REPO_MANAGER_LOG_DIR, "stask_results_table.log")  # nosec B108
+# setup_standard_logger expects a directory and creates standard.log inside it.
+DEFAULT_SLOG_FILE = REPO_MANAGER_LOG_DIR
 CSV_FILE_PATH_DEFAULT = [
     os.path.join(REPO_MANAGER_LOG_DIR, "x86_64/status_results_table.csv"),  # nosec B108
     os.path.join(REPO_MANAGER_LOG_DIR, "aarch64/status_results_table.csv")  # nosec B108
 ]
-DEFAULT_REPO_STORE_PATH = OMNIA_BASE_DIR
+DEFAULT_REPO_STORE_PATH = REPO_MANAGER_RUNTIME_DIR
 DEFAULT_STATUS_FILENAME = "status.csv"
 STATUS_CSV_HEADER = 'name,type,repo_name,status,catalog_name\n'
 SOFTWARE_CSV_HEADER = "name,status"
@@ -126,7 +137,9 @@ PACKAGE_TYPES = ['rpm', 'deb', 'tarball', 'image', 'manifest', 'git',
 CSV_COLUMNS = {"column1": "name", "column2": "status"}
 SOFTWARES_KEY = "softwares"
 RPM_LABEL_TEMPLATE = "RPMs for {key}"
-ARCH_SUFFIXES = {"x86_64", "aarch64"}
+# Keep architecture traversal deterministic.  Several catalog operations use
+# first-wins deduplication, so a set here can change ownership between runs.
+ARCH_SUFFIXES = ("x86_64", "aarch64")
 
 # Target OS -> Python version mapping for pip cross-version downloads.
 OS_TARGET_PYTHON = {
@@ -167,7 +180,15 @@ POLICY_CACHING_MAP = {
 # ----------------------------
 # Cleanup File Types
 # ----------------------------
-CLEANUP_FILE_TYPES = ["iso", "manifest", "pip_module", "tarball", "git", "ansible_galaxy_collection"]
+CLEANUP_FILE_TYPES = [
+    "iso",
+    "manifest",
+    "pip_module",
+    "tarball",
+    "git",
+    "shell",
+    "ansible_galaxy_collection",
+]
 
 # ----------------------------
 # Timeouts and Polling
@@ -358,6 +379,7 @@ def get_container_sync_policy(config_data):
 __all__ = [
     "DEFAULT_NTHREADS",
     "DEFAULT_TIMEOUT",
+    "DNF_MAX_CONCURRENT_COMMANDS",
     "LOG_DIR_DEFAULT",
     "DEFAULT_LOG_FILE",
     "DEFAULT_SLOG_FILE",

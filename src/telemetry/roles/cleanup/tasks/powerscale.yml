@@ -91,3 +91,9 @@
 - name: PowerScale | Cleanup complete
   ansible.builtin.debug:
     msg: "PowerScale telemetry cleanup completed"
+
+- name: "Powerscale | Register cleanup result"
+  ansible.builtin.set_fact:
+    _cleanup_result_powerscale: "cleaned"
+  delegate_to: localhost
+  delegate_facts: true

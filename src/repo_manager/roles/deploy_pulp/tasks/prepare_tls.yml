@@ -1,0 +1,153 @@
+---
+- name: Inspect existing Pulp TLS files
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ pulp_server_crt }}"
+    - "{{ pulp_server_key }}"
+  register: _pulp_tls_files
+
+- name: Check existing certificate expiry
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -checkend
+      - "{{ cert_renewal_threshold_seconds | string }}"
+      - -noout
+      - -in
+      - "{{ pulp_server_crt }}"
+  register: _pulp_cert_expiry
+  changed_when: false
+  failed_when: false
+  when: _pulp_tls_files.results[0].stat.exists
+
+- name: Check existing certificate IP identity
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -checkip
+      - "{{ pulp_server_ip }}"
+      - -noout
+      - -in
+      - "{{ pulp_server_crt }}"
+  register: _pulp_cert_identity
+  changed_when: false
+  failed_when: false
+  when: _pulp_tls_files.results[0].stat.exists
+
+- name: Check existing certificate trust purposes
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -purpose
+      - -noout
+      - -in
+      - "{{ pulp_server_crt }}"
+  register: _pulp_cert_purposes
+  changed_when: false
+  failed_when: false
+  when: _pulp_tls_files.results[0].stat.exists
+
+- name: Read existing certificate public key
+  ansible.builtin.command:
+    argv: [openssl, x509, -pubkey, -noout, -in, "{{ pulp_server_crt }}"]
+  register: _pulp_cert_public_key
+  changed_when: false
+  failed_when: false
+  when: _pulp_tls_files.results[0].stat.exists
+  no_log: true
+
+- name: Read existing private key public key
+  ansible.builtin.command:
+    argv: [openssl, pkey, -pubout, -in, "{{ pulp_server_key }}"]
+  register: _pulp_private_public_key
+  changed_when: false
+  failed_when: false
+  when: _pulp_tls_files.results[1].stat.exists
+  no_log: true
+
+- name: Determine whether the existing Pulp certificate is reusable
+  ansible.builtin.set_fact:
+    _pulp_certificate_valid: >-
+      {{ _pulp_tls_files.results[0].stat.exists and
+         _pulp_tls_files.results[1].stat.exists and
+         (_pulp_cert_expiry.rc | default(1)) == 0 and
+         (_pulp_cert_identity.rc | default(1)) == 0 and
+         (_pulp_cert_purposes.rc | default(1)) == 0 and
+         'SSL server CA : Yes' in (_pulp_cert_purposes.stdout | default('')) and
+         (_pulp_cert_public_key.rc | default(1)) == 0 and
+         (_pulp_private_public_key.rc | default(1)) == 0 and
+         (_pulp_cert_public_key.stdout | default('')) ==
+         (_pulp_private_public_key.stdout | default('')) }}
+
+- name: Generate Pulp TLS private key
+  community.crypto.openssl_privatekey:
+    path: "{{ pulp_server_key }}"
+    type: RSA
+    size: 3072
+    mode: "{{ pulp_private_key_permissions }}"
+    force: true
+  when: not _pulp_certificate_valid
+  no_log: true
+
+- name: Generate Pulp TLS certificate request
+  community.crypto.openssl_csr:
+    path: "{{ pulp_server_csr }}"
+    privatekey_path: "{{ pulp_server_key }}"
+    common_name: "{{ pulp_server_ip }}"
+    subject_alt_name: "{{ cert_subject_alt_names }}"
+    use_common_name_for_san: false
+    basic_constraints:
+      - "CA:TRUE"
+    basic_constraints_critical: true
+    key_usage:
+      - digitalSignature
+      - keyEncipherment
+      - keyCertSign
+    key_usage_critical: true
+    extended_key_usage:
+      - serverAuth
+    mode: "{{ pulp_csr_permissions }}"
+    force: true
+  when: not _pulp_certificate_valid
+
+- name: Generate self-signed Pulp TLS certificate
+  community.crypto.x509_certificate:
+    path: "{{ pulp_server_crt }}"
+    privatekey_path: "{{ pulp_server_key }}"
+    csr_path: "{{ pulp_server_csr }}"
+    provider: selfsigned
+    selfsigned_not_after: "+{{ cert_validity_days }}d"
+    mode: "{{ pulp_certificate_permissions }}"
+    force: true
+  register: _pulp_certificate_generation
+  when: not _pulp_certificate_valid
+
+- name: Enforce Pulp TLS file permissions
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: file
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ pulp_server_crt }}", mode: "{{ pulp_certificate_permissions }}" }
+    - { path: "{{ pulp_server_key }}", mode: "{{ pulp_private_key_permissions }}" }
+
+- name: Remove obsolete Pulp certificate trust anchors
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ pulp_legacy_ca_trust_files }}"
+  notify: update pulp certificate trust
+
+- name: Install Pulp certificate in the system trust store
+  ansible.builtin.copy:
+    src: "{{ pulp_server_crt }}"
+    dest: "{{ pulp_ca_trust_file }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "{{ pulp_certificate_permissions }}"
+  notify: update pulp certificate trust

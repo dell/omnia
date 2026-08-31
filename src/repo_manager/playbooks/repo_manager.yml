@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# The usage examples intentionally remain on one line so users can copy each
+# command without losing continuation arguments to YAML comment prefixes.
+# yamllint disable rule:line-length
 # =============================================================================
 # REPO MANAGER TOP-LEVEL PLAYBOOK
 # =============================================================================
@@ -24,49 +27,110 @@
 #   OMNIA_DATA_PATH       - Optional: Data path (default: /opt/omnia)
 #
 # Usage:
-#   # Prepare credentials and deploy Pulp server
-#   ansible-playbook repo_manager.yml --tags prepare
-#   ansible-playbook repo_manager.yml --tags prepare -e pulp_password='your_password'
+#   Every example below is a single shell command. When copying directly from
+#   this YAML source file, omit the leading "#   " comment prefix.
 #
-#   # Precheck inputs
+#   # Prepare credentials and deploy the Pulp server.
+#   # If pulp_password is omitted, Repo Manager collects or reuses credentials.
+#   ansible-playbook repo_manager.yml --tags prepare
+#   ansible-playbook repo_manager.yml --tags prepare -e "pulp_password=your_password"
+#
+#   # Validate the environment, catalog and Repo Manager input files.
 #   ansible-playbook repo_manager.yml --tags precheck
 #
-#   # Download and sync packages/repositories
+#   # Download and synchronize catalog packages and repositories to Pulp.
 #   ansible-playbook repo_manager.yml --tags download
 #
-#   # Generate repo_status.yml
+#   # Refresh RPM repositories that are already synchronized. Repo Manager asks
+#   # Pulp to check the selected upstream remotes for new or changed packages.
+#   # If repository content changes, the publication and distribution are
+#   # updated automatically while the existing distribution URL is preserved.
+#   ansible-playbook repo_manager.yml --tags download -e "resync_repos=all"
+#
+#   # Refresh one or more RPM repositories. Use the complete, case-sensitive
+#   # Pulp name: <arch>_<os>_<version>_<repo>.
+#   ansible-playbook repo_manager.yml --tags download -e "resync_repos=x86_64_rhel_10.0_ldms"
+#   ansible-playbook repo_manager.yml --tags download -e "resync_repos=x86_64_rhel_10.0_baseos,x86_64_rhel_10.0_appstream"
+#   # resync_repos applies to RPM repositories; it does not force container,
+#   # File or Python content to resynchronize.
+#
+#   # Generate repo_status.yml from the current synchronized content.
 #   ansible-playbook repo_manager.yml --tags status
 #
-#   # Cleanup Pulp server (full cleanup - removes container, data, logs)
+#   # Remove the complete Pulp deployment, including its container, image,
+#   # runtime data and CLI configuration. Credential deletion is interactive
+#   # unless cleanup_credentials is explicitly set.
 #   ansible-playbook repo_manager.yml --tags cleanup_pulp
-#   ansible-playbook repo_manager.yml --tags cleanup_pulp -e cleanup_logs=false
-#   ansible-playbook repo_manager.yml --tags cleanup_pulp -e cleanup_credentials=false
+#   ansible-playbook repo_manager.yml --tags cleanup_pulp -e "cleanup_credentials=true"
+#   ansible-playbook repo_manager.yml --tags cleanup_pulp -e "cleanup_logs=false"
+#   ansible-playbook repo_manager.yml --tags cleanup_pulp -e "cleanup_logs=false" -e "cleanup_credentials=false"
 #
-#   # Cleanup specific repositories (selective cleanup)
+#   # Selective artifact cleanup prompts for confirmation. Add -e "force=true"
+#   # only when the requested destructive scope has already been reviewed.
+#
+#   # Selectively remove one or more RPM repositories.
+#   # Use the complete Pulp repository name: <arch>_<os>_<version>_<repo>.
 #   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_repos=x86_64_rhel_10.0_epel"
 #   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_repos=x86_64_rhel_10.0_epel,aarch64_rhel_10.0_epel"
+#
+#   # Remove only one container tag. Other tags in the same image repository
+#   # remain available. In this example, config-reloader-v0.68.3 is preserved.
+#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_containers=docker.io/victoriametrics/operator:v0.68.3"
+#
+#   # Remove multiple exact tags from the same image repository.
+#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_containers=docker.io/victoriametrics/operator:v0.68.3,docker.io/victoriametrics/operator:config-reloader-v0.68.3"
+#
+#   # An untagged image removes the complete container repository, including
+#   # all its tags, distribution and remote.
 #   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_containers=docker.io/library/nginx"
-#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_files=git,chart-0.48.0"
-#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_repos=all" -e force=true
 #
-#   # Full workflow: precheck -> prepare -> download -> status
-#   ansible-playbook repo_manager.yml --tags "precheck,prepare,download,status"
+#   # Remove selected File/Python artifacts by their exact catalog names.
+#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_files=helm-charts-2.17.0,helm-v3.20.1-amd64"
 #
-#   # Run all operations (except cleanup)
+#   # Remove all artifacts of one type. force=true skips the confirmation prompt.
+#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_repos=all" -e "force=true"
+#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_containers=all" -e "force=true"
+#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_files=all" -e "force=true"
+#
+#   # Remove all RPM, container, File and Python repositories from Pulp.
+#   # This does not remove the Pulp deployment itself.
+#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_repos=all" -e "cleanup_containers=all" -e "cleanup_files=all" -e "force=true"
+#
+#   # Run the standard workflow. Plays execute in their order in this file:
+#   # environment precheck -> prepare -> input precheck -> download -> status.
+#   ansible-playbook repo_manager.yml --tags "prepare,precheck,download,status"
+#
+#   # Run all standard operations. Cleanup, catalog, upgrade and rollback plays
+#   # use the never tag and are not selected by this command.
 #   ansible-playbook repo_manager.yml --skip-tags cleanup
 #
-#   # Upgrade repo_manager (placeholder)
+#   # Upgrade Repo Manager (placeholder).
 #   ansible-playbook repo_manager.yml --tags upgrade
 #
-#   # Rollback repo_manager (placeholder)
+#   # Roll back Repo Manager (placeholder).
 #   ansible-playbook repo_manager.yml --tags rollback
+#
+#   # Cleanup logs and results (OMNIA_DATA_PATH defaults to /opt/omnia):
+#   # Top-level playbook log:
+#   #   /var/log/omnia/repo_manager/repo_manager.log
+#   # Selective cleanup detail log:
+#   #   <OMNIA_DATA_PATH>/repo_manager/log/<os>/<version>/cleanup/standard.log
+#   # Selective cleanup result table:
+#   #   <OMNIA_DATA_PATH>/repo_manager/log/<os>/<version>/cleanup/cleanup_status.csv
+#   # Direct cleanup playbook log (when run from playbooks/cleanup/):
+#   #   /var/log/omnia/repo_manager/cleanup.log
+#   # Full Pulp cleanup removes <OMNIA_DATA_PATH>/repo_manager/log by default.
+#   # Use -e "cleanup_logs=false" to preserve existing Repo Manager runtime logs.
 #
 #   # Catalog operations
 #   ansible-playbook repo_manager.yml --tags catalog_generate -e "input_file=input/packages.txt"
 #   ansible-playbook repo_manager.yml --tags catalog_add -e "input_file=input/additions.txt"
 #   ansible-playbook repo_manager.yml --tags catalog_delete -e "input_file=input/removals.txt"
 #   ansible-playbook repo_manager.yml --tags catalog_validate
+#   ansible-playbook repo_manager.yml --tags catalog_transform -e "input_file=input/catalog_1.0.json"
+#   ansible-playbook repo_manager.yml --tags catalog_optimize
 # =============================================================================
+# yamllint enable rule:line-length
 
 # -------------------------------------------------------------------------
 # DISPLAY USAGE
@@ -78,7 +142,9 @@
   tasks:
     - name: Repo Manager Orchestrator - Usage
       ansible.builtin.debug:
-        msg: "Run with --tags to specify operation (prepare, precheck, download, status, cleanup_pulp, cleanup_repos)"
+        msg: >-
+          Run with --tags to specify operation (prepare, precheck, download,
+          status, cleanup_pulp, cleanup_repos)
   tags: always
 
 # -------------------------------------------------------------------------
@@ -122,7 +188,8 @@
 # PRECHECK INPUTS
 # -------------------------------------------------------------------------
 - name: Precheck input configurations
-  ansible.builtin.import_playbook: "{{ playbook_dir }}/validate/validate_config.yml"
+  ansible.builtin.import_playbook: >-
+    {{ playbook_dir }}/validate/validate_config.yml
   tags:
     - precheck
 
@@ -130,7 +197,8 @@
 # DOWNLOAD PACKAGES
 # -------------------------------------------------------------------------
 - name: Download and sync packages/repositories
-  ansible.builtin.import_playbook: "{{ playbook_dir }}/repo_operations/download.yml"
+  ansible.builtin.import_playbook: >-
+    {{ playbook_dir }}/repo_operations/download.yml
   tags:
     - execute
     - download
@@ -139,7 +207,8 @@
 # GENERATE STATUS
 # -------------------------------------------------------------------------
 - name: Generate repo_status.yml
-  ansible.builtin.import_playbook: "{{ playbook_dir }}/repo_operations/generate_repo_status.yml"
+  ansible.builtin.import_playbook: >-
+    {{ playbook_dir }}/repo_operations/generate_repo_status.yml
   tags:
     - status
 
@@ -157,7 +226,8 @@
 # CLEANUP REPOS
 # -------------------------------------------------------------------------
 - name: Cleanup specific repositories
-  ansible.builtin.import_playbook: "{{ playbook_dir }}/cleanup/cleanup_repos.yml"
+  ansible.builtin.import_playbook: >-
+    {{ playbook_dir }}/cleanup/cleanup_repos.yml
   tags:
     - never
     - cleanup_repos
@@ -175,7 +245,8 @@
 # ROLLBACK (Placeholder)
 # -------------------------------------------------------------------------
 - name: Rollback Repo Manager
-  ansible.builtin.import_playbook: "{{ playbook_dir }}/rollback_repo_manager.yml"
+  ansible.builtin.import_playbook: >-
+    {{ playbook_dir }}/rollback_repo_manager.yml
   tags:
     - never
     - rollback
@@ -197,3 +268,5 @@
     - catalog_add
     - catalog_delete
     - catalog_validate
+    - catalog_transform
+    - catalog_optimize

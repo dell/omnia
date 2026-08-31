@@ -170,6 +170,17 @@ test/telemetry/
 
 | Area | TCs | Marker |
 |------|-----|--------|
+| Namespace | 1 | sanity |
+| Sinks: Kafka | 3 | sanity |
+| Sinks: VictoriaMetrics | 2 | sanity |
+| Sinks: VictoriaLogs | 2 | sanity |
+| Sources: iDRAC | 6 | sanity + functional |
+| Sources: LDMS | 2 | sanity |
+| Sources: OME | 3 | sanity + functional |
+| Sources: PowerScale | 6 | sanity + functional |
+| Sources: UFM | 4 | sanity + functional |
+| Sources: VAST | 5 | sanity + functional |
+| **Total** | **34** | |
 | Precheck | 7 | sanity |
 | Validate | 6 | sanity |
 | Deploy | 1 | deploy |
