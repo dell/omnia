@@ -66,6 +66,6 @@
   when:
     - hostvars['localhost']['telemetry_config'].idrac_telemetry_configurations.bmc_group_data_path is defined
     - hostvars['localhost']['telemetry_config'].idrac_telemetry_configurations.bmc_group_data_path | length > 0
-  ignore_errors: true
+  failed_when: false
 
 ## Status is now collected centrally in deploy.yml Phase 4.

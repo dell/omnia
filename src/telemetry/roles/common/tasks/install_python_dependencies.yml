@@ -89,7 +89,7 @@
   loop: "{{ component_packages | dict2items }}"
   loop_control:
     label: "{{ item.key }}"
-  include_tasks: install_single_python_package.yml
+  ansible.builtin.include_tasks: install_single_python_package.yml
   vars:
     package_name: "{{ item.key }}"
     package_version: "{{ item.value }}"

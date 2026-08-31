@@ -152,4 +152,3 @@
       app_name: "csi-volume-exporter"
       metrics_port: 9090
       scrape_interval: "30s"
-

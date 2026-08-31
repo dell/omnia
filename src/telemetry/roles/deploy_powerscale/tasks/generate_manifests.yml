@@ -101,4 +101,3 @@
     msg: "PowerScale telemetry manifests generated and applied"
     verbosity: 2
   when: deploy_csi_exporter
-

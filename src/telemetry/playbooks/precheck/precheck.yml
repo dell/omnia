@@ -126,6 +126,14 @@
         (hostvars['localhost']['telemetry_config'].telemetry_sources.ldms.metrics_enabled | default(false) | bool)
 
     - name: Precheck complete — cluster is ready for telemetry deployment
+      vars:
+        _ps_metrics_enabled: >-
+          {{ hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled
+          | default(false) | bool }}
+        _ps_logs_enabled: >-
+          {{ hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.logs_enabled
+          | default(false) | bool }}
+        _ps_enabled: "{{ _ps_metrics_enabled or _ps_logs_enabled }}"
       ansible.builtin.debug:
         msg:
           - "════════════════════════════════════════════════════════════"
@@ -135,7 +143,7 @@
           - "  Control plane    : ✓  All nodes Ready"
           - "  Worker nodes     : ✓  Minimum threshold met"
           - "  Pod health       : ✓  All pods Running/Succeeded"
-          - "{% if hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool or hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.logs_enabled | default(false) | bool %}  PowerScale       : ⊘ Privilege check skipped (SSH not available){% endif %}"
-          - "{% if hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool or hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.logs_enabled | default(false) | bool %}                    WARNING: Ensure PowerScale user has required privileges{% endif %}"
+          - "{% if _ps_enabled %}  PowerScale       : ⊘ Privilege check skipped (SSH not available){% endif %}"
+          - "{% if _ps_enabled %}WARNING: Ensure PowerScale user has required privileges{% endif %}"
           - "  Cluster is ready for telemetry deployment."
           - "════════════════════════════════════════════════════════════"

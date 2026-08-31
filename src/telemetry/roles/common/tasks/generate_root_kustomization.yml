@@ -35,7 +35,10 @@
 
 - name: Check if external-health-monitor-controller container is running in isilon-controller pod
   ansible.builtin.shell:
-    cmd: kubectl get pod -n isilon -l app=isilon-controller -o jsonpath='{.items[0].status.containerStatuses[?(@.name=="external-health-monitor-controller")].ready}' 2>/dev/null || echo "false"
+    cmd: >
+      kubectl get pod -n isilon -l app=isilon-controller
+      -o jsonpath='{.items[0].status.containerStatuses[?(@.name=="external-health-monitor-controller")].ready}'
+      2>/dev/null || echo "false"
   register: health_monitor_container_status
   changed_when: false
   failed_when: false
