@@ -17,6 +17,7 @@ Telemetry Precheck — Playbook Execution.
 
 Test cases:
     TC_PC_001: Deploy telemetry (--tags precheck)
+    TC_PC_005: Verify PowerScale user has required privileges
 """
 
 import pytest

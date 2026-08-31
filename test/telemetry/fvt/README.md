@@ -62,6 +62,18 @@
 | TC_SR_033 | Verify PowerScale metrics in VictoriaMetrics | functional |
 | TC_SR_035 | Verify/configure PowerScale syslog forwarding | functional |
 | TC_SR_034 | Verify PowerScale logs in VictoriaLogs | functional |
+| TC_SR_036 | Verify comprehensive PowerScale deployment | functional |
+| TC_SR_037 | Verify PowerScale feature flags | functional |
+| TC_SR_038 | Verify PowerScale health metrics | functional |
+| TC_SR_039 | Verify PowerScale TLS enforcement | functional |
+| TC_SR_040 | Verify PowerScale label compliance | functional |
+| TC_SR_041 | Verify PowerScale scrape interval | functional |
+| TC_SR_042 | Verify CSI authorization mode | functional |
+| TC_SR_043 | Verify PowerScale deployment mode | functional |
+| TC_SR_044 | Verify CSI Volume Exporter deployment | functional |
+| TC_SR_045 | Verify CSI Volume Exporter metrics endpoint | functional |
+| TC_SR_046 | Verify CSI Volume Exporter metrics in VictoriaMetrics | functional |
+| TC_SR_047 | Verify CSI Driver for PowerScale (isilon-controller) deployment | functional |
 
 Note: TC_SR_035 (syslog config) runs before TC_SR_034 (log check) to
 ensure syslog is configured before verifying log ingestion.
@@ -70,24 +82,24 @@ ensure syslog is configured before verifying log ingestion.
 
 | TC ID | Test | Marker |
 |-------|------|--------|
-| TC_SR_040 | Verify UFM external service exists with correct endpoint | sanity |
-| TC_SR_041 | Verify UFM VMServiceScrape CR exists | sanity |
-| TC_SR_042 | Verify UFM credentials K8s secret exists | sanity |
-| TC_SR_043 | Verify UFM InfiniBand metrics in VictoriaMetrics | functional |
+| TC_SR_060 | Verify UFM external service exists with correct endpoint | sanity |
+| TC_SR_061 | Verify UFM VMServiceScrape CR exists | sanity |
+| TC_SR_062 | Verify UFM credentials K8s secret exists | sanity |
+| TC_SR_063 | Verify UFM InfiniBand metrics in VictoriaMetrics | functional |
 
 ### Sources: OME
 
 | TC ID | Test | Marker | Condition |
 |-------|------|--------|-----------|
-| TC_SR_050 | Verify Vector-OME bridge deployment ready | sanity | always |
-| TC_SR_051 | Verify OME KafkaUser CR exists | sanity | always |
-| TC_SR_052 | Verify external Kafka TLS certificates exist | functional | configure_ome=true |
-| TC_SR_053 | Verify user.pfx certificate created for OME mTLS | functional | configure_ome=true |
-| TC_SR_054 | Verify TLS certificates uploaded to OME | functional | configure_ome=true |
-| TC_SR_055 | Verify OME Kafka forwarder connectivity status | functional | configure_ome=true |
+| TC_SR_070 | Verify Vector-OME bridge deployment ready | sanity | always |
+| TC_SR_071 | Verify OME KafkaUser CR exists | sanity | always |
+| TC_SR_072 | Verify external Kafka TLS certificates exist | functional | configure_ome=true |
+| TC_SR_073 | Verify user.pfx certificate created for OME mTLS | functional | configure_ome=true |
+| TC_SR_074 | Verify TLS certificates uploaded to OME | functional | configure_ome=true |
+| TC_SR_075 | Verify OME Kafka forwarder connectivity status | functional | configure_ome=true |
 
-When `configure_ome: false` in test_config.yml, only TC_SR_050 and
-TC_SR_051 run. Set `configure_ome: true` to run the full OME integration
+When `configure_ome: false` in test_config.yml, only TC_SR_070 and
+TC_SR_071 run. Set `configure_ome: true` to run the full OME integration
 tests including TLS cert extraction and connectivity verification.
 
 ### Cleanup

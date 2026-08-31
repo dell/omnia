@@ -122,6 +122,12 @@
       register: packages_load_result
       failed_when: false
 
+    - name: Set telemetry_packages as cacheable fact
+      ansible.builtin.set_fact:
+        telemetry_packages: "{{ _pkg_raw }}"
+        cacheable: true
+      when: _pkg_raw is defined
+
     - name: Set k8s_cluster_mount from telemetry_packages.yml
       ansible.builtin.set_fact:
         k8s_cluster_mount: "{{ _pkg_raw.k8s_cluster_mount | default('/opt/omnia/k8s_mount') }}"

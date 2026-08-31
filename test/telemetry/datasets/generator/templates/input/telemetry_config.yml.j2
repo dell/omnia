@@ -13,8 +13,6 @@ telemetry_sources:
     metrics_enabled: {{ ldms_metrics_enabled | lower }}
     collection_targets:
       - "kafka"
-  dcgm:
-    metrics_enabled: {{ dcgm_metrics_enabled | lower }}
   powerscale:
     metrics_enabled: {{ powerscale_metrics_enabled | lower }}
   ufm:

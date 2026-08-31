@@ -173,3 +173,24 @@ ldms_success_messages:
     ✓ Slurm compute nodes: {{ compute_count }} (slurmd running)
     ✓ Cluster is ready for LDMS telemetry deployment
     ════════════════════════════════════════════════════════════════════════
+
+# =============================================================================
+# PowerScale Privilege Check Configuration
+# =============================================================================
+
+# Required privileges for metrics collection
+ps_required_metrics_privileges:
+  - ISI_PRIV_LOGIN_PAPI
+  - ISI_PRIV_NFS
+  - ISI_PRIV_QUOTA
+  - ISI_PRIV_SNAPSHOT
+  - ISI_PRIV_IFS_RESTORE
+  - ISI_PRIV_NS_IFS_ACCESS
+  - ISI_PRIV_IFS_BACKUP
+  - ISI_PRIV_AUTH_ZONES
+  - ISI_PRIV_SYNCIQ
+  - ISI_PRIV_STATISTICS
+
+# Required privileges for log collection
+ps_required_log_privileges:
+  - ISI_PRIV_AUDIT
