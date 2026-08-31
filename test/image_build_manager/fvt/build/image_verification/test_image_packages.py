@@ -76,19 +76,18 @@ def test_image_packages_x86_64(host):
         pytest.skip(result.get("details", "No groups"))
 
     details = _format_pkg_details(result)
+    failure_message = result.get("error") or (
+        LOG["image_packages_failed"].format(
+            count=result["failed_groups"]
+        )
+    )
     if result["success"]:
         tl.passed(LOG["image_packages_ok"].format(arch=arch), details)
     else:
-        tl.failed(
-            LOG["image_packages_failed"].format(
-                count=result["failed_groups"]
-            ),
-            details,
-        )
+        tl.failed(failure_message, details)
 
     assert result["success"], (
-        f"{result['failed_groups']} image(s) have missing packages.\n"
-        f"{details}"
+        f"{failure_message}\n{details}"
     )
 
 
@@ -111,17 +110,16 @@ def test_image_packages_aarch64(host):
         pytest.skip(result.get("details", "No groups"))
 
     details = _format_pkg_details(result)
+    failure_message = result.get("error") or (
+        LOG["image_packages_failed"].format(
+            count=result["failed_groups"]
+        )
+    )
     if result["success"]:
         tl.passed(LOG["image_packages_ok"].format(arch=arch), details)
     else:
-        tl.failed(
-            LOG["image_packages_failed"].format(
-                count=result["failed_groups"]
-            ),
-            details,
-        )
+        tl.failed(failure_message, details)
 
     assert result["success"], (
-        f"{result['failed_groups']} image(s) have missing packages.\n"
-        f"{details}"
+        f"{failure_message}\n{details}"
     )

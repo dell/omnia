@@ -94,7 +94,7 @@ Each key under `fvt_image_build_manager` must be an existing FVT tag.
 | `run` | bool | Yes | `true` executes the entry; `false` reports it as skipped. |
 | `command` | string | No | `exec`, `verify`, or `test`. Default: `test`. |
 | `suite` | string | No | Verification subfolder. Empty selects the complete tag. |
-| `marker` | string | No | Single pytest marker name. Empty selects all applicable tests. |
+| `marker` | string | No | Single, AND (`+`), or OR (`,`) marker expression. Empty selects all applicable tests. |
 | `dataset` | string | No | Non-empty dataset environment override for this entry. |
 | `sync_input` | bool | No | Overrides `sync_image_build_input` for this entry. |
 | `sync_output` | bool | No | Overrides `sync_output` for this entry. |
@@ -141,11 +141,20 @@ suite names with:
 ./run_validation.sh fvt_image_build_manager list
 ```
 
-### Marker Values
+### Marker Expression Syntax
 
-The batch file accepts one marker name, such as `sanity`, `x86_64`, or
-`aarch64`. Use the direct CLI `--marker` option for compound AND (`+`) or OR
-(`,`) expressions.
+The same expressions work in `test_run_config.yml` and with the direct CLI
+`--marker` option:
+
+| Syntax | Example | Meaning |
+|--------|---------|---------|
+| Single | `x86_64` | Tests with `@pytest.mark.x86_64`. |
+| OR | `x86_64,aarch64` | Tests with either marker. |
+| AND | `x86_64+sanity` | Tests with both markers. |
+| Standard | `sanity` | Tests with `@pytest.mark.sanity`. |
+
+Use either `+` or `,` in one expression. Mixed operators, whitespace, empty
+marker names, and shell metacharacters are rejected.
 
 ---
 
@@ -171,7 +180,8 @@ Although the shared parser accepts `exec`, `verify`, and `test`, all three
 names execute the same complete pytest directory for NFT or UT. Use `test` as
 the conventional and least ambiguous value.
 
-Leave the NFT and UT marker empty unless their tests carry the selected marker.
+Leave the NFT and UT marker empty unless their tests carry the selected marker
+expression.
 NFT tests use `nft`; UT tests do not define the FVT quality or architecture
 markers. A marker that matches nothing can produce an all-skipped run.
 

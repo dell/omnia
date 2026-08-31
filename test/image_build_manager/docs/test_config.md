@@ -15,8 +15,9 @@ Run tests directly on the machine where `image_build_manager` is deployed.
 oim_server_ip: ""    # Leave empty — tests run locally
 ```
 
-No SSH, no sync, no clone settings needed. The playbook must already be
-deployed on this machine.
+No SSH or clone setting is used, and project sync does not run. Optional input
+and repo-manager-output sync still run locally when their flags are enabled.
+Tests and playbooks use the current Omnia checkout.
 
 ### Remote Mode
 
@@ -52,7 +53,7 @@ clone_path: "/omnia"            # MANDATORY — absolute path on target
 
 | Field | Required | Description | Default |
 |-------|----------|-------------|---------|
-| `dataset` | No | Selects the local source used by optional input/output sync. Empty selects `src/`; a name selects `datasets/<name>/`. It does not change the target's runtime input by itself. | `""` |
+| `dataset` | No | Empty = input from target's `$OMNIA_DATA_PATH/image_build_manager/input/<project>/`. Set to a generated dataset name for custom inputs. | `""` |
 | `project_name` | No | Omnia project name on the target. Must match `OMNIA_PROJECT_NAME` env var. Used for input/output path resolution. | `"project_default"` |
 
 **Empty dataset (`dataset: ""`)**: The playbook reads input from the target
@@ -60,12 +61,11 @@ server at `$OMNIA_DATA_PATH/image_build_manager/input/<project_name>/`.
 Files must already exist on the target. This is the production behavior.
 
 **Generated dataset (`dataset: "<name>"`)**: Create using the
-[dataset generator](../datasets/generator/README.md), set the name here, and
-enable the required sync option(s):
+[dataset generator](../datasets/generator/README.md), then set the name here:
 
 ```bash
 cd datasets/generator/
-python3 generate_dataset.py <name> <profile>
+python generate_dataset.py <name> <profile>
 ```
 
 ### Sync Options

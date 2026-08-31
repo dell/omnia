@@ -32,31 +32,36 @@
 #   nft_image_build_manager  — Non-Functional Tests (performance, idempotency)
 #   ut_image_build_manager   — Unit Tests (offline validation)
 #
-# FVT scenarios (nested under fvt_image_build_manager):
-#   Each scenario maps to an Ansible playbook tag.  Fields:
-#     run:          true/false    - Whether to execute this scenario
-#     command:      <string>      - exec, verify, or test (default: test)
-#                                   exec   = Run the playbook only
-#                                   verify = Run verification tests only
-#                                   test   = Exec + Verify (full flow)
-#     suite:        <folder>      - FVT subfolder filter (empty = all suites)
-#     marker:       <name>        - Single marker filter (empty = all)
-#     dataset:      <name>        - Override dataset from test_config.yml
-#                                   Must be a valid folder under datasets/
-#     sync_input:   true/false    - Override sync_image_build_input
-#     sync_output:  true/false    - Override sync_output
+# Common fields (FVT / NFT / UT):
+#   run:          true/false    - Whether to execute this entry
+#   command:      <string>      - exec, verify, or test (default: test)
+#   marker:       <expression>  - Marker filter (empty = all applicable tests)
+#
+# FVT-only fields (each entry maps to an Ansible playbook tag):
+#   suite:        <folder>      - FVT subfolder filter (empty = all suites)
+#   dataset:      <name>        - Override dataset from test_config.yml
+#                                 Must be a valid folder under datasets/
+#   sync_input:   true/false    - Override sync_image_build_input
+#   sync_output:  true/false    - Override sync_output
+#
+# FVT command behavior:
+#   exec   = Run the playbook only
+#   verify = Run verification tests only
+#   test   = Exec + Verify (full flow)
 #
 # NFT / UT (top-level, no nested scenarios):
-#   run:          true/false    - Whether to execute
-#   command:      <string>      - use test (exec/verify are accepted aliases
-#                                   and run the same complete NFT/UT suite)
-#   marker:       <name>        - Single marker filter (empty = all tests)
+#   Use command: "test". exec/verify are accepted aliases and run the same
+#   complete NFT/UT suite.
 #
 # -----------------------------------------------------------------------------
-# Batch Marker Syntax
+# Marker Expression Syntax
 # -----------------------------------------------------------------------------
-#   Use one marker name, for example "sanity" or "x86_64".
-#   For compound AND/OR expressions, use the direct CLI --marker option.
+#   Single:   "x86_64"                  — tests with @pytest.mark.x86_64
+#   OR:       "x86_64,aarch64"          — tests with EITHER marker
+#   AND:      "x86_64+sanity"           — tests with BOTH markers
+#   Standard: "sanity"                  — tests with @pytest.mark.sanity
+#
+# Use either '+' or ',' in one expression; mixed operators are rejected.
 #
 # Available markers:
 #   Architecture:  x86_64, aarch64

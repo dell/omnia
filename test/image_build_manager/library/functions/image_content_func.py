@@ -296,19 +296,23 @@ def verify_image_packages(
             ),
         }
 
-    # Every invocation gets its own target paths so concurrent validation
-    # runs cannot unmount, truncate, or remove each other's working image.
-    host.run(CMDS["mkdir_p"].format(path=temp_mount))
-
-    s3_list = host.run(
-        CMDS["s3cmd_ls_bucket"].format(bucket=S3_BOOT_IMAGES_BUCKET)
-    )
-    s3_output = s3_list.stdout if s3_list.rc == 0 else ""
-
     results = []
     all_passed = True
+    cleanup_error = None
 
     try:
+        # Every invocation gets its own target paths so concurrent validation
+        # runs cannot unmount, truncate, or remove each other's working image.
+        # Keep setup in this block so partial setup is also cleaned on errors.
+        host.run(CMDS["mkdir_p"].format(path=temp_mount))
+
+        s3_list = host.run(
+            CMDS["s3cmd_ls_bucket"].format(
+                bucket=S3_BOOT_IMAGES_BUCKET,
+            )
+        )
+        s3_output = s3_list.stdout if s3_list.rc == 0 else ""
+
         for fg in groups:
             expected_pkgs = _get_image_packages_from_config(host, fg)
             if not expected_pkgs:
@@ -365,6 +369,7 @@ def verify_image_packages(
                 )
             )
             if dl.rc != 0:
+                host.run(CMDS["rm_file"].format(path=temp_image))
                 results.append({
                     "functional_group": fg,
                     "success": False,
@@ -386,6 +391,10 @@ def verify_image_packages(
                 )
             )
             if mt.rc != 0:
+                host.run(CMDS["umount"].format(
+                    flags="-l", path=temp_mount,
+                ))
+                host.run(CMDS["rm_dir"].format(path=temp_mount))
                 host.run(CMDS["rm_file"].format(path=temp_image))
                 results.append({
                     "functional_group": fg,
@@ -483,15 +492,25 @@ def verify_image_packages(
 
     finally:
         # Guaranteed cleanup — runs even if an exception occurs
-        host.run(CMDS["umount"].format(
-            flags="-l", path=temp_mount,
-        ))
-        host.run(CMDS["rm_dir"].format(path=temp_root))
+        try:
+            host.run(CMDS["umount"].format(
+                flags="-l", path=temp_mount,
+            ))
+        finally:
+            cleanup = host.run(
+                CMDS["rm_dir"].format(path=temp_root)
+            )
+            if cleanup.rc != 0:
+                cleanup_error = (
+                    "Failed to remove temporary image verification "
+                    f"workspace {temp_root} (rc={cleanup.rc})"
+                )
 
     passed_count = sum(1 for r in results if r["success"])
+    verification_success = all_passed and cleanup_error is None
 
     return {
-        "success": all_passed,
+        "success": verification_success,
         "prerequisite_failed": False,
         "results": results,
         "total_groups": len(groups),
@@ -501,8 +520,10 @@ def verify_image_packages(
             f"Verified packages in "
             f"{passed_count}/{len(groups)} images"
         ),
-        "error": None if all_passed else (
-            f"{len(groups) - passed_count} image(s) "
-            "have missing packages"
+        "error": cleanup_error or (
+            None if all_passed else (
+                f"{len(groups) - passed_count} image(s) "
+                "have missing packages"
+            )
         ),
     }

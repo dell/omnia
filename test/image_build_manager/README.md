@@ -109,10 +109,11 @@ Two separate credential files are managed by `setup_env.sh`:
 | `image_build_credentials.yml` | `$OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME/` | S3 + aarch64 domain credentials |
 | `.image_build_credentials_key` | Same directory as above | Vault key for domain credentials |
 
-The local SSH credential file and key are Ansible Vault-encrypted and
-gitignored. Domain credentials are encrypted under `$OMNIA_DATA_PATH`, outside
-the checkout. For remote execution, provision the domain credential file on
-the target OIM server.
+The local SSH credential file is Ansible Vault-encrypted. Its key is plaintext
+secret material; both files are gitignored. Domain credentials are encrypted
+under `$OMNIA_DATA_PATH`, with their key stored alongside them outside the
+checkout. For remote execution, provision the domain credential file on the
+target OIM server.
 
 #### SSH Credentials (OIM server access)
 
@@ -241,9 +242,10 @@ back to the entire tag when the suite directory does not exist.
 
 | Syntax | Example | Meaning |
 |--------|---------|---------|
-| Single | `--marker sanity` | Tests with `@pytest.mark.sanity` |
-| AND (`+`) | `--marker x86_64+sanity` | Tests with BOTH markers |
+| Single | `--marker x86_64` | Tests with `@pytest.mark.x86_64` |
 | OR (`,`) | `--marker x86_64,aarch64` | Tests with EITHER marker |
+| AND (`+`) | `--marker x86_64+sanity` | Tests with BOTH markers |
+| Standard | `--marker sanity` | Tests with `@pytest.mark.sanity` |
 
 Available markers: `sanity`, `x86_64`, `aarch64`, `functional`, `deploy`
 
@@ -445,7 +447,7 @@ Each FVT tag supports these fields:
 | `run` | Enable or skip the tag. All tracked entries default to `false`. |
 | `command` | `exec`, `verify`, or `test`; use `test` for deploy + verify. |
 | `suite` | Verification subfolder; empty runs the complete tag. |
-| `marker` | Single marker name applied to the selected pytest phase(s). |
+| `marker` | Single, AND (`+`), or OR (`,`) expression applied to the selected pytest phase(s). |
 | `dataset` | Non-empty per-tag dataset override; empty inherits `test_config.yml`. |
 | `sync_input` | Explicit per-tag override for `sync_image_build_input`. |
 | `sync_output` | Explicit per-tag override for `sync_output`. |
@@ -502,9 +504,9 @@ runs the playbook from
 
 ### How Sync Works (Remote Mode)
 
-Project sync runs only when `oim_server_ip` is set. In local mode, no project
-sync occurs; tests and source-template checks use the current Omnia checkout,
-and `clone_path` is ignored.
+Project sync runs only for remote execution. In local mode, no project sync
+occurs; tests and source-template checks use the current Omnia checkout, and
+`clone_path` is ignored.
 
 Input and repo-manager-output sync are independent of project sync. When their
 respective flags are enabled, those optional sync operations also run in local
