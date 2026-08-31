@@ -26,6 +26,7 @@ Run tests against a remote OIM server over SSH.
 oim_server_ip: "<target_ip>"   # MANDATORY — target server IP
 oim_ssh_user: root              # SSH user (default: root)
 oim_ssh_port: 22                # SSH port (default: 22)
+clone_path: "/omnia"            # MANDATORY — absolute path on target
 ```
 
 ---
@@ -51,7 +52,7 @@ oim_ssh_port: 22                # SSH port (default: 22)
 
 | Field | Required | Description | Default |
 |-------|----------|-------------|---------|
-| `dataset` | No | Empty = input from target's `$OMNIA_DATA_PATH/image_build_manager/input/<project>/`. Set to a generated dataset name for custom inputs. | `""` |
+| `dataset` | No | Selects the local source used by optional input/output sync. Empty selects `src/`; a name selects `datasets/<name>/`. It does not change the target's runtime input by itself. | `""` |
 | `project_name` | No | Omnia project name on the target. Must match `OMNIA_PROJECT_NAME` env var. Used for input/output path resolution. | `"project_default"` |
 
 **Empty dataset (`dataset: ""`)**: The playbook reads input from the target
@@ -59,11 +60,12 @@ server at `$OMNIA_DATA_PATH/image_build_manager/input/<project_name>/`.
 Files must already exist on the target. This is the production behavior.
 
 **Generated dataset (`dataset: "<name>"`)**: Create using the
-[dataset generator](../datasets/generator/README.md), then set the name here:
+[dataset generator](../datasets/generator/README.md), set the name here, and
+enable the required sync option(s):
 
 ```bash
 cd datasets/generator/
-python generate_dataset.py <name> <profile>
+python3 generate_dataset.py <name> <profile>
 ```
 
 ### Sync Options

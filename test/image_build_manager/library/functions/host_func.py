@@ -67,6 +67,7 @@ __all__ = [
     "get_testinfra_host",
     "encrypt_test_credentials",
     "run_on_host",
+    "resolve_target_source_root",
     "sync_project_to_remote",
     "sync_image_build_input",
     "sync_repo_manager_output",
@@ -94,6 +95,37 @@ from ..vars.common_vars import (
 # =============================================================================
 # MODULE-SPECIFIC SYNC
 # =============================================================================
+
+
+def resolve_target_source_root() -> str:
+    """Resolve the Omnia source root for the current execution target.
+
+    Local execution reads from the current checkout. Remote execution reads
+    from ``clone_path``, where the checkout is synced on the target server.
+
+    Returns:
+        Absolute source-root path on the execution target.
+
+    Raises:
+        ValueError: If remote execution has no valid absolute ``clone_path``.
+    """
+    if is_local_execution():
+        # Module root: test/image_build_manager/ -> repository root: omnia/
+        return os.path.dirname(os.path.dirname(get_module_root()))
+
+    config = load_test_config()
+    raw_clone_path = config.get("clone_path")
+    if not isinstance(raw_clone_path, str) or not raw_clone_path.strip():
+        raise ValueError(
+            "clone_path must be set in test_config.yml for remote execution"
+        )
+    clone_path = raw_clone_path.strip()
+    if not os.path.isabs(clone_path):
+        raise ValueError(
+            f"clone_path must be absolute for remote execution: {clone_path}"
+        )
+    return os.path.normpath(clone_path)
+
 
 def sync_project_to_remote(_host) -> Dict[str, Any]:
     """Sync the local omnia project tree to clone_path on target.
@@ -277,7 +309,7 @@ def sync_build_credentials(host) -> Dict[str, Any]:
                 "The collect_build_credentials role will prompt interactively "
                 "for mandatory fields (s3_secret_key). To set credentials "
                 "non-interactively, run: "
-                "bash setup_env.sh --set-domain-creds"
+                "./setup_env.sh --set-domain-creds"
             ),
             "error": "",
         }

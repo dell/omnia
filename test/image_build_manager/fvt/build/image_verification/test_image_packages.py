@@ -46,6 +46,8 @@ def _format_pkg_details(result):
                 f"\u2717 {name}: {found}/{expected} "
                 f"({missing} missing)"
             )
+            if fg.get("error") and not fg.get("package_details"):
+                lines.append(f"    ERROR: {fg['error']}")
         for pkg in fg.get("package_details", []):
             if pkg["status"] == "installed":
                 ver = pkg.get("found", pkg["expected"])
