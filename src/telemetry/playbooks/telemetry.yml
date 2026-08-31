@@ -74,11 +74,11 @@
 # =========================================================================
 # FLOW: precheck — Environment validation (opt-in only)
 # =========================================================================
-#- name: "Precheck | Validate telemetry prerequisites"
-#  ansible.builtin.import_playbook: precheck/precheck.yml
-#  tags:
-    # - never
-    #    - precheck
+- name: "Precheck | Validate telemetry prerequisites"
+  ansible.builtin.import_playbook: precheck/precheck.yml
+  tags:
+    - never
+    - precheck
 
 # =========================================================================
 # Step 2: Deploy — Full telemetry deployment (default flow)
