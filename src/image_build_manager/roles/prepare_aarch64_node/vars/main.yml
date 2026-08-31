@@ -18,8 +18,9 @@ input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 
 # ---------------------------------------------------------------------------
 # Local work directory on the aarch64 node (no NFS mount required)
+# Derived from OMNIA_DATA_PATH on the OIM; aarch64 node uses the same base path.
 # ---------------------------------------------------------------------------
-aarch64_work_dir: "/opt/omnia/image_build_manager"
+aarch64_work_dir: "{{ hostvars['localhost']['omnia_data_path'] | default('/opt/omnia') }}/image_build_manager"
 ochami_aarch_64_dir: "{{ aarch64_work_dir }}/openchami/aarch64"
 
 # ---------------------------------------------------------------------------

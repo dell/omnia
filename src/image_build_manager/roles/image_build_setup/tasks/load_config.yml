@@ -118,7 +118,7 @@
       when: not _source_dir_check.stat.exists
 
 # --- Create runtime directories ---
-- name: Ensure base /opt/omnia directory exists
+- name: Ensure base OMNIA_DATA_PATH directory exists
   ansible.builtin.file:
     path: "{{ omnia_data_path }}"
     state: directory
