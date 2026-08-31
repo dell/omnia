@@ -174,3 +174,4 @@
 - name: Display karavi-observability deployment status
   ansible.builtin.debug:
     msg: "PowerScale telemetry (CSM Observability + OTEL Collector) deployed successfully"
+

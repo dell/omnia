@@ -98,15 +98,15 @@
       ╔══════════════════════════════════════════════════════════════════════════╗
       ║              POWERSCALE METRICS PRIVILEGE WARNING                       ║
       ╚══════════════════════════════════════════════════════════════════════════╝
-      
+
       WARNING: The PowerScale user '{{ ps_check_username }}' is missing required privileges
       for metrics collection.
-      
+
       Missing Privileges:
       {% for priv in ps_missing_metrics_privileges %}
       - {{ priv }}
       {% endfor %}
-      
+
       Required Privileges for Metrics Collection:
       - ISI_PRIV_LOGIN_PAPI (Read Only)
       - ISI_PRIV_NFS (Read Write)
@@ -118,12 +118,12 @@
       - ISI_PRIV_AUTH_ZONES (Read Only)
       - ISI_PRIV_SYNCIQ (Read Write)
       - ISI_PRIV_STATISTICS (Read Only)
-      
+
       Impact: Metrics collection may fail or return incomplete data.
-      
+
       To fix: Grant the missing privileges to user '{{ ps_check_username }}' on PowerScale.
       Example: isi auth users modify {{ ps_check_username }} --add-group admin
-      
+
       ╔══════════════════════════════════════════════════════════════════════════╗
       Press Enter to continue (waiting 10 seconds)...
   when:
@@ -138,23 +138,23 @@
       ╔══════════════════════════════════════════════════════════════════════════╗
       ║              POWERSCALE LOG COLLECTION PRIVILEGE WARNING                   ║
       ╚══════════════════════════════════════════════════════════════════════════╝
-      
+
       WARNING: The PowerScale user '{{ ps_check_username }}' is missing required privileges
       for log collection (syslog configuration).
-      
+
       Missing Privileges:
       {% for priv in ps_missing_log_privileges %}
       - {{ priv }}
       {% endfor %}
-      
+
       Required Privileges for Log Collection:
       - ISI_PRIV_AUDIT (Required for syslog configuration and log forwarding)
-      
+
       Impact: Syslog configuration will fail and logs will not be forwarded to VictoriaLogs.
-      
+
       To fix: Grant the audit privilege to user '{{ ps_check_username }}' on PowerScale.
       Example: isi auth users modify {{ ps_check_username }} --add-group admin
-      
+
       ╔══════════════════════════════════════════════════════════════════════════╗
       Press Enter to continue (waiting 10 seconds)...
   when:

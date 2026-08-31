@@ -71,7 +71,7 @@
     fail_msg: "Kafka topic 'idrac' not found. Topics: {{ kafka_topics.stdout_lines | default([]) }}"
     success_msg: "Kafka topic 'idrac' exists."
   when: kafka_topics.rc == 0
-  ignore_errors: true
+  failed_when: false
 
 - name: Verify VictoriaMetrics has iDRAC metrics (via victoriapump scrape target)
   ansible.builtin.command: >
