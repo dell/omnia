@@ -21,6 +21,7 @@
 #   cd src/orchestrator
 #   ansible-playbook playbooks/orchestrator.yml                        # Default: precheck + prepare + deploy + provision
 #   ansible-playbook playbooks/orchestrator.yml --tags precheck        # Validate inputs + prerequisites (read-only)
+#   ansible-playbook playbooks/orchestrator.yml --tags credentials     # Prompt for credentials (standalone, idempotent)
 #   ansible-playbook playbooks/orchestrator.yml --tags prepare         # Credentials + functional groups + OpenLDAP prep
 #   ansible-playbook playbooks/orchestrator.yml --tags deploy          # Deploy OpenCHAMI + OpenLDAP + validate gates
 #   ansible-playbook playbooks/orchestrator.yml --tags provision       # SSH + provision all categories + validate
@@ -33,6 +34,7 @@
 # Tags (mutually exclusive — pick ONE):
 #   (none)       — Default flow: precheck + prepare + deploy + provision
 #   precheck     — Validate inputs, parameters, boot images (read-only, no system changes)
+#   credentials  — Prompt for credentials (standalone, idempotent)
 #   prepare      — Credential management, functional group generation, OpenLDAP config prep
 #   deploy       — Deploy OpenCHAMI + OpenLDAP containers, validate readiness gates
 #   provision    — SSH preamble, provision K8s/Slurm/OS/custom, validate provisioning
@@ -131,6 +133,19 @@
   ansible.builtin.import_playbook: precheck/precheck_openldap.yml
   tags:
     - precheck
+
+# =========================================================================
+# FLOW: credentials — Standalone credential collection (idempotent)
+# =========================================================================
+
+- name: Collect orchestrator credentials
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - collect_orchestrator_credentials
+  tags:
+    - credentials
 
 # =========================================================================
 # FLOW: prepare — Credentials, functional groups, OpenLDAP config prep

@@ -1,0 +1,49 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Credential file configurations — orchestrator-scoped only
+credential_files:
+  - credential_type: "Omnia"
+    template: "{{ role_path }}/../orchestrator_credentials/templates/omnia_credential.j2"
+    file_path: "{{ input_project_dir }}/omnia_config_credentials.yml"
+    file_mode: 600
+    vault_path: "{{ input_project_dir }}/.omnia_config_credentials_key"
+    condition: true
+
+# Credential definitions — orchestrator-scoped only
+# Other domains (discovery, image_build_manager, build_stream) own their own credentials.
+omnia_credentials:
+  provision:
+    mandatory:
+      - { password: provision_password }
+      - { username: bmc_username, password: bmc_password }
+  slurm:
+    mandatory:
+      - { password: slurm_db_password }
+  slurm_custom:
+    mandatory:
+      - { password: slurm_db_password }
+  openldap:
+    mandatory:
+      - { username: openldap_db_username, password: openldap_db_password }
+
+# Error messages
+mandatory_warning_msg: "WARNING: The following are mandatory credentials and cannot be left empty."
+password_fail_msg: "Failed. Password is required for mandatory credential or any username input."
+password_match_fail_msg: "Failed. Passwords do not match. Please try again."
+credential_encrypt_fail_msg: "Failed to encrypt credential file."
+
+# Credential collection messages
+orchestrator_credential_collection_pass_msg: "Orchestrator credential collection completed."

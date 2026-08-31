@@ -27,6 +27,7 @@ default_catalog_file_path: "{{ lookup('env', 'CATALOG_FILE_PATH') | default(omni
 # --- Tag validation ---
 supported_tags:
   - precheck
+  - credentials
   - prepare
   - deploy
   - provision
@@ -43,11 +44,13 @@ skip_credential_tags:
 
 invalid_tag_combinations:
   - [precheck, cleanup]
+  - [credentials, cleanup]
   - [prepare, cleanup]
   - [deploy, cleanup]
   - [provision, cleanup]
   - [pxeboot, cleanup]
   - [precheck, upgrade]
+  - [credentials, upgrade]
   - [prepare, upgrade]
   - [deploy, upgrade]
   - [provision, upgrade]
