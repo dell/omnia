@@ -808,12 +808,6 @@ prepare_all_domains() {
         echo ""
 
         for domain in "${target_domains[@]}"; do
-            # Skip domain if it failed in a previous phase
-            if [ "${domain_failed[$domain]}" = true ]; then
-                echo -e "${YELLOW}  Skipping $domain (failed in earlier phase)${NC}"
-                continue
-            fi
-
             local playbook="$SRC_DIR/$domain/playbooks/${domain}.yml"
 
             if [ ! -f "$playbook" ]; then
@@ -836,22 +830,22 @@ prepare_all_domains() {
                 local rc=$?
                 echo -e "${RED}    ✗ $domain $tag failed (exit code: $rc)${NC}"
                 domain_failed["$domain"]=true
-                echo -e "${YELLOW}    $domain will be skipped in remaining phases${NC}"
             fi
             echo ""
         done
 
-        # Show which domains failed in this phase
-        local phase_failed_domains=()
+        # If any domain failed in this phase, stop everything
         for domain in "${target_domains[@]}"; do
             if [ "${domain_failed[$domain]}" = true ]; then
-                phase_failed_domains+=("$domain")
+                echo ""
+                echo -e "${RED}================================================================================${NC}"
+                echo -e "${RED}  FAILED: $domain failed in $tag phase. Stopping --prepare-all.${NC}"
+                echo -e "${RED}================================================================================${NC}"
+                echo -e "${YELLOW}  Fix the issue above and re-run: ./omnia.sh --prepare-all${NC}"
+                deactivate 2>/dev/null || true
+                return 1
             fi
         done
-
-        if [ ${#phase_failed_domains[@]} -gt 0 ]; then
-            echo -e "${YELLOW}Domains that failed and will be skipped: ${phase_failed_domains[*]}${NC}"
-        fi
 
         echo -e "${GREEN}Phase $tag completed${NC}"
         echo ""
