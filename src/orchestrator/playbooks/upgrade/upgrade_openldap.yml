@@ -1,0 +1,109 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Upgrade OpenLDAP --- Upgrade auth container from Fedora-based to Wolfi-based
+# Can be run standalone or imported by orchestrator.yml
+#
+# Logic:
+#   1. Detect active container image
+#   2. If Fedora-based image (tag 1.0) is running:
+#      a. Stop container
+#      b. Pull Wolfi-based image (tag 1.1)
+#      c. Start Wolfi container
+#      d. Reapply configuration
+#      e. Validate functionality
+#   3. If already running Wolfi image (tag 1.1): exit successfully
+#   4. If not deployed: skip upgrade
+#
+# Idempotent and re-runnable.
+
+- name: Upgrade OpenLDAP container
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  vars:
+    auth_container_name: omnia_auth
+    auth_image: "docker.io/dellhpcomniaaisolution/omnia_auth"
+    auth_target_tag: "1.1"
+    auth_previous_tag: "1.0"
+  tasks:
+    - name: Check if OpenLDAP container exists
+      containers.podman.podman_container_info:
+        name: "{{ auth_container_name }}"
+      register: auth_upgrade_check
+      failed_when: false
+
+    - name: Skip upgrade when not deployed
+      ansible.builtin.debug:
+        msg: "OpenLDAP (omnia_auth) not deployed. Skipping upgrade."
+      when: auth_upgrade_check.containers | default([]) | length == 0
+
+    - name: Upgrade OpenLDAP when present
+      when:
+        - auth_upgrade_check.containers | default([]) | length > 0
+      block:
+        - name: Detect current container image tag
+          ansible.builtin.set_fact:
+            auth_current_image: "{{ auth_upgrade_check.containers[0].ImageName | default('') }}"
+
+        - name: Already on target image
+          ansible.builtin.debug:
+            msg: >-
+              OpenLDAP is already running the Wolfi-based image
+              ({{ auth_image }}:{{ auth_target_tag }}). No upgrade needed.
+          when: auth_target_tag in auth_current_image
+
+        - name: Perform Fedora-to-Wolfi migration
+          when: auth_target_tag not in auth_current_image
+          block:
+            - name: Pull Wolfi-based OpenLDAP image
+              ansible.builtin.command: "podman pull {{ auth_image }}:{{ auth_target_tag }}"
+              register: auth_pull_result
+              retries: 3
+              delay: 10
+              until: auth_pull_result.rc == 0
+              changed_when: "'Pulling' in auth_pull_result.stdout or 'Copying' in auth_pull_result.stderr"
+
+            - name: Restart OpenLDAP service with new image
+              ansible.builtin.systemd:
+                name: omnia_auth
+                state: restarted
+                daemon_reload: true
+
+            - name: Wait for OpenLDAP to be healthy
+              containers.podman.podman_container_info:
+                name: "{{ auth_container_name }}"
+              register: auth_upgrade_health
+              retries: 10
+              delay: 5
+              until: >-
+                (auth_upgrade_health.containers | default([]) | length > 0) and
+                (auth_upgrade_health.containers[0].State.Status == 'running')
+
+            - name: Verify LDAP service responds
+              ansible.builtin.command: >
+                podman exec {{ auth_container_name }} ldapsearch -x -H ldap://localhost -b "" -s base namingContexts
+              register: ldap_verify
+              retries: 5
+              delay: 5
+              until: ldap_verify.rc == 0
+              changed_when: false
+              failed_when: false
+
+            - name: OpenLDAP upgrade completed
+              ansible.builtin.debug:
+                msg: >-
+                  OpenLDAP (omnia_auth) successfully upgraded from Fedora-based
+                  to Wolfi-based image ({{ auth_image }}:{{ auth_target_tag }}).

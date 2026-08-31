@@ -17,8 +17,7 @@
 # Runs ONCE before all provisioning playbooks to avoid 4x redundant setup.
 # Can be run standalone or imported by orchestrator.yml
 #
-# Prerequisites: prepare_orchestrator.yml, deploy_openchami.yml,
-#                validate_openchami.yml must have run first.
+# Prerequisites: precheck, prepare, and deploy phases must have run first.
 
 # Step 1: Setup orchestrator vars (needed for standalone runs)
 - name: Setup orchestrator environment
@@ -33,28 +32,154 @@
         omnia_metadata_support: true
         oim_group: true
 
-# Step 2: Build cluster host lists from PXE mapping
+# Step 2: Populate standalone prerequisites on localhost
+#   When running --tags provision alone, variables normally set by precheck /
+#   deploy are absent.  This play loads them.  Every task is guarded so it is
+#   a no-op when earlier phases already ran.
+#
+#   IMPORTANT: Never use  register: read_mapping_file  inside a guarded block.
+#   Ansible overwrites the register variable with a "skipped" result even when
+#   the block's `when` is false, destroying the value set by precheck.
+- name: Populate standalone prerequisites on localhost
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    # --- PXE mapping file ---
+    - name: Create temp mapping file from source
+      ansible.builtin.shell: |
+        set -o pipefail
+        sed 's/^[[:space:]]*//g' "{{ pxe_mapping_file_path }}" | sed 's/[[:space:]]*$//g' > /tmp/omnia_provision_mapping.csv
+      changed_when: false
+      when: read_mapping_file is not defined
+
+    - name: Remove comment lines from temp mapping file
+      ansible.builtin.lineinfile:
+        path: /tmp/omnia_provision_mapping.csv
+        regexp: '\s*#'
+        state: absent
+      when: read_mapping_file is not defined
+
+    - name: Generate xnames in temp mapping file
+      generate_xname_in_mapping_file:
+        mapping_file_path: /tmp/omnia_provision_mapping.csv
+      when: read_mapping_file is not defined
+
+    - name: Read PXE mapping CSV into temp var
+      community.general.read_csv:
+        path: /tmp/omnia_provision_mapping.csv
+        key: ADMIN_MAC
+      register: _preamble_csv_result
+      when: read_mapping_file is not defined
+
+    - name: Promote CSV result to read_mapping_file fact
+      ansible.builtin.set_fact:
+        read_mapping_file: "{{ _preamble_csv_result }}"
+      when: read_mapping_file is not defined and _preamble_csv_result is not skipped
+
+    - name: Clean up temp mapping file
+      ansible.builtin.file:
+        path: /tmp/omnia_provision_mapping.csv
+        state: absent
+      when: _preamble_csv_result is not skipped
+
+    # --- Network facts ---
+    - name: Load network_spec.yml
+      ansible.builtin.include_vars: "{{ input_project_dir }}/network_spec.yml"
+      when: admin_netmask_bits is not defined
+
+    - name: Parse network_spec data
+      ansible.builtin.set_fact:
+        network_data: "{{ network_data | default({}) | combine({item.key: item.value}) }}"
+      with_dict: "{{ Networks }}"
+      when: admin_netmask_bits is not defined
+
+    - name: Set network facts from network_spec
+      ansible.builtin.set_fact:
+        admin_nic_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
+        admin_nic: "{{ network_data.admin_network.oim_nic_name }}"
+        admin_netmask_bits: "{{ network_data.admin_network.netmask_bits }}"
+        ib_network_subnet: "{{ network_data.ib_network.subnet | default('') }}"
+        ib_network_dns: "{{ network_data.ib_network.dns | default([]) }}"
+        dns: "{{ network_data.admin_network.dns | default([]) }}"
+      when: admin_netmask_bits is not defined
+
+    # --- Functional groups and security config ---
+    - name: Load functional groups on localhost for bolt-on roles
+      ansible.builtin.include_vars:
+        file: "{{ functional_groups_config_path }}"
+      when: functional_groups is not defined
+
+    - name: Load security config on localhost for bolt-on roles
+      ansible.builtin.include_vars:
+        file: "{{ omnia_project_input_dir }}/security_config.yml"
+      when: ldap_connection_type is not defined
+
+    # --- /etc/hosts entry for cluster hostname ---
+    - name: Ensure OpenCHAMI cluster hostname resolves
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "{{ admin_nic_ip }} {{ oim_node_name }}.{{ domain_name | regex_replace('^' + oim_node_name + '\\.', '') }}"
+        create: true
+        mode: "0644"
+
+# Step 3: Load encrypted credentials onto localhost
+- name: Load provision credentials
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Load credentials from encrypted credential store
+      ansible.builtin.include_role:
+        name: orchestrator_common
+        tasks_from: decrypt_include_encrypt.yml
+      vars:
+        credential_file_path: "{{ input_project_dir }}/omnia_config_credentials.yml"
+        vault_password_file: "{{ input_project_dir }}/.omnia_config_credentials_key"
+      when: provision_password is not defined
+
+# Step 4: Build cluster host lists from PXE mapping
 - name: Build cluster host lists from PXE mapping
   hosts: localhost
   connection: local
   roles:
     - passwordless_ssh
 
-# Step 3: Configure OIM SSH access
+# Step 5: Configure OIM SSH access
 - name: Configure OIM SSH from cluster host lists
   hosts: oim
   connection: ssh
   roles:
     - passwordless_ssh
 
-# Step 4: Authenticate with OpenCHAMI (token stored as fact)
+# Step 6: Authenticate with OpenCHAMI (token stored as fact)
 - name: Authenticate with OpenCHAMI
   hosts: oim
   connection: ssh
   tasks:
+    - name: Set oim_node_name on oim host
+      ansible.builtin.set_fact:
+        oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
+
     - name: OpenCHAMI cluster authentication
       ansible.builtin.include_role:
         name: orchestrator_common
         tasks_from: openchami_auth.yml
-      vars:
-        oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
+
+    - name: Configure S3 access for boot images
+      ansible.builtin.include_role:
+        name: orchestrator_common
+        tasks_from: configure_s3_access.yml
+      when: s3_configurations is not defined
+
+    - name: Load functional groups configuration for image validation
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
+      when: validated_images is not defined
+
+    - name: Validate boot images for provisioning
+      ansible.builtin.include_role:
+        name: orchestrator_validations
+        tasks_from: validate_image.yml
+      with_items: "{{ functional_groups | map(attribute='name') | list }}"
+      when: validated_images is not defined

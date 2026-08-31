@@ -41,6 +41,8 @@
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
     - "{{ playbook_dir | dirname | dirname }}/vars/credential_vars.yml"
+  environment:
+    PULP_CA_BUNDLE: "{{ pulp_server_crt }}"
   tasks:
     # -------------------------------------------------------------------------
     # PHASE 0: SETUP PULP CLI
@@ -58,14 +60,14 @@
       when: not pulp_system_cli_check.stat.exists
 
     - name: Create symlink for pulp CLI at /usr/local/bin/pulp
-      ansible.builtin.file:
-        src: "{{ pulp_which_result.stdout }}"
-        dest: /usr/local/bin/pulp
-        state: link
       when:
         - not pulp_system_cli_check.stat.exists
         - pulp_which_result.rc | default(1) == 0
         - pulp_which_result.stdout | default('') | length > 0
+      ansible.builtin.file:
+        src: "{{ pulp_which_result.stdout }}"
+        dest: /usr/local/bin/pulp
+        state: link
 
     - name: Verify pulp CLI is accessible at /usr/local/bin/pulp
       ansible.builtin.command: /usr/local/bin/pulp --version
@@ -124,11 +126,9 @@
     # -------------------------------------------------------------------------
     # PHASE 2: CREDENTIALS
     # -------------------------------------------------------------------------
-    - name: Load credentials
+    - name: Load and reconcile credentials
       ansible.builtin.include_role:
-        name: ../../roles/credential
-      vars:
-        credential_action: all
+        name: ../../roles/collect_repo_credentials
 
     # -------------------------------------------------------------------------
     # PHASE 3: RHEL SUBSCRIPTION CHECK
@@ -148,25 +148,56 @@
     # -------------------------------------------------------------------------
     # PHASE 4: PULP VALIDATION
     # -------------------------------------------------------------------------
-    - name: Read endpoint config vars
-      ansible.builtin.include_role:
-        name: ../../roles/pulp_validation
-        tasks_from: read_endpoint_config.yml
+    - name: Pulp Validation Block
+      block:
+        - name: Read endpoint config vars
+          ansible.builtin.include_role:
+            name: ../../roles/pulp_validation
+            tasks_from: read_endpoint_config.yml
 
-    - name: Display pre-flight check info
-      ansible.builtin.debug:
-        msg:
-          - "========== PRE-FLIGHT CHECKS =========="
-          - "Verifying Pulp container and endpoint..."
-          - "========================================"
+        - name: Display pre-flight check info
+          ansible.builtin.debug:
+            msg:
+              - "========== PRE-FLIGHT CHECKS =========="
+              - "Verifying Pulp container and endpoint..."
+              - "========================================"
 
-    - name: Validate Pulp Container and Endpoint
-      ansible.builtin.include_role:
-        name: ../../roles/pulp_validation
+        - name: Verify Pulp is healthy before operations
+          ansible.builtin.include_tasks: ../../roles/deploy_pulp/tasks/pulp_health_check.yml
 
-    - name: Pre-flight checks passed
-      ansible.builtin.debug:
-        msg: "Pre-flight checks passed. Pulp is ready for repository operations."
+        - name: Validate Pulp Container and Endpoint
+          ansible.builtin.include_role:
+            name: ../../roles/pulp_validation
+
+        - name: Set validation success flag
+          ansible.builtin.set_fact:
+            pulp_validation_passed: true
+            cacheable: true
+
+        - name: Pre-flight checks passed
+          ansible.builtin.debug:
+            msg: "Pre-flight checks passed. Pulp is ready for repository operations."
+
+      rescue:
+        - name: Set validation failure flag
+          ansible.builtin.set_fact:
+            pulp_validation_passed: false
+            cacheable: true
+
+        - name: Pulp validation failed - aborting operations
+          ansible.builtin.fail:
+            msg: |
+              PULP VALIDATION FAILED
+              =====================
+              Pulp container or endpoint is not available.
+              Please ensure Pulp is properly deployed and running before proceeding.
+
+              Troubleshooting steps:
+              1. Check if Pulp container is running: podman ps | grep pulp
+              2. Check Pulp container logs: podman logs pulp
+              3. Restart Pulp if needed: podman restart pulp
+              4. Verify network connectivity to Pulp endpoint
+              5. Check Pulp status: pulp status
 
     # -------------------------------------------------------------------------
     # PHASE 5: SELINUX CONFIGURATION
@@ -174,12 +205,13 @@
     - name: Set SELinux context for Local flow
       ansible.builtin.command: >-
         chcon -R system_u:object_r:container_file_t:s0
-        "{{ oim_shared_path }}/repo_manager/"
+        "{{ repo_manager_runtime_dir }}/"
       changed_when: true
       failed_when: false
       when:
+        - pulp_validation_passed | default(false)
         - omnia_share_option == 'Local'
-        - oim_shared_path | length > 0
+        - repo_manager_runtime_dir | length > 0
 
     - name: Set SELinux context for NFS internal flow
       ansible.builtin.command: >-
@@ -188,6 +220,7 @@
       changed_when: true
       failed_when: false
       when:
+        - pulp_validation_passed | default(false)
         - omnia_share_option == 'NFS'
         - nfs_type == 'internal'
         - nfs_server_share_path | length > 0
@@ -201,14 +234,17 @@
           - "========== REPOSITORY OPERATIONS =========="
           - "Starting local repository setup..."
           - "============================================"
+      when: pulp_validation_passed | default(false)
 
     - name: Run validation role
       ansible.builtin.include_role:
         name: ../../roles/validation
+      when: pulp_validation_passed | default(false)
 
     - name: Run parse_and_download role
       ansible.builtin.include_role:
         name: ../../roles/parse_and_download
+      when: pulp_validation_passed | default(false)
 
     # -------------------------------------------------------------------------
     # PHASE 7: COMPLETION
@@ -217,7 +253,9 @@
       ansible.builtin.include_role:
         name: ../../roles/parse_and_download
         tasks_from: localrepo_completion.yml
-      when: final_status | default('') | lower == 'success'
+      when:
+        - pulp_validation_passed | default(false)
+        - final_status | default('') | lower == 'success'
 
     - name: Ensure output directory exists
       ansible.builtin.file:
@@ -225,21 +263,23 @@
         state: directory
         mode: "0755"
         recurse: true
-      when: final_status is defined
+      when:
+        - pulp_validation_passed | default(false)
+        - final_status is defined
 
     - name: Generate repo_status.yml with final status
       generate_local_repo_access:
         pulp_server_ip: "{{ pulp_server_ip }}"
         pulp_server_port: "{{ pulp_server_port | int }}"
-        pulp_protocol: "{{ pulp_protocol }}"
         cluster_os_type: "{{ cluster_os_type }}"
         cluster_os_version: "{{ cluster_os_version }}"
         repo_config: "{{ repo_config | default('partial') }}"
         output_path: "{{ output_dir }}/repo_status.yml"
-        certs_dir: "{{ pulp_certs_dir }}"
         local_repo_config_path: "{{ input_project_dir }}/repo_manager_config.yml"
         overall_status: "{{ 'success' if final_status | default('') | lower == 'success' else 'failed' }}"
-      when: final_status is defined
+      when:
+        - pulp_validation_passed | default(false)
+        - final_status is defined
 
     - name: Display final status
       ansible.builtin.debug:
@@ -247,3 +287,4 @@
           - "========== REPO MANAGER COMPLETE =========="
           - "Status: {{ final_status | default('unknown') }}"
           - "============================================"
+      when: pulp_validation_passed | default(false)

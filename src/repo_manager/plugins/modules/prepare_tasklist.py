@@ -16,6 +16,7 @@
 #!/usr/bin/python
 
 import os
+import shutil
 from datetime import datetime
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
@@ -33,12 +34,15 @@ from ansible.module_utils.repo_manager.catalog_resolver import (
     build_global_package_index,
     parse_repo_urls_from_config,
     parse_additional_repos_from_config,
+    parse_user_repos_from_config,
 )
+from ansible.module_utils.repo_manager.repo_settings import get_caching_policy
 from ansible.module_utils.repo_manager.mirror_status import (
     load_mirror_index,
     save_mirror_index,
     save_global_package_index,
     update_mirror_index_entry,
+    migrate_mirror_index,
     detect_package_changes,
     filter_tasks_for_processing,
 )
@@ -92,6 +96,27 @@ from ansible.module_utils.repo_manager.config import (
     MIRROR_STATUS_DIR,
     MIRROR_INDEX_FILENAME,
 )
+
+
+def packages_requiring_reconciliation(change_results, configured_registry_names):
+    """Return mirrored packages whose external Pulp state must be revalidated."""
+    reconciliation_packages = []
+    for package_info in change_results.get("skip", []):
+        package_type = package_info.get("type")
+        if package_type == "rpm_repo":
+            # rpm_repo means the package payload and dependencies must remain
+            # retrievable through Pulp, not merely present in repository metadata.
+            reconciliation_packages.append(package_info)
+            continue
+
+        if (package_type == "image"
+                and package_info.get("definition", {}).get("source_registry")
+                in configured_registry_names):
+            # Reconcile rotated private-registry credentials, certificates,
+            # URLs, and policies even when the image identity is unchanged.
+            reconciliation_packages.append(package_info)
+
+    return reconciliation_packages
 
 
 def main():
@@ -158,6 +183,14 @@ def main():
         mirror_index_dir = os.path.join(log_dir, MIRROR_STATUS_DIR)
         mirror_index_path = os.path.join(mirror_index_dir, MIRROR_INDEX_FILENAME)
         mirror_data = load_mirror_index(mirror_index_path, logger)
+        mirror_index_migrated = migrate_mirror_index(
+            mirror_data, global_index, logger
+        )
+        if mirror_index_migrated and os.path.isfile(mirror_index_path):
+            backup_path = f"{mirror_index_path}.schema-v1.bak"
+            if not os.path.exists(backup_path):
+                shutil.copy2(mirror_index_path, backup_path)
+                logger.info("Backed up legacy mirror index to %s", backup_path)
 
         # Save global package index to file for reference
         global_index_path = os.path.join(mirror_index_dir, "global_package_index.json")
@@ -177,6 +210,17 @@ def main():
             # Detect changes against mirror index
             change_results = detect_package_changes(global_index, mirror_data, arch, logger)
             packages_to_process = filter_tasks_for_processing(change_results, logger)
+
+            configured_registry_names = set((config_data.get("registries") or {}).keys())
+            reconciliation_packages = packages_requiring_reconciliation(
+                change_results, configured_registry_names
+            )
+            if reconciliation_packages:
+                logger.info(
+                    "Reprocessing %d package(s) to reconcile external Pulp state",
+                    len(reconciliation_packages)
+                )
+                packages_to_process.extend(reconciliation_packages)
 
             if not packages_to_process:
                 logger.info("No packages to process for arch %s (all up-to-date)", arch)
@@ -215,7 +259,9 @@ def main():
         for arch in sw_archs:
             arch_index = global_index.get(arch, {})
             for composite_hash, pkg_info in arch_index.items():
-                existing_pkg = mirror_data.get("MirrorIndex", {}).get("packages", {}).get(pkg_info["package_name"])
+                existing_pkg = mirror_data.get(
+                    "MirrorIndex", {}
+                ).get("packages", {}).get(composite_hash)
                 if existing_pkg is None:
                     update_mirror_index_entry(
                         mirror_data, pkg_info["package_name"], pkg_info["type"],
@@ -225,15 +271,19 @@ def main():
                     )
         save_mirror_index(mirror_index_path, mirror_data, logger)
 
+        # Get global caching policy from config
+        global_caching_policy = get_caching_policy(config_data)
+
         # Parse repository URLs from config
         local_config = []
+        explicitly_configured_repos = set()
         for arch in sw_archs:
             repos = parse_repo_urls_from_config(config_data, repo_config, arch,
-                                                 cluster_os_version, logger)
+                                                 cluster_os_version, logger, global_caching_policy)
             for repo in repos:
                 sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, repo["name"])
                 pulp_policy = resolve_pulp_policy(repo.get("policy", repo_config),
-                                                   repo.get("caching", True), logger)
+                                                   repo.get("caching", global_caching_policy), logger)
                 local_config.append({
                     "package": sw_name,
                     "url": repo["url"],
@@ -244,18 +294,29 @@ def main():
                     "client_cert": repo.get("sslclientcert", ""),
                     "policy": pulp_policy,
                     "sw_arch": arch,
+                    "priority": repo.get("priority"),
                 })
+                explicitly_configured_repos.add((arch, repo["name"]))
 
-        # Handle subscription URLs override
+        # Add subscription-discovered URLs only when a repository does not have
+        # an explicit configured URL. This makes a user-provided URL the highest
+        # priority and prevents duplicate Pulp entries for the same repository.
         if sub_urls:
             for arch in sw_archs:
                 if arch in sub_urls and sub_urls[arch]:
                     for url_entry in sub_urls[arch]:
                         name = url_entry.get("name", "unknown")
+                        if (arch, name) in explicitly_configured_repos:
+                            logger.info(
+                                "Using explicitly configured URL for repository %s (%s); "
+                                "skipping subscription-discovered URL",
+                                name, arch
+                            )
+                            continue
                         sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, name)
                         pulp_policy = resolve_pulp_policy(
                             url_entry.get("policy", repo_config),
-                            url_entry.get("caching", True), logger)
+                            url_entry.get("caching", global_caching_policy), logger)
                         local_config.append({
                             "package": sw_name,
                             "url": url_entry.get("url", ""),
@@ -266,17 +327,28 @@ def main():
                             "client_cert": url_entry.get("sslclientcert", ""),
                             "policy": pulp_policy,
                             "sw_arch": arch,
+                            "priority": url_entry.get("priority"),
                         })
 
         # Parse additional repos from config
         additional_repos_config = {}
         for arch in sw_archs:
             add_repos = parse_additional_repos_from_config(
-                config_data, repo_config, arch, cluster_os_version, logger)
+                config_data, repo_config, arch, cluster_os_version, logger, global_caching_policy)
             if add_repos:
                 additional_repos_config[arch] = add_repos
             else:
                 additional_repos_config[arch] = []
+
+        # Parse user repos from config
+        user_repos_config = {}
+        for arch in sw_archs:
+            user_repos = parse_user_repos_from_config(
+                config_data, cluster_os_version, arch, repo_config, logger, global_caching_policy)
+            if user_repos:
+                user_repos_config[arch] = user_repos
+            else:
+                user_repos_config[arch] = []
 
         logger.info(f"Package processing completed: {final_tasks_dict}")
         module.exit_json(
@@ -284,6 +356,7 @@ def main():
             software_dict=final_tasks_dict,
             local_config=local_config,
             additional_repos_config=additional_repos_config,
+            user_repos_config=user_repos_config,
             sw_archs=sw_archs
         )
 

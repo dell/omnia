@@ -29,9 +29,11 @@ from ansible.module_utils.repo_manager.common_functions import (
     load_yaml_file,
     load_vault_yaml
 )
+from ansible.module_utils.repo_manager.registry_utils import resolve_registry_contexts
 # Global lock for logging synchronization
 log_lock = multiprocessing.Lock()
 docker_password_cipher = Fernet(Fernet.generate_key())
+PROGRESS_LOG_INTERVAL_SECONDS = 60
 
 
 def load_docker_credentials(vault_yml_path, vault_password_file):
@@ -124,55 +126,6 @@ def load_docker_credentials(vault_yml_path, vault_password_file):
         raise RuntimeError(f"Failed to parse decrypted YAML: {error}") from error
 
 
-def load_user_registry_credentials(vault_yml_path, vault_password_file, logger=None):
-    """
-    Loads user_registry_credentials from the credentials YAML file.
-    Decrypts the file with Ansible Vault if it is encrypted.
-
-    Args:
-        vault_yml_path (str): Path to the credentials YAML file.
-        vault_password_file (str): Path to the Ansible Vault password file.
-        logger (Logger, optional): Logger instance.
-
-    Returns:
-        list: List of user registry credential dicts, or empty list on failure.
-    """
-    try:
-        data = load_vault_yaml(vault_yml_path, vault_password_file)
-        return data.get("user_registry_credentials") or []
-    except Exception as error:
-        if logger:
-            logger.warning(f"Failed to load user registry credentials: {error}")
-        return []
-
-
-def merge_user_registry_credentials(user_registries, user_registry_credentials):
-    """
-    Merges user_registry_credentials into user_registry entries by host.
-
-    Args:
-        user_registries (list): List of user registry dicts from repo_manager_config.yml.
-        user_registry_credentials (list): List of credential dicts from credentials file.
-
-    Returns:
-        list: Updated user_registries with username/password filled in.
-    """
-    if not user_registries or not user_registry_credentials:
-        return user_registries or []
-    cred_lookup = {}
-    for entry in user_registry_credentials:
-        host = entry.get("host")
-        if host:
-            cred_lookup[host] = entry
-    for registry in user_registries:
-        host = registry.get("host")
-        creds = cred_lookup.get(host)
-        if creds:
-            registry["username"] = creds.get("username", "")
-            registry["password"] = creds.get("password", "")
-    return user_registries
-
-
 def log_table_output(table_output, log_file):
     """
     Writes the provided table output to a log file.
@@ -211,7 +164,7 @@ def setup_logger(log_dir, log_file_path):
         # Create a file handler to write logs to the specified file
         file_handler = logging.FileHandler(log_file_path)
         # Define the format for log messages
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter('%(asctime)s - %(levelname)-7s - [%(filename)s] - %(message)s')
         # Apply the formatter to the file handler
         file_handler.setFormatter(formatter)
         # Add the file handler to the logger
@@ -220,7 +173,7 @@ def setup_logger(log_dir, log_file_path):
 
 
 def execute_task(task, determine_function, user_data, version_variables, arc,
-                repo_store_path, csv_file_path, logger, user_registries,
+                repo_store_path, csv_file_path, logger, registry_contexts,
                 docker_username, docker_secret_token, timeout=None):
     """
     Executes a task by determining the appropriate function to call, managing execution time,
@@ -236,7 +189,7 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
         csv_file_path (str): Path to a CSV file to be processed as part of the task.
         logger (logging.Logger): The logger instance for logging the task's execution.
         timeout (float, optional): The maximum time allowed for the task to execute.
-        user_registries (str): List of user registries
+        registry_contexts (dict): Configured registries resolved with credentials
 
     Returns:
         dict: A dictionary containing the task information, its execution status,
@@ -256,7 +209,7 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
 
         # Determine the function and its arguments using the provided `determine_function`
         function, args = determine_function(task, repo_store_path, csv_file_path, user_data,
-                         version_variables, arc, user_registries, docker_username, docker_secret_token)
+                         version_variables, arc, registry_contexts, docker_username, docker_secret_token)
 
         while True:
             elapsed_time = time.time() - start_time  # Calculate elapsed time
@@ -288,7 +241,7 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
 
         # Log the success and return the result
         with log_lock:
-            logger.info(f"Task {function.__name__} succeeded.")
+            logger.info(f"Task {function.__name__} completed.")
             logger.info(f"### {execute_task.__name__} end ###")
 
         return {
@@ -311,68 +264,117 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
         }
 
 
+def _requires_docker_hub_credentials(task, registry_contexts):
+    """Return whether this task uses the legacy Docker Hub credential path."""
+    if task.get("type") != "image":
+        return False
+
+    source_registry = task.get("source_registry", "")
+    if source_registry and source_registry in (registry_contexts or {}):
+        return False
+
+    package = task.get("package", "")
+    return source_registry in ("docker.io", "registry-1.docker.io") or package.startswith(
+        ("docker.io/", "registry-1.docker.io/")
+    )
+
+
 def worker_process(task, determine_function, user_data, version_variables, arc, repo_store_path,
-                  csv_file_path, log_dir, result_queue, user_registries,
-                  omnia_credentials_yaml_path, omnia_credentials_vault_path, timeout):
-    """
-    Executes a task in a separate worker process, logs the process execution,
-    and puts the result in a result queue.
-    Args:
-        task (dict): The task to be processed, containing details like the package to be processed.
-        determine_function (function): A function that determines the function to call
-        and its arguments for the task.
-        user_data: content from catalog configuration
-        version_variables: softwarename_version for versioned softwares
-        arc: Architecture of software
-        repo_store_path (str): Path to the repository where task-related files are stored.
-        csv_file_path (str): Path to a CSV file that may be needed for processing the task.
-        log_dir (str): Directory where log files for the worker process should be saved.
-        result_queue (multiprocessing.Queue): Queue for putting the result of the
-        task execution (used for inter-process communication).
-        docker_username: Docker username provided by the user
-        omnia_credentials_yaml_path: Path to the Omnia credentials YAML file
-        omnia_credentials_vault_path: Path to the Omnia credentials vault password file
-        user_registries (str): List of user registries
-        timeout (float): The maximum allowed time for the task execution.
-    Returns:
-        None: The result is placed into the `result_queue`, so no return value is needed.
-    """
-    # Define the log file path using process ID for uniqueness
+                  csv_file_path, log_dir, registry_contexts,
+                  omnia_credentials_yaml_path, omnia_credentials_vault_path, timeout,
+                  state_lock, resource_lock, dnf_semaphore):
+    """Execute one task and return exactly one result to the parent process."""
     thread_log_path = os.path.join(log_dir, f"package_status_{os.getpid()}.log")
-    # Setup logger specific to this worker process
     logger = setup_logger(log_dir, thread_log_path)
     try:
-        # Log the start of the worker process execution
+        # Artifact modules historically supplied separate module-local locks to
+        # the common status writer. Replace those locks with one manager-backed
+        # lock for the status CSV and mirror-index read/modify/write transaction.
+        from ansible.module_utils.repo_manager.parse_and_download import (  # pylint: disable=import-outside-toplevel
+            configure_status_file_lock,
+        )
+        configure_status_file_lock(state_lock)
+
         with log_lock:
-            logger.info(f"Worker process {os.getpid()} started  execution.")
-        # Only load Docker credentials for image tasks to avoid unnecessary
-        # Docker Hub API calls (and potential timeouts) for RPM/file tasks.
-        task_type = task.get("type", "")
-        if task_type == "image":
+            logger.info("Worker process %d started execution.", os.getpid())
+
+        if _requires_docker_hub_credentials(task, registry_contexts):
             docker_username, docker_secret_token = load_docker_credentials(
                 omnia_credentials_yaml_path, omnia_credentials_vault_path)
         else:
             docker_username, docker_secret_token = None, None
-        # Execute the task by calling the `execute_task` function and passing necessary arguments
-        result = execute_task(task, determine_function, user_data, version_variables, arc,
-                             repo_store_path, csv_file_path, logger, user_registries,
-                             docker_username, docker_secret_token, timeout)
+
+        # Different resources remain parallel. Tasks that share a Pulp resource
+        # (notably multiple tags of one image) are serialized end to end. RPM
+        # tasks additionally share a DNF semaphore so the per-architecture DNF
+        # metadata cache remains safe when the general worker pool is increased.
+        dnf_slot_acquired = False
+        if task.get("type") in ("rpm", "rpm_repo"):
+            logger.info("Waiting for an available DNF command slot")
+            dnf_semaphore.acquire()
+            dnf_slot_acquired = True
+            logger.info("Acquired DNF command slot")
+        try:
+            with resource_lock:
+                result = execute_task(
+                    task, determine_function, user_data, version_variables, arc,
+                    repo_store_path, csv_file_path, logger, registry_contexts,
+                    docker_username, docker_secret_token, timeout
+                )
+        finally:
+            if dnf_slot_acquired:
+                dnf_semaphore.release()
+                logger.info("Released DNF command slot")
         result["logname"] = f"package_status_{os.getpid()}.log"
-        # Put the result of the task execution into the result_queue for further processing
-        result_queue.put(result)
-        # Log the successful completion of the task execution
+
         with log_lock:
-            logger.info(f"Worker process {os.getpid()} completed task execution.")
-    except Exception:
-        # Log any errors encountered during task execution
+            logger.info("Worker process %d completed task execution.", os.getpid())
+        return result
+    except Exception:  # pylint: disable=broad-exception-caught
         with log_lock:
             logger.error("Worker process %s encountered an internal error.", os.getpid())
             logger.error("Traceback:\n%s", traceback.format_exc())
-        # If an error occurs, put a failure result in the queue indicating task failure
-        # Return a safe, generic error message to caller
-        safe_error_message = "Task execution failed due to an internal error."
-        package_name = task.get("package", task.get("Name", "unknown"))
-        result_queue.put({"task": task, "package": package_name, "status": "FAILED", "output": "", "error": safe_error_message, "logname": f"package_status_{os.getpid()}.log"})
+        return {
+            "task": task,
+            "package": task.get("package", task.get("Name", "unknown")),
+            "status": "FAILED",
+            "output": "",
+            "error": "Task execution failed due to an internal error.",
+            "logname": f"package_status_{os.getpid()}.log",
+        }
+
+
+def _task_identity(task):
+    """Return a deterministic identity that retains distinct tags and sources."""
+    return (
+        task.get("type", ""),
+        task.get("package", ""),
+        task.get("tag", ""),
+        task.get("digest", ""),
+        task.get("source_registry", ""),
+    )
+
+
+def _task_resource_key(task):
+    """Return the shared Pulp resource targeted by a task."""
+    task_type = task.get("type", "")
+    package = task.get("package", task.get("Name", ""))
+    if task_type == "image":
+        # Tags and digests of one image share its repository and remote.
+        return f"image:{package}"
+    return f"{task_type}:{package}"
+
+
+def _failed_worker_result(task, error_message, status="FAILED"):
+    """Build a stable result when a worker cannot return normally."""
+    return {
+        "task": task,
+        "package": task.get("package", task.get("Name", "unknown")),
+        "status": status,
+        "output": "",
+        "error": error_message,
+        "logname": "N/A",
+    }
 
 
 def execute_parallel(
@@ -391,7 +393,8 @@ def execute_parallel(
     # user_reg_key_path,
     omnia_credentials_yaml_path,
     omnia_credentials_vault_path,
-    timeout
+    timeout,
+    dnf_max_concurrent_commands=1
 ):
     """
     Executes a list of tasks in parallel using multiple worker processes.
@@ -400,6 +403,8 @@ def execute_parallel(
         determine_function (function): A function that determines which function to
         execute and its arguments for each task.
         nthreads (int): The number of worker processes to run in parallel.
+        dnf_max_concurrent_commands (int): Maximum RPM tasks allowed to use
+            DNF concurrently, independent of the general worker count.
         repo_store_path (str): Path to the repository where task-related files are stored.
         csv_file_path (str): Path to a CSV file that may be needed for processing some tasks.
         log_dir (str): Directory where log files for the worker processes will be saved.
@@ -414,83 +419,153 @@ def execute_parallel(
             - task_results_data (list): A list of dictionaries,
               each containing the result of an individual task.
     """
-    # Create a shared queue for collecting task results from worker processes
-    result_queue = multiprocessing.Manager().Queue()
     with log_lock:
         standard_logger.info("Starting parallel task execution.")
 
+    if not 1 <= int(nthreads) <= 5:
+        raise ValueError("nthreads must be between 1 and 5")
+    if not 1 <= int(dnf_max_concurrent_commands) <= 5:
+        raise ValueError("dnf_max_concurrent_commands must be between 1 and 5")
+
     config = load_yaml_file(local_repo_config_path)
-    user_registries = config.get("user_registry", [])
-    user_registry_credentials = load_user_registry_credentials(
-        omnia_credentials_yaml_path, omnia_credentials_vault_path, standard_logger
+    credential_data = load_vault_yaml(
+        omnia_credentials_yaml_path, omnia_credentials_vault_path
     )
-    user_registries = merge_user_registry_credentials(
-        user_registries, user_registry_credentials
+    registry_contexts = resolve_registry_contexts(
+        config.get("registries") or {}, credential_data
     )
 
-    # Deduplicate tasks by package:tag:digest to prevent duplicate processing
+    # Render before deduplication so identities and locks match actual Pulp names.
     seen_packages = set()
     deduplicated_tasks = []
     for task in tasks:
-        # Create unique key including tag and digest
-        tag = task.get('tag', '')
-        digest = task.get('digest', '')
-        package_key = f"{task.get('package', '')}:{tag}:{digest}"
-        
+        rendered_task = dict(task)
+        package_template = Template(rendered_task.get("package") or "")
+        rendered_task["package"] = package_template.render(**version_variables)
+        package_key = _task_identity(rendered_task)
+
         if package_key not in seen_packages:
             seen_packages.add(package_key)
-            deduplicated_tasks.append(task)
+            deduplicated_tasks.append(rendered_task)
         else:
             standard_logger.info(f"Skipping duplicate task: {package_key}")
-    
+
     tasks = deduplicated_tasks
+    if not tasks:
+        return "SUCCESS", []
 
-    # Create a pool of worker processes to handle the tasks
-    with multiprocessing.Pool(processes=nthreads) as pool:
-        task_results = []  # List to hold references to the async results of the tasks
+    effective_workers = min(int(nthreads), len(tasks))
+    standard_logger.info(
+        "Configured package workers: %d; effective workers: %d",
+        int(nthreads), effective_workers
+    )
+    effective_dnf_commands = min(
+        int(dnf_max_concurrent_commands), effective_workers
+    )
+    standard_logger.info(
+        "Configured concurrent DNF commands: %d; effective limit: %d",
+        int(dnf_max_concurrent_commands), effective_dnf_commands
+    )
+    standard_logger.info("Detailed worker logs: %s", log_dir)
 
-        # Submit each task to the pool for parallel execution
-        for task in tasks:
-            package_template = Template(task.get('package', None))
-            package_name = package_template.render(**version_variables)
-            task['package'] = package_name
-            task_results.append(pool.apply_async(worker_process, (task, determine_function, user_data,
-                               version_variables, arc, repo_store_path, csv_file_path, log_dir, result_queue,
-                               user_registries, omnia_credentials_yaml_path, omnia_credentials_vault_path, timeout)))
-
-        pool.close()  # Close the pool to new tasks once all have been submitted
-        start_time = time.time()  # Start time for overall task execution
-        tasks_are_not_completed = False
-        # Check the status of the tasks periodically and enforce the timeout if necessary
-        while task_results:
-            elapsed_time = time.time() - start_time  # Calculate elapsed time
-            if timeout and elapsed_time > timeout:  # Check if overall timeout has been reached
-                with log_lock:
-                    standard_logger.warning(
-                       f"Overall timeout reached ({elapsed_time:.2f}s), stopping remaining tasks."
-                )
-                pool.terminate()  # Terminate all tasks if timeout occurs
-                tasks_are_not_completed = True  # Mark that not all tasks have completed
-                break
-
-            # Remove tasks that have already completed (they are marked as 'ready')
-            task_results = [task for task in task_results if not task.ready()]
-            time.sleep(0.1)  # Sleep to avoid tight looping
-
-        pool.join()  # Ensure all worker processes have completed
-    # Collect all the results from the result queue
+    tasks_are_not_completed = False
     task_results_data = []
-    while not result_queue.empty():
-        task_results_data.append(result_queue.get())
+    with multiprocessing.Manager() as manager:
+        state_lock = manager.RLock()
+        dnf_semaphore = manager.BoundedSemaphore(effective_dnf_commands)
+        resource_locks = {}
+        with multiprocessing.Pool(processes=effective_workers) as pool:
+            async_results = []
+
+            for task in tasks:
+                resource_key = _task_resource_key(task)
+                if resource_key not in resource_locks:
+                    resource_locks[resource_key] = manager.RLock()
+                async_result = pool.apply_async(
+                    worker_process,
+                    (
+                        task, determine_function, user_data, version_variables, arc,
+                        repo_store_path, csv_file_path, log_dir, registry_contexts,
+                        omnia_credentials_yaml_path, omnia_credentials_vault_path,
+                        timeout, state_lock, resource_locks[resource_key],
+                        dnf_semaphore,
+                    ),
+                )
+                async_results.append((task, async_result))
+
+            pool.close()
+            start_time = time.time()
+            last_progress_log_time = start_time
+            while any(not result.ready() for _, result in async_results):
+                current_time = time.time()
+                elapsed_time = current_time - start_time
+                if timeout and elapsed_time > timeout:
+                    with log_lock:
+                        standard_logger.warning(
+                            f"Overall timeout reached ({elapsed_time:.2f}s), "
+                            "stopping remaining tasks."
+                        )
+                    pool.terminate()
+                    tasks_are_not_completed = True
+                    break
+                if current_time - last_progress_log_time >= PROGRESS_LOG_INTERVAL_SECONDS:
+                    finished_count = sum(
+                        1 for _, result in async_results if result.ready()
+                    )
+                    total_count = len(async_results)
+                    elapsed_seconds = int(elapsed_time)
+                    with log_lock:
+                        standard_logger.info(
+                            "Progress: finished=%d/%d, remaining=%d, "
+                            "elapsed=%dm %ds, workers=%d, logs=%s",
+                            finished_count, total_count,
+                            total_count - finished_count,
+                            elapsed_seconds // 60, elapsed_seconds % 60,
+                            effective_workers, log_dir
+                        )
+                    last_progress_log_time = current_time
+                time.sleep(0.1)
+
+            pool.join()
+
+            for task, async_result in async_results:
+                if tasks_are_not_completed and not async_result.ready():
+                    task_results_data.append(
+                        _failed_worker_result(
+                            task, "Task stopped after the overall timeout.",
+                            status="TIMEOUT"
+                        )
+                    )
+                    continue
+                try:
+                    task_results_data.append(async_result.get())
+                except Exception as error:  # pylint: disable=broad-exception-caught
+                    standard_logger.error("Worker result collection failed: %s", error)
+                    task_results_data.append(
+                        _failed_worker_result(
+                            task, "Worker process did not return a result."
+                        )
+                    )
+
+    if len(task_results_data) != len(tasks):
+        raise RuntimeError(
+            f"Expected {len(tasks)} worker results, received {len(task_results_data)}"
+        )
+
     # Determine the overall status based on individual task results
     if tasks_are_not_completed:
         overall_status = "TIMEOUT"  # If timeout occurred before completion, set status as "TIMEOUT"
     else:
         # Check if all tasks failed, all succeeded, or if there was a mix (partial success)
         all_failed = all(result["status"] == "FAILED" for result in task_results_data)
-        overall_status = "FAILED" if all_failed else "SUCCESS" if all(result["status"] == "SUCCESS" for result in task_results_data) else "PARTIAL"
+        all_succeeded = all(
+            result["status"] == "SUCCESS" for result in task_results_data
+        )
+        overall_status = "FAILED" if all_failed else "SUCCESS" if all_succeeded else "PARTIAL"
     # Log the final status of task execution
     with log_lock:
-        standard_logger.info(f"Task execution finished with overall status: {overall_status}")
+        standard_logger.info(
+            "Task execution finished with overall status: %s", overall_status
+        )
     # Return the overall status and the results of each task
     return overall_status, task_results_data

@@ -205,11 +205,12 @@
           chattr +i /etc/resolv.conf || true
 {% endif %}
         - /usr/local/bin/configure_vast_installation.sh
-        # DOCA prerequisites - mount /cert and prepare for DOCA installation
         - mkdir -p {{ client_mount_path }}/slurm/ssh
+        - echo "{{ metadata_svc_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
         - mkdir -p {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} /etc/munge /cert /var/log/track /var/lib/packages
         - echo "{{ metadata_svc_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
         - mount -av
+        - rm -f /etc/slurm/slurm.conf /etc/slurm/slurm.conf.example
         - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
         # DOCA and IB configuration - now ready before vendor_data mounts
@@ -271,13 +272,6 @@
 {% if login_compiler_node_present %}
         - /usr/local/bin/generate_install_uuid.sh
         - /usr/local/bin/install_cuda_toolkit.sh
-{% endif %}
-
-{% if hostvars['localhost']['ucx_support'] or hostvars['localhost']['openmpi_support'] %}
-        # Add NFS entry and mount
-        - mkdir -pv {{ client_mount_path }}
-        - echo "{{ metadata_svc_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
-        - mount -av
 {% endif %}
 
         # UCX and OpenMPI auto-compilation disabled

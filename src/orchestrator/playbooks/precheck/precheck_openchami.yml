@@ -1,0 +1,121 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Precheck OpenCHAMI --- Validate all OpenCHAMI-related variables and prerequisites
+# Can be run standalone or imported by orchestrator.yml
+#
+# This playbook validates inputs without modifying the system.
+# It should be run before prepare and deploy to fail fast on
+# configuration errors.
+#
+# Checks performed:
+#   1. Validate orchestrator input files (L1 schema + L2 logic)
+#   2. Validate orchestrator parameters (mapping, software config)
+#   3. Validate OIM timezone
+#   4. Validate boot images in S3 for each functional group
+#   5. Assert OpenCHAMI version variables are defined
+#   6. Assert required environment variables (domain, IPs)
+
+# Step 1: Validate orchestrator input (L1 schema + L2 logic)
+- name: Validate orchestrator input configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Run input validation
+      ansible.builtin.include_role:
+        name: validate_orchestrator_input
+      when: not config_file_status | default(false) | bool
+
+# Step 2: Validate orchestrator parameters (mapping, software config, hosts)
+- name: Validate orchestrator parameters
+  hosts: localhost
+  connection: local
+  roles:
+    - orchestrator_validations
+
+# Step 3: Validate OIM timezone
+- name: Validate OIM timezone
+  hosts: oim
+  connection: ssh
+  tasks:
+    - name: Validate OIM timezone has not changed
+      ansible.builtin.include_role:
+        name: orchestrator_validations
+        tasks_from: validate_oim_timezone.yml
+
+# Step 4: Validate boot images in S3 for each functional group
+- name: Validate boot images
+  hosts: oim
+  connection: ssh
+  tasks:
+    - name: Image validation
+      ansible.builtin.include_role:
+        name: orchestrator_validations
+        tasks_from: validate_image.yml
+      with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"
+
+# Step 5: Assert OpenCHAMI configuration variables
+- name: Validate OpenCHAMI configuration variables
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Assert cluster identity variables are defined
+      ansible.builtin.assert:
+        that:
+          - domain_name is defined
+          - domain_name | length > 0
+          - admin_nic_ip is defined
+          - admin_nic_ip | length > 0
+        fail_msg: >-
+          Required cluster identity variables are missing.
+          Ensure SYSTEM_DOMAIN_NAME and SYSTEM_ADMIN_NIC_IPV4 are set
+          in the environment or in orchestrator_config.yml.
+        quiet: true
+
+    - name: Assert orchestrator input directory exists
+      ansible.builtin.stat:
+        path: "{{ input_project_dir }}"
+      register: _input_dir_check
+
+    - name: Fail if input directory is missing
+      ansible.builtin.fail:
+        msg: "Orchestrator input directory not found: {{ input_project_dir }}"
+      when: not _input_dir_check.stat.exists
+
+    - name: Assert orchestrator_config.yml exists
+      ansible.builtin.stat:
+        path: "{{ input_project_dir }}/orchestrator_config.yml"
+      register: _orch_config_check
+
+    - name: Fail if orchestrator_config.yml is missing
+      ansible.builtin.fail:
+        msg: "orchestrator_config.yml not found in {{ input_project_dir }}"
+      when: not _orch_config_check.stat.exists
+
+    - name: Assert network_spec.yml exists
+      ansible.builtin.stat:
+        path: "{{ input_project_dir }}/network_spec.yml"
+      register: _net_spec_check
+
+    - name: Fail if network_spec.yml is missing
+      ansible.builtin.fail:
+        msg: "network_spec.yml not found in {{ input_project_dir }}"
+      when: not _net_spec_check.stat.exists
+
+    - name: Precheck OpenCHAMI completed
+      ansible.builtin.debug:
+        msg: "All OpenCHAMI prechecks passed."

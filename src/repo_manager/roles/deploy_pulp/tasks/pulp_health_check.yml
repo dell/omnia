@@ -1,0 +1,52 @@
+---
+- name: Inspect Pulp container health
+  containers.podman.podman_container_info:
+    name: "{{ pulp_container_name }}"
+  register: _pulp_health_container
+  failed_when: false
+
+- name: Require a running Pulp container
+  ansible.builtin.assert:
+    that:
+      - (_pulp_health_container.containers | default([]) | length) > 0
+      - _pulp_health_container.containers[0].State.Status | default('') == 'running'
+    fail_msg: >-
+      Pulp container '{{ pulp_container_name }}' is not running. Inspect
+      systemctl status {{ pulp_container_name }}.service and podman logs
+      {{ pulp_container_name }}.
+
+- name: Check Pulp HTTPS status endpoint
+  ansible.builtin.uri:
+    url: "{{ pulp_status_url }}"
+    validate_certs: true
+    ca_path: "{{ pulp_server_crt }}"
+    timeout: 30
+    status_code: 200
+    return_content: true
+  register: _pulp_api_health
+  retries: 6
+  delay: 10
+  until: _pulp_api_health.status | default(-1) == 200
+
+- name: Validate Pulp internal service health
+  ansible.builtin.assert:
+    that:
+      - _pulp_api_health.json.database_connection.connected | default(false) | bool
+      - (_pulp_api_health.json.online_workers | default([]) | length) > 0
+      - (_pulp_api_health.json.online_content_apps | default([]) | length) > 0
+    fail_msg: >-
+      Pulp HTTPS is reachable, but its database, workers, or content apps are
+      unhealthy. Inspect podman logs {{ pulp_container_name }}.
+    success_msg: >-
+      Pulp is healthy: {{ _pulp_api_health.json.online_workers | length }}
+      workers and {{ _pulp_api_health.json.online_content_apps | length }}
+      content apps are online.
+
+- name: Verify authenticated Pulp CLI access
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/pulp
+      - status
+  register: _pulp_cli_health
+  changed_when: false
+  failed_when: _pulp_cli_health.rc != 0

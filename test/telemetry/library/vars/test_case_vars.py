@@ -155,9 +155,29 @@ TEST_CASES = {
         "id": "TC_SR_022",
         "title": "Verify Vector-LDMS bridge deployment ready",
     },
-    "ldms_kafka_topic": {
+    "ldms_package_installed": {
         "id": "TC_SR_023",
+        "title": "Verify LDMS package installed on Slurm nodes",
+    },
+    "ldms_sampler_service": {
+        "id": "TC_SR_024",
+        "title": "Verify LDMS sampler service running on Slurm nodes",
+    },
+    "ldms_sampler_plugins": {
+        "id": "TC_SR_025",
+        "title": "Verify LDMS sampler plugins configured",
+    },
+    "ldms_kafka_topic": {
+        "id": "TC_SR_026",
         "title": "Verify LDMS Kafka topic exists",
+    },
+    "ldms_earliest_data": {
+        "id": "TC_SR_027",
+        "title": "Verify earliest LDMS data in Kafka topic",
+    },
+    "ldms_kafka_data": {
+        "id": "TC_SR_028",
+        "title": "Verify latest LDMS data in Kafka topic",
     },
 
     # -- Sources: PowerScale ------------------------------------------------
@@ -250,6 +270,34 @@ TEST_CASES = {
     "ome_kafka_connectivity": {
         "id": "TC_SR_055",
         "title": "Verify OME Kafka forwarder connectivity status",
+    },
+    "ome_cert_verify": {
+        "id": "TC_SR_056",
+        "title": "Verify uploaded certificate matches generated certificate",
+    },
+    "ome_kafka_topics": {
+        "id": "TC_SR_057",
+        "title": "Verify OME Kafka topics exist",
+    },
+    "ome_telemetry_data": {
+        "id": "TC_SR_058",
+        "title": "Verify OME telemetry data in Kafka (ome.telemetry)",
+    },
+    "ome_inventory_data": {
+        "id": "TC_SR_059",
+        "title": "Verify OME inventory data in Kafka (ome.inventory)",
+    },
+    "ome_alerts_data": {
+        "id": "TC_SR_060",
+        "title": "Verify OME alerts data in Kafka (ome.alerts)",
+    },
+    "ome_health_data": {
+        "id": "TC_SR_061",
+        "title": "Verify OME health data in Kafka (ome.health)",
+    },
+    "ome_auditlogs_data": {
+        "id": "TC_SR_062",
+        "title": "Verify OME audit logs data in Kafka (ome.auditlogs)",
     },
 
     # -- Cleanup ------------------------------------------------------------

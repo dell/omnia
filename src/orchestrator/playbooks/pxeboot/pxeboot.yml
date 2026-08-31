@@ -1,0 +1,423 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ─────────────────────────────────────────────────────────────────────────
+# PXE Boot Utility — Set PXE boot on Dell iDRAC nodes and restart
+# Can be run standalone or imported by orchestrator.yml
+#
+# Usage (standalone):
+#   cd src/orchestrator/playbooks
+#   ansible-playbook pxeboot/pxeboot.yml
+#
+#   # Disable phone-home verification:
+#   ansible-playbook pxeboot/pxeboot.yml -e enable_phone_home=false
+#
+# Usage (via orchestrator.yml):
+#   ansible-playbook orchestrator.yml --tags pxeboot
+#
+# Input:
+#   - pxe_mapping_file.csv (BMC_IP, ADMIN_IP, HOSTNAME columns)
+#   - set_pxe_boot_config.yml (phone-home timing, boot options)
+#   - Orchestrator credentials (bmc_username, bmc_password)
+# ─────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 1: Setup + Load config + Check flag
+# ─────────────────────────────────────────────────────────────────────────
+- name: Setup PXE boot environment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [pxeboot]
+  tasks:
+    - name: Run orchestrator_setup if not already initialized
+      ansible.builtin.include_role:
+        name: orchestrator_setup
+      vars:
+        openchami_vars_support: false
+        omnia_metadata_support: false
+      when: input_project_dir is not defined
+
+    - name: Check if PXE boot is enabled
+      ansible.builtin.debug:
+        msg: >-
+          PXE boot is disabled (enable_pxe_boot: false in orchestrator_config.yml).
+          This is expected for virtual machine environments without iDRAC/BMC.
+          To enable, set enable_pxe_boot: true in orchestrator_config.yml.
+          Skipping all PXE boot plays.
+      when: not (enable_pxe_boot | default(true) | bool)
+
+    - name: Set PXE boot skip flag
+      ansible.builtin.set_fact:
+        pxe_boot_skip: "{{ not (enable_pxe_boot | default(true) | bool) }}"
+        cacheable: true
+
+    - name: Load PXE boot configuration
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/set_pxe_boot_config.yml"
+      failed_when: false
+      register: pxe_config_loaded
+      when: not (pxe_boot_skip | bool)
+
+    - name: Set PXE config defaults
+      when: not (pxe_boot_skip | bool)
+      ansible.builtin.set_fact:
+        enable_phone_home: "{{ enable_phone_home | default(true) }}"
+        phone_home_pause_minutes: "{{ phone_home_pause_minutes | default(3) }}"
+        phone_home_retries: "{{ phone_home_retries | default(120) }}"
+        phone_home_delay: "{{ phone_home_delay | default(15) }}"
+        phone_home_log_pattern: "{{ phone_home_log_pattern | default('Phone home request from') }}"
+        restart_host: "{{ restart_host | default(true) }}"
+        force_restart: "{{ force_restart | default(true) }}"
+        boot_source_override_enabled: "{{ boot_source_override_enabled | default('continuous') }}"
+        boot_source_override_target: "{{ boot_source_override_target | default('pxe') }}"
+        cacheable: true
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 2: Load credentials from orchestrator credential store
+# ─────────────────────────────────────────────────────────────────────────
+- name: Load orchestrator credentials
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
+  tasks:
+    - name: Load and validate BMC credentials
+      block:
+        - name: Load BMC credentials from orchestrator credential file
+          ansible.builtin.include_role:
+            name: orchestrator_common
+            tasks_from: decrypt_include_encrypt.yml
+          vars:
+            credential_file_path: "{{ input_project_dir }}/omnia_config_credentials.yml"
+            vault_password_file: "{{ input_project_dir }}/.omnia_config_credentials_key"
+
+        - name: Validate BMC credentials are available
+          ansible.builtin.fail:
+            msg: >-
+              BMC credentials not found. Run orchestrator credentials first:
+              ansible-playbook orchestrator.yml --tags prepare
+              Or run standalone with credentials already provisioned.
+          when: (bmc_username | default('') | length == 0) or (bmc_password | default('') | length == 0)
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 3: Build BMC inventory from pxe_mapping_file.csv
+# ─────────────────────────────────────────────────────────────────────────
+- name: Build BMC inventory from PXE mapping file
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
+  tasks:
+    - name: Build BMC inventory
+      block:
+        - name: Resolve pxe_mapping_file_path
+          ansible.builtin.set_fact:
+            pxe_mapping_file_path: "{{ input_project_dir }}/pxe_mapping_file.csv"
+            cacheable: true
+
+        - name: Verify pxe_mapping_file.csv exists
+          ansible.builtin.stat:
+            path: "{{ pxe_mapping_file_path }}"
+          register: _mapping_file_stat
+
+        - name: Fail if pxe_mapping_file.csv is missing
+          ansible.builtin.fail:
+            msg: "pxe_mapping_file.csv not found at {{ pxe_mapping_file_path }}"
+          when: not _mapping_file_stat.stat.exists
+
+        - name: Read pxe_mapping_file.csv
+          ansible.builtin.command:
+            cmd: "cat {{ pxe_mapping_file_path }}"
+          register: _mapping_csv
+          changed_when: false
+
+        - name: Parse CSV and build BMC host group
+          ansible.builtin.add_host:
+            hostname: "{{ item.split(',')[8] | trim }}"
+            groups: bmc
+            admin_ip: "{{ item.split(',')[6] | trim }}"
+            hostname_node: "{{ item.split(',')[4] | trim }}"
+            service_tag: "{{ item.split(',')[2] | trim }}"
+          loop: "{{ _mapping_csv.stdout_lines[1:] }}"
+          when:
+            - item | trim | length > 0
+            - item.split(',') | length >= 9
+            - item.split(',')[8] | trim | length > 0
+
+        - name: Validate BMC group has hosts
+          ansible.builtin.fail:
+            msg: >-
+              No BMC hosts found in pxe_mapping_file.csv. Ensure BMC_IP column
+              (column 9) is populated in {{ pxe_mapping_file_path }}
+          when: ('bmc' not in groups) or (groups['bmc'] | length | int == 0)
+
+        - name: Capture PXE boot start epoch
+          ansible.builtin.set_fact:
+            pxe_start_epoch: "{{ ansible_date_time.epoch }}"
+            cacheable: true
+          when: enable_phone_home | default(true) | bool
+
+        - name: Build target admin IPs for phone-home verification
+          ansible.builtin.set_fact:
+            target_node_admin_ips: "{{ groups['bmc'] | map('extract', hostvars, 'admin_ip') | select('defined') | list }}"
+            cacheable: true
+          when: enable_phone_home | default(true) | bool
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 4: Reboot hosts via PXE
+# ─────────────────────────────────────────────────────────────────────────
+- name: Reboot hosts via PXE
+  hosts: bmc
+  connection: local
+  strategy: host_pinned
+  gather_facts: false
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
+  roles:
+    - role: idrac_pxe_boot
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 5: Report PXE boot results
+# ─────────────────────────────────────────────────────────────────────────
+- name: Report PXE boot results
+  hosts: bmc
+  connection: local
+  gather_facts: false
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
+  tasks:
+    - name: Report iDRAC reboot failure
+      ansible.builtin.debug:
+        msg: "[FAILED] {{ inventory_hostname }}: {{ reboot_status }}"
+      when: reboot_failed
+
+    - name: Show passed iDRACs
+      ansible.builtin.debug:
+        msg: "[OK] {{ inventory_hostname }}: {{ reboot_status }}"
+      when: not reboot_failed
+
+    - name: Collect failed BMC IPs for phone-home exclusion
+      ansible.builtin.set_fact:
+        pxe_boot_failed_bmc_ips: "{{ pxe_boot_failed_bmc_ips | default([]) + [inventory_hostname] }}"
+      delegate_to: localhost
+      delegate_facts: true
+      when: reboot_failed
+
+    - name: Fail if reboot failed (when phone-home disabled)
+      ansible.builtin.fail:
+        msg: "{{ reboot_status }}"
+      when:
+        - reboot_failed
+        - not (enable_phone_home | default(true) | bool)
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 6: Filter phone-home target list (exclude failed PXE boots)
+# ─────────────────────────────────────────────────────────────────────────
+- name: Filter phone-home target list
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
+  tasks:
+    - name: Filter phone-home verification block
+      when: enable_phone_home | default(true) | bool
+      block:
+        - name: Build admin IP to BMC IP mapping
+          ansible.builtin.set_fact:
+            admin_to_bmc_map: "{{ admin_to_bmc_map | default({}) | combine({hostvars[item]['admin_ip']: item}) }}"
+          loop: "{{ groups['bmc'] }}"
+          when: hostvars[item]['admin_ip'] is defined
+
+        - name: Filter out failed PXE boots from phone-home target list
+          ansible.builtin.set_fact:
+            target_node_admin_ips: "{{ target_node_admin_ips | default([]) | difference(failed_admin_ips | default([])) }}"
+            cacheable: true
+          vars:
+            failed_admin_ips: "{{ pxe_boot_failed_bmc_ips | default([]) | map('extract', hostvars, 'admin_ip') | select('defined') | list }}"
+
+        - name: Report phone-home target list
+          ansible.builtin.debug:
+            msg: >-
+              Phone-home verification will wait for {{ target_node_admin_ips | length }} nodes
+              ({{ pxe_boot_failed_bmc_ips | default([]) | length }} excluded due to PXE boot failure)
+
+        - name: Skip phone-home when no nodes to verify
+          ansible.builtin.debug:
+            msg: "[Phone-Home] Skipping — no nodes to verify (all PXE boots failed)"
+          when: target_node_admin_ips | default([]) | length == 0
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 7: Phone-home verification
+# ─────────────────────────────────────────────────────────────────────────
+- name: Verify cloud-init phone-home
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
+  tasks:
+    - name: Phone-home verification block
+      when:
+        - enable_phone_home | default(true) | bool
+        - target_node_admin_ips | default([]) | length > 0
+      block:
+        - name: Run phone-home verification
+          ansible.builtin.include_role:
+            name: verify_phone_home
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 8: Final reporting
+# ─────────────────────────────────────────────────────────────────────────
+- name: Final PXE boot and phone-home report
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
+  tasks:
+    - name: Final report block
+      block:
+        - name: Ensure output directory exists
+          ansible.builtin.file:
+            path: "{{ orchestrator_output_dir }}"
+            state: directory
+            mode: "0755"
+
+        - name: Build reverse map of admin IP to BMC IP for reporting
+          ansible.builtin.set_fact:
+            admin_to_bmc_map: "{{ admin_to_bmc_map | default({}) | combine({hostvars[item]['admin_ip']: item}) }}"
+          loop: "{{ groups['bmc'] }}"
+          when: hostvars[item]['admin_ip'] is defined
+
+        - name: Map phone-home failed admin IPs back to BMC IPs
+          ansible.builtin.set_fact:
+            phone_home_failed_bmc_ips: "{{ phone_home_failed_bmc_ips | default([]) + [admin_to_bmc_map[item]] }}"
+          loop: "{{ phone_home_failed_ips | default([]) }}"
+          when:
+            - enable_phone_home | default(true) | bool
+            - item in admin_to_bmc_map
+
+        - name: Build failed nodes list with details
+          ansible.builtin.set_fact:
+            failed_nodes_list: "{{ failed_nodes_list | default([]) + [node_detail] }}"
+          loop: "{{ (pxe_boot_failed_bmc_ips | default([])) + (phone_home_failed_bmc_ips | default([])) }}"
+          vars:
+            node_detail:
+              bmc_ip: "{{ item }}"
+              admin_ip: "{{ hostvars[item].admin_ip | default('N/A') }}"
+              hostname: "{{ hostvars[item].hostname_node | default('N/A') }}"
+              service_tag: "{{ hostvars[item].service_tag | default('N/A') }}"
+              failure_stage: "{{ 'pxe_boot' if item in (pxe_boot_failed_bmc_ips | default([])) else 'phone_home' }}"
+              status: "failed"
+              error: "{{ hostvars[item].reboot_status | default('Phone-home timeout') }}"
+
+        - name: Write failed_nodes.json output file
+          ansible.builtin.copy:
+            content: "{{ failed_nodes_report | to_nice_json }}"
+            dest: "{{ orchestrator_output_dir }}/failed_nodes.json"
+            mode: "0644"
+          vars:
+            failed_nodes_report:
+              timestamp: "{{ ansible_date_time.iso8601 }}"
+              total_nodes: "{{ groups['bmc'] | length }}"
+              failure_count: "{{ (failed_nodes_list | default([])) | length }}"
+              success_count: "{{ groups['bmc'] | length - ((failed_nodes_list | default([])) | length) }}"
+              failed_nodes: "{{ failed_nodes_list | default([]) }}"
+
+        - name: Report total failures
+          ansible.builtin.debug:
+            msg: >-
+              PXE Boot Summary:
+              - Total nodes: {{ groups['bmc'] | length }}
+              - PXE boot failed: {{ pxe_boot_failed_bmc_ips | default([]) | length }}
+              - Phone-home failed: {{ phone_home_failed_bmc_ips | default([]) | length }}
+              - Success: {{
+                  groups['bmc'] | length
+                  - (pxe_boot_failed_bmc_ips | default([]) | length)
+                  - (phone_home_failed_bmc_ips | default([]) | length)
+                }}
+              - Output: {{ orchestrator_output_dir }}/failed_nodes.json
+
+        - name: Build per-node status list
+          ansible.builtin.set_fact:
+            all_nodes_status: "{{ all_nodes_status | default([]) + [node_entry] }}"
+          loop: "{{ groups['bmc'] }}"
+          vars:
+            _admin_ip: "{{ hostvars[item].admin_ip | default('N/A') }}"
+            _hostname: "{{ hostvars[item].hostname_node | default('N/A') }}"
+            _svc_tag: "{{ hostvars[item].service_tag | default('N/A') }}"
+            _is_pxe_fail: "{{ item in (pxe_boot_failed_bmc_ips | default([])) }}"
+            _is_ph_fail: "{{ item in (phone_home_failed_bmc_ips | default([])) }}"
+            node_entry:
+              bmc_ip: "{{ item }}"
+              admin_ip: "{{ _admin_ip }}"
+              hostname: "{{ _hostname }}"
+              service_tag: "{{ _svc_tag }}"
+              status: >-
+                {{ 'failed' if (_is_pxe_fail | bool or _is_ph_fail | bool) else 'success' }}
+              failure_stage: >-
+                {{ 'pxe_boot' if _is_pxe_fail | bool
+                   else ('phone_home' if _is_ph_fail | bool else '') }}
+
+        - name: Compute overall status
+          ansible.builtin.set_fact:
+            orchestrator_overall_status: >-
+              {{ 'failed' if (failed_nodes_list | default([]) | length > 0) else 'success' }}
+
+        - name: Write orchestrator_status.yml
+          ansible.builtin.copy:
+            content: "{{ orchestrator_status_report | to_nice_yaml }}"
+            dest: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
+            mode: "0644"
+          vars:
+            orchestrator_status_report:
+              overall_status: "{{ orchestrator_overall_status }}"
+              timestamp: "{{ ansible_date_time.iso8601 }}"
+              total_nodes: "{{ groups['bmc'] | length }}"
+              success_count: "{{ groups['bmc'] | length | int - (failed_nodes_list | default([]) | length | int) }}"
+              failure_count: "{{ (failed_nodes_list | default([])) | length }}"
+              nodes: "{{ all_nodes_status | default([]) }}"
+
+        - name: Fail if any nodes failed PXE boot or phone-home
+          ansible.builtin.fail:
+            msg: >-
+              Node failures detected.
+              PXE boot failures: {{ pxe_boot_failed_bmc_ips | default([]) | join(', ') or 'none' }}
+              Phone-home failures: {{ phone_home_failed_bmc_ips | default([]) | join(', ') or 'none' }}
+          when: (pxe_boot_failed_bmc_ips | default([]) | length > 0) or (phone_home_failed_bmc_ips | default([]) | length > 0)

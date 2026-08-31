@@ -2,236 +2,310 @@
 
 ## Overview
 
-The `software_config.json` file defines which software content to download and
-make available through Pulp. It is the **primary configuration file** for content
-management in Repo Manager.
+The catalog is the source of truth for content selection. Each catalog package
+declares its type and one or more sources. Repo Manager maps those sources to
+RPM repositories or container registries in `repo_manager_config.yml`.
 
-**Location**: `input/project_default/software_config.json`
+**Catalog location**: Exact `.json` file from `CATALOG_FILE_PATH`
 
-## File Structure
+**Repository configuration**:
+`<REPO_MANAGER_DATA_PATH>/input/<project>/repo_manager_config.yml`
+
+---
+
+## Resolution Flow
+
+```text
+functional layer -> group -> package -> source
+                                      |      |
+                                      |      +--> registry -> public/configured registry
+                                      +---------> reponame -> version + arch repository
+                                                     |
+                                                     +--> Pulp content
+```
+
+Only packages reachable from selected functional layers and groups are processed.
+The source's OS version and architecture determine which repository definition is
+used.
+
+## Catalog Package Structure
+
+### RPM Example
 
 ```json
 {
-  "software": [
-    {
-      "name": "slurm",
-      "version": "24.05.4",
-      "architectures": ["x86_64", "aarch64"],
-      "type": "rpm",
-      "enabled": true
-    },
-    {
-      "name": "geopm",
-      "version": "2.0.0",
-      "architectures": ["x86_64"],
-      "type": "tarball",
-      "enabled": true,
-      "source_url": "https://github.com/geopm/geopm"
-    },
-    {
-      "name": "custom_python_module",
-      "version": "1.0.0",
-      "architectures": ["x86_64", "aarch64"],
-      "type": "pip_module",
-      "enabled": true,
-      "pip_index": "https://pypi.org/simple"
-    }
-  ]
+  "bash": {
+    "name": "bash",
+    "packagetype": "rpm",
+    "sources": [
+      {
+        "architecture": "x86_64",
+        "name": "rhel",
+        "version": ["10.0"],
+        "reponame": "baseos"
+      }
+    ]
+  }
 }
 ```
 
-## Content Types
-
-Repo Manager supports the following content types in `software_config.json`:
-
-| Type | Description | Source |
-|------|-------------|--------|
-| `rpm` | RPM packages and repositories | RHEL/CentOS repositories, custom RPM repos |
-| `tarball` | Container image tarballs | Docker images, Singularity images |
-| `manifest` | Container manifests | Image manifests, signatures |
-| `git` | Git repositories | Source code repositories |
-| `pip_module` | Python packages | PyPI, custom Python package indexes |
-| `iso` | ISO images | OS installation media |
-| `shell` | Shell scripts | Installation scripts, utilities |
-| `ansible_galaxy_collection` | Ansible collections | Ansible Galaxy, custom collections |
-
-## Configuration Fields
-
-### Common Fields (All Types)
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Software name/identifier |
-| `version` | string | Yes | Software version |
-| `architectures` | array | Yes | Target architectures (`x86_64`, `aarch64`, or both) |
-| `type` | string | Yes | Content type (see table above) |
-| `enabled` | boolean | No | Whether to download this software (default: `true`) |
-
-### Type-Specific Fields
-
-#### RPM Type
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `repo_name` | string | No | Custom repository name (defaults to name-based naming) |
-| `gpg_check` | boolean | No | Enable GPG signature verification (default: `true`) |
-
-#### Tarball/Manifest Type
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `source_url` | string | Yes | Source URL for the tarball/manifest |
-| `registry_url` | string | No | Container registry URL |
-| `image_tag` | string | No | Container image tag |
-
-#### Git Type
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `source_url` | string | Yes | Git repository URL |
-| `branch` | string | No | Git branch to clone (default: `main`) |
-| `commit` | string | No | Specific commit hash (takes precedence over branch) |
-
-#### Pip Module Type
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `pip_index` | string | No | Custom PyPI index URL (default: PyPI) |
-| `requirements_file` | string | No | Path to requirements.txt file |
-
-#### ISO Type
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `source_url` | string | Yes | ISO file URL |
-| `checksum` | string | No | Expected checksum for verification |
-
-#### Shell Type
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `source_url` | string | Yes | Script file URL |
-| `execution_mode` | string | No | Execution mode (`download_only` or `execute`) |
-
-#### Ansible Galaxy Collection Type
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `collection_name` | string | Yes | Collection name in format `namespace.collection` |
-| `galaxy_server` | string | No | Custom Galaxy server URL |
-| `version` | string | No | Collection version (defaults to latest) |
-
-## How It Works
-
-```
-software_config.json                repo_manager_config.yml
-┌──────────────────────────┐          ┌──────────────────────────────────┐
-│ software:                 │          │ user_repo_url_x86_64:           │
-│   - name: slurm          │──┐       │   - name: custom_repo            │
-│   - name: geopm          │  └──────▶│     url: http://...              │
-└──────────────────────────┘          └──────────────────────────────────┘
-                                              │
-                              ┌───────────────┼───────────────┐
-                              ▼                               ▼
-                     Standard Repos                  User Repos
-                     (from software_config)         (from config)
-                              │                               │
-                              ▼                               ▼
-                         Pulp Distributions              Pulp Distributions
-                              │                               │
-                              └───────────────┬───────────────┘
-                                              ▼
-                                    repo_status.yml
-```
-
-1. `software_config.json` defines standard software to download
-2. `repo_manager_config.yml` defines custom user repositories
-3. Repo Manager downloads content from both sources into Pulp
-4. `repo_status.yml` is generated with Pulp distribution URLs
-
-## Customization
-
-### Adding new software
-
-Add to `software_config.json`:
-
-```json
-{
-  "software": [
-    {
-      "name": "my_software",
-      "version": "1.0.0",
-      "architectures": ["x86_64"],
-      "type": "rpm",
-      "enabled": true
-    }
-  ]
-}
-```
-
-### Enabling/disabling software
-
-Set `enabled: false` to temporarily disable download:
-
-```json
-{
-  "name": "optional_software",
-  "version": "2.0.0",
-  "architectures": ["x86_64", "aarch64"],
-  "type": "pip_module",
-  "enabled": false
-}
-```
-
-### Adding custom user repositories
-
-Add to `repo_manager_config.yml`:
+This resolves to:
 
 ```yaml
-user_repo_url_x86_64:
-  - name: "custom_rhel_repo"
-    url: "http://my-repo.example.com/rhel10/"
-  - name: "custom_epel_repo"
-    url: "http://my-repo.example.com/epel10/"
+repositories:
+  "10.0":
+    x86_64:
+      baseos: {}
 ```
+
+### Container Image Example
+
+```json
+{
+  "registry_k8s_io/kube_controller_manager": {
+    "name": "registry.k8s.io/kube-controller-manager",
+    "packagetype": "image",
+    "tag": "v1.35.1",
+    "sources": [
+      {
+        "architecture": "x86_64",
+        "registry": "registry.k8s.io",
+        "name": "rhel",
+        "version": ["10.0"]
+      }
+    ]
+  }
+}
+```
+
+`registry.k8s.io` is a known public registry, so a `registries` entry is not
+required unless custom authentication or TLS settings are needed.
+
+---
+
+## Supported Content Types
+
+| `packagetype` | Required package fields | Source mapping | Pulp plugin |
+|---------------|-------------------------|----------------|-------------|
+| `rpm` | `name` | `reponame` | RPM |
+| `rpm_repo` | `name` | `reponame` | RPM |
+| `rpm_file` | `name` and direct source | `reponame` when applicable | RPM |
+| `image` | `name`, `tag` | `registry` | Container |
+| `pip_module` | `name`, `version` | package source | Python |
+| `tarball` | `name`, `version` | URL/source metadata | File |
+| `manifest` | `name`, `version` | URL/source metadata | File |
+| `git` | `name`, version/ref | URL/source metadata | File |
+| `iso` | `name`, `version` | URL/source metadata | File |
+| `shell` | `name`, `version` | URL/source metadata | File |
+| `ansible_galaxy_collection` | collection name, version | Galaxy source | File |
+
+### rpm and rpm_repo
+
+| Type | Behavior |
+|------|----------|
+| `rpm` | Validate or synchronize the named RPM according to repository policy |
+| `rpm_repo` | Use DNF to download the named package plus dependencies, then make them available through Pulp |
+
+`rpm_repo` requires retained Pulp content. Its mapped repository must not resolve
+to the `streamed` policy.
+
+### Multiple Tags for One Image
+
+The same image name can appear with multiple tags:
+
+```text
+docker.io/victoriametrics/operator:v0.68.3
+docker.io/victoriametrics/operator:config-reloader-v0.68.3
+```
+
+Both tags use one Pulp container repository but remain separate catalog, status
+and mirror identities. Synchronizing or cleaning one tag does not remove its
+sibling tag.
+
+---
+
+## RPM Repository Mapping
+
+The lookup key is:
+
+```text
+catalog source version + architecture + reponame
+```
+
+Example:
+
+```yaml
+repositories:
+  "10.0":
+    x86_64:
+      epel:
+        url: "https://download.example.com/epel/10/Everything/x86_64/"
+        gpgkey: "https://download.example.com/keys/RPM-GPG-KEY-EPEL-10"
+        policy: partial
+        caching: true
+        priority: 99
+```
+
+### Subscription Repositories
+
+BaseOS, AppStream and CodeReady Builder support two modes:
+
+```yaml
+# Subscription-provided content
+baseos: {}
+appstream: {}
+codeready-builder: {}
+```
+
+When a matching RHEL subscription repository is available, Repo Manager fills
+the URL and entitlement certificate paths. If a user supplies a URL and related
+settings, those user values take precedence. Without subscription content, empty
+entries fail validation and the user must provide URLs.
+
+### Additional and User Repositories
+
+```yaml
+repositories:
+  "10.0":
+    x86_64:
+      additional_repos:
+        internal-tools:
+          url: "https://repo.example.com/internal-tools/"
+          priority: 99
+      user_repos:
+        slurm_custom:
+          url: "https://repo.example.com/slurm/"
+          priority: 100
+```
+
+The catalog must use the same `reponame` value.
+
+`additional_repos` are published as one aggregated Pulp repository per
+architecture. All entries in that section must therefore have the same effective
+priority. An omitted priority has the DNF default value of 99; mixing that default
+with another value fails precheck rather than publishing an ambiguous priority.
+
+---
+
+## Container Registry Mapping
+
+### Public Registry
+
+Known public registries are resolved directly:
+
+```yaml
+registries:
+```
+
+Docker Hub credentials remain optional and are collected using the existing
+Docker credential prompts.
+
+### Private Registry with Basic Authentication
+
+Configuration:
+
+```yaml
+registries:
+  harbor.example.com:
+    base_url: "https://harbor.example.com"
+    port: 443
+    auth:
+      type: basic
+      credentials:
+        vault_path: "registries/harbor-production"
+    tls:
+      ca_path: ""
+      client_cert_path: ""
+      client_key_path: ""
+      insecure: false
+```
+
+Encrypted credential mapping:
+
+```yaml
+registry_credentials:
+  registries/harbor-production:
+    registry: "harbor.example.com"
+    username: "omnia-pull-user"
+    password: "<secret>"
+```
+
+Catalog source:
+
+```json
+{
+  "architecture": "x86_64",
+  "registry": "harbor.example.com",
+  "name": "rhel",
+  "version": ["10.0"]
+}
+```
+
+Repo Manager passes the resolved username and password to the Pulp container
+remote. Credentials are not placed in the catalog, main configuration or logs.
+
+---
+
+## Policy Resolution
+
+Per-repository fields have priority over global settings:
+
+```text
+repository policy  > repo_config
+repository caching > caching_policy
+```
+
+| Effective policy | Effective caching | Pulp RPM policy |
+|------------------|-------------------|-----------------|
+| `always` | `false` | `immediate` |
+| `always` | `true` | `on_demand` |
+| `partial` | `false` | `streamed` |
+| `partial` | `true` | `on_demand` |
+| `never` | either | `streamed` |
+
+Container synchronization is independent of RPM policy. Its default is
+`container_sync_policy: immediate` so OCI content is retained for offline use.
+
+---
 
 ## Architecture Support
 
-Software can be configured for specific architectures:
+Repo Manager resolves every package source independently:
 
-```json
-{
-  "name": "architecture_specific",
-  "version": "1.0.0",
-  "architectures": ["x86_64"],        // Only x86_64
-  "type": "rpm"
-}
-```
+| Catalog source | Required configuration |
+|----------------|------------------------|
+| `x86_64`, RHEL 10.0 | `repositories."10.0".x86_64` |
+| `aarch64`, RHEL 10.0 | `repositories."10.0".aarch64` |
+| Both architectures | Both repository maps |
 
-```json
-{
-  "name": "multi_arch",
-  "version": "1.0.0",
-  "architectures": ["x86_64", "aarch64"],  // Both architectures
-  "type": "tarball"
-}
-```
+A single catalog may contain x86_64 management groups and aarch64 compute
+groups. Only packages reachable from those groups are synchronized. Repository,
+status and mirror identities include architecture, preventing cross-architecture
+collisions.
 
-## Download Concurrency
+---
 
-Configure download concurrency in `repo_manager_config.yml`:
+## Concurrency Controls
 
-```yaml
-pulp_concurrency: 4  # Number of parallel download tasks
-```
+These controls are independent:
 
-## Validation
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `parallel_config.default_nthreads` | `1` | General catalog package worker processes |
+| `rpm_repo_config.thread_pool_size` | `1` | RPM repositories processed in each Pulp stage |
+| `dnf_config.max_concurrent_commands` | `1` | Maximum simultaneous DNF commands |
 
-The `software_config.json` is validated against a JSON schema at:
-`plugins/module_utils/input_validation/schema/software_config.json`
+Increasing general workers does not increase DNF concurrency. Keep DNF at one;
+increase the other controls gradually after validating Pulp CPU, memory, network
+and storage.
 
-Common validation errors:
-- Missing required fields
-- Invalid content type
-- Invalid architecture specification
-- Malformed JSON syntax
+## Validation Checklist
 
-## Historical Context
-
-In previous versions, software configuration used separate files per software
-module. The current `software_config.json` consolidates all software definitions
-into a single, validated configuration file that supports multiple content types
-and architectures.
+- Catalog path exists and ends in `.json`.
+- Every package source has a supported architecture and OS version.
+- Every RPM source `reponame` exists in the matching repository map.
+- Every non-public registry exists in `registries`.
+- Every basic-auth registry has a matching Vault credential entry.
+- Repository priority is between 1 and 100.
+- `rpm_repo` does not resolve to streamed content.
+- Both architectures are configured when selected by the catalog.

@@ -60,6 +60,92 @@
     - missing_nodes | length > 0
     - strict_validation | default(false) | bool
 
+# --- BSS boot parameter verification ---
+- name: Query boot-service for all boot configurations
+  ansible.builtin.uri:
+    url: "{{ openchami_base_url }}/boot-service/bootconfigurations"
+    method: GET
+    status_code: 200
+    validate_certs: "{{ openchami_validate_certs | default(true) }}"
+    headers:
+      Authorization: "Bearer {{ openchami_access_token }}"
+  register: bss_boot_configs
+
+- name: Build list of functional group names with boot configurations
+  ansible.builtin.set_fact:
+    bss_configured_groups: "{{ bss_boot_configs.json | map(attribute='metadata') | map(attribute='name') | list }}"
+
+- name: Build expected functional group names
+  ansible.builtin.set_fact:
+    expected_fg_names: "{{ fg_config.functional_groups | map(attribute='name') | list }}"
+
+- name: Identify functional groups without boot configurations
+  ansible.builtin.set_fact:
+    fg_missing_bss: "{{ expected_fg_names | difference(bss_configured_groups) }}"
+
+- name: Report functional groups missing BSS boot parameters
+  ansible.builtin.debug:
+    msg: "WARNING: {{ fg_missing_bss | length }} functional groups have no BSS boot configuration: {{ fg_missing_bss }}"
+  when: fg_missing_bss | length > 0
+
+# --- Metadata-service (cloud-init) data verification ---
+- name: Query metadata-service for all group configurations
+  ansible.builtin.uri:
+    url: "{{ openchami_base_url }}/metadata-service/groups"
+    method: GET
+    status_code: 200
+    validate_certs: "{{ openchami_validate_certs | default(true) }}"
+    headers:
+      Authorization: "Bearer {{ openchami_access_token }}"
+  register: ms_groups
+
+- name: Build list of metadata-service configured group names
+  ansible.builtin.set_fact:
+    ms_configured_groups: "{{ ms_groups.json | map(attribute='metadata') | map(attribute='name') | list }}"
+
+- name: Identify functional groups without metadata-service data
+  ansible.builtin.set_fact:
+    fg_missing_metadata: "{{ expected_fg_names | difference(ms_configured_groups) }}"
+
+- name: Report functional groups missing metadata-service data
+  ansible.builtin.debug:
+    msg: "WARNING: {{ fg_missing_metadata | length }} functional groups have no metadata-service configuration: {{ fg_missing_metadata }}"
+  when: fg_missing_metadata | length > 0
+
+# --- Node hostname assignment verification ---
+- name: Query SMD for Ethernet interfaces (hostname assignments)
+  ansible.builtin.uri:
+    url: "{{ openchami_base_url }}/hsm/v2/Inventory/EthernetInterfaces"
+    method: GET
+    status_code: 200
+    validate_certs: "{{ openchami_validate_certs | default(true) }}"
+    headers:
+      Authorization: "Bearer {{ openchami_access_token }}"
+  register: smd_ethernet
+  failed_when: false
+
+- name: Build list of nodes with hostname assignments
+  ansible.builtin.set_fact:
+    nodes_with_hostnames: >-
+      {{ (smd_ethernet.json | default([])) |
+         selectattr('Description', 'defined') |
+         selectattr('Description', 'ne', '') |
+         map(attribute='ComponentID') | unique | list }}
+  when: smd_ethernet.status | default(0) == 200
+
+- name: Identify registered nodes without hostname assignments
+  ansible.builtin.set_fact:
+    nodes_missing_hostnames: "{{ registered_xnames | difference(nodes_with_hostnames | default([])) }}"
+  when: smd_ethernet.status | default(0) == 200
+
+- name: Report nodes without hostname assignments
+  ansible.builtin.debug:
+    msg: "WARNING: {{ nodes_missing_hostnames | length }} registered nodes have no hostname assignment: {{ nodes_missing_hostnames }}"
+  when:
+    - nodes_missing_hostnames is defined
+    - nodes_missing_hostnames | length > 0
+
+# --- Provisioning summary ---
 - name: Generate provisioning summary
   ansible.builtin.set_fact:
     provisioning_summary:
@@ -67,14 +153,50 @@
       total_registered_nodes: "{{ registered_xnames | length }}"
       missing_nodes: "{{ missing_nodes }}"
       functional_groups_count: "{{ fg_config.functional_groups | length }}"
+      fg_with_boot_config: "{{ bss_configured_groups | intersect(expected_fg_names) | length }}"
+      fg_missing_boot_config: "{{ fg_missing_bss }}"
+      fg_with_metadata: "{{ ms_configured_groups | intersect(expected_fg_names) | length }}"
+      fg_missing_metadata: "{{ fg_missing_metadata }}"
+      nodes_missing_hostnames: "{{ nodes_missing_hostnames | default([]) }}"
       timestamp: "{{ ansible_date_time.iso8601 }}"
 
 - name: Display provisioning summary
   ansible.builtin.debug:
     var: provisioning_summary
 
+# Write provisioning report only when called from provision flow (not standalone validate)
 - name: Write provisioning report
   ansible.builtin.copy:
     content: "{{ provisioning_summary | to_nice_yaml }}"
     dest: "{{ orchestrator_output_dir }}/provisioning_report.yml"
     mode: "0644"
+  when: ansible_run_tags | default([]) | intersect(['provision']) | length > 0 or ansible_run_tags | length == 0
+
+# Write orchestrator_status.yml — the canonical status contract consumed by
+# external tools. During the provisioning-only path (no PXE boot) the node
+# status is derived from SMD registration.  When PXE boot is enabled the
+# set_pxe_boot.yml playbook overwrites this file with phone-home results.
+- name: Compute per-node provisioning status from SMD
+  ansible.builtin.set_fact:
+    provisioning_nodes_status: >-
+      {{ provisioning_nodes_status | default([]) +
+         [{'xname': item,
+           'status': ('success' if item in registered_xnames else 'failed'),
+           'failure_reason': ('' if item in registered_xnames else 'not registered in SMD')}] }}
+  loop: "{{ expected_nodes }}"
+
+# Write orchestrator_status.yml only when called from provision flow (not standalone validate)
+- name: Write orchestrator_status.yml (provisioning path)
+  ansible.builtin.copy:
+    content: "{{ orchestrator_status | to_nice_yaml }}"
+    dest: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
+    mode: "0644"
+  vars:
+    orchestrator_status:
+      overall_status: "{{ 'success' if missing_nodes | length == 0 else 'failed' }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      total_nodes: "{{ expected_nodes | length }}"
+      success_count: "{{ registered_xnames | intersect(expected_nodes) | length }}"
+      failure_count: "{{ missing_nodes | length }}"
+      nodes: "{{ provisioning_nodes_status | default([]) }}"
+  when: ansible_run_tags | default([]) | intersect(['provision']) | length > 0 or ansible_run_tags | length == 0

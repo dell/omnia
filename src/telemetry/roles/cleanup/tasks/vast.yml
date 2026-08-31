@@ -42,3 +42,9 @@
 - name: "VAST | Cleanup complete"
   ansible.builtin.debug:
     msg: "VAST telemetry cleanup completed"
+
+- name: "Vast | Register cleanup result"
+  ansible.builtin.set_fact:
+    _cleanup_result_vast: "cleaned"
+  delegate_to: localhost
+  delegate_facts: true

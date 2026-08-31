@@ -42,9 +42,12 @@
     subscription_status: >-
       {{
         (entitlement_certs_count.stdout | default('0') | trim | int > 0)
-        or ((repo_urls.stdout_lines | default([])) | length > 0)
-        or ('Overall Status: Registered' in (subscription_manager_status.stdout | default('')))
-        or ('Overall Status: Current' in (subscription_manager_status.stdout | default('')))
+        and
+        (
+          ((repo_urls.stdout_lines | default([])) | length > 0)
+          or ('Overall Status: Registered' in (subscription_manager_status.stdout | default('')))
+          or ('Overall Status: Current' in (subscription_manager_status.stdout | default('')))
+        )
       }}
 
 - name: Debug subscription status
@@ -136,9 +139,29 @@
         remote_src: true
 
     - name: Set rhel_repo_certs SELinux context
-      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ rhel_repo_cert_dir }}"
-      changed_when: true
+      ansible.builtin.command:
+        argv:
+          - chcon
+          - -R
+          - system_u:object_r:container_file_t:s0
+          - "{{ rhel_repo_cert_dir }}"
+      register: rhel_certs_selinux_result
+      changed_when: rhel_certs_selinux_result.rc == 0
       failed_when: false
+      when:
+        - ansible_selinux is defined
+        - ansible_selinux.status == 'enabled'
+
+    - name: Warn when the RHEL certificate SELinux context could not be set
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Failed to set the SELinux context on {{ rhel_repo_cert_dir }}.
+          Pulp may not be able to access the RHEL subscription certificates.
+          Error: {{ rhel_certs_selinux_result.stderr | default('unknown error', true) }}
+      when:
+        - rhel_certs_selinux_result is defined
+        - not (rhel_certs_selinux_result.skipped | default(false) | bool)
+        - rhel_certs_selinux_result.rc | default(0) != 0
 
     - name: Extract EUS baseurls (appstream, baseos, codeready-builder)
       vars:
@@ -156,7 +179,7 @@
       changed_when: false
       failed_when: false
 
-    - name: Extract standard baseurls if EUS not found
+    - name: Extract standard baseurls for repositories without an EUS URL
       vars:
         std_pattern: "rhel-{{ rhel_version }}-for-x86_64-(appstream|baseos)-rpms|codeready-builder-for-rhel-{{ rhel_version }}-x86_64-rpms"
       ansible.builtin.shell: |
@@ -170,15 +193,23 @@
         ' {{ redhat_repo_file }}
       register: standard_baseurls
       changed_when: false
-      when: eus_baseurls.stdout_lines | default([]) | length == 0
 
-    - name: Set fact repo baseurls (EUS preferred, fallback to standard)
+    - name: Set repo baseurls with per-repository EUS preference
       ansible.builtin.set_fact:
         repo_baseurls: >-
-          {{ (eus_baseurls.stdout_lines if (eus_baseurls.stdout_lines | default([]) | length > 0)
-              else standard_baseurls.stdout_lines | default([]))
-              | map('regex_replace', '([^/])$', '\1/')
-              | list }}
+          {%- set selected_urls = [] -%}
+          {%- set eus_urls = eus_baseurls.stdout_lines | default([]) -%}
+          {%- set standard_urls = standard_baseurls.stdout_lines | default([]) -%}
+          {%- for repo_name in required_repos -%}
+            {%- set eus_matches = eus_urls | select('search', repo_name) | list -%}
+            {%- set standard_matches = standard_urls | select('search', repo_name) | list -%}
+            {%- if eus_matches | length > 0 -%}
+              {%- set _ = selected_urls.append(eus_matches[0]) -%}
+            {%- elif standard_matches | length > 0 -%}
+              {%- set _ = selected_urls.append(standard_matches[0]) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ selected_urls | map('regex_replace', '([^/])$', '\1/') | list }}
 
     - name: Show extracted baseurls
       ansible.builtin.debug:

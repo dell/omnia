@@ -1,0 +1,5 @@
+[cli]
+username = {{ pulp_username | default('admin', true) | to_json }}
+base_url = {{ pulp_base_url | to_json }}
+password = {{ pulp_password | to_json }}
+verify_ssl = true

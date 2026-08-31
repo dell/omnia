@@ -1,418 +1,277 @@
-# Repo Manager Design Document
+# Repo Manager -- Design
 
-## Overview
+| Field | Value |
+|-------|-------|
+| Domain | `repo_manager` |
+| Collection | `omnia.repo_manager` |
 
-Repo Manager is a content management system that deploys and manages Pulp for offline content distribution. It handles RPM repositories, container images, Python packages, and other content types for offline cluster deployments.
+This document describes implementation boundaries and invariants for Repo
+Manager contributors. Operator behavior is documented in
+[architecture.md](../architecture.md).
 
-## Architecture
+---
 
-### Component Overview
+## Design Goals
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Repo Manager                              │
-│                                                               │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐ │
-│  │   Ansible    │    │    Pulp      │    │   Podman     │ │
-│  │  Playbooks   │────│   Server     │────│  Containers  │ │
-│  └──────────────┘    └──────────────┘    └──────────────┘ │
-│         │                   │                   │           │
-│         ▼                   ▼                   ▼           │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐ │
-│  │ Custom       │    │   Content    │    │   System     │ │
-│  │ Modules      │    │  Storage     │    │   Services   │ │
-│  └──────────────┘    └──────────────┘    └──────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-```
+1. Resolve catalog content deterministically by OS version and architecture.
+2. Provide retained offline content through a single HTTPS Pulp service.
+3. Support subscription and user-provided RPM sources without changing catalog
+   semantics.
+4. Support public and authenticated private container registries.
+5. Make reruns and selective cleanup safe for shared Pulp objects.
+6. Keep runtime paths configurable through the Omnia environment contract.
 
-### Key Components
+---
 
-1. **Ansible Playbooks**
-   - Main orchestration layer
-   - Tag-based execution (deploy, validate, download, status, cleanup)
-   - Localhost-only execution
+## Component Boundaries
 
-2. **Pulp Server**
-   - Content management server
-   - Supports RPM, file, and Python distributions
-   - REST API for content operations
+| Layer | Responsibility |
+|-------|----------------|
+| `playbooks/repo_manager.yml` | Tag-based orchestration and operation ordering |
+| `roles/repo_manager_setup` | Environment loading and derived runtime paths |
+| `roles/deploy_pulp` | HTTPS certificates, Quadlet, Pulp service and managed CLI |
+| `roles/validate_input` | JSON Schema and cross-file input validation |
+| `roles/validate_subscription` | Subscription/EUS repository and entitlement resolution |
+| `roles/parse_and_download` | Catalog task preparation and execution |
+| `roles/catalog` | Generate, add, delete and validate catalog JSON |
+| `plugins/modules` | Stable Ansible interfaces and result conversion |
+| `plugins/module_utils/repo_manager` | Catalog resolution, Pulp operations, downloads, identity and state |
+| `playbooks/cleanup` | Full deployment cleanup and selective content cleanup |
 
-3. **Podman Containers**
-   - Container runtime for Pulp services
-   - Isolated deployment environment
-   - Easy management and cleanup
+Ansible roles own orchestration. Python modules own structured validation and
+content operations. Shared Python behavior belongs in `module_utils` rather than
+being copied into task files.
 
-4. **Custom Ansible Modules**
-   - Pulp-specific operations
-   - Content download and management
-   - Status generation
+---
 
-## Design Principles
+## Control Flow
 
-### 1. Localhost-Only Execution
-
-**Rationale**: Simplify deployment, eliminate SSH dependencies
-
-**Implementation**:
-- All playbooks use `hosts: localhost`
-- No remote execution required
-- Simplified authentication
-
-### 2. Tag-Based Execution
-
-**Rationale**: Enable selective operations and debugging
-
-**Implementation**:
-```bash
-ansible-playbook repo_manager.yml --tags deploy
-ansible-playbook repo_manager.yml --tags download
-ansible-playbook repo_manager.yml --tags status
-```
-
-### 3. Standard Plugin Structure
-
-**Rationale**: Follow Ansible best practices
-
-**Implementation**:
-```
-plugins/
-├── callback/          # Output callbacks
-├── modules/           # Custom modules
-└── module_utils/      # Module utilities
+```text
+environment + staged YAML + catalog JSON
+                    |
+                    v
+        setup and schema validation
+                    |
+                    v
+       subscription/registry resolution
+                    |
+                    v
+       functional-group task preparation
+                    |
+                    v
+        bounded multiprocessing workers
+                    |
+                    v
+       Pulp remotes -> repositories -> versions
+                    |
+                    v
+        distributions + mirror/status state
+                    |
+                    v
+                repo_status.yml
 ```
 
-### 4. Schema-Based Validation
+The top-level playbook always establishes environment and path facts. Selected
+operation tags then run in playbook order; command-line tag order does not
+reorder plays.
 
-**Rationale**: Ensure input configuration correctness
+---
 
-**Implementation**:
-- JSON schemas for all input files
-- Two-level validation (schema + logic)
-- Clear error messages
+## Runtime Path Model
 
-### 5. System-Wide Pulp CLI
+All domain data derives from these values:
 
-**Rationale**: Simplify Pulp operations across the system
-
-**Implementation**:
-- Symlink at `/usr/local/bin/pulp`
-- Automatic setup during deployment
-- Consistent access point
-
-## Data Flow
-
-### 1. Configuration Flow
-
-```
-Input Files
-    ├── repo_manager_config.yml
-    ├── software_config.json
-    └── repo_manager_endpoint_config.json
-         │
-         ▼
-    Validation
-         │
-         ▼
-    Pulp Deployment
-         │
-         ▼
-    Content Download
-         │
-         ▼
-    Status Generation
-         │
-         ▼
-    Output Files
-    ├── repo_status.yml
-    └── status.csv
+```text
+OMNIA_DATA_PATH             default /opt/omnia
+REPO_MANAGER_DATA_PATH      default <OMNIA_DATA_PATH>/repo_manager
+OMNIA_PROJECT_NAME          default project_default
 ```
 
-### 2. Content Download Flow
+Inputs and outputs are project-scoped. Pulp data, certificates, repository
+caches and operational logs are domain-scoped. `REPO_MANAGER_INPUT_PROJECT_DIR`
+is an internal/test override for the resolved project input directory.
 
+Path validation requires safe absolute paths and rejects broad system roots.
+Source-code paths are never used as persistent runtime paths.
+
+---
+
+## Catalog Resolution
+
+The resolver performs these operations:
+
+1. Select functional layers requested by the catalog.
+2. Expand group/component references.
+3. Filter sources by OS version and `x86_64` or `aarch64`.
+4. Resolve `reponame` against RPM repository configuration.
+5. Resolve `registry` against known public registries or configured registries.
+6. Deduplicate equivalent tasks using a composite content identity.
+
+The catalog controls which functional groups and architectures are processed.
+The host architecture does not remove valid `aarch64` catalog tasks; DNF uses
+the target architecture mode for those tasks.
+
+---
+
+## Content Identity
+
+A mirror/status identity includes enough dimensions to avoid collisions:
+
+```text
+package type + package/image name + version or tag + architecture + source
 ```
-software_config.json
-         │
-         ▼
-    Task Generation
-         │
-         ▼
-    Parallel Download
-         │
-         ├── RPM Repositories
-         ├── Container Images
-         ├── Python Packages
-         ├── Git Repositories
-         ├── ISO Images
-         ├── Shell Scripts
-         └── Ansible Collections
-         │
-         ▼
-    Pulp Import
-         │
-         ▼
-    Distribution Creation
+
+This prevents these cases from overwriting each other:
+
+- the same package name for `x86_64` and `aarch64`;
+- the same image name with multiple tags;
+- an `rpm_repo` catalog item whose execution status is recorded by RPM logic;
+- identical names from different repository or registry sources.
+
+Legacy name-keyed state is migrated when it can be mapped unambiguously. New
+writes use the composite identity and atomic file replacement.
+
+---
+
+## RPM Source Resolution
+
+Repository resolution follows this priority:
+
+```text
+explicit repository fields
+        > subscription-derived URL and certificates
+        > validation failure
 ```
 
-## Module Design
+Empty BaseOS, AppStream and CodeReady Builder mappings request subscription
+resolution. A user URL always wins, even when the host is subscribed. Resolution
+is performed independently for each catalog version and architecture.
 
-### Custom Modules
+Effective sync policy is resolved in this order:
 
-#### generate_local_repo_access
+```text
+repository policy  > repo_config
+repository caching > caching_policy
+```
 
-**Purpose**: Generate repo_status.yml from Pulp distributions
+`rpm_repo` requires retained Pulp content and is rejected when it resolves to
+`streamed`.
 
-**Input**:
-- Pulp server configuration
-- Cluster OS information
-- Output path
+---
 
-**Output**: repo_status.yml file
+## Container Registry Resolution
 
-**Key Features**:
-- Queries Pulp for all distributions
-- Maps repository names to URLs
-- Handles both architectures
-- Supports user repositories
+The execution path uses one registry model for both public and configured
+registries:
 
-#### pulp_cleanup
+```text
+catalog source.registry
+       -> public registry defaults OR registries.<name>
+       -> optional auth.credentials.vault_path
+       -> encrypted registry_credentials entry
+       -> authenticated Pulp container remote
+```
 
-**Purpose**: Cleanup Pulp repositories and distributions
+Configuration keys are lowercase. User values remain unchanged. Secrets are
+passed as command arguments or module parameters with redacted/no-log handling;
+they are not written into catalog, status, or distribution URLs.
 
-**Input**:
-- Cleanup type (rpm, file, python)
-- Distribution names
+Same-name images share a Pulp repository. Tags remain distinct content and
+status identities. Cleanup by exact tag removes only that tag; untagged cleanup
+removes the complete repository.
 
-**Output**: Cleanup results
+---
 
-**Key Features**:
-- Safe removal operations
-- Dependency checking
-- Status reporting
+## Concurrency and State Safety
 
-#### validate_input
+| Control | Purpose |
+|---------|---------|
+| `parallel_config.default_nthreads` | Bounds general catalog worker processes (`1-5`) |
+| `rpm_repo_config.thread_pool_size` | Bounds repository synchronization threads (`1-10`) |
+| `dnf_config.max_concurrent_commands` | Bounds DNF commands independently (`1-5`, default `1`) |
+| Resource locks | Serialize creation/update of the same Pulp object |
+| DNF semaphore | Protect shared per-architecture DNF metadata caches |
+| File locks | Serialize CSV/log updates within the process tree |
+| Atomic replacement | Prevent partial Vault, CSV, text and mirror-index files |
 
-**Purpose**: Validate input configuration files
+Default worker and DNF limits are one for stability. Raising general workers
+does not raise DNF concurrency. The supported operating model is one Repo
+Manager playbook instance at a time; process-local locks do not coordinate two
+independent playbook invocations.
 
-**Input**:
-- Configuration file paths
-- Validation schemas
+The parent process polls asynchronous results and writes a progress heartbeat
+approximately every 60 seconds. Heartbeats are observational and do not change
+timeouts or task results.
 
-**Output**: Validation results
+---
 
-**Key Features**:
-- Schema validation
-- Logic validation
-- Clear error messages
+## Pulp Object Lifecycle
 
-### Module Utilities
+Downloads use type-specific Pulp commands while preserving the same lifecycle:
 
-#### input_validation
+```text
+remote -> repository -> sync/upload -> repository version -> distribution
+```
 
-**Purpose**: Input validation framework
+Creation checks are idempotent. Existing objects are updated or reused. Pulp
+task completion is verified before mirror state is marked successful.
 
-**Components**:
-- Schema validation engine
-- Business logic validators
-- Common validation functions
+The deployment uses a systemd-enabled Podman Quadlet. The configured host port
+maps to container HTTPS port `443`. Certificates and the Pulp CLI CA configuration
+are generated from the runtime path, not endpoint input fields.
 
-#### repo_manager
-
-**Purpose**: Repo manager utilities
-
-**Components**:
-- Pulp command wrappers
-- Download functions
-- Metadata management
-- Configuration handling
+---
 
 ## Error Handling
 
-### Error Categories
+| Failure | Required behavior |
+|---------|-------------------|
+| Invalid environment or input | Fail before content changes |
+| Pulp endpoint unavailable | Fail immediately with endpoint context |
+| Worker/package failure | Record package and group result, return non-success |
+| Timeout | Stop the worker pool and report timeout |
+| Credential re-encryption failure | Fail and report possible plaintext exposure |
+| SELinux certificate labeling failure | Fail before repository synchronization |
+| Cleanup target ambiguity | Reject the request |
+| Pulp delete failure | Preserve local mirror/status state |
 
-1. **Configuration Errors**
-   - Invalid input files
-   - Missing required fields
-   - Schema violations
+Secret-bearing commands must use redaction or `no_log`. Error messages may
+identify a registry or Vault key path, but never a password or token.
 
-2. **Network Errors**
-   - Download failures
-   - Connection timeouts
-   - DNS resolution issues
+---
 
-3. **System Errors**
-   - Insufficient resources
-   - Permission issues
-   - Container failures
+## Cleanup Invariants
 
-### Error Handling Strategy
+1. Exact Pulp names or hrefs are used; substring matching is not accepted.
+2. Tagged container cleanup affects only the selected tag.
+3. Untagged container cleanup intentionally affects all tags in that repository.
+4. Digest-only container cleanup is rejected.
+5. Local state is updated only after Pulp confirms deletion.
+6. Cleanup state files are written atomically.
+7. Full cleanup preserves logs or credentials only when explicitly requested.
 
-1. **Fail-Fast for Configuration Errors**
-   - Immediate validation
-   - Clear error messages
-   - No partial execution
+---
 
-2. **Retry for Transient Errors**
-   - Network timeouts
-   - Temporary service unavailability
-   - Configurable retry limits
+## Extension Checklist
 
-3. **Cleanup on Failure**
-   - Partial downloads removed
-   - Temporary files cleaned
-   - System state restored
+When adding a content type or input field:
 
-## Security Considerations
+1. Update the JSON Schema and logic validation together.
+2. Add catalog-to-task resolution and a composite identity.
+3. Implement idempotent Pulp creation, update and distribution behavior.
+4. Add selective cleanup and post-delete verification.
+5. Add status/mirror migration behavior if identity changes.
+6. Add unit tests for both architectures and duplicate names/tags.
+7. Update the input/output contracts and troubleshooting guide.
 
-### 1. SSL/TLS Configuration
+## Test Boundaries
 
-**Implementation**:
-- HTTPS for Pulp API
-- Certificate validation
-- Self-signed certificate support
+| Test level | Coverage |
+|------------|----------|
+| Unit | Validators, paths, identities, policies, registry mapping and state writes |
+| Syntax/lint | Ansible task structure and collection conventions |
+| Integration | Live Pulp command forms and object lifecycle |
+| End-to-end | Subscription/non-subscription, public/private registry, both architectures, rerun and cleanup |
 
-### 2. Credential Management
-
-**Implementation**:
-- Ansible Vault for secrets
-- Environment variable support
-- Secure credential storage
-
-### 3. File Permissions
-
-**Implementation**:
-- Restrictive permissions for sensitive files
-- Proper ownership
-- Regular permission audits
-
-## Performance Considerations
-
-### 1. Parallel Downloads
-
-**Implementation**:
-- Configurable concurrency
-- Parallel task execution
-- Resource monitoring
-
-### 2. Content Caching
-
-**Implementation**:
-- Pulp content caching
-- Intelligent download skipping
-- Metadata optimization
-
-### 3. Resource Management
-
-**Implementation**:
-- Memory limits
-- Disk space monitoring
-- Container resource constraints
-
-## Extensibility
-
-### Adding New Content Types
-
-1. Define content type in schema
-2. Add download logic to modules
-3. Update status generation
-4. Add validation rules
-
-### Adding New Validation Rules
-
-1. Update JSON schema
-2. Add validator function
-3. Register in validation engine
-4. Add error messages
-
-## Testing Strategy
-
-### 1. Unit Testing
-
-- Custom module testing
-- Utility function testing
-- Schema validation testing
-
-### 2. Integration Testing
-
-- Pulp deployment testing
-- Content download testing
-- Status generation testing
-
-### 3. End-to-End Testing
-
-- Full workflow testing
-- Error scenario testing
-- Performance testing
-
-## Future Enhancements
-
-### Planned Features
-
-1. **Multi-Pulp Support**
-   - Support for multiple Pulp instances
-   - Content federation
-   - Load balancing
-
-2. **Advanced Scheduling**
-   - Scheduled content updates
-   - Incremental downloads
-   - Change detection
-
-3. **Enhanced Monitoring**
-   - Metrics collection
-   - Performance monitoring
-   - Alerting integration
-
-4. **Content Signing**
-   - GPG signing for RPMs
-   - Container image signing
-   - Signature verification
-
-## Dependencies
-
-### External Dependencies
-
-- Ansible Core
-- Podman
-- Python 3
-- Pulp (via containers)
-
-### Internal Dependencies
-
-- Omnia base libraries
-- Common validation framework
-- Shared utilities
-
-## Documentation
-
-### User Documentation
-
-- Architecture overview
-- Configuration guide
-- Troubleshooting guide
-- API reference
-
-### Developer Documentation
-
-- Module development guide
-- Contribution guidelines
-- Code structure
-- Testing guidelines
-
-## Maintenance
-
-### Regular Maintenance Tasks
-
-1. **Content Updates**
-   - Regular repository synchronization
-   - Security patch updates
-   - Content validation
-
-2. **System Maintenance**
-   - Log rotation
-   - Disk space management
-   - Certificate renewal
-
-3. **Monitoring**
-   - Service health checks
-   - Performance monitoring
-   - Capacity planning
+Production validation must include same-image multiple-tag cleanup and a rerun
+after partial success.

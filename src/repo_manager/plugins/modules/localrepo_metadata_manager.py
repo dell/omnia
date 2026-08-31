@@ -15,6 +15,7 @@
 # pylint: disable=import-error,no-name-in-module
 #!/usr/bin/python
 
+import os
 from pathlib import Path
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager.process_metadata import (
@@ -54,7 +55,7 @@ EXAMPLES = r"""
 - name: Read repository metadata
   localrepo_metadata_manager:
     action: read
-    metadata_path: /opt/omnia/.data/repo_metadata.yml
+    metadata_path: "{{ omnia_base }}/.data/repo_metadata.yml"
   register: metadata
 """
 

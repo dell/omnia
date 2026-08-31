@@ -19,6 +19,10 @@
     bmc_username: "{{ hostvars['localhost']['bmc_username'] }}"
     bmc_password: "{{ hostvars['localhost']['bmc_password'] }}"
   no_log: true
+  when:
+    - hostvars['localhost']['provision_password'] is defined
+    - hostvars['localhost']['bmc_username'] is defined
+    - hostvars['localhost']['bmc_password'] is defined
 
 - name: Include orchestrator inputs
   ansible.builtin.include_tasks: include_inputs.yml
@@ -41,3 +45,4 @@
 
 - name: Update hosts file
   ansible.builtin.include_tasks: update_hosts.yml
+  when: "'precheck' not in (hostvars['localhost']['omnia_run_tags'] | default([]))"

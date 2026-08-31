@@ -1,0 +1,99 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Write telemetry_status.yml after cleanup completes
+# ============================================================================
+# Writes cleanup status similar to deployment status tracking.
+# Status values: cleaned, failed, skipped
+#
+# Expected to run on localhost after all cleanup tasks complete.
+# Cleanup results are collected from hostvars set during cleanup tasks.
+
+- name: Set output paths
+  ansible.builtin.set_fact:
+    _output_base: >-
+      {{ output_project_dir | default('/opt/omnia/telemetry/output/' +
+         (project_name | default('project_default'))) }}
+
+- name: Ensure output directory exists
+  ansible.builtin.file:
+    path: "{{ _output_base }}"
+    state: directory
+    mode: "0755"
+
+# -- Aggregate cleanup results from hostvars ----------------------------------
+- name: Aggregate sink cleanup results
+  ansible.builtin.set_fact:
+    _cleanup_results:
+      kafka: "{{ hostvars['localhost']['_cleanup_result_kafka'] | default('skipped') }}"
+      victoria_metrics: "{{ hostvars['localhost']['_cleanup_result_victoria_metrics'] | default('skipped') }}"
+      victoria_logs: "{{ hostvars['localhost']['_cleanup_result_victoria_logs'] | default('skipped') }}"
+      idrac: "{{ hostvars['localhost']['_cleanup_result_idrac'] | default('skipped') }}"
+      ldms: "{{ hostvars['localhost']['_cleanup_result_ldms'] | default('skipped') }}"
+      powerscale: "{{ hostvars['localhost']['_cleanup_result_powerscale'] | default('skipped') }}"
+      ufm: "{{ hostvars['localhost']['_cleanup_result_ufm'] | default('skipped') }}"
+      vast: "{{ hostvars['localhost']['_cleanup_result_vast'] | default('skipped') }}"
+      ome: "{{ hostvars['localhost']['_cleanup_result_ome'] | default('skipped') }}"
+
+# -- Determine overall cleanup status -----------------------------------------
+- name: Determine overall cleanup status
+  vars:
+    _all_results: >-
+      {{ [_cleanup_results.kafka, _cleanup_results.victoria_metrics,
+          _cleanup_results.victoria_logs, _cleanup_results.idrac,
+          _cleanup_results.ldms, _cleanup_results.powerscale,
+          _cleanup_results.ufm, _cleanup_results.vast, _cleanup_results.ome] }}
+    _has_failed: "{{ 'failed' in _all_results }}"
+    _has_cleaned: "{{ 'cleaned' in _all_results or 'passed' in _all_results }}"
+  ansible.builtin.set_fact:
+    _cleanup_status: >-
+      {% if _has_failed %}failed{% elif _has_cleaned %}passed{% else %}skipped{% endif %}
+
+# -- Set status type for template ----------------------------------------------
+- name: Set cleanup status type
+  ansible.builtin.set_fact:
+    _status_type: "cleanup"
+
+# -- Write the template --------------------------------------------------------
+- name: Write telemetry_status.yml (cleanup)
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/telemetry_status.yml.j2"
+    dest: "{{ _output_base }}/telemetry_status.yml"
+    mode: "0644"
+
+# -- Display summary -----------------------------------------------------------
+- name: Display telemetry cleanup status
+  ansible.builtin.debug:
+    msg: "{{ _status_lines }}"
+  vars:
+    _status_lines:
+      - "======================================================"
+      - "Telemetry Cleanup Status: {{ _cleanup_status | upper | trim }}"
+      - "======================================================"
+      - "Output: {{ _output_base }}/telemetry_status.yml"
+      - ""
+      - "Sinks:"
+      - "  kafka:             {{ _cleanup_results.kafka }}"
+      - "  victoria_metrics:  {{ _cleanup_results.victoria_metrics }}"
+      - "  victoria_logs:     {{ _cleanup_results.victoria_logs }}"
+      - ""
+      - "Sources:"
+      - "  idrac:             {{ _cleanup_results.idrac }}"
+      - "  ldms:              {{ _cleanup_results.ldms }}"
+      - "  powerscale:        {{ _cleanup_results.powerscale }}"
+      - "  ufm:               {{ _cleanup_results.ufm }}"
+      - "  vast:              {{ _cleanup_results.vast }}"
+      - "  ome:               {{ _cleanup_results.ome }}"
+      - "======================================================"

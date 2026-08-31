@@ -74,6 +74,7 @@ PLAYBOOK_TAGS = [
     "cleanup",
     "upgrade",
     "rollback",
+    "external_kafka",
 ]
 
 # =============================================================================
@@ -114,6 +115,7 @@ KAFKA_POD_PREFIXES = {
 
 KAFKA_BRIDGE_PREFIX = "bridge-bridge"
 KAFKA_CR_NAME = "kafka"
+KAFKA_EXTERNAL_BOOTSTRAP_SVC = "kafka-kafka-external-bootstrap"
 
 # =============================================================================
 # SOURCE COMPONENT NAMES
@@ -132,10 +134,16 @@ IDRAC_CONTAINERS = [
 ]
 IDRAC_KAFKA_TOPIC = "idrac"
 
-# LDMS (from deploy_ldms/vars/main.yml)
-LDMS_AGG_STS_NAME = "nersc-ldms-aggr"
-LDMS_STORE_NAME = "nersc-ldms-store"
-LDMS_KAFKA_TOPIC = "ldms"
+# LDMS - see ldms_vars.py for all LDMS-specific constants
+# Kept here for backward compatibility
+from .ldms_vars import (  # noqa: F401, E402
+    LDMS_AGG_STS_NAME,
+    LDMS_STORE_NAME,
+    LDMS_KAFKA_TOPIC,
+    LDMS_FUNCTIONAL_GROUPS,
+    LDMS_SAMPLER_SERVICE,
+    LDMS_SAMPLER_CONF_PATH,
+)
 
 # DCGM (from deploy_dcgm/vars/main.yml)
 DCGM_POD_PREFIX = "dcgm-exporter"
@@ -175,13 +183,6 @@ SVC_PORT_NAME_HTTP = "http"
 # Vector bridges
 VECTOR_LDMS_APP_NAME = "vector-ldms"
 VECTOR_OME_APP_NAME = "vector-ome"
-
-# OME Kafka user
-OME_KAFKA_USER = "vector-ome-user"
-
-# OME external Kafka TLS cert subdirectory (under output_project_dir)
-OME_KAFKA_CERT_SUBDIR = "external_kafka"
-OME_KAFKA_CERT_FILES = ["ca.crt", "user.crt", "user.key"]
 
 # UFM (from deploy_ufm/vars/main.yml)
 UFM_SVC_NAME = "ufm-external"
@@ -483,14 +484,86 @@ CMDS = {
         " -passout pass:{password} 2>&1"
     ),
 
-    # --- OME REST API: upload certificate ---
-    "ome_upload_cert": (
+    # --- OME REST API: upload certificates ---
+    # Upload server certificate (CA cert) - X.509 format, base64 encoded
+    "ome_upload_server_cert": (
         "curl -sk -u '{user}:{password}' --max-time 30"
         " -X POST"
-        " -H 'Content-Type: application/octet-stream'"
-        " --data-binary '@{cert_path}'"
+        " -H 'Content-Type: application/json'"
+        " -d '{{\"CertData\": \"{cert_data_b64}\","
+        " \"CertFormat\": \"X_509\","
+        " \"ClientType\": \"KAFKA\"}}'"
         " 'https://{ome_ip}/api/ApplicationService/"
-        "Actions/ApplicationService.UploadCertificate'"
+        "Actions/ApplicationService.UploadServerCertificate'"
+        " -w '\\nHTTP_CODE:%{{http_code}}'"
+    ),
+    # Upload client certificate (PFX) - PKCS12 format, base64 encoded
+    "ome_upload_client_cert": (
+        "curl -sk -u '{user}:{password}' --max-time 30"
+        " -X POST"
+        " -H 'Content-Type: application/json'"
+        " -d '{{\"CertData\": \"{cert_data_b64}\","
+        " \"CertFormat\": \"PKCS_12\","
+        " \"ClientType\": \"KAFKA\","
+        " \"Passphrase\": \"{pfx_secret}\"}}'"
+        " 'https://{ome_ip}/api/ApplicationService/"
+        "Actions/ApplicationService.UploadClientCertificate'"
+        " -w '\\nHTTP_CODE:%{{http_code}}'"
+    ),
+    # View client certificate
+    "ome_view_client_cert": (
+        "curl -sk -u '{user}:{password}' --max-time 15"
+        " -X POST"
+        " -H 'Content-Type: application/json'"
+        " -d '{{\"ClientType\": \"KAFKA\"}}'"
+        " 'https://{ome_ip}/api/ApplicationService/"
+        "Actions/ApplicationService.ViewClientCertificate'"
+    ),
+    # Test Kafka connection
+    "ome_test_kafka_connection": (
+        "curl -sk -u '{user}:{password}' --max-time 30"
+        " -X POST"
+        " -H 'Content-Type: application/json'"
+        " -d '{{\"Id\": {forwarder_id},"
+        " \"ForwarderConfigurations\": ["
+        "{{\"ConfigurationName\": \"OMEIdentifier\", "
+        "\"ConfigurationValue\": \"{ome_identifier}\"}},"
+        "{{\"ConfigurationName\": \"ClientType\", \"ConfigurationValue\": \"KAFKA\"}},"
+        "{{\"ConfigurationName\": \"BrokerList\", \"ConfigurationValue\": \"{broker_list}\"}},"
+        "{{\"ConfigurationName\": \"AuthMode\", \"ConfigurationValue\": \"2\"}},"
+        "{{\"ConfigurationName\": \"ServerCert\", \"ConfigurationValue\": \"true\"}},"
+        "{{\"ConfigurationName\": \"ClientCert\", \"ConfigurationValue\": \"true\"}}"
+        "]}}'"
+        " 'https://{ome_ip}/api/DataForwardingService/"
+        "Actions/DataForwardingService.TestConnection'"
+        " -w '\\nHTTP_CODE:%{{http_code}}'"
+    ),
+    # Update forwarder settings
+    "ome_update_forwarder_settings": (
+        "curl -sk -u '{user}:{password}' --max-time 30"
+        " -X POST"
+        " -H 'Content-Type: application/json'"
+        " -d '{{\"Id\": {forwarder_id},"
+        " \"Enabled\": true,"
+        " \"ForwarderConfigurations\": ["
+        "{{\"ConfigurationName\": \"OMEIdentifier\", "
+        "\"ConfigurationValue\": \"{ome_identifier}\"}},"
+        "{{\"ConfigurationName\": \"ClientType\", \"ConfigurationValue\": \"KAFKA\"}},"
+        "{{\"ConfigurationName\": \"BrokerList\", \"ConfigurationValue\": \"{broker_list}\"}},"
+        "{{\"ConfigurationName\": \"AuthMode\", \"ConfigurationValue\": \"2\"}},"
+        "{{\"ConfigurationName\": \"ServerCert\", \"ConfigurationValue\": \"true\"}},"
+        "{{\"ConfigurationName\": \"ClientCert\", \"ConfigurationValue\": \"true\"}},"
+        "{{\"ConfigurationName\": \"HeartBeat\", \"ConfigurationValue\": \"120\"}}"
+        "]}}'"
+        " 'https://{ome_ip}/api/DataForwardingService/"
+        "Actions/DataForwardingService.ForwarderSettings'"
+        " -w '\\nHTTP_CODE:%{{http_code}}'"
+    ),
+    # Get forwarder configuration
+    "ome_get_forwarder_config": (
+        "curl -sk -u '{user}:{password}' --max-time 15"
+        " 'https://{ome_ip}/api/DataForwardingService/"
+        "Forwarders({forwarder_id})/ForwarderConfigurations'"
     ),
 
     # --- PowerScale syslog config via SSH ---

@@ -13,9 +13,11 @@
 # limitations under the License.
 # pylint: disable=import-error,no-name-in-module
 import os
-from ansible.module_utils.repo_manager.common_functions import (
-    load_yaml_file,
-    get_repo_list,
+from ansible.module_utils.repo_manager.common_functions import load_yaml_file
+from ansible.module_utils.repo_manager.config import (
+    ARCH_SUFFIXES,
+    get_repos_section,
+    iterate_all_repos
 )
 
 
@@ -53,14 +55,20 @@ def validate_repo_certificates(repo_list, certs_path):
 
     for repo in repo_list:
         repo_name = repo.get("name", "unnamed_repo")
-        repo_cert_path = os.path.join(certs_path, repo_name)
 
+        # Skip certificate validation for repos with empty SSL cert fields
         cert_keys = ["sslcacert", "sslclientkey", "sslclientcert"]
         cert_values = {key: repo.get(key) for key in cert_keys}
 
-        # # Skip if all cert values are None, No cert scenario
-        if all(value is None for value in cert_values.values()):
+        # Skip if all cert values are None or empty strings (no cert scenario)
+        if all(value is None or value == "" for value in cert_values.values()):
             continue
+
+        # Skip if URL is empty (RHEL subscription repos)
+        if repo.get("url", "") == "":
+            continue
+
+        repo_cert_path = os.path.join(certs_path, repo_name)
 
         if not os.path.isdir(repo_cert_path):
             cert_issues.append(f"{repo_name} (certificate path not found)")
@@ -86,23 +94,31 @@ def validate_repo_certificates(repo_list, certs_path):
     return cert_issues
 
 
-def validate_certificates(local_repo_config_path, certs_path, repo_key="user_repo_url"):
+def validate_certificates(local_repo_config_path, certs_path, cluster_os_version="10.0"):
     """
     Validates the repository certificates based on the provided repository list and certificate path.
 
     Parameters:
         local_repo_config_path (str): The path to the local repository configuration file.
         certs_path (str): The path to the repository certificates.
-        repo_key (str): The key to access the repository list in the configuration file (default: "user_repo_url").
+        cluster_os_version (str): OS version to look up repos (default: "10.0").
 
     Returns:
         dict: A dictionary containing the validation status and a list of issues if any.
     """
 
     config_file = load_yaml_file(local_repo_config_path)
-    repo_list = get_repo_list(config_file, repo_key)
 
-    issues = validate_repo_certificates(repo_list, certs_path)
+    # Collect all repos with certificates from new structure
+    all_repos = []
+    for arch in ARCH_SUFFIXES:
+        repos_section = get_repos_section(config_file, cluster_os_version, arch)
+        for repo_name, repo_config in iterate_all_repos(repos_section):
+            if repo_config and isinstance(repo_config, dict):
+                entry = {"name": repo_name, **repo_config}
+                all_repos.append(entry)
+
+    issues = validate_repo_certificates(all_repos, certs_path)
 
     if issues:
         return {"status": "error", "missing": issues}
