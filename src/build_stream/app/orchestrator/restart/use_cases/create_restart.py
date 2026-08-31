@@ -12,18 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""CreateRestart use case implementation."""
+"""CreateRestart use case implementation.
+
+Note (Omnia 2.3+):
+    The standalone set_pxe_boot.yml playbook invocation has been retired from
+    this stage.  PXE boot is now handled implicitly by the orchestrator.yml
+    playbook during the deploy stage.  This use case retains all non-playbook
+    operations (job/stage validation, state transitions, audit trail) and
+    immediately marks the restart stage as COMPLETED so downstream stages
+    (validate) can proceed without delay.
+"""
 
 from datetime import datetime, timezone
 
-from api.logging_utils import create_stage_log_file, log_secure_info
+from api.logging_utils import log_secure_info
 
-from core.localrepo.entities import PlaybookRequest
-from core.localrepo.value_objects import (
-    ExecutionTimeout,
-    ExtraVars,
-    PlaybookPath,
-)
 from core.jobs.entities import AuditEvent, Stage
 from core.jobs.exceptions import (
     JobNotFoundError,
@@ -43,34 +46,30 @@ from core.jobs.value_objects import (
     StageType,
     StageState,
 )
-from core.localrepo.services import PlaybookQueueRequestService
 
 from orchestrator.restart.commands import CreateRestartCommand
 from orchestrator.restart.dtos import RestartResponse
-from core.common.playbook_registry import get_playbook_path
-
-
-PLAYBOOK_NAME = "set_pxe_boot.yml"
-_RESTART_PLAYBOOK_PATH = get_playbook_path(PLAYBOOK_NAME) or "/omnia/utils/set_pxe_boot.yml"
-DEFAULT_TIMEOUT_MINUTES = 30
 
 
 class CreateRestartUseCase:
     """Use case for triggering the restart stage.
 
-    This use case orchestrates stage execution with the following guarantees:
+    With the orchestrator-domain integration (Omnia 2.3+), PXE boot is
+    performed as part of the orchestrator.yml playbook during the deploy
+    stage.  This use case therefore skips explicit playbook invocation and
+    immediately completes the restart stage.
+
+    Retained guarantees:
     - Stage guard enforcement: Only PENDING stages can be started
     - Job ownership verification: Client must own the job
-    - PlaybookRequest construction and NFS queue submission
-    - Audit trail: Emits STAGE_STARTED event
-    - No extra_vars: The playbook runs without additional variables
+    - Audit trail: Emits STAGE_STARTED and STAGE_COMPLETED events
+    - Re-run support: COMPLETED/FAILED stages are reset before proceeding
 
     Attributes:
         job_repo: Job repository port.
         stage_repo: Stage repository port.
         audit_repo: Audit event repository port.
-        queue_service: Playbook queue request service.
-        uuid_generator: UUID generator for events and request IDs.
+        uuid_generator: UUID generator for events.
     """
 
     def __init__(
@@ -78,26 +77,28 @@ class CreateRestartUseCase:
         job_repo: JobRepository,
         stage_repo: StageRepository,
         audit_repo: AuditEventRepository,
-        queue_service: PlaybookQueueRequestService,
         uuid_generator: UUIDGenerator,
-    ) -> None:  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    ) -> None:
         """Initialize use case with repository and service dependencies.
 
         Args:
             job_repo: Job repository implementation.
             stage_repo: Stage repository implementation.
             audit_repo: Audit event repository implementation.
-            queue_service: Playbook queue request service.
             uuid_generator: UUID generator for identifiers.
         """
         self._job_repo = job_repo
         self._stage_repo = stage_repo
         self._audit_repo = audit_repo
-        self._queue_service = queue_service
         self._uuid_generator = uuid_generator
 
     def execute(self, command: CreateRestartCommand) -> RestartResponse:
         """Execute the restart stage.
+
+        Since PXE boot is now handled by the orchestrator playbook during
+        the deploy stage, this method validates preconditions, transitions
+        the stage through IN_PROGRESS to COMPLETED synchronously, and emits
+        audit events.  No playbook is submitted to the NFS queue.
 
         Args:
             command: CreateRestart command with job details.
@@ -110,26 +111,28 @@ class CreateRestartUseCase:
             StageNotFoundError: If restart stage does not exist for the job.
             InvalidStateTransitionError: If stage is not in PENDING state.
             TerminalStateViolationError: If stage is in a terminal state.
-            QueueUnavailableError: If NFS queue is not accessible.
         """
         job = self._validate_job(command)
         stage = self._validate_stage(command)
         image_group_id = self._get_image_group_id(job)
 
-        # Create per-attempt log file and set on stage
-        log_path = create_stage_log_file(
-            str(command.job_id), StageType.RESTART.value, stage.attempt
-        )
-        if log_path:
-            stage.log_file_path = str(log_path)
-            # Note: Don't save here - will be saved in _submit_to_queue after stage.start()
+        # Transition stage: PENDING -> IN_PROGRESS -> COMPLETED (synchronous)
+        self._complete_stage_immediately(command, stage)
 
-        request = self._build_playbook_request(command, stage)
-        self._submit_to_queue(command, request, stage)
-
+        # Audit trail
         self._emit_stage_started_event(command)
+        self._emit_stage_completed_event(command)
 
-        return self._to_response(command, request, image_group_id)
+        submitted_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+        log_secure_info(
+            "info",
+            f"Restart stage completed (PXE boot retired — handled by orchestrator "
+            f"playbook during deploy): job_id={command.job_id}",
+            job_id=str(command.job_id),
+        )
+
+        return self._to_response(command, image_group_id, submitted_at)
 
     def _validate_job(self, command: CreateRestartCommand):
         """Validate job exists and belongs to the requesting client."""
@@ -212,45 +215,30 @@ class CreateRestartUseCase:
         params = getattr(job, "parameters", None) or {}
         return params.get("image_group_id", "")
 
-    def _build_playbook_request(
+    def _complete_stage_immediately(
         self,
         command: CreateRestartCommand,
-        stage: Stage,
-    ) -> PlaybookRequest:
-        """Create PlaybookRequest entity for the restart stage."""
-        playbook_path = PlaybookPath(PLAYBOOK_NAME)
-
-        return PlaybookRequest(
-            job_id=str(command.job_id),
-            stage_name=StageType.RESTART.value,
-            playbook_path=playbook_path,
-            extra_vars=ExtraVars(values={
-                "job_id": str(command.job_id),
-                "attempt": stage.attempt,
-            }),
-            correlation_id=str(command.correlation_id),
-            timeout=ExecutionTimeout(DEFAULT_TIMEOUT_MINUTES),
-            submitted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            request_id=str(self._uuid_generator.generate()),
-        )
-
-    def _submit_to_queue(
-        self,
-        command: CreateRestartCommand,
-        request: PlaybookRequest,
         stage: Stage,
     ) -> None:
-        """Submit playbook request to NFS queue for watcher service."""
+        """Transition stage PENDING -> IN_PROGRESS -> COMPLETED synchronously.
+
+        Since PXE boot is now part of the orchestrator playbook (deploy stage),
+        we skip the NFS queue entirely and mark the stage as complete inline.
+        Two saves are needed to satisfy optimistic locking (each transition
+        increments the version).
+        """
         stage.start()
         self._stage_repo.save(stage)
 
-        self._queue_service.submit_request(
-            request=request,
-            correlation_id=str(command.correlation_id),
-        )
+        stage.complete()
+        self._stage_repo.save(stage)
 
-        log_secure_info('info', f"Restart request submitted to queue for job {command.job_id}, stage={StageType.RESTART.value}, "
-            "correlation_id={command.correlation_id}")
+        log_secure_info(
+            "info",
+            f"Restart stage immediately completed (PXE boot retired): "
+            f"job_id={command.job_id}, attempt={stage.attempt}",
+            job_id=str(command.job_id),
+        )
 
     def _emit_stage_started_event(
         self,
@@ -266,6 +254,26 @@ class CreateRestartUseCase:
             timestamp=datetime.now(timezone.utc),
             details={
                 "stage_name": StageType.RESTART.value,
+                "note": "PXE boot retired — handled by orchestrator playbook during deploy",
+            },
+        )
+        self._audit_repo.save(event)
+
+    def _emit_stage_completed_event(
+        self,
+        command: CreateRestartCommand,
+    ) -> None:
+        """Emit an audit event for immediate stage completion."""
+        event = AuditEvent(
+            event_id=str(self._uuid_generator.generate()),
+            job_id=command.job_id,
+            event_type="STAGE_COMPLETED",
+            correlation_id=command.correlation_id,
+            client_id=command.client_id,
+            timestamp=datetime.now(timezone.utc),
+            details={
+                "stage_name": StageType.RESTART.value,
+                "note": "Completed immediately — PXE boot handled during deploy stage",
             },
         )
         self._audit_repo.save(event)
@@ -273,15 +281,15 @@ class CreateRestartUseCase:
     def _to_response(
         self,
         command: CreateRestartCommand,
-        request: PlaybookRequest,
         image_group_id: str,
+        submitted_at: str,
     ) -> RestartResponse:
         """Map to response DTO."""
         return RestartResponse(
             job_id=str(command.job_id),
             stage_name=StageType.RESTART.value,
             status="accepted",
-            submitted_at=request.submitted_at,
+            submitted_at=submitted_at,
             image_group_id=image_group_id,
             correlation_id=str(command.correlation_id),
         )

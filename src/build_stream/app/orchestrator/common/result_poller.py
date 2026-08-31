@@ -19,7 +19,7 @@ This module provides a shared ResultPoller that can be used by all stage APIs
 queue and update stage states accordingly.
 
 Enhanced (S1-4 Part B): On build-image success, creates ImageGroup (BUILT)
-and Image records from catalog metadata persisted during parse-catalog.
+and Image records from catalog metadata persisted during create-local-repository.
 """
 
 import json
@@ -316,6 +316,10 @@ class ResultPoller:
                     job_id=str(result.job_id),
                 )
 
+                # On create-local-repository success, persist catalog metadata
+                if result.stage_name == "create-local-repository":
+                    self._on_create_local_repo_success(result)
+
                 # S1-4 Part B: On build-image success, create ImageGroup + Images
                 if self._is_build_image_stage(result.stage_name):
                     self._on_build_image_success(result)
@@ -445,6 +449,221 @@ class ResultPoller:
             )
 
     # ------------------------------------------------------------------
+    # create-local-repository completion — persist catalog metadata
+    # ------------------------------------------------------------------
+
+    def _on_create_local_repo_success(
+        self, result: PlaybookResult
+    ) -> None:
+        """Persist catalog metadata when create-local-repository succeeds.
+
+        In Omnia 2.3+ (domain-segregated), the create-local-repository
+        playbook consumes the catalog directly.  There is no separate
+        parse-catalog stage.  This callback reads the catalog file that
+        was uploaded earlier, extracts the image_group_id and role
+        mappings, and stores them as a ``catalog-metadata`` artifact so
+        that ``_on_build_image_success`` can find it later.
+        """
+        if (self._artifact_metadata_repo is None
+                or self._artifact_store is None):
+            log_secure_info(
+                "warning",
+                "Artifact repos not available; skipping catalog "
+                f"metadata persistence for job={result.job_id}",
+                job_id=str(result.job_id),
+            )
+            return
+
+        try:
+            catalog_data = self._load_uploaded_catalog(result.job_id)
+            if catalog_data is None:
+                log_secure_info(
+                    "warning",
+                    "No uploaded catalog found for "
+                    f"job={result.job_id}; skipping catalog "
+                    "metadata persistence",
+                    job_id=str(result.job_id),
+                )
+                return
+
+            catalog_metadata = self._extract_catalog_metadata_from_data(
+                catalog_data
+            )
+            if catalog_metadata is None:
+                log_secure_info(
+                    "warning",
+                    "Could not extract catalog metadata for "
+                    f"job={result.job_id}",
+                    job_id=str(result.job_id),
+                )
+                return
+
+            self._persist_catalog_metadata(
+                result.job_id, catalog_metadata
+            )
+
+            log_secure_info(
+                "info",
+                "Persisted catalog metadata for "
+                f"job={result.job_id}: "
+                f"image_group_id="
+                f"{catalog_metadata.get('image_group_id')}, "
+                f"roles={catalog_metadata.get('roles')}",
+                job_id=str(result.job_id),
+            )
+
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "error",
+                "Failed to persist catalog metadata for "
+                f"job={result.job_id}: {exc}",
+                job_id=str(result.job_id),
+                exc_info=True,
+            )
+
+    def _load_uploaded_catalog(self, job_id) -> dict:
+        """Load the catalog JSON uploaded during the upload stage.
+
+        Searches artifact_metadata for catalog files uploaded for
+        this job (labels matching ``catalog*.json``).
+
+        Returns:
+            Parsed catalog dict, or None if not found.
+        """
+        try:
+            all_records = self._artifact_metadata_repo.list_by_job_id(
+                job_id
+            )
+            catalog_record = None
+            for rec in (all_records or []):
+                label_lower = rec.label.lower()
+                if (rec.stage_name == StageName("upload")
+                        and "catalog" in label_lower
+                        and label_lower.endswith(".json")):
+                    catalog_record = rec
+                    break
+
+            if catalog_record is None:
+                return None
+
+            raw = self._artifact_store.retrieve(
+                catalog_record.artifact_ref.key,
+                ArtifactKind.FILE,
+            )
+            return json.loads(raw.decode("utf-8"))
+
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "warning",
+                "Failed to load uploaded catalog for "
+                f"job={job_id}: {exc}",
+                job_id=str(job_id),
+            )
+            return None
+
+    @staticmethod
+    def _extract_catalog_metadata_from_data(
+        catalog_data: dict,
+    ) -> dict:
+        """Extract image_group_id and role mappings from catalog data.
+
+        Handles both PascalCase and lowercase catalog keys for
+        compatibility across catalog formats.
+
+        Returns:
+            Dict with image_group_id, roles, role_images,
+            or None if extraction fails.
+        """
+        # Support both PascalCase and lowercase keys
+        cat = catalog_data.get(
+            "Catalog", catalog_data.get("catalog")
+        )
+        if not cat or not isinstance(cat, dict):
+            return None
+
+        raw_id = cat.get(
+            "Identifier", cat.get("identifier", "")
+        )
+        if not raw_id:
+            return None
+
+        layers = cat.get(
+            "FunctionalLayer",
+            cat.get("functionallayer", []),
+        )
+
+        roles = []
+        role_images = {}
+        for layer in layers:
+            if not isinstance(layer, dict):
+                continue
+            name = layer.get("Name", layer.get("name", ""))
+            if name:
+                roles.append(name)
+                role_images[name] = f"{name}.img"
+        roles.sort()
+
+        # Add synthetic _first variant if base kube control plane exists
+        base_kube = "service_kube_control_plane_x86_64"
+        first_kube = "service_kube_control_plane_first_x86_64"
+        if base_kube in roles and first_kube not in roles:
+            roles.append(first_kube)
+            role_images[first_kube] = f"{first_kube}.img"
+            roles.sort()
+
+        return {
+            "image_group_id": raw_id,
+            "roles": roles,
+            "role_images": role_images,
+            "name": cat.get("Name", cat.get("name", "")),
+            "version": cat.get(
+                "Version", cat.get("version", "")
+            ),
+            "parsed_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    def _persist_catalog_metadata(
+        self, job_id, catalog_metadata: dict
+    ) -> None:
+        """Store catalog metadata as an artifact for build-image.
+
+        Creates a ``catalog-metadata`` artifact under the
+        ``create-local-repository`` stage so that
+        ``_load_catalog_metadata`` can find it later.
+        """
+        content = json.dumps(
+            catalog_metadata, indent=2
+        ).encode("utf-8")
+
+        hint = StoreHint(
+            namespace="catalog",
+            label="catalog-metadata",
+            tags={"job_id": str(job_id)},
+        )
+
+        metadata_ref = self._artifact_store.store(
+            hint=hint,
+            kind=ArtifactKind.FILE,
+            content=content,
+            content_type="application/json",
+        )
+
+        record = ArtifactRecord(
+            id=str(uuid.uuid4()),
+            job_id=JobId(str(job_id)),
+            stage_name=StageName("create-local-repository"),
+            label="catalog-metadata",
+            artifact_ref=metadata_ref,
+            kind=ArtifactKind.FILE,
+            content_type="application/json",
+            tags={"job_id": str(job_id)},
+        )
+        self._artifact_metadata_repo.save(record)
+
+        if hasattr(self._artifact_metadata_repo, 'session'):
+            self._artifact_metadata_repo.session.commit()
+
+    # ------------------------------------------------------------------
     # S1-4 Part B: Build-image completion — ImageGroup/Image creation
     # ------------------------------------------------------------------
 
@@ -460,9 +679,9 @@ class ResultPoller:
     def _on_build_image_success(self, result: PlaybookResult) -> None:
         """Create ImageGroup (BUILT) and Image records on build-image success.
 
-        Loads catalog metadata persisted by parse-catalog, creates the
-        ImageGroup with status BUILT, and inserts Image records for each
-        constituent role.
+        Loads catalog metadata persisted by the create-local-repository
+        completion callback, creates the ImageGroup with status BUILT,
+        and inserts Image records for each constituent role.
 
         Args:
             result: Playbook execution result from NFS queue.

@@ -96,15 +96,17 @@ def _create_artifact_store():
                 max_artifact_size_bytes=config.artifact_store.max_file_size_bytes,
             )
 
-        # Fall back to file store with default path
+        # Fall back to file store with default path derived from environment
+        _data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia")
         return FileArtifactStore(
-            base_path=Path("/opt/omnia/build_stream_root/artifacts"),
+            base_path=Path(_data_path) / "build_stream_root" / "artifacts",
             max_artifact_size_bytes=config.artifact_store.max_file_size_bytes,
         )
     except (FileNotFoundError, ValueError):
         # If config not found or invalid, use file store with defaults as fallback
+        _data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia")
         return FileArtifactStore(
-            base_path=Path("/opt/omnia/build_stream_root/artifacts"),
+            base_path=Path(_data_path) / "build_stream_root" / "artifacts",
             max_artifact_size_bytes=5242880,  # 5MB default
         )
 
@@ -312,7 +314,6 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         job_repo=job_repository,
         stage_repo=stage_repository,
         audit_repo=audit_repository,
-        queue_service=playbook_queue_request_service,
         uuid_generator=uuid_generator,
     )
 
@@ -469,7 +470,7 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     result_poller_image_repo = providers.Singleton(
         SqlImageRepository, session=result_poller_session
     )
-    
+
     result_poller = providers.Singleton(
         ResultPoller,
         result_service=playbook_queue_result_service,
@@ -543,7 +544,6 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         job_repo=job_repository,
         stage_repo=stage_repository,
         audit_repo=audit_repository,
-        queue_service=playbook_queue_request_service,
         uuid_generator=uuid_generator,
     )
 

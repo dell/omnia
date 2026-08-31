@@ -287,6 +287,12 @@ class MockArtifactMetadataRepo:
     def find_by_job_stage_and_label(self, job_id, stage_name, label):
         return self._records.get((str(job_id), stage_name.value, label))
 
+    def list_by_job_id(self, job_id):
+        return [
+            r for r in self._records.values()
+            if str(r.job_id) == str(job_id)
+        ]
+
 
 class MockImageGroupRepo:
     """In-memory ImageGroup repository for testing."""
@@ -805,3 +811,322 @@ class TestRestartFailureMarksImageGroupFailed:
 
         saved_stage = stage_repo.find_by_job_and_name(str(job_id), StageName("restart"))
         assert saved_stage.stage_state == StageState.FAILED
+
+
+def _store_uploaded_catalog(artifact_store, artifact_metadata_repo, job_id, catalog_data):
+    """Helper: persist an uploaded catalog the way the upload stage does."""
+    content = json.dumps(catalog_data).encode("utf-8")
+    ref = artifact_store.store(
+        hint=type("H", (), {
+            "namespace": "config-files",
+            "label": "catalog_rhel.json",
+            "tags": {"job_id": str(job_id)},
+        })(),
+        kind=ArtifactKind.FILE,
+        content=content,
+    )
+    record = ArtifactRecord(
+        id=str(uuid.uuid4()),
+        job_id=JobId(str(job_id)),
+        stage_name=StageName("upload"),
+        label="catalog_rhel.json",
+        artifact_ref=ref,
+        kind=ArtifactKind.FILE,
+        content_type="application/octet-stream",
+    )
+    artifact_metadata_repo.save(record)
+
+
+class TestCreateLocalRepoSuccess:
+    """Tests for catalog metadata persistence on create-local-repository success."""
+
+    def test_persists_catalog_metadata_on_success(self):
+        """When create-local-repository succeeds, catalog metadata
+        should be extracted from the uploaded catalog and persisted."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("create-local-repository"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        artifact_store = MockArtifactStore()
+        artifact_metadata_repo = MockArtifactMetadataRepo()
+
+        catalog_data = {
+            "catalog": {
+                "name": "test catalog",
+                "version": "1.0",
+                "identifier": "test-cluster-v1",
+                "functionallayer": [
+                    {"name": "slurm_control_node_x86_64"},
+                    {"name": "slurm_node_x86_64"},
+                ],
+            }
+        }
+        _store_uploaded_catalog(
+            artifact_store, artifact_metadata_repo,
+            job_id, catalog_data,
+        )
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=artifact_metadata_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="create-local-repository",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+        )
+
+        poller._on_result_received(result)
+
+        # Verify catalog-metadata artifact was persisted
+        md = artifact_metadata_repo.find_by_job_stage_and_label(
+            job_id,
+            StageName("create-local-repository"),
+            "catalog-metadata",
+        )
+        assert md is not None, (
+            "catalog-metadata should be persisted on "
+            "create-local-repository success"
+        )
+
+        # Verify content
+        raw = artifact_store.retrieve(
+            md.artifact_ref.key, ArtifactKind.FILE,
+        )
+        metadata = json.loads(raw.decode("utf-8"))
+        assert metadata["image_group_id"] == "test-cluster-v1"
+        assert "slurm_control_node_x86_64" in metadata["roles"]
+        assert "slurm_node_x86_64" in metadata["roles"]
+        assert "parsed_at" in metadata
+
+    def test_handles_pascalcase_catalog_keys(self):
+        """Catalog metadata extraction should handle PascalCase keys."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("create-local-repository"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        artifact_store = MockArtifactStore()
+        artifact_metadata_repo = MockArtifactMetadataRepo()
+
+        catalog_data = {
+            "Catalog": {
+                "Name": "PascalCase catalog",
+                "Version": "2.0",
+                "Identifier": "pascal-case-v1",
+                "FunctionalLayer": [
+                    {"Name": "login_node_x86_64"},
+                ],
+            }
+        }
+        _store_uploaded_catalog(
+            artifact_store, artifact_metadata_repo,
+            job_id, catalog_data,
+        )
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=artifact_metadata_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="create-local-repository",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+        )
+
+        poller._on_result_received(result)
+
+        md = artifact_metadata_repo.find_by_job_stage_and_label(
+            job_id,
+            StageName("create-local-repository"),
+            "catalog-metadata",
+        )
+        assert md is not None
+        raw = artifact_store.retrieve(
+            md.artifact_ref.key, ArtifactKind.FILE,
+        )
+        metadata = json.loads(raw.decode("utf-8"))
+        assert metadata["image_group_id"] == "pascal-case-v1"
+        assert "login_node_x86_64" in metadata["roles"]
+
+    def test_skips_when_no_catalog_uploaded(self):
+        """If no catalog was uploaded, metadata persistence
+        should be skipped gracefully."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("create-local-repository"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        artifact_store = MockArtifactStore()
+        artifact_metadata_repo = MockArtifactMetadataRepo()
+        # No catalog uploaded
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=artifact_metadata_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="create-local-repository",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+        )
+
+        # Should not raise
+        poller._on_result_received(result)
+
+        md = artifact_metadata_repo.find_by_job_stage_and_label(
+            job_id,
+            StageName("create-local-repository"),
+            "catalog-metadata",
+        )
+        assert md is None
+
+    def test_skips_when_artifact_repos_not_available(self):
+        """If artifact repos are not wired, metadata persistence
+        should be skipped gracefully."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("create-local-repository"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            # No artifact_store or artifact_metadata_repo
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="create-local-repository",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+        )
+
+        # Should not raise
+        poller._on_result_received(result)
+
+    def test_synthetic_kube_control_plane_first_role(self):
+        """If service_kube_control_plane_x86_64 exists, the _first variant
+        should be added automatically."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("create-local-repository"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        artifact_store = MockArtifactStore()
+        artifact_metadata_repo = MockArtifactMetadataRepo()
+
+        catalog_data = {
+            "catalog": {
+                "name": "kube catalog",
+                "version": "1.0",
+                "identifier": "kube-cluster-v1",
+                "functionallayer": [
+                    {"name": "service_kube_control_plane_x86_64"},
+                    {"name": "service_kube_node_x86_64"},
+                ],
+            }
+        }
+        _store_uploaded_catalog(
+            artifact_store, artifact_metadata_repo,
+            job_id, catalog_data,
+        )
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=artifact_metadata_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="create-local-repository",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+        )
+
+        poller._on_result_received(result)
+
+        md = artifact_metadata_repo.find_by_job_stage_and_label(
+            job_id,
+            StageName("create-local-repository"),
+            "catalog-metadata",
+        )
+        assert md is not None
+        raw = artifact_store.retrieve(
+            md.artifact_ref.key, ArtifactKind.FILE,
+        )
+        metadata = json.loads(raw.decode("utf-8"))
+        assert "service_kube_control_plane_first_x86_64" in metadata["roles"], (
+            "Synthetic _first variant should be auto-added"
+        )
+        assert "service_kube_control_plane_first_x86_64" in metadata["role_images"]

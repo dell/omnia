@@ -46,7 +46,6 @@ def get_create_restart_use_case(
             job_repo=_create_sql_job_repo(db_session),
             stage_repo=_create_sql_stage_repo(db_session),
             audit_repo=_create_sql_audit_repo(db_session),
-            queue_service=container.playbook_queue_request_service(),
             uuid_generator=container.uuid_generator(),
         )
     return _get_container().create_restart_use_case()

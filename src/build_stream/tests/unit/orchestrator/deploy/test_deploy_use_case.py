@@ -236,8 +236,8 @@ class TestDeployUseCase:
         job = _make_job(job_id, client_id)
         job_repo.save(job)
 
-        # Upstream build-image completed
-        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE_X86_64, StageState.COMPLETED)
+        # Upstream build-image completed (unified stage)
+        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE, StageState.COMPLETED)
         stage_repo.save(build_stage)
 
         # Deploy stage pending
@@ -287,7 +287,7 @@ class TestDeployUseCase:
         job_repo.save(job)
 
         # Build stage only pending, not completed
-        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE_X86_64, StageState.PENDING)
+        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE, StageState.PENDING)
         stage_repo.save(build_stage)
 
         command = _make_command(job_id=job_id, client_id=client_id)
@@ -303,7 +303,7 @@ class TestDeployUseCase:
         job = _make_job(job_id, client_id)
         job_repo.save(job)
 
-        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE_X86_64, StageState.COMPLETED)
+        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE, StageState.COMPLETED)
         stage_repo.save(build_stage)
 
         command = _make_command(job_id=job_id, client_id=client_id)
@@ -319,7 +319,7 @@ class TestDeployUseCase:
         job = _make_job(job_id, client_id)
         job_repo.save(job)
 
-        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE_X86_64, StageState.COMPLETED)
+        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE, StageState.COMPLETED)
         stage_repo.save(build_stage)
 
         ig = _make_image_group(job_id, ig_id="actual-cluster-v1")
@@ -338,7 +338,7 @@ class TestDeployUseCase:
         job = _make_job(job_id, client_id)
         job_repo.save(job)
 
-        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE_X86_64, StageState.COMPLETED)
+        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE, StageState.COMPLETED)
         stage_repo.save(build_stage)
 
         ig = _make_image_group(job_id, status=ImageGroupStatus.PASSED)
@@ -357,7 +357,7 @@ class TestDeployUseCase:
         job = _make_job(job_id, client_id)
         job_repo.save(job)
 
-        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE_X86_64, StageState.COMPLETED)
+        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE, StageState.COMPLETED)
         stage_repo.save(build_stage)
 
         deploy_stage = _make_stage(job_id, StageType.DEPLOY, StageState.FAILED)
@@ -381,7 +381,7 @@ class TestDeployUseCase:
         job = _make_job(job_id, client_id)
         job_repo.save(job)
 
-        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE_X86_64, StageState.COMPLETED)
+        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE, StageState.COMPLETED)
         stage_repo.save(build_stage)
         deploy_stage = _make_stage(job_id, StageType.DEPLOY, StageState.PENDING)
         stage_repo.save(deploy_stage)
@@ -396,14 +396,14 @@ class TestDeployUseCase:
         updated_ig = ig_repo.find_by_job_id(job_id)
         assert updated_ig.status == ImageGroupStatus.DEPLOYING
 
-    def test_submits_provision_playbook(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):
-        """Submits provision.yml playbook to queue."""
+    def test_submits_orchestrator_playbook(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):
+        """Submits orchestrator.yml playbook to queue."""
         job_id = JobId(_uuid())
         client_id = ClientId("test-client")
         job = _make_job(job_id, client_id)
         job_repo.save(job)
 
-        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE_X86_64, StageState.COMPLETED)
+        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE, StageState.COMPLETED)
         stage_repo.save(build_stage)
         deploy_stage = _make_stage(job_id, StageType.DEPLOY, StageState.PENDING)
         stage_repo.save(deploy_stage)
@@ -417,7 +417,7 @@ class TestDeployUseCase:
 
         assert len(queue_service.submitted) == 1
         submitted = queue_service.submitted[0]
-        assert str(submitted.playbook_path) == "provision.yml"
+        assert str(submitted.playbook_path) == "orchestrator.yml"
         assert submitted.extra_vars.to_dict()["image_group_id"] == "test-cluster-v1"
 
     def test_emits_audit_event(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):
@@ -427,7 +427,7 @@ class TestDeployUseCase:
         job = _make_job(job_id, client_id)
         job_repo.save(job)
 
-        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE_X86_64, StageState.COMPLETED)
+        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE, StageState.COMPLETED)
         stage_repo.save(build_stage)
         deploy_stage = _make_stage(job_id, StageType.DEPLOY, StageState.PENDING)
         stage_repo.save(deploy_stage)
@@ -450,7 +450,7 @@ class TestDeployUseCase:
         job = _make_job(job_id, client_id)
         job_repo.save(job)
 
-        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE_X86_64, StageState.COMPLETED)
+        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE, StageState.COMPLETED)
         stage_repo.save(build_stage)
         deploy_stage = _make_stage(job_id, StageType.DEPLOY, StageState.PENDING)
         stage_repo.save(deploy_stage)
@@ -465,23 +465,18 @@ class TestDeployUseCase:
         with pytest.raises(DeployExecutionError):
             use_case.execute(command)
 
-    def test_aarch64_upstream_accepted(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):
-        """Accepts when aarch64 build stage is completed instead of x86_64."""
+    def test_build_image_in_progress_rejected(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):
+        """Rejects deploy when build-image stage is still IN_PROGRESS."""
         job_id = JobId(_uuid())
         client_id = ClientId("test-client")
         job = _make_job(job_id, client_id)
         job_repo.save(job)
 
-        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE_AARCH64, StageState.COMPLETED)
+        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE, StageState.IN_PROGRESS)
         stage_repo.save(build_stage)
-        deploy_stage = _make_stage(job_id, StageType.DEPLOY, StageState.PENDING)
-        stage_repo.save(deploy_stage)
-
-        ig = _make_image_group(job_id)
-        ig_repo.save(ig)
 
         command = _make_command(job_id=job_id, client_id=client_id)
         use_case = _build_use_case(job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen)
-        result = use_case.execute(command)
 
-        assert result.status == "accepted"
+        with pytest.raises(UpstreamStageNotCompletedError):
+            use_case.execute(command)

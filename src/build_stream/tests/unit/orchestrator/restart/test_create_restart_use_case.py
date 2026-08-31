@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for CreateRestartUseCase."""
+"""Unit tests for CreateRestartUseCase.
+
+Since Omnia 2.3+, the restart stage no longer invokes the set_pxe_boot.yml
+playbook (PXE boot is handled by the orchestrator playbook during deploy).
+The restart use case immediately completes the stage.
+"""
 
 import uuid
 
@@ -28,7 +33,6 @@ from core.jobs.exceptions import (
 from core.jobs.value_objects import (
     ClientId, CorrelationId, JobId, StageName, StageState, StageType,
 )
-from core.localrepo.entities import PlaybookRequest
 from orchestrator.restart.commands import CreateRestartCommand
 from orchestrator.restart.use_cases import CreateRestartUseCase
 
@@ -84,18 +88,6 @@ class MockAuditRepository:
         self.saved_events.append(event)
 
 
-class MockQueueService:
-    """Mock playbook queue request service."""
-
-    def __init__(self):
-        """Initialize mock."""
-        self.submitted_requests = []
-
-    def submit_request(self, request, correlation_id):
-        """Submit request."""
-        self.submitted_requests.append((request, correlation_id))
-
-
 class MockUUIDGenerator:
     """Mock UUID generator."""
 
@@ -108,7 +100,7 @@ class MockUUIDGenerator:
 
 
 class TestCreateRestartUseCase:
-    """Test cases for CreateRestartUseCase."""
+    """Test cases for CreateRestartUseCase (PXE boot retired)."""
 
     @pytest.fixture
     def job_id(self):
@@ -174,7 +166,7 @@ class TestCreateRestartUseCase:
 
     @pytest.fixture
     def use_case(self, mock_job, job_id, restart_stage):
-        """Create use case for tests."""
+        """Create use case for tests (no queue_service — PXE boot retired)."""
         stages = {
             StageType.RESTART.value: restart_stage,
         }
@@ -182,7 +174,6 @@ class TestCreateRestartUseCase:
             job_repo=MockJobRepository(job=mock_job),
             stage_repo=MockStageRepository(stages=stages),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
         )
 
@@ -212,7 +203,6 @@ class TestCreateRestartUseCase:
             job_repo=MockJobRepository(job=mock_job_with_image_group),
             stage_repo=MockStageRepository(stages=stages),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
         )
 
@@ -246,7 +236,6 @@ class TestCreateRestartUseCase:
             job_repo=MockJobRepository(job=None),
             stage_repo=MockStageRepository(),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
         )
 
@@ -270,7 +259,6 @@ class TestCreateRestartUseCase:
             job_repo=MockJobRepository(job=job),
             stage_repo=MockStageRepository(),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
         )
 
@@ -293,7 +281,6 @@ class TestCreateRestartUseCase:
             job_repo=MockJobRepository(job=mock_job),
             stage_repo=MockStageRepository(stages=stages),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
         )
 
@@ -314,7 +301,6 @@ class TestCreateRestartUseCase:
             job_repo=MockJobRepository(job=mock_job),
             stage_repo=MockStageRepository(stages={}),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
         )
 
@@ -338,7 +324,6 @@ class TestCreateRestartUseCase:
             job_repo=MockJobRepository(job=mock_job),
             stage_repo=MockStageRepository(stages=stages),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
         )
 
@@ -363,7 +348,6 @@ class TestCreateRestartUseCase:
             job_repo=MockJobRepository(job=mock_job),
             stage_repo=MockStageRepository(stages=stages),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
         )
 
@@ -376,8 +360,10 @@ class TestCreateRestartUseCase:
         with pytest.raises(InvalidStateTransitionError):
             use_case.execute(command)
 
-    def test_execute_emits_audit_event(self, use_case, job_id, client_id, correlation_id):
-        """Test that execution emits STAGE_STARTED audit event."""
+    def test_execute_emits_started_and_completed_audit_events(
+        self, use_case, job_id, client_id, correlation_id,
+    ):
+        """Test that execution emits both STAGE_STARTED and STAGE_COMPLETED events."""
         command = CreateRestartCommand(
             job_id=job_id,
             client_id=client_id,
@@ -386,13 +372,17 @@ class TestCreateRestartUseCase:
 
         use_case.execute(command)
 
-        assert len(use_case._audit_repo.saved_events) == 1
-        event = use_case._audit_repo.saved_events[0]
-        assert event.event_type == "STAGE_STARTED"
-        assert event.details["stage_name"] == StageType.RESTART.value
+        assert len(use_case._audit_repo.saved_events) == 2
+        started_event = use_case._audit_repo.saved_events[0]
+        assert started_event.event_type == "STAGE_STARTED"
+        assert started_event.details["stage_name"] == StageType.RESTART.value
 
-    def test_execute_submits_to_queue(self, use_case, job_id, client_id, correlation_id):
-        """Test that execution submits request to queue."""
+        completed_event = use_case._audit_repo.saved_events[1]
+        assert completed_event.event_type == "STAGE_COMPLETED"
+        assert completed_event.details["stage_name"] == StageType.RESTART.value
+
+    def test_execute_no_playbook_submission(self, use_case, job_id, client_id, correlation_id):
+        """Test that no playbook is submitted to queue (PXE boot retired)."""
         command = CreateRestartCommand(
             job_id=job_id,
             client_id=client_id,
@@ -401,19 +391,13 @@ class TestCreateRestartUseCase:
 
         use_case.execute(command)
 
-        assert len(use_case._queue_service.submitted_requests) == 1
-        request, corr_id = use_case._queue_service.submitted_requests[0]
-        assert isinstance(request, PlaybookRequest)
-        assert request.job_id == str(job_id)
-        assert request.stage_name == StageType.RESTART.value
-        assert request.playbook_path.value == "set_pxe_boot.yml"
-        assert request.extra_vars.values["job_id"] == str(job_id)
-        assert request.extra_vars.values["attempt"] == 1
-        assert request.timeout.minutes == 30
-        assert corr_id == str(correlation_id)
+        # Use case no longer has a _queue_service attribute
+        assert not hasattr(use_case, '_queue_service')
 
-    def test_execute_starts_stage(self, use_case, job_id, client_id, correlation_id):
-        """Test that execution transitions stage to IN_PROGRESS."""
+    def test_execute_completes_stage_immediately(
+        self, use_case, job_id, client_id, correlation_id,
+    ):
+        """Test that execution transitions stage to COMPLETED (not just IN_PROGRESS)."""
         command = CreateRestartCommand(
             job_id=job_id,
             client_id=client_id,
@@ -423,8 +407,9 @@ class TestCreateRestartUseCase:
         use_case.execute(command)
 
         assert len(use_case._stage_repo.saved_stages) >= 1
-        saved_stage = use_case._stage_repo.saved_stages[0]
-        assert saved_stage.stage_state == StageState.IN_PROGRESS
+        # Find the last saved stage (after immediate completion)
+        saved_stage = use_case._stage_repo.saved_stages[-1]
+        assert saved_stage.stage_state == StageState.COMPLETED
 
     def test_execute_response_has_submitted_at(self, use_case, job_id, client_id, correlation_id):
         """Test that response includes a submitted_at timestamp."""
