@@ -37,7 +37,7 @@ def test_deploy_validate(host):
         TEST_NAMES["deploy_validate"], "TC_VL_000"
     )
     result = run_playbook(
-        extra_vars="discovery_mechanism=ome",
+        extra_vars={"discovery_mechanism": "ome"},
     )
 
     if result["success"]:
