@@ -72,7 +72,7 @@ Run from inside the `test/telemetry/` directory:
 | OR (`,`) | `--marker sink,source` | Tests with EITHER marker |
 
 Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`,
-`ome`, `ldms`, `sfm`, `nft`, `performance`, `idempotency`
+`ome`, `ldms`, `sfm`, `ufm`, `nft`, `performance`, `idempotency`
 
 ### Examples
 
@@ -85,6 +85,9 @@ Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`,
 
 # SFM integration only (requires configure_sfm: true and SFM credentials)
 ./run_validation.sh fvt_telemetry deploy verify --suite sources --marker sfm
+
+# UFM source only (requires UFM metrics enabled in telemetry_config.yml)
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker ufm
 ./run_validation.sh fvt_telemetry list
 
 # NFT

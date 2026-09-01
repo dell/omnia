@@ -82,10 +82,16 @@ ensure syslog is configured before verifying log ingestion.
 
 | TC ID | Test | Marker |
 |-------|------|--------|
-| TC_SR_060 | Verify UFM external service exists with correct endpoint | sanity |
-| TC_SR_061 | Verify UFM VMServiceScrape CR exists | sanity |
-| TC_SR_062 | Verify UFM credentials K8s secret exists | sanity |
-| TC_SR_063 | Verify UFM InfiniBand metrics in VictoriaMetrics | functional |
+| TC_SR_060 | Verify UFM external service exists with correct endpoint | sanity + ufm |
+| TC_SR_061 | Verify UFM VMServiceScrape CR exists | sanity + ufm |
+| TC_SR_062 | Verify UFM credentials K8s secret exists | sanity + ufm |
+| TC_SR_063 | Verify UFM InfiniBand metrics in VictoriaMetrics | functional + ufm |
+
+Run only the UFM source verification:
+
+```bash
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker ufm
+```
 
 ### Sources: OME
 

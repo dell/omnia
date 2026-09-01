@@ -21,7 +21,7 @@ import time
 import requests
 
 from ..messages.sfm_msgs import SFM_DETAIL_MSGS, SFM_ERROR_MSGS
-from ..vars.common_vars import (
+from ..vars.sfm_vars import (
     SFM_ACCESS_TOKEN_KEYS,
     SFM_ACTIONS,
     SFM_API_AUTH_HEADER,

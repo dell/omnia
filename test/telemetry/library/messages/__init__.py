@@ -35,6 +35,12 @@ from .sfm_msgs import (
     SFM_ERROR_MSGS,
     SFM_DETAIL_MSGS,
 )
+from .ufm_msgs import (
+    UFM_LOG_MSGS,
+    UFM_ASSERT_MSGS,
+    UFM_ERROR_MSGS,
+    UFM_DETAIL_MSGS,
+)
 
 __all__ = [
     "TEST_LOG_MSGS",
@@ -46,4 +52,8 @@ __all__ = [
     "SFM_ASSERT_MSGS",
     "SFM_ERROR_MSGS",
     "SFM_DETAIL_MSGS",
+    "UFM_LOG_MSGS",
+    "UFM_ASSERT_MSGS",
+    "UFM_ERROR_MSGS",
+    "UFM_DETAIL_MSGS",
 ]

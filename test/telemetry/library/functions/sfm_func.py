@@ -39,9 +39,13 @@ from ..vars.common_vars import (
     CMDS,
     PLAYBOOK_ENTRY_POINT,
     PLAYBOOK_WORKDIR,
+    TELEMETRY_NAMESPACE,
+)
+from ..vars.sfm_vars import (
     SFM_ACTIONS,
     SFM_ANSI_ESCAPE_PATTERN,
     SFM_CA_CERTIFICATE_FILE,
+    SFM_CMD_TEMPLATES,
     SFM_COMMAND_RC_MARKER,
     SFM_CONFIG_KEYS,
     SFM_CREDENTIAL_KEYS,
@@ -82,7 +86,6 @@ from ..vars.common_vars import (
     SFM_SSH_TERMINAL_HEIGHT,
     SFM_SSH_TERMINAL_WIDTH,
     SFM_VMCLUSTER_LABEL_SELECTOR,
-    TELEMETRY_NAMESPACE,
 )
 from .sfm_api_func import SfmApiError
 from .sfm_api_func import configure_remote_write as _configure_remote_write
@@ -274,7 +277,7 @@ def _export_paths(host):
 
 def _read_remote_text(host, path):
     """Read a target-host file through the centralized command template."""
-    command = CMDS["sfm_read_file_base64"].format(path=path)
+    command = SFM_CMD_TEMPLATES["read_file_base64"].format(path=path)
     command_result = run_on_host(host, command)
     if command_result.rc != 0 or not command_result.stdout.strip():
         raise _SfmAutomationError(
@@ -509,7 +512,7 @@ def _workload_status(host, workload, pods):
     for resource_kind, api_kind in workload["kind_candidates"]:
         resource = f"{resource_kind}/{workload['name']}"
         attempted_resources.append(resource)
-        command = CMDS["sfm_kubectl_get_workload_json"].format(
+        command = SFM_CMD_TEMPLATES["kubectl_get_workload_json"].format(
             kind=resource_kind,
             name=workload["name"],
             namespace=TELEMETRY_NAMESPACE,
@@ -724,7 +727,7 @@ def _service_status(host, expected, expected_address=""):
     ]
     external_addresses = [value for value in external_addresses if value]
 
-    endpoint_command = CMDS["sfm_kubectl_get_endpoints_json"].format(
+    endpoint_command = SFM_CMD_TEMPLATES["kubectl_get_endpoints_json"].format(
         name=expected["name"], namespace=TELEMETRY_NAMESPACE,
     )
     endpoints = _read_kubernetes_json(host, endpoint_command, resource)
@@ -969,7 +972,7 @@ class _SfmSecureShell:
 
     def _verify_shell(self):
         """Prove menu navigation reached a command shell before mutations."""
-        result = self.run(CMDS["sfm_shell_probe"])
+        result = self.run(SFM_CMD_TEMPLATES["shell_probe"])
         if result["rc"] != 0 or SFM_SHELL_PROBE_OUTPUT not in result["stdout"]:
             raise _SfmAutomationError(
                 SFM_ERROR_MSGS["ssh_shell_probe_failed"]
@@ -1018,11 +1021,11 @@ class _SfmSecureShell:
 
     def _disable_echo(self):
         """Disable PTY echo so command output can be parsed deterministically."""
-        self.run(CMDS["sfm_disable_echo"])
+        self.run(SFM_CMD_TEMPLATES["disable_echo"])
 
     def run(self, command):
         """Run one command and parse the explicit exit-code marker."""
-        wrapped = CMDS["sfm_command_with_rc"].format(
+        wrapped = SFM_CMD_TEMPLATES["command_with_rc"].format(
             command=command,
             marker=SFM_COMMAND_RC_MARKER,
         )
@@ -1053,7 +1056,7 @@ def _ready_sfm_prometheus_pod(shell, context):
     namespace = SFM_NAMESPACE_TEMPLATE.format(
         instance_id=context["instance_id"],
     )
-    command = CMDS["sfm_get_pods_json"].format(namespace=namespace)
+    command = SFM_CMD_TEMPLATES["get_pods_json"].format(namespace=namespace)
     command_result = shell.run(command)
     if command_result["rc"] != 0:
         raise _SfmAutomationError(
@@ -1133,7 +1136,7 @@ def _ensure_sfm_hosts_mapping(context, export):
     """Ensure the current SFM Prometheus pod maps and reaches vminsert."""
     with _SfmSecureShell(context) as shell:
         pod = _ready_sfm_prometheus_pod(shell, context)
-        read_command = CMDS["sfm_read_pod_hosts"].format(
+        read_command = SFM_CMD_TEMPLATES["read_pod_hosts"].format(
             namespace=pod["namespace"],
             pod=pod["pod"],
             container=SFM_PROMETHEUS_CONTAINER,
@@ -1158,7 +1161,7 @@ def _ensure_sfm_hosts_mapping(context, export):
                 SFM_REMOTE_WRITE_HOSTNAME,
                 export["vminsert_ip"],
             )
-            write_command = CMDS["sfm_write_pod_hosts"].format(
+            write_command = SFM_CMD_TEMPLATES["write_pod_hosts"].format(
                 content_b64=base64.b64encode(content.encode()).decode(),
                 namespace=pod["namespace"],
                 pod=pod["pod"],
@@ -1181,7 +1184,7 @@ def _ensure_sfm_hosts_mapping(context, export):
                     SFM_ERROR_MSGS["hosts_verify_failed"]
                 )
 
-        network_command = CMDS["sfm_check_pod_network"].format(
+        network_command = SFM_CMD_TEMPLATES["check_pod_network"].format(
             namespace=pod["namespace"],
             pod=pod["pod"],
             container=SFM_PROMETHEUS_CONTAINER,

@@ -29,11 +29,13 @@ from ..vars.common_vars import (
     REQUIRED_CONFIG_FIELDS,
     REQUIRED_SRC_FILES,
     MODULE_ROOT,
+    SRC_INPUT_DIR,
+)
+from ..vars.sfm_vars import (
     SFM_CONFIG_KEYS,
     SFM_MAX_NETWORK_PORT,
     SFM_PORT_DEFAULTS,
     SFM_REQUIRED_ENDPOINT_SETTINGS,
-    SRC_INPUT_DIR,
 )
 
 _MODULE_ROOT = MODULE_ROOT

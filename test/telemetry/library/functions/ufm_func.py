@@ -23,16 +23,23 @@ Handles:
 """
 
 import json
+import math
+from datetime import datetime, timezone
 
 from omnia_auto import read_yaml_key
 
-from ..vars.common_vars import (
-    TELEMETRY_NAMESPACE,
-    UFM_SVC_NAME,
-    UFM_VMSCRAPE_NAME,
-    UFM_SECRET_NAME,
+from ..messages.ufm_msgs import UFM_DETAIL_MSGS, UFM_ERROR_MSGS
+from ..vars.common_vars import TELEMETRY_NAMESPACE
+from ..vars.ufm_vars import (
     CFG_KEY_UFM_ENDPOINT,
     CFG_KEY_UFM_PORT,
+    UFM_CMD_TEMPLATES,
+    UFM_DEFAULT_METRICS_PATH,
+    UFM_DEFAULT_METRICS_PORT,
+    UFM_SVC_NAME,
+    UFM_SECRET_NAME,
+    UFM_UTC_TIMESTAMP_FORMAT,
+    UFM_VMSCRAPE_NAME,
 )
 from .telemetry_func import (
     load_telemetry_config_from_target,
@@ -49,28 +56,36 @@ def verify_ufm_external_service(host):
         dict with keys: success, service_name, endpoint_ip, endpoint_port,
         expected_endpoint, expected_port.
     """
-    svc_cmd = (
-        f"kubectl get svc {UFM_SVC_NAME} -n {TELEMETRY_NAMESPACE}"
-        " -o json 2>/dev/null"
+    svc_cmd = UFM_CMD_TEMPLATES["get_service_json"].format(
+        name=UFM_SVC_NAME,
+        namespace=TELEMETRY_NAMESPACE,
     )
     result = run_on_kube_vip(host, svc_cmd)
     if result.rc != 0 or not result.stdout.strip():
-        return {"success": False, "service_name": UFM_SVC_NAME, "error": "Service not found"}
+        return {
+            "success": False,
+            "service_name": UFM_SVC_NAME,
+            "error": UFM_ERROR_MSGS["service_not_found"],
+        }
 
     try:
         svc = json.loads(result.stdout)
     except json.JSONDecodeError:
-        return {"success": False, "service_name": UFM_SVC_NAME, "error": "JSON parse error"}
+        return {
+            "success": False,
+            "service_name": UFM_SVC_NAME,
+            "error": UFM_ERROR_MSGS["service_json_invalid"],
+        }
 
     svc_port = ""
-    for p in svc.get("spec", {}).get("ports", []):
-        svc_port = str(p.get("port", ""))
+    for port_spec in svc.get("spec", {}).get("ports", []):
+        svc_port = str(port_spec.get("port", ""))
         break
 
     # Get endpoints
-    ep_cmd = (
-        f"kubectl get endpoints {UFM_SVC_NAME} -n {TELEMETRY_NAMESPACE}"
-        " -o json 2>/dev/null"
+    ep_cmd = UFM_CMD_TEMPLATES["get_endpoints_json"].format(
+        name=UFM_SVC_NAME,
+        namespace=TELEMETRY_NAMESPACE,
     )
     ep_result = run_on_kube_vip(host, ep_cmd)
     endpoint_ip = ""
@@ -86,12 +101,22 @@ def verify_ufm_external_service(host):
                     endpoint_port = str(port.get("port", ""))
                     break
         except json.JSONDecodeError:
-            pass
+            return {
+                "success": False,
+                "service_name": UFM_SVC_NAME,
+                "error": UFM_ERROR_MSGS["endpoints_json_invalid"],
+            }
 
     # Get expected from config
     config = load_telemetry_config_from_target(host)
     expected_endpoint = read_yaml_key(config, CFG_KEY_UFM_ENDPOINT, default="")
-    expected_port = str(read_yaml_key(config, CFG_KEY_UFM_PORT, default="9001"))
+    expected_port = str(
+        read_yaml_key(
+            config,
+            CFG_KEY_UFM_PORT,
+            default=UFM_DEFAULT_METRICS_PORT,
+        )
+    )
 
     match = endpoint_ip == expected_endpoint
 
@@ -112,18 +137,26 @@ def verify_ufm_vmscrape(host):
     Returns:
         dict with keys: success, name, scrape_interval, port, path.
     """
-    cmd = (
-        f"kubectl get vmservicescrape {UFM_VMSCRAPE_NAME} -n {TELEMETRY_NAMESPACE}"
-        " -o json 2>/dev/null"
+    cmd = UFM_CMD_TEMPLATES["get_vmscrape_json"].format(
+        name=UFM_VMSCRAPE_NAME,
+        namespace=TELEMETRY_NAMESPACE,
     )
     result = run_on_kube_vip(host, cmd)
     if result.rc != 0 or not result.stdout.strip():
-        return {"success": False, "name": UFM_VMSCRAPE_NAME, "error": "Not found"}
+        return {
+            "success": False,
+            "name": UFM_VMSCRAPE_NAME,
+            "error": UFM_ERROR_MSGS["vmscrape_not_found"],
+        }
 
     try:
         data = json.loads(result.stdout)
     except json.JSONDecodeError:
-        return {"success": False, "name": UFM_VMSCRAPE_NAME, "error": "JSON parse error"}
+        return {
+            "success": False,
+            "name": UFM_VMSCRAPE_NAME,
+            "error": UFM_ERROR_MSGS["vmscrape_json_invalid"],
+        }
 
     endpoints = data.get("spec", {}).get("endpoints", [])
     interval = ""
@@ -132,7 +165,7 @@ def verify_ufm_vmscrape(host):
     if endpoints:
         interval = endpoints[0].get("interval", "")
         port = endpoints[0].get("port", "")
-        path = endpoints[0].get("path", "/metrics")
+        path = endpoints[0].get("path", UFM_DEFAULT_METRICS_PATH)
 
     return {
         "success": True,
@@ -149,25 +182,101 @@ def verify_ufm_credentials_secret(host):
     Returns:
         dict with keys: success, secret_name, keys_found.
     """
-    cmd = (
-        f"kubectl get secret {UFM_SECRET_NAME} -n {TELEMETRY_NAMESPACE}"
-        " -o json 2>/dev/null"
+    cmd = UFM_CMD_TEMPLATES["get_secret_json"].format(
+        name=UFM_SECRET_NAME,
+        namespace=TELEMETRY_NAMESPACE,
     )
     result = run_on_kube_vip(host, cmd)
     if result.rc != 0 or not result.stdout.strip():
-        return {"success": False, "secret_name": UFM_SECRET_NAME, "error": "Not found"}
+        return {
+            "success": False,
+            "secret_name": UFM_SECRET_NAME,
+            "error": UFM_ERROR_MSGS["secret_not_found"],
+        }
 
     try:
         data = json.loads(result.stdout)
         keys_found = list(data.get("data", {}).keys())
     except json.JSONDecodeError:
-        return {"success": False, "secret_name": UFM_SECRET_NAME, "error": "JSON parse"}
+        return {
+            "success": False,
+            "secret_name": UFM_SECRET_NAME,
+            "error": UFM_ERROR_MSGS["secret_json_invalid"],
+        }
 
     return {
         "success": len(keys_found) > 0,
         "secret_name": UFM_SECRET_NAME,
         "keys_found": keys_found,
     }
+
+
+def _live_metric_samples(results):
+    """Return query results containing a finite timestamp and sample value."""
+    samples = []
+    for result in results:
+        if not isinstance(result, dict):
+            continue
+        value = result.get("value")
+        if not isinstance(value, (list, tuple)) or len(value) < 2:
+            continue
+        try:
+            timestamp = float(value[0])
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(timestamp) or timestamp <= 0 or value[1] is None:
+            continue
+        samples.append({
+            "timestamp": timestamp,
+            "value": value[1],
+        })
+    return samples
+
+
+def _utc_timestamp(timestamp):
+    """Format an epoch timestamp for deterministic UTC test output."""
+    return datetime.fromtimestamp(
+        timestamp,
+        tz=timezone.utc,
+    ).strftime(UFM_UTC_TIMESTAMP_FORMAT)
+
+
+def _format_metric_results(metric_results):
+    """Format every expected metric as an ordered pass or fail row."""
+    lines = []
+    for metric_result in metric_results:
+        if metric_result["found"]:
+            lines.append(
+                UFM_DETAIL_MSGS["metric_found"].format(
+                    metric=metric_result["metric"],
+                    sample_count=metric_result["sample_count"],
+                    value=metric_result["value"],
+                    timestamp_utc=metric_result["timestamp_utc"],
+                )
+            )
+            continue
+        reason_key = (
+            "metric_sample_missing"
+            if metric_result["name_found"]
+            else "metric_name_missing"
+        )
+        lines.append(
+            UFM_DETAIL_MSGS["metric_missing"].format(
+                metric=metric_result["metric"],
+                reason=UFM_DETAIL_MSGS[reason_key],
+            )
+        )
+    return "\n".join(lines)
+
+
+def _format_metrics_details(result):
+    """Build centralized UFM metrics counts and per-metric details."""
+    return UFM_DETAIL_MSGS["metrics"].format(
+        expected_count=result["expected_metric_count"],
+        found_count=result["found_metric_count"],
+        missing_metrics=result["missing"],
+        metric_results=_format_metric_results(result["metric_results"]),
+    )
 
 
 def verify_ufm_metrics(host, expected_metrics):
@@ -178,28 +287,59 @@ def verify_ufm_metrics(host, expected_metrics):
         expected_metrics: List of metric names to check.
 
     Returns:
-        dict with keys: success, found, missing, metric_details.
+        dict containing ordered metric results and expected/found/missing counts.
     """
-    all_names = query_vm_metric_names(host)
-    found = [m for m in expected_metrics if m in all_names]
-    missing = [m for m in expected_metrics if m not in all_names]
+    expected = list(expected_metrics)
+    all_names = set(query_vm_metric_names(host))
+    found = []
+    missing = []
+    metric_results = []
 
-    metric_details = []
-    for metric in found:
-        results = query_vm_instant(host, metric)
-        if results:
-            val = results[0].get("value", [None, "N/A"])
-            timestamp = int(float(val[0])) if val[0] else 0
-            value = val[1] if len(val) > 1 else "N/A"
-            metric_details.append({
+    for metric in expected:
+        name_found = metric in all_names
+        samples = (
+            _live_metric_samples(query_vm_instant(host, metric))
+            if name_found
+            else []
+        )
+        if not samples:
+            missing.append(metric)
+            metric_results.append({
                 "metric": metric,
-                "value": value,
-                "timestamp": timestamp,
+                "found": False,
+                "name_found": name_found,
+                "sample_count": 0,
+                "value": None,
+                "timestamp": None,
+                "timestamp_utc": "",
             })
+            continue
 
-    return {
-        "success": len(missing) == 0,
+        latest = max(samples, key=lambda sample: sample["timestamp"])
+        found.append(metric)
+        metric_results.append({
+            "metric": metric,
+            "found": True,
+            "name_found": True,
+            "sample_count": len(samples),
+            "value": latest["value"],
+            "timestamp": latest["timestamp"],
+            "timestamp_utc": _utc_timestamp(latest["timestamp"]),
+        })
+
+    result = {
+        "success": not missing,
+        "expected": expected,
+        "expected_metric_count": len(expected),
         "found": found,
+        "found_metric_count": len(found),
         "missing": missing,
-        "metric_details": metric_details,
+        "missing_metric_count": len(missing),
+        "metric_results": metric_results,
+        # Retain the historical key for callers that consume successful rows.
+        "metric_details": [
+            result for result in metric_results if result["found"]
+        ],
     }
+    result["details"] = _format_metrics_details(result)
+    return result

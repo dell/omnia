@@ -21,8 +21,8 @@ import urllib.parse
 from datetime import datetime, timezone
 
 from ..messages.sfm_msgs import SFM_DETAIL_MSGS, SFM_ERROR_MSGS
-from ..vars.common_vars import (
-    CMDS,
+from ..vars.sfm_vars import (
+    SFM_CMD_TEMPLATES,
     SFM_EXPECTED_METRICS,
     SFM_MAX_METRIC_AGE_SECONDS,
     SFM_METRIC_IDENTITY_LABELS,
@@ -56,7 +56,7 @@ def _display_timestamp(value):
 def _query_range_rows(host, endpoint, query, start, end):
     """Return validated matrix rows for one VictoriaMetrics range query."""
     encoded_query = urllib.parse.quote(query, safe="")
-    command = CMDS["vm_query_range"].format(
+    command = SFM_CMD_TEMPLATES["vm_query_range"].format(
         vmselect_ip=endpoint["ip"],
         vmselect_port=endpoint["port"],
         query=encoded_query,

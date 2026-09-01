@@ -33,6 +33,8 @@ SFM_LOG_MSGS: dict[str, str] = {
         "SFM earliest and latest data verified for all {count} metrics"
     ),
     "metrics_failed": "SFM earliest/latest data is incomplete",
+    "cleanup_complete": "No SFM pods remaining",
+    "cleanup_incomplete": "SFM pods are still present",
 }
 
 
@@ -72,6 +74,12 @@ SFM_ASSERT_MSGS: dict[str, str] = {
         "  1. Verify the SFM observability configuration test passes.\n"
         "  2. Confirm the managed switch is producing transceiver DOM metrics.\n"
         "  3. Query VictoriaMetrics for the three expected metric names."
+    ),
+    "cleanup_incomplete": (
+        "SFM pods are still present after cleanup\n"
+        "HOW TO FIX:\n"
+        "  1. Run: kubectl get pods -n telemetry | grep sfm\n"
+        "  2. Re-run cleanup with the cleanup_sfm tag"
     ),
 }
 
