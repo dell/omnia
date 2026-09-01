@@ -30,19 +30,43 @@
   register: ns_result
   changed_when: "'created' in ns_result.stdout | default('')"
 
-- name: Check if VictoriaMetrics operator is installed
+- name: Check if VictoriaMetrics operator is installed (Helm release)
   ansible.builtin.command: >
     helm status victoria-metrics-operator -n {{ telemetry_namespace }}
   register: victoria_operator_status
   changed_when: false
   failed_when: false
 
+- name: Check if VictoriaMetrics operator deployment actually exists
+  ansible.builtin.command: >
+    kubectl get deployments -n {{ telemetry_namespace }}
+    -l app.kubernetes.io/name=victoria-metrics-operator
+    -o jsonpath='{.items[0].metadata.name}'
+  register: vm_operator_deployment_name
+  changed_when: false
+  failed_when: false
+
+- name: Uninstall stale Helm release (release exists but no deployment)
+  ansible.builtin.command: >
+    helm uninstall victoria-metrics-operator -n {{ telemetry_namespace }}
+  when:
+    - victoria_operator_status.rc == 0
+    - vm_operator_deployment_name.stdout | default('') | length == 0
+    - victoria_operator_pkg is defined
+  changed_when: true
+  failed_when: false
+  register: stale_helm_uninstall
+
+- name: Update operator status after stale release cleanup
+  ansible.builtin.set_fact:
+    _operator_needs_install: "{{ (victoria_operator_status.rc != 0) or (stale_helm_uninstall is defined and stale_helm_uninstall.changed | default(false)) }}"
+
 - name: Install VictoriaMetrics operator
   ansible.builtin.command: >
     helm -n {{ telemetry_namespace }} install victoria-metrics-operator
     {{ victoria_operator_pkg }}
   when:
-    - victoria_operator_status.rc != 0
+    - _operator_needs_install | bool
     - victoria_operator_pkg is defined
   changed_when: true
 
@@ -51,7 +75,7 @@
     helm -n {{ telemetry_namespace }} upgrade victoria-metrics-operator
     {{ victoria_operator_pkg }}
   when:
-    - victoria_operator_status.rc == 0
+    - not (_operator_needs_install | bool)
     - victoria_operator_pkg is defined
   changed_when: true
 
@@ -59,27 +83,27 @@
   ansible.builtin.debug:
     msg: "{{ victoria_operator_skip_msg }}"
   when:
-    - victoria_operator_status.rc == 0
+    - not (_operator_needs_install | bool)
     - victoria_operator_pkg is not defined
 
 - name: Fail if operator not installed and no tarball available
   ansible.builtin.fail:
     msg: "{{ victoria_operator_not_installed_msg }}"
   when:
-    - victoria_operator_status.rc != 0
+    - _operator_needs_install | bool
     - victoria_operator_pkg is not defined
 
 - name: Wait for VictoriaMetrics operator deployment
   ansible.builtin.command: >
     kubectl wait --for=condition=available --timeout={{ victoria_operator_wait_timeout }}
-    deployment/victoria-metrics-operator -n {{ telemetry_namespace }}
+    deployment -l app.kubernetes.io/name=victoria-metrics-operator -n {{ telemetry_namespace }}
   changed_when: false
   register: vm_operator_wait
   failed_when: false
 
 - name: VictoriaMetrics operator not ready
   ansible.builtin.fail:
-    msg: "{{ vm_operator_not_ready_msg }}"
+    msg: "VM operator not ready within {{ victoria_operator_wait_timeout }}. Check: kubectl -n {{ telemetry_namespace }} get pods -l app.kubernetes.io/name=victoria-metrics-operator"
   when: vm_operator_wait.rc != 0
 
 - name: Wait for VictoriaMetrics CRDs

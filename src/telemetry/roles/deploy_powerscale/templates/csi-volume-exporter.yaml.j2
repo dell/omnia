@@ -78,21 +78,52 @@ spec:
         component: volume-status
     spec:
       serviceAccountName: {{ csi_volume_exporter.service_account_name }}
+      volumes:
+        - name: pip-packages
+          emptyDir: {}
+{% if install_mode == 'online' or (install_mode == 'offline' and offline_pip_module_path | length > 0) %}
+        - name: nfs-pip-wheels
+          hostPath:
+            path: {{ telemetry_deployments_dir }}/pip-packages
+            type: Directory
+{% endif %}
+      initContainers:
+        - name: install-deps
+          image: {{ csi_volume_exporter.image }}
+          volumeMounts:
+            - name: pip-packages
+              mountPath: /pip-packages
+{% if install_mode == 'online' or (install_mode == 'offline' and offline_pip_module_path | length > 0) %}
+            - name: nfs-pip-wheels
+              mountPath: /wheels
+              readOnly: true
+{% endif %}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+{% if install_mode == 'online' %}
+              pip3 install --no-index --find-links=/wheels --target=/pip-packages kubernetes==33.1.0 prometheus_client==0.20.0
+{% elif install_mode == 'offline' and offline_pip_module_path | length > 0 %}
+              pip3 install --no-index \
+                --find-links=/wheels \
+                --target=/pip-packages kubernetes==33.1.0 prometheus_client==0.20.0
+{% elif install_mode == 'offline' %}
+              pip3 install --target=/pip-packages kubernetes prometheus_client
+{% endif %}
       containers:
         - name: exporter
           image: {{ csi_volume_exporter.image }}
+          env:
+            - name: PYTHONPATH
+              value: "/pip-packages"
+          volumeMounts:
+            - name: pip-packages
+              mountPath: /pip-packages
+              readOnly: true
           command: ["/bin/sh", "-c"]
           args:
             - |
               mkdir -p /app
-              {% if install_mode == 'offline' %}
-              pip3 install --no-index --find-links "{{ offline_pip_module_path }}/kubernetes==33.1.0" kubernetes==33.1.0 \
-                "{{ offline_pip_module_path }}/prometheus_client==0.20.0/prometheus_client-0.20.0-py3-none-any.whl" \
-                --trusted-host "{{ pulp_server_ip }}" || \
-              pip3 install kubernetes prometheus_client
-              {% else %}
-              pip3 install kubernetes prometheus_client
-              {% endif %}
               cat > /app/exporter.py <<'PYEOF'
               from prometheus_client import start_http_server, Gauge, Counter, Info
               from kubernetes import client, config

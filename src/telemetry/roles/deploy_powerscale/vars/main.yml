@@ -112,7 +112,7 @@ csi_volume_exporter:
   service_account_name: "csi-volume-exporter"
   cluster_role_name: "csi-volume-exporter"
   cluster_role_binding_name: "csi-volume-exporter"
-  image: "{{ telemetry_registry.images.powerscale.python | default('quay.io/prometheus/python-exporter:latest') }}"
+  image: "{{ telemetry_registry.images.powerscale.python | default('python:3.12-slim') }}"
   metrics_port: 9090
   scrape_interval: "30s"
   scrape_interval_seconds: 30

@@ -30,14 +30,19 @@
   ansible.builtin.include_role:
     name: common
     tasks_from: load_telemetry_config
+  when: telemetry_config is not defined
+  async: 60
+  poll: 0
 
 - name: Validate iDRAC telemetry configuration
   ansible.builtin.include_tasks: validate_config.yml
+  when: telemetry_config is defined
 
 - name: Derive sink support flags
   ansible.builtin.include_role:
     name: common
     tasks_from: derive_sink_support_flags
+  when: kafka_support is not defined
 
 - name: Install Python dependencies for iDRAC telemetry on kube_vip host
   ansible.builtin.include_role:

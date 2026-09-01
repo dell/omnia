@@ -152,7 +152,7 @@
             ansible_port: "{{ item.value.ansible_port | default(omit) }}"
             ansible_ssh_private_key_file: >-
               {{ item.value.ansible_ssh_private_key_file | default(omit) }}
-          loop: "{{ _ldms_slurm_all_hosts | dict2items }}"
+          loop: "{{ (_ldms_slurm_all_hosts | default({})) | dict2items }}"
           loop_control:
             label: "{{ item.key }}"
 
@@ -174,7 +174,7 @@
         ansible_ssh_retries: 0
       ansible.builtin.ping:
       delegate_to: "{{ item }}"
-      loop: "{{ _ldms_deploy_candidate_hosts }}"
+      loop: "{{ _ldms_deploy_candidate_hosts | default([]) }}"
       loop_control:
         label: "{{ item }}"
       register: _ldms_deploy_reachability
@@ -214,7 +214,7 @@
       ansible.builtin.stat:
         path: "{{ munge_key_path | default('/etc/munge/munge.key') }}"
       delegate_to: "{{ item }}"
-      loop: "{{ _ldms_deploy_reachable_control_hosts }}"
+      loop: "{{ _ldms_deploy_reachable_control_hosts | default([]) }}"
       loop_control:
         label: "{{ item }}"
       register: _ldms_deploy_control_munge_checks
@@ -264,14 +264,14 @@
       ansible.builtin.add_host:
         name: "{{ item }}"
         groups: ldms_deploy_reachable
-      loop: "{{ _ldms_deploy_reachable_hosts }}"
+      loop: "{{ _ldms_deploy_reachable_hosts | default([]) }}"
       loop_control:
         label: "{{ item }}"
 
     - name: Select the LDMS aggregator control node
       ansible.builtin.set_fact:
         _ldms_deploy_aggregator_control_host: >-
-          {{ _ldms_deploy_munge_control_hosts | first | default('') }}
+          {{ (_ldms_deploy_munge_control_hosts | default([])) | first | default('') }}
 
     - name: Add the selected LDMS aggregator control node
       ansible.builtin.add_host:
@@ -280,7 +280,7 @@
       loop: >-
         {{
           [_ldms_deploy_aggregator_control_host]
-          if _ldms_deploy_aggregator_control_host | length > 0
+          if (_ldms_deploy_aggregator_control_host | default('')) | length > 0
           else []
         }}
       loop_control:

@@ -111,6 +111,11 @@
   failed_when: false
   when: telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
 
+- name: Debug isilon_pod output
+  ansible.builtin.debug:
+    msg: "isilon_pod: {{ isilon_pod.stdout | default('undefined') }}"
+  when: telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
+
 - name: Check if external-health-monitor-controller container is running
   ansible.builtin.command: >
     kubectl get pod {{ isilon_pod.stdout }} -n isilon -o jsonpath='{.status.containerStatuses[?(@.name=="external-health-monitor-controller")].ready}'
@@ -118,7 +123,7 @@
   changed_when: false
   failed_when: false
   when:
-    - isilon_pod.stdout | length > 0
+    - isilon_pod.stdout | default('') | length > 0
     - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
 
 - name: Set powerscale_volume_health_enabled fact
@@ -126,14 +131,15 @@
     powerscale_volume_health_enabled: >-
       {{ (health_monitor_ready.stdout | default('false')) == 'true' }}
   when:
-    - isilon_pod.stdout | length > 0
+    - isilon_pod.stdout | default('') | length > 0
+    - health_monitor_ready.stdout is defined
     - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
 
 - name: Set powerscale_volume_health_enabled to false if pod not found
   ansible.builtin.set_fact:
     powerscale_volume_health_enabled: false
   when:
-    - isilon_pod.stdout | length == 0
+    - (isilon_pod.stdout | default('') | length == 0) or (isilon_pod.stdout is not defined)
     - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
 
 - name: Set powerscale_volume_health_enabled to false if PowerScale metrics not enabled
