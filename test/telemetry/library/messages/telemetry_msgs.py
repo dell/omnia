@@ -222,6 +222,22 @@ TEST_LOG_MSGS = {
     "git_repo_cloned": "Git repo cloned: {repo}",
     "git_repo_not_cloned": "Git repo not cloned: {repo}",
     "deployment_success": "Deployment successful: {component}",
+
+    # Enable/Disable
+    "source_disabled_ok": "{source} scaled to 0 replicas (disabled)",
+    "source_disabled_fail": "{source} expected 0 replicas but got {replicas}",
+    "source_enabled_ok": "{source} running with {replicas} replica(s) (enabled)",
+    "source_enabled_fail": "{source} expected >= 1 replica but got {replicas}",
+    "pvcs_preserved": "{count} PVC(s) preserved for {source}",
+    "pvcs_not_found": "No PVCs found for {source}",
+    "reenable_ok": "{source} re-enabled: scaled from 0 to {replicas} replica(s)",
+    "reenable_fail": "{source} re-enable failed: still at {replicas} replica(s)",
+    "infra_preserved": "Infrastructure sinks still running while sources disabled",
+    "infra_not_running": "Infrastructure sinks not running: {details}",
+    "state_matches_config": "All source states match telemetry_config.yml",
+    "state_mismatch": "Source state mismatch: {details}",
+    "deploy_with_disabled_ok": "Deploy playbook succeeded with disabled sources (duration={duration})",
+    "deploy_with_disabled_fail": "Deploy playbook failed with disabled sources (rc={rc})",
 }
 
 # --- Assertion Messages ---

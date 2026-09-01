@@ -19,6 +19,10 @@
 # Deploys iDRAC telemetry stack (receiver, kafkapump, victoriapump, mysqldb,
 # activemq) with Kafka and VictoriaMetrics as collection targets.
 #
+# Re-enable aware: if the StatefulSet already exists at 0 replicas (previously
+# disabled), scales it back up to the correct replica count derived from the
+# BMC CSV parent count, preserving existing PVCs and data.
+#
 # Prerequisites:
 #   - Service K8s cluster running with kubectl access
 #   - telemetry_config.yml populated with iDRAC source enabled
@@ -38,6 +42,61 @@
   ansible.builtin.include_role:
     name: common
     tasks_from: derive_sink_support_flags
+
+# --- Compute dynamic replica count from BMC CSV ---
+- name: Compute iDRAC replica count from BMC CSV parent count
+  when:
+    - hostvars['localhost']['telemetry_config'].idrac_telemetry_configurations.bmc_group_data_path is defined
+    - hostvars['localhost']['telemetry_config'].idrac_telemetry_configurations.bmc_group_data_path | length > 0
+  block:
+    - name: Read BMC group data CSV for replica count
+      ansible.builtin.set_fact:
+        _bmc_csv_lines: "{{ lookup('file', hostvars['localhost']['telemetry_config'].idrac_telemetry_configurations.bmc_group_data_path).split('\n') }}"
+
+    - name: Count unique parents in BMC CSV (determines replica count)
+      ansible.builtin.set_fact:
+        idrac_replica_count: >-
+          {%- set parents = [] -%}
+          {%- for line in _bmc_csv_lines[1:] if line.strip() -%}
+            {%- set parts = line.split(',') -%}
+            {%- if parts | length >= 3 and parts[2].strip() -%}
+              {%- if parts[2].strip() not in parents -%}
+                {%- set _ = parents.append(parts[2].strip()) -%}
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ [parents | length, 1] | max }}
+
+    - name: Display computed iDRAC replica count
+      ansible.builtin.debug:
+        msg: "iDRAC replica count from BMC CSV: {{ idrac_replica_count }}"
+
+- name: Set default replica count when BMC CSV is not configured
+  ansible.builtin.set_fact:
+    idrac_replica_count: 1
+  when: idrac_replica_count is not defined
+
+# --- Detect re-enable scenario ---
+- name: Check if iDRAC StatefulSet already exists (re-enable detection)
+  ansible.builtin.command: >
+    kubectl get statefulset {{ idrac_telemetry_k8s_name }} -n {{ telemetry_namespace }}
+    -o jsonpath='{.spec.replicas}'
+  register: idrac_sts_current_replicas
+  changed_when: false
+  failed_when: false
+
+- name: Detect re-enable scenario (StatefulSet at 0 replicas)
+  ansible.builtin.set_fact:
+    idrac_is_reenable: "{{ idrac_sts_current_replicas.rc == 0 and idrac_sts_current_replicas.stdout == '0' }}"
+
+- name: Display re-enable detection result
+  ansible.builtin.debug:
+    msg: >-
+      {% if idrac_is_reenable | bool %}
+      Re-enable detected: iDRAC StatefulSet exists at 0 replicas — will scale back up to {{ idrac_replica_count }} replicas
+      {% else %}
+      Fresh deploy or already running — proceeding with standard enable flow
+      {% endif %}
 
 - name: Install Python dependencies for iDRAC telemetry on kube_vip host
   ansible.builtin.include_role:
