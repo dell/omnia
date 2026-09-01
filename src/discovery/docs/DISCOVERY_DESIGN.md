@@ -139,7 +139,7 @@ Runs the `validate_discovery_config` module (lean, domain-specific).
 **Absorbs**: `../playbooks/utils/credential_utility/get_config_credentials.yml`
 
 Simplified credential flow for discovery — only needs OME credentials
-from `omnia_config_credentials.yml`.
+from `discovery_credentials.yml`.
 
 ### 5.4 discovery_common
 

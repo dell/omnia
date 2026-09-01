@@ -62,8 +62,8 @@ INPUT_PATH_TEMPLATE = "/opt/omnia/discovery/input/{project}"
 OUTPUT_PATH_TEMPLATE = "/opt/omnia/discovery/output/{project}"
 
 # Credentials
-CREDENTIALS_FILE_NAME = "omnia_config_credentials.yml"
-CREDENTIALS_KEY_NAME = ".omnia_config_credentials_key"
+CREDENTIALS_FILE_NAME = "discovery_credentials.yml"
+CREDENTIALS_KEY_NAME = ".discovery_credentials_key"
 
 # Output file patterns
 PXE_MAPPING_PATTERN = "bmc_pxe_mapping_file*.csv"
