@@ -16,7 +16,7 @@
 # Credential file configurations — orchestrator-scoped only
 credential_files:
   - credential_type: "Omnia"
-    template: "{{ role_path }}/templates/omnia_credential.j2"
+    template: "{{ role_path }}/templates/orchestrator_credentials.j2"
     file_path: "{{ input_project_dir }}/omnia_config_credentials.yml"
     file_mode: 600
     vault_path: "{{ input_project_dir }}/.omnia_config_credentials_key"

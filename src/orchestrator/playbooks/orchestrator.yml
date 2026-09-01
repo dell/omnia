@@ -167,109 +167,43 @@
 # FLOW: prepare — Credentials + deploy + validate-deployment
 # =========================================================================
 
-# Invoke credentials tag
+# Credentials (prepare only — standalone credentials uses the dedicated play above)
 - name: Collect orchestrator credentials
   ansible.builtin.import_playbook: prepare/prepare_openchami.yml
   tags:
     - prepare
 
-# Invoke deploy tag (deploy OpenCHAMI + OpenLDAP)
+# Deploy OpenCHAMI + OpenLDAP (prepare + deploy tags)
 - name: Deploy OpenCHAMI
   ansible.builtin.import_playbook: deploy/deploy_openchami.yml
   tags:
     - prepare
+    - deploy
 
 - name: Deploy OpenLDAP
   ansible.builtin.import_playbook: deploy/deploy_openldap.yml
   tags:
     - prepare
+    - deploy
 
-# Invoke validate-deployment tag
+# Validate deployment health (prepare + deploy + validate-deployment tags)
 - name: Validate OpenCHAMI readiness
   ansible.builtin.import_playbook: validate/validate_openchami.yml
   tags:
     - prepare
+    - deploy
+    - validate-deployment
 
 - name: Validate OpenLDAP readiness
   ansible.builtin.import_playbook: validate/validate_openldap.yml
   tags:
     - prepare
-
-# =========================================================================
-# FLOW: execute — Provision + PXE boot (conditional)
-# =========================================================================
-
-# Invoke provision tag (SSH + provision all categories)
-- name: Provision preamble (SSH + auth)
-  ansible.builtin.import_playbook: provision/provision_preamble.yml
-  tags:
-    - execute
-
-- name: Provision Kubernetes cluster
-  ansible.builtin.import_playbook: provision/provision_kubernetes.yml
-  tags:
-    - execute
-
-- name: Provision Slurm cluster
-  ansible.builtin.import_playbook: provision/provision_slurm.yml
-  tags:
-    - execute
-
-- name: Provision OS-only nodes
-  ansible.builtin.import_playbook: provision/provision_os.yml
-  tags:
-    - execute
-
-- name: Provision custom nodes
-  ansible.builtin.import_playbook: provision/provision_custom.yml
-  tags:
-    - execute
-
-- name: Validate provisioning
-  ansible.builtin.import_playbook: validate/validate_provisioning.yml
-  tags:
-    - execute
-
-# Invoke pxeboot tag (conditional on enable_pxe_boot)
-- name: PXE boot on iDRAC nodes
-  ansible.builtin.import_playbook: pxeboot/pxeboot.yml
-  when: enable_pxe_boot | default(true) | bool
-  tags:
-    - execute
-
-# =========================================================================
-# FLOW: deploy — Deploy OpenCHAMI + OpenLDAP containers
-# (Available as standalone tag, also invoked by prepare tag)
-# =========================================================================
-
-- name: Deploy OpenCHAMI
-  ansible.builtin.import_playbook: deploy/deploy_openchami.yml
-  tags:
-    - never
     - deploy
-
-- name: Deploy OpenLDAP
-  ansible.builtin.import_playbook: deploy/deploy_openldap.yml
-  tags:
-    - never
-    - deploy
-
-- name: Validate OpenCHAMI readiness
-  ansible.builtin.import_playbook: validate/validate_openchami.yml
-  tags:
-    - never
-    - deploy
-
-- name: Validate OpenLDAP readiness
-  ansible.builtin.import_playbook: validate/validate_openldap.yml
-  tags:
-    - never
-    - deploy
+    - validate-deployment
 
 # =========================================================================
 # FLOW: validate-deployment — Standalone health check (read-only)
 # Loads cluster config from OIM, authenticates, then runs all validations.
-# Validates OpenCHAMI and OpenLDAP service health.
 # =========================================================================
 
 # Validate preamble: load cluster config + auth for standalone --tags validate-deployment
@@ -278,84 +212,53 @@
   tags:
     - validate-deployment
 
-# Validate OpenCHAMI service health
-- name: Validate OpenCHAMI service health
-  ansible.builtin.import_playbook: validate/validate_openchami.yml
-  tags:
-    - validate-deployment
-
-# Validate OpenLDAP service health (when enabled)
-- name: Validate OpenLDAP service health
-  ansible.builtin.import_playbook: validate/validate_openldap.yml
-  tags:
-    - validate-deployment
-
 # =========================================================================
-# FLOW: provision — SSH + provision all categories + validate
-# (Available as standalone tag, also invoked by execute tag)
+# FLOW: execute — Provision + PXE boot (conditional)
 # =========================================================================
 
+# Provision (execute + provision tags)
 - name: Provision preamble (SSH + auth)
   ansible.builtin.import_playbook: provision/provision_preamble.yml
   tags:
-    - never
+    - execute
     - provision
 
 - name: Provision Kubernetes cluster
   ansible.builtin.import_playbook: provision/provision_kubernetes.yml
   tags:
-    - never
+    - execute
     - provision
 
 - name: Provision Slurm cluster
   ansible.builtin.import_playbook: provision/provision_slurm.yml
   tags:
-    - never
+    - execute
     - provision
 
 - name: Provision OS-only nodes
   ansible.builtin.import_playbook: provision/provision_os.yml
   tags:
-    - never
+    - execute
     - provision
 
 - name: Provision custom nodes
   ansible.builtin.import_playbook: provision/provision_custom.yml
   tags:
-    - never
+    - execute
     - provision
 
 - name: Validate provisioning
   ansible.builtin.import_playbook: validate/validate_provisioning.yml
   tags:
-    - never
+    - execute
     - provision
 
-# =========================================================================
-# FLOW: pxeboot — PXE boot on iDRAC nodes (opt-in only)
-# Requires physical servers with Dell iDRAC/BMC.
-# Controlled by enable_pxe_boot in orchestrator_config.yml (default: true).
-# Skipped automatically on VM environments when enable_pxe_boot is false.
-# Also called as part of execute workflow when enable_pxe_boot is true.
-# =========================================================================
-- name: Check if PXE boot is enabled
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tasks:
-    - name: Fail if PXE boot is disabled
-      ansible.builtin.fail:
-        msg: "PXE boot is disabled in orchestrator_config.yml (enable_pxe_boot: false). Skipping PXE boot workflow."
-      when: not enable_pxe_boot | default(true) | bool
-  tags:
-    - never
-    - pxeboot
-
+# PXE boot (execute + pxeboot tags, conditional on enable_pxe_boot)
 - name: PXE boot on iDRAC nodes
   ansible.builtin.import_playbook: pxeboot/pxeboot.yml
   when: enable_pxe_boot | default(true) | bool
   tags:
-    - never
+    - execute
     - pxeboot
 
 # =========================================================================
