@@ -30,6 +30,8 @@ supported_tags:
   - validate
   - credentials
   - prepare
+  - deploy
+  - provision
   - execute
   - validate-deployment
   - pxeboot
@@ -49,6 +51,8 @@ invalid_tag_combinations:
   - [validate-deployment, cleanup]
   - [credentials, cleanup]
   - [prepare, cleanup]
+  - [deploy, cleanup]
+  - [provision, cleanup]
   - [execute, cleanup]
   - [pxeboot, cleanup]
   - [precheck, upgrade]
@@ -56,6 +60,8 @@ invalid_tag_combinations:
   - [validate-deployment, upgrade]
   - [credentials, upgrade]
   - [prepare, upgrade]
+  - [deploy, upgrade]
+  - [provision, upgrade]
   - [execute, upgrade]
   - [cleanup, upgrade]
   - [upgrade, rollback]
