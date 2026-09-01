@@ -79,10 +79,7 @@
       block:
         - name: Fail if CATALOG_FILE_PATH env var is not set
           ansible.builtin.fail:
-            msg: >-
-              CATALOG_FILE_PATH environment variable is not set.
-              When functional_groups_source is 'catalog', set CATALOG_FILE_PATH
-              in omnia.env (e.g., /opt/omnia/catalog/catalog_rhel.json).
+            msg: "{{ catalog_env_not_set_fail_msg }}"
           when: catalog_file | length == 0
 
         - name: Stat catalog file

@@ -121,6 +121,10 @@ package_groups_not_found_fail_msg: >-
   This file defines the RPM packages for each functional group in config mode.
   Create this file manually or switch to catalog mode by setting
   functional_groups_source to 'catalog' in image_build_config.yml.
+catalog_env_not_set_fail_msg: >-
+  CATALOG_FILE_PATH environment variable is not set.
+  When functional_groups_source is 'catalog', set CATALOG_FILE_PATH
+  in omnia.env (e.g., {{ omnia_data_path }}/catalog/catalog_rhel.json).
 catalog_not_found_fail_msg: >-
   Catalog file not found at {{ catalog_file | default('unknown') }}.
   When functional_groups_source is 'catalog', the catalog JSON must exist.

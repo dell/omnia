@@ -25,7 +25,10 @@ Verifies that installed files have correct permissions:
 import pytest
 
 from library.functions import TestLogger, load_test_config
-from library.functions.omnia_main_func import run_omnia_cmd
+from library.functions.omnia_main_func import (
+    run_omnia_cmd,
+    _resolve_clone_path,
+)
 from library.vars.common_vars import (
     SYSTEM_ENV_FILE,
     PROFILE_DROP_IN,
@@ -76,8 +79,7 @@ def test_omnia_sh_executable(host):
     tl = TestLogger(
         "NFT: omnia.sh executable", "NFT_MA_008"
     )
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
+    clone_path = _resolve_clone_path()
 
     sh_path = f"{clone_path}/{OMNIA_SH_PATH}"
     result = run_on_host(
@@ -104,8 +106,7 @@ def test_omnia_cli_executable(host):
     tl = TestLogger(
         "NFT: omnia-cli executable", "NFT_MA_009"
     )
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
+    clone_path = _resolve_clone_path()
 
     cli_path = f"{clone_path}/{OMNIA_CLI_PATH}"
     result = run_on_host(
@@ -132,8 +133,7 @@ def test_domain_init_scripts_executable(host):
     tl = TestLogger(
         "NFT: domain-init.sh permissions", "NFT_MA_010"
     )
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
+    clone_path = _resolve_clone_path()
 
     not_executable = []
     for domain in DOMAINS_WITH_INIT:

@@ -179,6 +179,19 @@ copy_input_files() {
         cp -a "$src_dir"/. "$dest_dir/"
     fi
 
+    # Resolve template placeholders in staged config files
+    # __OMNIA_DATA_PATH__ → actual OMNIA_DATA_PATH value
+    # __PROJECT_NAME__    → actual OMNIA_PROJECT_NAME value
+    for yml_file in "$dest_dir"/*.yml; do
+        [ -f "$yml_file" ] || continue
+        if grep -q '__OMNIA_DATA_PATH__\|__PROJECT_NAME__' "$yml_file" 2>/dev/null; then
+            sed -i \
+                -e "s|__OMNIA_DATA_PATH__|${OMNIA_DATA_PATH}|g" \
+                -e "s|__PROJECT_NAME__|${OMNIA_PROJECT_NAME}|g" \
+                "$yml_file"
+        fi
+    done
+
     local count
     count=$(find "$dest_dir" -type f | wc -l)
     echo -e "  ${GREEN}[${DOMAIN_NAME}] Copied ${count} file(s) → ${dest_dir}${NC}"
