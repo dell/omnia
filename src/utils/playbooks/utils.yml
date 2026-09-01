@@ -13,27 +13,31 @@
 # limitations under the License.
 ---
 # utils.yml - Top-level entry point for the utils domain.
-# Provides common utilities for Omnia: log collection, PXE boot, slurm config, etc.
+# Provides common utilities for Omnia: log collection, OS installation, etc.
 #
 # Usage (run ONE tag at a time - no comma-separated tags):
-#   cd src/utils/playbooks
-#   ansible-playbook utils.yml --tags precheck        # Env precheck only
-#   ansible-playbook utils.yml --tags setup           # Setup only
-#   ansible-playbook utils.yml --tags collect         # Collect logs
-#   ansible-playbook utils.yml --tags slurm           # Slurm config utility
-#   ansible-playbook utils.yml --tags cleanup         # Cleanup flow (placeholder)
-#   ansible-playbook utils.yml --tags upgrade         # Upgrade flow (placeholder)
-#   ansible-playbook utils.yml --tags rollback        # Rollback flow (placeholder)
+#   cd src/utils
+#   ansible-playbook playbooks/utils.yml --tags precheck        # Env precheck only
+#   ansible-playbook playbooks/utils.yml --tags setup           # Setup only
+#   ansible-playbook playbooks/utils.yml --tags collect         # Collect logs
+#   ansible-playbook playbooks/utils.yml --tags install_os      # OS installation
+#   ansible-playbook playbooks/utils.yml --tags cleanup         # Cleanup all utilities
+#   ansible-playbook playbooks/utils.yml --tags cleanup_logs    # Cleanup log collection only
+#   ansible-playbook playbooks/utils.yml --tags cleanup_install_os  # Cleanup OS installation only
+#   ansible-playbook playbooks/utils.yml --tags upgrade         # Upgrade flow (placeholder)
+#   ansible-playbook playbooks/utils.yml --tags rollback        # Rollback flow (placeholder)
 #
 # Tags (mutually exclusive - pick ONE):
-#   (none)    - Default: setup only
-#   precheck  - Environment precheck (env vars, connectivity)
-#   setup     - Setup and configuration
-#   collect   - Log collection utility
-#   slurm     - Slurm configuration utility
-#   cleanup   - Cleanup flow (placeholder)
-#   upgrade   - Upgrade flow (placeholder)
-#   rollback  - Rollback flow (placeholder)
+#   (none)            - Default: setup only
+#   precheck          - Environment precheck (env vars, connectivity)
+#   setup             - Setup and configuration
+#   collect           - Log collection utility
+#   install_os        - OS installation via iDRAC
+#   cleanup           - Cleanup all utilities (log collection + OS installation)
+#   cleanup_logs      - Cleanup log collection artifacts only
+#   cleanup_install_os - Cleanup OS installation artifacts only
+#   upgrade           - Upgrade flow (placeholder)
+#   rollback          - Rollback flow (placeholder)
 
 # =========================================================================
 # Step 0: Setup - load env vars (omnia.env), validate host
@@ -41,7 +45,7 @@
 - name: Utils domain setup
   hosts: localhost
   connection: local
-  gather_facts: false
+  gather_facts: true
   tags: always
   roles:
     - utils_setup
@@ -65,28 +69,30 @@
     - collect
 
 # =========================================================================
-# FLOW: slurm - Slurm configuration utility
+# FLOW: install_os - OS installation via iDRAC
 # =========================================================================
-- name: Slurm configuration utility
-  ansible.builtin.import_playbook: slurm_config_util.yml
+- name: OS installation via iDRAC
+  ansible.builtin.import_playbook: install_os.yml
   tags:
     - never
-    - slurm
+    - install_os
 
 # =========================================================================
-# FLOW: cleanup - Cleanup flow placeholder (opt-in only)
+# FLOW: cleanup - Cleanup utils artifacts (standalone cleanup playbooks)
 # =========================================================================
-- name: Cleanup utils
-  hosts: localhost
-  connection: local
-  gather_facts: false
+- name: Cleanup log collection
+  ansible.builtin.import_playbook: cleanup/cleanup_logs.yml
   tags:
     - never
     - cleanup
-  tasks:
-    - name: Cleanup placeholder
-      ansible.builtin.debug:
-        msg: "Utils cleanup - not implemented yet"
+    - cleanup_logs
+
+- name: Cleanup OS installation
+  ansible.builtin.import_playbook: cleanup/cleanup_install_os.yml
+  tags:
+    - never
+    - cleanup
+    - cleanup_install_os
 
 # =========================================================================
 # FLOW: upgrade - Upgrade flow placeholder (opt-in only)
