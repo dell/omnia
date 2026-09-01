@@ -111,11 +111,6 @@
   failed_when: false
   when: telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
 
-- name: Debug isilon_pod output
-  ansible.builtin.debug:
-    msg: "isilon_pod: {{ isilon_pod.stdout | default('undefined') }}"
-  when: telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
-
 - name: Check if external-health-monitor-controller container is running
   ansible.builtin.command: >
     kubectl get pod {{ isilon_pod.stdout }} -n isilon -o jsonpath='{.status.containerStatuses[?(@.name=="external-health-monitor-controller")].ready}'

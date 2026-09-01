@@ -39,33 +39,9 @@
   changed_when: false
   failed_when: false
 
-- name: Check if VictoriaMetrics operator deployment actually exists (VictoriaLogs)
-  ansible.builtin.command: >
-    kubectl get deployments -n {{ telemetry_namespace }}
-    -l app.kubernetes.io/name=victoria-metrics-operator
-    -o jsonpath='{.items[0].metadata.name}'
-  register: vl_operator_deployment_name
-  changed_when: false
-  failed_when: false
-
-- name: Uninstall stale Helm release (VictoriaLogs - release exists but no deployment)
-  ansible.builtin.command: >
-    helm uninstall victoria-metrics-operator -n {{ telemetry_namespace }}
-  when:
-    - operator_check.rc == 0
-    - vl_operator_deployment_name.stdout | default('') | length == 0
-    - victoria_operator_pkg is defined
-  changed_when: true
-  failed_when: false
-  register: vl_stale_helm_uninstall
-
-- name: Update operator status after stale release cleanup (VictoriaLogs)
-  ansible.builtin.set_fact:
-    _vl_operator_needs_install: "{{ (operator_check.rc != 0) or (vl_stale_helm_uninstall is defined and vl_stale_helm_uninstall.changed | default(false)) }}"
-
 - name: Install VictoriaMetrics operator (required for VictoriaLogs CRDs)
   when:
-    - _vl_operator_needs_install | bool
+    - operator_check.rc != 0
     - victoria_operator_pkg is defined
   block:
     - name: Install VictoriaMetrics operator via Helm
@@ -92,7 +68,7 @@
   ansible.builtin.fail:
     msg: "{{ victoria_operator_not_installed_msg }}"
   when:
-    - _vl_operator_needs_install | bool
+    - operator_check.rc != 0
     - victoria_operator_pkg is not defined
 
 - name: Wait for VictoriaMetrics operator deployment (existing)
@@ -102,13 +78,13 @@
   changed_when: false
   register: vl_operator_wait
   failed_when: false
-  when: not (_vl_operator_needs_install | bool)
+  when: operator_check.rc == 0
 
 - name: VictoriaMetrics operator not ready (VictoriaLogs)
   ansible.builtin.fail:
     msg: "VM operator not ready within {{ victoria_operator_wait_timeout }}. Check: kubectl -n {{ telemetry_namespace }} get pods -l app.kubernetes.io/name=victoria-metrics-operator"
   when:
-    - not (_vl_operator_needs_install | bool)
+    - operator_check.rc == 0
     - vl_operator_wait.rc != 0
 
 - name: Wait for VictoriaLogs CRDs

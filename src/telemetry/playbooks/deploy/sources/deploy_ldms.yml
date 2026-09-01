@@ -39,7 +39,6 @@
       ansible.builtin.include_role:
         name: common
         tasks_from: derive_sink_support_flags
-      when: kafka_support is not defined
 
     - name: Add kube_vip to inventory (only if not already added)
       ansible.builtin.add_host:
