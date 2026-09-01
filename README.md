@@ -1,4 +1,14 @@
 <img src="docs/logos/omnia-logo-transparent.png" width="500px">
+
+----
+
+**Please note**: We take Omnia's security and our users' trust
+very seriously. If you believe you have found a security issue
+in Omnia, _please responsibly disclose_ by following the process at
+[https://github.com/dell/omnia/security/advisories](https://github.com/dell/omnia/blob/main/SECURITY.md).
+
+----
+
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 <!-- DO NOT ADD A BADGE -->
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
