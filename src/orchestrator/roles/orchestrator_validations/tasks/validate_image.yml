@@ -27,7 +27,7 @@
 - name: Compute FG name components for matching
   ansible.builtin.set_fact:
     _fg_arch: "{{ functional_group_name | regex_search('(x86_64|aarch64)$') | default('x86_64') }}"
-    _fg_prefix: "{{ functional_group_name | regex_replace('_(x86_64|aarch64)$', '') }}"
+    _fg_prefix: "{{ functional_group_name | regex_replace('_(x86_64|aarch64)$', '') | regex_replace('_first$', '') }}"
 
 - name: Initialize kernel, initrd and image
   ansible.builtin.set_fact:
