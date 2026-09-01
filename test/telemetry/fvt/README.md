@@ -82,10 +82,16 @@ ensure syslog is configured before verifying log ingestion.
 
 | TC ID | Test | Marker |
 |-------|------|--------|
-| TC_SR_060 | Verify UFM external service exists with correct endpoint | sanity |
-| TC_SR_061 | Verify UFM VMServiceScrape CR exists | sanity |
-| TC_SR_062 | Verify UFM credentials K8s secret exists | sanity |
-| TC_SR_063 | Verify UFM InfiniBand metrics in VictoriaMetrics | functional |
+| TC_SR_060 | Verify UFM external service exists with correct endpoint | sanity + ufm |
+| TC_SR_061 | Verify UFM VMServiceScrape CR exists | sanity + ufm |
+| TC_SR_062 | Verify UFM credentials K8s secret exists | sanity + ufm |
+| TC_SR_063 | Verify UFM InfiniBand metrics in VictoriaMetrics | functional + ufm |
+
+Run only the UFM source verification:
+
+```bash
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker ufm
+```
 
 ### Sources: OME
 
@@ -101,6 +107,41 @@ ensure syslog is configured before verifying log ingestion.
 When `configure_ome: false` in test_config.yml, only TC_SR_070 and
 TC_SR_071 run. Set `configure_ome: true` to run the full OME integration
 tests including TLS cert extraction and connectivity verification.
+
+### Sources: SFM
+
+| TC ID | Test | Marker | Condition |
+|-------|------|--------|-----------|
+| TC_SR_090 | Verify required Omnia workloads and pods for SFM | sanity | configure_sfm=true |
+| TC_SR_091 | Verify required Omnia services for SFM | sanity | configure_sfm=true |
+| TC_SR_092 | Configure and verify the SFM switch data path | functional | configure_sfm=true |
+| TC_SR_093 | Configure and verify SFM observability Remote Write | functional | configure_sfm=true |
+| TC_SR_094 | Verify three SFM metrics and timestamps in VictoriaMetrics | functional | configure_sfm=true |
+
+SFM integration is opt-in. Set `configure_sfm: true`, `sfm_api_ip`, and
+`sfm_ssh_ip` in `test_config.yml`, then run `bash setup_env.sh --set-creds` to
+store the required SFM API and SSH credentials in encrypted `test_creds.yml`.
+The runner rejects unknown SSH host keys, so verify the SFM key in
+`known_hosts` before executing these cases. The API address must be directly
+reachable from the runner. The SFM instance is fixed to instance 1. This lab
+integration has no configurable API CA bundle or API TLS-verification setting;
+run it only on an authorized network.
+
+The cases execute in dependency order: Victoria export plus Omnia workload and
+pod readiness, Omnia service and endpoint readiness, the complete SFM switch
+network configuration, transactional certificate/Remote Write configuration
+with target health, and three-metric earliest/latest timestamp verification in
+VictoriaMetrics.
+
+Warning: these tests configure an external appliance. They may import a CA
+certificate, create or update the `victoria` Remote Write target, and modify
+`/etc/hosts` inside the SFM Prometheus pod. The pod-local mapping does not
+survive pod recreation, so configuration and health helpers reapply it to the
+current pod. Previous certificate imports are retained as rollback material.
+
+```bash
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker sfm
+```
 
 ### Cleanup
 

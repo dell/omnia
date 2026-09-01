@@ -403,6 +403,28 @@ TEST_CASES = {
         "title": "Verify OME audit logs data in Kafka (ome.auditlogs)",
     },
 
+    # -- Sources: SFM -------------------------------------------------------
+    "sfm_omnia_pods": {
+        "id": "TC_SR_090",
+        "title": "Verify required Omnia workloads and pods for SFM",
+    },
+    "sfm_omnia_services": {
+        "id": "TC_SR_091",
+        "title": "Verify required Omnia services for SFM",
+    },
+    "sfm_switch_configuration": {
+        "id": "TC_SR_092",
+        "title": "Configure and verify the SFM switch data path",
+    },
+    "sfm_observability_configuration": {
+        "id": "TC_SR_093",
+        "title": "Configure and verify SFM observability Remote Write",
+    },
+    "sfm_metrics_in_victoria": {
+        "id": "TC_SR_094",
+        "title": "Verify three SFM metrics and timestamps in VictoriaMetrics",
+    },
+
     # -- Cleanup ------------------------------------------------------------
     "cleanup_pods_removed": {
         "id": "TC_CL_002",
