@@ -1,0 +1,218 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Mark iDRAC cleanup as attempted
+  ansible.builtin.set_fact:
+    _cleanup_active_component: idrac
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'idrac': 'attempted'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_idrac'] | bool
+
+- name: Cleanup iDRAC telemetry
+  ansible.builtin.include_tasks: idrac.yml
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_idrac'] | bool
+
+- name: Mark iDRAC cleanup as cleaned
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'idrac': 'cleaned'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_idrac'] | bool
+
+- name: Mark LDMS cleanup as attempted
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ldms
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'ldms': 'attempted'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ldms'] | bool
+
+- name: Cleanup LDMS telemetry (includes Vector-LDMS bridge)
+  ansible.builtin.include_tasks: ldms.yml
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ldms'] | bool
+
+- name: Mark LDMS cleanup as cleaned
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'ldms': 'cleaned'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ldms'] | bool
+
+- name: Mark OME cleanup as attempted
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ome
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'ome': 'attempted'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ome'] | bool
+
+- name: Cleanup OME telemetry (includes Vector-OME bridge)
+  ansible.builtin.include_tasks: ome.yml
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ome'] | bool
+
+- name: Mark OME cleanup as cleaned
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'ome': 'cleaned'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ome'] | bool
+
+- name: Mark PowerScale cleanup as attempted
+  ansible.builtin.set_fact:
+    _cleanup_active_component: powerscale
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'powerscale': 'attempted'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_powerscale'] | bool
+
+- name: Cleanup PowerScale telemetry
+  ansible.builtin.include_tasks: powerscale.yml
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_powerscale'] | bool
+
+- name: Mark PowerScale cleanup as cleaned
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'powerscale': 'cleaned'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_powerscale'] | bool
+
+- name: Mark UFM cleanup as attempted
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ufm
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'ufm': 'attempted'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ufm'] | bool
+
+- name: Cleanup UFM telemetry
+  ansible.builtin.include_tasks: ufm.yml
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ufm'] | bool
+
+- name: Mark UFM cleanup as cleaned
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'ufm': 'cleaned'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ufm'] | bool
+
+- name: Mark VAST cleanup as attempted
+  ansible.builtin.set_fact:
+    _cleanup_active_component: vast
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'vast': 'attempted'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_vast'] | bool
+
+- name: Cleanup VAST telemetry
+  ansible.builtin.include_tasks: vast.yml
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_vast'] | bool
+
+- name: Mark VAST cleanup as cleaned
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'vast': 'cleaned'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_vast'] | bool

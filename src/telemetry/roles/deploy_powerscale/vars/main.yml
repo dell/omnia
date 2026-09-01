@@ -31,8 +31,10 @@ install_mode: "{{ telemetry_packages_config.install_mode | default('offline') }}
 # Offline pip paths for air-gapped CSI volume exporter deployment
 # Read from telemetry_packages_config (populated from telemetry_packages.yml)
 # pip install falls back to online if the offline path is unreachable
-offline_pip_module_path: "{{ telemetry_packages_config.offline_pip_module_path | default('') }}"
-pulp_server_ip: "{{ telemetry_packages_config.offline_pip_module_path | default('') | urlsplit('hostname') | default('localhost') }}"
+offline_pip_module_path: "{{ telemetry_packages_config.telemetry_packages.offline_pip_module_path | default('') }}"
+pulp_server_ip: >-
+  {{ telemetry_packages_config.telemetry_packages.offline_pip_module_path
+     | default('') | urlsplit('hostname') | default('localhost') }}
 
 # Karavi Observability offline installer variables
 karavi_observability_git: "karavi-observability.tar.gz"

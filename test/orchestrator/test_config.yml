@@ -30,7 +30,7 @@ oim_ssh_port: 22
 clone_path: "/root/omnia"
 
 # The dataset name selects the local folder under test/orchestrator/datasets/.
-dataset: "data_set_01"
+dataset: "slurm_only"
 
 # Only change if the target uses a different project name than the dataset.
 project_name: "project_default"
@@ -52,3 +52,7 @@ report_name: orchestrator_test_report
 
 # Report ID (auto-generated if empty)
 report_id: ""
+
+# Catalog file path for feature detection (optional)
+# Example: /root/omnia/src/build_stream/examples/catalog/catalog_rhel_x86_64_with_slurm_only.json
+catalog_path: ""

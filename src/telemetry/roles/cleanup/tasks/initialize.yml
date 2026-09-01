@@ -1,0 +1,163 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Derive cleanup scope from run tags
+  ansible.builtin.set_fact:
+    _cleanup_all: "{{ 'cleanup' in ansible_run_tags }}"
+    _cleanup_idrac: "{{ 'cleanup_idrac' in ansible_run_tags }}"
+    _cleanup_ldms: "{{ 'cleanup_ldms' in ansible_run_tags }}"
+    _cleanup_ome: "{{ 'cleanup_ome' in ansible_run_tags }}"
+    _cleanup_powerscale: "{{ 'cleanup_powerscale' in ansible_run_tags }}"
+    _cleanup_ufm: "{{ 'cleanup_ufm' in ansible_run_tags }}"
+    _cleanup_vast: "{{ 'cleanup_vast' in ansible_run_tags }}"
+    _cleanup_kafka: "{{ 'cleanup_kafka' in ansible_run_tags }}"
+    _cleanup_victoria_metrics: "{{ 'cleanup_victoria_metrics' in ansible_run_tags }}"
+    _cleanup_victoria_logs: "{{ 'cleanup_victoria_logs' in ansible_run_tags }}"
+    cacheable: true
+
+- name: Initialize cleanup state
+  ansible.builtin.set_fact:
+    _cleanup_abort: false
+    _cleanup_active_component: ""
+    _cleanup_component_results:
+      idrac: skipped
+      ldms: skipped
+      ome: skipped
+      powerscale: skipped
+      ufm: skipped
+      vast: skipped
+      source_drain: skipped
+      kafka: skipped
+      victoria_metrics: skipped
+      victoria_logs: skipped
+    _cleanup_enabled:
+      idrac_metrics: false
+      ldms_metrics: false
+      powerscale_metrics: false
+      powerscale_logs: false
+      ufm_metrics: false
+      ufm_logs: false
+      vast_metrics: false
+      vast_logs: false
+      ome_metrics: false
+      ome_logs: false
+      vector_ldms: false
+      vector_ome: false
+    _cleanup_failures: []
+    _cleanup_unreachable_nodes:
+      ldms: []
+    _cleanup_verification_attempted: false
+    _cleanup_volume_verification_failed: false
+    _cleanup_delete_volume: >-
+      {{ Delete_volume | default(delete_volume | default(false)) | bool }}
+
+- name: Prepare telemetry cleanup
+  block:
+    - name: Validate persistent volume cleanup option
+      vars:
+        _cleanup_boolean_values:
+          - "true"
+          - "false"
+          - "yes"
+          - "no"
+          - "1"
+          - "0"
+      ansible.builtin.assert:
+        that:
+          - >-
+            Delete_volume is not defined
+            or (Delete_volume | string | lower) in _cleanup_boolean_values
+          - >-
+            delete_volume is not defined
+            or (delete_volume | string | lower) in _cleanup_boolean_values
+          - >-
+            Delete_volume is not defined
+            or delete_volume is not defined
+            or (Delete_volume | bool) == (delete_volume | bool)
+        fail_msg: >-
+          Set only one matching boolean value for Delete_volume or delete_volume.
+          Accepted values are true, false, yes, no, 1, and 0.
+
+    - name: Load telemetry configuration
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: load_telemetry_config
+
+    - name: Validate kube_vip is set
+      ansible.builtin.assert:
+        that:
+          - kube_vip is defined
+          - kube_vip | length > 0
+        fail_msg: >
+          kube_vip is required. Add 'kube_vip: <VIP_IP>' to telemetry_config.yml.
+
+    - name: Add kube_vip to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ kube_vip }}"
+        groups: kube_vip_group
+        ansible_user: root
+
+    - name: Map configured telemetry capabilities
+      ansible.builtin.set_fact:
+        _cleanup_enabled:
+          idrac_metrics: >-
+            {{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}
+          ldms_metrics: >-
+            {{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}
+          powerscale_metrics: >-
+            {{ telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool }}
+          powerscale_logs: >-
+            {{ telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool }}
+          ufm_metrics: >-
+            {{ telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}
+          ufm_logs: >-
+            {{ telemetry_config.telemetry_sources.ufm.logs_enabled | default(false) | bool }}
+          vast_metrics: >-
+            {{ telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool }}
+          vast_logs: >-
+            {{ telemetry_config.telemetry_sources.vast.logs_enabled | default(false) | bool }}
+          ome_metrics: >-
+            {{ telemetry_config.telemetry_sources.ome.metrics_enabled | default(false) | bool }}
+          ome_logs: >-
+            {{ telemetry_config.telemetry_sources.ome.logs_enabled | default(false) | bool }}
+          vector_ldms: >-
+            {{ telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool }}
+          vector_ome: >-
+            {{
+              telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool
+              or telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
+            }}
+
+  rescue:
+    - name: Record cleanup prerequisite failure
+      vars:
+        _cleanup_failure_message: >-
+          {{
+            ansible_failed_result.stderr
+            | default(ansible_failed_result.msg | default('Cleanup prerequisite failed'), true)
+          }}
+      ansible.builtin.set_fact:
+        _cleanup_abort: true
+        _cleanup_failures: >-
+          {{
+            _cleanup_failures
+            + [{
+                'component': 'prerequisites',
+                'task': ansible_failed_task.name | default('Prepare telemetry cleanup'),
+                'host': inventory_hostname,
+                'rc': ansible_failed_result.rc | default(''),
+                'message': (_cleanup_failure_message | string)[:1000]
+              }]
+          }}

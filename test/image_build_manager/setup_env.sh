@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,16 +40,17 @@
 #   --domain-creds <json>  Non-interactive. JSON: '{"s3_access_id":"x",...}'
 #
 # Usage:
-#   bash setup_env.sh                        # Baremetal or active venv
-#   bash setup_env.sh --venv                 # Create .venv/ and install there
-#   bash setup_env.sh --venv --force         # Recreate .venv/ from scratch
-#   bash setup_env.sh --set-creds            # Prompt for SSH password
-#   bash setup_env.sh --update-creds         # Update existing SSH password
-#   bash setup_env.sh --creds "secret"       # Set SSH password via flag
-#   bash setup_env.sh --set-domain-creds     # Prompt for S3 + aarch64 creds
-#   bash setup_env.sh --domain-creds '{...}' # Non-interactive domain creds
-#   bash setup_env.sh --debug                # Verbose pip output
-#   bash setup_env.sh --help                 # Show this help
+#   ./setup_env.sh                        # Baremetal or active venv
+#   ./setup_env.sh --force                # Force-reinstall all requirements
+#   ./setup_env.sh --venv                 # Create .venv/ and install there
+#   ./setup_env.sh --venv --force         # Recreate .venv/ and reinstall requirements
+#   ./setup_env.sh --set-creds            # Prompt for SSH password
+#   ./setup_env.sh --update-creds         # Update existing SSH password
+#   ./setup_env.sh --creds "secret"       # Set SSH password via flag
+#   ./setup_env.sh --set-domain-creds     # Prompt for S3 + aarch64 creds
+#   ./setup_env.sh --domain-creds '{...}' # Non-interactive domain creds
+#   ./setup_env.sh --debug                # Verbose pip output
+#   ./setup_env.sh --help                 # Show this help
 # =============================================================================
 
 set -euo pipefail
@@ -142,13 +143,14 @@ while [[ $# -gt 0 ]]; do
 
 Image Build Manager — Test Environment Setup
 
-Usage: bash setup_env.sh [OPTIONS]
+Usage: ./setup_env.sh [OPTIONS]
 
 INSTALL MODES
 ─────────────────────────────────────────────────────────────────
   (no flag)       Baremetal mode (pip install --user).
   --venv          Create .venv/ and install there.
-  --force         With --venv: recreate .venv/ from scratch.
+  --force         Force-reinstall all packages from requirements.txt.
+                  With --venv, also recreate .venv/ from scratch.
 
 SSH CREDENTIALS (test_creds.yml)
 ─────────────────────────────────────────────────────────────────
@@ -158,8 +160,10 @@ SSH CREDENTIALS (test_creds.yml)
 
 DOMAIN CREDENTIALS (image_build_credentials.yml)
 ─────────────────────────────────────────────────────────────────
-  Created at: $OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME/
+  Created on this machine at:
+    $OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME/
   Fields: s3_access_id, s3_secret_key, aarch64_ssh_password.
+  For remote execution, run this command on the target OIM server.
 
   --set-domain-creds     Interactive prompt for all domain fields.
   --update-domain-creds  Force-update domain creds (no "exists" check).
@@ -254,8 +258,14 @@ pip install --upgrade pip $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
     pip install --upgrade pip $PIP_QUIET
 
 info "Installing dependencies from requirements.txt"
-pip install -r "$REQUIREMENTS" $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
-    pip install -r "$REQUIREMENTS" $PIP_QUIET
+PIP_FORCE_ARGS=()
+if [ "$FORCE" = true ]; then
+    PIP_FORCE_ARGS=(--force-reinstall)
+    info "Force-reinstalling all requirements (--force)"
+fi
+
+pip install "${PIP_FORCE_ARGS[@]}" -r "$REQUIREMENTS" $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
+    pip install "${PIP_FORCE_ARGS[@]}" -r "$REQUIREMENTS" $PIP_QUIET
 
 if ! pip show pytest-order &>/dev/null; then
     info "Installing pytest-order"
@@ -418,14 +428,14 @@ if [ -z "$CREDS_VALUE" ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = fals
         ok "SSH credentials: test_creds.yml (encrypted)"
     else
         warn "No SSH credentials (test_creds.yml)"
-        warn "  Set with: bash setup_env.sh --set-creds"
+        warn "  Set with: ./setup_env.sh --set-creds"
     fi
     _dc=$(_domain_creds_path)
     if [ -f "$_dc" ]; then
         ok "Domain credentials: $_dc (encrypted)"
     else
         warn "No domain credentials: $_dc"
-        warn "  Set with: bash setup_env.sh --set-domain-creds"
+        warn "  Set with: ./setup_env.sh --set-domain-creds"
     fi
 fi
 
@@ -468,18 +478,18 @@ echo ""
 echo "    1. SSH credentials (test_creds.yml) — for remote test execution:"
 if [ -f "$CREDS_FILE" ]; then
     echo "       test_creds.yml exists (encrypted)"
-    echo "       To update:  bash setup_env.sh --update-creds"
+    echo "       To update:  ./setup_env.sh --update-creds"
 else
-    echo "       Not set. Create with: bash setup_env.sh --set-creds"
+    echo "       Not set. Create with: ./setup_env.sh --set-creds"
 fi
 echo ""
-echo "    2. Image build domain credentials:"
+echo "    2. Image build domain credentials (current machine):"
 _dc_summary=$(_domain_creds_path)
 if [ -f "$_dc_summary" ]; then
     echo "       ${_dc_summary} (encrypted)"
-    echo "       To update:  bash setup_env.sh --update-domain-creds"
+    echo "       To update:  ./setup_env.sh --update-domain-creds"
 else
-    echo "       Not set. Create with: bash setup_env.sh --set-domain-creds"
+    echo "       Not set. Create with: ./setup_env.sh --set-domain-creds"
 fi
 echo ""
 echo "================================================================="

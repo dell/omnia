@@ -110,7 +110,6 @@
         name: oim_shared_path_from_metadata
       when: repo_manager_metadata_support | default(false) | bool
       failed_when: false
-      tags: always
 
     - name: Load repo_manager_config.yml
       ansible.builtin.include_vars:

@@ -15,6 +15,8 @@
 """Image content verification (squashfs mount + RPM package check)."""
 
 import json
+import os
+import uuid
 from typing import Dict, Any, List
 
 import yaml
@@ -33,7 +35,6 @@ from ..vars.common_vars import (
     CMDS,
     DOMAIN_NAME,
     PACKAGE_GROUPS_FILENAME,
-    IMAGE_VERIFY_TEMP_IMAGE,
     IMAGE_VERIFY_TEMP_MOUNT,
     SQUASHFS_PACKAGE,
     S3_BOOT_IMAGES_BUCKET,
@@ -43,6 +44,16 @@ from ..vars.common_vars import (
 # =============================================================================
 # IMAGE PACKAGE VERIFICATION (squashfs mount + RPM check)
 # =============================================================================
+
+def _new_image_verification_paths():
+    """Return collision-safe target paths for one verification invocation."""
+    temp_root = f"{IMAGE_VERIFY_TEMP_MOUNT}_{uuid.uuid4().hex}"
+    return (
+        temp_root,
+        os.path.join(temp_root, "rootfs.squashfs"),
+        os.path.join(temp_root, "rootfs"),
+    )
+
 
 def _check_squashfs_tools(host) -> Dict[str, Any]:
     """Ensure squashfs-tools is installed."""
@@ -269,8 +280,7 @@ def verify_image_packages(
             "details": f"No {arch} functional groups configured",
         }
 
-    temp_image = IMAGE_VERIFY_TEMP_IMAGE
-    temp_mount = IMAGE_VERIFY_TEMP_MOUNT
+    temp_root, temp_image, temp_mount = _new_image_verification_paths()
 
     # Fast pre-check: verify the boot-images bucket exists before
     # running the expensive recursive listing.
@@ -286,20 +296,23 @@ def verify_image_packages(
             ),
         }
 
-    # Cleanup before start
-    host.run(CMDS["umount"].format(flags="", path=temp_mount))
-    host.run(CMDS["rm_file"].format(path=temp_image))
-    host.run(CMDS["mkdir_p"].format(path=temp_mount))
-
-    s3_list = host.run(
-        CMDS["s3cmd_ls_bucket"].format(bucket=S3_BOOT_IMAGES_BUCKET)
-    )
-    s3_output = s3_list.stdout if s3_list.rc == 0 else ""
-
     results = []
     all_passed = True
+    cleanup_error = None
 
     try:
+        # Every invocation gets its own target paths so concurrent validation
+        # runs cannot unmount, truncate, or remove each other's working image.
+        # Keep setup in this block so partial setup is also cleaned on errors.
+        host.run(CMDS["mkdir_p"].format(path=temp_mount))
+
+        s3_list = host.run(
+            CMDS["s3cmd_ls_bucket"].format(
+                bucket=S3_BOOT_IMAGES_BUCKET,
+            )
+        )
+        s3_output = s3_list.stdout if s3_list.rc == 0 else ""
+
         for fg in groups:
             expected_pkgs = _get_image_packages_from_config(host, fg)
             if not expected_pkgs:
@@ -356,10 +369,13 @@ def verify_image_packages(
                 )
             )
             if dl.rc != 0:
+                host.run(CMDS["rm_file"].format(path=temp_image))
                 results.append({
                     "functional_group": fg,
                     "success": False,
-                    "error": "Failed to download image",
+                    "error": (
+                        f"Failed to download image (rc={dl.rc})"
+                    ),
                     "expected_count": len(expected_pkgs),
                     "found_count": 0,
                     "missing_count": len(expected_pkgs),
@@ -375,11 +391,15 @@ def verify_image_packages(
                 )
             )
             if mt.rc != 0:
+                host.run(CMDS["umount"].format(
+                    flags="-l", path=temp_mount,
+                ))
+                host.run(CMDS["rm_dir"].format(path=temp_mount))
                 host.run(CMDS["rm_file"].format(path=temp_image))
                 results.append({
                     "functional_group": fg,
                     "success": False,
-                    "error": "Failed to mount image",
+                    "error": f"Failed to mount image (rc={mt.rc})",
                     "expected_count": len(expected_pkgs),
                     "found_count": 0,
                     "missing_count": len(expected_pkgs),
@@ -391,10 +411,28 @@ def verify_image_packages(
             rpm_cmd = host.run(
                 CMDS["rpm_list_installed"].format(root=temp_mount)
             )
-            installed = (
-                rpm_cmd.stdout.strip().split('\n')
-                if rpm_cmd.rc == 0 else []
-            )
+            if rpm_cmd.rc != 0 or not rpm_cmd.stdout.strip():
+                host.run(CMDS["umount"].format(
+                    flags="-l", path=temp_mount,
+                ))
+                host.run(CMDS["rm_dir"].format(path=temp_mount))
+                host.run(CMDS["rm_file"].format(path=temp_image))
+                results.append({
+                    "functional_group": fg,
+                    "success": False,
+                    "error": (
+                        "Failed to query mounted image RPM database "
+                        f"(rc={rpm_cmd.rc})"
+                    ),
+                    "expected_count": len(expected_pkgs),
+                    "found_count": 0,
+                    "missing_count": len(expected_pkgs),
+                    "package_details": [],
+                })
+                all_passed = False
+                continue
+
+            installed = rpm_cmd.stdout.strip().split('\n')
 
             found_pkgs = []
             missing_pkgs = []
@@ -454,16 +492,25 @@ def verify_image_packages(
 
     finally:
         # Guaranteed cleanup — runs even if an exception occurs
-        host.run(CMDS["umount"].format(
-            flags="-l", path=temp_mount,
-        ))
-        host.run(CMDS["rm_dir"].format(path=temp_mount))
-        host.run(CMDS["rm_file"].format(path=temp_image))
+        try:
+            host.run(CMDS["umount"].format(
+                flags="-l", path=temp_mount,
+            ))
+        finally:
+            cleanup = host.run(
+                CMDS["rm_dir"].format(path=temp_root)
+            )
+            if cleanup.rc != 0:
+                cleanup_error = (
+                    "Failed to remove temporary image verification "
+                    f"workspace {temp_root} (rc={cleanup.rc})"
+                )
 
     passed_count = sum(1 for r in results if r["success"])
+    verification_success = all_passed and cleanup_error is None
 
     return {
-        "success": all_passed,
+        "success": verification_success,
         "prerequisite_failed": False,
         "results": results,
         "total_groups": len(groups),
@@ -473,8 +520,10 @@ def verify_image_packages(
             f"Verified packages in "
             f"{passed_count}/{len(groups)} images"
         ),
-        "error": None if all_passed else (
-            f"{len(groups) - passed_count} image(s) "
-            "have missing packages"
+        "error": cleanup_error or (
+            None if all_passed else (
+                f"{len(groups) - passed_count} image(s) "
+                "have missing packages"
+            )
         ),
     }

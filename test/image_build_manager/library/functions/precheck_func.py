@@ -15,11 +15,14 @@
 """Prepare / validate / precheck verification functions."""
 
 import json
+import os
 from typing import Dict, Any
+
+import yaml
 
 from omnia_auto import read_remote_env, resolve_domain_input_path
 
-from .host_func import load_test_config
+from .host_func import resolve_target_source_root
 from ._config_helpers import (
     _retry_run,
     _get_remote_ibm_config_path,
@@ -162,38 +165,44 @@ def check_credentials_present(host) -> Dict[str, Any]:
 
 
 def check_clone_status(host) -> Dict[str, Any]:
-    """Verify the project code is synced to the target.
+    """Verify the project code is available on the execution target.
 
-    Checks that the clone_path directory exists and contains
-    the expected domain directory structure.
+    Local execution checks the current checkout.  Remote execution checks
+    ``clone_path`` and its expected domain directory structure.
 
     Returns:
         Dict with 'success', 'clone_path', 'details'.
     """
-    config = load_test_config()
-    clone_path = config["clone_path"]
+    try:
+        source_root = resolve_target_source_root()
+    except ValueError as exc:
+        return {
+            "success": False,
+            "clone_path": "",
+            "details": f"  Project path unavailable: {exc}",
+        }
 
-    dir_cmd = host.run(CMDS["dir_exists"].format(path=clone_path))
+    dir_cmd = host.run(CMDS["dir_exists"].format(path=source_root))
     if dir_cmd.rc != 0 or "exists" not in dir_cmd.stdout:
         return {
             "success": False,
-            "clone_path": clone_path,
-            "details": f"  Project path NOT FOUND: {clone_path}",
+            "clone_path": source_root,
+            "details": f"  Project path NOT FOUND: {source_root}",
         }
 
     # Check for domain directory as a basic sync validation
-    ibm_dir = f"{clone_path}/src/image_build_manager"
+    ibm_dir = os.path.join(source_root, "src", "image_build_manager")
     ibm_check = host.run(CMDS["dir_exists"].format(path=ibm_dir))
     has_ibm = ibm_check.rc == 0 and "exists" in ibm_check.stdout
 
     details_lines = [
-        f"  Path: {clone_path}",
+        f"  Path: {source_root}",
         f"  image_build_manager: {'present' if has_ibm else 'NOT FOUND'}",
     ]
 
     return {
         "success": has_ibm,
-        "clone_path": clone_path,
+        "clone_path": source_root,
         "details": "\n".join(details_lines),
     }
 
@@ -279,14 +288,15 @@ def check_input_config_exists(host) -> Dict[str, Any]:
 # =============================================================================
 
 def check_repo_ssl_verify_config(host) -> Dict[str, Any]:
-    """Verify repo_ssl_verify is set in image_build_config.yml on target.
+    """Resolve the effective repo_ssl_verify value on the target.
 
-    Reads the remote config and checks that build_image.repo_ssl_verify
-    is present and is a boolean value. Reports the configured value
-    so test output shows whether SSL verification is enabled or disabled.
+    An omitted ``build_image.repo_ssl_verify`` is valid and resolves to
+    ``True``, matching the product schema, Ansible role, and templates.
+    Explicit values must be YAML booleans; nulls, strings, and numbers are
+    rejected instead of being coerced with Python truthiness.
 
     Returns:
-        Dict with 'success', 'ssl_verify', 'details'.
+        Dict with 'success', 'ssl_verify', 'used_default', and 'details'.
     """
     cfg_path = _get_remote_ibm_config_path(host)
 
@@ -296,52 +306,88 @@ def check_repo_ssl_verify_config(host) -> Dict[str, Any]:
         return {
             "success": False,
             "ssl_verify": None,
+            "used_default": False,
             "details": (
                 f"  image_build_config.yml not readable at {cfg_path}"
             ),
         }
 
     try:
-        import yaml
         config = yaml.safe_load(cat_cmd.stdout)
-    except Exception:
+    except yaml.YAMLError:
         return {
             "success": False,
             "ssl_verify": None,
+            "used_default": False,
             "details": "  image_build_config.yml: failed to parse YAML",
         }
 
-    build_image = config.get("build_image", {})
-    if build_image is None:
-        build_image = {}
-
-    ssl_verify = build_image.get("repo_ssl_verify")
-
-    if ssl_verify is None:
+    if not isinstance(config, dict):
         return {
             "success": False,
             "ssl_verify": None,
+            "used_default": False,
             "details": (
-                "  build_image.repo_ssl_verify: NOT SET "
-                "(defaults to true at runtime)"
+                "  image_build_config.yml: expected a YAML mapping"
+            ),
+        }
+
+    if "build_image" not in config:
+        build_image = {}
+    else:
+        build_image = config["build_image"]
+        if not isinstance(build_image, dict):
+            return {
+                "success": False,
+                "ssl_verify": None,
+                "used_default": False,
+                "details": (
+                    "  build_image: expected a YAML mapping"
+                ),
+            }
+
+    if "repo_ssl_verify" not in build_image:
+        return {
+            "success": True,
+            "ssl_verify": True,
+            "used_default": True,
+            "details": (
+                "  build_image.repo_ssl_verify: true "
+                "(runtime default; key not set)"
+            ),
+        }
+
+    ssl_verify = build_image["repo_ssl_verify"]
+    if not isinstance(ssl_verify, bool):
+        value_type = type(ssl_verify).__name__
+        return {
+            "success": False,
+            "ssl_verify": None,
+            "used_default": False,
+            "details": (
+                "  build_image.repo_ssl_verify: expected boolean, "
+                f"got {value_type}"
             ),
         }
 
     return {
         "success": True,
-        "ssl_verify": bool(ssl_verify),
+        "ssl_verify": ssl_verify,
+        "used_default": False,
         "details": (
-            f"  build_image.repo_ssl_verify: {ssl_verify}"
+            f"  build_image.repo_ssl_verify: {str(ssl_verify).lower()} "
+            "(explicit)"
         ),
     }
 
 
 def check_repo_ssl_verify_applied(host, arch: str = "x86_64") -> Dict[str, Any]:
-    """Verify repo_ssl_verify setting is applied in built image repo configs.
+    """Verify repo_ssl_verify is wired into the image build templates.
 
-    Checks the build config templates on the target to confirm that
-    sslverify/gpgcheck are set according to the repo_ssl_verify value.
-    This is a post-build validation — run after --tags build.
+    This is a structural source-template check.  It confirms that the RHEL
+    base and compute templates reference ``repo_ssl_verify`` and emit both
+    ``sslverify`` and ``gpgcheck`` fields.  It does not inspect rendered or
+    previously built artifacts.
 
     Args:
         host: Testinfra host connection.
@@ -356,20 +402,46 @@ def check_repo_ssl_verify_applied(host, arch: str = "x86_64") -> Dict[str, Any]:
         return {
             "success": False,
             "ssl_verify": None,
-            "details": f"  Cannot determine repo_ssl_verify: {ssl_result['details']}",
+            "used_default": False,
+            "blocked_by_config": True,
+            "results": [],
+            "details": (
+                "  Cannot determine repo_ssl_verify: "
+                f"{ssl_result['details']}"
+            ),
         }
 
     ssl_verify = ssl_result["ssl_verify"]
+    used_default = ssl_result.get("used_default", False)
     expected_value = "1" if ssl_verify else "0"
 
-    # Check the OpenCHAMI image build log for sslverify setting
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
+    try:
+        source_root = resolve_target_source_root()
+    except ValueError as exc:
+        return {
+            "success": False,
+            "ssl_verify": ssl_verify,
+            "used_default": used_default,
+            "blocked_by_config": False,
+            "expected_value": expected_value,
+            "results": [],
+            "details": f"  Source path unavailable: {exc}",
+        }
+
+    # Inspect templates from the current checkout locally and clone_path
+    # only when tests execute against a remote OIM server.
+    template_dir = os.path.join(
+        source_root,
+        "src",
+        "image_build_manager",
+        "roles",
+        "build_os_images",
+        "templates",
+        "images",
+    )
     template_paths = [
-        f"{clone_path}/src/image_build_manager/roles/build_os_images/"
-        f"templates/images/rhel-base-config.yaml.j2",
-        f"{clone_path}/src/image_build_manager/roles/build_os_images/"
-        f"templates/images/rhel-compute-config.yaml.j2",
+        os.path.join(template_dir, "rhel-base-config.yaml.j2"),
+        os.path.join(template_dir, "rhel-compute-config.yaml.j2"),
     ]
 
     results = []
@@ -377,22 +449,36 @@ def check_repo_ssl_verify_applied(host, arch: str = "x86_64") -> Dict[str, Any]:
     for tpl in template_paths:
         cmd = host.run(CMDS["cat_file"].format(path=tpl))
         if cmd.rc == 0 and cmd.stdout.strip():
-            has_ssl_ref = "repo_ssl_verify" in cmd.stdout
+            missing_refs = [
+                ref for ref in (
+                    "repo_ssl_verify", "sslverify", "gpgcheck",
+                )
+                if ref not in cmd.stdout
+            ]
+            has_ssl_ref = not missing_refs
             results.append({
-                "template": tpl.split("/")[-1],
+                "template": os.path.basename(tpl),
                 "has_ssl_ref": has_ssl_ref,
+                "missing_refs": missing_refs,
             })
             if not has_ssl_ref:
                 all_ok = False
         else:
             results.append({
-                "template": tpl.split("/")[-1],
+                "template": os.path.basename(tpl),
                 "has_ssl_ref": False,
+                "missing_refs": [
+                    "repo_ssl_verify", "sslverify", "gpgcheck",
+                ],
             })
             all_ok = False
 
     lines = [
-        f"  repo_ssl_verify: {ssl_verify} (expected sslverify={expected_value})",
+        (
+            f"  repo_ssl_verify: {str(ssl_verify).lower()} "
+            f"({'runtime default' if used_default else 'explicit'}; "
+            f"expected sslverify={expected_value})"
+        ),
     ]
     for r in results:
         status = "references repo_ssl_verify" if r["has_ssl_ref"] else "MISSING reference"
@@ -401,6 +487,8 @@ def check_repo_ssl_verify_applied(host, arch: str = "x86_64") -> Dict[str, Any]:
     return {
         "success": all_ok,
         "ssl_verify": ssl_verify,
+        "used_default": used_default,
+        "blocked_by_config": False,
         "expected_value": expected_value,
         "results": results,
         "details": "\n".join(lines),

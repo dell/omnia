@@ -24,6 +24,7 @@
 # ============================================================================
 
 domain: "telemetry"
+type: "deploy"
 project_name: ""
 overall_status: ""
 generated_at: ""
@@ -33,57 +34,33 @@ kube_vip: ""
 packages:
   install_mode: ""
   repo_url: ""
-  container_registry: ""
 
 sinks:
-  kafka:
-    deployed: false
-    version: ""
-    topics_created: []
-  victoria_metrics:
-    deployed: false
-    version: ""
-    deployment_mode: ""
-    operator: ""
-  victoria_logs:
-    deployed: false
-    version: ""
+  kafka: "skipped"
+  victoria_metrics: "skipped"
+  victoria_logs: "skipped"
 
 sources:
   idrac:
-    deployed: false
-    version: ""
-    bmc_servers_configured: 0
+    metrics: "skipped"
   ldms:
-    deployed: false
-    version: ""
-    sampler_nodes: 0
-  ome:
-    deployed: false
+    metrics: "skipped"
   powerscale:
-    deployed: false
+    metrics: "skipped"
+    logs: "skipped"
   ufm:
-    deployed: false
+    metrics: "skipped"
+    logs: "skipped"
   vast:
-    deployed: false
-  sfm:
-    deployed: false
-  skyway:
-    deployed: false
-  powervault:
-    deployed: false
+    metrics: "skipped"
+    logs: "skipped"
+  ome:
+    metrics: "skipped"
+    logs: "skipped"
 
 bridges:
-  vector_ome:
-    deployed: false
-    version: ""
-    metrics_enabled: false
-    logs_enabled: false
-  vector_ldms:
-    deployed: false
-    version: ""
+  vector_ldms: "skipped"
+  vector_ome: "skipped"
 
-pods:
-  total: 0
-  ready: 0
-  failed: 0
+deploy_unreachable_nodes:
+  ldms: []

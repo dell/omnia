@@ -11,16 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# =============================================================================
-# Orchestrator — Test Credentials
-# =============================================================================
-# This file is auto-encrypted with Ansible Vault on first test run.
-# Fill in values below, then run tests — the file will be encrypted in-place.
-#
-# oim_password: SSH password for the remote target server (oim_server_ip).
-#               Leave empty if using passwordless SSH (key-based auth).
-# =============================================================================
-
 ---
-oim_password: ""
+
+- name: Run selected cleanup components
+  when: not (hostvars['localhost']['_cleanup_abort'] | bool)
+  block:
+    - name: Run selected source cleanups
+      ansible.builtin.include_tasks: cleanup_sources.yml
+
+    - name: Verify source pods terminated before sink cleanup
+      ansible.builtin.include_tasks: drain_sources.yml
+
+    - name: Run selected sink cleanups
+      ansible.builtin.include_tasks: cleanup_sinks.yml
+
+  rescue:
+    - name: Handle component cleanup failure
+      ansible.builtin.include_tasks: record_failure.yml

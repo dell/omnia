@@ -145,6 +145,17 @@ from .ldms_vars import (  # noqa: F401, E402
     LDMS_SAMPLER_CONF_PATH,
 )
 
+# LDMS Kafka verification behavior
+LDMS_KAFKA_LATEST_TIMEOUT_SECONDS = 90
+LDMS_KAFKA_EARLIEST_TIMEOUT_SECONDS = 60
+LDMS_KAFKA_CLOCK_SKEW_SECONDS = 10
+LDMS_KAFKA_LATEST_POLL_INTERVAL_SECONDS = 2
+LDMS_KAFKA_EARLIEST_POLL_INTERVAL_SECONDS = 0.3
+LDMS_KAFKA_OFFSET_LATEST = "latest"
+LDMS_KAFKA_OFFSET_EARLIEST = "earliest"
+LDMS_KAFKA_CONSUMER_GROUP_TEMPLATE = "ldms-{offset}-{suffix}"
+LDMS_KAFKA_CONSUMER_NAME_TEMPLATE = "{consumer_group}-consumer"
+
 # PowerScale (from deploy_powerscale/vars/main.yml)
 POWERSCALE_DEPLOY_NAME = "karavi-metrics-powerscale"
 POWERSCALE_OTEL_DEPLOY_NAME = "otel-collector"
