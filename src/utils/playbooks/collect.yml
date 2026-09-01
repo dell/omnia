@@ -99,5 +99,3 @@
   roles:
     - role: log_collector
       stage: bundle
-
-

@@ -227,5 +227,3 @@
         dest: "{{ _status_dir }}/install_os_status.yml"
         mode: "0644"
       failed_when: false
-
-
