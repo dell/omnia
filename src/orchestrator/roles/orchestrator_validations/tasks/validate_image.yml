@@ -99,6 +99,17 @@
     - _all_fg_entries | default([]) | length > 0
     - _fg_image_entry | default({}) | length == 0
 
+- name: Find matching FG entry (_first fallback — strip _first and retry)
+  ansible.builtin.set_fact:
+    _fg_image_entry: >-
+      {{ _all_fg_entries
+         | selectattr('functional_group', 'search', '^' + (_fg_prefix | regex_replace('_first$', '')) + '_.*' + _fg_arch + '$')
+         | list | first | default({}) }}
+  when:
+    - _all_fg_entries | default([]) | length > 0
+    - _fg_image_entry | default({}) | length == 0
+    - "'_first' in _fg_prefix"
+
 - name: Set kernel, initrd and image from build_status
   ansible.builtin.set_fact:
     kernel: "{{ _fg_image_entry.kernel | default('') }}"

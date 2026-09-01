@@ -13,20 +13,12 @@
 # limitations under the License.
 ---
 
-- name: Set mandatory credentials status
-  ansible.builtin.set_fact:
-    mandatory_credentials_status: true
+# System environment file path
+system_env_file: "/etc/omnia/omnia.env"
 
-- name: Notify user about mandatory inputs
-  ansible.builtin.debug:
-    msg: "{{ mandatory_warning_msg }}"
-
-- name: Fetch mandatory credentials
-  ansible.builtin.include_tasks: prompt_credentials.yml
-  loop: "{{ type.value }}"
-  loop_control:
-    loop_var: field
-
-- name: Reset mandatory credentials status
-  ansible.builtin.set_fact:
-    mandatory_credentials_status: false
+# Precheck messages
+precheck_omnia_env_not_installed_msg: >-
+  WARNING: omnia.env is not installed system-wide at {{ system_env_file }}.
+  Run omnia.sh --init to set up the environment.
+precheck_build_status_missing_msg: >-
+  WARNING: build_status.yml not found. Run image_build_manager first to build images.

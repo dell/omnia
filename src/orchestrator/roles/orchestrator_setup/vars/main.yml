@@ -27,30 +27,42 @@ default_catalog_file_path: "{{ lookup('env', 'CATALOG_FILE_PATH') | default(omni
 # --- Tag validation ---
 supported_tags:
   - precheck
+  - validate
+  - credentials
   - prepare
   - deploy
   - provision
+  - execute
+  - validate-deployment
   - pxeboot
   - cleanup
-  - validate
   - upgrade
   - rollback
 
 skip_credential_tags:
   - precheck
   - cleanup
+  - validate-deployment
   - validate
 
 invalid_tag_combinations:
   - [precheck, cleanup]
+  - [validate, cleanup]
+  - [validate-deployment, cleanup]
+  - [credentials, cleanup]
   - [prepare, cleanup]
   - [deploy, cleanup]
   - [provision, cleanup]
+  - [execute, cleanup]
   - [pxeboot, cleanup]
   - [precheck, upgrade]
+  - [validate, upgrade]
+  - [validate-deployment, upgrade]
+  - [credentials, upgrade]
   - [prepare, upgrade]
   - [deploy, upgrade]
   - [provision, upgrade]
+  - [execute, upgrade]
   - [cleanup, upgrade]
   - [upgrade, rollback]
 
