@@ -53,20 +53,25 @@ clone_path: "/omnia"            # MANDATORY — absolute path on target
 
 | Field | Required | Description | Default |
 |-------|----------|-------------|---------|
-| `dataset` | No | Empty = input from target's `$OMNIA_DATA_PATH/image_build_manager/input/<project>/`. Set to a generated dataset name for custom inputs. | `""` |
-| `project_name` | No | Omnia project name on the target. Must match `OMNIA_PROJECT_NAME` env var. Used for input/output path resolution. | `"project_default"` |
+| `dataset` | No | Empty selects canonical `src/` files as optional sync sources. A name selects only that generated dataset's `input/` and `repo_manager_output/`. | `""` |
 
-**Empty dataset (`dataset: ""`)**: The playbook reads input from the target
-server at `$OMNIA_DATA_PATH/image_build_manager/input/<project_name>/`.
-Files must already exist on the target. This is the production behavior.
+**Empty dataset (`dataset: ""`)**: With sync disabled, the playbook reads the
+files already present under the target's
+`$OMNIA_DATA_PATH/image_build_manager/input/<project>/`. With a sync option
+enabled, the corresponding canonical `src/image_build_manager` example is the
+local source.
 
 **Generated dataset (`dataset: "<name>"`)**: Create using the
 [dataset generator](../datasets/generator/README.md), then set the name here:
 
 ```bash
 cd datasets/generator/
-python generate_dataset.py <name> <profile>
+./generate_dataset.py profiles
+./generate_dataset.py create my_dataset --profile internet-config
 ```
+
+Setting the name does not itself copy files to the target. Enable the relevant
+sync option below for the scenario being executed.
 
 ### Sync Options
 
@@ -75,13 +80,34 @@ python generate_dataset.py <name> <profile>
 | `sync_image_build_input` | No | Push input files to target before tests | `false` |
 | `sync_output` | No | Push repo_manager_output to target | `false` |
 
-When `sync_image_build_input: true`, the framework syncs input files
-(from `src/` or the configured dataset) to the target server at
-`<OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/`.
+When `sync_image_build_input: true`, a non-empty dataset name syncs only
+`datasets/<name>/input/`; an empty name syncs canonical
+`src/image_build_manager/input/`. The destination is
+`<OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/` on the execution
+OIM. Credential files, keys, and backups are excluded.
 
-When `sync_output: true`, the framework syncs `repo_manager_output/`
-to the target. The remote path is derived from `repo_manager_output_path`
-in `image_build_config.yml`.
+When `sync_output: true`, a non-empty dataset name syncs only
+`datasets/<name>/repo_manager_output/`; an empty name syncs the canonical
+`src/image_build_manager/samples/repo_manager_output/` directory. The remote
+path is derived from `repo_manager_output_path` in `image_build_config.yml`.
+
+### Credentials
+
+`./setup_env.sh --set-creds` configures only the SSH password used to reach a
+remote OIM. S3/MinIO and optional ARM values use the separate encrypted domain
+credential store:
+
+```bash
+./setup_env.sh --set-domain-creds
+```
+
+Run that command from `test/image_build_manager` directly on the execution OIM
+with its `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` set for the runtime project.
+For remote execution, SSH to the target OIM and run it there. The framework
+never syncs the encrypted credential file, vault key, or backups. Domain values
+are never read from `test_creds.yml` or copied from a dataset. Full cleanup
+removes the runtime credential pair, so configure it again before the next
+credential-dependent run.
 
 ### Report Settings
 
@@ -100,7 +126,6 @@ oim_server_ip: "<target_ip>"
 oim_ssh_user: root
 clone_path: "/omnia"
 dataset: ""
-project_name: "project_default"
 sync_image_build_input: false
 sync_output: false
 ```
@@ -112,9 +137,8 @@ oim_server_ip: "<target_ip>"
 oim_ssh_user: root
 clone_path: "/omnia"
 dataset: "my_dataset"
-project_name: "project_default"
 sync_image_build_input: true
-sync_output: false
+sync_output: true
 ```
 
 ## Example — Local Mode

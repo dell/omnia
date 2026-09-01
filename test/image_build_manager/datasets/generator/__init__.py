@@ -11,7 +11,4 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
-description: "Production-like offline repositories with catalog package groups"
-repo_variant: "offline"
-patches: {}
+"""Image Build Manager dataset generation package."""
