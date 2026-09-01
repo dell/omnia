@@ -397,7 +397,7 @@ class TestDeployUseCase:
         assert updated_ig.status == ImageGroupStatus.DEPLOYING
 
     def test_submits_orchestrator_playbook(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):
-        """Submits orchestrator.yml playbook to queue."""
+        """Submits orchestrator.yml playbook to queue with provision tag."""
         job_id = JobId(_uuid())
         client_id = ClientId("test-client")
         job = _make_job(job_id, client_id)
@@ -418,6 +418,7 @@ class TestDeployUseCase:
         assert len(queue_service.submitted) == 1
         submitted = queue_service.submitted[0]
         assert str(submitted.playbook_path) == "orchestrator.yml"
+        assert submitted.tags == "provision"
         assert submitted.extra_vars.to_dict()["image_group_id"] == "test-cluster-v1"
 
     def test_emits_audit_event(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):

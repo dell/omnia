@@ -401,11 +401,9 @@ deploy:
 # Restart stage -- marks restart as complete via BSM API
 # Runs automatically after deploy completes
 #
-# NOTE (Omnia 2.3+): PXE boot is now handled implicitly by the orchestrator
-# playbook during the deploy stage.  The restart API immediately completes
-# the stage (no standalone playbook invocation).  This CI stage still calls
-# the API to ensure proper state transitions and audit trail, and uploads
-# config files for retry support.
+# NOTE (Omnia 2.3+): The restart stage invokes orchestrator.yml --tags pxeboot
+# to perform PXE boot on provisioned nodes.  The playbook execution is
+# asynchronous - this stage polls for completion.
 #
 # Can be skipped for VM deployments by setting SKIP_RESTART=true
 # ---------------------------------------------------------------------------
@@ -418,7 +416,7 @@ restart:
     - |
       echo "============================================================"
       echo "  RESTART STAGE"
-      echo "  (PXE boot retired — handled by orchestrator during deploy)"
+      echo "  (Invokes orchestrator.yml --tags pxeboot)"
       echo "============================================================"
       echo ""
       echo "  Job ID:         ${JOB_ID}"
@@ -461,22 +459,22 @@ restart:
       # Authenticate
       refresh_token
 
-      # Step 1/2: Common Init -- Upload ALL whitelisted config files (retry support)
-      echo "  Step 1/2: Common Init -- Upload configuration files..."
+      # Step 1/2: Common Init -- Upload orchestrator config files (retry support)
+      echo "  Step 1/2: Upload orchestrator config files..."
       echo "  ------------------------------------------------------------"
 
       refresh_input_files
 
       UPLOAD_ARGS=""
-      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
-             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
-             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
-        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
+      for FNAME in omnia_config.yml orchestrator_config.yml network_spec.yml \
+             security_config.yml storage_config.yml high_availability_config.yml \
+             additional_cloud_init.yml pxe_mapping_file.csv set_pxe_boot_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/orchestrator/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
-          echo "    [+] ${FNAME}"
+          echo "    [+] orchestrator/${FNAME}"
         else
-          echo "    [-] ${FNAME} (not found, skipping)"
+          echo "    [-] orchestrator/${FNAME} (not found, skipping)"
         fi
       done
 
@@ -497,11 +495,9 @@ restart:
       fi
       echo ""
 
-      # Step 2/2: Call Restart API (completes immediately — no playbook invocation)
-      echo "  Step 2/2: Mark restart stage as completed..."
+      # Step 2/2: Call Restart API and poll for completion
+      echo "  Step 2/2: Trigger restart and wait for completion..."
       echo "  ------------------------------------------------------------"
-      echo "  Note: PXE boot is now handled by the orchestrator playbook during deploy."
-      echo "  The restart API completes the stage immediately for state transition purposes."
       echo "  Endpoint: POST ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/restart"
       echo ""
 
@@ -522,53 +518,80 @@ restart:
 
       jq "." restart_response.json 2>/dev/null || cat restart_response.json
       echo ""
-      echo "  [OK] Restart stage completed"
+      echo "  [OK] Restart request accepted (orchestrator.yml --tags pxeboot)"
       echo ""
 
-      # Verify restart stage is COMPLETED (single poll — stage completes synchronously)
-      echo "  Verifying restart stage completion..."
+      # Poll for restart completion
+      echo "  Waiting for restart to complete..."
       echo "  ------------------------------------------------------------"
+      echo "  Polling interval: ${POLL_INTERVAL}s"
+      echo "  Max attempts: ${MAX_POLL_ATTEMPTS}"
+      echo ""
 
-      HTTP_CODE=$(api_call_with_retry status_response.json \
-        -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
-        --cacert "${BSM_CERT_FILE}")
-      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+      STAGE_COMPLETED=false
+      ATTEMPT=1
 
-      if [ "$HTTP_CODE" = "200" ]; then
+      while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
+        HTTP_CODE=$(api_call_with_retry status_response.json \
+          -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
+          --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] HTTP ${HTTP_CODE} - retrying..."
+          ATTEMPT=$((ATTEMPT + 1))
+          sleep "${POLL_INTERVAL}"
+          continue
+        fi
+
         RESTART_STATE=$(jq -r '.stages[]? | select(.stage_name == "restart") | .stage_state' status_response.json 2>/dev/null || echo "UNKNOWN")
         JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
-        echo "  Job: ${JOB_STATE} | Restart: ${RESTART_STATE}"
+
+        echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Restart: ${RESTART_STATE}"
 
         case "${RESTART_STATE}" in
           COMPLETED|SUCCEEDED)
-            echo "  [OK] Restart verified as completed"
+            STAGE_COMPLETED=true
+            echo ""
+            echo "  [OK] Restart completed successfully"
+            break
             ;;
           FAILED|CANCELLED)
             echo ""
             echo "  ERROR: Restart stage reached ${RESTART_STATE}"
             RESTART_ERR_CODE=$(jq -r '.stages[]? | select(.stage_name == "restart") | .error_code // "N/A"' status_response.json 2>/dev/null)
             RESTART_ERR_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "restart") | .error_summary // "N/A"' status_response.json 2>/dev/null)
+            RESTART_LOG_PATH=$(jq -r '.stages[]? | select(.stage_name == "restart") | .log_file_path // "N/A"' status_response.json 2>/dev/null)
             echo "  ------------------------------------------------------------"
             printf "  %-22s %s\n" "Error Code:"    "${RESTART_ERR_CODE}"
             printf "  %-22s %s\n" "Error Summary:" "${RESTART_ERR_SUMMARY}"
+            printf "  %-22s %s\n" "Log File Path:" "${RESTART_LOG_PATH}"
             echo "  ------------------------------------------------------------"
             exit 1
             ;;
-          *)
-            echo "  [WARN] Unexpected restart state: ${RESTART_STATE}"
-            ;;
         esac
-      else
-        echo "  [WARN] Status check returned HTTP ${HTTP_CODE}, continuing anyway"
-      fi
-      echo ""
 
+        ATTEMPT=$((ATTEMPT + 1))
+        sleep "${POLL_INTERVAL}"
+      done
+
+      if [ "$STAGE_COMPLETED" = "false" ]; then
+        echo "  ERROR: Restart polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        exit 1
+      fi
+
+      echo ""
       echo "  ============================================================"
       echo "  Restart Stage Result:"
       echo "  ============================================================"
+      RESTART_RESULT=$(jq -r \
+        '(first(.stages[]? | select(.stage_name == "restart") | .stage_state)) // "COMPLETED"' \
+        status_response.json 2>/dev/null || echo "COMPLETED")
+      JOB_STATE_RESTART=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
       printf "  %-22s %s\n" "Job ID:"         "${JOB_ID}"
       printf "  %-22s %s\n" "Image Group ID:" "${IMAGE_GROUP_ID}"
-      printf "  %-22s %s\n" "Restart State:"  "COMPLETED (PXE boot via orchestrator)"
+      printf "  %-22s %s\n" "Restart State:"  "${RESTART_RESULT}"
+      printf "  %-22s %s\n" "Job State:"      "${JOB_STATE_RESTART}"
       echo "  ============================================================"
 
       # Save variables for downstream stages using dotenv artifact

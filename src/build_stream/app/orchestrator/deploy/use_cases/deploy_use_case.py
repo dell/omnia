@@ -51,6 +51,7 @@ from orchestrator.deploy.commands.deploy_command import DeployCommand
 from orchestrator.deploy.dtos.deploy_response import DeployResponseDTO
 
 ORCHESTRATOR_PLAYBOOK_NAME = "orchestrator.yml"
+DEPLOY_PLAYBOOK_TAGS = "provision"
 DEFAULT_TIMEOUT_MINUTES = 60
 
 
@@ -263,6 +264,7 @@ class DeployUseCase:
             timeout=ExecutionTimeout(DEFAULT_TIMEOUT_MINUTES),
             submitted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             request_id=str(self._uuid_generator.generate()),
+            tags=DEPLOY_PLAYBOOK_TAGS,
         )
 
     def _submit_to_queue(

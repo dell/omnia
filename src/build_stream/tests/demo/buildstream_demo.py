@@ -1170,7 +1170,7 @@ class ParseCatalogDemo:
                 print("📋 Response Body:")
                 print(json.dumps(result, indent=2))
                 print("\n✅ Restart stage triggered!")
-                print("   The playbook watcher will execute set_pxe_boot.yml")
+                print("   The playbook watcher will execute orchestrator.yml --tags pxeboot")
 
                 # Show links if present
                 links = result.get("_links", {})
@@ -1178,6 +1178,17 @@ class ParseCatalogDemo:
                     print("\n📎 HATEOAS Links:")
                     for key, value in links.items():
                         print(f"   {key}: {value}")
+
+                # Poll for completion if async (202)
+                if response.status_code == 202:
+                    if not self._poll_stage_completion(
+                        "restart",
+                        label="Restart",
+                        timeout_seconds=3600,
+                        poll_interval=30,
+                    ):
+                        print("❌ Restart did not complete successfully")
+                        return False
 
                 # Get job info after restart
                 self.get_job_info()

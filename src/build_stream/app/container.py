@@ -309,12 +309,19 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         uuid_generator=uuid_generator,
     )
 
+    # --- Restart services ---
+    restart_queue_service = providers.Factory(
+        PlaybookQueueRequestService,
+        request_repo=playbook_queue_request_repository,
+    )
+
     create_restart_use_case = providers.Factory(
         CreateRestartUseCase,
         job_repo=job_repository,
         stage_repo=stage_repository,
         audit_repo=audit_repository,
         uuid_generator=uuid_generator,
+        queue_service=restart_queue_service,
     )
 
     validate_use_case = providers.Factory(
@@ -539,12 +546,19 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         uuid_generator=uuid_generator,
     )
 
+    # --- Restart services ---
+    restart_queue_service = providers.Factory(
+        PlaybookQueueRequestService,
+        request_repo=playbook_queue_request_repository,
+    )
+
     create_restart_use_case = providers.Factory(
         CreateRestartUseCase,
         job_repo=job_repository,
         stage_repo=stage_repository,
         audit_repo=audit_repository,
         uuid_generator=uuid_generator,
+        queue_service=restart_queue_service,
     )
 
     validate_use_case = providers.Factory(
