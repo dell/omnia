@@ -34,7 +34,7 @@
   tasks:
     - name: Run credential management
       ansible.builtin.include_role:
-        name: collect_orchestrator_credentials
+        name: orchestrator_credentials
       when:
         - not config_file_status | default(false) | bool
         - (omnia_run_tags | default([]) | intersect(skip_credential_tags | default([])) | length == 0)

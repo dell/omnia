@@ -159,11 +159,7 @@
 # =========================================================================
 
 - name: Collect orchestrator credentials
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - collect_orchestrator_credentials
+  ansible.builtin.import_playbook: credentials/orchestrator_credentials.yml
   tags:
     - credentials
 
