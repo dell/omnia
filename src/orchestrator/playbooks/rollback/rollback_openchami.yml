@@ -13,231 +13,35 @@
 # limitations under the License.
 ---
 
-# Rollback OpenCHAMI --- Revert from 0.2.0 to 0.1.7-1
-# Can be run standalone or imported by orchestrator.yml
+# Rollback OpenCHAMI -- Reserved for future use.
 #
-# Logic:
-#   1. Detect currently installed OpenCHAMI version
-#   2. If current version is 0.2.0:
-#      a. Stop services
-#      b. Locate latest backup
-#      c. Restore configuration and workdir from backup
-#      d. Restore SMD state from backup
-#      e. Start services with restored configuration
-#      f. Verify service health
-#   3. If already on 0.1.7-1: log informational message and exit
+# OpenCHAMI upgrade from v0.1.7-1 to v0.2.0 is a one-way migration.
+# Rolling back to v0.1.7-1 after upgrading to v0.2.0 is not supported
+# due to breaking schema and configuration changes.
 #
-# Idempotent and re-runnable.
+# This tag is reserved for future releases where rollback between
+# compatible versions may be supported.
 
-# Version detection
-- name: Detect OpenCHAMI version for rollback
-  hosts: oim
-  connection: ssh
-  gather_facts: true
-  tasks:
-    - name: Gather installed package facts
-      ansible.builtin.package_facts:
-        manager: rpm
-
-    - name: Set current OpenCHAMI version fact
-      ansible.builtin.set_fact:
-        openchami_current_version: >-
-          {{ (ansible_facts.packages['openchami'][0].version ~ '-' ~ ansible_facts.packages['openchami'][0].release)
-             if 'openchami' in (ansible_facts.packages | default({}))
-             else 'unknown' }}
-        openchami_rollback_target: "0.1.7-1"
-        cacheable: true
-
-    - name: Display current version
-      ansible.builtin.debug:
-        msg: "OpenCHAMI current version: {{ openchami_current_version }}"
-
-    - name: Already on rollback target version
-      ansible.builtin.debug:
-        msg: >-
-          OpenCHAMI is already at version {{ openchami_rollback_target }}.
-          No rollback needed.
-      when: openchami_current_version == openchami_rollback_target
-
-# Locate backup and restore
-- name: Locate latest backup and stop services
-  hosts: oim
-  connection: ssh
-  gather_facts: true
-  vars:
-    openchami_backup_base: /opt/omnia/openchami/backups
-    openchami_config_dir: /etc/openchami/configs
-    openchami_work_dir: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}/omnia/openchami/workdir"
-  tasks:
-    - name: Skip if already at rollback target
-      ansible.builtin.meta: end_play
-      when: openchami_current_version == openchami_rollback_target
-
-    - name: Find most recent backup directory
-      ansible.builtin.find:
-        paths: "{{ openchami_backup_base }}"
-        file_type: directory
-        patterns: "pre_upgrade_*"
-      register: backup_dirs
-
-    - name: Fail if no backup found
-      ansible.builtin.fail:
-        msg: >-
-          No backup directory found under {{ openchami_backup_base }}.
-          Cannot rollback without a prior upgrade backup.
-      when: backup_dirs.files | length == 0
-
-    - name: Set latest backup path
-      ansible.builtin.set_fact:
-        rollback_backup_dir: "{{ (backup_dirs.files | sort(attribute='mtime', reverse=true) | first).path }}"
-
-    - name: Display rollback source
-      ansible.builtin.debug:
-        msg: "Rolling back from backup {{ rollback_backup_dir }}"
-
-    - name: Stop OpenCHAMI services
-      ansible.builtin.systemd:
-        name: openchami.target
-        state: stopped
-      failed_when: false
-
-    - name: Wait for services to stop
-      ansible.builtin.pause:
-        seconds: 10
-        prompt: "Waiting for OpenCHAMI services to stop..."
-
-    - name: Restore OpenCHAMI config directory from backup
-      ansible.builtin.copy:
-        src: "{{ rollback_backup_dir }}/configs/"
-        dest: "{{ openchami_config_dir }}/"
-        remote_src: true
-        mode: preserve
-      when: rollback_backup_dir is defined
-
-    - name: Restore workdir from backup
-      ansible.builtin.copy:
-        src: "{{ rollback_backup_dir }}/workdir/"
-        dest: "{{ openchami_work_dir }}/"
-        remote_src: true
-        mode: preserve
-      when: rollback_backup_dir is defined
-      failed_when: false
-
-    - name: Start OpenCHAMI services with restored configuration
-      ansible.builtin.systemd:
-        name: openchami.target
-        state: started
-        daemon_reload: true
-
-    - name: Wait for services to stabilize
-      ansible.builtin.pause:
-        seconds: 30
-        prompt: "Waiting for OpenCHAMI services to stabilize after rollback..."
-
-# Restore SMD state
-- name: Restore SMD state from backup
-  hosts: oim
-  connection: ssh
-  gather_facts: false
-  tasks:
-    - name: Skip if already at rollback target
-      ansible.builtin.meta: end_play
-      when: openchami_current_version == openchami_rollback_target
-
-    - name: Authenticate to OpenCHAMI
-      ansible.builtin.include_role:
-        name: orchestrator_common
-        tasks_from: openchami_auth.yml
-
-    - name: Check if SMD components backup exists
-      ansible.builtin.stat:
-        path: "{{ rollback_backup_dir }}/smd/components.json"
-      register: smd_components_backup
-
-    - name: Restore SMD components from backup
-      ansible.builtin.shell: |
-        set -o pipefail
-        ochami smd component add --payload "{{ rollback_backup_dir }}/smd/components.json" --force
-      environment: "{{ ochami_env | default({}) }}"
-      when: smd_components_backup.stat.exists
-      changed_when: true
-      failed_when: false
-
-    - name: Check if SMD groups backup exists
-      ansible.builtin.stat:
-        path: "{{ rollback_backup_dir }}/smd/groups.json"
-      register: smd_groups_backup
-
-    - name: Restore SMD groups from backup
-      ansible.builtin.shell: |
-        set -o pipefail
-        ochami smd group add --payload "{{ rollback_backup_dir }}/smd/groups.json" --force
-      environment: "{{ ochami_env | default({}) }}"
-      when: smd_groups_backup.stat.exists
-      changed_when: true
-      failed_when: false
-
-# Post-rollback verification
-- name: Verify OpenCHAMI health post-rollback
-  hosts: oim
-  connection: ssh
-  gather_facts: false
-  tasks:
-    - name: Skip if already at rollback target (no rollback performed)
-      ansible.builtin.meta: end_play
-      when: openchami_current_version == openchami_rollback_target
-
-    - name: Authenticate to OpenCHAMI
-      ansible.builtin.include_role:
-        name: orchestrator_common
-        tasks_from: openchami_auth.yml
-
-    - name: Verify openchami.target is active
-      ansible.builtin.systemd:
-        name: openchami.target
-      register: openchami_target_post
-      failed_when: openchami_target_post.status.ActiveState != "active"
-
-    - name: Verify SMD API health
-      ansible.builtin.command: ochami smd service status
-      environment: "{{ ochami_env | default({}) }}"
-      register: smd_post_status
-      retries: 5
-      delay: 10
-      until: smd_post_status.rc == 0
-      changed_when: false
-
-    - name: Verify boot-service health
-      ansible.builtin.systemd:
-        name: boot-service.service
-      register: boot_service_post_status
-      retries: 5
-      delay: 10
-      until: boot_service_post_status.status.ActiveState == "active"
-      changed_when: false
-
-    - name: Post-rollback health summary
-      ansible.builtin.debug:
-        msg: >-
-          OpenCHAMI rollback health check passed.
-          openchami.target={{ openchami_target_post.status.ActiveState }},
-          SMD={{ 'OK' if smd_post_status.rc == 0 else 'FAIL' }},
-          Boot-Service={{ 'OK' if boot_service_post_status.status.ActiveState == 'active' else 'FAIL' }}.
-          Restored from {{ rollback_backup_dir }}.
-
-# Finalize
-- name: Finalize OpenCHAMI rollback
+- name: Rollback OpenCHAMI (reserved for future use)
   hosts: localhost
   connection: local
   gather_facts: false
   tasks:
-    - name: Remove upgrade lock file if present
-      ansible.builtin.file:
-        path: "/opt/omnia/.data/upgrade_in_progress.lock"
-        state: absent
+    - name: Rollback not supported
+      ansible.builtin.fail:
+        msg: |
+          ============================================================
+          ROLLBACK NOT SUPPORTED
+          ============================================================
+          OpenCHAMI rollback is not supported in this release.
 
-    - name: OpenCHAMI rollback completed
-      ansible.builtin.debug:
-        msg: >-
-          OpenCHAMI rollback completed. Services restored from backup.
-          Re-run provisioning playbooks if node configuration needs refreshing.
+          The upgrade from v0.1.7-1 to v0.2.0 is a one-way migration
+          with breaking schema and configuration changes. Rolling back
+          to v0.1.7-1 after upgrading is not possible.
+
+          If you need to restore a previous state, please use a full
+          system backup taken before the upgrade.
+
+          This tag is reserved for future releases where rollback
+          between compatible versions may be supported.
+          ============================================================
