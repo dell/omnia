@@ -16,12 +16,13 @@ Restrict execution and runtime files to trusted administrators.
 | Certificate | Generated under `<REPO_MANAGER_DATA_PATH>/pulp_config/settings/certs/` |
 | Container TLS port | `443` |
 | Host port | User-selected `pulp_server_port` |
-| CLI verification | Uses the generated CA through the managed Pulp CLI launcher |
+| CLI verification | Uses the generated CA through the system and venv managed Pulp CLI paths |
 | Host trust | Installs `omnia-pulp.crt` in the RHEL CA trust store |
 
 Users do not configure protocol or certificate paths in the endpoint input. The
-managed `pulp` command supplies the CA automatically; a persistent shell export
-of `PULP_CA_BUNDLE` is not required.
+managed `pulp` command supplies the CA automatically both inside and outside the
+Omnia virtual environment; a persistent shell export of `PULP_CA_BUNDLE` is not
+required.
 
 The generated private key is a path in `repo_status.yml`, never the key content.
 

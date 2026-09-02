@@ -312,10 +312,14 @@ def determine_function(
 
         raise ValueError(f"Unknown task type: {task_type}")
     except Exception as e:
-        raise RuntimeError(f"Failed to determine function for task: {str(e)}")
+        raise RuntimeError(
+            f"Failed to determine function for task: {str(e)}"
+        ) from e
 
 
-def generate_pretty_table(task_results, total_duration, overall_status, slogger):
+def generate_pretty_table(
+        task_results, total_duration, overall_status, slogger,
+        architecture=None, software=None):
     """
     Generates a pretty table with the task results, total duration, and overall status.
 
@@ -338,6 +342,12 @@ def generate_pretty_table(task_results, total_duration, overall_status, slogger)
         slogger.info(f"Received {len(task_results)} task results for table generation")
 
         table = PrettyTable(["Task", "Status", "LogFile"])
+        if architecture and software:
+            software_label = (
+                ", ".join(software)
+                if isinstance(software, list) else str(software)
+            )
+            table.title = f"{architecture} / {software_label}"
         for result in task_results:
             # Handle missing keys gracefully
             task_data = result.get("task", {})
@@ -462,8 +472,8 @@ def main():
         "repo_store_path": {"type": "str", "required": False, "default": DEFAULT_REPO_STORE_PATH},
         "software": {"type": "list", "elements": "str", "required": True},
         "user_json_file": {"type": "str", "required": False, "default": ""},
-        "cluster_os_type": {"type": "str", "required": False, "default": "rhel"},
-        "cluster_os_version": {"type": "str", "required": False, "default": "10.0"},
+        "cluster_os_type": {"type": "str", "required": False},
+        "cluster_os_version": {"type": "str", "required": False},
         "repo_config_policy": {"type": "str", "required": False, "default": "partial"},
         "show_softwares_status": {"type": "bool", "required": False, "default": False},
         "overall_status_dict": {"type": "dict", "required": True},
@@ -531,9 +541,17 @@ def main():
 
     try:
         # Build user_data from catalog config and module params.
-        cluster_os_type = module.params.get("cluster_os_type", "rhel")
-        cluster_os_version = module.params.get("cluster_os_version", "10.0")
+        cluster_os_type = module.params.get("cluster_os_type")
+        cluster_os_version = module.params.get("cluster_os_version")
         repo_config_policy = module.params.get("repo_config_policy", "partial")
+
+        if not cluster_os_type or not cluster_os_version or not arc:
+            module.fail_json(
+                msg=(
+                    "cluster_os_type, cluster_os_version and arch are required "
+                    "for package execution"
+                )
+            )
 
         if user_json_file and os.path.isfile(user_json_file):
             user_data = load_json(user_json_file)
@@ -556,7 +574,7 @@ def main():
                 # Build softwares list from catalog Groups for version variable extraction
                 for catalog in catalogs:
                     for group_name, group_def in catalog.get("groups", {}).items():
-                        sw_entry = {"name": group_name, "arch": [arc] if arc else ["x86_64"]}
+                        sw_entry = {"name": group_name, "arch": [arc]}
                         # Extract version if available in group definition
                         if isinstance(group_def, dict) and group_def.get("version"):
                             sw_entry["version"] = group_def["version"]
@@ -564,7 +582,7 @@ def main():
             except Exception as catalog_err:
                 slogger.warning(f"Could not load catalog for version variables: {catalog_err}")
 
-        subgroup_dict, software_names = get_subgroup_dict(user_data, slogger)
+        _, software_names = get_subgroup_dict(user_data, slogger)
         version_variables = set_version_variables(
             user_data, software_names, cluster_os_version, slogger
         )
@@ -601,7 +619,10 @@ def main():
         slogger.info(f"Total execution time: {total_duration}")
         slogger.info(f"Task results: {task_results}")
 
-        table_output = generate_pretty_table(task_results, total_duration, overall_status, slogger)
+        table_output = generate_pretty_table(
+            task_results, total_duration, overall_status, slogger,
+            architecture=arc, software=software
+        )
         log_table_output(table_output, log_file)
         result["total_duration"] = total_duration
         result["task_results"] = task_results

@@ -120,13 +120,19 @@ def main():
             'type': 'str', 'required': False,
             'default': os.path.join(REPO_MANAGER_LOG_DIR, 'thread_logs')
         },
-        'key_path': {'type': 'str', 'required': True}
+        'key_path': {'type': 'str', 'required': True},
+        'cluster_os_version': {'type': 'str', 'required': True},
+        'architectures': {
+            'type': 'list', 'elements': 'str', 'required': True
+        }
     },
     supports_check_mode=False
     )
     mode = module.params['mode']
     log_dir = module.params["log_dir"]
     vault_key_path = module.params["key_path"]
+    cluster_os_version = module.params["cluster_os_version"]
+    architectures = module.params["architectures"]
     log = setup_standard_logger(log_dir)
 
     start_time = datetime.now().strftime("%I:%M:%S %p")
@@ -136,12 +142,9 @@ def main():
     local_repo_path = os.path.join(vault_key_path, "repo_manager_config.yml")
     local_repo_config = load_yaml_file(local_repo_path)
     
-    # Get cluster OS version from config
-    cluster_os_version = local_repo_config.get("cluster_os_version", "10.0")
-    
     # Collect all repos with certificates from new structure
     all_repos_with_certs = []
-    for arch in ["x86_64", "aarch64"]:
+    for arch in architectures:
         repos_section = get_repos_section(local_repo_config, cluster_os_version, arch)
         for repo_name, repo_config in iterate_all_repos(repos_section):
             if repo_config and isinstance(repo_config, dict):

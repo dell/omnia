@@ -21,7 +21,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-VALID_PACKAGE_TYPES = {'rpm', 'tarball', 'image', 'rpm_repo', 'git', 'manifest', 'pip_module'}
+VALID_PACKAGE_TYPES = {'rpm', 'tarball', 'image', 'rpm_repo'}
 
 
 def _validate_schema(catalog, schema):
@@ -212,22 +212,6 @@ def _validate_business_rules(catalog):
                     issues.append({
                         'severity': 'error',
                         'message': f"Package '{pkg_key}' (image) source missing 'registry'"
-                    })
-
-        if pkg_type == 'git':
-            for src in sources:
-                if not src.get('url'):
-                    issues.append({
-                        'severity': 'error',
-                        'message': f"Package '{pkg_key}' (git) source missing 'url'"
-                    })
-
-        if pkg_type == 'manifest':
-            for src in sources:
-                if not src.get('url'):
-                    issues.append({
-                        'severity': 'error',
-                        'message': f"Package '{pkg_key}' (manifest) source missing 'url'"
                     })
 
     # Check for orphan packages (in packages{} but unreferenced by any group)

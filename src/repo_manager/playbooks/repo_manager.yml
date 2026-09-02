@@ -33,7 +33,7 @@
 #   # Prepare credentials and deploy the Pulp server.
 #   # If pulp_password is omitted, Repo Manager collects or reuses credentials.
 #   ansible-playbook repo_manager.yml --tags prepare
-#   ansible-playbook repo_manager.yml --tags prepare -e "pulp_password=your_password"
+#   ansible-playbook repo_manager.yml --tags prepare -e "pulp_password=CHANGEME"
 #
 #   # Collect or update credentials without deploying Pulp.
 #   ansible-playbook repo_manager.yml --tags credentials
@@ -130,8 +130,6 @@
 #   ansible-playbook repo_manager.yml --tags catalog_add -e "input_file=input/additions.txt"
 #   ansible-playbook repo_manager.yml --tags catalog_delete -e "input_file=input/removals.txt"
 #   ansible-playbook repo_manager.yml --tags catalog_validate
-#   ansible-playbook repo_manager.yml --tags catalog_transform -e "input_file=input/catalog_1.0.json"
-#   ansible-playbook repo_manager.yml --tags catalog_optimize
 # =============================================================================
 # yamllint enable rule:line-length
 
@@ -289,5 +287,3 @@
     - catalog_add
     - catalog_delete
     - catalog_validate
-    - catalog_transform
-    - catalog_optimize

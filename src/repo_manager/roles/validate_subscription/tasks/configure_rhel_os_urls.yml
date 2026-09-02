@@ -2,418 +2,253 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 ---
 
-- name: Set subscription flag and project input path
+- name: Set catalog-selected repository context
   ansible.builtin.set_fact:
-    subscription_status_flag: "{{ subscription_status | default(false) }}"
-    project_input_path: "{{ input_project_dir }}"
-    arch: "x86_64"
+    subscription_status_flag: "{{ subscription_status | default(false) | bool }}"
+    archs: "{{ selected_architectures }}"
+    referenced_repos_by_arch: "{{ catalog_context.referenced_repositories }}"
 
-- name: Load local_repo_config.yml
+- name: Load Repo Manager repository configuration
   ansible.builtin.include_vars:
     file: "{{ local_repo_config_path }}"
     name: local_config
 
-- name: Get catalog path from environment variable
-  ansible.builtin.set_fact:
-    catalog_file_path: "{{ lookup('env', 'CATALOG_FILE_PATH') }}"
+- name: Validate catalog version and architectures exist in repository configuration
+  ansible.builtin.assert:
+    that:
+      - cluster_os_version in (local_config.repositories | default({}))
+      - >-
+        arch_item in
+        (local_config.repositories.get(cluster_os_version, {}) | default({}))
+    fail_msg: >-
+      Catalog-selected repository configuration is missing for RHEL
+      {{ cluster_os_version }} / {{ arch_item }}.
+  loop: "{{ archs }}"
+  loop_control:
+    loop_var: arch_item
 
-- name: Load catalog JSON to extract architectures from functionallayer names
+- name: Initialize flattened repository configuration
   ansible.builtin.set_fact:
-    catalog_json: "{{ lookup('file', catalog_file_path) | from_json }}"
-  when: catalog_file_path | length > 0
+    configured_repos_by_arch: {}
 
-- name: Extract architectures from functionallayer names (e.g., service_kube_control_plane_rhel_10_0_x86_64)
+- name: Flatten configured repository sections for selected architectures
   ansible.builtin.set_fact:
-    archs: >-
-      {%- set arch_list = [] -%}
-      {%- if catalog_json is defined and catalog_json.catalog is defined and catalog_json.catalog.functionallayer is defined -%}
-        {%- for fl in catalog_json.catalog.functionallayer -%}
-          {%- set fl_name = fl.name | default('') -%}
-          {%- if fl_name.endswith('_x86_64') and 'x86_64' not in arch_list -%}
-            {%- set _ = arch_list.append('x86_64') -%}
-          {%- elif fl_name.endswith('_aarch64') and 'aarch64' not in arch_list -%}
-            {%- set _ = arch_list.append('aarch64') -%}
+    configured_repos_by_arch: >-
+      {{ configured_repos_by_arch | combine({arch_item: flattened_repos}) }}
+  vars:
+    arch_repos: >-
+      {{ local_config.repositories.get(cluster_os_version, {}).get(arch_item, {}) }}
+    top_level_repos: >-
+      {{ arch_repos | dict2items |
+         rejectattr('key', 'in', ['user_repos', 'additional_repos']) |
+         items2dict }}
+    flattened_repos: >-
+      {{ top_level_repos |
+         combine(arch_repos.get('user_repos', {}) | default({})) |
+         combine(arch_repos.get('additional_repos', {}) | default({})) }}
+  loop: "{{ archs }}"
+  loop_control:
+    loop_var: arch_item
+
+- name: Calculate repositories that require explicit URLs
+  ansible.builtin.set_fact:
+    invalid_explicit_repos_by_arch: >-
+      {%- set result = {} -%}
+      {%- for architecture in archs -%}
+        {%- set invalid = [] -%}
+        {%- set referenced = referenced_repos_by_arch.get(architecture, []) -%}
+        {%- set subscription_allowed = required_repos_by_arch.get(architecture, [])
+            if subscription_status_flag else [] -%}
+        {%- set configured = configured_repos_by_arch.get(architecture, {}) -%}
+        {%- for repo_name in referenced | difference(subscription_allowed) -%}
+          {%- set repo_config = configured.get(repo_name, {}) -%}
+          {%- if repo_config is not mapping or
+                 (repo_config.get('url', '') | default('', true) | trim | length) == 0 -%}
+            {%- set _ = invalid.append(repo_name) -%}
           {%- endif -%}
         {%- endfor -%}
-      {%- endif -%}
-      {%- if arch_list | length == 0 -%}
-        {%- set _ = arch_list.append('x86_64') -%}
-      {%- endif -%}
-      {{ arch_list }}
-  when: catalog_json is defined
+        {%- set _ = result.update({architecture: invalid}) -%}
+      {%- endfor -%}
+      {{ result }}
 
-- name: Set default architectures if catalog not loaded
+- name: Fail when a referenced repository has no explicit URL
+  ansible.builtin.fail:
+    msg: >-
+      Repository URLs are required for RHEL {{ cluster_os_version }} /
+      {{ arch_item }}: {{ invalid_explicit_repos_by_arch[arch_item] | join(', ') }}.
+      Only catalog-referenced subscription repositories may omit URLs when a
+      RHEL subscription is enabled.
+  when: invalid_explicit_repos_by_arch[arch_item] | length > 0
+  loop: "{{ archs }}"
+  loop_control:
+    loop_var: arch_item
+
+- name: Initialize subscription repository results
   ansible.builtin.set_fact:
-    archs: "{{ ['x86_64'] }}"
-  when: catalog_json is not defined
+    sub_rhel_x86_64_urls: []
+    sub_rhel_aarch64_urls: []
 
-- name: Debug extracted architectures
-  ansible.builtin.debug:
-    msg: "Extracted architectures from catalog FunctionalLayer: {{ archs }}"
-
-# 2️ Process repo configs for each architecture
-- name: Process repo configs for each arch
-  when: subscription_status_flag
+- name: Build catalog-required repositories from subscription URLs
+  when:
+    - subscription_status_flag
+    - required_repos | length > 0
   block:
-    - name: Ensure rhel_repo_certs directory exists
-      ansible.builtin.file:
-        path: "{{ omnia_rhel_cert_dir }}"
-        state: directory
-        mode: "{{ dir_permissions_755 | default('0755') }}"
+    - name: Find copied subscription certificate files
+      ansible.builtin.find:
+        paths: "{{ omnia_rhel_cert_dir }}"
+        patterns: "*.pem"
+        file_type: file
+      register: copied_subscription_certificates
 
-    - name: Copy entitlement certs from container secret mount
-      ansible.builtin.copy:
-        src: "{{ item }}"
-        dest: "{{ omnia_rhel_cert_dir }}/"
-        mode: "{{ file_permissions_644 | default('0644') }}"
-        remote_src: true
-      loop: "{{ query('fileglob', '/run/secrets/etc-pki-entitlement/*.pem') | default([]) }}"
-      when: "'/run/secrets/etc-pki-entitlement' is directory"
-
-    - name: Copy Red Hat UEP cert from container secret mount
-      ansible.builtin.copy:
-        src: "/run/secrets/rhsm/ca/redhat-uep.pem"
-        dest: "{{ omnia_rhel_cert_dir }}/redhat-uep.pem"
-        mode: "{{ file_permissions_644 | default('0644') }}"
-        remote_src: true
-      when: "'/run/secrets/rhsm/ca/redhat-uep.pem' is file"
-
-    - name: Set variables for repo build
+    - name: Select subscription client certificate and key
       ansible.builtin.set_fact:
-        subscription_status_flag: "{{ subscription_status }}"
-        repo_base_urls: "{{ repo_baseurls }}"
-        sslcacert: "{{ omnia_rhel_cert_dir }}/redhat-uep.pem"
-        sslclientkey: "{{ lookup('pipe', 'ls {{ omnia_rhel_cert_dir }}/*-key.pem | head -n1') }}"
-        sslclientcert: "{{ lookup('pipe', 'ls {{ omnia_rhel_cert_dir }}/*.pem | grep -v -- -key.pem | head -n1') }}"
-        sub_rhel_x86_64_urls: []
-        sub_rhel_aarch64_urls: []
-        # Subscription-discovered repositories inherit the same global policy
-        # settings as repositories with configured URLs. Per-repository values
-        # are merged below and take precedence over these defaults.
-        sub_policy_default: "{{ local_config.repo_config | default('partial') }}"
-        sub_caching_default: "{{ local_config.caching_policy | default(true) | bool }}"
-        sub_x86_64_override_config: >-
-          {{ local_config.get('repositories', {}).get(cluster_os_version, {}).get('x86_64', {}) }}
-        sub_aarch64_override_config: >-
-          {{ local_config.get('repositories', {}).get(cluster_os_version, {}).get('aarch64', {}) }}
+        subscription_client_keys: >-
+          {{ copied_subscription_certificates.files |
+             selectattr('path', 'search', '-key\.pem$') |
+             map(attribute='path') | list }}
+        subscription_client_certs: >-
+          {{ copied_subscription_certificates.files |
+             rejectattr('path', 'search', '-key\.pem$') |
+             rejectattr('path', 'equalto', omnia_rhel_cert_dir + '/redhat-uep.pem') |
+             map(attribute='path') | list }}
 
-    - name: Append repo entries to x86_64 list
+    - name: Validate copied subscription certificates
+      ansible.builtin.assert:
+        that:
+          - subscription_client_keys | length > 0
+          - subscription_client_certs | length > 0
+          - (omnia_rhel_cert_dir + '/redhat-uep.pem') is file
+        fail_msg: >-
+          RHEL subscription certificates required by Repo Manager are missing
+          from {{ omnia_rhel_cert_dir }}.
+
+    - name: Build x86_64 subscription repository list
       ansible.builtin.set_fact:
-        sub_rhel_x86_64_urls: "{{ sub_rhel_x86_64_urls + [repo_entry] }}"
+        sub_rhel_x86_64_urls: "{{ sub_rhel_x86_64_urls + [subscription_repo] }}"
       vars:
-        repo_entry: >-
-          {{
-            {
-              'url' : repo_url,
-              'gpgkey' : '',
-              'sslcacert' : sslcacert,
-              'sslclientkey' : sslclientkey,
-              'sslclientcert': sslclientcert,
-              'policy': sub_policy_default,
-              'caching': sub_caching_default,
-              'name': (
-                'appstream' if 'appstream' in repo_url else
-                'baseos' if 'baseos' in repo_url else
-                'codeready-builder' if 'codeready-builder' in repo_url else
-                omit
-              )
-            }
-          }}
-      loop: "{{ repo_base_urls }}"
+        repo_name: >-
+          {{ 'appstream' if 'appstream' in repo_url else
+             'baseos' if 'baseos' in repo_url else
+             'codeready-builder' if 'codeready-builder' in repo_url else '' }}
+        configured_repo: >-
+          {{ configured_repos_by_arch.get('x86_64', {}).get(repo_name) |
+             default({}, true) }}
+        subscription_repo:
+          name: "{{ repo_name }}"
+          url: "{{ repo_url }}"
+          gpgkey: "{{ configured_repo.get('gpgkey', '') | default('', true) }}"
+          policy: >-
+            {{ configured_repo.get(
+                 'policy', local_config.repo_config | default('partial')) |
+               default(local_config.repo_config | default('partial'), true) }}
+          caching: >-
+            {{ configured_repo.get(
+                 'caching', local_config.caching_policy | default(true)) | bool }}
+          priority: "{{ configured_repo.get('priority') | default(none) }}"
+          sslcacert: "{{ omnia_rhel_cert_dir }}/redhat-uep.pem"
+          sslclientcert: "{{ subscription_client_certs | first }}"
+          sslclientkey: "{{ subscription_client_keys | first }}"
+      loop: "{{ repo_baseurls | default([]) }}"
       loop_control:
         loop_var: repo_url
-
-    - name: Build aarch64 repo entries from x86_64 list
-      ansible.builtin.set_fact:
-        sub_rhel_aarch64_urls: "{{ sub_rhel_aarch64_urls | default([]) + [{'url': item.url | replace('x86_64', 'aarch64'),
-          'name': item.name | replace('x86_64', 'aarch64'),
-          'gpgkey': item.gpgkey,
-          'policy': item.policy,
-          'caching': item.caching,
-          'sslcacert': item.sslcacert,
-          'sslclientcert': item.sslclientcert,
-          'sslclientkey': item.sslclientkey}] }}"
-      loop: "{{ sub_rhel_x86_64_urls }}"
-      loop_control:
-        loop_var: item
-
-    - name: Determine effective subscription repository names for selected architectures
-      ansible.builtin.set_fact:
-        effective_rhel_x86_64_names: >-
-          {%- set names = sub_rhel_x86_64_urls | map(attribute='name') | list -%}
-          {%- for repo_name in required_repos -%}
-            {%- set repo_config = sub_x86_64_override_config.get(repo_name, {}) -%}
-            {%- if repo_config is mapping and
-                   (repo_config.get('url', '') | default('', true) | length) > 0 and
-                   repo_name not in names -%}
-              {%- set _ = names.append(repo_name) -%}
-            {%- endif -%}
-          {%- endfor -%}
-          {{ names }}
-        effective_rhel_aarch64_names: >-
-          {%- set names = sub_rhel_aarch64_urls | map(attribute='name') | list -%}
-          {%- for repo_name in required_repos -%}
-            {%- set repo_config = sub_aarch64_override_config.get(repo_name, {}) -%}
-            {%- if repo_config is mapping and
-                   (repo_config.get('url', '') | default('', true) | length) > 0 and
-                   repo_name not in names -%}
-              {%- set _ = names.append(repo_name) -%}
-            {%- endif -%}
-          {%- endfor -%}
-          {{ names }}
-
-    - name: Fail when a selected architecture is missing required RHEL repositories
-      ansible.builtin.fail:
-        msg: >-
-          RHEL subscription and explicit configuration together do not provide
-          {{ required_repos | difference(effective_repo_names) | join(', ') }}
-          for architecture {{ arch_item }}.
-      vars:
-        effective_repo_names: >-
-          {{ effective_rhel_x86_64_names if arch_item == 'x86_64'
-             else effective_rhel_aarch64_names }}
-      when:
-        - arch_item in archs
-        - required_repos | difference(effective_repo_names) | length > 0
-      loop: "{{ ['x86_64', 'aarch64'] }}"
-      loop_control:
-        loop_var: arch_item
-
-    - name: Verify discovered x86_64 subscription repository metadata
-      ansible.builtin.uri:
-        url: "{{ item.url | regex_replace('/+$', '') }}/repodata/repomd.xml"
-        method: GET
-        status_code: 200
-        return_content: false
-        validate_certs: true
-        ca_path: "{{ item.sslcacert }}"
-        client_cert: "{{ item.sslclientcert }}"
-        client_key: "{{ item.sslclientkey }}"
-        timeout: 30
-      loop: "{{ sub_rhel_x86_64_urls }}"
       when:
         - "'x86_64' in archs"
+        - repo_name in required_repos_by_arch.x86_64
         - >-
-          (sub_x86_64_override_config.get(item.name, {}).get('url', '')
-           | default('', true) | length) == 0
+          (configured_repo.get('url', '') | default('', true) | trim | length) == 0
 
-    - name: Verify discovered aarch64 subscription repository metadata
-      ansible.builtin.uri:
-        url: "{{ item.url | regex_replace('/+$', '') }}/repodata/repomd.xml"
-        method: GET
-        status_code: 200
-        return_content: false
-        validate_certs: true
-        ca_path: "{{ item.sslcacert }}"
-        client_cert: "{{ item.sslclientcert }}"
-        client_key: "{{ item.sslclientkey }}"
-        timeout: 30
-      loop: "{{ sub_rhel_aarch64_urls }}"
+    - name: Build aarch64 subscription repository list
+      ansible.builtin.set_fact:
+        sub_rhel_aarch64_urls: "{{ sub_rhel_aarch64_urls + [subscription_repo] }}"
+      vars:
+        repo_name: >-
+          {{ 'appstream' if 'appstream' in repo_url else
+             'baseos' if 'baseos' in repo_url else
+             'codeready-builder' if 'codeready-builder' in repo_url else '' }}
+        configured_repo: >-
+          {{ configured_repos_by_arch.get('aarch64', {}).get(repo_name) |
+             default({}, true) }}
+        subscription_repo:
+          name: "{{ repo_name }}"
+          url: "{{ repo_url | replace('x86_64', 'aarch64') }}"
+          gpgkey: "{{ configured_repo.get('gpgkey', '') | default('', true) }}"
+          policy: >-
+            {{ configured_repo.get(
+                 'policy', local_config.repo_config | default('partial')) |
+               default(local_config.repo_config | default('partial'), true) }}
+          caching: >-
+            {{ configured_repo.get(
+                 'caching', local_config.caching_policy | default(true)) | bool }}
+          priority: "{{ configured_repo.get('priority') | default(none) }}"
+          sslcacert: "{{ omnia_rhel_cert_dir }}/redhat-uep.pem"
+          sslclientcert: "{{ subscription_client_certs | first }}"
+          sslclientkey: "{{ subscription_client_keys | first }}"
+      loop: "{{ repo_baseurls | default([]) }}"
+      loop_control:
+        loop_var: repo_url
       when:
         - "'aarch64' in archs"
+        - repo_name in required_repos_by_arch.aarch64
         - >-
-          (sub_aarch64_override_config.get(item.name, {}).get('url', '')
-           | default('', true) | length) == 0
+          (configured_repo.get('url', '') | default('', true) | trim | length) == 0
 
-    # 3️ Apply override configurations and merge additional repositories
-    - name: Create name mapping for x86_64 dynamic repos
+    - name: Calculate unresolved subscription repositories
       ansible.builtin.set_fact:
-        x86_64_dynamic_names: "{{ sub_rhel_x86_64_urls | map(attribute='name') | list }}"
-
-    - name: Apply x86_64 overrides to matching repos (only URL overridden, certs always from defaults)
-      ansible.builtin.set_fact:
-        sub_rhel_x86_64_urls: >-
-          {%- set result = [] -%}
-          {%- for repo in sub_rhel_x86_64_urls -%}
-            {%- set override = sub_x86_64_override_config.get(repo.name, {}) -%}
-            {%- if override -%}
-              {%- set updated_repo = repo | combine({
-                'url': override.url | default(repo.url, true),
-                'gpgkey': override.gpgkey | default(repo.gpgkey),
-                'policy': override.policy | default(repo.policy, true),
-                'caching': override.caching | default(repo.caching),
-                'priority': override.priority | default(repo.priority | default(none))
-              }) -%}
-            {%- else -%}
-              {%- set updated_repo = repo -%}
-            {%- endif -%}
-            {%- set _ = result.append(updated_repo) -%}
+        unresolved_subscription_repos_by_arch: >-
+          {%- set result = {} -%}
+          {%- for architecture in archs -%}
+            {%- set discovered = (sub_rhel_x86_64_urls if architecture == 'x86_64'
+                else sub_rhel_aarch64_urls) | map(attribute='name') | list -%}
+            {%- set configured = configured_repos_by_arch.get(architecture, {}) -%}
+            {%- set available = discovered | list -%}
+            {%- for repo_name in required_repos_by_arch.get(architecture, []) -%}
+              {%- set repo_config = configured.get(repo_name) | default({}, true) -%}
+              {%- if (repo_config.get('url', '') |
+                       default('', true) | trim | length) > 0 -%}
+                {%- set _ = available.append(repo_name) -%}
+              {%- endif -%}
+            {%- endfor -%}
+            {%- set _ = result.update({architecture:
+                  required_repos_by_arch.get(architecture, []) | difference(available)}) -%}
           {%- endfor -%}
           {{ result }}
 
-    - name: Identify non-matching x86_64 override repos
-      ansible.builtin.set_fact:
-        additional_x86_64_repos: >-
-          {{
-            sub_x86_64_override_config
-            | selectattr('name', 'defined')
-            | rejectattr('name', 'in', x86_64_dynamic_names)
-            | list
-          }}
-
-    - name: Add non-matching x86_64 override repos as additional (certs always from defaults)
-      ansible.builtin.set_fact:
-        sub_rhel_x86_64_urls: >-
-          {%- set result = sub_rhel_x86_64_urls -%}
-          {%- for repo in additional_x86_64_repos -%}
-            {%- set new_repo = {
-              'url': repo.url,
-              'gpgkey': repo.gpgkey | default(''),
-              'name': repo.name,
-              'policy': repo.policy | default(sub_policy_default),
-              'caching': repo.caching | default(sub_caching_default),
-              'priority': repo.priority | default(none),
-              'sslcacert': sslcacert,
-              'sslclientcert': sslclientcert,
-              'sslclientkey': sslclientkey
-            } -%}
-            {%- set _ = result.append(new_repo) -%}
-          {%- endfor -%}
-          {{ result }}
-
-    - name: Apply aarch64 overrides to matching repos (only URL overridden, certs always from defaults)
-      ansible.builtin.set_fact:
-        sub_rhel_aarch64_urls: >-
-          {%- set result = [] -%}
-          {%- for repo in sub_rhel_aarch64_urls -%}
-            {%- set override = sub_aarch64_override_config.get(repo.name, {}) -%}
-            {%- if override -%}
-              {%- set updated_repo = repo | combine({
-                'url': override.url | default(repo.url, true),
-                'gpgkey': override.gpgkey | default(repo.gpgkey),
-                'policy': override.policy | default(repo.policy, true),
-                'caching': override.caching | default(repo.caching),
-                'priority': override.priority | default(repo.priority | default(none))
-              }) -%}
-            {%- else -%}
-              {%- set updated_repo = repo -%}
-            {%- endif -%}
-            {%- set _ = result.append(updated_repo) -%}
-          {%- endfor -%}
-          {{ result }}
-
-    - name: Create name mapping for aarch64 dynamic repos
-      ansible.builtin.set_fact:
-        aarch64_dynamic_names: "{{ sub_rhel_aarch64_urls | map(attribute='name') | list }}"
-      when: "'aarch64' in archs"
-
-    - name: Identify non-matching aarch64 override repos
-      ansible.builtin.set_fact:
-        additional_aarch64_repos: >-
-          {{
-            sub_aarch64_override_config
-            | selectattr('name', 'defined')
-            | rejectattr('name', 'in', aarch64_dynamic_names)
-            | list
-          }}
-      when: "'aarch64' in archs"
-
-    - name: Add non-matching aarch64 override repos as additional (certs always from defaults)
-      ansible.builtin.set_fact:
-        sub_rhel_aarch64_urls: >-
-          {%- set result = sub_rhel_aarch64_urls -%}
-          {%- for repo in additional_aarch64_repos -%}
-            {%- set new_repo = {
-              'url': repo.url,
-              'gpgkey': repo.gpgkey | default(''),
-              'name': repo.name,
-              'policy': repo.policy | default(sub_policy_default),
-              'caching': repo.caching | default(sub_caching_default),
-              'priority': repo.priority | default(none),
-              'sslcacert': sslcacert,
-              'sslclientcert': sslclientcert,
-              'sslclientkey': sslclientkey
-            } -%}
-            {%- set _ = result.append(new_repo) -%}
-          {%- endfor -%}
-          {{ result }}
-      when: "'aarch64' in archs"
-
-- name: Build final repo dict
-  ansible.builtin.set_fact:
-    sub_final_repo_urls:
-      x86_64: "{{ sub_rhel_x86_64_urls | default([]) }}"
-      # Always include aarch64 URLs - they are auto-generated from x86_64 subscription URLs
-      aarch64: "{{ sub_rhel_aarch64_urls | default([]) }}"
-
-# 3 Debug final repo URLs
-- name: Debug final repo urls
-  ansible.builtin.debug:
-    msg: "{{ sub_final_repo_urls }}"
-
-- name: Process and validate repo configs when subscription is disabled
-  when: not subscription_status_flag
-  block:
-    # 1️ Set facts from local_config - read RHEL OS URLs from repositories section
-    - name: Set facts for cluster from repositories section
-      ansible.builtin.set_fact:
-        rhel_url_x86_64: []
-        rhel_url_aarch64: []
-
-    - name: Build x86_64 RHEL repo list from config
-      ansible.builtin.set_fact:
-        rhel_url_x86_64: >-
-          {{ rhel_url_x86_64 + [{
-            'name': item.key,
-            'url': item.value.url,
-            'priority': item.value.priority | default(none)
-          }] }}
-      loop: >-
-        {{ local_config.get('repositories', {}).get(cluster_os_version, {}).get('x86_64', {}) | dict2items }}
-      when:
-        - "'x86_64' in archs"
-        - item.key in ['baseos', 'appstream', 'codeready-builder']
-        - item.value.url is defined
-        - item.value.url | length > 0
-
-    - name: Build aarch64 RHEL repo list from config
-      ansible.builtin.set_fact:
-        rhel_url_aarch64: >-
-          {{ rhel_url_aarch64 + [{
-            'name': item.key,
-            'url': item.value.url,
-            'priority': item.value.priority | default(none)
-          }] }}
-      loop: >-
-        {{ local_config.get('repositories', {}).get(cluster_os_version, {}).get('aarch64', {}) | dict2items }}
-      when:
-        - "'aarch64' in archs"
-        - item.key in ['baseos', 'appstream', 'codeready-builder']
-        - item.value.url is defined
-        - item.value.url | length > 0
-
-    # 2 Validate required repos
-    - name: Ensure required repos are present , fail if not
+    - name: Fail when subscription cannot provide a referenced repository
       ansible.builtin.fail:
         msg: >-
-          Subscription is disabled and required repos are missing for {{ arch_item }}.
-          Expected: {{ required_repos | join(', ') }}.
-          Found: {{ present_repos | join(', ') }}
-      vars:
-        present_repos: "{{ lookup('vars', 'rhel_url_' ~ arch_item) | map(attribute='name') | list }}"
-      when: present_repos is not superset(required_repos)
+          RHEL subscription and explicit configuration do not provide
+          {{ unresolved_subscription_repos_by_arch[arch_item] | join(', ') }}
+          for RHEL {{ cluster_os_version }} / {{ arch_item }}.
+      when: unresolved_subscription_repos_by_arch[arch_item] | length > 0
       loop: "{{ archs }}"
       loop_control:
         loop_var: arch_item
 
-    # 3 Build sub_final_repo_urls from local_config for non-subscription scenario
-    - name: Build final repo dict for non-subscription scenario
-      ansible.builtin.set_fact:
-        sub_final_repo_urls:
-          x86_64: "{{ rhel_url_x86_64 | default([]) }}"
-          aarch64: "{{ rhel_url_aarch64 | default([]) }}"
+    - name: Verify discovered subscription repository metadata
+      ansible.builtin.uri:
+        url: "{{ item.url | regex_replace('/+$', '') }}/repodata/repomd.xml"
+        method: GET
+        status_code: 200
+        return_content: false
+        validate_certs: true
+        ca_path: "{{ item.sslcacert }}"
+        client_cert: "{{ item.sslclientcert }}"
+        client_key: "{{ item.sslclientkey }}"
+        timeout: 30
+      loop: "{{ sub_rhel_x86_64_urls + sub_rhel_aarch64_urls }}"
 
-    - name: Debug final repo urls (non-subscription)
-      ansible.builtin.debug:
-        msg: "Non-subscription repos: {{ sub_final_repo_urls }}"
+- name: Publish repositories supplied by the RHEL subscription
+  ansible.builtin.set_fact:
+    sub_final_repo_urls:
+      x86_64: "{{ sub_rhel_x86_64_urls }}"
+      aarch64: "{{ sub_rhel_aarch64_urls }}"
+
+- name: Display selected repository configuration summary
+  ansible.builtin.debug:
+    msg:
+      os_version: "{{ cluster_os_version }}"
+      architectures: "{{ archs }}"
+      referenced_repositories: "{{ referenced_repos_by_arch }}"
+      subscription_repositories: "{{ sub_final_repo_urls }}"

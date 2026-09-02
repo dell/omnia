@@ -118,6 +118,7 @@ from ansible.module_utils.repo_manager.config import (
     pulp_file_commands,
     pulp_python_commands,
     ARCH_SUFFIXES,
+    PULP_DISTRIBUTION_ROOT,
 )
 from ansible.module_utils.repo_manager.software_utils import build_repo_name_prefix
 
@@ -217,24 +218,6 @@ def build_new_name(old_name: str, os_type: str, os_version: str) -> Optional[str
     return None
 
 
-def classify_old_name(name: str) -> str:
-    """Classify an old-format name into one of: rpm, file, python, or unknown.
-
-    We strip the ``<arch>_`` prefix and look at what follows:
-    - starts with a known file_type prefix → "file" (or "python" for pip_module)
-    - otherwise → "rpm"
-    """
-    for arch in ARCH_SUFFIXES:
-        prefix = f"{arch}_"
-        if name.startswith(prefix):
-            remainder = name[len(prefix):]
-            for ft in FILE_TYPE_PREFIXES:
-                if remainder.startswith(ft):
-                    if ft == "pip_module":
-                        return "python"
-                    return "file"
-            return "rpm"
-    return "unknown"
 
 
 def compute_new_base_path(old_base_path: str, old_name: str, new_name: str,
@@ -608,24 +591,6 @@ def _modify_repo_content_via_api(repo_href: str, content_hrefs: List[str],
 # Generic create-copy-switch helpers
 # ============================================================================
 
-def _get_repo_info(repo_type: str, name: str, logger) -> Optional[Dict]:
-    """Get repository info (pulp_href, latest_version_href) by name.
-
-    *repo_type* is one of ``rpm``, ``file``, ``python``.
-    """
-    cmd_maps = {
-        "rpm": pulp_rpm_commands,
-        "file": pulp_file_commands,
-        "python": pulp_python_commands,
-    }
-    cmds = cmd_maps.get(repo_type, {})
-    show_cmd = cmds.get("show_repository", "")
-    if not show_cmd:
-        return None
-    res = run_cmd(show_cmd % shlex.quote(name), logger)
-    if res["rc"] != 0:
-        return None
-    return safe_json_parse(res["stdout"], default=None)
 
 
 def _delete_old_repo_entities(repo_type: str, old_name: str, logger,
@@ -858,7 +823,7 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
         #   old: .../rpms/<arch>_<RepoName>
         #   new: .../rpms/<arch>_<os>_<ver>_<RepoName>
         new_base_path = (
-            f"offline_repo/cluster/{arch}/{os_type}/{os_version}"
+            f"{PULP_DISTRIBUTION_ROOT}/{arch}/{os_type}/{os_version}"
             f"/rpms/{new_name}"
         )
 

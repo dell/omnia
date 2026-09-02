@@ -152,7 +152,7 @@ selective cleanup if downstream consumers need an updated view.
 | Service | `pulp.service` generated from a Podman Quadlet |
 | Persistence | `<REPO_MANAGER_DATA_PATH>/pulp_config/` |
 | Certificate | Generated under `pulp_config/settings/certs/` |
-| CLI trust | `PULP_CA_BUNDLE` plus an installed host CA anchor |
+| CLI trust | Managed launcher at `/usr/local/bin/pulp`, linked from the Omnia venv, plus an installed host CA anchor |
 
 The user selects the host port in `repo_manager_endpoint_config.yml`. The
 container port remains `443`.

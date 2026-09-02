@@ -28,7 +28,6 @@ All catalog keys are expected in lowercase (identifier, name).
 
 import os
 import json
-import csv
 from datetime import datetime, timezone
 
 from ansible.module_utils.repo_manager.config import ARCH_SUFFIXES

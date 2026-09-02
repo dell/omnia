@@ -89,11 +89,21 @@ Repo Manager deploys HTTPS only. The configured host port forwards to port
 ### 5. `pulp status` reports a self-signed certificate error
 
 **Cause**: An unmanaged Pulp CLI or direct HTTPS client is not using the Repo
-Manager CA.
+Manager CA. Older deployments also allowed the virtual environment's native
+`pulp` entry point to shadow the managed `/usr/local/bin/pulp` launcher.
 
-**Fix**: Use the managed `/usr/local/bin/pulp` command created by `prepare`.
-It supplies the generated CA automatically. For a separate diagnostic client,
-use this CA explicitly:
+**Fix**: Run `prepare` again. It preserves the native Pulp entry point as a
+backend, installs the managed `/usr/local/bin/pulp` launcher, and links the
+Omnia virtual environment's `bin/pulp` entry point to that launcher. The
+generated CA is then supplied automatically both inside and outside the virtual
+environment.
+
+```bash
+cd <OMNIA_SOURCE_PATH>/repo_manager/playbooks
+ansible-playbook repo_manager.yml --tags prepare
+```
+
+For a separate diagnostic client, use this CA explicitly:
 
 ```text
 <REPO_MANAGER_DATA_PATH>/pulp_config/settings/certs/pulp_webserver.crt

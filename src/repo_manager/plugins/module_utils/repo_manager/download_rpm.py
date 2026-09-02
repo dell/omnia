@@ -22,7 +22,8 @@ from collections import OrderedDict
 from pathlib import Path
 from ansible.module_utils.repo_manager.config import (
     DNF_COMMANDS,
-    DNF_INFO_COMMANDS
+    DNF_INFO_COMMANDS,
+    PULP_DISTRIBUTION_ROOT_PARTS,
 )
 from multiprocessing import Lock
 from ansible.module_utils.repo_manager.parse_and_download import write_status_to_file, _prefix_repo_name_with_arch
@@ -33,23 +34,6 @@ file_lock = Lock()
 _rpm_repository_locks = {}
 _rpm_locks_lock = Lock()
 
-def get_rpm_repository_lock(repo_name):
-    """
-    Get or create lock for specific RPM repository.
-
-    This allows different RPM repositories to be processed in parallel
-    while preventing race conditions for the same repository.
-
-    Args:
-        repo_name (str): The repository name to get a lock for.
-
-    Returns:
-        Lock: The lock for this specific repository.
-    """
-    with _rpm_locks_lock:
-        if repo_name not in _rpm_repository_locks:
-            _rpm_repository_locks[repo_name] = Lock()
-        return _rpm_repository_locks[repo_name]
 
 # Cache for repo existence checks to avoid repeated Pulp API calls
 _repo_exists_cache = {}
@@ -161,6 +145,14 @@ def _build_dnf_download_command(
     return command
 
 
+def _validated_dnf_architecture(architecture):
+    """Return a supported DNF architecture without implicit ARM fallback."""
+    arch_key = str(architecture or "").lower()
+    if arch_key not in DNF_COMMANDS or arch_key not in DNF_INFO_COMMANDS:
+        raise ValueError(f"Unsupported RPM architecture: {architecture}")
+    return arch_key
+
+
 def _catalog_package_type(package_name, rpm_type_mapping):
     """Return the original catalog RPM type with a backward-compatible default."""
     package_type = rpm_type_mapping.get(package_name, "rpm")
@@ -188,13 +180,13 @@ def _download_rpm_packages(
     """Download requested RPMs and dependencies through architecture-scoped Pulp repos."""
     sw_json_name = Path(status_file_path).parent.name
     rpm_directory = os.path.join(
-        repo_store_path, 'offline_repo', 'cluster', arc.lower(),
+        repo_store_path, *PULP_DISTRIBUTION_ROOT_PARTS, arc.lower(),
         cluster_os_type, cluster_os_version, 'rpm', sw_json_name
     )
     logger.info("rpm_dir %s", rpm_directory)
     os.makedirs(rpm_directory, exist_ok=True)
 
-    arch_key = "x86_64" if arc.lower() == "x86_64" else "aarch64"
+    arch_key = _validated_dnf_architecture(arc)
     download_candidates = []
     failed = []
 
@@ -333,7 +325,7 @@ def _validate_rpm_packages(
         rpm_list, repo_store_path, status_file_path, arc, logger,
         repo_mapping, rpm_type_mapping):
     """Validate ordinary partial-policy RPMs without downloading their payloads."""
-    arch_key = "x86_64" if arc.lower() == "x86_64" else "aarch64"
+    arch_key = _validated_dnf_architecture(arc)
     dnf_cache_option = _dnf_cache_option(repo_store_path, arch_key)
     valid_packages = []
     invalid_packages = []

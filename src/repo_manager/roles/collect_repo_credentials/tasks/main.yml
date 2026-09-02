@@ -122,18 +122,49 @@
         pulp_password: "{{ _pulp_password_input.user_input }}"
       no_log: true
 
+- name: Determine whether Docker Hub credentials were already initialized
+  ansible.builtin.set_fact:
+    _docker_credentials_initialized: >-
+      {{
+        (
+          'docker_username' in _stored_credentials and
+          'docker_password' in _stored_credentials
+        ) or (
+          docker_username is defined and docker_password is defined
+        )
+      }}
+  no_log: true
+
 - name: Resolve initial Docker Hub credentials
   ansible.builtin.set_fact:
     docker_username: >-
-      {{ docker_username if (docker_username is defined and docker_username | string | length > 0)
-         else _stored_credentials.get('docker_username', '') }}
+      {%- set supplied = docker_username | default('', true) -%}
+      {%- set stored = _stored_credentials.get('docker_username', '') |
+         default('', true) -%}
+      {{- supplied if (supplied | string | trim | length > 0) else stored -}}
     docker_password: >-
-      {{ docker_password if (docker_password is defined and docker_password | string | length > 0)
-         else _stored_credentials.get('docker_password', '') }}
+      {%- set supplied = docker_password | default('', true) -%}
+      {%- set stored = _stored_credentials.get('docker_password', '') |
+         default('', true) -%}
+      {{- supplied if (supplied | string | trim | length > 0) else stored -}}
   no_log: true
 
 - name: Reconcile Docker Hub credentials
   ansible.builtin.include_tasks: process_docker_credentials.yml
+
+- name: Validate canonical Docker credential values
+  ansible.builtin.assert:
+    that:
+      - docker_username is string
+      - docker_password is string
+      - >-
+        (docker_username | length == 0 and docker_password | length == 0) or
+        (docker_username | length > 0 and docker_password | length > 0)
+    fail_msg: >-
+      Docker Hub credentials must be stored as either two non-empty strings or
+      two empty strings.
+    quiet: true
+  no_log: true
 
 - name: Initialize configured registry credentials
   ansible.builtin.set_fact:

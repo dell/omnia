@@ -36,6 +36,40 @@ docker_password_cipher = Fernet(Fernet.generate_key())
 PROGRESS_LOG_INTERVAL_SECONDS = 60
 
 
+def normalize_docker_credentials(credential_data):
+    """Return a canonical optional Docker Hub credential pair.
+
+    YAML nulls, missing keys, whitespace-only values, and the legacy literal
+    ``"None"`` produced by the former null conversion are treated as empty.
+    Usernames are trimmed. Non-empty passwords are preserved exactly.
+    """
+    if credential_data is None:
+        credential_data = {}
+    if not isinstance(credential_data, dict):
+        raise RuntimeError("Docker credential document must be a mapping.")
+
+    username_value = credential_data.get("docker_username")
+    password_value = credential_data.get("docker_password")
+    username = "" if username_value is None else str(username_value).strip()
+    password = "" if password_value is None else str(password_value)
+
+    if username == "None":
+        username = ""
+    if not password.strip() or password.strip() == "None":
+        password = ""
+
+    # A password without a username is an orphaned optional secret. Treat the
+    # pair as anonymous access. A username without a password is actionable and
+    # must not silently fall back to anonymous Docker Hub pulls.
+    if not username:
+        return "", ""
+    if not password:
+        raise RuntimeError(
+            "Docker Hub password is required when docker_username is set."
+        )
+    return username, password
+
+
 def load_docker_credentials(vault_yml_path, vault_password_file):
     """
     Loads docker_username and docker_password from a credentials YAML file,
@@ -54,7 +88,8 @@ def load_docker_credentials(vault_yml_path, vault_password_file):
         vault_password_file (str): Path to the vault password file (used only when encrypted).
 
     Returns:
-        tuple: (docker_username, docker_password) or (None, None) if not provided.
+        tuple: Encrypted Docker credential pair, or two empty strings when
+               anonymous Docker Hub access is configured.
 
     Raises:
         RuntimeError: If vault decryption fails, YAML parsing fails, Docker Hub API
@@ -63,16 +98,14 @@ def load_docker_credentials(vault_yml_path, vault_password_file):
     """
     try:
         data = load_vault_yaml(vault_yml_path, vault_password_file)
-        docker_username = data.get("docker_username")
-        docker_secret_token = None
-        if data.get("docker_password"):
-            docker_secret_token = docker_password_cipher.encrypt(
-                data.get("docker_password").encode("utf-8")
-            ).decode("utf-8")
+        docker_username, docker_secret = normalize_docker_credentials(data)
 
-        # If either credential is missing, skip validation
-        if not docker_username or not docker_secret_token:
-            return None, None
+        if not docker_username:
+            return "", ""
+
+        docker_secret_token = docker_password_cipher.encrypt(
+            docker_secret.encode("utf-8")
+        ).decode("utf-8")
 
         # Validate credentials using Docker Hub API
         try:
@@ -144,7 +177,9 @@ def log_table_output(table_output, log_file):
             file.write(table_output)  # Write the actual table content
     except Exception as e:
         # If there is an error, raise a RuntimeError with the error message
-        raise RuntimeError(f"Failed to write table output to log file: {str(e)}")
+        raise RuntimeError(
+            f"Failed to write table output to log file: {str(e)}"
+        ) from e
 
 
 def setup_logger(log_dir, log_file_path):
@@ -302,7 +337,7 @@ def worker_process(task, determine_function, user_data, version_variables, arc, 
             docker_username, docker_secret_token = load_docker_credentials(
                 omnia_credentials_yaml_path, omnia_credentials_vault_path)
         else:
-            docker_username, docker_secret_token = None, None
+            docker_username, docker_secret_token = "", ""
 
         # Different resources remain parallel. Tasks that share a Pulp resource
         # (notably multiple tags of one image) are serialized end to end. RPM

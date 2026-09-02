@@ -16,11 +16,6 @@
 # COMMON ROLE VARIABLES
 # =============================================================================
 
-# Usage: firewall_settings.yml
-oim_os_repo_fail_msg: |
-  Failed to install firewalld. This could be due to the OS repository not being configured on OIM.
-  Please configure the OS repository on OIM and rerun the playbook.
-
 internal_nfs_services:
   - nfs
   - rpc-bind
@@ -29,7 +24,6 @@ internal_nfs_services:
 ntp_firewall_service: ntp
 
 # Usage: podman_login.yml
-login_cmd: "podman login docker.io -u {{ docker_username }} -p {{ docker_password }}"
 retry_count: "5"
 delay_time: "10"
 podman_login_fail_msg: >

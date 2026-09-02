@@ -22,11 +22,31 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
+# CATALOG PLATFORM CONFIGURATION
+# -----------------------------------------------------------------------------
+# Functional-layer names remain the runtime source of the OS minor version and
+# selected architecture(s). These values define supported platform vocabulary
+# and deterministic processing order; they are not runtime version fallbacks.
+platform_config:
+  supported_os_types:
+    - "rhel"
+  architecture_order:
+    - "x86_64"
+    - "aarch64"
+  subscription_repositories:
+    - "baseos"
+    - "appstream"
+    - "codeready-builder"
+  target_python_by_os_major:
+    "10": "3.12"
+
+# -----------------------------------------------------------------------------
 # BASE DIRECTORY CONFIGURATION
 # -----------------------------------------------------------------------------
 # Base directory is the repo_manager source directory (parent of playbooks/)
 # Works regardless of whether playbooks run from playbooks/ or any subdirectory
-repo_manager_base_dir: "{{ playbook_dir | dirname | dirname }}"
+repo_manager_base_dir: >-
+  {{ playbook_dir | regex_replace('/playbooks(?:/.*)?$', '') }}
 
 # Project default identifier
 project_default: "project_default"
@@ -92,38 +112,148 @@ endpoint_config_syntax_fail_msg: "Failed. Syntax errors present in repo_manager_
 # -----------------------------------------------------------------------------
 # PULP SERVER CONFIGURATION
 # -----------------------------------------------------------------------------
-# Pulp directories organized under repo_manager domain
+# Pulp runtime base directory. This follows REPO_MANAGER_DATA_PATH or
+# <OMNIA_DATA_PATH>/repo_manager and is not hardcoded to /opt/omnia.
 pulp_config_dir: "{{ repo_manager_runtime_dir }}/pulp_config"
-pulp_certs_dir: "{{ pulp_config_dir }}/settings/certs"
+
+# Pulp publication paths. The content route is owned by the Pulp image and
+# must not be changed independently. The distribution root is relative because
+# Pulp CLI --base-path values must never contain the /pulp/content route.
+# Keeping these defaults preserves all existing repository URLs.
+pulp_content_paths:
+  content_route: "/pulp/content"
+  distribution_root: "offline_repo/cluster"
+
+# Absolute staging root derived from the relative Pulp distribution namespace.
+# Users must not set this value directly.
+pulp_distribution_root_dir: >-
+  {{ repo_manager_runtime_dir }}/{{ pulp_content_paths.distribution_root }}
+
+# The default section preserves the existing Pulp directory layout. Add only
+# required custom paths under user_provided.
+#
+# User-provided paths must be absolute, must already exist, and must be writable
+# directories. Repo Manager uses them exactly as provided. It does not create
+# or format filesystems, manage NFS mounts, attach block volumes, configure LVM,
+# or copy existing Pulp data. Storage must be prepared and mounted before the
+# prepare tag is run.
+#
+# Full Pulp cleanup removes Pulp data from the resolved directories. Therefore,
+# always use dedicated subdirectories below storage mount points, never the
+# mount roots themselves.
+#
+# Recommended storage placement:
+#   database_path:       dedicated persistent SSD or block volume (highest)
+#   container_work_path: local SSD or persistent block volume
+#   content_path:        high-capacity persistent NFS or dedicated block volume
+#   settings_path:       persistent NFS, local disk, or block storage
+#   cli_config_path:     persistent storage with restricted access
+#   service_log_path:    local disk
+#
+# Example administrator-created storage:
+#   NFS mount:       /mnt/omnia-pulp-nfs
+#   SSD/block mount: /mnt/omnia-pulp-ssd
+#
+# Example user_provided values:
+#   settings_path:       "/mnt/omnia-pulp-nfs/settings"
+#   database_path:       "/mnt/omnia-pulp-ssd/postgresql"
+#   content_path:        "/mnt/omnia-pulp-nfs/content"
+#   container_work_path: "/mnt/omnia-pulp-ssd/container-work"
+#   service_log_path:    "/var/log/omnia/pulp"
+#   cli_config_path:     "/mnt/omnia-pulp-nfs/cli-config"
+#
+# When only one SSD/block volume is available, move database_path first and
+# container_work_path second. Keep content_path on high-capacity NFS unless the
+# block volume has sufficient dedicated capacity.
+pulp_storage_paths:
+  # Internal defaults. Do not modify.
+  default:
+    settings_path: "{{ pulp_config_dir }}/settings"
+    database_path: "{{ pulp_config_dir }}/settings/pgsql"
+    content_path: "{{ pulp_config_dir }}/settings/pulp_storage"
+    container_work_path: "{{ pulp_config_dir }}/settings/containers"
+    service_log_path: "{{ repo_manager_log_dir }}/pulp"
+    cli_config_path: "{{ pulp_config_dir }}/pulp_ha"
+
+  # Optional absolute paths. Keep this dictionary empty to preserve all
+  # existing paths and behavior. Specify only the paths that must be replaced.
+  user_provided: {}
+
+# Internal merge. Users must not modify this variable. A user-provided entry
+# replaces only the matching default entry.
+pulp_resolved_storage_paths: >-
+  {{ pulp_storage_paths.default | combine(pulp_storage_paths.user_provided) }}
+
+pulp_deployment_defaults:
+  container_name: "pulp"
+  image: "docker.io/pulp/pulp:3.114.2"
+
+  # REQUIRED CONTAINER PATHS - DO NOT MODIFY.
+  # The Pulp image and services expect these exact destinations. Customize only
+  # the host paths under pulp_storage_paths.user_provided.
+  container_mounts:
+    settings_path: "/etc/pulp"
+    database_path: "/var/lib/pgsql"
+    content_path: "/var/lib/pulp"
+    container_work_path: "/var/lib/containers"
+    service_log_path: "/var/log/pulp"
+    cli_config_path: "/root/.config/pulp"
+
+  workers:
+    task: 10
+    api: 10
+    content: 10
+
+  timeouts:
+    gunicorn_seconds: 30
+    api_max_requests: 1000
+    api_max_requests_jitter: 50
+
+  https:
+    container_port: 443
+    certificate_validity_days: 3650
+    certificate_renewal_threshold_seconds: 2592000
+
+# Internal compatibility aliases. Users must modify only
+# pulp_storage_paths.user_provided. These aliases retain all existing code paths.
+pulp_settings_dir: "{{ pulp_resolved_storage_paths.settings_path }}"
+pulp_database_dir: "{{ pulp_resolved_storage_paths.database_path }}"
+pulp_content_dir: "{{ pulp_resolved_storage_paths.content_path }}"
+pulp_container_work_dir: >-
+  {{ pulp_resolved_storage_paths.container_work_path }}
+pulp_logs_dir: "{{ pulp_resolved_storage_paths.service_log_path }}"
+pulp_cli_config_dir: "{{ pulp_resolved_storage_paths.cli_config_path }}"
+pulp_certs_dir: "{{ pulp_settings_dir }}/certs"
 pulp_server_crt: "{{ pulp_certs_dir }}/pulp_webserver.crt"
 pulp_server_key: "{{ pulp_certs_dir }}/pulp_webserver.key"
 pulp_server_csr: "{{ pulp_certs_dir }}/pulp_webserver.csr"
-pulp_secret_key_file: "{{ pulp_config_dir }}/settings/.pulp_secret_key"
+pulp_secret_key_file: "{{ pulp_settings_dir }}/.pulp_secret_key"
 pulp_ca_trust_file: "/etc/pki/ca-trust/source/anchors/omnia-pulp.crt"
 pulp_cli_executable: "/usr/local/bin/pulp"
 pulp_cli_backend: "/usr/local/libexec/omnia-pulp-cli"
+pulp_venv_cli_executable: >-
+  {{ ((lookup('env', 'OMNIA_VENV_PATH')
+       | default(lookup('env', 'VIRTUAL_ENV'), true)
+       | default(omnia_data_path + '/venv', true))
+      | ansible.builtin.normpath) + '/bin/pulp' }}
 # Repo Manager versions before the HTTPS deployment rewrite used this name.
 # Remove it during deployment/cleanup so a rotated self-signed certificate
 # cannot leave two trust anchors with the same subject but different keys.
 pulp_legacy_ca_trust_files:
   - "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
-pulp_logs_dir: "{{ repo_manager_runtime_dir }}/log/pulp"
-pulp_container_name: "pulp"
-pulp_image: "docker.io/pulp/pulp:3.114.2"
+pulp_container_name: "{{ pulp_deployment_defaults.container_name }}"
+pulp_image: "{{ pulp_deployment_defaults.image }}"
 
 # -----------------------------------------------------------------------------
 # RHEL SUBSCRIPTION CERTIFICATES
 # -----------------------------------------------------------------------------
 rhel_repo_certs_dir: "{{ repo_manager_runtime_dir }}/rhel_repo_certs"
-rhel_redhat_repo_file: "{{ rhel_repo_certs_dir }}/redhat.repo"
-rhel_uep_cert_file: "{{ rhel_repo_certs_dir }}/redhat-uep.pem"
 
 # -----------------------------------------------------------------------------
 # FILE PERMISSIONS
 # -----------------------------------------------------------------------------
 dir_permissions_755: "0755"
 file_permissions_644: "0644"
-file_permissions_600: "0600"
 
 # -----------------------------------------------------------------------------
 # RETRY CONFIGURATION
@@ -182,7 +312,7 @@ rpm_repo_config:
   pulp_timeout: 86400      # ENV: REPO_MANAGER_PULP_TIMEOUT (24 hours)
 
   # Continue processing other repos if one fails
-  continue_on_failure: true # ENV: REPO_MANAGER_CONTINUE_ON_FAILURE
+  continue_on_failure: true  # ENV: REPO_MANAGER_CONTINUE_ON_FAILURE
 
   # File lock wait time in seconds
   file_lock_timeout: 60    # ENV: REPO_MANAGER_FILE_LOCK_TIMEOUT
@@ -215,4 +345,3 @@ oim_shared_path: "{{ (oim_shared_path_from_metadata | default({})).get('oim_shar
 nfs_server_share_path: "{{ (oim_shared_path_from_metadata | default({})).get('nfs_server_share_path', '') }}"
 omnia_share_option: "{{ (oim_shared_path_from_metadata | default({})).get('omnia_share_option', 'Local') }}"
 nfs_type: "{{ (oim_shared_path_from_metadata | default({})).get('nfs_type', '') }}"
-nfs_server_ip: "{{ (oim_shared_path_from_metadata | default({})).get('nfs_server_ip', '') }}"

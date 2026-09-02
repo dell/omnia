@@ -119,8 +119,17 @@
 - name: Verify Pulp CLI configuration
   ansible.builtin.command:
     argv:
-      - /usr/local/bin/pulp
+      - "{{ pulp_cli_executable }}"
       - status
   register: _pulp_cli_status
   changed_when: false
   failed_when: _pulp_cli_status.rc != 0
+
+- name: Verify Pulp CLI configuration from Omnia virtual environment
+  ansible.builtin.command:
+    argv:
+      - "{{ pulp_venv_cli_executable }}"
+      - status
+  register: _pulp_venv_cli_status
+  changed_when: false
+  failed_when: _pulp_venv_cli_status.rc != 0

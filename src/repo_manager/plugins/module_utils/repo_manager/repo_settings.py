@@ -22,7 +22,7 @@ import logging
 import yaml
 
 from ansible.module_utils.repo_manager.repo_paths import (
-    OMNIA_BASE_DIR,
+    REPO_MANAGER_BASE_DIR,
     REPO_MANAGER_RUNTIME_DIR,
     PROJECT_DEFAULT_DIR,
     REPO_MANAGER_LOG_DIR,
@@ -32,7 +32,8 @@ logger = logging.getLogger(__name__)
 
 # Configuration file path
 CONFIG_FILE_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "vars", "default.yml")
+    os.environ.get("REPO_MANAGER_CONFIG_PATH")
+    or os.path.join(REPO_MANAGER_BASE_DIR, "vars", "default.yml")
 )
 
 def load_config():
@@ -90,14 +91,31 @@ def get_config_value(config_key, default_value, env_var=None):
 
     return value if value is not None else default_value
 
-def _get_nested_value(dct, keys):
-    """Helper to get nested dictionary value."""
-    for key in keys:
-        if isinstance(dct, dict) and key in dct:
-            dct = dct[key]
-        else:
-            return None
-    return dct
+
+def _normalize_relative_config_path(value, config_key):
+    """Validate and normalize a slash-delimited relative configuration path."""
+    raw_value = str(value).strip()
+    if not raw_value or os.path.isabs(raw_value):
+        raise ValueError(f"{config_key} must be a non-empty relative path")
+
+    parts = tuple(part for part in raw_value.split('/') if part)
+    if not parts or any(part in ('.', '..') for part in parts):
+        raise ValueError(f"{config_key} contains an unsafe path segment")
+    return '/'.join(parts)
+
+
+def _normalize_content_route(value):
+    """Validate and return the native Pulp content route."""
+    relative_route = _normalize_relative_config_path(
+        str(value).strip('/'), 'pulp_content_paths.content_route'
+    )
+    content_route = f"/{relative_route}"
+    if content_route != '/pulp/content':
+        raise ValueError(
+            'pulp_content_paths.content_route must remain /pulp/content'
+        )
+    return content_route
+
 
 # ----------------------------
 # Parallel Tasks Defaults
@@ -139,11 +157,22 @@ SOFTWARES_KEY = "softwares"
 RPM_LABEL_TEMPLATE = "RPMs for {key}"
 # Keep architecture traversal deterministic.  Several catalog operations use
 # first-wins deduplication, so a set here can change ownership between runs.
-ARCH_SUFFIXES = ("x86_64", "aarch64")
+ARCH_SUFFIXES = tuple(get_config_value(
+    "platform_config.architecture_order", ["x86_64", "aarch64"]
+))
+SUPPORTED_OS_TYPES = tuple(get_config_value(
+    "platform_config.supported_os_types", ["rhel"]
+))
+SUBSCRIPTION_REPOSITORIES = tuple(get_config_value(
+    "platform_config.subscription_repositories",
+    ["baseos", "appstream", "codeready-builder"]
+))
 
 # Target OS -> Python version mapping for pip cross-version downloads.
 OS_TARGET_PYTHON = {
-    "rhel": {"10": "3.12"},
+    "rhel": get_config_value(
+        "platform_config.target_python_by_os_major", {"10": "3.12"}
+    ),
 }
 
 # Architecture -> manylinux platform tags for pip --platform flag.
@@ -253,8 +282,21 @@ CLEANUP_LOG_FILE_PATH = os.path.join(REPO_MANAGER_LOG_DIR, "cleanup.log")
 # ----------------------------
 # Additional Repos Aggregation Settings
 # ----------------------------
+PULP_CONTENT_ROUTE = _normalize_content_route(get_config_value(
+    'pulp_content_paths.content_route', '/pulp/content'
+))
+PULP_DISTRIBUTION_ROOT = _normalize_relative_config_path(
+    get_config_value(
+        'pulp_content_paths.distribution_root', 'offline_repo/cluster'
+    ),
+    'pulp_content_paths.distribution_root',
+)
+PULP_DISTRIBUTION_ROOT_PARTS = tuple(PULP_DISTRIBUTION_ROOT.split('/'))
 AGGREGATED_REPO_SUFFIX = "repo_manager-additional"
-AGGREGATED_BASE_PATH_TEMPLATE = "offline_repo/cluster/{arch}/{os_type}/{os_version}/rpms/{repo_name}"
+AGGREGATED_BASE_PATH_TEMPLATE = (
+    f"{PULP_DISTRIBUTION_ROOT}/"
+    "{arch}/{os_type}/{os_version}/rpms/{repo_name}"
+)
 STANDARD_LOG_FILE_PATH = os.path.join(REPO_MANAGER_LOG_DIR, "standard.log")
 
 # ----------------------------
@@ -396,6 +438,8 @@ __all__ = [
     "SOFTWARES_KEY",
     "RPM_LABEL_TEMPLATE",
     "ARCH_SUFFIXES",
+    "SUPPORTED_OS_TYPES",
+    "SUBSCRIPTION_REPOSITORIES",
     "OS_TARGET_PYTHON",
     "ARCH_PIP_PLATFORMS",
     "REPO_NAME_FORMAT",
@@ -424,6 +468,9 @@ __all__ = [
     "CLEANUP_STATUS_FILENAME",
     "CLEANUP_STATUS_CSV_HEADER",
     "CLEANUP_LOG_FILE_PATH",
+    "PULP_CONTENT_ROUTE",
+    "PULP_DISTRIBUTION_ROOT",
+    "PULP_DISTRIBUTION_ROOT_PARTS",
     "AGGREGATED_REPO_SUFFIX",
     "AGGREGATED_BASE_PATH_TEMPLATE",
     "STANDARD_LOG_FILE_PATH",

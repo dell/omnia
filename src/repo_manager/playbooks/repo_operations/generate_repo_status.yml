@@ -117,21 +117,22 @@
       ansible.builtin.set_fact:
         omnia_base: "{{ omnia_data_path }}"
 
-    - name: Set catalog path
-      ansible.builtin.set_fact:
-        catalog_path: >-
-          {{ lookup('env', 'CATALOG_FILE_PATH') |
-             default(omnia_base + '/catalog/catalog_rhel.json', true) }}
+    - name: Resolve cluster OS details from catalog functional layers
+      resolve_catalog_context:
+        catalog_path: "{{ lookup('env', 'CATALOG_FILE_PATH') }}"
+      environment:
+        REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"
+        REPO_MANAGER_CONFIG_PATH: "{{ repo_manager_base_dir }}/vars/default.yml"
+      register: status_catalog_context
 
-    - name: Load catalog JSON
+    - name: Set cluster OS facts from resolved catalog context
       ansible.builtin.set_fact:
-        catalog_data: "{{ lookup('file', catalog_path) | from_json }}"
-
-    - name: Set cluster OS facts from catalog
-      ansible.builtin.set_fact:
-        cluster_os_type: "{{ (catalog_data.catalog.name | lower | regex_search('(rhel)')) | default('rhel') }}"
-        cluster_os_version: "{{ (catalog_data.catalog.name | regex_search('([0-9]+\\.[0-9]+)')) | default('10.0') }}"
-        repo_config: "{{ repo_manager_config_data.repo_config_policy | default('partial') }}"
+        catalog_context: "{{ status_catalog_context.catalog_context }}"
+        cluster_os_type: "{{ status_catalog_context.catalog_context.os_type }}"
+        cluster_os_version: "{{ status_catalog_context.catalog_context.os_version }}"
+        selected_architectures: >-
+          {{ status_catalog_context.catalog_context.architectures }}
+        repo_config: "{{ repo_manager_config_data.repo_config | default('partial') }}"
 
     - name: Display Pulp connection info
       ansible.builtin.debug:
@@ -160,6 +161,7 @@
         pulp_server_port: "{{ pulp_server_port | int }}"
         cluster_os_type: "{{ cluster_os_type }}"
         cluster_os_version: "{{ cluster_os_version }}"
+        architectures: "{{ selected_architectures }}"
         repo_config: "{{ repo_config }}"
         output_path: "{{ output_dir }}/repo_status.yml"
         local_repo_config_path: "{{ input_project_dir }}/repo_manager_config.yml"

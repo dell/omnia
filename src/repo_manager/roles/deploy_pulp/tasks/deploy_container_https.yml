@@ -5,6 +5,9 @@
     state: directory
     mode: "{{ item.mode }}"
   loop: "{{ pulp_directories_https }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when: item.create | default(true) | bool
 
 - name: Remove obsolete Pulp HTTP and custom nginx artifacts
   ansible.builtin.file:

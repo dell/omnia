@@ -77,10 +77,18 @@
       - repo_manager_runtime_dir is match('^/')
       - (repo_manager_runtime_dir | regex_replace('/+$', '')) not in ['', '/opt', '/var', '/etc', '/usr', '/root']
       - project_name is match('^[A-Za-z0-9][A-Za-z0-9_.-]*$')
+      - pulp_content_paths is mapping
+      - pulp_content_paths.content_route is string
+      - pulp_content_paths.content_route == '/pulp/content'
+      - pulp_content_paths.distribution_root is string
+      - pulp_content_paths.distribution_root is match('^[^/]+(?:/[^/]+)*$')
+      - "'.' not in pulp_content_paths.distribution_root.split('/')"
+      - "'..' not in pulp_content_paths.distribution_root.split('/')"
     fail_msg: >-
       Invalid Repo Manager path configuration. OMNIA_DATA_PATH and
       REPO_MANAGER_DATA_PATH must be safe absolute paths, and
-      OMNIA_PROJECT_NAME must be one path segment.
+      OMNIA_PROJECT_NAME must be one path segment. Pulp content_route must
+      remain /pulp/content and distribution_root must be a safe relative path.
 
 # --- Set all derived paths in a single set_fact ---
 - name: Set project dirs and derived paths

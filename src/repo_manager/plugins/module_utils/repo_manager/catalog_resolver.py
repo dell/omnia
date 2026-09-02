@@ -31,12 +31,27 @@ import os
 import json
 import hashlib
 import copy
+import re
 from collections import OrderedDict
 
 from ansible.module_utils.repo_manager.config import (
     ARCH_SUFFIXES,
+    SUPPORTED_OS_TYPES,
 )
 from ansible.module_utils.repo_manager.software_utils import normalize_repo_name
+
+
+_SUPPORTED_OS_PATTERN = "|".join(
+    re.escape(item) for item in SUPPORTED_OS_TYPES
+)
+_SUPPORTED_ARCH_PATTERN = "|".join(
+    re.escape(item) for item in ARCH_SUFFIXES
+)
+FUNCTIONAL_LAYER_PATTERN = re.compile(
+    rf"^(?P<layer>.+)_(?P<os_type>{_SUPPORTED_OS_PATTERN})_"
+    rf"(?P<major>[0-9]+)_(?P<minor>[0-9]+)_"
+    rf"(?P<architecture>{_SUPPORTED_ARCH_PATTERN})$"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -243,40 +258,93 @@ def compute_composite_key_hash(package_name, package_type, version, arch):
 # Catalog Resolution: Groups -> Packages (lowercase keys)
 # ---------------------------------------------------------------------------
 
-def extract_os_version_from_functional_layer(catalog, logger):
-    """Extract OS version from functional layer names in the catalog.
+def parse_functional_layer_context(layer_name):
+    """Return the OS context encoded in a functional-layer name.
 
-    Functional layer names follow the pattern: <layer>_rhel_<version>_<arch>
-    e.g., slurm_control_node_rhel_10_0_x86_64 -> version: 10.0
-
-    Args:
-        catalog (dict): Parsed catalog data (lowercase keys).
-        logger: Logger instance.
-
-    Returns:
-        str: OS version (e.g., "10.0") or default "10.0" if not found.
+    The functional layer is the authoritative runtime source for OS version
+    and architecture.  Missing or ambiguous values are rejected rather than
+    replaced with a platform default.
     """
-    functional_layers = catalog.get("functionallayer", [])
-
-    for fl in functional_layers:
-        fl_name = fl.get("name", "")
-        # Pattern: <layer>_rhel_<version>_<arch>
-        # Extract version between "rhel_" and "_x86_64" or "_aarch64"
-        if "rhel_" in fl_name:
-            parts = fl_name.split("rhel_")
-            if len(parts) > 1:
-                version_part = parts[1].split("_")[0]  # Get first part after rhel_
-                # Convert underscores to dots (e.g., "10_0" -> "10.0")
-                os_version = version_part.replace("_", ".")
-                logger.info("Extracted OS version '%s' from functional layer '%s'",
-                            os_version, fl_name)
-                return os_version
-
-    logger.warning("Could not extract OS version from functional layers, using default '10.0'")
-    return "10.0"
+    match = FUNCTIONAL_LAYER_PATTERN.fullmatch(str(layer_name or ""))
+    if not match:
+        raise ValueError(
+            "Functional layer name must end with "
+            "_<os>_<major>_<minor>_<architecture>: "
+            f"'{layer_name}'"
+        )
+    parsed = match.groupdict()
+    return {
+        "os_type": parsed["os_type"],
+        "os_version": f"{parsed['major']}.{parsed['minor']}",
+        "architecture": parsed["architecture"],
+    }
 
 
-def resolve_catalog_groups(catalog, arch, logger):
+def resolve_catalog_context(catalogs, logger):
+    """Resolve one strict OS/version context across all loaded catalogs.
+
+    A catalog set may contain one or both supported architectures, but all
+    selected functional layers must use one OS type and one minor version.
+    """
+    if isinstance(catalogs, dict):
+        catalogs = [catalogs]
+    if not catalogs:
+        raise ValueError("No catalogs were supplied for context resolution")
+
+    os_types = set()
+    os_versions = set()
+    discovered_architectures = set()
+    functional_layers = []
+
+    for catalog in catalogs:
+        for layer in catalog.get("functionallayer", []):
+            layer_name = layer.get("name", "")
+            parsed = parse_functional_layer_context(layer_name)
+            os_types.add(parsed["os_type"])
+            os_versions.add(parsed["os_version"])
+            discovered_architectures.add(parsed["architecture"])
+            functional_layers.append({
+                "name": layer_name,
+                "components": list(layer.get("components", [])),
+                **parsed,
+            })
+
+    if not functional_layers:
+        raise ValueError("Catalog does not contain any functional layers")
+    if len(os_types) != 1:
+        raise ValueError(
+            "Catalog functional layers must use exactly one OS type; found: "
+            + ", ".join(sorted(os_types))
+        )
+    if len(os_versions) != 1:
+        raise ValueError(
+            "Catalog contains multiple RHEL minor versions: "
+            + ", ".join(sorted(os_versions))
+            + ". Repo Manager supports exactly one RHEL minor version per catalog."
+        )
+
+    architectures = [
+        arch for arch in ARCH_SUFFIXES if arch in discovered_architectures
+    ]
+    context = {
+        "os_type": next(iter(os_types)),
+        "os_version": next(iter(os_versions)),
+        "architectures": architectures,
+        "functional_layers": functional_layers,
+    }
+    logger.info(
+        "Resolved catalog context: os=%s, version=%s, architectures=%s",
+        context["os_type"], context["os_version"], architectures,
+    )
+    return context
+
+
+def extract_os_version_from_functional_layer(catalog, logger):
+    """Return the strict catalog minor version without a fallback."""
+    return resolve_catalog_context([catalog], logger)["os_version"]
+
+
+def resolve_catalog_groups(catalog, arch, logger, os_version=None):
     """Resolve functionallayer -> groups -> packages for a given architecture.
 
     This extracts the group names referenced by functional layers that match
@@ -290,6 +358,9 @@ def resolve_catalog_groups(catalog, arch, logger):
     Returns:
         dict: Mapping of group_name -> list of package entries.
     """
+    if os_version is None:
+        os_version = resolve_catalog_context([catalog], logger)["os_version"]
+
     groups = catalog.get("groups", {})
     packages = catalog.get("packages", {})
     functional_layers = catalog.get("functionallayer", [])
@@ -300,7 +371,9 @@ def resolve_catalog_groups(catalog, arch, logger):
     seen_groups = set()
     for fl in functional_layers:
         fl_name = fl.get("name", "")
-        if fl_name.endswith(f"_{arch}"):
+        parsed_context = parse_functional_layer_context(fl_name)
+        if (parsed_context["architecture"] == arch and
+                parsed_context["os_version"] == str(os_version)):
             for component in fl.get("components", []):
                 if component not in seen_groups:
                     relevant_groups.append(component)
@@ -342,7 +415,19 @@ def resolve_catalog_groups(catalog, arch, logger):
     return group_packages
 
 
-def select_package_source(package, arch):
+def _source_supports_version(source, os_version):
+    """Return whether a source is valid for the requested minor version."""
+    if os_version is None:
+        return True
+    source_versions = source.get("version")
+    if source_versions in (None, "", []):
+        return True
+    if not isinstance(source_versions, (list, tuple, set)):
+        source_versions = [source_versions]
+    return str(os_version) in {str(version) for version in source_versions}
+
+
+def select_package_source(package, arch, os_version=None):
     """Return the source explicitly compatible with ``arch``.
 
     Exact architecture entries take priority.  A ``noarch`` source is accepted
@@ -354,12 +439,55 @@ def select_package_source(package, arch):
         return None
 
     for source in sources:
-        if source.get("architecture") == arch:
+        if (source.get("architecture") == arch and
+                _source_supports_version(source, os_version)):
             return source
     for source in sources:
-        if source.get("architecture") == "noarch":
+        if (source.get("architecture") == "noarch" and
+                _source_supports_version(source, os_version)):
             return source
     return None
+
+
+def collect_referenced_repositories(catalogs, catalog_context, logger):
+    """Return catalog-referenced RPM repository names per architecture.
+
+    Only packages selected by the resolved functional layers participate. The
+    result is deterministic and can be shared by validation and subscription
+    setup so both phases require exactly the same repositories.
+    """
+    if isinstance(catalogs, dict):
+        catalogs = [catalogs]
+
+    os_version = catalog_context["os_version"]
+    referenced = {
+        architecture: []
+        for architecture in catalog_context["architectures"]
+    }
+    seen = {architecture: set() for architecture in referenced}
+
+    for catalog in catalogs:
+        for architecture in catalog_context["architectures"]:
+            group_packages = resolve_catalog_groups(
+                catalog, architecture, logger, os_version=os_version
+            )
+            for packages in group_packages.values():
+                for package in packages:
+                    package_type = package.get(
+                        "type", package.get("packagetype", "rpm")
+                    )
+                    if package_type not in ("rpm", "rpm_list", "rpm_repo"):
+                        continue
+                    source = select_package_source(
+                        package, architecture, os_version=os_version
+                    )
+                    repo_name = (source or {}).get("reponame", "")
+                    if repo_name and repo_name not in seen[architecture]:
+                        referenced[architecture].append(repo_name)
+                        seen[architecture].add(repo_name)
+
+    logger.info("Catalog-referenced RPM repositories: %s", referenced)
+    return referenced
 
 
 # ---------------------------------------------------------------------------
@@ -397,18 +525,22 @@ def build_global_package_index(catalogs, logger):
             }
         }
     """
+    catalog_context = resolve_catalog_context(catalogs, logger)
+    os_version = catalog_context["os_version"]
+    selected_architectures = catalog_context["architectures"]
     global_index = {}  # arch -> OrderedDict of hash -> info
     dedup_stats = {"total": 0, "unique": 0, "duplicates": 0, "dedup_list": {}}
 
     for catalog in catalogs:
         catalog_id = catalog["identifier"]
-        catalog_name = catalog["name"]
 
-        for arch in ARCH_SUFFIXES:
+        for arch in selected_architectures:
             if arch not in global_index:
                 global_index[arch] = OrderedDict()
 
-            group_packages = resolve_catalog_groups(catalog, arch, logger)
+            group_packages = resolve_catalog_groups(
+                catalog, arch, logger, os_version=os_version
+            )
 
             for group_name, pkg_list in group_packages.items():
                 for pkg in pkg_list:
@@ -425,11 +557,14 @@ def build_global_package_index(catalogs, logger):
                     source_url = None
                     source_path = None
                     source_registry = None
-                    selected_source = select_package_source(pkg, arch)
+                    selected_source = select_package_source(
+                        pkg, arch, os_version=os_version
+                    )
                     if sources and selected_source is None:
                         raise ValueError(
                             f"Catalog package '{pkg_name}' in group '{group_name}' "
-                            f"has no source for architecture '{arch}' or 'noarch'"
+                            f"has no source for architecture '{arch}' or 'noarch' "
+                            f"compatible with RHEL {os_version}"
                         )
                     if selected_source:
                         repo_name = selected_source.get("reponame", "")

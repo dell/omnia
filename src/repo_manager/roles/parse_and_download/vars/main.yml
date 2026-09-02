@@ -21,7 +21,9 @@ repo_store_path: "{{ repo_manager_runtime_dir }}"
 base_path: "{{ repo_manager_log_dir }}"
 local_repo_config_path: "{{ project_input_path }}/repo_manager_config.yml"
 clean_rpms: true
-rpm_dir_path: "{{ repo_manager_offline_repo_dir }}/cluster/{{ item }}/rhel/{{ cluster_os_version }}/rpm"
+rpm_dir_path: >-
+  {{ pulp_distribution_root_dir ~ '/' ~ item ~ '/rhel/' ~
+     cluster_os_version ~ '/rpm' }}
 localrepo_completion_msg1: |
   The playbook repo_manager.yml has completed successfully.
 # Resync repos control

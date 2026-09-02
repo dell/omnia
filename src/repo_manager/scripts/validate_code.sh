@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+REPO_MANAGER_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
+REPO_ROOT=$(cd "${REPO_MANAGER_DIR}/../.." && pwd)
+
+export ANSIBLE_CONFIG="${REPO_MANAGER_DIR}/playbooks/ansible.cfg"
+
 echo "=========================================="
 echo "Repo Manager Code Validation Script"
 echo "=========================================="
@@ -13,14 +19,18 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Change to repo_manager directory
-cd "$(dirname "$0")/.."
+cd "${REPO_MANAGER_DIR}"
 
 echo "Step 1: Running Ansible Lint..."
 echo "----------------------------------------"
-if ansible-lint roles/ playbooks/ --force-color 2>&1; then
+if ansible-lint \
+    --config="${REPO_ROOT}/.config/ansible-lint.yml" \
+    "${REPO_MANAGER_DIR}" \
+    --force-color 2>&1; then
     echo -e "${GREEN}✓ Ansible-lint passed${NC}"
 else
-    echo -e "${YELLOW}⚠ Ansible-lint found issues (review output)${NC}"
+    echo -e "${RED}✗ Ansible-lint failed${NC}"
+    exit 1
 fi
 echo ""
 

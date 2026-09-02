@@ -96,7 +96,7 @@
           - item is string
           - item is match('^/')
           - item | length > 5
-          - item not in ['/', '/opt', '/var', '/etc', '/usr', '/root']
+          - item not in ['/', '/etc', '/home', '/media', '/mnt', '/opt', '/root', '/srv', '/usr', '/var']
           - item != omnia_data_path
           - item != repo_manager_base_dir
         fail_msg: "Unsafe Pulp cleanup target refused: {{ item }}"
@@ -105,6 +105,18 @@
         {{ pulp_cleanup_directory
            + (pulp_cleanup_log_directories
               if cleanup_logs | default(true) | bool else []) }}
+
+    - name: Validate Pulp distribution root
+      ansible.builtin.assert:
+        that:
+          - pulp_content_paths is mapping
+          - pulp_content_paths.distribution_root is string
+          - pulp_content_paths.distribution_root is match('^[^/]+(?:/[^/]+)*$')
+          - "'.' not in pulp_content_paths.distribution_root.split('/')"
+          - "'..' not in pulp_content_paths.distribution_root.split('/')"
+        fail_msg: >-
+          Unsafe Pulp distribution_root refused. Configure a relative path
+          containing no empty, current-directory, or parent-directory segments.
 
     # -------------------------------------------------------------------------
     # PHASE 2: FETCH CREDENTIALS (OPTIONAL - NOT REQUIRED FOR CLEANUP)

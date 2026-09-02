@@ -49,6 +49,16 @@
   environment:
     PULP_CA_BUNDLE: "{{ pulp_server_crt }}"
   pre_tasks:
+    - name: Load Repo Manager runtime configuration
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+        tasks_from: load_config.yml
+
+    - name: Resolve cleanup catalog context
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+        tasks_from: resolve_catalog_context.yml
+
     # Step 0: Setup pulp CLI
     - name: Check if pulp CLI exists at /usr/local/bin/pulp
       ansible.builtin.stat:
@@ -88,11 +98,15 @@
           Then run the playbook again to create the symlink automatically.
       when: pulp_cli_version.rc != 0
 
-    # Step 1: Set OS parameters for cleanup (module has defaults, catalog not required)
-    - name: Set OS parameters for cleanup
-      ansible.builtin.set_fact:
-        cluster_os_type: "{{ cluster_os_type | default('rhel') }}"
-        cluster_os_version: "{{ cluster_os_version | default('10.0') }}"
+    - name: Validate cleanup catalog context
+      ansible.builtin.assert:
+        that:
+          - cluster_os_type | length > 0
+          - cluster_os_version | length > 0
+          - selected_architectures | length > 0
+        fail_msg: >-
+          Cleanup requires a valid CATALOG_FILE_PATH so repository state is
+          updated under the correct OS version and architecture.
 
     # Step 1: Input Validation
     - name: Set cleanup input presence flag

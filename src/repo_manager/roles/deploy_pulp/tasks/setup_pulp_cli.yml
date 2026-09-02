@@ -18,7 +18,9 @@
 # Preserve the installed console entry point as a backend and install a small
 # launcher at /usr/local/bin/pulp. The launcher supplies PULP_CA_BUNDLE so the
 # pip-installed CLI can validate Repo Manager's private certificate without a
-# manual shell export. Caller-provided PULP_CA_BUNDLE values still take priority.
+# manual shell export. Link the virtual environment entry point to the launcher
+# so activating the venv cannot bypass managed TLS trust. Caller-provided
+# PULP_CA_BUNDLE values still take priority.
 # =============================================================================
 
 - name: Check if pulp CLI exists at /usr/local/bin/pulp
@@ -116,6 +118,21 @@
       The managed Pulp CLI backend is unavailable. Reinstall pulp-cli and run
       the prepare operation again.
 
+- name: Inspect Omnia virtual environment CLI directory
+  ansible.builtin.stat:
+    path: "{{ pulp_venv_cli_executable | dirname }}"
+  register: _pulp_venv_cli_directory
+
+- name: Require the Omnia virtual environment CLI directory
+  ansible.builtin.assert:
+    that:
+      - _pulp_venv_cli_directory.stat.exists | default(false)
+      - _pulp_venv_cli_directory.stat.isdir | default(false)
+    fail_msg: >-
+      The Omnia virtual environment CLI directory is unavailable at
+      {{ pulp_venv_cli_executable | dirname }}. Set OMNIA_VENV_PATH to the
+      deployed Omnia virtual environment and run the prepare operation again.
+
 - name: Install managed Pulp CLI launcher
   ansible.builtin.template:
     src: pulp_cli_launcher.sh.j2
@@ -125,6 +142,14 @@
     mode: "0755"
     force: true
 
+- name: Link Omnia virtual environment Pulp CLI to managed launcher
+  ansible.builtin.file:
+    src: "{{ pulp_cli_executable }}"
+    dest: "{{ pulp_venv_cli_executable }}"
+    state: link
+    force: true
+  when: pulp_venv_cli_executable != pulp_cli_executable
+
 - name: Verify managed Pulp CLI launcher
   ansible.builtin.command:
     argv:
@@ -133,6 +158,16 @@
   register: pulp_cli_version
   changed_when: false
 
+- name: Verify managed Pulp CLI from Omnia virtual environment
+  ansible.builtin.command:
+    argv:
+      - "{{ pulp_venv_cli_executable }}"
+      - --version
+  register: _pulp_venv_cli_version
+  changed_when: false
+
 - name: Display pulp CLI status
   ansible.builtin.debug:
-    msg: "Pulp CLI: {{ pulp_cli_version.stdout }}"
+    msg:
+      - "System Pulp CLI: {{ pulp_cli_version.stdout }}"
+      - "Omnia venv Pulp CLI: {{ _pulp_venv_cli_version.stdout }}"

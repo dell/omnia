@@ -12,37 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Self-contained credential definition for repo_manager.
-# This role can operate independently of the central credential_utility.
-
-# Credential file definition (standalone — no dependency on credential_utility index)
+# Credential paths used by the atomic vault-backed credential flow.
 repo_manager_credential_file:
-  credential_type: "Repo Manager"
-  template: "{{ role_path }}/templates/repo_manager_credential.j2"
   file_path: "{{ input_project_dir }}/repo_manager_config_credentials.yml"
-  file_mode: "0600"
   vault_path: "{{ input_project_dir }}/.repo_manager_config_credentials_key"
-
-# Credential prompt definitions
-repo_manager_cred_config:
-  mandatory:
-    - password: pulp_password
-  optional:
-    - username: docker_username
-      username_default: ''
-    - password: docker_password
-  conditional_mandatory: []
 
 # Set default username (no prompting)
 pulp_username: 'admin'
 registry_credentials: {}
-
-# Messages
-repo_manager_mandatory_warning_msg: "WARNING: The following are mandatory repo manager credentials and cannot be left empty."
-repo_manager_conditional_warning_msg: "WARNING: Conditional repo manager credentials will be prompted based on configuration."
-repo_manager_password_fail_msg: "Failed. Password is required for mandatory repo manager credential."
-repo_manager_password_match_fail_msg: "Failed. Passwords do not match. Please try again."
-repo_manager_credential_encrypt_fail_msg: "Failed to encrypt repo manager credential file."
-repo_manager_cred_file_missing_msg: |
-  Repo manager credential file not found at {{ repo_manager_credential_file.file_path }}.
-  It will be created from template.

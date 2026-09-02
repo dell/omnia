@@ -13,15 +13,27 @@
 #  limitations under the License.
 ---
 - name: Podman login
-  ansible.builtin.command: "{{ login_cmd }}"
+  ansible.builtin.command:
+    argv:
+      - podman
+      - login
+      - docker.io
+      - --username
+      - "{{ _podman_docker_username }}"
+      - --password-stdin
+    stdin: "{{ _podman_docker_password }}"
+    stdin_add_newline: true
   changed_when: true
   register: podman_login_output
   retries: "{{ retry_count }}"
   delay: "{{ delay_time }}"
   until: podman_login_output.rc == 0
   failed_when: false
+  no_log: true
 
 - name: Podman login check
   ansible.builtin.fail:
-    msg: "{{ podman_login_fail_msg }} Error: {{ podman_login_output.stderr }}"
+    msg: >-
+      {{ podman_login_fail_msg }} Podman returned exit code
+      {{ podman_login_output.rc }}.
   when: podman_login_output.rc != 0

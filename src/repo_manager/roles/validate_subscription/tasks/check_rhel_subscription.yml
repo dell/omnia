@@ -63,31 +63,14 @@
       changed_when: false
       failed_when: false
 
-    - name: Set subscription release from cluster OS version
-      ansible.builtin.command:
-        cmd: >
-          subscription-manager release --set="{{ hostvars['localhost']['cluster_os_version'] }}"
-      changed_when: true
-      when: >
-        hostvars['localhost']['cluster_os_version'] in
-        (available_releases.stdout | default('') | regex_findall('[0-9]+\.[0-9]+') | list)
-
-    - name: Warn if release version not available
+    - name: Report subscription release discovery
       ansible.builtin.debug:
-        msg: "WARNING: cluster_os_version {{ hostvars['localhost']['cluster_os_version'] }} not in subscription-manager release list. Skipping release set."
-      when: >
-        hostvars['localhost']['cluster_os_version'] not in
-        (available_releases.stdout | default('') | regex_findall('[0-9]+\.[0-9]+') | list)
-
-    - name: Get subscription-manager release
-      ansible.builtin.command: subscription-manager release --show
-      register: release_info
-      changed_when: false
-      failed_when: false
-
-    - name: Show subscription-manager release
-      ansible.builtin.debug:
-        msg: "{{ release_info.stdout }}"
+        msg: >-
+          Validating catalog-selected RHEL {{ cluster_os_version }} directly
+          against subscription repository metadata. subscription-manager
+          reported releases: {{ available_releases.stdout |
+          default('none reported', true) }}
+      when: required_repos | length > 0
 
     - name: Ensure shared path exists
       ansible.builtin.file:
@@ -172,6 +155,8 @@
           /^\[/ {section=$0}
           /^baseurl/ && section ~ /({{ eus_pattern }})/ {
             gsub(/\$releasever/, "{{ hostvars['localhost']['cluster_os_version'] }}", $3)
+            gsub(/\/rhel{{ rhel_version }}\/[0-9]+\.[0-9]+\//,
+                 "/rhel{{ rhel_version }}/{{ cluster_os_version }}/", $3)
             print $3
           }
         ' {{ redhat_repo_file }}
@@ -188,6 +173,8 @@
           /^\[/ {section=$0}
           /^baseurl/ && section ~ /({{ std_pattern }})/ {
             gsub(/\$releasever/, "{{ hostvars['localhost']['cluster_os_version'] }}", $3)
+            gsub(/\/rhel{{ rhel_version }}\/[0-9]+\.[0-9]+\//,
+                 "/rhel{{ rhel_version }}/{{ cluster_os_version }}/", $3)
             print $3
           }
         ' {{ redhat_repo_file }}

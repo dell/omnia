@@ -35,6 +35,7 @@ from ansible.module_utils.repo_manager.catalog_resolver import (
     parse_repo_urls_from_config,
     parse_additional_repos_from_config,
     parse_user_repos_from_config,
+    resolve_catalog_context,
 )
 from ansible.module_utils.repo_manager.repo_settings import get_caching_policy
 from ansible.module_utils.repo_manager.mirror_status import (
@@ -89,10 +90,8 @@ task_count:
 """
 
 from ansible.module_utils.repo_manager.config import (
-    CSV_FILE_PATH_DEFAULT,
     LOG_DIR_DEFAULT,
     REPO_MANAGER_CONFIG_PATH_DEFAULT,
-    ARCH_SUFFIXES,
     MIRROR_STATUS_DIR,
     MIRROR_INDEX_FILENAME,
 )
@@ -128,19 +127,23 @@ def main():
     """
 
     module_args = {
-        "csv_file_path": {"type": "str", "required": False, "default": CSV_FILE_PATH_DEFAULT},
         "local_repo_config_path": {"type": "str", "required": False, "default": REPO_MANAGER_CONFIG_PATH_DEFAULT},
         "log_dir": {"type": "str", "required": False, "default": LOG_DIR_DEFAULT},
-        "key_path": {"type": "str", "required": True},
-        "sub_urls": {"type": "dict", "required": False, "default": {}}
+        "sub_urls": {"type": "dict", "required": False, "default": {}},
+        "cluster_os_type": {"type": "str", "required": True},
+        "cluster_os_version": {"type": "str", "required": True},
+        "architectures": {
+            "type": "list", "elements": "str", "required": True
+        },
     }
 
     module = AnsibleModule(argument_spec=module_args)
     log_dir = module.params["log_dir"]
-    csv_file_path = module.params["csv_file_path"]
     local_repo_config_path = module.params["local_repo_config_path"]
-    vault_key_path = module.params["key_path"]
     sub_urls = module.params["sub_urls"]
+    cluster_os_type = module.params["cluster_os_type"]
+    cluster_os_version = module.params["cluster_os_version"]
+    selected_architectures = module.params["architectures"]
     logger = setup_standard_logger(log_dir)
     start_time = datetime.now().strftime("%I:%M:%S %p")
     logger.info(f"Start execution time: {start_time}")
@@ -154,27 +157,15 @@ def main():
         catalog_path = get_catalog_path(config_data, config_dir, logger)
         catalogs = load_multiple_catalogs(catalog_path, logger)
 
-        # Extract OS info from first catalog's identifier
-        first_catalog = catalogs[0]
-        catalog_id = first_catalog["identifier"]
-        cluster_os_type = "rhel"
-        cluster_os_version = "10.0"
-        parts = catalog_id.split("-")
-        for i, part in enumerate(parts):
-            if part in ("rhel"):
-                cluster_os_type = part
-                version_parts = []
-                for j in range(i + 1, min(i + 3, len(parts))):
-                    if parts[j].isdigit():
-                        version_parts.append(parts[j])
-                    else:
-                        break
-                if version_parts:
-                    cluster_os_version = ".".join(version_parts)
-                break
-
-        logger.info("Detected OS: %s %s from catalog identifier: %s",
-                    cluster_os_type, cluster_os_version, catalog_id)
+        resolved_context = resolve_catalog_context(catalogs, logger)
+        if (cluster_os_type != resolved_context["os_type"] or
+                cluster_os_version != resolved_context["os_version"] or
+                selected_architectures != resolved_context["architectures"]):
+            raise ValueError(
+                "Catalog context changed between setup and task preparation: "
+                f"expected {cluster_os_type} {cluster_os_version} "
+                f"{selected_architectures}, resolved {resolved_context}"
+            )
 
         # Build global package index with cross-catalog deduplication
         global_index = build_global_package_index(catalogs, logger)
@@ -200,7 +191,7 @@ def main():
         final_tasks_dict = {}
         sw_archs = []
 
-        for arch in ARCH_SUFFIXES:
+        for arch in selected_architectures:
             if arch not in global_index or not global_index[arch]:
                 logger.info("No packages found for arch %s, skipping", arch)
                 continue

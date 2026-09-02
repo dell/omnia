@@ -16,9 +16,6 @@
 # VALIDATE INPUT ROLE VARIABLES
 # =============================================================================
 
-# Input directory configuration
-input_dir: "{{ input_project_dir }}"
-
 # CSV validation configuration for build_image playbook
 csv_file_path: ""
 

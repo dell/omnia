@@ -234,8 +234,8 @@ with Ansible Vault at rest.
 ```yaml
 pulp_username: "admin"
 pulp_password: "<secret>"
-docker_username: "<optional-user>"
-docker_password: "<optional-secret>"
+docker_username: ''
+docker_password: ''
 
 registry_credentials:
   registries/harbor-production:
@@ -253,6 +253,10 @@ registry_credentials:
 | `registry_credentials.<vault_path>.registry` | For private registry auth | Registry mapping |
 | `registry_credentials.<vault_path>.username` | For basic auth | Registry username |
 | `registry_credentials.<vault_path>.password` | For basic auth | Registry password/token |
+
+When Docker Hub credentials are not used, both Docker values are stored as
+empty strings. Missing, YAML null, whitespace-only, and legacy `"None"` values
+are normalized to `''`; anonymous public pulls do not run `podman login`.
 
 Do not edit encrypted values directly and never commit either credential file.
 

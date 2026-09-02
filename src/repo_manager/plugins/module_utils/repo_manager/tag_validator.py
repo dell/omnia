@@ -25,11 +25,8 @@ The ONLY reliable signals are from task progress_reports:
 - manifest.total≥1           → Tag exists (regardless of sync success/failure)
 """
 
-import json
-import logging
 import re
 import uuid
-from time import time as current_time
 
 
 def validate_tag_via_pulp_sync(image_name, tag, logger,

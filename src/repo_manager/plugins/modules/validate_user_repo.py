@@ -80,7 +80,10 @@ def main():
     module_args = {
         "local_repo_config_path": {"type": "str", "required": True},
         "certs_path": {"type": "str", "required": True},
-        "cluster_os_version": {"type": "str", "required": False, "default": "10.0"},
+        "cluster_os_version": {"type": "str", "required": True},
+        "architectures": {
+            "type": "list", "elements": "str", "required": True
+        },
     }
 
     result = {
@@ -98,7 +101,8 @@ def main():
         validation_result = validate_certificates(
             local_repo_config_path=module.params['local_repo_config_path'],
             certs_path=module.params['certs_path'],
-            cluster_os_version=module.params['cluster_os_version']
+            cluster_os_version=module.params['cluster_os_version'],
+            architectures=module.params['architectures']
         )
 
         if validation_result.get("status") == "error":

@@ -27,6 +27,7 @@
     certs_path: "{{ user_repo_cert_dir }}"
     local_repo_config_path: "{{ local_repo_config_path }}"
     cluster_os_version: "{{ cluster_os_version }}"
+    architectures: "{{ selected_architectures }}"
   environment:
     REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"
     REPO_MANAGER_INPUT_PROJECT_DIR: "{{ input_project_dir }}"
