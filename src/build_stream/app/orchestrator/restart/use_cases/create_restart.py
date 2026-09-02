@@ -12,18 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""CreateRestart use case implementation."""
+"""CreateRestart use case implementation.
+
+The restart stage invokes the orchestrator playbook with the ``pxeboot``
+tag to perform PXE boot on the provisioned nodes.  The playbook request
+is submitted to the NFS queue for the playbook watcher to pick up and
+execute asynchronously.
+
+Guarantees:
+- Stage guard enforcement: Only PENDING stages can be started
+- Job ownership verification: Client must own the job
+- Audit trail: Emits STAGE_STARTED event
+- Re-run support: COMPLETED/FAILED stages are reset before proceeding
+"""
 
 from datetime import datetime, timezone
 
 from api.logging_utils import create_stage_log_file, log_secure_info
 
-from core.localrepo.entities import PlaybookRequest
-from core.localrepo.value_objects import (
-    ExecutionTimeout,
-    ExtraVars,
-    PlaybookPath,
-)
 from core.jobs.entities import AuditEvent, Stage
 from core.jobs.exceptions import (
     JobNotFoundError,
@@ -43,34 +49,45 @@ from core.jobs.value_objects import (
     StageType,
     StageState,
 )
-from core.localrepo.services import PlaybookQueueRequestService
+from core.localrepo.entities import PlaybookRequest
+from core.localrepo.value_objects import (
+    ExecutionTimeout,
+    ExtraVars,
+    PlaybookPath,
+)
 
 from orchestrator.restart.commands import CreateRestartCommand
 from orchestrator.restart.dtos import RestartResponse
-from core.common.playbook_registry import get_playbook_path
+
+ORCHESTRATOR_PLAYBOOK_NAME = "orchestrator.yml"
+PXE_BOOT_TAGS = "pxeboot"
+DEFAULT_TIMEOUT_MINUTES = 60
 
 
-PLAYBOOK_NAME = "set_pxe_boot.yml"
-_RESTART_PLAYBOOK_PATH = get_playbook_path(PLAYBOOK_NAME) or "/omnia/utils/set_pxe_boot.yml"
-DEFAULT_TIMEOUT_MINUTES = 30
+def _now_iso() -> str:
+    """Return current UTC time as ISO 8601 string with Z suffix."""
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 class CreateRestartUseCase:
     """Use case for triggering the restart stage.
 
-    This use case orchestrates stage execution with the following guarantees:
+    Submits the orchestrator playbook with the ``pxeboot`` tag to the
+    NFS queue.  The playbook watcher picks up the request and executes
+    ``ansible-playbook orchestrator.yml --tags pxeboot`` on the OIM host.
+
+    Guarantees:
     - Stage guard enforcement: Only PENDING stages can be started
     - Job ownership verification: Client must own the job
-    - PlaybookRequest construction and NFS queue submission
     - Audit trail: Emits STAGE_STARTED event
-    - No extra_vars: The playbook runs without additional variables
+    - Re-run support: COMPLETED/FAILED stages are reset before proceeding
 
     Attributes:
         job_repo: Job repository port.
         stage_repo: Stage repository port.
         audit_repo: Audit event repository port.
-        queue_service: Playbook queue request service.
-        uuid_generator: UUID generator for events and request IDs.
+        queue_service: NFS queue service for submitting playbook requests.
+        uuid_generator: UUID generator for events.
     """
 
     def __init__(
@@ -78,26 +95,30 @@ class CreateRestartUseCase:
         job_repo: JobRepository,
         stage_repo: StageRepository,
         audit_repo: AuditEventRepository,
-        queue_service: PlaybookQueueRequestService,
         uuid_generator: UUIDGenerator,
-    ) -> None:  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        queue_service=None,
+    ) -> None:
         """Initialize use case with repository and service dependencies.
 
         Args:
             job_repo: Job repository implementation.
             stage_repo: Stage repository implementation.
             audit_repo: Audit event repository implementation.
-            queue_service: Playbook queue request service.
             uuid_generator: UUID generator for identifiers.
+            queue_service: NFS queue service for submitting playbook requests.
         """
         self._job_repo = job_repo
         self._stage_repo = stage_repo
         self._audit_repo = audit_repo
-        self._queue_service = queue_service
         self._uuid_generator = uuid_generator
+        self._queue_service = queue_service
 
     def execute(self, command: CreateRestartCommand) -> RestartResponse:
         """Execute the restart stage.
+
+        Validates preconditions, creates a playbook request for
+        ``orchestrator.yml --tags pxeboot``, submits it to the NFS queue,
+        and emits audit events.
 
         Args:
             command: CreateRestart command with job details.
@@ -110,7 +131,6 @@ class CreateRestartUseCase:
             StageNotFoundError: If restart stage does not exist for the job.
             InvalidStateTransitionError: If stage is not in PENDING state.
             TerminalStateViolationError: If stage is in a terminal state.
-            QueueUnavailableError: If NFS queue is not accessible.
         """
         job = self._validate_job(command)
         stage = self._validate_stage(command)
@@ -122,14 +142,22 @@ class CreateRestartUseCase:
         )
         if log_path:
             stage.log_file_path = str(log_path)
-            # Note: Don't save here - will be saved in _submit_to_queue after stage.start()
 
-        request = self._build_playbook_request(command, stage)
+        # Create playbook request and submit to NFS queue
+        request = self._create_request(command, stage, image_group_id)
         self._submit_to_queue(command, request, stage)
 
+        # Audit trail
         self._emit_stage_started_event(command)
 
-        return self._to_response(command, request, image_group_id)
+        log_secure_info(
+            "info",
+            f"Restart stage submitted (orchestrator.yml --tags pxeboot): "
+            f"job_id={command.job_id}",
+            job_id=str(command.job_id),
+        )
+
+        return self._to_response(command, image_group_id, request.submitted_at)
 
     def _validate_job(self, command: CreateRestartCommand):
         """Validate job exists and belongs to the requesting client."""
@@ -212,26 +240,31 @@ class CreateRestartUseCase:
         params = getattr(job, "parameters", None) or {}
         return params.get("image_group_id", "")
 
-    def _build_playbook_request(
+    def _create_request(
         self,
         command: CreateRestartCommand,
         stage: Stage,
+        image_group_id: str,
     ) -> PlaybookRequest:
-        """Create PlaybookRequest entity for the restart stage."""
-        playbook_path = PlaybookPath(PLAYBOOK_NAME)
+        """Create restart playbook request entity.
 
+        Submits ``orchestrator.yml --tags pxeboot`` with the job_id and
+        image_group_id as extra variables.
+        """
         return PlaybookRequest(
             job_id=str(command.job_id),
             stage_name=StageType.RESTART.value,
-            playbook_path=playbook_path,
+            playbook_path=PlaybookPath(ORCHESTRATOR_PLAYBOOK_NAME),
             extra_vars=ExtraVars(values={
                 "job_id": str(command.job_id),
+                "image_group_id": image_group_id,
                 "attempt": stage.attempt,
             }),
             correlation_id=str(command.correlation_id),
             timeout=ExecutionTimeout(DEFAULT_TIMEOUT_MINUTES),
-            submitted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            submitted_at=_now_iso(),
             request_id=str(self._uuid_generator.generate()),
+            tags=PXE_BOOT_TAGS,
         )
 
     def _submit_to_queue(
@@ -241,16 +274,58 @@ class CreateRestartUseCase:
         stage: Stage,
     ) -> None:
         """Submit playbook request to NFS queue for watcher service."""
-        stage.start()
-        self._stage_repo.save(stage)
+        try:
+            stage.start()
+            self._stage_repo.save(stage)
+        except Exception as save_exc:  # pylint: disable=broad-exception-caught
+            log_secure_info(
+                "warning",
+                f"Stage start save failed, continuing with queue submission: {save_exc}",
+                job_id=str(command.job_id),
+            )
 
-        self._queue_service.submit_request(
-            request=request,
-            correlation_id=str(command.correlation_id),
+        try:
+            self._queue_service.submit_request(
+                request=request,
+                correlation_id=str(command.correlation_id),
+            )
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            try:
+                error_code = "QUEUE_SUBMISSION_FAILED"
+                error_summary = str(exc)
+                stage.fail(error_code=error_code, error_summary=error_summary)
+                self._stage_repo.save(stage)
+
+                JobStateHelper.handle_stage_failure(
+                    job_repo=self._job_repo,
+                    audit_repo=self._audit_repo,
+                    uuid_generator=self._uuid_generator,
+                    job_id=command.job_id,
+                    stage_name=StageType.RESTART.value,
+                    error_code=error_code,
+                    error_summary=error_summary,
+                    correlation_id=str(command.correlation_id),
+                    client_id=str(command.client_id),
+                )
+            except Exception as save_exc:  # pylint: disable=broad-exception-caught
+                log_secure_info(
+                    "warning",
+                    f"Stage fail save failed, stage already modified elsewhere: {save_exc}",
+                    job_id=str(command.job_id),
+                )
+            log_secure_info(
+                "error",
+                f"Queue submission failed for restart stage: job {command.job_id}",
+                str(command.correlation_id),
+            )
+            raise
+
+        log_secure_info(
+            "info",
+            f"Restart request submitted to queue for job {command.job_id}",
+            identifier=str(command.correlation_id),
+            job_id=str(command.job_id),
         )
-
-        log_secure_info('info', f"Restart request submitted to queue for job {command.job_id}, stage={StageType.RESTART.value}, "
-            "correlation_id={command.correlation_id}")
 
     def _emit_stage_started_event(
         self,
@@ -266,6 +341,8 @@ class CreateRestartUseCase:
             timestamp=datetime.now(timezone.utc),
             details={
                 "stage_name": StageType.RESTART.value,
+                "playbook": ORCHESTRATOR_PLAYBOOK_NAME,
+                "tags": PXE_BOOT_TAGS,
             },
         )
         self._audit_repo.save(event)
@@ -273,15 +350,15 @@ class CreateRestartUseCase:
     def _to_response(
         self,
         command: CreateRestartCommand,
-        request: PlaybookRequest,
         image_group_id: str,
+        submitted_at: str,
     ) -> RestartResponse:
         """Map to response DTO."""
         return RestartResponse(
             job_id=str(command.job_id),
             stage_name=StageType.RESTART.value,
             status="accepted",
-            submitted_at=request.submitted_at,
+            submitted_at=submitted_at,
             image_group_id=image_group_id,
             correlation_id=str(command.correlation_id),
         )

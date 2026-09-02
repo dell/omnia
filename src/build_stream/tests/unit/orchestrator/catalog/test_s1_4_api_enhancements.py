@@ -288,7 +288,7 @@ class TestExtractCatalogMetadata:
         """Test extraction of roles and images from catalog."""
         uc = self._get_use_case()
         catalog = _make_catalog_json()
-        meta = uc._extract_catalog_metadata(catalog, ImageGroupId("omnia-cluster-v1.2"))
+        meta = uc._extract_catalog_metadata(catalog)
 
         assert meta["image_group_id"] == "omnia-cluster-v1.2"
         assert sorted(meta["roles"]) == ["kube_node", "slurm_node"]
@@ -307,14 +307,14 @@ class TestExtractCatalogMetadata:
                 ],
             }
         }
-        meta = uc._extract_catalog_metadata(catalog, ImageGroupId("my-group"))
+        meta = uc._extract_catalog_metadata(catalog)
         assert meta["role_images"]["worker"] == "worker.img"
 
     def test_empty_functional_layer(self):
         """Test empty functional layer is handled correctly."""
         uc = self._get_use_case()
         catalog = {"Catalog": {"Identifier": "my-group", "Version": "1.0"}}
-        meta = uc._extract_catalog_metadata(catalog, ImageGroupId("my-group"))
+        meta = uc._extract_catalog_metadata(catalog)
         assert meta["roles"] == []
         assert meta["role_images"] == {}
 
@@ -331,7 +331,7 @@ class TestExtractCatalogMetadata:
                 ],
             }
         }
-        meta = uc._extract_catalog_metadata(catalog, ImageGroupId("my-group"))
+        meta = uc._extract_catalog_metadata(catalog)
         assert meta["roles"] == ["valid_role"]
         assert meta["role_images"] == {"valid_role": "valid_role.img"}
 
@@ -506,7 +506,7 @@ class TestResultPollerBuildImageCompletion:
         record = ArtifactRecord(
             id="test-record-id",
             job_id=JobId(VALID_JOB_ID),
-            stage_name=StageName("create-local-repository"),
+            stage_name=StageName("parse-catalog"),
             label="catalog-metadata",
             artifact_ref=ref,
             kind=ArtifactKind.FILE,
@@ -537,7 +537,7 @@ class TestResultPollerBuildImageCompletion:
 
         # Verify ImageGroup was created
         ig = ig_repo.find_by_id(ImageGroupId("test-cluster"))
-        assert ig is not None
+        assert ig is not None, "ImageGroup should have been created"
         assert ig.status == ImageGroupStatus.BUILT
         assert str(ig.job_id) == VALID_JOB_ID
 

@@ -13,21 +13,26 @@
 # limitations under the License.
 ---
 
-# Validate Discovery — Standalone input validation
+# Validate Discovery -- Standalone input validation
 # Can be run standalone or imported by discovery.yml
+#
+# When imported from discovery.yml (discovery_setup_done=true), setup is skipped.
 
-- name: Setup discovery environment
+# Standalone: run discovery_setup
+- name: Standalone setup for validation
   hosts: localhost
   connection: local
   gather_facts: false
-  roles:
-    - discovery_setup
-  tags: always
+  tasks:
+    - name: Run discovery_setup role (standalone only)
+      ansible.builtin.include_role:
+        name: discovery_setup
+      when: not (discovery_setup_done | default(false) | bool)
 
 - name: Validate discovery input configuration
   hosts: localhost
   connection: local
   gather_facts: false
   roles:
-    - validate_discovery_input
-  tags: always
+    - role: validate_discovery_input
+      when: not config_file_status | default(false) | bool

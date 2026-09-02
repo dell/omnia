@@ -143,6 +143,7 @@ gitlab_input_repo_dir: "input"
 # The GitLab repo uses a top-level input/ directory with domain subdirectories:
 #   input/repo_manager/        — repo_manager domain input files
 #   input/image_build_manager/ — image_build_manager domain input files
+#   input/orchestrator/        — orchestrator domain input files
 #
 # Source paths resolve from each domain's runtime input directory.
 gitlab_omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
@@ -164,6 +165,25 @@ gitlab_input_files:
     src: "{{ gitlab_omnia_data_path }}/image_build_manager/input/{{ gitlab_omnia_project_name }}/image_build_config.yml"
   - name: "image_build_manager/package_groups.yml"
     src: "{{ gitlab_omnia_data_path }}/image_build_manager/input/{{ gitlab_omnia_project_name }}/package_groups.yml"
+  # --- orchestrator domain ---
+  - name: "orchestrator/omnia_config.yml"
+    src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/omnia_config.yml"
+  - name: "orchestrator/orchestrator_config.yml"
+    src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/orchestrator_config.yml"
+  - name: "orchestrator/network_spec.yml"
+    src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/network_spec.yml"
+  - name: "orchestrator/security_config.yml"
+    src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/security_config.yml"
+  - name: "orchestrator/storage_config.yml"
+    src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/storage_config.yml"
+  - name: "orchestrator/high_availability_config.yml"
+    src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/high_availability_config.yml"
+  - name: "orchestrator/additional_cloud_init.yml"
+    src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/additional_cloud_init.yml"
+  - name: "orchestrator/pxe_mapping_file.csv"
+    src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/pxe_mapping_file.csv"
+  - name: "orchestrator/set_pxe_boot_config.yml"
+    src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/set_pxe_boot_config.yml"
 
 # Pipeline CI/CD variables
 gitlab_pipeline_var_check_status_codes: [200, 404]

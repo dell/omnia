@@ -75,6 +75,7 @@ PLAYBOOK_TAGS = [
     "upgrade",
     "rollback",
     "external_kafka",
+    "external_victoria",
 ]
 
 # =============================================================================
@@ -214,25 +215,6 @@ SVC_PORT_NAME_HTTP = "http"
 # Vector bridges
 VECTOR_LDMS_APP_NAME = "vector-ldms"
 VECTOR_OME_APP_NAME = "vector-ome"
-
-# UFM (from deploy_ufm/vars/main.yml)
-UFM_SVC_NAME = "ufm-external"
-UFM_VMSCRAPE_NAME = "ufm-infiniband-metrics"
-# K8s Secret object name, not a credential value
-UFM_SECRET_NAME = "ufm-telemetry-credentials"  # noqa: S105
-UFM_EXPECTED_METRICS = [
-    "infiniband_CBW",
-    "PortXmitDataExtended",
-    "PortRcvDataExtended",
-    "PortXmitPktsExtended",
-    "PortRcvPktsExtended",
-    "LinkDownedCounterExtended",
-]
-
-# Telemetry config key paths for UFM
-CFG_KEY_UFM_METRICS_ENABLED = "telemetry_sources.ufm.metrics_enabled"
-CFG_KEY_UFM_ENDPOINT = "ufm_configuration.ufm_endpoint"
-CFG_KEY_UFM_PORT = "ufm_configuration.ufm_metrics_port"
 
 # VAST (from deploy_vast/vars/main.yml)
 VAST_SVC_NAME = "vast-external"
@@ -460,7 +442,6 @@ CMDS = {
         "curl -sk 'https://{vmselect_ip}:{vmselect_port}"
         "/select/0/prometheus/api/v1/query?query={query}'"
     ),
-
     # --- iDRAC VictoriaMetrics data ---
     "vm_query_idrac_service_tag": (
         "curl -s --max-time 15"

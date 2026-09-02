@@ -45,7 +45,7 @@
   hosts: localhost
   connection: local
   gather_facts: true
-  tags: [always]
+  tags: [install_os, build_iso, deploy, generate_ks]
   roles:
     - role: validate_install_os_config
 

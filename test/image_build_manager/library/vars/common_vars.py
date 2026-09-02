@@ -196,7 +196,6 @@ REQUIRED_CONFIG_FIELDS = [
 # Required files inside a dataset directory (when dataset is set)
 REQUIRED_DATASET_FILES = [
     "input/image_build_config.yml",
-    "input/image_build_credentials.yml",
 ]
 
 # Required files in src/ (when dataset is empty — default mode)

@@ -42,9 +42,9 @@ phone_home_retries: 120
 phone_home_delay: 15
 
 # Journal log pattern to search for phone-home callbacks
-# This pattern is used to grep the cloud-init-server journal on OIM
+# This pattern is used to grep the metadata-service journal on OIM
 # Do not change unless you've customized cloud-init configuration
-phone_home_log_pattern: "Phone home request from"
+phone_home_log_pattern: "phone-home"
 
 # ─────────────────────────────────────────────────────────────────────────
 # PXE Boot Configuration (Advanced)

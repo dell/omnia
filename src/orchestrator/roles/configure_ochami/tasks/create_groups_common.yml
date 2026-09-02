@@ -23,7 +23,13 @@
     dest: "{{ nodes_dir }}/groups-common-{{ common_group_name }}.yml"
     mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
   vars:
-    nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
+    _all_nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
+    nodes: >-
+      {{ (_all_nodes
+          | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', registered_fg_names)
+          | list)
+         if (registered_fg_names is defined)
+         else _all_nodes }}
 
 - name: Delete the SMD common group - {{ common_group_name }}
   ansible.builtin.command: /usr/bin/ochami smd group delete --no-confirm {{ common_group_name }}

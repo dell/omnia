@@ -1,0 +1,136 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# validate_preamble — Load standalone prerequisites for --tags validate
+#
+# When running validate standalone, variables normally set by deploy/provision
+# phases are absent. This role loads them from the OIM's configs_vars.yaml
+# (written by deploy) and other persistent state.
+#
+# Every task is guarded so it is a no-op when earlier phases already ran.
+# This role performs NO system changes (read-only).
+#
+# Prerequisites: deploy phase must have run at least once previously.
+
+# =========================================================================
+# Step 1: Load network facts
+# =========================================================================
+- name: Load network_spec.yml
+  ansible.builtin.include_vars: "{{ input_project_dir }}/network_spec.yml"
+  when: admin_netmask_bits is not defined
+
+- name: Parse network_spec data
+  ansible.builtin.set_fact:
+    network_data: "{{ network_data | default({}) | combine({item.key: item.value}) }}"
+  with_dict: "{{ Networks }}"
+  when: admin_netmask_bits is not defined
+
+- name: Set network facts from network_spec
+  ansible.builtin.set_fact:
+    admin_nic_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
+    admin_nic: "{{ network_data.admin_network.oim_nic_name }}"
+    admin_netmask_bits: "{{ network_data.admin_network.netmask_bits }}"
+    ib_network_subnet: "{{ network_data.ib_network.subnet | default('') }}"
+    ib_network_dns: "{{ network_data.ib_network.dns | default([]) }}"
+    dns: "{{ network_data.admin_network.dns | default([]) }}"
+  when: admin_netmask_bits is not defined
+
+# =========================================================================
+# Step 2: Ensure /etc/hosts entry for cluster hostname (read-only idempotent)
+# =========================================================================
+- name: Ensure OpenCHAMI cluster hostname resolves
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "{{ admin_nic_ip }} {{ oim_node_name }}.{{ domain_name | regex_replace('^' + oim_node_name + '\\.', '') }}"
+    create: true
+    mode: "0644"
+
+# =========================================================================
+# Step 3: Process PXE mapping file (for validate_provisioning)
+# =========================================================================
+- name: Create temp mapping file from source
+  ansible.builtin.shell: |
+    set -o pipefail
+    sed 's/^[[:space:]]*//g' "{{ pxe_mapping_file_path }}" | sed 's/[[:space:]]*$//g' > /tmp/omnia_validate_mapping.csv
+  changed_when: false
+  when: read_mapping_file is not defined
+
+- name: Remove comment lines from temp mapping file
+  ansible.builtin.lineinfile:
+    path: /tmp/omnia_validate_mapping.csv
+    regexp: '\s*#'
+    state: absent
+  when: read_mapping_file is not defined
+
+- name: Generate xnames in temp mapping file
+  generate_xname_in_mapping_file:
+    mapping_file_path: /tmp/omnia_validate_mapping.csv
+  when: read_mapping_file is not defined
+
+- name: Read PXE mapping CSV into temp var
+  community.general.read_csv:
+    path: /tmp/omnia_validate_mapping.csv
+    key: ADMIN_MAC
+  register: _validate_csv_result
+  when: read_mapping_file is not defined
+
+- name: Promote CSV result to read_mapping_file fact
+  ansible.builtin.set_fact:
+    read_mapping_file: "{{ _validate_csv_result }}"
+  when: read_mapping_file is not defined and _validate_csv_result is not skipped
+
+- name: Clean up temp mapping file
+  ansible.builtin.file:
+    path: /tmp/omnia_validate_mapping.csv
+    state: absent
+  when: _validate_csv_result is defined and _validate_csv_result is not skipped
+
+# =========================================================================
+# Step 4: Load functional groups
+# =========================================================================
+- name: Load functional groups on localhost
+  ansible.builtin.include_vars:
+    file: "{{ functional_groups_config_path }}"
+  when: functional_groups is not defined
+
+# =========================================================================
+# Step 5: Load cluster config from OIM and authenticate (OIM host only)
+# =========================================================================
+- name: Set oim_node_name on OIM host
+  ansible.builtin.set_fact:
+    oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
+  when:
+    - inventory_hostname == 'oim'
+    - oim_node_name is not defined
+
+- name: Load OpenCHAMI configs_vars.yaml from OIM
+  ansible.builtin.include_vars:
+    file: /opt/omnia/openchami/configs_vars.yaml
+  when:
+    - inventory_hostname == 'oim'
+    - cluster_name is not defined
+
+- name: OpenCHAMI cluster authentication
+  ansible.builtin.include_role:
+    name: orchestrator_common
+    tasks_from: openchami_auth.yml
+  when: inventory_hostname == 'oim'
+
+- name: Configure S3 access for boot images
+  ansible.builtin.include_role:
+    name: orchestrator_common
+    tasks_from: configure_s3_access.yml
+  when:
+    - inventory_hostname == 'oim'
+    - s3_configurations is not defined

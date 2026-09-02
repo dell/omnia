@@ -20,6 +20,7 @@ Common constants, paths, domain lists, and command templates.
 
 from .common_vars import (
     MODULE_ROOT,
+    TEST_ROOT,
     REPO_ROOT,
     DOMAIN_NAME,
     OMNIA_RELEASE,
@@ -50,6 +51,7 @@ from .common_vars import (
 
 __all__ = [
     "MODULE_ROOT",
+    "TEST_ROOT",
     "REPO_ROOT",
     "DOMAIN_NAME",
     "OMNIA_RELEASE",
