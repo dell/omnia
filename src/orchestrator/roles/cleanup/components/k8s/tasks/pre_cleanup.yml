@@ -1,0 +1,82 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# K8s Pre-Cleanup Task
+# Validates prerequisites and creates cleanup checkpoint
+
+- name: Set role path
+  ansible.builtin.set_fact:
+    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
+
+- name: Load K8s component configuration
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/components/k8s/vars/component_spec.yml"
+
+- name: Display K8s pre-cleanup information
+  ansible.builtin.debug:
+    msg: |
+      K8s Pre-Cleanup Validation
+      ===========================
+      Component: {{ component_spec.name }}
+      Version: {{ component_spec.version }}
+      Criticality: {{ component_metadata.criticality }}
+      Estimated Duration: {{ component_metadata.estimated_duration }}
+      User Impact: {{ component_metadata.user_impact }}
+
+- name: Check if K8s is deployed
+  ansible.builtin.stat:
+    path: "{{ k8s_config.config_dir }}"
+  register: k8s_deployed
+  failed_when: false
+
+- name: Skip K8s cleanup if not deployed
+  ansible.builtin.debug:
+    msg: "K8s not deployed - skipping cleanup"
+  when: not k8s_deployed.stat.exists
+  register: k8s_skip
+
+- name: Return early if K8s not deployed
+  block:
+    - name: Set component state to skipped
+      ansible.builtin.set_fact:
+        component_state:
+          name: "k8s"
+          start_time: "{{ ansible_date_time.iso8601 }}"
+          end_time: "{{ ansible_date_time.iso8601 }}"
+          status: "skipped"
+          error: "K8s not deployed"
+    - name: Return from pre-cleanup
+      ansible.builtin.meta: noop
+  when: not k8s_deployed.stat.exists
+
+- name: Display K8s service status
+  ansible.builtin.debug:
+    msg: "Service {{ item.item }} status: {{ item.status.ActiveState }}"
+  loop: "{{ k8s_services.results }}"
+
+- name: Create cleanup checkpoint
+  ansible.builtin.copy:
+    content: |
+      checkpoint_time: {{ ansible_date_time.iso8601 }}
+      component: k8s
+      services_running: {{ k8s_services.results | selectattr('status.ActiveState', 'equalto', 'active') | list | length }}
+      config_exists: {{ k8s_deployed.stat.exists }}
+    dest: "{{ component_state_path }}"
+    mode: '0600'
+  when: not global_settings.dry_run | default(false) | bool
+
+- name: Log pre-cleanup state
+  ansible.builtin.debug:
+    msg: "K8s pre-cleanup checkpoint created at {{ component_state_path }}"

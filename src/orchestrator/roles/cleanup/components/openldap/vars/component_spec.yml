@@ -1,0 +1,67 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# OpenLDAP Component Specification
+# Extends the base component specification with OpenLDAP-specific details
+
+component_spec:
+  name: "openldap"
+  version: "1.0.0"
+  description: "OpenLDAP container, Quadlet units, and data cleanup"
+  
+  # Inherits base interface
+  interface:
+    pre_cleanup: "tasks/pre_cleanup.yml"
+    cleanup: "tasks/cleanup.yml"
+    post_cleanup: "tasks/post_cleanup.yml"
+    rollback: "tasks/rollback.yml"
+  
+  state_management:
+    supports_state: true
+    state_file: "/var/lib/omnia/cleanup/openldap.state"
+    checkpoint_before_cleanup: true
+    supports_rollback: true
+  
+  error_handling:
+    continue_on_error: false
+    retry_on_failure: false
+    max_retries: 3
+    retry_delay: 5
+  
+  logging:
+    log_file: "/opt/omnia/log/cleanup/openldap.log"
+    log_level: "INFO"
+    log_format: "detailed"
+
+component_metadata:
+  category: "containers"
+  criticality: "high"
+  estimated_duration: "3m"
+  user_impact: "high"
+  system_impact: "high"
+
+# OpenLDAP-specific configuration
+openldap_config:
+  service_name: "omnia_auth"
+  container_name: "omnia_auth"
+  base_dir: "/opt/omnia/auth"
+  quadlet_file: "/etc/containers/systemd/omnia_auth.container"
+  
+  cleanup_operations:
+    - stop_service
+    - remove_container
+    - remove_quadlet
+    - reload_systemd
+    - remove_data

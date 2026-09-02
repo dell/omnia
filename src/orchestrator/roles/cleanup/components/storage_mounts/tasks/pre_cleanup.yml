@@ -1,0 +1,68 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Storage Mounts Pre-Cleanup Task
+# Validates prerequisites and creates cleanup checkpoint
+
+- name: Set role path
+  ansible.builtin.set_fact:
+    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
+
+- name: Load Storage Mounts component configuration
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/components/storage_mounts/vars/component_spec.yml"
+
+- name: Display Storage Mounts pre-cleanup information
+  ansible.builtin.debug:
+    msg: |
+      Storage Mounts Pre-Cleanup Validation
+      =====================================
+      Component: {{ component_spec.name }}
+      Version: {{ component_spec.version }}
+      Criticality: {{ component_metadata.criticality }}
+      Estimated Duration: {{ component_metadata.estimated_duration }}
+      User Impact: {{ component_metadata.user_impact }}
+
+- name: Read storage configuration
+  ansible.builtin.include_vars:
+    file: "/opt/omnia/orchestrator/input/project_default/storage_config.yml"
+  register: storage_config_loaded
+  failed_when: false
+
+- name: Check if storage mounts exist
+  ansible.builtin.shell: |
+    set -o pipefail
+    mount | grep -E "nfs|nfs4" | wc -l
+  register: nfs_mounts_count
+  failed_when: false
+  changed_when: false
+
+- name: Display NFS mount information
+  ansible.builtin.debug:
+    msg: "NFS mounts found: {{ nfs_mounts_count.stdout | default('0') }}"
+
+- name: Create cleanup checkpoint
+  ansible.builtin.copy:
+    content: |
+      checkpoint_time: {{ ansible_date_time.iso8601 }}
+      component: storage_mounts
+      nfs_mounts_count: {{ nfs_mounts_count.stdout | default('0') }}
+    dest: "{{ component_state_path }}"
+    mode: '0600'
+  when: not global_settings.dry_run | default(false) | bool
+
+- name: Log pre-cleanup state
+  ansible.builtin.debug:
+    msg: "Storage Mounts pre-cleanup checkpoint created at {{ component_state_path }}"

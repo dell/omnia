@@ -1,0 +1,171 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Slurm Pre-Cleanup Task
+# Validates prerequisites, reads configuration, and creates cleanup checkpoint
+
+- name: Set role path
+  ansible.builtin.set_fact:
+    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
+
+- name: Load Slurm component configuration
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/components/slurm/vars/component_spec.yml"
+
+- name: Display Slurm pre-cleanup information
+  ansible.builtin.debug:
+    msg: |
+      Slurm Pre-Cleanup Validation
+      ============================
+      Component: {{ component_spec.name }}
+      Version: {{ component_spec.version }}
+      Criticality: {{ component_metadata.criticality }}
+      Estimated Duration: {{ component_metadata.estimated_duration }}
+      User Impact: {{ component_metadata.user_impact }}
+
+- name: Read omnia_config for slurm cluster configuration
+  ansible.builtin.include_vars:
+    file: "/opt/omnia/orchestrator/input/project_default/omnia_config.yml"
+  register: omnia_config_loaded
+  failed_when: false
+
+- name: Check if slurm cluster is configured
+  ansible.builtin.set_fact:
+    slurm_configured: "{{ slurm_cluster is defined and slurm_cluster | length > 0 }}"
+
+- name: Skip Slurm cleanup if not configured
+  ansible.builtin.debug:
+    msg: "Slurm cluster not configured - skipping cleanup"
+  when: not slurm_configured | bool
+  register: slurm_skip
+
+- name: Fail if Slurm not configured and cleanup is required
+  ansible.builtin.fail:
+    msg: "Slurm cluster not configured in omnia_config.yml - cannot cleanup"
+  when: not slurm_configured | bool and component_config.requires_confirmation | default(false) | bool
+
+- name: Read storage_config for mount information
+  ansible.builtin.include_vars:
+    file: "/opt/omnia/orchestrator/input/project_default/storage_config.yml"
+  register: storage_config_loaded
+  failed_when: false
+  when: slurm_configured | bool
+
+- name: Build cleanup storage list for each cluster
+  ansible.builtin.set_fact:
+    cleanup_storage_list: []
+  when: slurm_configured | bool
+
+- name: Determine storage mounts to clean for each cluster
+  ansible.builtin.set_fact:
+    cleanup_storage_list: >-
+      {{ cleanup_storage_list + [
+        {
+          'cluster_name': cluster_item.cluster_name,
+          'nfs_storage': cluster_item.nfs_storage_name,
+          'vast_storage': cluster_item.vast_storage_name | default(cluster_item.nfs_storage_name),
+          'nfs_mount_point': (mounts | selectattr('name', 'equalto', cluster_item.nfs_storage_name)
+                              | first | default({})).mount_point,
+          'vast_mount_point': (mounts | selectattr('name', 'equalto',
+                               cluster_item.vast_storage_name | default(cluster_item.nfs_storage_name))
+                               | first | default({})).mount_point,
+          'has_separate_vast': cluster_item.vast_storage_name is defined
+                               and cluster_item.vast_storage_name
+                               and cluster_item.vast_storage_name != cluster_item.nfs_storage_name
+        }
+      ] }}
+  loop: "{{ slurm_cluster }}"
+  loop_control:
+    loop_var: cluster_item
+  when: slurm_configured | bool
+
+- name: Build unique storage mount entries for cleanup
+  ansible.builtin.set_fact:
+    unique_storage_mounts: []
+  when: slurm_configured | bool
+
+- name: Collect unique storage mounts with directory types
+  ansible.builtin.set_fact:
+    unique_storage_mounts: >-
+      {{ unique_storage_mounts + [
+        {
+          'mount_point': item.nfs_mount_point,
+          'storage_name': item.nfs_storage,
+          'dir_type': 'nfs',
+          'directories': slurm_config.cleanup_directories
+                          + (['apps', 'scratch', 'projects']
+                             if not item.has_separate_vast else [])
+        }
+      ] if item.nfs_mount_point not in unique_storage_mounts
+         | map(attribute='mount_point') | list else unique_storage_mounts }}
+  loop: "{{ cleanup_storage_list }}"
+  loop_control:
+    label: "{{ item.cluster_name }}"
+  when: slurm_configured | bool
+
+- name: Add separate VAST storage mounts
+  ansible.builtin.set_fact:
+    unique_storage_mounts: >-
+      {{ unique_storage_mounts + [
+        {
+          'mount_point': item.vast_mount_point,
+          'storage_name': item.vast_storage,
+          'dir_type': 'vast',
+          'directories': ['apps', 'scratch', 'projects']
+        }
+      ] if item.has_separate_vast and item.vast_mount_point not in unique_storage_mounts | map(attribute='mount_point') | list else unique_storage_mounts }}
+  loop: "{{ cleanup_storage_list }}"
+  loop_control:
+    label: "{{ item.cluster_name }}"
+  when: slurm_configured | bool
+
+- name: Skip Slurm cleanup if no mounts found
+  ansible.builtin.debug:
+    msg: >
+      Slurm storage mounts not found in storage_config.yml.
+      Skipping Slurm cleanup. If you want to clean Slurm directories, please configure
+      the storage mounts in storage_config.yml.
+  when: unique_storage_mounts | length == 0
+
+- name: Check Slurm service status
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+  register: slurm_services
+  failed_when: false
+  loop: "{{ slurm_config.services }}"
+  when: slurm_configured | bool
+
+- name: Display Slurm service status
+  ansible.builtin.debug:
+    msg: "Service {{ item.item }} status: {{ item.status.ActiveState }}"
+  loop: "{{ slurm_services.results }}"
+  when: slurm_configured | bool
+
+- name: Create cleanup checkpoint
+  ansible.builtin.copy:
+    content: |
+      checkpoint_time: {{ ansible_date_time.iso8601 }}
+      component: slurm
+      slurm_configured: {{ slurm_configured }}
+      storage_mounts: {{ unique_storage_mounts | length }}
+      services_running: {{ slurm_services.results | selectattr('status.ActiveState', 'equalto', 'active') | list | length }}
+    dest: "{{ component_state_path }}"
+    mode: '0600'
+  when: slurm_configured | bool and not global_settings.dry_run | default(false) | bool
+
+- name: Log pre-cleanup state
+  ansible.builtin.debug:
+    msg: "Slurm pre-cleanup checkpoint created at {{ component_state_path }}"
+  when: slurm_configured | bool

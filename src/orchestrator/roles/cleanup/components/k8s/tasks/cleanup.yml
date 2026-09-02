@@ -1,0 +1,53 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# K8s Cleanup for OIM Node
+# Focuses on cleaning up K8s-related NFS data only
+
+- name: Set role path
+  ansible.builtin.set_fact:
+    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
+  tags: k8s
+
+- name: Load K8s component configuration
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/components/k8s/vars/component_spec.yml"
+  tags: k8s
+
+- name: Display K8s cleanup start
+  ansible.builtin.debug:
+    msg: "Starting K8s cleanup operations (OIM node - cleaning K8s NFS data)"
+  tags: k8s
+
+- name: Auto-cleanup K8s-related mounts when triggered by K8s
+  ansible.builtin.include_tasks: "{{ role_path }}/components/storage_mounts/tasks/cleanup.yml"
+  when: trigger_component is defined and trigger_component == 'k8s'
+  vars:
+    trigger_component: "k8s"
+  tags: k8s
+
+- name: Clean K8s NFS mount points (after unmounting)
+  ansible.builtin.file:
+    path: "/nfs-k8s/{{ item }}"
+    state: absent
+  failed_when: false
+  loop: "{{ k8s_config.cleanup_directories }}"
+  when: k8s_config.nfs_cleanup | default(false) | bool
+  tags: k8s
+
+- name: Display K8s cleanup completion
+  ansible.builtin.debug:
+    msg: "K8s cleanup operations completed (OIM node - NFS data cleaned)"
+  tags: k8s

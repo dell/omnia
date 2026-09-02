@@ -1,0 +1,104 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Storage Mounts Cleanup for OIM Node
+# Context-aware cleanup based on which component triggered it
+# Fetches mount paths from actual storage_config.yml
+
+- name: Set role path
+  ansible.builtin.set_fact:
+    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
+  tags: storage_mounts
+
+- name: Load Storage Mounts component configuration
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/components/storage_mounts/vars/component_spec.yml"
+  tags: storage_mounts
+
+- name: Load storage configuration from storage_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/storage_config.yml"
+  failed_when: false
+  tags: storage_mounts
+
+- name: Categorize mounts by component in single pass
+  ansible.builtin.set_fact:
+    all_orchestrator_mounts: "{{ mounts | map(attribute='mount_point') | list }}"
+    slurm_mounts: >-
+      {{ mounts | selectattr('functional_group_prefix', 'defined') 
+         | selectattr('functional_group_prefix', 'contains', 'slurm') 
+         | map(attribute='mount_point') | list }}
+    k8s_mounts: >-
+      {{ mounts | selectattr('functional_group_prefix', 'defined') 
+         | selectattr('functional_group_prefix', 'contains', 'service_kube') 
+         | map(attribute='mount_point') | list }}
+  when: mounts is defined
+  tags: storage_mounts
+
+- name: Fail if storage config not found
+  ansible.builtin.fail:
+    msg: "storage_config.yml not found or empty. Cannot determine mounts to clean."
+  when: mounts is not defined
+  tags: storage_mounts
+
+- name: Determine which mounts to clean based on context
+  ansible.builtin.set_fact:
+    mounts_to_clean: >-
+      {{ all_orchestrator_mounts if trigger_component is not defined or trigger_component == 'direct_call'
+         else slurm_mounts if trigger_component == 'slurm'
+         else k8s_mounts if trigger_component == 'k8s'
+         else all_orchestrator_mounts }}
+  tags: storage_mounts
+
+- name: Display Storage Mounts cleanup start
+  ansible.builtin.debug:
+    msg: "Starting Storage Mounts cleanup operations (triggered by: {{ trigger_component | default('direct call') }})"
+  tags: storage_mounts
+
+- name: Display mounts to be cleaned
+  ansible.builtin.debug:
+    msg: "Mounts to clean: {{ mounts_to_clean | join(', ') }}"
+  tags: storage_mounts
+
+- name: Unmount and remove orchestrator-deployed NFS mounts
+  block:
+    - name: Unmount orchestrator-deployed NFS mounts
+      ansible.posix.mount:
+        path: "{{ item }}"
+        state: unmounted
+      failed_when: false
+      loop: "{{ mounts_to_clean }}"
+      register: unmount_results
+      tags: storage_mounts
+
+    - name: Remove orchestrator-deployed NFS mounts from fstab
+      ansible.posix.mount:
+        path: "{{ item }}"
+        state: absent_from_fstab
+      failed_when: false
+      loop: "{{ mounts_to_clean }}"
+      when: storage_mounts_config.cleanup_fstab | default(false) | bool
+      tags: storage_mounts
+  when: storage_mounts_config.unmount_nfs | default(false) | bool
+  tags: storage_mounts
+
+- name: Display Storage Mounts cleanup completion
+  ansible.builtin.debug:
+    msg: |
+      Storage Mounts cleanup operations completed:
+      - Orchestrator-deployed mounts unmounted: {{ storage_mounts_config.unmount_nfs | default(false) | bool }}
+      - Orchestrator-deployed mounts removed from fstab: {{ storage_mounts_config.cleanup_fstab | default(false) | bool }}
+      - Mounts cleaned: {{ mounts_to_clean | join(', ') }}"
+  tags: storage_mounts

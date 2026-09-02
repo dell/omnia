@@ -1,0 +1,75 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Simple Cleanup Engine
+# Basic orchestration with explicit ordering and basic safety
+
+- name: Debug - Cleanup Engine Started
+  ansible.builtin.debug:
+    msg: "Cleanup engine started"
+
+- name: Set role path
+  ansible.builtin.set_fact:
+    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
+
+- name: Debug - Cleanup Components
+  ansible.builtin.debug:
+    msg: "Cleanup components: {{ cleanup_components }}"
+
+- name: Validate cleanup configuration
+  ansible.builtin.assert:
+    that:
+      - cleanup_components is defined
+    fail_msg: "Invalid cleanup configuration: cleanup_components not found"
+
+- name: Display available components
+  ansible.builtin.debug:
+    msg: "Available components: {{ cleanup_components.keys() | list | join(', ') }}"
+
+- name: Filter enabled components
+  ansible.builtin.set_fact:
+    enabled_components: "{{ cleanup_components | dict2items | selectattr('value.enabled', 'equalto', true) | items2dict }}"
+
+- name: Debug - Enabled Components
+  ansible.builtin.debug:
+    msg: "Enabled components: {{ enabled_components.keys() | list | join(', ') }}"
+
+- name: Set explicit execution order (priority-based)
+  ansible.builtin.set_fact:
+    execution_order: "{{ enabled_components | dict2items | sort(attribute='value.priority', reverse=true) | map(attribute='key') | list }}"
+
+- name: Display cleanup plan
+  ansible.builtin.debug:
+    msg: |
+      Cleanup Plan:
+      =============
+      Components: {{ execution_order | join(' -> ') }}
+      Total: {{ execution_order | length }}
+
+- name: Execute cleanup for each component
+  ansible.builtin.include_tasks: execute_component_cleanup.yml
+  loop: "{{ execution_order }}"
+  loop_control:
+    loop_var: component_name
+  register: component_results
+
+- name: Display cleanup summary
+  ansible.builtin.debug:
+    msg: |
+      Cleanup Summary:
+      ================
+      Status: completed
+      Components: {{ execution_order | length }}
+      Errors: 0

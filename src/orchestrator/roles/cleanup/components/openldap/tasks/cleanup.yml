@@ -1,0 +1,96 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# OpenLDAP Cleanup Task
+# Performs the actual OpenLDAP cleanup operations
+
+- name: Set role path
+  ansible.builtin.set_fact:
+    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
+  tags: openldap
+
+- name: Load OpenLDAP component configuration
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/components/openldap/vars/component_spec.yml"
+  tags: openldap
+
+- name: Display OpenLDAP cleanup start
+  ansible.builtin.debug:
+    msg: "Starting OpenLDAP cleanup operations"
+  tags: openldap
+
+- name: Stop OpenLDAP service
+  block:
+    - name: Stop OpenLDAP service
+      ansible.builtin.systemd:
+        name: "{{ openldap_config.service_name | default('openldap') }}"
+        state: stopped
+        enabled: false
+      failed_when: false
+      when: "'stop_service' in openldap_config.cleanup_operations"
+      tags: openldap
+  tags: openldap
+
+- name: Remove OpenLDAP container
+  block:
+    - name: Remove OpenLDAP container
+      ansible.builtin.command: podman rm -f -i {{ openldap_config.container_name | default('omnia_auth') }}
+      changed_when: true
+      failed_when: false
+      register: container_removal
+      when: "'remove_container' in openldap_config.cleanup_operations"
+      tags: openldap
+  tags: openldap
+
+- name: Remove OpenLDAP Quadlet unit
+  block:
+    - name: Remove OpenLDAP Quadlet unit
+      ansible.builtin.file:
+        path: "{{ openldap_config.quadlet_file | default('/etc/containers/systemd/omnia_auth.container') }}"
+        state: absent
+      when: "'remove_quadlet' in openldap_config.cleanup_operations"
+      tags: openldap
+  tags: openldap
+
+- name: Reload systemd after Quadlet removal
+  block:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: "'reload_systemd' in openldap_config.cleanup_operations"
+      tags: openldap
+  tags: openldap
+
+- name: Remove OpenLDAP data and configuration
+  block:
+    - name: Remove OpenLDAP data directory
+      ansible.builtin.file:
+        path: "{{ openldap_config.base_dir | default('/opt/omnia/auth') }}"
+        state: absent
+      failed_when: false
+      when: "'remove_data' in openldap_config.cleanup_operations"
+      tags: openldap
+  tags: openldap
+
+- name: Display OpenLDAP cleanup completion
+  ansible.builtin.debug:
+    msg: |
+      OpenLDAP cleanup operations completed:
+      - Service stopped: {{ 'stop_service' in openldap_config.cleanup_operations }}
+      - Container removed: {{ 'remove_container' in openldap_config.cleanup_operations }}
+      - Quadlet removed: {{ 'remove_quadlet' in openldap_config.cleanup_operations }}
+      - Systemd reloaded: {{ 'reload_systemd' in openldap_config.cleanup_operations }}
+      - Data removed: {{ 'remove_data' in openldap_config.cleanup_operations }}
+  tags: openldap

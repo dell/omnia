@@ -1,0 +1,68 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Simple Cleanup All Components
+# Direct execution without complex tag filtering
+
+- name: Cleanup All Components
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    skip_approval: "{{ lookup('env', 'SKIP_APPROVAL') | default('false', true) | bool }}"
+    dry_run: "{{ lookup('env', 'DRY_RUN') | default('false', true) | bool }}"
+    
+  tasks:
+    - name: Display cleanup information
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          Full Cleanup All Components
+          ============================================================
+          Skip Approval: {{ skip_approval }}
+          Dry Run: {{ dry_run }}
+          ============================================================
+
+    - name: Set role path
+      ansible.builtin.set_fact:
+        role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
+
+    - name: Cleanup OpenCHAMI
+      ansible.builtin.include_tasks: "{{ role_path }}/components/openchami/tasks/cleanup.yml"
+
+    - name: Cleanup OpenLDAP
+      ansible.builtin.include_tasks: "{{ role_path }}/components/openldap/tasks/cleanup.yml"
+
+    - name: Cleanup Storage Mounts (must be before Slurm/K8s to unmount NFS first)
+      ansible.builtin.include_tasks: "{{ role_path }}/components/storage_mounts/tasks/cleanup.yml"
+
+    - name: Cleanup Slurm (after unmounting NFS)
+      ansible.builtin.include_tasks: "{{ role_path }}/components/slurm/tasks/cleanup.yml"
+
+    - name: Cleanup K8s (after unmounting NFS)
+      ansible.builtin.include_tasks: "{{ role_path }}/components/k8s/tasks/cleanup.yml"
+
+    - name: Cleanup Artifacts
+      ansible.builtin.include_tasks: "{{ role_path }}/components/artifacts/tasks/cleanup.yml"
+
+    - name: Display cleanup completion
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          Full Cleanup Completed
+          ============================================================
+          Status: completed
+          Components: 6
+          ============================================================
