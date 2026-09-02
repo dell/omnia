@@ -17,9 +17,6 @@
 # PostgreSQL Container Configuration
 postgres_container_name: "omnia_postgres"
 
-# OIM metadata file path (canonical name: omnia_metadata_file_path)
-omnia_metadata_file_path: "/opt/omnia/.data/oim_metadata.yml"
-
 # Docker Hub configuration
 postgres_dockerhub_registry: "docker.io/library"
 postgres_image: "{{ postgres_dockerhub_registry }}/postgres"

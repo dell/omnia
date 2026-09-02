@@ -13,30 +13,42 @@
 # limitations under the License.
 
 ---
-# BuildStream Domain — Top-Level Entry Playbook
+# build_stream.yml — Top-level entry point for the build_stream domain.
 #
-# Container mode (inside omnia_core):
-#   ansible-playbook build_stream.yml
+# Usage (run ONE tag at a time — no comma-separated tags):
+#   cd src/build_stream/playbooks
+#   ansible-playbook build_stream.yml                        # Default: validate + credentials + prepare + execute
+#   ansible-playbook build_stream.yml --tags precheck        # Check containers + credentials present
+#   ansible-playbook build_stream.yml --tags validate        # Validate config only (no credentials)
+#   ansible-playbook build_stream.yml --tags credentials     # Collect/update credentials only
+#   ansible-playbook build_stream.yml --tags prepare         # Deploy Postgres + BSM + watcher only
+#   ansible-playbook build_stream.yml --tags execute         # Deploy GitLab + CI/CD only
+#   ansible-playbook build_stream.yml --tags build           # prepare + execute
+#   ansible-playbook build_stream.yml --tags cleanup         # Full cleanup (no credentials)
+#   ansible-playbook build_stream.yml --tags upgrade         # Upgrade flow (placeholder)
+#   ansible-playbook build_stream.yml --tags rollback        # Rollback flow (placeholder)
 #
-# Standalone mode (directly on the host, no omnia_core):
-#   ansible-playbook build_stream.yml -e standalone_mode=true
+# Tags (mutually exclusive — pick ONE):
+#   (none)       — Default flow: setup + validate + credentials + prepare + execute
+#   precheck     — Environment precheck (containers + credentials present) — no credentials
+#   validate     — Validate build_stream_config.yml only (skips credentials)
+#   credentials  — Collect/update BS auth, postgres, GitLab credentials only (no prepare/execute)
+#   prepare      — Deploy Postgres + BSM container + watcher service (with credentials)
+#   execute      — Deploy GitLab CE + CI/CD configuration (with credentials)
+#   build        — Alias: runs prepare + execute (full deploy, with credentials)
+#   cleanup      — Full domain cleanup: GitLab + BSM + Postgres (skips credentials)
+#   upgrade      — Upgrade flow (placeholder — future release)
+#   rollback     — Rollback flow (placeholder — future release)
 #
-# Standalone mode reads config from the local input/ directory
-# (input/build_stream_config.yml) and does not require
-# /opt/omnia container-internal paths or OIM metadata.
-# Override the NFS shared path:  -e standalone_oim_shared_path=/nfs
-#
-# This playbook orchestrates the full BuildStream domain:
-#   1. Upgrade check + input directory resolution (shared utilities)
-#   2. Build Stream credential validation, creation, and update
-#   3. Postgres + GitLab + BSM deployment (prepare_build_stream)
-#   4. GitLab CI/CD configuration (setup_gitlab)
-#   5. Output: build_stream_status.yml
-#
-# Input contract:  see INPUT_CONTRACT.md
-# Output contract: see OUTPUT_CONTRACT.md
+# Internal steps (always):
+#   Step 0: Setup — upgrade guard, load project config, input/output dirs, OIM metadata
+#   Step 1: Input validation (build_stream_config.yml schema + logic) — skipped for precheck
+#   Step 2: Credential collection (skipped for precheck/cleanup/validate tags)
 
-- name: Build Stream domain setup (upgrade guard + input dirs + OIM metadata)
+# =========================================================================
+# Step 0: Setup — load config, validate host, check prereqs
+# =========================================================================
+- name: Build Stream domain setup
   hosts: localhost
   connection: local
   gather_facts: false
@@ -44,17 +56,95 @@
   roles:
     - build_stream_setup
 
+# =========================================================================
+# Step 1: Input validation (schema + logic) — skipped for precheck
+# =========================================================================
+- name: Validate build_stream configuration
+  ansible.builtin.import_playbook: validate/validate_build_stream_config.yml
+  when: "'precheck' not in (hostvars['localhost']['provided_tags'] | default([]))"
+  tags:
+    - always
+    - validate
+
+# =========================================================================
+# Step 2: Credential collection (skipped for precheck/cleanup/validate)
+# =========================================================================
 - name: Build Stream domain credential utility
   hosts: localhost
   connection: local
-  roles:
-    - credential_utility
+  gather_facts: false
   tags: always
+  tasks:
+    - name: Run credential utility
+      ansible.builtin.include_role:
+        name: credential_utility
+      when: not (skip_build_stream_credentials | default(false) | bool)
 
-- name: Prepare BuildStream infrastructure (Postgres + GitLab + BSM)
+# =========================================================================
+# FLOW: precheck — Environment validation (opt-in only)
+# =========================================================================
+- name: Precheck build_stream environment
+  ansible.builtin.import_playbook: precheck/precheck_build_stream.yml
+  tags:
+    - never
+    - precheck
+
+# =========================================================================
+# FLOW: credentials — Standalone credential collection
+# =========================================================================
+# No dedicated play needed — the 'always'-tagged credential step (Step 2)
+# fires automatically because 'credentials' is not in skip_credential_tags.
+# Running --tags credentials only triggers: setup + validate + credential prompt.
+
+# =========================================================================
+# FLOW: prepare — Deploy Postgres + BSM container + watcher (idempotent)
+# =========================================================================
+- name: Prepare BuildStream infrastructure (Postgres + BSM + watcher)
   ansible.builtin.import_playbook: prepare/prepare_build_stream.yml
-  tags: [prepare, build]
+  tags:
+    - prepare
+    - build
 
+# =========================================================================
+# FLOW: execute — Deploy GitLab CE + CI/CD configuration
+# =========================================================================
 - name: Configure GitLab CI/CD
   ansible.builtin.import_playbook: build/setup_gitlab.yml
-  tags: [execute, build]
+  tags:
+    - execute
+    - build
+
+# =========================================================================
+# FLOW: cleanup — Full domain cleanup (opt-in only)
+# Step 1: GitLab cleanup (credentials + remote gitlab_server)
+# Step 2: BSM + Postgres + NFS cleanup (local oim host)
+# =========================================================================
+- name: Cleanup GitLab deployment
+  ansible.builtin.import_playbook: cleanup/cleanup_gitlab.yml
+  tags:
+    - never
+    - cleanup
+
+- name: Cleanup BuildStream infrastructure
+  ansible.builtin.import_playbook: cleanup/cleanup_build_stream.yml
+  tags:
+    - never
+    - cleanup
+
+# =========================================================================
+# FLOW: upgrade — Upgrade flow placeholder (opt-in only)
+# =========================================================================
+- name: Upgrade build_stream
+  ansible.builtin.import_playbook: upgrade_build_stream.yml
+  tags:
+    - never
+    - upgrade
+
+# =========================================================================
+# FLOW: rollback — Rollback flow placeholder (opt-in only)
+# =========================================================================
+- name: Rollback build_stream
+  ansible.builtin.import_playbook: rollback/rollback_build_stream.yml
+  tags:
+    - never
+    - rollback
