@@ -35,8 +35,12 @@ DOMAIN_NAME: str = "discovery"
 # =====================================================================
 
 FVT_TAGS: List[str] = [
+    "precheck",
     "validate",
+    "credentials",
+    "execute",
     "discovery",
+    "cleanup",
 ]
 
 # =====================================================================
@@ -55,12 +59,18 @@ MARKERS: List[str] = [
 # =====================================================================
 
 SUITES: Dict[str, List[str]] = {
+    "precheck": [],
     "validate": ["status"],
+    "credentials": [],
+    "execute": ["output"],
     "discovery": ["output"],
+    "cleanup": [],
 }
 
 # =====================================================================
 # Tags excluded from "all" verify (run only when explicit)
 # =====================================================================
 
-EXCLUDE_TAGS: List[str] = []
+EXCLUDE_TAGS: List[str] = [
+    "cleanup",
+]
