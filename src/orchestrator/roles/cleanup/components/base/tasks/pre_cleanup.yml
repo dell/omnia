@@ -20,15 +20,15 @@
 - name: Base pre-cleanup validation
   ansible.builtin.debug:
     msg: "Base pre-cleanup validation for {{ component_name }}"
-    
+
 - name: Check component prerequisites
   ansible.builtin.debug:
     msg: "Checking prerequisites for {{ component_name }}"
-    
+
 - name: Create cleanup checkpoint
   ansible.builtin.debug:
     msg: "Creating cleanup checkpoint for {{ component_name }}"
-    
+
 - name: Log pre-cleanup state
   ansible.builtin.debug:
     msg: "Logging pre-cleanup state for {{ component_name }}"

@@ -20,15 +20,15 @@
 - name: Base post-cleanup validation
   ansible.builtin.debug:
     msg: "Base post-cleanup validation for {{ component_name }}"
-    
+
 - name: Verify cleanup success
   ansible.builtin.debug:
     msg: "Verifying cleanup success for {{ component_name }}"
-    
+
 - name: Update final state
   ansible.builtin.debug:
     msg: "Updating final state for {{ component_name }}"
-    
+
 - name: Generate cleanup report
   ansible.builtin.debug:
     msg: "Generating cleanup report for {{ component_name }}"

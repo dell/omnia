@@ -21,12 +21,12 @@ k8s_config:
   nfs_cleanup: true
   unmount_mounts: true
   cleanup_node_ips: false
-  
+
   # Default cleanup directories (relative to mount points)
   cleanup_directories:
     - "config"
     - "manifests"
-  
+
   # Dependencies - components that must run before this
   dependencies:
     - "storage_mounts"

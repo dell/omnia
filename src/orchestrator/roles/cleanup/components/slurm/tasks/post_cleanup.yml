@@ -86,7 +86,7 @@
       Config Removed: {{ config_removed | bool }}
       NFS Cleaned: {{ nfs_cleaned | default(true) | bool }}
       Mounts Unmounted: {{ mounts_unmounted | default(true) | bool }}
-      
+
       Overall Status: {{ 'SUCCESS' if (services_stopped and config_removed) else 'PARTIAL' }}
 
 - name: Update component state

@@ -20,19 +20,19 @@
 - name: Base rollback execution
   ansible.builtin.debug:
     msg: "Base rollback execution for {{ component_name }}"
-    
+
 - name: Restore component state
   ansible.builtin.debug:
     msg: "Restoring state for {{ component_name }}"
-    
+
 - name: Restore component services
   ansible.builtin.debug:
     msg: "Restoring services for {{ component_name }}"
-    
+
 - name: Restore component directories
   ansible.builtin.debug:
     msg: "Restoring directories for {{ component_name }}"
-    
+
 - name: Verify rollback success
   ansible.builtin.debug:
     msg: "Verifying rollback success for {{ component_name }}"

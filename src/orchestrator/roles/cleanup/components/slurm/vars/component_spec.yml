@@ -22,7 +22,7 @@ slurm_config:
   unmount_mounts: true
   preserve_directories:
     - "slurm_backups"
-  
+
   # Default cleanup directories (relative to mount points)
   cleanup_directories:
     - "slurm"
@@ -31,7 +31,7 @@ slurm_config:
     - "apps"
     - "scratch"
     - "projects"
-  
+
   # Dependencies - components that must run before this
   dependencies:
     - "storage_mounts"

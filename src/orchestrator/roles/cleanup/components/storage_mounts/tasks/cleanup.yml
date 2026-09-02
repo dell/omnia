@@ -37,12 +37,12 @@
   ansible.builtin.set_fact:
     all_orchestrator_mounts: "{{ mounts | map(attribute='mount_point') | list }}"
     slurm_mounts: >-
-      {{ mounts | selectattr('functional_group_prefix', 'defined') 
-         | selectattr('functional_group_prefix', 'contains', 'slurm') 
+      {{ mounts | selectattr('functional_group_prefix', 'defined')
+         | selectattr('functional_group_prefix', 'contains', 'slurm')
          | map(attribute='mount_point') | list }}
     k8s_mounts: >-
-      {{ mounts | selectattr('functional_group_prefix', 'defined') 
-         | selectattr('functional_group_prefix', 'contains', 'service_kube') 
+      {{ mounts | selectattr('functional_group_prefix', 'defined')
+         | selectattr('functional_group_prefix', 'contains', 'service_kube')
          | map(attribute='mount_point') | list }}
   when: mounts is defined
   tags: storage_mounts
@@ -73,6 +73,7 @@
   tags: storage_mounts
 
 - name: Unmount and remove orchestrator-deployed NFS mounts
+  tags: storage_mounts
   block:
     - name: Unmount orchestrator-deployed NFS mounts
       ansible.posix.mount:

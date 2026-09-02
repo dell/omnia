@@ -32,6 +32,7 @@
   tags: openldap
 
 - name: Stop OpenLDAP service
+  tags: openldap
   block:
     - name: Stop OpenLDAP service
       ansible.builtin.systemd:
@@ -41,9 +42,9 @@
       failed_when: false
       when: "'stop_service' in openldap_config.cleanup_operations"
       tags: openldap
-  tags: openldap
 
 - name: Remove OpenLDAP container
+  tags: openldap
   block:
     - name: Remove OpenLDAP container
       ansible.builtin.command: podman rm -f -i {{ openldap_config.container_name | default('omnia_auth') }}
@@ -55,6 +56,7 @@
   tags: openldap
 
 - name: Remove OpenLDAP Quadlet unit
+  tags: openldap
   block:
     - name: Remove OpenLDAP Quadlet unit
       ansible.builtin.file:
@@ -62,18 +64,18 @@
         state: absent
       when: "'remove_quadlet' in openldap_config.cleanup_operations"
       tags: openldap
-  tags: openldap
 
 - name: Reload systemd after Quadlet removal
+  tags: openldap
   block:
     - name: Reload systemd
       ansible.builtin.systemd:
         daemon_reload: true
       when: "'reload_systemd' in openldap_config.cleanup_operations"
       tags: openldap
-  tags: openldap
 
 - name: Remove OpenLDAP data and configuration
+  tags: openldap
   block:
     - name: Remove OpenLDAP data directory
       ansible.builtin.file:

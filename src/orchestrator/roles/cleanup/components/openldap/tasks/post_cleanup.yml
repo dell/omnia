@@ -79,7 +79,7 @@
       Container Removed: {{ container_removed | bool }}
       Quadlet Removed: {{ quadlet_removed | bool }}
       Data Removed: {{ data_removed | bool }}
-      
+
       Overall Status: {{ 'SUCCESS' if (service_stopped and container_removed and quadlet_removed and data_removed) else 'PARTIAL' }}
 
 - name: Update component state

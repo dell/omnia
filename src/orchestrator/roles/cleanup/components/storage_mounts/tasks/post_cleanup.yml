@@ -47,7 +47,7 @@
       =================================================
       NFS Mounts Unmounted: {{ mounts_unmounted | bool }}
       Remaining NFS Mounts: {{ remaining_nfs_mounts.stdout | default('0') }}
-      
+
       Overall Status: {{ 'SUCCESS' if mounts_unmounted else 'PARTIAL' }}"
 
 - name: Update component state

@@ -114,7 +114,7 @@
   vars:
     skip_approval: "{{ lookup('env', 'SKIP_APPROVAL') | default('false', true) | bool }}"
     dry_run: "{{ lookup('env', 'DRY_RUN') | default('false', true) | bool }}"
-    
+
   tasks:
     - name: Display cleanup information
       ansible.builtin.debug:
@@ -241,7 +241,10 @@
 
     - name: Reorder to ensure storage_mounts runs before slurm/k8s
       ansible.builtin.set_fact:
-        execution_order: "{{ (execution_order | difference(['storage_mounts', 'slurm', 'k8s'])) + ['storage_mounts'] + (execution_order | intersect(['slurm', 'k8s'])) }}"
+        execution_order: >-
+          {{ (execution_order | difference(['storage_mounts', 'slurm', 'k8s']))
+          + ['storage_mounts']
+          + (execution_order | intersect(['slurm', 'k8s'])) }}
       when: "'storage_mounts' in execution_order and (execution_order | intersect(['slurm', 'k8s']) | list | length > 0)"
       tags: always
 

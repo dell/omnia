@@ -20,19 +20,19 @@
 - name: Base cleanup execution
   ansible.builtin.debug:
     msg: "Base cleanup execution for {{ component_name }}"
-    
+
 - name: Stop component services
   ansible.builtin.debug:
     msg: "Stopping services for {{ component_name }}"
-    
+
 - name: Remove component containers
   ansible.builtin.debug:
     msg: "Removing containers for {{ component_name }}"
-    
+
 - name: Clean component directories
   ansible.builtin.debug:
     msg: "Cleaning directories for {{ component_name }}"
-    
+
 - name: Update component state
   ansible.builtin.debug:
     msg: "Updating state for {{ component_name }}"

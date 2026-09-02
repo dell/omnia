@@ -23,7 +23,7 @@
   vars:
     skip_approval: "{{ lookup('env', 'SKIP_APPROVAL') | default('false', true) | bool }}"
     dry_run: "{{ lookup('env', 'DRY_RUN') | default('false', true) | bool }}"
-    
+
   tasks:
     - name: Display cleanup information
       ansible.builtin.debug:

@@ -56,7 +56,7 @@
       ======================================
       Services Stopped: {{ services_stopped | bool }}
       Config Removed: {{ config_removed | bool }}
-      
+
       Overall Status: {{ 'SUCCESS' if (services_stopped and config_removed) else 'PARTIAL' }}"
 
 - name: Update component state

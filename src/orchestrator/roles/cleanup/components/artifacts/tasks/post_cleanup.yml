@@ -47,7 +47,7 @@
       Artifacts Post-Cleanup Verification Results:
       ============================================
       Paths Removed: {{ paths_removed | default(true) | bool }}
-      
+
       Overall Status: {{ 'SUCCESS' if (paths_removed | default(true)) else 'PARTIAL' }}"
 
 - name: Update component state

@@ -20,26 +20,26 @@ component_spec:
   name: "openldap"
   version: "1.0.0"
   description: "OpenLDAP container, Quadlet units, and data cleanup"
-  
+
   # Inherits base interface
   interface:
     pre_cleanup: "tasks/pre_cleanup.yml"
     cleanup: "tasks/cleanup.yml"
     post_cleanup: "tasks/post_cleanup.yml"
     rollback: "tasks/rollback.yml"
-  
+
   state_management:
     supports_state: true
     state_file: "/var/lib/omnia/cleanup/openldap.state"
     checkpoint_before_cleanup: true
     supports_rollback: true
-  
+
   error_handling:
     continue_on_error: false
     retry_on_failure: false
     max_retries: 3
     retry_delay: 5
-  
+
   logging:
     log_file: "/opt/omnia/log/cleanup/openldap.log"
     log_level: "INFO"
@@ -58,7 +58,7 @@ openldap_config:
   container_name: "omnia_auth"
   base_dir: "/opt/omnia/auth"
   quadlet_file: "/etc/containers/systemd/omnia_auth.container"
-  
+
   cleanup_operations:
     - stop_service
     - remove_container

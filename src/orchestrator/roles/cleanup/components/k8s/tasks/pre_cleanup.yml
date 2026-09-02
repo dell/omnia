@@ -48,6 +48,7 @@
   register: k8s_skip
 
 - name: Return early if K8s not deployed
+  when: not k8s_deployed.stat.exists
   block:
     - name: Set component state to skipped
       ansible.builtin.set_fact:

@@ -54,6 +54,7 @@
 - name: Remove OpenCHAMI containers
   ansible.builtin.command:
     cmd: podman rm -f {{ item }}
+    changed_when: true
   failed_when: false
   loop: "{{ openchami_config.containers }}"
   tags: openchami
@@ -61,6 +62,7 @@
 - name: Remove OpenCHAMI pods
   ansible.builtin.command:
     cmd: podman pod rm -f {{ item }}
+    changed_when: true
   failed_when: false
   loop: "{{ openchami_config.pods }}"
   tags: openchami
@@ -96,6 +98,7 @@
 
 - name: Restore NetworkManager-managed resolv.conf
   ansible.builtin.command:
+    changed_when: true
     cmd: nmcli dev reload && nmcli con up "System eth0"
   failed_when: false
   tags: openchami

@@ -20,34 +20,34 @@ component_spec:
   name: "base_component"
   version: "1.0.0"
   description: "Base interface for all cleanup components"
-  
+
   # Component interface - all components must implement these tasks
   interface:
     pre_cleanup: "tasks/pre_cleanup.yml"
     cleanup: "tasks/cleanup.yml"
     post_cleanup: "tasks/post_cleanup.yml"
     rollback: "tasks/rollback.yml"
-  
+
   # Validation interface - optional but recommended
   validation:
     pre_cleanup: "validation/pre_cleanup.yml"
     post_cleanup: "validation/post_cleanup.yml"
     health_check: "validation/health_check.yml"
-  
+
   # State management
   state_management:
     supports_state: true
     state_file: "/var/lib/omnia/cleanup/{{ component_name }}.state"
     checkpoint_before_cleanup: true
     supports_rollback: true
-  
+
   # Error handling
   error_handling:
     continue_on_error: false
     retry_on_failure: false
     max_retries: 3
     retry_delay: 5
-  
+
   # Logging
   logging:
     log_file: "/opt/omnia/log/cleanup/{{ component_name }}.log"
