@@ -16,7 +16,7 @@
 # =============================================================================
 # iDRAC Telemetry Cleanup
 # =============================================================================
-# Removes iDRAC telemetry StatefulSet, services, secrets, PVCs, and pods.
+# Removes iDRAC telemetry resources. PVCs are removed only with Delete_volume=true.
 #
 # Standalone usage:
 #   ansible-playbook cleanup/sources/cleanup_idrac.yml

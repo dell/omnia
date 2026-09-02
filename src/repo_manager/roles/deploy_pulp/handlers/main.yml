@@ -1,0 +1,13 @@
+---
+- name: Update Pulp certificate trust
+  ansible.builtin.command:
+    argv:
+      - update-ca-trust
+      - extract
+  changed_when: true
+  listen: update pulp certificate trust
+
+- name: Reload Pulp systemd configuration
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  listen: reload pulp systemd

@@ -1,0 +1,292 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Writes the final cleanup result after all runtime failures have been
+# converted into localhost-owned component facts.
+
+- name: Set cleanup output path
+  ansible.builtin.set_fact:
+    _output_base: >-
+      {{
+        output_project_dir
+        | default('/opt/omnia/telemetry/output/' + (project_name | default('project_default')))
+      }}
+
+- name: Ensure cleanup output directory exists
+  ansible.builtin.file:
+    path: "{{ _output_base }}"
+    state: directory
+    mode: "0755"
+
+- name: Normalize cleanup component state
+  ansible.builtin.set_fact:
+    _cleanup_components:
+      idrac: "{{ (_cleanup_component_results | default({})).idrac | default('skipped') }}"
+      ldms: "{{ (_cleanup_component_results | default({})).ldms | default('skipped') }}"
+      ome: "{{ (_cleanup_component_results | default({})).ome | default('skipped') }}"
+      powerscale: "{{ (_cleanup_component_results | default({})).powerscale | default('skipped') }}"
+      ufm: "{{ (_cleanup_component_results | default({})).ufm | default('skipped') }}"
+      vast: "{{ (_cleanup_component_results | default({})).vast | default('skipped') }}"
+      source_drain: >-
+        {{ (_cleanup_component_results | default({})).source_drain | default('skipped') }}
+      kafka: "{{ (_cleanup_component_results | default({})).kafka | default('skipped') }}"
+      victoria_metrics: >-
+        {{ (_cleanup_component_results | default({})).victoria_metrics | default('skipped') }}
+      victoria_logs: >-
+        {{ (_cleanup_component_results | default({})).victoria_logs | default('skipped') }}
+    _cleanup_capability_enabled: "{{ _cleanup_enabled | default({}) }}"
+    _cleanup_failures: "{{ _cleanup_failures | default([]) }}"
+    _cleanup_unreachable_nodes:
+      ldms: >-
+        {{
+          ((_cleanup_unreachable_nodes | default({})).ldms | default([]))
+          | unique | sort
+        }}
+    _cleanup_delete_volume: >-
+      {{
+        _cleanup_delete_volume
+        | default(Delete_volume | default(delete_volume | default(false)))
+        | bool
+      }}
+
+- name: Build per-capability cleanup results
+  ansible.builtin.set_fact:
+    _cleanup_results:
+      kafka: "{{ _cleanup_components.kafka }}"
+      victoria_metrics: "{{ _cleanup_components.victoria_metrics }}"
+      victoria_logs: "{{ _cleanup_components.victoria_logs }}"
+      idrac_metrics: >-
+        {{
+          _cleanup_components.idrac
+          if _cleanup_capability_enabled.idrac_metrics | default(false) | bool
+          else 'skipped'
+        }}
+      ldms_metrics: >-
+        {{
+          _cleanup_components.ldms
+          if _cleanup_capability_enabled.ldms_metrics | default(false) | bool
+          else 'skipped'
+        }}
+      powerscale_metrics: >-
+        {{
+          _cleanup_components.powerscale
+          if _cleanup_capability_enabled.powerscale_metrics | default(false) | bool
+          else 'skipped'
+        }}
+      powerscale_logs: >-
+        {{
+          _cleanup_components.powerscale
+          if _cleanup_capability_enabled.powerscale_logs | default(false) | bool
+          else 'skipped'
+        }}
+      ufm_metrics: >-
+        {{
+          _cleanup_components.ufm
+          if _cleanup_capability_enabled.ufm_metrics | default(false) | bool
+          else 'skipped'
+        }}
+      ufm_logs: >-
+        {{
+          _cleanup_components.ufm
+          if _cleanup_capability_enabled.ufm_logs | default(false) | bool
+          else 'skipped'
+        }}
+      vast_metrics: >-
+        {{
+          _cleanup_components.vast
+          if _cleanup_capability_enabled.vast_metrics | default(false) | bool
+          else 'skipped'
+        }}
+      vast_logs: >-
+        {{
+          _cleanup_components.vast
+          if _cleanup_capability_enabled.vast_logs | default(false) | bool
+          else 'skipped'
+        }}
+      ome_metrics: >-
+        {{
+          _cleanup_components.ome
+          if _cleanup_capability_enabled.ome_metrics | default(false) | bool
+          else 'skipped'
+        }}
+      ome_logs: >-
+        {{
+          _cleanup_components.ome
+          if _cleanup_capability_enabled.ome_logs | default(false) | bool
+          else 'skipped'
+        }}
+      vector_ldms: >-
+        {{
+          _cleanup_components.ldms
+          if _cleanup_capability_enabled.vector_ldms | default(false) | bool
+          else 'skipped'
+        }}
+      vector_ome: >-
+        {{
+          _cleanup_components.ome
+          if _cleanup_capability_enabled.vector_ome | default(false) | bool
+          else 'skipped'
+        }}
+
+- name: Determine overall cleanup status
+  vars:
+    _component_values: >-
+      {{ _cleanup_components | dict2items | map(attribute='value') | list }}
+    _has_failed: >-
+      {{ 'failed' in _component_values or _cleanup_failures | length > 0 }}
+    _has_cleaned: "{{ 'cleaned' in _component_values }}"
+  ansible.builtin.set_fact:
+    _cleanup_status: >-
+      {% if _has_failed %}failed{% elif _has_cleaned %}passed{% else %}skipped{% endif %}
+    _status_type: cleanup
+
+- name: Build per-component volume cleanup results
+  ansible.builtin.set_fact:
+    _cleanup_volume_results:
+      idrac: >-
+        {{
+          'skipped' if _cleanup_components.idrac == 'skipped'
+          else (
+            'preserved' if not (_cleanup_delete_volume | bool)
+            else ('cleaned' if _cleanup_components.idrac == 'cleaned' else 'failed')
+          )
+        }}
+      ldms: >-
+        {{
+          'skipped' if _cleanup_components.ldms == 'skipped'
+          else (
+            'preserved' if not (_cleanup_delete_volume | bool)
+            else ('cleaned' if _cleanup_components.ldms == 'cleaned' else 'failed')
+          )
+        }}
+      ome: skipped
+      powerscale: >-
+        {{
+          'skipped' if _cleanup_components.powerscale == 'skipped'
+          else (
+            'preserved' if not (_cleanup_delete_volume | bool)
+            else ('cleaned' if _cleanup_components.powerscale == 'cleaned' else 'failed')
+          )
+        }}
+      ufm: skipped
+      vast: skipped
+      kafka: >-
+        {{
+          'skipped' if _cleanup_components.kafka == 'skipped'
+          else (
+            'preserved' if not (_cleanup_delete_volume | bool)
+            else ('cleaned' if _cleanup_components.kafka == 'cleaned' else 'failed')
+          )
+        }}
+      victoria_metrics: >-
+        {{
+          'skipped' if _cleanup_components.victoria_metrics == 'skipped'
+          else (
+            'preserved' if not (_cleanup_delete_volume | bool)
+            else ('cleaned' if _cleanup_components.victoria_metrics == 'cleaned' else 'failed')
+          )
+        }}
+      victoria_logs: >-
+        {{
+          'skipped' if _cleanup_components.victoria_logs == 'skipped'
+          else (
+            'preserved' if not (_cleanup_delete_volume | bool)
+            else ('cleaned' if _cleanup_components.victoria_logs == 'cleaned' else 'failed')
+          )
+        }}
+
+- name: Determine aggregate volume cleanup status
+  vars:
+    _volume_values: >-
+      {{ _cleanup_volume_results | dict2items | map(attribute='value') | list }}
+  ansible.builtin.set_fact:
+    _cleanup_volume_status: >-
+      {{
+        'failed'
+        if (
+          _cleanup_volume_verification_failed | default(false) | bool
+          or 'failed' in _volume_values
+          or (
+            _cleanup_delete_volume | bool
+            and _cleanup_status == 'failed'
+            and 'cleaned' in _volume_values
+          )
+        )
+        else (
+          'cleaned' if 'cleaned' in _volume_values
+          else ('preserved' if 'preserved' in _volume_values else 'skipped')
+        )
+      }}
+
+- name: Write telemetry_status.yml for cleanup
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/telemetry_status.yml.j2"
+    dest: "{{ _output_base }}/telemetry_status.yml"
+    mode: "0644"
+
+- name: Check cleanup status file
+  ansible.builtin.stat:
+    path: "{{ _output_base }}/telemetry_status.yml"
+  register: _cleanup_status_file
+
+- name: Confirm cleanup status file was written
+  ansible.builtin.assert:
+    that:
+      - _cleanup_status_file.stat.exists
+      - _cleanup_status_file.stat.isreg
+    fail_msg: >-
+      Cleanup status file was not created at {{ _output_base }}/telemetry_status.yml.
+
+- name: Display telemetry cleanup status
+  ansible.builtin.debug:
+    msg:
+      - "======================================================"
+      - "Telemetry Cleanup Status: {{ _cleanup_status | upper | trim }}"
+      - "Persistent volumes: {{ _cleanup_volume_status | upper | trim }}"
+      - "======================================================"
+      - "Output: {{ _output_base }}/telemetry_status.yml"
+      - ""
+      - "Sinks:"
+      - "  kafka:             {{ _cleanup_results.kafka }}"
+      - "  victoria_metrics:  {{ _cleanup_results.victoria_metrics }}"
+      - "  victoria_logs:     {{ _cleanup_results.victoria_logs }}"
+      - ""
+      - "Sources:"
+      - "  idrac:             metrics={{ _cleanup_results.idrac_metrics }}"
+      - "  ldms:              metrics={{ _cleanup_results.ldms_metrics }}"
+      - >-
+        powerscale: metrics={{ _cleanup_results.powerscale_metrics }},
+        logs={{ _cleanup_results.powerscale_logs }}
+      - >-
+        ufm: metrics={{ _cleanup_results.ufm_metrics }},
+        logs={{ _cleanup_results.ufm_logs }}
+      - >-
+        vast: metrics={{ _cleanup_results.vast_metrics }},
+        logs={{ _cleanup_results.vast_logs }}
+      - >-
+        ome: metrics={{ _cleanup_results.ome_metrics }},
+        logs={{ _cleanup_results.ome_logs }}
+      - ""
+      - >-
+        Unreachable cleanup nodes (non-fatal):
+        {{ _cleanup_unreachable_nodes.ldms | length }}
+      - >-
+        LDMS sampler nodes skipped:
+        {{
+          _cleanup_unreachable_nodes.ldms | join(', ')
+          if _cleanup_unreachable_nodes.ldms | length > 0
+          else 'none'
+        }}
+      - "Failures: {{ _cleanup_failures | length }}"
+      - "======================================================"

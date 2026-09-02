@@ -36,6 +36,9 @@ from ..vars.validation_vars import COMMANDS
 
 # Regex for safe identifiers from config YAML (no shell metacharacters)
 _SAFE_IDENT_RE = re.compile(r"^[a-zA-Z0-9_\-./]+$")
+_SAFE_MARKER_RE = re.compile(
+    r"^[A-Za-z_][A-Za-z0-9_]*(?:[+,][A-Za-z_][A-Za-z0-9_]*)*$"
+)
 
 
 def _validate_config_value(value: str, label: str) -> str:
@@ -58,6 +61,25 @@ def _validate_config_value(value: str, label: str) -> str:
     if value and not _SAFE_IDENT_RE.match(value):
         raise ValueError(
             f"Unsafe {label} value in config: {value!r}"
+        )
+    return value
+
+
+def _validate_marker_value(value: str) -> str:
+    """Validate a safe Single, AND, or OR marker expression.
+
+    Marker names follow pytest's identifier style. A compound expression
+    may use ``+`` for AND or ``,`` for OR, but not both operators.
+    """
+    if not isinstance(value, str):
+        raise ValueError("Marker expression must be a string")
+    if value and (
+        ("+" in value and "," in value)
+        or not _SAFE_MARKER_RE.fullmatch(value)
+    ):
+        raise ValueError(
+            "Unsafe marker expression: marker names must be joined "
+            "using only '+' (AND) or ',' (OR)"
         )
     return value
 
@@ -353,7 +375,9 @@ class ValidationRunner:
                 args[i] == "--marker"
                 and i + 1 < len(args)
             ):
-                opts["marker"] = args[i + 1]
+                opts["marker"] = _validate_marker_value(
+                    args[i + 1]
+                )
                 i += 2
             elif args[i] in ("-v", "--verbose"):
                 opts["verbose"] = "-v"
@@ -782,9 +806,7 @@ class ValidationRunner:
     def _build_config_extra(sc: dict) -> List[str]:
         """Build extra CLI args from a config scenario."""
         extra: List[str] = []
-        marker = _validate_config_value(
-            str(sc.get("marker", "")), "marker",
-        )
+        marker = _validate_marker_value(sc.get("marker", ""))
         if marker:
             extra.extend(["--marker", marker])
         suite = _validate_config_value(
@@ -824,6 +846,9 @@ class ValidationRunner:
         sys.stdout.flush()
 
         log_file = os.environ.get("OMNIA_LOG_FILE", "")
+        # Disable auto-loaded plugins to avoid conflicts (e.g., pulp_rpm)
+        env = os.environ.copy()
+        env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
         if log_file:
             shell_cmd = (
                 f"set -o pipefail; "
@@ -831,11 +856,11 @@ class ValidationRunner:
             )
             return subprocess.run(
                 ["bash", "-c", shell_cmd],
-                cwd=self.script_dir, check=False,
+                cwd=self.script_dir, check=False, env=env,
             ).returncode
         return subprocess.run(
             ["bash", "-c", cmd_str],
-            cwd=self.script_dir, check=False,
+            cwd=self.script_dir, check=False, env=env,
         ).returncode
 
     def _invoke_pytest_with_summary(
@@ -1006,9 +1031,9 @@ class ValidationRunner:
         )
         print()
         _yellow("COMMANDS")
-        print("  exec       Run Ansible playbook only")
-        print("  verify     Run verification tests only")
-        print("  test       exec + verify (full flow)")
+        print("  exec       Run Ansible playbook only (no tests)")
+        print("  verify     Run tests only (no playbook)")
+        print("  test       Run playbook + tests (full flow)")
         print()
         _yellow("FVT TAGS")
         for tag in self._get_fvt_tags():
@@ -1024,11 +1049,25 @@ class ValidationRunner:
         n = self.cat_nft
         u = self.cat_ut
         _yellow("EXAMPLES")
+        # Dynamic examples based on domain config
+        tags = self._get_fvt_tags()
+        ex_tag = tags[0] if tags else "deploy"
+        ex_suite = ""
+        if ex_tag in self._domain_suites:
+            suites = self._domain_suites[ex_tag]
+            ex_suite = suites[0] if suites else ""
+        ex_marker = (
+            self._domain_markers[0]
+            if self._domain_markers else "sanity"
+        )
         print(f"  ./run_validation.sh {f} verify")
-        print(f"  ./run_validation.sh {f} build verify"
-              f" --suite registry")
-        print(f"  ./run_validation.sh {f} build test"
-              f" --marker x86_64+sanity")
+        if ex_suite:
+            print(f"  ./run_validation.sh {f} {ex_tag} verify"
+                  f" --suite {ex_suite}")
+        else:
+            print(f"  ./run_validation.sh {f} {ex_tag} verify")
+        print(f"  ./run_validation.sh {f} {ex_tag} test"
+              f" --marker {ex_marker}")
         print(f"  ./run_validation.sh {f} list")
         print(f"  ./run_validation.sh {n} test")
         print(f"  ./run_validation.sh {u} test")
@@ -1048,9 +1087,9 @@ class ValidationRunner:
         print(f"  ./run_validation.sh {f} list")
         print()
         _yellow("COMMANDS")
-        print("  exec       Run Ansible playbook only")
-        print("  verify     Run verification tests only")
-        print("  test       exec + verify (full flow)")
+        print("  exec       Run Ansible playbook only (no tests)")
+        print("  verify     Run tests only (no playbook)")
+        print("  test       Run playbook + tests (full flow)")
         print()
         _yellow("TAGS")
         for tag in self._get_fvt_tags():
@@ -1078,11 +1117,23 @@ class ValidationRunner:
                 print(f"  {m}")
             print()
         _yellow("EXAMPLES")
-        print(f"  ./run_validation.sh {f} precheck verify")
-        print(f"  ./run_validation.sh {f} build verify"
-              f" --suite registry")
-        print(f"  ./run_validation.sh {f} build test"
-              f" --marker x86_64+sanity")
+        # Dynamic examples based on domain config
+        tags = self._get_fvt_tags()
+        ex_tag = tags[0] if tags else "deploy"
+        ex_suite = ""
+        if ex_tag in self._domain_suites:
+            suites = self._domain_suites[ex_tag]
+            ex_suite = suites[0] if suites else ""
+        ex_marker = (
+            self._domain_markers[0]
+            if self._domain_markers else "sanity"
+        )
+        print(f"  ./run_validation.sh {f} {ex_tag} verify")
+        if ex_suite:
+            print(f"  ./run_validation.sh {f} {ex_tag} verify"
+                  f" --suite {ex_suite}")
+        print(f"  ./run_validation.sh {f} {ex_tag} test"
+              f" --marker {ex_marker}")
         print(f"  ./run_validation.sh {f} list")
         print()
 
@@ -1104,8 +1155,8 @@ class ValidationRunner:
         print(f"  ./run_validation.sh {cat_name} list")
         print()
         _yellow("COMMANDS")
-        print("  test       Run all tests (default)")
-        print("  verify     Run tests only")
+        print("  test       Run playbook + tests (full flow)")
+        print("  verify     Run tests only (no playbook)")
         print()
         _yellow("OPTIONS")
         print("  --marker <expr>   Filter by marker")

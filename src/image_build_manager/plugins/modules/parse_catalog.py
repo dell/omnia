@@ -133,12 +133,22 @@ compute_images_dict:
     - Dict keyed by functional layer name.
     - Each value contains C(functional_group) (str) and C(packages) (list).
     - Only non-baseos layers are included.
+    - Driver groups (keys containing C(driver_group)) are excluded.
   returned: always
   type: dict
 layer_count:
   description: Number of functional layers matching build_arch.
   returned: always
   type: int
+skipped_driver_groups:
+  description:
+    - List of driver group keys skipped during catalog resolution.
+    - Groups are identified by the C(driver_group) substring in their key.
+    - Driver groups contain hardware-specific drivers (GPU, InfiniBand, storage)
+      that are installed post-boot, not baked into the OS image.
+  returned: always
+  type: list
+  elements: str
 '''
 
 
@@ -202,6 +212,51 @@ def _is_baseos_component(
     )
 
 
+# ---------------------------------------------------------------------------
+# Driver group detection
+# ---------------------------------------------------------------------------
+DRIVER_GROUP_MARKER = "driver_group"
+
+
+def _is_driver_group(key: str) -> bool:
+    """Check if a catalog key represents a driver group.
+
+    Driver groups contain hardware-specific drivers (GPU, InfiniBand,
+    storage) that are installed post-boot via provisioning — not baked
+    into the OS image built by image_build_manager.
+
+    Detection: any key whose name contains the substring ``driver_group``.
+
+    Args:
+        key: Catalog key or component name.
+
+    Returns:
+        True if this is a driver group.
+    """
+    return DRIVER_GROUP_MARKER in key
+
+
+def _collect_driver_groups(catalog: dict) -> list[str]:
+    """Return top-level catalog keys that are driver groups.
+
+    Driver groups sit at the catalog top level (siblings of ``groups``
+    and ``packages``), identified by the ``driver_group`` substring in
+    the key name.
+
+    Args:
+        catalog: Parsed catalog dict.
+
+    Returns:
+        Sorted list of driver group key names.
+    """
+    skip_keys = {"name", "version", "identifier", "description",
+                 "functionallayer", "groups", "packages"}
+    return sorted(
+        key for key in catalog
+        if key not in skip_keys and _is_driver_group(key)
+    )
+
+
 def _resolve_layer_packages(
     layer: dict,
     groups: dict,
@@ -239,8 +294,15 @@ def _resolve_layer_packages(
     layer_pkgs: list[str] = []
     os_versions: list[str] = []
     os_type: str = ""
+    skipped_drivers: list[str] = []
 
     for comp_name in layer.get("components", []):
+        # Skip driver group components — drivers are installed post-boot,
+        # not baked into the OS image.
+        if _is_driver_group(comp_name):
+            skipped_drivers.append(comp_name)
+            continue
+
         group = groups.get(comp_name, {})
         comp_is_baseos = _is_baseos_component(
             comp_name, group, baseos_prefix
@@ -272,6 +334,7 @@ def _resolve_layer_packages(
         "packages": layer_pkgs,
         "is_baseos": is_baseos_layer,
         "os_versions": os_versions,
+        "skipped_drivers": skipped_drivers,
         "os_type": os_type,
     }
 
@@ -364,6 +427,11 @@ def resolve_catalog(
     catalog = _load_catalog(catalog_file)
     identifier = catalog.get("identifier", "")
 
+    # Collect top-level driver groups (siblings of groups/packages).
+    # These are hardware-specific driver stacks that must NOT be baked
+    # into the OS image — they are installed post-boot via provisioning.
+    top_level_driver_groups = _collect_driver_groups(catalog)
+
     arch_layers = _filter_layers_by_arch(
         catalog.get("functionallayer", []), build_arch
     )
@@ -372,12 +440,17 @@ def resolve_catalog(
     packages = catalog.get("packages", {})
 
     resolved: dict = {}
+    all_skipped_drivers: list[str] = list(top_level_driver_groups)
     for layer in arch_layers:
         data = _resolve_layer_packages(
             layer, groups, packages,
             build_arch, package_type, baseos_prefix,
         )
         resolved[layer["name"]] = data
+        # Accumulate per-layer skipped driver components
+        for drv in data.get("skipped_drivers", []):
+            if drv not in all_skipped_drivers:
+                all_skipped_drivers.append(drv)
 
     base_packages: list[str] = []
     compute_dict: dict = {}
@@ -424,6 +497,7 @@ def resolve_catalog(
         "base_image_packages": base_packages,
         "compute_images_dict": compute_dict,
         "layer_count": len(arch_layers),
+        "skipped_driver_groups": all_skipped_drivers,
     }
 
 

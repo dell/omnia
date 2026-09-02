@@ -166,7 +166,8 @@ ENV_CATALOG_FILE_PATH = "CATALOG_FILE_PATH"
 # SQUASHFS / IMAGE VERIFICATION PATHS
 # =============================================================================
 
-# Temp directory for downloading and mounting S3 images
+# Base prefixes for collision-safe image verification workspaces.
+# A unique token is appended for every verifier invocation.
 IMAGE_VERIFY_TEMP_IMAGE = "/tmp/ibm_test_image"  # nosec B108
 IMAGE_VERIFY_TEMP_MOUNT = "/tmp/ibm_test_mount"  # nosec B108
 
@@ -188,7 +189,6 @@ IPV4_PATTERN = re.compile(
 
 # Required fields in test_config.yml
 REQUIRED_CONFIG_FIELDS = [
-    "clone_path",
     "report_path",
     "report_name",
 ]
@@ -196,7 +196,6 @@ REQUIRED_CONFIG_FIELDS = [
 # Required files inside a dataset directory (when dataset is set)
 REQUIRED_DATASET_FILES = [
     "input/image_build_config.yml",
-    "input/image_build_credentials.yml",
 ]
 
 # Required files in src/ (when dataset is empty — default mode)

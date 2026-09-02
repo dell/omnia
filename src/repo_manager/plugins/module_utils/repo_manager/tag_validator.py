@@ -35,7 +35,10 @@ from time import time as current_time
 def validate_tag_via_pulp_sync(image_name, tag, logger,
                                 pulp_container_commands, execute_command,
                                 create_container_repository,
-                                get_repo_url_and_content):
+                                get_repo_url_and_content,
+                                registry_context=None,
+                                package_content=None,
+                                create_configured_remote=None):
     """
     Validate that a tag exists in upstream registry.
 
@@ -54,13 +57,23 @@ def validate_tag_via_pulp_sync(image_name, tag, logger,
 
     try:
         # Step 1: Create temp remote (always on_demand for validation)
-        base_url, package_content = get_repo_url_and_content(image_name)
-        create_remote_cmd = pulp_container_commands["create_container_remote"] % (
-            temp_remote_name, base_url, package_content,
-            "on_demand",  # Always on_demand for validation
-            tag
-        )
-        remote_created = execute_command(create_remote_cmd, logger)
+        if registry_context:
+            remote_created = create_configured_remote(
+                temp_remote_name,
+                registry_context,
+                package_content,
+                "on_demand",
+                logger,
+                tag=tag,
+            )
+        else:
+            base_url, package_content = get_repo_url_and_content(image_name)
+            create_remote_cmd = pulp_container_commands["create_container_remote"] % (
+                temp_remote_name, base_url, package_content,
+                "on_demand",  # Always on_demand for validation
+                tag
+            )
+            remote_created = execute_command(create_remote_cmd, logger)
         if not remote_created:
             logger.error(
                 f"Cannot create validation remote for {image_name}:{tag}. "

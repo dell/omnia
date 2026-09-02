@@ -19,9 +19,19 @@
 
 # --- Shared cleanup settings ---
 telemetry_namespace: "telemetry"
+# Preserve persistent telemetry data unless the user explicitly requests deletion.
+# Both -e delete_volume=true and -e Delete_volume=true are accepted.
+_cleanup_delete_volume_enabled: >-
+  {{
+    (hostvars['localhost'] | default({}))['_cleanup_delete_volume']
+    | default(Delete_volume | default(delete_volume | default(false)))
+    | bool
+  }}
 cleanup_resource_grace_period: 0
 cleanup_post_delete_pause: 5
 cleanup_helm_timeout: "5m"
+cleanup_custom_resource_retries: 60
+cleanup_custom_resource_delay: 5
 telemetry_deployments_dir: "{{ k8s_cluster_mount | default('/opt/omnia/k8s_mount') }}/telemetry/deployments"
 
 # =============================================================================
@@ -60,6 +70,7 @@ kafka_job_resources:
   - "kafka-tls-test"
 
 kafka_strimzi_helm_secret: "sh.helm.release.v1.strimzi-cluster-operator.v1"
+kafka_strimzi_helm_secret_label: "owner=helm,name=strimzi-cluster-operator"
 
 kafka_service_resources:
   - "kafka-kafka-bootstrap"
@@ -80,6 +91,13 @@ kafka_pod_labels:
 victoria_metrics:
   crd_resources:
     - { type: "vmcluster", name: "victoria-cluster" }
+    - { type: "vmagent", name: "vmagent" }
+    - { type: "vmpodscrape", name: "idrac-telemetry-scrape" }
+    - { type: "vmservicescrape", name: "otel-collector-powerscale-scrape" }
+    - { type: "vmservicescrape", name: "otel-collector-powerscale" }
+    - { type: "vmservicescrape", name: "csi-volume-exporter" }
+    - { type: "vmservicescrape", name: "ufm-infiniband-metrics" }
+    - { type: "vmservicescrape", name: "vast-storage-metrics" }
   crd_all_resources:
     - "vmagent"
     - "vmpodscrape"
@@ -131,6 +149,7 @@ victoria_metrics:
 victoria_operator_resources:
   - { type: "deployment", name: "victoria-metrics-operator" }
   - { type: "service", name: "victoria-metrics-operator" }
+victoria_operator_helm_release: "victoria-metrics-operator"
 
 # =============================================================================
 # VictoriaLogs cleanup resources
@@ -138,6 +157,12 @@ victoria_operator_resources:
 victoria_logs:
   crd_resources:
     - { type: "vlcluster", name: "victoria-logs-cluster" }
+    - { type: "vlagent", name: "vlagent" }
+  generated_scrape_resources:
+    - { type: "vmpodscrape", name: "vlagent-vlagent" }
+    - { type: "vmservicescrape", name: "vlinsert-victoria-logs-cluster" }
+    - { type: "vmservicescrape", name: "vlselect-victoria-logs-cluster" }
+    - { type: "vmservicescrape", name: "vlstorage-victoria-logs-cluster" }
   crd_all_resources:
     - "vlagent"
   cluster_resources:
@@ -176,6 +201,7 @@ idrac_resources:
   - { type: "statefulset", name: "idrac-telemetry" }
   - { type: "service", name: "idrac-telemetry-headless" }
   - { type: "service", name: "idrac-telemetry-service" }
+  - { type: "configmap", name: "activemq-config" }
   - { type: "configmap", name: "idrac-telemetry-config" }
 
 idrac_secret_resources:
@@ -183,6 +209,8 @@ idrac_secret_resources:
 
 idrac_configmap_label: "app=idrac-telemetry"
 idrac_pvc_label: "app=idrac-telemetry"
+idrac_pvc_resources:
+  - "mysqldb-pvc-idrac-telemetry-0"
 idrac_pod_label: "app=idrac-telemetry"
 
 # =============================================================================
@@ -214,7 +242,10 @@ ldms_secret_resources:
 
 ldms_configmap_label: "app=nersc-ldms"
 ldms_pvc_label: "app=nersc-ldms"
-ldms_pod_label: "app=nersc-ldms"
+ldms_pod_labels:
+  - "app=nersc-ldms-aggr"
+  - "app=nersc-ldms-store"
+  - "app=nersc-ldms"
 
 vector_ldms_resources:
   - { type: "deployment", name: "vector-ldms" }
@@ -223,6 +254,28 @@ vector_ldms_resources:
 
 vector_ldms_pod_label: "app=vector-ldms"
 
+# LDMS sampler cleanup (all LDMS-enabled nodes)
+ldms_sampler_service_name: "ldmsd"
+ldms_sampler_service_file: "/etc/systemd/system/ldmsd.service"
+ldms_sampler_config_dir: "/opt/ovis-ldms/etc/ldms"
+ldms_sampler_share_dir: >-
+  {{
+    hostvars['localhost']['slurm_cluster_mount']
+    | default(slurm_cluster_mount | default('/share_omnia'))
+  }}/telemetry/ldms/samplers
+ldms_sampler_firewall_port: >-
+  {{
+    hostvars['localhost']['telemetry_config'].ldms_configurations.sampler_port
+    | default(10001)
+  }}
+
+# LDMS functional groups that have sampler installed
+ldms_sampler_groups:
+  - slurm_node
+  - slurm_control_node
+  - login_node
+  - login_compiler_node
+
 # =============================================================================
 # OME cleanup resources
 # =============================================================================
@@ -230,7 +283,7 @@ vector_ome_resources:
   - { type: "deployment", name: "vector-ome" }
   - { type: "service", name: "vector-ome" }
   - { type: "configmap", name: "vector-ome-config" }
-  - { type: "kafkauser", name: "vector-ome" }
+  - { type: "kafkauser", name: "vector-ome-user" }
 
 vector_ome_pod_label: "app=vector-ome"
 
@@ -255,6 +308,9 @@ powerscale_named_resources:
   - { type: "configmap", name: "karavi-authorization-config" }
   - { type: "secret", name: "karavi-authorization-ca-cert" }
   - { type: "secret", name: "isilon-creds" }
+  - { type: "configmap", name: "isilon-config-params" }
+  - { type: "secret", name: "isilon-proxy-server-root-certificate" }
+  - { type: "secret", name: "isilon-proxy-authz-tokens" }
   - { type: "pvc", name: "otel-collector-data" }
   - { type: "deployment", name: "csi-volume-exporter" }
   - { type: "service", name: "csi-volume-exporter" }

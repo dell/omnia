@@ -1,92 +1,52 @@
-# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 ---
-# pulp_health_check.yml
-# 3 checks: container → API → internal health
-# Uses pulp CLI (authenticated) for reliable results
-
-# ═══ Load required variables if not already set ═══
-- name: Load deploy_pulp role variables
-  ansible.builtin.include_vars:
-    file: "{{ playbook_dir }}/../../roles/deploy_pulp/vars/main.yml"
-  when: pulp_container_port_https is not defined
-
-# ═══ CHECK 1: Container running ═══
-- name: Check if Pulp container is running
-  ansible.builtin.command:
-    cmd: podman ps --filter name={{ pulp_container_name }} --format "{{ '{{' }}.Status{{ '}}' }}"
-  register: _container_status
-  changed_when: false
+- name: Inspect Pulp container health
+  containers.podman.podman_container_info:
+    name: "{{ pulp_container_name }}"
+  register: _pulp_health_container
   failed_when: false
 
-- name: Fail if Pulp container is not running
-  ansible.builtin.fail:
-    msg: "Pulp container '{{ pulp_container_name }}' is not running. Fix: podman start {{ pulp_container_name }}"
-  when: _container_status.rc != 0 or 'Up' not in (_container_status.stdout | default(''))
+- name: Require a running Pulp container
+  ansible.builtin.assert:
+    that:
+      - (_pulp_health_container.containers | default([]) | length) > 0
+      - _pulp_health_container.containers[0].State.Status | default('') == 'running'
+    fail_msg: >-
+      Pulp container '{{ pulp_container_name }}' is not running. Inspect
+      systemctl status {{ pulp_container_name }}.service and podman logs
+      {{ pulp_container_name }}.
 
-# ═══ CHECK 2: API responding (with retries) ═══
-- name: Check Pulp API
+- name: Check Pulp HTTPS status endpoint
   ansible.builtin.uri:
-    url: "https://{{ pulp_server_ip }}:{{ pulp_container_port_https }}/pulp/api/v3/status/"
-    validate_certs: false
+    url: "{{ pulp_status_url }}"
+    validate_certs: true
+    ca_path: "{{ pulp_server_crt }}"
     timeout: 30
-    status_code: [200]
-  register: _api_check
+    status_code: 200
+    return_content: true
+  register: _pulp_api_health
   retries: 6
   delay: 10
-  until: _api_check.status | default(-1) == 200
-  failed_when: false
+  until: _pulp_api_health.status | default(-1) == 200
 
-- name: Fail if Pulp API is not responding
-  ansible.builtin.fail:
-    msg: "Pulp API not responding after 6 retries (status: {{ _api_check.status | default('NO RESPONSE') }}). Fix: podman restart {{ pulp_container_name }}"
-  when: _api_check.status | default(0) != 200
+- name: Validate Pulp internal service health
+  ansible.builtin.assert:
+    that:
+      - _pulp_api_health.json.database_connection.connected | default(false) | bool
+      - (_pulp_api_health.json.online_workers | default([]) | length) > 0
+      - (_pulp_api_health.json.online_content_apps | default([]) | length) > 0
+    fail_msg: >-
+      Pulp HTTPS is reachable, but its database, workers, or content apps are
+      unhealthy. Inspect podman logs {{ pulp_container_name }}.
+    success_msg: >-
+      Pulp is healthy: {{ _pulp_api_health.json.online_workers | length }}
+      workers and {{ _pulp_api_health.json.online_content_apps | length }}
+      content apps are online.
 
-# ═══ CHECK 3: Internal health via CLI ═══
-- name: Get Pulp status
+- name: Verify authenticated Pulp CLI access
   ansible.builtin.command:
-    cmd: pulp status
-  register: _pulp_cli
+    argv:
+      - /usr/local/bin/pulp
+      - status
+  register: _pulp_cli_health
   changed_when: false
-  failed_when: false
-
-- name: Validate Pulp internal health
-  when: _pulp_cli.rc == 0
-  block:
-    - name: Parse status
-      ansible.builtin.set_fact:
-        _ps: "{{ _pulp_cli.stdout | from_json }}"
-
-    - name: Fail if database not connected
-      ansible.builtin.fail:
-        msg: "Pulp database is not connected. Fix: podman restart {{ pulp_container_name }}"
-      when: not (_ps.database_connection.connected | default(false) | bool)
-
-    - name: Fail if no workers
-      ansible.builtin.fail:
-        msg: "No Pulp workers online. Fix: podman restart {{ pulp_container_name }}"
-      when: (_ps.online_workers | default([]) | length) == 0
-
-    - name: Fail if no content apps
-      ansible.builtin.fail:
-        msg: "No Pulp content apps online. Fix: podman restart {{ pulp_container_name }}"
-      when: (_ps.online_content_apps | default([]) | length) == 0
-
-    - name: Pulp is healthy
-      ansible.builtin.debug:
-        msg: >-
-          Pulp healthy —
-          Workers: {{ _ps.online_workers | length }},
-          ContentApps: {{ _ps.online_content_apps | length }},
-          Storage: {{ _ps.storage.free | default(0) | int // 1073741824 }}GB free
+  failed_when: _pulp_cli_health.rc != 0

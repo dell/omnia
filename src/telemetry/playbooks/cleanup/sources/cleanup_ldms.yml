@@ -16,20 +16,50 @@
 # =============================================================================
 # LDMS Telemetry Cleanup
 # =============================================================================
-# Removes LDMS Helm releases, StatefulSets, services, secrets, PVCs, and Vector-LDMS bridge.
+# Removes LDMS resources from:
+#   - Kubernetes (Helm releases, StatefulSets, services, secrets, Vector-LDMS bridge)
+#   - Legacy PVCs only when Delete_volume=true
+#   - Slurm compute, control, login, and login-compiler nodes
+#     (ldmsd sampler service and config files)
 #
 # Standalone usage:
-#   ansible-playbook cleanup/sources/cleanup_ldms.yml
+#   ansible-playbook cleanup/sources/cleanup_ldms.yml -e kube_vip=<VIP_IP>
 #
 # Via main cleanup (tag-based):
 #   ansible-playbook cleanup/cleanup.yml --tags cleanup_ldms
 # =============================================================================
 
-- name: "Cleanup LDMS Telemetry"
+- name: "Cleanup LDMS Telemetry — Prepare Target"
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../../../roles/common/vars/main.yml
+  tasks:
+    - name: Load telemetry config
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: load_telemetry_config
+      when: telemetry_config is not defined
+
+    - name: Validate kube_vip is set
+      ansible.builtin.assert:
+        that:
+          - kube_vip is defined
+          - kube_vip | length > 0
+        fail_msg: >-
+          kube_vip is required for standalone LDMS cleanup.
+
+    - name: Add kube_vip to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ kube_vip }}"
+        groups: kube_vip_group
+        ansible_user: root
+
+- name: "Cleanup LDMS Telemetry — All Resources"
   hosts: kube_vip_group
   gather_facts: false
   tasks:
-    - name: "Run ldms cleanup"
+    - name: Run ldms cleanup (K8s + Slurm nodes via delegation)
       ansible.builtin.include_role:
         name: cleanup
         tasks_from: ldms

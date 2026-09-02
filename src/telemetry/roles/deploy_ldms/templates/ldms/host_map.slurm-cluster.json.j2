@@ -1,12 +1,24 @@
 [
-{% set slurm_nodes = slurm_inv.all.children.slurm_node.hosts | default({}) | dict2items %}
-{% for item in slurm_nodes %}
+{# Build the aggregator map from the same deduplicated, reachable inventory used
+   by sampler deployment. Group membership is retained only for LDMS subroles. #}
+{% set deploy_hosts = (_ldms_deploy_reachable_hosts | default([])) | unique | sort %}
+{% for host_name in deploy_hosts %}
+{% if host_name in (groups['slurm_control_node'] | default([])) %}
+{% set ldms_subrole = 'Control' %}
+{% elif host_name in (groups['slurm_node'] | default([])) %}
+{% set ldms_subrole = 'Compute' %}
+{% elif host_name in (groups['login_node'] | default([])) %}
+{% set ldms_subrole = 'Login' %}
+{% elif host_name in (groups['login_compiler_node'] | default([])) %}
+{% set ldms_subrole = 'LoginCompiler' %}
+{% else %}
+{% set ldms_subrole = 'Unknown' %}
+{% endif %}
     {
-        "hostname": "{{ item.key }}.{{ hostvars['localhost']['domain_name'] | default('localdomain') }}",
-        "hostaddr": "{{ item.value.ansible_host | default(item.key) }}",
-        "ip_address": "{{ item.value.ansible_host | default(item.key) }}",
-        "subrole": "Compute"
+        "hostname": "{{ host_name }}.{{ hostvars['localhost']['domain_name'] | default('localdomain') }}",
+        "hostaddr": "{{ hostvars[host_name].ansible_host | default(host_name) }}",
+        "ip_address": "{{ hostvars[host_name].ansible_host | default(host_name) }}",
+        "subrole": "{{ ldms_subrole }}"
     }{% if not loop.last %},{% endif %}
 {% endfor %}
-
 ]

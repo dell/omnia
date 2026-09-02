@@ -28,7 +28,7 @@ Handles:
 import os
 import subprocess
 import tempfile
-from typing import Dict, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 import testinfra
@@ -537,3 +537,150 @@ def resolve_domain_input_path(
     remote_input = f"{data_path}/{domain}/input/{project}"
     log(f"Resolved remote input path: {remote_input}", "INFO")
     return remote_input
+
+
+# =========================================================================
+# Ansible Inventory Parsing
+# =========================================================================
+
+def get_inventory_hosts(
+    host,
+    inventory_path: str,
+    groups: List[str],
+    prefix_match: bool = True,
+) -> Dict[str, Any]:
+    """Get hostnames from specific groups in an Ansible inventory file.
+
+    Parses an Ansible YAML inventory file on the remote host and extracts
+    hostnames from the specified groups.
+
+    Args:
+        host: Testinfra host object.
+        inventory_path: Absolute path to the inventory YAML file.
+        groups: List of group names to extract hosts from
+            (e.g., ["slurm_control_node", "slurm_node"]).
+        prefix_match: If True, match groups that start with the given name
+            (e.g., "slurm_node" matches "slurm_node_x86_64"). Default True.
+
+    Returns:
+        Dict with keys:
+            - success (bool): True if at least one host was found.
+            - hostnames (list): All unique hostnames found.
+            - by_group (dict): Mapping of matched group name to list of hostnames.
+            - error (str): Error message if failed.
+
+    Example::
+
+        result = get_inventory_hosts(
+            host,
+            "/opt/omnia/telemetry/input/project/orchestrator.yml",
+            ["slurm_control_node", "slurm_node"],
+        )
+        # result["hostnames"] = ["scontrol", "snode1", "snode2"]
+        # result["by_group"] = {"slurm_control_node_x86_64": ["scontrol"], ...}
+    """
+    if not inventory_path:
+        return {
+            "success": False,
+            "hostnames": [],
+            "by_group": {},
+            "error": "inventory_path is required",
+        }
+
+    if not groups:
+        return {
+            "success": False,
+            "hostnames": [],
+            "by_group": {},
+            "error": "groups list is required",
+        }
+
+    # Read and parse the inventory YAML
+    inv_data = read_remote_yaml(host, inventory_path)
+    if not inv_data:
+        return {
+            "success": False,
+            "hostnames": [],
+            "by_group": {},
+            "error": f"Failed to read inventory: {inventory_path}",
+        }
+
+    # Navigate to all.children in the inventory structure
+    all_children = read_yaml_key(inv_data, "all.children", default={})
+    if not all_children:
+        return {
+            "success": False,
+            "hostnames": [],
+            "by_group": {},
+            "error": "No 'all.children' found in inventory",
+        }
+
+    by_group = {}
+    all_hostnames = []
+
+    for group_pattern in groups:
+        # Find matching groups (exact or prefix match)
+        matching_groups = []
+        for inv_group in all_children.keys():
+            if inv_group == group_pattern:
+                matching_groups.append(inv_group)
+            elif prefix_match and inv_group.startswith(group_pattern + "_"):
+                matching_groups.append(inv_group)
+
+        # Extract hosts from matching groups
+        for matched_group in matching_groups:
+            group_data = all_children[matched_group]
+            if isinstance(group_data, dict):
+                hosts = group_data.get("hosts", {})
+                if isinstance(hosts, dict):
+                    hostnames = list(hosts.keys())
+                    by_group[matched_group] = hostnames
+                    for hostname in hostnames:
+                        if hostname not in all_hostnames:
+                            all_hostnames.append(hostname)
+
+    return {
+        "success": len(all_hostnames) > 0,
+        "hostnames": all_hostnames,
+        "by_group": by_group,
+        "error": "" if all_hostnames else f"No hosts found in groups: {groups}",
+    }
+
+
+def get_inventory_host_var(
+    host,
+    inventory_path: str,
+    group: str,
+    hostname: str,
+    var_name: str,
+    default=None,
+):
+    """Get a host variable from an Ansible inventory file.
+
+    Args:
+        host: Testinfra host object.
+        inventory_path: Absolute path to the inventory YAML file.
+        group: Group name where the host is defined.
+        hostname: Name of the host.
+        var_name: Variable name to retrieve (e.g., "ansible_host").
+        default: Value to return if not found.
+
+    Returns:
+        The variable value or *default* if not found.
+
+    Example::
+
+        ip = get_inventory_host_var(
+            host,
+            "/opt/omnia/orchestrator.yml",
+            "kube_vip_group",
+            "kube-vip",
+            "ansible_host",
+        )
+    """
+    inv_data = read_remote_yaml(host, inventory_path)
+    if not inv_data:
+        return default
+
+    key_path = f"all.children.{group}.hosts.{hostname}.{var_name}"
+    return read_yaml_key(inv_data, key_path, default=default)

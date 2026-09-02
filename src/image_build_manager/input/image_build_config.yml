@@ -41,8 +41,9 @@
 # Full path to repo_status.yml produced by repo_manager.
 # Contains RPM repo URLs organized by version and architecture.
 # TLS certificate path is derived from repo_manager.certificates.server_crt in repo_status.yml.
-# Convention: /opt/omnia/repo_manager/output/<project_name>/repo_status.yml
-repo_manager_output_path: "/opt/omnia/repo_manager/output/project_default/repo_status.yml"
+# Convention: <OMNIA_DATA_PATH>/repo_manager/output/<project_name>/repo_status.yml
+# domain-init.sh replaces __OMNIA_DATA_PATH__ with the actual OMNIA_DATA_PATH at staging time.
+repo_manager_output_path: "__OMNIA_DATA_PATH__/repo_manager/output/__PROJECT_NAME__/repo_status.yml"
 
 
 # ---------------------------------------------------------------------------

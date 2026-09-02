@@ -33,7 +33,15 @@
 # --- Resolve configuration from environment variables ---
 - name: Resolve configuration from environment
   ansible.builtin.set_fact:
-    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+    omnia_data_path: >-
+      {{ (lookup('env', 'OMNIA_DATA_PATH')
+          | default(lookup('env', 'OMNIA_BASE_DIR'), true)
+          | default('/opt/omnia', true))
+         | ansible.builtin.normpath }}
+    repo_manager_runtime_dir: >-
+      {{ (lookup('env', 'REPO_MANAGER_DATA_PATH')
+          | default(omnia_data_path + '/repo_manager', true))
+         | ansible.builtin.normpath }}
     admin_nic_ip: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true) }}"
     catalog_file: "{{ lookup('env', 'CATALOG_FILE_PATH') | default('', true) }}"
     project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
@@ -58,17 +66,41 @@
       - "SYSTEM_ADMIN_NIC_IPV4: {{ admin_nic_ip }}"
       - "CATALOG_FILE_PATH: {{ catalog_file }}"
       - "OMNIA_DATA_PATH: {{ omnia_data_path }}"
+      - "REPO_MANAGER_DATA_PATH: {{ repo_manager_runtime_dir }}"
       - "OMNIA_PROJECT_NAME: {{ project_name }}"
     verbosity: 1
+
+- name: Validate resolved Repo Manager paths
+  ansible.builtin.assert:
+    that:
+      - omnia_data_path is match('^/')
+      - repo_manager_runtime_dir is match('^/')
+      - (repo_manager_runtime_dir | regex_replace('/+$', '')) not in ['', '/opt', '/var', '/etc', '/usr', '/root']
+      - project_name is match('^[A-Za-z0-9][A-Za-z0-9_.-]*$')
+    fail_msg: >-
+      Invalid Repo Manager path configuration. OMNIA_DATA_PATH and
+      REPO_MANAGER_DATA_PATH must be safe absolute paths, and
+      OMNIA_PROJECT_NAME must be one path segment.
 
 # --- Set all derived paths in a single set_fact ---
 - name: Set project dirs and derived paths
   ansible.builtin.set_fact:
-    input_project_dir: "{{ omnia_data_path }}/repo_manager/input/{{ project_name }}"
-    output_project_dir: "{{ omnia_data_path }}/repo_manager/output/{{ project_name }}"
-    log_dir: "{{ omnia_data_path }}/repo_manager/log/{{ project_name }}"
-    shared_path: "{{ omnia_data_path }}/repo_manager"
+    input_project_dir: >-
+      {{ (lookup('env', 'REPO_MANAGER_INPUT_PROJECT_DIR')
+          | default(repo_manager_runtime_dir + '/input/' + project_name, true))
+         | ansible.builtin.normpath }}
+    output_project_dir: "{{ repo_manager_runtime_dir }}/output/{{ project_name }}"
+    log_dir: "{{ repo_manager_runtime_dir }}/log"
+    shared_path: "{{ repo_manager_runtime_dir }}"
     cacheable: true
+
+- name: Validate resolved project input path
+  ansible.builtin.assert:
+    that:
+      - input_project_dir is match('^/')
+      - (input_project_dir | regex_replace('/+$', '')) not in ['', '/opt', '/var', '/etc', '/usr', '/root']
+    fail_msg: >-
+      REPO_MANAGER_INPUT_PROJECT_DIR must resolve to a safe absolute path.
 
 # --- Load repo_manager_config.yml to determine catalog usage ---
 - name: Load repo_manager_config.yml to determine catalog usage

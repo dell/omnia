@@ -16,7 +16,8 @@
 # Test Run Configuration — Image Build Manager
 # =============================================================================
 #
-# Configure which test categories to run, execution order, and marker filters.
+# Configure which test categories to run and their marker/suite filters.
+# FVT entries execute in the YAML order shown below.
 #
 # Usage:
 #   1. Edit this file to enable/disable scenarios and set markers
@@ -31,24 +32,26 @@
 #   nft_image_build_manager  — Non-Functional Tests (performance, idempotency)
 #   ut_image_build_manager   — Unit Tests (offline validation)
 #
-# FVT scenarios (nested under fvt_image_build_manager):
-#   Each scenario maps to an Ansible playbook tag.  Fields:
-#     run:          true/false    - Whether to execute this scenario
-#     command:      <string>      - exec, verify, or test (default: test)
-#                                   exec   = Run the playbook only
-#                                   verify = Run verification tests only
-#                                   test   = Exec + Verify (full flow)
-#     suite:        <folder>      - FVT subfolder filter (empty = all suites)
-#     marker:       <expression>  - Marker filter expression (empty = all)
-#     dataset:      <name>        - Override dataset from test_config.yml
-#                                   Must be a valid folder under datasets/
-#     sync_input:   true/false    - Override sync_image_build_input
-#     sync_output:  true/false    - Override sync_output
+# Common fields (FVT / NFT / UT):
+#   run:          true/false    - Whether to execute this entry
+#   command:      <string>      - exec, verify, or test (default: test)
+#   marker:       <expression>  - Marker filter (empty = all applicable tests)
+#
+# FVT-only fields (each entry maps to an Ansible playbook tag):
+#   suite:        <folder>      - FVT subfolder filter (empty = all suites)
+#   dataset:      <name>        - Override dataset from test_config.yml
+#                                 Must be a valid folder under datasets/
+#   sync_input:   true/false    - Override sync_image_build_input
+#   sync_output:  true/false    - Override sync_output
+#
+# FVT command behavior:
+#   exec   = Run the playbook only
+#   verify = Run verification tests only
+#   test   = Exec + Verify (full flow)
 #
 # NFT / UT (top-level, no nested scenarios):
-#   run:          true/false    - Whether to execute
-#   command:      <string>      - test or verify
-#   marker:       <expression>  - Marker filter (empty = all tests)
+#   Use command: "test". exec/verify are accepted aliases and run the same
+#   complete NFT/UT suite.
 #
 # -----------------------------------------------------------------------------
 # Marker Expression Syntax
@@ -57,6 +60,8 @@
 #   OR:       "x86_64,aarch64"          — tests with EITHER marker
 #   AND:      "x86_64+sanity"           — tests with BOTH markers
 #   Standard: "sanity"                  — tests with @pytest.mark.sanity
+#
+# Use either '+' or ',' in one expression; mixed operators are rejected.
 #
 # Available markers:
 #   Architecture:  x86_64, aarch64
@@ -69,9 +74,9 @@
 #   precheck:       connectivity
 #   validate:       status
 #   prepare:        container, s3
-#   build:          s3, registry, naming, image_verification
+#   build:          s3, registry, naming, aarch64, image_verification
 #   cleanup:        cleanup
-#   cleanup_images: (no suites)
+#   cleanup_images: cleanup_images
 #
 # =============================================================================
 
@@ -80,26 +85,19 @@
 # =============================================================================
 # Global Overrides
 # =============================================================================
-# dataset_override: Override the dataset from test_config.yml for ALL scenarios.
+# dataset_override: Override the dataset for ALL FVT scenarios.
 #   When set, this takes precedence over both test_config.yml dataset and
 #   per-scenario dataset overrides below.
 #   Must be a valid folder name under datasets/.
 #   Leave commented out to use per-scenario or test_config.yml defaults.
 # dataset_override: "my_custom_ds"
 
-# sync_input_override: Override sync_image_build_input for ALL scenarios.
+# sync_input_override: Override sync_image_build_input for ALL FVT scenarios.
 #   When set, applies to every scenario regardless of per-scenario settings.
 # sync_input_override: true
 
-# sync_output_override: Override sync_output for ALL scenarios.
+# sync_output_override: Override sync_output for ALL FVT scenarios.
 # sync_output_override: false
-
-# =============================================================================
-# Execution Options
-# =============================================================================
-# skip_on_failure: Stop the current suite on first test failure.
-#                  When false (default), all tests run regardless of failures.
-skip_on_failure: false
 
 # =============================================================================
 # FVT — Functional Verification Tests
@@ -137,7 +135,7 @@ fvt_image_build_manager:
     dataset: ""
     sync_input: false
     sync_output: false
-  cleanup:
+  cleanup_images:
     run: false
     command: "test"
     suite: ""
@@ -145,7 +143,7 @@ fvt_image_build_manager:
     dataset: ""
     sync_input: false
     sync_output: false
-  cleanup_images:
+  cleanup:
     run: false
     command: "test"
     suite: ""

@@ -31,66 +31,74 @@
       "description": "Container registry configurations keyed by registry name",
       "additionalProperties": {
         "type": "object",
+        "additionalProperties": false,
         "properties": {
-          "BaseURL": {
+          "base_url": {
             "type": "string",
             "pattern": "^https?:\\/\\/.+"
           },
-          "Port": {
+          "port": {
             "type": "integer",
             "minimum": 1,
             "maximum": 65535
           },
-          "Auth": {
-            "type": ["object", "null"],
+          "auth": {
+            "type": "object",
+            "additionalProperties": false,
             "properties": {
-              "Type": {
+              "type": {
                 "type": "string",
-                "enum": ["none", "basic", "token"]
+                "enum": ["none", "basic"]
               },
-              "Credentials": {
+              "credentials": {
                 "type": ["object", "null"],
+                "additionalProperties": false,
                 "properties": {
-                  "VaultPath": {
-                    "type": "string"
+                  "vault_path": {
+                    "type": "string",
+                    "minLength": 1
                   }
                 }
               }
-            }
-          },
-          "TLS": {
-            "type": ["object", "null"],
-            "properties": {
-              "CAPath": {
-                "type": ["string", "null"]
-              },
-              "ClientCertPath": {
-                "type": ["string", "null"]
-              },
-              "ClientKeyPath": {
-                "type": ["string", "null"]
-              },
-              "Insecure": {
-                "type": "boolean"
+            },
+            "required": ["type"],
+            "allOf": [
+              {
+                "if": {
+                  "properties": {"type": {"const": "basic"}}
+                },
+                "then": {
+                  "required": ["credentials"],
+                  "properties": {
+                    "credentials": {
+                      "type": "object",
+                      "required": ["vault_path"]
+                    }
+                  }
+                }
               }
-            }
+            ]
           },
-          "Mirror": {
+          "tls": {
             "type": ["object", "null"],
+            "additionalProperties": false,
             "properties": {
-              "PulpURL": {
-                "type": "string"
+              "ca_path": {
+                "type": ["string", "null"]
               },
-              "PullThrough": {
+              "client_cert_path": {
+                "type": ["string", "null"]
+              },
+              "client_key_path": {
+                "type": ["string", "null"]
+              },
+              "insecure": {
                 "type": "boolean"
-              },
-              "Prefix": {
-                "type": "string"
               }
             }
           }
         },
-        "required": ["BaseURL", "Port"]
+        "required": ["base_url", "port", "auth"]
       }
     },
     "repositories": {

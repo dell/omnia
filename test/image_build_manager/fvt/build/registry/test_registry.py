@@ -62,6 +62,7 @@ def test_registry_images_x86_64(host):
         missing_list="\n".join(
             f"\u2551   - {i}" for i in result["missing_images"]
         ),
+        log_path=f"{SHARED_PATH}/log/",
     )
 
 
@@ -94,6 +95,7 @@ def test_registry_images_aarch64(host):
         missing_list="\n".join(
             f"\u2551   - {i}" for i in result["missing_images"]
         ),
+        log_path=f"{SHARED_PATH}/log/",
     )
 
 

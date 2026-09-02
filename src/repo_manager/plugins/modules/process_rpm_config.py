@@ -25,7 +25,7 @@ This module handles:
 
 
 #!/usr/bin/python
-# pylint: disable=import-error,no-name-in-module,too-many-lines,too-many-branches,too-many-statements,too-many-locals,too-many-return-statements,too-many-arguments
+# pylint: disable=import-error,no-name-in-module,too-many-lines,too-many-branches,too-many-statements,too-many-locals,too-many-return-statements,too-many-arguments,too-many-positional-arguments
 import subprocess
 import multiprocessing
 import os
@@ -39,18 +39,22 @@ import json
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
 from ansible.module_utils.repo_manager.config import (
-    OMNIA_BASE_DIR,
+    PULP_SSL_CA_CERT,
+    REPO_MANAGER_LOG_DIR,
     pulp_rpm_commands,
     AGGREGATED_REPO_SUFFIX,
     AGGREGATED_BASE_PATH_TEMPLATE,
-    PULP_CONCURRENCY,
     RPM_SYNC_STUCK_TIMEOUT,
     RPM_PROGRESS_CHECK_INTERVAL,
     RPM_CLEANUP_ON_TIMEOUT,
-    RPM_CLEANUP_ORPHANS_ONLY
+    RPM_CLEANUP_ORPHANS_ONLY,
+    ARCH_SUFFIXES,
 )
 from ansible.module_utils.repo_manager.repo_settings import (
     RPM_CONTINUE_ON_FAILURE,
+    RPM_THREAD_POOL_SIZE,
+    MIN_THREAD_POOL_SIZE,
+    MAX_THREAD_POOL_SIZE,
     POLICY_CACHING_MAP,
     get_caching_policy
 )
@@ -60,6 +64,18 @@ def _log(log, level, repo_name, msg):
     """All repo logs go through here — grep-friendly."""
     text = f"[{repo_name}] - {msg}" if repo_name else msg
     getattr(log, level)(text)
+
+
+def _effective_worker_count(configured_workers, item_count):
+    """Validate a configured RPM limit and cap it to the available work."""
+    configured_workers = int(configured_workers)
+    if not MIN_THREAD_POOL_SIZE <= configured_workers <= MAX_THREAD_POOL_SIZE:
+        raise ValueError(
+            f"thread_pool_size must be between {MIN_THREAD_POOL_SIZE} "
+            f"and {MAX_THREAD_POOL_SIZE}"
+        )
+    return min(configured_workers, max(1, item_count))
+
 
 def _log_summary(log, results, failures, start_time):
     """Simple summary — grep for SUMMARY, FAILED, Overall."""
@@ -131,7 +147,7 @@ author:
 EXAMPLES = r"""
 - name: Process RPM configuration
   process_rpm_config:
-    config_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia') }}/input/repo_manager_config.yml"
+    config_path: "{{ repo_manager_runtime_dir }}/input/project_default/repo_manager_config.yml"
     arch: x86_64
     os_version: "9.4"
   register: rpm_config
@@ -386,7 +402,7 @@ def show_rpm_repository(repo_name, log):
 
 def create_rpm_remote(repo, log):
     """
-    Create a remote for the RPM repository if it doesn't already exist.
+    Create an RPM remote or update its URL, policy, and certificates.
 
     Args:
         repo (dict): A dictionary containing the repository information.
@@ -410,47 +426,41 @@ def create_rpm_remote(repo, log):
 
         remote_name = repo_name
 
-        # Check if remote already exists - skip if it does
-        if show_rpm_remote(remote_name, log):
-            log.info("Remote '%s' already exists. Skipping.", remote_name)
-            return True, repo_name
-
-        # Remote doesn't exist - create it
+        remote_exists = show_rpm_remote(remote_name, log)
         repo_keys = repo.keys()
         if "ca_cert" in repo_keys and repo["ca_cert"]:
             ca_cert = f"@{repo['ca_cert']}"
             client_cert = f"@{repo['client_cert']}"
             client_key = f"@{repo['client_key']}"
-            if not show_rpm_remote(remote_name, log):
+            if remote_exists:
+                command = pulp_rpm_commands["update_remote_cert"] % (
+                    remote_name, remote_url, policy_type, ca_cert, client_cert, client_key
+                )
+                log.info("Remote '%s' exists. Updating URL, policy, and certificates.", remote_name)
+            else:
                 command = pulp_rpm_commands["create_remote_cert"] % (
                     remote_name, remote_url, policy_type, ca_cert, client_cert, client_key
                 )
                 log.info("Remote '%s' does not exist. Executing creation command with certs.", remote_name)
-                result = execute_command(command, log)
-                # Handle duplicate remote error - treat as success since remote already exists
-                if result is False:
-                    log.warning(
-                        "Remote creation command failed for '%s', checking if remote already exists",
-                        remote_name
-                    )
-                    if show_rpm_remote(remote_name, log):
-                        log.info("Remote '%s' already exists (duplicate creation error). Treating as success.", remote_name)
-                        return True, repo_name
-                log.info("Remote %s created.", remote_name)
+            result = execute_command(command, log)
+            # Handle a concurrent create of the same remote as success.
+            if result is False and not remote_exists and show_rpm_remote(remote_name, log):
+                log.info("Remote '%s' was created concurrently. Treating as success.", remote_name)
+                return True, repo_name
         else:
             log.info("Repository does not use SSL certificates for remote")
-            if not show_rpm_remote(remote_name, log):
+            if remote_exists:
+                command = pulp_rpm_commands["update_remote"] % (remote_name, remote_url, policy_type)
+                log.info("Remote '%s' exists. Updating URL and policy.", remote_name)
+            else:
                 command = pulp_rpm_commands["create_remote"] % (remote_name, remote_url, policy_type)
                 log.info("Remote '%s' does not exist. Executing creation command.", remote_name)
-                result = execute_command(command, log)
-                # Handle duplicate remote error - treat as success since remote already exists
-                if result is False:
-                    log.warning("Remote creation command failed for '%s', checking if remote already exists", remote_name)
-                    if show_rpm_remote(remote_name, log):
-                        log.info("Remote '%s' already exists (duplicate creation error). Treating as success.", remote_name)
-                        return True, repo_name
-                log.info("Remote %s created.", remote_name)
-        # Return True if result is truthy (success) or if remote exists, False otherwise
+            result = execute_command(command, log)
+            # Handle a concurrent create of the same remote as success.
+            if result is False and not remote_exists and show_rpm_remote(remote_name, log):
+                log.info("Remote '%s' was created concurrently. Treating as success.", remote_name)
+                return True, repo_name
+        # Both create and update commands return a truthy result on success.
         return bool(result), repo_name
 
     except subprocess.CalledProcessError as e:
@@ -1332,7 +1342,23 @@ def get_base_urls(log):
     return distributions
 
 
-def create_yum_repo_file(distributions, log, sslcacert=None):
+def build_repo_priority_map(rpm_config):
+    """Return configured DNF priorities keyed by the final Pulp repo name."""
+    priorities = {}
+    for repo in rpm_config:
+        priority = repo.get("priority")
+        if priority is None:
+            continue
+
+        repo_name = repo["package"]
+        version = repo.get("version")
+        if version and version != "null":
+            repo_name = f"{repo_name}_{version}"
+        priorities[repo_name] = int(priority)
+    return priorities
+
+
+def create_yum_repo_file(distributions, log, sslcacert=None, repo_priorities=None):
     """
     Creates a new 'pulp.repo' file in /etc/yum.repos.d and adds multiple repositories.
 
@@ -1340,6 +1366,7 @@ def create_yum_repo_file(distributions, log, sslcacert=None):
         distributions (list): A list of dictionaries containing the base URLs and names of all distributions.
         log (logging.Logger): Logger instance for logging the process and errors.
         sslcacert (str): Optional path to SSL CA certificate for HTTPS repos.
+        repo_priorities (dict): Optional mapping of Pulp repo name to DNF priority.
 
     Returns:
         None
@@ -1372,10 +1399,7 @@ def create_yum_repo_file(distributions, log, sslcacert=None):
         # Auto-detect sslcacert if not provided and HTTPS is used
         if uses_https and not sslcacert:
             # Check common certificate locations
-            cert_locations = [
-                os.path.join(OMNIA_BASE_DIR, "pulp", "settings", "certs", "pulp_webserver.crt"),
-                "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
-            ]
+            cert_locations = [PULP_SSL_CA_CERT]
             for cert_path in cert_locations:
                 if os.path.exists(cert_path):
                     sslcacert = cert_path
@@ -1383,6 +1407,7 @@ def create_yum_repo_file(distributions, log, sslcacert=None):
                     break
 
         repo_content = ""
+        repo_priorities = repo_priorities or {}
         enabled_count = 0
         disabled_count = 0
 
@@ -1393,7 +1418,11 @@ def create_yum_repo_file(distributions, log, sslcacert=None):
             # Determine if repo should be enabled based on architecture
             # Only enable repos that match the system architecture
             # Repo names follow pattern: {arch}_{os_type}_{version}_{repo_name}
-            repo_arch = repo_name.split('_')[0] if '_' in repo_name else None
+            repo_arch = next(
+                (candidate for candidate in ARCH_SUFFIXES
+                 if repo_name.startswith(f"{candidate}_")),
+                None,
+            )
             
             # Enable repo only if it matches system architecture
             # x86_64 system: enable x86_64 repos, disable aarch64 repos
@@ -1417,6 +1446,9 @@ name={repo_name} repo
 baseurl={base_url}
 enabled={enabled}
 gpgcheck=0"""
+
+            if repo_name in repo_priorities:
+                repo_entry += f"\npriority={repo_priorities[repo_name]}"
 
             # Add SSL configuration for HTTPS URLs
             if base_url.startswith("https://") and sslcacert:
@@ -1961,7 +1993,10 @@ def manage_aggregated_repos(additional_repos_config, log, cluster_os_type="rhel"
     return True, "success"
 
 
-def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_repos=None, cluster_os_version="10.0", continue_on_failure=True):
+def manage_rpm_repositories_multiprocess(
+        rpm_config, log, sw_archs=None, resync_repos=None,
+        cluster_os_version="10.0", continue_on_failure=True,
+        thread_pool_size=RPM_THREAD_POOL_SIZE):
     """
     Manage RPM repositories using multiprocessing.
 
@@ -1975,6 +2010,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
             - "all": Force resync all repos
             - list of repo names: Only sync specified repos
         cluster_os_version (str): The cluster OS version (e.g., '10.0', '10.1').
+        thread_pool_size (int): Maximum worker processes used by every RPM stage.
     Returns:
         tuple: (bool, str) indicating success and a message
     """
@@ -1997,10 +2033,9 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
     if not is_valid:
         return False, error_msg
 
-    cpu_count = os.cpu_count()
-    process = min(cpu_count, len(rpm_config))
-    # log.info(f"Number of processes = {process}")
-    log.info(f"Number of processes for lightweight operations = {process}")
+    process = _effective_worker_count(thread_pool_size, len(rpm_config))
+    log.info(f"Configured RPM worker processes = {thread_pool_size}")
+    log.info(f"Effective processes for lightweight operations = {process}")
 
     # Calculate actual repos to process based on resync_repos
     # This determines the effective concurrency for sync/publish/distribute
@@ -2016,17 +2051,10 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
 
     log.info(f"Repos to actually process (based on resync_repos): {repos_to_process_count}")
 
-    # Use configurable concurrency from config.py for resource-intensive operations
-    # This prevents overwhelming the Pulp server, especially on NFS storage
-    # Adjust PULP_CONCURRENCY via Ansible or in config.py::
-    #   - For NFS storage: Use 1 (prevents 500/502/504 errors)
-    #   - For local storage: Use 2 for optimal performance
-    #   - For high-performance SAN: Can try 3-4 (monitor for errors)
-    # Cap by actual repos to process, not total rpm_config
-    pulp_process = min(PULP_CONCURRENCY, repos_to_process_count)
-    # pulp_process = min(PULP_CONCURRENCY, process)
+    # One stability-oriented limit controls every stage. Cap resource-intensive
+    # work by the number of repositories that can actually be processed.
+    pulp_process = _effective_worker_count(thread_pool_size, repos_to_process_count)
 
-    log.info(f"Configured pulp concurrency: {PULP_CONCURRENCY}")
     log.info(f"Actual pulp processes (capped by repo to process): {pulp_process}")
     log.info(f"Continue on failure: {continue_on_failure}")
 
@@ -2080,7 +2108,10 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
         # Deletes old publications and creates new ones
         log.info("Step 4: Starting concurrent RPM publication creation")
         log.info(f"Processing publication for {len(repos_for_pub_dist)} repos")
-        with multiprocessing.Pool(processes=min(pulp_process, len(repos_for_pub_dist))) as pool:
+        publication_processes = _effective_worker_count(
+            thread_pool_size, len(repos_for_pub_dist)
+        )
+        with multiprocessing.Pool(processes=publication_processes) as pool:
             result = pool.map(partial(create_publication, log=log, resync_repos=resync_repos), repos_for_pub_dist)
 
         pub_failed = [name for success, name in result if not success]
@@ -2097,7 +2128,10 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
         # Step 5: Concurrent distribution creation/update
         log.info("Step 5: Starting concurrent RPM distribution creation/update")
         log.info(f"Processing distribution for {len(repos_for_pub_dist)} repos")
-        with multiprocessing.Pool(processes=min(pulp_process, len(repos_for_pub_dist))) as pool:
+        distribution_processes = _effective_worker_count(
+            thread_pool_size, len(repos_for_pub_dist)
+        )
+        with multiprocessing.Pool(processes=distribution_processes) as pool:
             result = pool.map(partial(create_distribution, log=log, resync_repos=resync_repos, cluster_os_version=cluster_os_version), repos_for_pub_dist)
 
         dist_failed = [name for success, name in result if not success]
@@ -2121,7 +2155,10 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
         return False, "Base URLs fetch failed — repo file not created."
 
     log.info(f"Fetched {len(base_urls)} base URLs from Pulp.")
-    create_yum_repo_file(base_urls, log)
+    create_yum_repo_file(
+        base_urls, log,
+        repo_priorities=build_repo_priority_map(rpm_config)
+    )
     log.info("Successfully created/updated pulp.repo file with fetched base URLs.")
 
     # Final summary
@@ -2159,11 +2196,13 @@ def main():
     module_args = {
         "local_config": {"type": "list", "required": True},
         # nosec B108 - Default path uses OMNIA_DATA_PATH env var for portability
-        "log_dir": {"type": "str", "required": False, 
-                   "default": os.path.join(os.environ.get('OMNIA_DATA_PATH', '/opt/omnia'), 
-                                          'log/repo_manager/thread_logs')},
+        "log_dir": {
+            "type": "str", "required": False,
+            "default": os.path.join(REPO_MANAGER_LOG_DIR, "thread_logs")
+        },
         "additional_repos_config": {"type": "dict", "required": False, "default": None},
         "user_repos_config": {"type": "dict", "required": False, "default": None},
+        "thread_pool_size": {"type": "int", "required": False, "default": None},
         "pulp_concurrency": {"type": "int", "required": False, "default": None},
         "sw_archs": {"type": "list", "required": False, "default": None},
         "resync_repos": {"type": "raw", "required": False, "default": None},
@@ -2178,6 +2217,7 @@ def main():
     log_dir = module.params["log_dir"]
     additional_repos_config = module.params["additional_repos_config"]
     user_repos_config = module.params["user_repos_config"]
+    thread_pool_size = module.params["thread_pool_size"]
     pulp_concurrency = module.params["pulp_concurrency"]
     sw_archs = module.params["sw_archs"]
     resync_repos = module.params["resync_repos"]
@@ -2231,15 +2271,26 @@ def main():
                 rpm_config.append(user_repo_entry)
                 log.info(f"Added user repo: {original_name} -> {normalized_name} for arch {arch} with policy: {resolved_policy}")
 
-    # Optional override from Ansible (keep config.py defaults if unset)
-    global PULP_CONCURRENCY
+    # ``pulp_concurrency`` remains a compatibility alias for direct callers.
+    # The role passes ``thread_pool_size`` and therefore always takes priority.
+    configured_thread_pool_size = thread_pool_size
+    if configured_thread_pool_size is None and pulp_concurrency is not None:
+        configured_thread_pool_size = pulp_concurrency
+        log.warning(
+            "pulp_concurrency is deprecated; use rpm_repo_config.thread_pool_size"
+        )
+    if configured_thread_pool_size is None:
+        configured_thread_pool_size = RPM_THREAD_POOL_SIZE
 
-    if pulp_concurrency is not None:
-        if pulp_concurrency < 1:
-            module.fail_json(msg="pulp_concurrency must be >= 1")
-        PULP_CONCURRENCY = pulp_concurrency
+    if not MIN_THREAD_POOL_SIZE <= configured_thread_pool_size <= MAX_THREAD_POOL_SIZE:
+        module.fail_json(
+            msg=(
+                "thread_pool_size must be between "
+                f"{MIN_THREAD_POOL_SIZE} and {MAX_THREAD_POOL_SIZE}"
+            )
+        )
 
-    log.info(f"Configured pulp concurrency: {PULP_CONCURRENCY}")
+    log.info(f"Configured RPM thread pool size: {configured_thread_pool_size}")
 
     start_time = datetime.now().strftime("%I:%M:%S %p")
 
@@ -2248,7 +2299,11 @@ def main():
     log.info(f"Architectures to process: {sw_archs}")
     log.info(f"Resync repos setting: {resync_repos}")
     # Call the function to manage RPM repositories
-    result, output = manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs, resync_repos, cluster_os_version, continue_on_failure=RPM_CONTINUE_ON_FAILURE)
+    result, output = manage_rpm_repositories_multiprocess(
+        rpm_config, log, sw_archs, resync_repos, cluster_os_version,
+        continue_on_failure=RPM_CONTINUE_ON_FAILURE,
+        thread_pool_size=configured_thread_pool_size
+    )
 
     if result is False:
         module.fail_json(msg=f"Error {output}, check {standard_log_path}")

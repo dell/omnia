@@ -33,6 +33,8 @@
     REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"
     REPO_MANAGER_INPUT_PROJECT_DIR: "{{ input_project_dir }}"
     OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
+    OMNIA_DATA_PATH: "{{ omnia_data_path }}"
+    REPO_MANAGER_DATA_PATH: "{{ repo_manager_runtime_dir }}"
   register: migration_result
 
 - name: Display migration result

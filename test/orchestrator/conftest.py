@@ -106,7 +106,8 @@ def pytest_configure(config):
         "sanity": "Baseline verification (must-pass)",
         "functional": "Functional verification",
         "regression": "Regression tests",
-        "deploy": "Playbook deployment tests",
+        "deploy": "Playbook deployment tests (requires full environment)",
+        "slurm": "Slurm-specific tests (requires Slurm enabled)",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
@@ -134,11 +135,51 @@ def _item_has_marker(item, marker_name):
 
 
 def pytest_collection_modifyitems(session, config, items):
-    """Filter by --marker expression and sort by order marker."""
+    """Filter by --marker expression, apply smart skips only when no marker specified, and sort by order marker."""
     marker_expr = config.getoption("--marker", default="")
     mode, markers = _parse_marker_expression(marker_expr)
 
-    if mode != "none" and markers:
+    # Only apply auto-skips if no marker expression is provided
+    if mode == "none":
+        # Auto-skip deploy tests (require full environment setup)
+        for item in items:
+            if _item_has_marker(item, "deploy"):
+                item.add_marker(pytest.mark.skip("Deploy tests require full environment setup - use --marker deploy to enable"))
+
+        # Auto-skip cleanup status tests (require prior cleanup execution)
+        for item in items:
+            test_name = item.name
+            if "test_containers_removed" in test_name or "test_services_removed" in test_name or "test_firewall_ports_closed" in test_name:
+                item.add_marker(pytest.mark.skip("Cleanup status tests require prior cleanup playbook execution"))
+
+        # Auto-skip API test (requires fully operational OpenCHAMI services)
+        for item in items:
+            if "test_openchami_api_reachable" in item.name:
+                item.add_marker(pytest.mark.skip("API test requires fully operational OpenCHAMI services"))
+                
+        # Auto-skip SLURM tests if SLURM is not enabled in config
+        for item in items:
+            if _item_has_marker(item, "slurm"):
+                # Check if SLURM is enabled in the config
+                try:
+                    config = load_test_config()
+                    project = config.get("project_name", "project_default")
+                    orchestrator_config_path = f"/opt/omnia/orchestrator/input/{project}/orchestrator_config.yml"
+                    
+                    # Read config file to check for SLURM
+                    if os.path.exists(orchestrator_config_path):
+                        with open(orchestrator_config_path, 'r') as f:
+                            config_content = f.read().lower()
+                        slurm_keywords = ["slurm_control", "slurm_node", "slurm_login"]
+                        has_slurm = any(keyword in config_content for keyword in slurm_keywords)
+                        
+                        if not has_slurm:
+                            item.add_marker(pytest.mark.skip("SLURM is not enabled in orchestrator config"))
+                except Exception:
+                    # If we can't check, don't auto-skip - let the test run and fail if needed
+                    pass
+    else:
+        # When marker is specified, only apply the marker filtering
         filtered = []
         for item in items:
             if mode == "and":

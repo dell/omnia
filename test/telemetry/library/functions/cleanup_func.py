@@ -33,7 +33,6 @@ from library.vars.common_vars import (
     LDMS_STORE_NAME,
     VECTOR_LDMS_APP_NAME,
     VECTOR_OME_APP_NAME,
-    DCGM_POD_PREFIX,
     VM_POD_PREFIXES,
     VMAGENT_POD_PREFIX,
     VL_POD_PREFIXES,
@@ -180,31 +179,6 @@ def verify_ome_cleaned(host, namespace=None) -> Dict[str, Any]:
         "success": False,
         "details": f"Found {count} Vector-OME pod(s) still running",
         "error": f"{count} Vector-OME pod(s) remain in namespace '{ns}'",
-    }
-
-
-def verify_dcgm_cleaned(host, namespace=None) -> Dict[str, Any]:
-    """Verify DCGM exporter resources removed.
-
-    Args:
-        host: testinfra host connected to kube_vip.
-        namespace: K8s namespace (default: telemetry).
-
-    Returns:
-        dict with keys: success (bool), details (str), error (str).
-    """
-    ns = namespace or TELEMETRY_NAMESPACE
-    count = _get_pod_count_by_prefix(host, DCGM_POD_PREFIX, ns)
-    if count == 0:
-        return {
-            "success": True,
-            "details": f"No DCGM pods in namespace '{ns}'",
-            "error": "",
-        }
-    return {
-        "success": False,
-        "details": f"Found {count} DCGM pod(s) still running",
-        "error": f"{count} DCGM pod(s) remain in namespace '{ns}'",
     }
 
 

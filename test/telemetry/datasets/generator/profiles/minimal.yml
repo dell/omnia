@@ -4,7 +4,6 @@
 # Sources — all disabled
 idrac_metrics_enabled: false
 ldms_metrics_enabled: false
-dcgm_metrics_enabled: false
 powerscale_metrics_enabled: false
 ufm_metrics_enabled: false
 vast_metrics_enabled: false

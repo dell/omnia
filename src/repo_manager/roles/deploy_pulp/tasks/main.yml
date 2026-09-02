@@ -1,85 +1,31 @@
-# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 ---
-# =============================================================================
-# DEPLOY PULP ROLE - MAIN ENTRY POINT
-# =============================================================================
-# This role handles the deployment of the Pulp container.
-#
-# Steps:
-#   1. Setup pulp CLI (create symlink to /usr/local/bin/pulp)
-#   2. Set deployment facts (hostname, protocol, IP, credentials)
-#   3. Pull Pulp container image
-#   4. Deploy container (HTTP or HTTPS based on configuration)
-#
-# Required Variables (from roles/deploy_pulp/vars/main.yml and vars/default.yml):
-#   - pulp_protocol_https: boolean (true for HTTPS, false for HTTP)
-#   - pulp_image: Pulp container image to deploy
-#   - pulp_username: Admin username for Pulp (from credentials)
-#   - pulp_password: Admin password for Pulp (from credentials)
-#
-# Pre-requisites:
-#   - Virtual environment activated with pulp-cli installed
-#   - Credentials fetched (pulp_username, pulp_password available)
-# =============================================================================
+- name: Validate resolved Pulp deployment inputs
+  ansible.builtin.assert:
+    that:
+      - pulp_server_ip | default('') | length > 0
+      - pulp_server_port is defined
+      - pulp_server_port | int >= 1
+      - pulp_server_port | int <= 65535
+    fail_msg: "Pulp endpoint facts must be validated before deployment."
 
-# -----------------------------------------------------------------------------
-# STEP 1: SETUP PULP CLI
-# -----------------------------------------------------------------------------
-
-- name: Setup pulp CLI symlink
-  ansible.builtin.include_tasks: setup_pulp_cli.yml
-
-# -----------------------------------------------------------------------------
-# STEP 2: SET DEPLOYMENT FACTS
-# -----------------------------------------------------------------------------
-
-- name: Load repo_manager endpoint configuration
-  ansible.builtin.include_vars:
-    file: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
-    name: endpoint_config
-
-- name: Set Pulp server IP and credentials from endpoint config or environment
+- name: Set Pulp credential defaults
   ansible.builtin.set_fact:
-    pulp_server_ip: "{{ endpoint_config.pulp_server_ip | default(admin_nic_ip) }}"
     pulp_username: "{{ pulp_username | default('admin', true) }}"
     pulp_password: "{{ pulp_password | default('') }}"
+  no_log: true
 
-- name: Display deployment configuration
+- name: Display Pulp HTTPS deployment configuration
   ansible.builtin.debug:
     msg:
-      - "Pulp Server IP: {{ pulp_server_ip }}"
+      - "Pulp Server: {{ pulp_base_url }}"
       - "Pulp Username: {{ pulp_username }}"
-      - "Protocol: {{ 'HTTPS' if pulp_protocol_https else 'HTTP' }}"
-      - "Password: ********"
       - "Image: {{ pulp_image }}"
 
-# -----------------------------------------------------------------------------
-# STEP 3: PULL PULP CONTAINER IMAGE
-# -----------------------------------------------------------------------------
+- name: Set up Pulp CLI command
+  ansible.builtin.include_tasks: setup_pulp_cli.yml
 
 - name: Pull Pulp container image
   ansible.builtin.include_tasks: pull_image.yml
 
-# -----------------------------------------------------------------------------
-# STEP 4: DEPLOY PULP CONTAINER
-# -----------------------------------------------------------------------------
-
-- name: Deploy Pulp container over HTTP
-  ansible.builtin.include_tasks: deploy_container_http.yml
-  when: not pulp_protocol_https | bool
-
-- name: Deploy Pulp container over HTTPS
+- name: Deploy Pulp HTTPS container
   ansible.builtin.include_tasks: deploy_container_https.yml
-  when: pulp_protocol_https | bool

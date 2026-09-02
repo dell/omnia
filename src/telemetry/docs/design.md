@@ -47,7 +47,9 @@ playbooks/telemetry.yml (entry point)
   |  OPT-IN FLOWS (require explicit --tags):
   |
   +-- precheck/precheck.yml            [tag: precheck]      K8s readiness
-  +-- cleanup/cleanup.yml              [tag: cleanup]       Component removal
+  +-- cleanup/cleanup.yml              [tag: cleanup]       Runtime removal
+  |     +-- Delete_volume=false        Preserve PVCs + Kafka identity (default)
+  |     +-- Delete_volume=true         Delete PVCs + Kafka identity
   |     +-- sources/cleanup_*.yml      Per-source cleanup (vars from ../../vars/cleanup.yml)
   |     +-- sinks/cleanup_kafka.yml    Per-sink cleanup (vars from ../../vars/cleanup.yml)
   |     +-- sinks/cleanup_victoria_*.yml

@@ -18,8 +18,9 @@ input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 
 # ---------------------------------------------------------------------------
 # Local work directory on the aarch64 node (no NFS mount required)
+# Derived from OMNIA_DATA_PATH on the OIM; aarch64 node uses the same base path.
 # ---------------------------------------------------------------------------
-aarch64_work_dir: "/opt/omnia/image_build_manager"
+aarch64_work_dir: "{{ hostvars['localhost']['omnia_data_path'] | default('/opt/omnia') }}/image_build_manager"
 ochami_aarch_64_dir: "{{ aarch64_work_dir }}/openchami/aarch64"
 
 # ---------------------------------------------------------------------------
@@ -28,7 +29,7 @@ ochami_aarch_64_dir: "{{ aarch64_work_dir }}/openchami/aarch64"
 _image_build_type: "{{ hostvars['localhost']['image_build_type'] | default('image-builder') }}"
 _is_thrillhouse: "{{ _image_build_type == 'image-thrillhouse' }}"
 _builder_aarch64_image: "docker.io/dellhpcomniaaisolution/image-build-aarch64:1.3"
-_thrillhouse_aarch64_image: "ghcr.io/openchami/image-thrillhouse:latest"
+_thrillhouse_aarch64_image: "ghcr.io/openchami/image-thrillhouse:v0.0.24"
 repo_builder_image: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_aarch64_image, _builder_aarch64_image) }}"
 local_tag: "{{ (_is_thrillhouse | bool) | ternary('aarch64-image-thrillhouse/ochami', 'aarch64-image-builder/ochami') }}"
 pull_image_retries: "5"

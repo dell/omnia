@@ -13,22 +13,39 @@
 # limitations under the License.
 ---
 
+- name: VictoriaMetrics | Discover Victoria API resources
+  ansible.builtin.command: >
+    kubectl api-resources --namespaced=true --api-group=operator.victoriametrics.com --output=name
+  register: _victoria_metrics_api_resources
+  changed_when: false
+
 - name: VictoriaMetrics | Delete CRD resources
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true
+    --ignore-not-found=true --wait=false
   loop: "{{ victoria_metrics.crd_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
-  failed_when: false
+  when: >-
+    (item.type ~ 's.operator.victoriametrics.com') in
+    _victoria_metrics_api_resources.stdout_lines
 
-- name: VictoriaMetrics | Delete all CRD instances
+- name: VictoriaMetrics | Wait for custom resources to terminate
   ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item }} --all --ignore-not-found=true
-  loop: "{{ victoria_metrics.crd_all_resources }}"
+    kubectl -n {{ telemetry_namespace }} get {{ item.type }} {{ item.name }}
+    --output=name --ignore-not-found=true
+  loop: "{{ victoria_metrics.crd_resources }}"
+  loop_control:
+    label: "{{ item.type }}/{{ item.name }}"
+  register: _victoria_metrics_cr_wait
   changed_when: false
-  failed_when: false
+  until: _victoria_metrics_cr_wait.stdout | trim | length == 0
+  retries: "{{ cleanup_custom_resource_retries }}"
+  delay: "{{ cleanup_custom_resource_delay }}"
+  when: >-
+    (item.type ~ 's.operator.victoriametrics.com') in
+    _victoria_metrics_api_resources.stdout_lines
 
 - name: VictoriaMetrics | Wait for operator to cascade deletions
   ansible.builtin.pause:
@@ -42,7 +59,6 @@
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
-  failed_when: false
 
 - name: VictoriaMetrics | Delete single-node components
   ansible.builtin.command: >
@@ -52,7 +68,6 @@
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
-  failed_when: false
 
 - name: VictoriaMetrics | Delete vmagent resources
   ansible.builtin.command: >
@@ -62,7 +77,6 @@
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
-  failed_when: false
 
 - name: VictoriaMetrics | Delete shared resources
   ansible.builtin.command: >
@@ -72,17 +86,6 @@
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
-  failed_when: false
-
-- name: VictoriaMetrics | Delete TLS secret (shared with VictoriaLogs)
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
-  loop: "{{ victoria_metrics.tls_secret_resource }}"
-  loop_control:
-    label: "{{ item.type }}/{{ item.name }}"
-  changed_when: false
-  failed_when: false
 
 - name: VictoriaMetrics | Delete TLS test jobs
   ansible.builtin.command: >
@@ -90,7 +93,6 @@
     --ignore-not-found=true --wait=false
   loop: "{{ victoria_metrics.job_resources }}"
   changed_when: false
-  failed_when: false
 
 - name: VictoriaMetrics | Delete PVCs
   ansible.builtin.command: >
@@ -98,7 +100,7 @@
     --ignore-not-found=true --wait=false
   loop: "{{ victoria_metrics.pvc_labels }}"
   changed_when: false
-  failed_when: false
+  when: _cleanup_delete_volume_enabled | bool
 
 - name: VictoriaMetrics | Delete single-node PVC by name
   ansible.builtin.command: >
@@ -106,7 +108,7 @@
     --ignore-not-found=true --wait=false
   loop: "{{ victoria_metrics.single_pvc }}"
   changed_when: false
-  failed_when: false
+  when: _cleanup_delete_volume_enabled | bool
 
 - name: VictoriaMetrics | Delete vmstorage PVCs by name
   ansible.builtin.command: >
@@ -114,7 +116,7 @@
     --ignore-not-found=true --wait=false
   loop: "{{ range(0, 10) | list }}"
   changed_when: false
-  failed_when: false
+  when: _cleanup_delete_volume_enabled | bool
 
 # --- vmagent-vector write-buffer cleanup (VM-side adapter for vector-ldms) ---
 - name: VictoriaMetrics | Delete vmagent-vector resources
@@ -125,7 +127,6 @@
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
-  failed_when: false
 
 - name: VictoriaMetrics | Force delete pods
   ansible.builtin.command: >
@@ -133,16 +134,125 @@
     --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
   loop: "{{ victoria_metrics.pod_labels }}"
   changed_when: false
-  failed_when: false
+  when: _cleanup_delete_volume_enabled | bool
+
+- name: VictoriaMetrics | Wait for pods to terminate
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get pod -l {{ item }}
+    --output=name --ignore-not-found=true
+  loop: "{{ victoria_metrics.pod_labels }}"
+  register: _victoria_metrics_pod_wait
+  changed_when: false
+  until: _victoria_metrics_pod_wait.stdout | trim | length == 0
+  retries: "{{ cleanup_custom_resource_retries }}"
+  delay: "{{ cleanup_custom_resource_delay }}"
+
+- name: VictoriaMetrics | Wait for label-selected PVCs to terminate
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get pvc -l {{ item }}
+    --output=name --ignore-not-found=true
+  loop: "{{ victoria_metrics.pvc_labels }}"
+  register: _victoria_metrics_pvc_label_wait
+  changed_when: false
+  until: _victoria_metrics_pvc_label_wait.stdout | trim | length == 0
+  retries: "{{ cleanup_custom_resource_retries }}"
+  delay: "{{ cleanup_custom_resource_delay }}"
+  when: _cleanup_delete_volume_enabled | bool
+
+- name: VictoriaMetrics | Wait for single-node PVCs to terminate
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get pvc {{ item }}
+    --output=name --ignore-not-found=true
+  loop: "{{ victoria_metrics.single_pvc }}"
+  register: _victoria_metrics_single_pvc_wait
+  changed_when: false
+  until: _victoria_metrics_single_pvc_wait.stdout | trim | length == 0
+  retries: "{{ cleanup_custom_resource_retries }}"
+  delay: "{{ cleanup_custom_resource_delay }}"
+  when: _cleanup_delete_volume_enabled | bool
+
+- name: VictoriaMetrics | Wait for vmstorage PVCs to terminate
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get pvc
+    vmstorage-data-vmstorage-victoria-cluster-{{ item }}
+    --output=name --ignore-not-found=true
+  loop: "{{ range(0, 10) | list }}"
+  register: _victoria_metrics_vmstorage_pvc_wait
+  changed_when: false
+  until: _victoria_metrics_vmstorage_pvc_wait.stdout | trim | length == 0
+  retries: "{{ cleanup_custom_resource_retries }}"
+  delay: "{{ cleanup_custom_resource_delay }}"
+  when: _cleanup_delete_volume_enabled | bool
 
 # --- Victoria operator cleanup (shared between VM and VL) ---
 # Only delete the operator if VictoriaLogs is NOT running
 - name: VictoriaMetrics | Check if VictoriaLogs workloads still exist
   ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get vlcluster --no-headers --ignore-not-found=true
-  register: vl_workloads
+    kubectl -n {{ telemetry_namespace }} get {{ item }}
+    --output=name --ignore-not-found=true
+  loop: "{{ ['vlcluster'] + victoria_logs.crd_all_resources }}"
+  register: _victoria_logs_workload_checks
   changed_when: false
-  failed_when: false
+  when: (item ~ 's.operator.victoriametrics.com') in _victoria_metrics_api_resources.stdout_lines
+
+- name: VictoriaMetrics | Record VictoriaLogs workload state
+  ansible.builtin.set_fact:
+    _victoria_logs_workloads_present: >-
+      {{
+        _victoria_logs_workload_checks.results | default([])
+        | selectattr('stdout', 'defined')
+        | map(attribute='stdout')
+        | map('trim')
+        | reject('equalto', '') | list | length > 0
+      }}
+
+- name: VictoriaMetrics | Delete shared TLS secret when VictoriaLogs is absent
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+    --ignore-not-found=true --wait=false
+  loop: "{{ victoria_metrics.tls_secret_resource }}"
+  loop_control:
+    label: "{{ item.type }}/{{ item.name }}"
+  changed_when: false
+  when:
+    - not (_cleanup_defer_victoria_operator | default(false) | bool)
+    - not (_victoria_logs_workloads_present | bool)
+
+- name: VictoriaMetrics | Discover operator Helm release
+  ansible.builtin.command:
+    argv:
+      - helm
+      - list
+      - --namespace
+      - "{{ telemetry_namespace }}"
+      - --all
+      - --filter
+      - "^{{ victoria_operator_helm_release }}$"
+      - --short
+  register: _victoria_metrics_operator_release
+  changed_when: false
+  when:
+    - not (_cleanup_defer_victoria_operator | default(false) | bool)
+    - not (_victoria_logs_workloads_present | bool)
+
+- name: VictoriaMetrics | Uninstall operator Helm release
+  ansible.builtin.command:
+    argv:
+      - helm
+      - uninstall
+      - "{{ victoria_operator_helm_release }}"
+      - --namespace
+      - "{{ telemetry_namespace }}"
+      - --wait
+      - --timeout
+      - "{{ cleanup_helm_timeout }}"
+  changed_when: true
+  when:
+    - not (_cleanup_defer_victoria_operator | default(false) | bool)
+    - not (_victoria_logs_workloads_present | bool)
+    - >-
+      victoria_operator_helm_release in
+      (_victoria_metrics_operator_release.stdout_lines | default([]))
 
 - name: VictoriaMetrics | Delete operator (no VictoriaLogs workloads found)
   ansible.builtin.command: >
@@ -152,13 +262,21 @@
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
-  failed_when: false
-  when: vl_workloads.stdout is defined and vl_workloads.stdout | trim | length == 0
+  when:
+    - not (_cleanup_defer_victoria_operator | default(false) | bool)
+    - not (_victoria_logs_workloads_present | bool)
+
+- name: VictoriaMetrics | Defer shared operator cleanup to VictoriaLogs
+  ansible.builtin.debug:
+    msg: "Keeping victoria-metrics-operator until VictoriaLogs cleanup completes"
+  when: _cleanup_defer_victoria_operator | default(false) | bool
 
 - name: VictoriaMetrics | Operator kept (VictoriaLogs still running)
   ansible.builtin.debug:
     msg: "Keeping victoria-metrics-operator (VictoriaLogs workloads still exist)"
-  when: vl_workloads.stdout is defined and vl_workloads.stdout | trim | length > 0
+  when:
+    - not (_cleanup_defer_victoria_operator | default(false) | bool)
+    - _victoria_logs_workloads_present | bool
 
 - name: VictoriaMetrics | Cleanup complete
   ansible.builtin.debug:

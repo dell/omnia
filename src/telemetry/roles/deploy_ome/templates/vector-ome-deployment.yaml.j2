@@ -41,7 +41,7 @@ spec:
 
       containers:
       - name: {{ vector.ome.container_name }}
-        image: {{ vector.image }}
+        image: {{ vector.image | trim }}
         imagePullPolicy: IfNotPresent
         
         # Command: Vector with TOML config (Debian image binary path)

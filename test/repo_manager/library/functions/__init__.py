@@ -1,3 +1,16 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+
+"""
+Repo Manager library functions.
+
+This module exports all verification functions for repo_manager testing.
+"""
+
+from omnia_auto import TestLogger
+
 # Repo Manager verification functions
 from .repo_manager_func import (
     run_playbook,
@@ -33,5 +46,7 @@ from .repo_manager_func import (
     verify_repo_status_pulp_mode,
     check_global_repo_config,
     check_global_caching_policy,
+    check_pulp_remote_policy,
+    check_pulp_repository_exists,
+    verify_policy_resolution,
 )
-from omnia_auto import TestLogger

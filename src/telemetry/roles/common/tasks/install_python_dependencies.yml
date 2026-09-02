@@ -30,7 +30,6 @@
 #
 # Parameters:
 #   component: Component name to look up in telemetry_packages.yml (required)
-#   telemetry_packages_file: Path to telemetry_packages.yml (default: from common vars)
 # =============================================================================
 
 - name: Validate component is provided
@@ -40,17 +39,29 @@
       - component | length > 0
     fail_msg: "component variable must be provided (e.g., idrac, powerscale)"
 
-- name: Load telemetry_packages.yml to get install_mode, repo_url, and pip_modules
-  ansible.builtin.include_vars:
-    file: "{{ telemetry_packages_file | default(telemetry_packages_file_path) }}"
-    name: telemetry_packages
-  when: telemetry_packages is not defined
-
-- name: Set installation mode variables
+- name: Use telemetry_packages fact loaded by load_telemetry_config
   ansible.builtin.set_fact:
-    install_mode: "{{ telemetry_packages.install_mode | default('offline') }}"
-    repo_url: "{{ telemetry_packages.repo_url | default('') }}"
-    pip_modules: "{{ telemetry_packages.pip_modules | default({}) }}"
+    _telemetry_packages_raw: "{{ telemetry_packages }}"
+  when:
+    - telemetry_packages is defined
+
+- name: Use telemetry_packages from localhost if not defined locally
+  ansible.builtin.set_fact:
+    _telemetry_packages_raw: "{{ hostvars['localhost']['telemetry_packages'] }}"
+  when:
+    - _telemetry_packages_raw is not defined
+    - hostvars['localhost']['telemetry_packages'] is defined
+
+- name: Fail if telemetry_packages is not available
+  ansible.builtin.fail:
+    msg: "telemetry_packages is not defined. Ensure load_telemetry_config task has been run before install_python_dependencies."
+  when: _telemetry_packages_raw is not defined
+
+- name: Set installation mode variables from loaded telemetry_packages
+  ansible.builtin.set_fact:
+    install_mode: "{{ _telemetry_packages_raw.install_mode | default('offline') }}"
+    repo_url: "{{ _telemetry_packages_raw.repo_url | default('') }}"
+    pip_modules: "{{ _telemetry_packages_raw.pip_modules | default({}) }}"
 
 - name: Validate repo_url is set for offline mode
   ansible.builtin.assert:
@@ -78,54 +89,8 @@
   loop: "{{ component_packages | dict2items }}"
   loop_control:
     label: "{{ item.key }}"
-  block:
-    - name: Check if Python module is installed
-      ansible.builtin.command: python3 -c "import {{ item.key }}"
-      register: module_check
-      failed_when: false
-      changed_when: false
-
-    - name: Install Python module
-      when: module_check.rc != 0
-      block:
-        - name: Log Python dependency installation
-          ansible.builtin.debug:
-            msg: "Installing Python {{ item.key }} module for {{ component }} - Mode: {{ install_mode }}"
-
-        - name: Install Python module in online mode (from PyPI)
-          when: install_mode == "online"
-          block:
-            - name: Install Python module from PyPI
-              ansible.builtin.command: >
-                python3 -m pip install {{ item.key }}=={{ item.value }}
-              register: pip_install_online
-              changed_when: true
-
-            - name: Fail if online installation failed
-              ansible.builtin.fail:
-                msg: "Failed to install {{ item.key }} module from PyPI. Check internet connectivity."
-              when: pip_install_online.rc != 0
-
-        - name: Install Python module in offline mode (from Pulp repo)
-          when: install_mode == "offline"
-          block:
-            - name: Install Python module from Pulp repo
-              ansible.builtin.command: >
-                python3 -m pip install --index-url {{ pip_index_url }}
-                {{ item.key }}=={{ item.value }}
-              register: pip_install_offline
-              changed_when: true
-
-            - name: Fail if offline installation failed
-              ansible.builtin.fail:
-                msg: "Failed to install {{ item.key }}=={{ item.value }} from {{ pip_index_url }}. Check Pulp repo availability."
-              when: pip_install_offline.rc != 0
-
-    - name: Verify Python module is now available
-      ansible.builtin.command: python3 -c "import {{ item.key }}; print({{ item.key }}.__version__)"
-      register: module_verify
-      changed_when: false
-
-    - name: Log successful installation
-      ansible.builtin.debug:
-        msg: "Python {{ item.key }} module version {{ module_verify.stdout }} is available (installed via {{ install_mode }} mode)"
+  ansible.builtin.include_tasks: install_single_python_package.yml
+  vars:
+    package_name: "{{ item.key }}"
+    package_version: "{{ item.value }}"
+    component_name: "{{ component }}"

@@ -15,8 +15,8 @@
 """
 Image Build Validate — repo_ssl_verify Configuration Verification.
 
-TC_VL_004: Verify repo_ssl_verify is configured in image_build_config.yml
-TC_BD_016: Verify repo_ssl_verify is applied in build templates
+TC_VL_004: Verify the effective repo_ssl_verify configuration
+TC_BD_016: Verify repo_ssl_verify is wired into build templates
 """
 
 import pytest
@@ -33,14 +33,18 @@ from library.messages import TEST_LOG_MSGS as LOG
 @pytest.mark.sanity
 @pytest.mark.order(3)
 def test_repo_ssl_verify_config(host):
-    """TC_VL_004: Verify repo_ssl_verify is configured."""
+    """TC_VL_004: Verify the effective repo_ssl_verify value."""
     tc = TC["repo_ssl_verify_config"]
     tl = TestLogger(tc["title"], tc["id"])
     result = check_repo_ssl_verify_config(host)
 
     if result["success"]:
         tl.passed(LOG["repo_ssl_verify_ok"].format(
-            value=result["ssl_verify"]
+            value=str(result["ssl_verify"]).lower(),
+            source=(
+                "runtime default"
+                if result["used_default"] else "explicit"
+            ),
         ), result["details"])
     else:
         tl.failed(LOG["repo_ssl_verify_missing"], result["details"])
@@ -52,7 +56,7 @@ def test_repo_ssl_verify_config(host):
 @pytest.mark.functional
 @pytest.mark.order(4)
 def test_repo_ssl_verify_applied(host):
-    """TC_BD_016: Verify repo_ssl_verify is applied in build templates."""
+    """TC_BD_016: Verify repo_ssl_verify template wiring."""
     tc = TC["repo_ssl_verify_applied"]
     tl = TestLogger(tc["title"], tc["id"])
     result = check_repo_ssl_verify_applied(host, arch="x86_64")
@@ -63,6 +67,13 @@ def test_repo_ssl_verify_applied(host):
             result["details"],
         )
     else:
+        if result.get("blocked_by_config"):
+            tl.skipped(
+                LOG["repo_ssl_verify_applied_blocked"],
+                result["details"],
+            )
+            pytest.skip(LOG["repo_ssl_verify_applied_blocked"])
+
         failed = [
             r for r in result.get("results", [])
             if not r.get("has_ssl_ref")

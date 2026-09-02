@@ -28,6 +28,10 @@ import subprocess
 from typing import Any
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.repo_manager.path_resolver import (
+    get_omnia_data_path,
+    get_repo_manager_data_path,
+)
 
 DOCUMENTATION = r"""
 ---
@@ -252,15 +256,15 @@ def _check_ip_on_nic(env_ip: str) -> dict[str, Any]:
     }
 
 
-def _check_data_path(env_path: str) -> dict[str, Any]:
-    """Verify OMNIA_DATA_PATH exists or parent is writable."""
+def _check_data_path(env_path: str, variable_name="OMNIA_DATA_PATH") -> dict[str, Any]:
+    """Verify a configured data path exists or its parent is available."""
     if os.path.isdir(env_path):
         return {
             "name": "validate_data_path",
             "expected": f"{env_path} exists",
             "actual": f"{env_path} exists",
             "passed": True,
-            "message": f"OMNIA_DATA_PATH {env_path} exists",
+            "message": f"{variable_name} {env_path} exists",
         }
 
     parent = os.path.dirname(env_path)
@@ -271,9 +275,9 @@ def _check_data_path(env_path: str) -> dict[str, Any]:
         "actual": f"parent {parent} {'exists' if parent_exists else 'missing'}",
         "passed": parent_exists,
         "message": (
-            f"OMNIA_DATA_PATH {env_path} does not exist yet but parent {parent} is available"
+            f"{variable_name} {env_path} does not exist yet but parent {parent} is available"
             if parent_exists
-            else f"OMNIA_DATA_PATH '{env_path}' and parent '{parent}' do not exist"
+            else f"{variable_name} '{env_path}' and parent '{parent}' do not exist"
         ),
     }
 
@@ -322,9 +326,15 @@ def main() -> None:
         checks.append(_check_ip_on_nic(env_ip))
 
     # 5. Validate data path
-    env_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia")
+    env_path = get_omnia_data_path()
     if validate_paths and env_path:
         checks.append(_check_data_path(env_path))
+    if validate_paths and os.environ.get("REPO_MANAGER_DATA_PATH"):
+        checks.append(
+            _check_data_path(
+                get_repo_manager_data_path(), "REPO_MANAGER_DATA_PATH"
+            )
+        )
 
     all_passed = all(c["passed"] for c in checks)
     failed_checks = [c for c in checks if not c["passed"]]

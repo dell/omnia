@@ -19,11 +19,11 @@
 # Shared by both metrics and logs deployments
 
 - name: Create telemetry directories
-  when: k8s_k8s_cluster_mount | default('') != ''
+  when: k8s_cluster_mount | default('') != ''
   block:
     - name: Create telemetry subdirectory
       ansible.builtin.file:
-        path: "{{ k8s_k8s_cluster_mount }}/telemetry"
+        path: "{{ k8s_cluster_mount }}/telemetry"
         state: directory
         mode: "{{ victoria_dir_mode }}"
 
@@ -35,7 +35,7 @@
 
 - name: Download VictoriaMetrics operator package
   when:
-    - k8s_k8s_cluster_mount | default('') != ''
+    - k8s_cluster_mount | default('') != ''
     - telemetry_packages_config.telemetry_packages.victoria_metrics_operator | default('') != ''
   run_once: true
   block:

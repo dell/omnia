@@ -31,6 +31,12 @@ from ..vars.common_vars import (
     MODULE_ROOT,
     SRC_INPUT_DIR,
 )
+from ..vars.sfm_vars import (
+    SFM_CONFIG_KEYS,
+    SFM_MAX_NETWORK_PORT,
+    SFM_PORT_DEFAULTS,
+    SFM_REQUIRED_ENDPOINT_SETTINGS,
+)
 
 _MODULE_ROOT = MODULE_ROOT
 
@@ -44,6 +50,49 @@ def _validate_ip(value, field):
     errors = []
     if value and not IPV4_PATTERN.match(str(value)):
         errors.append(f"{field}: invalid IPv4 format '{value}'")
+    return errors
+
+
+def _validate_positive_int(value, field, maximum=None):
+    """Validate an integer configuration field against optional bounds."""
+    valid = (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and value > 0
+        and (maximum is None or value <= maximum)
+    )
+    if valid:
+        return []
+    if maximum is None:
+        return [f"{field}: must be a positive integer"]
+    return [f"{field}: must be between 1 and {maximum}"]
+
+
+def _validate_sfm_config(config):
+    """Validate settings required by the opt-in SFM integration."""
+    errors = []
+    enabled_field = SFM_CONFIG_KEYS["enabled"]
+    enabled = config.get(enabled_field, False)
+    if not isinstance(enabled, bool):
+        return [f"{enabled_field}: must be true or false"]
+    if not enabled:
+        return errors
+
+    for setting in SFM_REQUIRED_ENDPOINT_SETTINGS:
+        field = SFM_CONFIG_KEYS[setting]
+        value = str(config.get(field, "")).strip()
+        if not value:
+            errors.append(f"{field} required when {enabled_field} is true")
+        else:
+            errors.extend(_validate_ip(value, field))
+    for setting, default in SFM_PORT_DEFAULTS.items():
+        field = SFM_CONFIG_KEYS[setting]
+        errors.extend(_validate_positive_int(
+            config.get(field, default), field, SFM_MAX_NETWORK_PORT,
+        ))
+    force_field = SFM_CONFIG_KEYS["force_export"]
+    if not isinstance(config.get(force_field, False), bool):
+        errors.append(f"{force_field}: must be true or false")
     return errors
 
 
@@ -154,6 +203,9 @@ def validate_test_config():
             errors.append(
                 "oim_ssh_user required when oim_server_ip is set"
             )
+
+    # --- Opt-in SFM integration checks ---
+    errors.extend(_validate_sfm_config(config))
 
     return {
         "valid": len(errors) == 0,

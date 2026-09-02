@@ -274,10 +274,12 @@ def transform_package_dict(data, arch_val, logger):
         transformed_items = []
         rpm_packages = []
         repo_mapping = {}
+        rpm_type_mapping = {}
 
         for item in items:
             if item.get("type") in ("rpm", "rpm_repo"):
                 rpm_packages.append(item["package"])
+                rpm_type_mapping[item["package"]] = item["type"]
                 # Preserve repo_name if available
                 if "repo_name" in item:
                     repo_mapping[item["package"]] = item["repo_name"]
@@ -288,6 +290,9 @@ def transform_package_dict(data, arch_val, logger):
                 if "repo_mapping" in item:
                     repo_mapping.update(item["repo_mapping"])
                     logger.debug(f"Merged repo_mapping from rpm_list: {item['repo_mapping']}")
+                # Legacy rpm_list entries default to rpm.  A caller that already
+                # carries original catalog types can pass them through explicitly.
+                rpm_type_mapping.update(item.get("rpm_type_mapping", {}))
             else:
                 transformed_items.append(item)
 
@@ -295,7 +300,11 @@ def transform_package_dict(data, arch_val, logger):
             rpm_task = {
                 "package": RPM_LABEL_TEMPLATE.format(key=sw_name),
                 "rpm_list": rpm_packages,
-                "type": "rpm"
+                "type": "rpm",
+                "rpm_type_mapping": {
+                    package_name: rpm_type_mapping.get(package_name, "rpm")
+                    for package_name in rpm_packages
+                },
             }
             # Add repo_mapping if we have any
             if repo_mapping:
@@ -1019,7 +1028,8 @@ def parse_additional_repos(local_repo_config_path, repo_config, vault_key_path, 
                 "client_key": client_key,
                 "client_cert": client_cert,
                 "policy": global_policy,
-                "arch": arch
+                "arch": arch,
+                "priority": repo.get("priority"),
             })
             logger.info(f"Added additional repo entry: {repo_name} -> {normalized_name}")
 

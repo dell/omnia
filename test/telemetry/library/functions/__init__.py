@@ -22,6 +22,8 @@ Module-specific functions live in separate files:
   - powerscale_func.py  — PowerScale source verification
   - ufm_func.py         — UFM source verification
   - ome_func.py         — OME Kafka connectivity verification
+  - sfm_func.py         — SFM Prometheus Remote Write integration
+  - sfm_metrics_func.py — attributed SFM-to-VictoriaMetrics verification
   - validation_func.py  — config validation
 """
 
@@ -95,8 +97,21 @@ from .ome_func import (
     verify_external_kafka_certs,
     convert_certs_to_pfx,
     verify_ome_kafka_user_cr,
-    upload_ome_certs,
+    upload_ome_server_cert,
+    upload_ome_client_cert,
+    view_ome_client_cert,
+    send_ome_kafka_test_connection,
+    update_ome_forwarder_settings,
 )
+
+# --- SFM verification and configuration ---
+from .sfm_func import (
+    configure_sfm_observability,
+    configure_sfm_switch,
+    verify_sfm_omnia_pods,
+    verify_sfm_omnia_services,
+)
+from .sfm_metrics_func import verify_sfm_metrics_in_victoria
 
 # --- VAST verification ---
 from .vast_func import (
@@ -183,7 +198,17 @@ __all__ = [
     "verify_external_kafka_certs",
     "convert_certs_to_pfx",
     "verify_ome_kafka_user_cr",
-    "upload_ome_certs",
+    "upload_ome_server_cert",
+    "upload_ome_client_cert",
+    "view_ome_client_cert",
+    "send_ome_kafka_test_connection",
+    "update_ome_forwarder_settings",
+    # sfm
+    "configure_sfm_observability",
+    "configure_sfm_switch",
+    "verify_sfm_omnia_pods",
+    "verify_sfm_omnia_services",
+    "verify_sfm_metrics_in_victoria",
     # vast
     "verify_vast_external_service",
     "verify_vast_vmscrape",

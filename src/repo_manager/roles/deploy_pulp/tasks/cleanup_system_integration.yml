@@ -1,0 +1,48 @@
+---
+- name: Check whether firewalld is running
+  ansible.builtin.command:
+    argv:
+      - firewall-cmd
+      - --state
+  register: _pulp_cleanup_firewalld
+  changed_when: false
+  failed_when: false
+
+- name: Disable managed Pulp firewall service
+  ansible.posix.firewalld:
+    service: omnia-pulp
+    permanent: true
+    immediate: true
+    state: disabled
+  register: _pulp_firewall_disabled
+  failed_when: false
+  when: _pulp_cleanup_firewalld.rc == 0
+
+- name: Remove managed Pulp firewall service definition
+  ansible.builtin.file:
+    path: /etc/firewalld/services/omnia-pulp.xml
+    state: absent
+  register: _pulp_firewall_definition_removed
+
+- name: Reload firewalld after Pulp integration cleanup
+  ansible.builtin.command:
+    argv:
+      - firewall-cmd
+      - --reload
+  changed_when: true
+  when:
+    - _pulp_cleanup_firewalld.rc == 0
+    - (_pulp_firewall_disabled.changed | default(false)) or
+      (_pulp_firewall_definition_removed.changed | default(false))
+
+- name: Remove Pulp certificates from system trust store
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ [pulp_ca_trust_file] + pulp_legacy_ca_trust_files }}"
+  notify: update pulp certificate trust
+
+- name: Remove system Pulp CLI configuration
+  ansible.builtin.file:
+    path: /etc/pulp/cli.toml
+    state: absent

@@ -24,15 +24,16 @@
 #   New venv (--venv)    — Creates .venv/ and installs there
 #
 # TWO CREDENTIAL FILES:
-#   1. test_creds.yml       — SSH password for OIM server access (local).
+#   1. test_creds.yml       — OIM SSH and enabled external appliance credentials
+#                              (OME and SFM), stored locally.
 #   2. telemetry_credentials.yml — Domain credentials (BMC, MySQL, CSI, LDMS, UFM, VAST).
 #      Created at $OMNIA_DATA_PATH/telemetry/input/$OMNIA_PROJECT_NAME/
 #      and encrypted with ansible-vault.
 #
-# SSH CREDENTIALS:
-#   --set-creds          Interactive prompt (2x confirmation). Asks to update if exists.
-#   --update-creds       Force-update existing SSH password (2x prompt).
-#   --creds <pass>       Non-interactive SSH password set.
+# TEST CREDENTIALS:
+#   --set-creds          Prompt for OIM SSH and enabled OME/SFM credentials.
+#   --update-creds       Force-update OIM SSH and enabled OME/SFM credentials.
+#   --creds <pass>       Non-interactive OIM SSH password set only.
 #
 # DOMAIN CREDENTIALS:
 #   --set-domain-creds   Interactive prompt for telemetry domain credentials.
@@ -43,9 +44,9 @@
 #   bash setup_env.sh                        # Baremetal or active venv
 #   bash setup_env.sh --venv                 # Create .venv/ and install there
 #   bash setup_env.sh --venv --force         # Recreate .venv/ from scratch
-#   bash setup_env.sh --set-creds            # Prompt for SSH password
-#   bash setup_env.sh --update-creds         # Update existing SSH password
-#   bash setup_env.sh --creds "secret"       # Set SSH password via flag
+#   bash setup_env.sh --set-creds            # Prompt for test credentials
+#   bash setup_env.sh --update-creds         # Update test credentials
+#   bash setup_env.sh --creds "secret"       # Set OIM SSH password via flag
 #   bash setup_env.sh --set-domain-creds     # Prompt for telemetry creds
 #   bash setup_env.sh --domain-creds '{...}' # Non-interactive domain creds
 #   bash setup_env.sh --debug                # Verbose pip output
@@ -58,7 +59,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${SCRIPT_DIR}/.venv"
 REQUIREMENTS="${SCRIPT_DIR}/requirements.txt"
 
-# ── SSH credentials (local) ──
+# ── Test credentials (local) ──
 CREDS_FILE="${SCRIPT_DIR}/test_creds.yml"
 CREDS_KEY="${SCRIPT_DIR}/.test_creds.key"
 
@@ -150,11 +151,11 @@ INSTALL MODES
   --venv          Create .venv/ and install there.
   --force, -f     With --venv: recreate .venv/ from scratch.
 
-SSH CREDENTIALS (test_creds.yml)
+TEST CREDENTIALS (test_creds.yml)
 ─────────────────────────────────────────────────────────────────
-  --set-creds     Interactive SSH password setup (2x confirmation).
-  --update-creds  Force-update existing SSH password (2x prompt).
-  --creds PWD     Non-interactive SSH password set.
+  --set-creds     Prompt for OIM SSH and enabled OME/SFM credentials.
+  --update-creds  Force-update OIM SSH and enabled OME/SFM credentials.
+  --creds PWD     Non-interactive OIM SSH password set only.
 
 DOMAIN CREDENTIALS (telemetry_credentials.yml)
 ─────────────────────────────────────────────────────────────────
@@ -207,7 +208,33 @@ fi
 ok "Python: $($PYTHON_CMD --version 2>&1)"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 2: Determine install mode
+# Step 2: Install system dependencies (sshpass for PowerScale syslog config)
+# ─────────────────────────────────────────────────────────────────────────────
+if command -v dnf &>/dev/null; then
+    info "Checking for sshpass (required for PowerScale syslog configuration)"
+    if ! command -v sshpass &>/dev/null; then
+        info "Installing sshpass via dnf"
+        dnf install -y sshpass
+        ok "sshpass installed"
+    else
+        ok "sshpass already installed"
+    fi
+elif command -v apt-get &>/dev/null; then
+    info "Checking for sshpass (required for PowerScale syslog configuration)"
+    if ! command -v sshpass &>/dev/null; then
+        info "Installing sshpass via apt-get"
+        apt-get update -qq && apt-get install -y sshpass
+        ok "sshpass installed"
+    else
+        ok "sshpass already installed"
+    fi
+else
+    warn "Could not install sshpass (dnf/apt-get not found)"
+    warn "PowerScale syslog configuration tests may fail"
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 3: Determine install mode
 # ─────────────────────────────────────────────────────────────────────────────
 INSTALL_MODE="baremetal"
 PIP_USER_FLAG="--user"
@@ -247,7 +274,7 @@ fi
 echo -e "  ${CYAN}Mode:${NC} ${INSTALL_MODE}"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 3: Install dependencies
+# Step 4: Install dependencies
 # ─────────────────────────────────────────────────────────────────────────────
 info "Upgrading pip"
 pip install --upgrade pip $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
@@ -266,7 +293,7 @@ fi
 ok "All dependencies installed"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 4: Credential helpers (delegate to omnia_auto credential CLI)
+# Step 5: Credential helpers (delegate to omnia_auto credential CLI)
 # ─────────────────────────────────────────────────────────────────────────────
 
 _show_oim_server_ip() {
@@ -291,6 +318,80 @@ _write_ssh_creds() {
         --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
         --fields "{\"oim_password\":\"${_pass}\"}" >/dev/null 2>&1
     ok "SSH credentials saved: test_creds.yml (encrypted)"
+}
+
+# OME credential field spec (JSON for prompt-fields CLI)
+OME_CRED_SPEC='[
+  {"field":"ome_username","label":"OME Username","group":"OME Credentials","secret":false},
+  {"field":"ome_password","label":"OME Password","secret":true,"confirm":true},
+  {"field":"pfx_secret","label":"PFX Secret","secret":true,"optional":true}
+]'
+
+# Prompt for OME credentials interactively using Python CLI
+_prompt_ome_creds() {
+    echo ""
+    $CRED_CLI prompt-fields \
+        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+        --spec "$OME_CRED_SPEC"
+    ok "OME credentials saved: test_creds.yml (encrypted)"
+}
+
+# SFM credential field spec (JSON for prompt-fields CLI)
+SFM_CRED_SPEC='[
+  {"field":"sfm_api_username","label":"SFM API Username","group":"SFM API Credentials","secret":false},
+  {"field":"sfm_api_password","label":"SFM API Password","secret":true,"confirm":true},
+  {"field":"sfm_ssh_username","label":"SFM SSH Username","group":"SFM SSH Credentials","secret":false},
+  {"field":"sfm_ssh_password","label":"SFM SSH Password","secret":true,"confirm":true}
+]'
+
+# Prompt for SFM credentials interactively using Python CLI
+_prompt_sfm_creds() {
+    echo ""
+    $CRED_CLI prompt-fields \
+        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+        --spec "$SFM_CRED_SPEC"
+    ok "SFM credentials saved: test_creds.yml (encrypted)"
+}
+
+# Read a field from test_creds.yml
+_read_test_creds_field() {
+    local _field="$1"
+    $CRED_CLI read-field --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+        --field "$_field" 2>/dev/null || true
+}
+
+# Check if ome_ip is configured in test_config.yml
+_get_ome_ip() {
+    grep -E '^ome_ip:' "$TEST_CONFIG" 2>/dev/null \
+        | sed 's/^ome_ip:[[:space:]]*//; s/["'\''[:space:]]//g' || true
+}
+
+# Check if configure_ome is true in test_config.yml
+_is_ome_enabled() {
+    local _val
+    _val=$(grep -E '^configure_ome:' "$TEST_CONFIG" 2>/dev/null \
+        | sed 's/^configure_ome:[[:space:]]*//; s/["'\''[:space:]]//g' || echo "false")
+    [ "$_val" = "true" ]
+}
+
+# Read SFM endpoints from test_config.yml for prompt context
+_get_sfm_api_ip() {
+    grep -E '^sfm_api_ip:' "$TEST_CONFIG" 2>/dev/null \
+        | sed 's/^sfm_api_ip:[[:space:]]*//; s/["'\''[:space:]]//g' || true
+}
+
+_get_sfm_ssh_ip() {
+    grep -E '^sfm_ssh_ip:' "$TEST_CONFIG" 2>/dev/null \
+        | sed 's/^sfm_ssh_ip:[[:space:]]*//; s/["'\''[:space:]]//g' || true
+}
+
+# Check if configure_sfm is true in test_config.yml
+_is_sfm_enabled() {
+    local _val
+    _val=$(grep -E '^configure_sfm:' "$TEST_CONFIG" 2>/dev/null \
+        | sed 's/^configure_sfm:[[:space:]]*//; s/[[:space:]]#.*$//; s/["'\'']//g' \
+        | tr '[:upper:]' '[:lower:]' || echo "false")
+    [ "$_val" = "true" ]
 }
 
 # Write domain creds to telemetry_credentials.yml (at env-var path)
@@ -330,7 +431,7 @@ _ask_yes_no() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SSH credential dispatch  (--set-creds / --update-creds / --creds)
+# Step 6: Test credential dispatch  (--set-creds / --update-creds / --creds)
 # ─────────────────────────────────────────────────────────────────────────────
 if [ -n "$CREDS_VALUE" ]; then
     _show_oim_server_ip
@@ -345,6 +446,33 @@ elif [ "$UPDATE_CREDS" = true ]; then
     echo -e "\n  ${CYAN}Update SSH password for the target OIM server.${NC}\n"
     _cred_input=$($CRED_CLI prompt-and-confirm --message "SSH Password")
     _write_ssh_creds "$_cred_input"
+
+    # Also prompt for OME credentials if configure_ome=true
+    if _is_ome_enabled; then
+        _ome_ip=$(_get_ome_ip)
+        echo ""
+        if [ -n "$_ome_ip" ]; then
+            echo -e "  ${CYAN}OME (OpenManage Enterprise) detected: ${_ome_ip}${NC}"
+        else
+            echo -e "  ${CYAN}OME telemetry enabled (configure_ome=true)${NC}"
+        fi
+        echo -e "  ${CYAN}OME credentials required for Kafka forwarder.${NC}"
+        _prompt_ome_creds
+    fi
+
+    # Also prompt for SFM credentials if configure_sfm=true
+    if _is_sfm_enabled; then
+        _sfm_api_ip=$(_get_sfm_api_ip)
+        _sfm_ssh_ip=$(_get_sfm_ssh_ip)
+        echo ""
+        if [ -n "$_sfm_api_ip" ] || [ -n "$_sfm_ssh_ip" ]; then
+            echo -e "  ${CYAN}SFM detected: API=${_sfm_api_ip:-not set}, SSH=${_sfm_ssh_ip:-not set}${NC}"
+        else
+            echo -e "  ${CYAN}SFM integration enabled (configure_sfm=true)${NC}"
+        fi
+        echo -e "  ${CYAN}SFM API and SSH credentials are required.${NC}"
+        _prompt_sfm_creds
+    fi
 
 elif [ "$SET_CREDS" = true ]; then
     _show_oim_server_ip
@@ -362,17 +490,90 @@ elif [ "$SET_CREDS" = true ]; then
         _cred_input=$($CRED_CLI prompt-and-confirm --message "SSH Password")
         _write_ssh_creds "$_cred_input"
     fi
+
+    # Also prompt for OME credentials if configure_ome=true
+    if _is_ome_enabled; then
+        _ome_ip=$(_get_ome_ip)
+        echo ""
+        if [ -n "$_ome_ip" ]; then
+            echo -e "  ${CYAN}OME (OpenManage Enterprise) detected: ${_ome_ip}${NC}"
+        else
+            echo -e "  ${CYAN}OME telemetry enabled (configure_ome=true)${NC}"
+        fi
+        _e_ome_user=$(_read_test_creds_field "ome_username")
+
+        if [ -n "$_e_ome_user" ]; then
+            warn "OME credentials already set."
+            if _ask_yes_no "  Do you want to update OME credentials?"; then
+                _prompt_ome_creds
+            else
+                ok "OME credentials update skipped."
+            fi
+        else
+            echo -e "  ${CYAN}Enter OME credentials for Kafka forwarder configuration.${NC}"
+            _prompt_ome_creds
+        fi
+    fi
+
+    # Also prompt for SFM credentials if configure_sfm=true
+    if _is_sfm_enabled; then
+        _sfm_api_ip=$(_get_sfm_api_ip)
+        _sfm_ssh_ip=$(_get_sfm_ssh_ip)
+        echo ""
+        if [ -n "$_sfm_api_ip" ] || [ -n "$_sfm_ssh_ip" ]; then
+            echo -e "  ${CYAN}SFM detected: API=${_sfm_api_ip:-not set}, SSH=${_sfm_ssh_ip:-not set}${NC}"
+        else
+            echo -e "  ${CYAN}SFM integration enabled (configure_sfm=true)${NC}"
+        fi
+        _e_sfm_api_user=$(_read_test_creds_field "sfm_api_username")
+        _e_sfm_api_password=$(_read_test_creds_field "sfm_api_password")
+        _e_sfm_ssh_user=$(_read_test_creds_field "sfm_ssh_username")
+        _e_sfm_ssh_password=$(_read_test_creds_field "sfm_ssh_password")
+
+        if [ -n "$_e_sfm_api_user" ] \
+            && [ -n "$_e_sfm_api_password" ] \
+            && [ -n "$_e_sfm_ssh_user" ] \
+            && [ -n "$_e_sfm_ssh_password" ]; then
+            warn "SFM credentials already set."
+            if _ask_yes_no "  Do you want to update SFM credentials?"; then
+                _prompt_sfm_creds
+            else
+                ok "SFM credentials update skipped."
+            fi
+        else
+            echo -e "  ${CYAN}Enter SFM API and SSH credentials.${NC}"
+            _prompt_sfm_creds
+        fi
+    fi
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Domain credential dispatch  (--set-domain-creds / --update-domain-creds / --domain-creds)
+# Step 7: Domain credential dispatch  (--set-domain-creds / --update-domain-creds / --domain-creds)
 # ─────────────────────────────────────────────────────────────────────────────
+
+# Domain credential field spec (JSON for prompt-fields CLI)
+DOMAIN_CRED_SPEC='[
+  {"field":"bmc_username","label":"BMC Username","group":"iDRAC BMC Credentials","secret":false},
+  {"field":"bmc_password","label":"BMC Password","secret":true},
+  {"field":"mysqldb_user","label":"MySQL User","group":"MySQL Database Credentials","secret":false},
+  {"field":"mysqldb_password","label":"MySQL Password","secret":true},
+  {"field":"mysqldb_root_password","label":"MySQL Root Password","secret":true},
+  {"field":"csi_username","label":"CSI Username","group":"PowerScale CSI Credentials","secret":false},
+  {"field":"csi_password","label":"CSI Password","secret":true},
+  {"field":"ldms_sampler_password","label":"LDMS Sampler Password","group":"LDMS Sampler Credentials","secret":true},
+  {"field":"ufm_username","label":"UFM Username","group":"UFM Telemetry Credentials","secret":false},
+  {"field":"ufm_password","label":"UFM Password","secret":true},
+  {"field":"vast_username","label":"VAST Username","group":"VAST Telemetry Credentials","secret":false},
+  {"field":"vast_password","label":"VAST Password","secret":true}
+]'
+
 if [ -n "$DOMAIN_CREDS_JSON" ]; then
     info "Setting domain credentials from --domain-creds flag"
     _write_domain_creds "$DOMAIN_CREDS_JSON"
 
 elif [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
     _domain_path=$(_domain_creds_path)
+    _domain_key=$(_domain_creds_key_path)
 
     if [ "$SET_DOMAIN_CREDS" = true ] && [ -f "$_domain_path" ]; then
         warn "Domain credentials already exist: $_domain_path"
@@ -385,91 +586,30 @@ elif [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
     if [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
         echo ""
         echo -e "  ${CYAN}Telemetry Domain Credentials${NC}"
-        echo -e "  ${CYAN}Press Enter to keep existing value (shown in brackets).${NC}"
+        echo -e "  ${CYAN}Press Enter to keep existing value.${NC}"
+
+        # Use the prompt-fields CLI to handle all prompting
+        mkdir -p "$(_resolve_domain_creds_dir)"
+        $CRED_CLI prompt-fields \
+            --creds-path "$_domain_path" \
+            --key-path "$_domain_key" \
+            --spec "$DOMAIN_CRED_SPEC"
+
         echo ""
-
-        # Read existing values
-        _e_bmc_user=$(_read_domain_field "bmc_username")
-        _e_bmc_pass=$(_read_domain_field "bmc_password")
-        _e_mysql_user=$(_read_domain_field "mysqldb_user")
-        _e_mysql_pass=$(_read_domain_field "mysqldb_password")
-        _e_mysql_root=$(_read_domain_field "mysqldb_root_password")
-        _e_csi_user=$(_read_domain_field "csi_username")
-        _e_csi_pass=$(_read_domain_field "csi_password")
-        _e_ldms_pass=$(_read_domain_field "ldms_sampler_password")
-        _e_ufm_user=$(_read_domain_field "ufm_username")
-        _e_ufm_pass=$(_read_domain_field "ufm_password")
-        _e_vast_user=$(_read_domain_field "vast_username")
-        _e_vast_pass=$(_read_domain_field "vast_password")
-
-        # BMC
-        echo -e "  ${YELLOW}iDRAC BMC Credentials:${NC}"
-        _p="  BMC Username"; [ -n "$_e_bmc_user" ] && _p="${_p} [${_e_bmc_user}]"
-        read -r -p "${_p}: " _n; _bmc_user="${_n:-$_e_bmc_user}"
-        read -s -r -p "  BMC Password: " _n; echo ""; _bmc_pass="${_n:-$_e_bmc_pass}"
-
-        # MySQL
-        echo -e "\n  ${YELLOW}MySQL Database Credentials:${NC}"
-        _p="  MySQL User"; [ -n "$_e_mysql_user" ] && _p="${_p} [${_e_mysql_user}]"
-        read -r -p "${_p}: " _n; _mysql_user="${_n:-$_e_mysql_user}"
-        read -s -r -p "  MySQL Password: " _n; echo ""; _mysql_pass="${_n:-$_e_mysql_pass}"
-        read -s -r -p "  MySQL Root Password: " _n; echo ""; _mysql_root="${_n:-$_e_mysql_root}"
-
-        # CSI
-        echo -e "\n  ${YELLOW}PowerScale CSI Credentials:${NC}"
-        _p="  CSI Username"; [ -n "$_e_csi_user" ] && _p="${_p} [${_e_csi_user}]"
-        read -r -p "${_p}: " _n; _csi_user="${_n:-$_e_csi_user}"
-        read -s -r -p "  CSI Password: " _n; echo ""; _csi_pass="${_n:-$_e_csi_pass}"
-
-        # LDMS
-        echo -e "\n  ${YELLOW}LDMS Sampler Credentials:${NC}"
-        read -s -r -p "  LDMS Sampler Password: " _n; echo ""; _ldms_pass="${_n:-$_e_ldms_pass}"
-
-        # UFM
-        echo -e "\n  ${YELLOW}UFM Telemetry Credentials:${NC}"
-        _p="  UFM Username"; [ -n "$_e_ufm_user" ] && _p="${_p} [${_e_ufm_user}]"
-        read -r -p "${_p}: " _n; _ufm_user="${_n:-$_e_ufm_user}"
-        read -s -r -p "  UFM Password: " _n; echo ""; _ufm_pass="${_n:-$_e_ufm_pass}"
-
-        # VAST
-        echo -e "\n  ${YELLOW}VAST Telemetry Credentials:${NC}"
-        _p="  VAST Username"; [ -n "$_e_vast_user" ] && _p="${_p} [${_e_vast_user}]"
-        read -r -p "${_p}: " _n; _vast_user="${_n:-$_e_vast_user}"
-        read -s -r -p "  VAST Password: " _n; echo ""; _vast_pass="${_n:-$_e_vast_pass}"
-
-        # Build JSON and write
-        _json=$(python3 -c "
-import json, sys
-d = {}
-pairs = [
-    ('bmc_username', '${_bmc_user}'), ('bmc_password', '${_bmc_pass}'),
-    ('mysqldb_user', '${_mysql_user}'), ('mysqldb_password', '${_mysql_pass}'),
-    ('mysqldb_root_password', '${_mysql_root}'),
-    ('csi_username', '${_csi_user}'), ('csi_password', '${_csi_pass}'),
-    ('ldms_sampler_password', '${_ldms_pass}'),
-    ('ufm_username', '${_ufm_user}'), ('ufm_password', '${_ufm_pass}'),
-    ('vast_username', '${_vast_user}'), ('vast_password', '${_vast_pass}'),
-]
-for k, v in pairs:
-    if v:
-        d[k] = v
-print(json.dumps(d))
-")
-        echo ""
-        _write_domain_creds "$_json"
+        ok "Domain credentials saved: $_domain_path (encrypted)"
     fi
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# No credential flags — status report
+# Step 8: No credential flags — status report
 # ─────────────────────────────────────────────────────────────────────────────
 if [ -z "$CREDS_VALUE" ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = false ] \
    && [ -z "$DOMAIN_CREDS_JSON" ] && [ "$SET_DOMAIN_CREDS" = false ] \
    && [ "$UPDATE_DOMAIN_CREDS" = false ]; then
     if [ -f "$CREDS_FILE" ]; then
-        ok "SSH credentials: test_creds.yml (encrypted)"
+        ok "Test credentials: test_creds.yml (encrypted)"
     else
-        warn "No SSH credentials (test_creds.yml)"
+        warn "No test credentials (test_creds.yml)"
         warn "  Set with: bash setup_env.sh --set-creds"
     fi
     _dc=$(_domain_creds_path)
@@ -482,7 +622,7 @@ if [ -z "$CREDS_VALUE" ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = fals
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 5: Make scripts executable
+# Step 9: Make scripts executable
 # ─────────────────────────────────────────────────────────────────────────────
 chmod +x "${SCRIPT_DIR}/run_validation.sh" 2>/dev/null || true
 
@@ -568,7 +708,7 @@ esac
 echo ""
 echo "  Credentials (two separate files):"
 echo ""
-echo "    1. SSH credentials (test_creds.yml) — for remote test execution:"
+echo "    1. Test credentials (test_creds.yml) — OIM SSH and enabled OME/SFM access:"
 if [ -f "$CREDS_FILE" ]; then
     echo "       test_creds.yml exists (encrypted)"
     echo "       To update:  bash setup_env.sh --update-creds"

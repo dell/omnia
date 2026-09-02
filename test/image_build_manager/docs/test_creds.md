@@ -1,7 +1,7 @@
 # test_creds.yml — Credentials Reference
 
-SSH credentials for connecting to the remote OIM server.
-**Only required for remote mode** (when `oim_server_ip` is set in `test_config.yml`).
+SSH credentials for connecting to the remote OIM server. They are needed only
+for password-based remote mode; omit them when key-based SSH already works.
 
 ---
 
@@ -15,50 +15,54 @@ SSH credentials for connecting to the remote OIM server.
 
 ## Setup
 
-### 1. Edit the file
+Use the setup command so the credential file and vault key are created with
+the correct permissions and encrypted immediately:
 
-```yaml
-# test_creds.yml
-oim_password: "<SSH_PASSWORD>"
+```bash
+./setup_env.sh --set-creds
 ```
 
-### 2. Run tests
+The command prompts twice for the SSH password. If credentials already exist,
+it asks before updating them. To update without the existence prompt, run:
 
-On first run, the framework **automatically encrypts** `test_creds.yml`
-with Ansible Vault. A random vault key is generated and saved to
-`.test_creds.key` (gitignored).
+```bash
+./setup_env.sh --update-creds
+```
 
-After encryption, `test_creds.yml` will contain Ansible Vault-encrypted
-content instead of plain text. The framework handles decryption transparently.
+For automation, a value can be supplied non-interactively:
+
+```bash
+./setup_env.sh --creds '<SSH_PASSWORD>'
+```
+
+Prefer the interactive command because a command-line password can remain in
+shell history. The framework decrypts the vault transparently during tests.
 
 ---
 
 ## Passwordless SSH
 
-If you use `ssh-copy-id` for key-based authentication, set `oim_password`
-to any non-empty value (the password itself is not used):
+If SSH key authentication is already configured, `test_creds.yml` is not
+required. Leave it absent and verify the configured user can connect first:
 
-```yaml
-oim_password: "any"
+```bash
+ssh <oim_ssh_user>@<oim_server_ip>
 ```
+
+The setup summary may report that SSH credentials are not set; this is
+expected when key-based authentication is used.
 
 ---
 
-## Re-encrypting
+## Updating Credentials
 
-If you need to change the password:
-
-1. Delete the vault key: `rm .test_creds.key`
-2. Replace `test_creds.yml` with plain text:
-   ```yaml
-   oim_password: "<NEW_PASSWORD>"
-   ```
-3. Run tests — the framework will re-encrypt automatically.
+Run `./setup_env.sh --update-creds`. Do not delete the vault key or edit the
+encrypted YAML manually.
 
 ---
 
 ## Security
 
-- `.test_creds.key` — **Never committed** (in `.gitignore`)
-- `test_creds.yml` — Safe to commit when encrypted (Ansible Vault)
-- Before pushing to git, reset to: `oim_password: ""`
+- `test_creds.yml` and `.test_creds.key` are both gitignored.
+- Never commit either credential file, even when the YAML is vault-encrypted.
+- Prefer `./setup_env.sh --set-creds` over writing plaintext YAML manually.

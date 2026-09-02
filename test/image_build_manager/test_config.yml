@@ -20,10 +20,12 @@
 # Usage:
 #   - Set oim_server_ip to the target server where image_build_manager runs.
 #   - Leave oim_server_ip empty to run tests locally on the same machine.
-#   - Configure sync options to push input files and local_repo output
+#   - Configure sync options to push input files and repo_manager output
 #     to the target server before running tests.
 #   - Sensitive credentials (SSH password) go in test_creds.yml
 #     (auto-encrypted with Ansible Vault on first run).
+#   - S3/ARM credentials use a separate encrypted store created on the
+#     execution OIM with ./setup_env.sh --set-domain-creds.
 # =============================================================================
 
 ---
@@ -37,9 +39,10 @@
 #
 # When a remote IP is set, the framework will:
 #   1. Sync the local project code to clone_path on the target (rsync)
-#   2. Sync image_build input files to the env-var-based input path
-#   3. Optionally sync repo_manager output to the target
+#   2. Sync image_build input only when sync_image_build_input is true
+#   3. Sync repo_manager output only when sync_output is true
 #   4. Run all verification tests via SSH/Testinfra
+# Domain credentials are never synced by the framework.
 oim_server_ip: ""
 
 # SSH username for remote server (only needed for remote mode).
@@ -54,7 +57,8 @@ oim_ssh_port: 22
 # The local omnia monorepo is synced (rsync) to clone_path on the target.
 # Playbook runs from <clone_path>/src/image_build_manager/playbooks/
 #
-# clone_path:   Absolute path on the TARGET SERVER where the project code is synced.
+# clone_path:   Absolute path on the TARGET SERVER where the project code is
+#               synced.
 #               Only used in remote mode. In local mode, the playbook path is
 #               resolved automatically from the source tree.
 clone_path: "/omnia"
@@ -65,26 +69,32 @@ clone_path: "/omnia"
 # Controls where input files are loaded from for test execution.
 #
 # Default (empty):
-#   Uses files directly from the source tree:
-#     src/image_build_manager/input/                   — image_build_config.yml, package_groups.yml
-#     src/image_build_manager/samples/repo_manager_output/ — repo_status.yml
-#   This is the recommended mode — always stays in sync with source code.
+#   Leaves the target runtime files unchanged when both sync flags are false.
+#   If input sync is enabled, src/image_build_manager/input/ is its source.
+#   If output sync is enabled, its source is
+#   src/image_build_manager/samples/repo_manager_output/.
 #
 # Custom dataset:
 #   Set to a folder name under test/image_build_manager/datasets/<name>/.
-#   Generate one with: cd datasets/generator && python generate_dataset.py <name> <profile>
+#   Generate one with:
+#     cd datasets/generator
+#     ./generate_dataset.py create my_dataset --profile internet-config
+#   Setting dataset selects the local sync source; enable a sync option below
+#   to copy it to the execution target.
 #   Each dataset folder must contain:
 #     input/image_build_config.yml
-#     input/image_build_credentials.yml
-#     input/package_groups.yml          (optional)
-#     repo_manager_output/repo_status.yml (optional, for sync_output)
+#     input/package_groups.yml          (ignored only in catalog mode)
+#     repo_manager_output/repo_status.yml
 dataset: ""
 
 # =============================================================================
 # SYNC — REPO MANAGER OUTPUT
 # =============================================================================
-# When true, pushes repo_manager_output/ from the dataset to the target.
-# Target path: repo_manager_output_dir from image_build_config.yml
+# When true, pushes repo_manager_output/ from the selected local source to the
+# target. A non-empty dataset uses only
+# datasets/<dataset>/repo_manager_output/; an empty name uses
+# src/image_build_manager/samples/repo_manager_output/.
+# Target path: parent of repo_manager_output_path from image_build_config.yml
 # Default:     /opt/omnia/repo_manager/output/<project_name>/
 #
 # Only needed if the target does not already have repo_manager output.
@@ -93,11 +103,15 @@ sync_output: false
 # =============================================================================
 # SYNC — IMAGE BUILD INPUT
 # =============================================================================
-# When true, pushes the local dataset input/ files to the target server.
-# Syncs: datasets/<dataset>/input/ -> <OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/
+# When true, pushes input files from the selected local source to the target.
+# A non-empty dataset uses only datasets/<dataset>/input/; an empty name uses
+# src/image_build_manager/input/. Credential files, keys, and backups are
+# excluded. Domain credentials are never synced; configure them on the
+# execution OIM with ./setup_env.sh --set-domain-creds.
+# Destination: <OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/
 #
-# This ensures the target server has the correct image_build_config.yml
-# and credentials before running the playbook.
+# This ensures the target server has the selected image_build_config.yml and
+# package_groups.yml before running the playbook.
 sync_image_build_input: false
 
 # =============================================================================
@@ -105,13 +119,13 @@ sync_image_build_input: false
 # =============================================================================
 # Directory where test reports (JSON + HTML) are saved.
 # Can be:
-#   - A folder name (relative to test/): reports
+#   - A folder name (relative to the current working directory): reports
 #   - An absolute path: /var/reports/image_build
 # No spaces allowed in the path.
 report_path: /opt/omnia/reports
 
 # Base name for report files (without extension).
-# Generates: image_build_test_report.json, image_build_test_report.html
+# Generates: image_test_report.json, image_test_report.html
 # No spaces allowed. Only letters, numbers, underscores, hyphens.
 report_name: image_test_report
 

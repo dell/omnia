@@ -16,7 +16,7 @@
 # =============================================================================
 # PowerScale Telemetry Cleanup
 # =============================================================================
-# Removes karavi-observability Helm release, CSI volume exporter, OTEL collector, and PVCs.
+# Removes PowerScale telemetry resources. PVCs are removed only with Delete_volume=true.
 #
 # Standalone usage:
 #   ansible-playbook cleanup/sources/cleanup_powerscale.yml

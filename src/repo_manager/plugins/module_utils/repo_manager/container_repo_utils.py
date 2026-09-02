@@ -99,7 +99,9 @@ def extract_existing_tags(remote_name, logger):
             logger.error("Unexpected data format for remote tags.")
             return []
 
-        return remotes[0].get("include_tags", [])
+        # pulp-cli exposes ContainerRemote.include_tags as ``includes``.
+        # Keep the old key as a compatibility alias for older responses.
+        return remotes[0].get("includes", remotes[0].get("include_tags", []))
 
     except Exception as e:
         logger.error(f"Error extracting tags: {e}")

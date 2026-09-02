@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,16 +40,17 @@
 #   --domain-creds <json>  Non-interactive. JSON: '{"s3_access_id":"x",...}'
 #
 # Usage:
-#   bash setup_env.sh                        # Baremetal or active venv
-#   bash setup_env.sh --venv                 # Create .venv/ and install there
-#   bash setup_env.sh --venv --force         # Recreate .venv/ from scratch
-#   bash setup_env.sh --set-creds            # Prompt for SSH password
-#   bash setup_env.sh --update-creds         # Update existing SSH password
-#   bash setup_env.sh --creds "secret"       # Set SSH password via flag
-#   bash setup_env.sh --set-domain-creds     # Prompt for S3 + aarch64 creds
-#   bash setup_env.sh --domain-creds '{...}' # Non-interactive domain creds
-#   bash setup_env.sh --debug                # Verbose pip output
-#   bash setup_env.sh --help                 # Show this help
+#   ./setup_env.sh                        # Baremetal or active venv
+#   ./setup_env.sh --force                # Force-reinstall all requirements
+#   ./setup_env.sh --venv                 # Create .venv/ and install there
+#   ./setup_env.sh --venv --force         # Recreate .venv/ and reinstall requirements
+#   ./setup_env.sh --set-creds            # Prompt for SSH password
+#   ./setup_env.sh --update-creds         # Update existing SSH password
+#   ./setup_env.sh --creds "secret"       # Set SSH password via flag
+#   ./setup_env.sh --set-domain-creds     # Prompt for S3 + aarch64 creds
+#   ./setup_env.sh --domain-creds '{...}' # Non-interactive domain creds
+#   ./setup_env.sh --debug                # Verbose pip output
+#   ./setup_env.sh --help                 # Show this help
 # =============================================================================
 
 set -euo pipefail
@@ -142,13 +143,14 @@ while [[ $# -gt 0 ]]; do
 
 Image Build Manager — Test Environment Setup
 
-Usage: bash setup_env.sh [OPTIONS]
+Usage: ./setup_env.sh [OPTIONS]
 
 INSTALL MODES
 ─────────────────────────────────────────────────────────────────
   (no flag)       Baremetal mode (pip install --user).
   --venv          Create .venv/ and install there.
-  --force         With --venv: recreate .venv/ from scratch.
+  --force         Force-reinstall all packages from requirements.txt.
+                  With --venv, also recreate .venv/ from scratch.
 
 SSH CREDENTIALS (test_creds.yml)
 ─────────────────────────────────────────────────────────────────
@@ -158,8 +160,10 @@ SSH CREDENTIALS (test_creds.yml)
 
 DOMAIN CREDENTIALS (image_build_credentials.yml)
 ─────────────────────────────────────────────────────────────────
-  Created at: $OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME/
+  Created on this machine at:
+    $OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME/
   Fields: s3_access_id, s3_secret_key, aarch64_ssh_password.
+  For remote execution, run this command on the target OIM server.
 
   --set-domain-creds     Interactive prompt for all domain fields.
   --update-domain-creds  Force-update domain creds (no "exists" check).
@@ -254,8 +258,14 @@ pip install --upgrade pip $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
     pip install --upgrade pip $PIP_QUIET
 
 info "Installing dependencies from requirements.txt"
-pip install -r "$REQUIREMENTS" $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
-    pip install -r "$REQUIREMENTS" $PIP_QUIET
+PIP_FORCE_ARGS=()
+if [ "$FORCE" = true ]; then
+    PIP_FORCE_ARGS=(--force-reinstall)
+    info "Force-reinstalling all requirements (--force)"
+fi
+
+pip install "${PIP_FORCE_ARGS[@]}" -r "$REQUIREMENTS" $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
+    pip install "${PIP_FORCE_ARGS[@]}" -r "$REQUIREMENTS" $PIP_QUIET
 
 if ! pip show pytest-order &>/dev/null; then
     info "Installing pytest-order"
@@ -367,12 +377,21 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 # Domain credential dispatch  (--set-domain-creds / --update-domain-creds / --domain-creds)
 # ─────────────────────────────────────────────────────────────────────────────
+
+# Domain credential field spec (JSON for prompt-fields CLI)
+DOMAIN_CRED_SPEC='[
+  {"field":"s3_access_id","label":"S3 Access ID","group":"S3/MinIO Credentials","secret":false},
+  {"field":"s3_secret_key","label":"S3 Secret Key","secret":true},
+  {"field":"aarch64_ssh_password","label":"aarch64 SSH Password","group":"aarch64 Build Host","secret":true,"optional":true}
+]'
+
 if [ -n "$DOMAIN_CREDS_JSON" ]; then
     info "Setting domain credentials from --domain-creds flag"
     _write_domain_creds "$DOMAIN_CREDS_JSON"
 
 elif [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
     _domain_path=$(_domain_creds_path)
+    _domain_key=$(_domain_creds_key_path)
 
     if [ "$SET_DOMAIN_CREDS" = true ] && [ -f "$_domain_path" ]; then
         warn "Domain credentials already exist: $_domain_path"
@@ -385,49 +404,17 @@ elif [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
     if [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
         echo ""
         echo -e "  ${CYAN}Image Build Credentials — S3/MinIO + aarch64 build host${NC}"
-        echo -e "  ${CYAN}Press Enter to keep existing value (shown in brackets).${NC}"
+        echo -e "  ${CYAN}Press Enter to keep existing value.${NC}"
+
+        # Use the prompt-fields CLI to handle all prompting
+        mkdir -p "$(_resolve_domain_creds_dir)"
+        $CRED_CLI prompt-fields \
+            --creds-path "$_domain_path" \
+            --key-path "$_domain_key" \
+            --spec "$DOMAIN_CRED_SPEC"
+
         echo ""
-
-        # Read existing
-        _e_s3_id=$(_read_domain_field "s3_access_id")
-        _e_s3_key=$(_read_domain_field "s3_secret_key")
-        _e_aarch64=$(_read_domain_field "aarch64_ssh_password")
-
-        # S3 Access ID
-        _p="  S3 Access ID"; [ -n "$_e_s3_id" ] && _p="${_p} [${_e_s3_id}]"
-        read -r -p "${_p}: " _n; _s3_id="${_n:-$_e_s3_id}"
-
-        # S3 Secret Key (hidden, confirm)
-        echo -e "  S3 Secret Key ${CYAN}(hidden input)${NC}:"
-        read -s -r -p "  S3 Secret Key: " _k1; echo ""
-        if [ -n "$_k1" ]; then
-            read -s -r -p "  Confirm:       " _k2; echo ""
-            if [ "$_k1" != "$_k2" ]; then
-                fail "S3 secret keys do not match. Re-run --set-domain-creds."
-            fi
-            _s3_key="$_k1"
-        else
-            _s3_key="$_e_s3_key"
-            warn "S3 secret key unchanged."
-        fi
-
-        # aarch64 SSH password (optional)
-        _p="  aarch64 SSH password (optional — Enter to skip/keep)"
-        [ -n "$_e_aarch64" ] && _p="${_p} [set]"
-        read -s -r -p "${_p}: " _n; echo ""
-        _aarch64="${_n:-$_e_aarch64}"
-
-        # Build JSON and write
-        _json=$(python3 -c "
-import json
-d = {}
-for k, v in [('s3_access_id','${_s3_id}'),('s3_secret_key','${_s3_key}'),('aarch64_ssh_password','${_aarch64}')]:
-    if v:
-        d[k] = v
-print(json.dumps(d))
-")
-        echo ""
-        _write_domain_creds "$_json"
+        ok "Domain credentials saved: $_domain_path (encrypted)"
     fi
 fi
 
@@ -441,14 +428,14 @@ if [ -z "$CREDS_VALUE" ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = fals
         ok "SSH credentials: test_creds.yml (encrypted)"
     else
         warn "No SSH credentials (test_creds.yml)"
-        warn "  Set with: bash setup_env.sh --set-creds"
+        warn "  Set with: ./setup_env.sh --set-creds"
     fi
     _dc=$(_domain_creds_path)
     if [ -f "$_dc" ]; then
         ok "Domain credentials: $_dc (encrypted)"
     else
         warn "No domain credentials: $_dc"
-        warn "  Set with: bash setup_env.sh --set-domain-creds"
+        warn "  Set with: ./setup_env.sh --set-domain-creds"
     fi
 fi
 
@@ -491,18 +478,18 @@ echo ""
 echo "    1. SSH credentials (test_creds.yml) — for remote test execution:"
 if [ -f "$CREDS_FILE" ]; then
     echo "       test_creds.yml exists (encrypted)"
-    echo "       To update:  bash setup_env.sh --update-creds"
+    echo "       To update:  ./setup_env.sh --update-creds"
 else
-    echo "       Not set. Create with: bash setup_env.sh --set-creds"
+    echo "       Not set. Create with: ./setup_env.sh --set-creds"
 fi
 echo ""
-echo "    2. Image build domain credentials:"
+echo "    2. Image build domain credentials (current machine):"
 _dc_summary=$(_domain_creds_path)
 if [ -f "$_dc_summary" ]; then
     echo "       ${_dc_summary} (encrypted)"
-    echo "       To update:  bash setup_env.sh --update-domain-creds"
+    echo "       To update:  ./setup_env.sh --update-domain-creds"
 else
-    echo "       Not set. Create with: bash setup_env.sh --set-domain-creds"
+    echo "       Not set. Create with: ./setup_env.sh --set-domain-creds"
 fi
 echo ""
 echo "================================================================="
