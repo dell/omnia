@@ -30,6 +30,10 @@ from library.vars import (
     OME_KAFKA_TOPIC_POLL_INTERVAL_SECONDS,
     OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
     OME_KAFKA_TOPICS,
+    OME_TEST_KAFKA_BOOTSTRAP,
+    OME_TEST_KAFKA_BRIDGE_BOOTSTRAP,
+    OME_TEST_KAFKA_BRIDGE_ENDPOINT,
+    OME_TEST_KAFKA_BRIDGE_HOST,
 )
 
 
@@ -425,7 +429,7 @@ def test_get_ome_forwarder_config_reads_saved_broker(monkeypatch):
         "value": [
             {
                 "ConfigurationName": "BrokerList",
-                "ConfigurationValue": "192.0.2.10:9094",
+                "ConfigurationValue": OME_TEST_KAFKA_BOOTSTRAP,
             },
             {
                 "ConfigurationName": "AuthMode",
@@ -443,7 +447,7 @@ def test_get_ome_forwarder_config_reads_saved_broker(monkeypatch):
     )
 
     assert result["success"] is True
-    assert result["broker_list"] == "192.0.2.10:9094"
+    assert result["broker_list"] == OME_TEST_KAFKA_BOOTSTRAP
 
 
 def test_external_kafka_details_reject_http_bridge_as_bootstrap(monkeypatch):
@@ -455,15 +459,15 @@ def test_external_kafka_details_reject_http_bridge_as_bootstrap(monkeypatch):
         lambda *_args: {
             "kafka": {
                 "loadbalancer_service": KAFKA_BRIDGE_SERVICE,
-                "bootstrap_server": "192.0.2.20:8080",
+                "bootstrap_server": OME_TEST_KAFKA_BRIDGE_BOOTSTRAP,
             }
         },
     )
     monkeypatch.setattr(
-        ome_func, "get_kafka_external_bootstrap", lambda _host: "192.0.2.10:9094"
+        ome_func, "get_kafka_external_bootstrap", lambda _host: OME_TEST_KAFKA_BOOTSTRAP
     )
     monkeypatch.setattr(
-        ome_func, "get_kafka_bridge_ip", lambda _host: "192.0.2.20"
+        ome_func, "get_kafka_bridge_ip", lambda _host: OME_TEST_KAFKA_BRIDGE_HOST
     )
     monkeypatch.setattr(ome_func, "get_kafka_bridge_port", lambda _host: "8080")
 
@@ -483,19 +487,19 @@ def test_external_kafka_details_accept_distinct_native_and_rest_endpoints(
         lambda *_args: {
             "kafka": {
                 "loadbalancer_service": KAFKA_EXTERNAL_BOOTSTRAP_SVC,
-                "bootstrap_server": "192.0.2.10:9094",
+                "bootstrap_server": OME_TEST_KAFKA_BOOTSTRAP,
                 "bridge": {
                     "loadbalancer_service": KAFKA_BRIDGE_SERVICE,
-                    "endpoint": "http://192.0.2.20:8080",
+                    "endpoint": OME_TEST_KAFKA_BRIDGE_ENDPOINT,
                 },
             }
         },
     )
     monkeypatch.setattr(
-        ome_func, "get_kafka_external_bootstrap", lambda _host: "192.0.2.10:9094"
+        ome_func, "get_kafka_external_bootstrap", lambda _host: OME_TEST_KAFKA_BOOTSTRAP
     )
     monkeypatch.setattr(
-        ome_func, "get_kafka_bridge_ip", lambda _host: "192.0.2.20"
+        ome_func, "get_kafka_bridge_ip", lambda _host: OME_TEST_KAFKA_BRIDGE_HOST
     )
     monkeypatch.setattr(ome_func, "get_kafka_bridge_port", lambda _host: "8080")
 
@@ -512,7 +516,7 @@ def test_ome_topics_retry_until_all_topics_exist(monkeypatch):
         SimpleNamespace(rc=0, stdout=json.dumps(OME_KAFKA_TOPICS), stderr=""),
     ])
     monkeypatch.setattr(
-        ome_func, "get_kafka_bridge_ip", lambda _host: "192.0.2.20"
+        ome_func, "get_kafka_bridge_ip", lambda _host: OME_TEST_KAFKA_BRIDGE_HOST
     )
     monkeypatch.setattr(ome_func, "get_kafka_bridge_port", lambda _host: "8080")
     monkeypatch.setattr(
@@ -531,7 +535,7 @@ def test_ome_topics_accepts_expected_subset(monkeypatch):
     """Ignore topic families disabled by the OME source configuration."""
     log_topics = ["ome.alerts", "ome.auditlogs"]
     monkeypatch.setattr(
-        ome_func, "get_kafka_bridge_ip", lambda _host: "192.0.2.20"
+        ome_func, "get_kafka_bridge_ip", lambda _host: OME_TEST_KAFKA_BRIDGE_HOST
     )
     monkeypatch.setattr(ome_func, "get_kafka_bridge_port", lambda _host: "8080")
     monkeypatch.setattr(
@@ -575,7 +579,7 @@ def test_ome_data_retries_for_delayed_records(monkeypatch):
         SimpleNamespace(rc=0, stdout="", stderr=""),
     ])
     monkeypatch.setattr(
-        ome_func, "get_kafka_bridge_ip", lambda _host: "192.0.2.20"
+        ome_func, "get_kafka_bridge_ip", lambda _host: OME_TEST_KAFKA_BRIDGE_HOST
     )
     monkeypatch.setattr(ome_func, "get_kafka_bridge_port", lambda _host: "8080")
     monkeypatch.setattr(

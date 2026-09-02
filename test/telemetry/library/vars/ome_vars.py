@@ -98,6 +98,18 @@ KAFKA_BRIDGE_SERVICE = "bridge-bridge-lb"
 # Default HTTP port (will be read from service if available)
 KAFKA_BRIDGE_DEFAULT_PORT = "8080"
 
+# Reserved DNS endpoints used by OME unit tests. Using RFC 6761 ``.test``
+# names keeps test fixtures deterministic without embedding environment IPs.
+OME_TEST_KAFKA_BOOTSTRAP_PORT = "9094"
+OME_TEST_KAFKA_BOOTSTRAP = (
+    f"kafka-bootstrap.example.test:{OME_TEST_KAFKA_BOOTSTRAP_PORT}"
+)
+OME_TEST_KAFKA_BRIDGE_HOST = "kafka-bridge.example.test"
+OME_TEST_KAFKA_BRIDGE_BOOTSTRAP = (
+    f"{OME_TEST_KAFKA_BRIDGE_HOST}:{KAFKA_BRIDGE_DEFAULT_PORT}"
+)
+OME_TEST_KAFKA_BRIDGE_ENDPOINT = f"http://{OME_TEST_KAFKA_BRIDGE_BOOTSTRAP}"
+
 
 # =============================================================================
 # OME Kafka Timing
