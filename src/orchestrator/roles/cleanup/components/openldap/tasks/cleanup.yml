@@ -48,12 +48,11 @@
   block:
     - name: Remove OpenLDAP container
       ansible.builtin.command: podman rm -f -i {{ openldap_config.container_name | default('omnia_auth') }}
-      changed_when: true
-      failed_when: false
       register: container_removal
+      changed_when: container_removal.rc == 0
+      failed_when: false
       when: "'remove_container' in openldap_config.cleanup_operations"
       tags: openldap
-  tags: openldap
 
 - name: Remove OpenLDAP Quadlet unit
   tags: openldap
@@ -84,7 +83,6 @@
       failed_when: false
       when: "'remove_data' in openldap_config.cleanup_operations"
       tags: openldap
-  tags: openldap
 
 - name: Display OpenLDAP cleanup completion
   ansible.builtin.debug:

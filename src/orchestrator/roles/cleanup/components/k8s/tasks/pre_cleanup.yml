@@ -60,7 +60,6 @@
           error: "K8s not deployed"
     - name: Return from pre-cleanup
       ansible.builtin.meta: noop
-  when: not k8s_deployed.stat.exists
 
 - name: Display K8s service status
   ansible.builtin.debug:

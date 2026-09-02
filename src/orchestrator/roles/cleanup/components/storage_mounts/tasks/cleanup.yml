@@ -74,6 +74,7 @@
 
 - name: Unmount and remove orchestrator-deployed NFS mounts
   tags: storage_mounts
+  when: storage_mounts_config.unmount_nfs | default(false) | bool
   block:
     - name: Unmount orchestrator-deployed NFS mounts
       ansible.posix.mount:
@@ -92,8 +93,6 @@
       loop: "{{ mounts_to_clean }}"
       when: storage_mounts_config.cleanup_fstab | default(false) | bool
       tags: storage_mounts
-  when: storage_mounts_config.unmount_nfs | default(false) | bool
-  tags: storage_mounts
 
 - name: Display Storage Mounts cleanup completion
   ansible.builtin.debug:
