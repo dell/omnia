@@ -22,7 +22,7 @@
 # Usage:
 #   - include_tasks: install_python_dependencies.yml
 #     vars:
-#       component: idrac  # or powerscale
+#       component: idrac
 #
 # Installation modes:
 #   - online:  Install from PyPI (pip install <package>==<version>)
