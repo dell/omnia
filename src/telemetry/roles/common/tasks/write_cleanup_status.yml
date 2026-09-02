@@ -32,6 +32,7 @@
 - name: Normalize cleanup component state
   ansible.builtin.set_fact:
     _cleanup_components:
+      idrac: "{{ (_cleanup_component_results | default({})).idrac | default('skipped') }}"
       ldms: "{{ (_cleanup_component_results | default({})).ldms | default('skipped') }}"
       ome: "{{ (_cleanup_component_results | default({})).ome | default('skipped') }}"
       powerscale: "{{ (_cleanup_component_results | default({})).powerscale | default('skipped') }}"
@@ -65,6 +66,12 @@
       kafka: "{{ _cleanup_components.kafka }}"
       victoria_metrics: "{{ _cleanup_components.victoria_metrics }}"
       victoria_logs: "{{ _cleanup_components.victoria_logs }}"
+      idrac_metrics: >-
+        {{
+          _cleanup_components.idrac
+          if _cleanup_capability_enabled.idrac_metrics | default(false) | bool
+          else 'skipped'
+        }}
       ldms_metrics: >-
         {{
           _cleanup_components.ldms
@@ -147,6 +154,14 @@
 - name: Build per-component volume cleanup results
   ansible.builtin.set_fact:
     _cleanup_volume_results:
+      idrac: >-
+        {{
+          'skipped' if _cleanup_components.idrac == 'skipped'
+          else (
+            'preserved' if not (_cleanup_delete_volume | bool)
+            else ('cleaned' if _cleanup_components.idrac == 'cleaned' else 'failed')
+          )
+        }}
       ldms: >-
         {{
           'skipped' if _cleanup_components.ldms == 'skipped'
@@ -248,6 +263,7 @@
       - "  victoria_logs:     {{ _cleanup_results.victoria_logs }}"
       - ""
       - "Sources:"
+      - "  idrac:             metrics={{ _cleanup_results.idrac_metrics }}"
       - "  ldms:              metrics={{ _cleanup_results.ldms_metrics }}"
       - >-
         powerscale: metrics={{ _cleanup_results.powerscale_metrics }},

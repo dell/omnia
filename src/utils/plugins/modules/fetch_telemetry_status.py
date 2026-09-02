@@ -23,7 +23,7 @@ version_added: "2.2.0"
 description:
     - This module reads the telemetry_config.yml file and determines which telemetry sources are enabled.
     - It returns a list of enabled telemetry components for use in other playbook tasks.
-    - Supports UFM metrics/logs and VAST metrics/logs.
+    - Supports iDRAC telemetry, UFM metrics/logs, and VAST metrics/logs.
 
 options:
     input_path:
@@ -55,6 +55,10 @@ EXAMPLES = r'''
     msg: "Enabled telemetry: {{ telemetry_status.telemetry_status_list }}"
 
 # Conditionally run tasks based on telemetry status
+- name: Configure iDRAC telemetry
+  include_tasks: configure_idrac.yml
+  when: "'idrac_telemetry' in telemetry_status.telemetry_status_list"
+
 - name: Configure UFM telemetry
   include_tasks: configure_ufm.yml
   when: "'ufm_telemetry' in telemetry_status.telemetry_status_list"
@@ -66,7 +70,7 @@ telemetry_status_list:
     type: list
     elements: str
     returned: always
-    sample: ["ufm_telemetry", "ufm_logs", "vast_telemetry"]
+    sample: ["idrac_telemetry", "ufm_telemetry", "ufm_logs", "vast_telemetry"]
 
 changed:
     description: Whether the module made any changes (always false for this read-only module)
@@ -133,6 +137,10 @@ def main() -> None:
     telemetry_status_list: List[str] = []
 
     telemetry_sources = telemetry_config_data.get("telemetry_sources", {})
+
+    # Check iDRAC telemetry
+    if telemetry_sources.get("idrac", {}).get("metrics_enabled", False):
+        telemetry_status_list.append("idrac_telemetry")
 
     # Check UFM telemetry
     ufm_config = telemetry_sources.get("ufm", {})

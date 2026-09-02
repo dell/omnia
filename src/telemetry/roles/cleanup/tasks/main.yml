@@ -24,6 +24,7 @@
 #     tasks_from: kafka           # Cleanup Kafka
 #     tasks_from: victoria_metrics # Cleanup VictoriaMetrics
 #     tasks_from: victoria_logs    # Cleanup VictoriaLogs
+#     tasks_from: idrac            # Cleanup iDRAC
 #     tasks_from: ldms             # Cleanup LDMS + Vector-LDMS
 #     tasks_from: ome              # Cleanup OME + Vector-OME
 #     tasks_from: powerscale       # Cleanup PowerScale

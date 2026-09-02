@@ -26,6 +26,16 @@ telemetry_credential_file:
 # Credential prompt definitions
 telemetry_cred_config:
   conditional_mandatory:
+    - username: mysqldb_user
+      condition: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+    - password: mysqldb_password
+      condition: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+    - password: mysqldb_root_password
+      condition: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+    - username: bmc_username
+      condition: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+    - password: bmc_password
+      condition: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
     - password: ldms_sampler_password
       condition: "{{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
     - username: csi_username

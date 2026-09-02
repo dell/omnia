@@ -55,6 +55,11 @@
 
 # ── Phase 2: Source deployment ──────────────────────────────────────────────
 # Each source: generates manifests and applies its own resources independently
+- name: "Phase 2 | Deploy iDRAC telemetry"
+  ansible.builtin.import_playbook: sources/deploy_idrac_telemetry.yml
+  tags: deploy
+  when: hostvars['localhost']['telemetry_config'].telemetry_sources.idrac.metrics_enabled | default(false) | bool
+
 - name: "Phase 2 | Deploy LDMS telemetry"
   ansible.builtin.import_playbook: sources/deploy_ldms.yml
   tags: deploy
@@ -193,6 +198,13 @@
       failed_when: false
 
     # -- Source checks --------------------------------------------------------
+    - name: Check iDRAC pods
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} -l app=idrac-telemetry --no-headers
+      register: _idrac_pods
+      changed_when: false
+      failed_when: false
+
     - name: Check LDMS aggregator pod readiness
       ansible.builtin.command: >
         kubectl wait --for=condition=Ready pod
@@ -258,6 +270,7 @@
           _kafka_pods: "{{ _kafka_pods }}"
           _vm_pods: "{{ _vm_pods }}"
           _vl_pods: "{{ _vl_pods }}"
+          _idrac_pods: "{{ _idrac_pods }}"
           _ldms_aggregator_pods: "{{ _ldms_aggregator_pods }}"
           _ldms_store_pods: "{{ _ldms_store_pods }}"
           _powerscale_pods: "{{ _powerscale_pods }}"
@@ -319,10 +332,17 @@
     # -- Sources (metrics only) -----------------------------------------------
     - name: Set source metrics-only results
       vars:
+        _idrac_on: "{{ _cfg.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+        _idrac_running: >-
+          {{ (_kv['_idrac_pods'].stdout_lines | default([])
+             | select('search', 'Running') | list | length) > 0 }}
         _ldms_on: "{{ _cfg.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
         _ldms_aggregator_running: "{{ _kv['_ldms_aggregator_pods'].rc | default(1) == 0 }}"
         _ldms_store_running: "{{ _kv['_ldms_store_pods'].rc | default(1) == 0 }}"
       ansible.builtin.set_fact:
+        _deploy_result_idrac_metrics: >-
+          {{ 'skipped' if not (_idrac_on | bool)
+             else ('deployed' if (_idrac_running | bool) else 'failed') }}
         _deploy_result_ldms_metrics: >-
           {{ 'skipped' if not (_ldms_on | bool)
              else ('deployed' if ((_ldms_aggregator_running | bool)

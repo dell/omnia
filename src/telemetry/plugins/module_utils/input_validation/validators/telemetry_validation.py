@@ -33,7 +33,7 @@ def validate_telemetry_config(
     Validates the telemetry configuration from telemetry_config.yml.
 
     This function validates the new three-layer telemetry configuration structure:
-    - telemetry_sources (ldms, powerscale, ufm, vast, ome)
+    - telemetry_sources (idrac, ldms, powerscale, ufm, vast, ome)
     - telemetry_bridges (vector_ldms, vector_ome)
     - telemetry_sinks (victoria_metrics, victoria_logs, kafka)
 
@@ -239,12 +239,16 @@ def validate_telemetry_config(
     ldms_configurations = data.get("ldms_configurations", {})
 
     # Source feature flags
+    idrac_source = telemetry_sources.get("idrac", {})
     ldms_source = telemetry_sources.get("ldms", {})
     powerscale_source = telemetry_sources.get("powerscale", {})
     ufm_source = telemetry_sources.get("ufm", {})
     vast_source = telemetry_sources.get("vast", {})
 
     ome_source = telemetry_sources.get("ome", {})
+
+    idrac_telemetry_support = idrac_source.get("metrics_enabled", False)
+    idrac_collection_targets = idrac_source.get("collection_targets", [])
 
     # Bridge feature flags
     vector_ldms = telemetry_bridges.get("vector_ldms", {})
@@ -257,6 +261,17 @@ def validate_telemetry_config(
     # =========================================================================
     # Validate collection_targets per source type
     # =========================================================================
+    # iDRAC: supports kafka and victoria_metrics
+    idrac_targets = set(idrac_collection_targets)
+    allowed_idrac_targets = {"kafka", "victoria_metrics"}
+    invalid_idrac_targets = idrac_targets - allowed_idrac_targets
+    if invalid_idrac_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.idrac.collection_targets",
+            list(invalid_idrac_targets),
+            f"Invalid collection targets for iDRAC. Only 'kafka' and 'victoria_metrics' are supported. Found: {invalid_idrac_targets}"
+        ))
+
     # LDMS: only supports kafka
     ldms_targets = set(ldms_source.get("collection_targets", []))
     if ldms_targets and ldms_targets != {"kafka"}:
@@ -300,12 +315,12 @@ def validate_telemetry_config(
 
 
     # =========================================================================
-    # Validate Kafka topic_partitions (a dict containing the LDMS topic)
+    # Validate Kafka topic_partitions (a dict containing the iDRAC and LDMS topics)
     # =========================================================================
 
 
     if topic_partitions and isinstance(topic_partitions, dict):
-        allowed_topics = {"ldms"}
+        allowed_topics = {"idrac", "ldms"}
         present_topics = set(topic_partitions.keys())
 
         # Validate topic names
@@ -314,12 +329,20 @@ def validate_telemetry_config(
                 errors.append(create_error_msg(
                     f"telemetry_sinks.kafka.topic_partitions.{topic_name}",
                     topic_name,
-                    f"Invalid topic name '{topic_name}'. Only 'ldms' is allowed as a Kafka topic name."
+                    f"Invalid topic name '{topic_name}'. Only 'idrac' and 'ldms' are allowed as Kafka topic names."
                 ))
 
         logger.info(f"Telemetry validation - Present topics: {present_topics}")
 
         # Validate required topics based on feature flags
+        if idrac_telemetry_support and 'kafka' in idrac_collection_targets:
+            if 'idrac' not in present_topics:
+                errors.append(create_error_msg(
+                    "telemetry_sinks.kafka.topic_partitions",
+                    "missing 'idrac' topic",
+                    "idrac topic is required when telemetry_sources.idrac.metrics_enabled is true and 'kafka' is in collection_targets"
+                ))
+
         # If LDMS is enabled and kafka in collection_targets, ldms topic is required
         ldms_enabled = ldms_source.get("metrics_enabled", False)
         ldms_kafka_targets = set(ldms_source.get("collection_targets", []))
@@ -853,6 +876,18 @@ def validate_telemetry_storage_config(
         ))
     else:
         logger.info("csi_volume_exporter_storage validation passed")
+
+    # Validate idrac_telemetry_storage when iDRAC metrics are enabled
+    idrac_source = telemetry_sources.get("idrac", {})
+    idrac_metrics_enabled = idrac_source.get("metrics_enabled", False)
+    if idrac_metrics_enabled and not storage_config.get("idrac_telemetry_storage"):
+        errors.append(create_error_msg(
+            "telemetry_storage_config.yml.idrac_telemetry_storage",
+            "not defined",
+            en_us_validation_msg.IDRAC_TELEMETRY_STORAGE_REQUIRED_MSG
+        ))
+    elif idrac_metrics_enabled:
+        logger.info("idrac_telemetry_storage validation passed")
 
     return errors
 

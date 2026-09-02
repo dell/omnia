@@ -13,6 +13,40 @@
 # limitations under the License.
 ---
 
+- name: Mark iDRAC cleanup as attempted
+  ansible.builtin.set_fact:
+    _cleanup_active_component: idrac
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'idrac': 'attempted'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_idrac'] | bool
+
+- name: Cleanup iDRAC telemetry
+  ansible.builtin.include_tasks: idrac.yml
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_idrac'] | bool
+
+- name: Mark iDRAC cleanup as cleaned
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'idrac': 'cleaned'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_idrac'] | bool
+
 - name: Mark LDMS cleanup as attempted
   ansible.builtin.set_fact:
     _cleanup_active_component: ldms

@@ -21,6 +21,7 @@ telemetry_namespace: "telemetry"
 
 # Valid cleanup component tags (sources only — sinks are cleaned via --tags cleanup)
 valid_cleanup_components:
+  - cleanup_idrac
   - cleanup_ldms
   - cleanup_ome
   - cleanup_powerscale
@@ -178,6 +179,22 @@ victoria_logs:
     - "app.kubernetes.io/component=vlstorage"
     - "app.kubernetes.io/name=vlagent"
     - "app=vlagent-vector"
+
+# ---------------------------------------------------------------------------
+# iDRAC cleanup resources
+# ---------------------------------------------------------------------------
+idrac_resources:
+  - { type: "statefulset", name: "idrac-telemetry" }
+  - { type: "service", name: "idrac-telemetry-headless" }
+  - { type: "service", name: "idrac-telemetry-service" }
+  - { type: "configmap", name: "idrac-telemetry-config" }
+
+idrac_secret_resources:
+  - { type: "secret", name: "mysqldb-credentials" }
+
+idrac_configmap_label: "app=idrac-telemetry"
+idrac_pvc_label: "app=idrac-telemetry"
+idrac_pod_label: "app=idrac-telemetry"
 
 # ---------------------------------------------------------------------------
 # LDMS cleanup resources

@@ -243,22 +243,30 @@
 # =============================================================================
 
 - name: Apply source-specific Kafka topics
-  when:
-    - not (kafka_infra_only | default(false) | bool)
-    - telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool
+  when: not (kafka_infra_only | default(false) | bool)
   block:
-    - name: Apply LDMS Kafka topic manifest
+    - name: Find generated Kafka topic manifests
+      ansible.builtin.find:
+        paths: "{{ telemetry_deployments_dir }}"
+        patterns: "kafka.*.topic.yaml"
+      register: topic_files
+
+    - name: Apply Kafka topic manifests
       ansible.builtin.command: >
-        kubectl apply -f {{ telemetry_deployments_dir }}/kafka.ldms.topic.yaml
+        kubectl apply -f {{ item.path }}
+      loop: "{{ topic_files.files }}"
       register: topic_apply
       changed_when: "'created' in (topic_apply.stdout | default('')) or 'configured' in (topic_apply.stdout | default(''))"
 
-    - name: Wait for LDMS Kafka topic to be ready
+    - name: Wait for Kafka topics to be ready
       ansible.builtin.command:
         argv:
           - kubectl
           - wait
           - --for=condition=Ready
-          - "--filename={{ telemetry_deployments_dir }}/kafka.ldms.topic.yaml"
+          - "--filename={{ item.path }}"
           - "--timeout={{ kafka_deploy_timeout }}"
+      loop: "{{ topic_files.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
       changed_when: false

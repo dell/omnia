@@ -30,6 +30,7 @@
     kubectl get pods -n telemetry --no-headers --ignore-not-found
     -l {{ item }}
   loop:
+    - app=idrac-telemetry
     - app=nersc-ldms
     - app=vector-ome
     - app=vector-ldms

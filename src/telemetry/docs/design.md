@@ -11,6 +11,7 @@ cluster. It consists of:
    - VictoriaLogs (log aggregation)
 
 2. **Sources** — Telemetry collectors:
+   - iDRAC (Dell server hardware BMC)
    - LDMS (Lightweight Distributed Metric Service, HPC)
    - OME (OpenManage Enterprise)
    - UFM (Unified Fabric Manager, InfiniBand)

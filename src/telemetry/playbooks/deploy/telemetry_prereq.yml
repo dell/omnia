@@ -48,6 +48,13 @@
       no_log: true
       when: telemetry_credentials is defined
 
+    - name: Set bmc_group_data_path from idrac_telemetry_configurations (for iDRAC)
+      ansible.builtin.set_fact:
+        bmc_group_data_path: "{{ telemetry_config.idrac_telemetry_configurations.bmc_group_data_path }}"
+      when:
+        - telemetry_config is defined
+        - telemetry_config.idrac_telemetry_configurations.bmc_group_data_path is defined
+
     - name: Validate kube_vip is set
       ansible.builtin.assert:
         that:

@@ -16,7 +16,7 @@ galaxy_info:
   role_name: collect_telemetry_credentials
   namespace: omnia
   author: Dell Technologies
-  description: "Collects and manages credentials for telemetry sources"
+  description: "Collects and manages credentials for telemetry sources (iDRAC, OME, etc.)"
   license: Apache-2.0
   min_ansible_version: "2.20"
   platforms:

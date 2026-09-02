@@ -32,7 +32,7 @@
 #
 # Granular cleanup tags (opt-in — requires explicit --tags):
 #   cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs,
-#   cleanup_ldms, cleanup_ome, cleanup_powerscale,
+#   cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale,
 #   cleanup_ufm, cleanup_vast
 #
 # Internal steps (always):
@@ -90,7 +90,7 @@
 # =========================================================================
 # FLOW: cleanup — Remove telemetry components (opt-in only)
 # =========================================================================
-# Each source has its own tag (cleanup_ldms, cleanup_ome, etc.).
+# Each source has its own tag (cleanup_idrac, cleanup_ldms, cleanup_ome, etc.).
 # --tags cleanup runs ALL cleanups (sources + sinks).
 # Individual source tags (cleanup_powerscale, etc.) clean only that source.
 # Sinks (Kafka, VictoriaMetrics, VictoriaLogs) are shared infrastructure
@@ -100,6 +100,7 @@
   tags:
     - never
     - cleanup
+    - cleanup_idrac
     - cleanup_ldms
     - cleanup_ome
     - cleanup_powerscale

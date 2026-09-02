@@ -41,6 +41,8 @@ sinks:
   victoria_logs: "skipped"
 
 sources:
+  idrac:
+    metrics: "skipped"
   ldms:
     metrics: "skipped"
   powerscale:

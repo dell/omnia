@@ -28,7 +28,7 @@
 #
 # SECTIONS:
 #   1. Cluster Inventory    : Path to Ansible inventory for telemetry deployment
-#   2. Telemetry Sources    : Data collectors (LDMS, PowerScale, UFM, VAST, OME)
+#   2. Telemetry Sources    : Data collectors (iDRAC, LDMS, PowerScale, UFM, VAST, OME)
 #   3. Telemetry Bridges    : Data routers (Vector pipelines)
 #   4. Telemetry Sinks      : Storage backends (victoria_metrics, victoria_logs, Kafka)
 #   5. Source Configurations: Detailed settings per source (PowerScale, LDMS, UFM, VAST)
@@ -94,9 +94,29 @@ cluster_inventory: ""
 # Each source can be independently enabled/disabled.
 # Sources produce telemetry data that flows through bridges to sinks.
 #
-# Supported sources: ldms, powerscale, ufm, vast, ome
+# Supported sources: idrac, ldms, powerscale, ufm, vast, ome
 
 telemetry_sources:
+
+  # --------------------------------------------------------------------------
+  # iDRAC — Hardware metrics from Dell PowerEdge servers
+  # --------------------------------------------------------------------------
+  # Collects: temperature, power, fan speed, storage health, CPU/memory errors
+  # Requires: iDRAC-enabled Dell PowerEdge servers in inventory
+  # Data path: iDRAC Receiver → ActiveMQ → KafkaPump → Kafka 'idrac' topic
+  #            iDRAC Receiver → ActiveMQ → VictoriaPump → vmagent → victoria_metrics
+  idrac:
+    # Enable or disable iDRAC metrics collection
+    # Default: true
+    metrics_enabled: true
+
+    # Collection targets define where iDRAC data is sent BEFORE Vector processing
+    # Supported values: "victoria_metrics", "kafka"
+    # Multiple targets: ["victoria_metrics", "kafka"]
+    # Default: ["victoria_metrics", "kafka"]
+    collection_targets:
+      - "victoria_metrics"
+      - "kafka"
 
   # --------------------------------------------------------------------------
   # LDMS — Lightweight Distributed Metric Service
@@ -334,8 +354,9 @@ telemetry_sinks:
 
     # Topic partitions per source (auto-created for enabled sources targeting kafka)
     # Only sources with kafka in collection_targets get topics.
-    # Topic name = source name (for example, "ldms")
+    # Topic name = source name (for example, "idrac" or "ldms")
     topic_partitions:
+      idrac: 1
       ldms: 2
 
 # ============================================================================
@@ -343,6 +364,30 @@ telemetry_sinks:
 # ============================================================================
 # Detailed configurations for each telemetry source.
 # Only relevant when the corresponding source is enabled above.
+
+# --------------------------------------------------------------------------
+# iDRAC Telemetry Storage Configuration
+# --------------------------------------------------------------------------
+# Storage configuration for iDRAC telemetry MySQL database
+idrac_telemetry_configurations:
+  # Path to BMC inventory CSV file for iDRAC telemetry
+  # Required when telemetry_sources.idrac.metrics_enabled is true
+  # Example: "/opt/omnia/input/bmc_group_data.csv"
+  bmc_group_data_path: ""
+
+  # MySQL database storage for iDRAC telemetry
+  mysqldb_storage: "1Gi"
+
+  # iDRAC (BMC) IP addresses for OIM servers
+  # Required when iDRAC telemetry is enabled and telemetry data needs to be collected from OIM servers
+  # Supports multiple OIM servers (OIM1, OIM2, etc.)
+  # Example:
+  #   oim_bmc_ips:
+  #     oim1: "192.168.1.100"
+  #     oim2: "192.168.1.101"
+  oim_bmc_ips:
+    oim1: ""
+    oim2: ""
 
 # --------------------------------------------------------------------------
 # LDMS Configuration

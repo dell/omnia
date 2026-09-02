@@ -19,7 +19,7 @@
 # Deploys Strimzi Kafka operator + Kafka cluster into telemetry namespace.
 # Idempotent: skips if already deployed, upgrades if present.
 #
-# Consumed by: LDMS, OME, and other Kafka-backed telemetry components.
+# Consumed by: iDRAC, LDMS, OME, and other Kafka-backed telemetry components.
 # Condition: kafka_support == true (set by derive_sink_support_flags.yml)
 #
 # Flow: prepare (download package + generate manifests) → deploy (apply manifests)

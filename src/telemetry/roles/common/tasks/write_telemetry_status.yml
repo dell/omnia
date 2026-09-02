@@ -52,6 +52,7 @@
 - name: Aggregate source deployment results
   ansible.builtin.set_fact:
     _source_results:
+      idrac_metrics: "{{ hostvars['localhost']['_deploy_result_idrac_metrics'] | default('skipped') }}"
       ldms_metrics: "{{ hostvars['localhost']['_deploy_result_ldms_metrics'] | default('skipped') }}"
       powerscale_metrics: "{{ hostvars['localhost']['_deploy_result_powerscale_metrics'] | default('skipped') }}"
       powerscale_logs: "{{ hostvars['localhost']['_deploy_result_powerscale_logs'] | default('skipped') }}"
@@ -73,7 +74,7 @@
   vars:
     _all_results: >-
       {{ [_sink_results.kafka, _sink_results.victoria_metrics, _sink_results.victoria_logs]
-         + [_source_results.ldms_metrics]
+         + [_source_results.idrac_metrics, _source_results.ldms_metrics]
          + [_source_results.powerscale_metrics, _source_results.powerscale_logs]
          + [_source_results.ufm_metrics, _source_results.ufm_logs]
          + [_source_results.vast_metrics, _source_results.vast_logs]
@@ -109,6 +110,7 @@
       - "  victoria_logs:     {{ _sink_results.victoria_logs }}"
       - ""
       - "Sources:"
+      - "  idrac:             metrics={{ _source_results.idrac_metrics }}"
       - "  ldms:              metrics={{ _source_results.ldms_metrics }}"
       - "  powerscale:        metrics={{ _source_results.powerscale_metrics }}, logs={{ _source_results.powerscale_logs }}"
       - "  ufm:               metrics={{ _source_results.ufm_metrics }}, logs={{ _source_results.ufm_logs }}"

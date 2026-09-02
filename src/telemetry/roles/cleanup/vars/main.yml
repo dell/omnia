@@ -92,6 +92,7 @@ victoria_metrics:
   crd_resources:
     - { type: "vmcluster", name: "victoria-cluster" }
     - { type: "vmagent", name: "vmagent" }
+    - { type: "vmpodscrape", name: "idrac-telemetry-scrape" }
     - { type: "vmservicescrape", name: "otel-collector-powerscale-scrape" }
     - { type: "vmservicescrape", name: "otel-collector-powerscale" }
     - { type: "vmservicescrape", name: "csi-volume-exporter" }
@@ -192,6 +193,25 @@ victoria_logs:
     - "app.kubernetes.io/component=vlstorage"
     - "app.kubernetes.io/name=vlagent"
     - "app=vlagent-vector"
+
+# =============================================================================
+# iDRAC cleanup resources
+# =============================================================================
+idrac_resources:
+  - { type: "statefulset", name: "idrac-telemetry" }
+  - { type: "service", name: "idrac-telemetry-headless" }
+  - { type: "service", name: "idrac-telemetry-service" }
+  - { type: "configmap", name: "activemq-config" }
+  - { type: "configmap", name: "idrac-telemetry-config" }
+
+idrac_secret_resources:
+  - { type: "secret", name: "mysqldb-credentials" }
+
+idrac_configmap_label: "app=idrac-telemetry"
+idrac_pvc_label: "app=idrac-telemetry"
+idrac_pvc_resources:
+  - "mysqldb-pvc-idrac-telemetry-0"
+idrac_pod_label: "app=idrac-telemetry"
 
 # =============================================================================
 # LDMS cleanup resources

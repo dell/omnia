@@ -191,7 +191,7 @@ K8S_CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG = (
 KAFKA_STORAGE_REQUIRED_MSG = (
     "kafka_storage section is required in telemetry_storage_config.yml "
     "when kafka is in collection_targets for any telemetry source "
-    "(LDMS or OME). Please configure kafka_storage with kafka and "
+    "(iDRAC, LDMS, or OME). Please configure kafka_storage with kafka and "
     "entity_operator.user_operator resource configurations."
 )
 
@@ -224,6 +224,14 @@ CSI_VOLUME_EXPORTER_STORAGE_REQUIRED_MSG = (
 CSM_METRICS_POWERSCALE_STORAGE_REQUIRED_MSG = (
     "csm_metrics_powerscale_storage section is required in telemetry_storage_config.yml "
     "when PowerScale metrics are enabled. Please configure resource requests and limits."
+)
+
+IDRAC_TELEMETRY_STORAGE_REQUIRED_MSG = (
+    "idrac_telemetry_storage section is required in "
+    "telemetry_storage_config.yml "
+    "when iDRAC metrics are enabled. Please configure "
+    "resource requests and limits for mysqldb, activemq, "
+    "receiver, kafka_pump, and victoria_pump containers."
 )
 
 TELEMETRY_STORAGE_CONFIG_FILE_NOT_FOUND_MSG = (

@@ -18,7 +18,7 @@
 # =============================================================================
 # Loads telemetry_config.yml, telemetry_storage_config.yml, telemetry_packages.yml, and cluster_inventory
 # Sets kube_vip (from cluster_inventory specified in telemetry_config.yml), telemetry_registry, and k8s_cluster_mount variables
-# Used by: telemetry.yml, deploy_ldms, deploy_powerscale, and other source playbooks.
+# Used by: telemetry.yml, deploy_idrac_telemetry, deploy_ldms, deploy_powerscale, and other source playbooks.
 # Package downloads are handled by respective roles (deploy_kafka, deploy_victoria)
 
 - name: Check if configs already loaded from localhost
@@ -217,6 +217,7 @@
             kafka: "{{ _images.kafka | default({}) }}"
             victoria_operator:
               operator: "{{ (_images.victoria_metrics | default({})).operator | default('') }}"
+            idrac: "{{ _images.idrac | default({}) }}"
             powerscale: "{{ _images.powerscale | default({}) }}"
             ldms: "{{ _images.ldms | default({}) }}"
             vector: "{{ _images.vector | default({}) }}"
