@@ -89,7 +89,8 @@ class TestImageGroupStatus:
         """All expected status values should be present."""
         expected = {
             "BUILT", "DEPLOYING", "DEPLOYED", "RESTARTING",
-            "RESTARTED", "VALIDATING", "PASSED", "FAILED", "CLEANED",
+            "RESTARTED", "VALIDATING", "PASSED", "FAILED", "CLEANING",
+            "CLEANED",
         }
         actual = {s.value for s in ImageGroupStatus}
         assert actual == expected
@@ -109,6 +110,7 @@ class TestImageGroupStatus:
             ImageGroupStatus.RESTARTING,
             ImageGroupStatus.RESTARTED,
             ImageGroupStatus.VALIDATING,
+            ImageGroupStatus.CLEANING,
         ]
         for status in non_terminal:
             assert not status.is_terminal(), f"{status} should not be terminal"

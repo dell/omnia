@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for CleanupJobUseCase (hard delete + automated cleanup)."""
+"""Unit tests for CleanupJobUseCase (hard delete + automated cleanup).
+
+Image cleanup is handled by submitting ``image_build_manager.yml
+--tags cleanup_images`` to the NFS playbook queue (replacing the
+earlier direct s3cmd subprocess approach).
+"""
 
 import os
 import uuid
@@ -24,10 +29,8 @@ import pytest
 from core.cleanup.exceptions import (
     AlreadyCleanedError,
     CleanupNfsFailedError,
-    CleanupS3FailedError,
     CleanupStateInvalidError,
 )
-from core.cleanup.s3_service import S3CleanupResult, S3CleanupService
 from core.image_group.entities import Image, ImageGroup
 from core.image_group.value_objects import (
     ImageGroupId,
@@ -59,26 +62,17 @@ pytestmark = pytest.mark.unit
 # Fakes
 # ---------------------------------------------------------------------------
 
-class FakeS3CleanupService(S3CleanupService):
-    """Records calls and returns a configurable per-call deleted count."""
+class FakeQueueService:
+    """Records queue submissions for testing."""
 
-    def __init__(self, per_call_deleted=2, raise_for=None):
-        self.calls = []
-        self._per_call_deleted = per_call_deleted
-        self._raise_for = raise_for
+    def __init__(self, should_fail=False):
+        self.submitted = []
+        self._should_fail = should_fail
 
-    def delete_image_path(self, image_path: str) -> S3CleanupResult:
-        self.calls.append(image_path)
-        if self._raise_for and image_path in self._raise_for:
-            raise CleanupS3FailedError(
-                image_group_id=image_path, exit_code=1, stderr="boom"
-            )
-        return S3CleanupResult(
-            image_path=image_path,
-            objects_deleted=self._per_call_deleted,
-            exit_code=0,
-            success=True,
-        )
+    def submit_request(self, request, correlation_id):
+        if self._should_fail:
+            raise RuntimeError("Queue unavailable")
+        self.submitted.append(request)
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +128,7 @@ def _make_image_group(
 
 
 def _build_use_case(
-    s3_service: S3CleanupService,
+    queue_service=None,
     job_repo=None,
     stage_repo=None,
     image_group_repo=None,
@@ -147,8 +141,8 @@ def _build_use_case(
         audit_repo=InMemoryAuditEventRepository(),
         image_group_repo=image_group_repo or InMemoryImageGroupRepository(),
         image_repo=image_repo or InMemoryImageRepository(),
-        s3_cleanup_service=s3_service,
         uuid_generator=UUIDv4Generator(),
+        queue_service=queue_service,
         nfs_artifact_base=nfs_base,
     )
 
@@ -175,7 +169,7 @@ class TestCleanupJobSuccess:
         ig = _make_image_group(jid, status=status, image_paths=[image_path])
         ig_repo.save(ig)
 
-        s3 = FakeS3CleanupService(per_call_deleted=3)
+        queue_service = FakeQueueService()
 
         # NFS artifact dir with one fake file
         artifact_dir = tmp_path / "artifacts" / str(jid)
@@ -183,12 +177,12 @@ class TestCleanupJobSuccess:
         (artifact_dir / "config.yml").write_text("hello", encoding="utf-8")
 
         use_case = _build_use_case(
-            s3_service=s3,
+            queue_service=queue_service,
             job_repo=job_repo,
             image_group_repo=ig_repo,
             nfs_base=str(tmp_path),
         )
-        return use_case, jid, client, ig_repo, s3, artifact_dir
+        return use_case, jid, client, ig_repo, queue_service, artifact_dir
 
     @pytest.mark.parametrize(
         "status",
@@ -201,23 +195,35 @@ class TestCleanupJobSuccess:
         ],
     )
     def test_eligible_states_clean_successfully(self, status, tmp_path):
-        uc, jid, client, ig_repo, s3, artifact_dir = self._setup(status, tmp_path)
+        uc, jid, client, ig_repo, queue_service, artifact_dir = self._setup(status, tmp_path)
         cmd = CleanupJobCommand(
             job_id=jid, client_id=client, correlation_id=_correlation_id()
         )
 
         result = uc.execute(cmd)
 
-        assert result.status == ImageGroupStatus.CLEANED.value
+        # Cleanup playbook submission succeeded (via FakeQueueService), so
+        # the ImageGroup moves to the non-terminal CLEANING state -- the
+        # final CLEANED transition only happens once ResultPoller observes
+        # a successful playbook result (see test_result_poller.py).
+        assert result.status == ImageGroupStatus.CLEANING.value
         assert result.cleanup_type == "manual"
-        assert result.s3_objects_deleted == 3
         assert result.nfs_files_deleted == 1
-        assert len(s3.calls) == 1
-        assert ig_repo.find_by_job_id(jid).status == ImageGroupStatus.CLEANED
+        # Cleanup playbook was submitted to queue
+        assert len(queue_service.submitted) == 1
+        submitted = queue_service.submitted[0]
+        assert submitted.tags == "cleanup_images"
+        extra_vars = submitted.extra_vars.to_dict()
+        assert "cleanup_image_pattern" in extra_vars
+        # skip_approval is required so the playbook's interactive
+        # confirmation prompt doesn't silently skip S3/registry deletion
+        # when run headlessly by the playbook watcher.
+        assert extra_vars["skip_approval"] == "true"
+        assert ig_repo.find_by_job_id(jid).status == ImageGroupStatus.CLEANING
         assert not artifact_dir.exists()
 
     def test_missing_nfs_dir_returns_zero(self, tmp_path):
-        uc, jid, client, ig_repo, s3, artifact_dir = self._setup(
+        uc, jid, client, ig_repo, queue_service, artifact_dir = self._setup(
             ImageGroupStatus.BUILT, tmp_path
         )
         # Wipe the artifact dir before cleanup runs.
@@ -230,23 +236,21 @@ class TestCleanupJobSuccess:
         )
         result = uc.execute(cmd)
         assert result.nfs_files_deleted == 0
-        assert ig_repo.find_by_job_id(jid).status == ImageGroupStatus.CLEANED
+        assert ig_repo.find_by_job_id(jid).status == ImageGroupStatus.CLEANING
 
-    def test_legacy_image_name_skipped_without_failing(self, tmp_path):
+    def test_cleanup_without_queue_service_still_succeeds(self, tmp_path):
+        """Cleanup should still proceed even if no queue service is configured."""
         jid = _job_id()
         client = _client_id()
         job_repo = InMemoryJobRepository()
         job_repo.save(_make_job(client, jid))
 
         ig_repo = InMemoryImageGroupRepository()
-        ig = _make_image_group(
-            jid, image_paths=["slurm_node.img"]  # legacy filename, no s3://
-        )
+        ig = _make_image_group(jid)
         ig_repo.save(ig)
-        s3 = FakeS3CleanupService()
 
         use_case = _build_use_case(
-            s3_service=s3,
+            queue_service=None,
             job_repo=job_repo,
             image_group_repo=ig_repo,
             nfs_base=str(tmp_path),
@@ -256,9 +260,77 @@ class TestCleanupJobSuccess:
             job_id=jid, client_id=client, correlation_id=_correlation_id()
         )
         result = use_case.execute(cmd)
-        assert result.s3_objects_deleted == 0
-        # No s3cmd invocations for legacy entries
-        assert s3.calls == []
+        assert result.status == ImageGroupStatus.CLEANED.value
+        assert ig_repo.find_by_job_id(jid).status == ImageGroupStatus.CLEANED
+
+    def test_async_cleanup_does_not_tombstone_job_yet(self, tmp_path):
+        """Job tombstoning must wait for ResultPoller confirmation, not
+        happen eagerly when the cleanup playbook was merely submitted."""
+        uc, jid, client, ig_repo, queue_service, _artifact_dir = self._setup(
+            ImageGroupStatus.BUILT, tmp_path
+        )
+        cmd = CleanupJobCommand(
+            job_id=jid, client_id=client, correlation_id=_correlation_id()
+        )
+        uc.execute(cmd)
+
+        job = uc._job_repo.find_by_id(jid)  # pylint: disable=protected-access
+        assert job is not None
+        assert job.tombstoned is False
+
+    def test_sync_fallback_tombstones_job_immediately(self, tmp_path):
+        """Without a queue service there's nothing to wait on, so the
+        legacy synchronous CLEANED + tombstone behavior still applies."""
+        jid = _job_id()
+        client = _client_id()
+        job_repo = InMemoryJobRepository()
+        job_repo.save(_make_job(client, jid))
+
+        ig_repo = InMemoryImageGroupRepository()
+        ig_repo.save(_make_image_group(jid))
+
+        use_case = _build_use_case(
+            queue_service=None,
+            job_repo=job_repo,
+            image_group_repo=ig_repo,
+            nfs_base=str(tmp_path),
+        )
+        cmd = CleanupJobCommand(
+            job_id=jid, client_id=client, correlation_id=_correlation_id()
+        )
+        use_case.execute(cmd)
+
+        job = job_repo.find_by_id(jid)
+        assert job.tombstoned is True
+
+    def test_cleanup_playbook_submits_image_group_id_as_pattern(self, tmp_path):
+        """Verify cleanup_image_pattern extra var matches the image_group_id."""
+        jid = _job_id()
+        client = _client_id()
+        job_repo = InMemoryJobRepository()
+        job_repo.save(_make_job(client, jid))
+
+        ig_repo = InMemoryImageGroupRepository()
+        ig = _make_image_group(jid, image_group_id="my-cluster-v1")
+        ig_repo.save(ig)
+
+        queue_service = FakeQueueService()
+        use_case = _build_use_case(
+            queue_service=queue_service,
+            job_repo=job_repo,
+            image_group_repo=ig_repo,
+            nfs_base=str(tmp_path),
+        )
+
+        cmd = CleanupJobCommand(
+            job_id=jid, client_id=client, correlation_id=_correlation_id()
+        )
+        use_case.execute(cmd)
+
+        assert len(queue_service.submitted) == 1
+        submitted = queue_service.submitted[0]
+        assert submitted.extra_vars.to_dict()["cleanup_image_pattern"] == "my-cluster-v1"
+        assert str(submitted.playbook_path) == "image_build_manager.yml"
 
 
 # ---------------------------------------------------------------------------
@@ -269,8 +341,7 @@ class TestCleanupJobGuards:
     """Verify state preconditions and ownership checks."""
 
     def test_missing_job_raises_not_found(self, tmp_path):
-        s3 = FakeS3CleanupService()
-        use_case = _build_use_case(s3_service=s3, nfs_base=str(tmp_path))
+        use_case = _build_use_case(nfs_base=str(tmp_path))
 
         cmd = CleanupJobCommand(
             job_id=_job_id(),
@@ -291,9 +362,7 @@ class TestCleanupJobGuards:
         ig_repo = InMemoryImageGroupRepository()
         ig_repo.save(_make_image_group(jid))
 
-        s3 = FakeS3CleanupService()
         use_case = _build_use_case(
-            s3_service=s3,
             job_repo=job_repo,
             image_group_repo=ig_repo,
             nfs_base=str(tmp_path),
@@ -325,9 +394,7 @@ class TestCleanupJobGuards:
         ig_repo = InMemoryImageGroupRepository()
         ig_repo.save(_make_image_group(jid, status=active_status))
 
-        s3 = FakeS3CleanupService()
         use_case = _build_use_case(
-            s3_service=s3,
             job_repo=job_repo,
             image_group_repo=ig_repo,
             nfs_base=str(tmp_path),
@@ -351,9 +418,7 @@ class TestCleanupJobGuards:
             _make_image_group(jid, status=ImageGroupStatus.CLEANED)
         )
 
-        s3 = FakeS3CleanupService()
         use_case = _build_use_case(
-            s3_service=s3,
             job_repo=job_repo,
             image_group_repo=ig_repo,
             nfs_base=str(tmp_path),
@@ -371,9 +436,10 @@ class TestCleanupJobGuards:
 # ---------------------------------------------------------------------------
 
 class TestCleanupJobFailures:
-    """Verify S3 / NFS failure surfaces propagate cleanly."""
+    """Verify queue submission failure is handled gracefully."""
 
-    def test_s3_failure_propagates(self, tmp_path):
+    def test_queue_failure_still_completes_cleanup(self, tmp_path):
+        """When queue submission fails, cleanup still proceeds (NFS + status)."""
         jid = _job_id()
         client = _client_id()
 
@@ -381,15 +447,11 @@ class TestCleanupJobFailures:
         job_repo.save(_make_job(client, jid))
 
         ig_repo = InMemoryImageGroupRepository()
-        path = (
-            "s3://boot-images/slurm_node_x86_64/"
-            "rhel-slurm_node_x86_64_xyz-image-build1/"
-        )
-        ig_repo.save(_make_image_group(jid, image_paths=[path]))
+        ig_repo.save(_make_image_group(jid))
 
-        s3 = FakeS3CleanupService(raise_for={path})
+        failing_queue = FakeQueueService(should_fail=True)
         use_case = _build_use_case(
-            s3_service=s3,
+            queue_service=failing_queue,
             job_repo=job_repo,
             image_group_repo=ig_repo,
             nfs_base=str(tmp_path),
@@ -398,10 +460,10 @@ class TestCleanupJobFailures:
         cmd = CleanupJobCommand(
             job_id=jid, client_id=client, correlation_id=_correlation_id()
         )
-        with pytest.raises(CleanupS3FailedError):
-            use_case.execute(cmd)
-        # Image group must remain in its original state
-        assert ig_repo.find_by_job_id(jid).status == ImageGroupStatus.BUILT
+        # Cleanup should still succeed (queue failure is non-fatal)
+        result = use_case.execute(cmd)
+        assert result.status == ImageGroupStatus.CLEANED.value
+        assert ig_repo.find_by_job_id(jid).status == ImageGroupStatus.CLEANED
 
 
 # ---------------------------------------------------------------------------
@@ -423,9 +485,9 @@ class TestExecuteAuto:
             _make_image_group(jid, status=ImageGroupStatus.FAILED)
         )
 
-        s3 = FakeS3CleanupService(per_call_deleted=1)
+        queue_service = FakeQueueService()
         use_case = _build_use_case(
-            s3_service=s3,
+            queue_service=queue_service,
             job_repo=job_repo,
             image_group_repo=ig_repo,
             nfs_base=str(tmp_path),
@@ -436,5 +498,7 @@ class TestExecuteAuto:
             correlation_id="cron-test",
         )
         assert result.cleanup_type == "auto"
-        assert result.status == ImageGroupStatus.CLEANED.value
-        assert ig_repo.find_by_job_id(jid).status == ImageGroupStatus.CLEANED
+        # Queue submission succeeded -> async CLEANING, finalized later by
+        # ResultPoller once the playbook reports success.
+        assert result.status == ImageGroupStatus.CLEANING.value
+        assert ig_repo.find_by_job_id(jid).status == ImageGroupStatus.CLEANING

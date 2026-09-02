@@ -23,6 +23,7 @@ from core.jobs.exceptions import (
     JobNotFoundError,
     StageAlreadyCompletedError,
     InvalidStateTransitionError,
+    UpstreamStageNotCompletedError,
 )
 from core.jobs.repositories import (
     AuditEventRepository,
@@ -163,13 +164,41 @@ class CreateLocalRepoUseCase:
 
         return job
 
+    def _verify_upstream_stage_completed(self, command: CreateLocalRepoCommand) -> None:
+        """Verify that parse-catalog stage is COMPLETED.
+
+        Reintroduced (Omnia 2.3+): parse-catalog now performs the
+        image_group_id uniqueness check, and create-local-repository must
+        not proceed until that check has actually passed.
+        """
+        prerequisite_stage = self._stage_repo.find_by_job_and_name(
+            command.job_id, StageName(StageType.PARSE_CATALOG.value)
+        )
+        if (
+            prerequisite_stage is None
+            or prerequisite_stage.stage_state != StageState.COMPLETED
+        ):
+            raise UpstreamStageNotCompletedError(
+                job_id=str(command.job_id),
+                required_stage=StageType.PARSE_CATALOG.value,
+                actual_state=(
+                    prerequisite_stage.stage_state.value
+                    if prerequisite_stage
+                    else "NOT_FOUND"
+                ),
+                correlation_id=str(command.correlation_id),
+            )
+
     def _validate_stage(self, command: CreateLocalRepoCommand) -> Stage:
         """Validate stage exists; reset to PENDING if in a retryable terminal state.
 
-        Note: In Omnia 2.3+ (domain-segregated), create-local-repository is the
-        first stage in the build pipeline.  There is no upstream stage dependency
-        (parse-catalog and generate-input-files have been retired).
+        Note: In Omnia 2.3+ (domain-segregated), create-local-repository is
+        the first *playbook-invoking* stage in the build pipeline, but it
+        now depends on parse-catalog (reintroduced for the image_group_id
+        uniqueness check) having completed first.
         """
+        self._verify_upstream_stage_completed(command)
+
         stage_name = StageName(StageType.CREATE_LOCAL_REPOSITORY.value)
         stage = self._stage_repo.find_by_job_and_name(command.job_id, stage_name)
 

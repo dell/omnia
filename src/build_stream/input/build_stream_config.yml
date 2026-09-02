@@ -31,11 +31,11 @@
 # Mandatory: Enable or disable the BuildStream CI/CD pipeline
 # Accepted values: true | false  (or yes | no)
 # Default: false
-enable_build_stream: false
+enable_build_stream: true
 
 # Mandatory: BuildStream API server host IP
 # Accepted values: public IP address or admin IP of the OIM server
-build_stream_host_ip: ""
+build_stream_host_ip: "100.10.0.28"
 
 # Mandatory: BuildStream API server port
 # Accepted values: valid port number (1-65535) which is free
@@ -51,7 +51,7 @@ build_stream_port: 8010
 # Accepted values: IP address of the server where GitLab will be installed
 # Notes:
 #   - Must be accessible from the OIM server
-gitlab_host: ""
+gitlab_host: "100.10.0.112"
 
 # Name of the GitLab project Omnia will create / manage
 # Default: "omnia-catalog"
