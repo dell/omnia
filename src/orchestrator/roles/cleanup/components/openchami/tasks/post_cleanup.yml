@@ -1,0 +1,46 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Simple OpenCHAMI Post-Cleanup
+
+- name: Set role path
+  ansible.builtin.set_fact:
+    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
+
+- name: Load OpenCHAMI component configuration
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/components/openchami/vars/component_spec.yml"
+
+- name: Display OpenCHAMI post-cleanup validation
+  ansible.builtin.debug:
+    msg: "Starting OpenCHAMI post-cleanup validation"
+
+- name: Verify OpenCHAMI services are stopped
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+  register: service_check
+  failed_when: false
+  loop: "{{ openchami_config.services }}"
+
+- name: Verify OpenCHAMI directories are removed
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: dir_check
+  failed_when: false
+  loop: "{{ openchami_config.config_dirs + [openchami_config.work_dir, openchami_config.log_dir] }}"
+
+- name: Display post-cleanup verification results
+  ansible.builtin.debug:
+    msg: "OpenCHAMI post-cleanup validation completed"

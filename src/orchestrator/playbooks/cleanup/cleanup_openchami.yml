@@ -157,4 +157,5 @@
       ansible.builtin.debug:
         msg: "Credential files removed from {{ input_project_dir }}."
   tags:
+    - credentials
     - never

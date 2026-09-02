@@ -1,0 +1,116 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Default Orchestrator Cleanup Configuration
+# This file defines the default cleanup behavior for all orchestrator components.
+# Override this file by creating cleanup_config.yml in your input directory.
+
+cleanup_components:
+  openchami:
+    enabled: true
+    priority: 100
+    dependencies: []
+    requires_confirmation: true
+    confirmation_token: "CLEANUP_OPENCHAMI"
+    rollback_supported: true
+    preserve:
+      - "/etc/openchami/backup"
+    cleanup_paths:
+      - "/etc/openchami"
+      - "/etc/ochami"
+      - "/opt/omnia/openchami/workdir"
+      - "/opt/omnia/log/openchami"
+    description: "OpenCHAMI services, containers, configuration, and artifacts"
+
+  openldap:
+    enabled: true
+    priority: 90
+    dependencies: []
+    requires_confirmation: true
+    confirmation_token: "CLEANUP_OPENLDAP"
+    rollback_supported: true
+    preserve: []
+    cleanup_paths:
+      - "/opt/omnia/auth"
+    description: "OpenLDAP container, Quadlet units, and data"
+
+  slurm:
+    enabled: true
+    priority: 80
+    dependencies: []
+    requires_confirmation: true
+    confirmation_token: "CLEANUP_SLURM"
+    rollback_supported: false
+    preserve:
+      - "slurm_backups"
+    cleanup_paths:
+      - "slurm"
+      - "ctld_track"
+      - "openldap"
+      - "apps"
+      - "scratch"
+      - "projects"
+    nfs_cleanup: true
+    unmount_mounts: true
+    description: "Slurm services, configuration, and NFS directories"
+
+  k8s:
+    enabled: true
+    priority: 70
+    dependencies: []
+    requires_confirmation: true
+    confirmation_token: "CLEANUP_K8S"
+    rollback_supported: false
+    preserve: []
+    cleanup_paths:
+      - "config"
+      - "manifests"
+    cleanup_node_ips: false
+    nfs_cleanup: true
+    unmount_mounts: true
+    description: "K8s configuration and NFS directories"
+
+  storage_mounts:
+    enabled: true
+    priority: 60
+    dependencies: []
+    requires_confirmation: true
+    confirmation_token: "CLEANUP_MOUNTS"
+    rollback_supported: false
+    unmount_nfs: true
+    cleanup_fstab: true
+    description: "NFS storage mount unmounting and fstab cleanup"
+
+  artifacts:
+    enabled: true
+    priority: 50
+    dependencies: []
+    requires_confirmation: false
+    confirmation_token: ""
+    rollback_supported: false
+    preserve: []
+    cleanup_paths:
+      - "/opt/omnia/.data/functional_groups_config.yml"
+      - "/opt/omnia/output/project_default/orchestrator"
+    description: "Orchestrator artifacts, state files, and output directories"
+
+# Global cleanup settings
+global_settings:
+  skip_approval: false
+  dry_run: false
+  state_file_path: "/var/lib/omnia/cleanup/cleanup_state.json"
+  log_file_path: "/opt/omnia/log/cleanup/cleanup.log"
+  backup_before_cleanup: false
+  backup_path: "/var/lib/omnia/cleanup/backups"
