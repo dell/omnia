@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,24 +12,53 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Discovery Domain Entrypoint
-# ===========================
-# Self-contained discovery playbook.
+# discovery.yml -- Top-level entry point for the discovery domain.
+# Discovers BMC endpoints via OME and generates PXE mapping files.
 #
-# Inputs:  /opt/omnia/input/project_default/discovery/
+# Inputs:  /opt/omnia/discovery/input/<project>/
 #   - discovery_config.yml
 #   - network_spec.yml
 #
-# Outputs: /opt/omnia/output/project_default/discovery/
+# Outputs: /opt/omnia/discovery/output/<project>/
 #   - bmc_pxe_mapping_file.csv
 #   - bmc_discovery_report.csv
 #
-# Usage:
+# Usage (run ONE tag at a time -- no comma-separated tags):
 #   cd src/discovery/playbooks
-#   ansible-playbook discovery.yml -e "discovery_mechanism=ome"
-#   ansible-playbook discovery.yml -e "discovery_mechanism=magellan"
+#   ansible-playbook discovery.yml                                 # Default: validate + credentials + execute (OME)
+#   ansible-playbook discovery.yml --tags precheck                 # Env precheck only (placeholder)
+#   ansible-playbook discovery.yml --tags validate                 # Validate config only (no credentials)
+#   ansible-playbook discovery.yml --tags credentials              # Collect/update OME credentials only
+#   ansible-playbook discovery.yml --tags prepare                  # Prepare discovery environment (placeholder)
+#   ansible-playbook discovery.yml --tags execute                  # Run OME discovery
+#   ansible-playbook discovery.yml --tags cleanup                  # Cleanup discovery artifacts (placeholder)
+#   ansible-playbook discovery.yml --tags upgrade                  # Upgrade flow (placeholder)
+#   ansible-playbook discovery.yml --tags rollback                 # Rollback flow (placeholder)
+#
+# Tags (mutually exclusive -- pick ONE):
+#   (none)       -- Default flow: always + validate + credentials + execute (OME)
+#   precheck     -- Environment precheck (placeholder -- future release)
+#   validate     -- Validate discovery_config.yml input (skips credentials)
+#   credentials  -- Collect/update OME credentials only (no discovery)
+#   prepare      -- Prepare discovery environment (placeholder -- future release)
+#   execute      -- Run BMC discovery via OME (with credentials)
+#   cleanup      -- Cleanup discovery artifacts (placeholder -- future release)
+#   upgrade      -- Upgrade flow (placeholder -- future release)
+#   rollback     -- Rollback flow (placeholder -- future release)
+#
+# Tag Validation:
+#   - Invalid tags will fail with error message
+#   - Invalid combinations (e.g., execute + cleanup) will fail
+#   - precheck, cleanup, and validate tags skip credential prompting
+#
+# Internal steps (always):
+#   Step 0: Setup -- load env vars (omnia.env), validate host, check prereqs
+#   Step 1: Input validation (schema + logic)
+#   Step 2: Credential collection (skipped for precheck/cleanup/validate tags)
 
-# Step 0: Setup — Python deps, paths, config loading, validation tags
+# =========================================================================
+# Step 0: Setup -- load config, validate host, check prereqs
+# =========================================================================
 - name: Setup discovery environment
   hosts: localhost
   connection: local
@@ -38,95 +67,81 @@
   roles:
     - discovery_setup
 
-# Step 1: Validate discovery input (L1 schema + L2 logic)
+# =========================================================================
+# Step 1: Input validation (schema + logic) -- skipped for precheck
+# =========================================================================
 - name: Validate discovery input configuration
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - role: validate_discovery_input
-      when: not config_file_status | default(false) | bool
+  ansible.builtin.import_playbook: validate/validate_discovery.yml
+  when: "'precheck' not in (hostvars['localhost']['provided_tags'] | default([]))"
+  tags:
+    - always
+    - validate
+
+# =========================================================================
+# Step 2: Credential collection (skipped for cleanup/validate/precheck)
+# =========================================================================
+- name: Create and update credential config files
+  ansible.builtin.import_playbook: credentials/discovery_credentials.yml
+  when: not (skip_discovery_credentials | default(false) | bool)
   tags: always
 
-# Step 2: Credential management (prompt, encrypt, vault)
-- name: Create and update credential config files
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - role: discovery_credentials
-      when:
-        - not config_file_status | default(false) | bool
-        - (omnia_run_tags | default([]) | intersect(skip_credential_tags | default([])) | length == 0)
-          or (omnia_run_tags | default([]) | length == 0)
+# =========================================================================
+# FLOW: precheck -- Environment validation (opt-in only)
+# =========================================================================
+- name: Precheck discovery environment
+  ansible.builtin.import_playbook: precheck/precheck_discovery.yml
+  tags:
+    - never
+    - precheck
 
-- name: BMC Discovery Playbook
-  hosts: localhost
-  connection: local
-  gather_facts: true
-  vars:
-    discovery_mechanism: ""
-    supported_mechanisms:
-      - ome
-      - magellan
+# =========================================================================
+# FLOW: credentials -- Standalone credential collection
+# =========================================================================
+# No dedicated play needed -- the 'always'-tagged credential step (Step 2)
+# fires automatically because 'credentials' is not in skip_credential_tags.
+# Running --tags credentials only triggers: setup + validate + credential prompt.
 
-  pre_tasks:
-    - name: Display usage information when no discovery_mechanism is specified
-      when: discovery_mechanism == ""
-      block:
-        - name: Fail when no discovery_mechanism specified
-          ansible.builtin.fail:
-            msg:
-              - "============================================================"
-              - "ERROR: discovery_mechanism is required but not provided."
-              - ""
-              - "Usage: ansible-playbook discovery.yml"
-              - "       -e discovery_mechanism=<mechanism>"
-              - ""
-              - "Supported discovery mechanisms:"
-              - "  - ome      : Dell OpenManage Enterprise (OME)"
-              - "  - magellan : Magellan (upcoming, not yet supported)"
-              - ""
-              - "Examples:"
-              - "  ansible-playbook discovery.yml -e discovery_mechanism=ome"
-              - "  ansible-playbook discovery.yml -e discovery_mechanism=magellan"
-              - "============================================================"
+# =========================================================================
+# FLOW: prepare -- Prepare discovery environment (opt-in only)
+# =========================================================================
+- name: Prepare discovery environment
+  ansible.builtin.import_playbook: prepare/prepare_discovery.yml
+  tags:
+    - never
+    - prepare
 
-    - name: Validate discovery_mechanism parameter
-      ansible.builtin.fail:
-        msg: |
-          Invalid discovery_mechanism '{{ discovery_mechanism }}' specified.
-          Supported mechanisms are: {{ supported_mechanisms | join(', ') }}.
-          Usage: ansible-playbook discovery.yml -e discovery_mechanism=ome
-      when: discovery_mechanism not in supported_mechanisms
+# =========================================================================
+# FLOW: execute -- Run BMC discovery via OME (default + opt-in)
+# =========================================================================
+- name: Execute BMC Discovery via OME
+  ansible.builtin.import_playbook: execute/execute_discovery.yml
+  tags:
+    - execute
+    - discovery
 
-  tasks:
-    - name: Handle Magellan discovery mechanism
-      when: discovery_mechanism == 'magellan'
-      block:
-        - name: Display Magellan not supported message
-          ansible.builtin.debug:
-            msg:
-              - "============================================================"
-              - "NOTICE: Magellan Discovery"
-              - "============================================================"
-              - "This is an upcoming functionality and is not yet supported."
-              - "Please use 'ome' as the discovery_mechanism for now."
-              - "============================================================"
-        - name: End play for magellan
-          ansible.builtin.meta: end_play
+# =========================================================================
+# FLOW: cleanup -- Remove discovery artifacts (opt-in only)
+# =========================================================================
+- name: Cleanup discovery
+  ansible.builtin.import_playbook: cleanup/cleanup_discovery.yml
+  tags:
+    - never
+    - cleanup
 
-    - name: Validate OME inputs before discovery
-      when: discovery_mechanism == 'ome'
-      block:
-        - name: Fail when ome_ip is not configured
-          ansible.builtin.fail:
-            msg: >-
-              ome_ip must be provided in discovery_config.yml when using OME discovery.
-              Please set 'enable_bmc_discovery: true' and provide a valid 'ome_ip' in
-              {{ discovery_input_dir }}/discovery_config.yml.
-          when: ome_ip | default('') | length == 0
+# =========================================================================
+# FLOW: upgrade -- Upgrade flow placeholder (opt-in only)
+# =========================================================================
+- name: Upgrade discovery
+  ansible.builtin.import_playbook: upgrade/upgrade_discovery.yml
+  tags:
+    - never
+    - upgrade
 
-        - name: Include OME discovery role
-          ansible.builtin.include_role:
-            name: ome_discovery
+# =========================================================================
+# FLOW: rollback -- Rollback flow placeholder (opt-in only)
+# =========================================================================
+- name: Rollback discovery
+  ansible.builtin.import_playbook: rollback/rollback_discovery.yml
+  tags:
+    - never
+    - rollback

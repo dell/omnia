@@ -12,27 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# prepare_discovery.yml -- Placeholder for discovery prepare flow.
+# Full implementation deferred to a future release.
 
-# Validate Discovery -- Standalone input validation
-# Can be run standalone or imported by discovery.yml
-#
-# When imported from discovery.yml (discovery_setup_done=true), setup is skipped.
-
-# Standalone: run discovery_setup
-- name: Standalone setup for validation
+- name: Discovery prepare placeholder
   hosts: localhost
   connection: local
   gather_facts: false
   tasks:
-    - name: Run discovery_setup role (standalone only)
-      ansible.builtin.include_role:
-        name: discovery_setup
-      when: not (discovery_setup_done | default(false) | bool)
-
-- name: Validate discovery input configuration
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - role: validate_discovery_input
-      when: not config_file_status | default(false) | bool
+    - name: Prepare not implemented
+      ansible.builtin.debug:
+        msg: "discovery prepare flow is not implemented yet -- reserved for future release"
