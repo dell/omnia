@@ -67,6 +67,13 @@ OME_LOG_MSGS: Dict[str, str] = {
     "ome_certs_uploaded": "TLS certificates uploaded to OME at {ome_ip}",
     "ome_certs_upload_failed": "Failed to upload certs to OME: {error}",
     "ome_playbook_running": "Running external_kafka playbook ({reason})",
+    "ome_kafka_artifacts_checking": (
+        "Checking external Kafka certificates and endpoints"
+    ),
+    "ome_kafka_artifacts_valid": (
+        "External Kafka export is valid: {count} TLS certificates and both endpoints"
+    ),
+    "ome_kafka_artifacts_invalid": "External Kafka export is invalid: {error}",
 
     # Certificate comparison (OME vs locally generated)
     "ome_cert_match": "Uploaded certificate matches local cert ({count} fields)",
@@ -77,16 +84,35 @@ OME_LOG_MSGS: Dict[str, str] = {
     "ome_kafka_connected": "OME Kafka forwarder '{name}' status: Connected",
     "ome_kafka_disconnected": "OME Kafka forwarder status: {status}",
     "ome_kafka_checking": "Checking OME Kafka forwarder connectivity at {ome_ip}",
+    "ome_kafka_bootstrap_discovering": (
+        "Auto-discovering native Kafka mTLS bootstrap endpoint"
+    ),
+    "ome_kafka_bootstrap_missing": (
+        "Native Kafka mTLS bootstrap service is unavailable"
+    ),
+    "ome_kafka_config_reading": "Checking OME saved Kafka broker configuration",
+    "ome_kafka_reconciling": (
+        "Reconciling OME Kafka broker from {current} to {expected}"
+    ),
     "ome_kafka_configuring": "Configuring Kafka forwarder with broker {broker}",
-    "ome_kafka_polling": "Waiting for connection... ({attempt}/{max_attempts})",
+    "ome_kafka_waiting": (
+        "Polling for up to {timeout}s for OME Kafka reconnection"
+    ),
+    "ome_kafka_polling": (
+        "Kafka connection check {attempt}/{max_attempts}: {status}"
+    ),
 
     # Kafka topics
     "ome_topics_found": "All {count} OME Kafka topics found",
     "ome_topics_missing": "OME Kafka topics missing: {missing}",
-    "ome_topics_checking": "Checking OME Kafka topics via REST proxy",
+    "ome_topics_checking": (
+        "Waiting up to {timeout}s for OME Kafka topics via REST proxy"
+    ),
 
     # Kafka data verification
-    "ome_data_verifying": "Verifying OME data in Kafka topic '{topic}'",
+    "ome_data_verifying": (
+        "Waiting up to {timeout}s for OME data in Kafka topic '{topic}'"
+    ),
     "ome_data_found": "OME data found in Kafka topic '{topic}': {count} record(s)",
     "ome_data_missing": "No OME data found in Kafka topic '{topic}'",
     "ome_data_sample": "Sample record from '{topic}':",
@@ -123,6 +149,13 @@ OME_ASSERT_MSGS: Dict[str, str] = {
         "HOW TO FIX:\n"
         "  1. Run: ansible-playbook telemetry.yml --tags external_kafka\n"
         "  2. Check output in /opt/omnia/telemetry/output/<project>/external_kafka/\n"
+    ),
+    "ome_kafka_artifacts_invalid": (
+        "External Kafka connection artifacts are invalid: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Re-run: ansible-playbook telemetry.yml --tags external_kafka\n"
+        "  2. Use kafka-kafka-external-bootstrap for OME native mTLS\n"
+        "  3. Reserve bridge-bridge-lb for HTTP REST validation\n"
     ),
     "ome_pfx_failed": (
         "Failed to create user.pfx for OME mTLS\n"

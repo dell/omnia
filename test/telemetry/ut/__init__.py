@@ -1,4 +1,3 @@
----
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,13 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
----
-- name: Rollback iDRAC Telemetry
-  hosts: kube_vip_group
-  gather_facts: true
-  any_errors_fatal: true
-
-  tasks:
-    - name: Placeholder task for iDRAC telemetry rollback
-      ansible.builtin.debug:
-        msg: "iDRAC telemetry rollback - to be implemented"
+"""Telemetry unit tests."""

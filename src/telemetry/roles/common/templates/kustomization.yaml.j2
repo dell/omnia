@@ -23,8 +23,6 @@
 # Full-stack deploy (all enabled components):
 #   kubectl apply -k {{ telemetry_deployments_dir }}/
 #
-# iDRAC-only deploy (standalone):
-#   kubectl apply -k {{ telemetry_deployments_dir }}/idrac/
 # =============================================================================
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -67,19 +65,11 @@ resources:
   # ── Kafka (shared infrastructure) ─────────────────────────────────────────
   - kafka.kafka.yaml
   - kafka.kafkapump_user.yaml
-{% if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) and 'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) %}
-  - kafka.idrac.topic.yaml
-{% endif %}
 {% if telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) and 'kafka' in (telemetry_config.telemetry_sources.ldms.collection_targets | default([])) %}
   - kafka.ldms.topic.yaml
 {% endif %}
   - kafka.kafka_bridge.yaml
   - kafka.kafka_bridge_lb.yaml
-
-{% endif %}
-{% if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool %}
-  # ── iDRAC Telemetry (per-component kustomization) ──────────────────────────
-  - idrac/
 
 {% endif %}
 {% if telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool %}

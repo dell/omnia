@@ -21,7 +21,7 @@
 # Parameters:
 #   - package_name: Python package name (e.g., kubernetes)
 #   - package_version: Package version (e.g., 33.1.0)
-#   - component_name: Component name for logging (e.g., idrac, powerscale)
+#   - component_name: Component name for logging (e.g., powerscale)
 #   - install_mode: 'online' or 'offline' (set by caller)
 #   - pip_index_url: Pulp repo URL for offline mode (set by caller)
 # =============================================================================

@@ -21,7 +21,6 @@
 #
 # LEGACY VARIABLE MAPPINGS:
 #   ldms_support = telemetry_config.telemetry_sources.ldms.metrics_enabled
-#   idrac_telemetry_support = telemetry_config.telemetry_sources.idrac.metrics_enabled
 #   powerscale_configurations = merged dict of powerscale source flags + detailed config
 #
 # SINK SUPPORT FLAGS:
@@ -45,7 +44,6 @@
 
 - name: Map telemetry_sources to legacy feature flags
   ansible.builtin.set_fact:
-    idrac_telemetry_support: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
     powerscale_metrics_enabled: "{{ telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool }}"
     powerscale_log_enabled: "{{ telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool }}"
     ufm_telemetry_support: "{{ telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}"
@@ -71,8 +69,6 @@
     victoria_metrics_support: true
     cacheable: true
   when: >-
-    ((telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool) and
-     'victoria_metrics' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))) or
     (((telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
       (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool)) and
      'victoria_metrics' in (telemetry_config.telemetry_sources.powerscale.collection_targets | default([]))) or
@@ -91,8 +87,6 @@
     (((telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
       (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool)) and
      'victoria_logs' in (telemetry_config.telemetry_sources.powerscale.collection_targets | default([]))) or
-    ((telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool) and
-     'victoria_logs' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))) or
     (((telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool) or
       (telemetry_config.telemetry_sources.ufm.logs_enabled | default(false) | bool)) and
      'victoria_logs' in (telemetry_config.telemetry_sources.ufm.collection_targets | default([]))) or
@@ -105,8 +99,6 @@
     kafka_support: true
     cacheable: true
   when: >-
-    ((telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool) and
-     'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))) or
     ((telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool) and
      'kafka' in (telemetry_config.telemetry_sources.ldms.collection_targets | default([]))) or
     (((telemetry_config.telemetry_sources.ome.metrics_enabled | default(false) | bool) or
@@ -159,7 +151,6 @@
   ansible.builtin.set_fact:
     telemetry_enabled: true
   when: >-
-    (telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool) or
     (telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool) or
     (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
     (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) or
@@ -177,7 +168,6 @@
   ansible.builtin.set_fact:
     kafka_infra_only: >-
       {{ not (
-        (telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool) or
         (telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool) or
         (telemetry_config.telemetry_sources.ome.metrics_enabled | default(false) | bool) or
         (telemetry_config.telemetry_sources.ome.logs_enabled | default(false) | bool)

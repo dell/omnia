@@ -39,9 +39,6 @@ kafka_topic_partitions: "{{ hostvars['localhost']['telemetry_config'].telemetry_
 kafka:
   cluster_id: "kafka-cluster-id"
   topics:
-    idrac:
-      name: "idrac"
-      consumer_group: "idrac-consumer-group"
     ldms:
       name: "ldms"
       consumer_group: "ldms-consumer-group"

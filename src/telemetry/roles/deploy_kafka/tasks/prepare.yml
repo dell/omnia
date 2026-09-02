@@ -84,24 +84,18 @@
 # When called from deploy_sinks.yml, kafka_infra_only=true skips these.
 # =============================================================================
 
-- name: Generate Kafka topic manifests for idrac and ldms
+- name: Generate LDMS Kafka topic manifest
   ansible.builtin.template:
     src: kafka.topic.yaml.j2
-    dest: "{{ telemetry_deployments_dir }}/kafka.{{ item }}.topic.yaml"
+    dest: "{{ telemetry_deployments_dir }}/kafka.ldms.topic.yaml"
     mode: "{{ kafka_file_mode }}"
     force: true
   vars:
-    topic_name: "{{ item }}"
-    topic_key: "{{ item }}"
-  loop:
-    - idrac
-    - ldms
-  loop_control:
-    label: "{{ item }}"
+    topic_name: "ldms"
+    topic_key: "ldms"
   when:
     - not (kafka_infra_only | default(false) | bool)
-    - item in telemetry_config.telemetry_sources
-    - telemetry_config.telemetry_sources[item].metrics_enabled | default(false) | bool
+    - telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool
 
 # =============================================================================
 # Sink infrastructure manifests — always generated (user, bridge)

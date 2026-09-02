@@ -59,27 +59,6 @@ spec:
           - Describe
         host: "*"
 
-{% if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) and 'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) %}
-      # Producer and consumer permissions for idrac topic
-      - resource:
-          type: topic
-          name: {{ kafka.topics.idrac.name }}
-          patternType: literal
-        operations:
-          - Read
-          - Write
-          - Describe
-          - Create
-        host: "*"
-      # Consumer group permissions for idrac
-      - resource:
-          type: group
-          name: {{ kafka.topics.idrac.consumer_group }}
-          patternType: prefix
-        operations:
-          - Read
-        host: "*"
-{% endif %}
 {% if hostvars['localhost']['ldms_support'] | default(false) %}
       # Producer and consumer permissions for ldms topic
       - resource:

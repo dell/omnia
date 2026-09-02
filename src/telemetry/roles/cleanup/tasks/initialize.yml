@@ -16,7 +16,6 @@
 - name: Derive cleanup scope from run tags
   ansible.builtin.set_fact:
     _cleanup_all: "{{ 'cleanup' in ansible_run_tags }}"
-    _cleanup_idrac: "{{ 'cleanup_idrac' in ansible_run_tags }}"
     _cleanup_ldms: "{{ 'cleanup_ldms' in ansible_run_tags }}"
     _cleanup_ome: "{{ 'cleanup_ome' in ansible_run_tags }}"
     _cleanup_powerscale: "{{ 'cleanup_powerscale' in ansible_run_tags }}"
@@ -32,7 +31,6 @@
     _cleanup_abort: false
     _cleanup_active_component: ""
     _cleanup_component_results:
-      idrac: skipped
       ldms: skipped
       ome: skipped
       powerscale: skipped
@@ -43,7 +41,6 @@
       victoria_metrics: skipped
       victoria_logs: skipped
     _cleanup_enabled:
-      idrac_metrics: false
       ldms_metrics: false
       powerscale_metrics: false
       powerscale_logs: false
@@ -112,8 +109,6 @@
     - name: Map configured telemetry capabilities
       ansible.builtin.set_fact:
         _cleanup_enabled:
-          idrac_metrics: >-
-            {{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}
           ldms_metrics: >-
             {{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}
           powerscale_metrics: >-

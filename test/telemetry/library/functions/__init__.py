@@ -65,6 +65,7 @@ from .telemetry_func import (
     get_vlselect_endpoint,
     verify_idrac_vm_data,
     get_idrac_service_tags,
+    get_kafka_external_bootstrap,
 )
 
 # --- K8s resource verification ---
@@ -92,9 +93,12 @@ from .idrac_func import (
 # --- OME verification ---
 from .ome_func import (
     verify_ome_kafka_connectivity,
+    get_ome_kafka_forwarder_config,
+    configure_ome_kafka_and_wait,
     get_ome_forwarders,
     run_external_kafka_playbook,
     verify_external_kafka_certs,
+    verify_external_kafka_connection_details,
     convert_certs_to_pfx,
     verify_ome_kafka_user_cr,
     upload_ome_server_cert,
@@ -102,6 +106,9 @@ from .ome_func import (
     view_ome_client_cert,
     send_ome_kafka_test_connection,
     update_ome_forwarder_settings,
+    verify_ome_kafka_topics,
+    verify_ome_data_in_kafka,
+    compare_ome_cert_with_local,
 )
 
 # --- SFM verification and configuration ---
@@ -175,6 +182,7 @@ __all__ = [
     "get_vlselect_endpoint",
     "verify_idrac_vm_data",
     "get_idrac_service_tags",
+    "get_kafka_external_bootstrap",
     # k8s
     "verify_all_pods_running",
     "verify_pods_by_prefix",
@@ -193,9 +201,12 @@ __all__ = [
     "verify_receiver_collecting",
     # ome
     "verify_ome_kafka_connectivity",
+    "get_ome_kafka_forwarder_config",
+    "configure_ome_kafka_and_wait",
     "get_ome_forwarders",
     "run_external_kafka_playbook",
     "verify_external_kafka_certs",
+    "verify_external_kafka_connection_details",
     "convert_certs_to_pfx",
     "verify_ome_kafka_user_cr",
     "upload_ome_server_cert",
@@ -203,6 +214,9 @@ __all__ = [
     "view_ome_client_cert",
     "send_ome_kafka_test_connection",
     "update_ome_forwarder_settings",
+    "verify_ome_kafka_topics",
+    "verify_ome_data_in_kafka",
+    "compare_ome_cert_with_local",
     # sfm
     "configure_sfm_observability",
     "configure_sfm_switch",

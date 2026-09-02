@@ -124,9 +124,6 @@ vmagent:
   image: "{{ _victoria_images.vmagent | default('victoriametrics/vmagent:v1.149.0') }}"
   remote_write_url_cluster: "https://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc:8480/insert/0/prometheus/api/v1/write"
   remote_write_url: "http://victoria-metrics-single-server.{{ telemetry_namespace }}.svc:8428/api/v1/write"
-  target_pod_label: "idrac-telemetry"
-  kubernetes_sd_namespace: "{{ telemetry_namespace }}"
-  metrics_container_name: "victoria-pump"
   global:
     scrape_interval: "30s"
 

@@ -22,7 +22,7 @@
 # Usage:
 #   - include_tasks: install_python_dependencies.yml
 #     vars:
-#       component: idrac
+#       component: powerscale
 #
 # Installation modes:
 #   - online:  Install from PyPI (pip install <package>==<version>)
@@ -37,7 +37,7 @@
     that:
       - component is defined
       - component | length > 0
-    fail_msg: "component variable must be provided (e.g., idrac, powerscale)"
+    fail_msg: "component variable must be provided (e.g., powerscale)"
 
 - name: Use telemetry_packages fact loaded by load_telemetry_config
   ansible.builtin.set_fact:

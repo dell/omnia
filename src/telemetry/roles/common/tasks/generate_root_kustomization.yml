@@ -80,4 +80,3 @@
     msg: >
       Root kustomization.yaml generated at {{ telemetry_deployments_dir }}/kustomization.yaml.
       Full-stack deploy: kubectl apply -k {{ telemetry_deployments_dir }}/
-      iDRAC-only deploy: kubectl apply -k {{ telemetry_deployments_dir }}/idrac/

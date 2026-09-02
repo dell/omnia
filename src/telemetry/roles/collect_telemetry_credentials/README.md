@@ -1,6 +1,6 @@
 # collect_telemetry_credentials
 
-Collects and manages credentials for telemetry sources (iDRAC, OME, etc.)
+Collects and manages credentials for telemetry sources.
 
 ## Requirements
 

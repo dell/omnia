@@ -71,15 +71,10 @@
           "docker.io/calico/kube-controllers",
           "docker.io/calico/node",
           "docker.io/curlimages/curl",
-          "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
-          "docker.io/dellhpcomniaaisolution/kafkapump",
           "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
-          "docker.io/dellhpcomniaaisolution/victoriapump",
           "docker.io/library/busybox",
-          "docker.io/library/mysql",
           "docker.io/library/python",
           "docker.io/nginxinc/nginx-unprivileged",
-          "docker.io/rmohr/activemq",
           "docker.io/timberio/vector",
           "docker.io/victoriametrics/operator",
           "docker.io/victoriametrics/operator_1",
@@ -147,15 +142,10 @@
           "doca-ofed",
           "docker.io/alpine/kubectl",
           "docker.io/curlimages/curl",
-          "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
-          "docker.io/dellhpcomniaaisolution/kafkapump",
           "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
-          "docker.io/dellhpcomniaaisolution/victoriapump",
           "docker.io/library/busybox",
-          "docker.io/library/mysql",
           "docker.io/library/python",
           "docker.io/nginxinc/nginx-unprivileged",
-          "docker.io/rmohr/activemq",
           "docker.io/timberio/vector",
           "docker.io/victoriametrics/operator",
           "docker.io/victoriametrics/operator_1",
@@ -626,36 +616,6 @@
         "Tag": "8.17.0",
         "Version": "8.17.0"
       },
-      "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver": {
-        "Name": "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "1.3",
-        "Version": "1.3"
-      },
-      "docker.io/dellhpcomniaaisolution/kafkapump": {
-        "Name": "docker.io/dellhpcomniaaisolution/kafkapump",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "1.3",
-        "Version": "1.3"
-      },
       "docker.io/dellhpcomniaaisolution/ubuntu-ldms": {
         "Name": "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
         "SupportedOS": [
@@ -671,21 +631,6 @@
         "Tag": "1.1",
         "Version": "1.1"
       },
-      "docker.io/dellhpcomniaaisolution/victoriapump": {
-        "Name": "docker.io/dellhpcomniaaisolution/victoriapump",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "1.3",
-        "Version": "1.3"
-      },
       "docker.io/library/busybox": {
         "Name": "docker.io/library/busybox",
         "SupportedOS": [
@@ -700,21 +645,6 @@
         "Type": "image",
         "Tag": "1.36",
         "Version": "1.36"
-      },
-      "docker.io/library/mysql": {
-        "Name": "docker.io/library/mysql",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "9.3.0",
-        "Version": "9.3.0"
       },
       "docker.io/library/python": {
         "Name": "docker.io/library/python",
@@ -745,21 +675,6 @@
         "Type": "image",
         "Tag": "1.29",
         "Version": "1.29"
-      },
-      "docker.io/rmohr/activemq": {
-        "Name": "docker.io/rmohr/activemq",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "5.15.9",
-        "Version": "5.15.9"
       },
       "docker.io/timberio/vector": {
         "Name": "docker.io/timberio/vector",

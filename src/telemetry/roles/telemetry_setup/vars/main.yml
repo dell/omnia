@@ -36,7 +36,6 @@ telemetry_usage_info_msg:
   - "  external_kafka             - Fetch Kafka external connection details"
   - ""
   - "Source cleanup tags (sinks are only cleaned via --tags cleanup):"
-  - "  cleanup_idrac              - iDRAC only"
   - "  cleanup_ldms               - LDMS only"
   - "  cleanup_ome                - OME only"
   - "  cleanup_powerscale         - PowerScale only"

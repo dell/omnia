@@ -19,7 +19,7 @@
 # Deploys VictoriaMetrics operator + VMCluster/VMAgent/VMScrape into telemetry namespace.
 # Idempotent: skips if already deployed, upgrades if present.
 #
-# Consumed by: deploy_idrac_telemetry, deploy_powerscale, etc.
+# Consumed by: deploy_powerscale, deploy_ufm, deploy_vast, and shared sinks.
 # Condition: victoria_metrics_support == true
 #
 # Flow: prepare (download package + generate manifests) → deploy (apply manifests)

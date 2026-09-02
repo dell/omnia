@@ -2,7 +2,7 @@
 
 Dell Omnia Telemetry deploys and manages a comprehensive telemetry stack for
 HPC and AI clusters. It collects metrics and logs from multiple sources
-(iDRAC, LDMS, OME, UFM, PowerScale, VAST, SFM)
+(LDMS, OME, UFM, PowerScale, VAST, SFM)
 and stores them in sink backends (Kafka, VictoriaMetrics, VictoriaLogs).
 
 ## Prerequisites
@@ -84,7 +84,6 @@ ansible-playbook playbooks/telemetry.yml
 | `cleanup_kafka` | Kafka runtime + Strimzi operator; preserve data/identity metadata unless volume deletion is requested |
 | `cleanup_victoria_metrics` | VictoriaMetrics + vmagent-vector |
 | `cleanup_victoria_logs` | VictoriaLogs + vlagent-vector |
-| `cleanup_idrac` | iDRAC telemetry (receiver, pumps, DB) |
 | `cleanup_ldms` | LDMS + Vector-LDMS bridge |
 | `cleanup_ome` | OME + Vector-OME bridge |
 | `cleanup_powerscale` | PowerScale telemetry |
@@ -102,8 +101,7 @@ tag — they NEVER execute unless explicitly requested with `--tags`.
 | **Sinks** | Kafka (Strimzi) | Telemetry data streaming |
 | | VictoriaMetrics | Time-series metrics storage and querying |
 | | VictoriaLogs | Log aggregation and querying |
-| **Compute** | iDRAC | Dell server BMC hardware telemetry |
-| | LDMS | Lightweight Distributed Metric Service (HPC) |
+| **Compute** | LDMS | Lightweight Distributed Metric Service (HPC) |
 
 | **Infrastructure** | OME | OpenManage Enterprise monitoring |
 | | UFM | Unified Fabric Manager (InfiniBand) |
@@ -141,7 +139,6 @@ telemetry/
 │   │   ├── sinks/                 # Sink deployment playbooks
 │   │   │   └── deploy_sinks.yml   # Sink orchestrator (Kafka, VM, VL)
 │   │   └── sources/               # Per-source deploy playbooks
-│   │       ├── deploy_idrac_telemetry.yml
 │   │       ├── deploy_ldms.yml
 │   │       ├── deploy_ome.yml
 │   │       ├── deploy_ufm.yml
@@ -155,7 +152,6 @@ telemetry/
 │   │   │   ├── cleanup_victoria_metrics.yml
 │   │   │   └── cleanup_victoria_logs.yml
 │   │   └── sources/               # Per-source cleanup playbooks
-│   │       ├── cleanup_idrac.yml
 │   │       ├── cleanup_ldms.yml
 │   │       └── ...
 │   ├── credentials/
@@ -177,7 +173,6 @@ telemetry/
 │   ├── precheck/                  # K8s readiness checks
 │   ├── deploy_kafka/              # Kafka (Strimzi) deployment
 │   ├── deploy_victoria/           # VictoriaMetrics + VictoriaLogs
-│   ├── deploy_idrac_telemetry/    # iDRAC telemetry
 │   ├── deploy_ldms/               # LDMS telemetry
 │   ├── deploy_ome/                # OME telemetry
 │   ├── deploy_ufm/                # UFM telemetry

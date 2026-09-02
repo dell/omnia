@@ -27,14 +27,13 @@
 #   # Cleanup specific sources only
 #   ansible-playbook telemetry.yml --tags cleanup_powerscale
 #   ansible-playbook telemetry.yml --tags cleanup_ome
-#   ansible-playbook telemetry.yml --tags cleanup_idrac
 #   ansible-playbook telemetry.yml --tags cleanup_ldms
 #
 #   # Cleanup multiple sources
 #   ansible-playbook telemetry.yml --tags cleanup_ome,cleanup_powerscale
 #
 #   # Cleanup multiple components
-#   ansible-playbook cleanup/cleanup.yml --tags cleanup_kafka,cleanup_idrac
+#   ansible-playbook cleanup/cleanup.yml --tags cleanup_kafka,cleanup_ldms
 #   ansible-playbook telemetry.yml --tags cleanup_kafka,cleanup_victoria_metrics
 #
 #   # Cleanup via orchestrator (all components)
@@ -45,7 +44,7 @@
 #
 # Available tags:
 #   Sinks:   cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs
-#   Sources: cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale,
+#   Sources: cleanup_ldms, cleanup_ome, cleanup_powerscale,
 #            cleanup_ufm, cleanup_vast
 # Design: Sinks (Kafka, VictoriaMetrics, VictoriaLogs) are shared
 # infrastructure that multiple sources depend on. They are ONLY cleaned
@@ -66,7 +65,6 @@
   gather_facts: false
   tags:
     - cleanup
-    - cleanup_idrac
     - cleanup_ldms
     - cleanup_ome
     - cleanup_powerscale
@@ -89,7 +87,6 @@
   gather_facts: false
   tags:
     - cleanup
-    - cleanup_idrac
     - cleanup_ldms
     - cleanup_ome
     - cleanup_powerscale
@@ -112,7 +109,6 @@
   gather_facts: false
   tags:
     - cleanup
-    - cleanup_idrac
     - cleanup_ldms
     - cleanup_ome
     - cleanup_powerscale
@@ -135,7 +131,6 @@
   gather_facts: false
   tags:
     - cleanup
-    - cleanup_idrac
     - cleanup_ldms
     - cleanup_ome
     - cleanup_powerscale

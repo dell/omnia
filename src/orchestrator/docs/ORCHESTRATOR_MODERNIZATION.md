@@ -110,7 +110,7 @@ and OpenLDAP operations:
 | `slurm_config` | Slurm config files on NFS | Refactored |
 | `mount_config` | Cloud-init mounts, swap, NFS bolt-ons | Refactored |
 | `openldap` | LDAP domain, server-ip, connection type | Retained |
-| `telemetry` | iDRAC, LDMS, PowerScale, UFM, VAST, OME | Retained |
+| `telemetry` | LDMS, PowerScale, UFM, VAST, OME | Retained |
 
 ### 2.4 Data Flow
 

@@ -23,7 +23,6 @@ volumes:
   delete_requested: {{ _cleanup_delete_volume | default(false) | bool | lower }}
   status: "{{ _cleanup_volume_status | default('skipped') }}"
   components:
-    idrac: "{{ _cleanup_volume_results.idrac | default('skipped') }}"
     ldms: "{{ _cleanup_volume_results.ldms | default('skipped') }}"
     ome: "{{ _cleanup_volume_results.ome | default('skipped') }}"
     powerscale: "{{ _cleanup_volume_results.powerscale | default('skipped') }}"
@@ -53,8 +52,6 @@ sinks:
 
 sources:
 {% if _status_type | default('deploy') == 'cleanup' %}
-  idrac:
-    metrics: "{{ _cleanup_results.idrac_metrics | default('skipped') }}"
   ldms:
     metrics: "{{ _cleanup_results.ldms_metrics | default('skipped') }}"
   powerscale:
@@ -70,8 +67,6 @@ sources:
     metrics: "{{ _cleanup_results.ome_metrics | default('skipped') }}"
     logs: "{{ _cleanup_results.ome_logs | default('skipped') }}"
 {% else %}
-  idrac:
-    metrics: "{{ deploy_component_status(_source_results.idrac_metrics | default('skipped')) }}"
   ldms:
     metrics: "{{ deploy_component_status(_source_results.ldms_metrics | default('skipped')) }}"
   powerscale:
@@ -104,7 +99,6 @@ deploy_unreachable_nodes:
 
 {% if _status_type | default('deploy') == 'cleanup' %}
 cleanup_components:
-  idrac: "{{ _cleanup_components.idrac | default('skipped') }}"
   ldms: "{{ _cleanup_components.ldms | default('skipped') }}"
   ome: "{{ _cleanup_components.ome | default('skipped') }}"
   powerscale: "{{ _cleanup_components.powerscale | default('skipped') }}"

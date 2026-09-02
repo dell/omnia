@@ -99,14 +99,24 @@ Run only the UFM source verification:
 |-------|------|--------|-----------|
 | TC_SR_070 | Verify Vector-OME bridge deployment ready | sanity | always |
 | TC_SR_071 | Verify OME KafkaUser CR exists | sanity | always |
-| TC_SR_072 | Verify external Kafka TLS certificates exist | functional | configure_ome=true |
+| TC_SR_072 | Verify external Kafka connection artifacts | functional | configure_ome=true |
 | TC_SR_073 | Verify user.pfx certificate created for OME mTLS | functional | configure_ome=true |
 | TC_SR_074 | Verify TLS certificates uploaded to OME | functional | configure_ome=true |
 | TC_SR_075 | Verify OME Kafka forwarder connectivity status | functional | configure_ome=true |
+| TC_SR_056 | Verify uploaded certificate matches generated certificate | functional | configure_ome=true |
+| TC_SR_057 | Verify OME Kafka topics exist | functional | configure_ome=true |
+| TC_SR_058 | Verify OME telemetry data in Kafka | functional | configure_ome=true |
+| TC_SR_059 | Verify OME inventory data in Kafka | functional | configure_ome=true |
+| TC_SR_060 | Verify OME alerts data in Kafka | functional | configure_ome=true |
+| TC_SR_061 | Verify OME health data in Kafka | functional | configure_ome=true |
+| TC_SR_062 | Verify OME audit logs data in Kafka | functional | configure_ome=true |
 
 When `configure_ome: false` in test_config.yml, only TC_SR_070 and
 TC_SR_071 run. Set `configure_ome: true` to run the full OME integration
 tests including TLS cert extraction and connectivity verification.
+The connectivity test allows up to 5 minutes for OME's asynchronous
+reconnection. Topic discovery and each OME data-topic check allow up to
+2 minutes.
 
 ### Sources: SFM
 

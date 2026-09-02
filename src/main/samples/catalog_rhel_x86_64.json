@@ -316,12 +316,7 @@
           "docker_io/victoriametrics/vlagent",
           "docker_io/alpine/kubectl",
           "docker_io/curlimages/curl",
-          "docker_io/apache/activemq",
-          "docker_io/library/mysql",
           "docker_io/library/python",
-          "docker_io/dellhpcomniaaisolution/idrac_telemetry_receiver",
-          "docker_io/dellhpcomniaaisolution/kafkapump",
-          "docker_io/dellhpcomniaaisolution/victoriapump",
           "cryptography==45_0_7",
           "omsdk==1_2_518",
           "cffi==1_17_1",
@@ -380,7 +375,7 @@
       "service_k8s_telemetry_group": {
         "name": "service_k8s_telemetry_group",
         "type": "group",
-        "description": "Telemetry and observability packages - VictoriaMetrics, iDRAC telemetry stack, OpenTelemetry",
+        "description": "Telemetry and observability packages - VictoriaMetrics, LDMS, OpenTelemetry",
         "components": [
           "docker_io/victoriametrics/victoria_metrics",
           "docker_io/victoriametrics/vmagent",
@@ -391,12 +386,7 @@
           "docker_io/victoriametrics/vlagent",
           "docker_io/victoriametrics/operator",
           "docker_io/victoriametrics/operator",
-          "docker_io/apache/activemq",
-          "docker_io/library/mysql",
           "docker_io/library/python",
-          "docker_io/dellhpcomniaaisolution/idrac_telemetry_receiver",
-          "docker_io/dellhpcomniaaisolution/kafkapump",
-          "docker_io/dellhpcomniaaisolution/victoriapump",
           "docker_io/dellhpcomniaaisolution/ubuntu_ldms",
           "cryptography==45_0_7",
           "omsdk==1_2_518",
@@ -415,15 +405,10 @@
           "docker.io/victoriametrics/operator",
           "docker.io/victoriametrics/operator_1",
           "victoria_metrics_operator",
-          "docker.io/apache/activemq",
-          "docker.io/library/mysql",
           "docker.io/library/python",
           "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
           "docker.io/nginxinc/nginx-unprivileged",
           "docker.io/timberio/vector",
-          "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
-          "docker.io/dellhpcomniaaisolution/kafkapump",
-          "docker.io/dellhpcomniaaisolution/victoriapump",
           "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
           "quay.io/strimzi/operator",
           "quay.io/strimzi/kafka",
@@ -2458,36 +2443,6 @@
         ],
         "tag": "1.35.1"
       },
-      "docker.io/apache/activemq": {
-        "name": "docker.io/apache/activemq",
-        "packagetype": "image",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          }
-        ],
-        "tag": "6.3.0"
-      },
-      "docker.io/library/mysql": {
-        "name": "docker.io/library/mysql",
-        "packagetype": "image",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          }
-        ],
-        "tag": "9.7.2"
-      },
       "docker.io/library/python": {
         "name": "docker.io/library/python",
         "packagetype": "image",
@@ -2502,51 +2457,6 @@
           }
         ],
         "tag": "3.12-slim"
-      },
-      "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver": {
-        "name": "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
-        "packagetype": "image",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          }
-        ],
-        "tag": "1.3"
-      },
-      "docker.io/dellhpcomniaaisolution/kafkapump": {
-        "name": "docker.io/dellhpcomniaaisolution/kafkapump",
-        "packagetype": "image",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          }
-        ],
-        "tag": "1.3"
-      },
-      "docker.io/dellhpcomniaaisolution/victoriapump": {
-        "name": "docker.io/dellhpcomniaaisolution/victoriapump",
-        "packagetype": "image",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          }
-        ],
-        "tag": "1.3"
       },
       "quay.io/strimzi/operator": {
         "name": "quay.io/strimzi/operator",
@@ -3584,85 +3494,10 @@
           }
         ]
       },
-      "docker_io/apache/activemq": {
-        "name": "docker.io/apache/activemq",
-        "packagetype": "image",
-        "tag": "6.3.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/library/mysql": {
-        "name": "docker.io/library/mysql",
-        "packagetype": "image",
-        "tag": "9.7.2",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "docker_io/library/python": {
         "name": "docker.io/library/python",
         "packagetype": "image",
         "tag": "3.12-slim",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/dellhpcomniaaisolution/idrac_telemetry_receiver": {
-        "name": "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
-        "packagetype": "image",
-        "tag": "1.3",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/dellhpcomniaaisolution/kafkapump": {
-        "name": "docker.io/dellhpcomniaaisolution/kafkapump",
-        "packagetype": "image",
-        "tag": "1.3",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/dellhpcomniaaisolution/victoriapump": {
-        "name": "docker.io/dellhpcomniaaisolution/victoriapump",
-        "packagetype": "image",
-        "tag": "1.3",
         "sources": [
           {
             "architecture": "x86_64",

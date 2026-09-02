@@ -360,7 +360,7 @@ TEST_CASES = {
     },
     "ome_external_kafka_certs": {
         "id": "TC_SR_072",
-        "title": "Verify external Kafka TLS certificates exist",
+        "title": "Verify external Kafka connection artifacts",
     },
     "ome_pfx_conversion": {
         "id": "TC_SR_073",
