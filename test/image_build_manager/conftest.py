@@ -73,6 +73,34 @@ from library.functions.validation_func import (  # noqa: E402 - configured impor
 )
 from library.vars import TEST_CASES  # noqa: E402 - configured module import
 
+# FVT phases and suites have independent local ``@pytest.mark.order(n)``
+# sequences. Apply lifecycle and suite ranks first so equal local order values
+# do not interleave during an untagged verification run.
+_FVT_SCENARIO_ORDER = {
+    "precheck": 0,
+    "validate": 1,
+    "prepare": 2,
+    "build": 3,
+    "cleanup_images": 4,
+    "cleanup": 5,
+}
+
+_FVT_SUITE_ORDER = {
+    "precheck": {"": 0, "connectivity": 1},
+    "validate": {"": 0, "status": 1},
+    "prepare": {"": 0, "container": 1, "s3": 2},
+    "build": {
+        "": 0,
+        "s3": 1,
+        "registry": 2,
+        "naming": 3,
+        "aarch64": 4,
+        "image_verification": 5,
+    },
+    "cleanup_images": {"": 0, "cleanup_images": 1},
+    "cleanup": {"": 0, "cleanup": 1},
+}
+
 # Build test-function-name → TC ID map for summary table fallback.
 # Auto-generates from TEST_CASES keys (e.g. "deploy_build" → "test_deploy_build")
 # plus explicit overrides where function name differs from key.
@@ -150,7 +178,7 @@ def _item_has_marker(item, marker_name):
 
 
 def pytest_collection_modifyitems(session, config, items):
-    """Filter by --marker expression and sort by order marker."""
+    """Filter markers and sort by FVT phase plus local order marker."""
     marker_expr = config.getoption("--marker", default="")
     mode, markers = _parse_marker_expression(marker_expr)
 
@@ -191,9 +219,26 @@ def pytest_collection_modifyitems(session, config, items):
 
     def _get_order(item):
         marker = item.get_closest_marker("order")
-        if marker and marker.args:
-            return marker.args[0]
-        return 999
+        local_order = marker.args[0] if marker and marker.args else 999
+
+        node_parts = item.nodeid.replace("\\", "/").split("/")
+        scenario = ""
+        suite = ""
+        if "fvt" in node_parts:
+            fvt_index = node_parts.index("fvt")
+            if len(node_parts) > fvt_index + 1:
+                scenario = node_parts[fvt_index + 1]
+            if len(node_parts) > fvt_index + 2:
+                candidate = node_parts[fvt_index + 2]
+                if not candidate.startswith("test_"):
+                    suite = candidate
+
+        suite_order = _FVT_SUITE_ORDER.get(scenario, {}).get(suite, 999)
+        return (
+            _FVT_SCENARIO_ORDER.get(scenario, 999),
+            suite_order,
+            local_order,
+        )
 
     items.sort(key=_get_order)
 

@@ -39,14 +39,16 @@
     mode: "{{ dir_permissions_644 }}"
 
 # --- Base image cache check ---
-# Compute a hash of base_image_packages + repo config to detect changes.
-# If the hash matches the previous build, skip the rebuild.
-# The repo config hash (_repo_config_hash) captures URLs, priorities, and names
-# so that repo configuration changes also trigger rebuilds.
+# Compute a hash of base_image_packages + repo config + build engine.
+# If the hash matches the previous build, skip the rebuild. Including the
+# engine ensures switching between image-builder and image-thrillhouse triggers
+# the required base-image rebuild.
 - name: Compute base image package hash
   ansible.builtin.set_fact:
     _base_pkg_hash: >-
-      {{ (base_image_packages | sort | join(',') + '|repos:' + _repo_config_hash)
+      {{ ((base_image_packages | sort | join(','))
+         ~ '|repos:' ~ _repo_config_hash
+         ~ '|image_build_type:' ~ _image_build_type)
          | hash('sha256') }}
 
 - name: Set base image hash file path

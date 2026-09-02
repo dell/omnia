@@ -206,7 +206,10 @@ names run their complete pytest suite; use `test` as the conventional form.
 For FVT with no tag, `verify` runs verification for precheck, validate,
 prepare, and build (excluding both cleanup flows). No-tag `exec` runs the
 playbook's default full-stack flow, and no-tag `test` runs that deployment
-followed by the same non-cleanup verification set.
+followed by the same non-cleanup verification set. Verification is grouped in
+the lifecycle order `precheck` → `validate` → `prepare` → `build`; each phase
+is grouped by its documented suites, and each suite then follows its existing
+`@pytest.mark.order(n)` values.
 
 ### FVT Tags
 
