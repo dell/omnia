@@ -17,7 +17,7 @@
 | `s3_configurations.provider` | string | Yes | `"minio"` | `minio` (local) or `powerscale` (external) |
 | `s3_configurations.endpoint_url` | string | No | `""` | Auto-detected for MinIO; required for PowerScale |
 | `repo_manager_output_path` | string | Yes | `/opt/omnia/repo_manager/output/project_default/repo_status.yml` | Path to upstream `repo_status.yml` |
-| `image_build_type` | string | No | `"image-builder"` | `image-builder` or `image-thrillhouse` |
+| `image_build_type` | string | No | `"image-thrillhouse"` | `image-builder` or `image-thrillhouse` |
 | `functional_groups_source` | string | No | `"config"` | `config` (groups from `package_groups.yml` keys) or `catalog` (groups from catalog JSON via `CATALOG_FILE_PATH` env var) |
 | `build_image.max_parallel` | int | No | `0` | Concurrent builds; 0 = unlimited |
 | `build_image.job_async` | int | No | `7200` | Async timeout (seconds) |

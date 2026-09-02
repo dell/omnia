@@ -30,6 +30,24 @@ from library.messages import (
 )
 
 
+def _format_missing_list(result):
+    """Format exact missing-path diagnostics for the assertion panel."""
+    error = result.get("error") or result.get("details") or "Unknown S3 error"
+    return "\n".join(
+        f"\u2551   - {line}" for line in str(error).splitlines()
+    )
+
+
+def _failure_message(result):
+    """Return an accurate failure summary for group and prerequisite errors."""
+    failed_count = sum(
+        1 for item in result.get("results", []) if not item["success"]
+    )
+    if failed_count:
+        return LOG["s3_images_missing"].format(count=failed_count)
+    return "S3 image verification could not be completed"
+
+
 @pytest.mark.x86_64
 @pytest.mark.sanity
 @pytest.mark.order(1)
@@ -49,13 +67,13 @@ def test_s3_images_x86_64(host):
             LOG["s3_images_ok"].format(count=len(result["results"]))
         )
     else:
-        failed = [r for r in result["results"] if not r["success"]]
         tl.failed(
-            LOG["s3_images_missing"].format(count=len(failed))
+            _failure_message(result),
+            result.get("error"),
         )
 
     assert result["success"], ASSERT["s3_images_missing"].format(
-        missing_list="See output above",
+        missing_list=_format_missing_list(result),
         log_path=f"{SHARED_PATH}/log/",
     )
 
@@ -79,12 +97,12 @@ def test_s3_images_aarch64(host):
             LOG["s3_images_ok"].format(count=len(result["results"]))
         )
     else:
-        failed = [r for r in result["results"] if not r["success"]]
         tl.failed(
-            LOG["s3_images_missing"].format(count=len(failed))
+            _failure_message(result),
+            result.get("error"),
         )
 
     assert result["success"], ASSERT["s3_images_missing"].format(
-        missing_list="See output above",
+        missing_list=_format_missing_list(result),
         log_path=f"{SHARED_PATH}/log/",
     )

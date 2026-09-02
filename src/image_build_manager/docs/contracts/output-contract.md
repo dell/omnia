@@ -8,13 +8,20 @@
 
 **Purpose**: Reports image build results with S3 artifact paths per functional group.
 
-**Location**: `output/<project>/build_status.yml`
+**Location**: `<IMAGE_BUILD_MANAGER_DATA_PATH>/output/<project>/build_status.yml`.
+When `IMAGE_BUILD_MANAGER_DATA_PATH` is unset, the root defaults to
+`<OMNIA_DATA_PATH>/image_build_manager`; with standard defaults the file is
+`/opt/omnia/image_build_manager/output/project_default/build_status.yml`.
 
 **Producer**: `build_os_images` role (write_build_status task)
 
 **Consumer**: Provisioning workflow (image validation and BSS template rendering)
 
 ### Structure
+
+The manifest stores exact endpoint-relative S3 object paths. Each path includes
+the bucket name, omits the endpoint and `s3://` scheme, and ends with the object
+filename rather than a directory.
 
 ```yaml
 overall_status: "success"
@@ -25,28 +32,48 @@ s3_configurations:
 
 functional_group_images:
   - x86_64:
-    - functional_group: "slurm_control_node_x86_64"
-      kernel: "boot-images/efi-images/slurm_control_node_x86_64/rhel-.../vmlinuz-<kernel-version>"
-      initrd: "boot-images/efi-images/slurm_control_node_x86_64/rhel-.../initramfs-<kernel-version>.img"
-      image: "boot-images/slurm_control_node_x86_64/rhel-.../<rootfs-filename>"
-  - aarch64:
-    - functional_group: "slurm_node_aarch64"
-      kernel: "boot-images/efi-images/slurm_node_aarch64/rhel-.../vmlinuz-<kernel-version>"
-      initrd: "boot-images/efi-images/slurm_node_aarch64/rhel-.../initramfs-<kernel-version>.img"
-      image: "boot-images/slurm_node_aarch64/rhel-.../<rootfs-filename>"
+    - functional_group: "slurm_node_x86_64"
+      kernel: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/vmlinuz"
+      initrd: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/initramfs.img"
+      image: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/rootfs.squashfs"
 ```
+
+The object layout depends on `image_build_type`:
+
+- `image-builder` publishes versioned kernel and initrd objects beneath the
+  `efi-images/` prefix inside `boot-images`, and a versioned rootfs object under
+  the functional-group prefix:
+
+  ```text
+  boot-images/efi-images/<functional_group>/<image_name>-imgbld/vmlinuz-<kernel-version>
+  boot-images/efi-images/<functional_group>/<image_name>-imgbld/initramfs-<kernel-version>.img
+  boot-images/<functional_group>/<image_name>-imgbld/<rootfs-filename>
+  ```
+
+- `image-thrillhouse` publishes fixed filenames together beneath the release
+  directory:
+
+  ```text
+  boot-images/<functional_group>/<image_name>-imgth/<release>/vmlinuz
+  boot-images/<functional_group>/<image_name>-imgth/<release>/initramfs.img
+  boot-images/<functional_group>/<image_name>-imgth/<release>/rootfs.squashfs
+  ```
+
+Consumers construct download URLs as
+`<s3_configurations.endpoint_url>/<artifact-path>` and must not prepend another
+bucket or S3 scheme.
 
 ### Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `overall_status` | string | `"success"` or `"failed"` |
-| `s3_configurations.endpoint_url` | string | S3 endpoint URL |
-| `s3_configurations.bucket` | string | Always `"boot-images"` |
+| `s3_configurations.endpoint_url` | string | S3 HTTP(S) endpoint URL, without the artifact path |
+| `s3_configurations.bucket` | string | Artifact bucket; currently `"boot-images"` |
 | `functional_group_images[].functional_group` | string | Group name with arch suffix |
-| `functional_group_images[].kernel` | string | S3 key for vmlinuz (includes kernel-version suffix) |
-| `functional_group_images[].initrd` | string | S3 key for initramfs (includes kernel-version suffix) |
-| `functional_group_images[].image` | string | Full S3 object key for rootfs file (not just the directory prefix) |
+| `functional_group_images[].kernel` | string | Exact endpoint-relative kernel object path (`vmlinuz*`) |
+| `functional_group_images[].initrd` | string | Exact endpoint-relative initrd object path (`initramfs*`) |
+| `functional_group_images[].image` | string | Exact endpoint-relative rootfs object path (`rhel*` or `rootfs.squashfs`) |
 
 ### S3 Endpoint
 
@@ -67,7 +94,7 @@ Services deployed on OIM host by the `prepare` tag:
 |------|-------|
 | Service | `minio.service` (Podman Quadlet) |
 | Ports | `9000` (API), `9001` (Console) |
-| Buckets | `boot-images`, `efi-images` |
+| Buckets | `boot-images`, `efi` |
 
 ### Container Registry (always)
 
@@ -82,17 +109,34 @@ Both services are added to `omnia.target`.
 
 ## 3. S3 Artifacts
 
-```
+### image-builder
+
+```text
 boot-images/
 +-- efi-images/
 |   +-- <functional_group>/
-|       +-- rhel-<group>_omnia_<version>/
+|       +-- <image_name>-imgbld/
 |           +-- vmlinuz-<kernel-version>
 |           +-- initramfs-<kernel-version>.img
 +-- <functional_group>/
-    +-- rhel-<group>_omnia_<version>/
-        +-- rhel<os_ver>-rhel-<group>_omnia_<version>-<os_ver>
+    +-- <image_name>-imgbld/
+        +-- <rootfs-filename>
 ```
+
+### image-thrillhouse
+
+```text
+boot-images/
++-- <functional_group>/
+    +-- <image_name>-imgth/
+        +-- <release>/
+            +-- vmlinuz
+            +-- initramfs.img
+            +-- rootfs.squashfs
+```
+
+`efi-images` above is an object-key prefix inside the `boot-images` bucket, not
+a separate bucket.
 
 ---
 

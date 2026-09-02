@@ -67,8 +67,12 @@ local source.
 ```bash
 cd datasets/generator/
 ./generate_dataset.py profiles
-./generate_dataset.py create my_dataset --profile internet-config
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config
 ```
+
+Use `--profile image-builder-internet-config` for the same repository/package
+setup with Image Builder. The generator lists all eight explicit combinations.
 
 Setting the name does not itself copy files to the target. Enable the relevant
 sync option below for the scenario being executed.

@@ -107,7 +107,7 @@ at startup with a clear error message.
 - Deploy MinIO S3 via Podman Quadlet (if provider=minio)
 - Deploy local OCI container registry via Podman Quadlet
 - Install and configure `regctl` for image verification (idempotent)
-- Create S3 buckets: `boot-images`, `efi-images`
+- Create S3 buckets: `boot-images`, `efi`
 - Open firewall ports: 9000 (S3 API), 9001 (MinIO console), 5000 (registry)
 
 ### Step 5: Build (tag: build / execute)
@@ -158,6 +158,10 @@ When `aarch64_inventory_host_ip` is set in `image_build_config.yml`:
 
 ### build_status.yml
 
+`build_status.yml` records exact endpoint-relative S3 object paths. Paths include
+the `boot-images` bucket, omit the endpoint and `s3://` scheme, and end with a
+filename. The layout is selected globally by `image_build_type`.
+
 ```yaml
 overall_status: "success"
 
@@ -167,29 +171,40 @@ s3_configurations:
 
 functional_group_images:
   - x86_64:
-    - functional_group: "slurm_control_node_x86_64"
-      kernel: "boot-images/efi-images/slurm_control_node_x86_64/rhel-.../vmlinuz-<kernel>"
-      initrd: "boot-images/efi-images/slurm_control_node_x86_64/rhel-.../initramfs-<kernel>.img"
-      image: "boot-images/slurm_control_node_x86_64/rhel-.../<rootfs-filename>"
-  - aarch64:
-    - functional_group: "slurm_node_aarch64"
-      kernel: "boot-images/efi-images/slurm_node_aarch64/rhel-.../vmlinuz-<kernel>"
-      initrd: "boot-images/efi-images/slurm_node_aarch64/rhel-.../initramfs-<kernel>.img"
-      image: "boot-images/slurm_node_aarch64/rhel-.../<rootfs-filename>"
+    - functional_group: "slurm_node_x86_64"
+      kernel: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/vmlinuz"
+      initrd: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/initramfs.img"
+      image: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/rootfs.squashfs"
+```
+
+For `image-builder`, the three fields instead use these exact object shapes:
+
+```text
+boot-images/efi-images/<functional_group>/<image_name>-imgbld/vmlinuz-<kernel-version>
+boot-images/efi-images/<functional_group>/<image_name>-imgbld/initramfs-<kernel-version>.img
+boot-images/<functional_group>/<image_name>-imgbld/<rootfs-filename>
 ```
 
 ### S3 Artifacts
 
-```
+`image-builder`:
+
+```text
 boot-images/
-+-- efi-images/
-|   +-- <functional_group>/
-|       +-- rhel-<group>_omnia_<version>/
-|           +-- vmlinuz-<kernel-version>
-|           +-- initramfs-<kernel-version>.img
-+-- <functional_group>/
-    +-- rhel-<group>_omnia_<version>/
-        +-- rhel<os_ver>-rhel-<group>_omnia_<version>-<os_ver>
++-- efi-images/<functional_group>/<image_name>-imgbld/
+|   +-- vmlinuz-<kernel-version>
+|   +-- initramfs-<kernel-version>.img
++-- <functional_group>/<image_name>-imgbld/
+    +-- <rootfs-filename>
+```
+
+`image-thrillhouse`:
+
+```text
+boot-images/<functional_group>/<image_name>-imgth/<release>/
++-- vmlinuz
++-- initramfs.img
++-- rootfs.squashfs
 ```
 
 ### Deployed Services

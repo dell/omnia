@@ -60,15 +60,21 @@
         loop_var: item
 
     # --- Compute image cache check ---
-    # Per-group hash of packages + repo config to detect changes. Skip groups
-    # whose hash matches the previous build (unless force_rebuild is set).
-    # Including _repo_config_hash ensures repo URL/priority changes trigger rebuilds.
+    # Per-group hash of packages + repo config + build engine to detect changes.
+    # Skip groups whose hash matches the previous build (unless force_rebuild
+    # is set). Including the build engine ensures switching between
+    # image-builder and image-thrillhouse triggers the required rebuild.
     - name: Compute per-group package hashes
       ansible.builtin.set_fact:
         _compute_pkg_hashes: >-
           {% set result = {} -%}
           {% for fg_name, fg_data in compute_images_dict.items() -%}
-            {% set _ = result.update({fg_name: (fg_data.packages | sort | join(',') + '|repos:' + _repo_config_hash) | hash('sha256')}) -%}
+            {% set cache_input = (fg_data.packages | sort | join(','))
+              ~ '|repos:' ~ _repo_config_hash
+              ~ '|image_build_type:' ~ _image_build_type -%}
+            {% set _ = result.update({
+              fg_name: cache_input | hash('sha256')
+            }) -%}
           {% endfor -%}
           {{ result }}
 

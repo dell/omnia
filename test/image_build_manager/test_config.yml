@@ -78,7 +78,8 @@ clone_path: "/omnia"
 #   Set to a folder name under test/image_build_manager/datasets/<name>/.
 #   Generate one with:
 #     cd datasets/generator
-#     ./generate_dataset.py create my_dataset --profile internet-config
+#     ./generate_dataset.py create my_dataset \
+#       --profile image-thrillhouse-internet-config
 #   Setting dataset selects the local sync source; enable a sync option below
 #   to copy it to the execution target.
 #   Each dataset folder must contain:

@@ -79,7 +79,7 @@ render_documents = _rendering.render_documents
 replace_documentation_repo_host = _rendering.replace_documentation_repo_host
 serialize_yaml = _rendering.serialize_yaml
 
-GENERATOR_VERSION = 5
+GENERATOR_VERSION = 6
 GENERATOR_DIR = Path(__file__).resolve().parent
 PROFILES_DIR = GENERATOR_DIR / "profiles"
 DATASETS_DIR = GENERATOR_DIR.parent.resolve()
@@ -90,7 +90,7 @@ SRC_REPO_OUTPUT_DIR = SRC_DOMAIN_DIR / "samples" / "repo_manager_output"
 
 _PROFILE_KEYS = {"description", "repo_variant", "patches", "replacements"}
 _DOCUMENT_NAMES = {"image_build_config", "package_groups", "repo_status"}
-_BUILTIN_PROFILES = {
+_PROFILE_TOPOLOGIES = {
     "offline-catalog": {
         "source": "defaults",
         "repositories": "repo-manager",
@@ -112,12 +112,30 @@ _BUILTIN_PROFILES = {
         "packages": "package_groups",
     },
 }
+_BUILD_TYPES = ("image-thrillhouse", "image-builder")
+_BUILTIN_PROFILES = {
+    f"{build_type}-{topology_name}": {
+        **topology_details,
+        "build_type": build_type,
+        "patches": {
+            "image_build_config": {
+                "image_build_type": build_type,
+            },
+        },
+    }
+    for build_type in _BUILD_TYPES
+    for topology_name, topology_details in _PROFILE_TOPOLOGIES.items()
+}
 _PROFILE_ALIASES = {
-    "standalone": "internet-config",
-    "defaults": "offline-catalog",
-    "config": "offline-config",
-    "internet": "internet-catalog",
-    "internet_config": "internet-config",
+    "offline-catalog": "image-thrillhouse-offline-catalog",
+    "offline-config": "image-thrillhouse-offline-config",
+    "internet-catalog": "image-thrillhouse-internet-catalog",
+    "internet-config": "image-thrillhouse-internet-config",
+    "standalone": "image-thrillhouse-internet-config",
+    "defaults": "image-thrillhouse-offline-catalog",
+    "config": "image-thrillhouse-offline-config",
+    "internet": "image-thrillhouse-internet-catalog",
+    "internet_config": "image-thrillhouse-internet-config",
 }
 _EXTENSIBLE_PATCH_ROOTS = {
     ("package_groups", "functional_groups"),
@@ -303,8 +321,9 @@ def _validate_profile(profile: dict[str, Any], profile_name: str) -> None:
 
 
 def _load_profile(profile_name: str) -> dict[str, Any]:
-    """Load defaults.yml, then deep-merge a named profile over it."""
+    """Load shared profile YAML, then apply any built-in profile overlay."""
     _validate_name(profile_name, "profile name")
+    friendly_name = _PROFILE_ALIASES.get(profile_name, profile_name)
     source_name = _profile_source_name(profile_name)
     defaults_path = PROFILES_DIR / "defaults.yml"
     defaults = _load_yaml(defaults_path, "defaults profile")
@@ -322,6 +341,13 @@ def _load_profile(profile_name: str) -> dict[str, Any]:
                 f"Profile '{profile_name}' must define its own description"
             )
         profile = _deep_merge(defaults, profile_override)
+    profile_details = _BUILTIN_PROFILES.get(friendly_name, {})
+    profile_overlay = {
+        key: value
+        for key, value in profile_details.items()
+        if key in _PROFILE_KEYS
+    }
+    profile = _deep_merge(profile, profile_overlay)
     _validate_profile(profile, profile_name)
     return profile
 
@@ -329,30 +355,38 @@ def _load_profile(profile_name: str) -> dict[str, Any]:
 def _list_profiles() -> None:
     """Display friendly profiles as a use-case-oriented selection table."""
     print("\nAvailable profiles:")
-    print("-" * 104)
-    print(f"  {'PROFILE':20s} {'REPOSITORIES':14s} {'PACKAGES':14s} DESCRIPTION")
-    print(f"  {'-' * 20} {'-' * 14} {'-' * 14} {'-' * 48}")
+    print("-" * 140)
+    print(
+        f"  {'PROFILE':38s} {'BUILDER':17s} {'REPOSITORIES':14s} "
+        f"{'PACKAGES':14s} DESCRIPTION"
+    )
+    print(
+        f"  {'-' * 38} {'-' * 17} {'-' * 14} "
+        f"{'-' * 14} {'-' * 48}"
+    )
     for name in _available_profile_names():
         profile = _load_profile(name)
         details = _BUILTIN_PROFILES.get(name, {})
+        build_type = str(details.get("build_type", "source value"))
         repositories = str(
             details.get("repositories", profile.get("repo_variant", "offline"))
         )
         packages = str(details.get("packages", _profile_package_source(profile)))
         description = str(details.get("description", profile.get("description", "")))
-        display_name = _color(f"{name:20s}", _CYAN)
-        print(f"  {display_name} {repositories:14s} {packages:14s} {description}")
+        display_name = _color(f"{name:38s}", _CYAN)
+        print(
+            f"  {display_name} {build_type:17s} {repositories:14s} "
+            f"{packages:14s} {description}"
+        )
     print()
-    print("  Recommended: internet-config (alias: standalone)")
-    print("  Inspect:     ./generate_dataset.py profiles internet-config")
+    recommended = "image-thrillhouse-internet-config"
+    print(f"  Recommended: {recommended} (legacy alias: standalone)")
+    print(f"  Inspect:     ./generate_dataset.py profiles {recommended}")
     print(
         "  Create:      ./generate_dataset.py create my_dataset "
-        "--profile internet-config"
+        f"--profile {recommended}"
     )
-    print(
-        "  Legacy names (defaults, config, internet, internet_config) "
-        "remain supported."
-    )
+    print("  Legacy generic names resolve to the matching Thrillhouse profiles.")
     print()
 
 
@@ -372,10 +406,12 @@ def _show_profile(profile_name: str) -> None:
     )
     packages = str(details.get("packages", _profile_package_source(profile)))
     description = str(details.get("description", profile.get("description", "")))
+    build_type = str(details.get("build_type", "source value"))
 
     print(f"\nProfile: {friendly_name}")
     print("-" * 72)
     print(f"  Description:  {description}")
+    print(f"  Builder:      {build_type}")
     print(f"  Repositories: {repositories}")
     print(f"  Packages:     {packages}")
     if profile_name != friendly_name:
@@ -702,7 +738,11 @@ def _prepare_documents(args: Namespace) -> dict[str, Any]:
             "normalizations": document_normalizations(repo_variant, repo_host),
         }
 
-    profile_name = args.profile_option or args.profile or "offline-catalog"
+    profile_name = (
+        args.profile_option
+        or args.profile
+        or "image-thrillhouse-offline-catalog"
+    )
     profile = _load_profile(profile_name)
     profile_variant = str(profile.get("repo_variant", "offline"))
     repo_variant = args.repo_variant or profile_variant
@@ -712,7 +752,7 @@ def _prepare_documents(args: Namespace) -> dict[str, Any]:
         raise GeneratorError(
             f"Profile '{friendly_name}' requires repository variant "
             f"'{profile_variant}', not '{repo_variant}'. Choose the matching "
-            "internet-* or offline-* profile instead."
+            "profile with the required internet or offline segment."
         )
     documents, provenance = _load_source_documents(repo_variant)
     combined_patches = copy.deepcopy(profile.get("patches", {}))
