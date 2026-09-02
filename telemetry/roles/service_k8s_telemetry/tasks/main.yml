@@ -13,9 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Deployment of k8s telemetry service
-  when:
-    - hostvars['localhost']['idrac_telemetry_support']
-  block:
-    - name: Update service cluster metadata
-      ansible.builtin.include_tasks: update_metadata_file.yml
+- name: Placeholder - telemetry service deployment
+  ansible.builtin.debug:
+    msg: "Telemetry service deployment - no iDRAC telemetry components to deploy"

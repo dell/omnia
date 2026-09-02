@@ -221,9 +221,10 @@
     - name: "Stage 8e — Verify telemetry rollback"
       ansible.builtin.include_tasks: verify_telemetry_rollback.yml
 
-    # ── Stage 8f: Restore MySQL data if version downgrade detected ─
-    - name: "Stage 8f — Restore MySQL data (if version mismatch)"
+    # ── Stage 8f: Restore MySQL data if version downgrade detected (legacy iDRAC telemetry) ─
+    - name: "Stage 8f — Restore MySQL data (if version mismatch, legacy iDRAC telemetry)"
       ansible.builtin.include_tasks: restore_mysql_data.yml
+      when: idrac_telemetry_support | default(false) | bool
 
     # ── Stage 9: Restore BSS boot params and cloud-init ──────────
     - name: "Stage 9 — Restore BSS boot params and cloud-init"

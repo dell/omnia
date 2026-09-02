@@ -46,18 +46,12 @@ dir_permissions_755: "0755"
 bmc_group_data_filename: "{{ telemetry_dir }}/bmc_group_data.csv"
 bmc_group_data_template: "bmc_group_data.j2"
 file_permissions: "0644"
-idrac_telemetry_scripting_repo: "https://github.com/dell/iDRAC-Telemetry-Scripting.git"
-idrac_telemetry_scripting_stable_commit: "f6999f5"
-idrac_telemetry_scripting_clone_dest: "{{ telemetry_dir }}/iDRAC-Telemetry-Scripting"
 max_retries: 10
 delay_count: 5
 git_install_timeout: 300
 git_install_fail_msg: |
   Failed to install git. Please ensure the OS repository is configured on OIM.
   Configure the repository and rerun the playbook.
-idrac_script_git_clone_fail_msg: |
-  Failed to clone iDRAC Telemetry GitHub repository from {{ idrac_telemetry_scripting_repo }}
-  to {{ idrac_telemetry_scripting_clone_dest }}. Please check network connectivity and rerun the playbook.
 prepare_oim_completion_msg: |
   The playbook prepare_oim.yml has completed successfully. To create the offline repositories and
   registry for the cluster nodes, please execute the playbook local_repo/local_repo.yml as the next step.

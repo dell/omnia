@@ -41,9 +41,6 @@ resources:
 # Kafka Resources
   - kafka.kafka.yaml
   - kafka.kafkapump_user.yaml
-{% if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) and 'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) %}
-  - kafka.topic_idrac.yaml
-{% endif %}
 {% if telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) and 'kafka' in (telemetry_config.telemetry_sources.ldms.collection_targets | default([])) %}
   - kafka.topic_ldms.yaml
 {% endif %}
@@ -51,13 +48,6 @@ resources:
   - kafka.kafka_bridge_lb.yaml
   # Uncomment to deploy TLS test job
   # - test/kafka.tls_test_job.yaml
-{% endif %}
-{% if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) %}
-# iDRAC Telemetry Resources
-  - activemq-config.yaml
-  - idrac_telemetry_statefulset.yaml
-  - telemetry_cleaner_rbac.yaml
-  - telemetry_pod_cleanup.yaml
 {% endif %}
 {% if telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) %}
 # UFM InfiniBand Telemetry Resources

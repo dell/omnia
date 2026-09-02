@@ -76,7 +76,7 @@
               {%- if 'service_k8s' in sw_names %}{% set _ = tags.append('service_k8s') %}{% endif -%}
               {{ tags | unique }}
 
-        - name: Check telemetry configuration and add idrac_telemetry tag if enabled
+        - name: Check telemetry configuration and add telemetry tag if enabled
           block:
             - name: Check if telemetry_config.yml exists
               ansible.builtin.stat:
@@ -98,7 +98,6 @@
               when:
                 - telemetry_config_stat.stat.exists
                 - >-
-                  (telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool) or
                   (telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool) or
                   (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
                   (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) or

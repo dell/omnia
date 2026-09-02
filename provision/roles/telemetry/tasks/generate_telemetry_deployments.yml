@@ -97,19 +97,6 @@
       ansible.builtin.set_fact:
         kafka_topics_to_create: []
 
-    - name: Add idrac topic if enabled
-      ansible.builtin.set_fact:
-        kafka_topics_to_create: >
-          {{ kafka_topics_to_create + [{
-            'name': kafka.topics.idrac.name,
-            'key': kafka.topics.idrac.name,
-            'filename': 'kafka.topic_idrac.yaml'
-          }] }}
-      when:
-        - telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
-        - "'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))"
-        - "kafka.topics.idrac.name in kafka_topic_partitions"
-
     - name: Add ldms topic if enabled
       ansible.builtin.set_fact:
         kafka_topics_to_create: >
@@ -169,22 +156,6 @@
     mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
   loop: "{{ common_templates }}"
   when: item.skip_when is not defined or not item.skip_when | bool
-  tags: telemetry_deployment
-
-- name: Populate ActiveMQ ConfigMap
-  ansible.builtin.template:
-    src: 'telemetry/idrac_telemetry/activemq-config.yaml.j2'
-    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/activemq-config.yaml"
-    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
-  when: telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
-  tags: telemetry_deployment
-
-- name: Populate iDRAC telemetry statefulset
-  ansible.builtin.template:
-    src: 'telemetry/idrac_telemetry/idrac_telemetry_statefulset.yaml.j2'
-    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/idrac_telemetry_statefulset.yaml"
-    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
-  when: telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
   tags: telemetry_deployment
 
 - name: Populate CSI volume exporter deployment

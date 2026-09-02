@@ -51,13 +51,16 @@
     msg: "{{ victoria_upgrade_skipped }}"
   when: not (victoria_upgrade_needed | default(false) | bool)
 
-# ── Phase 2b: Backup MySQL data before version change ──
-- name: Phase 2b - Backup MySQL data (pre-upgrade)
+# ── Phase 2b: Backup MySQL data before version change (only for legacy iDRAC telemetry upgrades) ──
+# Note: iDRAC telemetry has been removed. This phase is retained only for
+# upgrading clusters that previously had iDRAC telemetry deployed.
+- name: Phase 2b - Backup MySQL data (pre-upgrade, legacy iDRAC telemetry)
   ansible.builtin.include_tasks: backup_mysql_data.yml
   when:
     - k8s_client_mount_path is defined
     - kube_vip is defined
     - kube_vip | length > 0
+    - idrac_telemetry_support | default(false) | bool
 
 # ── Phase 3: Execute telemetry.sh to redeploy telemetry stack ──
 - name: Phase 3 - Execute telemetry.sh to redeploy telemetry stack

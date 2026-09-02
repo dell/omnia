@@ -16,7 +16,8 @@
 #
 #
 # Telemetry Stack Cleanup Script
-# Removes Kafka, LDMS, iDRAC telemetry, and monitoring resources from the {{ telemetry_namespace }} namespace
+# Removes Kafka, LDMS, and monitoring resources from the {{ telemetry_namespace }} namespace
+# Note: idrac cleanup option retained for backward compatibility with existing deployments
 #
 # Usage: ./cleanup_telemetry.sh [kafka] [ldms] [idrac] [victoria] [victorialogs] [powerscale] [vector-ldms] [vector-ome] [all]
 #   kafka        - Delete Kafka cluster, users, and bridge

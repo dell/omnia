@@ -32,9 +32,6 @@ data:
     echo "Bootstrap Server: kafka-kafka-bootstrap:9093"
     echo "Certificates: kafkapump (for all TLS topics)"
     echo "Testing topics based on enabled telemetry support:"
-{% if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) and 'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) %}
-    echo "  - iDRAC telemetry topic ({{ kafka.topics.idrac.name }})"
-{% endif %}
 {% if ldms_support %}
     echo "  - LDMS telemetry topic ({{ kafka.topics.ldms.name }})"
 {% endif %}
@@ -80,22 +77,9 @@ data:
     echo "✓ mTLS connection successful"
     echo ""
     
-{% if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) and 'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) %}
-    # Test iDRAC telemetry topic consumer
-    echo "Step 5: Testing consumer on {{ kafka.topics.idrac.name }} topic (kafkapump user)..."
-    timeout 30 /opt/kafka/bin/kafka-console-consumer.sh \
-      --bootstrap-server kafka-kafka-bootstrap:9093 \
-      --topic {{ kafka.topics.idrac.name }} \
-      --consumer.config /tmp/kafkapump-client.properties \
-      --group {{ kafka.topics.idrac.consumer_group }} \
-      --from-beginning \
-      --max-messages 10 || echo "No messages or timeout (this is normal for {{ kafka.topics.idrac.name }})"
-    echo ""
-{% endif %}
-    
 {% if ldms_support %}
     # Test LDMS topic consumer
-    echo "Step 6: Testing consumer on {{ kafka.topics.ldms.name }} topic (kafkapump user via TLS)..."
+    echo "Step 5: Testing consumer on {{ kafka.topics.ldms.name }} topic (kafkapump user via TLS)..."
     timeout 30 /opt/kafka/bin/kafka-console-consumer.sh \
       --bootstrap-server kafka-kafka-bootstrap:9093 \
       --topic {{ kafka.topics.ldms.name }} \
@@ -114,9 +98,6 @@ data:
     echo "  ✓ kafkapump keystore created"
     echo "  ✓ mTLS connection established"
     echo "  ✓ Topics listed successfully"
-{% if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) and 'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) %}
-    echo "  ✓ {{ kafka.topics.idrac.name }} topic tested (kafkapump user)"
-{% endif %}
 {% if ldms_support %}
     echo "  ✓ {{ kafka.topics.ldms.name }} topic tested via TLS (kafkapump user)"
 {% endif %}

@@ -66,7 +66,6 @@
     - name: Configure of k8s telemetry service prerequisites
       when:
         - >-
-          (telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool) or
           (telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool) or
           (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
           (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) or
@@ -100,10 +99,9 @@
         - telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool
       ansible.builtin.include_tasks: deploy_vast_telemetry.yml
 
-    - name: Generate telemetry deployments (idrac/ldms/powerscale/ome/vector)
+    - name: Generate telemetry deployments (ldms/powerscale/ome/vector)
       when:
         - >-
-          (telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool) or
           (telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool) or
           (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
           (telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool) or
@@ -133,16 +131,6 @@
       tags:
         - telemetry_deployment
         - vector_ome
-
-    - name: Configure of k8s telemetry service
-      when:
-        - telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
-      block:
-        - name: Validate idrac telemetry config
-          ansible.builtin.include_tasks: validate_idrac_inventory.yml
-
-        - name: Generate service cluster metadata
-          ansible.builtin.include_tasks: generate_service_cluster_metadata.yml
 
     - name: Include update_ldms_sampler.yml
       ansible.builtin.include_tasks: update_ldms_sampler.yml

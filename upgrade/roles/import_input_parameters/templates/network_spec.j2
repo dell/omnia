@@ -21,9 +21,8 @@
 # - 'oim_nic_name': The name of the interface on the OIM server associated with the admin network.
 # - 'netmask_bits': The number of bits in the subnet mask.
 # - 'primary_oim_admin_ip': The admin IP address of the OIM server which is configured.
-# - 'primary_oim_bmc_ip': The iDRAC  IP address of the OIM server,
-#     Mandatory only if idrac_telemetry is set to true and telemetry data needs to be collected from the OIM server.
-#     Optional — can be omitted if iDRAC telemetry for the OIM server is not required.
+# - 'primary_oim_bmc_ip': The iDRAC IP address of the OIM server.
+#     Optional — can be omitted if not required.
 # - 'router': The gateway/router IP for the admin network (used as DHCP option 3).
 #     Mandatory. If no dedicated router is available, use 'primary_oim_admin_ip'.
 # - 'dynamic_range': The range of dynamic IP addresses available on the admin network.

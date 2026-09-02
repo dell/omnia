@@ -352,7 +352,7 @@ TELEMETRY_SERVICE_CLUSTER_ENTRY_MISSING_ROLES_CONFIG_MSG = (
     "requires service k8s roles(service_kube_control_plane and service_kube_node)"
     " to be defined in 'pxe_mapping_file.csv'. Please either configure "
     "service k8s roles in the mapping file "
-    "or disable idrac_telemetry_support in in telemetry_config.yml "
+    "or disable telemetry support in telemetry_config.yml "
     "and rerun the playbook."
 )
 TELEMETRY_SERVICE_CLUSTER_ENTRY_FOR_LDMS_MISSING_ROLES_CONFIG_MSG = (
@@ -811,7 +811,7 @@ def get_footer():
 KAFKA_STORAGE_REQUIRED_MSG = (
     "kafka_storage section is required in telemetry_storage_config.yml "
     "when kafka is in collection_targets for any telemetry source "
-    "(idrac, ldms). Please configure kafka_storage with kafka and "
+    "(ldms). Please configure kafka_storage with kafka and "
     "entity_operator.user_operator resource configurations."
 )
 
@@ -841,12 +841,6 @@ CSI_VOLUME_EXPORTER_STORAGE_REQUIRED_MSG = (
 CSM_METRICS_POWERSCALE_STORAGE_REQUIRED_MSG = (
     "csm_metrics_powerscale_storage section is required in telemetry_storage_config.yml "
     "when PowerScale metrics are enabled. Please configure resource requests and limits."
-)
-
-IDRAC_TELEMETRY_STORAGE_REQUIRED_MSG = (
-    "idrac_telemetry_storage section is required in telemetry_storage_config.yml "
-    "when iDRAC metrics are enabled. Please configure resource requests and limits "
-    "for mysqldb, activemq, receiver, kafka_pump, and victoria_pump containers."
 )
 
 TELEMETRY_STORAGE_CONFIG_FILE_NOT_FOUND_MSG = (

@@ -69,9 +69,6 @@ def main():
 
     telemetry_sources = telemetry_config_data.get("telemetry_sources", {})
 
-    if telemetry_sources.get("idrac", {}).get("metrics_enabled", False):
-        telemetry_status_list.append("idrac_telemetry")
-
     # Check UFM telemetry
     ufm_config = telemetry_sources.get("ufm", {})
     if ufm_config.get("metrics_enabled", False):

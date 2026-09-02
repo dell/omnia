@@ -52,23 +52,4 @@
       ansible.builtin.include_role:
         name: service_k8s_telemetry
 
-- name: Enable idrac telemetry
-  hosts: service_kube_cp_group
-  gather_facts: false
-  tasks:
-    - name: Enable idrac telemetry
-      ansible.builtin.include_role:
-        name: idrac_telemetry
 
-- name: Detailed Telemetry Report
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  vars:
-    telemetry_report_path: "/opt/omnia/telemetry/idrac_telemetry_report.yml"
-  tasks:
-    - name: Detailed Telemetry Report
-      ansible.builtin.debug:
-        msg: "Check the file at {{ telemetry_report_path }} in omnia_core container for detailed telemetry report."
-      when:
-        - hostvars['localhost']['idrac_telemetry_support']

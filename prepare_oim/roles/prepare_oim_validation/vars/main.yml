@@ -83,7 +83,7 @@ ha_nfs_error_msg: |
 functional_groups_config_path: "/opt/omnia/.data/functional_groups_config.yml"
 functional_groups_config_syntax_fail_msg: "Failed. Syntax errors present in functional_groups_config.yml. Fix errors and re-run playbook again."
 
-# Usage: check_idrac_telemetry_support.yml
+# Usage: check_telemetry_support.yml
 telemetry_config_file: "telemetry_config.yml"
 fail_msg_telemetry_config_file: "telemetry_config.yml file doesn't exist in the input folder."
 telemetry_config_syntax_fail_msg: "Failed. Syntax errors present in telemetry_config.yml. Fix errors and re-run playbook again. Common syntax Errors:"

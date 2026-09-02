@@ -19,7 +19,3 @@
 
 - name: Validate telemetry_config.yml
   ansible.builtin.include_tasks: validate_telemetry_config.yml
-
-- name: Validate iDRAC inventory
-  ansible.builtin.include_tasks: validate_idrac_inventory.yml
-  when: idrac_telemetry_support

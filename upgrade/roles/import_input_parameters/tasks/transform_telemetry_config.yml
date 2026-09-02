@@ -60,39 +60,6 @@
     backup_telemetry_ldms_config: >-
       {{ backup_telemetry_config.ldms_configurations | default({}, true) }}
 
-- name: Extract iDRAC telemetry support from backup (2.1 or 2.2 format)
-  ansible.builtin.set_fact:
-    telemetry_idrac_telemetry_support: >-
-      {{
-        backup_telemetry_config.idrac_telemetry_support
-        | default(
-            (backup_telemetry_sources.idrac | default({}, true)).metrics_enabled
-            | default(telemetry_default_idrac_support)
-          )
-      }}
-
-- name: Extract collection type from backup (2.1 format) for target conversion
-  ansible.builtin.set_fact:
-    telemetry_telemetry_collection_type: >-
-      {{
-        backup_telemetry_config.telemetry_collection_type
-        | default(backup_telemetry_config.idrac_telemetry_collection_type
-        | default(telemetry_default_collection_type))
-      }}
-
-- name: Derive iDRAC collection targets from 2.1 collection type string
-  ansible.builtin.set_fact:
-    telemetry_idrac_collection_targets: >-
-      {{
-        (backup_telemetry_sources.idrac | default({}, true)).collection_targets
-        | default(
-            telemetry_telemetry_collection_type.split(',')
-            | map('trim')
-            | map('regex_replace', '^victoria$', 'victoria_metrics')
-            | list
-          )
-      }}
-
 - name: Normalize VictoriaMetrics sink values from backup
   ansible.builtin.set_fact:
     telemetry_victoria_persistence_size: >-
@@ -356,8 +323,6 @@
     dest: "{{ input_project_dir }}/telemetry_config.yml"
     mode: "{{ default_file_mode }}"
   vars:
-    telemetry_idrac_telemetry_support: "{{ telemetry_idrac_telemetry_support }}"
-    telemetry_idrac_collection_targets: "{{ telemetry_idrac_collection_targets }}"
     telemetry_ldms_metrics_enabled: "{{ telemetry_ldms_metrics_enabled }}"
     telemetry_dcgm_support: "{{ telemetry_dcgm_support }}"
     telemetry_powerscale_metrics_enabled: "{{ telemetry_powerscale_metrics_enabled }}"
@@ -428,8 +393,6 @@
       {{ msg_telemetry_config_transform_summary }}
 
       Field mappings applied:
-      - idrac_telemetry_support → telemetry_sources.idrac.metrics_enabled
-      - idrac_telemetry_collection_type → telemetry_sources.idrac.collection_targets: {{ telemetry_idrac_collection_targets }}
       - victoria_configurations → telemetry_sinks.victoria_metrics
       - kafka_configurations → telemetry_sinks.kafka (topic_partitions converted to dict)
       - ldms_* ports/samplers → ldms_configurations

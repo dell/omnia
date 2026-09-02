@@ -309,8 +309,6 @@ msg_telemetry_config_transform_summary: |
   Backup preserved at: {{ backup_location }}/telemetry_config.yml
   Changes:
   - Restructured to telemetry_sources / telemetry_bridges / telemetry_sinks architecture
-  - Mapped idrac_telemetry_support to telemetry_sources.idrac.metrics_enabled
-  - Mapped idrac_telemetry_collection_type to telemetry_sources.idrac.collection_targets
   - Mapped victoria_configurations to telemetry_sinks.victoria_metrics
   - Mapped kafka_configurations to telemetry_sinks.kafka (topic_partitions list to dict)
   - Mapped ldms_* ports and sampler configs to ldms_configurations section
@@ -395,7 +393,6 @@ network_default_netmask_bits: "24"
 network_default_subnet: "172.16.0.0"
 
 # Telemetry Config Defaults
-telemetry_default_idrac_support: true
 telemetry_default_collection_type: "victoria,kafka"
 telemetry_default_victoria_persistence_size: "8Gi"
 telemetry_default_victoria_retention_period: 168
@@ -473,8 +470,6 @@ telemetry_default_ldms_sampler_configurations:
 
 # Default Kafka topic partitions
 telemetry_default_kafka_topic_partitions:
-  - name: "idrac"
-    partitions: 1
   - name: "ldms"
     partitions: 2
 

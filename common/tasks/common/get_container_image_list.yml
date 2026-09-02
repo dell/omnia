@@ -16,19 +16,6 @@
 - name: Include image variables
   ansible.builtin.include_vars: "../../vars/image_vars.yml"
 
-- name: Add telemetry to container image list if telemetry_support is true
-  when:
-    - hostvars['localhost']['idrac_telemetry_support'] | default(false)
-    - not hostvars['localhost']['federated_idrac_telemetry_collection'] | default(false)
-  ansible.builtin.set_fact:
-    container_images: >-
-      {{ container_images + [
-          'docker.io/library/mysql:' + mysql_tag,
-          'docker.io/apache/activemq:' + activemq_tag,
-          'docker.io/library/golang:' + golang_tag,
-          'docker.io/prom/prometheus:' + prometheus_tag
-        ] }}
-
 - name: Set container_images_dict fact
   ansible.builtin.set_fact:
     container_images_dict: "{{ dict(container_images
