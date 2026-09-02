@@ -24,6 +24,11 @@ import pytest
 from infra.id_generator import UUIDv4Generator
 
 
+# pylint: disable=R0914,C0415,W0212
+# R0914: Test fixture has many local variables for setup
+# C0415: Imports inside function needed for proper test isolation
+# W0212: Protected access needed for test setup
+
 @pytest.fixture(scope="function")
 def client(tmp_path):
     """Create test client with fresh container for each test."""
@@ -31,6 +36,35 @@ def client(tmp_path):
     db_file = tmp_path / "test.db"
     db_url = f"sqlite:///{db_file}"
     os.environ["DATABASE_URL"] = db_url
+
+    # Set up config path for tests
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    config_file = config_dir / "build_stream.ini"
+    config_file.write_text("""
+[paths]
+build_stream_base_path = /tmp/build_stream_test
+
+[artifact_store]
+backend = in_memory
+working_dir = /tmp/build_stream_test/artifacts
+max_file_size_bytes = 10737418240
+max_archive_uncompressed_bytes = 53687091200
+max_archive_entries = 1000
+
+[file_store]
+base_path = /tmp/build_stream_test/nfs
+""")
+    os.environ["BUILD_STREAM_CONFIG_PATH"] = str(config_file)
+
+    # Reload config before importing app
+    import common.config as config_module  # pylint: disable=import-outside-toplevel
+    import importlib  # pylint: disable=import-outside-toplevel
+    importlib.reload(config_module)
+
+    # Reload container to pick up new config
+    import app.container as container_module  # pylint: disable=import-outside-toplevel
+    importlib.reload(container_module)
 
     from main import app  # pylint: disable=import-outside-toplevel
 
@@ -44,18 +78,41 @@ def client(tmp_path):
     from api.dependencies import verify_token  # pylint: disable=import-outside-toplevel
     app.dependency_overrides[verify_token] = mock_verify_token
 
-    from infra.db.models import Base  # pylint: disable=import-outside-toplevel
-    import infra.db.config as config_module  # pylint: disable=import-outside-toplevel
-    import importlib  # pylint: disable=import-outside-toplevel
+    # Config is loaded from file, no need for mock_config function
+    # pylint: disable=import-outside-toplevel,protected-access
+    from api.upload import dependencies as upload_deps
+    container = upload_deps._get_container()
+    app.dependency_overrides[upload_deps.get_upload_files_use_case] = (
+        container.upload_files_use_case
+    )
 
-    config_module.db_config = config_module.DatabaseConfig()
+    from infra.db.models import Base
+    import infra.db.config as db_config_module
 
-    import infra.db.session  # pylint: disable=import-outside-toplevel
+    db_config_module.db_config = db_config_module.DatabaseConfig()
+
+    import infra.db.session
     importlib.reload(infra.db.session)
     session_module = infra.db.session
 
-    from sqlalchemy import create_engine  # pylint: disable=import-outside-toplevel
-    engine = create_engine(db_url)
+    from sqlalchemy import create_engine, event
+    from sqlalchemy.pool import StaticPool
+
+    # Use WAL mode and connection pooling to avoid database locks
+    engine = create_engine(
+        db_url,
+        connect_args={"check_same_thread": False, "timeout": 30},
+        poolclass=StaticPool,
+        echo=False,
+    )
+
+    # Enable WAL mode for better concurrency
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_conn, _connection_record):
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.close()
     session_module._engine = engine  # pylint: disable=protected-access
     session_module._session_factory = None  # pylint: disable=protected-access
     Base.metadata.create_all(engine)
@@ -63,6 +120,17 @@ def client(tmp_path):
     from fastapi.testclient import TestClient  # pylint: disable=import-outside-toplevel
     with TestClient(app) as test_client:
         yield test_client
+
+    # Clean up sessions and connections
+    try:
+        session_module.get_session_factory().close_all()
+    except Exception:  # pylint: disable=broad-except
+        pass
+
+    try:
+        engine.dispose()
+    except Exception:  # pylint: disable=broad-except
+        pass
 
     app.dependency_overrides.clear()
 
@@ -90,7 +158,7 @@ def unique_correlation_id(uuid_generator) -> str:
 
 
 @pytest.fixture
-def created_job(client, auth_headers) -> str:
+def created_job(client, auth_headers) -> str:  # pylint: disable=redefined-outer-name
     """Create a job and return its job_id."""
     payload = {"client_id": "test-client-123", "client_name": "test-client"}
     response = client.post("/api/v1/jobs", json=payload, headers=auth_headers)

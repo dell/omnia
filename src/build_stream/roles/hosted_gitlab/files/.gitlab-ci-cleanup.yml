@@ -181,6 +181,10 @@ list_images:
       curl_connect_timeout = os.environ.get('CURL_CONNECT_TIMEOUT', '15')
       curl_max_time = os.environ.get('CURL_MAX_TIME', '45')
       template_file = os.environ.get('TEMPLATE_FILE', '')
+      # Cleanup (S3 delete via playbook) is normally fast, but give it a
+      # generous window since it depends on the playbook watcher queue.
+      poll_interval = os.environ.get('POLL_INTERVAL', '15')
+      max_poll_attempts = os.environ.get('MAX_POLL_ATTEMPTS', '40')
 
       lines = []
 
@@ -195,6 +199,8 @@ list_images:
       lines.append('  BSM_CERT_FILE: "/tmp/bsm_api_ca.crt"')
       lines.append(f'  CURL_CONNECT_TIMEOUT: "{curl_connect_timeout}"')
       lines.append(f'  CURL_MAX_TIME: "{curl_max_time}"')
+      lines.append(f'  POLL_INTERVAL: "{poll_interval}"')
+      lines.append(f'  MAX_POLL_ATTEMPTS: "{max_poll_attempts}"')
       lines.append("")
 
       # --- Stages ---
