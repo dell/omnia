@@ -23,7 +23,7 @@
     dest: "{{ nodes_dir }}/groups-{{ functional_group_name }}.yml"
     mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
   vars:
-    nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
+    smd_group_nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
 
 - name: Get SMD group data
   ansible.builtin.command: /usr/bin/ochami smd group get

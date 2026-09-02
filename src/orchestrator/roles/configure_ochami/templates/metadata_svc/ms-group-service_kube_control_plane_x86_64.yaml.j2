@@ -276,21 +276,21 @@
 {% endfor %}
 {% endif %}
 {% raw %}
-      {% if ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map is mapping and ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map %}
-      {% set mymounts = ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map.get(local_hostname, {}) %}
-      {% if mymounts %}
-      {% for mount in mymounts.get("mounts", []) %}
-        - mkdir -pv {{ mount[1] }}
-        - echo "{{ mount | join(' ') }}" >> /etc/fstab
-      {% endfor %}
+      {{ "{%" }} if ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map is mapping and ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map {{ "%}" }}
+      {{ "{%" }} set mymounts = ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map.get(local_hostname, {}) {{ "%}" }}
+      {{ "{%" }} if mymounts {{ "%}" }}
+      {{ "{%" }} for mount in mymounts.get("mounts", []) {{ "%}" }}
+        - mkdir -pv {{ "{{" }} mount[1] {{ "}}" }}
+        - echo "{{ "{{" }} mount | join(' ') {{ "}}" }}" >> /etc/fstab
+      {{ "{%" }} endfor {{ "%}" }}
         - mount -av
-      {% for decoded_cmd in mymounts.get("runcmd", []) %}
-        - {{ decoded_cmd }}
-      {% endfor %}
-      {% else %}
+      {{ "{%" }} for decoded_cmd in mymounts.get("runcmd", []) {{ "%}" }}
+        - {{ "{{" }} decoded_cmd {{ "}}" }}
+      {{ "{%" }} endfor {{ "%}" }}
+      {{ "{%" }} else {{ "%}" }}
         - echo "No mount entries found for this host"
-      {% endif %}
-      {% endif %}
+      {{ "{%" }} endif {{ "%}" }}
+      {{ "{%" }} endif {{ "%}" }}
 {% endraw %}
 {% for pv_entry in metadata_svc_groups_dict[functional_group_name].powervault_scripts | default([], true) %} 
         - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
@@ -300,11 +300,11 @@
 {% if etcd_on_local_disk | default(false) %}
         - /usr/local/bin/etcd-fstab-update.sh
 {% else %}
-        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/etcd      /var/lib/etcd        nfs noatime,nolock 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ "{{" }} ip {{ "}}" }}{% endraw %}/etcd      /var/lib/etcd        nfs noatime,nolock 0 0" >> /etc/fstab
 {% endif %}
-        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/kubelet   /var/lib/kubelet     nfs noatime,nolock 0 0" >> /etc/fstab
-        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/kubernetes   /etc/kubernetes      nfs noatime,nolock 0 0" >> /etc/fstab
-        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ "{{" }} ip {{ "}}" }}{% endraw %}/kubelet   /var/lib/kubelet     nfs noatime,nolock 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ "{{" }} ip {{ "}}" }}{% endraw %}/kubernetes   /etc/kubernetes      nfs noatime,nolock 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ "{{" }} ip {{ "}}" }}{% endraw %}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0" >> /etc/fstab
         - echo "{{ k8s_nfs_server_path }}/packages   /var/lib/packages        nfs    noatime,nolock     0 0" >> /etc/fstab
         - echo "tmpfs   /tmp/crio-storage   tmpfs   size={{ k8s_crio_storage_size }},noatime,nodev,nosuid   0 0" >> /etc/fstab
         - sudo swapoff -a
@@ -423,7 +423,7 @@
             rm -rf /var/lib/etcd/*  /var/lib/kubelet/* /etc/kubernetes/*
             rm -rf /var/lib/etcd/.*  /var/lib/kubelet/.* /etc/kubernetes/.*
             K8S_CLIENT_MOUNT_PATH="{{ k8s_client_mount_path }}"
-            NODE_NAME="{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
+            NODE_NAME="{% raw %}{{ "{{" }} ip {{ "}}" }}{% endraw %}"
             KUBE_VIP="{{ kube_vip }}"
             KUBE_PORT="6443"
             JOIN_CMD_FILE="${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
@@ -453,7 +453,7 @@
             cp -f /etc/kubernetes/admin.conf /root/.kube/config
             chown root:root /root/.kube/config
 
-            NODE_IP="{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
+            NODE_IP="{% raw %}{{ "{{" }} ip {{ "}}" }}{% endraw %}"
             VIP_IFACE=$(ip -o addr show | awk -v ip="$NODE_IP" '$4 ~ ip {print $2}')
             sed -i "s/value: vip_interface/value: ${VIP_IFACE}/" /tmp/kube-vip.yaml
             cp /tmp/kube-vip.yaml /etc/kubernetes/manifests/kube-vip.yaml
@@ -545,7 +545,7 @@
 
             # Wait for kube-controller-manager pod to exist before checking readiness
             echo "Waiting for kube-controller-manager pod to be created..."
-            KCM_POD="kube-controller-manager-{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
+            KCM_POD="kube-controller-manager-{% raw %}{{ "{{" }} ip {{ "}}" }}{% endraw %}"
             TIMEOUT=120
             ELAPSED=0
             while ! kubectl -n kube-system get pod "$KCM_POD" >/dev/null 2>&1; do
