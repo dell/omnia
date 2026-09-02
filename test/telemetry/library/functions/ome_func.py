@@ -32,33 +32,94 @@ import time
 from omnia_auto import read_remote_yaml, run_on_host
 
 from ..vars.common_vars import (
-    TELEMETRY_NAMESPACE,
-    PLAYBOOK_WORKDIR,
-    PLAYBOOK_ENTRY_POINT,
     KAFKA_EXTERNAL_BOOTSTRAP_SVC,
+    PLAYBOOK_ENTRY_POINT,
+    PLAYBOOK_WORKDIR,
+    TELEMETRY_NAMESPACE,
 )
 from ..vars.ome_vars import (
-    OME_CMD_TEMPLATES,
-    OME_KAFKA_USER,
-    OME_KAFKA_TOPICS,
-    OME_KAFKA_CERT_SUBDIR,
-    OME_KAFKA_DETAILS_FILE,
-    OME_KAFKA_CERT_FILES,
-    KAFKA_BRIDGE_SERVICE,
     KAFKA_BRIDGE_DEFAULT_PORT,
+    KAFKA_BRIDGE_SERVICE,
+    OME_CMD_TEMPLATES,
     OME_FORWARDER_ID,
-    OME_KAFKA_CONNECTION_TIMEOUT_SECONDS,
+    OME_KAFKA_CERT_FILES,
+    OME_KAFKA_CERT_SUBDIR,
     OME_KAFKA_CONNECTION_POLL_INTERVAL_SECONDS,
-    OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
-    OME_KAFKA_TOPIC_POLL_INTERVAL_SECONDS,
-    OME_KAFKA_DATA_TIMEOUT_SECONDS,
+    OME_KAFKA_CONNECTION_TIMEOUT_SECONDS,
     OME_KAFKA_DATA_POLL_INTERVAL_SECONDS,
+    OME_KAFKA_DATA_TIMEOUT_SECONDS,
+    OME_KAFKA_DETAILS_FILE,
+    OME_KAFKA_TOPIC_POLL_INTERVAL_SECONDS,
+    OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
+    OME_KAFKA_TOPICS,
+    OME_KAFKA_USER,
+    OME_LOG_TOPIC_SUFFIXES,
+    OME_METRIC_TOPIC_SUFFIXES,
 )
 from .telemetry_func import (
     get_kafka_external_bootstrap,
     get_output_path,
+    load_telemetry_config_from_target,
     run_on_kube_vip,
 )
+
+
+def get_ome_pipeline_context(host):
+    """Return the deployed OME source and bridge channel configuration.
+
+    The source flags describe which topic families OME is expected to
+    publish.  The bridge flags describe which families Vector routes to the
+    Victoria backends.  Topic names use the ``ome_identifier`` from the
+    deployed telemetry configuration rather than assuming the default
+    ``ome`` prefix.
+
+    Args:
+        host: Testinfra host connection to the OIM.
+
+    Returns:
+        dict: Channel flags, resolved topic lists, and configuration state.
+    """
+    config = load_telemetry_config_from_target(host)
+    sources = config.get("telemetry_sources") if isinstance(config, dict) else None
+    bridges = config.get("telemetry_bridges") if isinstance(config, dict) else None
+    source = sources.get("ome") if isinstance(sources, dict) else None
+    bridge = bridges.get("vector_ome") if isinstance(bridges, dict) else None
+
+    source = source if isinstance(source, dict) else {}
+    bridge = bridge if isinstance(bridge, dict) else {}
+    source_metrics = source.get("metrics_enabled") is True
+    source_logs = source.get("logs_enabled") is True
+    bridge_metrics = bridge.get("metrics_enabled") is True
+    bridge_logs = bridge.get("logs_enabled") is True
+    identifier = str(bridge.get("ome_identifier", "ome")).strip() or "ome"
+
+    enabled_suffixes = set()
+    if source_metrics:
+        enabled_suffixes.update(OME_METRIC_TOPIC_SUFFIXES)
+    if source_logs:
+        enabled_suffixes.update(OME_LOG_TOPIC_SUFFIXES)
+
+    # Preserve the established display order while applying the configured
+    # identifier and filtering out disabled topic families.
+    expected_topics = []
+    for default_topic in OME_KAFKA_TOPICS:
+        suffix = default_topic.rsplit(".", maxsplit=1)[-1]
+        if suffix in enabled_suffixes:
+            expected_topics.append(f"{identifier}.{suffix}")
+
+    return {
+        "config_valid": bool(source) and bool(bridge),
+        "identifier": identifier,
+        "source_metrics_enabled": source_metrics,
+        "source_logs_enabled": source_logs,
+        "source_enabled": source_metrics or source_logs,
+        "bridge_metrics_enabled": bridge_metrics,
+        "bridge_logs_enabled": bridge_logs,
+        "bridge_enabled": bridge_metrics or bridge_logs,
+        "metrics_pipeline_enabled": source_metrics and bridge_metrics,
+        "logs_pipeline_enabled": source_logs and bridge_logs,
+        "expected_topics": expected_topics,
+    }
 
 
 def _get_cert_dir(host):
@@ -1342,27 +1403,49 @@ def get_kafka_bridge_port(host):
 
 def verify_ome_kafka_topics(
         host, timeout_seconds=OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
-        poll_interval_seconds=OME_KAFKA_TOPIC_POLL_INTERVAL_SECONDS):
+        poll_interval_seconds=OME_KAFKA_TOPIC_POLL_INTERVAL_SECONDS,
+        expected_topics=None):
     """Verify OME Kafka topics exist via REST proxy.
 
-    Polls until all expected OME topics are present or the timeout expires.
-    OME creates these topics asynchronously after the forwarder reconnects.
+    Polls until the requested OME topics are present or the timeout expires.
+    OME creates topics asynchronously after the forwarder reconnects.  When
+    no explicit list is supplied, all canonical OME topics are checked for
+    backward compatibility.
 
     Args:
         host: Testinfra host connection to the OIM.
         timeout_seconds: Maximum time to wait for all topics.
         poll_interval_seconds: Delay between topic-list requests.
+        expected_topics: Topic names required by the enabled source channels.
 
     Returns:
         dict with topic results, endpoint, attempts, elapsed time, and error.
     """
+    required_topics = list(
+        OME_KAFKA_TOPICS if expected_topics is None else expected_topics
+    )
+    if not required_topics:
+        return {
+            "success": True,
+            "found_topics": [],
+            "missing_topics": [],
+            "all_topics": [],
+            "expected_topics": [],
+            "bridge_ip": "",
+            "port": "",
+            "attempts": 0,
+            "elapsed_seconds": 0.0,
+            "error": "",
+        }
+
     bridge_ip = get_kafka_bridge_ip(host)
     if not bridge_ip:
         return {
             "success": False,
             "error": "Kafka bridge IP not found",
             "found_topics": [],
-            "missing_topics": OME_KAFKA_TOPICS,
+            "missing_topics": required_topics,
+            "expected_topics": required_topics,
         }
 
     port = get_kafka_bridge_port(host)
@@ -1376,7 +1459,7 @@ def verify_ome_kafka_topics(
     attempts = 0
     all_topics = []
     found_topics = []
-    missing_topics = list(OME_KAFKA_TOPICS)
+    missing_topics = list(required_topics)
     last_error = ""
 
     while True:
@@ -1393,11 +1476,11 @@ def verify_ome_kafka_topics(
                     last_error = ""
                     all_topics = parsed_topics
                     found_topics = [
-                        topic for topic in OME_KAFKA_TOPICS
+                        topic for topic in required_topics
                         if topic in all_topics
                     ]
                     missing_topics = [
-                        topic for topic in OME_KAFKA_TOPICS
+                        topic for topic in required_topics
                         if topic not in all_topics
                     ]
                     if not missing_topics:
@@ -1418,6 +1501,7 @@ def verify_ome_kafka_topics(
         "found_topics": found_topics,
         "missing_topics": missing_topics,
         "all_topics": all_topics,
+        "expected_topics": required_topics,
         "bridge_ip": bridge_ip,
         "port": port,
         "attempts": attempts,

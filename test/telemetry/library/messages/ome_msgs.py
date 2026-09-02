@@ -53,6 +53,18 @@ OME_TEST_NAMES: Dict[str, str] = {
 # =============================================================================
 
 OME_LOG_MSGS: Dict[str, str] = {
+    # Configuration gates
+    "ome_source_disabled": "OME source is disabled in telemetry_config.yml",
+    "ome_source_channel_disabled": (
+        "OME {channel} source is disabled in telemetry_config.yml"
+    ),
+    "ome_bridge_disabled": (
+        "Vector-OME bridge is disabled in telemetry_config.yml"
+    ),
+    "ome_bridge_channel_disabled": (
+        "Vector-OME {channel} bridge is disabled in telemetry_config.yml"
+    ),
+
     # Deployment
     "ome_bridge_running": "Vector-OME bridge: {count}/{expected} pods running",
     "ome_bridge_not_running": "Vector-OME bridge: only {running}/{expected} pods running",
@@ -116,6 +128,28 @@ OME_LOG_MSGS: Dict[str, str] = {
     "ome_data_found": "OME data found in Kafka topic '{topic}': {count} record(s)",
     "ome_data_missing": "No OME data found in Kafka topic '{topic}'",
     "ome_data_sample": "Sample record from '{topic}':",
+
+    # VictoriaMetrics data verification
+    "ome_vm_data_verifying": (
+        "Waiting up to {timeout}s for OME topic '{topic}' in VictoriaMetrics"
+    ),
+    "ome_vm_data_found": (
+        "OME topic '{topic}' verified in VictoriaMetrics: {count} metric(s)"
+    ),
+    "ome_vm_data_missing": (
+        "OME topic '{topic}' has no valid data in VictoriaMetrics"
+    ),
+
+    # VictoriaLogs data verification
+    "ome_vl_data_verifying": (
+        "Waiting up to {timeout}s for OME topic '{topic}' in VictoriaLogs"
+    ),
+    "ome_vl_data_found": (
+        "OME topic '{topic}' verified in VictoriaLogs: {count} record(s)"
+    ),
+    "ome_vl_data_missing": (
+        "OME topic '{topic}' has no valid data in VictoriaLogs"
+    ),
 
     # Cleanup
     "ome_cleaned": "No OME pods remaining",
@@ -207,6 +241,22 @@ OME_ASSERT_MSGS: Dict[str, str] = {
         "  3. curl http://<bridge-ip>:8080/topics to list topics\n"
     ),
 
+    # Victoria sink data
+    "ome_vm_data_missing": (
+        "OME topic '{topic}' was not verified in VictoriaMetrics: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Verify the OME Kafka topic contains data\n"
+        "  2. Check the vector-ome metrics route and pod logs\n"
+        "  3. Check vmagent-vector and the VictoriaMetrics endpoints\n"
+    ),
+    "ome_vl_data_missing": (
+        "OME topic '{topic}' was not verified in VictoriaLogs: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Verify the OME Kafka topic contains log records\n"
+        "  2. Check the vector-ome logs route and pod logs\n"
+        "  3. Check vlagent-vector and the VictoriaLogs endpoints\n"
+    ),
+
     # Cleanup
     "ome_not_cleaned": (
         "{count} OME pod(s) still present after cleanup\n"
@@ -214,4 +264,63 @@ OME_ASSERT_MSGS: Dict[str, str] = {
         "  1. kubectl get pods -n telemetry -l app=vector-ome\n"
         "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_ome\n"
     ),
+}
+
+
+# =============================================================================
+# OME VICTORIA ERROR AND DETAIL MESSAGES
+# =============================================================================
+
+OME_ERROR_MSGS: dict[str, str] = {
+    "pipeline_disabled": (
+        "OME {data_type} routing to Victoria is disabled in telemetry_config.yml"
+    ),
+    "topic_invalid": "Unsupported OME {data_type} topic: {topic}",
+    "vm_endpoint_missing": "VictoriaMetrics vmselect endpoint is unavailable",
+    "vl_endpoint_missing": "VictoriaLogs vlselect endpoint is unavailable",
+    "vm_query_failed": "VictoriaMetrics range query failed for topic {topic}",
+    "vm_query_json_invalid": "VictoriaMetrics returned invalid JSON: {error}",
+    "vm_query_shape_invalid": "VictoriaMetrics returned an invalid range response",
+    "vm_data_missing": "No valid OME metric samples found for topic {topic}",
+    "vl_query_failed": "VictoriaLogs query failed for topic {topic}",
+    "vl_record_invalid": "VictoriaLogs returned an invalid JSON record",
+    "vl_data_missing": "No valid OME log records found for topic {topic}",
+}
+
+
+OME_DETAIL_MSGS: dict[str, str] = {
+    "pipeline_disabled": (
+        "OME {data_type} source or vector_ome {data_type} bridge is disabled"
+    ),
+    "metrics_ready": (
+        "VictoriaMetrics: {vmselect_ip}:{vmselect_port}\n"
+        "Topic: {topic}\n"
+        "Metrics found: {metric_count}\n"
+        "Window: {start_display} to {end_display} ({window_seconds}s)\n\n"
+        "Earliest and latest data per metric:\n{metric_results}"
+    ),
+    "metric_result_line": (
+        "    \u2713 {metric} ({series_count} series)\n"
+        "        Earliest: {earliest_display}\n"
+        "            - value: {earliest_value}\n"
+        "        Latest: {latest_display}\n"
+        "            - value: {latest_value}\n"
+        "            - age_seconds: {age:.1f}"
+    ),
+    "logs_ready": (
+        "VictoriaLogs: {vlselect_ip}:{vlselect_port}\n"
+        "Topic: {topic}\n"
+        "Records found: {log_count}\n"
+        "Window: {window}\n\n"
+        "Log stream result:\n{log_result}"
+    ),
+    "log_result_line": (
+        "    \u2713 {topic} ({log_count} record(s))\n"
+        "        Earliest: {earliest_display}\n"
+        "        Latest: {latest_display}\n"
+        "            - age_seconds: {age:.1f}\n"
+        "        Latest record fields:\n{field_results}"
+    ),
+    "log_field_line": "            - {key}: {value}",
+    "log_fields_unavailable": "            - details: unavailable",
 }

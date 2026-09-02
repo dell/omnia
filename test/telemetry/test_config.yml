@@ -102,8 +102,8 @@ ome_ip: ""
 #   3. Convert user.crt + user.key to user.pfx
 #   4. Upload certificates to OME via REST API
 #   5. Configure and test OME Kafka forwarder connectivity
-# When false, only the OME deployment tests (Vector-OME bridge, KafkaUser)
-# are run; connectivity/certificate tests are skipped.
+# When false, only the enabled Vector-OME bridge and KafkaUser checks run;
+# connectivity, certificate, Kafka data, and Victoria data tests are skipped.
 configure_ome: true
 
 # OME identifier string used in Kafka forwarder configuration.

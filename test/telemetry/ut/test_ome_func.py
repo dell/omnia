@@ -17,6 +17,8 @@
 import json
 from types import SimpleNamespace
 
+import pytest
+
 from library.functions import ome_func
 from library.vars import (
     KAFKA_BRIDGE_SERVICE,
@@ -25,9 +27,9 @@ from library.vars import (
     OME_KAFKA_CONNECTION_TIMEOUT_SECONDS,
     OME_KAFKA_DATA_POLL_INTERVAL_SECONDS,
     OME_KAFKA_DATA_TIMEOUT_SECONDS,
-    OME_KAFKA_TOPICS,
     OME_KAFKA_TOPIC_POLL_INTERVAL_SECONDS,
     OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
+    OME_KAFKA_TOPICS,
 )
 
 
@@ -63,6 +65,85 @@ def test_ome_polling_timeouts():
     assert OME_KAFKA_TOPIC_POLL_INTERVAL_SECONDS == 2
     assert OME_KAFKA_DATA_TIMEOUT_SECONDS == 120
     assert OME_KAFKA_DATA_POLL_INTERVAL_SECONDS == 2
+
+
+@pytest.mark.parametrize(
+    (
+        "source_metrics",
+        "source_logs",
+        "bridge_metrics",
+        "bridge_logs",
+        "expected_topics",
+    ),
+    [
+        (
+            True,
+            False,
+            True,
+            False,
+            ["rack_ome.telemetry", "rack_ome.inventory", "rack_ome.health"],
+        ),
+        (
+            False,
+            True,
+            False,
+            True,
+            ["rack_ome.alerts", "rack_ome.auditlogs"],
+        ),
+        (
+            True,
+            True,
+            True,
+            True,
+            [
+                "rack_ome.telemetry",
+                "rack_ome.inventory",
+                "rack_ome.alerts",
+                "rack_ome.health",
+                "rack_ome.auditlogs",
+            ],
+        ),
+        (False, False, False, False, []),
+    ],
+)
+def test_ome_pipeline_context_selects_source_topics(
+        monkeypatch, source_metrics, source_logs, bridge_metrics, bridge_logs,
+        expected_topics):
+    """Select only enabled source topics and apply the deployed identifier."""
+    monkeypatch.setattr(
+        ome_func,
+        "load_telemetry_config_from_target",
+        lambda _host: {
+            "telemetry_sources": {
+                "ome": {
+                    "metrics_enabled": source_metrics,
+                    "logs_enabled": source_logs,
+                },
+            },
+            "telemetry_bridges": {
+                "vector_ome": {
+                    "metrics_enabled": bridge_metrics,
+                    "logs_enabled": bridge_logs,
+                    "ome_identifier": "rack_ome",
+                },
+            },
+        },
+    )
+
+    context = ome_func.get_ome_pipeline_context(object())
+
+    assert context["config_valid"] is True
+    assert context["source_metrics_enabled"] is source_metrics
+    assert context["source_logs_enabled"] is source_logs
+    assert context["bridge_metrics_enabled"] is bridge_metrics
+    assert context["bridge_logs_enabled"] is bridge_logs
+    assert context["metrics_pipeline_enabled"] is (
+        source_metrics and bridge_metrics
+    )
+    assert context["logs_pipeline_enabled"] is (
+        source_logs and bridge_logs
+    )
+    assert context["expected_topics"] == expected_topics
 
 
 def test_configure_ome_reconciles_connected_stale_broker(monkeypatch):
@@ -444,6 +525,37 @@ def test_ome_topics_retry_until_all_topics_exist(monkeypatch):
     assert result["success"] is True
     assert result["attempts"] == 2
     assert result["missing_topics"] == []
+
+
+def test_ome_topics_accepts_expected_subset(monkeypatch):
+    """Ignore topic families disabled by the OME source configuration."""
+    log_topics = ["ome.alerts", "ome.auditlogs"]
+    monkeypatch.setattr(
+        ome_func, "get_kafka_bridge_ip", lambda _host: "192.0.2.20"
+    )
+    monkeypatch.setattr(ome_func, "get_kafka_bridge_port", lambda _host: "8080")
+    monkeypatch.setattr(
+        ome_func,
+        "run_on_kube_vip",
+        lambda *_args: SimpleNamespace(
+            rc=0,
+            stdout=json.dumps(log_topics),
+            stderr="",
+        ),
+    )
+
+    result = ome_func.verify_ome_kafka_topics(
+        object(),
+        timeout_seconds=0,
+        expected_topics=log_topics,
+    )
+
+    assert result["success"] is True
+    assert result["found_topics"] == log_topics
+    assert result["missing_topics"] == []
+    assert result["all_topics"] == log_topics
+    assert result["expected_topics"] == log_topics
+    assert result["attempts"] == 1
 
 
 def test_ome_data_retries_for_delayed_records(monkeypatch):

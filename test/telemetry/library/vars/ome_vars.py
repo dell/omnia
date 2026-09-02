@@ -39,12 +39,37 @@ OME_KAFKA_USER = "vector-ome-user"
 # Topic prefix used by OME forwarder
 OME_KAFKA_TOPIC_PREFIX = "ome"
 
+# Topic suffixes enabled by each OME source channel.  The deployed
+# ``ome_identifier`` is applied at runtime by the verification helpers.
+OME_METRIC_TOPIC_SUFFIXES: tuple[str, ...] = (
+    "telemetry",
+    "inventory",
+    "health",
+)
+OME_LOG_TOPIC_SUFFIXES: tuple[str, ...] = (
+    "alerts",
+    "auditlogs",
+)
+
 # All OME Kafka topics (created when OME connects and forwards data)
 OME_KAFKA_TOPICS: List[str] = [
     "ome.telemetry",
     "ome.inventory",
     "ome.alerts",
     "ome.health",
+    "ome.auditlogs",
+]
+
+# OME topics routed by Vector into the Victoria backends.  Metric names are
+# generated dynamically from OME payload fields, so validation is grouped by
+# source topic instead of maintaining a hardware-dependent metric allow-list.
+OME_VICTORIA_METRIC_TOPICS: list[str] = [
+    "ome.telemetry",
+    "ome.inventory",
+    "ome.health",
+]
+OME_VICTORIA_LOG_TOPICS: list[str] = [
+    "ome.alerts",
     "ome.auditlogs",
 ]
 
@@ -90,6 +115,51 @@ OME_KAFKA_DATA_POLL_INTERVAL_SECONDS = 2
 
 
 # =============================================================================
+# OME Victoria Sink Verification
+# =============================================================================
+
+# Allow the Vector bridge and Victoria agents the same two-minute convergence
+# period as the Kafka data checks.
+OME_VICTORIA_POLL_TIMEOUT_SECONDS = 120
+OME_VICTORIA_POLL_INTERVAL_SECONDS = 5
+OME_VICTORIA_QUERY_TIMEOUT_SECONDS = 30
+
+# A one-day metric range is large enough to show meaningful earliest/latest
+# bounds without producing an unnecessarily large range-query response.
+OME_VM_RANGE_WINDOW_SECONDS = 24 * 60 * 60
+OME_VM_RANGE_STEP_SECONDS = 60
+# VictoriaMetrics' MetricsQL modifier preserves ``__name__``.  Without it,
+# timestamp() collapses different metric names that share the same OME labels
+# and the server rejects the query as duplicate output time series.
+OME_TIMESTAMP_QUERY_TEMPLATE = "timestamp({selector}) keep_metric_names"
+
+# Alerts and audit logs are event driven.  Keep a seven-day validation window
+# so a quiet appliance is not reported as broken merely because it has not
+# emitted a recent audit event.
+OME_VL_RANGE = "168h"
+OME_VL_QUERY_LIMIT = 1000
+OME_VL_FIELD_VALUE_PREVIEW_LENGTH = 120
+OME_VL_DISPLAY_FIELDS: dict[str, tuple[str, ...]] = {
+    "alerts": (
+        "AlertId",
+        "AlertIdentifier",
+        "Description",
+        "EEMIMessageId",
+        "IsAcknowledged",
+        "Severity",
+        "Timestamp",
+    ),
+    "auditlogs": (
+        "Id",
+        "Category",
+        "CreateDate",
+        "IpAddress",
+        "Message",
+    ),
+}
+
+
+# =============================================================================
 # Test Report Display Limits
 # =============================================================================
 
@@ -113,6 +183,22 @@ OME_FORWARDER_ID = 10
 # =============================================================================
 
 OME_CMD_TEMPLATES: Dict[str, str] = {
+    # -------------------------------------------------------------------------
+    # Victoria sink queries
+    # -------------------------------------------------------------------------
+
+    "vm_query_range": (
+        "curl -sk --max-time {timeout} "
+        "'https://{vmselect_ip}:{vmselect_port}"
+        "/select/0/prometheus/api/v1/query_range?query={query}"
+        "&start={start}&end={end}&step={step}'"
+    ),
+    "vl_query_topic": (
+        "curl -sk --max-time {timeout} "
+        "'https://{vlselect_ip}:{vlselect_port}"
+        "/select/logsql/query?query={query}&limit={limit}&start=-{range}'"
+    ),
+
     # -------------------------------------------------------------------------
     # Kafka Bridge Commands (REST Proxy)
     # -------------------------------------------------------------------------

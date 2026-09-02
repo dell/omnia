@@ -45,7 +45,7 @@ from library.functions import (
     convert_certs_to_pfx,
     get_kafka_external_bootstrap,
     get_ome_kafka_forwarder_config,
-    is_source_enabled,
+    get_ome_pipeline_context,
     load_test_config,
     load_test_credentials,
     run_external_kafka_playbook,
@@ -58,38 +58,71 @@ from library.functions import (
     verify_ome_kafka_connectivity,
     verify_ome_kafka_topics,
     verify_ome_kafka_user_cr,
+    verify_ome_logs_in_victoria,
+    verify_ome_metrics_in_victoria,
     view_ome_client_cert,
 )
-from library.vars import (
-    TEST_CASES as TC,
-    TELEMETRY_NAMESPACE,
-    VECTOR_OME_APP_NAME,
-    OME_KAFKA_CERT_FILES,
-    OME_KAFKA_TOPICS,
-    OME_MAX_ENTRIES_SHOWN,
-    OME_MAX_METRICS_SHOWN,
-    OME_MAX_FIELDS_SHOWN,
-    OME_KAFKA_CONNECTION_TIMEOUT_SECONDS,
-    OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
-    OME_KAFKA_DATA_TIMEOUT_SECONDS,
+from library.messages import (
+    OME_ASSERT_MSGS,
+    OME_LOG_MSGS,
+)
+from library.messages import (
+    TEST_ASSERT_MSGS as ASSERT_MSGS,
 )
 from library.messages import (
     TEST_LOG_MSGS as LOG_MSGS,
-    TEST_ASSERT_MSGS as ASSERT_MSGS,
-    OME_LOG_MSGS,
-    OME_ASSERT_MSGS,
 )
-
+from library.vars import (
+    OME_KAFKA_CERT_FILES,
+    OME_KAFKA_CONNECTION_TIMEOUT_SECONDS,
+    OME_KAFKA_DATA_TIMEOUT_SECONDS,
+    OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
+    OME_MAX_ENTRIES_SHOWN,
+    OME_MAX_FIELDS_SHOWN,
+    OME_MAX_METRICS_SHOWN,
+    OME_VICTORIA_POLL_TIMEOUT_SECONDS,
+    TELEMETRY_NAMESPACE,
+    VECTOR_OME_APP_NAME,
+)
+from library.vars import (
+    TEST_CASES as TC,
+)
 
 # Module-level state for test dependencies
 _ome_certs_uploaded = None  # None=not run, True=success, False=failed
 _ome_certs_error = ""
 
 
-def _skip_if_ome_disabled(host):
-    """Skip test if OME source is not enabled."""
-    if not is_source_enabled(host, "ome"):
-        pytest.skip("OME source not enabled in config")
+def _skip_if_ome_source_disabled(host, channel=None):
+    """Skip unless either source or one requested source channel is enabled."""
+    context = get_ome_pipeline_context(host)
+    if channel:
+        enabled = context[f"source_{channel}_enabled"]
+        message = OME_LOG_MSGS["ome_source_channel_disabled"].format(
+            channel=channel,
+        )
+    else:
+        enabled = context["source_enabled"]
+        message = OME_LOG_MSGS["ome_source_disabled"]
+    if not enabled:
+        pytest.skip(message)
+    return context
+
+
+def _skip_if_ome_bridge_disabled(host, channel=None):
+    """Skip unless either bridge or one requested bridge channel is enabled."""
+    context = get_ome_pipeline_context(host)
+    if channel:
+        enabled = context[f"bridge_{channel}_enabled"]
+        message = OME_LOG_MSGS["ome_bridge_channel_disabled"].format(
+            channel=channel,
+        )
+    else:
+        enabled = context["bridge_enabled"]
+        message = OME_LOG_MSGS["ome_bridge_disabled"]
+    if not enabled:
+        pytest.skip(message)
+    return context
 
 
 def _skip_if_certs_not_uploaded():
@@ -155,7 +188,7 @@ def _get_ome_config(host=None):
 
 # =========================================================================
 # TC_SR_070: Verify Vector-OME bridge deployment ready
-#   Always runs when OME source is enabled
+#   Runs when either Vector-OME bridge channel is enabled
 # =========================================================================
 
 @pytest.mark.source
@@ -164,7 +197,7 @@ def _get_ome_config(host=None):
 @pytest.mark.order(80)
 def test_ome_vector_bridge(host):
     """Verify Vector-OME bridge deployment ready."""
-    _skip_if_ome_disabled(host)
+    _skip_if_ome_bridge_disabled(host)
     tc = TC["ome_vector_bridge"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -201,7 +234,7 @@ def test_ome_vector_bridge(host):
 
 # =========================================================================
 # TC_SR_071: Verify OME KafkaUser CR exists
-#   Always runs when OME source is enabled
+#   Runs when either Vector-OME bridge channel is enabled
 # =========================================================================
 
 @pytest.mark.source
@@ -210,7 +243,7 @@ def test_ome_vector_bridge(host):
 @pytest.mark.order(81)
 def test_ome_kafka_user(host):
     """Verify OME KafkaUser CR exists."""
-    _skip_if_ome_disabled(host)
+    _skip_if_ome_bridge_disabled(host)
     tc = TC["ome_kafka_user"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -252,7 +285,7 @@ def test_ome_external_kafka_certs(host):
     If artifacts are missing or invalid, or the force flag is true, runs the
     external_kafka playbook to export them from the Kubernetes cluster.
     """
-    _skip_if_ome_disabled(host)
+    _skip_if_ome_source_disabled(host)
     _skip_if_configure_ome_false()
     tc = TC["ome_external_kafka_certs"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -348,7 +381,7 @@ def test_ome_external_kafka_certs(host):
 @pytest.mark.order(83)
 def test_ome_pfx_conversion(host):
     """Verify user.pfx certificate created for OME mTLS."""
-    _skip_if_ome_disabled(host)
+    _skip_if_ome_source_disabled(host)
     _skip_if_configure_ome_false()
     tc = TC["ome_pfx_conversion"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -403,7 +436,7 @@ def test_ome_upload_certs(host):
     """
     global _ome_certs_uploaded, _ome_certs_error
 
-    _skip_if_ome_disabled(host)
+    _skip_if_ome_source_disabled(host)
     _skip_if_configure_ome_false()
     tc = TC["ome_upload_certs"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -516,15 +549,14 @@ def test_ome_kafka_connectivity(host):
     Requires ome_ip and OME credentials in test config/creds.
     Skipped if certificate upload failed (TC_SR_054).
     """
-    _skip_if_ome_disabled(host)
+    context = _skip_if_ome_source_disabled(host)
     _skip_if_configure_ome_false()
     _skip_if_certs_not_uploaded()
     tc = TC["ome_kafka_connectivity"]
     tl = TestLogger(tc["title"], tc["id"])
 
     ome_ip, ome_user, ome_secret = _get_ome_credentials()
-    ome_cfg = _get_ome_config()
-    ome_identifier = ome_cfg.get("ome_identifier", "ome")
+    ome_identifier = context["identifier"]
 
     if not ome_ip:
         tl.skipped(
@@ -712,7 +744,7 @@ def test_ome_cert_verify(host):
     Compares the certificate details returned by OME with the
     certificate that was generated by the external_kafka playbook.
     """
-    _skip_if_ome_disabled(host)
+    _skip_if_ome_source_disabled(host)
     _skip_if_configure_ome_false()
     _skip_if_certs_not_uploaded()
     tc = TC["ome_cert_verify"]
@@ -765,8 +797,8 @@ def test_ome_cert_verify(host):
 
 
 # =========================================================================
-# TC_SR_057: Verify OME Kafka topics exist
-#   Checks all OME topics are present in Kafka
+# TC_SR_057: Verify enabled OME Kafka topics exist
+#   Checks only topic families enabled by the OME source flags
 # =========================================================================
 
 @pytest.mark.source
@@ -776,10 +808,9 @@ def test_ome_cert_verify(host):
 def test_ome_kafka_topics(host):
     """Verify OME Kafka topics exist.
 
-    Checks that all expected OME topics (ome.telemetry, ome.inventory,
-    ome.alerts, ome.health, ome.auditlogs) are present in Kafka.
+    Checks only the metric and log topic families enabled for the OME source.
     """
-    _skip_if_ome_disabled(host)
+    context = _skip_if_ome_source_disabled(host)
     _skip_if_configure_ome_false()
     _skip_if_certs_not_uploaded()
     tc = TC["ome_kafka_topics"]
@@ -789,7 +820,9 @@ def test_ome_kafka_topics(host):
         timeout=OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
     ))
     result = verify_ome_kafka_topics(
-        host, timeout_seconds=OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
+        host,
+        expected_topics=context["expected_topics"],
+        timeout_seconds=OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
     )
 
     if result.get("error"):
@@ -803,16 +836,17 @@ def test_ome_kafka_topics(host):
 
     found = result.get("found_topics", [])
     missing = result.get("missing_topics", [])
+    expected = result.get("expected_topics", context["expected_topics"])
 
     details = [
         f"Kafka bridge IP  : {result.get('bridge_ip')}:{result.get('port')}",
-        f"Topics found     : {len(found)}/{len(OME_KAFKA_TOPICS)}",
+        f"Topics found     : {len(found)}/{len(expected)}",
         f"Checks           : {result.get('attempts', 0)} over "
         f"{result.get('elapsed_seconds', 0)}s",
         "",
         "Topic verification:",
     ]
-    for topic in OME_KAFKA_TOPICS:
+    for topic in expected:
         exists = topic in found
         mark = "\u2713" if exists else "\u2717"
         state = "exists" if exists else "MISSING"
@@ -840,17 +874,19 @@ def test_ome_kafka_topics(host):
 #   reported independently of the others.
 # =========================================================================
 
-def _verify_topic_data(host, tc_key, topic):
+def _verify_topic_data(host, tc_key, topic, channel):
     """Run the OME Kafka data check for a single topic.
 
     Args:
         host: Testinfra host connection to the OIM.
         tc_key: Key into TEST_CASES for the topic under test.
-        topic: Kafka topic name to consume from.
+        topic: Canonical Kafka topic name to consume from.
+        channel: OME source channel required by the topic.
     """
-    _skip_if_ome_disabled(host)
+    context = _skip_if_ome_source_disabled(host, channel)
     _skip_if_configure_ome_false()
     _skip_if_certs_not_uploaded()
+    topic = f"{context['identifier']}.{topic.rsplit('.', maxsplit=1)[-1]}"
     tc = TC[tc_key]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -1011,7 +1047,9 @@ def _build_ome_entry_lines(entry):
 @pytest.mark.order(88)
 def test_ome_telemetry_data(host):
     """Verify OME telemetry metrics reach the ome.telemetry Kafka topic."""
-    _verify_topic_data(host, "ome_telemetry_data", "ome.telemetry")
+    _verify_topic_data(
+        host, "ome_telemetry_data", "ome.telemetry", "metrics",
+    )
 
 
 @pytest.mark.source
@@ -1020,7 +1058,9 @@ def test_ome_telemetry_data(host):
 @pytest.mark.order(89)
 def test_ome_inventory_data(host):
     """Verify OME inventory data reaches the ome.inventory Kafka topic."""
-    _verify_topic_data(host, "ome_inventory_data", "ome.inventory")
+    _verify_topic_data(
+        host, "ome_inventory_data", "ome.inventory", "metrics",
+    )
 
 
 @pytest.mark.source
@@ -1029,7 +1069,7 @@ def test_ome_inventory_data(host):
 @pytest.mark.order(90)
 def test_ome_alerts_data(host):
     """Verify OME alerts reach the ome.alerts Kafka topic."""
-    _verify_topic_data(host, "ome_alerts_data", "ome.alerts")
+    _verify_topic_data(host, "ome_alerts_data", "ome.alerts", "logs")
 
 
 @pytest.mark.source
@@ -1038,7 +1078,7 @@ def test_ome_alerts_data(host):
 @pytest.mark.order(91)
 def test_ome_health_data(host):
     """Verify OME health data reaches the ome.health Kafka topic."""
-    _verify_topic_data(host, "ome_health_data", "ome.health")
+    _verify_topic_data(host, "ome_health_data", "ome.health", "metrics")
 
 
 @pytest.mark.source
@@ -1047,4 +1087,148 @@ def test_ome_health_data(host):
 @pytest.mark.order(92)
 def test_ome_auditlogs_data(host):
     """Verify OME audit logs reach the ome.auditlogs Kafka topic."""
-    _verify_topic_data(host, "ome_auditlogs_data", "ome.auditlogs")
+    _verify_topic_data(host, "ome_auditlogs_data", "ome.auditlogs", "logs")
+
+
+# =========================================================================
+# TC_SR_064 - TC_SR_066: Verify OME metrics per VictoriaMetrics topic
+#   Metric names are generated from OME payloads, so each source topic is
+#   validated independently and every discovered metric is reported.
+# =========================================================================
+
+def _verify_victoria_metric_topic(host, tc_key, topic):
+    """Run the OME VictoriaMetrics check for one metric-bearing topic."""
+    _skip_if_ome_source_disabled(host, "metrics")
+    _skip_if_ome_bridge_disabled(host, "metrics")
+    _skip_if_configure_ome_false()
+    _skip_if_certs_not_uploaded()
+    tc = TC[tc_key]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check(
+        OME_LOG_MSGS["ome_vm_data_verifying"].format(
+            topic=topic,
+            timeout=OME_VICTORIA_POLL_TIMEOUT_SECONDS,
+        )
+    )
+    result = verify_ome_metrics_in_victoria(host, topic)
+
+    if result.get("skipped", False):
+        tl.skipped(result["details"])
+        pytest.skip(result["details"])
+    if result["success"]:
+        tl.passed(
+            OME_LOG_MSGS["ome_vm_data_found"].format(
+                topic=topic,
+                count=result["metric_count"],
+            ),
+            result["details"],
+        )
+    else:
+        tl.failed(
+            OME_LOG_MSGS["ome_vm_data_missing"].format(topic=topic),
+            result.get("details") or result["error"],
+        )
+
+    assert result["success"], OME_ASSERT_MSGS["ome_vm_data_missing"].format(
+        topic=topic,
+        error=result["error"],
+    )
+
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.ome
+@pytest.mark.order(93)
+def test_ome_telemetry_metrics_in_victoria(host):
+    """Verify ome.telemetry metrics and timestamps in VictoriaMetrics."""
+    _verify_victoria_metric_topic(
+        host, "ome_telemetry_metrics_in_vm", "ome.telemetry",
+    )
+
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.ome
+@pytest.mark.order(94)
+def test_ome_inventory_metrics_in_victoria(host):
+    """Verify ome.inventory metrics and timestamps in VictoriaMetrics."""
+    _verify_victoria_metric_topic(
+        host, "ome_inventory_metrics_in_vm", "ome.inventory",
+    )
+
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.ome
+@pytest.mark.order(95)
+def test_ome_health_metrics_in_victoria(host):
+    """Verify ome.health metrics and timestamps in VictoriaMetrics."""
+    _verify_victoria_metric_topic(
+        host, "ome_health_metrics_in_vm", "ome.health",
+    )
+
+
+# =========================================================================
+# TC_SR_067 - TC_SR_068: Verify OME logs per VictoriaLogs topic
+#   OME alerts and auditlogs are event-driven and validated independently.
+# =========================================================================
+
+def _verify_victoria_log_topic(host, tc_key, topic):
+    """Run the OME VictoriaLogs check for one log-bearing topic."""
+    _skip_if_ome_source_disabled(host, "logs")
+    _skip_if_ome_bridge_disabled(host, "logs")
+    _skip_if_configure_ome_false()
+    _skip_if_certs_not_uploaded()
+    tc = TC[tc_key]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check(
+        OME_LOG_MSGS["ome_vl_data_verifying"].format(
+            topic=topic,
+            timeout=OME_VICTORIA_POLL_TIMEOUT_SECONDS,
+        )
+    )
+    result = verify_ome_logs_in_victoria(host, topic)
+
+    if result.get("skipped", False):
+        tl.skipped(result["details"])
+        pytest.skip(result["details"])
+    if result["success"]:
+        tl.passed(
+            OME_LOG_MSGS["ome_vl_data_found"].format(
+                topic=topic,
+                count=result["log_count"],
+            ),
+            result["details"],
+        )
+    else:
+        tl.failed(
+            OME_LOG_MSGS["ome_vl_data_missing"].format(topic=topic),
+            result.get("details") or result["error"],
+        )
+
+    assert result["success"], OME_ASSERT_MSGS["ome_vl_data_missing"].format(
+        topic=topic,
+        error=result["error"],
+    )
+
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.ome
+@pytest.mark.order(96)
+def test_ome_alerts_logs_in_victoria(host):
+    """Verify ome.alerts entries and timestamps in VictoriaLogs."""
+    _verify_victoria_log_topic(host, "ome_alerts_logs_in_vl", "ome.alerts")
+
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.ome
+@pytest.mark.order(97)
+def test_ome_auditlogs_logs_in_victoria(host):
+    """Verify ome.auditlogs entries and timestamps in VictoriaLogs."""
+    _verify_victoria_log_topic(
+        host, "ome_auditlogs_logs_in_vl", "ome.auditlogs",
+    )

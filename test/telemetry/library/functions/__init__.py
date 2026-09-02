@@ -22,6 +22,7 @@ Module-specific functions live in separate files:
   - powerscale_func.py  — PowerScale source verification
   - ufm_func.py         — UFM source verification
   - ome_func.py         — OME Kafka connectivity verification
+  - ome_victoria_func.py — OME VictoriaMetrics/VictoriaLogs verification
   - sfm_func.py         — SFM Prometheus Remote Write integration
   - sfm_metrics_func.py — attributed SFM-to-VictoriaMetrics verification
   - validation_func.py  — config validation
@@ -92,6 +93,7 @@ from .idrac_func import (
 
 # --- OME verification ---
 from .ome_func import (
+    get_ome_pipeline_context,
     verify_ome_kafka_connectivity,
     get_ome_kafka_forwarder_config,
     configure_ome_kafka_and_wait,
@@ -109,6 +111,10 @@ from .ome_func import (
     verify_ome_kafka_topics,
     verify_ome_data_in_kafka,
     compare_ome_cert_with_local,
+)
+from .ome_victoria_func import (
+    verify_ome_logs_in_victoria,
+    verify_ome_metrics_in_victoria,
 )
 
 # --- SFM verification and configuration ---
@@ -200,6 +206,7 @@ __all__ = [
     "verify_mysql_data_in_pods",
     "verify_receiver_collecting",
     # ome
+    "get_ome_pipeline_context",
     "verify_ome_kafka_connectivity",
     "get_ome_kafka_forwarder_config",
     "configure_ome_kafka_and_wait",
@@ -217,6 +224,8 @@ __all__ = [
     "verify_ome_kafka_topics",
     "verify_ome_data_in_kafka",
     "compare_ome_cert_with_local",
+    "verify_ome_logs_in_victoria",
+    "verify_ome_metrics_in_victoria",
     # sfm
     "configure_sfm_observability",
     "configure_sfm_switch",
