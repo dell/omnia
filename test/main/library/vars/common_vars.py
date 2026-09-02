@@ -92,6 +92,20 @@ KNOWN_DOMAINS: List[str] = [
     "utils",
 ]
 
+# Domains prepared by --prepare-base (in order)
+PREPARE_BASE_DOMAINS: List[str] = [
+    "repo_manager",
+    "image_build_manager",
+    "orchestrator",
+]
+
+# Lifecycle phases for --prepare-base
+PREPARE_BASE_PHASES: List[str] = [
+    "validate",
+    "credentials",
+    "prepare",
+]
+
 # Domains that have domain-init.sh scripts
 DOMAINS_WITH_INIT: List[str] = [
     "build_stream",
@@ -128,6 +142,7 @@ OPTIONAL_ENV_VARS: Dict[str, str] = {
 VALID_CLI_COMMANDS: List[str] = [
     "--setup-venv", "-s",
     "--init", "-i",
+    "--prepare-base",
     "--run", "-r",
     "--cleanup",
     "--check-deps",
@@ -427,6 +442,27 @@ CMDS: Dict[str, str] = {
         " exit 1; fi\";"
         " rc=$?; rm -f $env_file; exit $rc"
         "' 2>&1"
+    ),
+    # --- --prepare-base ---
+    "omnia_sh_prepare_base_dry_run": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --prepare-base --dry-run 2>&1"
+    ),
+    "omnia_sh_prepare_base_dry_run_skip": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --prepare-base --dry-run --skip {domain} 2>&1"
+    ),
+    "omnia_sh_prepare_base_skip_invalid": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --prepare-base --skip nonexistent_domain_xyz 2>&1"
+    ),
+    "omnia_sh_prepare_base_skip_all": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --prepare-base --skip"
+        " repo_manager,image_build_manager,orchestrator 2>&1"
+    ),
+    "omnia_sh_prepare_base_help": (
+        "cd {clone_path} && bash {omnia_sh} --help 2>&1"
     ),
     # --- omnia-cli remaining domains ---
     "omnia_cli_orchestrator": (

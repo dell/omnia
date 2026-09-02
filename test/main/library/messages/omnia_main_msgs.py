@@ -246,6 +246,35 @@ TEST_NAMES: Dict[str, str] = {
     "dry_run_without_init_error": (
         "Verify --dry-run without -s/-i exits with error"
     ),
+    # --prepare-base CLI verification
+    "prepare_base_in_help": (
+        "Verify --prepare-base flag appears in help output"
+    ),
+    "prepare_base_dry_run_output": (
+        "Verify --prepare-base --dry-run shows domains and phases"
+    ),
+    "prepare_base_dry_run_skip": (
+        "Verify --prepare-base --dry-run --skip filters domains"
+    ),
+    "prepare_base_skip_invalid": (
+        "Verify --prepare-base --skip with invalid domain exits with error"
+    ),
+    "prepare_base_skip_all": (
+        "Verify --prepare-base --skip all domains shows no-op message"
+    ),
+    "prepare_base_dry_run_phases": (
+        "Verify --prepare-base --dry-run shows all lifecycle phases"
+    ),
+    "prepare_base_dry_run_fail_fast_note": (
+        "Verify --prepare-base --dry-run shows fail-fast note"
+    ),
+    "prepare_base_dry_run_domain_order": (
+        "Verify --prepare-base --dry-run shows correct domain order"
+    ),
+    "prepare_base_dry_run_skip_multiple": (
+        "Verify --prepare-base --dry-run --skip with 2 domains"
+    ),
+
     # Execution — actual omnia.sh operations
     "exec_setup_full": (
         "Execute omnia.sh --setup-venv (full setup)"
@@ -558,6 +587,50 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "skip_omnia_cli_failed": (
         "--setup-venv --skip-omnia-cli failed (rc={rc})"
+    ),
+
+    # --prepare-base
+    "prepare_base_in_help_ok": (
+        "--prepare-base flag found in help output"
+    ),
+    "prepare_base_not_in_help": (
+        "--prepare-base flag NOT found in help output"
+    ),
+    "prepare_base_dry_run_ok": (
+        "--prepare-base --dry-run listed domains and phases"
+    ),
+    "prepare_base_dry_run_failed": (
+        "--prepare-base --dry-run output missing expected content"
+    ),
+    "prepare_base_dry_run_skip_ok": (
+        "--prepare-base --dry-run --skip listed filtered domains"
+    ),
+    "prepare_base_skip_invalid_ok": (
+        "--prepare-base --skip invalid domain rejected (rc={rc})"
+    ),
+    "prepare_base_skip_all_ok": (
+        "--prepare-base --skip all domains showed no-op message"
+    ),
+    "prepare_base_skip_all_failed": (
+        "--prepare-base --skip all domains did not show no-op message"
+    ),
+    "prepare_base_phases_ok": (
+        "--prepare-base --dry-run shows all lifecycle phases"
+    ),
+    "prepare_base_phases_missing": (
+        "--prepare-base --dry-run missing phases: {missing}"
+    ),
+    "prepare_base_fail_fast_ok": (
+        "--prepare-base --dry-run shows fail-fast note"
+    ),
+    "prepare_base_fail_fast_missing": (
+        "--prepare-base --dry-run missing fail-fast note"
+    ),
+    "prepare_base_order_ok": (
+        "--prepare-base --dry-run shows correct domain order"
+    ),
+    "prepare_base_order_wrong": (
+        "--prepare-base --dry-run domain order incorrect"
     ),
 
     # Execution — actual operations
@@ -1017,6 +1090,82 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551   1. Check flag combination validation in main()\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
+    # --prepare-base
+    "prepare_base_not_in_help": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --PREPARE-BASE FLAG MISSING FROM HELP\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected '--prepare-base' to appear in omnia.sh --help\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Add --prepare-base to omnia.sh show_help()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "prepare_base_dry_run_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --PREPARE-BASE --DRY-RUN DID NOT SHOW EXPECTED OUTPUT\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 --prepare-base --dry-run should print DRY RUN header\n"
+        "\u2551 and list base domains (repo_manager, image_build_manager,\n"
+        "\u2551 orchestrator)\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check dry-run logic in prepare_base_domains()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "prepare_base_skip_invalid": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --PREPARE-BASE --SKIP INVALID DOMAIN NOT REJECTED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 --prepare-base --skip nonexistent_domain_xyz should\n"
+        "\u2551 exit non-zero. Got: rc={rc}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check skip validation in prepare_base_domains()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "prepare_base_skip_all_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --PREPARE-BASE --SKIP ALL DID NOT SHOW NO-OP\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Skipping all 3 domains should show a no-op message.\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check empty-array guard in prepare_base_domains()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "prepare_base_phases_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --PREPARE-BASE --DRY-RUN MISSING LIFECYCLE PHASES\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected phases: validate, credentials, prepare\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check LIFECYCLE_TAGS in omnia.sh\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "prepare_base_fail_fast_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --PREPARE-BASE --DRY-RUN MISSING FAIL-FAST NOTE\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected note about fail-fast execution model.\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check dry-run output in prepare_base_domains()\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "prepare_base_order_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 --PREPARE-BASE DOMAIN ORDER INCORRECT\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected order: repo_manager, image_build_manager,\n"
+        "\u2551 orchestrator.\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check PREPARE_ORDER in omnia.sh\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
     # Execution tests
     "exec_setup_failed": (
         "\n\u2554" + _BORDER + "\u2557\n"
