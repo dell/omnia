@@ -15,6 +15,7 @@
 """Configuration loader for BuildStream."""
 
 import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -141,7 +142,11 @@ def load_config(config_path: Optional[str] = None) -> BuildStreamConfig:
 
     artifact_store = ArtifactStoreConfig(
         backend=backend,
-        working_dir=parser.get(artifact_store_section, "working_dir", fallback="/tmp/build_stream"),
+        working_dir=parser.get(
+            artifact_store_section,
+            "working_dir",
+            fallback=f"{tempfile.gettempdir()}/build_stream",
+        ),
         max_file_size_bytes=max_file_size_bytes,
         max_archive_uncompressed_bytes=max_archive_uncompressed_bytes,
         max_archive_entries=max_archive_entries,

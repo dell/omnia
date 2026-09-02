@@ -12,10 +12,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-# pylint: disable=C0103,E0401,E1102
+# pylint: disable=C0103,E0401,E1102,E1101
 # C0103: Module name and constant names follow Alembic migration naming conventions
 # E0401: Import errors due to pylint running outside package context
 # E1102: SQLAlchemy func.now() is callable at runtime
+# E1101: Alembic op functions are dynamically added
 
 """Add CLEANUP_FAILED status to image_groups check constraint.
 
@@ -30,7 +31,6 @@ Create Date: 2026-09-02
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
@@ -44,7 +44,7 @@ def upgrade() -> None:
     """Apply migration: Add CLEANUP_FAILED to image_groups status check constraint."""
     # Drop the old constraint
     op.drop_constraint("ck_image_groups_status", "image_groups", type_="check")
-    
+
     # Create the new constraint with CLEANUP_FAILED added
     op.create_check_constraint(
         "ck_image_groups_status",
@@ -58,7 +58,7 @@ def downgrade() -> None:
     """Revert migration: Remove CLEANUP_FAILED from image_groups status check constraint."""
     # Drop the new constraint
     op.drop_constraint("ck_image_groups_status", "image_groups", type_="check")
-    
+
     # Recreate the old constraint without CLEANUP_FAILED
     op.create_check_constraint(
         "ck_image_groups_status",

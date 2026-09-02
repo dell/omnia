@@ -315,6 +315,7 @@ class CleanupJobUseCase:
             try:
                 self._image_group_repo.session.commit()
             except Exception:  # pylint: disable=broad-except
+                # nosec B110 - Best-effort commit, failure is logged separately
                 pass
 
         if final_status == ImageGroupStatus.CLEANED:
@@ -403,6 +404,7 @@ class CleanupJobUseCase:
             try:
                 self._image_group_repo.session.rollback()
             except Exception:  # pylint: disable=broad-except
+                # nosec B110 - Best-effort rollback, failure is acceptable
                 pass
 
     def _tombstone_job(self, job) -> None:
@@ -411,6 +413,7 @@ class CleanupJobUseCase:
             job.tombstone()
             self._job_repo.save(job)
         except Exception:  # pylint: disable=broad-except
+            # nosec B110 - Best-effort tombstoning, failure is acceptable
             pass
 
     def _submit_cleanup_playbook(

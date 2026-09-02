@@ -32,6 +32,35 @@ def client(tmp_path):
     db_url = f"sqlite:///{db_file}"
     os.environ["DATABASE_URL"] = db_url
 
+    # Set up config path for tests
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    config_file = config_dir / "build_stream.ini"
+    config_file.write_text("""
+[paths]
+build_stream_base_path = /tmp/build_stream_test
+
+[artifact_store]
+backend = in_memory
+working_dir = /tmp/build_stream_test/artifacts
+max_file_size_bytes = 10737418240
+max_archive_uncompressed_bytes = 53687091200
+max_archive_entries = 1000
+
+[file_store]
+base_path = /tmp/build_stream_test/nfs
+""")
+    os.environ["BUILD_STREAM_CONFIG_PATH"] = str(config_file)
+
+    # Reload config before importing app
+    import common.config as config_module  # pylint: disable=import-outside-toplevel
+    import importlib  # pylint: disable=import-outside-toplevel
+    importlib.reload(config_module)
+
+    # Reload container to pick up new config
+    import app.container as container_module  # pylint: disable=import-outside-toplevel
+    importlib.reload(container_module)
+
     from main import app  # pylint: disable=import-outside-toplevel
 
     def mock_verify_token():
@@ -44,11 +73,27 @@ def client(tmp_path):
     from api.dependencies import verify_token  # pylint: disable=import-outside-toplevel
     app.dependency_overrides[verify_token] = mock_verify_token
 
-    from infra.db.models import Base  # pylint: disable=import-outside-toplevel
-    import infra.db.config as config_module  # pylint: disable=import-outside-toplevel
-    import importlib  # pylint: disable=import-outside-toplevel
+    # Mock config to avoid file_store being None
+    from common.config import FileStoreConfig, PathsConfig, ArtifactStoreConfig, BuildStreamConfig
+    def mock_config():
+        return BuildStreamConfig(
+            paths=PathsConfig(build_stream_base_path="/tmp/build_stream_test"),
+            artifact_store=ArtifactStoreConfig(
+                backend="in_memory",
+                working_dir="/tmp/build_stream_test/artifacts",
+                max_file_size_bytes=10737418240,
+                max_archive_uncompressed_bytes=53687091200,
+                max_archive_entries=1000,
+            ),
+            file_store=FileStoreConfig(base_path="/tmp/build_stream_test/nfs"),
+        )
+    from api.upload import dependencies as upload_deps
+    app.dependency_overrides[upload_deps.get_upload_files_use_case] = lambda: upload_deps._get_container().upload_files_use_case()
 
-    config_module.db_config = config_module.DatabaseConfig()
+    from infra.db.models import Base  # pylint: disable=import-outside-toplevel
+    import infra.db.config as db_config_module  # pylint: disable=import-outside-toplevel
+
+    db_config_module.db_config = db_config_module.DatabaseConfig()
 
     import infra.db.session  # pylint: disable=import-outside-toplevel
     importlib.reload(infra.db.session)

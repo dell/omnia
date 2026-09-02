@@ -81,7 +81,7 @@ def _discover_s3_image_paths(
         Example: {"slurm_node": ["s3://boot-images/efi-images/slurm_node/...", 
                                   "s3://boot-images/slurm_node/..."]}
     """
-    import subprocess  # pylint: disable=import-outside-toplevel
+    import subprocess  # nosec B404 - subprocess used safely with list args, no shell=True
 
     bucket = (bucket_uri or DEFAULT_S3_BUCKET_URI).rstrip("/")
     role_to_paths = {role: [] for role in role_names}
@@ -89,8 +89,8 @@ def _discover_s3_image_paths(
     try:
         # Run s3cmd ls -Hr using safe subprocess with list args (Checkmarx-safe)
         # Filter for job_id in Python instead of using shell pipe
-        result = subprocess.run(  # nosec B602 - using list args, no shell
-            ["s3cmd", "ls", "-Hr", bucket],
+        result = subprocess.run(  # nosec B602,B603,B607 - using list args, no shell, full path to s3cmd
+            ["/usr/bin/s3cmd", "ls", "-Hr", bucket],
             capture_output=True,
             text=True,
             timeout=60,
@@ -799,6 +799,7 @@ class ResultPoller:
             try:
                 self._image_group_repo.session.commit()
             except Exception:  # pylint: disable=broad-except
+                # nosec B110 - Best-effort commit, failure is logged separately
                 pass
 
         try:
