@@ -36,6 +36,14 @@
   delegate_to: "{{ aarch64_build_host }}"
   connection: ssh
 
+- name: Ensure OIM cache directory exists
+  ansible.builtin.file:
+    path: "{{ image_build_log_dir }}"
+    state: directory
+    mode: "{{ dir_permissions_755 }}"
+  delegate_to: localhost
+  connection: local
+
 - name: Render aarch64 base image build config
   ansible.builtin.template:
     src: "{{ openchami_base_image_config_template }}"
@@ -45,12 +53,14 @@
   connection: ssh
 
 # --- Base image cache check ---
-# Hash includes packages + repo config (URLs, priorities, names) so that
-# repo configuration changes also trigger rebuilds.
+# Hash includes packages + repo config + build engine so that repository
+# changes and build-engine switches both trigger the required rebuild.
 - name: Compute base image package hash
   ansible.builtin.set_fact:
     _base_pkg_hash: >-
-      {{ (base_image_packages | sort | join(',') + '|repos:' + _repo_config_hash)
+      {{ ((base_image_packages | sort | join(','))
+         ~ '|repos:' ~ _repo_config_hash
+         ~ '|image_build_type:' ~ _image_build_type)
          | hash('sha256') }}
 
 - name: Set base image hash file path
@@ -62,8 +72,8 @@
     src: "{{ _base_hash_file }}"
   register: _prev_base_hash
   failed_when: false
-  delegate_to: "{{ aarch64_build_host }}"
-  connection: ssh
+  delegate_to: localhost
+  connection: local
 
 - name: Determine if base image rebuild is needed
   ansible.builtin.set_fact:
@@ -118,8 +128,8 @@
         content: "{{ _base_pkg_hash }}"
         dest: "{{ _base_hash_file }}"
         mode: "{{ dir_permissions_644 }}"
-      delegate_to: "{{ aarch64_build_host }}"
-      connection: ssh
+      delegate_to: localhost
+      connection: local
 
 # --- Registry verification ---
 - name: Verify the aarch64 base osimage in registry

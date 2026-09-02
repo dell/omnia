@@ -25,17 +25,30 @@ source from `datasets/<name>/`. Generate one with the source-first generator:
 ```bash
 cd datasets/generator/
 ./generate_dataset.py profiles
-./generate_dataset.py profiles internet-config
-./generate_dataset.py create my_ds --profile internet-config --dry-run
-./generate_dataset.py create my_ds --profile internet-config
+./generate_dataset.py profiles image-thrillhouse-internet-config
+./generate_dataset.py create my_ds \
+  --profile image-thrillhouse-internet-config --dry-run
+./generate_dataset.py create my_ds \
+  --profile image-thrillhouse-internet-config
 ```
 
-The recommended `internet-config` profile uses public repositories and minimal
-public package groups. For an offline dataset, supply one real Repo Manager
-host for every generated URL:
+The eight canonical profiles explicitly select Image Thrillhouse or Image
+Builder along with offline/internet repositories and catalog/config package
+resolution. The recommended `image-thrillhouse-internet-config` profile uses
+public repositories and minimal public package groups. To use Image Builder
+with the same topology:
 
 ```bash
-./generate_dataset.py create my_offline --profile offline-config \
+./generate_dataset.py create my_image_builder \
+  --profile image-builder-internet-config
+```
+
+For an offline dataset, supply one real Repo Manager host for every generated
+URL:
+
+```bash
+./generate_dataset.py create my_offline \
+  --profile image-thrillhouse-offline-config \
   --repo-host repo.company.internal
 ```
 

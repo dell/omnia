@@ -80,7 +80,8 @@ source .venv/bin/activate            # For --venv mode
 
 # Step 6 — (Optional) Generate a dataset for custom input
 cd datasets/generator/
-./generate_dataset.py create my_dataset --profile internet-config
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config
 cd ../..
 # Set: dataset: "my_dataset" in test_config.yml
 # Enable sync_image_build_input/sync_output when the dataset should be copied
@@ -205,7 +206,10 @@ names run their complete pytest suite; use `test` as the conventional form.
 For FVT with no tag, `verify` runs verification for precheck, validate,
 prepare, and build (excluding both cleanup flows). No-tag `exec` runs the
 playbook's default full-stack flow, and no-tag `test` runs that deployment
-followed by the same non-cleanup verification set.
+followed by the same non-cleanup verification set. Verification is grouped in
+the lifecycle order `precheck` → `validate` → `prepare` → `build`; each phase
+is grouped by its documented suites, and each suite then follows its existing
+`@pytest.mark.order(n)` values.
 
 ### FVT Tags
 
@@ -565,14 +569,21 @@ cd datasets/generator/
 
 # Inspect profiles and generate the recommended independent dataset
 ./generate_dataset.py profiles
-./generate_dataset.py create my_dataset --profile internet-config
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config
+
+# Select Image Builder with the same internet/config topology
+./generate_dataset.py create my_image_builder \
+  --profile image-builder-internet-config
 
 # Generate an offline dataset with one real host applied to every repo URL
-./generate_dataset.py create my_offline --profile offline-config \
+./generate_dataset.py create my_offline \
+  --profile image-thrillhouse-offline-config \
   --repo-host repo.company.internal
 
 # Preview without publishing
-./generate_dataset.py create my_dataset --profile internet-config --dry-run
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config --dry-run
 
 # Use canonical source values without a profile patch
 ./generate_dataset.py create my_snapshot --from-src

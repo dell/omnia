@@ -41,7 +41,7 @@
             "type": "string",
             "enum": ["image-builder", "image-thrillhouse"],
             "description": "OpenCHAMI image builder type: 'image-builder' (standard) or 'image-thrillhouse' (next-gen with extended features).",
-            "default": "image-builder"
+            "default": "image-thrillhouse"
         },
         "functional_groups_source": {
             "type": "string",

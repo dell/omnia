@@ -60,7 +60,7 @@
       - "Package source: {{ functional_groups_source | default('config') }}"
       - "Catalog file: {{ catalog_file | default('(not set)') }}"
       - "Repo cert: {{ repo_cert_path | default('(skipped for cleanup)') }}"
-      - "Image build type: {{ image_build_type | default('image-builder') }}"
+      - "Image build type: {{ image_build_type | default('image-thrillhouse') }}"
       - "Max parallel: {{ build_image_max_parallel | default(0) }}"
       - "x86_64 repos: {{ repo_manager_repos_x86_64 | default([]) | length }}"
       - "aarch64 repos: {{ repo_manager_repos_aarch64 | default([]) | length }}"
