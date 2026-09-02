@@ -1,6 +1,6 @@
 # Discovery Domain — Design Document
 
-> **Last Updated**: Jul 22, 2026 | **Domain**: `discovery`
+> **Last Updated**: Sep 2, 2026 | **Domain**: `discovery`
 
 ---
 
@@ -21,8 +21,8 @@ The discovery domain follows the same self-containment pattern as
 |-----------|---------------|
 | **Zero `../common/` references** | All modules, module_utils, vars, and callback plugins are local |
 | **Zero `../playbooks/` imports** | Validation and credential logic is absorbed into local roles |
-| **Local ansible.cfg** | All paths resolve from `src/discovery/playbooks/` |
-| **Standalone execution** | `cd playbooks && ansible-playbook discovery.yml -e discovery_mechanism=ome` |
+| **Local ansible.cfg** | Root-level (`src/discovery/`) and playbook-level (`playbooks/`) configs |
+| **Standalone execution** | `cd src/discovery && ansible-playbook playbooks/discovery.yml --tags execute` |
 
 ---
 
@@ -30,20 +30,31 @@ The discovery domain follows the same self-containment pattern as
 
 ```
 src/discovery/
+├── ansible.cfg                      # Root-level config (run from src/discovery/)
 ├── docs/
 │   ├── DISCOVERY_DESIGN.md          # This document
 │   └── contracts/
 │       ├── input-contract.md        # Input contract
 │       └── output-contract.md       # Output contract
 ├── playbooks/
-│   ├── ansible.cfg                  # Ansible config (paths relative to playbooks/)
-│   ├── discovery.yml                # Top-level entrypoint
+│   ├── ansible.cfg                  # Playbook-level config (run from playbooks/)
+│   ├── discovery.yml                # Top-level entrypoint (tag-based routing)
+│   ├── precheck/
+│   │   └── precheck_discovery.yml   # Precheck flow (placeholder)
+│   ├── validate/
+│   │   └── validate_discovery.yml   # Standalone validation
 │   ├── credentials/
-│   │   ├── ansible.cfg              # Sub-playbook config (../../ paths)
 │   │   └── discovery_credentials.yml  # Standalone credential management
-│   └── validate/
-│       ├── ansible.cfg              # Sub-playbook config (../../ paths)
-│       └── validate_discovery.yml   # Standalone validation
+│   ├── prepare/
+│   │   └── prepare_discovery.yml    # Prepare flow (placeholder)
+│   ├── execute/
+│   │   └── execute_discovery.yml    # OME discovery execution
+│   ├── cleanup/
+│   │   └── cleanup_discovery.yml    # Cleanup flow (placeholder)
+│   ├── upgrade/
+│   │   └── upgrade_discovery.yml    # Upgrade flow (placeholder)
+│   └── rollback/
+│       └── rollback_discovery.yml   # Rollback flow (placeholder)
 ├── plugins/
 │   ├── modules/                     # Python modules
 │   │   ├── ome_server_inventory.py  # OME device inventory collector
@@ -64,7 +75,7 @@ src/discovery/
 │   ├── discovery_config.yml         # Input template
 │   └── network_spec.yml             # Network spec template
 ├── roles/
-│   ├── discovery_setup/             # Path init, config loading, validation tags
+│   ├── discovery_setup/             # Path init, config loading, tag validation
 │   ├── validate_discovery_input/    # L1/L2 input validation
 │   ├── discovery_credentials/       # Credential management (decrypt/prompt/encrypt)
 │   ├── discovery_common/            # Shared task library (decrypt_include_encrypt)
@@ -80,28 +91,33 @@ src/discovery/
 
 ## 4. Execution Flow
 
+### 4.1 Default Flow (no tags)
+
+When run without `--tags`, the default flow executes: setup → validate → credentials → execute.
+
 ```
-discovery.yml
+discovery.yml (no --tags)
 │
-├─ Step 0: discovery_setup role
+├─ [always] Step 0: discovery_setup role
+│   ├── Tag validation (reject unsupported/conflicting tags)
+│   ├── Upgrade guard (check lock file)
 │   ├── Set project name, input/output dirs
 │   ├── Verify discovery input directory exists
 │   ├── Create discovery output directory
 │   ├── Load discovery_config.yml
 │   ├── Set enable_bmc_discovery flag
-│   └── Set validation tags
+│   └── Mark setup as done (discovery_setup_done=true)
 │
-├─ Step 1: validate_discovery_input role
-│   └── Run validate_input module with discovery tags
+├─ [always] Step 1: validate_discovery_input role
+│   └── Run validate_input module (L1 schema + L2 logic)
 │
-├─ Step 2: discovery_credentials role
+├─ [always] Step 2: discovery_credentials role
 │   ├── Validate credential file existence
 │   ├── Create credential files from templates if missing
 │   ├── Prompt for missing OME credentials
 │   └── Encrypt credential files
 │
-├─ Step 3: BMC Discovery Play
-│   ├── Validate discovery_mechanism parameter
+├─ [execute/discovery] Step 3: execute_discovery.yml
 │   ├── Validate OME inputs (ome_ip)
 │   └── Include ome_discovery role
 │       ├── get_ome_credentials.yml     — decrypt & load OME creds
@@ -110,23 +126,50 @@ discovery.yml
 │       └── generate_discovery_report.yml — produce report
 ```
 
+### 4.2 Tag-Based Routing
+
+Each tag routes to a dedicated sub-playbook under `playbooks/<tag>/`:
+
+```
+discovery.yml --tags <tag>
+│
+├─ [always]  discovery_setup          (runs for ALL tags)
+├─ [always]  validate_discovery.yml   (skipped for precheck)
+├─ [always]  discovery_credentials.yml (skipped for precheck/validate/cleanup)
+│
+├─ [precheck]   precheck/precheck_discovery.yml    (placeholder)
+├─ [prepare]    prepare/prepare_discovery.yml      (placeholder)
+├─ [execute]    execute/execute_discovery.yml       (OME discovery)
+├─ [discovery]  execute/execute_discovery.yml       (alias for execute)
+├─ [cleanup]    cleanup/cleanup_discovery.yml       (placeholder)
+├─ [upgrade]    upgrade/upgrade_discovery.yml       (placeholder)
+└─ [rollback]   rollback/rollback_discovery.yml    (placeholder)
+```
+
+Sub-playbooks include a standalone setup guard — if `discovery_setup_done` is
+not set, they run `discovery_setup` themselves. This lets each sub-playbook
+work both as an import from `discovery.yml` and as a standalone entry point.
+
 ---
 
 ## 5. Roles
 
 ### 5.1 discovery_setup
 
-**Absorbs**: Inline tasks from `discovery.yml` (path init, config load, tag setup)
+**Absorbs**: Inline tasks from `discovery.yml` (path init, config load, tag validation)
 
 | Task | Description |
 |------|-------------|
+| Tag validation | Reject unsupported tags, detect invalid combinations |
+| Skip-credentials flag | Set `skip_discovery_credentials` for precheck/validate/cleanup |
+| Upgrade guard | Block if upgrade lock file exists |
 | Set project name | `project_name` → `discovery_project_name` |
 | Set input/output dirs | `discovery_input_dir`, `discovery_output_dir`, `input_project_dir` |
-| Verify input dir | Fail if discovery input directory missing |
+| Verify input dir | Auto-copy from source if runtime input dir missing |
 | Create output dir | Ensure output directory exists |
 | Load config | Include `discovery_config.yml` |
 | Set flags | `enable_bmc_discovery` based on mechanism |
-| Set tags | `omnia_run_tags` with `discovery` tag |
+| Mark done | `discovery_setup_done=true` (prevents re-run in imported sub-playbooks) |
 
 ### 5.2 validate_discovery_input
 
@@ -212,17 +255,51 @@ Return keys: `validation_failed`, `errors`, `valid_files`, `invalid_files`, `log
 
 ## 9. Tag Support
 
-| Tag | Supported | Description |
-|-----|-----------|-------------|
-| `discovery` | ✅ | Run full discovery flow |
-| `validate` | ✅ | Validate config only |
-| `cleanup` | ✅ | Cleanup discovery artifacts |
+Tags are **mutually exclusive** — use ONE tag at a time (or none for the default
+flow). Running without tags executes: setup → validate → credentials → execute.
+
+| Tag | Status | Sub-Playbook | Description |
+|-----|--------|--------------|-------------|
+| *(none)* | ✅ Active | — | Default flow (validate + credentials + execute) |
+| `precheck` | Placeholder | `precheck/precheck_discovery.yml` | Environment precheck |
+| `validate` | ✅ Active | `validate/validate_discovery.yml` | Validate config only (skips credentials) |
+| `credentials` | ✅ Active | `credentials/discovery_credentials.yml` | Collect/update OME credentials only |
+| `prepare` | Placeholder | `prepare/prepare_discovery.yml` | Prepare discovery environment |
+| `execute` | ✅ Active | `execute/execute_discovery.yml` | Run BMC discovery via OME |
+| `discovery` | ✅ Active | `execute/execute_discovery.yml` | Alias for execute (backward compat) |
+| `cleanup` | Placeholder | `cleanup/cleanup_discovery.yml` | Cleanup discovery artifacts |
+| `upgrade` | Placeholder | `upgrade/upgrade_discovery.yml` | Upgrade flow |
+| `rollback` | Placeholder | `rollback/rollback_discovery.yml` | Rollback flow |
+
+### Usage Examples
+
+```bash
+cd src/discovery
+
+# Default flow (validate + credentials + execute)
+ansible-playbook playbooks/discovery.yml
+
+# Individual tags
+ansible-playbook playbooks/discovery.yml --tags precheck
+ansible-playbook playbooks/discovery.yml --tags validate
+ansible-playbook playbooks/discovery.yml --tags credentials
+ansible-playbook playbooks/discovery.yml --tags execute
+ansible-playbook playbooks/discovery.yml --tags cleanup
+```
+
+### Credential Skipping
+
+Credential prompting is automatically skipped for these tags:
+- `precheck` — no OME interaction needed
+- `validate` — config validation only
+- `cleanup` — teardown only
 
 ### Invalid Combinations
 
-`discovery+cleanup`.
-
-Credential prompting is skipped for `cleanup` and `validate` tags.
+All tags are mutually exclusive. Any combination of two tags (e.g.,
+`execute+cleanup`, `precheck+validate`) will fail with an error message
+listing the conflict. The full list of invalid combinations is defined in
+`discovery_setup/vars/main.yml`.
 
 ---
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""CleanUp Job use case (hard delete with S3 + NFS cleanup).
+"""CleanUp Job use case (hard delete with playbook-based image cleanup + NFS cleanup).
 
 Implements the orchestration for the enhanced ``DELETE /api/v1/jobs/{job_id}``
 endpoint:
@@ -20,12 +20,28 @@ endpoint:
 1. Resolve Job + ImageGroup (1:1 mapping) and validate ownership.
 2. Validate ImageGroup state (block when ``DEPLOYING``/``RESTARTING``/
    ``VALIDATING``; reject if already ``CLEANED``).
-3. Query the ``images`` table for all S3 paths and delete each via
-   ``s3cmd``.
-4. Remove the per-Job NFS artifact directory.
-5. Transition ImageGroup -> ``CLEANED`` and Job -> ``CLEANED`` (cancelling
-   any non-terminal stages along the way for audit completeness).
-6. Emit an audit event describing the cleanup outcome.
+3. Submit a cleanup playbook request to the NFS queue
+   (``image_build_manager.yml --tags cleanup_images -e skip_approval=true``)
+   so the playbook watcher can delete the S3 images associated with the
+   image group non-interactively. ``skip_approval`` is required because the
+   playbook otherwise gates deletion behind an interactive confirmation
+   prompt (``ansible.builtin.pause``) intended for manual CLI runs; without
+   it, the playbook watcher (headless, no TTY) always resolves the prompt to
+   "not approved" and silently skips every deletion task.
+4. Remove the per-Job NFS artifact directory (synchronous, local operation).
+5. Transition ImageGroup -> ``CLEANING`` (a non-terminal, retryable state).
+   The Job is *not* tombstoned yet and the ImageGroup is *not* marked
+   ``CLEANED`` at this point, because S3 deletion is asynchronous: the
+   playbook watcher executes the request out-of-band and reports back via
+   the NFS result queue. ``ResultPoller`` observes that result and performs
+   the final ``CLEANING`` -> ``CLEANED`` transition (and Job tombstoning)
+   only once the playbook actually reports success.
+6. Emit an audit event describing the cleanup submission outcome.
+
+Note: if no queue service is configured (e.g. certain dev/test wiring),
+cleanup falls back to the previous synchronous behavior of marking
+ImageGroup/Job as ``CLEANED`` immediately, since there is nothing to wait
+on asynchronously in that case.
 """
 
 import os
@@ -40,7 +56,6 @@ from core.cleanup.exceptions import (
     CleanupNfsFailedError,
     CleanupStateInvalidError,
 )
-from core.cleanup.s3_service import S3CleanupService
 from core.image_group.entities import Image, ImageGroup
 from core.image_group.repositories import (
     ImageGroupRepository,
@@ -55,6 +70,12 @@ from core.jobs.repositories import (
     StageRepository,
     UUIDGenerator,
 )
+from core.localrepo.entities import PlaybookRequest
+from core.localrepo.value_objects import (
+    ExecutionTimeout,
+    ExtraVars,
+    PlaybookPath,
+)
 from orchestrator.cleanup.commands.cleanup_job import CleanupJobCommand
 from orchestrator.cleanup.dtos.cleanup_response import CleanupResult
 
@@ -67,6 +88,14 @@ ACTIVE_STATUSES = {
 }
 
 DEFAULT_NFS_ARTIFACT_BASE = "/opt/omnia/build_stream_root"
+CLEANUP_PLAYBOOK_NAME = "image_build_manager.yml"
+CLEANUP_PLAYBOOK_TAGS = "cleanup_images"
+CLEANUP_TIMEOUT_MINUTES = 30
+
+
+def _now_iso() -> str:
+    """Return current UTC time as ISO 8601 string with Z suffix."""
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 @dataclass
@@ -93,8 +122,8 @@ class CleanupJobUseCase:
         audit_repo: AuditEventRepository,
         image_group_repo: ImageGroupRepository,
         image_repo: ImageRepository,
-        s3_cleanup_service: S3CleanupService,
         uuid_generator: UUIDGenerator,
+        queue_service=None,
         nfs_artifact_base: Optional[str] = None,
     ) -> None:
         self._job_repo = job_repo
@@ -102,8 +131,8 @@ class CleanupJobUseCase:
         self._audit_repo = audit_repo
         self._image_group_repo = image_group_repo
         self._image_repo = image_repo
-        self._s3_cleanup_service = s3_cleanup_service
         self._uuid_generator = uuid_generator
+        self._queue_service = queue_service
         self._nfs_artifact_base = (
             nfs_artifact_base
             or os.environ.get("NFS_ARTIFACT_BASE", DEFAULT_NFS_ARTIFACT_BASE)
@@ -253,9 +282,10 @@ class CleanupJobUseCase:
         correlation_id: str,
         audit_reason: str = "cleanup_manual",
     ) -> CleanupResult:
-        """Run the actual S3 + NFS cleanup and update statuses."""
-        # 1. S3 image deletion: iterate over each stored complete path.
-        s3_deleted = self._delete_s3_images(ctx, correlation_id)
+        """Run the actual image cleanup (via playbook) + NFS cleanup and update statuses."""
+        # 1. Image cleanup: submit image_build_manager.yml --tags cleanup_images
+        #    to the NFS queue. The playbook handles S3 object deletion.
+        cleanup_submitted = self._submit_cleanup_playbook(ctx, correlation_id)
 
         # 2. NFS artifact removal.
         nfs_deleted = self._delete_nfs_artifacts(
@@ -263,50 +293,35 @@ class CleanupJobUseCase:
         )
 
         # 3. Cancel any non-terminal stages for audit cleanliness.
-        try:
-            stages = self._stage_repo.find_all_by_job(ctx.image_group.job_id)
-            for stage in stages:
-                if not stage.stage_state.is_terminal():
-                    try:
-                        stage.cancel()
-                        self._stage_repo.save(stage)
-                    except Exception:  # pylint: disable=broad-except
-                        # Best-effort; never block cleanup on stage save.
-                        # Rollback immediately to reset session state
-                        if hasattr(self._image_group_repo, "session"):
-                            try:
-                                self._image_group_repo.session.rollback()
-                            except Exception:  # pylint: disable=broad-except
-                                pass
-                        pass
-        except Exception:  # pylint: disable=broad-except
-            # Rollback the session to reset state after any stage cancellation error
-            if hasattr(self._image_group_repo, "session"):
-                try:
-                    self._image_group_repo.session.rollback()
-                except Exception:  # pylint: disable=broad-except
-                    pass
-            pass
+        self._cancel_non_terminal_stages(ctx.image_group.job_id)
 
-        # 4. Status transitions: ImageGroup -> CLEANED, Job -> CLEANED.
+        # 4. Status transition. When the cleanup playbook was submitted
+        #    successfully, the actual S3 deletion happens asynchronously on
+        #    the OIM host; move to the non-terminal CLEANING state and let
+        #    ResultPoller finalize to CLEANED once the playbook reports
+        #    success. Only fall back to an immediate CLEANED transition
+        #    when there's no queue service to report back to us (nothing
+        #    to wait on).
+        final_status = (
+            ImageGroupStatus.CLEANING
+            if cleanup_submitted
+            else ImageGroupStatus.CLEANED
+        )
         self._image_group_repo.update_status(
             image_group_id=ctx.image_group.id,
-            new_status=ImageGroupStatus.CLEANED,
+            new_status=final_status,
         )
         if hasattr(self._image_group_repo, "session"):
             try:
                 self._image_group_repo.session.commit()
             except Exception:  # pylint: disable=broad-except
+                # nosec B110 - Best-effort commit, failure is logged separately
                 pass
 
-        # Mark the job as CLEANED via tombstone (existing API). This
-        # preserves the audit trail without deleting the row.
-        try:
-            ctx.job.tombstone()
-            self._job_repo.save(ctx.job)
-        except Exception:  # pylint: disable=broad-except
-            # If already tombstoned, ignore.
-            pass
+        if final_status == ImageGroupStatus.CLEANED:
+            # No queue service available: nothing will report back
+            # asynchronously, so tombstone the job now (legacy/dev-only path).
+            self._tombstone_job(ctx.job)
 
         cleaned_at = (
             datetime.now(timezone.utc)
@@ -319,7 +334,11 @@ class CleanupJobUseCase:
             event = AuditEvent(
                 event_id=str(self._uuid_generator.generate()),
                 job_id=ctx.image_group.job_id,
-                event_type="JOB_CLEANED",
+                event_type=(
+                    "JOB_CLEANED"
+                    if final_status == ImageGroupStatus.CLEANED
+                    else "JOB_CLEANUP_SUBMITTED"
+                ),
                 correlation_id=correlation_id,
                 client_id=client_id,
                 timestamp=datetime.now(timezone.utc),
@@ -327,7 +346,7 @@ class CleanupJobUseCase:
                     "image_group_id": ctx.image_group_id_str,
                     "cleanup_type": cleanup_type,
                     "reason": audit_reason,
-                    "s3_objects_deleted": s3_deleted,
+                    "cleanup_playbook_submitted": cleanup_submitted,
                     "nfs_files_deleted": nfs_deleted,
                     "image_count": len(ctx.images),
                 },
@@ -343,9 +362,10 @@ class CleanupJobUseCase:
 
         log_secure_info(
             "info",
-            f"Cleanup completed: job_id={ctx.image_group.job_id}, "
+            f"Cleanup {'completed' if final_status == ImageGroupStatus.CLEANED else 'submitted'}: "
+            f"job_id={ctx.image_group.job_id}, "
             f"image_group_id={ctx.image_group_id_str}, "
-            f"type={cleanup_type}, s3_deleted={s3_deleted}, "
+            f"type={cleanup_type}, cleanup_playbook_submitted={cleanup_submitted}, "
             f"nfs_deleted={nfs_deleted}",
             job_id=str(ctx.image_group.job_id),
         )
@@ -353,55 +373,111 @@ class CleanupJobUseCase:
         return CleanupResult(
             job_id=str(ctx.image_group.job_id),
             image_group_id=ctx.image_group_id_str,
-            status=ImageGroupStatus.CLEANED.value,
+            status=final_status.value,
             cleanup_type=cleanup_type,
-            s3_objects_deleted=s3_deleted,
+            s3_objects_deleted=0,
             nfs_files_deleted=nfs_deleted,
             cleaned_at=cleaned_at,
         )
 
-    def _delete_s3_images(
+    def _cancel_non_terminal_stages(self, job_id) -> None:
+        """Best-effort: cancel any non-terminal stages for audit cleanliness."""
+        try:
+            stages = self._stage_repo.find_all_by_job(job_id)
+        except Exception:  # pylint: disable=broad-except
+            self._rollback_image_group_session()
+            return
+
+        for stage in stages:
+            if stage.stage_state.is_terminal():
+                continue
+            try:
+                stage.cancel()
+                self._stage_repo.save(stage)
+            except Exception:  # pylint: disable=broad-except
+                # Never block cleanup on a stage save failure.
+                self._rollback_image_group_session()
+
+    def _rollback_image_group_session(self) -> None:
+        """Best-effort session rollback after a non-fatal error."""
+        if hasattr(self._image_group_repo, "session"):
+            try:
+                self._image_group_repo.session.rollback()
+            except Exception:  # pylint: disable=broad-except
+                # nosec B110 - Best-effort rollback, failure is acceptable
+                pass
+
+    def _tombstone_job(self, job) -> None:
+        """Best-effort job tombstoning (ignored if already tombstoned)."""
+        try:
+            job.tombstone()
+            self._job_repo.save(job)
+        except Exception:  # pylint: disable=broad-except
+            # nosec B110 - Best-effort tombstoning, failure is acceptable
+            pass
+
+    def _submit_cleanup_playbook(
         self, ctx: _CleanupContext, correlation_id: str
-    ) -> int:
-        """Delete every stored S3 image_path and return total objects removed."""
-        if not ctx.images:
+    ) -> bool:
+        """Submit image_build_manager.yml --tags cleanup_images to NFS queue.
+
+        The playbook is responsible for deleting S3 images matching the
+        image-group identifier.  Submission is fire-and-forget: the API
+        returns immediately and the playbook watcher handles execution.
+
+        Returns:
+            True if the cleanup request was submitted successfully,
+            False if no queue service is available or submission failed.
+        """
+        if self._queue_service is None:
             log_secure_info(
-                "info",
-                f"S3 cleanup skipped: no image records for "
-                f"image_group={ctx.image_group_id_str}",
+                "warning",
+                f"Cleanup playbook skipped: no queue service configured "
+                f"for image_group={ctx.image_group_id_str}",
                 job_id=str(ctx.image_group.job_id),
             )
-            return 0
+            return False
 
-        total_deleted = 0
-        for img in ctx.images:
-            raw_path = (img.image_name or "").strip()
-            if not raw_path:
-                continue
-            # image_name may contain multiple S3 paths separated by ";"
-            # (e.g., EFI image dir + full disk image dir for the same role).
-            individual_paths = [p.strip() for p in raw_path.split(";") if p.strip()]
-            for image_path in individual_paths:
-                if not image_path.startswith("s3://"):
-                    # Legacy entries (pre-CleanUp release) stored only the
-                    # filename; skip with a warning instead of raising.
-                    log_secure_info(
-                        "warning",
-                        f"Skipping non-S3 legacy image_name='{image_path}' "
-                        f"for image_group={ctx.image_group_id_str}",
-                        job_id=str(ctx.image_group.job_id),
-                    )
-                    continue
-                result = self._s3_cleanup_service.delete_image_path(image_path)
-                total_deleted += result.objects_deleted
-        log_secure_info(
-            "info",
-            f"S3 cleanup totals: image_group={ctx.image_group_id_str}, "
-            f"objects_deleted={total_deleted}, "
-            f"correlation_id={correlation_id}",
-            job_id=str(ctx.image_group.job_id),
-        )
-        return total_deleted
+        try:
+            request = PlaybookRequest(
+                job_id=str(ctx.image_group.job_id),
+                stage_name="cleanup",
+                playbook_path=PlaybookPath(CLEANUP_PLAYBOOK_NAME),
+                extra_vars=ExtraVars(values={
+                    "cleanup_image_pattern": ctx.image_group_id_str,
+                    # Required so the playbook's interactive approval
+                    # prompt (ansible.builtin.pause) is bypassed. The
+                    # playbook watcher runs headlessly (no TTY), so without
+                    # this the prompt always resolves to "not approved" and
+                    # every S3/registry deletion task is silently skipped.
+                    "skip_approval": "true",
+                }),
+                correlation_id=correlation_id,
+                timeout=ExecutionTimeout(CLEANUP_TIMEOUT_MINUTES),
+                submitted_at=_now_iso(),
+                request_id=str(self._uuid_generator.generate()),
+                tags=CLEANUP_PLAYBOOK_TAGS,
+            )
+            self._queue_service.submit_request(
+                request=request,
+                correlation_id=correlation_id,
+            )
+            log_secure_info(
+                "info",
+                f"Cleanup playbook submitted: image_group={ctx.image_group_id_str}, "
+                f"cleanup_image_pattern={ctx.image_group_id_str}, "
+                f"correlation_id={correlation_id}",
+                job_id=str(ctx.image_group.job_id),
+            )
+            return True
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "warning",
+                f"Cleanup playbook submission failed for "
+                f"image_group={ctx.image_group_id_str}: {exc}",
+                job_id=str(ctx.image_group.job_id),
+            )
+            return False
 
     def _delete_nfs_artifacts(self, job_id, correlation_id: str) -> int:
         """Remove the per-Job NFS artifact directory.

@@ -299,6 +299,10 @@
   loop_control:
     loop_var: fg_name
 
+- name: Accumulate registered functional group names across categories
+  ansible.builtin.set_fact:
+    registered_fg_names: "{{ (registered_fg_names | default([])) + target_fg_names }}"
+
 - name: Create common SMD groups (ssh, chrony, phone_home)
   ansible.builtin.include_tasks: create_smd_group_common.yml
   loop: "{{ common_metadata_svc_groups }}"

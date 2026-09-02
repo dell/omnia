@@ -29,10 +29,31 @@ from .ome_msgs import (
     OME_ASSERT_MSGS,
 )
 
+from .sfm_msgs import (
+    SFM_LOG_MSGS,
+    SFM_ASSERT_MSGS,
+    SFM_ERROR_MSGS,
+    SFM_DETAIL_MSGS,
+)
+from .ufm_msgs import (
+    UFM_LOG_MSGS,
+    UFM_ASSERT_MSGS,
+    UFM_ERROR_MSGS,
+    UFM_DETAIL_MSGS,
+)
+
 __all__ = [
     "TEST_LOG_MSGS",
     "TEST_ASSERT_MSGS",
     "OME_TEST_NAMES",
     "OME_LOG_MSGS",
     "OME_ASSERT_MSGS",
+    "SFM_LOG_MSGS",
+    "SFM_ASSERT_MSGS",
+    "SFM_ERROR_MSGS",
+    "SFM_DETAIL_MSGS",
+    "UFM_LOG_MSGS",
+    "UFM_ASSERT_MSGS",
+    "UFM_ERROR_MSGS",
+    "UFM_DETAIL_MSGS",
 ]

@@ -22,8 +22,8 @@
 #   - Leave oim_server_ip empty to run tests locally on the same machine.
 #   - Configure sync options to push input files to the target server
 #     before running tests.
-#   - Sensitive credentials (SSH password) go in test_creds.yml
-#     (auto-encrypted with Ansible Vault on first run).
+#   - Sensitive OIM SSH and enabled OME/SFM appliance credentials go in
+#     test_creds.yml (auto-encrypted with Ansible Vault on first run).
 # =============================================================================
 
 ---
@@ -115,6 +115,24 @@ ome_identifier: "ome"
 # When true, always runs the playbook to regenerate certificates.
 # When false (default), skips playbook if certs already exist.
 force_external_kafka_playbook: false
+
+# Force re-run of the external_victoria playbook and rotate the SFM certificate
+# import even if the exported connection details and target are already healthy.
+force_external_victoria_playbook: false
+
+# SFM (SmartFabric Manager) integration is opt-in. When enabled, the SFM
+# automation uses the API endpoint for observability configuration and the SSH
+# endpoint for host-side validation. Credentials are stored in test_creds.yml.
+configure_sfm: false
+
+# SFM API endpoint used to upload the VictoriaMetrics CA certificate and
+# configure Prometheus remote write.
+sfm_api_ip: ""
+sfm_api_port: 443
+
+# SFM SSH endpoint used for remote host and service checks.
+sfm_ssh_ip: ""
+sfm_ssh_port: 22
 
 # =============================================================================
 # REPORT CONFIGURATION

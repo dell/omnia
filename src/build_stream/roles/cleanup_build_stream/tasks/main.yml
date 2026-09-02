@@ -31,4 +31,3 @@
 - name: Display cleanup summary
   ansible.builtin.debug:
     msg: "{{ cleanup_summary_msg | split('\n') }}"
-  tags: always

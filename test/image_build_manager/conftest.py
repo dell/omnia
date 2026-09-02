@@ -34,7 +34,7 @@ if _TEST_DIR not in sys.path:
     sys.path.insert(0, _TEST_DIR)
 
 # --- Initialize omnia_auto BEFORE any imports that use it ---
-import omnia_auto
+import omnia_auto  # noqa: E402 - configure after adding the module root
 omnia_auto.configure(
     module_root=_TEST_DIR,
     config_file="test_config.yml",
@@ -43,7 +43,7 @@ omnia_auto.configure(
 )
 
 # --- Common functions from omnia_auto ---
-from omnia_auto import (
+from omnia_auto import (  # noqa: E402 - configure omnia_auto before consumers
     get_testinfra_host,
     is_local_execution,
     load_test_config,
@@ -59,20 +59,47 @@ from omnia_auto import (
 )
 
 # --- Module-specific functions ---
-from library.functions.host_func import (
+from library.functions.host_func import (  # noqa: E402 - depends on configuration
     sync_project_to_remote,
     sync_image_build_input,
     sync_repo_manager_output,
-    sync_build_credentials,
 )
-from library.functions.build_image_func import (
+from library.functions.build_image_func import (  # noqa: E402 - configured import
     check_target_connectivity,
 )
-from library.functions.validation_func import (
+from library.functions.validation_func import (  # noqa: E402 - configured import
     validate_all,
     ConfigValidationError,
 )
-from library.vars import TEST_CASES
+from library.vars import TEST_CASES  # noqa: E402 - configured module import
+
+# FVT phases and suites have independent local ``@pytest.mark.order(n)``
+# sequences. Apply lifecycle and suite ranks first so equal local order values
+# do not interleave during an untagged verification run.
+_FVT_SCENARIO_ORDER = {
+    "precheck": 0,
+    "validate": 1,
+    "prepare": 2,
+    "build": 3,
+    "cleanup_images": 4,
+    "cleanup": 5,
+}
+
+_FVT_SUITE_ORDER = {
+    "precheck": {"": 0, "connectivity": 1},
+    "validate": {"": 0, "status": 1},
+    "prepare": {"": 0, "container": 1, "s3": 2},
+    "build": {
+        "": 0,
+        "s3": 1,
+        "registry": 2,
+        "naming": 3,
+        "aarch64": 4,
+        "image_verification": 5,
+    },
+    "cleanup_images": {"": 0, "cleanup_images": 1},
+    "cleanup": {"": 0, "cleanup": 1},
+}
 
 # Build test-function-name → TC ID map for summary table fallback.
 # Auto-generates from TEST_CASES keys (e.g. "deploy_build" → "test_deploy_build")
@@ -84,7 +111,6 @@ _TC_ID_MAP["test_deploy_image_build_manager"] = TEST_CASES["deploy_full"]["id"]
 # =============================================================================
 # CUSTOM CLI OPTIONS
 # =============================================================================
-
 def pytest_addoption(parser):
     """Add --marker option for custom marker expression filtering."""
     parser.addoption(
@@ -152,7 +178,7 @@ def _item_has_marker(item, marker_name):
 
 
 def pytest_collection_modifyitems(session, config, items):
-    """Filter by --marker expression and sort by order marker."""
+    """Filter markers and sort by FVT phase plus local order marker."""
     marker_expr = config.getoption("--marker", default="")
     mode, markers = _parse_marker_expression(marker_expr)
 
@@ -193,9 +219,26 @@ def pytest_collection_modifyitems(session, config, items):
 
     def _get_order(item):
         marker = item.get_closest_marker("order")
-        if marker and marker.args:
-            return marker.args[0]
-        return 999
+        local_order = marker.args[0] if marker and marker.args else 999
+
+        node_parts = item.nodeid.replace("\\", "/").split("/")
+        scenario = ""
+        suite = ""
+        if "fvt" in node_parts:
+            fvt_index = node_parts.index("fvt")
+            if len(node_parts) > fvt_index + 1:
+                scenario = node_parts[fvt_index + 1]
+            if len(node_parts) > fvt_index + 2:
+                candidate = node_parts[fvt_index + 2]
+                if not candidate.startswith("test_"):
+                    suite = candidate
+
+        suite_order = _FVT_SUITE_ORDER.get(scenario, {}).get(suite, 999)
+        return (
+            _FVT_SCENARIO_ORDER.get(scenario, 999),
+            suite_order,
+            local_order,
+        )
 
     items.sort(key=_get_order)
 
@@ -235,7 +278,7 @@ def _apply_dataset_overrides(config):
 
 
 def pytest_sessionstart(session):
-    """Session startup: validate config, encrypt credentials, clone repo, sync files, init report."""
+    """Validate config, prepare the target, and initialize the test report."""
     # Validate config first — fail fast with clear errors
     try:
         result = validate_all()
@@ -277,43 +320,27 @@ def pytest_sessionstart(session):
         if sync_result["success"]:
             log(sync_result["details"], "OK")
         else:
-            log(f"Project sync failed: {sync_result['error']}", "WARN")
+            message = f"Project sync failed: {sync_result['error']}"
+            log(message, "FAIL")
+            pytest.exit(message, returncode=1)
 
     if config.get("sync_image_build_input", False):
-        sync_result = sync_image_build_input(host)
+        sync_result = sync_image_build_input(host, config)
         if sync_result["success"]:
             log(sync_result["details"], "OK")
         else:
-            log(
-                f"Input sync failed: {sync_result['error']}",
-                "ERROR",
-            )
-
-    # Sync build credentials (S3 + aarch64) from test_creds.yml to target.
-    # This populates image_build_credentials.yml on the target so the
-    # collect_build_credentials role does not prompt interactively.
-    if not is_local_execution():
-        cred_result = sync_build_credentials(host)
-        if cred_result["success"]:
-            if cred_result["details"]:
-                # Distinguish between "synced" and "skipped (empty)" messages
-                level = "WARN" if "skipping sync" in cred_result["details"] else "OK"
-                log(cred_result["details"], level)
-        else:
-            log(
-                f"Build credential sync failed: {cred_result['error']}",
-                "WARN",
-            )
+            message = f"Input sync failed: {sync_result['error']}"
+            log(message, "FAIL")
+            pytest.exit(message, returncode=1)
 
     if config.get("sync_output", False):
-        out_result = sync_repo_manager_output(host)
+        out_result = sync_repo_manager_output(host, config)
         if out_result["success"]:
             log(out_result["details"], "OK")
         else:
-            log(
-                f"Output sync failed: {out_result['error']}",
-                "WARN",
-            )
+            message = f"Output sync failed: {out_result['error']}"
+            log(message, "FAIL")
+            pytest.exit(message, returncode=1)
 
     # Initialize test report
     # Detect scenario name from test paths (fvt/<scenario>/...)
@@ -419,11 +446,9 @@ def pytest_runtest_makereport(item, call):
         })
 
 
-
 # =============================================================================
 # SUPPRESS PYTEST DOT OUTPUT (TestLogger already provides detail)
 # =============================================================================
-
 def pytest_report_teststatus(report, config):
     """Replace pytest's default . s F characters with empty strings."""
     if report.when == "call":

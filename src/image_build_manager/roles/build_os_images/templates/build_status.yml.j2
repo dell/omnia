@@ -15,10 +15,13 @@
 # ============================================================================
 # build_status.yml — image_build_manager output
 # ============================================================================
-# Location (NFS):
-#   /opt/omnia/output/project_default/build_status.yml          (latest)
-#   /opt/omnia/output/project_default/image_build_manager/
-#     build_status_<version>_<timestamp>.yml                    (versioned)
+# Location:
+#   <IMAGE_BUILD_MANAGER_DATA_PATH>/output/<project>/build_status.yml
+#   <IMAGE_BUILD_MANAGER_DATA_PATH>/output/<project>/
+#     build_status_<version>_<YYYYMMDD_HHMM>.yml
+# Default root: <OMNIA_DATA_PATH>/image_build_manager
+# Standard latest path:
+#   /opt/omnia/image_build_manager/output/project_default/build_status.yml
 #
 # Consumed by:
 #   - provision domain (BSS template rendering)

@@ -419,7 +419,7 @@ case "$SCENARIO" in
         echo -e "${YELLOW}SCENARIOS (FVT)${NC}"
         echo "  setup      omnia.sh --setup-venv: env install, venv, dirs, env validation"
         echo "  init       omnia.sh --init: domain-init.sh scripts, input staging (7 domains)"
-        echo "  cli        omnia.sh argument parsing: help flags, error handling, tags, --skip-catalog"
+        echo "  cli        omnia.sh argument parsing: help flags, error handling, tags, --skip-catalog, --prepare-base"
         echo "  omnia_cli  omnia-cli diagnostics: status, check, domain cmds, logs, help, errors"
         echo "  execution  Actual execution: setup, init, run --tags (cleanup via explicit cmd)"
         echo ""

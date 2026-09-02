@@ -53,6 +53,7 @@
 # Available markers:
 #   Quality:       sanity, functional
 #   Component:     sink, source
+#   Appliance:     ome, ldms, sfm, ufm
 #   Execution:     deploy
 #
 # -----------------------------------------------------------------------------

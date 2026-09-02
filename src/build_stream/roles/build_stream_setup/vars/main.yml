@@ -13,13 +13,6 @@
 # limitations under the License.
 ---
 
-# --- Standalone mode ---
-# When standalone_mode is true the playbook runs directly on the host
-# without requiring the omnia_core container.  Input is read from the
-# local input/ directory and container-internal paths are bypassed.
-# Override with: -e standalone_mode=true
-standalone_mode: false
-
 # --- Upgrade guard ---
 upgrade_lock_path: /opt/omnia/.data/upgrade_in_progress.lock
 upgrade_in_progress_msg: >-
@@ -29,25 +22,74 @@ upgrade_in_progress_msg: >-
   If you don't require input files to be migrated, reconfigure the default input files, remove the lock file using the following command
   "rm /opt/omnia/.data/upgrade_in_progress.lock" and then proceed.
 
-# --- Input project directory ---
+# --- Paths ---
 # omnia_data_path is set from OMNIA_DATA_PATH env or defaults to /opt/omnia
 omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
-omnia_input_dir: "{{ omnia_data_path }}/build_stream/input"
-omnia_output_dir: "{{ omnia_data_path }}/build_stream/output"
-omnia_input_config_file: "{{ omnia_input_dir }}/default.yml"
-omnia_metadata_file_path: "{{ omnia_data_path }}/.data/oim_metadata.yml"
-omnia_input_config_syntax_fail_msg: >-
-  Unable to load the Omnia project configuration file at {{ omnia_input_config_file }}.
-  Please ensure the file exists and has valid YAML syntax before re-running the playbook.
+
+# Input / output directories (resolved directly from omnia_data_path)
+input_project_dir: "{{ omnia_data_path }}/build_stream/input/project_default"
+output_project_dir: "{{ omnia_data_path }}/build_stream/output/project_default"
+oim_shared_path: "{{ omnia_data_path }}"
+
 project_dir_not_exist_fail_msg: >-
   The project directory at {{ input_project_dir }} does not exist.
   Please ensure the directory exists before re-running the playbook.
 
-# --- Standalone defaults (used only when standalone_mode is true) ---
-standalone_input_project_dir: "{{ standalone_oim_shared_path }}/build_stream/input/project_default"
-standalone_output_project_dir: "{{ standalone_oim_shared_path }}/build_stream/output/project_default"
-standalone_oim_shared_path: "{{ omnia_data_path }}"
-
 # --- OIM group ---
 oim_host_port: "22"
 oim_host_group: "oim"
+
+# --- Tag validation ---
+supported_tags:
+  - precheck
+  - validate
+  - credentials
+  - prepare
+  - execute
+  - build
+  - cleanup
+  - upgrade
+  - rollback
+skip_credential_tags:
+  - precheck
+  - cleanup
+  - validate
+invalid_tag_combinations:
+  - [prepare, cleanup]
+  - [execute, cleanup]
+  - [build, cleanup]
+  - [prepare, upgrade]
+  - [execute, upgrade]
+  - [build, upgrade]
+  - [cleanup, upgrade]
+  - [prepare, rollback]
+  - [execute, rollback]
+  - [build, rollback]
+  - [cleanup, rollback]
+  - [upgrade, rollback]
+  - [precheck, prepare]
+  - [precheck, execute]
+  - [precheck, build]
+  - [precheck, cleanup]
+  - [precheck, upgrade]
+  - [precheck, rollback]
+  - [credentials, prepare]
+  - [credentials, execute]
+  - [credentials, build]
+  - [credentials, cleanup]
+  - [credentials, upgrade]
+  - [credentials, rollback]
+  - [credentials, precheck]
+# --- Tag validation messages ---
+tag_validation_fail_msg: |
+  Invalid tag usage detected.
+  Supported tags: {{ supported_tags | join(', ') }}
+  Invalid tags provided: {{ invalid_tags | join(', ') }}
+  Please use only supported tags.
+tag_combination_fail_msg: |
+  Invalid tag combination detected: {{ ansible_run_tags | join(', ') }}
+  The following tag combinations are not allowed:
+  {% for combo in invalid_tag_combinations %}
+  - {{ combo | join(' + ') }}
+  {% endfor %}
+  Please run with only ONE tag at a time (or no tags for default flow).

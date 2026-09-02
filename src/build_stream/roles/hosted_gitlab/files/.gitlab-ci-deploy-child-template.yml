@@ -130,24 +130,24 @@ default:
       }
 
       # Refresh input files from latest commit (retry support)
-      # Copied from build pipeline (.gitlab-ci-build.yml) - proven to work
+      # Uses domain-segregated paths (Omnia 2.3+):
+      #   input/orchestrator/<file>  — orchestrator domain config files
       refresh_input_files() {
         if [ -z "${GITLAB_API_TOKEN:-}" ]; then
           echo "  [REFRESH] GITLAB_API_TOKEN not set -- skipping file refresh" >&2
           return 0
         fi
 
-        echo "  [REFRESH] Fetching latest config files from branch ${CI_COMMIT_REF_NAME}..."
+        echo "  [REFRESH] Fetching latest orchestrator config files from branch ${CI_COMMIT_REF_NAME}..."
 
         _REFRESH_COUNT=0
         _REFRESH_FAILED=0
-        for _RF_FNAME in local_repo_config.yml network_spec.yml provision_config.yml \
-               pxe_mapping_file.csv storage_config.yml telemetry_config.yml \
-               telemetry_storage_config.yml security_config.yml high_availability_config.yml \
-               omnia_config.yml build_stream_config.yml; do
+        for _RF_FNAME in omnia_config.yml orchestrator_config.yml network_spec.yml \
+               security_config.yml storage_config.yml high_availability_config.yml \
+               additional_cloud_init.yml pxe_mapping_file.csv set_pxe_boot_config.yml; do
 
-          # URL-encode the file path (input/<filename>)
-          _RF_ENCODED_PATH=$(printf '%s' "input/${_RF_FNAME}" | sed 's|/|%2F|g')
+          # URL-encode the file path (input/orchestrator/<filename>)
+          _RF_ENCODED_PATH=$(printf '%s' "input/orchestrator/${_RF_FNAME}" | sed 's|/|%2F|g')
 
           _RF_HTTP_CODE=$(curl -s -o "/tmp/_rf_${_RF_FNAME}" -w "%{http_code}" \
             --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
@@ -156,8 +156,8 @@ default:
             --cacert "${CI_SERVER_TLS_CA_FILE}" 2>/dev/null)
 
           if [ "$_RF_HTTP_CODE" = "200" ]; then
-            mkdir -p "${CI_PROJECT_DIR}/input"
-            cp "/tmp/_rf_${_RF_FNAME}" "${CI_PROJECT_DIR}/input/${_RF_FNAME}"
+            mkdir -p "${CI_PROJECT_DIR}/input/orchestrator"
+            cp "/tmp/_rf_${_RF_FNAME}" "${CI_PROJECT_DIR}/input/orchestrator/${_RF_FNAME}"
             _REFRESH_COUNT=$((_REFRESH_COUNT + 1))
           else
             # File may not exist in repo (optional config), not an error
@@ -166,7 +166,7 @@ default:
           rm -f "/tmp/_rf_${_RF_FNAME}"
         done
 
-        echo "  [REFRESH] Updated ${_REFRESH_COUNT} files from latest commit (${_REFRESH_FAILED} not found/skipped)"
+        echo "  [REFRESH] Updated ${_REFRESH_COUNT} orchestrator files from latest commit (${_REFRESH_FAILED} not found/skipped)"
 
         # Fetch failed_nodes.json from miscellaneous/ directory (user may have edited it in GitLab UI for retry)
         _RF_MISC_ENCODED_PATH=$(printf '%s' "miscellaneous/failed_nodes.json" | sed 's|/|%2F|g')
@@ -248,21 +248,22 @@ deploy:
       # Authenticate
       refresh_token
 
-      # Step 1: Implicit Upload -- sync ALL whitelisted config files to NFS
-      echo "  Step 1/3: Upload configuration files..."
+      # Step 1: Refresh and upload orchestrator config files via BSM API
+      # (handles both new runs and retries — Upload API routes each file
+      # to the correct domain path on OIM)
+      echo "  Step 1/3: Refresh and upload orchestrator config files..."
       echo "  ------------------------------------------------------------"
       refresh_input_files
-
       UPLOAD_ARGS=""
-      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
-             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
-             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
-        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
+      for FNAME in omnia_config.yml orchestrator_config.yml network_spec.yml \
+             security_config.yml storage_config.yml high_availability_config.yml \
+             additional_cloud_init.yml pxe_mapping_file.csv set_pxe_boot_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/orchestrator/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
-          echo "    [+] ${FNAME}"
+          echo "    [+] orchestrator/${FNAME}"
         else
-          echo "    [-] ${FNAME} (not found, skipping)"
+          echo "    [-] orchestrator/${FNAME} (not found, skipping)"
         fi
       done
 
@@ -397,8 +398,13 @@ deploy:
       - status_response.json
 
 # ---------------------------------------------------------------------------
-# Restart stage -- call restart API, poll for completion
+# Restart stage -- marks restart as complete via BSM API
 # Runs automatically after deploy completes
+#
+# NOTE (Omnia 2.3+): The restart stage invokes orchestrator.yml --tags pxeboot
+# to perform PXE boot on provisioned nodes.  The playbook execution is
+# asynchronous - this stage polls for completion.
+#
 # Can be skipped for VM deployments by setting SKIP_RESTART=true
 # ---------------------------------------------------------------------------
 restart:
@@ -410,6 +416,7 @@ restart:
     - |
       echo "============================================================"
       echo "  RESTART STAGE"
+      echo "  (Invokes orchestrator.yml --tags pxeboot)"
       echo "============================================================"
       echo ""
       echo "  Job ID:         ${JOB_ID}"
@@ -418,10 +425,8 @@ restart:
 
       # Check if restart should be skipped (for VM deployments)
       if [ "${SKIP_RESTART:-false}" = "true" ]; then
-        echo "  ⚠️  SKIP_RESTART=true detected (VM deployment mode)"
+        echo "  SKIP_RESTART=true detected (VM deployment mode)"
         echo "  Restart stage will be skipped."
-        echo ""
-        echo "  IMPORTANT: You must manually mark the restart stage as COMPLETED"
         echo ""
 
         # Save variables for downstream stages using dotenv artifact
@@ -440,13 +445,13 @@ restart:
 
       # Guard check: Ensure JOB_ID is available
       if [ -z "${JOB_ID:-}" ]; then
-        echo "  ERROR: JOB_ID is not set. Cannot restart job."
+        echo "  ERROR: JOB_ID is not set. Cannot proceed."
         echo "  This variable should be inherited from the deploy stage via dotenv artifact."
         exit 1
       fi
 
       if [ -z "${IMAGE_GROUP_ID:-}" ]; then
-        echo "  ERROR: IMAGE_GROUP_ID is not set. Cannot restart job."
+        echo "  ERROR: IMAGE_GROUP_ID is not set. Cannot proceed."
         echo "  This variable should be inherited from the deploy stage via dotenv artifact."
         exit 1
       fi
@@ -454,22 +459,22 @@ restart:
       # Authenticate
       refresh_token
 
-      # Step 0/3: Common Init -- Upload ALL whitelisted config files (retry support)
-      echo "  Step 0/3: Common Init -- Upload configuration files..."
+      # Step 1/2: Common Init -- Upload orchestrator config files (retry support)
+      echo "  Step 1/2: Upload orchestrator config files..."
       echo "  ------------------------------------------------------------"
 
       refresh_input_files
 
       UPLOAD_ARGS=""
-      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
-             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
-             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
-        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
+      for FNAME in omnia_config.yml orchestrator_config.yml network_spec.yml \
+             security_config.yml storage_config.yml high_availability_config.yml \
+             additional_cloud_init.yml pxe_mapping_file.csv set_pxe_boot_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/orchestrator/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
-          echo "    [+] ${FNAME}"
+          echo "    [+] orchestrator/${FNAME}"
         else
-          echo "    [-] ${FNAME} (not found, skipping)"
+          echo "    [-] orchestrator/${FNAME} (not found, skipping)"
         fi
       done
 
@@ -490,32 +495,8 @@ restart:
       fi
       echo ""
 
-      # Step 1/3: Upload failed_nodes.json from GitLab to OIM (if exists)
-      # The file was already fetched by refresh_input_files() above
-      echo "  Step 1/3: Upload failed_nodes.json to OIM for retry logic..."
-      echo "  ------------------------------------------------------------"
-
-      if [ -f "${CI_PROJECT_DIR}/miscellaneous/failed_nodes.json" ]; then
-        echo "  [+] failed_nodes.json found in GitLab repository"
-
-        HTTP_CODE=$(api_call_with_retry upload_failed_response.json \
-          -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/upload" \
-          -F "files=@${CI_PROJECT_DIR}/miscellaneous/failed_nodes.json" \
-          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
-        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
-
-        if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
-          echo "  [OK] failed_nodes.json uploaded to OIM for retry logic"
-        else
-          echo "  [WARN] Failed to upload failed_nodes.json (HTTP ${HTTP_CODE}), continuing anyway"
-        fi
-      else
-        echo "  [-] No failed_nodes.json in repository (expected for first run)"
-      fi
-      echo ""
-
-      # Step 2: Call Restart API
-      echo "  Step 2/3: Trigger PXE boot restart..."
+      # Step 2/2: Call Restart API and poll for completion
+      echo "  Step 2/2: Trigger restart and wait for completion..."
       echo "  ------------------------------------------------------------"
       echo "  Endpoint: POST ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/restart"
       echo ""
@@ -523,7 +504,7 @@ restart:
       HTTP_CODE=$(api_call_with_retry restart_response.json \
         -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/restart" \
         -H "Content-Type: application/json" \
-        -d "{\"disable_pxe_boot\": false}" \
+        -d "{}" \
         --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
       [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
 
@@ -537,12 +518,15 @@ restart:
 
       jq "." restart_response.json 2>/dev/null || cat restart_response.json
       echo ""
-      echo "  [OK] Restart request accepted"
+      echo "  [OK] Restart request accepted (orchestrator.yml --tags pxeboot)"
       echo ""
 
-      # Step 3: Poll for restart completion
-      echo "  Step 3/3: Waiting for restart to complete..."
+      # Poll for restart completion
+      echo "  Waiting for restart to complete..."
       echo "  ------------------------------------------------------------"
+      echo "  Polling interval: ${POLL_INTERVAL}s"
+      echo "  Max attempts: ${MAX_POLL_ATTEMPTS}"
+      echo ""
 
       STAGE_COMPLETED=false
       ATTEMPT=1
@@ -586,7 +570,6 @@ restart:
             exit 1
             ;;
         esac
-
 
         ATTEMPT=$((ATTEMPT + 1))
         sleep "${POLL_INTERVAL}"

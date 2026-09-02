@@ -50,8 +50,14 @@ PLAYBOOK_WORKDIR = "src/discovery/playbooks"
 
 # Valid playbook tags
 PLAYBOOK_TAGS: List[str] = [
+    "precheck",
     "validate",
-    "discover",
+    "credentials",
+    "prepare",
+    "execute",
+    "cleanup",
+    "upgrade",
+    "rollback",
 ]
 
 # =============================================================================

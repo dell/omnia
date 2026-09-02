@@ -20,6 +20,7 @@ Common constants, paths, domain lists, and command templates.
 
 from .common_vars import (
     MODULE_ROOT,
+    TEST_ROOT,
     REPO_ROOT,
     DOMAIN_NAME,
     OMNIA_RELEASE,
@@ -34,6 +35,8 @@ from .common_vars import (
     DEFAULT_PROJECT_NAME,
     BASE_DIRS,
     KNOWN_DOMAINS,
+    PREPARE_BASE_DOMAINS,
+    PREPARE_BASE_PHASES,
     DOMAINS_WITH_INIT,
     REQUIRED_ENV_VARS,
     OPTIONAL_ENV_VARS,
@@ -48,6 +51,7 @@ from .common_vars import (
 
 __all__ = [
     "MODULE_ROOT",
+    "TEST_ROOT",
     "REPO_ROOT",
     "DOMAIN_NAME",
     "OMNIA_RELEASE",
@@ -62,6 +66,8 @@ __all__ = [
     "DEFAULT_PROJECT_NAME",
     "BASE_DIRS",
     "KNOWN_DOMAINS",
+    "PREPARE_BASE_DOMAINS",
+    "PREPARE_BASE_PHASES",
     "DOMAINS_WITH_INIT",
     "REQUIRED_ENV_VARS",
     "OPTIONAL_ENV_VARS",

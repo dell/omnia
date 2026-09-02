@@ -1,0 +1,52 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Slurm Cleanup for OIM Node
+# Focuses on cleaning up Slurm-related NFS data only
+
+- name: Set role path
+  ansible.builtin.set_fact:
+    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
+  tags: slurm
+
+- name: Load Slurm component configuration
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/components/slurm/vars/component_spec.yml"
+  tags: slurm
+
+- name: Display Slurm cleanup start
+  ansible.builtin.debug:
+    msg: "Starting Slurm cleanup operations (OIM node - NFS data only)"
+  tags: slurm
+
+- name: Auto-cleanup Slurm-related mounts when triggered by Slurm
+  ansible.builtin.include_tasks: "{{ role_path }}/components/storage_mounts/tasks/cleanup.yml"
+  when: trigger_component is defined and trigger_component == 'slurm'
+  vars:
+    trigger_component: "slurm"
+  tags: slurm
+
+- name: Clean Slurm NFS mount points (after unmounting)
+  ansible.builtin.file:
+    path: "/nfs-slurm/{{ item }}"
+    state: absent
+  failed_when: false
+  loop: "{{ slurm_config.cleanup_directories | difference(slurm_config.preserve_directories) }}"
+  tags: slurm
+
+- name: Display Slurm cleanup completion
+  ansible.builtin.debug:
+    msg: "Slurm cleanup operations completed (OIM node - NFS data cleaned)"
+  tags: slurm

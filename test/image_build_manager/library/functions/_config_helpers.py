@@ -20,19 +20,22 @@ Shared helpers for build image verification functions.
 - Functional group resolution
 """
 
+import json
 import os
 import time
-from typing import List
+from typing import Any, Dict, List
 
 import yaml
 
-from omnia_auto import resolve_domain_input_path
+from omnia_auto import read_remote_env, resolve_domain_input_path
 
 from ..vars.common_vars import (
     DOMAIN_NAME,
+    ENV_CATALOG_FILE_PATH,
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
     IBM_CONFIG_FILE,
+    PACKAGE_GROUPS_FILENAME,
     SHARED_PATH,
     CMDS,
 )
@@ -122,54 +125,230 @@ def _load_remote_ibm_config(host) -> dict:
         return {}
 
 
-def _get_built_groups_from_status(host, arch: str = None) -> List[str]:
-    """Extract actually built group names from build_status.yml.
+def _read_remote_text(host, path: str, description: str):
+    """Read a required target-host file and return text plus an error."""
+    result = _retry_run(host, CMDS["cat_file"].format(path=path))
+    if result.rc != 0 or not result.stdout.strip():
+        return "", f"{description} is unavailable or empty at {path}"
+    return result.stdout, ""
 
-    In catalog mode, the playbook resolves group names to the full
-    ``{role}_{os}_{ver}_{arch}`` format (e.g. slurm_node_rhel_10_0_x86_64).
-    This helper reads build_status.yml to discover those actual names.
 
-    Returns:
-        List of built functional group name strings (may be empty).
-    """
-    # Deferred import to avoid circular dependency
-    from .build_status_func import check_build_status_file
+def _config_mode_groups(host, input_dir: str, arch: str):
+    """Resolve groups using the same selection rules as config-mode builds."""
+    package_groups_path = f"{input_dir}/{PACKAGE_GROUPS_FILENAME}"
+    content, error = _read_remote_text(
+        host, package_groups_path, PACKAGE_GROUPS_FILENAME,
+    )
+    if error:
+        return [], error
 
-    status = check_build_status_file(host)
-    if not status.get("success") or "data" not in status:
-        return []
+    try:
+        package_groups = yaml.safe_load(content)
+    except yaml.YAMLError as exc:
+        return [], f"Failed to parse {PACKAGE_GROUPS_FILENAME}: {exc}"
+
+    if not isinstance(package_groups, dict):
+        return [], f"{PACKAGE_GROUPS_FILENAME} must contain a YAML mapping"
+    functional_groups = package_groups.get("functional_groups")
+    if not isinstance(functional_groups, dict):
+        return [], (
+            f"{PACKAGE_GROUPS_FILENAME}.functional_groups must be a mapping"
+        )
 
     groups = []
-    fg_images = status["data"].get("functional_group_images", [])
-    for arch_block in fg_images:
-        if isinstance(arch_block, dict):
-            for _key, entries in arch_block.items():
-                if not isinstance(entries, list):
-                    continue
-                for entry in entries:
-                    if isinstance(entry, dict):
-                        fg_name = entry.get("functional_group", "")
-                        if fg_name:
-                            groups.append(fg_name)
+    suffix = f"_{arch}"
+    for name, group_data in functional_groups.items():
+        if not isinstance(name, str):
+            return [], (
+                f"{PACKAGE_GROUPS_FILENAME} contains a non-string group name"
+            )
+        if not name.endswith(suffix) or "driver_group" in name:
+            continue
+        # The shipped package_groups.yml uses null-valued placeholders.
+        # Ansible's ``fg_data.packages | default([])`` treats an absent group
+        # mapping as an empty package list, so mirror that source behavior.
+        if group_data is None:
+            continue
+        if not isinstance(group_data, dict):
+            return [], f"Functional group '{name}' must be a mapping"
+        packages = group_data.get("packages", [])
+        if not isinstance(packages, list):
+            return [], f"Functional group '{name}'.packages must be a list"
+        if packages:
+            groups.append(name)
 
-    if arch:
-        groups = [g for g in groups if arch in g]
+    return groups, ""
 
-    return groups
+
+def _catalog_mode_groups(host, arch: str):
+    """Resolve compute layer names using the source catalog rules."""
+    try:
+        catalog_path = read_remote_env(host, ENV_CATALOG_FILE_PATH)
+    except ValueError as exc:
+        return [], str(exc)
+
+    content, error = _read_remote_text(host, catalog_path, "Catalog JSON")
+    if error:
+        return [], error
+
+    try:
+        raw_catalog = json.loads(content)
+    except (json.JSONDecodeError, ValueError) as exc:
+        return [], f"Failed to parse catalog JSON: {exc}"
+
+    if not isinstance(raw_catalog, dict):
+        return [], "Catalog JSON root must be a mapping"
+    catalog = raw_catalog.get("catalog")
+    if not isinstance(catalog, dict):
+        return [], "Catalog JSON is missing the 'catalog' mapping"
+    layers = catalog.get("functionallayer")
+    if not isinstance(layers, list):
+        return [], "Catalog functionallayer must be a list"
+
+    groups = []
+    suffix = f"_{arch}"
+    for layer in layers:
+        if not isinstance(layer, dict):
+            return [], "Catalog functionallayer entries must be mappings"
+        name = layer.get("name", "")
+        if not isinstance(name, str):
+            return [], "Catalog functional layer names must be strings"
+        if name.endswith(suffix) and not name.startswith("baseos"):
+            if name not in groups:
+                groups.append(name)
+
+    return groups, ""
+
+
+def _configured_functional_groups_result(
+    host, arch: str = None
+) -> Dict[str, Any]:
+    """Resolve expected build groups independently from build_status.yml."""
+    if arch is not None and arch not in ("x86_64", "aarch64"):
+        return {
+            "success": False,
+            "groups": [],
+            "skipped": False,
+            "error": f"Unsupported architecture '{arch}'",
+        }
+
+    try:
+        config_path = _get_remote_ibm_config_path(host)
+    except ValueError as exc:
+        return {
+            "success": False,
+            "groups": [],
+            "skipped": False,
+            "error": str(exc),
+        }
+
+    content, error = _read_remote_text(
+        host, config_path, IBM_CONFIG_FILE,
+    )
+    if error:
+        return {
+            "success": False,
+            "groups": [],
+            "skipped": False,
+            "error": error,
+        }
+
+    try:
+        config = yaml.safe_load(content)
+    except yaml.YAMLError as exc:
+        return {
+            "success": False,
+            "groups": [],
+            "skipped": False,
+            "error": f"Failed to parse {IBM_CONFIG_FILE}: {exc}",
+        }
+    if not isinstance(config, dict):
+        return {
+            "success": False,
+            "groups": [],
+            "skipped": False,
+            "error": f"{IBM_CONFIG_FILE} must contain a YAML mapping",
+        }
+
+    arm_host = config.get("aarch64_inventory_host_ip", "")
+    arm_enabled = isinstance(arm_host, str) and bool(arm_host.strip())
+    if arch == "aarch64" and not arm_enabled:
+        return {
+            "success": True,
+            "groups": [],
+            "skipped": True,
+            "source": config.get("functional_groups_source", "config"),
+            "image_build_type": config.get(
+                "image_build_type", "image-thrillhouse",
+            ),
+            "details": (
+                "aarch64_inventory_host_ip is not configured — "
+                "aarch64 image build is disabled"
+            ),
+            "error": None,
+        }
+
+    source = config.get("functional_groups_source", "config")
+    if source not in ("config", "catalog"):
+        return {
+            "success": False,
+            "groups": [],
+            "skipped": False,
+            "error": f"Invalid functional_groups_source '{source}'",
+        }
+
+    build_type = config.get("image_build_type", "image-thrillhouse")
+    if build_type not in ("image-builder", "image-thrillhouse"):
+        return {
+            "success": False,
+            "groups": [],
+            "skipped": False,
+            "error": f"Invalid image_build_type '{build_type}'",
+        }
+
+    input_dir = config_path.rsplit("/", 1)[0]
+    arches = [arch] if arch else ["x86_64"]
+    if arch is None and arm_enabled:
+        arches.append("aarch64")
+
+    groups = []
+    for requested_arch in arches:
+        if source == "config":
+            resolved, error = _config_mode_groups(
+                host, input_dir, requested_arch,
+            )
+        else:
+            resolved, error = _catalog_mode_groups(host, requested_arch)
+        if error:
+            return {
+                "success": False,
+                "groups": [],
+                "skipped": False,
+                "error": error,
+            }
+        groups.extend(resolved)
+
+    return {
+        "success": True,
+        "groups": groups,
+        "skipped": False,
+        "source": source,
+        "image_build_type": build_type,
+        "details": (
+            f"Resolved {len(groups)} functional group(s) from {source} input"
+        ),
+        "error": None,
+    }
 
 
 def get_configured_functional_groups(
     host, arch: str = None
 ) -> List[str]:
-    """Get functional groups from image_build_config.yml on target.
+    """Get expected functional groups from target-host build input.
 
-    In **config** mode, reads the ``functional_groups`` list from the
-    deployed image_build_config.yml.
-
-    In **catalog** mode, the config list contains short (legacy) names
-    but the playbook resolves them to ``{role}_{os}_{ver}_{arch}`` format.
-    This function returns the *actually built* names from build_status.yml
-    so that S3, registry, and package checks match correctly.
+    Config mode mirrors package_groups.yml selection. Catalog mode mirrors
+    functional-layer selection. It never derives expectations from build
+    output, allowing callers to detect groups omitted from build_status.yml.
 
     Args:
         host: testinfra host object
@@ -178,30 +357,8 @@ def get_configured_functional_groups(
     Returns:
         List of functional group name strings.
     """
-    cfg = _load_remote_ibm_config(host)
-    if not cfg:
-        return []
-
-    # Prefer actual built names from build_status.yml when available.
-    built = _get_built_groups_from_status(host, arch=arch)
-    if built:
-        return built
-
-    fg_list = cfg.get("functional_groups", [])
-    groups = []
-    for entry in fg_list:
-        name = ""
-        if isinstance(entry, dict):
-            name = entry.get("name", "")
-        elif isinstance(entry, str):
-            name = entry
-        if name:
-            groups.append(name)
-
-    if arch:
-        groups = [g for g in groups if arch in g]
-
-    return groups
+    result = _configured_functional_groups_result(host, arch=arch)
+    return result["groups"] if result["success"] else []
 
 
 def _get_s3_provider(host) -> str:

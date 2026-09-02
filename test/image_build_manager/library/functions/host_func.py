@@ -28,8 +28,9 @@ Common functions are re-exported from omnia_auto so existing
 callers keep working.
 """
 
-import base64
 import os
+import shutil
+import tempfile
 from typing import Dict, Any
 
 import yaml
@@ -71,7 +72,6 @@ __all__ = [
     "sync_project_to_remote",
     "sync_image_build_input",
     "sync_repo_manager_output",
-    "sync_build_credentials",
 ]
 
 from ..vars.common_vars import (
@@ -80,6 +80,7 @@ from ..vars.common_vars import (
     ENV_OMNIA_PROJECT_NAME,
     IBM_CONFIG_FILE,
     CREDENTIALS_FILE_NAME,
+    CREDENTIALS_KEY_NAME,
     SRC_INPUT_DIR,
     SRC_REPO_OUTPUT_DIR,
 )
@@ -96,24 +97,95 @@ from ..vars.common_vars import (
 # MODULE-SPECIFIC SYNC
 # =============================================================================
 
+_DOMAIN_CREDENTIAL_PATTERNS = (
+    CREDENTIALS_FILE_NAME,
+    f"{CREDENTIALS_FILE_NAME}.*",
+    CREDENTIALS_KEY_NAME,
+    f"{CREDENTIALS_KEY_NAME}.*",
+)
+_input_sync_ignore = shutil.ignore_patterns(*_DOMAIN_CREDENTIAL_PATTERNS)
+_project_sync_ignore = shutil.ignore_patterns(
+    ".git",
+    ".agents",
+    ".codex",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "__pycache__",
+    "*.pyc",
+    ".venv",
+    "venv",
+    "active-venv",
+    "test_creds.yml",
+    "test_creds.yml.*",
+    ".test_creds.key",
+    ".test_creds.key.*",
+    *_DOMAIN_CREDENTIAL_PATTERNS,
+)
 
-def resolve_target_source_root() -> str:
-    """Resolve the Omnia source root for the current execution target.
 
-    Local execution reads from the current checkout. Remote execution reads
-    from ``clone_path``, where the checkout is synced on the target server.
+def _link_or_copy(source: str, destination: str) -> str:
+    """Hard-link staged project files when possible, otherwise copy them."""
+    try:
+        os.link(source, destination, follow_symlinks=False)
+        return destination
+    except OSError:
+        return shutil.copy2(
+            source, destination, follow_symlinks=False
+        )
 
-    Returns:
-        Absolute source-root path on the execution target.
 
-    Raises:
-        ValueError: If remote execution has no valid absolute ``clone_path``.
-    """
-    if is_local_execution():
-        # Module root: test/image_build_manager/ -> repository root: omnia/
-        return os.path.dirname(os.path.dirname(get_module_root()))
+def _resolve_dataset_subdir(
+    config: Dict[str, Any], subdirectory: str, fallback: str
+) -> str:
+    """Resolve one dataset subdirectory without allowing path traversal."""
+    dataset = config.get("dataset", "")
+    if not dataset:
+        return fallback
+    if not isinstance(dataset, str):
+        raise ValueError("dataset must be a directory name string")
+    if (
+        dataset in {".", "..", "generator"}
+        or os.path.isabs(dataset)
+        or os.path.basename(dataset) != dataset
+        or "\x00" in dataset
+    ):
+        raise ValueError(f"Unsafe dataset name: {dataset!r}")
 
-    config = load_test_config()
+    datasets_root = os.path.realpath(os.path.join(get_module_root(), "datasets"))
+    dataset_path = os.path.join(datasets_root, dataset)
+    if os.path.islink(dataset_path):
+        raise ValueError(f"Dataset symlinks are not allowed: {dataset}")
+    resolved_dataset = os.path.realpath(dataset_path)
+    if os.path.dirname(resolved_dataset) != datasets_root:
+        raise ValueError(f"Dataset escapes datasets directory: {dataset!r}")
+
+    subdir_path = os.path.join(resolved_dataset, subdirectory)
+    if os.path.islink(subdir_path):
+        raise ValueError(
+            f"Dataset subdirectory symlinks are not allowed: {dataset}/{subdirectory}"
+        )
+    resolved_subdir = os.path.realpath(subdir_path)
+    if os.path.commonpath((resolved_dataset, resolved_subdir)) != resolved_dataset:
+        raise ValueError(
+            f"Dataset subdirectory escapes its dataset: {dataset}/{subdirectory}"
+        )
+    return resolved_subdir
+
+
+def _reject_symlinks(directory: str) -> None:
+    """Reject nested links before copying an input tree into staging."""
+    for current_dir, directory_names, file_names in os.walk(directory):
+        for entry_name in directory_names + file_names:
+            if os.path.islink(os.path.join(current_dir, entry_name)):
+                raise OSError(
+                    f"Refusing to sync symlink from dataset: "
+                    f"{os.path.join(current_dir, entry_name)}"
+                )
+
+
+def _resolve_remote_clone_path(config: Dict[str, Any]) -> str:
+    """Return the validated, normalized remote project destination."""
     raw_clone_path = config.get("clone_path")
     if not isinstance(raw_clone_path, str) or not raw_clone_path.strip():
         raise ValueError(
@@ -127,12 +199,34 @@ def resolve_target_source_root() -> str:
     return os.path.normpath(clone_path)
 
 
+def resolve_target_source_root() -> str:
+    """Resolve the Omnia source root for the current execution target.
+
+    Local execution reads directly from the current checkout.  Remote
+    execution reads from ``clone_path``, where the checkout is synced on the
+    target server.  This mirrors the path selection used by the shared
+    ``omnia_auto`` playbook runner.
+
+    Returns:
+        Absolute source-root path on the execution target.
+
+    Raises:
+        ValueError: If remote execution is selected without ``clone_path``.
+    """
+    if is_local_execution():
+        # Module root: test/image_build_manager/ -> repo root: omnia/
+        return os.path.dirname(os.path.dirname(get_module_root()))
+
+    return _resolve_remote_clone_path(load_test_config())
+
+
 def sync_project_to_remote(_host) -> Dict[str, Any]:
     """Sync the local omnia project tree to clone_path on target.
 
-    Copies the complete project from the local monorepo to the remote
-    ``clone_path``, using the same rsync/SSH checks as other sync
-    functions.  This replaces git-clone when the code is already
+    Copies a filtered working tree from the local monorepo to the remote
+    ``clone_path``, using the same rsync/SSH checks as other sync functions.
+    Local credential files, vault keys, VCS metadata, virtual environments,
+    and caches are excluded. This replaces git-clone when the code is already
     available locally.
 
     Source: ``<repo_root>/`` (the omnia monorepo root)
@@ -140,43 +234,62 @@ def sync_project_to_remote(_host) -> Dict[str, Any]:
     """
     config = load_test_config()
     conn = connection_params()
+    clone_path = _resolve_remote_clone_path(config)
 
     # Repo root: test/image_build_manager/ -> test/ -> omnia/
     repo_root = os.path.dirname(os.path.dirname(get_module_root()))
 
-    return sync_files(
-        mode=conn["mode"],
-        src=repo_root,
-        dest=config["clone_path"],
-        ip=conn["ip"],
-        user=conn["user"],
-        auth_secret=conn["auth_secret"],
-        ssh_opts=conn["ssh_opts"],
-    )
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix="omnia_ibm_project_"
+        ) as staging_dir:
+            staged_project = os.path.join(staging_dir, "omnia")
+            shutil.copytree(
+                repo_root,
+                staged_project,
+                symlinks=True,
+                ignore=_project_sync_ignore,
+                copy_function=_link_or_copy,
+            )
+            result = sync_files(
+                mode=conn["mode"],
+                src=staged_project,
+                dest=clone_path,
+                ip=conn["ip"],
+                user=conn["user"],
+                auth_secret=conn["auth_secret"],
+                ssh_opts=conn["ssh_opts"],
+            )
+    except OSError as exc:
+        return {
+            "success": False,
+            "details": "",
+            "error": f"Failed to stage project for sync: {exc}",
+        }
+
+    if result["success"]:
+        result["details"] = (
+            f"Synced filtered project {repo_root} -> {clone_path} "
+            "(local credentials and caches excluded)"
+        )
+    return result
 
 
 def _resolve_input_dir(config):
     """Resolve local input directory from dataset or src/."""
-    dataset = config.get("dataset", "")
-    if dataset:
-        return os.path.join(
-            get_module_root(), "datasets", dataset, "input",
-        )
-    return SRC_INPUT_DIR
+    return _resolve_dataset_subdir(config, "input", SRC_INPUT_DIR)
 
 
 def _resolve_repo_output_dir(config):
     """Resolve local repo_manager_output directory from dataset or src/."""
-    dataset = config.get("dataset", "")
-    if dataset:
-        return os.path.join(
-            get_module_root(), "datasets", dataset,
-            "repo_manager_output",
-        )
-    return SRC_REPO_OUTPUT_DIR
+    return _resolve_dataset_subdir(
+        config, "repo_manager_output", SRC_REPO_OUTPUT_DIR
+    )
 
 
-def sync_image_build_input(host) -> Dict[str, Any]:
+def sync_image_build_input(
+    host, config: Dict[str, Any] | None = None
+) -> Dict[str, Any]:
     """Push image_build input files from local source to target.
 
     Reads ``OMNIA_DATA_PATH`` and ``OMNIA_PROJECT_NAME`` from the target
@@ -186,8 +299,13 @@ def sync_image_build_input(host) -> Dict[str, Any]:
 
     Source: src/image_build_manager/input/ (default) or
             datasets/<dataset>/input/ (when dataset is set).
+
+    Any credential artifacts are deliberately excluded. Generated datasets
+    contain no credentials; create runtime credentials directly on the
+    execution OIM with ``./setup_env.sh --set-domain-creds``.
     """
-    config = load_test_config()
+    if config is None:
+        config = load_test_config()
     conn = connection_params()
 
     local_input = _resolve_input_dir(config)
@@ -196,14 +314,38 @@ def sync_image_build_input(host) -> Dict[str, Any]:
     )
     ensure_remote_dir(host, remote_input)
 
-    return sync_files(
-        mode=conn["mode"], src=local_input, dest=remote_input,
-        ip=conn["ip"], user=conn["user"],
-        auth_secret=conn["auth_secret"], ssh_opts=conn["ssh_opts"],
-    )
+    try:
+        _reject_symlinks(local_input)
+        with tempfile.TemporaryDirectory(
+            prefix="omnia_ibm_input_"
+        ) as staging_dir:
+            staged_input = os.path.join(staging_dir, "input")
+            shutil.copytree(
+                local_input,
+                staged_input,
+                ignore=_input_sync_ignore,
+            )
+
+            result = sync_files(
+                mode=conn["mode"], src=staged_input, dest=remote_input,
+                ip=conn["ip"], user=conn["user"],
+                auth_secret=conn["auth_secret"], ssh_opts=conn["ssh_opts"],
+            )
+    except OSError as exc:
+        return {
+            "success": False,
+            "details": "",
+            "error": f"Failed to stage image-build input: {exc}",
+        }
+
+    if result["success"]:
+        result["details"] += " (credentials excluded)"
+    return result
 
 
-def sync_repo_manager_output(host) -> Dict[str, Any]:
+def sync_repo_manager_output(
+    host, config: Dict[str, Any] | None = None
+) -> Dict[str, Any]:
     """Push repo_manager_output from local source to target.
 
     Reads repo_manager_output_dir from image_build_config.yml.
@@ -212,7 +354,8 @@ def sync_repo_manager_output(host) -> Dict[str, Any]:
     Source: src/.../samples/repo_manager_output/ (default) or
             datasets/<dataset>/repo_manager_output/ (when dataset is set).
     """
-    config = load_test_config()
+    if config is None:
+        config = load_test_config()
     conn = connection_params()
 
     local_output = _resolve_repo_output_dir(config)
@@ -247,135 +390,3 @@ def sync_repo_manager_output(host) -> Dict[str, Any]:
         ip=conn["ip"], user=conn["user"],
         auth_secret=conn["auth_secret"], ssh_opts=conn["ssh_opts"],
     )
-
-
-# =============================================================================
-# BUILD CREDENTIAL SYNC
-# =============================================================================
-
-# Fields in test_creds.yml that map to image_build_credentials.yml on the target
-_BUILD_CRED_FIELDS = ["s3_access_id", "s3_secret_key", "aarch64_ssh_password"]
-
-
-def sync_build_credentials(host) -> Dict[str, Any]:
-    """Write S3 and aarch64 credentials from test_creds.yml to the target.
-
-    Bridges the gap between the test framework's credential store
-    (``test_creds.yml``) and the playbook's credential file
-    (``image_build_credentials.yml``).
-
-    Flow:
-        1. Load ``test_creds.yml`` (decrypted via ``load_test_credentials``).
-        2. Extract ``s3_access_id``, ``s3_secret_key``, ``aarch64_ssh_password``.
-        3. If any field has a non-empty value, write them as **plaintext**
-           YAML to ``<input_dir>/image_build_credentials.yml`` on the target.
-
-    The file is written as plaintext intentionally.  The
-    ``collect_build_credentials`` role detects non-vault files (Step 4b)
-    and handles loading + encryption itself.  This avoids vault-key
-    mismatch — the role creates/manages its own vault key at
-    ``<input_dir>/.image_build_credentials_key``.
-
-    The write uses base64 encoding over SSH so credential values
-    containing quotes, backslashes, or special chars are transported
-    without shell-escaping issues.
-
-    If no build credential fields are populated (all empty strings), the
-    function skips silently — the ``collect_build_credentials`` role will
-    prompt interactively or use the default template values.
-
-    Returns:
-        Dict with 'success', 'details', 'error' keys.
-    """
-    try:
-        creds = load_test_credentials()
-    except (ValueError, OSError) as exc:
-        return {
-            "success": False,
-            "details": "",
-            "error": f"Cannot load test_creds.yml: {exc}",
-        }
-
-    # Extract build-specific fields
-    build_creds = {k: creds.get(k, "") for k in _BUILD_CRED_FIELDS}
-
-    # Check if build credential fields have values
-    has_values = any(v for v in build_creds.values())
-    if not has_values:
-        return {
-            "success": True,
-            "details": (
-                "No build credentials in test_creds.yml — skipping sync. "
-                "The collect_build_credentials role will prompt interactively "
-                "for mandatory fields (s3_secret_key). To set credentials "
-                "non-interactively, run: "
-                "./setup_env.sh --set-domain-creds"
-            ),
-            "error": "",
-        }
-
-    # Resolve target input path
-    remote_input = resolve_domain_input_path(
-        host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
-    )
-    cred_file = f"{remote_input}/{CREDENTIALS_FILE_NAME}"
-
-    # Build YAML content matching the template format
-    yaml_content = (
-        "---\n"
-        "# Image build credentials (S3 / MinIO)\n"
-        "# Auto-populated by test framework from test_creds.yml.\n"
-        f's3_access_id: "{build_creds["s3_access_id"]}"\n'
-        f's3_secret_key: "{build_creds["s3_secret_key"]}"\n'
-        "\n"
-        "# SSH password for ARM build host\n"
-        f'aarch64_ssh_password: "{build_creds["aarch64_ssh_password"]}"\n'
-    )
-
-    # Base64-encode to avoid all shell quoting issues over SSH.
-    # base64 output contains only [A-Za-z0-9+/=] — safe in any shell.
-    b64 = base64.b64encode(yaml_content.encode("utf-8")).decode("ascii")
-
-    # Ensure parent directory exists, write via base64 decode, set perms.
-    # Leave as plaintext — the collect_build_credentials role (Step 4b)
-    # detects non-vault files and handles encryption with its own key.
-    write_cmd = (
-        f"mkdir -p {remote_input} && "
-        f"echo '{b64}' | base64 -d > {cred_file} && "
-        f"chmod 600 {cred_file}"
-    )
-    result = run_on_host(host, write_cmd)
-    if result.rc != 0:
-        return {
-            "success": False,
-            "details": "",
-            "error": f"Failed to write {cred_file}: {result.stderr}",
-        }
-
-    # Verify the file was written with actual values (not empty)
-    verify_cmd = f"grep -c 's3_secret_key' {cred_file}"
-    verify = run_on_host(host, verify_cmd)
-    if verify.rc != 0:
-        return {
-            "success": False,
-            "details": "",
-            "error": (
-                f"Credential file written but verification failed. "
-                f"Check {cred_file} on the target."
-            ),
-        }
-
-    field_summary = ", ".join(
-        f"{k}={'set' if build_creds[k] else 'empty'}"
-        for k in _BUILD_CRED_FIELDS
-    )
-
-    return {
-        "success": True,
-        "details": (
-            f"Build credentials synced to {cred_file} "
-            f"(plaintext — role will encrypt on first run) "
-            f"[{field_summary}]"
-        ),
-        "error": "",
-    }

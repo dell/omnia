@@ -31,16 +31,13 @@ Test cases:
     TC_SR_063: Verify UFM InfiniBand metrics in VictoriaMetrics
 """
 
-from datetime import datetime
-
 import pytest
 
 from library.functions import TestLogger
-from library.vars.test_case_vars import TEST_CASES as TC
-from library.vars.common_vars import UFM_EXPECTED_METRICS
-from library.messages.telemetry_msgs import (
-    TEST_LOG_MSGS as LOG_MSGS,
-    TEST_ASSERT_MSGS as ASSERT_MSGS,
+from library.messages.ufm_msgs import (
+    UFM_ASSERT_MSGS as ASSERT_MSGS,
+    UFM_DETAIL_MSGS as DETAIL_MSGS,
+    UFM_LOG_MSGS as LOG_MSGS,
 )
 from library.functions.telemetry_func import is_source_enabled
 from library.functions.ufm_func import (
@@ -49,30 +46,14 @@ from library.functions.ufm_func import (
     verify_ufm_credentials_secret,
     verify_ufm_metrics,
 )
+from library.vars.test_case_vars import TEST_CASES as TC
+from library.vars.ufm_vars import UFM_EXPECTED_METRICS, UFM_SOURCE_NAME
 
 
 def _skip_if_ufm_disabled(host):
     """Skip test if UFM source is not enabled."""
-    if not is_source_enabled(host, "ufm"):
-        pytest.skip("UFM source not enabled in config")
-
-
-def _format_metric_lines(metric_details):
-    """Format metrics into lines with value and timestamp."""
-    if not metric_details:
-        return "  (no metrics found)"
-
-    lines = []
-    for m in metric_details:
-        ts = m.get("timestamp", 0)
-        try:
-            ts_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
-        except (ValueError, OSError):
-            ts_str = str(ts)
-        lines.append(
-            f"  \u2713 {m['metric']}: {m['value']} ({ts_str})"
-        )
-    return "\n".join(lines)
+    if not is_source_enabled(host, UFM_SOURCE_NAME):
+        pytest.skip(LOG_MSGS["disabled"])
 
 
 # =========================================================================
@@ -81,6 +62,7 @@ def _format_metric_lines(metric_details):
 
 @pytest.mark.source
 @pytest.mark.sanity
+@pytest.mark.ufm
 @pytest.mark.order(70)
 def test_ufm_external_service(host):
     """TC_SR_060: Verify UFM external service exists with correct endpoint."""
@@ -88,29 +70,40 @@ def test_ufm_external_service(host):
     tc = TC["ufm_external_svc"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Verifying UFM external headless service")
+    tl.check(LOG_MSGS["service_check"])
     result = verify_ufm_external_service(host)
 
-    detail = (
-        f"endpoint={result.get('endpoint_ip', '')}:{result.get('endpoint_port', '')}, "
-        f"expected={result.get('expected_endpoint', '')}:{result.get('expected_port', '')}"
+    detail = DETAIL_MSGS["service"].format(
+        endpoint_ip=result.get("endpoint_ip", ""),
+        endpoint_port=result.get("endpoint_port", ""),
+        expected_endpoint=result.get("expected_endpoint", ""),
+        expected_port=result.get("expected_port", ""),
     )
 
     if result["success"]:
         tl.passed(
-            LOG_MSGS["ufm_svc_exists"].format(
+            LOG_MSGS["service_exists"].format(
                 service=result["service_name"],
-                endpoint=f"{result['endpoint_ip']}:{result['endpoint_port']}",
+                endpoint_ip=result["endpoint_ip"],
+                endpoint_port=result["endpoint_port"],
             ),
             detail,
         )
     else:
         tl.failed(
-            LOG_MSGS["ufm_svc_missing"].format(service=result["service_name"]),
-            detail,
+            LOG_MSGS["service_missing"].format(service=result["service_name"]),
+            DETAIL_MSGS["failure"].format(
+                details=detail,
+                error=result.get(
+                    "error",
+                    LOG_MSGS["service_missing"].format(
+                        service=result["service_name"],
+                    ),
+                ),
+            ),
         )
 
-    assert result["success"], ASSERT_MSGS["ufm_svc_missing"].format(
+    assert result["success"], ASSERT_MSGS["service_missing"].format(
         service=result["service_name"],
     )
 
@@ -121,6 +114,7 @@ def test_ufm_external_service(host):
 
 @pytest.mark.source
 @pytest.mark.sanity
+@pytest.mark.ufm
 @pytest.mark.order(71)
 def test_ufm_vmscrape(host):
     """TC_SR_061: Verify UFM VMServiceScrape CR exists."""
@@ -128,26 +122,26 @@ def test_ufm_vmscrape(host):
     tc = TC["ufm_vmscrape"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Checking UFM VMServiceScrape CR")
+    tl.check(LOG_MSGS["vmscrape_check"])
     result = verify_ufm_vmscrape(host)
 
     if result["success"]:
-        detail = (
-            f"port={result.get('port', '')}, "
-            f"path={result.get('path', '')}, "
-            f"interval={result.get('scrape_interval', '')}"
+        detail = DETAIL_MSGS["vmscrape"].format(
+            port=result.get("port", ""),
+            path=result.get("path", ""),
+            scrape_interval=result.get("scrape_interval", ""),
         )
         tl.passed(
-            LOG_MSGS["ufm_vmscrape_exists"].format(name=result["name"]),
+            LOG_MSGS["vmscrape_exists"].format(name=result["name"]),
             detail,
         )
     else:
         tl.failed(
-            LOG_MSGS["ufm_vmscrape_missing"].format(name=result["name"]),
+            LOG_MSGS["vmscrape_missing"].format(name=result["name"]),
             result.get("error", ""),
         )
 
-    assert result["success"], ASSERT_MSGS["ufm_vmscrape_missing"].format(
+    assert result["success"], ASSERT_MSGS["vmscrape_missing"].format(
         name=result["name"],
     )
 
@@ -158,6 +152,7 @@ def test_ufm_vmscrape(host):
 
 @pytest.mark.source
 @pytest.mark.sanity
+@pytest.mark.ufm
 @pytest.mark.order(72)
 def test_ufm_credentials_secret(host):
     """TC_SR_062: Verify UFM credentials K8s secret exists."""
@@ -165,21 +160,23 @@ def test_ufm_credentials_secret(host):
     tc = TC["ufm_credentials_secret"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Checking UFM credentials secret")
+    tl.check(LOG_MSGS["secret_check"])
     result = verify_ufm_credentials_secret(host)
 
     if result["success"]:
         tl.passed(
-            LOG_MSGS["ufm_secret_exists"].format(secret=result["secret_name"]),
-            f"keys: {', '.join(result.get('keys_found', []))}",
+            LOG_MSGS["secret_exists"].format(secret=result["secret_name"]),
+            DETAIL_MSGS["secret"].format(
+                keys=", ".join(result.get("keys_found", [])),
+            ),
         )
     else:
         tl.failed(
-            LOG_MSGS["ufm_secret_missing"].format(secret=result["secret_name"]),
+            LOG_MSGS["secret_missing"].format(secret=result["secret_name"]),
             result.get("error", ""),
         )
 
-    assert result["success"], ASSERT_MSGS["ufm_secret_missing"].format(
+    assert result["success"], ASSERT_MSGS["secret_missing"].format(
         secret=result["secret_name"],
     )
 
@@ -190,6 +187,7 @@ def test_ufm_credentials_secret(host):
 
 @pytest.mark.source
 @pytest.mark.functional
+@pytest.mark.ufm
 @pytest.mark.order(73)
 def test_ufm_metrics_in_vm(host):
     """TC_SR_063: Verify UFM InfiniBand metrics in VictoriaMetrics."""
@@ -197,36 +195,22 @@ def test_ufm_metrics_in_vm(host):
     tc = TC["ufm_metrics_in_vm"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Querying VictoriaMetrics for UFM InfiniBand metrics")
+    tl.check(LOG_MSGS["metrics_check"])
     result = verify_ufm_metrics(host, UFM_EXPECTED_METRICS)
 
-    metric_lines = _format_metric_lines(result.get("metric_details", []))
-
     if result["success"]:
-        details_lines = [
-            f"Found: {len(result['found'])}/{len(UFM_EXPECTED_METRICS)} metrics",
-            "",
-            metric_lines,
-        ]
         tl.passed(
-            LOG_MSGS["ufm_metrics_found"].format(count=len(result["found"])),
-            "\n".join(details_lines),
+            LOG_MSGS["metrics_found"].format(
+                count=result["found_metric_count"],
+            ),
+            result["details"],
         )
     else:
-        missing_str = ", ".join(result["missing"])
-        details_lines = [
-            f"Found: {len(result['found'])}/{len(UFM_EXPECTED_METRICS)} metrics",
-        ]
-        for m in result["missing"]:
-            details_lines.append(f"  \u2717 {m}: MISSING")
-        if result.get("metric_details"):
-            details_lines.append("")
-            details_lines.append(metric_lines)
         tl.failed(
-            LOG_MSGS["ufm_metrics_missing"].format(missing=missing_str),
-            "\n".join(details_lines),
+            LOG_MSGS["metrics_missing"],
+            result["details"],
         )
 
-    assert result["success"], ASSERT_MSGS["ufm_metrics_missing"].format(
+    assert result["success"], ASSERT_MSGS["metrics_missing"].format(
         missing=", ".join(result["missing"]),
     )

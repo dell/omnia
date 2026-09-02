@@ -122,7 +122,10 @@ log_file:
 '''
 
 
-VALIDATION_LOG_PATH = "/opt/omnia/image_build_manager/log/"  # Default — overridden by log_dir param
+VALIDATION_LOG_PATH = os.path.join(
+    os.environ.get("OMNIA_DATA_PATH", "/opt/omnia"),
+    "image_build_manager", "log"
+)  # Derived from OMNIA_DATA_PATH — overridden by log_dir param
 
 
 def run_module():
