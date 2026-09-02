@@ -175,30 +175,30 @@
 {% endfor %}
 {% endif %}
 {% raw %}
-      {% if ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map is mapping and ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map %}
-      {% set mymounts = ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map.get(local_hostname, {}) %}
-      {% if mymounts %}
-      {% for mount in mymounts.get("mounts", []) %}
-        - mkdir -pv {{ mount[1] }}
-        - echo "{{ mount | join(' ') }}" >> /etc/fstab
-      {% endfor %}
+      {{ "{%" }} if ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map is mapping and ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map {{ "%}" }}
+      {{ "{%" }} set mymounts = ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map.get(local_hostname, {}) {{ "%}" }}
+      {{ "{%" }} if mymounts {{ "%}" }}
+      {{ "{%" }} for mount in mymounts.get("mounts", []) {{ "%}" }}
+        - mkdir -pv {{ "{{" }} mount[1] {{ "}}" }}
+        - echo "{{ "{{" }} mount | join(' ') {{ "}}" }}" >> /etc/fstab
+      {{ "{%" }} endfor {{ "%}" }}
         - mount -av
-      {% for decoded_cmd in mymounts.get("runcmd", []) %}
-        - {{ decoded_cmd }}
-      {% endfor %}
-      {% else %}
+      {{ "{%" }} for decoded_cmd in mymounts.get("runcmd", []) {{ "%}" }}
+        - {{ "{{" }} decoded_cmd {{ "}}" }}
+      {{ "{%" }} endfor {{ "%}" }}
+      {{ "{%" }} else {{ "%}" }}
         - echo "No mount entries found for this host"
-      {% endif %}
-      {% endif %}
+      {{ "{%" }} endif {{ "%}" }}
+      {{ "{%" }} endif {{ "%}" }}
 {% endraw %}
 {% for pv_entry in metadata_svc_groups_dict[functional_group_name].powervault_scripts | default([], true) %} 
         - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
 {% endfor %}
         # K8s NFS mount entries
         - mkdir -pv /tmp/crio-storage {{ k8s_client_mount_path }} /var/lib/kubelet /etc/kubernetes /var/log/pods /var/lib/packages
-        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/kubelet   /var/lib/kubelet     nfs noatime,nolock 0 0" >> /etc/fstab
-        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/kubernetes   /etc/kubernetes      nfs noatime,nolock 0 0" >> /etc/fstab
-        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ "{{" }} ip {{ "}}" }}{% endraw %}/kubelet   /var/lib/kubelet     nfs noatime,nolock 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ "{{" }} ip {{ "}}" }}{% endraw %}/kubernetes   /etc/kubernetes      nfs noatime,nolock 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ "{{" }} ip {{ "}}" }}{% endraw %}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0" >> /etc/fstab
         - echo "{{ k8s_nfs_server_path }}/packages   /var/lib/packages        nfs    noatime,nolock     0 0" >> /etc/fstab
         - echo "tmpfs   /tmp/crio-storage   tmpfs   size={{ k8s_crio_storage_size }},noatime,nodev,nosuid   0 0" >> /etc/fstab
         - sudo swapoff -a
@@ -292,7 +292,7 @@
             rm -rf /var/lib/kubelet/* /etc/kubernetes/*
             rm -rf /var/lib/kubelet/.* /etc/kubernetes/.*
             K8S_CLIENT_MOUNT_PATH="{{ k8s_client_mount_path }}"
-            NODE_NAME="{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
+            NODE_NAME="{% raw %}{{ "{{" }} ip {{ "}}" }}{% endraw %}"
             KUBE_VIP="{{ kube_vip }}"
             JOIN_CMD_FILE="${K8S_CLIENT_MOUNT_PATH}/worker-join-command.sh"
             echo "----------------------------------------------------------------------"

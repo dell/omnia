@@ -36,7 +36,7 @@
         dest: "{{ openchami_nodes_vars_path }}"
         mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
       vars:
-        nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
+        mapping_nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items | map(attribute='value') | list }}"
 
     - name: Create orchestrator output directory on OIM
       ansible.builtin.file:
