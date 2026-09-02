@@ -13,109 +13,36 @@
 # limitations under the License.
 ---
 
-# Rollback OpenLDAP --- Revert auth container from Wolfi-based to Fedora-based
-# Can be run standalone or imported by orchestrator.yml
+# Rollback OpenLDAP -- Reserved for future use.
 #
-# Logic:
-#   1. Detect running auth container image
-#   2. If Wolfi-based auth container is running (tag 1.1):
-#      a. Stop container
-#      b. Remove Wolfi container
-#      c. Pull Fedora image (tag 1.0)
-#      d. Deploy Fedora auth container
-#      e. Reapply configuration
-#      f. Validate service health
-#   3. If Fedora container is already active (tag 1.0): exit successfully
-#   4. If not deployed: skip rollback
+# OpenLDAP rollback is not supported in this release.
+# The container migration from Fedora-based to Wolfi-based is tied
+# to the OpenCHAMI v0.1.7-1 to v0.2.0 upgrade, which is a one-way
+# migration.
 #
-# Idempotent and re-runnable.
+# This tag is reserved for future releases where rollback between
+# compatible versions may be supported.
 
-- name: Rollback OpenLDAP container
-  hosts: oim
-  connection: ssh
+- name: Rollback OpenLDAP (reserved for future use)
+  hosts: localhost
+  connection: local
   gather_facts: false
-  vars:
-    auth_container_name: omnia_auth
-    auth_image: "docker.io/dellhpcomniaaisolution/omnia_auth"
-    auth_rollback_tag: "1.0"
-    auth_current_tag: "1.1"
   tasks:
-    - name: Check if OpenLDAP container exists
-      containers.podman.podman_container_info:
-        name: "{{ auth_container_name }}"
-      register: auth_rollback_check
-      failed_when: false
+    - name: Rollback not supported
+      ansible.builtin.fail:
+        msg: |
+          ============================================================
+          ROLLBACK NOT SUPPORTED
+          ============================================================
+          OpenLDAP rollback is not supported in this release.
 
-    - name: Skip rollback when not deployed
-      ansible.builtin.debug:
-        msg: "OpenLDAP (omnia_auth) not deployed. Skipping rollback."
-      when: auth_rollback_check.containers | default([]) | length == 0
+          The container migration from Fedora-based to Wolfi-based
+          image is tied to the OpenCHAMI v0.1.7-1 to v0.2.0 upgrade,
+          which is a one-way migration.
 
-    - name: Rollback OpenLDAP when present
-      when:
-        - auth_rollback_check.containers | default([]) | length > 0
-      block:
-        - name: Detect current container image tag
-          ansible.builtin.set_fact:
-            auth_current_image: "{{ auth_rollback_check.containers[0].ImageName | default('') }}"
+          If you need to restore a previous state, please use a full
+          system backup taken before the upgrade.
 
-        - name: Already on rollback target image
-          ansible.builtin.debug:
-            msg: >-
-              OpenLDAP is already running the Fedora-based image
-              ({{ auth_image }}:{{ auth_rollback_tag }}). No rollback needed.
-          when: auth_rollback_tag in auth_current_image
-
-        - name: Perform Wolfi-to-Fedora rollback
-          when: auth_rollback_tag not in auth_current_image
-          block:
-            - name: Stop OpenLDAP service
-              ansible.builtin.systemd:
-                name: omnia_auth
-                state: stopped
-              failed_when: false
-
-            - name: Remove Wolfi-based container
-              ansible.builtin.command: "podman rm -f {{ auth_container_name }}"
-              changed_when: true
-              failed_when: false
-
-            - name: Pull Fedora-based OpenLDAP image
-              ansible.builtin.command: "podman pull {{ auth_image }}:{{ auth_rollback_tag }}"
-              register: auth_pull_result
-              retries: 3
-              delay: 10
-              until: auth_pull_result.rc == 0
-              changed_when: "'Pulling' in auth_pull_result.stdout or 'Copying' in auth_pull_result.stderr"
-
-            - name: Start OpenLDAP service with Fedora image
-              ansible.builtin.systemd:
-                name: omnia_auth
-                state: started
-                daemon_reload: true
-
-            - name: Wait for OpenLDAP to be healthy
-              containers.podman.podman_container_info:
-                name: "{{ auth_container_name }}"
-              register: auth_rollback_health
-              retries: 10
-              delay: 5
-              until: >-
-                (auth_rollback_health.containers | default([]) | length > 0) and
-                (auth_rollback_health.containers[0].State.Status == 'running')
-
-            - name: Verify LDAP service responds
-              ansible.builtin.command: >
-                podman exec {{ auth_container_name }} ldapsearch -x -H ldap://localhost -b "" -s base namingContexts
-              register: ldap_verify
-              retries: 5
-              delay: 5
-              until: ldap_verify.rc == 0
-              changed_when: false
-              failed_when: false
-
-            - name: OpenLDAP rollback completed
-              ansible.builtin.debug:
-                msg: >-
-                  OpenLDAP (omnia_auth) successfully rolled back from Wolfi-based
-                  to Fedora-based image ({{ auth_image }}:{{ auth_rollback_tag }}).
+          This tag is reserved for future releases where rollback
+          between compatible versions may be supported.
+          ============================================================

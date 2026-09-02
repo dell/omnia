@@ -31,7 +31,7 @@
 #   ansible-playbook playbooks/orchestrator.yml --tags pxeboot         # PXE boot on iDRAC nodes (requires enable_pxe_boot: true)
 #   ansible-playbook playbooks/orchestrator.yml --tags cleanup         # Remove OpenCHAMI + OpenLDAP services + artifacts
 #   ansible-playbook playbooks/orchestrator.yml --tags upgrade         # In-place upgrade OpenCHAMI + OpenLDAP
-#   ansible-playbook playbooks/orchestrator.yml --tags rollback        # Revert OpenCHAMI + OpenLDAP to previous state
+#   ansible-playbook playbooks/orchestrator.yml --tags rollback        # Reserved for future use (not supported in this release)
 #
 # Tags (mutually exclusive — pick ONE):
 #   (none)       — Default flow: precheck + prepare + execute
@@ -46,7 +46,7 @@
 #   pxeboot      — PXE boot on iDRAC nodes (controlled by enable_pxe_boot in orchestrator_config.yml)
 #   cleanup      — Remove OpenCHAMI + OpenLDAP services, containers, artifacts (opt-in only)
 #   upgrade      — In-place upgrade of OpenCHAMI + OpenLDAP (opt-in only)
-#   rollback     — Revert OpenCHAMI + OpenLDAP to previous state from backup (opt-in only)
+#   rollback     — Reserved for future use (upgrade from v0.1.7-1 to v0.2.0 is one-way)
 #
 # Tag Validation:
 #   - Invalid tags will fail with error message
@@ -94,7 +94,7 @@
 #               + pxeboot/pxeboot.yml (when enable_pxe_boot: true)
 #   cleanup   -> cleanup_openchami.yml   + cleanup_openldap.yml
 #   upgrade   -> upgrade_openchami.yml   + upgrade_openldap.yml
-#   rollback  -> rollback_openchami.yml  + rollback_openldap.yml
+#   rollback  -> rollback_openchami.yml  + rollback_openldap.yml  (reserved — not supported)
 #
 # Inputs:  /opt/omnia/orchestrator/input/project_default/
 # Outputs: /opt/omnia/orchestrator/output/project_default/
@@ -300,19 +300,19 @@
     - upgrade
 
 # =========================================================================
-# FLOW: rollback — Revert OpenCHAMI + OpenLDAP to previous state
-# OpenCHAMI: 0.2.0 -> 0.1.7-1 (restore from backup)
-# OpenLDAP:  Wolfi-based -> Fedora-based container image
+# FLOW: rollback — Reserved for future use
+# The OpenCHAMI v0.1.7-1 to v0.2.0 upgrade is a one-way migration.
+# Rollback is not supported in this release.
 # =========================================================================
 
-# Rollback OpenCHAMI (version detection, backup restore, restart, verify)
+# Rollback OpenCHAMI (not supported — fails with informational message)
 - name: Rollback OpenCHAMI
   ansible.builtin.import_playbook: rollback/rollback_openchami.yml
   tags:
     - never
     - rollback
 
-# Rollback OpenLDAP (Wolfi -> Fedora container rollback)
+# Rollback OpenLDAP (not supported — fails with informational message)
 - name: Rollback OpenLDAP
   ansible.builtin.import_playbook: rollback/rollback_openldap.yml
   tags:
