@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=C0301,R0903,R0913,R0914,R0917,W0611,W0613
+# C0301: Pre-existing long lines in test file
+# R0903: Test fixtures naturally have few public methods
+# R0913,R0914,R0917: Pre-existing test helper function patterns
+# W0611,W0613: Pre-existing unused imports/arguments
+
 """Unit tests for Deploy use case."""
 
 import uuid

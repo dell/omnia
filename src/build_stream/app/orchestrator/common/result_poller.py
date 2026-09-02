@@ -81,7 +81,7 @@ def _discover_s3_image_paths(
         Example: {"slurm_node": ["s3://boot-images/efi-images/slurm_node/...", 
                                   "s3://boot-images/slurm_node/..."]}
     """
-    import subprocess  # nosec B404 - subprocess used safely with list args, no shell=True
+    import subprocess  # nosec B404 - subprocess used safely with list args
 
     bucket = (bucket_uri or DEFAULT_S3_BUCKET_URI).rstrip("/")
     role_to_paths = {role: [] for role in role_names}

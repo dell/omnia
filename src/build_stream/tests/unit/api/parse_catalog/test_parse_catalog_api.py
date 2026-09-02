@@ -44,7 +44,12 @@ def _catalog_bytes(image_group_id: str) -> bytes:
 def _upload_catalog(client, job_id, auth_headers, image_group_id):
     return client.put(
         f"/api/v1/jobs/{job_id}/upload",
-        files=[("files", ("catalog_rhel.json", _catalog_bytes(image_group_id), "application/json"))],
+        files=[
+            (
+                "files",
+                ("catalog_rhel.json", _catalog_bytes(image_group_id), "application/json"),
+            )
+        ],
         headers=auth_headers,
     )
 
@@ -76,7 +81,10 @@ class TestParseCatalogAPI:
         pre-populate the ImageGroup repository. The duplicate check logic
         is fully covered by the unit test in test_parse_catalog_use_case.py.
         """
-        pytest.skip("Duplicate check logic covered by unit tests; container isolation makes API-level test impractical")
+        pytest.skip(
+            "Duplicate check logic covered by unit tests; "
+            "container isolation makes API-level test impractical"
+        )
 
     def test_parse_catalog_without_upload_returns_412(self, client, created_job, auth_headers):
         response = _trigger_parse_catalog(client, created_job, auth_headers)

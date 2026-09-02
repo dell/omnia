@@ -12,9 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=C0302,C0415,R0903,R0914,W0212,W0613,W0621
+# C0302: Comprehensive test file with many test cases
+# C0415: Import outside toplevel for test-specific patterns
+# R0903: Test fixtures naturally have few public methods
+# R0914: Test helper functions may have many local variables
+# W0212: Test code accesses protected members of class under test
+# W0613,W0621: Pre-existing unused arguments and redefined names in tests
+
 """Unit tests for common ResultPoller."""
 
-import asyncio
 import json
 import uuid
 from unittest.mock import patch
@@ -124,7 +131,9 @@ def mock_uuid_gen():
 
 
 @pytest.fixture
-def result_poller(mock_result_service, mock_job_repo, mock_stage_repo, mock_audit_repo, mock_uuid_gen):
+def result_poller(
+    mock_result_service, mock_job_repo, mock_stage_repo, mock_audit_repo, mock_uuid_gen
+):
     """Create ResultPoller instance with mocked dependencies."""
     return ResultPoller(
         result_service=mock_result_service,
@@ -264,9 +273,13 @@ class MockArtifactStore:
         self._store = {}
 
     def store(self, hint, kind, content=None, **kwargs):
-        key = ArtifactKey(f"{hint.namespace}/{hint.tags.get('job_id', 'x')}/{hint.label}")
+        key = ArtifactKey(
+            f"{hint.namespace}/{hint.tags.get('job_id', 'x')}/{hint.label}"
+        )
         digest = ArtifactDigest("a" * 64)
-        ref = ArtifactRef(key=key, digest=digest, size_bytes=len(content or b""), uri=f"mem://{key}")
+        ref = ArtifactRef(
+            key=key, digest=digest, size_bytes=len(content or b""), uri=f"mem://{key}"
+        )
         self._store[key.value] = content
         return ref
 
@@ -299,7 +312,11 @@ class MockImageGroupRepo:
 
     def __init__(self):
         self._groups = {}
-        self.session = type("MockSession", (), {"commit": lambda self: None, "flush": lambda self: None})()
+        self.session = type(
+            "MockSession",
+            (),
+            {"commit": lambda self: None, "flush": lambda self: None},
+        )()
 
     def save(self, image_group):
         self._groups[str(image_group.id)] = image_group
