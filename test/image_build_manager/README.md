@@ -80,7 +80,8 @@ source .venv/bin/activate            # For --venv mode
 
 # Step 6 — (Optional) Generate a dataset for custom input
 cd datasets/generator/
-./generate_dataset.py create my_dataset --profile internet-config
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config
 cd ../..
 # Set: dataset: "my_dataset" in test_config.yml
 # Enable sync_image_build_input/sync_output when the dataset should be copied
@@ -565,14 +566,21 @@ cd datasets/generator/
 
 # Inspect profiles and generate the recommended independent dataset
 ./generate_dataset.py profiles
-./generate_dataset.py create my_dataset --profile internet-config
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config
+
+# Select Image Builder with the same internet/config topology
+./generate_dataset.py create my_image_builder \
+  --profile image-builder-internet-config
 
 # Generate an offline dataset with one real host applied to every repo URL
-./generate_dataset.py create my_offline --profile offline-config \
+./generate_dataset.py create my_offline \
+  --profile image-thrillhouse-offline-config \
   --repo-host repo.company.internal
 
 # Preview without publishing
-./generate_dataset.py create my_dataset --profile internet-config --dry-run
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config --dry-run
 
 # Use canonical source values without a profile patch
 ./generate_dataset.py create my_snapshot --from-src

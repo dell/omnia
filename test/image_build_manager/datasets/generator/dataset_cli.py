@@ -64,17 +64,21 @@ def create_parser() -> argparse.ArgumentParser:
         epilog="""
 Examples:
   ./generate_dataset.py profiles
-  ./generate_dataset.py profiles internet-config
-  ./generate_dataset.py create my_dataset --profile internet-config
-  ./generate_dataset.py create my_offline --profile offline-config --repo-host repo.company.internal
-  ./generate_dataset.py create my_ps --profile internet-config --var s3_provider=powerscale \\
+  ./generate_dataset.py profiles image-thrillhouse-internet-config
+  ./generate_dataset.py create my_dataset --profile image-thrillhouse-internet-config
+  ./generate_dataset.py create my_image_builder --profile image-builder-internet-config
+  ./generate_dataset.py create my_offline \\
+      --profile image-thrillhouse-offline-config \\
+      --repo-host repo.company.internal
+  ./generate_dataset.py create my_ps \\
+      --profile image-thrillhouse-internet-config --var s3_provider=powerscale \\
       --var s3_endpoint_url=https://powerscale.company.internal
-  ./generate_dataset.py create my_ssl --profile offline-catalog \\
+  ./generate_dataset.py create my_ssl --profile image-thrillhouse-offline-catalog \\
       --set image_build_config:build_image.repo_ssl_verify=false \\
       --repo-host repo.company.internal
   ./generate_dataset.py create my_snapshot --from-src --repo-variant internet
-  ./generate_dataset.py create my_dataset --profile internet-config --dry-run
-  ./generate_dataset.py create my_dataset --profile internet-config --check
+  ./generate_dataset.py create my_dataset --profile image-thrillhouse-internet-config --dry-run
+  ./generate_dataset.py create my_dataset --profile image-thrillhouse-internet-config --check
 
 Legacy syntax remains supported:
   ./generate_dataset.py my_dataset internet_config
@@ -87,7 +91,7 @@ execution environment.
     parser.add_argument("profile", nargs="?", help="Legacy positional profile name")
     parser.add_argument(
         "--profile", dest="profile_option", metavar="NAME",
-        help="Profile name (default: offline-catalog)",
+        help="Profile name (default: image-thrillhouse-offline-catalog)",
     )
     parser.add_argument(
         "--var", action="append", default=[], metavar="KEY=VALUE",

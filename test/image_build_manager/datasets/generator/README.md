@@ -12,13 +12,15 @@ cd test/image_build_manager/datasets/generator/
 
 # See the use cases, then inspect the recommended profile
 ./generate_dataset.py profiles
-./generate_dataset.py profiles internet-config
+./generate_dataset.py profiles image-thrillhouse-internet-config
 
 # Preview without publishing
-./generate_dataset.py create my_dataset --profile internet-config --dry-run
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config --dry-run
 
 # Publish the dataset
-./generate_dataset.py create my_dataset --profile internet-config
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config
 ```
 
 Then set `dataset: "my_dataset"` in `test_config.yml`. A dataset is a local
@@ -29,33 +31,49 @@ non-secret `input/`, and output sync copies only its `repo_manager_output/`.
 An empty name selects `src/image_build_manager/input/` and
 `src/image_build_manager/samples/repo_manager_output/`.
 
-`internet-config` is the easiest independent setup. It uses public CentOS
-Stream/EPEL repositories and replaces the source Slurm/login mappings with
-minimal `os_x86_64` and `os_aarch64` groups containing `bash`. It therefore
-does not depend on the unavailable public `slurm_custom` repository.
+`image-thrillhouse-internet-config` is the easiest independent setup. It uses
+Image Thrillhouse, public CentOS Stream/EPEL repositories, and minimal
+`os_x86_64` and `os_aarch64` groups containing `bash`. It therefore does not
+depend on the unavailable public `slurm_custom` repository.
 
 ## Profiles
 
-| Profile | Repository source | Package source | Additional requirement |
-|---------|-------------------|----------------|------------------------|
-| `offline-catalog` | Repo Manager | Catalog | Reachable Repo Manager, certificate, and `CATALOG_FILE_PATH` |
-| `offline-config` | Repo Manager | Complete source `package_groups.yml` | Reachable Repo Manager and certificate |
-| `internet-catalog` | Public internet | Catalog | Outbound internet and `CATALOG_FILE_PATH` |
-| `internet-config` | Public internet | Minimal public package groups | Outbound internet; recommended |
+| Profile | Builder | Repositories | Packages |
+|---------|---------|--------------|----------|
+| `image-thrillhouse-offline-catalog` | Image Thrillhouse | Repo Manager | Catalog |
+| `image-thrillhouse-offline-config` | Image Thrillhouse | Repo Manager | Complete source `package_groups.yml` |
+| `image-thrillhouse-internet-catalog` | Image Thrillhouse | Public internet | Catalog |
+| `image-thrillhouse-internet-config` | Image Thrillhouse | Public internet | Minimal public package groups |
+| `image-builder-offline-catalog` | Image Builder | Repo Manager | Catalog |
+| `image-builder-offline-config` | Image Builder | Repo Manager | Complete source `package_groups.yml` |
+| `image-builder-internet-catalog` | Image Builder | Public internet | Catalog |
+| `image-builder-internet-config` | Image Builder | Public internet | Minimal public package groups |
 
-The two profile axes are explicit: repository location (`offline` or
-`internet`) and package resolution (`catalog` or `config`). Catalog profiles
-still include `package_groups.yml` so every dataset has the same layout, but
-the playbook ignores that file in catalog mode.
+These are the eight canonical profiles: two builders, two repository sources,
+and two package-resolution modes. Every profile explicitly writes its own
+`image_build_type`, so a later source-default change cannot silently switch the
+selected builder. Catalog profiles require `CATALOG_FILE_PATH`. Offline
+profiles require a reachable Repo Manager and its certificate. Internet
+profiles require outbound access. `--from-src` remains completely
+source-driven.
 
-Backward-compatible aliases remain available:
+The `offline`/`internet` segment describes the RPM repository source. For a
+fully air-gapped run, also mirror or preload the selected builder container;
+Image Thrillhouse normally comes from GHCR and Image Builder from Docker Hub.
+
+When reusing an existing project's build cache after changing builder families,
+set `image_build_config:build_image.force_rebuild=true` for the first run so
+artifacts with the new builder suffix are created.
+
+Legacy aliases remain accepted and resolve to the corresponding Image
+Thrillhouse profile:
 
 | Alias | Profile |
 |-------|---------|
-| `defaults` | `offline-catalog` |
-| `config` | `offline-config` |
-| `internet` | `internet-catalog` |
-| `internet_config`, `standalone` | `internet-config` |
+| `defaults`, `offline-catalog` | `image-thrillhouse-offline-catalog` |
+| `config`, `offline-config` | `image-thrillhouse-offline-config` |
+| `internet`, `internet-catalog` | `image-thrillhouse-internet-catalog` |
+| `internet_config`, `internet-config`, `standalone` | `image-thrillhouse-internet-config` |
 
 Generated manifests always record the canonical profile name, so an alias and
 its canonical name produce identical content.
@@ -82,7 +100,8 @@ Valid defaults are not replaced with fake active settings:
 - `aarch64_inventory_host_ip` stays empty, which safely skips ARM builds.
 - The default project path, build controls, and OS metadata stay aligned with
   the source example. Package lists stay source-aligned except where a profile
-  explicitly replaces them, as `internet-config` does for public-repo safety.
+  explicitly replaces them, as the `*-internet-config` profiles do for
+  public-repo safety.
 - Public internet repository URLs remain real, usable test URLs.
 - Credentials remain external and are managed outside the dataset.
 
@@ -100,7 +119,7 @@ Replace all offline URLs consistently in one step:
 
 ```bash
 ./generate_dataset.py create my_offline \
-  --profile offline-config \
+  --profile image-thrillhouse-offline-config \
   --repo-host repo.company.internal
 ```
 
@@ -150,23 +169,27 @@ YAML, its vault key, or backups. `test_creds.yml` remains SSH-only.
 
 ```bash
 ./generate_dataset.py profiles
-./generate_dataset.py profiles offline-config
+./generate_dataset.py profiles image-thrillhouse-offline-config
 ```
 
 ### Preview, publish, replace, and check
 
 ```bash
 # Build in staging; publish nothing
-./generate_dataset.py create my_dataset --profile internet-config --dry-run
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config --dry-run
 
 # Publish a new dataset
-./generate_dataset.py create my_dataset --profile internet-config
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config
 
 # Replace an existing dataset after staging succeeds
-./generate_dataset.py create my_dataset --profile internet-config --force
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config --force
 
 # Regenerate the same recipe and report any drift
-./generate_dataset.py create my_dataset --profile internet-config --check
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config --check
 ```
 
 For `--check`, repeat the profile and overrides used to create the dataset. The
@@ -178,7 +201,8 @@ exact regeneration command is written to the generated `README.md`.
 path for ordinary keys:
 
 ```bash
-./generate_dataset.py create ssl_disabled --profile offline-config \
+./generate_dataset.py create ssl_disabled \
+  --profile image-thrillhouse-offline-config \
   --set image_build_config:build_image.repo_ssl_verify=false \
   --repo-host repo.company.internal
 ```
@@ -187,7 +211,8 @@ Use JSON Pointer syntax when a key itself contains a dot, such as OS version
 `10.0`:
 
 ```bash
-./generate_dataset.py create priority_test --profile offline-config \
+./generate_dataset.py create priority_test \
+  --profile image-thrillhouse-offline-config \
   --set repo_status:/repositories/10.0/x86_64/baseos/priority=90 \
   --repo-host repo.company.internal
 ```
@@ -198,7 +223,8 @@ being silently ignored.
 The limited `--var` compatibility aliases remain for common scalar values:
 
 ```bash
-./generate_dataset.py create powerscale --profile internet-config \
+./generate_dataset.py create powerscale \
+  --profile image-thrillhouse-internet-config \
   --var s3_provider=powerscale \
   --var s3_endpoint_url=https://powerscale.company.internal
 ```

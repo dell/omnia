@@ -36,7 +36,7 @@ def external_inputs(
             "Reachable Repo Manager endpoints and its TLS certificate on the target"
         )
     else:
-        inputs.append("Outbound internet access from the image-builder environment")
+        inputs.append("Outbound internet access from the image build environment")
     return inputs
 
 
