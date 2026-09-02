@@ -4,14 +4,14 @@ Verify cloud-init phone-home callbacks from PXE-booted nodes.
 
 ## Description
 
-This role monitors the cloud-init-server journal on the OIM server to verify that
-nodes have successfully booted and completed cloud-init after PXE boot. It polls
-the journal for phone-home requests from each target node and reports success or
-failure.
+This role verifies that nodes have successfully booted and completed cloud-init
+after PXE boot. It uses SSH port reachability (TCP/22) as the primary check
+and monitors the metadata-service journal for phone-home POST requests as
+secondary confirmation.
 
 ## Requirements
 
-- `cloud-init-server` service running on OIM server
+- `metadata-service` (OpenCHAMI) running on OIM server
 - Journal access (requires `become: true`)
 - Target nodes configured with cloud-init phone-home module
 
@@ -28,7 +28,7 @@ phone_home_retries: 120
 phone_home_delay: 15
 
 # Journal pattern to match
-phone_home_log_pattern: "Phone home request from"
+phone_home_log_pattern: "phone-home"
 
 # Status indicators
 phone_home_status_ok: "[OK]"
@@ -67,8 +67,8 @@ None.
 
 1. **Assert facts** - Verify `pxe_start_epoch` and `target_node_admin_ips` are defined
 2. **Initial pause** - Wait for nodes to begin cloud-init (configurable)
-3. **Poll journal** - Check journalctl for phone-home requests from all target IPs
-4. **Retry loop** - Retry until all nodes phone home or retries exhausted
+3. **Poll reachability** - Check SSH port (TCP/22) on each node and metadata-service journal
+4. **Retry loop** - Retry until all nodes are reachable or retries exhausted
 5. **Parse results** - Extract list of failed IPs
 6. **Cache results** - Store `phone_home_failed_ips` on localhost for reporting
 7. **Report outcome** - Display success or warning message
