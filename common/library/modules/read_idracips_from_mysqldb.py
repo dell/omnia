@@ -22,7 +22,6 @@ import time
 import pymysql
 from ansible.module_utils.basic import AnsibleModule
 from kubernetes import client, config
-from kubernetes.config.config_exception import ConfigException
 
 def load_kube_context():
     """Load Kubernetes configuration for accessing the cluster."""
