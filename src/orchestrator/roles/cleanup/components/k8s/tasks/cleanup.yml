@@ -31,6 +31,58 @@
     msg: "Starting K8s cleanup operations (OIM node - cleaning K8s NFS data)"
   tags: k8s
 
+- name: Load storage configuration to get K8s mount point
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/storage_config.yml"
+  failed_when: false
+  tags: k8s
+
+- name: Get K8s mount point from storage config
+  ansible.builtin.set_fact:
+    k8s_mount_point: "{{ (mounts | selectattr('name', 'equalto', 'nfs_k8s') | first).mount_point | default('/opt/omnia/k8s_mount', true) }}"
+  when: mounts is defined
+  tags: k8s
+
+- name: Set default K8s mount point if not found in config
+  ansible.builtin.set_fact:
+    k8s_mount_point: "/opt/omnia/k8s_mount"
+  when: k8s_mount_point is not defined
+  tags: k8s
+
+- name: Cleanup NFS server data (optional - requires cleanup_nfs_server set to true)
+  when:
+    - k8s_config.cleanup_nfs_server | default(false) | bool
+    - mounts is defined
+  block:
+    - name: Get NFS server IP and export path from storage config
+      ansible.builtin.set_fact:
+        nfs_server_ip: "{{ (mounts | selectattr('name', 'equalto', 'nfs_k8s') | first).source.split(':')[0] | default('') }}"
+        nfs_export_path: "{{ (mounts | selectattr('name', 'equalto', 'nfs_k8s') | first).source.split(':')[1] | default('') }}"
+
+    - name: Debug NFS server info
+      ansible.builtin.debug:
+        msg: "NFS Server: {{ nfs_server_ip }}, Export: {{ nfs_export_path }}"
+
+    - name: Cleanup NFS server data (before unmounting)
+      ansible.builtin.shell: |
+        set -o pipefail
+        for dir in {{ k8s_config.cleanup_directories | join(' ') }}; do
+          rm -rf {{ nfs_export_path }}/$dir
+        done
+      delegate_to: "{{ nfs_server_ip }}"
+      become: true
+      failed_when: false
+      when:
+        - nfs_server_ip is defined
+        - nfs_server_ip | length > 0
+        - nfs_export_path is defined
+        - nfs_export_path | length > 0
+
+    - name: Display NFS server cleanup completion
+      ansible.builtin.debug:
+        msg: "NFS server data cleaned on {{ nfs_server_ip }}:{{ nfs_export_path }}"
+  tags: k8s
+
 - name: Auto-cleanup K8s-related mounts when triggered by K8s
   ansible.builtin.include_tasks: "{{ role_path }}/components/storage_mounts/tasks/cleanup.yml"
   when: trigger_component is defined and trigger_component == 'k8s'
@@ -40,7 +92,7 @@
 
 - name: Clean K8s NFS mount points (after unmounting)
   ansible.builtin.file:
-    path: "/nfs-k8s/{{ item }}"
+    path: "{{ k8s_mount_point }}/{{ item }}"
     state: absent
   failed_when: false
   loop: "{{ k8s_config.cleanup_directories }}"

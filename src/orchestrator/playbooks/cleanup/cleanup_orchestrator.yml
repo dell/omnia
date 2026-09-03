@@ -41,6 +41,7 @@
 #   k8s - K8s configuration and NFS directories
 #   storage_mounts - NFS storage mount unmounting and fstab cleanup
 #   artifacts - Orchestrator artifacts and state files cleanup
+#   credentials - Orchestrator credential files (opt-in only, requires --tags cleanup_credentials)
 #   all - All enabled components
 
 - name: Setup cleanup environment (minimal - paths only)
@@ -114,6 +115,7 @@
   vars:
     skip_approval: "{{ lookup('env', 'SKIP_APPROVAL') | default('false', true) | bool }}"
     dry_run: "{{ lookup('env', 'DRY_RUN') | default('false', true) | bool }}"
+  tags: always
 
   tasks:
     - name: Display cleanup information
@@ -145,17 +147,24 @@
           dry_run: "{{ dry_run }}"
       tags: always
 
-    - name: Debug - Ansible run tags
-      ansible.builtin.debug:
-        msg: "Ansible run tags: {{ ansible_run_tags }}"
+    - name: Set effective tags (treat 'cleanup' as 'all' for orchestrator.yml integration)
+      ansible.builtin.set_fact:
+        effective_tags: "{{ ['all'] if ('cleanup' in ansible_run_tags and 'cleanup_credentials' not in ansible_run_tags) else ansible_run_tags }}"
+      tags: always
+
+    - name: Fail if no tags provided (cleanup requires explicit tag)
+      ansible.builtin.fail:
+        msg: "Cleanup requires explicit tag. Use --tags cleanup, --tags cleanup_credentials, or --tags <component_name>"
+      when:
+        - effective_tags | length == 0
       tags: always
 
     - name: Filter components based on tags
       ansible.builtin.set_fact:
-        target_components: "{{ cleanup_components | dict2items | selectattr('key', 'in', ansible_run_tags) | items2dict }}"
+        target_components: "{{ cleanup_components | dict2items | selectattr('key', 'in', effective_tags) | items2dict }}"
       when:
-        - ansible_run_tags | length > 0
-        - ansible_run_tags[0] != 'all'
+        - effective_tags | length > 0
+        - effective_tags[0] != 'all'
         - cleanup_components is defined
       tags: always
 
@@ -163,8 +172,27 @@
       ansible.builtin.set_fact:
         target_components: "{{ cleanup_components }}"
       when:
-        - ansible_run_tags | length == 0 or ansible_run_tags[0] == 'all'
+        - effective_tags | length > 0 and effective_tags[0] == 'all'
         - cleanup_components is defined
+      tags: always
+
+    - name: Add credentials component when cleanup_credentials tag is used
+      ansible.builtin.set_fact:
+        target_components: "{{ target_components | combine({'credentials': cleanup_components.credentials | combine({'enabled': true}, recursive=false)}, recursive=false) }}"
+      when:
+        - ansible_run_tags is defined
+        - ansible_run_tags | select('equalto', 'cleanup_credentials') | list | length > 0
+        - target_components is defined
+        - target_components.keys() | list | select('equalto', 'credentials') | list | length == 0
+      tags: always
+
+    - name: Add all components when both cleanup and cleanup_credentials are present
+      ansible.builtin.set_fact:
+        target_components: "{{ cleanup_components | combine({'credentials': cleanup_components.credentials | combine({'enabled': true}, recursive=false)}, recursive=false) }}"
+      when:
+        - ansible_run_tags is defined
+        - ansible_run_tags | select('equalto', 'cleanup') | list | length > 0
+        - ansible_run_tags | select('equalto', 'cleanup_credentials') | list | length > 0
       tags: always
 
     - name: Debug - Target components
@@ -208,25 +236,25 @@
     - name: Filter enabled components
       ansible.builtin.set_fact:
         enabled_components: "{{ target_components | dict2items | selectattr('value.enabled', 'equalto', true) | items2dict }}"
-      when: ansible_run_tags | length == 0 or ansible_run_tags[0] == 'all'
+      when: effective_tags | length == 0 or effective_tags[0] == 'all'
       tags: always
 
     - name: Use all selected components when specific tags
       ansible.builtin.set_fact:
         enabled_components: "{{ target_components }}"
-      when: ansible_run_tags | length > 0 and ansible_run_tags[0] != 'all'
+      when: effective_tags | length > 0 and effective_tags[0] != 'all'
       tags: always
 
     - name: Add storage_mounts dependency for Slurm
       ansible.builtin.set_fact:
         enabled_components: "{{ enabled_components | combine({'storage_mounts': cleanup_components.storage_mounts}, recursive=false) }}"
-      when: ansible_run_tags | length > 0 and 'slurm' in ansible_run_tags
+      when: effective_tags | length > 0 and 'slurm' in effective_tags
       tags: always
 
     - name: Add storage_mounts dependency for K8s
       ansible.builtin.set_fact:
         enabled_components: "{{ enabled_components | combine({'storage_mounts': cleanup_components.storage_mounts}, recursive=false) }}"
-      when: ansible_run_tags | length > 0 and 'k8s' in ansible_run_tags
+      when: effective_tags | length > 0 and 'k8s' in effective_tags
       tags: always
 
     - name: Debug - Enabled Components
@@ -295,6 +323,7 @@
         - k8s
         - storage_mounts
         - artifacts
+        - cleanup_credentials
         - cleanup
 
     - name: Display cleanup summary

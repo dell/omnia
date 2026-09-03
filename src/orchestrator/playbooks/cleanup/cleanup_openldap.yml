@@ -33,6 +33,9 @@
     auth_container_name: omnia_auth
     auth_base_dir: /opt/omnia/auth
     auth_quadlet_file: /etc/containers/systemd/omnia_auth.container
+  tags:
+    - never
+    - cleanup
   tasks:
     - name: Stop OpenLDAP service
       ansible.builtin.systemd:
@@ -40,27 +43,39 @@
         state: stopped
         enabled: false
       failed_when: false
+      tags:
+        - cleanup
 
     - name: Remove OpenLDAP container
       ansible.builtin.command: podman rm -f -i {{ auth_container_name }}
       changed_when: true
       failed_when: false
+      tags:
+        - cleanup
 
     - name: Remove OpenLDAP Quadlet unit
       ansible.builtin.file:
         path: "{{ auth_quadlet_file }}"
         state: absent
+      tags:
+        - cleanup
 
     - name: Reload systemd after Quadlet removal
       ansible.builtin.systemd:
         daemon_reload: true
+      tags:
+        - cleanup
 
     - name: Remove OpenLDAP data and configuration
       ansible.builtin.file:
         path: "{{ auth_base_dir }}"
         state: absent
       failed_when: false
+      tags:
+        - cleanup
 
     - name: OpenLDAP cleanup completed
       ansible.builtin.debug:
         msg: "OpenLDAP (omnia_auth) container stopped and data removed."
+      tags:
+        - cleanup

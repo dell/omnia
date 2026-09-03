@@ -36,12 +36,20 @@ supported_tags:
   - validate-deployment
   - pxeboot
   - cleanup
+  - cleanup_credentials
   - upgrade
   - rollback
+  - slurm
+  - k8s
+  - storage_mounts
+  - openchami
+  - openldap
+  - artifacts
 
 skip_credential_tags:
   - precheck
   - cleanup
+  - cleanup_credentials
   - validate-deployment
   - validate
 
@@ -49,7 +57,6 @@ invalid_tag_combinations:
   - [precheck, cleanup]
   - [validate, cleanup]
   - [validate-deployment, cleanup]
-  - [credentials, cleanup]
   - [prepare, cleanup]
   - [deploy, cleanup]
   - [provision, cleanup]
@@ -65,6 +72,13 @@ invalid_tag_combinations:
   - [execute, upgrade]
   - [cleanup, upgrade]
   - [upgrade, rollback]
+  - [slurm, k8s]
+  - [slurm, openchami]
+  - [slurm, openldap]
+  - [k8s, openchami]
+  - [k8s, openldap]
+  - [openchami, openldap]
+  - [credentials, cleanup_credentials]
 
 # OIM host group
 oim_host_port: "22"

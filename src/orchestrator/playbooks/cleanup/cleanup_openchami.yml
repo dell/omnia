@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 ---
 
 # Cleanup OpenCHAMI --- Remove OpenCHAMI services, containers, and artifacts
@@ -26,7 +27,7 @@
 #   7. Revert DNS/resolv.conf changes
 #   8. Remove orchestrator artifacts (FG config, state, output dir)
 #   9. Remove upgrade lock file
-#  10. Remove credentials (opt-in, tag-gated)
+# 10. Remove credentials (opt-in, tag-gated)
 #
 # Safe and idempotent. Ignores already-removed resources gracefully.
 
@@ -40,22 +41,31 @@
     openchami_log_dir: /opt/omnia/log/openchami
     openchami_work_dir: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}/omnia/openchami/workdir"
     ochami_dir: /etc/ochami
+  tags:
+    - never
+    - cleanup
   tasks:
     - name: Stop OpenCHAMI services
       ansible.builtin.systemd:
         name: openchami.target
         state: stopped
       failed_when: false
+      tags:
+        - cleanup
 
     - name: Disable OpenCHAMI target
       ansible.builtin.systemd:
         name: openchami.target
         enabled: false
       failed_when: false
+      tags:
+        - cleanup
 
     - name: Wait for services to stop
       ansible.builtin.pause:
         seconds: 5
+      tags:
+        - cleanup
 
     - name: Remove OpenCHAMI containers
       ansible.builtin.shell: |
@@ -63,6 +73,8 @@
         podman ps -a --filter "label=io.openchami" --format "{{ '{{' }}.ID{{ '}}' }}" | xargs -r podman rm -f
       changed_when: true
       failed_when: false
+      tags:
+        - cleanup
 
     - name: Remove OpenCHAMI pods
       ansible.builtin.shell: |
@@ -70,6 +82,8 @@
         podman pod ls --filter "label=io.openchami" --format "{{ '{{' }}.ID{{ '}}' }}" | xargs -r podman pod rm -f
       changed_when: true
       failed_when: false
+      tags:
+        - cleanup
 
     - name: Remove OpenCHAMI configuration directory
       ansible.builtin.file:
@@ -79,24 +93,32 @@
         - "{{ openchami_config_dir }}"
         - "{{ ochami_dir }}"
       failed_when: false
+      tags:
+        - cleanup
 
     - name: Remove OpenCHAMI workdir (nodes, inventories, boot, metadata-service)
       ansible.builtin.file:
         path: "{{ openchami_work_dir }}"
         state: absent
       failed_when: false
+      tags:
+        - cleanup
 
     - name: Remove OpenCHAMI logs
       ansible.builtin.file:
         path: "{{ openchami_log_dir }}"
         state: absent
       failed_when: false
+      tags:
+        - cleanup
 
     - name: Remove generated inventories
       ansible.builtin.file:
         path: "{{ hostvars['localhost']['orchestrator_output_dir'] | default('/opt/omnia/output/project_default/orchestrator') }}/inventories"
         state: absent
       failed_when: false
+      tags:
+        - cleanup
 
     - name: Revert resolv.conf DNS changes (unlock and restore)
       block:
@@ -104,11 +126,22 @@
           ansible.builtin.command: chattr -i /etc/resolv.conf
           changed_when: true
           failed_when: false
+          tags:
+            - cleanup
 
         - name: Restore NetworkManager-managed resolv.conf
           ansible.builtin.command: nmcli general reload dns-rc
           changed_when: true
           failed_when: false
+          tags:
+            - cleanup
+
+    - name: Bring up NetworkManager connection
+      ansible.builtin.command: nmcli connection up
+      changed_when: true
+      failed_when: false
+      tags:
+        - cleanup
 
 - name: Cleanup orchestrator artifacts
   hosts: localhost
@@ -122,16 +155,22 @@
       loop:
         - /opt/omnia/.data/functional_groups_config.yml
         - "{{ orchestrator_output_dir | default('/opt/omnia/output/project_default/orchestrator') }}/orchestrator_state.yml"
+      tags:
+        - cleanup
 
     - name: Remove orchestrator output directory
       ansible.builtin.file:
         path: "{{ orchestrator_output_dir | default('/opt/omnia/output/project_default/orchestrator') }}"
         state: absent
+      tags:
+        - cleanup
 
     - name: Remove upgrade lock file if present
       ansible.builtin.file:
         path: "/opt/omnia/.data/upgrade_in_progress.lock"
         state: absent
+      tags:
+        - cleanup
 
     - name: OpenCHAMI cleanup completed
       ansible.builtin.debug:
@@ -139,6 +178,8 @@
           OpenCHAMI cleanup completed. Services stopped, containers removed,
           configuration and workdir cleaned. Credentials were NOT removed
           (use --tags credentials to include credential cleanup).
+      tags:
+        - cleanup
 
 - name: Cleanup credentials (opt-in)
   hosts: localhost
