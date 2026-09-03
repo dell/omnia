@@ -88,8 +88,10 @@ TEST_LOG_MSGS = {
     # Cleanup - Final State
     "no_pods_remaining": "No pods remaining in telemetry namespace",
     "pods_remaining": "{count} pod(s) still present in telemetry namespace",
-    "no_pvcs_remaining": "No PVCs remaining in telemetry namespace",
+    "no_pvcs_remaining": "No PVCs remaining in telemetry namespace (Delete_volume=true)",
     "pvcs_remaining": "{count} PVC(s) still present in telemetry namespace",
+    "pvcs_preserved": "PVCs preserved in telemetry namespace (Delete_volume=false)",
+    "pvcs_not_preserved": "PVCs were deleted despite Delete_volume=false",
 
     # Cleanup - Idempotency / Playbook
     "cleanup_failed": "Cleanup playbook failed",
@@ -438,7 +440,16 @@ TEST_ASSERT_MSGS = {
         "{count} PVC(s) still present in telemetry namespace\n"
         "HOW TO FIX:\n"
         "  1. kubectl get pvc -n telemetry\n"
-        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+        "  2. Re-run cleanup with Delete_volume=true:\n"
+        "     ansible-playbook telemetry.yml --tags cleanup -e Delete_volume=true\n"
+    ),
+    "pvcs_not_preserved": (
+        "PVCs were unexpectedly deleted (Delete_volume=false)\n"
+        "Cleanup without Delete_volume=true should preserve PVCs.\n"
+        "HOW TO FIX:\n"
+        "  1. Verify cleanup was run without -e Delete_volume=true\n"
+        "  2. Check cleanup role logic for unconditional PVC deletion\n"
+        "  3. Re-deploy and re-run cleanup without Delete_volume flag\n"
     ),
 
     # Idempotency

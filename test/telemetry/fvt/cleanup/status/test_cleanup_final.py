@@ -35,6 +35,7 @@ from library.messages.telemetry_msgs import (
 from library.functions.cleanup_func import (
     verify_no_pods_remaining,
     verify_no_pvcs_remaining,
+    verify_pvcs_preserved,
 )
 
 
@@ -66,25 +67,42 @@ def test_no_pods_after_full_cleanup(host):
 
 @pytest.mark.sanity
 @pytest.mark.order(62)
-def test_no_pvcs_after_full_cleanup(host):
-    """TC_CL_013: Verify no PVCs remain in telemetry namespace.
+def test_no_pvcs_after_full_cleanup(host, delete_volume):
+    """TC_CL_012: Verify PVC state after full cleanup.
 
-    After a full cleanup (--tags cleanup), the telemetry namespace
-    should contain zero PersistentVolumeClaims.
+    After a full cleanup (--tags cleanup):
+      - With Delete_volume=true: zero PVCs must remain.
+      - With Delete_volume=false: PVCs must be preserved.
     """
-    tc = TC["no_pvcs_after_full_cleanup"]
-    tl = TestLogger(tc["title"], tc["id"])
+    if delete_volume:
+        tc = TC["no_pvcs_after_full_cleanup"]
+        tl = TestLogger(tc["title"], tc["id"])
 
-    result = verify_no_pvcs_remaining(host)
+        result = verify_no_pvcs_remaining(host)
 
-    if result["success"]:
-        tl.passed(LOG_MSGS["no_pvcs_remaining"], result["details"])
-    else:
-        tl.failed(
-            LOG_MSGS["pvcs_remaining"].format(count=result["count"]),
-            result["details"],
+        if result["success"]:
+            tl.passed(LOG_MSGS["no_pvcs_remaining"], result["details"])
+        else:
+            tl.failed(
+                LOG_MSGS["pvcs_remaining"].format(count=result["count"]),
+                result["details"],
+            )
+
+        assert result["success"], ASSERT_MSGS["pvcs_remaining"].format(
+            count=result["count"],
         )
+    else:
+        tc = TC["pvcs_preserved_after_cleanup"]
+        tl = TestLogger(tc["title"], tc["id"])
 
-    assert result["success"], ASSERT_MSGS["pvcs_remaining"].format(
-        count=result["count"],
-    )
+        result = verify_pvcs_preserved(host)
+
+        if result["success"]:
+            tl.passed(LOG_MSGS["pvcs_preserved"], result["details"])
+        else:
+            tl.failed(
+                LOG_MSGS["pvcs_not_preserved"],
+                result["details"],
+            )
+
+        assert result["success"], ASSERT_MSGS["pvcs_not_preserved"]

@@ -460,7 +460,11 @@ TEST_CASES = {
     },
     "no_pvcs_after_full_cleanup": {
         "id": "TC_CL_012",
-        "title": "Verify no PVCs remain after full cleanup",
+        "title": "Verify no PVCs remain after full cleanup (Delete_volume=true)",
+    },
+    "pvcs_preserved_after_cleanup": {
+        "id": "TC_CL_013",
+        "title": "Verify PVCs preserved after cleanup (Delete_volume=false)",
     },
 
     # -- NFT: Performance ---------------------------------------------------

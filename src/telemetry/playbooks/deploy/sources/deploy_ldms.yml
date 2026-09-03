@@ -203,7 +203,7 @@
         _ldms_deploy_reachable_control_hosts: >-
           {{
             (groups['slurm_control_node'] | default([]))
-            | intersect(_ldms_deploy_reachable_hosts) | sort
+            | intersect(_ldms_deploy_reachable_hosts | default([])) | sort
           }}
 
     - name: Inspect munge keys on reachable Slurm control nodes
@@ -299,7 +299,7 @@
             | combine({
                 'ldms': (
                   (_current_deploy_unreachable_nodes.ldms | default([]))
-                  + _ldms_deploy_unreachable_hosts
+                  + (_ldms_deploy_unreachable_hosts | default([]))
                 ) | unique | sort
               })
           }}
@@ -333,9 +333,9 @@
     - name: Validate required LDMS deployment nodes
       ansible.builtin.assert:
         that:
-          - _ldms_deploy_candidate_hosts | length > 0
-          - _ldms_deploy_reachable_control_hosts | length > 0
-          - _ldms_deploy_munge_control_hosts | length > 0
+          - (_ldms_deploy_candidate_hosts | default([])) | length > 0
+          - (_ldms_deploy_reachable_control_hosts | default([])) | length > 0
+          - (_ldms_deploy_munge_control_hosts | default([])) | length > 0
         fail_msg: >-
           LDMS deployment requires at least one reachable Slurm control node
           with a readable munge key. Unreachable nodes were recorded, but the
@@ -596,7 +596,7 @@
             | combine({
                 'ldms': (
                   (_current_deploy_unreachable_nodes.ldms | default([]))
-                  + _ldms_deploy_unreachable_hosts
+                  + (_ldms_deploy_unreachable_hosts | default([]))
                 ) | unique | sort
               })
           }}
