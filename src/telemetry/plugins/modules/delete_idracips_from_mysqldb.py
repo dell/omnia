@@ -18,7 +18,6 @@ This module connects to a Kubernetes pod running MySQL via PyMySQL and deletes
 iDRAC IPs that are not present in bmc_data.csv. It uses parameterized queries
 to prevent SQL injection. It handles retries and delays for robustness."""
 
-import time
 import pymysql
 from ansible.module_utils.basic import AnsibleModule
 from kubernetes import client, config
@@ -61,9 +60,7 @@ def delete_idrac_from_mysql(
     mysqldb_name,
     mysql_user,
     mysql_password,
-    ip_to_delete,
-    retries=3,
-    delay=3
+    ip_to_delete
 ):
     """Delete a single iDRAC IP from MySQL database using PyMySQL.
 
@@ -75,8 +72,6 @@ def delete_idrac_from_mysql(
         mysql_user: MySQL username
         mysql_password: MySQL password
         ip_to_delete: IP address to delete
-        retries: Number of retry attempts
-        delay: Delay between retries in seconds
 
     Returns:
         dict: Result containing success status and message
@@ -123,30 +118,24 @@ def main():
     module_args = {
         "telemetry_namespace": {"type": "str", "required": True},
         "idrac_podnames": {"type": "list", "required": True},
-        "mysqldb_k8s_name": {"type": "str", "required": True},
         "mysqldb_container_port": {"type": "int", "required": True},
         "mysqldb_name": {"type": "str", "required": True},
-        "mysqldb_user": {"type": "str", "required": True, "no_log": True},
-        "mysqldb_password": {"type": "str", "required": True, "no_log": True},
+        "mysql_user": {"type": "str", "required": True, "no_log": True},
+        "mysql_password": {"type": "str", "required": True, "no_log": True},
         "ips_to_delete": {"type": "list", "required": True},
         "pod_to_db_idrac_ips": {"type": "dict", "required": True},
-        "db_retries": {"type": "int", "default": 3},
-        "db_delay": {"type": "int", "default": 3},
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
     telemetry_namespace = module.params["telemetry_namespace"]
     idrac_podnames = module.params["idrac_podnames"]
-    mysqldb_k8s_name = module.params["mysqldb_k8s_name"]
     mysqldb_container_port = module.params["mysqldb_container_port"]
     mysqldb_name = module.params["mysqldb_name"]
-    mysqldb_user = module.params["mysqldb_user"]
-    mysqldb_password = module.params["mysqldb_password"]
+    mysql_user = module.params["mysqldb_user"]
+    mysql_password = module.params["mysqldb_password"]
     ips_to_delete = module.params["ips_to_delete"]
     pod_to_db_idrac_ips = module.params["pod_to_db_idrac_ips"]
-    db_retries = module.params["db_retries"]
-    db_delay = module.params["db_delay"]
 
     load_kube_context()
 
@@ -173,9 +162,7 @@ def main():
                     mysqldb_name=mysqldb_name,
                     mysql_user=mysql_user,
                     mysql_password=mysql_password,
-                    ip_to_delete=ip,
-                    retries=db_retries,
-                    delay=db_delay
+                    ip_to_delete=ip
                 )
 
                 if result.get("success"):

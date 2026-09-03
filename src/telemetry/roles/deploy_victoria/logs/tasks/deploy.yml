@@ -82,7 +82,7 @@
 
 - name: VictoriaMetrics operator not ready (VictoriaLogs)
   ansible.builtin.fail:
-    msg: "VM operator not ready within {{ victoria_operator_wait_timeout }}. Check: kubectl -n {{ telemetry_namespace }} get pods -l app.kubernetes.io/name=victoria-metrics-operator"
+    msg: "{{ vl_operator_not_ready_msg }}"
   when:
     - operator_check.rc == 0
     - vl_operator_wait.rc != 0

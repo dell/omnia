@@ -68,15 +68,12 @@
       delete_idracips_from_mysqldb:
         telemetry_namespace: "{{ telemetry_namespace }}"
         idrac_podnames: "{{ idrac_podname_idracips.idrac_podname_ips.keys() | list }}"
-        mysqldb_k8s_name: "{{ mysqldb_k8s_name }}"
         mysqldb_container_port: "{{ mysqldb_container_port }}"
         mysqldb_name: "{{ mysqldb_name }}"
-        mysqldb_user: "{{ telemetry_credentials.mysqldb_user }}"
-        mysqldb_password: "{{ telemetry_credentials.mysqldb_password }}"
+        mysql_user: "{{ telemetry_credentials.mysqldb_user }}"
+        mysql_password: "{{ telemetry_credentials.mysqldb_password }}"
         ips_to_delete: "{{ ips_to_remove }}"
         pod_to_db_idrac_ips: "{{ existing_pod_to_db_idrac_ips }}"
-        db_retries: "{{ db_retries }}"
-        db_delay: "{{ db_delay }}"
       register: delete_idrac_result
   rescue:
     - name: Failed to delete iDRAC IPs from MySQL database
