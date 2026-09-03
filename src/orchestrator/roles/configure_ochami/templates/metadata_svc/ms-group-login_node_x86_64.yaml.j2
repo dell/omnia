@@ -177,23 +177,8 @@
         - {{ cmd }}
 {% endfor %}
 {% endif %}
-{% raw %}
-      {{ "{%" }} if ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map is mapping and ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map {{ "%}" }}
-      {{ "{%" }} set mymounts = ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map.get(local_hostname, {}) {{ "%}" }}
-      {{ "{%" }} if mymounts {{ "%}" }}
-      {{ "{%" }} for mount in mymounts.get("mounts", []) {{ "%}" }}
-        - mkdir -pv {{ "{{" }} mount[1] {{ "}}" }}
-        - echo "{{ "{{" }} mount | join(' ') {{ "}}" }}" >> /etc/fstab
-      {{ "{%" }} endfor {{ "%}" }}
-        - mount -av
-      {{ "{%" }} for decoded_cmd in mymounts.get("runcmd", []) {{ "%}" }}
-        - {{ "{{" }} decoded_cmd {{ "}}" }}
-      {{ "{%" }} endfor {{ "%}" }}
-      {{ "{%" }} else {{ "%}" }}
-        - echo "No mount entries found for this host"
-      {{ "{%" }} endif {{ "%}" }}
-      {{ "{%" }} endif {{ "%}" }}
-{% endraw %}
+{# mount_config host_mount_map block removed - incompatible with Pongo2 validation #}
+{# When mount_config bolt-on is needed, implement as a shell script in write_files #}
 {% set fg_swap = metadata_svc_groups_dict.get(functional_group_name, {}).get('swap', {}) %}
 {% include 'configure_swap.yaml.j2' %}
         - mount -av

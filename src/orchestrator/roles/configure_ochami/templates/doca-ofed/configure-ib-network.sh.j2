@@ -17,7 +17,7 @@ modprobe ib_uverbs || true
 NETMASK_BITS="{{ hostvars['localhost']['admin_netmask_bits'] }}"
 
 # Get current node's IP from cloud-init metadata
-ADMIN_NIC_IP="{% raw %}{{ "{{" }} ip {{ "}}" }}{% endraw %}"
+ADMIN_NIC_IP="{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}"
 
 # Create IB mapping from all nodes (IB_NIC_NAME only)
 declare -A ADMIN_IB_NIC_NAME_MAP=(
