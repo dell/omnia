@@ -106,7 +106,7 @@ get_metadata_version() {
     fi
 }
 
-omnia_release=2.2.0.0
+omnia_release=2.2.0.1
 omnia_prev_release=2.1.0.0
 
 core_container_status=false
@@ -139,7 +139,7 @@ TARGET_CONTAINER_TAG=""  # Target container tag for upgrade
 # Note: Include RC milestones so upgrades from RC to RC/GA appear
 ALL_OMNIA_VERSIONS=(
     "2.1.0.0"
-    "2.2.0.0"
+    "2.2.0.1"
 )
 
 # Container-side paths (used inside podman exec commands)
@@ -303,13 +303,13 @@ validate_container_image() {
         echo -e "${BLUE}Build the required image using the following commands:${NC}"
         echo ""
         echo -e "git clone https://github.com/dell/omnia-containers.git -b omnia-container-<version>"
-        echo -e "${YELLOW}Note: Replace <version> with the target Omnia version (e.g., v2.2.0.0)${NC}"
+        echo -e "${YELLOW}Note: Replace <version> with the target Omnia version (e.g., v2.2.0.1)${NC}"
         echo ""
         echo -e "cd omnia-containers"
         echo ""
         echo -e "./build_images.sh core core_tag=<tag> omnia_branch=<branch>"
-        echo -e "${YELLOW}Note: Replace <branch> with the target Omnia branch (e.g., v2.2.0.0)${NC}"
-        echo -e "${YELLOW}Note: core_tag <tag> will be the first 2 digits of the target Omnia version (e.g., 2.2 for v2.2.0.0)${NC}"
+        echo -e "${YELLOW}Note: Replace <branch> with the target Omnia branch (e.g., v2.2.0.1)${NC}"
+        echo -e "${YELLOW}Note: core_tag <tag> will be the first 2 digits of the target Omnia version (e.g., 2.2 for v2.2.0.1)${NC}"
         echo ""
         echo -e "${BLUE}After the image is built successfully, re-run:${NC}"
         echo -e "./omnia.sh --$operation"
