@@ -180,7 +180,8 @@
   ansible.builtin.set_fact:
     calico_cidr: >-
       {%- set ib_net = hostvars['localhost']['ib_network_subnet'] | default('') -%}
-      {%- set primary_net = (hostvars['localhost']['admin_nic_ip'] + '/' + hostvars['localhost']['admin_netmask_bits']) | ansible.utils.ipaddr('network/prefix') -%}
+      {%- set primary_net = (hostvars['localhost']['admin_nic_ip'] + '/' +
+      hostvars['localhost']['admin_netmask_bits']) | ansible.utils.ipaddr('network/prefix') -%}
       {%- if ib_net -%}{{ primary_net }},{{ ib_net }}{%- else -%}{{ primary_net }}{%- endif -%}
   when: target_category | default('') == 'kubernetes'
 
@@ -261,7 +262,6 @@
              | selectattr('name', 'search', 'multus-daemonset')
              | map(attribute='name') | first | default('multus-daemonset-thick') }}
       when: not _k8s_pkg_stat.stat.exists
-  when: target_category | default('') == 'kubernetes'
 
 # ---- End K8s-specific variable setup ----
 
