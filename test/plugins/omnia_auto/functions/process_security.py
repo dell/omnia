@@ -20,6 +20,7 @@ import fcntl
 import os
 import secrets
 import stat
+import subprocess
 import tempfile
 from typing import Dict, Iterator, Optional, TextIO, Tuple
 
@@ -59,25 +60,48 @@ def sensitive_file_descriptor(
         ) from exc
 
     try:
-        validate_sensitive_fd(file_fd, file_path)
-        os.fchmod(file_fd, file_mode)
-    except ValueError:
-        os.close(file_fd)
-        raise
-    except OSError as exc:
-        os.close(file_fd)
-        raise ValueError(
-            f"Unable to secure sensitive file '{file_path}': {exc}"
-        ) from exc
-
-    try:
-        yield file_fd
-    finally:
         try:
             validate_sensitive_fd(file_fd, file_path)
+            os.set_blocking(file_fd, True)
             os.fchmod(file_fd, file_mode)
+        except OSError as exc:
+            raise ValueError(
+                f"Unable to secure sensitive file '{file_path}': {exc}"
+            ) from exc
+
+        try:
+            yield file_fd
         finally:
-            os.close(file_fd)
+            validate_sensitive_fd(file_fd, file_path)
+            os.fchmod(file_fd, file_mode)
+    finally:
+        os.close(file_fd)
+
+
+@contextmanager
+def exclusive_sensitive_text(
+    file_path: str, file_mode: int = 0o600,
+) -> Iterator[TextIO]:
+    """Create a private text file with one explicit descriptor owner."""
+    flags = (
+        os.O_WRONLY
+        | os.O_CREAT
+        | os.O_EXCL
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    file_fd = os.open(file_path, flags, file_mode)
+    try:
+        validate_sensitive_fd(file_fd, file_path)
+        os.fchmod(file_fd, file_mode)
+        with open(
+            file_fd,
+            "w",
+            encoding="utf-8",
+            closefd=False,
+        ) as file_stream:
+            yield file_stream
+    finally:
+        os.close(file_fd)
 
 
 def protect_sensitive_file(file_path: str, file_mode: int = 0o600) -> None:
@@ -334,3 +358,97 @@ def scrubbed_subprocess_environment() -> Dict[str, str]:
     child_environment = os.environ.copy()
     child_environment.pop("SSHPASS", None)
     return child_environment
+
+
+@contextmanager
+def _stable_child_descriptor(file_fd: int) -> Iterator[int]:
+    """Yield a descriptor that cannot collide with child stdin/stdout/stderr."""
+    if file_fd >= 3:
+        yield file_fd
+        return
+
+    duplicated_fd = fcntl.fcntl(
+        file_fd, fcntl.F_DUPFD_CLOEXEC, 3,
+    )
+    try:
+        yield duplicated_fd
+    finally:
+        os.close(duplicated_fd)
+
+
+def run_vault_encrypt(
+    plaintext_fd: int,
+    key_fd: int,
+    encrypted_fd: int,
+    *,
+    timeout: int,
+    vault_header: str,
+) -> None:
+    """Encrypt descriptor data through Ansible Vault stdin and stdout."""
+    os.lseek(plaintext_fd, 0, os.SEEK_SET)
+    os.lseek(key_fd, 0, os.SEEK_SET)
+    os.ftruncate(encrypted_fd, 0)
+    os.lseek(encrypted_fd, 0, os.SEEK_SET)
+
+    with _stable_child_descriptor(key_fd) as child_key_fd:
+        subprocess.run(
+            [
+                "ansible-vault",
+                "encrypt",
+                "-",
+                "--output",
+                "-",
+                "--vault-password-file",
+                descriptor_path(child_key_fd),
+            ],
+            stdin=plaintext_fd,
+            stdout=encrypted_fd,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=timeout,
+            check=True,
+            close_fds=True,
+            pass_fds=(child_key_fd,),
+            env=scrubbed_subprocess_environment(),
+            shell=False,
+        )
+
+    expected_header = vault_header.encode("ascii")
+    actual_header = os.pread(encrypted_fd, len(expected_header), 0)
+    if actual_header != expected_header:
+        raise ValueError("ansible-vault did not produce encrypted output")
+
+
+def run_vault_decrypt(
+    encrypted_fd: int,
+    key_fd: int,
+    *,
+    timeout: int,
+) -> str:
+    """Decrypt descriptor data through Ansible Vault stdin and stdout."""
+    os.lseek(encrypted_fd, 0, os.SEEK_SET)
+    os.lseek(key_fd, 0, os.SEEK_SET)
+
+    with _stable_child_descriptor(key_fd) as child_key_fd:
+        result = subprocess.run(
+            [
+                "ansible-vault",
+                "decrypt",
+                "-",
+                "--output",
+                "-",
+                "--vault-password-file",
+                descriptor_path(child_key_fd),
+            ],
+            stdin=encrypted_fd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=timeout,
+            check=True,
+            close_fds=True,
+            pass_fds=(child_key_fd,),
+            env=scrubbed_subprocess_environment(),
+            shell=False,
+        )
+    return result.stdout

@@ -63,10 +63,11 @@ from ..messages.credential_msgs import (
 )
 from .process_security import (
     atomic_sensitive_output,
-    descriptor_path,
+    exclusive_sensitive_text,
     open_sensitive_text,
     protect_sensitive_file as _protect_sensitive_file,
-    scrubbed_subprocess_environment,
+    run_vault_decrypt,
+    run_vault_encrypt,
     sensitive_file_descriptor,
     temporary_sensitive_descriptor,
 )
@@ -76,29 +77,13 @@ def _run_vault_encrypt(
     plaintext_fd: int, key_fd: int, encrypted_fd: int,
 ) -> None:
     """Encrypt descriptor content and validate the resulting Vault payload."""
-    inherited_fds = (plaintext_fd, key_fd, encrypted_fd)
-    subprocess.run(
-        [
-            "ansible-vault",
-            "encrypt",
-            descriptor_path(plaintext_fd),
-            "--output",
-            descriptor_path(encrypted_fd),
-            "--vault-password-file",
-            descriptor_path(key_fd),
-        ],
-        capture_output=True,
-        text=True,
+    run_vault_encrypt(
+        plaintext_fd,
+        key_fd,
+        encrypted_fd,
         timeout=VAULT_TIMEOUT,
-        check=True,
-        pass_fds=inherited_fds,
-        env=scrubbed_subprocess_environment(),
+        vault_header=VAULT_HEADER,
     )
-    header = os.pread(
-        encrypted_fd, len(VAULT_HEADER), 0,
-    ).decode("ascii", errors="replace")
-    if header != VAULT_HEADER:
-        raise ValueError("ansible-vault did not produce encrypted output")
 
 
 # =====================================================================
@@ -124,19 +109,7 @@ def ensure_vault_key(key_path: str) -> Dict[str, Any]:
     parent = os.path.dirname(key_path)
     if parent:
         os.makedirs(parent, exist_ok=True)
-    flags = (
-        os.O_WRONLY
-        | os.O_CREAT
-        | os.O_EXCL
-        | getattr(os, "O_NOFOLLOW", 0)
-    )
-    key_fd = os.open(key_path, flags, VAULT_FILE_MODE)
-    try:
-        os.fchmod(key_fd, VAULT_FILE_MODE)
-    except OSError:
-        os.close(key_fd)
-        raise
-    with os.fdopen(key_fd, "w", encoding="utf-8") as key_fh:
+    with exclusive_sensitive_text(key_path, VAULT_FILE_MODE) as key_fh:
         key_fh.write(token)
     return {
         "created": True,
@@ -265,23 +238,12 @@ def vault_decrypt_to_dict(
         ) as creds_fd, sensitive_file_descriptor(
             key_path, VAULT_FILE_MODE,
         ) as key_fd:
-            inherited_fds = (creds_fd, key_fd)
-            result = subprocess.run(
-                [
-                    "ansible-vault",
-                    "view",
-                    descriptor_path(creds_fd),
-                    "--vault-password-file",
-                    descriptor_path(key_fd),
-                ],
-                capture_output=True,
-                text=True,
+            plaintext = run_vault_decrypt(
+                creds_fd,
+                key_fd,
                 timeout=VAULT_TIMEOUT,
-                check=True,
-                pass_fds=inherited_fds,
-                env=scrubbed_subprocess_environment(),
             )
-        data = yaml.safe_load(result.stdout) or {}
+        data = yaml.safe_load(plaintext) or {}
         return {"success": True, "data": data, "error": ""}
     except FileNotFoundError:
         return {

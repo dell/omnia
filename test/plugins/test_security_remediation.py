@@ -16,7 +16,10 @@
 # Unit tests intentionally exercise private security-boundary helpers.
 # pylint: disable=protected-access,too-few-public-methods
 
+import json
 import os
+import secrets
+import shutil
 import stat
 import subprocess
 import sys
@@ -71,6 +74,13 @@ def _runner(tmp_path):
             "suites": {"deploy": ["sources"]},
         },
     )
+
+
+def _use_private_ansible_temp(tmp_path, monkeypatch):
+    """Keep Ansible's local scratch data inside an isolated private path."""
+    ansible_temp = tmp_path / "ansible-local"
+    ansible_temp.mkdir(mode=0o700)
+    monkeypatch.setenv("ANSIBLE_LOCAL_TEMP", str(ansible_temp))
 
 
 @pytest.mark.parametrize(
@@ -148,6 +158,38 @@ def test_prompt_fields_preserves_visible_nonsecret_input(monkeypatch):
     assert prompts == ["  Account name: "]
 
 
+@pytest.mark.parametrize(
+    "field_name",
+    ["credential_id", "token_endpoint", "secret_name", "access_key_id"],
+)
+def test_prompt_fields_honors_explicit_visible_input_for_identifiers(
+    monkeypatch, field_name,
+):
+    """Preserve explicit visible prompts regardless of identifier spelling."""
+    prompts = []
+    monkeypatch.setattr(
+        credential_func.getpass,
+        "getpass",
+        lambda *_args, **_kwargs: pytest.fail("hidden prompt was used"),
+    )
+    monkeypatch.setattr(
+        credential_func,
+        "_read_visible_input",
+        lambda prompt: prompts.append(prompt) or "identifier-value",
+    )
+
+    result = credential_func.prompt_fields_interactive([
+        {
+            "field": field_name,
+            "label": "Visible identifier",
+            "secret": False,
+        },
+    ])
+
+    assert result == {field_name: "identifier-value"}
+    assert prompts == ["  Visible identifier: "]
+
+
 def test_secret_prompt_does_not_display_existing_value(monkeypatch):
     """Show only a set indicator for an existing secret value."""
     prompts = []
@@ -166,7 +208,7 @@ def test_secret_prompt_does_not_display_existing_value(monkeypatch):
     assert prompts == ["  API token [set]: "]
 
 
-@pytest.mark.parametrize("field_spec", [{}, ["invalid"]])
+@pytest.mark.parametrize("field_spec", [["invalid"]])
 def test_prompt_fields_rejects_malformed_specification(field_spec):
     """Reject malformed JSON structures before prompting."""
     with pytest.raises(ValueError):
@@ -227,6 +269,133 @@ def test_sensitive_fifo_is_rejected_without_blocking(tmp_path, protector):
     assert stat.S_IMODE(fifo_path.stat().st_mode) == original_mode
 
 
+def test_sensitive_descriptor_closes_after_validation_failure(
+    tmp_path, monkeypatch,
+):
+    """Close the descriptor when the opened object fails validation."""
+    invalid_path = tmp_path / "directory"
+    invalid_path.mkdir()
+    opened_fds = []
+    real_open = os.open
+
+    def _tracking_open(*args, **kwargs):
+        file_fd = real_open(*args, **kwargs)
+        opened_fds.append(file_fd)
+        return file_fd
+
+    monkeypatch.setattr(process_security.os, "open", _tracking_open)
+
+    with pytest.raises(ValueError, match="regular file"):
+        with process_security.sensitive_file_descriptor(str(invalid_path)):
+            pytest.fail("invalid descriptor was yielded")
+
+    assert len(opened_fds) == 1
+    with pytest.raises(OSError):
+        os.fstat(opened_fds[0])
+
+
+def test_sensitive_descriptor_closes_after_context_failure(tmp_path):
+    """Close the descriptor even when its context body raises."""
+    sensitive_path = tmp_path / "credentials.yml"
+    sensitive_path.write_text("account: value\n", encoding="utf-8")
+    yielded_fd = -1
+
+    with pytest.raises(RuntimeError, match="body failed"):
+        with process_security.sensitive_file_descriptor(
+            str(sensitive_path),
+        ) as file_fd:
+            yielded_fd = file_fd
+            raise RuntimeError("body failed")
+
+    with pytest.raises(OSError):
+        os.fstat(yielded_fd)
+
+
+@pytest.mark.parametrize("fail_during_write", [False, True])
+def test_exclusive_sensitive_writer_has_one_closed_descriptor(
+    tmp_path, fail_during_write,
+):
+    """Close the exclusive writer after successful and failed writes."""
+    output_path = tmp_path / "private.txt"
+    writer_fd = -1
+
+    def _write():
+        nonlocal writer_fd
+        with process_security.exclusive_sensitive_text(
+            str(output_path),
+        ) as output_stream:
+            writer_fd = output_stream.fileno()
+            output_stream.write("protected data")
+            if fail_during_write:
+                raise RuntimeError("write failed")
+
+    if fail_during_write:
+        with pytest.raises(RuntimeError, match="write failed"):
+            _write()
+    else:
+        _write()
+
+    with pytest.raises(OSError):
+        os.fstat(writer_fd)
+    assert stat.S_IMODE(output_path.stat().st_mode) == 0o600
+
+
+def test_exclusive_sensitive_writer_closes_if_stream_creation_fails(
+    tmp_path, monkeypatch,
+):
+    """Close the raw descriptor when its text wrapper cannot be created."""
+    output_path = tmp_path / "private.txt"
+    opened_fds = []
+    real_os_open = os.open
+
+    def _tracking_open(*args, **kwargs):
+        file_fd = real_os_open(*args, **kwargs)
+        opened_fds.append(file_fd)
+        return file_fd
+
+    monkeypatch.setattr(process_security.os, "open", _tracking_open)
+    monkeypatch.setattr(
+        "builtins.open",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            OSError("stream creation failed")
+        ),
+    )
+
+    with pytest.raises(OSError, match="stream creation failed"):
+        with process_security.exclusive_sensitive_text(str(output_path)):
+            pytest.fail("failed stream was yielded")
+
+    assert len(opened_fds) == 1
+    with pytest.raises(OSError):
+        os.fstat(opened_fds[0])
+
+
+def test_inventory_directory_is_removed_after_sensitive_write_failure(
+    tmp_path, monkeypatch,
+):
+    """Remove the private inventory directory after validation failure."""
+    inventory_dir = tmp_path / "inventory"
+
+    def _make_inventory_dir(**_kwargs):
+        inventory_dir.mkdir()
+        return str(inventory_dir)
+
+    def _fail_sensitive_write(*_args, **_kwargs):
+        raise ValueError("validation failed")
+
+    monkeypatch.setattr(host_func.tempfile, "mkdtemp", _make_inventory_dir)
+    monkeypatch.setattr(
+        host_func,
+        "exclusive_sensitive_text",
+        _fail_sensitive_write,
+    )
+
+    with pytest.raises(ValueError, match="validation failed"):
+        host_func._write_testinfra_inventory({"all": {"hosts": {}}})
+
+    assert not inventory_dir.exists()
+
+
 def test_atomic_credential_write_preserves_original_on_failure(tmp_path):
     """Do not publish transient plaintext when Vault encryption fails."""
     credential_path = tmp_path / "credentials.yml"
@@ -239,14 +408,14 @@ def test_atomic_credential_write_preserves_original_on_failure(tmp_path):
     original_content = credential_path.read_text(encoding="utf-8")
 
     def _vault_command(command, **_kwargs):
-        if "view" in command:
+        if "decrypt" in command:
             return SimpleNamespace(stdout="account: original\n")
         raise subprocess.CalledProcessError(
             1, command, stderr="generation failed",
         )
 
     with patch.object(
-        credential_func.subprocess,
+        process_security.subprocess,
         "run",
         side_effect=_vault_command,
     ):
@@ -319,11 +488,15 @@ def test_credentials_have_private_mode_before_yaml_write(tmp_path, monkeypatch):
         return original_safe_dump(data, stream, **kwargs)
 
     monkeypatch.setattr(credential_func.yaml, "safe_dump", _safe_dump)
-    monkeypatch.setattr(
-        credential_func,
-        "vault_encrypt",
-        lambda *_args: {"success": True, "message": "", "error": ""},
-    )
+
+    def _encrypt(_plaintext_fd, _key_fd, encrypted_fd):
+        os.ftruncate(encrypted_fd, 0)
+        os.write(
+            encrypted_fd,
+            f"{credential_func.VAULT_HEADER}\nencrypted\n".encode("ascii"),
+        )
+
+    monkeypatch.setattr(credential_func, "_run_vault_encrypt", _encrypt)
     creds_path = tmp_path / "credentials.yml"
     key_path = tmp_path / "vault.key"
 
@@ -344,8 +517,7 @@ def test_vault_encrypt_restores_private_mode(tmp_path, monkeypatch):
     key_path.write_text("key-value", encoding="utf-8")
 
     def _run(args, **kwargs):
-        output_path = args[args.index("--output") + 1]
-        output_fd = int(output_path.rsplit("/", maxsplit=1)[-1])
+        output_fd = kwargs["stdout"]
         os.ftruncate(output_fd, 0)
         os.write(
             output_fd,
@@ -354,10 +526,14 @@ def test_vault_encrypt_restores_private_mode(tmp_path, monkeypatch):
         creds_path.chmod(0o644)
         assert str(creds_path) not in args
         assert str(key_path) not in args
-        assert output_fd in kwargs["pass_fds"]
+        assert args[1:5] == ["encrypt", "-", "--output", "-"]
+        assert isinstance(kwargs["stdin"], int)
+        assert output_fd not in kwargs["pass_fds"]
+        assert kwargs["close_fds"] is True
+        assert kwargs["shell"] is False
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
-    monkeypatch.setattr(credential_func.subprocess, "run", _run)
+    monkeypatch.setattr(process_security.subprocess, "run", _run)
 
     result = credential_func.vault_encrypt(
         str(creds_path), str(key_path),
@@ -383,7 +559,7 @@ def test_vault_encrypt_failure_restores_private_mode(tmp_path, monkeypatch):
             1, ["ansible-vault"], stderr="encryption failed",
         )
 
-    monkeypatch.setattr(credential_func.subprocess, "run", _run)
+    monkeypatch.setattr(process_security.subprocess, "run", _run)
 
     result = credential_func.vault_encrypt(
         str(creds_path), str(key_path),
@@ -408,12 +584,174 @@ def test_host_vault_encrypt_failure_restores_private_mode(
             1, ["ansible-vault"], stderr="encryption failed",
         )
 
-    monkeypatch.setattr(host_func.subprocess, "run", _run)
+    monkeypatch.setattr(process_security.subprocess, "run", _run)
 
     with pytest.raises(ValueError, match="Failed to encrypt"):
         host_func._encrypt_vault_file(str(creds_path), str(key_path))
 
     assert stat.S_IMODE(creds_path.stat().st_mode) == 0o600
+
+
+@pytest.mark.skipif(
+    shutil.which("ansible-vault") is None,
+    reason="ansible-vault is required for the integration test",
+)
+def test_real_vault_round_trip_preserves_fields_and_private_files(
+    tmp_path, monkeypatch,
+):
+    """Exercise real Vault encryption, merge, and decryption end to end."""
+    credential_dir = tmp_path / "credentials ; remain data"
+    credential_dir.mkdir(mode=0o700)
+    _use_private_ansible_temp(tmp_path, monkeypatch)
+    creds_path = credential_dir / "test credentials.yml"
+    key_path = credential_dir / "test key"
+    initial_fields = {
+        "account_name": f"operator-{secrets.token_hex(4)}",
+        "api_token": secrets.token_urlsafe(24),
+    }
+    replacement_token = secrets.token_urlsafe(24)
+
+    first_write = credential_func.write_credential_fields(
+        str(creds_path),
+        str(key_path),
+        initial_fields,
+        header_comment="Generated test credentials",
+    )
+    assert first_write["success"] is True, first_write["error"]
+    assert credential_func.is_vault_encrypted(str(creds_path)) is True
+    assert stat.S_IMODE(creds_path.stat().st_mode) == 0o600
+    assert stat.S_IMODE(key_path.stat().st_mode) == 0o600
+
+    second_write = credential_func.write_credential_fields(
+        str(creds_path),
+        str(key_path),
+        {"api_token": replacement_token, "endpoint": "host.example.test"},
+    )
+    assert second_write["success"] is True, second_write["error"]
+
+    decrypted = credential_func.vault_decrypt_to_dict(
+        str(creds_path), str(key_path),
+    )
+    assert decrypted["success"] is True, decrypted["error"]
+    assert decrypted["data"] == {
+        "account_name": initial_fields["account_name"],
+        "api_token": replacement_token,
+        "endpoint": "host.example.test",
+    }
+    assert not list(credential_dir.glob(".test credentials.yml.*.tmp"))
+
+
+@pytest.mark.skipif(
+    shutil.which("ansible-vault") is None,
+    reason="ansible-vault is required for the integration test",
+)
+def test_host_loader_encrypts_plaintext_once_and_reloads_it(
+    tmp_path, monkeypatch,
+):
+    """Retain host-loader behavior while securing its plaintext input."""
+    credential_dir = tmp_path / "host credentials"
+    credential_dir.mkdir(mode=0o700)
+    creds_path = credential_dir / "credentials.yml"
+    key_path = credential_dir / "credentials.key"
+    expected = {
+        "service_user": f"user-{secrets.token_hex(4)}",
+        "service_password": secrets.token_urlsafe(24),
+    }
+    creds_path.write_text(yaml.safe_dump(expected), encoding="utf-8")
+    monkeypatch.setattr(host_func, "get_module_root", lambda: str(tmp_path))
+    _use_private_ansible_temp(tmp_path, monkeypatch)
+
+    first_load = host_func.load_test_credentials(
+        str(creds_path), str(key_path),
+    )
+    second_load = host_func.load_test_credentials(
+        str(creds_path), str(key_path),
+    )
+
+    assert first_load == expected
+    assert second_load == expected
+    assert host_func._is_vault_encrypted(str(creds_path)) is True
+    assert stat.S_IMODE(creds_path.stat().st_mode) == 0o600
+    assert stat.S_IMODE(key_path.stat().st_mode) == 0o600
+
+
+@pytest.mark.skipif(
+    shutil.which("ansible-vault") is None,
+    reason="ansible-vault is required for the integration test",
+)
+def test_credential_cli_round_trip_uses_local_plugin_source(tmp_path):
+    """Verify the installed-facing CLI contract with real Vault operations."""
+    credential_dir = tmp_path / "CLI credentials ; data"
+    credential_dir.mkdir(mode=0o700)
+    creds_path = credential_dir / "credentials.yml"
+    key_path = credential_dir / "credentials.key"
+    fields = {
+        "account_name": f"account-{secrets.token_hex(4)}",
+        "access_token": secrets.token_urlsafe(24),
+    }
+    child_env = os.environ.copy()
+    child_env["PYTHONPATH"] = os.pathsep.join(
+        [str(_PLUGIN_ROOT), child_env.get("PYTHONPATH", "")],
+    ).rstrip(os.pathsep)
+    ansible_temp = tmp_path / "ansible-local"
+    ansible_temp.mkdir(mode=0o700)
+    child_env["ANSIBLE_LOCAL_TEMP"] = str(ansible_temp)
+    cli_prefix = [sys.executable, "-m", "omnia_auto"]
+
+    def _run_cli(*arguments):
+        return subprocess.run(
+            [*cli_prefix, *arguments],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+            env=child_env,
+            shell=False,
+        )
+
+    ensure_result = _run_cli("ensure-key", "--key-path", str(key_path))
+    assert ensure_result.returncode == 0, ensure_result.stderr
+    assert ensure_result.stdout.strip() == "CREATED"
+
+    write_result = _run_cli(
+        "write-fields",
+        "--creds-path",
+        str(creds_path),
+        "--key-path",
+        str(key_path),
+        "--fields",
+        json.dumps(fields),
+    )
+    assert write_result.returncode == 0, write_result.stderr
+    assert write_result.stdout.strip() == "OK"
+
+    encrypted_result = _run_cli(
+        "is-encrypted", "--creds-path", str(creds_path),
+    )
+    assert encrypted_result.returncode == 0, encrypted_result.stderr
+    assert encrypted_result.stdout.strip() == "YES"
+
+    field_result = _run_cli(
+        "read-field",
+        "--creds-path",
+        str(creds_path),
+        "--key-path",
+        str(key_path),
+        "--field",
+        "access_token",
+    )
+    assert field_result.returncode == 0, field_result.stderr
+    assert field_result.stdout.strip() == fields["access_token"]
+
+    all_result = _run_cli(
+        "read-all",
+        "--creds-path",
+        str(creds_path),
+        "--key-path",
+        str(key_path),
+    )
+    assert all_result.returncode == 0, all_result.stderr
+    assert json.loads(all_result.stdout) == fields
 
 
 def _sample_auth_value():
