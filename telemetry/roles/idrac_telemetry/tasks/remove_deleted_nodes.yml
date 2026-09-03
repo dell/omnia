@@ -70,6 +70,7 @@
         pod_to_db_idrac_ips: "{{ existing_pod_to_db_idrac_ips }}"
         db_retries: "{{ db_retries }}"
         db_delay: "{{ db_delay }}"
+        mysqldb_container_port: "{{ mysqldb_container_port }}"
       register: delete_idrac_result
   rescue:
     - name: Failed to delete iDRAC IPs from mysqldb

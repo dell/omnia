@@ -33,7 +33,7 @@ Automatic intermediate hop detection:
   the system auto-generates one K8s hop per intermediate version.
 
   Example: Omnia 2.1.0.0 (K8s 1.34.1) -> Omnia 2.3.0.0 (K8s 1.37.1)
-    Omnia path : 2.1.0.0 -> 2.2.0.0 -> 2.3.0.0
+    Omnia path : 2.1.0.0 -> 2.2.0.1 -> 2.3.0.0
     K8s hops   : 1.34.1 -> 1.35.1  (Omnia 2.1->2.2, direct)
                  1.35.1 -> 1.36.1  (auto-generated, within 2.2->2.3)
                  1.36.1 -> 1.37.1  (Omnia 2.2->2.3, final)

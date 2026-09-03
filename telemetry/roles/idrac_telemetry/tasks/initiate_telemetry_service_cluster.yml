@@ -73,6 +73,7 @@
         mysqldb_password: "{{ hostvars['localhost']['mysqldb_password'] }}"
         db_retries: "{{ db_retries }}"
         db_delay: "{{ db_delay }}"
+        mysqldb_container_port: "{{ mysqldb_container_port }}"
       register: existing_mysqldb_idracips
   rescue:
     - name: Failed to connect mysqldb
@@ -181,6 +182,7 @@
         auth_type: "{{ auth_type }}"
         db_retries: "{{ db_retries }}"
         db_delay: "{{ db_delay }}"
+        mysqldb_container_port: "{{ mysqldb_container_port }}"
       register: add_idrac_to_db
   rescue:
     - name: Failed to connect mysqldb

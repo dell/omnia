@@ -385,7 +385,7 @@
 
           ── Version Transition ───────────────────────────────────────
             Current Omnia version : {{ approval_manifest.source_version | default('2.1.0.0') }}
-            Target  Omnia version : {{ approval_manifest.target_version | default('2.2.0.0') }}
+            Target  Omnia version : {{ approval_manifest.target_version | default('2.2.0.1') }}
 
           ── Upgrade Execution Plan (BuildStream Enabled) ─────────────
             1. oim           → Upgrade OpenCHAMI control-plane containers
@@ -449,7 +449,7 @@
 
           ── Version Transition ───────────────────────────────────────
             Current Omnia version : {{ approval_manifest.source_version | default('2.1.0.0') }}
-            Target  Omnia version : {{ approval_manifest.target_version | default('2.2.0.0') }}
+            Target  Omnia version : {{ approval_manifest.target_version | default('2.2.0.1') }}
 
           ── Omnia Upgrade Execution Plan (in order) ──────────────────
             1. oim           → Upgrade OpenCHAMI control-plane containers
