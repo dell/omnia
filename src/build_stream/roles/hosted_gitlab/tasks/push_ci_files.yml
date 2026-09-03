@@ -64,6 +64,7 @@
   loop:
     - repo_manager
     - image_build_manager
+    - orchestrator
 
 - name: Sync Omnia input files into GitLab repository
   ansible.builtin.include_tasks: sync_input_file.yml
@@ -85,8 +86,7 @@
   register: omnia_env_check
   no_log: true
 
-- name: Create omnia.env when missing
-  when: omnia_env_check.status == 404
+- name: Create or update omnia.env
   block:
     - name: Copy omnia.env to GitLab host
       ansible.builtin.copy:
@@ -100,6 +100,7 @@
       register: hosted_omnia_env_content
 
     - name: Create omnia.env in repository
+      when: omnia_env_check.status == 404
       ansible.builtin.uri:
         url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/omnia.env"
         method: POST
@@ -111,6 +112,23 @@
           encoding: base64
           content: "{{ hosted_omnia_env_content.content }}"
           commit_message: "Add omnia.env — environment configuration for domain-segregated pipeline"
+        status_code: [200, 201]
+        validate_certs: false
+      no_log: true
+
+    - name: Update omnia.env in repository
+      when: omnia_env_check.status == 200
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/omnia.env"
+        method: PUT
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ hosted_omnia_env_content.content }}"
+          commit_message: "Update omnia.env — environment configuration"
         status_code: [200, 201]
         validate_certs: false
       no_log: true
@@ -144,8 +162,7 @@
         status_code: [200, 201]
         validate_certs: false
 
-- name: Create .gitlab-ci.yml when missing
-  when: ci_file_check.status == 404
+- name: Create or update .gitlab-ci.yml
   block:
     - name: Copy .gitlab-ci.yml to GitLab host
       ansible.builtin.copy:
@@ -159,6 +176,7 @@
       register: hosted_ci_file_content
 
     - name: Create .gitlab-ci.yml in repository
+      when: ci_file_check.status == 404
       ansible.builtin.uri:
         url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci.yml"  # noqa: yaml[line-length]
         method: POST
@@ -174,6 +192,23 @@
         validate_certs: false
       no_log: true
 
+    - name: Update .gitlab-ci.yml in repository
+      when: ci_file_check.status == 200
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci.yml"  # noqa: yaml[line-length]
+        method: PUT
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ hosted_ci_file_content.content }}"
+          commit_message: "Update Omnia CI/CD pipeline configuration"
+        status_code: [200, 201]
+        validate_certs: false
+      no_log: true
+
 - name: Check if .gitlab-ci-build.yml exists in repository
   ansible.builtin.uri:
     url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-build.yml?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
@@ -185,8 +220,7 @@
   register: ci_build_file_check
   no_log: true
 
-- name: Create .gitlab-ci-build.yml when missing
-  when: ci_build_file_check.status == 404
+- name: Create or update .gitlab-ci-build.yml
   block:
     - name: Copy .gitlab-ci-build.yml to GitLab host
       ansible.builtin.copy:
@@ -200,6 +234,7 @@
       register: hosted_ci_build_file_content
 
     - name: Create .gitlab-ci-build.yml in repository
+      when: ci_build_file_check.status == 404
       ansible.builtin.uri:
         url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-build.yml"  # noqa: yaml[line-length]
         method: POST
@@ -215,6 +250,23 @@
         validate_certs: false
       no_log: true
 
+    - name: Update .gitlab-ci-build.yml in repository
+      when: ci_build_file_check.status == 200
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-build.yml"  # noqa: yaml[line-length]
+        method: PUT
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ hosted_ci_build_file_content.content }}"
+          commit_message: "Update Build Pipeline configuration"
+        status_code: [200, 201]
+        validate_certs: false
+      no_log: true
+
 - name: Check if .gitlab-ci-deploy.yml exists in repository
   ansible.builtin.uri:
     url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-deploy.yml?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
@@ -226,8 +278,7 @@
   register: ci_deploy_file_check
   no_log: true
 
-- name: Create .gitlab-ci-deploy.yml when missing
-  when: ci_deploy_file_check.status == 404
+- name: Create or update .gitlab-ci-deploy.yml
   block:
     - name: Copy .gitlab-ci-deploy.yml to GitLab host
       ansible.builtin.copy:
@@ -241,6 +292,7 @@
       register: hosted_ci_deploy_file_content
 
     - name: Create .gitlab-ci-deploy.yml in repository
+      when: ci_deploy_file_check.status == 404
       ansible.builtin.uri:
         url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-deploy.yml"  # noqa: yaml[line-length]
         method: POST
@@ -256,6 +308,23 @@
         validate_certs: false
       no_log: true
 
+    - name: Update .gitlab-ci-deploy.yml in repository
+      when: ci_deploy_file_check.status == 200
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-deploy.yml"  # noqa: yaml[line-length]
+        method: PUT
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ hosted_ci_deploy_file_content.content }}"
+          commit_message: "Update Deploy Pipeline configuration"
+        status_code: [200, 201]
+        validate_certs: false
+      no_log: true
+
 - name: Check if .gitlab-ci-deploy-child-template.yml exists in repository
   ansible.builtin.uri:
     url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-deploy-child-template.yml?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
@@ -267,8 +336,7 @@
   register: ci_deploy_child_template_check
   no_log: true
 
-- name: Create .gitlab-ci-deploy-child-template.yml when missing
-  when: ci_deploy_child_template_check.status == 404
+- name: Create or update .gitlab-ci-deploy-child-template.yml
   block:
     - name: Copy .gitlab-ci-deploy-child-template.yml to GitLab host
       ansible.builtin.copy:
@@ -282,6 +350,7 @@
       register: hosted_ci_deploy_child_template_content
 
     - name: Create .gitlab-ci-deploy-child-template.yml in repository
+      when: ci_deploy_child_template_check.status == 404
       ansible.builtin.uri:
         url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-deploy-child-template.yml"  # noqa: yaml[line-length]
         method: POST
@@ -297,6 +366,23 @@
         validate_certs: false
       no_log: true
 
+    - name: Update .gitlab-ci-deploy-child-template.yml in repository
+      when: ci_deploy_child_template_check.status == 200
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-deploy-child-template.yml"  # noqa: yaml[line-length]
+        method: PUT
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ hosted_ci_deploy_child_template_content.content }}"
+          commit_message: "Update Deploy Child Pipeline template"
+        status_code: [200, 201]
+        validate_certs: false
+      no_log: true
+
 - name: Check if .gitlab-ci-cleanup.yml exists in repository
   ansible.builtin.uri:
     url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-cleanup.yml?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
@@ -308,8 +394,7 @@
   register: ci_cleanup_file_check
   no_log: true
 
-- name: Create .gitlab-ci-cleanup.yml when missing
-  when: ci_cleanup_file_check.status == 404
+- name: Create or update .gitlab-ci-cleanup.yml
   block:
     - name: Copy .gitlab-ci-cleanup.yml to GitLab host
       ansible.builtin.copy:
@@ -323,6 +408,7 @@
       register: hosted_ci_cleanup_file_content
 
     - name: Create .gitlab-ci-cleanup.yml in repository
+      when: ci_cleanup_file_check.status == 404
       ansible.builtin.uri:
         url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-cleanup.yml"  # noqa: yaml[line-length]
         method: POST
@@ -338,6 +424,23 @@
         validate_certs: false
       no_log: true
 
+    - name: Update .gitlab-ci-cleanup.yml in repository
+      when: ci_cleanup_file_check.status == 200
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-cleanup.yml"  # noqa: yaml[line-length]
+        method: PUT
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ hosted_ci_cleanup_file_content.content }}"
+          commit_message: "Update Cleanup Pipeline configuration"
+        status_code: [200, 201]
+        validate_certs: false
+      no_log: true
+
 - name: Check if .gitlab-ci-cleanup-child-template.yml exists in repository
   ansible.builtin.uri:
     url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-cleanup-child-template.yml?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
@@ -349,8 +452,7 @@
   register: ci_cleanup_child_template_check
   no_log: true
 
-- name: Create .gitlab-ci-cleanup-child-template.yml when missing
-  when: ci_cleanup_child_template_check.status == 404
+- name: Create or update .gitlab-ci-cleanup-child-template.yml
   block:
     - name: Copy .gitlab-ci-cleanup-child-template.yml to GitLab host
       ansible.builtin.copy:
@@ -364,6 +466,7 @@
       register: hosted_ci_cleanup_child_template_content
 
     - name: Create .gitlab-ci-cleanup-child-template.yml in repository
+      when: ci_cleanup_child_template_check.status == 404
       ansible.builtin.uri:
         url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-cleanup-child-template.yml"  # noqa: yaml[line-length]
         method: POST
@@ -375,6 +478,23 @@
           encoding: base64
           content: "{{ hosted_ci_cleanup_child_template_content.content }}"
           commit_message: "Add Cleanup Child Pipeline template"
+        status_code: [200, 201]
+        validate_certs: false
+      no_log: true
+
+    - name: Update .gitlab-ci-cleanup-child-template.yml in repository
+      when: ci_cleanup_child_template_check.status == 200
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-cleanup-child-template.yml"  # noqa: yaml[line-length]
+        method: PUT
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ hosted_ci_cleanup_child_template_content.content }}"
+          commit_message: "Update Cleanup Child Pipeline template"
         status_code: [200, 201]
         validate_certs: false
       no_log: true

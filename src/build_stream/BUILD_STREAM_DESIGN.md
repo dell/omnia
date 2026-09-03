@@ -705,7 +705,7 @@ build_stream:
 
 - No breaking changes for users who don't use build_stream.
 - `build_stream_config.yml` is **required** — no legacy fallback.
-- Sub-playbooks work independently with standalone setup guards.
+- Sub-playbooks work independently with setup guards.
 - Container build is self-contained in `src/build_stream/containers/`.
 - Cleanup is fully domain-segregated — no impact on other domains.
 

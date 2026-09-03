@@ -79,10 +79,10 @@ def _get_build_type(host) -> str:
     )
     result = host.run(
         f"grep -E '^image_build_type:' {cfg_path} "
-        "2>/dev/null | awk '{print $2}' || echo 'image-builder'"
+        "2>/dev/null | awk '{print $2}' || echo 'image-thrillhouse'"
     )
     build_type = result.stdout.strip().strip('"').strip("'")
-    return build_type if build_type in _SUFFIX_MAP else "image-builder"
+    return build_type if build_type in _SUFFIX_MAP else "image-thrillhouse"
 
 
 def _get_registry_repos(host) -> List[str]:

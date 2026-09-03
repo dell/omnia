@@ -19,11 +19,19 @@
   ansible.builtin.rpm_key:
     key: "{{ epel10_gpg_key }}"
     state: present
+  register: _epel_gpg_key_import
+  retries: "{{ download_retries }}"
+  delay: "{{ download_delay }}"
+  until: _epel_gpg_key_import is succeeded
 
 - name: Install EPEL release RPM
   ansible.builtin.dnf:
     name: "{{ epel10_url }}"
     state: present
+  register: _epel_release_install
+  retries: "{{ download_retries }}"
+  delay: "{{ download_delay }}"
+  until: _epel_release_install is succeeded
 
 - name: Install s3cmd
   ansible.builtin.dnf:

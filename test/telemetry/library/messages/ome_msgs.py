@@ -53,6 +53,18 @@ OME_TEST_NAMES: Dict[str, str] = {
 # =============================================================================
 
 OME_LOG_MSGS: Dict[str, str] = {
+    # Configuration gates
+    "ome_source_disabled": "OME source is disabled in telemetry_config.yml",
+    "ome_source_channel_disabled": (
+        "OME {channel} source is disabled in telemetry_config.yml"
+    ),
+    "ome_bridge_disabled": (
+        "Vector-OME bridge is disabled in telemetry_config.yml"
+    ),
+    "ome_bridge_channel_disabled": (
+        "Vector-OME {channel} bridge is disabled in telemetry_config.yml"
+    ),
+
     # Deployment
     "ome_bridge_running": "Vector-OME bridge: {count}/{expected} pods running",
     "ome_bridge_not_running": "Vector-OME bridge: only {running}/{expected} pods running",
@@ -67,6 +79,13 @@ OME_LOG_MSGS: Dict[str, str] = {
     "ome_certs_uploaded": "TLS certificates uploaded to OME at {ome_ip}",
     "ome_certs_upload_failed": "Failed to upload certs to OME: {error}",
     "ome_playbook_running": "Running external_kafka playbook ({reason})",
+    "ome_kafka_artifacts_checking": (
+        "Checking external Kafka certificates and endpoints"
+    ),
+    "ome_kafka_artifacts_valid": (
+        "External Kafka export is valid: {count} TLS certificates and both endpoints"
+    ),
+    "ome_kafka_artifacts_invalid": "External Kafka export is invalid: {error}",
 
     # Certificate comparison (OME vs locally generated)
     "ome_cert_match": "Uploaded certificate matches local cert ({count} fields)",
@@ -77,19 +96,60 @@ OME_LOG_MSGS: Dict[str, str] = {
     "ome_kafka_connected": "OME Kafka forwarder '{name}' status: Connected",
     "ome_kafka_disconnected": "OME Kafka forwarder status: {status}",
     "ome_kafka_checking": "Checking OME Kafka forwarder connectivity at {ome_ip}",
+    "ome_kafka_bootstrap_discovering": (
+        "Auto-discovering native Kafka mTLS bootstrap endpoint"
+    ),
+    "ome_kafka_bootstrap_missing": (
+        "Native Kafka mTLS bootstrap service is unavailable"
+    ),
+    "ome_kafka_config_reading": "Checking OME saved Kafka broker configuration",
+    "ome_kafka_reconciling": (
+        "Reconciling OME Kafka broker from {current} to {expected}"
+    ),
     "ome_kafka_configuring": "Configuring Kafka forwarder with broker {broker}",
-    "ome_kafka_polling": "Waiting for connection... ({attempt}/{max_attempts})",
+    "ome_kafka_waiting": (
+        "Polling for up to {timeout}s for OME Kafka reconnection"
+    ),
+    "ome_kafka_polling": (
+        "Kafka connection check {attempt}/{max_attempts}: {status}"
+    ),
 
     # Kafka topics
     "ome_topics_found": "All {count} OME Kafka topics found",
     "ome_topics_missing": "OME Kafka topics missing: {missing}",
-    "ome_topics_checking": "Checking OME Kafka topics via REST proxy",
+    "ome_topics_checking": (
+        "Waiting up to {timeout}s for OME Kafka topics via REST proxy"
+    ),
 
     # Kafka data verification
-    "ome_data_verifying": "Verifying OME data in Kafka topic '{topic}'",
+    "ome_data_verifying": (
+        "Waiting up to {timeout}s for OME data in Kafka topic '{topic}'"
+    ),
     "ome_data_found": "OME data found in Kafka topic '{topic}': {count} record(s)",
     "ome_data_missing": "No OME data found in Kafka topic '{topic}'",
     "ome_data_sample": "Sample record from '{topic}':",
+
+    # VictoriaMetrics data verification
+    "ome_vm_data_verifying": (
+        "Waiting up to {timeout}s for OME topic '{topic}' in VictoriaMetrics"
+    ),
+    "ome_vm_data_found": (
+        "OME topic '{topic}' verified in VictoriaMetrics: {count} metric(s)"
+    ),
+    "ome_vm_data_missing": (
+        "OME topic '{topic}' has no valid data in VictoriaMetrics"
+    ),
+
+    # VictoriaLogs data verification
+    "ome_vl_data_verifying": (
+        "Waiting up to {timeout}s for OME topic '{topic}' in VictoriaLogs"
+    ),
+    "ome_vl_data_found": (
+        "OME topic '{topic}' verified in VictoriaLogs: {count} record(s)"
+    ),
+    "ome_vl_data_missing": (
+        "OME topic '{topic}' has no valid data in VictoriaLogs"
+    ),
 
     # Cleanup
     "ome_cleaned": "No OME pods remaining",
@@ -123,6 +183,13 @@ OME_ASSERT_MSGS: Dict[str, str] = {
         "HOW TO FIX:\n"
         "  1. Run: ansible-playbook telemetry.yml --tags external_kafka\n"
         "  2. Check output in /opt/omnia/telemetry/output/<project>/external_kafka/\n"
+    ),
+    "ome_kafka_artifacts_invalid": (
+        "External Kafka connection artifacts are invalid: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Re-run: ansible-playbook telemetry.yml --tags external_kafka\n"
+        "  2. Use kafka-kafka-external-bootstrap for OME native mTLS\n"
+        "  3. Reserve bridge-bridge-lb for HTTP REST validation\n"
     ),
     "ome_pfx_failed": (
         "Failed to create user.pfx for OME mTLS\n"
@@ -174,6 +241,22 @@ OME_ASSERT_MSGS: Dict[str, str] = {
         "  3. curl http://<bridge-ip>:8080/topics to list topics\n"
     ),
 
+    # Victoria sink data
+    "ome_vm_data_missing": (
+        "OME topic '{topic}' was not verified in VictoriaMetrics: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Verify the OME Kafka topic contains data\n"
+        "  2. Check the vector-ome metrics route and pod logs\n"
+        "  3. Check vmagent-vector and the VictoriaMetrics endpoints\n"
+    ),
+    "ome_vl_data_missing": (
+        "OME topic '{topic}' was not verified in VictoriaLogs: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Verify the OME Kafka topic contains log records\n"
+        "  2. Check the vector-ome logs route and pod logs\n"
+        "  3. Check vlagent-vector and the VictoriaLogs endpoints\n"
+    ),
+
     # Cleanup
     "ome_not_cleaned": (
         "{count} OME pod(s) still present after cleanup\n"
@@ -181,4 +264,63 @@ OME_ASSERT_MSGS: Dict[str, str] = {
         "  1. kubectl get pods -n telemetry -l app=vector-ome\n"
         "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_ome\n"
     ),
+}
+
+
+# =============================================================================
+# OME VICTORIA ERROR AND DETAIL MESSAGES
+# =============================================================================
+
+OME_ERROR_MSGS: dict[str, str] = {
+    "pipeline_disabled": (
+        "OME {data_type} routing to Victoria is disabled in telemetry_config.yml"
+    ),
+    "topic_invalid": "Unsupported OME {data_type} topic: {topic}",
+    "vm_endpoint_missing": "VictoriaMetrics vmselect endpoint is unavailable",
+    "vl_endpoint_missing": "VictoriaLogs vlselect endpoint is unavailable",
+    "vm_query_failed": "VictoriaMetrics range query failed for topic {topic}",
+    "vm_query_json_invalid": "VictoriaMetrics returned invalid JSON: {error}",
+    "vm_query_shape_invalid": "VictoriaMetrics returned an invalid range response",
+    "vm_data_missing": "No valid OME metric samples found for topic {topic}",
+    "vl_query_failed": "VictoriaLogs query failed for topic {topic}",
+    "vl_record_invalid": "VictoriaLogs returned an invalid JSON record",
+    "vl_data_missing": "No valid OME log records found for topic {topic}",
+}
+
+
+OME_DETAIL_MSGS: dict[str, str] = {
+    "pipeline_disabled": (
+        "OME {data_type} source or vector_ome {data_type} bridge is disabled"
+    ),
+    "metrics_ready": (
+        "VictoriaMetrics: {vmselect_ip}:{vmselect_port}\n"
+        "Topic: {topic}\n"
+        "Metrics found: {metric_count}\n"
+        "Window: {start_display} to {end_display} ({window_seconds}s)\n\n"
+        "Earliest and latest data per metric:\n{metric_results}"
+    ),
+    "metric_result_line": (
+        "    \u2713 {metric} ({series_count} series)\n"
+        "        Earliest: {earliest_display}\n"
+        "            - value: {earliest_value}\n"
+        "        Latest: {latest_display}\n"
+        "            - value: {latest_value}\n"
+        "            - age_seconds: {age:.1f}"
+    ),
+    "logs_ready": (
+        "VictoriaLogs: {vlselect_ip}:{vlselect_port}\n"
+        "Topic: {topic}\n"
+        "Records found: {log_count}\n"
+        "Window: {window}\n\n"
+        "Log stream result:\n{log_result}"
+    ),
+    "log_result_line": (
+        "    \u2713 {topic} ({log_count} record(s))\n"
+        "        Earliest: {earliest_display}\n"
+        "        Latest: {latest_display}\n"
+        "            - age_seconds: {age:.1f}\n"
+        "        Latest record fields:\n{field_results}"
+    ),
+    "log_field_line": "            - {key}: {value}",
+    "log_fields_unavailable": "            - details: unavailable",
 }

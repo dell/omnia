@@ -166,9 +166,21 @@
 
 ---
 
+## Rollback Scenario (`fvt/rollback/`)
+
+> Rollback is **not supported** in this release. The OpenCHAMI upgrade from
+> v0.1.7-1 to v0.2.0 is a one-way migration. The rollback tag is reserved
+> for future releases.
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_RB_000 | `test_deploy_rollback_not_supported` | Verify rollback fails with 'not supported' message | deploy, sanity |
+
+---
+
 ## Test Summary
 
-**Total Test Cases: 76**
+**Total Test Cases: 73**
 
 | Category | Count |
 |----------|-------|
@@ -183,7 +195,8 @@
 | Prepare Tests | 8 |
 | Provision Tests | 2 |
 | Cleanup Tests | 4 |
+| Rollback Tests | 1 |
 | DCGM Tests | 3 |
-| **Total** | **72** |
+| **Total** | **73** |
 
 **Note**: Some test IDs may be reused across different test files (e.g., TC_SL_001 appears in both status and infrastructure tests). This is intentional as they test different aspects of the same functionality.

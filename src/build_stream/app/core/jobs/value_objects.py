@@ -102,6 +102,13 @@ class StageType(str, Enum):
     # With domain segregation, each domain playbook (repo_manager.yml,
     # image_build_manager.yml) consumes the catalog directly and handles
     # all architecture-specific logic internally.
+    #
+    # PARSE_CATALOG was reintroduced (kept intentionally minimal) solely to
+    # enforce the image_group_id 1:1-with-job uniqueness check as early as
+    # possible -- before any local-repo/build-image cycles run. It does not
+    # regenerate root JSONs or duplicate catalog-metadata artifact storage;
+    # those remain handled by create-local-repository/build-image.
+    PARSE_CATALOG = "parse-catalog"
     CREATE_LOCAL_REPOSITORY = "create-local-repository"
     BUILD_IMAGE = "build-image"
     VALIDATE = "validate"

@@ -14,31 +14,44 @@
 ---
 
 # Step 0: Tag validation — reject unsupported or conflicting tags
-- name: Set omnia_run_tags from ansible_run_tags
+- name: Get provided tags (excluding 'always' and 'all')
   ansible.builtin.set_fact:
+    provided_tags: "{{ ansible_run_tags | difference(['always', 'all']) }}"
     omnia_run_tags: "{{ ansible_run_tags | default([]) | list }}"
     cacheable: true
 
-- name: Validate tags are supported
-  ansible.builtin.fail:
-    msg: >-
-      Unsupported tag '{{ item }}' specified.
-      Supported tags: {{ supported_tags | join(', ') }}
-  when:
-    - omnia_run_tags | length > 0
-    - "'all' not in omnia_run_tags"
-    - item not in supported_tags
-  loop: "{{ omnia_run_tags }}"
+- name: Identify invalid tags
+  ansible.builtin.set_fact:
+    invalid_tags: "{{ provided_tags | difference(supported_tags) }}"
+  when: provided_tags | length > 0
 
-- name: Validate no conflicting tag combinations
+- name: Fail if invalid tags are provided
   ansible.builtin.fail:
-    msg: >-
-      Conflicting tags specified: {{ item | join(' + ') }}.
-      These tags cannot be used together.
+    msg: "{{ tag_validation_fail_msg }}"
   when:
-    - omnia_run_tags | length > 0
-    - item | intersect(omnia_run_tags) | length == item | length
+    - provided_tags | length > 0
+    - invalid_tags | default([]) | length > 0
+
+- name: Check for invalid tag combinations
+  ansible.builtin.set_fact:
+    has_invalid_combination: true
+  when:
+    - provided_tags | length > 1
+    - item | difference(provided_tags) | length == 0
   loop: "{{ invalid_tag_combinations }}"
+
+- name: Fail if invalid tag combination is detected
+  ansible.builtin.fail:
+    msg: "{{ tag_combination_fail_msg }}"
+  when: has_invalid_combination | default(false) | bool
+
+- name: Set skip_credentials flag for cleanup/validate/precheck tags
+  ansible.builtin.set_fact:
+    skip_discovery_credentials: true
+    cacheable: true
+  when:
+    - provided_tags | length > 0
+    - (provided_tags | intersect(skip_credential_tags)) | length > 0
 
 # Step 1: Upgrade guard
 - name: Check upgrade lock file
@@ -130,3 +143,9 @@
 # Step 7: Include common vars
 - name: Include common vars
   ansible.builtin.include_vars: "{{ role_path }}/../../vars/common_vars.yml"
+
+# Step 8: Mark setup as done (prevents re-run in imported sub-playbooks)
+- name: Mark discovery setup as complete
+  ansible.builtin.set_fact:
+    discovery_setup_done: true
+    cacheable: true

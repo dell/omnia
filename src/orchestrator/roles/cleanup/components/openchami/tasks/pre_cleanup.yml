@@ -1,0 +1,46 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Simple OpenCHAMI Pre-Cleanup
+
+- name: Set role path
+  ansible.builtin.set_fact:
+    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
+
+- name: Load OpenCHAMI component configuration
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/components/openchami/vars/component_spec.yml"
+
+- name: Set OpenCHAMI config directory
+  ansible.builtin.set_fact:
+    openchami_config_dir: "{{ openchami_config.config_dir | default('/etc/openchami') }}"
+
+- name: Check if OpenCHAMI is deployed
+  ansible.builtin.stat:
+    path: "{{ openchami_config_dir }}"
+  register: openchami_deployed
+  failed_when: false
+
+- name: Check OpenCHAMI service status (even if config is missing)
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+  register: openchami_services
+  failed_when: false
+  loop: "{{ openchami_config.services }}"
+
+- name: Display OpenCHAMI service status
+  ansible.builtin.debug:
+    msg: "Service {{ item.item }} status: {{ item.status.ActiveState }}"
+  loop: "{{ openchami_services.results }}"

@@ -38,7 +38,7 @@ def test_deploy_discovery(host):
         "TC_DS_000",
     )
     result = run_playbook(
-        extra_vars="discovery_mechanism=ome",
+        extra_vars={"discovery_mechanism": "ome"},
         timeout=3600,
     )
 

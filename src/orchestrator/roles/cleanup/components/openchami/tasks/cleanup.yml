@@ -1,0 +1,128 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Simple OpenCHAMI Cleanup
+
+- name: Set role path
+  ansible.builtin.set_fact:
+    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
+  tags: openchami
+
+- name: Load OpenCHAMI component configuration
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/components/openchami/vars/component_spec.yml"
+  tags: openchami
+
+- name: Display OpenCHAMI cleanup start
+  ansible.builtin.debug:
+    msg: "Starting OpenCHAMI cleanup operations"
+  tags: openchami
+
+- name: Stop OpenCHAMI services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+  failed_when: false
+  loop: "{{ openchami_config.services }}"
+  tags: openchami
+
+- name: Disable OpenCHAMI services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: false
+  failed_when: false
+  loop: "{{ openchami_config.services }}"
+  tags: openchami
+
+- name: Wait for services to stop
+  ansible.builtin.pause:
+    seconds: 5
+  tags: openchami
+
+- name: Remove OpenCHAMI containers
+  ansible.builtin.command:
+    cmd: podman rm -f {{ item }}
+  register: container_removal
+  changed_when: container_removal.rc == 0
+  failed_when: false
+  loop: "{{ openchami_config.containers }}"
+  tags: openchami
+
+- name: Remove OpenCHAMI pods
+  ansible.builtin.command:
+    cmd: podman pod rm -f {{ item }}
+  register: pod_removal
+  changed_when: pod_removal.rc == 0
+  failed_when: false
+  loop: "{{ openchami_config.pods }}"
+  tags: openchami
+
+- name: Remove OpenCHAMI config directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  failed_when: false
+  loop: "{{ openchami_config.config_dirs }}"
+  tags: openchami
+
+- name: Remove OpenCHAMI workdir
+  ansible.builtin.file:
+    path: "{{ openchami_config.work_dir | default('/opt/omnia/openchami/workdir') }}"
+    state: absent
+  failed_when: false
+  tags: openchami
+
+- name: Remove OpenCHAMI log directory
+  ansible.builtin.file:
+    path: "{{ openchami_config.log_dir | default('/opt/omnia/log/openchami') }}"
+    state: absent
+  failed_when: false
+  tags: openchami
+
+- name: Unlock resolv.conf
+  ansible.builtin.file:
+    path: /etc/resolv.conf
+    attributes: "-i chattr"
+  failed_when: false
+  tags: openchami
+
+- name: Restore NetworkManager-managed resolv.conf
+  ansible.builtin.command:
+    cmd: nmcli dev reload
+  register: nmcli_reload
+  changed_when: nmcli_reload.rc == 0
+  failed_when: false
+  tags: openchami
+
+- name: Bring up NetworkManager connection
+  ansible.builtin.command:
+    cmd: nmcli con up "System eth0"
+  register: nmcli_up
+  changed_when: nmcli_up.rc == 0
+  failed_when: false
+  tags: openchami
+
+- name: Remove generated inventories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  failed_when: false
+  loop: "{{ openchami_config.inventory_dirs | default(['/opt/omnia/openchami/inventory']) }}"
+  tags: openchami
+
+- name: Display OpenCHAMI cleanup completion
+  ansible.builtin.debug:
+    msg: "OpenCHAMI cleanup operations completed"
+  tags: openchami

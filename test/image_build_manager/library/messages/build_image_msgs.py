@@ -110,7 +110,7 @@ TEST_NAMES = {
         "Verify MinIO and registry systemd services are active"
     ),
     "credentials_present": (
-        "Verify credentials file is synced to target"
+        "Verify credentials file is configured on the execution OIM"
     ),
     "registry_reachable": (
         "Verify container registry is reachable"

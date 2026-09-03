@@ -921,75 +921,187 @@ class TestUploadFilesAuditEvents:
         )
 
 
-class TestPxeMappingFileCustomPath:
-    """Tests for pxe_mapping_file.csv writing to configurable directory."""
+class TestDomainFileRouting:
+    """Tests for domain-segregated file routing."""
 
-    def test_resolve_pxe_mapping_dir_reads_provision_config(self, tmp_path):
-        """_resolve_pxe_mapping_dir reads pxe_mapping_file_path from provision_config.yml."""
+    def test_repo_manager_file_routed_to_domain_dir(self, tmp_path):
+        """repo_manager config files should be written to repo_manager domain dir."""
         from orchestrator.upload.use_cases import upload_files
 
-        custom_dir = tmp_path / "my_project"
-        custom_dir.mkdir(parents=True)
-        provision_content = (
-            f'pxe_mapping_file_path: "{custom_dir}/pxe_mapping_file.csv"\n'
+        domain_dir = tmp_path / "repo_manager" / "input" / "project_default"
+
+        original_dirs = upload_files.DOMAIN_INPUT_DIRS.copy()
+        try:
+            upload_files.DOMAIN_INPUT_DIRS["repo_manager"] = str(domain_dir)
+            job = self._create_job()
+            use_case = self._create_use_case(job, tmp_path)
+
+            command = _create_upload_command(
+                job_id=job.id,
+                files=[("repo_manager_config.yml", b"rm_content")],
+            )
+            result = use_case.execute(command)
+
+            assert result.upload_summary.total_files == 1
+            assert (domain_dir / "repo_manager_config.yml").exists()
+            assert (domain_dir / "repo_manager_config.yml").read_bytes() == b"rm_content"
+        finally:
+            upload_files.DOMAIN_INPUT_DIRS = original_dirs
+
+    def test_orchestrator_file_routed_to_domain_dir(self, tmp_path):
+        """orchestrator config files should be written to orchestrator domain dir."""
+        from orchestrator.upload.use_cases import upload_files
+
+        domain_dir = tmp_path / "orchestrator" / "input" / "project_default"
+
+        original_dirs = upload_files.DOMAIN_INPUT_DIRS.copy()
+        try:
+            upload_files.DOMAIN_INPUT_DIRS["orchestrator"] = str(domain_dir)
+            job = self._create_job()
+            use_case = self._create_use_case(job, tmp_path)
+
+            command = _create_upload_command(
+                job_id=job.id,
+                files=[("orchestrator_config.yml", b"orch_content")],
+            )
+            result = use_case.execute(command)
+
+            assert result.upload_summary.total_files == 1
+            assert (domain_dir / "orchestrator_config.yml").exists()
+            assert (domain_dir / "orchestrator_config.yml").read_bytes() == b"orch_content"
+        finally:
+            upload_files.DOMAIN_INPUT_DIRS = original_dirs
+
+    def test_pxe_mapping_routed_to_orchestrator_domain(self, tmp_path):
+        """pxe_mapping_file.csv should be routed to the orchestrator domain dir."""
+        from orchestrator.upload.use_cases import upload_files
+
+        domain_dir = tmp_path / "orchestrator" / "input" / "project_default"
+
+        original_dirs = upload_files.DOMAIN_INPUT_DIRS.copy()
+        try:
+            upload_files.DOMAIN_INPUT_DIRS["orchestrator"] = str(domain_dir)
+            job = self._create_job()
+            use_case = self._create_use_case(job, tmp_path)
+
+            command = _create_upload_command(
+                job_id=job.id,
+                files=[("pxe_mapping_file.csv", b"csv_content")],
+            )
+            result = use_case.execute(command)
+
+            assert result.upload_summary.total_files == 1
+            assert (domain_dir / "pxe_mapping_file.csv").exists()
+        finally:
+            upload_files.DOMAIN_INPUT_DIRS = original_dirs
+
+    def test_image_build_manager_file_routed_to_domain_dir(self, tmp_path):
+        """image_build_manager config files should be written to its domain dir."""
+        from orchestrator.upload.use_cases import upload_files
+
+        domain_dir = tmp_path / "image_build_manager" / "input" / "project_default"
+
+        original_dirs = upload_files.DOMAIN_INPUT_DIRS.copy()
+        try:
+            upload_files.DOMAIN_INPUT_DIRS["image_build_manager"] = str(domain_dir)
+            job = self._create_job()
+            use_case = self._create_use_case(job, tmp_path)
+
+            command = _create_upload_command(
+                job_id=job.id,
+                files=[("image_build_config.yml", b"ibm_content")],
+            )
+            result = use_case.execute(command)
+
+            assert result.upload_summary.total_files == 1
+            assert (domain_dir / "image_build_config.yml").exists()
+        finally:
+            upload_files.DOMAIN_INPUT_DIRS = original_dirs
+
+    def test_non_domain_file_goes_to_shared_input(self, tmp_path):
+        """Files not in DOMAIN_FILE_ROUTING should go to DEFAULT_PLAYBOOK_INPUT_DIR."""
+        from orchestrator.upload.use_cases import upload_files
+
+        shared_dir = tmp_path / "shared_input"
+
+        original = upload_files.DEFAULT_PLAYBOOK_INPUT_DIR
+        try:
+            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = str(shared_dir) + "/"
+            job = self._create_job()
+            use_case = self._create_use_case(job, tmp_path)
+
+            command = _create_upload_command(
+                job_id=job.id,
+                files=[("provision_config.yml", b"prov_content")],
+            )
+            result = use_case.execute(command)
+
+            assert result.upload_summary.total_files == 1
+            assert (shared_dir / "provision_config.yml").exists()
+        finally:
+            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = original
+
+    def test_domain_routing_covers_all_new_files(self):
+        """All new domain files should be in the whitelist and routing map."""
+        from orchestrator.upload.use_cases import upload_files
+
+        expected_domain_files = {
+            "repo_manager_config.yml",
+            "repo_manager_endpoint_config.yml",
+            "image_build_config.yml",
+            "package_groups.yml",
+            "orchestrator_config.yml",
+            "additional_cloud_init.yml",
+        }
+
+        for fname in expected_domain_files:
+            assert fname in upload_files.ALLOWED_CONFIG_FILES, (
+                f"{fname} missing from ALLOWED_CONFIG_FILES"
+            )
+            assert fname in upload_files.DOMAIN_FILE_ROUTING, (
+                f"{fname} missing from DOMAIN_FILE_ROUTING"
+            )
+
+    def _create_job(self):
+        job = Mock(spec=Job)
+        job.id = JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10")
+        job.job_state = JobState.CREATED
+        job.is_completed = Mock(return_value=False)
+        job.is_failed = Mock(return_value=False)
+        job.is_cancelled = Mock(return_value=False)
+        return job
+
+    def _create_use_case(self, job, tmp_path):
+        job_repo = Mock()
+        job_repo.find_by_id.return_value = job
+
+        stage = _create_mock_upload_stage(job.id)
+        stage_repo = Mock()
+        stage_repo.find_by_job_and_name.return_value = stage
+
+        artifact_store = Mock()
+        artifact_store.store.return_value = ArtifactRef(
+            key="config-files/abc123/test.yml.bin",
+            digest=ArtifactDigest("a" * 64),
+            size_bytes=100,
+            uri="file:///tmp/test.yml.bin",
         )
-        input_dir = tmp_path / "input"
-        input_dir.mkdir(parents=True)
-        (input_dir / "provision_config.yml").write_text(provision_content)
 
-        original = upload_files.DEFAULT_PLAYBOOK_INPUT_DIR
-        try:
-            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = str(input_dir) + "/"
-            result = upload_files.UploadFilesUseCase._resolve_pxe_mapping_dir()
-            assert result == custom_dir
-        finally:
-            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = original
+        metadata_repo = Mock()
+        metadata_repo.find_by_job_stage_and_label.return_value = None
 
-    def test_resolve_pxe_mapping_dir_falls_back_when_no_key(self, tmp_path):
-        """Falls back to DEFAULT_PLAYBOOK_INPUT_DIR when provision_config has no key."""
-        from orchestrator.upload.use_cases import upload_files
-
-        input_dir = tmp_path / "input"
-        input_dir.mkdir(parents=True)
-        (input_dir / "provision_config.yml").write_text("language: en_US.UTF-8\n")
-
-        original = upload_files.DEFAULT_PLAYBOOK_INPUT_DIR
-        try:
-            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = str(input_dir) + "/"
-            result = upload_files.UploadFilesUseCase._resolve_pxe_mapping_dir()
-            assert result == Path(str(input_dir) + "/")
-        finally:
-            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = original
-
-    def test_resolve_pxe_mapping_dir_falls_back_when_no_file(self, tmp_path):
-        """Falls back to DEFAULT_PLAYBOOK_INPUT_DIR when provision_config.yml missing."""
-        from orchestrator.upload.use_cases import upload_files
-
-        input_dir = tmp_path / "input"
-        input_dir.mkdir(parents=True)
-
-        original = upload_files.DEFAULT_PLAYBOOK_INPUT_DIR
-        try:
-            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = str(input_dir) + "/"
-            result = upload_files.UploadFilesUseCase._resolve_pxe_mapping_dir()
-            assert result == Path(str(input_dir) + "/")
-        finally:
-            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = original
-
-    def test_resolve_pxe_mapping_dir_falls_back_on_yaml_error(self, tmp_path):
-        """Falls back to default when provision_config.yml has invalid YAML."""
-        from orchestrator.upload.use_cases import upload_files
-
-        input_dir = tmp_path / "input"
-        input_dir.mkdir(parents=True)
-        (input_dir / "provision_config.yml").write_text(": invalid: yaml: {{{\n")
-
-        original = upload_files.DEFAULT_PLAYBOOK_INPUT_DIR
-        try:
-            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = str(input_dir) + "/"
-            result = upload_files.UploadFilesUseCase._resolve_pxe_mapping_dir()
-            assert result == Path(str(input_dir) + "/")
-        finally:
-            upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = original
+        return UploadFilesUseCase(
+            job_repository=job_repo,
+            stage_repository=stage_repo,
+            audit_repository=Mock(),
+            artifact_store=artifact_store,
+            artifact_metadata_repo=metadata_repo,
+            uuid_generator=Mock(),
+            config=Mock(
+                artifact_store=Mock(max_file_size_bytes=5242880),
+                file_store=Mock(base_path=str(tmp_path / "artifacts")),
+                paths=Mock(build_stream_base_path=str(tmp_path / "buildstream")),
+            ),
+        )
 
 

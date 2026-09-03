@@ -41,8 +41,9 @@
 # Full path to repo_status.yml produced by repo_manager.
 # Contains RPM repo URLs organized by version and architecture.
 # TLS certificate path is derived from repo_manager.certificates.server_crt in repo_status.yml.
-# Convention: /opt/omnia/repo_manager/output/<project_name>/repo_status.yml
-repo_manager_output_path: "/opt/omnia/repo_manager/output/project_default/repo_status.yml"
+# Convention: <OMNIA_DATA_PATH>/repo_manager/output/<project_name>/repo_status.yml
+# domain-init.sh replaces __OMNIA_DATA_PATH__ with the actual OMNIA_DATA_PATH at staging time.
+repo_manager_output_path: "__OMNIA_DATA_PATH__/repo_manager/output/__PROJECT_NAME__/repo_status.yml"
 
 
 # ---------------------------------------------------------------------------
@@ -59,12 +60,12 @@ s3_configurations:
 # 3. Image Builder
 # ---------------------------------------------------------------------------
 # image_build_type: Which OpenCHAMI image builder to use.
-#   "image-builder"     — Standard OpenCHAMI image-builder (default).
+#   "image-builder"     — Standard OpenCHAMI image-builder.
 #                         Config format: options/repos/packages/cmds
-#   "image-thrillhouse" — Next-gen OpenCHAMI builder with extended features.
+#   "image-thrillhouse" — Next-gen OpenCHAMI builder with extended features (default).
 #                         Config format: meta/layer (inline repos, script commands)
 # Each type uses its own config templates and container image.
-image_build_type: "image-builder"
+image_build_type: "image-thrillhouse"
 
 # build_image: Controls for the build phase.
 #   max_parallel     — Max concurrent image builds. 0 = unlimited.

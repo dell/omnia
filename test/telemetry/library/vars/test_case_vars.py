@@ -360,7 +360,7 @@ TEST_CASES = {
     },
     "ome_external_kafka_certs": {
         "id": "TC_SR_072",
-        "title": "Verify external Kafka TLS certificates exist",
+        "title": "Verify external Kafka connection artifacts",
     },
     "ome_pfx_conversion": {
         "id": "TC_SR_073",
@@ -401,6 +401,48 @@ TEST_CASES = {
     "ome_auditlogs_data": {
         "id": "TC_SR_062",
         "title": "Verify OME audit logs data in Kafka (ome.auditlogs)",
+    },
+    "ome_telemetry_metrics_in_vm": {
+        "id": "TC_SR_064",
+        "title": "Verify OME telemetry metrics in VictoriaMetrics",
+    },
+    "ome_inventory_metrics_in_vm": {
+        "id": "TC_SR_065",
+        "title": "Verify OME inventory metrics in VictoriaMetrics",
+    },
+    "ome_health_metrics_in_vm": {
+        "id": "TC_SR_066",
+        "title": "Verify OME health metrics in VictoriaMetrics",
+    },
+    "ome_alerts_logs_in_vl": {
+        "id": "TC_SR_067",
+        "title": "Verify OME alerts in VictoriaLogs",
+    },
+    "ome_auditlogs_logs_in_vl": {
+        "id": "TC_SR_068",
+        "title": "Verify OME audit logs in VictoriaLogs",
+    },
+
+    # -- Sources: SFM -------------------------------------------------------
+    "sfm_omnia_pods": {
+        "id": "TC_SR_090",
+        "title": "Verify required Omnia workloads and pods for SFM",
+    },
+    "sfm_omnia_services": {
+        "id": "TC_SR_091",
+        "title": "Verify required Omnia services for SFM",
+    },
+    "sfm_switch_configuration": {
+        "id": "TC_SR_092",
+        "title": "Configure and verify the SFM switch data path",
+    },
+    "sfm_observability_configuration": {
+        "id": "TC_SR_093",
+        "title": "Configure and verify SFM observability Remote Write",
+    },
+    "sfm_metrics_in_victoria": {
+        "id": "TC_SR_094",
+        "title": "Verify three SFM metrics and timestamps in VictoriaMetrics",
     },
 
     # -- Cleanup ------------------------------------------------------------

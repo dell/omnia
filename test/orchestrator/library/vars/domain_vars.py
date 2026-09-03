@@ -39,6 +39,7 @@ FVT_TAGS: List[str] = [
     "prepare",
     "provision",
     "cleanup",
+    "rollback",
     "modules",
     "roles",
     "playbooks",
@@ -66,6 +67,7 @@ SUITES: Dict[str, List[str]] = {
     "prepare": ["openchami"],
     "provision": ["slurm"],
     "cleanup": ["status"],
+    "rollback": [],
     "modules": [],
     "roles": [],
     "playbooks": [],
@@ -78,4 +80,5 @@ SUITES: Dict[str, List[str]] = {
 
 EXCLUDE_TAGS: List[str] = [
     "cleanup",
+    "rollback",
 ]

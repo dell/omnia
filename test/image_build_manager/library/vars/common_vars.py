@@ -143,16 +143,6 @@ PLAYBOOK_CMD = (
     "ansible-playbook image_build_manager.yml"
 )
 
-# Image artifact types in S3 (per functional group)
-IMAGE_TYPES = ["initramfs", "vmlinuz", "rhel"]
-
-# Image type display names for S3 verification output
-IMAGE_TYPE_DISPLAY = {
-    "initramfs": "initramfs",
-    "vmlinuz": "vmlinuz",
-    "rhel": "rootfs",
-}
-
 # Functional group packages filename
 FG_PACKAGES_FILENAME = "functional_group_packages.yml"
 
@@ -196,7 +186,6 @@ REQUIRED_CONFIG_FIELDS = [
 # Required files inside a dataset directory (when dataset is set)
 REQUIRED_DATASET_FILES = [
     "input/image_build_config.yml",
-    "input/image_build_credentials.yml",
 ]
 
 # Required files in src/ (when dataset is empty — default mode)

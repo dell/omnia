@@ -1,0 +1,96 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =========================================================================
+# Standalone cleanup playbook for log collection artifacts
+# This playbook is ONLY invoked via utils.yml with cleanup tags
+# =========================================================================
+
+- name: Cleanup log collection artifacts
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Set OMNIA_DATA_PATH fact
+      ansible.builtin.set_fact:
+        omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+        project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+
+    - name: Set output directory path
+      ansible.builtin.set_fact:
+        output_project_dir: "{{ omnia_data_path }}/utils/output/{{ project_name }}"
+        log_retention_days: "{{ log_retention_days | default(7) }}"
+
+    - name: Check if log collection output directory exists
+      ansible.builtin.stat:
+        path: "{{ output_project_dir }}/collect"
+      register: collect_dir_stat
+
+    - name: Find old log bundles (retention based)
+      ansible.builtin.find:
+        paths: "{{ output_project_dir }}/collect"
+        patterns: "omnia_logs_*.tar.gz"
+        age: "{{ log_retention_days }}d"
+        recurse: true
+      register: old_logs
+      when: collect_dir_stat.stat.exists
+
+    - name: Delete old log bundles
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ old_logs.files | default([]) }}"
+      when:
+        - collect_dir_stat.stat.exists
+        - old_logs.files is defined
+        - old_logs.files | length > 0
+
+    - name: Find empty log collection run directories
+      ansible.builtin.find:
+        paths: "{{ output_project_dir }}/collect"
+        patterns: "omnia_logs_*"
+        file_type: directory
+      register: log_run_dirs
+      when: collect_dir_stat.stat.exists
+
+    - name: Remove empty log collection run directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ log_run_dirs.files | default([]) }}"
+      when:
+        - collect_dir_stat.stat.exists
+        - log_run_dirs.files is defined
+        - log_run_dirs.files | length > 0
+
+    - name: Clean temporary log collection directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ output_project_dir }}/collect/k8s"
+        - "{{ output_project_dir }}/collect/slurm"
+      when: collect_dir_stat.stat.exists
+
+    - name: Display log collection cleanup summary
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Log Collection Cleanup Complete"
+          - "=========================================="
+          - "Output directory: {{ output_project_dir }}/collect"
+          - "Old bundles removed: {{ old_logs.files | default([]) | length }}"
+          - "Retention period: {{ log_retention_days }} days"
+          - "=========================================="

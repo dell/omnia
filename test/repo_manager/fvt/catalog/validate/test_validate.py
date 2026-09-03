@@ -46,7 +46,7 @@ def test_catalog_validate_deploy(host):
 @pytest.mark.sanity
 @pytest.mark.positive
 @pytest.mark.order(1)
-def test_catalog_validation_completed(_host):
+def test_catalog_validation_completed():
     """TC_RM_CAT_VAL_001: Verify catalog validation completed successfully."""
     tl = TestLogger(TEST_NAMES["catalog_structure_valid"], "TC_RM_CAT_VAL_001")
 

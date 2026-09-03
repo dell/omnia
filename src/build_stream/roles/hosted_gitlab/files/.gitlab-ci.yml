@@ -18,8 +18,8 @@
 # child pipeline.  Each pipeline is independently invokable.
 #
 # Trigger behaviour:
-#   Auto-trigger : catalog_rhel.json change   -> build pipeline only
-#                  input/pxe_mapping_file.csv change -> deploy pipeline only
+#   Auto-trigger : catalog_rhel.json change              -> build pipeline only
+#                  input/orchestrator/pxe_mapping_file.csv change -> deploy pipeline only
 #   Web UI       : Three manual play-buttons appear (Build, Deploy, Cleanup).
 #                  Click exactly one to run that pipeline independently.
 #   API trigger  : Set PIPELINE_TYPE to "build", "deploy", or "cleanup".
@@ -34,7 +34,7 @@ workflow:
     - if: '$PIPELINE_TYPE'                                    # API/trigger with explicit type
     - changes:                                                # Auto-trigger on file changes
         - catalog_rhel.json
-        - input/pxe_mapping_file.csv
+        - input/orchestrator/pxe_mapping_file.csv
     - if: '$CI_PIPELINE_SOURCE == "web"'                      # Manual button click (no variable)
 
 stages:
@@ -61,7 +61,7 @@ build_pipeline:
       when: on_success
     # Block auto-trigger meant for deploy
     - changes:
-        - input/pxe_mapping_file.csv
+        - input/orchestrator/pxe_mapping_file.csv
       when: never
     # Manual button fallback (web source, no PIPELINE_TYPE)
     - if: '$CI_PIPELINE_SOURCE == "web"'
@@ -85,7 +85,7 @@ deploy_pipeline:
       when: never
     # Auto-trigger on PXE mapping change
     - changes:
-        - input/pxe_mapping_file.csv
+        - input/orchestrator/pxe_mapping_file.csv
       when: on_success
     # Block auto-trigger meant for build
     - changes:
@@ -114,7 +114,7 @@ cleanup_pipeline:
     # Block file-change auto-triggers (cleanup is never automatic)
     - changes:
         - catalog_rhel.json
-        - input/pxe_mapping_file.csv
+        - input/orchestrator/pxe_mapping_file.csv
       when: never
     # Manual button fallback (web source, no PIPELINE_TYPE)
     - if: '$CI_PIPELINE_SOURCE == "web"'

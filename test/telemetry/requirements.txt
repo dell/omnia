@@ -12,6 +12,11 @@ pytest-html>=4.0
 # YAML parsing
 PyYAML>=6.0
 
+# SFM API and forced-menu SSH automation
+requests>=2.31
+paramiko>=3.4
+cryptography>=42.0
+
 # Ansible for playbook execution
 ansible-core>=2.15
 

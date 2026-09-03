@@ -1,17 +1,14 @@
 ---
 # Validation settings
-validate_prerequisites: true
-validate_config_files: true
-validate_disk_space: true
+validate_prerequisites: false
+validate_config_files: false
+validate_disk_space: false
 
 # Minimum disk space requirements (GB)
 min_disk_space_gb: 50
 
-# Configuration file paths to validate
-config_files_to_validate:
-  - iso_config.yml
-  - telemetry_config.yml
-  - omnia_config.yml
+# Configuration file paths to validate (disabled for utils domain)
+config_files_to_validate: []
 
 # Guard facts
 utils_domain_ready: false

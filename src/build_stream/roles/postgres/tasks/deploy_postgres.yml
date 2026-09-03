@@ -45,25 +45,10 @@
     state: absent
   when: existing_container_info.containers | length > 0
 
-- name: Load OIM metadata for shared path
-  ansible.builtin.include_vars:
-    file: "{{ omnia_metadata_file_path }}"
-    name: oim_metadata
-  when: not (hostvars['localhost']['standalone_mode'] | default(false) | bool)
-
-- name: Extract configuration from metadata
-  ansible.builtin.set_fact:
-    oim_shared_path: "{{ oim_metadata.oim_shared_path }}"
-    omnia_path: "{{ oim_metadata.oim_shared_path }}"
-    selinux_option: "{{ ':Z' if oim_metadata.omnia_share_option | default('NFS') == 'Local' else '' }}"
-  when: not (hostvars['localhost']['standalone_mode'] | default(false) | bool)
-
-- name: "[standalone] Set omnia_path from oim_shared_path"
+- name: Set omnia_path from oim_shared_path
   ansible.builtin.set_fact:
     omnia_path: "{{ oim_shared_path }}"
     selinux_option: ":z"
-    standalone_mode: true
-  when: hostvars['localhost']['standalone_mode'] | default(false) | bool
 
 # Create required directories
 - name: Create data directory for omnia_postgres

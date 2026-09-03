@@ -72,7 +72,7 @@ def test_catalog_delete_deploy(host):
 @pytest.mark.sanity
 @pytest.mark.positive
 @pytest.mark.order(1)
-def test_catalog_delete_operation_completed(_host):
+def test_catalog_delete_operation_completed():
     """TC_RM_CAT_DEL_001: Verify catalog delete operation completed successfully."""
     tl = TestLogger(TEST_NAMES["catalog_delete_deploy"], "TC_RM_CAT_DEL_001")
 

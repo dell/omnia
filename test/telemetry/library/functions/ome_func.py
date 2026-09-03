@@ -26,27 +26,100 @@ All shell commands are referenced from ``OME_CMD_TEMPLATES`` in ``ome_vars.py``.
 """
 
 import json
+import math
 import time
 
-from omnia_auto import run_on_host
+from omnia_auto import read_remote_yaml, run_on_host
 
 from ..vars.common_vars import (
-    TELEMETRY_NAMESPACE,
-    PLAYBOOK_WORKDIR,
+    KAFKA_EXTERNAL_BOOTSTRAP_SVC,
     PLAYBOOK_ENTRY_POINT,
+    PLAYBOOK_WORKDIR,
+    TELEMETRY_NAMESPACE,
 )
 from ..vars.ome_vars import (
-    OME_CMD_TEMPLATES,
-    OME_KAFKA_USER,
-    OME_KAFKA_TOPIC_PREFIX,
-    OME_KAFKA_TOPICS,
-    OME_KAFKA_CERT_SUBDIR,
-    OME_KAFKA_CERT_FILES,
-    KAFKA_BRIDGE_SERVICE,
     KAFKA_BRIDGE_DEFAULT_PORT,
+    KAFKA_BRIDGE_SERVICE,
+    OME_CMD_TEMPLATES,
     OME_FORWARDER_ID,
+    OME_KAFKA_CERT_FILES,
+    OME_KAFKA_CERT_SUBDIR,
+    OME_KAFKA_CONNECTION_POLL_INTERVAL_SECONDS,
+    OME_KAFKA_CONNECTION_TIMEOUT_SECONDS,
+    OME_KAFKA_DATA_POLL_INTERVAL_SECONDS,
+    OME_KAFKA_DATA_TIMEOUT_SECONDS,
+    OME_KAFKA_DETAILS_FILE,
+    OME_KAFKA_TOPIC_POLL_INTERVAL_SECONDS,
+    OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
+    OME_KAFKA_TOPICS,
+    OME_KAFKA_USER,
+    OME_LOG_TOPIC_SUFFIXES,
+    OME_METRIC_TOPIC_SUFFIXES,
 )
-from .telemetry_func import run_on_kube_vip, get_output_path
+from .telemetry_func import (
+    get_kafka_external_bootstrap,
+    get_output_path,
+    load_telemetry_config_from_target,
+    run_on_kube_vip,
+)
+
+
+def get_ome_pipeline_context(host):
+    """Return the deployed OME source and bridge channel configuration.
+
+    The source flags describe which topic families OME is expected to
+    publish.  The bridge flags describe which families Vector routes to the
+    Victoria backends.  Topic names use the ``ome_identifier`` from the
+    deployed telemetry configuration rather than assuming the default
+    ``ome`` prefix.
+
+    Args:
+        host: Testinfra host connection to the OIM.
+
+    Returns:
+        dict: Channel flags, resolved topic lists, and configuration state.
+    """
+    config = load_telemetry_config_from_target(host)
+    sources = config.get("telemetry_sources") if isinstance(config, dict) else None
+    bridges = config.get("telemetry_bridges") if isinstance(config, dict) else None
+    source = sources.get("ome") if isinstance(sources, dict) else None
+    bridge = bridges.get("vector_ome") if isinstance(bridges, dict) else None
+
+    source = source if isinstance(source, dict) else {}
+    bridge = bridge if isinstance(bridge, dict) else {}
+    source_metrics = source.get("metrics_enabled") is True
+    source_logs = source.get("logs_enabled") is True
+    bridge_metrics = bridge.get("metrics_enabled") is True
+    bridge_logs = bridge.get("logs_enabled") is True
+    identifier = str(bridge.get("ome_identifier", "ome")).strip() or "ome"
+
+    enabled_suffixes = set()
+    if source_metrics:
+        enabled_suffixes.update(OME_METRIC_TOPIC_SUFFIXES)
+    if source_logs:
+        enabled_suffixes.update(OME_LOG_TOPIC_SUFFIXES)
+
+    # Preserve the established display order while applying the configured
+    # identifier and filtering out disabled topic families.
+    expected_topics = []
+    for default_topic in OME_KAFKA_TOPICS:
+        suffix = default_topic.rsplit(".", maxsplit=1)[-1]
+        if suffix in enabled_suffixes:
+            expected_topics.append(f"{identifier}.{suffix}")
+
+    return {
+        "config_valid": bool(source) and bool(bridge),
+        "identifier": identifier,
+        "source_metrics_enabled": source_metrics,
+        "source_logs_enabled": source_logs,
+        "source_enabled": source_metrics or source_logs,
+        "bridge_metrics_enabled": bridge_metrics,
+        "bridge_logs_enabled": bridge_logs,
+        "bridge_enabled": bridge_metrics or bridge_logs,
+        "metrics_pipeline_enabled": source_metrics and bridge_metrics,
+        "logs_pipeline_enabled": source_logs and bridge_logs,
+        "expected_topics": expected_topics,
+    }
 
 
 def _get_cert_dir(host):
@@ -56,6 +129,50 @@ def _get_cert_dir(host):
         str: e.g. /opt/omnia/telemetry/output/project_default/external_kafka
     """
     return f"{get_output_path(host)}/{OME_KAFKA_CERT_SUBDIR}"
+
+
+def _is_ome_auth_error(error):
+    """Return whether an OME API error represents authentication failure."""
+    if not isinstance(error, dict):
+        return False
+    error_text = " ".join([
+        str(error.get("code", "")),
+        str(error.get("message", "")),
+    ]).lower()
+    return any(marker in error_text for marker in (
+        "auth", "credential", "unauthorized", "access denied", "forbidden",
+        "insufficient privilege", "401", "403",
+    ))
+
+
+def _is_success_http_code(http_code):
+    """Return whether an HTTP status code represents success."""
+    return 200 <= http_code < 300
+
+
+def _is_auth_http_code(http_code):
+    """Return whether an HTTP status code is an authentication failure."""
+    return http_code in (401, 403)
+
+
+def _format_ome_action_error(result, body, http_code):
+    """Build a useful error from an OME action response."""
+    detail = body.strip()
+    if detail:
+        try:
+            response = json.loads(detail)
+            api_error = response.get("error", response)
+            if isinstance(api_error, dict):
+                detail = str(
+                    api_error.get("message")
+                    or api_error.get("code")
+                    or detail
+                )
+        except (json.JSONDecodeError, AttributeError):
+            pass
+    detail = detail or result.stderr.strip()
+    status = f"HTTP {http_code}" if http_code else f"curl rc={result.rc}"
+    return f"{status}: {detail}" if detail else status
 
 
 def verify_ome_kafka_connectivity(host, ome_ip, ome_user,
@@ -81,19 +198,37 @@ def verify_ome_kafka_connectivity(host, ome_ip, ome_user,
         ome_ip=ome_ip, forwarder_id=forwarder_id,
     )
     result = run_on_host(host, forwarder_cmd)
+    forwarder_body, forwarder_http_code = _parse_http_code(result.stdout)
     forwarder_name = ""
     forwarder_enabled = False
 
-    if result.rc == 0 and result.stdout.strip():
+    if _is_auth_http_code(forwarder_http_code):
+        return {
+            "success": False,
+            "status": "AuthError",
+            "error": f"OME API authentication failed (HTTP {forwarder_http_code})",
+        }
+    if forwarder_http_code and not _is_success_http_code(forwarder_http_code):
+        return {
+            "success": False,
+            "status": "ApiError",
+            "error": f"OME API returned HTTP {forwarder_http_code}",
+        }
+
+    if result.rc == 0 and forwarder_body:
         try:
-            fwd = json.loads(result.stdout)
+            fwd = json.loads(forwarder_body)
             if "error" in fwd:
-                error_msg = fwd["error"].get(
+                api_error = fwd["error"]
+                error_msg = api_error.get(
                     "message", "Unknown error"
                 )
                 return {
                     "success": False,
-                    "status": "Unknown",
+                    "status": (
+                        "AuthError" if _is_ome_auth_error(api_error)
+                        else "ApiError"
+                    ),
                     "error": f"API error: {error_msg}",
                 }
             forwarder_name = fwd.get("Name", "")
@@ -107,8 +242,26 @@ def verify_ome_kafka_connectivity(host, ome_ip, ome_user,
         ome_ip=ome_ip, forwarder_id=forwarder_id,
     )
     result = run_on_host(host, status_cmd)
+    status_body, status_http_code = _parse_http_code(result.stdout)
 
-    if result.rc != 0 or not result.stdout.strip():
+    if _is_auth_http_code(status_http_code):
+        return {
+            "success": False,
+            "status": "AuthError",
+            "forwarder_name": forwarder_name,
+            "forwarder_enabled": forwarder_enabled,
+            "error": f"OME API authentication failed (HTTP {status_http_code})",
+        }
+    if status_http_code and not _is_success_http_code(status_http_code):
+        return {
+            "success": False,
+            "status": "ApiError",
+            "forwarder_name": forwarder_name,
+            "forwarder_enabled": forwarder_enabled,
+            "error": f"OME API returned HTTP {status_http_code}",
+        }
+
+    if result.rc != 0 or not status_body:
         return {
             "success": False,
             "status": "Unreachable",
@@ -118,14 +271,18 @@ def verify_ome_kafka_connectivity(host, ome_ip, ome_user,
         }
 
     try:
-        data = json.loads(result.stdout)
+        data = json.loads(status_body)
         if "error" in data:
-            error_msg = data["error"].get(
+            api_error = data["error"]
+            error_msg = api_error.get(
                 "message", "Authentication failed"
             )
             return {
                 "success": False,
-                "status": "AuthError",
+                "status": (
+                    "AuthError" if _is_ome_auth_error(api_error)
+                    else "ApiError"
+                ),
                 "forwarder_name": forwarder_name,
                 "forwarder_enabled": forwarder_enabled,
                 "error": error_msg,
@@ -159,6 +316,228 @@ def verify_ome_kafka_connectivity(host, ome_ip, ome_user,
             "status": "ParseError",
             "error": "Invalid JSON from OME API",
         }
+
+
+def get_ome_kafka_forwarder_config(host, ome_ip, ome_user, ome_secret,
+                                   forwarder_id=OME_FORWARDER_ID):
+    """Read the current OME Kafka forwarder configuration.
+
+    Args:
+        host: Testinfra host connection to the OIM.
+        ome_ip: OME appliance IP address.
+        ome_user: OME admin username.
+        ome_secret: OME admin password.
+        forwarder_id: OME Kafka forwarder ID.
+
+    Returns:
+        dict containing the configuration map, current broker, and error.
+    """
+    cmd = OME_CMD_TEMPLATES["ome_get_forwarder_config"].format(
+        ome_ip=ome_ip,
+        user=ome_user,
+        secret=ome_secret,
+        forwarder_id=forwarder_id,
+    )
+    result = run_on_host(host, cmd)
+    body, http_code = _parse_http_code(result.stdout)
+
+    if _is_auth_http_code(http_code):
+        return {
+            "success": False,
+            "status": "AuthError",
+            "configurations": {},
+            "broker_list": "",
+            "error": f"OME API authentication failed (HTTP {http_code})",
+        }
+    if http_code and not _is_success_http_code(http_code):
+        return {
+            "success": False,
+            "status": "ApiError",
+            "configurations": {},
+            "broker_list": "",
+            "error": f"OME API returned HTTP {http_code}",
+        }
+    if result.rc != 0 or not body:
+        return {
+            "success": False,
+            "status": "Unreachable",
+            "configurations": {},
+            "broker_list": "",
+            "error": f"Cannot read OME Kafka configuration at {ome_ip}",
+        }
+
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError:
+        return {
+            "success": False,
+            "status": "ParseError",
+            "configurations": {},
+            "broker_list": "",
+            "error": "Invalid JSON from OME forwarder configuration API",
+        }
+
+    if "error" in data:
+        api_error = data["error"]
+        return {
+            "success": False,
+            "status": (
+                "AuthError" if _is_ome_auth_error(api_error) else "ApiError"
+            ),
+            "configurations": {},
+            "broker_list": "",
+            "error": api_error.get("message", "OME API error"),
+        }
+
+    items = data.get("value", [])
+    if not isinstance(items, list):
+        return {
+            "success": False,
+            "status": "ParseError",
+            "configurations": {},
+            "broker_list": "",
+            "error": "OME forwarder configuration response is not a list",
+        }
+
+    configurations = {
+        item.get("ConfigurationName"): str(item.get("ConfigurationValue", ""))
+        for item in items
+        if isinstance(item, dict) and item.get("ConfigurationName")
+    }
+    return {
+        "success": True,
+        "status": "Available",
+        "configurations": configurations,
+        "broker_list": configurations.get("BrokerList", "").strip(),
+        "error": "",
+    }
+
+
+def configure_ome_kafka_and_wait(
+        host, ome_ip, ome_user, ome_secret, broker_list,
+        ome_identifier="ome", forwarder_id=OME_FORWARDER_ID,
+        timeout_seconds=OME_KAFKA_CONNECTION_TIMEOUT_SECONDS,
+        poll_interval_seconds=OME_KAFKA_CONNECTION_POLL_INTERVAL_SECONDS,
+        status_callback=None, force_configuration=False):
+    """Configure OME Kafka and wait for asynchronous reconnection.
+
+    A certificate upload can temporarily reject TestConnection or Save while
+    OME reloads its trust material. Those actions are retried within one
+    five-minute polling window, and ConnectivityStatus remains authoritative.
+
+    Args:
+        host: Testinfra host connection to the OIM.
+        ome_ip: OME appliance IP address.
+        ome_user: OME admin username.
+        ome_secret: OME admin password.
+        broker_list: Native Kafka mTLS bootstrap endpoint.
+        ome_identifier: OME identifier sent in forwarder settings.
+        forwarder_id: OME Kafka forwarder ID.
+        timeout_seconds: Connectivity polling window.
+        poll_interval_seconds: Delay between retry cycles.
+        status_callback: Optional callable receiving attempt, max_attempts,
+            and the latest status result.
+        force_configuration: Run TestConnection and Save even when the
+            forwarder is currently connected, used to reconcile a stale broker.
+
+    Returns:
+        Latest connectivity result plus action results and timing details.
+    """
+    timeout_seconds = max(0, timeout_seconds)
+    poll_interval_seconds = max(0.1, poll_interval_seconds)
+    max_attempts = math.ceil(timeout_seconds / poll_interval_seconds) + 1
+    started_at = time.monotonic()
+    attempts = 0
+    test_attempts = 0
+    save_attempts = 0
+    test_accepted = False
+    settings_saved = False
+    connection_confirmed = False
+    must_save_settings = force_configuration
+    test_result = None
+    settings_result = None
+    result = {
+        "success": False,
+        "status": "Unknown",
+        "error": "OME Kafka connectivity was not checked",
+    }
+
+    while True:
+        attempts += 1
+        result = verify_ome_kafka_connectivity(
+            host, ome_ip, ome_user, ome_secret, forwarder_id,
+        )
+        if status_callback:
+            status_callback(attempts, max_attempts, result)
+
+        if result["success"] and (not must_save_settings or settings_saved):
+            connection_confirmed = True
+            break
+        if result.get("status") == "AuthError":
+            break
+        if time.monotonic() - started_at >= timeout_seconds:
+            break
+
+        if not test_accepted:
+            test_attempts += 1
+            test_result = send_ome_kafka_test_connection(
+                host, ome_ip, ome_user, ome_secret,
+                broker_list, ome_identifier, forwarder_id,
+            )
+            test_accepted = test_result["success"]
+            if _is_auth_http_code(test_result.get("http_code", 0)):
+                result = {
+                    "success": False,
+                    "status": "AuthError",
+                    "error": test_result["error"],
+                }
+                break
+
+        if test_accepted and not settings_saved:
+            save_attempts += 1
+            settings_result = update_ome_forwarder_settings(
+                host, ome_ip, ome_user, ome_secret,
+                broker_list, ome_identifier, forwarder_id,
+            )
+            settings_saved = settings_result["success"]
+            if _is_auth_http_code(settings_result.get("http_code", 0)):
+                result = {
+                    "success": False,
+                    "status": "AuthError",
+                    "error": settings_result["error"],
+                }
+                break
+
+        remaining_seconds = timeout_seconds - (
+            time.monotonic() - started_at
+        )
+        if remaining_seconds <= 0:
+            break
+        time.sleep(min(poll_interval_seconds, remaining_seconds))
+
+    elapsed_seconds = time.monotonic() - started_at
+    final_result = dict(result)
+    if not connection_confirmed:
+        final_result["success"] = False
+        if result.get("success") and must_save_settings:
+            final_result["status"] = "Reconnecting"
+            final_result["error"] = (
+                "OME Kafka connection was not confirmed after updating settings"
+            )
+    final_result.update({
+        "attempts": attempts,
+        "test_connection_attempts": test_attempts,
+        "settings_update_attempts": save_attempts,
+        "test_connection": test_result,
+        "settings_update": settings_result,
+        "elapsed_seconds": round(elapsed_seconds, 1),
+        "timed_out": (
+            not final_result["success"]
+            and final_result.get("status") != "AuthError"
+            and elapsed_seconds >= timeout_seconds
+        ),
+    })
+    return final_result
 
 
 def get_ome_forwarders(host, ome_ip, ome_user, ome_secret):
@@ -268,6 +647,84 @@ def verify_external_kafka_certs(host):
         "found": found,
         "missing": missing,
         "cert_dir": cert_dir,
+    }
+
+
+def verify_external_kafka_connection_details(host):
+    """Verify the exported native Kafka and HTTP Bridge endpoints.
+
+    The native mTLS bootstrap is the endpoint configured in OME. The HTTP
+    Bridge is a separate REST endpoint used only by validation consumers.
+
+    Args:
+        host: Testinfra host connection to the OIM.
+
+    Returns:
+        dict containing the exported and live endpoints plus any mismatches.
+    """
+    details_path = f"{_get_cert_dir(host)}/{OME_KAFKA_DETAILS_FILE}"
+    details = read_remote_yaml(host, details_path)
+    kafka_details = details.get("kafka", {}) if isinstance(details, dict) else {}
+    if not isinstance(kafka_details, dict):
+        kafka_details = {}
+
+    bridge_details = kafka_details.get("bridge", {})
+    if not isinstance(bridge_details, dict):
+        bridge_details = {}
+
+    exported_bootstrap = str(kafka_details.get("bootstrap_server", ""))
+    exported_bootstrap_service = str(
+        kafka_details.get("loadbalancer_service", "")
+    )
+    exported_bridge = str(bridge_details.get("endpoint", ""))
+    exported_bridge_service = str(
+        bridge_details.get("loadbalancer_service", "")
+    )
+
+    expected_bootstrap = get_kafka_external_bootstrap(host)
+    bridge_ip = get_kafka_bridge_ip(host)
+    bridge_port = get_kafka_bridge_port(host) if bridge_ip else ""
+    expected_bridge = (
+        f"http://{bridge_ip}:{bridge_port}" if bridge_ip and bridge_port else ""
+    )
+
+    mismatches = []
+    if not details:
+        mismatches.append(f"Connection details file is missing: {details_path}")
+    if not expected_bootstrap:
+        mismatches.append("Native Kafka bootstrap service is unavailable")
+    elif exported_bootstrap != expected_bootstrap:
+        mismatches.append(
+            f"bootstrap_server is '{exported_bootstrap}', expected "
+            f"'{expected_bootstrap}'"
+        )
+    if exported_bootstrap_service != KAFKA_EXTERNAL_BOOTSTRAP_SVC:
+        mismatches.append(
+            f"loadbalancer_service is '{exported_bootstrap_service}', expected "
+            f"'{KAFKA_EXTERNAL_BOOTSTRAP_SVC}'"
+        )
+    if not expected_bridge:
+        mismatches.append("Kafka HTTP Bridge service is unavailable")
+    elif exported_bridge != expected_bridge:
+        mismatches.append(
+            f"bridge.endpoint is '{exported_bridge}', expected "
+            f"'{expected_bridge}'"
+        )
+    if exported_bridge_service != KAFKA_BRIDGE_SERVICE:
+        mismatches.append(
+            f"bridge.loadbalancer_service is '{exported_bridge_service}', "
+            f"expected '{KAFKA_BRIDGE_SERVICE}'"
+        )
+
+    return {
+        "success": len(mismatches) == 0,
+        "details_path": details_path,
+        "bootstrap_server": exported_bootstrap,
+        "expected_bootstrap": expected_bootstrap,
+        "bridge_endpoint": exported_bridge,
+        "expected_bridge": expected_bridge,
+        "mismatches": mismatches,
+        "error": "; ".join(mismatches),
     }
 
 
@@ -702,9 +1159,10 @@ def _normalize_cert_time(value):
     return value.strip()
 
 
-def send_ome_kafka_test_connection(host, ome_ip, ome_user, ome_secret,
-                              broker_list, ome_identifier="ome",
-                              forwarder_id=10):
+def send_ome_kafka_test_connection(
+    host, ome_ip, ome_user, ome_secret, broker_list,
+    ome_identifier="ome", forwarder_id=10,
+):
     """Test OME Kafka connection via REST API.
 
     Uses OME REST API:
@@ -729,11 +1187,13 @@ def send_ome_kafka_test_connection(host, ome_ip, ome_user, ome_secret,
         broker_list=broker_list,
     )
     result = run_on_host(host, cmd)
-    _, http_code = _parse_http_code(result.stdout)
+    body, http_code = _parse_http_code(result.stdout)
 
-    # 200 OK = test initiated
-    success = http_code == 200
-    error = "" if success else f"HTTP {http_code}"
+    # The supported OME TestConnection action documents HTTP 200 as success.
+    success = result.rc == 0 and http_code == 200
+    error = "" if success else _format_ome_action_error(
+        result, body, http_code,
+    )
 
     return {
         "success": success,
@@ -769,11 +1229,13 @@ def update_ome_forwarder_settings(host, ome_ip, ome_user, ome_secret,
         broker_list=broker_list,
     )
     result = run_on_host(host, cmd)
-    _, http_code = _parse_http_code(result.stdout)
+    body, http_code = _parse_http_code(result.stdout)
 
-    # 200 OK = settings updated
-    success = http_code == 200
-    error = "" if success else f"HTTP {http_code}"
+    # The supported OME ForwarderSettings action documents HTTP 200 as success.
+    success = result.rc == 0 and http_code == 200
+    error = "" if success else _format_ome_action_error(
+        result, body, http_code,
+    )
 
     return {
         "success": success,
@@ -811,7 +1273,7 @@ def configure_ome_kafka_full(host, ome_ip, ome_user, ome_secret,
     steps = []
 
     # Step 1: Run external_kafka playbook
-    playbook_result = run_external_kafka_playbook(host)
+    playbook_result = run_external_kafka_playbook()
     if not playbook_result["success"]:
         return {
             "success": False,
@@ -865,7 +1327,7 @@ def configure_ome_kafka_full(host, ome_ip, ome_user, ome_secret,
     steps.append("upload_client_cert")
 
     # Step 6: Test connection
-    test_result = test_ome_kafka_connection(
+    test_result = send_ome_kafka_test_connection(
         host, ome_ip, ome_user, ome_secret,
         broker_list, ome_identifier, forwarder_id,
     )
@@ -939,67 +1401,119 @@ def get_kafka_bridge_port(host):
     return KAFKA_BRIDGE_DEFAULT_PORT
 
 
-def verify_ome_kafka_topics(host):
+def verify_ome_kafka_topics(
+        host, timeout_seconds=OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
+        poll_interval_seconds=OME_KAFKA_TOPIC_POLL_INTERVAL_SECONDS,
+        expected_topics=None):
     """Verify OME Kafka topics exist via REST proxy.
 
-    Checks that all expected OME topics are present in Kafka.
+    Polls until the requested OME topics are present or the timeout expires.
+    OME creates topics asynchronously after the forwarder reconnects.  When
+    no explicit list is supplied, all canonical OME topics are checked for
+    backward compatibility.
 
     Args:
         host: Testinfra host connection to the OIM.
+        timeout_seconds: Maximum time to wait for all topics.
+        poll_interval_seconds: Delay between topic-list requests.
+        expected_topics: Topic names required by the enabled source channels.
 
     Returns:
-        dict with keys: success, found_topics, missing_topics, all_topics.
+        dict with topic results, endpoint, attempts, elapsed time, and error.
     """
+    required_topics = list(
+        OME_KAFKA_TOPICS if expected_topics is None else expected_topics
+    )
+    if not required_topics:
+        return {
+            "success": True,
+            "found_topics": [],
+            "missing_topics": [],
+            "all_topics": [],
+            "expected_topics": [],
+            "bridge_ip": "",
+            "port": "",
+            "attempts": 0,
+            "elapsed_seconds": 0.0,
+            "error": "",
+        }
+
     bridge_ip = get_kafka_bridge_ip(host)
     if not bridge_ip:
         return {
             "success": False,
             "error": "Kafka bridge IP not found",
             "found_topics": [],
-            "missing_topics": OME_KAFKA_TOPICS,
+            "missing_topics": required_topics,
+            "expected_topics": required_topics,
         }
 
     port = get_kafka_bridge_port(host)
-
-    # Get all topics via REST proxy
     cmd = OME_CMD_TEMPLATES["rest_list_topics"].format(
         bridge_ip=bridge_ip,
         port=port,
     )
-    result = run_on_kube_vip(host, cmd)
+    timeout_seconds = max(0, timeout_seconds)
+    poll_interval_seconds = max(0.1, poll_interval_seconds)
+    started_at = time.monotonic()
+    attempts = 0
+    all_topics = []
+    found_topics = []
+    missing_topics = list(required_topics)
+    last_error = ""
 
-    if result.rc != 0:
-        return {
-            "success": False,
-            "error": f"Failed to get topics: {result.stderr}",
-            "found_topics": [],
-            "missing_topics": OME_KAFKA_TOPICS,
-        }
+    while True:
+        attempts += 1
+        result = run_on_kube_vip(host, cmd)
+        if result.rc != 0:
+            last_error = (
+                f"Failed to get topics: {result.stderr.strip() or 'curl failed'}"
+            )
+        else:
+            try:
+                parsed_topics = json.loads(result.stdout)
+                if isinstance(parsed_topics, list):
+                    last_error = ""
+                    all_topics = parsed_topics
+                    found_topics = [
+                        topic for topic in required_topics
+                        if topic in all_topics
+                    ]
+                    missing_topics = [
+                        topic for topic in required_topics
+                        if topic not in all_topics
+                    ]
+                    if not missing_topics:
+                        break
+                else:
+                    last_error = "Kafka Bridge returned a non-list topic response"
+            except json.JSONDecodeError:
+                last_error = "Failed to parse topics JSON"
 
-    try:
-        all_topics = json.loads(result.stdout)
-    except json.JSONDecodeError:
-        return {
-            "success": False,
-            "error": "Failed to parse topics JSON",
-            "found_topics": [],
-            "missing_topics": OME_KAFKA_TOPICS,
-        }
-
-    found_topics = [t for t in OME_KAFKA_TOPICS if t in all_topics]
-    missing_topics = [t for t in OME_KAFKA_TOPICS if t not in all_topics]
+        elapsed_seconds = time.monotonic() - started_at
+        remaining_seconds = timeout_seconds - elapsed_seconds
+        if remaining_seconds <= 0:
+            break
+        time.sleep(min(poll_interval_seconds, remaining_seconds))
 
     return {
         "success": len(missing_topics) == 0,
         "found_topics": found_topics,
         "missing_topics": missing_topics,
         "all_topics": all_topics,
+        "expected_topics": required_topics,
         "bridge_ip": bridge_ip,
         "port": port,
+        "attempts": attempts,
+        "elapsed_seconds": round(time.monotonic() - started_at, 1),
+        "error": last_error,
     }
 
 
-def verify_ome_data_in_kafka(host, topic="ome.telemetry", timeout_seconds=30):
+def verify_ome_data_in_kafka(
+        host, topic="ome.telemetry",
+        timeout_seconds=OME_KAFKA_DATA_TIMEOUT_SECONDS,
+        poll_interval_seconds=OME_KAFKA_DATA_POLL_INTERVAL_SECONDS):
     """Verify OME data is flowing to Kafka topic.
 
     Uses Kafka REST proxy to create a consumer, subscribe to topic,
@@ -1008,7 +1522,8 @@ def verify_ome_data_in_kafka(host, topic="ome.telemetry", timeout_seconds=30):
     Args:
         host: Testinfra host connection to the OIM.
         topic: Kafka topic to consume from (default: ome.telemetry).
-        timeout_seconds: Timeout for consuming records (default 30s).
+        timeout_seconds: Timeout for consuming records (default 120s).
+        poll_interval_seconds: Delay between consume requests (default 2s).
 
     Returns:
         dict with keys: success, records_found, sample_records, error.
@@ -1027,6 +1542,8 @@ def verify_ome_data_in_kafka(host, topic="ome.telemetry", timeout_seconds=30):
     consumer_name = "ome-verify-consumer"
     records_found = []
     sample_records = []
+    last_consume_error = ""
+    consume_attempts = 0
 
     try:
         # Step 1: Create consumer with 'earliest' offset to get existing data
@@ -1038,10 +1555,11 @@ def verify_ome_data_in_kafka(host, topic="ome.telemetry", timeout_seconds=30):
             offset="earliest",
         )
         result = run_on_kube_vip(host, create_cmd)
-        if "error_code" in result.stdout:
+        if result.rc != 0 or "error_code" in result.stdout:
+            error_detail = result.stdout.strip() or result.stderr.strip()
             return {
                 "success": False,
-                "error": f"Failed to create consumer: {result.stdout}",
+                "error": f"Failed to create consumer: {error_detail}",
                 "records_found": 0,
                 "sample_records": [],
                 "bridge_ip": bridge_ip,
@@ -1055,7 +1573,19 @@ def verify_ome_data_in_kafka(host, topic="ome.telemetry", timeout_seconds=30):
             consumer_name=consumer_name,
             topic=topic,
         )
-        run_on_kube_vip(host, subscribe_cmd)
+        subscribe_result = run_on_kube_vip(host, subscribe_cmd)
+        if subscribe_result.rc != 0:
+            error_detail = (
+                subscribe_result.stdout.strip()
+                or subscribe_result.stderr.strip()
+            )
+            return {
+                "success": False,
+                "error": f"Failed to subscribe to '{topic}': {error_detail}",
+                "records_found": 0,
+                "sample_records": [],
+                "bridge_ip": bridge_ip,
+            }
 
         # Step 3: Consume records with timeout
         consume_cmd = OME_CMD_TEMPLATES["rest_consume_records"].format(
@@ -1065,26 +1595,43 @@ def verify_ome_data_in_kafka(host, topic="ome.telemetry", timeout_seconds=30):
             consumer_name=consumer_name,
         )
 
-        start_time = time.time()
-        while time.time() - start_time < timeout_seconds:
+        timeout_seconds = max(0, timeout_seconds)
+        poll_interval_seconds = max(0.1, poll_interval_seconds)
+        start_time = time.monotonic()
+        while time.monotonic() - start_time < timeout_seconds:
+            consume_attempts += 1
             result = run_on_kube_vip(host, consume_cmd)
 
-            if result.stdout.strip() and result.stdout.strip().startswith("["):
+            if result.rc != 0:
+                last_consume_error = (
+                    result.stderr.strip() or f"curl failed with rc={result.rc}"
+                )
+            elif result.stdout.strip().startswith("["):
                 try:
                     records = json.loads(result.stdout)
+                    last_consume_error = ""
                     for record in records:
                         records_found.append(record)
                         # Keep up to 3 sample records
                         if len(sample_records) < 3:
                             sample_records.append(record)
                 except json.JSONDecodeError:
-                    pass
+                    last_consume_error = "Kafka Bridge returned invalid JSON"
+            else:
+                last_consume_error = (
+                    "Kafka Bridge returned an unexpected records response"
+                )
 
             # If we found records, we can stop
             if records_found:
                 break
 
-            time.sleep(2)
+            remaining_seconds = timeout_seconds - (
+                time.monotonic() - start_time
+            )
+            if remaining_seconds <= 0:
+                break
+            time.sleep(min(poll_interval_seconds, remaining_seconds))
 
     finally:
         # Step 4: Delete consumer (cleanup)
@@ -1108,7 +1655,13 @@ def verify_ome_data_in_kafka(host, topic="ome.telemetry", timeout_seconds=30):
         "topic": topic,
         "bridge_ip": bridge_ip,
         "port": port,
-        "error": "" if records_found else f"No data found in topic '{topic}'",
+        "attempts": consume_attempts,
+        "elapsed_seconds": round(time.monotonic() - start_time, 1),
+        "error": (
+            "" if records_found
+            else last_consume_error
+            or f"No data found in topic '{topic}' within {timeout_seconds}s"
+        ),
     }
 
 

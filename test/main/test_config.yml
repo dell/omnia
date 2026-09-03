@@ -40,10 +40,14 @@ oim_ssh_user: root
 oim_ssh_port: 22
 
 # =============================================================================
-# PROJECT SYNC SETTINGS (remote execution)
+# PROJECT SYNC SETTINGS (remote execution only)
 # =============================================================================
+# Absolute path on the TARGET SERVER where the project code is synced.
 # The local omnia monorepo is synced (rsync) to clone_path on the target.
 # omnia.sh runs from <clone_path>/src/main/
+#
+# IMPORTANT: This path is ONLY used in remote mode (when oim_server_ip is set).
+# In local mode, paths are resolved automatically from the source tree.
 clone_path: "/root/omnia"
 
 # =============================================================================
