@@ -11,18 +11,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
 
-galaxy_info:
-  author: Dell Inc.
-  description: >-
-    Fetches Kafka external connection details (mTLS and HTTP endpoints, TLS certs)
-    from the Kubernetes cluster for external client integration (e.g., OME).
-  license: Apache-2.0
-  min_ansible_version: "2.20"
-  platforms:
-    - name: EL
-      versions:
-        - "10"
-
-dependencies: []
+"""Telemetry unit tests."""

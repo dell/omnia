@@ -360,7 +360,7 @@ TEST_CASES = {
     },
     "ome_external_kafka_certs": {
         "id": "TC_SR_072",
-        "title": "Verify external Kafka TLS certificates exist",
+        "title": "Verify external Kafka connection artifacts",
     },
     "ome_pfx_conversion": {
         "id": "TC_SR_073",
@@ -401,6 +401,26 @@ TEST_CASES = {
     "ome_auditlogs_data": {
         "id": "TC_SR_062",
         "title": "Verify OME audit logs data in Kafka (ome.auditlogs)",
+    },
+    "ome_telemetry_metrics_in_vm": {
+        "id": "TC_SR_064",
+        "title": "Verify OME telemetry metrics in VictoriaMetrics",
+    },
+    "ome_inventory_metrics_in_vm": {
+        "id": "TC_SR_065",
+        "title": "Verify OME inventory metrics in VictoriaMetrics",
+    },
+    "ome_health_metrics_in_vm": {
+        "id": "TC_SR_066",
+        "title": "Verify OME health metrics in VictoriaMetrics",
+    },
+    "ome_alerts_logs_in_vl": {
+        "id": "TC_SR_067",
+        "title": "Verify OME alerts in VictoriaLogs",
+    },
+    "ome_auditlogs_logs_in_vl": {
+        "id": "TC_SR_068",
+        "title": "Verify OME audit logs in VictoriaLogs",
     },
 
     # -- Sources: SFM -------------------------------------------------------

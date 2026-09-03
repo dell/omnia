@@ -315,7 +315,7 @@ def validate_telemetry_config(
 
 
     # =========================================================================
-    # Validate Kafka topic_partitions (now a dict: {idrac: N, ldms: N})
+    # Validate Kafka topic_partitions (a dict containing the iDRAC and LDMS topics)
     # =========================================================================
 
 

@@ -28,75 +28,105 @@ OME Architecture:
     Data pipeline:
         OME -> Kafka (mTLS) -> Vector-OME -> VictoriaMetrics/VictoriaLogs
 
-Test cases (always run):
-    TC_SR_070: Verify Vector-OME bridge deployment ready
-    TC_SR_071: Verify OME KafkaUser CR exists
-
-Test cases (only when configure_ome=true in test_config.yml):
-    TC_SR_072: Verify external Kafka TLS certificates exist
-    TC_SR_073: Verify user.pfx certificate created for OME mTLS
-    TC_SR_074: Verify OME Kafka forwarder connectivity status
+Always-run checks validate the Vector-OME bridge and KafkaUser. When
+``configure_ome=true``, the suite also validates the exported mTLS artifacts,
+PFX conversion and upload, OME connectivity, certificate identity, topic
+creation, and data in each OME Kafka topic.
 """
 
 from datetime import datetime
 
 import pytest
 
-from library.functions import TestLogger, load_test_config
-from library.vars.test_case_vars import TEST_CASES as TC
-from library.vars.common_vars import TELEMETRY_NAMESPACE
-from library.vars.ome_vars import (
-    VECTOR_OME_APP_NAME,
-    OME_KAFKA_CERT_FILES,
-    OME_KAFKA_TOPICS,
-    OME_MAX_ENTRIES_SHOWN,
-    OME_MAX_METRICS_SHOWN,
-    OME_MAX_FIELDS_SHOWN,
+from library.functions import (
+    TestLogger,
+    compare_ome_cert_with_local,
+    configure_ome_kafka_and_wait,
+    convert_certs_to_pfx,
+    get_kafka_external_bootstrap,
+    get_ome_kafka_forwarder_config,
+    get_ome_pipeline_context,
+    load_test_config,
+    load_test_credentials,
+    run_external_kafka_playbook,
+    upload_ome_client_cert,
+    upload_ome_server_cert,
+    verify_deploy_ready,
+    verify_external_kafka_certs,
+    verify_external_kafka_connection_details,
+    verify_ome_data_in_kafka,
+    verify_ome_kafka_connectivity,
+    verify_ome_kafka_topics,
+    verify_ome_kafka_user_cr,
+    verify_ome_logs_in_victoria,
+    verify_ome_metrics_in_victoria,
+    view_ome_client_cert,
 )
-from library.messages.telemetry_msgs import (
-    TEST_LOG_MSGS as LOG_MSGS,
+from library.messages import (
+    OME_ASSERT_MSGS,
+    OME_LOG_MSGS,
+)
+from library.messages import (
     TEST_ASSERT_MSGS as ASSERT_MSGS,
 )
-from library.messages.ome_msgs import (
-    OME_LOG_MSGS,
-    OME_ASSERT_MSGS,
+from library.messages import (
+    TEST_LOG_MSGS as LOG_MSGS,
 )
-from library.functions.k8s_func import verify_deploy_ready
-from library.functions.telemetry_func import (
-    is_source_enabled,
-    get_kafka_external_bootstrap,
+from library.vars import (
+    OME_KAFKA_CERT_FILES,
+    OME_KAFKA_CONNECTION_TIMEOUT_SECONDS,
+    OME_KAFKA_DATA_TIMEOUT_SECONDS,
+    OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
+    OME_MAX_ENTRIES_SHOWN,
+    OME_MAX_FIELDS_SHOWN,
+    OME_MAX_METRICS_SHOWN,
+    OME_VICTORIA_POLL_TIMEOUT_SECONDS,
+    TELEMETRY_NAMESPACE,
+    VECTOR_OME_APP_NAME,
 )
-from library.functions.ome_func import (
-    verify_external_kafka_certs,
-    convert_certs_to_pfx,
-    verify_ome_kafka_user_cr,
-    verify_ome_kafka_connectivity,
-    run_external_kafka_playbook,
-    upload_ome_server_cert,
-    upload_ome_client_cert,
-    view_ome_client_cert,
-    send_ome_kafka_test_connection,
-    update_ome_forwarder_settings,
-    verify_ome_kafka_topics,
-    verify_ome_data_in_kafka,
-    compare_ome_cert_with_local,
+from library.vars import (
+    TEST_CASES as TC,
 )
-
 
 # Module-level state for test dependencies
 _ome_certs_uploaded = None  # None=not run, True=success, False=failed
 _ome_certs_error = ""
 
 
-def _skip_if_ome_disabled(host):
-    """Skip test if OME source is not enabled."""
-    if not is_source_enabled(host, "ome"):
-        pytest.skip("OME source not enabled in config")
+def _skip_if_ome_source_disabled(host, channel=None):
+    """Skip unless either source or one requested source channel is enabled."""
+    context = get_ome_pipeline_context(host)
+    if channel:
+        enabled = context[f"source_{channel}_enabled"]
+        message = OME_LOG_MSGS["ome_source_channel_disabled"].format(
+            channel=channel,
+        )
+    else:
+        enabled = context["source_enabled"]
+        message = OME_LOG_MSGS["ome_source_disabled"]
+    if not enabled:
+        pytest.skip(message)
+    return context
+
+
+def _skip_if_ome_bridge_disabled(host, channel=None):
+    """Skip unless either bridge or one requested bridge channel is enabled."""
+    context = get_ome_pipeline_context(host)
+    if channel:
+        enabled = context[f"bridge_{channel}_enabled"]
+        message = OME_LOG_MSGS["ome_bridge_channel_disabled"].format(
+            channel=channel,
+        )
+    else:
+        enabled = context["bridge_enabled"]
+        message = OME_LOG_MSGS["ome_bridge_disabled"]
+    if not enabled:
+        pytest.skip(message)
+    return context
 
 
 def _skip_if_certs_not_uploaded():
     """Skip test if certificate upload failed."""
-    global _ome_certs_uploaded, _ome_certs_error
     if _ome_certs_uploaded is False:
         pytest.skip(f"Skipped: cert upload failed - {_ome_certs_error}")
 
@@ -120,7 +150,6 @@ def _get_ome_credentials():
     ome_user = "admin"
     ome_secret = ""
     try:
-        from library.functions import load_test_credentials
         creds = load_test_credentials()
         # Flat structure: ome_username, ome_password
         ome_user = creds.get("ome_username", "admin")
@@ -145,7 +174,6 @@ def _get_ome_config(host=None):
     # pfx_secret comes from test_creds.yml
     pfx_secret = ""
     try:
-        from library.functions import load_test_credentials
         creds = load_test_credentials()
         pfx_secret = creds.get("pfx_secret", "")
     except Exception:
@@ -160,7 +188,7 @@ def _get_ome_config(host=None):
 
 # =========================================================================
 # TC_SR_070: Verify Vector-OME bridge deployment ready
-#   Always runs when OME source is enabled
+#   Runs when either Vector-OME bridge channel is enabled
 # =========================================================================
 
 @pytest.mark.source
@@ -169,7 +197,7 @@ def _get_ome_config(host=None):
 @pytest.mark.order(80)
 def test_ome_vector_bridge(host):
     """Verify Vector-OME bridge deployment ready."""
-    _skip_if_ome_disabled(host)
+    _skip_if_ome_bridge_disabled(host)
     tc = TC["ome_vector_bridge"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -206,7 +234,7 @@ def test_ome_vector_bridge(host):
 
 # =========================================================================
 # TC_SR_071: Verify OME KafkaUser CR exists
-#   Always runs when OME source is enabled
+#   Runs when either Vector-OME bridge channel is enabled
 # =========================================================================
 
 @pytest.mark.source
@@ -215,7 +243,7 @@ def test_ome_vector_bridge(host):
 @pytest.mark.order(81)
 def test_ome_kafka_user(host):
     """Verify OME KafkaUser CR exists."""
-    _skip_if_ome_disabled(host)
+    _skip_if_ome_bridge_disabled(host)
     tc = TC["ome_kafka_user"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -242,9 +270,9 @@ def test_ome_kafka_user(host):
 
 
 # =========================================================================
-# TC_SR_072: Verify external Kafka TLS certificates exist
+# TC_SR_072: Verify external Kafka connection artifacts
 #   Only runs when configure_ome=true
-#   Runs external_kafka playbook first, then checks certs
+#   Runs external_kafka playbook first, then checks certs and endpoints
 # =========================================================================
 
 @pytest.mark.source
@@ -252,12 +280,12 @@ def test_ome_kafka_user(host):
 @pytest.mark.ome
 @pytest.mark.order(82)
 def test_ome_external_kafka_certs(host):
-    """Verify external Kafka TLS certificates exist.
+    """Verify external Kafka TLS certificates and exported endpoints.
 
-    If certs are not already present or force_external_kafka_playbook=true,
-    runs the external_kafka playbook to extract them from the K8s cluster.
+    If artifacts are missing or invalid, or the force flag is true, runs the
+    external_kafka playbook to export them from the Kubernetes cluster.
     """
-    _skip_if_ome_disabled(host)
+    _skip_if_ome_source_disabled(host)
     _skip_if_configure_ome_false()
     tc = TC["ome_external_kafka_certs"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -265,53 +293,80 @@ def test_ome_external_kafka_certs(host):
     test_cfg = load_test_config()
     force_playbook = test_cfg.get("force_external_kafka_playbook", False)
 
-    # Check if certs already exist
-    tl.check("Checking for existing TLS certificate files")
+    # Check whether the complete export already exists and matches live K8s.
+    tl.check(OME_LOG_MSGS["ome_kafka_artifacts_checking"])
     result = verify_external_kafka_certs(host)
+    details_result = verify_external_kafka_connection_details(host)
 
-    # Run playbook if certs missing OR force flag is set
-    if not result["success"] or force_playbook:
-        reason = "force_external_kafka_playbook=true" if force_playbook else "certs missing"
-        tl.check(f"Running external_kafka playbook ({reason})")
+    # Run the playbook if any artifact is invalid or the force flag is set.
+    if not result["success"] or not details_result["success"] or force_playbook:
+        if force_playbook:
+            reason = "force_external_kafka_playbook=true"
+        elif not result["success"]:
+            reason = "certificates missing"
+        else:
+            reason = "connection endpoint export invalid"
+        tl.check(OME_LOG_MSGS["ome_playbook_running"].format(reason=reason))
         pb_result = run_external_kafka_playbook()
         if not pb_result["success"]:
             tl.failed(
-                LOG_MSGS["ome_certs_missing"].format(
-                    missing=", ".join(result.get("missing", [])),
+                OME_LOG_MSGS["ome_kafka_artifacts_invalid"].format(
+                    error=pb_result["error"],
                 ),
                 f"Playbook error: {pb_result['error']}",
             )
-            assert False, ASSERT_MSGS["ome_certs_missing"].format(
-                missing=", ".join(result.get("missing", [])),
+            assert False, OME_ASSERT_MSGS[
+                "ome_kafka_artifacts_invalid"
+            ].format(
+                error=pb_result["error"],
             )
 
-        # Re-check after playbook
+        # Re-check all generated artifacts after the playbook.
         result = verify_external_kafka_certs(host)
+        details_result = verify_external_kafka_connection_details(host)
 
-    cert_detail = "\n".join(
+    detail_lines = [
         f"  \u2713 {f}" if f in result["found"]
         else f"  \u2717 {f}: MISSING"
         for f in OME_KAFKA_CERT_FILES
-    )
+    ]
+    if details_result["success"]:
+        detail_lines.extend([
+            f"  \u2713 OME Kafka bootstrap: "
+            f"{details_result['bootstrap_server']}",
+            f"  \u2713 Validation HTTP Bridge: "
+            f"{details_result['bridge_endpoint']}",
+        ])
+    else:
+        detail_lines.extend(
+            f"  \u2717 {mismatch}"
+            for mismatch in details_result["mismatches"]
+        )
+    artifact_details = "\n".join(detail_lines)
+    artifacts_valid = result["success"] and details_result["success"]
 
-    if result["success"]:
+    if artifacts_valid:
         tl.passed(
-            LOG_MSGS["ome_certs_found"].format(
+            OME_LOG_MSGS["ome_kafka_artifacts_valid"].format(
                 count=len(result["found"]),
-                dir=result["cert_dir"],
             ),
-            cert_detail,
+            artifact_details,
         )
     else:
         tl.failed(
-            LOG_MSGS["ome_certs_missing"].format(
-                missing=", ".join(result["missing"]),
+            OME_LOG_MSGS["ome_kafka_artifacts_invalid"].format(
+                error=(
+                    details_result["error"]
+                    or ", ".join(result["missing"])
+                ),
             ),
-            cert_detail,
+            artifact_details,
         )
 
-    assert result["success"], ASSERT_MSGS["ome_certs_missing"].format(
-        missing=", ".join(result["missing"]),
+    assert artifacts_valid, OME_ASSERT_MSGS[
+        "ome_kafka_artifacts_invalid"
+    ].format(
+        error=details_result["error"] or ", ".join(result["missing"]),
     )
 
 
@@ -326,7 +381,7 @@ def test_ome_external_kafka_certs(host):
 @pytest.mark.order(83)
 def test_ome_pfx_conversion(host):
     """Verify user.pfx certificate created for OME mTLS."""
-    _skip_if_ome_disabled(host)
+    _skip_if_ome_source_disabled(host)
     _skip_if_configure_ome_false()
     tc = TC["ome_pfx_conversion"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -381,7 +436,7 @@ def test_ome_upload_certs(host):
     """
     global _ome_certs_uploaded, _ome_certs_error
 
-    _skip_if_ome_disabled(host)
+    _skip_if_ome_source_disabled(host)
     _skip_if_configure_ome_false()
     tc = TC["ome_upload_certs"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -494,15 +549,14 @@ def test_ome_kafka_connectivity(host):
     Requires ome_ip and OME credentials in test config/creds.
     Skipped if certificate upload failed (TC_SR_054).
     """
-    _skip_if_ome_disabled(host)
+    context = _skip_if_ome_source_disabled(host)
     _skip_if_configure_ome_false()
     _skip_if_certs_not_uploaded()
     tc = TC["ome_kafka_connectivity"]
     tl = TestLogger(tc["title"], tc["id"])
 
     ome_ip, ome_user, ome_secret = _get_ome_credentials()
-    ome_cfg = _get_ome_config()
-    ome_identifier = ome_cfg.get("ome_identifier", "ome")
+    ome_identifier = context["identifier"]
 
     if not ome_ip:
         tl.skipped(
@@ -520,62 +574,96 @@ def test_ome_kafka_connectivity(host):
             "OME credentials not configured in test_creds.yml"
         )
 
-    # First check current connectivity status
-    tl.check(
-        f"Checking OME Kafka forwarder connectivity at {ome_ip}"
-    )
+    # Check both live connectivity and the saved native Kafka endpoint.
+    tl.check(OME_LOG_MSGS["ome_kafka_checking"].format(ome_ip=ome_ip))
     result = verify_ome_kafka_connectivity(
         host, ome_ip, ome_user, ome_secret,
     )
 
-    # If not connected, auto-discover Kafka bootstrap and configure
     kafka_bootstrap = ""
-    if not result["success"]:
-        tl.check("Auto-discovering Kafka external bootstrap endpoint...")
+    configured_broker = ""
+    configuration_required = False
+    config_result = None
+    test_result = None
+    settings_result = None
+    if result.get("status") != "AuthError":
+        tl.check(OME_LOG_MSGS["ome_kafka_bootstrap_discovering"])
         kafka_bootstrap = get_kafka_external_bootstrap(host)
         if not kafka_bootstrap:
             tl.failed(
-                "Cannot auto-discover Kafka bootstrap",
-                "Kafka external bootstrap service not found",
+                OME_LOG_MSGS["ome_kafka_bootstrap_missing"],
+                OME_ASSERT_MSGS["ome_kafka_not_connected"].format(
+                    status="bootstrap endpoint unavailable",
+                ),
             )
-
-    if not result["success"] and kafka_bootstrap:
-        tl.check(
-            f"Not connected — configuring Kafka forwarder with "
-            f"broker {kafka_bootstrap}"
-        )
-
-        # Test connection
-        test_result = send_ome_kafka_test_connection(
-            host, ome_ip, ome_user, ome_secret,
-            kafka_bootstrap, ome_identifier,
-        )
-        if test_result["success"]:
-            tl.check("Connection test initiated, saving settings")
-
-            # Save forwarder settings
-            settings_result = update_ome_forwarder_settings(
+            result = dict(result)
+            result.update({
+                "success": False,
+                "status": "BootstrapUnavailable",
+                "error": OME_LOG_MSGS["ome_kafka_bootstrap_missing"],
+            })
+        else:
+            tl.check(OME_LOG_MSGS["ome_kafka_config_reading"])
+            config_result = get_ome_kafka_forwarder_config(
                 host, ome_ip, ome_user, ome_secret,
-                kafka_bootstrap, ome_identifier,
             )
-            if settings_result["success"]:
-                tl.check("Settings saved, polling for connectivity...")
+            configured_broker = config_result.get("broker_list", "")
+            configuration_required = (
+                not config_result["success"]
+                or configured_broker != kafka_bootstrap
+            )
+            if configuration_required:
+                tl.check(OME_LOG_MSGS["ome_kafka_reconciling"].format(
+                    current=configured_broker or "unavailable",
+                    expected=kafka_bootstrap,
+                ))
 
-                # Poll for connectivity with status output
-                import time
-                max_attempts = 6
-                poll_interval = 10
-                for attempt in range(1, max_attempts + 1):
-                    tl.check(
-                        f"Waiting for connection... "
-                        f"({attempt}/{max_attempts})"
-                    )
-                    time.sleep(poll_interval)
-                    result = verify_ome_kafka_connectivity(
-                        host, ome_ip, ome_user, ome_secret,
-                    )
-                    if result["success"]:
-                        break
+    if (not result["success"] or configuration_required) and kafka_bootstrap:
+        tl.check(OME_LOG_MSGS["ome_kafka_configuring"].format(
+            broker=kafka_bootstrap,
+        ))
+
+        # Retry TestConnection/Save while certificates reload, and use the
+        # authoritative ConnectivityStatus as the final result.
+        tl.check(OME_LOG_MSGS["ome_kafka_waiting"].format(
+            timeout=OME_KAFKA_CONNECTION_TIMEOUT_SECONDS,
+        ))
+
+        def _report_connectivity(attempt, max_attempts, status_result):
+            tl.check(OME_LOG_MSGS["ome_kafka_polling"].format(
+                attempt=attempt,
+                max_attempts=max_attempts,
+                status=status_result.get("status", "Unknown"),
+            ))
+
+        result = configure_ome_kafka_and_wait(
+            host, ome_ip, ome_user, ome_secret, kafka_bootstrap,
+            ome_identifier=ome_identifier,
+            status_callback=_report_connectivity,
+            force_configuration=configuration_required,
+        )
+        test_result = result.get("test_connection")
+        settings_result = result.get("settings_update")
+
+        # Connectivity is only valid when OME saved the requested native
+        # bootstrap endpoint, not a stale HTTP Bridge or previous cluster IP.
+        if result["success"]:
+            config_result = get_ome_kafka_forwarder_config(
+                host, ome_ip, ome_user, ome_secret,
+            )
+            configured_broker = config_result.get("broker_list", "")
+            if (
+                    not config_result["success"]
+                    or configured_broker != kafka_bootstrap):
+                result = dict(result)
+                result.update({
+                    "success": False,
+                    "status": "ConfigMismatch",
+                    "error": config_result.get("error") or (
+                        f"OME saved broker '{configured_broker}', expected "
+                        f"'{kafka_bootstrap}'"
+                    ),
+                })
 
     status_icon = "\u2713" if result["success"] else "\u2717"
     details_lines = [
@@ -587,7 +675,31 @@ def test_ome_kafka_connectivity(host):
         f"Status: {result.get('status', 'Unknown')}",
     ]
     if kafka_bootstrap:
-        details_lines.append(f"Kafka broker: {kafka_bootstrap}")
+        details_lines.append(f"Desired Kafka broker: {kafka_bootstrap}")
+    if config_result is not None:
+        details_lines.append(
+            f"Saved Kafka broker: {configured_broker or 'unavailable'}"
+        )
+    if test_result and not test_result["success"]:
+        details_lines.append(
+            f"TestConnection response: {test_result['error']}"
+        )
+    if settings_result and not settings_result["success"]:
+        details_lines.append(
+            f"Save response: {settings_result['error']}"
+        )
+    if "attempts" in result:
+        details_lines.append(
+            f"Connection checks: {result['attempts']} over "
+            f"{result['elapsed_seconds']}s"
+        )
+        details_lines.append(
+            f"TestConnection attempts: "
+            f"{result['test_connection_attempts']}"
+        )
+        details_lines.append(
+            f"Save attempts: {result['settings_update_attempts']}"
+        )
     time_connected = result.get("time_last_connected", "")
     if time_connected:
         details_lines.append(f"Last connected: {time_connected}")
@@ -632,7 +744,7 @@ def test_ome_cert_verify(host):
     Compares the certificate details returned by OME with the
     certificate that was generated by the external_kafka playbook.
     """
-    _skip_if_ome_disabled(host)
+    _skip_if_ome_source_disabled(host)
     _skip_if_configure_ome_false()
     _skip_if_certs_not_uploaded()
     tc = TC["ome_cert_verify"]
@@ -685,8 +797,8 @@ def test_ome_cert_verify(host):
 
 
 # =========================================================================
-# TC_SR_057: Verify OME Kafka topics exist
-#   Checks all OME topics are present in Kafka
+# TC_SR_057: Verify enabled OME Kafka topics exist
+#   Checks only topic families enabled by the OME source flags
 # =========================================================================
 
 @pytest.mark.source
@@ -696,17 +808,22 @@ def test_ome_cert_verify(host):
 def test_ome_kafka_topics(host):
     """Verify OME Kafka topics exist.
 
-    Checks that all expected OME topics (ome.telemetry, ome.inventory,
-    ome.alerts, ome.health, ome.auditlogs) are present in Kafka.
+    Checks only the metric and log topic families enabled for the OME source.
     """
-    _skip_if_ome_disabled(host)
+    context = _skip_if_ome_source_disabled(host)
     _skip_if_configure_ome_false()
     _skip_if_certs_not_uploaded()
     tc = TC["ome_kafka_topics"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Checking OME Kafka topics via REST proxy")
-    result = verify_ome_kafka_topics(host)
+    tl.check(OME_LOG_MSGS["ome_topics_checking"].format(
+        timeout=OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
+    ))
+    result = verify_ome_kafka_topics(
+        host,
+        expected_topics=context["expected_topics"],
+        timeout_seconds=OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
+    )
 
     if result.get("error"):
         tl.failed(
@@ -719,14 +836,17 @@ def test_ome_kafka_topics(host):
 
     found = result.get("found_topics", [])
     missing = result.get("missing_topics", [])
+    expected = result.get("expected_topics", context["expected_topics"])
 
     details = [
         f"Kafka bridge IP  : {result.get('bridge_ip')}:{result.get('port')}",
-        f"Topics found     : {len(found)}/{len(OME_KAFKA_TOPICS)}",
+        f"Topics found     : {len(found)}/{len(expected)}",
+        f"Checks           : {result.get('attempts', 0)} over "
+        f"{result.get('elapsed_seconds', 0)}s",
         "",
         "Topic verification:",
     ]
-    for topic in OME_KAFKA_TOPICS:
+    for topic in expected:
         exists = topic in found
         mark = "\u2713" if exists else "\u2717"
         state = "exists" if exists else "MISSING"
@@ -754,22 +874,31 @@ def test_ome_kafka_topics(host):
 #   reported independently of the others.
 # =========================================================================
 
-def _verify_topic_data(host, tc_key, topic):
+def _verify_topic_data(host, tc_key, topic, channel):
     """Run the OME Kafka data check for a single topic.
 
     Args:
         host: Testinfra host connection to the OIM.
         tc_key: Key into TEST_CASES for the topic under test.
-        topic: Kafka topic name to consume from.
+        topic: Canonical Kafka topic name to consume from.
+        channel: OME source channel required by the topic.
     """
-    _skip_if_ome_disabled(host)
+    context = _skip_if_ome_source_disabled(host, channel)
     _skip_if_configure_ome_false()
     _skip_if_certs_not_uploaded()
+    topic = f"{context['identifier']}.{topic.rsplit('.', maxsplit=1)[-1]}"
     tc = TC[tc_key]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check(OME_LOG_MSGS["ome_data_verifying"].format(topic=topic))
-    result = verify_ome_data_in_kafka(host, topic=topic)
+    tl.check(OME_LOG_MSGS["ome_data_verifying"].format(
+        topic=topic,
+        timeout=OME_KAFKA_DATA_TIMEOUT_SECONDS,
+    ))
+    result = verify_ome_data_in_kafka(
+        host,
+        topic=topic,
+        timeout_seconds=OME_KAFKA_DATA_TIMEOUT_SECONDS,
+    )
 
     details = _build_ome_summary_lines(result, topic)
     for summary in result.get("record_summaries", []):
@@ -837,6 +966,8 @@ def _build_ome_summary_lines(result, topic):
         f"Topic            : {topic}",
         f"Records consumed : {records}",
         f"Entries sampled  : {result.get('total_entries', 0)}",
+        f"Checks           : {result.get('attempts', 0)}",
+        f"Wait elapsed     : {result.get('elapsed_seconds', 0)}s",
     ]
     if result.get("error"):
         lines.append(f"Error            : {result['error']}")
@@ -916,7 +1047,9 @@ def _build_ome_entry_lines(entry):
 @pytest.mark.order(88)
 def test_ome_telemetry_data(host):
     """Verify OME telemetry metrics reach the ome.telemetry Kafka topic."""
-    _verify_topic_data(host, "ome_telemetry_data", "ome.telemetry")
+    _verify_topic_data(
+        host, "ome_telemetry_data", "ome.telemetry", "metrics",
+    )
 
 
 @pytest.mark.source
@@ -925,7 +1058,9 @@ def test_ome_telemetry_data(host):
 @pytest.mark.order(89)
 def test_ome_inventory_data(host):
     """Verify OME inventory data reaches the ome.inventory Kafka topic."""
-    _verify_topic_data(host, "ome_inventory_data", "ome.inventory")
+    _verify_topic_data(
+        host, "ome_inventory_data", "ome.inventory", "metrics",
+    )
 
 
 @pytest.mark.source
@@ -934,7 +1069,7 @@ def test_ome_inventory_data(host):
 @pytest.mark.order(90)
 def test_ome_alerts_data(host):
     """Verify OME alerts reach the ome.alerts Kafka topic."""
-    _verify_topic_data(host, "ome_alerts_data", "ome.alerts")
+    _verify_topic_data(host, "ome_alerts_data", "ome.alerts", "logs")
 
 
 @pytest.mark.source
@@ -943,7 +1078,7 @@ def test_ome_alerts_data(host):
 @pytest.mark.order(91)
 def test_ome_health_data(host):
     """Verify OME health data reaches the ome.health Kafka topic."""
-    _verify_topic_data(host, "ome_health_data", "ome.health")
+    _verify_topic_data(host, "ome_health_data", "ome.health", "metrics")
 
 
 @pytest.mark.source
@@ -952,4 +1087,148 @@ def test_ome_health_data(host):
 @pytest.mark.order(92)
 def test_ome_auditlogs_data(host):
     """Verify OME audit logs reach the ome.auditlogs Kafka topic."""
-    _verify_topic_data(host, "ome_auditlogs_data", "ome.auditlogs")
+    _verify_topic_data(host, "ome_auditlogs_data", "ome.auditlogs", "logs")
+
+
+# =========================================================================
+# TC_SR_064 - TC_SR_066: Verify OME metrics per VictoriaMetrics topic
+#   Metric names are generated from OME payloads, so each source topic is
+#   validated independently and every discovered metric is reported.
+# =========================================================================
+
+def _verify_victoria_metric_topic(host, tc_key, topic):
+    """Run the OME VictoriaMetrics check for one metric-bearing topic."""
+    _skip_if_ome_source_disabled(host, "metrics")
+    _skip_if_ome_bridge_disabled(host, "metrics")
+    _skip_if_configure_ome_false()
+    _skip_if_certs_not_uploaded()
+    tc = TC[tc_key]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check(
+        OME_LOG_MSGS["ome_vm_data_verifying"].format(
+            topic=topic,
+            timeout=OME_VICTORIA_POLL_TIMEOUT_SECONDS,
+        )
+    )
+    result = verify_ome_metrics_in_victoria(host, topic)
+
+    if result.get("skipped", False):
+        tl.skipped(result["details"])
+        pytest.skip(result["details"])
+    if result["success"]:
+        tl.passed(
+            OME_LOG_MSGS["ome_vm_data_found"].format(
+                topic=topic,
+                count=result["metric_count"],
+            ),
+            result["details"],
+        )
+    else:
+        tl.failed(
+            OME_LOG_MSGS["ome_vm_data_missing"].format(topic=topic),
+            result.get("details") or result["error"],
+        )
+
+    assert result["success"], OME_ASSERT_MSGS["ome_vm_data_missing"].format(
+        topic=topic,
+        error=result["error"],
+    )
+
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.ome
+@pytest.mark.order(93)
+def test_ome_telemetry_metrics_in_victoria(host):
+    """Verify ome.telemetry metrics and timestamps in VictoriaMetrics."""
+    _verify_victoria_metric_topic(
+        host, "ome_telemetry_metrics_in_vm", "ome.telemetry",
+    )
+
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.ome
+@pytest.mark.order(94)
+def test_ome_inventory_metrics_in_victoria(host):
+    """Verify ome.inventory metrics and timestamps in VictoriaMetrics."""
+    _verify_victoria_metric_topic(
+        host, "ome_inventory_metrics_in_vm", "ome.inventory",
+    )
+
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.ome
+@pytest.mark.order(95)
+def test_ome_health_metrics_in_victoria(host):
+    """Verify ome.health metrics and timestamps in VictoriaMetrics."""
+    _verify_victoria_metric_topic(
+        host, "ome_health_metrics_in_vm", "ome.health",
+    )
+
+
+# =========================================================================
+# TC_SR_067 - TC_SR_068: Verify OME logs per VictoriaLogs topic
+#   OME alerts and auditlogs are event-driven and validated independently.
+# =========================================================================
+
+def _verify_victoria_log_topic(host, tc_key, topic):
+    """Run the OME VictoriaLogs check for one log-bearing topic."""
+    _skip_if_ome_source_disabled(host, "logs")
+    _skip_if_ome_bridge_disabled(host, "logs")
+    _skip_if_configure_ome_false()
+    _skip_if_certs_not_uploaded()
+    tc = TC[tc_key]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check(
+        OME_LOG_MSGS["ome_vl_data_verifying"].format(
+            topic=topic,
+            timeout=OME_VICTORIA_POLL_TIMEOUT_SECONDS,
+        )
+    )
+    result = verify_ome_logs_in_victoria(host, topic)
+
+    if result.get("skipped", False):
+        tl.skipped(result["details"])
+        pytest.skip(result["details"])
+    if result["success"]:
+        tl.passed(
+            OME_LOG_MSGS["ome_vl_data_found"].format(
+                topic=topic,
+                count=result["log_count"],
+            ),
+            result["details"],
+        )
+    else:
+        tl.failed(
+            OME_LOG_MSGS["ome_vl_data_missing"].format(topic=topic),
+            result.get("details") or result["error"],
+        )
+
+    assert result["success"], OME_ASSERT_MSGS["ome_vl_data_missing"].format(
+        topic=topic,
+        error=result["error"],
+    )
+
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.ome
+@pytest.mark.order(96)
+def test_ome_alerts_logs_in_victoria(host):
+    """Verify ome.alerts entries and timestamps in VictoriaLogs."""
+    _verify_victoria_log_topic(host, "ome_alerts_logs_in_vl", "ome.alerts")
+
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.ome
+@pytest.mark.order(97)
+def test_ome_auditlogs_logs_in_victoria(host):
+    """Verify ome.auditlogs entries and timestamps in VictoriaLogs."""
+    _verify_victoria_log_topic(
+        host, "ome_auditlogs_logs_in_vl", "ome.auditlogs",
+    )

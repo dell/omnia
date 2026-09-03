@@ -24,24 +24,24 @@ spec:
   selector:
     matchLabels:
       app: {{ vmagent.target_pod_label }}
-  
+
   # Namespace selector
   namespaceSelector:
     matchNames:
       - {{ vmagent.kubernetes_sd_namespace }}
-  
+
   # Pod metrics endpoints
   podMetricsEndpoints:
     - port: "victoriapump"
       interval: {{ vmagent.global.scrape_interval }}
       honorLabels: true
-      
+
       # Only scrape the metrics container
       relabelConfigs:
         - sourceLabels: [__meta_kubernetes_pod_container_name]
           regex: {{ vmagent.metrics_container_name }}
           action: keep
-        
+
         # Add pod IP label
         - sourceLabels: [__meta_kubernetes_pod_ip]
           targetLabel: pod_ip
@@ -205,4 +205,3 @@ spec:
         - targetLabel: job
           replacement: vast-storage-metrics
 {% endif %}
-

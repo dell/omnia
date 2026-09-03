@@ -191,7 +191,7 @@ K8S_CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG = (
 KAFKA_STORAGE_REQUIRED_MSG = (
     "kafka_storage section is required in telemetry_storage_config.yml "
     "when kafka is in collection_targets for any telemetry source "
-    "(idrac, ldms). Please configure kafka_storage with kafka and "
+    "(iDRAC, LDMS, or OME). Please configure kafka_storage with kafka and "
     "entity_operator.user_operator resource configurations."
 )
 
