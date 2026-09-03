@@ -69,6 +69,7 @@
         telemetry_namespace: "{{ telemetry_namespace }}"
         idrac_podnames: "{{ idrac_podname_idracips.idrac_podname_ips.keys() | list }}"
         mysqldb_k8s_name: "{{ mysqldb_k8s_name }}"
+        mysqldb_container_port: "{{ mysqldb_container_port }}"
         mysqldb_name: "{{ mysqldb_name }}"
         mysqldb_user: "{{ telemetry_credentials.mysqldb_user }}"
         mysqldb_password: "{{ telemetry_credentials.mysqldb_password }}"
