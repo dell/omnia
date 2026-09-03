@@ -69,22 +69,12 @@
 
 - name: Compute filtered nodes for {{ target_category }}
   ansible.builtin.set_fact:
-    _category_nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', target_fg_names) | map(attribute='value') | sort(attribute='XNAME') | list }}"
-
-- name: "DEBUG {{ target_category }} - _category_nodes details"
-  ansible.builtin.debug:
-    msg: "type={{ _category_nodes | type_debug }} len={{ _category_nodes | length }} first_type={{ (_category_nodes | first) | type_debug }} first_keys={{ (_category_nodes | first).keys() | list }} first_HOSTNAME={{ (_category_nodes | first)['HOSTNAME'] }}"
-
-- name: "DEBUG {{ target_category }} - write nodes with copy to test"
-  ansible.builtin.copy:
-    content: |
-      nodes:
-      {% for node in _category_nodes %}
-      - name: {{ node['HOSTNAME'] }}
-        xname: {{ node['XNAME'] }}
-      {% endfor %}
-    dest: "/tmp/test_{{ target_category }}_nodes_debug.yaml"
-    mode: "0644"
+    _category_nodes: >-
+      {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
+         | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', target_fg_names)
+         | map(attribute='value')
+         | sort(attribute='XNAME')
+         | list }}
 
 - name: Generate per-category nodes YAML ({{ target_category }})
   ansible.builtin.template:

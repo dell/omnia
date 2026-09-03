@@ -21,7 +21,10 @@ csi_powerscale_packages_file: "{{ input_project_dir }}/config/x86_64/{{ hostvars
 metallb_manifest_yaml_url: "{{ offline_manifest_path | regex_replace('/$', '') }}/{{ metallb_package }}/{{ metallb_package }}.yml"
 multus_manifest_yaml_url: "{{ offline_manifest_path | regex_replace('/$', '') }}/{{ multus_package }}/{{ multus_package }}.yml"
 helm_tarball_url: "{{ offline_tarball_path | regex_replace('/$', '') }}/{{ helm_package }}/{{ helm_package }}.tar.gz"
-nfs_client_provisioner_tarball_url: "{{ offline_tarball_path | regex_replace('/$', '') }}/{{ nfs_subdir_external_provisioner_pkg }}/{{ nfs_subdir_external_provisioner_pkg }}.tar.gz"
+nfs_client_provisioner_tarball_url: >-
+  {{ offline_tarball_path | regex_replace('/$', '') }}/{{
+  nfs_subdir_external_provisioner_pkg }}/{{
+  nfs_subdir_external_provisioner_pkg }}.tar.gz
 whereabouts_git_url: "{{ offline_git_path | regex_replace('/$', '') }}/{{ whereabouts_pkg }}/{{ whereabouts_pkg }}.tar.gz"
 file_mode: "0644"
 ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
