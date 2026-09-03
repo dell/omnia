@@ -142,6 +142,9 @@
   when: target_category | default('') == 'kubernetes'
 
 - name: Load orchestrator_config for dns_enabled
+  when:
+    - target_category | default('') == 'kubernetes'
+    - dns_enabled is not defined
   block:
     - name: Read orchestrator_config.yml
       ansible.builtin.include_vars:
@@ -150,9 +153,6 @@
     - name: Set dns_enabled fact
       ansible.builtin.set_fact:
         dns_enabled: "{{ _orch_config_ms.dns_enabled | default(false) | bool }}"
-  when:
-    - target_category | default('') == 'kubernetes'
-    - dns_enabled is not defined
 
 - name: Set K8s facts from omnia_config and HA config
   ansible.builtin.set_fact:
@@ -185,10 +185,15 @@
   when: target_category | default('') == 'kubernetes'
 
 - name: Load K8s packages JSON for template variables
+  when: target_category | default('') == 'kubernetes'
   block:
     - name: Set k8s_packages_file path
       ansible.builtin.set_fact:
-        _k8s_packages_file: "{{ input_project_dir }}/config/x86_64/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/service_k8s_v{{ service_k8s_version }}.json"
+        _k8s_packages_file: >-
+          {{ input_project_dir }}/config/x86_64/{{
+          hostvars['localhost']['cluster_os_type'] }}/{{
+          hostvars['localhost']['cluster_os_version']
+          }}/service_k8s_v{{ service_k8s_version }}.json
 
     - name: Check if K8s packages JSON exists
       ansible.builtin.stat:
@@ -203,10 +208,30 @@
 
     - name: Set K8s package names from JSON
       ansible.builtin.set_fact:
-        calico_package: "{{ _k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'calico') | map(attribute='package') | join }}"
-        metallb_package: "{{ _k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'metallb-native') | map(attribute='package') | join }}"
-        nfs_subdir_external_provisioner_pkg: "{{ _k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'nfs-subdir-external-provisioner') | map(attribute='package') | join }}"
-        multus_package: "{{ _k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'multus-daemonset-thick') | map(attribute='package') | join }}"
+        calico_package: >-
+          {{ _k8s_packages_json['service_kube_control_plane_first']['cluster']
+          | selectattr('type', 'equalto', 'manifest')
+          | selectattr('package', 'search', 'calico')
+          | map(attribute='package')
+          | join }}
+        metallb_package: >-
+          {{ _k8s_packages_json['service_kube_control_plane_first']['cluster']
+          | selectattr('type', 'equalto', 'manifest')
+          | selectattr('package', 'search', 'metallb-native')
+          | map(attribute='package')
+          | join }}
+        nfs_subdir_external_provisioner_pkg: >-
+          {{ _k8s_packages_json['service_kube_control_plane_first']['cluster']
+          | selectattr('type', 'equalto', 'tarball')
+          | selectattr('package', 'search', 'nfs-subdir-external-provisioner')
+          | map(attribute='package')
+          | join }}
+        multus_package: >-
+          {{ _k8s_packages_json['service_kube_control_plane_first']['cluster']
+          | selectattr('type', 'equalto', 'manifest')
+          | selectattr('package', 'search', 'multus-daemonset-thick')
+          | map(attribute='package')
+          | join }}
       when: _k8s_pkg_stat.stat.exists
 
     - name: Extract K8s package names from catalog (fallback)
