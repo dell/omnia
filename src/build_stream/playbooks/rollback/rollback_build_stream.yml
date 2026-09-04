@@ -13,14 +13,14 @@
 # limitations under the License.
 
 ---
-# rollback_build_stream.yml — PLACEHOLDER for Omnia 3.0 rollback flow
-# Actual rollback logic will be added when per-domain rollback is implemented.
+# rollback_build_stream.yml — Placeholder for build_stream rollback flow.
+# Full implementation deferred to a future release.
 
 - name: BuildStream rollback placeholder
   hosts: localhost
   connection: local
   gather_facts: false
   tasks:
-    - name: Rollback not yet implemented
+    - name: Rollback not implemented
       ansible.builtin.debug:
-        msg: "BuildStream rollback is not yet implemented. Use playbooks/rollback/ for current rollback flow."
+        msg: "build_stream rollback flow is not implemented yet — reserved for future release"
