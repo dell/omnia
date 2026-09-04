@@ -28,11 +28,11 @@ from typing import List, Optional
 
 import jwt
 from jwt.exceptions import (
-    JWTDecodeError as DecodeError,
-    JWTDecodeError as ExpiredSignatureError,
-    JWTDecodeError as InvalidAudienceError,
-    JWTDecodeError as InvalidIssuerError,
-    JWTDecodeError as InvalidSignatureError,
+    DecodeError,
+    ExpiredSignatureError,
+    InvalidAudienceError,
+    InvalidIssuerError,
+    InvalidSignatureError,
 )
 
 from api.logging_utils import log_secure_info
