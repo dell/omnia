@@ -22,9 +22,9 @@
   delay: "{{ max_delay }}"
   changed_when: false
 
-- name: Generate access token # noqa: command-instead-of-shell
+- name: Generate access token
   block:
-    - name: Generate access token
+    - name: Generate access token # noqa: command-instead-of-shell
       ansible.builtin.shell: sudo bash -lc 'gen_access_token'
       register: access_token_result
       retries: "{{ max_retries }}"
