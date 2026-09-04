@@ -91,6 +91,7 @@
     return_content: true
   register: existing_groups
   failed_when: false
+  no_log: true
 
 - name: Delete existing metadata-service groups
   ansible.builtin.uri:
