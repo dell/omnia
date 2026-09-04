@@ -72,6 +72,7 @@ from .slurm_func import (
     check_slurm_services_running,
     check_slurm_directories_exist,
     check_slurm_config_files_exist,
+    check_slurm_config_integrity,
     check_slurm_nodes_registered,
     check_slurm_partitions_exist,
     check_munge_service_running,

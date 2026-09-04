@@ -258,6 +258,145 @@ def check_slurm_config_files_exist(host) -> Dict[str, Any]:
     }
 
 
+def check_slurm_config_integrity(host) -> Dict[str, Any]:
+    """Check if deployed slurm.conf matches input configuration.
+
+    Verifies that key configuration parameters from slurm_config.yml
+    are correctly reflected in the deployed /etc/slurm/slurm.conf on the control node.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, skipped
+    """
+    # Read PXE mapping to get control node IP
+    config = load_test_config()
+    project = config.get("project_name", "project_default")
+    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+
+    cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "details": "Could not find control node in PXE mapping",
+            "error": "PXE mapping read failed or no control node found"
+        }
+
+    control_ip = result.stdout.strip()
+    slurm_config_path = f"/opt/omnia/orchestrator/input/{project}/slurm_config.yml"
+
+    # Check if slurm_config.yml exists
+    cmd = f"test -f {slurm_config_path} && echo exists || echo missing"
+    result = run_on_host(host, cmd)
+
+    if result.stdout.strip() != "exists":
+        return {
+            "success": False,
+            "details": "slurm_config.yml not found in input directory",
+            "error": f"Input config file not found: {slurm_config_path}"
+        }
+
+    # Read slurm_config.yml to extract key parameters
+    cmd = f"cat {slurm_config_path}"
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": "Failed to read slurm_config.yml",
+            "error": f"Read failed: {result.stderr}"
+        }
+
+    input_config = result.stdout
+
+    # Extract cluster name from input config
+    cluster_name = None
+    for line in input_config.split('\n'):
+        if 'cluster_name:' in line.lower():
+            cluster_name = line.split(':')[1].strip().strip('"\'')
+            break
+
+    if not cluster_name:
+        return {
+            "success": False,
+            "details": "Could not extract cluster_name from slurm_config.yml",
+            "error": "cluster_name not found in input configuration"
+        }
+
+    # Read deployed slurm.conf from control node
+    ssh_cmd = f"ssh -o StrictHostKeyChecking=no root@{control_ip} 'cat /etc/slurm/slurm.conf'"
+    deployed_result = run_on_host(host, ssh_cmd)
+
+    if deployed_result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Failed to read /etc/slurm/slurm.conf from control node {control_ip}",
+            "error": f"SSH read failed: {deployed_result.stderr}"
+        }
+
+    deployed_config = deployed_result.stdout
+
+    # Verify cluster name matches
+    cluster_name_in_deployed = None
+    for line in deployed_config.split('\n'):
+        if line.strip().startswith('ClusterName'):
+            cluster_name_in_deployed = line.split('=')[1].strip()
+            break
+
+    if not cluster_name_in_deployed:
+        return {
+            "success": False,
+            "details": "ClusterName not found in deployed slurm.conf",
+            "error": "ClusterName parameter missing from deployed configuration"
+        }
+
+    if cluster_name != cluster_name_in_deployed:
+        return {
+            "success": False,
+            "details": f"Cluster name mismatch: input={cluster_name}, deployed={cluster_name_in_deployed}",
+            "error": "Cluster name does not match between input and deployed config"
+        }
+
+    # Check for extra_confs in input config
+    extra_confs_present = 'extra_confs:' in input_config
+
+    # If extra_confs present, verify they are referenced in deployed config
+    if extra_confs_present:
+        # Extract extra conf file names
+        extra_conf_files = []
+        in_extra_confs = False
+        for line in input_config.split('\n'):
+            if 'extra_confs:' in line:
+                in_extra_confs = True
+                continue
+            if in_extra_confs:
+                if line.strip().startswith('-') and '.conf' in line:
+                    conf_file = line.strip().split(':')[-1].strip().strip('"\'')
+                    if conf_file:
+                        extra_conf_files.append(conf_file)
+                elif not line.strip().startswith(' ') and not line.strip().startswith('-'):
+                    in_extra_confs = False
+
+        if extra_conf_files:
+            # Check if these conf files are included in deployed slurm.conf
+            for conf_file in extra_conf_files:
+                if conf_file not in deployed_config:
+                    return {
+                        "success": False,
+                        "details": f"Extra conf file {conf_file} not found in deployed slurm.conf",
+                        "error": f"Custom config file not deployed: {conf_file}"
+                    }
+
+    return {
+        "success": True,
+        "details": f"SLURM config integrity verified on control node {control_ip}",
+        "error": ""
+    }
+
+
 def check_slurm_nodes_registered(host) -> Dict[str, Any]:
     """Check if SLURM nodes are registered on actual cluster.
 
