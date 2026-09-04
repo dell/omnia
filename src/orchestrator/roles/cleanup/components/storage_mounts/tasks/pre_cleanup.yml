@@ -37,7 +37,7 @@
 
 - name: Read storage configuration
   ansible.builtin.include_vars:
-    file: "/opt/omnia/orchestrator/input/project_default/storage_config.yml"
+    file: "{{ input_project_dir }}/storage_config.yml"
   register: storage_config_loaded
   failed_when: false
 

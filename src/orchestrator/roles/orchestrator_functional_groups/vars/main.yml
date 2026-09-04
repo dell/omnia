@@ -16,4 +16,4 @@
 orchestrator_config_file: "{{ hostvars['localhost']['orchestrator_config_file'] | default('orchestrator_config.yml') }}"
 omnia_config_file: "omnia_config.yml"
 omnia_config_dir: "{{ hostvars['localhost']['omnia_project_input_dir'] | default(input_project_dir) }}"
-functional_groups_config_path: "{{ omnia_data_path | default('/opt/omnia', true) }}/.data/functional_groups_config.yml"
+functional_groups_config_path: "{{ omnia_data_path }}/.data/functional_groups_config.yml"

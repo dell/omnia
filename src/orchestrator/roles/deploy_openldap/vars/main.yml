@@ -19,7 +19,7 @@ omnia_auth_tag: "1.1"
 omnia_auth_container_name: "omnia_auth"
 
 # Directory paths
-auth_base_dir: "{{ hostvars['localhost']['omnia_data_path'] | default('/opt/omnia', true) }}/auth"
+auth_base_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/auth"
 auth_config_dir: "{{ auth_base_dir }}/config"
 auth_certs_dir: "{{ auth_base_dir }}/tls_certs"
 auth_data_dir: "{{ auth_base_dir }}/data"

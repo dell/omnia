@@ -78,7 +78,7 @@
   block:
     - name: Remove OpenLDAP data directory
       ansible.builtin.file:
-        path: "{{ openldap_config.base_dir | default('/opt/omnia/auth') }}"
+        path: "{{ openldap_config.base_dir }}"
         state: absent
       failed_when: false
       when: "'remove_data' in openldap_config.cleanup_operations"

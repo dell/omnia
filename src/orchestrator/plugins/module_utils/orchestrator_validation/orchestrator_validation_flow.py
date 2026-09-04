@@ -155,21 +155,19 @@ def validate_additional_cloud_init_config(config_data, errors, logger=None):
             logger.error(msg)
 
 
-def validate_pxe_mapping_file(config_data, errors, logger=None):
+def validate_pxe_mapping_file(
+    config_data, input_project_dir, errors, logger=None
+):
     """
-    If pxe_mapping_file_path is set, validate the mapping file:
+    Validate the configured PXE mapping file, or the project-default file:
       - File must exist
       - Required header columns must be present
       - No duplicate SERVICE_TAGs, HOSTNAMEs, or ADMIN_IPs
       - ADMIN_IP values must be valid IPv4
     """
-    path = config_data.get("pxe_mapping_file_path", "")
-    if not path:
-        msg = "orchestrator_config: 'pxe_mapping_file_path' is required."
-        errors.append(msg)
-        if logger:
-            logger.error(msg)
-        return
+    path = config_data.get("pxe_mapping_file_path") or os.path.join(
+        input_project_dir, "pxe_mapping_file.csv"
+    )
 
     if not os.path.isfile(path):
         msg = f"orchestrator_config: pxe_mapping_file_path '{path}' does not exist."
@@ -240,8 +238,10 @@ def validate_network_spec_cross(config_data, input_project_dir, errors, logger=N
     """
     Cross-validate ADMIN_IPs in the mapping file against network_spec.yml subnets.
     """
-    path = config_data.get("pxe_mapping_file_path", "")
-    if not path or not os.path.isfile(path):
+    path = config_data.get("pxe_mapping_file_path") or os.path.join(
+        input_project_dir, "pxe_mapping_file.csv"
+    )
+    if not os.path.isfile(path):
         return
 
     ns_path = os.path.join(input_project_dir, "network_spec.yml")
@@ -355,6 +355,6 @@ def validate_orchestrator_config_l2(config_data, input_project_dir, logger=None)
     validate_kernel_version_override(config_data, errors, logger)
     validate_s3_config(config_data, errors, logger)
     validate_additional_cloud_init_config(config_data, errors, logger)
-    validate_pxe_mapping_file(config_data, errors, logger)
+    validate_pxe_mapping_file(config_data, input_project_dir, errors, logger)
     validate_network_spec_cross(config_data, input_project_dir, errors, logger)
     return errors

@@ -137,7 +137,7 @@ src/orchestrator/
 | Credential key | `.omnia_config_credentials_key` |
 | Input subdir | `input/project_default/orchestrator/` |
 | Output subdir | `output/project_default/orchestrator/` |
-| Log path | `/opt/omnia/log/core/orchestrator/orchestrator.log` |
+| Log path | `$OMNIA_DATA_PATH/log/core/orchestrator/orchestrator.log` |
 
 ### Ansible Config (ansible.cfg)
 
@@ -293,7 +293,7 @@ functional_group_images:
 - `orchestrator_state.yml` — Support flags for standalone runs
 - BSS boot parameter configurations
 - Cloud-init default/group/node configurations
-- `/opt/omnia/hosts` — Ansible inventory
+- `$OMNIA_DATA_PATH/hosts` — Ansible inventory
 
 ---
 
@@ -410,7 +410,7 @@ accidental execution during the default flow. They must be explicitly requested.
 | Credential file | `omnia_config_credentials.yml` | Shared naming |
 | Phase directories | `<phase>/` | `precheck/`, `prepare/`, `deploy/`, `cleanup/` |
 | Component playbooks | `<phase>_<component>.yml` | `precheck_openchami.yml`, `cleanup_openldap.yml` |
-| Log path | `/opt/omnia/log/core/<domain>/` | `/opt/omnia/log/core/orchestrator/` |
+| Log path | `$OMNIA_DATA_PATH/log/core/<domain>/` | `$OMNIA_DATA_PATH/log/core/orchestrator/` |
 
 ---
 

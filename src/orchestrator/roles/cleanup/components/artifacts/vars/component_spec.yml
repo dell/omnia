@@ -19,10 +19,10 @@
 artifacts_config:
   description: "Cleans what orchestrator deployed, not what it needs as input"
   deployment_outputs:
-    - "/opt/omnia/output/project_default/orchestrator"
+    - "{{ orchestrator_output_dir }}"
   cleanup_framework_artifacts:
-    - "/opt/omnia/log/cleanup"
+    - "{{ omnia_data_path }}/orchestrator/log/cleanup"
     - "/var/lib/omnia/cleanup"
   preserve_inputs:
-    - "/opt/omnia/.data/functional_groups_config.yml"
-    - "/opt/omnia/.data/upgrade_in_progress.lock"
+    - "{{ omnia_data_path }}/.data/functional_groups_config.yml"
+    - "{{ omnia_data_path }}/.data/upgrade_in_progress.lock"

@@ -31,7 +31,9 @@
 
 - name: Set image_build_manager output path
   ansible.builtin.set_fact:
-    _build_status_path: "{{ _orch_config.image_build_manager_output_path | default(hostvars['localhost']['image_build_manager_output_path']) }}"
+    _build_status_path: >-
+      {{ _orch_config.image_build_manager_output_path
+         | default(hostvars['localhost']['image_build_manager_output_path'], true) }}
 
 - name: Verify build_status.yml exists
   ansible.builtin.stat:

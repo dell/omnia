@@ -103,34 +103,3 @@
   ansible.builtin.include_vars:
     file: "{{ functional_groups_config_path }}"
   when: functional_groups is not defined
-
-# =========================================================================
-# Step 5: Load cluster config from OIM and authenticate (OIM host only)
-# =========================================================================
-- name: Set oim_node_name on OIM host
-  ansible.builtin.set_fact:
-    oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
-  when:
-    - inventory_hostname == 'oim'
-    - oim_node_name is not defined
-
-- name: Load OpenCHAMI configs_vars.yaml from OIM
-  ansible.builtin.include_vars:
-    file: /opt/omnia/openchami/configs_vars.yaml
-  when:
-    - inventory_hostname == 'oim'
-    - cluster_name is not defined
-
-- name: OpenCHAMI cluster authentication
-  ansible.builtin.include_role:
-    name: orchestrator_common
-    tasks_from: openchami_auth.yml
-  when: inventory_hostname == 'oim'
-
-- name: Configure S3 access for boot images
-  ansible.builtin.include_role:
-    name: orchestrator_common
-    tasks_from: configure_s3_access.yml
-  when:
-    - inventory_hostname == 'oim'
-    - s3_configurations is not defined

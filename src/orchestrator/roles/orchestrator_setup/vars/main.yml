@@ -13,16 +13,15 @@
 # limitations under the License.
 ---
 
-# Paths — resolved from environment variables at runtime (see tasks/main.yml)
-# These defaults are overridden by set_fact in the setup tasks.
-omnia_metadata_file_path: "{{ omnia_data_path | default('/opt/omnia') }}/.data/oim_metadata.yml"
-upgrade_lock_file: "{{ omnia_data_path | default('/opt/omnia') }}/.data/upgrade_in_progress.lock"
+# Paths derived after tasks/main.yml resolves the environment configuration.
+omnia_metadata_file_path: "{{ omnia_data_path }}/.data/oim_metadata.yml"
+upgrade_lock_file: "{{ omnia_data_path }}/.data/upgrade_in_progress.lock"
 default_build_status_path: >-
-  {{ omnia_data_path | default('/opt/omnia') }}/image_build_manager/output/{{ project_name | default('project_default') }}/build_status.yml
-default_repo_status_path: "{{ omnia_data_path | default('/opt/omnia') }}/repo_manager/output/{{ project_name | default('project_default') }}/repo_status.yml"
+  {{ omnia_data_path }}/image_build_manager/output/{{ project_name }}/build_status.yml
+default_repo_status_path: "{{ omnia_data_path }}/repo_manager/output/{{ project_name }}/repo_status.yml"
 default_pxe_mapping_file_path: >-
-  {{ omnia_data_path | default('/opt/omnia') }}/orchestrator/input/{{ project_name | default('project_default') }}/pxe_mapping_file.csv
-default_catalog_file_path: "{{ lookup('env', 'CATALOG_FILE_PATH') | default(omnia_data_path | default('/opt/omnia') + '/catalog/catalog_rhel.json', true) }}"
+  {{ omnia_data_path }}/orchestrator/input/{{ project_name }}/pxe_mapping_file.csv
+default_catalog_file_path: "{{ lookup('env', 'CATALOG_FILE_PATH') | default(omnia_data_path + '/catalog/catalog_rhel.json', true) }}"
 
 # --- Tag validation ---
 supported_tags:

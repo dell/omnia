@@ -4,7 +4,7 @@
   "properties": {
     "pxe_mapping_file_path": {
       "type": "string",
-      "description": "Path to the PXE mapping file."
+      "description": "Optional path to the PXE mapping file. An empty value uses the current project input directory."
     },
     "language": {
       "type": "string",
