@@ -34,7 +34,6 @@
     auth_base_dir: /opt/omnia/auth
     auth_quadlet_file: /etc/containers/systemd/omnia_auth.container
   tags:
-    - never
     - cleanup
   tasks:
     - name: Stop OpenLDAP service

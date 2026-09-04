@@ -2,89 +2,156 @@
 
 ## Overview
 
-Tag-based cleanup system for Omnia orchestrator components. Selectively cleanup individual components or perform full system cleanup.
+Tag-based cleanup for Omnia orchestrator components. There are two entry points:
 
-## Quick Start
+| Entry point | Purpose | Tags available |
+|-------------|---------|----------------|
+| `playbooks/orchestrator.yml` | Full cleanup of every component | `cleanup`, `cleanup_credentials` |
+| `playbooks/cleanup/cleanup_orchestrator.yml` | Cleanup of individual components | `cleanup`, `cleanup_credentials`, plus one tag per component |
 
-```bash
-cd /root/dell/omnia/src/orchestrator
+Component-level tags are deliberately **not** accepted by `orchestrator.yml` — run
+`cleanup_orchestrator.yml` directly when you need to clean a single component.
 
-# Cleanup specific component
-ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags slurm
+Cleanup never runs implicitly. `orchestrator.yml` invoked with no tags, or with any
+non-cleanup tag such as `--tags execute`, performs no cleanup at all.
 
-# Cleanup multiple components
-ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags slurm,k8s
+## Full cleanup (via orchestrator.yml)
 
-# Full cleanup (all components, preserve credentials)
-ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags cleanup
-
-# Cleanup credentials only
-ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags cleanup_credentials
-
-# Full cleanup including credentials
-ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags cleanup,cleanup_credentials
-```
-
-## Via Orchestrator Playbook
+Run from the `src/orchestrator` directory:
 
 ```bash
-cd /root/dell/omnia/src/orchestrator
-
-# Full cleanup (all components, preserve credentials)
+# All enabled components. Credential files are preserved.
 ansible-playbook playbooks/orchestrator.yml --tags cleanup
 
-# Cleanup credentials only
+# Credential files only.
 ansible-playbook playbooks/orchestrator.yml --tags cleanup_credentials
 
-# Full cleanup including credentials
+# All enabled components AND credential files.
 ansible-playbook playbooks/orchestrator.yml --tags cleanup,cleanup_credentials
 ```
 
-**Note:** Cleanup is gated by a `when` condition and will only run when explicit cleanup tags are provided. It will NOT run when orchestrator.yml is called without tags.
+`cleanup` cannot be combined with deployment tags (`prepare`, `deploy`, `provision`,
+`execute`, `pxeboot`, `precheck`, `validate`, `upgrade`, `rollback`); doing so fails
+with a tag-validation error.
 
-## Available Tags
+## Component cleanup (via cleanup_orchestrator.yml)
 
-| Tag | Description |
-|-----|-------------|
-| `slurm` | Cleanup Slurm NFS data and configuration |
-| `k8s` | Cleanup K8s NFS data and configuration |
-| `storage_mounts` | Cleanup NFS mounts (all orchestrator-deployed) |
-| `openchami` | Cleanup OpenCHAMI services, containers, and configs |
-| `openldap` | Cleanup OpenLDAP service, container, and data |
-| `artifacts` | Cleanup orchestrator deployment outputs and state |
-| `credentials` | Cleanup orchestrator credential files (opt-in only) |
-| `cleanup` | Cleanup all enabled components (excludes credentials) |
+```bash
+# No tags: all enabled components, credentials preserved.
+ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml
 
-## Dry Run Mode
+# A single component.
+ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags slurm
 
-Test cleanup without making actual changes:
+# Several components at once.
+ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags slurm,k8s
+```
+
+## Available tags
+
+| Tag | Scope | Description |
+|-----|-------|-------------|
+| `cleanup` | both | All enabled components; credential files preserved |
+| `cleanup_credentials` | both | Orchestrator credential files only (opt-in) |
+| `slurm` | component playbook | Slurm NFS data and configuration |
+| `k8s` | component playbook | K8s NFS data and configuration |
+| `storage_mounts` | component playbook | Unmount orchestrator-deployed NFS mounts, clean fstab |
+| `openchami` | component playbook | OpenCHAMI services, containers, and configuration |
+| `openldap` | component playbook | OpenLDAP service, container, and data |
+| `artifacts` | component playbook | Orchestrator deployment outputs and state files |
+
+`--tags slurm` and `--tags k8s` automatically run `storage_mounts` first, so mounts are
+released before the underlying directories are removed.
+
+## Execution order
+
+Components run in descending priority (OpenCHAMI 100, OpenLDAP 90, Slurm 80, K8s 70,
+storage_mounts 60, artifacts 50, credentials 10), except that `storage_mounts` is always
+reordered to run immediately before Slurm and K8s.
+
+## Shared (NFS) data cleanup
+
+By default, Slurm and K8s cleanup removes their directories from the **shared
+filesystem**, not just the local mount point — so the data is deleted on the NFS server.
+This is done by writing through the mount point while the share is still mounted, which
+means no SSH access to the NFS server is required and it works with NFS appliances.
+
+Order of operations per component:
+
+1. Remove the component's directories via the mount point (deletes them on the server)
+2. Unmount the share and remove its `/etc/fstab` entry
+3. Remove the now-empty local mount point directories
+
+If the share is **not mounted**, step 1 is skipped and a warning is printed — server-side
+data is left untouched. Mount the share and re-run if you need it removed.
+
+To keep shared data, set `cleanup_nfs_server: false` in the relevant component spec:
+
+- `roles/cleanup/components/slurm/vars/component_spec.yml`
+- `roles/cleanup/components/k8s/vars/component_spec.yml`
+
+Directories listed under `preserve_directories` (Slurm: `slurm_backups`) are never
+removed.
+
+**Warning:** this is destructive and irreversible. On shared storage these paths
+(`projects`, `scratch`, `apps`, …) may hold data Omnia did not create. Verify backups
+before running, and do a `DRY_RUN=true` pass first.
+
+## Confirmation
+
+Cleanup asks for confirmation before deleting anything:
+
+```
+About to permanently delete data for: openchami, openldap, artifacts, storage_mounts, slurm, k8s
+This includes data on shared NFS storage, which cannot be recovered.
+Type 'yes' to proceed (anything else aborts)
+```
+
+Anything other than `yes` aborts before any component runs.
+
+Non-interactive runs (CI, scripts, cron) receive no input and therefore **abort**. Pass
+`SKIP_APPROVAL=true` to bypass the prompt:
+
+```bash
+SKIP_APPROVAL=true ansible-playbook playbooks/orchestrator.yml --tags cleanup
+```
+
+Confirmation is skipped automatically when `DRY_RUN=true`, since nothing is modified.
+
+## Dry run mode
 
 ```bash
 DRY_RUN=true ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags slurm
 ```
 
-## NFS Server Cleanup
+Runs every component in Ansible check mode, so nothing is modified: services are not
+stopped, containers are not removed, files are not deleted, and shares are not unmounted.
+Tasks are still reported as `changed` to show what *would* happen — that report is the
+point of the dry run.
 
-By default, cleanup deletes NFS server data for Slurm and K8s components. To preserve NFS server data, edit the component configuration:
+Applies to all components, including those reached indirectly (for example
+`storage_mounts` when triggered by `slurm`).
 
-```bash
-# Edit Slurm component configuration
-vi /root/catalog/omnia/src/orchestrator/roles/cleanup/components/slurm/vars/component_spec.yml
+## Configuration
 
-# Change cleanup_nfs_server to false:
-slurm_config:
-  cleanup_nfs_server: false
-```
+Component behaviour is defined in two places:
 
-**Warning:** NFS server cleanup is destructive. Ensure you have backups before running cleanup.
+- `roles/cleanup/config/default_cleanup.yml` — which components exist, their priority,
+  whether they are enabled, and the paths they remove.
+- `roles/cleanup/components/<component>/vars/component_spec.yml` — per-component
+  behaviour such as `cleanup_nfs_server` and directories to preserve.
 
 ## Troubleshooting
 
-### Issue: "storage_config.yml not found"
-**Solution:** Ensure `storage_config.yml` exists in your orchestrator input directory.
+**"storage_config.yml not found"** — ensure `storage_config.yml` exists in the
+orchestrator input directory (`/opt/omnia/orchestrator/input/<project>/`).
 
-### Issue: Tasks not executing with tags
-**Solution:** Ensure you're using the correct tag names from the Available Tags table.
+**"No components selected for cleanup"** — the supplied tag does not match any component.
+Check the tag against the table above; component tags only work with
+`cleanup_orchestrator.yml`.
 
-### Issue: Permission errors
-**Solution:** Run cleanup with appropriate permissions (root or sudo).
+**Tags appear to run but nothing happens** — confirm you are using the right entry point.
+Component tags passed to `orchestrator.yml` are rejected by tag validation.
+
+**Permission errors** — cleanup removes system paths and manages systemd units; run as
+root or with sudo.

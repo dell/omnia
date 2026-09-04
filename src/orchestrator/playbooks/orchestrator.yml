@@ -29,9 +29,9 @@
 #   ansible-playbook playbooks/orchestrator.yml --tags execute         # Provision + PXE boot (if enabled)
 #   ansible-playbook playbooks/orchestrator.yml --tags validate-deployment # Validate OpenCHAMI + OpenLDAP service health
 #   ansible-playbook playbooks/orchestrator.yml --tags pxeboot         # PXE boot on iDRAC nodes (requires enable_pxe_boot: true)
-#   ansible-playbook playbooks/orchestrator.yml --tags cleanup         # Comprehensive tag-based cleanup (all components, preserve credentials)
+#   ansible-playbook playbooks/orchestrator.yml --tags cleanup         # Cleanup all components (preserve credentials)
 #   ansible-playbook playbooks/orchestrator.yml --tags cleanup_credentials # Cleanup credentials only
-#   ansible-playbook playbooks/orchestrator.yml --tags cleanup,cleanup_credentials # Comprehensive cleanup (all components, remove credentials)
+#   ansible-playbook playbooks/orchestrator.yml --tags cleanup,cleanup_credentials # Cleanup all components + credentials
 #   ansible-playbook playbooks/orchestrator.yml --tags upgrade         # In-place upgrade OpenCHAMI + OpenLDAP
 #   ansible-playbook playbooks/orchestrator.yml --tags rollback        # Revert OpenCHAMI + OpenLDAP to previous state
 #
@@ -46,15 +46,19 @@
 #   execute      — Invoke provision + pxeboot tags (PXE boot conditional on enable_pxe_boot)
 #   validate-deployment — Validate OpenCHAMI and OpenLDAP service health (read-only)
 #   pxeboot      — PXE boot on iDRAC nodes (controlled by enable_pxe_boot in orchestrator_config.yml)
-#   cleanup      — Comprehensive tag-based cleanup of all orchestrator components (preserve credentials)
-#   cleanup_credentials — Comprehensive tag-based cleanup of all orchestrator components (remove credentials)
+#   cleanup      — Cleanup all enabled orchestrator components (opt-in only, preserves credentials)
+#   cleanup_credentials — Cleanup orchestrator credential files (opt-in only)
 #   upgrade      — In-place upgrade of OpenCHAMI + OpenLDAP (opt-in only)
 #   rollback     — Revert OpenCHAMI + OpenLDAP to previous state from backup (opt-in only)
+#
+# Component-level cleanup (slurm, k8s, openchami, openldap, storage_mounts,
+# artifacts) is NOT available from this playbook. Run it directly instead:
+#   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags slurm
 #
 # Tag Validation:
 #   - Invalid tags will fail with error message
 #   - Invalid combinations (e.g., prepare + upgrade) will fail
-#   - validate and validate-deployment tags skip credential prompting
+#   - cleanup, validate and validate-deployment tags skip credential prompting
 #
 # PXE Boot (physical servers only):
 #   - Controlled by enable_pxe_boot in orchestrator_config.yml (default: true)
@@ -95,7 +99,7 @@
 #   execute   -> provision_preamble.yml + provision_*.yml
 #               + validate_provisioning.yml
 #               + pxeboot/pxeboot.yml (when enable_pxe_boot: true)
-#   cleanup   -> cleanup/cleanup_orchestrator.yml (comprehensive tag-based cleanup)
+#   cleanup   -> cleanup/cleanup_full.yml (all components; credentials opt-in)
 #   upgrade   -> upgrade_openchami.yml   + upgrade_openldap.yml
 #   rollback  -> rollback_openchami.yml  + rollback_openldap.yml
 #
@@ -265,21 +269,16 @@
     - pxeboot
 
 # =========================================================================
-# FLOW: cleanup — Comprehensive tag-based cleanup (all components)
+# FLOW: cleanup — Remove all orchestrator components (opt-in only)
+# Component-level cleanup (slurm, k8s, openchami, ...) is not exposed here;
+# run playbooks/cleanup/cleanup_orchestrator.yml directly for that.
 # =========================================================================
 
-# Comprehensive cleanup with tag-based component selection
 - name: Cleanup orchestrator components
-  ansible.builtin.import_playbook: cleanup/cleanup_orchestrator.yml
-  when: ansible_run_tags is defined and ('cleanup' in ansible_run_tags or 'cleanup_credentials' in ansible_run_tags or 'slurm' in ansible_run_tags or 'k8s' in ansible_run_tags or 'storage_mounts' in ansible_run_tags or 'openchami' in ansible_run_tags or 'openldap' in ansible_run_tags or 'artifacts' in ansible_run_tags)
+  ansible.builtin.import_playbook: cleanup/cleanup_full.yml
   tags:
+    - never
     - cleanup
-
-# Cleanup credentials only
-- name: Cleanup credentials only
-  ansible.builtin.import_playbook: cleanup/cleanup_orchestrator.yml
-  when: ansible_run_tags is defined and ('cleanup_credentials' in ansible_run_tags)
-  tags:
     - cleanup_credentials
 
 # =========================================================================

@@ -42,7 +42,6 @@
     openchami_work_dir: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}/omnia/openchami/workdir"
     ochami_dir: /etc/ochami
   tags:
-    - never
     - cleanup
   tasks:
     - name: Stop OpenCHAMI services
@@ -147,6 +146,8 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  tags:
+    - cleanup
   tasks:
     - name: Remove generated functional groups config
       ansible.builtin.file:

@@ -49,53 +49,97 @@
   when: k8s_mount_point is not defined
   tags: k8s
 
-- name: Cleanup NFS server data (optional - requires cleanup_nfs_server set to true)
-  when:
-    - k8s_config.cleanup_nfs_server | default(false) | bool
-    - mounts is defined
-  block:
-    - name: Get NFS server IP and export path from storage config
-      ansible.builtin.set_fact:
-        nfs_server_ip: "{{ (mounts | selectattr('name', 'equalto', 'nfs_k8s') | first).source.split(':')[0] | default('') }}"
-        nfs_export_path: "{{ (mounts | selectattr('name', 'equalto', 'nfs_k8s') | first).source.split(':')[1] | default('') }}"
-
-    - name: Debug NFS server info
-      ansible.builtin.debug:
-        msg: "NFS Server: {{ nfs_server_ip }}, Export: {{ nfs_export_path }}"
-
-    - name: Cleanup NFS server data (before unmounting)
-      ansible.builtin.shell: |
-        set -o pipefail
-        for dir in {{ k8s_config.cleanup_directories | join(' ') }}; do
-          rm -rf {{ nfs_export_path }}/$dir
-        done
-      delegate_to: "{{ nfs_server_ip }}"
-      become: true
-      failed_when: false
-      when:
-        - nfs_server_ip is defined
-        - nfs_server_ip | length > 0
-        - nfs_export_path is defined
-        - nfs_export_path | length > 0
-
-    - name: Display NFS server cleanup completion
-      ansible.builtin.debug:
-        msg: "NFS server data cleaned on {{ nfs_server_ip }}:{{ nfs_export_path }}"
+# Shared data is removed wherever the shared filesystem is reachable locally,
+# without ever needing SSH access to the NFS server:
+#   - via the mount point, when the share is mounted (writes travel over NFS,
+#     so this works for an external NFS server)
+#   - directly in the export path, when this OIM is itself the NFS server
+#     (also covers re-runs, after an earlier cleanup already unmounted it)
+- name: Read local NFS exports (absent when this OIM is not an NFS server)
+  ansible.builtin.slurp:
+    src: /etc/exports
+  register: k8s_exports_raw
+  failed_when: false
   tags: k8s
 
-- name: Auto-cleanup K8s-related mounts when triggered by K8s
+- name: Resolve the K8s NFS source from storage config
+  ansible.builtin.set_fact:
+    k8s_nfs_source: >-
+      {{ mounts | default([]) | selectattr('name', 'equalto', 'nfs_k8s')
+      | map(attribute='source') | list | first | default('', true) }}
+  tags: k8s
+
+- name: Determine how the K8s shared filesystem is reachable
+  ansible.builtin.set_fact:
+    k8s_share_mounted: >-
+      {{ k8s_mount_point in (lookup('file', '/proc/mounts').splitlines()
+      | map('regex_replace', '^\S+\s+(\S+)\s+.*$', '\1') | list) }}
+    k8s_export_path: "{{ k8s_nfs_source.split(':')[1] if ':' in k8s_nfs_source else '' }}"
+  tags: k8s
+
+- name: Determine whether this OIM exports the K8s share
+  ansible.builtin.set_fact:
+    k8s_export_is_local: >-
+      {{ k8s_export_path | length > 0
+      and k8s_export_path in ((k8s_exports_raw.content | default('') | b64decode).splitlines()
+      | reject('match', '^\s*(#|$)') | map('regex_replace', '^\s*(\S+).*$', '\1') | list) }}
+  tags: k8s
+
+- name: Select where K8s shared data will be removed from
+  ansible.builtin.set_fact:
+    k8s_clean_base: >-
+      {{ k8s_mount_point if k8s_share_mounted | bool
+      else k8s_export_path if k8s_export_is_local | bool
+      else '' }}
+  tags: k8s
+
+- name: Report how K8s shared data will be reached
+  ansible.builtin.debug:
+    msg: >-
+      Removing K8s shared data from '{{ k8s_clean_base }}'
+      ({{ 'via mount point' if k8s_share_mounted | bool else 'local NFS export on this OIM' }}).
+  when:
+    - k8s_config.cleanup_nfs_server | default(false) | bool
+    - k8s_clean_base | length > 0
+  tags: k8s
+
+- name: Warn that K8s shared data is not reachable
+  ansible.builtin.debug:
+    msg: >-
+      K8s data on the NFS server was NOT removed: '{{ k8s_mount_point }}' is not
+      mounted and this host does not export '{{ k8s_export_path }}'. Mount the share
+      and re-run, or remove the data on the NFS server directly.
+  when:
+    - k8s_config.cleanup_nfs_server | default(false) | bool
+    - k8s_clean_base | length == 0
+  tags: k8s
+
+- name: Remove K8s data from the shared filesystem (before unmounting)
+  ansible.builtin.file:
+    path: "{{ k8s_clean_base }}/{{ item }}"
+    state: absent
+  loop: "{{ k8s_config.cleanup_directories }}"
+  when:
+    - k8s_config.cleanup_nfs_server | default(false) | bool
+    - k8s_clean_base | length > 0
+  tags: k8s
+
+# storage_mounts is a declared dependency of this component, so it always runs
+# here. trigger_component tells it to unmount only the K8s-related mounts.
+- name: Unmount K8s-related storage mounts
   ansible.builtin.include_tasks: "{{ role_path }}/components/storage_mounts/tasks/cleanup.yml"
-  when: trigger_component is defined and trigger_component == 'k8s'
   vars:
     trigger_component: "k8s"
   tags: k8s
 
-- name: Clean K8s NFS mount points (after unmounting)
+# Removes the now-empty local mount point stubs. Has no effect on NFS server
+# data, which was already handled above while the share was still mounted.
+- name: Remove local K8s mount point directories (after unmounting)
   ansible.builtin.file:
     path: "{{ k8s_mount_point }}/{{ item }}"
     state: absent
-  failed_when: false
   loop: "{{ k8s_config.cleanup_directories }}"
+  failed_when: false
   when: k8s_config.nfs_cleanup | default(false) | bool
   tags: k8s
 
