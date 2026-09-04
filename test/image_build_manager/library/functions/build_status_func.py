@@ -23,12 +23,106 @@ from ._config_helpers import (
     _get_project_name,
     get_configured_functional_groups,
 )
-from ..vars.common_vars import CMDS, S3_BOOT_IMAGES_BUCKET
+from ..vars.common_vars import (
+    CMDS,
+    IMAGE_BUILD_TYPE_SUFFIXES,
+    S3_BOOT_IMAGES_BUCKET,
+)
 
 
 # =============================================================================
 # BUILD STATUS VERIFICATION
 # =============================================================================
+
+def _status_artifact_paths(status_data: Dict[str, Any]) -> List[str]:
+    """Return all artifact paths declared by a build-status manifest."""
+    paths = []
+    for arch_block in status_data.get("functional_group_images", []):
+        if not isinstance(arch_block, dict):
+            continue
+        for entries in arch_block.values():
+            if not isinstance(entries, list):
+                continue
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
+                paths.extend(
+                    path for field in ("kernel", "initrd", "image")
+                    if isinstance((path := entry.get(field)), str) and path
+                )
+    return paths
+
+
+def resolve_build_status_image_type(
+    status_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Resolve the engine recorded by, or inferred for, a build manifest.
+
+    New manifests declare ``image_build_type``. For backward compatibility,
+    manifests created before that field was introduced are resolved from the
+    engine suffix present in their artifact directories.
+
+    Returns:
+        Dict containing success, image_build_type, source, details, and error.
+    """
+    declared_type = status_data.get("image_build_type")
+    if declared_type is not None:
+        if (
+            not isinstance(declared_type, str)
+            or declared_type not in IMAGE_BUILD_TYPE_SUFFIXES
+        ):
+            return {
+                "success": False,
+                "image_build_type": "",
+                "source": "manifest",
+                "details": "",
+                "error": (
+                    "build_status.yml image_build_type must be one of: "
+                    + ", ".join(IMAGE_BUILD_TYPE_SUFFIXES)
+                ),
+            }
+        return {
+            "success": True,
+            "image_build_type": declared_type,
+            "source": "manifest",
+            "details": "Recorded directly in build_status.yml",
+            "error": None,
+        }
+
+    artifact_paths = _status_artifact_paths(status_data)
+    inferred_types = {
+        build_type
+        for build_type, suffix in IMAGE_BUILD_TYPE_SUFFIXES.items()
+        if any(f"{suffix}/" in path for path in artifact_paths)
+    }
+    if len(inferred_types) == 1:
+        inferred_type = inferred_types.pop()
+        return {
+            "success": True,
+            "image_build_type": inferred_type,
+            "source": "legacy_artifact_suffix",
+            "details": (
+                "Legacy manifest: inferred from artifact directory suffixes"
+            ),
+            "error": None,
+        }
+
+    reason = (
+        "no recognized engine suffix was found"
+        if not inferred_types
+        else "artifact paths contain more than one engine suffix"
+    )
+    return {
+        "success": False,
+        "image_build_type": "",
+        "source": "legacy_artifact_suffix",
+        "details": "",
+        "error": (
+            "build_status.yml does not declare image_build_type and "
+            f"{reason}; run the build again to generate a current manifest"
+        ),
+    }
+
 
 def check_build_status_file(host) -> Dict[str, Any]:
     """Verify build_status.yml exists and reports success.
@@ -66,8 +160,30 @@ def check_build_status_file(host) -> Dict[str, Any]:
             "error": f"Failed to parse build_status.yml: {exc}",
         }
 
-    overall = data.get("overall_status", "").lower()
+    if not isinstance(data, dict):
+        return {
+            "success": False,
+            "status": "invalid",
+            "status_path": status_path,
+            "details": None,
+            "error": "build_status.yml must contain a YAML mapping",
+        }
+
+    overall_value = data.get("overall_status", "")
+    overall = (
+        overall_value.lower() if isinstance(overall_value, str) else ""
+    )
     if overall == "success":
+        build_type = resolve_build_status_image_type(data)
+        if not build_type["success"]:
+            return {
+                "success": False,
+                "status": "invalid",
+                "status_path": status_path,
+                "details": None,
+                "error": build_type["error"],
+                "data": data,
+            }
         fg_images = data.get("functional_group_images", [])
         # Count actual functional groups across all arch blocks
         all_groups = []
@@ -96,9 +212,16 @@ def check_build_status_file(host) -> Dict[str, Any]:
                                     ),
                                 })
 
+        build_type_source = (
+            "recorded in manifest"
+            if build_type["source"] == "manifest"
+            else "inferred from legacy artifact suffix"
+        )
         detail_lines = [
             f"overall_status: success, "
-            f"{len(all_groups)} functional groups built"
+            f"{len(all_groups)} functional groups built",
+            "image_build_type: "
+            f"{build_type['image_build_type']} ({build_type_source})",
         ]
         for g in all_groups:
             detail_lines.append(f"  {g['name']}:")
@@ -122,6 +245,8 @@ def check_build_status_file(host) -> Dict[str, Any]:
             "details": "\n".join(detail_lines),
             "error": None,
             "data": data,
+            "image_build_type": build_type["image_build_type"],
+            "image_build_type_source": build_type["source"],
         }
 
     return {

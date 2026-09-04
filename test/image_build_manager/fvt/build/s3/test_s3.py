@@ -23,11 +23,51 @@ import pytest
 
 from library.functions import TestLogger, check_s3_bucket_images
 from library.vars import TEST_CASES as TC
-from library.vars.common_vars import SHARED_PATH
+from library.vars.common_vars import S3_BOOT_IMAGES_BUCKET, SHARED_PATH
 from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
+
+
+_ARTIFACT_DISPLAY = {
+    "vmlinuz": (0, "Kernel"),
+    "initramfs": (1, "Initrd"),
+    "rootfs": (2, "Rootfs"),
+}
+
+
+def _success_fields(result: dict, arch: str) -> list:
+    """Return ordered fields for every verified S3 artifact."""
+    fields = [
+        ("Architecture", arch),
+        ("Build-status image type", result["image_build_type"]),
+        ("S3 bucket", S3_BOOT_IMAGES_BUCKET),
+        ("Functional groups verified", len(result["results"])),
+    ]
+    if result.get("image_build_type_mismatch"):
+        fields.append((
+            "Current configured image type",
+            (
+                f"{result['configured_image_build_type']} "
+                "(different from the recorded build)"
+            ),
+        ))
+    for group_result in result["results"]:
+        functional_group = group_result["functional_group"]
+        fields.append(("Functional group", functional_group))
+        artifacts = sorted(
+            group_result["found_images"],
+            key=lambda artifact: _ARTIFACT_DISPLAY[artifact["type"]][0],
+        )
+        for artifact in artifacts:
+            label = _ARTIFACT_DISPLAY[artifact["type"]][1]
+            filename = artifact["path"].rsplit("/", 1)[-1]
+            fields.append((
+                f"  {label}",
+                f"{filename} ({artifact['size']})",
+            ))
+    return fields
 
 
 def _format_missing_list(result):
@@ -63,8 +103,9 @@ def test_s3_images_x86_64(host):
         pytest.skip(result["details"])
 
     if result["success"]:
-        tl.passed(
-            LOG["s3_images_ok"].format(count=len(result["results"]))
+        tl.passed_fields(
+            LOG["s3_images_ok"].format(count=len(result["results"])),
+            _success_fields(result, arch),
         )
     else:
         tl.failed(
@@ -93,8 +134,9 @@ def test_s3_images_aarch64(host):
         pytest.skip(result["details"])
 
     if result["success"]:
-        tl.passed(
-            LOG["s3_images_ok"].format(count=len(result["results"]))
+        tl.passed_fields(
+            LOG["s3_images_ok"].format(count=len(result["results"])),
+            _success_fields(result, arch),
         )
     else:
         tl.failed(

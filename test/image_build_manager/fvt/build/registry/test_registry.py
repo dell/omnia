@@ -46,6 +46,11 @@ def test_registry_images_x86_64(host):
     arch = "x86_64"
     tl = TestLogger(tc["title"], tc["id"])
     result = check_registry_images(host, arch=arch)
+
+    if result.get("skipped"):
+        tl.skipped(result["details"])
+        pytest.skip(result["details"])
+
     url = result.get("registry_url", "unknown")
 
     if result["success"]:

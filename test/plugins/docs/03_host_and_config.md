@@ -239,6 +239,27 @@ print(result.stdout)  # PRETTY_NAME="Rocky Linux 9.4 (Blue Onyx)"
 
 ---
 
+## `run_ssh_command(host, target, command, user="root", connect_timeout=10)`
+
+Run a passwordless SSH command from the current testinfra target to a
+secondary node. The helper applies the configured SSH options, enables batch
+mode, sets a bounded connection timeout, and safely quotes dynamic values.
+
+```python
+from omnia_auto import run_ssh_command
+
+result = run_ssh_command(
+    host,
+    target="10.20.0.25",
+    command="uname -m",
+)
+```
+
+The return value has the same `stdout`, `stderr`, and `rc` attributes as
+`run_on_host()`. An empty target, user, or command raises `ValueError`.
+
+---
+
 ## `connection_params() -> dict`
 
 Build a connection dictionary from your config and credentials, ready to
@@ -458,6 +479,7 @@ print(path)
 | `get_testinfra_host()` | `configure()` with config and credentials |
 | `is_local_execution()` | `configure()` |
 | `run_on_host()` | `get_testinfra_host()` → `host` object |
+| `run_ssh_command()` | `get_testinfra_host()` → `host` object; passwordless SSH from that host to the secondary target |
 | `connection_params()` | `configure()` with config and credentials |
 | `read_remote_env()` | `get_testinfra_host()` → `host` object |
 | `ensure_remote_dir()` | `get_testinfra_host()` → `host` object |

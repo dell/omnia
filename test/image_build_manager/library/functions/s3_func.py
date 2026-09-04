@@ -23,6 +23,7 @@ from ._config_helpers import (
 from .build_status_func import check_build_status_file
 from ..vars.common_vars import (
     CMDS,
+    IMAGE_BUILD_TYPE_SUFFIXES,
     S3_EXPECTED_BUCKETS,
     S3_BOOT_IMAGES_BUCKET,
 )
@@ -33,11 +34,6 @@ _BUILD_STATUS_ARTIFACTS = (
     ("kernel", "vmlinuz"),
     ("image", "rootfs"),
 )
-
-_BUILD_TYPE_SUFFIXES = {
-    "image-builder": "-imgbld",
-    "image-thrillhouse": "-imgth",
-}
 
 _THRILLHOUSE_FILENAMES = {
     "kernel": "vmlinuz",
@@ -227,7 +223,7 @@ def _manifest_path_to_s3_uri(path: Any, bucket: str):
 
 
 def _load_build_status_manifest(host, arch: str):
-    """Load exact artifact paths for one architecture."""
+    """Load exact artifact paths and producing engine for an architecture."""
     status = check_build_status_file(host)
     status_data = status.get("data")
     if not status.get("success") or not isinstance(status_data, dict):
@@ -235,11 +231,11 @@ def _load_build_status_manifest(host, arch: str):
             status.get("error")
             or "build_status.yml is unavailable or invalid"
         )
-        return {}, "", error
+        return {}, "", "", error
     status_bucket = _get_status_bucket(status_data)
     expected_bucket = S3_BOOT_IMAGES_BUCKET.removeprefix("s3://").strip("/")
     if status_bucket != expected_bucket:
-        return {}, status_bucket, (
+        return {}, status_bucket, "", (
             f"build_status.yml bucket is '{status_bucket}', expected fixed "
             f"bucket '{expected_bucket}'"
         )
@@ -247,8 +243,8 @@ def _load_build_status_manifest(host, arch: str):
     try:
         entries = _get_arch_build_status_entries(status_data, arch)
     except ValueError as exc:
-        return {}, status_bucket, f"Invalid build_status.yml: {exc}"
-    return entries, status_bucket, ""
+        return {}, status_bucket, "", f"Invalid build_status.yml: {exc}"
+    return entries, status_bucket, status["image_build_type"], ""
 
 
 def _artifact_identity_error(
@@ -284,7 +280,7 @@ def _artifact_identity_error(
 def _artifact_engine_error(
     s3_uri, status_bucket, functional_group, expected_suffix
 ):
-    """Verify the image directory belongs to the configured build engine."""
+    """Verify the image directory belongs to the recorded build engine."""
     if not expected_suffix:
         return ""
 
@@ -301,7 +297,7 @@ def _artifact_engine_error(
     if not image_directory.endswith(expected_suffix):
         return (
             f"image directory '{image_directory or '<missing>'}' must end "
-            f"with configured builder suffix '{expected_suffix}'"
+            f"with recorded builder suffix '{expected_suffix}'"
         )
     return ""
 
@@ -315,7 +311,7 @@ def _artifact_layout_result(
         f"s3://{status_bucket}/efi-images/{functional_group}/"
     )
 
-    if expected_suffix == _BUILD_TYPE_SUFFIXES["image-builder"]:
+    if expected_suffix == IMAGE_BUILD_TYPE_SUFFIXES["image-builder"]:
         expected_prefix = (
             efi_prefix if field in ("kernel", "initrd") else group_prefix
         )
@@ -341,7 +337,7 @@ def _artifact_layout_result(
         if not image_directory.endswith(expected_suffix):
             return "", (
                 f"image directory '{image_directory}' must end with "
-                f"configured builder suffix '{expected_suffix}'"
+                f"recorded builder suffix '{expected_suffix}'"
             )
         if field == "image" and not filename.startswith("rhel"):
             return "", (
@@ -349,7 +345,7 @@ def _artifact_layout_result(
             )
         return image_directory, ""
 
-    if expected_suffix == _BUILD_TYPE_SUFFIXES["image-thrillhouse"]:
+    if expected_suffix == IMAGE_BUILD_TYPE_SUFFIXES["image-thrillhouse"]:
         if not s3_uri.startswith(group_prefix):
             return "", (
                 f"image-thrillhouse {field} must use the "
@@ -367,7 +363,7 @@ def _artifact_layout_result(
         if not image_directory.endswith(expected_suffix):
             return "", (
                 f"image directory '{image_directory}' must end with "
-                f"configured builder suffix '{expected_suffix}'"
+                f"recorded builder suffix '{expected_suffix}'"
             )
         expected_filename = _THRILLHOUSE_FILENAMES[field]
         if filename != expected_filename:
@@ -599,7 +595,7 @@ def check_s3_bucket_images(
             "error": no_groups_error,
         }
 
-    status_entries, status_bucket, status_error = (
+    status_entries, status_bucket, manifest_build_type, status_error = (
         _load_build_status_manifest(host, arch)
     )
     if status_error:
@@ -612,7 +608,9 @@ def check_s3_bucket_images(
             "error": status_error,
         }
 
-    expected_suffix = _BUILD_TYPE_SUFFIXES[expected["image_build_type"]]
+    configured_build_type = expected["image_build_type"]
+    expected_suffix = IMAGE_BUILD_TYPE_SUFFIXES[manifest_build_type]
+    build_type_mismatch = configured_build_type != manifest_build_type
     missing_status_groups = [
         group for group in groups if group not in status_entries
     ]
@@ -648,6 +646,9 @@ def check_s3_bucket_images(
                 + f" for {arch}"
             ),
             "error": _format_missing_artifacts(mismatch_results),
+            "image_build_type": manifest_build_type,
+            "configured_image_build_type": configured_build_type,
+            "image_build_type_mismatch": build_type_mismatch,
         }
 
     # Fast pre-check: verify the boot-images bucket exists before
@@ -705,6 +706,9 @@ def check_s3_bucket_images(
                 f"{arch} functional groups"
             ),
             "error": None,
+            "image_build_type": manifest_build_type,
+            "configured_image_build_type": configured_build_type,
+            "image_build_type_mismatch": build_type_mismatch,
         }
 
     return {
@@ -716,4 +720,7 @@ def check_s3_bucket_images(
             "have all images"
         ),
         "error": _format_missing_artifacts(failed),
+        "image_build_type": manifest_build_type,
+        "configured_image_build_type": configured_build_type,
+        "image_build_type_mismatch": build_type_mismatch,
     }

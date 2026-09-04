@@ -261,8 +261,7 @@ ut_image_build_manager:
   marker: ""
 ```
 
-The complete `command: "test"` cleanup example assumes the default MinIO
-backend. With PowerScale, full cleanup intentionally retains the external S3
-buckets and `/root/.s3cfg`, while `TC_CL_005` and `TC_CL_006` currently expect
-them to be absent. Configure the final cleanup entry with `command: "exec"`
-for PowerScale and verify the applicable local cleanup state separately.
+The complete `command: "test"` cleanup example supports MinIO and PowerScale.
+With PowerScale, full cleanup intentionally retains the external S3 buckets
+and `/root/.s3cfg`; the two MinIO-specific verification cases detect that
+provider and skip automatically while all applicable checks continue.

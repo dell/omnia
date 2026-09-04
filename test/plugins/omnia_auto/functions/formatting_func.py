@@ -24,7 +24,12 @@ Contains:
 
 import os
 import sys
+from collections.abc import Mapping
 from datetime import datetime
+from typing import Any, Iterable, Tuple, Union
+
+
+FieldItems = Union[Mapping[Any, Any], Iterable[Tuple[Any, Any]]]
 
 
 def _supports_color() -> bool:
@@ -66,6 +71,7 @@ class Colors:
     BRIGHT_YELLOW = "\033[93m" if _USE_COLOR else ""
     BRIGHT_BLUE = "\033[94m" if _USE_COLOR else ""
     BRIGHT_CYAN = "\033[96m" if _USE_COLOR else ""
+    BRIGHT_WHITE = "\033[97m" if _USE_COLOR else ""
 
 
 # =============================================================================
@@ -136,6 +142,7 @@ def log(message: str, level: str = "INFO") -> None:
 
 _last_output = ""
 _last_tc_id = ""
+_last_detail_fields = []
 
 MAX_LINE_WIDTH = 100
 
@@ -147,14 +154,19 @@ def get_test_output(test_name: str = None) -> str:  # pylint: disable=unused-arg
 
 def get_last_tc_id() -> str:
     """Get TC ID set by the most recent TestLogger instance.
-    
+
     Used by pytest hooks to retrieve the test case ID for summary
     table display. The TC ID is set when TestLogger.__init__ is called.
-    
+
     Returns:
-        str: Test case ID (e.g., "TC_IB_001") or empty string if none set.
+        str: Test case ID (e.g., "IMGBM_FVT_BUILD_V001") or empty string.
     """
     return _last_tc_id
+
+
+def get_last_detail_fields() -> list:
+    """Return structured fields set by the most recent TestLogger result."""
+    return [field.copy() for field in _last_detail_fields]
 
 
 class TestLogger:
@@ -168,10 +180,11 @@ class TestLogger:
     """
 
     def __init__(self, test_name: str, tc_id: str = ""):
-        global _last_output, _last_tc_id  # pylint: disable=global-variable-not-assigned
+        global _last_tc_id  # pylint: disable=global-variable-not-assigned
         self.test_name = test_name
         self.tc_id = tc_id
         _last_tc_id = tc_id
+        _last_detail_fields.clear()
         self._output_lines = []
         self._add_line("")
         id_part = f" [{tc_id}]" if tc_id else ""
@@ -253,6 +266,45 @@ class TestLogger:
                     f"{Colors.RESET} {line}"
                 )
 
+    @staticmethod
+    def _normalize_fields(fields: FieldItems) -> list:
+        """Normalize an ordered mapping or iterable of key/value pairs."""
+        items = fields.items() if isinstance(fields, Mapping) else fields
+        normalized = []
+        for key, value in items:
+            normalized.append({"key": str(key), "value": str(value)})
+        return normalized
+
+    def _add_fields(self, fields: FieldItems) -> None:
+        """Capture structured fields and render their colored CLI lines."""
+        normalized = self._normalize_fields(fields)
+        _last_detail_fields.clear()
+        _last_detail_fields.extend(field.copy() for field in normalized)
+        for field in normalized:
+            self._add_line(
+                f"    {Colors.GRAY}{Symbols.PIPE}{Colors.RESET} "
+                f"{Colors.BRIGHT_CYAN}{field['key']}:{Colors.RESET} "
+                f"{Colors.BRIGHT_WHITE}{field['value']}{Colors.RESET}"
+            )
+
+    def passed_fields(self, message: str, fields: FieldItems) -> None:
+        """Log a passed result with structured key/value detail fields."""
+        self.passed(message)
+        self._add_fields(fields)
+
+    def skipped_fields(self, message: str, fields: FieldItems) -> None:
+        """Log a skipped result with structured key/value detail fields."""
+        self._add_line(
+            f"  {Colors.BRIGHT_YELLOW}{Symbols.SKIP} SKIP:"
+            f"{Colors.RESET} {self._truncate(message)}"
+        )
+        self._add_fields(fields)
+
+    def failed_fields(self, message: str, fields: FieldItems) -> None:
+        """Log a failed result with structured key/value detail fields."""
+        self.failed(message)
+        self._add_fields(fields)
+
     def get_output(self) -> str:
         """Get all captured output."""
         return "\n".join(self._output_lines)
@@ -277,7 +329,7 @@ def add_session_result(
         test_name: Short test function name.
         status: ``PASSED``, ``FAILED``, or ``SKIPPED``.
         duration: Duration in seconds.
-        tc_id: Test case ID (e.g. ``TC_PR_001``).
+        tc_id: Test case ID (e.g. ``IMGBM_FVT_PREPARE_E001``).
     """
     _SESSION_RESULTS.append({
         "test_name": test_name,
@@ -338,16 +390,17 @@ def _render_summary(results) -> None:
     skipped = [r for r in results if r["status"] == "SKIPPED"]
     total = len(results)
 
-    sep = "=" * 85
+    tc_id_width = max(12, max(len(r.get("tc_id", "")) for r in results))
+    sep = "=" * (tc_id_width + 63)
     print(f"\n{sep}")
     print("  TEST EXECUTION SUMMARY")
     print(sep)
     print(
-        f"  {'TC ID':<12} {'Test Name':<40} "
+        f"  {'TC ID':<{tc_id_width}} {'Test Name':<40} "
         f"{'Status':<10} {'Duration':>8}"
     )
     print(
-        f"  {'-' * 12} {'-' * 40} "
+        f"  {'-' * tc_id_width} {'-' * 40} "
         f"{'-' * 10} {'-' * 8}"
     )
 
@@ -365,14 +418,14 @@ def _render_summary(results) -> None:
         else:
             tag = f"{Colors.YELLOW}{status}{Colors.RESET}"
         print(
-            f"  {Colors.CYAN}{tc_id:<12}{Colors.RESET} "
+            f"  {Colors.CYAN}{tc_id:<{tc_id_width}}{Colors.RESET} "
             f"{Colors.CYAN}{name}{Colors.RESET}"
             f"{' ' * max(1, 40 - len(name))} "
-            f"{tag:<19} {dur:>8}"
+            f"{tag}{' ' * max(1, 10 - len(status))} {dur:>8}"
         )
 
     print(
-        f"  {'-' * 12} {'-' * 40} "
+        f"  {'-' * tc_id_width} {'-' * 40} "
         f"{'-' * 10} {'-' * 8}"
     )
     total_dur = sum(r["duration"] for r in results)
