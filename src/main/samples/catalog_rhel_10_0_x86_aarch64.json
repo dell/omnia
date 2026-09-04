@@ -13,7 +13,8 @@
           "admin_debug_group",
           "common_pks",
           "infiniband_stack_driver_groupv1",
-          "image_builder_x86_64_group"
+          "image_builder_x86_64_group",
+          "image_thrillhouse_group"
         ]
       },
       {
@@ -23,7 +24,8 @@
           "admin_debug_group",
           "common_pks",
           "infiniband_stack_driver_groupv1",
-          "image_builder_aarch64_group"
+          "image_builder_aarch64_group",
+          "image_thrillhouse_group"
         ]
       },
       {
@@ -148,7 +150,14 @@
           "wget",
           "cloud_init",
           "glibc_langpack_en",
-          "gedit",
+          "gedit"
+        ]
+      },
+      "image_thrillhouse_group": {
+        "name": "image_thrillhouse_group",
+        "type": "group",
+        "description": "Thrillhouse container for image builds",
+        "components": [
           "ghcr_io/openchami/image_thrillhouse"
         ]
       },

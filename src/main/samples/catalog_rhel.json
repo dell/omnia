@@ -11,7 +11,8 @@
           "baseos_group_10.0",
           "slurm_custom_group",
           "openldap_group",
-          "slurm_control_node_group"
+          "slurm_control_node_group",
+          "image_thrillhouse_group"
         ]
       },
       {
@@ -20,7 +21,8 @@
           "baseos_group_10.0",
           "slurm_custom_group",
           "openldap_group",
-          "slurm_node_group"
+          "slurm_node_group",
+          "image_thrillhouse_group"
         ]
       }
     ],
@@ -66,7 +68,14 @@
           "cloud_init",
           "glibc_langpack_en",
           "gedit",
-          "docker_io/dellhpcomniaaisolution/image_build_el10",
+          "docker_io/dellhpcomniaaisolution/image_build_el10"
+        ]
+      },
+      "image_thrillhouse_group": {
+        "name": "image_thrillhouse_group",
+        "type": "group",
+        "description": "Thrillhouse container for image builds",
+        "components": [
           "ghcr_io/openchami/image_thrillhouse"
         ]
       },

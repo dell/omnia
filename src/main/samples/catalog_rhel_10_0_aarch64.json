@@ -11,7 +11,8 @@
         "components": [
           "baseos_group",
           "admin_debug_group",
-          "common_pks"
+          "common_pks",
+          "image_thrillhouse_group"
         ]
       },
       {
@@ -121,7 +122,14 @@
           "cloud_init",
           "glibc_langpack_en",
           "gedit",
-          "docker_io/dellhpcomniaaisolution/image_build_aarch64",
+          "docker_io/dellhpcomniaaisolution/image_build_aarch64"
+        ]
+      },
+      "image_thrillhouse_group": {
+        "name": "image_thrillhouse_group",
+        "type": "group",
+        "description": "Thrillhouse container for image builds",
+        "components": [
           "ghcr_io/openchami/image_thrillhouse"
         ]
       },
