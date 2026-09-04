@@ -29,6 +29,12 @@ from infra.id_generator import UUIDv4Generator
 # C0415: Imports inside function needed for proper test isolation
 # W0212: Protected access needed for test setup
 
+# JSONB shim for SQLite compatibility - MUST be applied before importing models
+import sqlalchemy.dialects.sqlite.base as sqlite_base
+from sqlalchemy import JSON
+if not hasattr(sqlite_base, "JSONB"):
+    sqlite_base.JSONB = JSON
+
 @pytest.fixture(scope="function")
 def client(tmp_path):
     """Create test client with fresh container for each test."""

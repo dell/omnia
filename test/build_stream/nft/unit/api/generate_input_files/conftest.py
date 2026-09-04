@@ -19,6 +19,12 @@ from typing import Dict
 
 import pytest
 
+# JSONB shim for SQLite compatibility - MUST be applied before importing models
+import sqlalchemy.dialects.sqlite.base as sqlite_base
+from sqlalchemy import JSON
+if not hasattr(sqlite_base, "JSONB"):
+    sqlite_base.JSONB = JSON
+
 
 @pytest.fixture
 def mock_jwt_validation():
