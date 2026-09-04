@@ -15,6 +15,9 @@
 # Delete stale SMD endpoints before re-registration.
 # Extracted from configure_ochami/tasks/delete_smd_config.yml.
 
+- name: Include role variables for error messages
+  ansible.builtin.include_vars: "{{ role_path }}/vars/main.yml"
+
 - name: Delete all ochami component endpoints
   ansible.builtin.command: /usr/bin/ochami smd compep delete --no-confirm --all
   changed_when: true
@@ -97,7 +100,7 @@
   rescue:
     - name: Fail with metadata-service API error
       ansible.builtin.fail:
-        msg: "Failed to fetch existing metadata-service groups. Check metadata-service API status and access token validity."
+        msg: "{{ metadata_service_api_fail_msg }}"
 
 - name: Delete existing metadata-service groups
   ansible.builtin.uri:

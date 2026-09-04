@@ -344,7 +344,7 @@
   rescue:
     - name: Fail with metadata-service API error
       ansible.builtin.fail:
-        msg: "Failed to fetch existing metadata-service groups for {{ fg_name }}. Check metadata-service API status and access token validity."
+        msg: "{{ metadata_service_api_fail_msg }}"
 
 - name: Delete existing metadata-service group entries for {{ fg_name }}
   ansible.builtin.uri:

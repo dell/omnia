@@ -15,6 +15,9 @@
 # Configure the common metadata-service group.
 # Extracted from configure_ochami/tasks/configure_metadata_svc_common.yml.
 
+- name: Include role variables for error messages
+  ansible.builtin.include_vars: "{{ role_path }}/vars/main.yml"
+
 - name: Render metadata-service group common template
   ansible.builtin.template:
     src: "{{ ms_group_common_template }}"
@@ -72,7 +75,7 @@
   rescue:
     - name: Fail with metadata-service API error
       ansible.builtin.fail:
-        msg: "Failed to fetch existing metadata-service common groups. Check metadata-service API status and access token validity."
+        msg: "{{ metadata_service_api_fail_msg }}"
 
 - name: Delete existing metadata-service common group entries
   ansible.builtin.uri:

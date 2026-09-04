@@ -45,6 +45,12 @@ temp_pxe_file_path: "/opt/omnia/openchami/temp_pxe_file.csv"
 file_mode: "0644"
 functional_groups_file_path: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
 
+# Mapping file error messages
+mapping_file_read_fail_msg: "Failed to read mapping file from {{ temp_pxe_file_path }}. Check file path and permissions."
+mapping_file_process_fail_msg: "Failed to process mapping file pattern replacement. Check file format and content."
+mapping_file_write_fail_msg: "Failed to write updated mapping file to {{ temp_pxe_file_path }}. Check disk space and permissions."
+csv_parsing_fail_msg: "Failed to parse mapping file as CSV. Check file format and mapping_file_key configuration."
+
 # Usage: updates_hosts.yml
 hosts_file_path: /opt/omnia/hosts
 

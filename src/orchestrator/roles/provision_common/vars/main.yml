@@ -125,6 +125,8 @@ ms_group_load_fail_msg: |
   Template loading failed. Ensure the template exists in the specified path
   and is compatible with the defined functional groups.
 
+metadata_service_api_fail_msg: "Failed to fetch metadata-service groups. Check metadata-service API status and access token validity."
+
 # File/dir permissions
 file_permissions_644: "{{ hostvars['localhost']['file_permissions_644'] }}"
 file_permissions_600: "{{ hostvars['localhost']['file_permissions_600'] }}"

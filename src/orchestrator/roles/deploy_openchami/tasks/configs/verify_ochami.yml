@@ -13,6 +13,9 @@
 # limitations under the License.
 ---
 
+- name: Include role variables for error messages
+  ansible.builtin.include_vars: "{{ role_path }}/vars/main.yml"
+
 - name: Wait for tokensmith to be active before generating access token
   ansible.builtin.systemd:
     name: tokensmith.service
@@ -35,7 +38,7 @@
   rescue:
     - name: Fail with access token generation error
       ansible.builtin.fail:
-        msg: "Failed to generate access token after {{ max_retries }} retries. Check tokensmith service status and logs."
+        msg: "{{ access_token_generation_fail_msg }}"
 
 - name: Set ochami_env
   block:
@@ -46,7 +49,7 @@
   rescue:
     - name: Fail with environment variable setting error
       ansible.builtin.fail:
-        msg: "Failed to set ochami_env environment variable. Check access token generation and retry."
+        msg: "{{ ochami_env_setting_fail_msg }}"
 
 - name: Verify ochami installation
   environment: "{{ ochami_env }}"

@@ -46,7 +46,7 @@
   rescue:
     - name: Fail with mapping file read error
       ansible.builtin.fail:
-        msg: "Failed to read mapping file from {{ temp_pxe_file_path }}. Check file path and permissions."
+        msg: "{{ mapping_file_read_fail_msg }}"
 
 - name: Replace only the first occurrence of service_kube_control_plane_<arch> with _first_<arch>
   block:
@@ -65,7 +65,7 @@
   rescue:
     - name: Fail with mapping file processing error
       ansible.builtin.fail:
-        msg: "Failed to process mapping file pattern replacement. Check file format and content."
+        msg: "{{ mapping_file_process_fail_msg }}"
 
 - name: Write updated mapping file back to disk
   block:
@@ -78,7 +78,7 @@
   rescue:
     - name: Fail with mapping file write error
       ansible.builtin.fail:
-        msg: "Failed to write updated mapping file to {{ temp_pxe_file_path }}. Check disk space and permissions."
+        msg: "{{ mapping_file_write_fail_msg }}"
 
 - name: Generate xnames in temporary mapping file
   generate_xname_in_mapping_file:
@@ -95,7 +95,7 @@
   rescue:
     - name: Fail with CSV parsing error
       ansible.builtin.fail:
-        msg: "Failed to parse mapping file as CSV. Check file format and mapping_file_key configuration."
+        msg: "{{ csv_parsing_fail_msg }}"
 
 - name: Initialize count variables
   ansible.builtin.set_fact:
