@@ -12,15 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
----
-# rollback_build_stream.yml — Placeholder for build_stream rollback flow.
-# Full implementation deferred to a future release.
+"""Minimal conftest for build_stream NFT unit tests."""
 
-- name: BuildStream rollback placeholder
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tasks:
-    - name: Rollback not implemented
-      ansible.builtin.debug:
-        msg: "build_stream rollback flow is not implemented yet — reserved for future release"
+import sys
+import os
+
+# Add build_stream source to path for imports
+# Use absolute path for local development
+_BUILD_STREAM_SRC = "/root/Documents/omnia/src/build_stream"
+if _BUILD_STREAM_SRC not in sys.path:
+    sys.path.insert(0, _BUILD_STREAM_SRC)
+
+# Set DATABASE_URL early for test environment
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")

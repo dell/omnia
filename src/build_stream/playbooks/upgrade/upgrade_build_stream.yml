@@ -13,14 +13,14 @@
 # limitations under the License.
 
 ---
-# rollback_build_stream.yml — Placeholder for build_stream rollback flow.
+# upgrade_build_stream.yml — Placeholder for build_stream upgrade flow.
 # Full implementation deferred to a future release.
 
-- name: BuildStream rollback placeholder
+- name: BuildStream upgrade placeholder
   hosts: localhost
   connection: local
   gather_facts: false
   tasks:
-    - name: Rollback not implemented
+    - name: Upgrade not implemented
       ansible.builtin.debug:
-        msg: "build_stream rollback flow is not implemented yet — reserved for future release"
+        msg: "build_stream upgrade flow is not implemented yet — reserved for future release"

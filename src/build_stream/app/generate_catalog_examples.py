@@ -15,15 +15,8 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
 import os
-import shutil
 from pathlib import Path
-
-# Import sibling module generate_catalog.py in the same folder
-# When executed as a script (python build_stream/generate_catalog_examples.py),
-# sys.path[0] will be this folder, so a plain import works.
-import generate_catalog as gen
 
 
 def resolve_base_and_paths(base_dir_arg: str):
@@ -50,87 +43,65 @@ def resolve_base_and_paths(base_dir_arg: str):
     return repo_root, Path(input_dir)
 
 
-def copy_mapping_to_input(mapping_dir: Path, input_dir: Path):
-    src_sw = mapping_dir / 'software_config.json'
-    src_pxe = mapping_dir / 'pxe_mapping_file.csv'
-
-    if not src_sw.exists() or not src_pxe.exists():
-        raise FileNotFoundError(f"Mapping set missing files in {mapping_dir}")
-
-    dst_sw = input_dir / 'software_config.json'
-    dst_pxe = input_dir / 'pxe_mapping_file.csv'
-
-    shutil.copyfile(src_sw, dst_sw)
-    shutil.copyfile(src_pxe, dst_pxe)
-
-
 def generate_example_catalogs(base_dir: str):
     repo_root, input_dir_path = resolve_base_and_paths(base_dir)
 
-    examples_catalog_dir = repo_root / 'examples' / 'catalog'
-    mapping_base = examples_catalog_dir / 'mapping_file_software_config'
+    # Use catalogs from src/main/samples directory instead of removed examples/catalog
+    samples_catalog_dir = repo_root / 'main' / 'samples'
+    mapping_base = samples_catalog_dir  # Catalog files are directly in samples directory
+
+    # DEPRECATED: Catalog example files moved to src/main/samples/
+    # This script is kept for backward compatibility but now uses the samples directory
+    if not samples_catalog_dir.exists():
+        raise FileNotFoundError(
+            f"Catalog samples directory not found: {samples_catalog_dir}\n"
+            "The catalog files have been moved to src/main/samples/ directory. "
+            "To use this script, ensure the samples directory exists with catalog files."
+        )
 
     # Map output catalog files to their corresponding mapping folder names
+    # Updated to use actual catalog files from src/main/samples/
     targets = {
-        'catalog_rhel_aarch64_with_slurm_only.json': 'catalog_rhel_aarch64_with_slurm_only_json',
-        'catalog_rhel_x86_64_with_slurm_only.json': 'catalog_rhel_x86_64_with_slurm_only_json',
-        'catalog_rhel_with_nfs_provisioner.json': 'catalog_rhel_with_nfs_provisioner_json',
-        'catalog_rhel_x86_64.json': 'catalog_rhel_x86_64_json',
-        'catalog_rhel.json': 'catalog_rhel_json',
+        'catalog_rhel_10_0_aarch64.json': 'catalog_rhel_10_0_aarch64',
+        'catalog_rhel_10_0_x86_64.json': 'catalog_rhel_10_0_x86_64',
+        'catalog_rhel_10_0_x86_aarch64.json': 'catalog_rhel_10_0_x86_aarch64',
+        'catalog_rhel_10_2_x86_aarch64.json': 'catalog_rhel_10_2_x86_aarch64',
+        'catalog_rhel_x86_64.json': 'catalog_rhel_x86_64',
+        'catalog_rhel.json': 'catalog_rhel',
     }
 
     # Ensure catalog_rhel.json is generated last
     generation_order = [
-        'catalog_rhel_aarch64_with_slurm_only.json',
-        'catalog_rhel_x86_64_with_slurm_only.json',
-        'catalog_rhel_with_nfs_provisioner.json',
+        'catalog_rhel_10_0_aarch64.json',
+        'catalog_rhel_10_0_x86_64.json',
+        'catalog_rhel_10_0_x86_aarch64.json',
+        'catalog_rhel_10_2_x86_aarch64.json',
         'catalog_rhel_x86_64.json',
         'catalog_rhel.json',
     ]
 
-    # Paths used by the generator
-    input_config_dir = str(input_dir_path / 'config')
-    software_config_file = str(input_dir_path / 'software_config.json')
-    pxe_mapping_csv = str(input_dir_path / 'pxe_mapping_file.csv')
-
     results = []
 
     for out_name in generation_order:
-        mapping_folder = targets[out_name]
-        mapping_dir = mapping_base / mapping_folder
-        print(f"\n==> Preparing mapping for {out_name} from {mapping_dir}")
-        copy_mapping_to_input(mapping_dir, input_dir_path)
+        # Catalog files are now directly in samples directory
+        catalog_file = samples_catalog_dir / out_name
+        if catalog_file.exists():
+            print(f"\n==> Found catalog file: {catalog_file}")
+            results.append((out_name, "found"))
+        else:
+            print(f"\n==> Catalog file not found: {catalog_file}")
+            results.append((out_name, "not_found"))
 
-        print(
-            f"Generating catalog using software_config={software_config_file} "
-            f"and pxe_mapping={pxe_mapping_csv}"
-        )
-        catalog_obj = gen.generate_catalog(input_config_dir, software_config_file, pxe_mapping_csv)
+    print("\n=== Summary ===")
+    for name, status in results:
+        print(f"{name}: {status}")
 
-        out_path = examples_catalog_dir / out_name
-        print(f"Writing generated catalog to {out_path}")
-        with open(out_path, 'w', encoding='utf-8') as f:
-            json.dump(catalog_obj, f, indent=2)
-
-        results.append({
-            'output': str(out_path),
-            'functional_packages': len(catalog_obj['Catalog']['FunctionalPackages']),
-            'os_packages': len(catalog_obj['Catalog']['OSPackages']),
-            'infra_packages': len(catalog_obj['Catalog']['InfrastructurePackages']),
-            'functional_layers': len(catalog_obj['Catalog']['FunctionalLayer']),
-        })
-
-    print("\nSummary:")
-    for r in results:
-        print(
-            f"  - {r['output']} => functional={r['functional_packages']}, "
-            f"os={r['os_packages']}, infra={r['infra_packages']}, layers={r['functional_layers']}"
-        )
+    return results
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Generate example catalogs by copying mapping/software_config into input/ and rendering catalogs.'
+        description='List available catalog files from src/main/samples/ directory.'
     )
     parser.add_argument(
         '--base-dir',
@@ -139,6 +110,8 @@ def main():
     )
     args = parser.parse_args()
 
+    print("Catalog files are now located in src/main/samples/ directory.")
+    print("This script lists the available catalog files instead of generating them.")
     generate_example_catalogs(args.base_dir)
 
 

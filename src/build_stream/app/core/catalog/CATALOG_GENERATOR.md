@@ -2,9 +2,23 @@
 
 This directory contains utility tools for catalog generation and validation.
 
+## Catalog Files
+
+Catalog files are now located in `src/main/samples/` directory instead of the removed `examples/catalog/` directory.
+
+**Available catalogs:**
+- `catalog_rhel_10_0_aarch64.json`
+- `catalog_rhel_10_0_x86_64.json`
+- `catalog_rhel_10_0_x86_aarch64.json`
+- `catalog_rhel_10_2_x86_aarch64.json`
+- `catalog_rhel.json`
+- `catalog_rhel_x86_64.json`
+
 ## Tools
 
 ### 1. generate_catalog_examples.py
+
+**DEPRECATED:** Catalog example files have been removed from the repository and moved to `src/main/samples/`.
 
 Generates example catalog JSON files from input configuration by cycling through different mapping/software_config combinations.
 
@@ -17,17 +31,12 @@ python3 generate_catalog_examples.py --base-dir /omnia/input/project_default/
 ```
 
 **What it does:**
-- Copies mapping files from `examples/catalog/mapping_file_software_config/` to the input directory
+- Copies mapping files from mapping configuration to the input directory
 - Generates catalogs for each mapping variant (slurm-only, nfs-provisioner, etc.)
-- Outputs generated catalogs to `examples/catalog/` directory
+- Outputs generated catalogs to a specified directory
 - Provides a summary of packages and layers generated
 
-**Generated catalogs:**
-- `catalog_rhel_aarch64_with_slurm_only.json`
-- `catalog_rhel_x86_64_with_slurm_only.json`
-- `catalog_rhel_with_nfs_provisioner.json`
-- `catalog_rhel_x86_64.json`
-- `catalog_rhel.json`
+**Note:** The example catalog files and mapping_file_software_config directory have been removed from the repository. Catalog files are now available in `src/main/samples/`. This tool can still be used to generate custom catalogs, but the pre-built examples are no longer available in the examples directory.
 
 ---
 
@@ -80,6 +89,8 @@ passed, issue_count, report_path = run_diff_for_test(
 
 ### 3. test_catalog_diff_regression.py
 
+**DEPRECATED:** This test suite requires example catalog files which have been removed from the repository.
+
 Regression test suite that validates catalog generation and adapter policy output.
 
 **Location:** `build_stream/core/catalog/tests/test_catalog_diff_regression.py`
@@ -88,12 +99,14 @@ Regression test suite that validates catalog generation and adapter policy outpu
 Validates the end-to-end flow: catalog → adapter policy → input configs, ensuring the generated output matches the expected input configuration files.
 
 **Steps:**
-1. Loads example catalog (`catalog_rhel.json`)
+1. Loads example catalog (previously `catalog_rhel.json`)
 2. Runs generator to create root JSONs (functional_layer.json, infrastructure.json, etc.)
 3. Runs adapter policy to generate input configs from root JSONs
 4. Uses `diff_input_configs.py` to compare generated output with expected input configs
 5. Validates functional layers match PXE mapping expectations
 6. Checks specific package routing and architecture constraints
+
+**Note:** This test suite is currently non-functional due to the removal of example catalog files. To re-enable, provide a custom catalog file or restore the example catalog files.
 
 **Usage:**
 ```bash
