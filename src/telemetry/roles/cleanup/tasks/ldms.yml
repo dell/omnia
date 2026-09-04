@@ -21,146 +21,494 @@
 #   - LDMS sampler service on all LDMS-enabled nodes
 # =============================================================================
 
-- name: LDMS | Cleanup K8s resources
-  block:
-    - name: LDMS | Delete Helm releases
-      ansible.builtin.shell:
-        cmd: |
-          set -o pipefail
-          if helm list -n {{ telemetry_namespace }} 2>/dev/null | grep -q "{{ item }}"; then
-            helm delete {{ item }} -n {{ telemetry_namespace }} 2>/dev/null || true
-          fi
-        executable: /bin/bash
-      loop: "{{ ldms_helm_releases }}"
-      changed_when: false
-      failed_when: false
+# =============================================================================
+# Slurm inventory discovery (LDMS-owned)
+# =============================================================================
+- name: LDMS | Initialize Slurm inventory state
+  ansible.builtin.set_fact:
+    _ldms_cleanup_enabled: >-
+      {{
+        (hostvars['localhost']['_cleanup_enabled'] | default({})).ldms_metrics
+        | default(
+            hostvars['localhost']['telemetry_config'].telemetry_sources.ldms.metrics_enabled
+            | default(false)
+          )
+        | bool
+      }}
+    _ldms_slurm_inventory_file: >-
+      {{ hostvars['localhost']['telemetry_config'].cluster_inventory | default('') }}
+    _ldms_inventory_children: {}
+    _ldms_slurm_control_hosts: {}
+    _ldms_slurm_compute_hosts: {}
+    _ldms_slurm_login_hosts: {}
+    _ldms_slurm_login_compiler_hosts: {}
 
-    - name: LDMS | Wait for Helm resources to terminate
-      ansible.builtin.pause:
-        seconds: "{{ cleanup_post_delete_pause }}"
+- name: LDMS | Check Slurm inventory file
+  ansible.builtin.stat:
+    path: "{{ _ldms_slurm_inventory_file }}"
+  register: _ldms_slurm_inventory_stat
+  delegate_to: localhost
+  when: _ldms_slurm_inventory_file | length > 0
 
-    - name: LDMS | Delete StatefulSets
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete statefulset {{ item }}
-        --ignore-not-found=true --wait=false
-      loop: "{{ ldms_statefulset_resources }}"
-      changed_when: false
-      failed_when: false
+- name: LDMS | Validate required Slurm inventory
+  ansible.builtin.assert:
+    that:
+      - _ldms_slurm_inventory_file | length > 0
+      - _ldms_slurm_inventory_stat.stat.exists | default(false)
+    fail_msg: >-
+      LDMS cleanup requires the configured Slurm inventory so sampler services
+      can be removed from every LDMS-enabled node.
+  when: _ldms_cleanup_enabled | bool
 
-    - name: LDMS | Delete Services
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete service {{ item }}
-        --ignore-not-found=true --wait=false
-      loop: "{{ ldms_service_resources }}"
-      changed_when: false
-      failed_when: false
+- name: LDMS | Load Slurm inventory
+  ansible.builtin.include_vars:
+    file: "{{ _ldms_slurm_inventory_file }}"
+    name: _ldms_slurm_inventory
+  when:
+    - _ldms_slurm_inventory_file | length > 0
+    - _ldms_slurm_inventory_stat.stat.exists | default(false)
 
-    - name: LDMS | Delete named ConfigMaps
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete configmap {{ item }}
-        --ignore-not-found=true --wait=false
-      loop: "{{ ldms_configmap_resources }}"
-      changed_when: false
-      failed_when: false
+- name: LDMS | Read generated inventory groups
+  ansible.builtin.set_fact:
+    _ldms_inventory_children: "{{ _ldms_slurm_inventory.all.children | default({}) }}"
+  when: _ldms_slurm_inventory is defined
 
-    - name: LDMS | Delete ConfigMaps by label
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete configmap -l {{ ldms_configmap_label }}
-        --ignore-not-found=true --wait=false
-      changed_when: false
-      failed_when: false
+- name: LDMS | Collect Slurm control-node groups
+  ansible.builtin.set_fact:
+    _ldms_slurm_control_hosts: >-
+      {{ _ldms_slurm_control_hosts | combine(item.value.hosts | default({})) }}
+  loop: >-
+    {{
+      _ldms_inventory_children | dict2items
+      | selectattr('key', 'match', '^slurm_control_node(?:_|$)') | list
+    }}
+  loop_control:
+    label: "{{ item.key }}"
 
-    - name: LDMS | Delete Secrets
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-        --ignore-not-found=true --wait=false
-      loop: "{{ ldms_secret_resources }}"
-      loop_control:
-        label: "{{ item.type }}/{{ item.name }}"
-      changed_when: false
-      failed_when: false
+- name: LDMS | Collect Slurm compute-node groups
+  ansible.builtin.set_fact:
+    _ldms_slurm_compute_hosts: >-
+      {{ _ldms_slurm_compute_hosts | combine(item.value.hosts | default({})) }}
+  loop: >-
+    {{
+      _ldms_inventory_children | dict2items
+      | selectattr('key', 'match', '^slurm_node(?:_|$)') | list
+    }}
+  loop_control:
+    label: "{{ item.key }}"
 
-    - name: LDMS | Delete PVCs
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete pvc -l {{ ldms_pvc_label }}
-        --ignore-not-found=true --wait=false
-      changed_when: false
-      failed_when: false
+- name: LDMS | Collect Slurm login-node groups
+  ansible.builtin.set_fact:
+    _ldms_slurm_login_hosts: >-
+      {{ _ldms_slurm_login_hosts | combine(item.value.hosts | default({})) }}
+  loop: >-
+    {{
+      _ldms_inventory_children | dict2items
+      | selectattr('key', 'match', '^(slurm_)?login_node(?:_|$)') | list
+    }}
+  loop_control:
+    label: "{{ item.key }}"
 
-    - name: LDMS | Force delete pods
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete pod -l {{ ldms_pod_label }}
-        --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
-      changed_when: false
-      failed_when: false
+- name: LDMS | Collect Slurm login-compiler groups
+  ansible.builtin.set_fact:
+    _ldms_slurm_login_compiler_hosts: >-
+      {{ _ldms_slurm_login_compiler_hosts | combine(item.value.hosts | default({})) }}
+  loop: >-
+    {{
+      _ldms_inventory_children | dict2items
+      | selectattr('key', 'match', '^(slurm_)?login_compiler_node(?:_|$)') | list
+    }}
+  loop_control:
+    label: "{{ item.key }}"
 
-    - name: LDMS | Delete Vector-LDMS bridge resources
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-        --ignore-not-found=true --wait=false
-      loop: "{{ vector_ldms_resources }}"
-      loop_control:
-        label: "{{ item.type }}/{{ item.name }}"
-      changed_when: false
-      failed_when: false
+- name: LDMS | Add Slurm control nodes to inventory
+  ansible.builtin.add_host:
+    name: "{{ item.key }}"
+    groups: slurm_control_node
+    ansible_host: "{{ item.value.ansible_host | default(item.key) }}"
+    ansible_user: "{{ item.value.ansible_user | default('root') }}"
+    ansible_port: "{{ item.value.ansible_port | default(omit) }}"
+    ansible_ssh_private_key_file: >-
+      {{ item.value.ansible_ssh_private_key_file | default(omit) }}
+  loop: "{{ _ldms_slurm_control_hosts | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
 
-    - name: LDMS | Force delete Vector-LDMS pods
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} delete pod -l {{ vector_ldms_pod_label }}
-        --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
-      changed_when: false
-      failed_when: false
+- name: LDMS | Add Slurm compute nodes to inventory
+  ansible.builtin.add_host:
+    name: "{{ item.key }}"
+    groups: slurm_node
+    ansible_host: "{{ item.value.ansible_host | default(item.key) }}"
+    ansible_user: "{{ item.value.ansible_user | default('root') }}"
+    ansible_port: "{{ item.value.ansible_port | default(omit) }}"
+    ansible_ssh_private_key_file: >-
+      {{ item.value.ansible_ssh_private_key_file | default(omit) }}
+  loop: "{{ _ldms_slurm_compute_hosts | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
 
-    - name: LDMS | K8s cleanup complete
-      ansible.builtin.debug:
-        msg: "LDMS K8s cleanup completed (includes Vector-LDMS bridge)"
+- name: LDMS | Add Slurm login nodes to inventory
+  ansible.builtin.add_host:
+    name: "{{ item.key }}"
+    groups: login_node
+    ansible_host: "{{ item.value.ansible_host | default(item.key) }}"
+    ansible_user: "{{ item.value.ansible_user | default('root') }}"
+    ansible_port: "{{ item.value.ansible_port | default(omit) }}"
+    ansible_ssh_private_key_file: >-
+      {{ item.value.ansible_ssh_private_key_file | default(omit) }}
+  loop: "{{ _ldms_slurm_login_hosts | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
 
-    - name: LDMS | Register cleanup result (success)
-      ansible.builtin.set_fact:
-        _cleanup_result_ldms: "cleaned"
-      delegate_to: localhost
-      delegate_facts: true
+- name: LDMS | Add Slurm login compiler nodes to inventory
+  ansible.builtin.add_host:
+    name: "{{ item.key }}"
+    groups: login_compiler_node
+    ansible_host: "{{ item.value.ansible_host | default(item.key) }}"
+    ansible_user: "{{ item.value.ansible_user | default('root') }}"
+    ansible_port: "{{ item.value.ansible_port | default(omit) }}"
+    ansible_ssh_private_key_file: >-
+      {{ item.value.ansible_ssh_private_key_file | default(omit) }}
+  loop: "{{ _ldms_slurm_login_compiler_hosts | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
 
-  rescue:
-    - name: LDMS | Register cleanup result (failed)
-      ansible.builtin.set_fact:
-        _cleanup_result_ldms: "failed"
-      delegate_to: localhost
-      delegate_facts: true
+- name: LDMS | Build list of all LDMS sampler hosts
+  ansible.builtin.set_fact:
+    _ldms_sampler_hosts: >-
+      {{ ((groups['slurm_node'] | default([]))
+          + (groups['slurm_control_node'] | default([]))
+          + (groups['login_node'] | default([]))
+          + (groups['login_compiler_node'] | default([]))) | unique | list }}
 
-    - name: LDMS | Log cleanup failure
-      ansible.builtin.debug:
-        msg: "LDMS K8s cleanup failed. Check logs for details."
+- name: LDMS | Validate sampler hosts
+  ansible.builtin.assert:
+    that:
+      - _ldms_sampler_hosts | length > 0
+    fail_msg: >-
+      LDMS metrics are enabled, but no sampler hosts were found in the configured
+      Slurm inventory.
+  when: _ldms_cleanup_enabled | bool
+
+# =============================================================================
+# Kubernetes cleanup
+# =============================================================================
+- name: LDMS | Discover Helm releases
+  ansible.builtin.command:
+    argv:
+      - helm
+      - list
+      - --namespace
+      - "{{ telemetry_namespace }}"
+      - --all
+      - --filter
+      - "^{{ item }}$"
+      - --short
+  loop: "{{ ldms_helm_releases }}"
+  register: _ldms_helm_release_checks
+  changed_when: false
+
+- name: LDMS | Delete existing Helm releases
+  ansible.builtin.command:
+    argv:
+      - helm
+      - uninstall
+      - "{{ item.item }}"
+      - --namespace
+      - "{{ telemetry_namespace }}"
+  loop: "{{ _ldms_helm_release_checks.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stdout_lines | default([]) | length > 0
+  changed_when: true
+
+- name: LDMS | Wait for Helm resources to terminate
+  ansible.builtin.pause:
+    seconds: "{{ cleanup_post_delete_pause }}"
+
+- name: LDMS | Delete StatefulSets
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete statefulset {{ item }}
+    --ignore-not-found=true --wait=false
+  loop: "{{ ldms_statefulset_resources }}"
+  changed_when: false
+
+- name: LDMS | Delete Services
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete service {{ item }}
+    --ignore-not-found=true --wait=false
+  loop: "{{ ldms_service_resources }}"
+  changed_when: false
+
+- name: LDMS | Delete named ConfigMaps
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete configmap {{ item }}
+    --ignore-not-found=true --wait=false
+  loop: "{{ ldms_configmap_resources }}"
+  changed_when: false
+
+- name: LDMS | Delete ConfigMaps by label
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete configmap -l {{ ldms_configmap_label }}
+    --ignore-not-found=true --wait=false
+  changed_when: false
+
+- name: LDMS | Delete Secrets
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+    --ignore-not-found=true --wait=false
+  loop: "{{ ldms_secret_resources }}"
+  loop_control:
+    label: "{{ item.type }}/{{ item.name }}"
+  changed_when: false
+
+- name: LDMS | Delete PVCs
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete pvc -l {{ ldms_pvc_label }}
+    --ignore-not-found=true --wait=false
+  changed_when: false
+  when: _cleanup_delete_volume_enabled | bool
+
+- name: LDMS | Force delete pods
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete pod -l {{ item }}
+    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
+  loop: "{{ ldms_pod_labels }}"
+  changed_when: false
+  when: _cleanup_delete_volume_enabled | bool
+
+- name: LDMS | Wait for pods to terminate
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get pod -l {{ item }}
+    --output=name --ignore-not-found=true
+  loop: "{{ ldms_pod_labels }}"
+  register: _ldms_pod_wait
+  changed_when: false
+  until: _ldms_pod_wait.stdout | trim | length == 0
+  retries: "{{ cleanup_custom_resource_retries }}"
+  delay: "{{ cleanup_custom_resource_delay }}"
+
+- name: LDMS | Wait for PVCs to terminate
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get pvc -l {{ ldms_pvc_label }}
+    --output=name --ignore-not-found=true
+  register: _ldms_pvc_wait
+  changed_when: false
+  until: _ldms_pvc_wait.stdout | trim | length == 0
+  retries: "{{ cleanup_custom_resource_retries }}"
+  delay: "{{ cleanup_custom_resource_delay }}"
+  when: _cleanup_delete_volume_enabled | bool
+
+- name: LDMS | Delete Vector-LDMS bridge resources
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+    --ignore-not-found=true --wait=false
+  loop: "{{ vector_ldms_resources }}"
+  loop_control:
+    label: "{{ item.type }}/{{ item.name }}"
+  changed_when: false
+
+- name: LDMS | Force delete Vector-LDMS pods
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete pod -l {{ vector_ldms_pod_label }}
+    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
+  changed_when: false
+
+- name: LDMS | K8s cleanup complete
+  ansible.builtin.debug:
+    msg: "LDMS K8s cleanup completed (includes Vector-LDMS bridge)"
 
 # =============================================================================
 # LDMS Sampler cleanup on all LDMS-enabled nodes (delegated)
 # =============================================================================
-- name: LDMS | Build list of all LDMS sampler hosts
+- name: LDMS | Initialize sampler reachability tracking
   ansible.builtin.set_fact:
-    _ldms_sampler_hosts: >-
-      {{ (groups['slurm_node'] | default([]))
-         + (groups['slurm_control_node'] | default([]))
-         + (groups['login_node'] | default([]))
-         + (groups['login_compiler_node'] | default([])) }}
+    _ldms_sampler_unreachable_hosts: []
 
 - name: LDMS | Cleanup sampler on all LDMS-enabled nodes
   when: _ldms_sampler_hosts | length > 0
   block:
+    - name: LDMS | Gather sampler service facts
+      ansible.builtin.service_facts:
+      delegate_to: "{{ item }}"
+      loop: "{{ _ldms_sampler_hosts }}"
+      register: _ldms_sampler_service_facts
+      ignore_unreachable: true
+
+    - name: LDMS | Track nodes unreachable during sampler service discovery
+      vars:
+        _ldms_unreachable_host: "{{ item.item }}"
+      ansible.builtin.set_fact:
+        _ldms_sampler_unreachable_hosts: >-
+          {{
+            (_ldms_sampler_unreachable_hosts + [_ldms_unreachable_host])
+            | unique | sort
+          }}
+      loop: "{{ _ldms_sampler_service_facts.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.unreachable | default(false) | bool
+
+    - name: LDMS | Validate sampler service discovery
+      ansible.builtin.assert:
+        that:
+          - not (item.failed | default(false) | bool)
+        fail_msg: >-
+          Unable to inspect the LDMS sampler service on {{ item.item }}:
+          {{ item.msg | default('No error message returned') }}
+      loop: "{{ _ldms_sampler_service_facts.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: not (item.unreachable | default(false) | bool)
+
     - name: LDMS | Stop ldmsd sampler service
       ansible.builtin.systemd:
         name: "{{ ldms_sampler_service_name }}"
         state: stopped
-      delegate_to: "{{ item }}"
-      loop: "{{ _ldms_sampler_hosts }}"
-      failed_when: false
+      delegate_to: "{{ item.item }}"
+      loop: "{{ _ldms_sampler_service_facts.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when:
+        - not (item.unreachable | default(false) | bool)
+        - not (item.failed | default(false) | bool)
+        - item.item not in _ldms_sampler_unreachable_hosts
+        - >-
+          ldms_sampler_service_name in
+          ((item.ansible_facts | default({})).services | default({}))
+          or (ldms_sampler_service_name ~ '.service') in
+             ((item.ansible_facts | default({})).services | default({}))
+      register: _ldms_sampler_stop_results
+      ignore_unreachable: true
+
+    - name: LDMS | Track nodes unreachable while stopping sampler service
+      vars:
+        _ldms_unreachable_host: "{{ item.item.item }}"
+      ansible.builtin.set_fact:
+        _ldms_sampler_unreachable_hosts: >-
+          {{
+            (_ldms_sampler_unreachable_hosts + [_ldms_unreachable_host])
+            | unique | sort
+          }}
+      loop: "{{ _ldms_sampler_stop_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.item }}"
+      when: item.unreachable | default(false) | bool
+
+    - name: LDMS | Validate sampler service stop
+      ansible.builtin.assert:
+        that:
+          - not (item.failed | default(false) | bool)
+        fail_msg: >-
+          Unable to stop the LDMS sampler service on {{ item.item.item }}:
+          {{ item.msg | default('No error message returned') }}
+      loop: "{{ _ldms_sampler_stop_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.item }}"
+      when:
+        - not (item.skipped | default(false) | bool)
+        - not (item.unreachable | default(false) | bool)
 
     - name: LDMS | Disable ldmsd sampler service
       ansible.builtin.systemd:
         name: "{{ ldms_sampler_service_name }}"
         enabled: false
-      delegate_to: "{{ item }}"
-      loop: "{{ _ldms_sampler_hosts }}"
-      failed_when: false
+      delegate_to: "{{ item.item }}"
+      loop: "{{ _ldms_sampler_service_facts.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when:
+        - not (item.unreachable | default(false) | bool)
+        - not (item.failed | default(false) | bool)
+        - item.item not in _ldms_sampler_unreachable_hosts
+        - >-
+          ldms_sampler_service_name in
+          ((item.ansible_facts | default({})).services | default({}))
+          or (ldms_sampler_service_name ~ '.service') in
+             ((item.ansible_facts | default({})).services | default({}))
+      register: _ldms_sampler_disable_results
+      ignore_unreachable: true
+
+    - name: LDMS | Track nodes unreachable while disabling sampler service
+      vars:
+        _ldms_unreachable_host: "{{ item.item.item }}"
+      ansible.builtin.set_fact:
+        _ldms_sampler_unreachable_hosts: >-
+          {{
+            (_ldms_sampler_unreachable_hosts + [_ldms_unreachable_host])
+            | unique | sort
+          }}
+      loop: "{{ _ldms_sampler_disable_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.item }}"
+      when: item.unreachable | default(false) | bool
+
+    - name: LDMS | Validate sampler service disable
+      ansible.builtin.assert:
+        that:
+          - not (item.failed | default(false) | bool)
+        fail_msg: >-
+          Unable to disable the LDMS sampler service on {{ item.item.item }}:
+          {{ item.msg | default('No error message returned') }}
+      loop: "{{ _ldms_sampler_disable_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.item }}"
+      when:
+        - not (item.skipped | default(false) | bool)
+        - not (item.unreachable | default(false) | bool)
+
+    - name: LDMS | Close sampler firewall port
+      vars:
+        _ldms_sampler_services: >-
+          {{ (item.ansible_facts | default({})).services | default({}) }}
+      ansible.posix.firewalld:
+        port: "{{ ldms_sampler_firewall_port }}/tcp"
+        permanent: true
+        immediate: true
+        offline: true
+        state: disabled
+      delegate_to: "{{ item.item }}"
+      loop: "{{ _ldms_sampler_service_facts.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}:{{ ldms_sampler_firewall_port }}/tcp"
+      when:
+        - not (item.unreachable | default(false) | bool)
+        - not (item.failed | default(false) | bool)
+        - item.item not in _ldms_sampler_unreachable_hosts
+        - >-
+          'firewalld.service' in _ldms_sampler_services
+          or 'firewalld' in _ldms_sampler_services
+      register: _ldms_sampler_firewall_results
+      ignore_unreachable: true
+
+    - name: LDMS | Track nodes unreachable while closing sampler firewall port
+      vars:
+        _ldms_unreachable_host: "{{ item.item.item }}"
+      ansible.builtin.set_fact:
+        _ldms_sampler_unreachable_hosts: >-
+          {{
+            (_ldms_sampler_unreachable_hosts + [_ldms_unreachable_host])
+            | unique | sort
+          }}
+      loop: "{{ _ldms_sampler_firewall_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.item }}"
+      when: item.unreachable | default(false) | bool
+
+    - name: LDMS | Validate sampler firewall cleanup
+      ansible.builtin.assert:
+        that:
+          - not (item.failed | default(false) | bool)
+        fail_msg: >-
+          Unable to close LDMS sampler firewall port
+          {{ ldms_sampler_firewall_port }}/tcp on {{ item.item.item }}:
+          {{ item.msg | default('No error message returned') }}
+      loop: "{{ _ldms_sampler_firewall_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.item }}"
+      when:
+        - not (item.skipped | default(false) | bool)
+        - not (item.unreachable | default(false) | bool)
 
     - name: LDMS | Remove sampler systemd service file
       ansible.builtin.file:
@@ -168,7 +516,80 @@
         state: absent
       delegate_to: "{{ item }}"
       loop: "{{ _ldms_sampler_hosts }}"
-      failed_when: false
+      when: item not in _ldms_sampler_unreachable_hosts
+      register: _ldms_sampler_service_file_results
+      ignore_unreachable: true
+
+    - name: LDMS | Track nodes unreachable while removing sampler service file
+      vars:
+        _ldms_unreachable_host: "{{ item.item }}"
+      ansible.builtin.set_fact:
+        _ldms_sampler_unreachable_hosts: >-
+          {{
+            (_ldms_sampler_unreachable_hosts + [_ldms_unreachable_host])
+            | unique | sort
+          }}
+      loop: "{{ _ldms_sampler_service_file_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.unreachable | default(false) | bool
+
+    - name: LDMS | Validate sampler service file removal
+      ansible.builtin.assert:
+        that:
+          - not (item.failed | default(false) | bool)
+        fail_msg: >-
+          Unable to remove the LDMS sampler service file on {{ item.item }}:
+          {{ item.msg | default('No error message returned') }}
+      loop: "{{ _ldms_sampler_service_file_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when:
+        - not (item.skipped | default(false) | bool)
+        - not (item.unreachable | default(false) | bool)
+
+    - name: LDMS | Reload systemd after removing sampler service
+      ansible.builtin.systemd:
+        daemon_reload: true
+      delegate_to: "{{ item.item }}"
+      loop: "{{ _ldms_sampler_service_file_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when:
+        - not (item.skipped | default(false) | bool)
+        - not (item.unreachable | default(false) | bool)
+        - not (item.failed | default(false) | bool)
+        - item.item not in _ldms_sampler_unreachable_hosts
+      register: _ldms_sampler_daemon_reload_results
+      ignore_unreachable: true
+
+    - name: LDMS | Track nodes unreachable while reloading systemd
+      vars:
+        _ldms_unreachable_host: "{{ item.item.item }}"
+      ansible.builtin.set_fact:
+        _ldms_sampler_unreachable_hosts: >-
+          {{
+            (_ldms_sampler_unreachable_hosts + [_ldms_unreachable_host])
+            | unique | sort
+          }}
+      loop: "{{ _ldms_sampler_daemon_reload_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.item }}"
+      when: item.unreachable | default(false) | bool
+
+    - name: LDMS | Validate systemd daemon reload
+      ansible.builtin.assert:
+        that:
+          - not (item.failed | default(false) | bool)
+        fail_msg: >-
+          Unable to reload systemd on {{ item.item.item }} after removing the
+          LDMS sampler service: {{ item.msg | default('No error message returned') }}
+      loop: "{{ _ldms_sampler_daemon_reload_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.item }}"
+      when:
+        - not (item.skipped | default(false) | bool)
+        - not (item.unreachable | default(false) | bool)
 
     - name: LDMS | Remove sampler config directory
       ansible.builtin.file:
@@ -176,11 +597,193 @@
         state: absent
       delegate_to: "{{ item }}"
       loop: "{{ _ldms_sampler_hosts }}"
-      failed_when: false
+      when: item not in _ldms_sampler_unreachable_hosts
+      register: _ldms_sampler_config_results
+      ignore_unreachable: true
+
+    - name: LDMS | Track nodes unreachable while removing sampler configuration
+      vars:
+        _ldms_unreachable_host: "{{ item.item }}"
+      ansible.builtin.set_fact:
+        _ldms_sampler_unreachable_hosts: >-
+          {{
+            (_ldms_sampler_unreachable_hosts + [_ldms_unreachable_host])
+            | unique | sort
+          }}
+      loop: "{{ _ldms_sampler_config_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.unreachable | default(false) | bool
+
+    - name: LDMS | Validate sampler config directory removal
+      ansible.builtin.assert:
+        that:
+          - not (item.failed | default(false) | bool)
+        fail_msg: >-
+          Unable to remove the LDMS sampler configuration on {{ item.item }}:
+          {{ item.msg | default('No error message returned') }}
+      loop: "{{ _ldms_sampler_config_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when:
+        - not (item.skipped | default(false) | bool)
+        - not (item.unreachable | default(false) | bool)
+
+    # This shared subtree contains only deploy-generated sampler configuration.
+    # Persistent LDMS/Kafka/VictoriaMetrics data remains controlled by Delete_volume.
+    - name: LDMS | Remove sampler configuration from Slurm share
+      ansible.builtin.file:
+        path: "{{ ldms_sampler_share_dir }}"
+        state: absent
+      delegate_to: "{{ item }}"
+      loop: "{{ _ldms_sampler_hosts }}"
+      loop_control:
+        label: "{{ item }}:{{ ldms_sampler_share_dir }}"
+      when: item not in _ldms_sampler_unreachable_hosts
+      register: _ldms_sampler_share_results
+      ignore_unreachable: true
+
+    - name: LDMS | Track nodes unreachable while removing shared sampler configuration
+      vars:
+        _ldms_unreachable_host: "{{ item.item }}"
+      ansible.builtin.set_fact:
+        _ldms_sampler_unreachable_hosts: >-
+          {{
+            (_ldms_sampler_unreachable_hosts + [_ldms_unreachable_host])
+            | unique | sort
+          }}
+      loop: "{{ _ldms_sampler_share_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.unreachable | default(false) | bool
+
+    - name: LDMS | Validate shared sampler configuration removal
+      ansible.builtin.assert:
+        that:
+          - not (item.failed | default(false) | bool)
+        fail_msg: >-
+          Unable to remove shared LDMS sampler configuration on {{ item.item }}:
+          {{ item.msg | default('No error message returned') }}
+      loop: "{{ _ldms_sampler_share_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when:
+        - not (item.skipped | default(false) | bool)
+        - not (item.unreachable | default(false) | bool)
 
     - name: LDMS | Sampler cleanup complete
       ansible.builtin.debug:
-        msg: "LDMS sampler cleanup completed on {{ _ldms_sampler_hosts | length }} nodes"
+        msg: >-
+          LDMS sampler cleanup completed on
+          {{
+            (_ldms_sampler_hosts | difference(_ldms_sampler_unreachable_hosts))
+            | length
+          }} reachable node(s)
+
+  always:
+    - name: LDMS | Consolidate unreachable sampler results
+      vars:
+        _ldms_unreachable_from_service_facts: >-
+          {{
+            ((_ldms_sampler_service_facts | default({})).results | default([]))
+            | selectattr('unreachable', 'defined')
+            | selectattr('unreachable')
+            | map(attribute='item') | list
+          }}
+        _ldms_unreachable_from_stop: >-
+          {{
+            ((_ldms_sampler_stop_results | default({})).results | default([]))
+            | selectattr('unreachable', 'defined')
+            | selectattr('unreachable')
+            | map(attribute='item.item') | list
+          }}
+        _ldms_unreachable_from_disable: >-
+          {{
+            ((_ldms_sampler_disable_results | default({})).results | default([]))
+            | selectattr('unreachable', 'defined')
+            | selectattr('unreachable')
+            | map(attribute='item.item') | list
+          }}
+        _ldms_unreachable_from_service_file: >-
+          {{
+            ((_ldms_sampler_service_file_results | default({})).results | default([]))
+            | selectattr('unreachable', 'defined')
+            | selectattr('unreachable')
+            | map(attribute='item') | list
+          }}
+        _ldms_unreachable_from_firewall: >-
+          {{
+            ((_ldms_sampler_firewall_results | default({})).results | default([]))
+            | selectattr('unreachable', 'defined')
+            | selectattr('unreachable')
+            | map(attribute='item.item') | list
+          }}
+        _ldms_unreachable_from_daemon_reload: >-
+          {{
+            ((_ldms_sampler_daemon_reload_results | default({})).results | default([]))
+            | selectattr('unreachable', 'defined')
+            | selectattr('unreachable')
+            | map(attribute='item.item') | list
+          }}
+        _ldms_unreachable_from_config: >-
+          {{
+            ((_ldms_sampler_config_results | default({})).results | default([]))
+            | selectattr('unreachable', 'defined')
+            | selectattr('unreachable')
+            | map(attribute='item') | list
+          }}
+        _ldms_unreachable_from_sampler_share: >-
+          {{
+            ((_ldms_sampler_share_results | default({})).results | default([]))
+            | selectattr('unreachable', 'defined')
+            | selectattr('unreachable')
+            | map(attribute='item') | list
+          }}
+      ansible.builtin.set_fact:
+        _ldms_sampler_unreachable_hosts: >-
+          {{
+            (
+              (_ldms_sampler_unreachable_hosts | default([]))
+              + _ldms_unreachable_from_service_facts
+              + _ldms_unreachable_from_stop
+              + _ldms_unreachable_from_disable
+              + _ldms_unreachable_from_service_file
+              + _ldms_unreachable_from_firewall
+              + _ldms_unreachable_from_daemon_reload
+              + _ldms_unreachable_from_config
+              + _ldms_unreachable_from_sampler_share
+            ) | unique | sort
+          }}
+
+    - name: LDMS | Publish unreachable sampler nodes
+      vars:
+        _current_cleanup_unreachable_nodes: >-
+          {{
+            hostvars['localhost']['_cleanup_unreachable_nodes']
+            | default({'ldms': []}, true)
+          }}
+      ansible.builtin.set_fact:
+        _cleanup_unreachable_nodes: >-
+          {{
+            _current_cleanup_unreachable_nodes
+            | combine({
+                'ldms': (
+                  (_current_cleanup_unreachable_nodes.ldms | default([]))
+                  + (_ldms_sampler_unreachable_hosts | default([]))
+                ) | unique | sort
+              })
+          }}
+      delegate_to: localhost
+      delegate_facts: true
+
+    - name: LDMS | Display skipped unreachable sampler nodes
+      ansible.builtin.debug:
+        msg: >-
+          Unreachable LDMS sampler nodes were skipped (non-fatal):
+          {{ _ldms_sampler_unreachable_hosts | join(', ') }}.
+          Cleanup continued on all reachable sampler nodes.
+      when: _ldms_sampler_unreachable_hosts | length > 0
+
 - name: LDMS | Cleanup complete
   ansible.builtin.debug:
-    msg: "LDMS telemetry cleanup completed (K8s + Slurm nodes)"
+    msg: "LDMS telemetry cleanup completed (K8s + reachable Slurm nodes)"

@@ -109,7 +109,7 @@ ansible-playbook image_build_manager.yml --tags cleanup_images \
 
 | File | Location | Description |
 |------|----------|-------------|
-| `build_status.yml` | `output/<project>/` | Per-group S3 artifact paths for provisioning |
+| `build_status.yml` | `output/<project>/` | Producing image engine and per-group S3 artifact paths for provisioning |
 
 See `samples/` for example input and output files.
 
@@ -166,6 +166,22 @@ See `samples/` for example input and output files.
   first, then falls back to upstream DockerHub/GHCR.
 - **No NFS**: Build artifacts use local directories on the aarch64 node
   (no shared filesystem required).
+
+### Cross-Architecture Building
+
+**Important**: Cross-architecture building is **NOT supported**.
+
+- image-thrillhouse requires native architecture builds
+- aarch64 builds require a separate aarch64 host
+- x86_64 builds run on the OIM host
+- The `--arch` flag in image-thrillhouse is for manifest expansion, not cross-compilation
+- No QEMU/emulation support for cross-arch builds
+
+**Current Implementation**:
+- x86_64 builds: Run directly on OIM host
+- aarch64 builds: Orchestrate via SSH to dedicated aarch64 node
+- Both architectures use `ghcr.io/openchami/image-thrillhouse:v0.0.24`
+- Separate hosts are required for each architecture
 
 ### Configuration
 

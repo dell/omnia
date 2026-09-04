@@ -31,7 +31,7 @@
     build_image_backup_s3_images: "{{ build_image.backup_s3_images | default(false) | bool }}"
     repo_ssl_verify: "{{ build_image.repo_ssl_verify | default(true) | bool }}"
     functional_groups_source: "{{ functional_groups_source | default('config') }}"
-    image_build_type: "{{ image_build_type | default('image-builder') }}"
+    image_build_type: "{{ image_build_type | default('image-thrillhouse') }}"
     catalog_file: "{{ lookup('ansible.builtin.env', 'CATALOG_FILE_PATH') | default('', true) }}"
     cacheable: true
   when: build_image is defined
@@ -79,10 +79,7 @@
       block:
         - name: Fail if CATALOG_FILE_PATH env var is not set
           ansible.builtin.fail:
-            msg: >-
-              CATALOG_FILE_PATH environment variable is not set.
-              When functional_groups_source is 'catalog', set CATALOG_FILE_PATH
-              in omnia.env (e.g., /opt/omnia/catalog/catalog_rhel.json).
+            msg: "{{ catalog_env_not_set_fail_msg }}"
           when: catalog_file | length == 0
 
         - name: Stat catalog file

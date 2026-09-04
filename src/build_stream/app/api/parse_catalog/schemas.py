@@ -14,53 +14,44 @@
 
 """Pydantic schemas for ParseCatalog API request and response models."""
 
-from enum import Enum
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
-class ParseCatalogStatus(str, Enum):
-    """Status enum for ParseCatalog API responses."""
+class ParseCatalogResponse(BaseModel):
+    """Response model for the parse-catalog stage (200 OK).
 
-    SUCCESS = "success"
-    ERROR = "error"
+    Kept minimal (Omnia 2.3+ reintroduction): the stage's only job today
+    is the image_group_id uniqueness check, so the response only reports
+    that outcome.
+    """
 
-
-class ParseCatalogResponse(BaseModel):  # pylint: disable=too-few-public-methods
-    """Response model for ParseCatalog API."""
-
-    status: ParseCatalogStatus = Field(
-        ...,
-        description="Status of the catalog parsing operation",
-    )
-    message: str = Field(
-        ...,
-        description="Human-readable message describing the result",
-    )
+    job_id: str = Field(..., description="Job identifier")
+    stage: str = Field(..., description="Stage identifier")
+    status: str = Field(..., description="Stage completion status")
+    image_group_id: str = Field(..., description="Image group identifier extracted from the catalog")
+    message: str = Field(..., description="Human-readable result message")
+    correlation_id: str = Field(..., description="Correlation identifier")
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
-                    "status": "success",
-                    "message": "Catalog parsed successfully",
-                },
-                {
-                    "status": "error",
-                    "message": "Invalid file format. Only JSON files are accepted.",
+                    "job_id": "019bf590-1234-7890-abcd-ef1234567890",
+                    "stage": "parse-catalog",
+                    "status": "COMPLETED",
+                    "image_group_id": "omnia-services-rhel-10-0-slurm-test",
+                    "message": "Catalog parsed successfully; image_group_id is unique",
+                    "correlation_id": "corr-123456",
                 },
             ]
         }
     }
 
 
-class ErrorResponse(BaseModel):  # pylint: disable=too-few-public-methods
-    """Standard error response model."""
+class ParseCatalogErrorResponse(BaseModel):
+    """Standard error response body for parse-catalog operations."""
 
-    status: ParseCatalogStatus = ParseCatalogStatus.ERROR
-    message: str = Field(..., description="Error message describing what went wrong")
-    detail: Optional[str] = Field(
-        default=None,
-        description="Additional error details (only in non-production environments)",
-    )
+    error: str = Field(..., description="Error code")
+    message: str = Field(..., description="Error message")
+    correlation_id: str = Field(..., description="Request correlation ID")
+    timestamp: str = Field(..., description="Error timestamp (ISO 8601)")

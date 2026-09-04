@@ -53,7 +53,8 @@ class CreateJobUseCase:
     - Atomicity: All-or-nothing persistence (job + stages + idempotency record)
     - Audit trail: Emits JOB_CREATED event
     - Initial stages: Creates all 7 stages in PENDING state
-      (Omnia 2.3+: parse-catalog and generate-input-files retired)
+      (Omnia 2.3+: generate-input-files retired; parse-catalog reintroduced
+      in minimal form solely for the image_group_id uniqueness check)
 
     Attributes:
         job_repo: Job repository port.
@@ -241,6 +242,7 @@ class CreateJobUseCase:
         """Create initial stages for the job.
 
         Creates active pipeline stages in PENDING state (Omnia 2.3+ domain-segregated):
+        - PARSE_CATALOG (reintroduced, minimal: image_group_id uniqueness check only)
         - CREATE_LOCAL_REPOSITORY
         - BUILD_IMAGE (unified, handles all architectures)
         - VALIDATE
@@ -248,7 +250,7 @@ class CreateJobUseCase:
         - UPLOAD
         - DEPLOY
 
-        Deprecated stages (PARSE_CATALOG, GENERATE_INPUT_FILES, BUILD_IMAGE_X86_64,
+        Deprecated stages (GENERATE_INPUT_FILES, BUILD_IMAGE_X86_64,
         BUILD_IMAGE_AARCH64) are retained in StageType enum for backward compatibility
         but are not created for new jobs.
 
@@ -257,6 +259,7 @@ class CreateJobUseCase:
         """
         # Active stages for domain-segregated architecture
         active_stages = [
+            StageType.PARSE_CATALOG,
             StageType.CREATE_LOCAL_REPOSITORY,
             StageType.BUILD_IMAGE,
             StageType.VALIDATE,

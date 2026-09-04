@@ -40,12 +40,12 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: vmagent
-          image: "{{ vector.vmagent_vector.image }}"
+          image: "{{ vector.vmagent_vector.image | trim }}"
           args:
             - "-httpListenAddr=:8429"
             - "-remoteWrite.url={{ vector.vmagent_vector.remote_write_url }}"
             - "-remoteWrite.tmpDataPath={{ vector.vmagent_vector.tmp_data_path | default('/tmp/vmagent-buffer') }}"
-{% if victoria_cluster.tls_enabled | default(false) %}
+{% if victoria_cluster.tls_enabled | default(false) | bool %}
             - "-remoteWrite.tlsCAFile=/etc/vmagent/victoria-certs/ca.crt"
 {% endif %}
           ports:
@@ -76,7 +76,7 @@ spec:
           volumeMounts:
             - name: buffer
               mountPath: {{ vector.vmagent_vector.tmp_data_path | default('/tmp/vmagent-buffer') }}
-{% if victoria_cluster.tls_enabled | default(false) %}
+{% if victoria_cluster.tls_enabled | default(false) | bool %}
             - name: victoria-certs
               mountPath: /etc/vmagent/victoria-certs
               readOnly: true
@@ -84,7 +84,7 @@ spec:
       volumes:
         - name: buffer
           emptyDir: {}
-{% if victoria_cluster.tls_enabled | default(false) %}
+{% if victoria_cluster.tls_enabled | default(false) | bool %}
         - name: victoria-certs
           secret:
             secretName: victoria-tls-certs

@@ -8,7 +8,7 @@
 
 - name: Set project directory paths
   ansible.builtin.set_fact:
-    input_project_dir: "{{ omnia_data_path }}/input/{{ project_name }}"
+    input_project_dir: "{{ omnia_data_path }}/utils/input/{{ project_name }}"
     output_project_dir: "{{ omnia_data_path }}/utils/output/{{ project_name }}"
   changed_when: false
 
@@ -21,16 +21,13 @@
 - name: Set utils domain ready fact
   ansible.builtin.set_fact:
     utils_domain_ready: true
-    utils_setup_timestamp: "{{ ansible_date_time.iso8601 }}"
+    utils_setup_timestamp: "{{ lookup('pipe', 'date -Iseconds') }}"
   changed_when: false
 
 - name: Display setup completion message
   ansible.builtin.debug:
     msg: |
       Utils domain setup complete.
-      - Ansible version: {{ ansible_version.full }}
-      - Python version: {{ ansible_python_version }}
-      - Available disk space: {{ available_disk_gb | default('unknown') }}GB
       - Input directory: {{ input_project_dir }}
       - Output directory: {{ output_project_dir }}
       - Setup timestamp: {{ utils_setup_timestamp }}

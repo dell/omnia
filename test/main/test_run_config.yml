@@ -15,149 +15,54 @@
 # =============================================================================
 # Test Run Configuration — Omnia Main
 # =============================================================================
+# Entries execute in YAML order through omnia_auto.ValidationRunner.
+# Use ./run_validation.sh --config after selecting the required entries.
 #
-# Configure which test suites to run, execution order, and marker filters.
-#
-# Usage:
-#   1. Edit this file to enable/disable suites and set markers
-#   2. Run: ./run_validation.sh --config
-#
-# -----------------------------------------------------------------------------
-# Suite definitions
-# -----------------------------------------------------------------------------
-# Each suite has:
-#   order:   <int>         - Execution order (ascending). Order values MUST
-#                            be unique across enabled suites; duplicate
-#                            order values are a configuration error.
-#   run:     true/false    - Whether to execute this suite
-#   suite:   <folder>      - FVT folder name under fvt/ to run
-#   marker:  <expression>  - Marker filter expression (empty = all tests)
-#
-# Marker expression syntax:
-#   Single:   "sanity"                  — tests with @pytest.mark.sanity
-#   OR:       "sanity,functional"       — tests with EITHER marker
-#   AND:      "sanity+deploy"           — tests with BOTH markers
-#
-# Available markers:
-#   Quality:       sanity, functional, regression
-#   Execution:     deploy, verify
-#
-# Available suites (under fvt/):
-#   cli          — Help output, error handling, argument parsing
-#                  Supported markers: sanity
-#
-#   init         — Domain log directories, input file staging
-#                  Supported markers: sanity
-#
-#   omnia_cli    — omnia-cli diagnostics: status, check, version
-#                  Supported markers: sanity, deploy
-#
-#   setup        — Environment install, venv creation, directory setup
-#                  Supported markers: sanity, deploy
+# command: exec | verify | test
+# marker:  sanity | functional | regression, or a supported expression
+# suite:   optional subdirectory under the scenario folder
 # =============================================================================
 
 ---
 
-# =============================================================================
-# Execution Options
-# =============================================================================
-# skip_on_failure: Stop the current suite on first test failure.
-#                  When false (default), all tests run regardless of failures.
-skip_on_failure: false
-
-scenarios:
-
-  # =========================================================================
-  # cli — Help output, error handling, argument parsing
-  # =========================================================================
-  # Verifies omnia.sh help output, command-line argument parsing,
-  # and error handling for invalid commands/options.
-  #
-  # Supported suites (subfolders inside fvt/cli/):
-  #   commands  — Command verification (help, errors, unknown options)
-  #
-  # Supported markers:
-  #   sanity    — Baseline must-pass tests
-  cli:
-    order: 1
-    run: true
-    suite: ""
-    marker: "sanity"
-
-  # =========================================================================
-  # init — Domain log directories, input file staging
-  # =========================================================================
-  # Verifies domain log directories created and input files staged
-  # for image_build_manager and repo_manager.
-  #
-  # Supported suites (subfolders inside fvt/init/):
-  #   domain_init  — Log directory and input file verification
-  #
-  # Supported markers:
-  #   sanity    — Baseline must-pass tests
-  init:
-    order: 10
-    run: true
-    suite: ""
-    marker: "sanity"
-
-  # =========================================================================
-  # omnia_cli — omnia-cli diagnostics
-  # =========================================================================
-  # Verifies omnia-cli help output and version info.
-  #
-  # Supported suites (subfolders inside fvt/omnia_cli/):
-  #   *(root)     — Help and version verification
-  #   diagnostics — status, check, domain commands
-  #   errors      — Unknown command error tests
-  #
-  # Supported markers:
-  #   sanity    — Baseline must-pass tests
-  #   deploy    — Playbook deployment test
-  omnia_cli:
-    order: 20
-    run: true
-    suite: ""
-    marker: "sanity"
-
-  # =========================================================================
-  # execution — Actual omnia.sh operations (setup, init, run, cleanup)
-  # =========================================================================
-  # Tests actual execution of omnia.sh commands — not just help/flags.
-  #
-  # Deploy step (@deploy marker):
-  #   --setup-venv --deps-only, --init, --run --tags precheck/validate,
-  #   --cleanup (intelligent skip if running from omnia venv)
-  #
-  # Verify step (setup_exec/ subfolder):
-  #   Checks venv, env files, log dirs, input files exist after deploy
-  #
-  # Supported markers:
-  #   sanity     — Baseline must-pass tests
-  #   functional — Domain execution tests
-  #   deploy     — Script execution (setup, init, run, cleanup)
-  execution:
-    order: 25
-    run: true
-    suite: ""
-    marker: "sanity"
-
-  # =========================================================================
-  # setup — Environment install, venv creation, directory setup
-  # =========================================================================
-  # Verifies environment file installation, venv creation, directory
-  # structure, and dependency installation.
-  #
-  # Supported suites (subfolders inside fvt/setup/):
-  #   environment  — Environment file and variable verification
-  #   venv        — Python venv, pip packages, Galaxy collections
-  #   directories — Base directories, log directories, activate helper
-  #
-  # Supported markers:
-  #   sanity    — Baseline must-pass tests
-  #   deploy    — Playbook deployment test
+fvt_main:
   setup:
-    order: 30
-    run: true
+    run: false
+    command: "test"
     suite: ""
     marker: "sanity"
+  init:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+  precheck:
+    run: false
+    command: "exec"
+    suite: ""
+    marker: "sanity"
+  validate:
+    run: false
+    command: "exec"
+    suite: ""
+    marker: "sanity"
+  cli:
+    run: false
+    command: "verify"
+    suite: ""
+    marker: "sanity"
+  omnia_cli:
+    run: false
+    command: "verify"
+    suite: ""
+    marker: "sanity"
+  cleanup:
+    run: false
+    command: "exec"
+    suite: ""
+    marker: "cleanup"
+
+nft_main:
+  run: false
+  command: "test"
+  marker: ""

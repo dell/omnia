@@ -19,42 +19,279 @@
 # Deploys Strimzi Kafka operator + Kafka cluster into telemetry namespace.
 # Idempotent: skips if already deployed, upgrades if present.
 #
-# Consumed by: deploy_idrac_telemetry, deploy_ldms, deploy_powerscale, etc.
+# Consumed by: iDRAC, LDMS, OME, and other Kafka-backed telemetry components.
 # Condition: kafka_support == true (set by derive_sink_support_flags.yml)
 #
 # Flow: prepare (download package + generate manifests) → deploy (apply manifests)
 # =============================================================================
 
-- name: Prepare Kafka packages and manifests
-  ansible.builtin.include_tasks: prepare.yml
+- name: Initialize preserved Kafka cluster ID
+  ansible.builtin.set_fact:
+    kafka_preserved_cluster_id: ""
+    kafka_existing_node_pool_cluster_ids: []
+    kafka_existing_node_pool_status_count: 0
+    kafka_existing_node_pool_node_ids: []
+    kafka_existing_node_pool_node_id_count: 0
+    kafka_existing_pvcs: []
+    kafka_cluster_id_restore_required: false
+  no_log: true
 
-- name: Generate Kafka cluster ID
-  ansible.builtin.command: uuidgen
-  register: cluster_id
+- name: Build telemetry namespace manifest for Kafka discovery
+  ansible.builtin.command: >
+    kubectl create namespace {{ telemetry_namespace }}
+    --dry-run=client --output=yaml
+  register: kafka_discovery_namespace_manifest
+  changed_when: false
+
+- name: Ensure telemetry namespace exists for Kafka discovery
+  ansible.builtin.command: kubectl apply -f -
+  args:
+    stdin: "{{ kafka_discovery_namespace_manifest.stdout }}"
+  register: kafka_discovery_namespace_apply
+  changed_when: "'created' in kafka_discovery_namespace_apply.stdout"
+
+- name: Discover installed Strimzi API resources
+  ansible.builtin.command: >
+    kubectl api-resources --namespaced=true --api-group=kafka.strimzi.io
+    --output=name
+  register: kafka_strimzi_api_resources
+  changed_when: false
+
+- name: Check for preserved Kafka cluster ID
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - secret
+      - "{{ kafka.cluster_id }}"
+      - --namespace
+      - "{{ telemetry_namespace }}"
+      - --ignore-not-found
+      - --output=jsonpath={.data.cluster-id}
+  register: _kafka_cluster_id_secret
   changed_when: false
   no_log: true
 
-- name: Render Kafka cluster ID secret
-  ansible.builtin.template:
-    src: "{{ role_path }}/templates/kafka_cluster_id_secret.yaml.j2"
-    dest: "{{ telemetry_deployments_dir }}/kafka_cluster_id_secret.yaml"
-    mode: "0644"
+- name: Decode preserved Kafka cluster ID
+  ansible.builtin.set_fact:
+    kafka_preserved_cluster_id: "{{ _kafka_cluster_id_secret.stdout | b64decode | trim }}"
+  when:
+    - _kafka_cluster_id_secret.rc == 0
+    - _kafka_cluster_id_secret.stdout | trim | length > 0
+  no_log: true
+
+- name: Check whether Kafka is already ready
+  ansible.builtin.command: >
+    kubectl get kafka/kafka -n {{ telemetry_namespace }} --ignore-not-found
+    --output=jsonpath='{range .status.conditions[?(@.type=="Ready")]}{.status}{end}'
+  register: _kafka_existing_ready
+  changed_when: false
+  when: "'kafkas.kafka.strimzi.io' in kafka_strimzi_api_resources.stdout_lines"
+
+- name: Read existing Kafka node pool cluster IDs
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - kafkanodepool
+      - "{{ item }}"
+      - --namespace
+      - "{{ telemetry_namespace }}"
+      - --ignore-not-found
+      - --output=jsonpath={.status.clusterId}
+  loop:
+    - controller
+    - broker
+  register: _kafka_node_pool_cluster_ids
+  changed_when: false
+  failed_when: false
+  when: >-
+    'kafkanodepools.kafka.strimzi.io' in
+    kafka_strimzi_api_resources.stdout_lines
+  no_log: true
+
+- name: Read existing Kafka node pool node IDs
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - kafkanodepool
+      - "{{ item }}"
+      - --namespace
+      - "{{ telemetry_namespace }}"
+      - --ignore-not-found
+      - --output=jsonpath={.status.nodeIds}
+  loop:
+    - controller
+    - broker
+  register: _kafka_node_pool_node_ids
+  changed_when: false
+  failed_when: false
+  when: >-
+    'kafkanodepools.kafka.strimzi.io' in
+    kafka_strimzi_api_resources.stdout_lines
+  no_log: true
+
+- name: Discover retained Kafka PVCs
+  ansible.builtin.command: >
+    kubectl get pvc -n {{ telemetry_namespace }} -l strimzi.io/cluster=kafka
+    --output=name --ignore-not-found=true
+  register: _kafka_pvc_discovery
+  changed_when: false
+
+- name: Resolve existing Kafka storage identity
+  ansible.builtin.set_fact:
+    kafka_existing_node_pool_cluster_ids: >-
+      {{
+        _kafka_node_pool_cluster_ids.results | default([])
+        | selectattr('rc', 'defined')
+        | selectattr('rc', 'equalto', 0)
+        | map(attribute='stdout')
+        | map('trim')
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+    kafka_existing_node_pool_status_count: >-
+      {{
+        _kafka_node_pool_cluster_ids.results | default([])
+        | selectattr('rc', 'defined')
+        | selectattr('rc', 'equalto', 0)
+        | map(attribute='stdout')
+        | map('trim')
+        | reject('equalto', '')
+        | list
+        | length
+      }}
+    kafka_existing_node_pool_node_ids: >-
+      {{
+        _kafka_node_pool_node_ids.results | default([])
+        | selectattr('rc', 'defined')
+        | selectattr('rc', 'equalto', 0)
+        | map(attribute='stdout')
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+    kafka_existing_node_pool_node_id_count: >-
+      {{
+        _kafka_node_pool_node_ids.results | default([])
+        | selectattr('rc', 'defined')
+        | selectattr('rc', 'equalto', 0)
+        | map(attribute='stdout')
+        | map('trim')
+        | reject('equalto', '')
+        | list
+        | length
+      }}
+    kafka_existing_pvcs: >-
+      {{
+        _kafka_pvc_discovery.stdout_lines | default([])
+        | map('trim')
+        | reject('equalto', '')
+        | list
+      }}
+  no_log: true
+
+- name: Validate saved Kafka cluster ID
+  ansible.builtin.assert:
+    that:
+      - kafka_preserved_cluster_id is match('^[A-Za-z0-9_-]{22}$')
+    fail_msg: >-
+      The saved Kafka cluster ID is invalid. Refusing to use it with retained
+      Kafka volumes.
+  when: kafka_preserved_cluster_id | length > 0
+
+- name: Validate retained Kafka storage identity
+  ansible.builtin.assert:
+    that:
+      - >-
+        kafka_existing_pvcs | length == 0 or
+        kafka_existing_node_pool_node_id_count | int == 2
+      - >-
+        kafka_existing_pvcs | length == 0 or
+        kafka_existing_node_pool_node_ids
+        | reject('equalto', '[]') | list | length == 2
+      - >-
+        kafka_existing_pvcs | length == 0 or
+        kafka_existing_node_pool_status_count | int == 2 or
+        kafka_preserved_cluster_id | length > 0
+      - kafka_existing_node_pool_cluster_ids | length <= 1
+      - >-
+        kafka_existing_node_pool_status_count | int == 0 or
+        kafka_preserved_cluster_id | length == 0 or
+        kafka_preserved_cluster_id in kafka_existing_node_pool_cluster_ids
+    fail_msg: >-
+      Retained Kafka PVCs do not have two preserved KafkaNodePools with original
+      node IDs and one consistent cluster identity. Refusing to start Kafka to
+      protect the preserved data.
+  when: _kafka_existing_ready.stdout | default('') | trim != 'True'
+
+- name: Validate existing Kafka node pool cluster ID
+  ansible.builtin.assert:
+    that:
+      - >-
+        (kafka_existing_node_pool_cluster_ids | first)
+        is match('^[A-Za-z0-9_-]{22}$')
+    fail_msg: >-
+      The retained KafkaNodePool cluster ID is invalid. Refusing to start Kafka
+      to protect the preserved data.
+  when: kafka_existing_node_pool_cluster_ids | length > 0
+
+- name: Determine whether Kafka cluster ID recovery is required
+  ansible.builtin.set_fact:
+    kafka_cluster_id_restore_required: >-
+      {{
+        _kafka_existing_ready.stdout | default('') | trim != 'True' and
+        kafka_preserved_cluster_id | length > 0 and
+        kafka_existing_node_pool_node_id_count | int == 2 and
+        kafka_existing_node_pool_status_count | int != 2
+      }}
+  no_log: true
+
+- name: Prepare Kafka packages and manifests
+  ansible.builtin.include_tasks: prepare.yml
 
 - name: Check if Kafka is already deployed
   ansible.builtin.command: >
-    kubectl get kafka/kafka -n {{ telemetry_namespace }}
-    --for=condition=Ready --timeout=1s
+    kubectl get kafka/kafka -n {{ telemetry_namespace }} --ignore-not-found
+    --output=jsonpath='{range .status.conditions[?(@.type=="Ready")]}{.status}{end}'
   register: kafka_existing
   changed_when: false
-  failed_when: false
+  when: "'kafkas.kafka.strimzi.io' in kafka_strimzi_api_resources.stdout_lines"
+
+- name: Check whether the Strimzi operator is available
+  ansible.builtin.command: >
+    kubectl get deployment strimzi-cluster-operator
+    -n {{ telemetry_namespace }} --ignore-not-found
+    --output=jsonpath='{.status.availableReplicas}'
+  register: kafka_existing_operator
+  changed_when: false
+
+- name: Count running Kafka cluster pods
+  ansible.builtin.command: >
+    kubectl get pods -n {{ telemetry_namespace }}
+    -l strimzi.io/cluster=kafka --field-selector=status.phase=Running
+    --output=name
+  register: kafka_existing_pods
+  changed_when: false
+
+- name: Resolve existing Kafka runtime readiness
+  ansible.builtin.set_fact:
+    kafka_existing_runtime_ready: >-
+      {{
+        kafka_existing.stdout | default('') | trim == 'True' and
+        kafka_existing_operator.stdout | default('0') | trim | int > 0 and
+        kafka_existing_pods.stdout_lines | default([]) | length >= 6
+      }}
 
 - name: Skip Kafka deployment if already running
   ansible.builtin.debug:
     msg: "Kafka already deployed and ready in {{ telemetry_namespace }}"
-  when: kafka_existing.rc == 0
+  when: kafka_existing_runtime_ready | bool
 
 - name: Deploy Kafka
-  when: kafka_existing.rc != 0
+  when: not (kafka_existing_runtime_ready | bool)
   block:
     - name: Run Kafka deployment
       ansible.builtin.include_tasks: deploy.yml

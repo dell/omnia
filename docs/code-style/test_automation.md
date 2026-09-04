@@ -219,20 +219,21 @@ Validates that --tags <tag> created all required <resources>:
 """
 ```
 
-### 3.2 Test Case ID Registry (`TEST_CASES` dict) — MANDATORY
+### 3.2 FVT/NFT Test Case ID Registry (`TEST_CASES` dict) — MANDATORY
 
-All test case metadata (TC ID, title) MUST be defined in `library/vars/test_case_vars.py`
-and referenced via `TEST_CASES["key"]` in test files. **Never hardcode TC IDs or titles.**
+All FVT/NFT test-case metadata (TC ID, title) MUST be defined in
+`library/vars/test_case_vars.py` and referenced via `TEST_CASES["key"]` in test
+files. **Never hardcode TC IDs or titles.** UT mappings follow section 3.10.
 
 ```python
 # In library/vars/test_case_vars.py:
 TEST_CASES = {
     "deploy_prepare": {
-        "id": "TC_PR_001",
+        "id": "IMGBM_FVT_PREPARE_E001",
         "title": "Deploy <domain_name> (prepare)",
     },
     "verify_resource": {
-        "id": "TC_PR_002",
+        "id": "IMGBM_FVT_PREPARE_V001",
         "title": "Verify <resource> after prepare",
     },
 }
@@ -242,15 +243,16 @@ TEST_CASES = {
 
 | Rule | Allowed | Forbidden |
 |------|---------|-----------|
-| TC ID source | `TC["key"]["id"]` | Hardcoded `"TC_PR_002"` in test code |
+| TC ID source | `TC["key"]["id"]` | Hardcoded `"IMGBM_FVT_PREPARE_V001"` in test code |
 | Title source | `TC["key"]["title"]` | Hardcoded string in test code |
-| TestLogger init | `TestLogger(tc["title"], tc["id"])` | `TestLogger("...", "TC_PR_002")` |
-| Docstring | Description only (no TC IDs) | `"""TC_PR_002: Verify ...` |
+| TestLogger init | `TestLogger(tc["title"], tc["id"])` | `TestLogger("...", "IMGBM_FVT_PREPARE_V001")` |
+| Docstring | Description only (no TC IDs) | `"""IMGBM_FVT_PREPARE_V001: Verify ...` |
 | Dict keys | Match function name without `test_` prefix | Arbitrary keys |
 
 **Verification** — this grep must return zero results:
 ```bash
-grep -rn '"TC_[A-Z]*_[0-9]' fvt/ --include="*.py" | grep -v __pycache__ | grep -v test_case_vars
+grep -Ern "['\"]IMGBM_(FVT|NFT|UT)_[A-Z0-9_]+['\"]" fvt/ nft/ ut/ \
+  --include="*.py"
 ```
 
 ### 3.3 Test Function Structure (MANDATORY)
@@ -289,20 +291,25 @@ def test_verify_resource(host):
 
 | Format | Rule |
 |--------|------|
-| **Pattern** | `TC_<AREA>_<SEQ>` (3-digit zero-padded) |
-| **Area** | 2-letter abbreviation of the test phase or scenario |
-| **Sequence** | Sequential within that area, starting at `001` (deploy) |
+| **Pattern** | `<DOMAIN>_FVT_<PHASE>_<TYPE><SEQ>` |
+| **Domain** | Stable uppercase domain code, such as `IMGBM` for Image Build Manager |
+| **Level** | `FVT` identifies a Functional Verification Test |
+| **Phase** | Runner lifecycle phase, such as `PRECHECK`, `VALIDATE`, `PREPARE`, `BUILD`, or `CLEANUP` |
+| **Type** | `E` when the test runs a playbook; `V` when it verifies postconditions |
+| **Sequence** | Three digits appended to the type, starting at `001` |
 
-Each domain defines its own area prefixes. Example patterns:
+Examples:
 
-| Area | Prefix | Description |
-|------|--------|-------------|
-| Precheck | `TC_PC_` | Environment precheck tests (env vars, hostname, IP, connectivity) |
-| Validate | `TC_VL_` | Input validation tests |
-| Prepare | `TC_PR_` | Infrastructure setup tests |
-| Build/Execute | `TC_BD_` | Build or execution phase tests |
-| Cleanup | `TC_CL_` | Cleanup verification tests |
-| End-to-End | `TC_<XX>_` | Full suite verification (domain-specific prefix) |
+| ID | Meaning |
+|----|---------|
+| `IMGBM_FVT_PREPARE_E001` | Run the Image Build Manager prepare playbook |
+| `IMGBM_FVT_PREPARE_V001` | Verify the first prepare postcondition |
+| `IMGBM_FVT_BUILD_V006` | Verify a stable Image Build Manager build contract |
+
+IDs remain stable when execution order changes, and retired IDs must not be
+reused. Existing modules with legacy IDs may retain them until an atomic
+migration updates the registry, documentation, runtime output, and a complete
+legacy-to-current mapping together.
 
 ### 3.5 Deploy Test Pattern
 
@@ -419,6 +426,15 @@ Tests produce structured output via `TestLogger`:
 
 **Never use `print()` directly.** Always use `TestLogger` or `log()`.
 
+### 3.10 Unit Test Case IDs
+
+Unit-test IDs use `<DOMAIN>_UT_<SEQ>` (for example, `IMGBM_UT_001`). Keep the
+mapping between each test file/class/method node and its test-case ID in one
+central registry; do not embed numeric IDs independently in test methods.
+Parameterized variants may share the method-level ID. Store IDs explicitly so
+source reordering cannot renumber published cases, and append new mappings
+with the next available ID.
+
 ### 3.11 Non-Functional Tests (NFT)
 
 NFT tests live in `nft/` alongside `fvt/` and validate **performance** and **idempotency**.
@@ -428,7 +444,8 @@ NFT tests live in `nft/` alongside `fvt/` and validate **performance** and **ide
 1. **Directory**: Place NFT tests in `test/<domain>/nft/`, not in `fvt/`.
 2. **Marker**: All NFT tests MUST use `@pytest.mark.nft`.
 3. **README**: Each `nft/` directory MUST contain a `README.md` documenting test cases, thresholds, and execution instructions.
-4. **TC ID Prefix**: NFT test case IDs use `NFT_` prefix (e.g., `NFT_001`).
+4. **TC ID Prefix**: NFT test-case IDs use `<DOMAIN>_NFT_` (for example,
+   `IMGBM_NFT_001`).
 5. **Thresholds**: Performance thresholds MUST be defined as module-level constants, not inline.
 6. **Prerequisites**: NFT tests require a fully deployed environment. Document prerequisites in the `README.md`.
 7. **Execution**: NFT tests are run via `./run_validation.sh nft test`.
@@ -441,7 +458,7 @@ PREPARE_THRESHOLD = 300  # 5 minutes
 @pytest.mark.nft
 @pytest.mark.order(1)
 def test_prepare_performance(run_playbook):
-    """NFT_001: Prepare completes within threshold."""
+    """IMGBM_NFT_001: Prepare completes within threshold."""
     start = time.time()
     result = run_playbook(tag="prepare", timeout=PREPARE_THRESHOLD + 60)
     elapsed = time.time() - start
@@ -610,16 +627,16 @@ FIREWALL_PORTS = ["8080/tcp", "443/tcp"]
 
 ### 5.6 TEST_CASES Dictionary (MANDATORY)
 
-All test case metadata MUST be centralized in `test_case_vars.py`:
+All FVT/NFT test-case metadata MUST be centralized in `test_case_vars.py`:
 
 ```python
 TEST_CASES: Dict[str, Dict[str, str]] = {
     "deploy_prepare": {
-        "id": "TC_PR_001",
+        "id": "IMGBM_FVT_PREPARE_E001",
         "title": "Deploy <domain_name> (prepare)",
     },
     "verify_resource": {
-        "id": "TC_PR_002",
+        "id": "IMGBM_FVT_PREPARE_V001",
         "title": "Verify <resource> after prepare",
     },
 }
@@ -717,7 +734,9 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
 |------|-----------|---------|
 | Test function | `test_<feature>_<aspect>` | `test_resource_after_prepare` |
 | Test file | `test_<component>.py` | `test_containers.py` |
-| Test case ID | `TC_<AREA>_<SEQ>` | `TC_PR_002` |
+| FVT case ID | `<DOMAIN>_FVT_<PHASE>_<TYPE><SEQ>` | `IMGBM_FVT_PREPARE_V001` |
+| NFT case ID | `<DOMAIN>_NFT_<SEQ>` | `IMGBM_NFT_001` |
+| UT case ID | `<DOMAIN>_UT_<SEQ>` | `IMGBM_UT_001` |
 
 ---
 
@@ -862,7 +881,7 @@ Both must return empty results.
 cd test/<domain_name>/
 
 # Step 1: Run setup script to create venv and install dependencies
-bash setup_env.sh --venv
+./setup_env.sh --venv
 
 # Step 2: Activate the virtual environment
 source .venv/bin/activate
@@ -875,11 +894,11 @@ cd ../..
 # Step 4: Configure test settings
 vi test_config.yml        # Set oim_server_ip, dataset, paths, options
 
-# Step 5: Set SSH password (remote mode only, requires oim_server_ip)
-bash setup_env.sh --set-password
+# Step 5: Set SSH credentials (password-based remote mode only)
+./setup_env.sh --set-creds
 
 # Step 5b: Set domain credentials (no oim_server_ip needed)
-bash setup_env.sh --set-domain-creds
+./setup_env.sh --set-domain-creds
 ```
 
 `setup_env.sh` installs all dependencies from `requirements.txt` (including `omnia-auto`

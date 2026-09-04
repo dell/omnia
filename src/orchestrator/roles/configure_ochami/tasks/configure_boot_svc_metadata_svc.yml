@@ -34,9 +34,9 @@
   ansible.builtin.set_fact:
     node_parsed_yaml: "{{ nodes_vars.content | b64decode | from_yaml }}"
 
-- name: Set nodes
+- name: Set boot_svc_nodes
   ansible.builtin.set_fact:
-    nodes: "{{ node_parsed_yaml.nodes }}"
+    boot_svc_nodes: "{{ node_parsed_yaml.nodes }}"
 
 - name: Create boot and metadata-service directory
   ansible.builtin.file:

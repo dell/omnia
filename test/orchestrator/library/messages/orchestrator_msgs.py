@@ -96,6 +96,11 @@ TEST_NAMES: Dict[str, str] = {
         "Verify firewall ports closed after cleanup"
     ),
 
+    # Rollback (reserved)
+    "deploy_rollback": (
+        "Deploy: orchestrator.yml --tags rollback (reserved — not supported)"
+    ),
+
     # Clone / sync
     "clone_status": (
         "Verify repository is cloned and synced on target"
@@ -168,6 +173,11 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "playbook_failed": (
         "Playbook failed (rc={rc}, duration={duration:.1f}s)"
+    ),
+
+    # Rollback (reserved)
+    "rollback_not_supported": (
+        "Rollback correctly rejected — reserved for future use"
     ),
 
     # Clone

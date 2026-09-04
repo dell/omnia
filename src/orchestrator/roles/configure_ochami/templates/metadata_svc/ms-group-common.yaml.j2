@@ -71,15 +71,14 @@
   file:
     encoding: plain
     content: |
-      ## template: jinja
       #cloud-config
       merge_how:
-      - name: list
-        settings: [append]
-      - name: dict
-        settings: [no_replace, recurse_list]
+        - name: list
+          settings: [append]
+        - name: dict
+          settings: [no_replace, recurse_list]
       phone_home:
-        url: "http://{{ hostvars['localhost']['admin_nic_ip'] }}:8081/metadata-service/phone-home/{% raw %}{{"{{"}} v1.instance_id {{"}}"}}{% endraw %}/"
+        url: "http://{{ hostvars['localhost']['admin_nic_ip'] }}:8081/metadata-service/phone-home/{{ '{{' }} ds.instance_id {{ '}}' }}/"
         post:
           - pub_key_rsa
           - pub_key_ecdsa

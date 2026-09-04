@@ -46,6 +46,11 @@ def test_registry_images_x86_64(host):
     arch = "x86_64"
     tl = TestLogger(tc["title"], tc["id"])
     result = check_registry_images(host, arch=arch)
+
+    if result.get("skipped"):
+        tl.skipped(result["details"])
+        pytest.skip(result["details"])
+
     url = result.get("registry_url", "unknown")
 
     if result["success"]:
@@ -62,6 +67,7 @@ def test_registry_images_x86_64(host):
         missing_list="\n".join(
             f"\u2551   - {i}" for i in result["missing_images"]
         ),
+        log_path=f"{SHARED_PATH}/log/",
     )
 
 
@@ -94,6 +100,7 @@ def test_registry_images_aarch64(host):
         missing_list="\n".join(
             f"\u2551   - {i}" for i in result["missing_images"]
         ),
+        log_path=f"{SHARED_PATH}/log/",
     )
 
 

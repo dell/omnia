@@ -15,34 +15,36 @@
 """
 Omnia CLI — Logs Command Verification.
 
-TC_OC_012: Verify omnia-cli logs --help runs successfully
-TC_OC_013: Verify omnia-cli logs searches only /var/log/omnia (not /opt/omnia/log)
-TC_OC_014: Verify omnia-cli logs --limit flag works
-TC_OC_015: Verify omnia-cli logs --limit rejects invalid values
-TC_OC_016: Verify omnia-cli logs -l short form works
+MAIN_FVT_OMNIA_CLI_V013: Verify omnia-cli logs --help runs successfully
+MAIN_FVT_OMNIA_CLI_V014: Verify omnia-cli logs searches only /var/log/omnia (not /opt/omnia/log)
+MAIN_FVT_OMNIA_CLI_V015: Verify omnia-cli logs --limit flag works
+MAIN_FVT_OMNIA_CLI_V016: Verify omnia-cli logs --limit rejects invalid values
+MAIN_FVT_OMNIA_CLI_V017: Verify omnia-cli logs -l short form works
 """
 
 import pytest
 
+from library.vars import TEST_CASES as TC
+
 from library.functions import TestLogger
 from library.functions.omnia_main_func import (
     run_omnia_cli_cmd,
+    _resolve_clone_path,
 )
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
 
 
 @pytest.mark.sanity
-@pytest.mark.order(11)
+@pytest.mark.order(13)
 def test_cli_logs_help(host):
-    """TC_OC_012: Verify omnia-cli logs --help runs."""
-    tl = TestLogger(
-        TEST_NAMES["cli_logs_help"], "TC_OC_012"
-    )
+    """MAIN_FVT_OMNIA_CLI_V013: Verify omnia-cli logs --help runs."""
+    tc = TC["cli_logs_help"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cli_cmd(host, "omnia_cli_logs_help")
+    tl.bind_result(result)
 
     ran_ok = result["rc"] in (0, 1)
 
@@ -57,24 +59,20 @@ def test_cli_logs_help(host):
 
 
 @pytest.mark.functional
-@pytest.mark.order(12)
+@pytest.mark.order(14)
 def test_cli_logs_no_opt_omnia_log(host):
-    """TC_OC_013: Verify omnia-cli logs does not search /opt/omnia/log.
+    """MAIN_FVT_OMNIA_CLI_V014: Verify omnia-cli logs does not search /opt/omnia/log.
 
     The omnia-cli logs function should only search /var/log/omnia/ for
     ansible logs, not /opt/omnia/log (which was previously a bug).
     """
-    tl = TestLogger(
-        "Verify omnia-cli does not search /opt/omnia/log",
-        "TC_OC_013",
-    )
+    tc = TC["cli_logs_no_opt_omnia_log"]
+    tl = TestLogger(tc["title"], tc["id"])
 
     # Read the omnia-cli script and verify the log path is correct
-    config = __import__("omnia_auto").load_test_config()
-    clone_path = config.get("clone_path", "")
+    clone_path = _resolve_clone_path()
     cli_path = f"{clone_path}/src/main/omnia-cli"
 
-    result = host.run(f"grep -c 'base.*log' {cli_path}")
     # Should NOT find "${base}/log" in ansible_log_dirs
     grep_result = host.run(
         f"grep 'ansible_log_dirs' {cli_path}"
@@ -85,15 +83,16 @@ def test_cli_logs_no_opt_omnia_log(host):
     has_base_log = "${base}/log" in output
 
     if not has_base_log:
-        tl.passed(
-            "omnia-cli logs only searches /var/log/omnia "
-            "(no ${base}/log)"
-        )
+        tl.passed_fields("omnia-cli uses only the supported log path", {
+            "Source file": cli_path,
+            "Required log root": "/var/log/omnia",
+            "Prohibited expression": "${base}/log (not found)",
+        })
     else:
-        tl.failed(
-            "omnia-cli still references ${base}/log in "
-            "ansible_log_dirs"
-        )
+        tl.failed_fields("omnia-cli still references an unsupported log path", {
+            "Source file": cli_path,
+            "Prohibited expression": "${base}/log (found)",
+        })
 
     assert not has_base_log, (
         "omnia-cli should not search ${base}/log "
@@ -103,17 +102,17 @@ def test_cli_logs_no_opt_omnia_log(host):
 
 
 @pytest.mark.functional
-@pytest.mark.order(13)
+@pytest.mark.order(15)
 def test_cli_logs_limit(host):
-    """TC_OC_014: Verify omnia-cli logs --limit flag works."""
-    tl = TestLogger(
-        TEST_NAMES["cli_logs_limit"], "TC_OC_014"
-    )
+    """MAIN_FVT_OMNIA_CLI_V015: Verify omnia-cli logs --limit flag works."""
+    tc = TC["cli_logs_limit"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cli_cmd(
         host, "omnia_cli_logs_limit",
         domain="repo-manager",
         limit=10,
     )
+    tl.bind_result(result)
 
     ran_ok = result["rc"] in (0, 1)
 
@@ -129,18 +128,18 @@ def test_cli_logs_limit(host):
     )
 
 
-@pytest.mark.functional
-@pytest.mark.order(14)
+@pytest.mark.regression
+@pytest.mark.order(16)
 def test_cli_logs_limit_invalid(host):
-    """TC_OC_015: Verify omnia-cli logs --limit rejects invalid values."""
-    tl = TestLogger(
-        TEST_NAMES["cli_logs_limit_invalid"], "TC_OC_015"
-    )
+    """MAIN_FVT_OMNIA_CLI_V016: Verify omnia-cli logs --limit rejects invalid values."""
+    tc = TC["cli_logs_limit_invalid"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cli_cmd(
         host, "omnia_cli_logs_limit_invalid",
         domain="repo-manager",
         limit="abc",
     )
+    tl.bind_result(result)
 
     # Should exit with error (rc != 0)
     rejected = result["rc"] != 0
@@ -151,7 +150,7 @@ def test_cli_logs_limit_invalid(host):
         ))
     else:
         tl.failed(
-            f"omnia-cli logs --limit abc should have been rejected"
+            "omnia-cli logs --limit abc should have been rejected"
         )
 
     assert rejected, (
@@ -160,17 +159,17 @@ def test_cli_logs_limit_invalid(host):
 
 
 @pytest.mark.functional
-@pytest.mark.order(15)
+@pytest.mark.order(17)
 def test_cli_logs_limit_short(host):
-    """TC_OC_016: Verify omnia-cli logs -l short form works."""
-    tl = TestLogger(
-        TEST_NAMES["cli_logs_limit_short"], "TC_OC_016"
-    )
+    """MAIN_FVT_OMNIA_CLI_V017: Verify omnia-cli logs -l short form works."""
+    tc = TC["cli_logs_limit_short"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cli_cmd(
         host, "omnia_cli_logs_limit_short",
         domain="repo-manager",
         limit=5,
     )
+    tl.bind_result(result)
 
     ran_ok = result["rc"] in (0, 1)
 

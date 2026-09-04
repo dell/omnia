@@ -53,7 +53,7 @@
         - hostvars['localhost']['cluster_inv'] is defined
   tags: deploy
 
-# ── Phase 2: Source deployment ─────────────────────────────────────────────────
+# ── Phase 2: Source deployment ──────────────────────────────────────────────
 # Each source: generates manifests and applies its own resources independently
 - name: "Phase 2 | Deploy iDRAC telemetry"
   ansible.builtin.import_playbook: sources/deploy_idrac_telemetry.yml
@@ -162,7 +162,7 @@
       when: failed_pods | length > 0
 
 # ── Phase 4: Collect deployment results ───────────────────────────────────────
-# Inspect cluster state to determine passed/failed/skipped for each component
+# Inspect cluster state to determine deployed/failed/skipped for each component
 - name: "Collect deployment results"
   hosts: kube_vip_group
   gather_facts: false
@@ -205,10 +205,19 @@
       changed_when: false
       failed_when: false
 
-    - name: Check LDMS pods (nersc-ldms)
+    - name: Check LDMS aggregator pod readiness
       ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }} -l app=nersc-ldms --no-headers
-      register: _ldms_pods
+        kubectl wait --for=condition=Ready pod
+        -n {{ telemetry_namespace }} -l app=nersc-ldms-aggr --timeout=1s
+      register: _ldms_aggregator_pods
+      changed_when: false
+      failed_when: false
+
+    - name: Check LDMS store pod readiness
+      ansible.builtin.command: >
+        kubectl wait --for=condition=Ready pod
+        -n {{ telemetry_namespace }} -l app=nersc-ldms-store --timeout=1s
+      register: _ldms_store_pods
       changed_when: false
       failed_when: false
 
@@ -262,7 +271,8 @@
           _vm_pods: "{{ _vm_pods }}"
           _vl_pods: "{{ _vl_pods }}"
           _idrac_pods: "{{ _idrac_pods }}"
-          _ldms_pods: "{{ _ldms_pods }}"
+          _ldms_aggregator_pods: "{{ _ldms_aggregator_pods }}"
+          _ldms_store_pods: "{{ _ldms_store_pods }}"
           _powerscale_pods: "{{ _powerscale_pods }}"
           _ufm_check: "{{ _ufm_check }}"
           _vast_check: "{{ _vast_check }}"
@@ -315,9 +325,9 @@
           {{ (_kv['_vl_pods'].stdout_lines | default([])
              | select('search', 'Running') | list | length) > 0 }}
       ansible.builtin.set_fact:
-        _deploy_result_kafka: "{{ 'passed' if (_kafka_running | bool) else 'failed' }}"
-        _deploy_result_victoria_metrics: "{{ 'passed' if (_vm_running | bool) else 'failed' }}"
-        _deploy_result_victoria_logs: "{{ 'passed' if (_vl_running | bool) else 'failed' }}"
+        _deploy_result_kafka: "{{ 'deployed' if (_kafka_running | bool) else 'failed' }}"
+        _deploy_result_victoria_metrics: "{{ 'deployed' if (_vm_running | bool) else 'failed' }}"
+        _deploy_result_victoria_logs: "{{ 'deployed' if (_vl_running | bool) else 'failed' }}"
 
     # -- Sources (metrics only) -----------------------------------------------
     - name: Set source metrics-only results
@@ -327,18 +337,16 @@
           {{ (_kv['_idrac_pods'].stdout_lines | default([])
              | select('search', 'Running') | list | length) > 0 }}
         _ldms_on: "{{ _cfg.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
-        _ldms_running: >-
-          {{ (_kv['_ldms_pods'].stdout_lines | default([])
-             | select('search', 'Running') | list | length) > 0
-             or (_kv['_vector_ldms_pods'].stdout_lines | default([])
-             | select('search', 'Running') | list | length) > 0 }}
+        _ldms_aggregator_running: "{{ _kv['_ldms_aggregator_pods'].rc | default(1) == 0 }}"
+        _ldms_store_running: "{{ _kv['_ldms_store_pods'].rc | default(1) == 0 }}"
       ansible.builtin.set_fact:
         _deploy_result_idrac_metrics: >-
           {{ 'skipped' if not (_idrac_on | bool)
-             else ('passed' if (_idrac_running | bool) else 'failed') }}
+             else ('deployed' if (_idrac_running | bool) else 'failed') }}
         _deploy_result_ldms_metrics: >-
           {{ 'skipped' if not (_ldms_on | bool)
-             else ('passed' if (_ldms_running | bool) else 'failed') }}
+             else ('deployed' if ((_ldms_aggregator_running | bool)
+             and (_ldms_store_running | bool)) else 'failed') }}
 
     # -- Sources (metrics + logs) ---------------------------------------------
     - name: Set source metrics+logs results
@@ -364,26 +372,26 @@
       ansible.builtin.set_fact:
         _deploy_result_powerscale_metrics: >-
           {{ 'skipped' if not (_ps_m_on | bool)
-             else ('passed' if (_ps_running | bool) else 'failed') }}
+             else ('deployed' if (_ps_running | bool) else 'failed') }}
         _deploy_result_powerscale_logs: >-
           {{ 'skipped' if not (_ps_l_on | bool)
-             else ('passed' if (_vlagent_running | bool) else 'failed') }}
+             else ('deployed' if (_vlagent_running | bool) else 'failed') }}
         _deploy_result_ufm_metrics: >-
           {{ 'skipped' if not (_ufm_m_on | bool)
-             else ('passed' if (_ufm_ok | bool) else 'failed') }}
+             else ('deployed' if (_ufm_ok | bool) else 'failed') }}
         _deploy_result_ufm_logs: >-
           {{ 'skipped' if not (_ufm_l_on | bool)
-             else ('passed' if (_vlagent_running | bool) else 'failed') }}
+             else ('deployed' if (_vlagent_running | bool) else 'failed') }}
         _deploy_result_vast_metrics: >-
-          {{ 'skipped' if not (_vast_m_on | bool) else 'passed' }}
+          {{ 'skipped' if not (_vast_m_on | bool) else 'deployed' }}
         _deploy_result_vast_logs: >-
-          {{ 'skipped' if not (_vast_l_on | bool) else 'passed' }}
+          {{ 'skipped' if not (_vast_l_on | bool) else 'deployed' }}
         _deploy_result_ome_metrics: >-
           {{ 'skipped' if not (_ome_m_on | bool)
-             else ('passed' if (_vome_running | bool) else 'failed') }}
+             else ('deployed' if (_vome_running | bool) else 'failed') }}
         _deploy_result_ome_logs: >-
           {{ 'skipped' if not (_ome_l_on | bool)
-             else ('passed' if (_vome_running | bool) else 'failed') }}
+             else ('deployed' if (_vome_running | bool) else 'failed') }}
 
     # -- Bridges --------------------------------------------------------------
     # Bridge status depends on both bridge config AND source config
@@ -406,10 +414,10 @@
       ansible.builtin.set_fact:
         _deploy_result_vector_ldms: >-
           {{ 'skipped' if not ((_vldms_bridge_on | bool) and (_ldms_src_on | bool))
-             else ('passed' if (_vldms_running | bool) else 'failed') }}
+             else ('deployed' if (_vldms_running | bool) else 'failed') }}
         _deploy_result_vector_ome: >-
           {{ 'skipped' if not ((_vome_m | bool) or (_vome_l | bool))
-             else ('passed' if (_vome_running | bool) else 'failed') }}
+             else ('deployed' if (_vome_running | bool) else 'failed') }}
 
 # ── Phase 5: Write telemetry_status.yml ───────────────────────────────────────
 - name: "Write telemetry deployment status"

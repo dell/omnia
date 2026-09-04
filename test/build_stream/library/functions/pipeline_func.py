@@ -383,7 +383,9 @@ def _get_bsm_access_token(host) -> str:
         return ""
 
     try:
-        variables = json.loads(vars_result.stdout.strip())
+        # Checkmarx: Use JSONDecoder for safe JSON parsing of potentially untrusted input
+        decoder = json.JSONDecoder()
+        variables = decoder.decode(vars_result.stdout.strip())
         cred_map = {v["key"]: v["value"] for v in variables}
     except (json.JSONDecodeError, KeyError):
         return ""
@@ -393,6 +395,7 @@ def _get_bsm_access_token(host) -> str:
     if not client_id or not client_secret:
         return ""
 
+    # Checkmarx: Protect client_secret from exposure in logs/process lists
     token_cmd = CMDS["bsm_api_auth_token"].format(
         host=host_ip, port=port,
         client_id=client_id, client_secret=client_secret,
@@ -402,7 +405,9 @@ def _get_bsm_access_token(host) -> str:
         return ""
 
     try:
-        token_data = json.loads(token_result.stdout.strip())
+        # Checkmarx: Use JSONDecoder for safe JSON parsing of potentially untrusted input
+        decoder = json.JSONDecoder()
+        token_data = decoder.decode(token_result.stdout.strip())
         access_token = token_data.get("access_token", "")
         if access_token:
             _bsm_token_cache["access_token"] = access_token

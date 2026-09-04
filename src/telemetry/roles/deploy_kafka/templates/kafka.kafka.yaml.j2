@@ -48,6 +48,9 @@ metadata:
   annotations:
     strimzi.io/node-pools: enabled
     strimzi.io/kraft: enabled
+{% if kafka_cluster_id_restore_required | default(false) | bool %}
+    strimzi.io/pause-reconciliation: "true"
+{% endif %}
 spec:
   kafka:
     version: 4.3.0

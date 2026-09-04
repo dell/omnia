@@ -29,6 +29,8 @@
 # via s3cmd ls after each build (see main.yml "Discover actual S3 artifact
 # filenames").  This ensures build_status.yml references the exact S3 object
 # keys, not assumed generic names.
+# The status also records image_build_type so consumers validate the artifact
+# layout that produced this manifest, even if the input is changed later.
 
 - name: Set output paths
   ansible.builtin.set_fact:
@@ -52,6 +54,9 @@
     mode: "0644"
   vars:
     build_completed_images: "{{ hostvars['localhost']['build_completed_images'] | default({}) }}"
+    status_image_build_type: >-
+      {{ hostvars['localhost']['image_build_type']
+         | default('image-thrillhouse') }}
 
 - name: Build versioned output path
   ansible.builtin.set_fact:
@@ -64,6 +69,9 @@
     mode: "0644"
   vars:
     build_completed_images: "{{ hostvars['localhost']['build_completed_images'] | default({}) }}"
+    status_image_build_type: >-
+      {{ hostvars['localhost']['image_build_type']
+         | default('image-thrillhouse') }}
 
 - name: Display build status output locations
   ansible.builtin.debug:

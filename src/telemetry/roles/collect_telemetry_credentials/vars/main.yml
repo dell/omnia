@@ -53,7 +53,7 @@ telemetry_cred_config:
 
 # Messages
 telemetry_mandatory_warning_msg: "WARNING: The following are mandatory telemetry credentials and cannot be left empty."
-telemetry_conditional_warning_msg: "WARNING: Conditional telemetry credentials will be prompted based on iDRAC telemetry configuration."
+telemetry_conditional_warning_msg: "WARNING: Conditional telemetry credentials will be prompted based on telemetry configuration."
 telemetry_password_fail_msg: "Failed. Password is required for mandatory telemetry credential."
 telemetry_password_match_fail_msg: "Failed. Passwords do not match. Please try again."
 telemetry_credential_encrypt_fail_msg: "Failed to encrypt telemetry credential file."

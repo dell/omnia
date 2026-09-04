@@ -14,13 +14,13 @@
 
 #!/usr/bin/python
 """Module to delete iDRAC IPs from MySQL database.
-This module connects to a Kubernetes pod running MySQL and deletes iDRAC IPs
-that are not present in bmc_data.csv. It handles retries and delays for robustness."""
+This module connects to a Kubernetes pod running MySQL via PyMySQL and deletes
+iDRAC IPs that are not present in bmc_data.csv. It uses parameterized queries
+to prevent SQL injection. It handles retries and delays for robustness."""
 
-import time
+import pymysql
 from ansible.module_utils.basic import AnsibleModule
 from kubernetes import client, config
-from kubernetes.stream import stream
 from kubernetes.config.config_exception import ConfigException
 
 
@@ -32,136 +32,85 @@ def load_kube_context():
         config.load_incluster_config()
 
 
-def run_mysql_query_in_pod(namespace, pod, container, mysql_user, mysql_password, query):
-    """Run a MySQL query in the specified pod.
+def resolve_pod_ip(namespace, pod):
+    """Resolve the IP address of a Kubernetes pod via the K8s API.
 
     Args:
         namespace: Kubernetes namespace
         pod: Pod name
-        container: Container name
-        mysql_user: MySQL username
-        mysql_password: MySQL password
-        query: MySQL query to execute
 
     Returns:
-        dict: Result containing return code and output
+        str: Pod IP address
+
+    Raises:
+        RuntimeError: If the pod IP cannot be resolved
     """
     core_v1 = client.CoreV1Api()
-    mysql_command = [
-        "mysql",
-        "-u", mysql_user,
-        "-N", "-B",
-        f"-p{mysql_password}",
-        "-e", query
-    ]
-
-    try:
-        ws = stream(
-            core_v1.connect_get_namespaced_pod_exec,
-            name=pod,
-            namespace=namespace,
-            container=container,
-            command=mysql_command,
-            stderr=True,
-            stdin=False,
-            stdout=True,
-            tty=False,
-            _preload_content=False
-        )
-
-        stdout = ""
-        stderr = ""
-
-        while ws.is_open():
-            ws.update(timeout=1)
-            if ws.peek_stdout():
-                stdout += ws.read_stdout()
-            if ws.peek_stderr():
-                stderr += ws.read_stderr()
-        ws.close()
-
-        rc = ws.returncode
-
-        if rc != 0:
-            return {
-                "rc": rc,
-                "result": stderr.strip() if stderr else "Unknown error"
-            }
-
-        query_result = [
-            line.strip() for line in stdout.strip().splitlines()
-            if line.strip() and not line.strip().startswith("mysql:")
-        ]
-
-        return {
-            "rc": rc,
-            "result": query_result
-        }
-
-    except (ConfigException, OSError) as e:
-        return {
-            "rc": 1,
-            "result": str(e)
-        }
+    pod_obj = core_v1.read_namespaced_pod(name=pod, namespace=namespace)
+    pod_ip = pod_obj.status.pod_ip
+    if not pod_ip:
+        raise RuntimeError(f"Pod {pod} in namespace {namespace} has no IP assigned")
+    return pod_ip
 
 
 def delete_idrac_from_mysql(
     namespace,
     pod,
-    container,
+    mysqldb_container_port,
     mysqldb_name,
     mysql_user,
     mysql_password,
-    ip_to_delete,
-    retries=3,
-    delay=3
+    ip_to_delete
 ):
-    """Delete a single iDRAC IP from MySQL database.
+    """Delete a single iDRAC IP from MySQL database using PyMySQL.
 
     Args:
         namespace: Kubernetes namespace
         pod: Pod name
-        container: Container name
+        mysqldb_container_port: MySQL container port
         mysqldb_name: MySQL database name
         mysql_user: MySQL username
         mysql_password: MySQL password
         ip_to_delete: IP address to delete
-        retries: Number of retry attempts
-        delay: Delay between retries in seconds
 
     Returns:
         dict: Result containing success status and message
     """
-    query = (
-        f"DELETE FROM {mysqldb_name}.services "
-        f"WHERE ip = '{ip_to_delete}';"
-    )
+    pod_ip = resolve_pod_ip(namespace, pod)
 
-    for attempt in range(retries):
-        result = run_mysql_query_in_pod(
-            namespace=namespace,
-            pod=pod,
-            container=container,
-            mysql_user=mysql_user,
-            mysql_password=mysql_password,
-            query=query
+    conn = None
+    try:
+        conn = pymysql.connect(
+            host=pod_ip,
+            port=mysqldb_container_port,
+            user=mysql_user,
+            password=mysql_password,
+            database=mysqldb_name,
+            connect_timeout=10
         )
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM services WHERE ip = %s",
+                (ip_to_delete,)
+            )
+            affected_rows = cursor.rowcount
+            conn.commit()
 
-        if result.get("rc") == 0:
-            return {
-                "success": True,
-                "ip": ip_to_delete,
-                "msg": f"Successfully deleted iDRAC IP {ip_to_delete} from MySQL."
-            }
-
-        if attempt < retries - 1:
-            time.sleep(delay)
-
-    return {
-        "success": False,
-        "ip": ip_to_delete,
-        "msg": f"Failed to delete iDRAC IP {ip_to_delete} after {retries} attempts: {result.get('result')}"
-    }
+        return {
+            "success": True,
+            "ip": ip_to_delete,
+            "msg": f"Successfully deleted iDRAC IP {ip_to_delete} from MySQL.",
+            "affected_rows": affected_rows
+        }
+    except (pymysql.err.OperationalError, pymysql.err.MySQLError) as e:
+        return {
+            "success": False,
+            "ip": ip_to_delete,
+            "msg": str(e)
+        }
+    finally:
+        if conn:
+            conn.close()
 
 
 def main():
@@ -169,28 +118,24 @@ def main():
     module_args = {
         "telemetry_namespace": {"type": "str", "required": True},
         "idrac_podnames": {"type": "list", "required": True},
-        "mysqldb_k8s_name": {"type": "str", "required": True},
+        "mysqldb_container_port": {"type": "int", "required": True},
         "mysqldb_name": {"type": "str", "required": True},
-        "mysqldb_user": {"type": "str", "required": True, "no_log": True},
-        "mysqldb_password": {"type": "str", "required": True, "no_log": True},
+        "mysql_user": {"type": "str", "required": True, "no_log": True},
+        "mysql_password": {"type": "str", "required": True, "no_log": True},
         "ips_to_delete": {"type": "list", "required": True},
         "pod_to_db_idrac_ips": {"type": "dict", "required": True},
-        "db_retries": {"type": "int", "default": 3},
-        "db_delay": {"type": "int", "default": 3},
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
     telemetry_namespace = module.params["telemetry_namespace"]
     idrac_podnames = module.params["idrac_podnames"]
-    mysqldb_k8s_name = module.params["mysqldb_k8s_name"]
+    mysqldb_container_port = module.params["mysqldb_container_port"]
     mysqldb_name = module.params["mysqldb_name"]
-    mysqldb_user = module.params["mysqldb_user"]
-    mysqldb_password = module.params["mysqldb_password"]
+    mysql_user = module.params["mysqldb_user"]
+    mysql_password = module.params["mysqldb_password"]
     ips_to_delete = module.params["ips_to_delete"]
     pod_to_db_idrac_ips = module.params["pod_to_db_idrac_ips"]
-    db_retries = module.params["db_retries"]
-    db_delay = module.params["db_delay"]
 
     load_kube_context()
 
@@ -213,13 +158,11 @@ def main():
                 result = delete_idrac_from_mysql(
                     namespace=telemetry_namespace,
                     pod=pod,
-                    container=mysqldb_k8s_name,
+                    mysqldb_container_port=mysqldb_container_port,
                     mysqldb_name=mysqldb_name,
-                    mysql_user=mysqldb_user,
-                    mysql_password=mysqldb_password,
-                    ip_to_delete=ip,
-                    retries=db_retries,
-                    delay=db_delay
+                    mysql_user=mysql_user,
+                    mysql_password=mysql_password,
+                    ip_to_delete=ip
                 )
 
                 if result.get("success"):

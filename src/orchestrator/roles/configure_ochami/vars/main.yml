@@ -119,6 +119,7 @@ login_compiler_node_present: "{{ hostvars['oim']['login_compiler_node_present'] 
 slurm_node_present: "{{ hostvars['oim']['slurm_node_present'] | default(false) }}"
 # Usage: ci-group-slurm_node_x86_64.yaml.j2, ci-group-slurm_node_aarch64.yaml.j2
 dcgm_support: "{{ hostvars['localhost'].get('dcgm_support', true) | bool }}"
+csi_driver_powerscale_support: "{{ hostvars['localhost'].get('csi_driver_powerscale_support', false) | string | lower }}"
 # NVIDIA DCGM (Data Center GPU Manager) configuration
 dcgm_service_name: "nvidia-dcgm"
 dcgm_health_check_retries: 3

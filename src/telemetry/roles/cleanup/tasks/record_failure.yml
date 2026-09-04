@@ -1,0 +1,95 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Record component cleanup failure
+  vars:
+    _failed_component: >-
+      {{
+        hostvars['localhost']['_cleanup_active_component']
+        | default('cleanup', true)
+      }}
+    _failed_children: >-
+      {{
+        (
+          ansible_failed_result.results | default([])
+          | selectattr('failed', 'defined')
+          | selectattr('failed', 'equalto', true)
+          | list
+        )
+        + (
+          ansible_failed_result.results | default([])
+          | selectattr('unreachable', 'defined')
+          | selectattr('unreachable', 'equalto', true)
+          | list
+        )
+      }}
+    _failed_result: >-
+      {{ (_failed_children | first) | default(ansible_failed_result, true) }}
+    _failed_item: >-
+      {%- set cleanup_item = _failed_result.item | default('') -%}
+      {%- if cleanup_item is mapping and cleanup_item.item is defined -%}
+      {%- set cleanup_item = cleanup_item.item -%}
+      {%- endif -%}
+      {%- if cleanup_item is mapping and cleanup_item.item is defined -%}
+      {%- set cleanup_item = cleanup_item.item -%}
+      {%- endif -%}
+      {%- if cleanup_item is mapping and cleanup_item.item is defined -%}
+      {%- set cleanup_item = cleanup_item.item -%}
+      {%- endif -%}
+      {%- if cleanup_item is mapping and cleanup_item.item is defined -%}
+      {%- set cleanup_item = cleanup_item.item -%}
+      {%- endif -%}
+      {%- if cleanup_item is mapping and cleanup_item.type is defined
+            and cleanup_item.name is defined -%}
+      {{ cleanup_item.type }}/{{ cleanup_item.name }}
+      {%- elif cleanup_item is mapping and cleanup_item.type is defined
+            and cleanup_item.label is defined -%}
+      {{ cleanup_item.type }} ({{ cleanup_item.label }})
+      {%- elif cleanup_item is mapping and cleanup_item.item is defined -%}
+      {{ cleanup_item.item }}
+      {%- else -%}
+      {{ cleanup_item }}
+      {%- endif -%}
+    _cleanup_failure_message: >-
+      {{
+        _failed_result.stderr
+        | default(
+            _failed_result.stdout
+            | default(_failed_result.msg | default('Cleanup task failed'), true),
+            true
+          )
+      }}
+  ansible.builtin.set_fact:
+    _cleanup_abort: true
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({_failed_component: 'failed'})
+      }}
+    _cleanup_failures: >-
+      {{
+        hostvars['localhost']['_cleanup_failures']
+        + [{
+            'component': _failed_component,
+            'task': ansible_failed_task.name | default('Unknown cleanup task'),
+            'host': inventory_hostname,
+            'item': (_failed_item | string)[:500],
+            'rc': _failed_result.rc | default(''),
+            'message': (_cleanup_failure_message | string)[:1000]
+          }]
+      }}
+  delegate_to: localhost
+  delegate_facts: true

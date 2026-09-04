@@ -30,14 +30,19 @@
   ansible.builtin.include_role:
     name: common
     tasks_from: load_telemetry_config
+  when: telemetry_config is not defined
+  async: 60
+  poll: 0
 
 - name: Validate iDRAC telemetry configuration
   ansible.builtin.include_tasks: validate_config.yml
+  when: telemetry_config is defined
 
 - name: Derive sink support flags
   ansible.builtin.include_role:
     name: common
     tasks_from: derive_sink_support_flags
+  when: kafka_support is not defined
 
 - name: Install Python dependencies for iDRAC telemetry on kube_vip host
   ansible.builtin.include_role:
@@ -62,10 +67,18 @@
     - hostvars['localhost']['telemetry_config'].idrac_telemetry_configurations.bmc_group_data_path | length > 0
 
 - name: Generate telemetry collection report
-  ansible.builtin.include_tasks: create_telemetry_report.yml
   when:
     - hostvars['localhost']['telemetry_config'].idrac_telemetry_configurations.bmc_group_data_path is defined
     - hostvars['localhost']['telemetry_config'].idrac_telemetry_configurations.bmc_group_data_path | length > 0
-  failed_when: false
+  block:
+    - name: Create telemetry collection report
+      ansible.builtin.include_tasks: create_telemetry_report.yml
+
+  rescue:
+    - name: Display telemetry report generation warning
+      ansible.builtin.debug:
+        msg: >-
+          iDRAC telemetry deployment completed, but telemetry report generation failed:
+          {{ ansible_failed_result.msg | default('Unknown error') }}
 
 ## Status is now collected centrally in deploy.yml Phase 4.

@@ -12,14 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# =============================================================================
-# internet.yml — Internet-connected dataset profile
-# =============================================================================
-# Generates a dataset with public CentOS Stream / EPEL repo URLs.
-# No Pulp, no admin_nic_ip needed. The OIM host must have internet access.
-#
-# Source: src/image_build_manager/samples/repo_manager_output/repo_status_internet.yml
-# =============================================================================
-
-repo_type: "internet"
-generate_functional_group_packages: false
+description: "Public internet repositories with catalog-managed package groups"
+repo_variant: "internet"

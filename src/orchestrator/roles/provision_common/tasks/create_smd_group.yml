@@ -26,7 +26,7 @@
     dest: "{{ nodes_dir }}/groups-{{ fg_name }}.yml"
     mode: "{{ file_permissions_644 }}"
   vars:
-    nodes: >-
+    smd_group_nodes: >-
       {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
          | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', target_fg_names)
          | list }}

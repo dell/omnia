@@ -23,12 +23,26 @@ from typing import Dict
 
 # =============================================================================
 TEST_NAMES: Dict[str, str] = {
-    # Deploy
+    # Deploy (full run)
     "deploy_playbook": (
         "Deploy: discovery.yml -e discovery_mechanism={mechanism}"
     ),
+
+    # Deploy (per-tag)
+    "deploy_precheck": (
+        "Deploy: discovery.yml --tags precheck"
+    ),
     "deploy_validate": (
-        "Deploy: discovery.yml (validate)"
+        "Deploy: discovery.yml --tags validate"
+    ),
+    "deploy_credentials": (
+        "Deploy: discovery.yml --tags credentials"
+    ),
+    "deploy_execute": (
+        "Deploy: discovery.yml --tags execute"
+    ),
+    "deploy_cleanup": (
+        "Deploy: discovery.yml --tags cleanup"
     ),
 
     # Validate

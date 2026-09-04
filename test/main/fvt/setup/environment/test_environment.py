@@ -15,15 +15,17 @@
 """
 Omnia Main Setup — Environment Verification.
 
-TC_SU_002: Verify omnia.env installed at /etc/omnia/omnia.env
-TC_SU_003: Verify /etc/profile.d/omnia-env.sh exists
-TC_SU_004: Verify environment variables are set after install
-TC_SU_011: Verify env source validation rejects empty SYSTEM_ADMIN_NIC_IPV4
+MAIN_FVT_SETUP_V001: Verify omnia.env installed at /etc/omnia/omnia.env
+MAIN_FVT_SETUP_V002: Verify /etc/profile.d/omnia-env.sh exists
+MAIN_FVT_SETUP_V003: Verify environment variables are set after install
+MAIN_FVT_SETUP_V004: Verify env source validation rejects empty SYSTEM_ADMIN_NIC_IPV4
 """
 
 import pytest
 
-from library.functions import TestLogger, load_test_config
+from library.vars import TEST_CASES as TC
+
+from library.functions import TestLogger
 from library.functions.omnia_main_func import (
     check_env_file_installed,
     check_profile_drop_in,
@@ -31,7 +33,6 @@ from library.functions.omnia_main_func import (
     check_env_source_validation,
 )
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
@@ -44,20 +45,22 @@ from library.vars.common_vars import (
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_env_file_installed(host):
-    """TC_SU_002: Verify omnia.env installed at /etc/omnia/omnia.env."""
-    tl = TestLogger(
-        TEST_NAMES["env_file_installed"], "TC_SU_002"
-    )
+    """MAIN_FVT_SETUP_V001: Verify omnia.env installed at /etc/omnia/omnia.env."""
+    tc = TC["env_file_installed"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_env_file_installed(host)
+    tl.bind_result(result)
 
     if result["success"]:
-        tl.passed(LOG["env_file_ok"].format(
-            path=SYSTEM_ENV_FILE
-        ))
+        tl.passed_fields(LOG["env_file_ok"].format(path=SYSTEM_ENV_FILE), {
+            "Path": SYSTEM_ENV_FILE,
+            "Status": "present and readable",
+        })
     else:
-        tl.failed(LOG["env_file_missing"].format(
-            path=SYSTEM_ENV_FILE
-        ))
+        tl.failed_fields(LOG["env_file_missing"].format(path=SYSTEM_ENV_FILE), {
+            "Path": SYSTEM_ENV_FILE,
+            "Status": result.get("error", "missing or unreadable"),
+        })
 
     assert result["success"], ASSERT["env_file_missing"].format(
         path=SYSTEM_ENV_FILE,
@@ -67,20 +70,22 @@ def test_env_file_installed(host):
 @pytest.mark.sanity
 @pytest.mark.order(2)
 def test_profile_drop_in(host):
-    """TC_SU_003: Verify /etc/profile.d/omnia-env.sh exists."""
-    tl = TestLogger(
-        TEST_NAMES["profile_drop_in"], "TC_SU_003"
-    )
+    """MAIN_FVT_SETUP_V002: Verify /etc/profile.d/omnia-env.sh exists."""
+    tc = TC["profile_drop_in"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_profile_drop_in(host)
+    tl.bind_result(result)
 
     if result["success"]:
-        tl.passed(LOG["profile_ok"].format(
-            path=PROFILE_DROP_IN
-        ))
+        tl.passed_fields(LOG["profile_ok"].format(path=PROFILE_DROP_IN), {
+            "Path": PROFILE_DROP_IN,
+            "Status": "present and readable",
+        })
     else:
-        tl.failed(LOG["profile_missing"].format(
-            path=PROFILE_DROP_IN
-        ))
+        tl.failed_fields(LOG["profile_missing"].format(path=PROFILE_DROP_IN), {
+            "Path": PROFILE_DROP_IN,
+            "Status": result.get("error", "missing or unreadable"),
+        })
 
     assert result["success"], ASSERT["profile_missing"].format(
         path=PROFILE_DROP_IN,
@@ -90,21 +95,26 @@ def test_profile_drop_in(host):
 @pytest.mark.sanity
 @pytest.mark.order(3)
 def test_env_vars_loaded(host):
-    """TC_SU_004: Verify environment variables are set after install."""
-    tl = TestLogger(
-        TEST_NAMES["env_vars_loaded"], "TC_SU_004"
-    )
+    """MAIN_FVT_SETUP_V003: Verify environment variables are set after install."""
+    tc = TC["env_vars_loaded"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_env_vars_loaded(host)
+    tl.bind_result(result)
 
     if result["success"]:
-        tl.passed(LOG["env_vars_ok"].format(
+        tl.passed_fields(LOG["env_vars_ok"].format(
             count=result["details"].split()[0]
-        ))
+        ), {
+            "Environment file": SYSTEM_ENV_FILE,
+            "Variables": result["details"],
+            "Values displayed": "no (sensitive values protected)",
+        })
     else:
         missing = result.get("missing", [])
-        tl.failed(LOG["env_vars_missing"].format(
-            count=len(missing)
-        ))
+        tl.failed_fields(LOG["env_vars_missing"].format(count=len(missing)), {
+            "Environment file": SYSTEM_ENV_FILE,
+            "Missing variables": ", ".join(missing) or "unknown",
+        })
 
     assert result["success"], ASSERT["env_vars_missing"].format(
         missing_list="\n".join(
@@ -113,21 +123,29 @@ def test_env_vars_loaded(host):
     )
 
 
-@pytest.mark.sanity
+@pytest.mark.regression
 @pytest.mark.order(4)
 def test_env_source_validation(host):
-    """TC_SU_011: Verify env source validation rejects empty SYSTEM_ADMIN_NIC_IPV4."""
-    tl = TestLogger(
-        TEST_NAMES["env_source_validation"], "TC_SU_011"
-    )
+    """MAIN_FVT_SETUP_V004: Verify env source validation rejects empty SYSTEM_ADMIN_NIC_IPV4."""
+    tc = TC["env_source_validation"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_env_source_validation(host)
+    tl.bind_result(result)
 
     if result["success"]:
-        tl.passed(LOG["env_source_validation_ok"])
+        tl.passed_fields(LOG["env_source_validation_ok"], {
+            "Validation function": "validate_env_source",
+            "Invalid input": "SYSTEM_ADMIN_NIC_IPV4 is empty",
+            "Return code": result.get("rc", "unknown"),
+        })
     else:
-        tl.failed(LOG["env_source_validation_failed"].format(
+        tl.failed_fields(LOG["env_source_validation_failed"].format(
             rc=result.get("rc", "?")
-        ))
+        ), {
+            "Validation function": "validate_env_source",
+            "Expected": "non-zero return code",
+            "Actual return code": result.get("rc", "unknown"),
+        })
 
     assert result["success"], (
         ASSERT["env_source_validation_failed"]

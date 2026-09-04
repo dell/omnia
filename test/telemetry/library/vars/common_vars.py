@@ -75,6 +75,7 @@ PLAYBOOK_TAGS = [
     "upgrade",
     "rollback",
     "external_kafka",
+    "external_victoria",
 ]
 
 # =============================================================================
@@ -145,6 +146,17 @@ from .ldms_vars import (  # noqa: F401, E402
     LDMS_SAMPLER_CONF_PATH,
 )
 
+# LDMS Kafka verification behavior
+LDMS_KAFKA_LATEST_TIMEOUT_SECONDS = 90
+LDMS_KAFKA_EARLIEST_TIMEOUT_SECONDS = 60
+LDMS_KAFKA_CLOCK_SKEW_SECONDS = 10
+LDMS_KAFKA_LATEST_POLL_INTERVAL_SECONDS = 2
+LDMS_KAFKA_EARLIEST_POLL_INTERVAL_SECONDS = 0.3
+LDMS_KAFKA_OFFSET_LATEST = "latest"
+LDMS_KAFKA_OFFSET_EARLIEST = "earliest"
+LDMS_KAFKA_CONSUMER_GROUP_TEMPLATE = "ldms-{offset}-{suffix}"
+LDMS_KAFKA_CONSUMER_NAME_TEMPLATE = "{consumer_group}-consumer"
+
 # PowerScale (from deploy_powerscale/vars/main.yml)
 POWERSCALE_DEPLOY_NAME = "karavi-metrics-powerscale"
 POWERSCALE_OTEL_DEPLOY_NAME = "otel-collector"
@@ -203,25 +215,6 @@ SVC_PORT_NAME_HTTP = "http"
 # Vector bridges
 VECTOR_LDMS_APP_NAME = "vector-ldms"
 VECTOR_OME_APP_NAME = "vector-ome"
-
-# UFM (from deploy_ufm/vars/main.yml)
-UFM_SVC_NAME = "ufm-external"
-UFM_VMSCRAPE_NAME = "ufm-infiniband-metrics"
-# K8s Secret object name, not a credential value
-UFM_SECRET_NAME = "ufm-telemetry-credentials"  # noqa: S105
-UFM_EXPECTED_METRICS = [
-    "infiniband_CBW",
-    "PortXmitDataExtended",
-    "PortRcvDataExtended",
-    "PortXmitPktsExtended",
-    "PortRcvPktsExtended",
-    "LinkDownedCounterExtended",
-]
-
-# Telemetry config key paths for UFM
-CFG_KEY_UFM_METRICS_ENABLED = "telemetry_sources.ufm.metrics_enabled"
-CFG_KEY_UFM_ENDPOINT = "ufm_configuration.ufm_endpoint"
-CFG_KEY_UFM_PORT = "ufm_configuration.ufm_metrics_port"
 
 # VAST (from deploy_vast/vars/main.yml)
 VAST_SVC_NAME = "vast-external"
@@ -449,7 +442,6 @@ CMDS = {
         "curl -sk 'https://{vmselect_ip}:{vmselect_port}"
         "/select/0/prometheus/api/v1/query?query={query}'"
     ),
-
     # --- iDRAC VictoriaMetrics data ---
     "vm_query_idrac_service_tag": (
         "curl -s --max-time 15"
@@ -484,113 +476,6 @@ CMDS = {
         " 2>/dev/null"
     ),
 
-    # --- OME REST API ---
-    "ome_get_forwarder": (
-        "curl -sk -u '{user}:{password}' --max-time 15"
-        " 'https://{ome_ip}/api/DataForwardingService/"
-        "Forwarders({forwarder_id})'"
-    ),
-    "ome_get_forwarder_status": (
-        "curl -sk -u '{user}:{password}' --max-time 15"
-        " 'https://{ome_ip}/api/DataForwardingService/"
-        "Forwarders({forwarder_id})/ConnectivityStatus'"
-    ),
-    "ome_get_forwarders_list": (
-        "curl -sk -u '{user}:{password}' --max-time 15"
-        " 'https://{ome_ip}/api/DataForwardingService/Forwarders'"
-    ),
-
-    # --- OpenSSL ---
-    "openssl_create_pfx": (
-        "openssl pkcs12 -export"
-        " -out {cert_dir}/user.pfx"
-        " -inkey {cert_dir}/user.key"
-        " -in {cert_dir}/user.crt"
-        " -passout pass:{password} 2>&1"
-    ),
-
-    # --- OME REST API: upload certificates ---
-    # Upload server certificate (CA cert) - X.509 format, base64 encoded
-    "ome_upload_server_cert": (
-        "curl -sk -u '{user}:{password}' --max-time 30"
-        " -X POST"
-        " -H 'Content-Type: application/json'"
-        " -d '{{\"CertData\": \"{cert_data_b64}\","
-        " \"CertFormat\": \"X_509\","
-        " \"ClientType\": \"KAFKA\"}}'"
-        " 'https://{ome_ip}/api/ApplicationService/"
-        "Actions/ApplicationService.UploadServerCertificate'"
-        " -w '\\nHTTP_CODE:%{{http_code}}'"
-    ),
-    # Upload client certificate (PFX) - PKCS12 format, base64 encoded
-    "ome_upload_client_cert": (
-        "curl -sk -u '{user}:{password}' --max-time 30"
-        " -X POST"
-        " -H 'Content-Type: application/json'"
-        " -d '{{\"CertData\": \"{cert_data_b64}\","
-        " \"CertFormat\": \"PKCS_12\","
-        " \"ClientType\": \"KAFKA\","
-        " \"Passphrase\": \"{pfx_secret}\"}}'"
-        " 'https://{ome_ip}/api/ApplicationService/"
-        "Actions/ApplicationService.UploadClientCertificate'"
-        " -w '\\nHTTP_CODE:%{{http_code}}'"
-    ),
-    # View client certificate
-    "ome_view_client_cert": (
-        "curl -sk -u '{user}:{password}' --max-time 15"
-        " -X POST"
-        " -H 'Content-Type: application/json'"
-        " -d '{{\"ClientType\": \"KAFKA\"}}'"
-        " 'https://{ome_ip}/api/ApplicationService/"
-        "Actions/ApplicationService.ViewClientCertificate'"
-    ),
-    # Test Kafka connection
-    "ome_test_kafka_connection": (
-        "curl -sk -u '{user}:{password}' --max-time 30"
-        " -X POST"
-        " -H 'Content-Type: application/json'"
-        " -d '{{\"Id\": {forwarder_id},"
-        " \"ForwarderConfigurations\": ["
-        "{{\"ConfigurationName\": \"OMEIdentifier\", "
-        "\"ConfigurationValue\": \"{ome_identifier}\"}},"
-        "{{\"ConfigurationName\": \"ClientType\", \"ConfigurationValue\": \"KAFKA\"}},"
-        "{{\"ConfigurationName\": \"BrokerList\", \"ConfigurationValue\": \"{broker_list}\"}},"
-        "{{\"ConfigurationName\": \"AuthMode\", \"ConfigurationValue\": \"2\"}},"
-        "{{\"ConfigurationName\": \"ServerCert\", \"ConfigurationValue\": \"true\"}},"
-        "{{\"ConfigurationName\": \"ClientCert\", \"ConfigurationValue\": \"true\"}}"
-        "]}}'"
-        " 'https://{ome_ip}/api/DataForwardingService/"
-        "Actions/DataForwardingService.TestConnection'"
-        " -w '\\nHTTP_CODE:%{{http_code}}'"
-    ),
-    # Update forwarder settings
-    "ome_update_forwarder_settings": (
-        "curl -sk -u '{user}:{password}' --max-time 30"
-        " -X POST"
-        " -H 'Content-Type: application/json'"
-        " -d '{{\"Id\": {forwarder_id},"
-        " \"Enabled\": true,"
-        " \"ForwarderConfigurations\": ["
-        "{{\"ConfigurationName\": \"OMEIdentifier\", "
-        "\"ConfigurationValue\": \"{ome_identifier}\"}},"
-        "{{\"ConfigurationName\": \"ClientType\", \"ConfigurationValue\": \"KAFKA\"}},"
-        "{{\"ConfigurationName\": \"BrokerList\", \"ConfigurationValue\": \"{broker_list}\"}},"
-        "{{\"ConfigurationName\": \"AuthMode\", \"ConfigurationValue\": \"2\"}},"
-        "{{\"ConfigurationName\": \"ServerCert\", \"ConfigurationValue\": \"true\"}},"
-        "{{\"ConfigurationName\": \"ClientCert\", \"ConfigurationValue\": \"true\"}},"
-        "{{\"ConfigurationName\": \"HeartBeat\", \"ConfigurationValue\": \"120\"}}"
-        "]}}'"
-        " 'https://{ome_ip}/api/DataForwardingService/"
-        "Actions/DataForwardingService.ForwarderSettings'"
-        " -w '\\nHTTP_CODE:%{{http_code}}'"
-    ),
-    # Get forwarder configuration
-    "ome_get_forwarder_config": (
-        "curl -sk -u '{user}:{password}' --max-time 15"
-        " 'https://{ome_ip}/api/DataForwardingService/"
-        "Forwarders({forwarder_id})/ForwarderConfigurations'"
-    ),
-
     # --- PowerScale syslog config via SSH ---
     "powerscale_syslog_view": (
         "sshpass -p '{password}'"
@@ -615,4 +500,3 @@ CMDS = {
         " --no-headers --ignore-not-found 2>/dev/null"
     ),
 }
-

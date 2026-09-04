@@ -23,7 +23,16 @@
     dest: "{{ nodes_dir }}/groups-common-{{ common_group_name }}.yml"
     mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
   vars:
-    nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
+    # Only include nodes registered in SMD for the current target category.
+    # target_fg_names is set by the caller (register_nodes.yml).
+    # Use 'common_group_nodes' to avoid collision with the 'nodes' set_fact
+    # from configure_boot_svc.yml.
+    common_group_nodes: >-
+      {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
+         | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', target_fg_names | default([]))
+         | list
+         if (target_fg_names | default([]) | length > 0)
+         else hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}
 
 - name: Delete the SMD common group - {{ common_group_name }}
   ansible.builtin.command: /usr/bin/ochami smd group delete --no-confirm {{ common_group_name }}

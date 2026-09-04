@@ -42,7 +42,7 @@ vector:
     app_name: "vector-ome"
     service_name: "vector-ome"
     container_name: "vector-ome"
-    kafka_topics_pattern: "{{ telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome') }}.*"
+    kafka_topics_pattern: "^{{ telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome') | regex_escape }}\\..*$"
     consumer_group: "vector-ome-group"
     kafka_user: "vector-ome-user"
     health_port: 8688
@@ -61,7 +61,13 @@ vector:
     port: 8429
     replicas: 2
     image: "{{ (hostvars['localhost']['telemetry_registry'].images.victoria.vmagent | default('victoriametrics/vmagent:v1.149.0')) }}"
-    remote_write_url: "http://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc:8480/insert/0/prometheus/api/v1/write"
+    remote_write_url: >-
+      {{
+        ('https' if victoria_cluster.tls_enabled | default(false) | bool else 'http')
+        ~ '://vminsert-victoria-cluster.'
+        ~ telemetry_namespace
+        ~ '.svc.cluster.local:8480/insert/0/prometheus/api/v1/write'
+      }}
     tmp_data_path: "/tmp/vmagent-buffer"
     resources:
       requests:
@@ -76,7 +82,13 @@ vector:
     port: 9427
     replicas: 2
     image: "{{ (hostvars['localhost']['telemetry_registry'].images.victoria.vlagent | default('victoriametrics/vlagent:v1.50.0')) }}"
-    remote_write_url: "http://vlinsert-victorialogs-cluster.{{ telemetry_namespace }}.svc:9481/insert/jsonline"
+    remote_write_url: >-
+      {{
+        ('https' if victoria_logs_cluster.tls_enabled | default(false) | bool else 'http')
+        ~ '://vlinsert-victoria-logs-cluster.'
+        ~ telemetry_namespace
+        ~ '.svc.cluster.local:9481/internal/insert'
+      }}
     tmp_data_path: "/tmp/vlagent-buffer"
     resources:
       requests:

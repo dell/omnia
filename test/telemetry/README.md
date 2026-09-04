@@ -63,6 +63,33 @@ Run from inside the `test/telemetry/` directory:
 | `-v, --verbose` | Increase pytest verbosity |
 | `--debug` | Full debug output (pytest `-vvs`) |
 
+### Cleanup: `Delete_volume` Flag
+
+The `cleanup` tag supports an optional `Delete_volume` flag that controls
+whether PersistentVolumeClaims (PVCs) are deleted along with pods,
+services, and workloads. It is exposed via the `DELETE_VOLUME`
+environment variable, since `run_validation.sh` forwards the calling
+shell's environment to pytest:
+
+| `DELETE_VOLUME` | Playbook flag passed | PVC behavior |
+|-----------------|----------------------|---------------|
+| unset / `false` (default) | *(none — `Delete_volume` defaults to false)* | PVCs are **preserved** |
+| `true` | `-e Delete_volume=true` | PVCs are **deleted** |
+
+```bash
+# Default: cleanup preserves PVCs (Delete_volume=false)
+./run_validation.sh fvt_telemetry cleanup test
+
+# Cleanup + delete PVCs/volumes (Delete_volume=true)
+DELETE_VOLUME=true ./run_validation.sh fvt_telemetry cleanup test
+```
+
+When `DELETE_VOLUME=true`, the corresponding PVC-deletion test
+(`test_no_pvcs_after_full_cleanup`) runs and the playbook is invoked
+with `-e Delete_volume=true`. Otherwise, `test_pvcs_preserved_after_cleanup`
+runs instead to confirm PVCs were retained. See `fvt/README.md` for the
+full cleanup test case registry.
+
 ### Marker Expressions
 
 | Syntax | Example | Meaning |
@@ -71,7 +98,8 @@ Run from inside the `test/telemetry/` directory:
 | AND (`+`) | `--marker source+sanity` | Tests with BOTH markers |
 | OR (`,`) | `--marker sink,source` | Tests with EITHER marker |
 
-Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`, `nft`, `performance`, `idempotency`
+Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`,
+`ome`, `ldms`, `sfm`, `ufm`, `nft`, `performance`, `idempotency`
 
 ### Examples
 
@@ -80,13 +108,21 @@ Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`, `nft`, `p
 ./run_validation.sh fvt_telemetry deploy test --marker sanity
 ./run_validation.sh fvt_telemetry deploy verify --suite sources
 ./run_validation.sh fvt_telemetry deploy verify --suite sinks
-./run_validation.sh fvt_telemetry cleanup test
+./run_validation.sh fvt_telemetry cleanup test                              # Delete_volume=false (default): PVCs preserved
+DELETE_VOLUME=true ./run_validation.sh fvt_telemetry cleanup test           # Delete_volume=true: PVCs deleted
+
+# SFM integration only (requires configure_sfm: true and SFM credentials)
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker sfm
+
+# UFM source only (requires UFM metrics enabled in telemetry_config.yml)
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker ufm
 ./run_validation.sh fvt_telemetry list
 
 # NFT
 ./run_validation.sh nft_telemetry test                          # All NFT tests
 ./run_validation.sh nft_telemetry test --marker performance     # Performance only
 ./run_validation.sh nft_telemetry test --marker idempotency     # Idempotency only
+DELETE_VOLUME=true ./run_validation.sh nft_telemetry test --marker idempotency  # Idempotency with PVC deletion
 
 # Config-driven batch
 ./run_validation.sh --config
@@ -99,8 +135,48 @@ Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`, `nft`, `p
 ./run_validation.sh fvt_telemetry validate test                     # 2. Validate inputs
 ./run_validation.sh fvt_telemetry deploy test --marker sanity        # 3. Deploy + verify sanity
 ./run_validation.sh fvt_telemetry verify --marker sanity              # 4. Full sanity verification
-./run_validation.sh fvt_telemetry cleanup test                       # 5. Cleanup + verify
+./run_validation.sh fvt_telemetry cleanup test                       # 5. Cleanup + verify (PVCs preserved)
+DELETE_VOLUME=true ./run_validation.sh fvt_telemetry cleanup test    # 5b. Full cleanup incl. PVCs (optional)
 ```
+
+### SFM Prometheus Remote Write
+
+SFM integration is opt-in because it changes an external SFM appliance. Set
+`configure_sfm: true`, `sfm_api_ip`, and `sfm_ssh_ip` in `test_config.yml`,
+then collect the required SFM API and SSH credentials in the encrypted
+credentials file:
+
+```bash
+bash setup_env.sh --set-creds
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker sfm
+```
+
+The SFM SSH host key (and the OIM host key in remote-runner mode) must already
+be verified in the test runner's `known_hosts`; unknown keys are rejected.
+The SFM API address must be directly reachable from the test runner. The SFM
+instance is fixed to instance 1. This lab integration does not expose an API CA
+bundle or API TLS-verification setting, so run it only on an authorized network.
+
+The SFM cases run in this order:
+
+1. Generate or validate the Victoria export, then verify the Omnia `vminsert`,
+   `vmstorage`, and `vmselect` workloads and pods.
+2. Verify the corresponding Omnia services, ports, external addresses, and
+   ready endpoints.
+3. Verify the SFM Prometheus pod, configure its `vminsert` hosts mapping, and
+   prove network reachability.
+4. Import the CA, configure and read back Remote Write, and prove target-scoped
+   forwarding health before accepting the change.
+5. Verify three SFM transceiver metrics on one switch/interface series and show
+   their earliest and latest original timestamps in the query window.
+
+Warning: this flow may import a certificate, create or update the `victoria`
+Remote Write target, and modify `/etc/hosts` inside the SFM Prometheus pod.
+The pod-local hosts entry is ephemeral and may need to be restored after a pod
+restart. A replaced certificate import is retained as rollback material. Set
+`force_external_victoria_playbook: true` to regenerate the export and force a
+certificate rotation. Run the suite only against an appliance authorized for
+configuration.
 
 ---
 
@@ -122,7 +198,7 @@ test/telemetry/
 ├── _run.py                   # Python entry point (loads domain vars, creates runner)
 ├── conftest.py               # Pytest hooks, fixtures, report generation
 ├── test_config.yml           # Non-sensitive settings (IPs, paths)
-├── test_creds.yml            # SSH creds (created by --set-creds, auto-encrypted)
+├── test_creds.yml            # OIM/OME/SFM creds (--set-creds, auto-encrypted)
 ├── .test_creds.key           # Vault key for test_creds.yml (auto-created)
 ├── test_run_config.yml       # Batch execution: scenario order, markers, suites
 │
@@ -150,6 +226,7 @@ test/telemetry/
 │   │       ├── test_ldms.py
 │   │       ├── test_ome.py
 │   │       ├── test_powerscale.py
+│   │       ├── test_sfm.py
 │   │       ├── test_ufm.py
 │   │       └── test_vast.py
 │   └── cleanup/              # Cleanup tag tests
@@ -173,18 +250,29 @@ test/telemetry/
 | Precheck | 7 | sanity |
 | Validate | 6 | sanity |
 | Deploy | 62 | sanity + functional + source + sink |
-| Cleanup | 14 | sanity + functional |
-| **FVT Total** | **89** | |
+| Cleanup | 15* | sanity + functional |
+| **FVT Total** | **90** | |
+
+\* One of the two final-state PVC tests
+(`test_no_pvcs_after_full_cleanup` / `test_pvcs_preserved_after_cleanup`)
+is always skipped depending on the `DELETE_VOLUME` flag, and
+`test_cleanup_topics_removed` additionally skips when
+`DELETE_VOLUME` is unset/`false` (KafkaTopic CRDs are preserved in that
+mode) — so 14 run when `DELETE_VOLUME=true`, 13 run otherwise.
 
 ### NFT (Non-Functional Tests)
 
 | Area | TCs | Marker |
 |------|-----|--------|
 | Performance | 3 | nft + performance |
-| Idempotency | 4 | nft + idempotency |
-| **NFT Total** | **7** | |
+| Idempotency | 5* | nft + idempotency |
+| **NFT Total** | **8** | |
 
-### Grand Total: **89 Tests**
+\* Same PVC skip behavior as FVT cleanup: only one of
+`test_cleanup_idempotency_no_pvcs`'s two PVC assertions runs per
+invocation, based on `DELETE_VOLUME` — 4 run in any single invocation.
+
+### Grand Total: **98 Tests defined** (95–96 active in a single run, depending on `DELETE_VOLUME` — see footnotes above)
 
 ## Output Format
 

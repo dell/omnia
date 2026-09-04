@@ -54,13 +54,13 @@ This document defines all input files consumed by the `discovery` domain.
 
 ---
 
-## 3. omnia_config_credentials.yml
+## 3. discovery_credentials.yml
 
 **Purpose**: Stores OME credentials (vault-encrypted).
 
-**Location**: `/opt/omnia/input/<project_name>/omnia_config_credentials.yml`
+**Location**: `/opt/omnia/input/<project_name>/discovery_credentials.yml`
 
-**Owner**: Credential utility (auto-created, user-prompted)
+**Owner**: `discovery_credentials` role (auto-created, user-prompted)
 
 ### Key Fields
 
@@ -71,7 +71,7 @@ This document defines all input files consumed by the `discovery` domain.
 
 ### Vault Key
 
-- **Key file**: `/opt/omnia/input/<project_name>/.omnia_config_credentials_key`
+- **Key file**: `/opt/omnia/input/<project_name>/.discovery_credentials_key`
 - Auto-generated if missing (32-char random ASCII)
 
 ### Validation Rules
@@ -105,5 +105,5 @@ ansible-playbook discovery.yml -e "discovery_mechanism=ome" -e "project_name=my_
 |-------|--------|-------------|
 | `discovery_config.yml` | User-created | User |
 | `network_spec.yml` | User-created | User |
-| `omnia_config_credentials.yml` | Auto-created | `discovery_credentials` role |
+| `discovery_credentials.yml` | Auto-created | `discovery_credentials` role |
 | `discovery_mechanism` | CLI extra var | User |

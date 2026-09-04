@@ -15,6 +15,8 @@
 """Image content verification (squashfs mount + RPM package check)."""
 
 import json
+import os
+import uuid
 from typing import Dict, Any, List
 
 import yaml
@@ -22,10 +24,16 @@ import yaml
 from omnia_auto import read_remote_env
 
 from ._config_helpers import (
+    _configured_functional_groups_result,
     _load_remote_ibm_config,
-    get_configured_functional_groups,
 )
-from .s3_func import check_s3_buckets
+from .s3_func import (
+    _artifact_identity_error,
+    _artifact_layout_result,
+    _load_build_status_manifest,
+    _manifest_path_to_s3_uri,
+    check_s3_buckets,
+)
 from ..vars.common_vars import (
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
@@ -33,8 +41,8 @@ from ..vars.common_vars import (
     CMDS,
     DOMAIN_NAME,
     PACKAGE_GROUPS_FILENAME,
-    IMAGE_VERIFY_TEMP_IMAGE,
     IMAGE_VERIFY_TEMP_MOUNT,
+    IMAGE_BUILD_TYPE_SUFFIXES,
     SQUASHFS_PACKAGE,
     S3_BOOT_IMAGES_BUCKET,
 )
@@ -43,6 +51,16 @@ from ..vars.common_vars import (
 # =============================================================================
 # IMAGE PACKAGE VERIFICATION (squashfs mount + RPM check)
 # =============================================================================
+
+def _new_image_verification_paths():
+    """Return collision-safe target paths for one verification invocation."""
+    temp_root = f"{IMAGE_VERIFY_TEMP_MOUNT}_{uuid.uuid4().hex}"
+    return (
+        temp_root,
+        os.path.join(temp_root, "rootfs.squashfs"),
+        os.path.join(temp_root, "rootfs"),
+    )
+
 
 def _check_squashfs_tools(host) -> Dict[str, Any]:
     """Ensure squashfs-tools is installed."""
@@ -78,14 +96,14 @@ def _check_squashfs_tools(host) -> Dict[str, Any]:
 
 
 def _get_packages_from_catalog(
-    host, functional_group: str
+    host, functional_group: str, arch: str
 ) -> List[str]:
     """Resolve expected packages from the catalog JSON on target.
 
     Follows the catalog resolution chain:
         functionallayer[name].components[]
-        -> groups[comp].components[]
-        -> packages[key].name
+        -> non-driver groups[comp].components[]
+        -> architecture-matching packages[key].name
 
     Returns:
         List of RPM package names, or empty list if unavailable.
@@ -120,10 +138,20 @@ def _get_packages_from_catalog(
     # Resolve RPM packages through groups
     pkg_names: list[str] = []
     for comp_name in target_layer.get("components", []):
+        # Keep validation aligned with parse_catalog: hardware driver groups
+        # are installed after boot and are not baked into the OS image.
+        if "driver_group" in comp_name:
+            continue
         group = groups.get(comp_name, {})
         for pkg_key in group.get("components", []):
             pkg_data = packages.get(pkg_key, {})
             if pkg_data.get("packagetype", "") != "rpm":
+                continue
+            arch_match = any(
+                source.get("architecture") == arch
+                for source in pkg_data.get("sources", [])
+            )
+            if not arch_match:
                 continue
             rpm_name = pkg_data.get("name", "")
             if rpm_name:
@@ -200,7 +228,7 @@ def _get_packages_from_package_groups(
 
 
 def _get_image_packages_from_config(
-    host, functional_group: str
+    host, functional_group: str, arch: str
 ) -> List[str]:
     """Get expected packages for a functional group.
 
@@ -226,7 +254,7 @@ def _get_image_packages_from_config(
 
     if fg_source == "catalog":
         return _get_packages_from_catalog(
-            host, functional_group,
+            host, functional_group, arch,
         )
 
     # config mode
@@ -235,13 +263,43 @@ def _get_image_packages_from_config(
     )
 
 
+def _get_manifest_rootfs_uri(
+    status_entries: Dict[str, Dict[str, Any]],
+    status_bucket: str,
+    functional_group: str,
+    expected_suffix: str = "",
+):
+    """Return the exact rootfs URI declared for a functional group."""
+    status_entry = status_entries.get(functional_group)
+    if not isinstance(status_entry, dict):
+        return "", (
+            "functional group is missing from build_status.yml "
+            "for the requested architecture"
+        )
+
+    rootfs_uri, path_error = _manifest_path_to_s3_uri(
+        status_entry.get("image"), status_bucket,
+    )
+    if not path_error:
+        path_error = _artifact_identity_error(
+            "image", rootfs_uri, status_bucket, functional_group,
+        )
+    if not path_error and expected_suffix:
+        _cohort, path_error = _artifact_layout_result(
+            "image", rootfs_uri, status_bucket, functional_group,
+            expected_suffix,
+        )
+    return rootfs_uri, path_error
+
+
 def verify_image_packages(
     host, arch: str = "x86_64"
 ) -> Dict[str, Any]:
-    """Download S3 images, mount, and verify RPM packages.
+    """Download exact build-status rootfs objects and verify RPM packages.
 
-    Performs fast pre-check of S3 bucket existence before attempting
-    image download. Bails out early if bucket missing.
+    Resolves each functional group's ``image`` field from build_status.yml,
+    validates its bucket, group, and engine layout, then downloads that exact
+    S3 object. Performs a fast bucket pre-check before image downloads.
 
     Args:
         host: testinfra host object
@@ -260,17 +318,44 @@ def verify_image_packages(
             "results": [],
         }
 
-    groups = get_configured_functional_groups(host, arch=arch)
+    expected = _configured_functional_groups_result(host, arch=arch)
+    if not expected["success"]:
+        expected_error = expected.get("error") or (
+            f"Unable to resolve configured {arch} functional groups"
+        )
+        return {
+            "success": False,
+            "prerequisite_failed": True,
+            "results": [],
+            "details": expected_error,
+            "error": expected_error,
+        }
+
+    groups = expected["groups"]
     if not groups:
         return {
             "success": True,
             "prerequisite_failed": False,
             "results": [],
-            "details": f"No {arch} functional groups configured",
+            "details": expected.get(
+                "details", f"No {arch} functional groups configured",
+            ),
         }
 
-    temp_image = IMAGE_VERIFY_TEMP_IMAGE
-    temp_mount = IMAGE_VERIFY_TEMP_MOUNT
+    status_entries, status_bucket, manifest_build_type, status_error = (
+        _load_build_status_manifest(host, arch)
+    )
+    if status_error:
+        return {
+            "success": False,
+            "prerequisite_failed": True,
+            "results": [],
+            "details": status_error,
+            "error": status_error,
+        }
+    expected_suffix = IMAGE_BUILD_TYPE_SUFFIXES[manifest_build_type]
+
+    temp_root, temp_image, temp_mount = _new_image_verification_paths()
 
     # Fast pre-check: verify the boot-images bucket exists before
     # running the expensive recursive listing.
@@ -286,22 +371,18 @@ def verify_image_packages(
             ),
         }
 
-    # Cleanup before start
-    host.run(CMDS["umount"].format(flags="", path=temp_mount))
-    host.run(CMDS["rm_file"].format(path=temp_image))
-    host.run(CMDS["mkdir_p"].format(path=temp_mount))
-
-    s3_list = host.run(
-        CMDS["s3cmd_ls_bucket"].format(bucket=S3_BOOT_IMAGES_BUCKET)
-    )
-    s3_output = s3_list.stdout if s3_list.rc == 0 else ""
-
     results = []
     all_passed = True
+    cleanup_error = None
 
     try:
+        # Every invocation gets its own target paths so concurrent validation
+        # runs cannot unmount, truncate, or remove each other's working image.
+        # Keep setup in this block so partial setup is also cleaned on errors.
+        host.run(CMDS["mkdir_p"].format(path=temp_mount))
+
         for fg in groups:
-            expected_pkgs = _get_image_packages_from_config(host, fg)
+            expected_pkgs = _get_image_packages_from_config(host, fg, arch)
             if not expected_pkgs:
                 results.append({
                     "functional_group": fg,
@@ -314,33 +395,18 @@ def verify_image_packages(
                 })
                 continue
 
-            # Find rootfs image in S3 output
-            rootfs_line = ""
-            for line in s3_output.split("\n"):
-                if fg in line and "rhel" in line:
-                    if "initramfs" not in line and "vmlinuz" not in line:
-                        rootfs_line = line.strip()
-                        break
-
-            if not rootfs_line:
+            s3_path, path_error = _get_manifest_rootfs_uri(
+                status_entries, status_bucket, fg, expected_suffix,
+            )
+            if path_error:
                 results.append({
                     "functional_group": fg,
                     "success": False,
-                    "error": "No rootfs image found in S3",
-                    "expected_count": len(expected_pkgs),
-                    "found_count": 0,
-                    "missing_count": len(expected_pkgs),
-                    "package_details": [],
-                })
-                all_passed = False
-                continue
-
-            s3_path = rootfs_line.split()[-1] if rootfs_line else None
-            if not s3_path:
-                results.append({
-                    "functional_group": fg,
-                    "success": False,
-                    "error": "Failed to parse S3 path",
+                    "error": (
+                        "Invalid build_status.yml rootfs path: "
+                        f"{path_error}"
+                    ),
+                    "image_path": s3_path or None,
                     "expected_count": len(expected_pkgs),
                     "found_count": 0,
                     "missing_count": len(expected_pkgs),
@@ -356,10 +422,15 @@ def verify_image_packages(
                 )
             )
             if dl.rc != 0:
+                host.run(CMDS["rm_file"].format(path=temp_image))
                 results.append({
                     "functional_group": fg,
                     "success": False,
-                    "error": "Failed to download image",
+                    "error": (
+                        "Failed to download exact build_status.yml "
+                        f"rootfs {s3_path} (rc={dl.rc})"
+                    ),
+                    "image_path": s3_path,
                     "expected_count": len(expected_pkgs),
                     "found_count": 0,
                     "missing_count": len(expected_pkgs),
@@ -375,11 +446,16 @@ def verify_image_packages(
                 )
             )
             if mt.rc != 0:
+                host.run(CMDS["umount"].format(
+                    flags="-l", path=temp_mount,
+                ))
+                host.run(CMDS["rm_dir"].format(path=temp_mount))
                 host.run(CMDS["rm_file"].format(path=temp_image))
                 results.append({
                     "functional_group": fg,
                     "success": False,
-                    "error": "Failed to mount image",
+                    "error": f"Failed to mount image (rc={mt.rc})",
+                    "image_path": s3_path,
                     "expected_count": len(expected_pkgs),
                     "found_count": 0,
                     "missing_count": len(expected_pkgs),
@@ -391,10 +467,29 @@ def verify_image_packages(
             rpm_cmd = host.run(
                 CMDS["rpm_list_installed"].format(root=temp_mount)
             )
-            installed = (
-                rpm_cmd.stdout.strip().split('\n')
-                if rpm_cmd.rc == 0 else []
-            )
+            if rpm_cmd.rc != 0 or not rpm_cmd.stdout.strip():
+                host.run(CMDS["umount"].format(
+                    flags="-l", path=temp_mount,
+                ))
+                host.run(CMDS["rm_dir"].format(path=temp_mount))
+                host.run(CMDS["rm_file"].format(path=temp_image))
+                results.append({
+                    "functional_group": fg,
+                    "success": False,
+                    "error": (
+                        "Failed to query mounted image RPM database "
+                        f"(rc={rpm_cmd.rc})"
+                    ),
+                    "image_path": s3_path,
+                    "expected_count": len(expected_pkgs),
+                    "found_count": 0,
+                    "missing_count": len(expected_pkgs),
+                    "package_details": [],
+                })
+                all_passed = False
+                continue
+
+            installed = rpm_cmd.stdout.strip().split('\n')
 
             found_pkgs = []
             missing_pkgs = []
@@ -454,16 +549,25 @@ def verify_image_packages(
 
     finally:
         # Guaranteed cleanup — runs even if an exception occurs
-        host.run(CMDS["umount"].format(
-            flags="-l", path=temp_mount,
-        ))
-        host.run(CMDS["rm_dir"].format(path=temp_mount))
-        host.run(CMDS["rm_file"].format(path=temp_image))
+        try:
+            host.run(CMDS["umount"].format(
+                flags="-l", path=temp_mount,
+            ))
+        finally:
+            cleanup = host.run(
+                CMDS["rm_dir"].format(path=temp_root)
+            )
+            if cleanup.rc != 0:
+                cleanup_error = (
+                    "Failed to remove temporary image verification "
+                    f"workspace {temp_root} (rc={cleanup.rc})"
+                )
 
     passed_count = sum(1 for r in results if r["success"])
+    verification_success = all_passed and cleanup_error is None
 
     return {
-        "success": all_passed,
+        "success": verification_success,
         "prerequisite_failed": False,
         "results": results,
         "total_groups": len(groups),
@@ -473,8 +577,10 @@ def verify_image_packages(
             f"Verified packages in "
             f"{passed_count}/{len(groups)} images"
         ),
-        "error": None if all_passed else (
-            f"{len(groups) - passed_count} image(s) "
-            "have missing packages"
+        "error": cleanup_error or (
+            None if all_passed else (
+                f"{len(groups) - passed_count} image(s) "
+                "have missing packages"
+            )
         ),
     }

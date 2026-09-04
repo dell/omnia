@@ -16,19 +16,22 @@
 Omnia Main — Non-Functional File Permission Tests.
 
 Verifies that installed files have correct permissions:
-  NFT_MA_006: Installed env file is 0644
-  NFT_MA_008: omnia.sh is executable
-  NFT_MA_009: omnia-cli is executable
-  NFT_MA_010: domain-init.sh scripts are executable
+  MAIN_NFT_006: Installed env file is 0644
+  MAIN_NFT_008: omnia.sh is executable
+  MAIN_NFT_009: omnia-cli is executable
+  MAIN_NFT_010: domain-init.sh scripts are executable
 """
 
 import pytest
 
-from library.functions import TestLogger, load_test_config
-from library.functions.omnia_main_func import run_omnia_cmd
+from library.vars import TEST_CASES as TC
+
+from library.functions import TestLogger
+from library.functions.omnia_main_func import (
+    _resolve_clone_path,
+)
 from library.vars.common_vars import (
     SYSTEM_ENV_FILE,
-    PROFILE_DROP_IN,
     OMNIA_SH_PATH,
     OMNIA_CLI_PATH,
     DOMAINS_WITH_INIT,
@@ -40,10 +43,9 @@ from omnia_auto import run_on_host
 @pytest.mark.nft
 @pytest.mark.order(1)
 def test_env_file_permissions(host):
-    """NFT_MA_006: Verify /etc/omnia/omnia.env has 0644 permissions."""
-    tl = TestLogger(
-        "NFT: env file permissions", "NFT_MA_006"
-    )
+    """MAIN_NFT_006: Verify /etc/omnia/omnia.env has 0644 permissions."""
+    tc = TC["env_file_permissions"]
+    tl = TestLogger(tc["title"], tc["id"])
 
     result = run_on_host(
         host,
@@ -72,12 +74,10 @@ def test_env_file_permissions(host):
 @pytest.mark.nft
 @pytest.mark.order(2)
 def test_omnia_sh_executable(host):
-    """NFT_MA_008: Verify omnia.sh source file is executable in repo."""
-    tl = TestLogger(
-        "NFT: omnia.sh executable", "NFT_MA_008"
-    )
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
+    """MAIN_NFT_008: Verify omnia.sh source file is executable in repo."""
+    tc = TC["omnia_sh_executable"]
+    tl = TestLogger(tc["title"], tc["id"])
+    clone_path = _resolve_clone_path()
 
     sh_path = f"{clone_path}/{OMNIA_SH_PATH}"
     result = run_on_host(
@@ -100,12 +100,10 @@ def test_omnia_sh_executable(host):
 @pytest.mark.nft
 @pytest.mark.order(3)
 def test_omnia_cli_executable(host):
-    """NFT_MA_009: Verify omnia-cli source file is executable in repo."""
-    tl = TestLogger(
-        "NFT: omnia-cli executable", "NFT_MA_009"
-    )
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
+    """MAIN_NFT_009: Verify omnia-cli source file is executable in repo."""
+    tc = TC["omnia_cli_executable"]
+    tl = TestLogger(tc["title"], tc["id"])
+    clone_path = _resolve_clone_path()
 
     cli_path = f"{clone_path}/{OMNIA_CLI_PATH}"
     result = run_on_host(
@@ -128,12 +126,10 @@ def test_omnia_cli_executable(host):
 @pytest.mark.nft
 @pytest.mark.order(4)
 def test_domain_init_scripts_executable(host):
-    """NFT_MA_010: Verify all domain-init.sh scripts are executable."""
-    tl = TestLogger(
-        "NFT: domain-init.sh permissions", "NFT_MA_010"
-    )
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
+    """MAIN_NFT_010: Verify all domain-init.sh scripts are executable."""
+    tc = TC["domain_init_scripts_executable"]
+    tl = TestLogger(tc["title"], tc["id"])
+    clone_path = _resolve_clone_path()
 
     not_executable = []
     for domain in DOMAINS_WITH_INIT:

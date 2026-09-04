@@ -128,6 +128,72 @@ cleanup:
       echo ""
 
       case "${HTTP_CODE}" in
+        202)
+          echo "  [OK] Cleanup accepted (NFS artifacts removed; S3 image"
+          echo "       deletion submitted and running asynchronously)."
+          jq '.' cleanup_response.json 2>/dev/null || cat cleanup_response.json
+          echo ""
+
+          # --- Poll for actual S3 cleanup completion ---
+          echo "  Waiting for S3 image deletion to complete..."
+          echo "  ------------------------------------------------------------"
+          echo "  Polling interval: ${POLL_INTERVAL}s"
+          echo "  Max attempts: ${MAX_POLL_ATTEMPTS}"
+          echo ""
+
+          CLEANUP_COMPLETED=false
+          ATTEMPT=1
+
+          while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
+            POLL_HTTP_CODE=$(curl -s -o images_poll_response.json -w "%{http_code}" \
+              --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+              -X GET "${BSM_API_URL}/api/v1/images?include_all=true" \
+              -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+              --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+
+            if [ "$POLL_HTTP_CODE" != "200" ]; then
+              echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] HTTP ${POLL_HTTP_CODE} - retrying..."
+              ATTEMPT=$((ATTEMPT + 1))
+              sleep "${POLL_INTERVAL}"
+              continue
+            fi
+
+            CLEANUP_IG_STATE=$(jq -r --arg jid "${CLEANUP_JOB_ID}" \
+              '.image_groups[]? | select(.job_id == $jid) | .status' \
+              images_poll_response.json 2>/dev/null || echo "UNKNOWN")
+
+            echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Image Group: ${CLEANUP_IG_STATE:-UNKNOWN}"
+
+            if [ "${CLEANUP_IG_STATE}" = "CLEANED" ]; then
+              CLEANUP_COMPLETED=true
+              break
+            fi
+
+            ATTEMPT=$((ATTEMPT + 1))
+            sleep "${POLL_INTERVAL}"
+          done
+
+          if [ "$CLEANUP_COMPLETED" = "false" ]; then
+            echo ""
+            echo "  ERROR: Cleanup polling timed out after ${MAX_POLL_ATTEMPTS} attempts."
+            echo "         Image Group is still in '${CLEANUP_IG_STATE:-UNKNOWN}' state --"
+            echo "         S3 image deletion did not confirm completion. Retry the"
+            echo "         DELETE request or check the playbook watcher logs."
+            echo "CLEANUP_STATUS=TIMEOUT" > cleanup_result.env
+            exit 1
+          fi
+
+          echo "  +-----------------------------------------------------------+"
+          echo "  |              CLEANUP COMPLETED SUCCESSFULLY               |"
+          echo "  +-----------------------------------------------------------+"
+          echo "  |  Job ID         : ${CLEANUP_JOB_ID}"
+          echo "  |  Image Group ID : ${IMAGE_GROUP_ID}"
+          echo "  |  Correlation ID : ${CORRELATION_ID}"
+          echo "  |  S3 images and NFS artifacts removed.                     |"
+          echo "  |  Image Group + Job transitioned to CLEANED.               |"
+          echo "  +-----------------------------------------------------------+"
+          echo "CLEANUP_STATUS=SUCCESS" > cleanup_result.env
+          ;;
         204)
           echo "  +-----------------------------------------------------------+"
           echo "  |              CLEANUP COMPLETED SUCCESSFULLY               |"

@@ -1,0 +1,97 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# validate_build_stream_config.yml — Validate build_stream input files.
+#
+# Validates:
+#   - build_stream_config.yml exists and is loadable
+#   - enable_build_stream is set to true
+#   - build_stream_host_ip is filled
+#   - build_stream_port is valid
+#   - gitlab_host is filled
+#
+# Usage:
+#   ansible-playbook build_stream.yml --tags validate
+
+- name: Validate build_stream configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Load build_stream_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/build_stream_config.yml"
+
+    - name: Validate enable_build_stream is true
+      ansible.builtin.assert:
+        that:
+          - enable_build_stream is defined
+          - enable_build_stream | bool
+        fail_msg: >-
+          enable_build_stream must be set to true in build_stream_config.yml.
+          Current value: {{ enable_build_stream | default('undefined') }}
+
+    - name: Validate build_stream_host_ip is set
+      ansible.builtin.assert:
+        that:
+          - build_stream_host_ip is defined
+          - build_stream_host_ip | string | length > 0
+        fail_msg: >-
+          build_stream_host_ip must be set in build_stream_config.yml.
+          This should be the IP address of the OIM server.
+
+    - name: Validate build_stream_port is valid
+      ansible.builtin.assert:
+        that:
+          - build_stream_port is defined
+          - build_stream_port | int > 0
+          - build_stream_port | int <= 65535
+        fail_msg: >-
+          build_stream_port must be a valid port number (1-65535).
+          Current value: {{ build_stream_port | default('undefined') }}
+
+    - name: Validate gitlab_host is set
+      ansible.builtin.assert:
+        that:
+          - gitlab_host is defined
+          - gitlab_host | string | length > 0
+        fail_msg: >-
+          gitlab_host must be set in build_stream_config.yml.
+          This should be the IP address of the server where GitLab will be installed.
+
+    - name: Validate gitlab_https_port is valid
+      ansible.builtin.assert:
+        that:
+          - gitlab_https_port | default(443) | int > 0
+          - gitlab_https_port | default(443) | int <= 65535
+        fail_msg: >-
+          gitlab_https_port must be a valid port number (1-65535).
+          Current value: {{ gitlab_https_port | default('undefined') }}
+
+    - name: Print validation summary
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  BUILD_STREAM CONFIG VALIDATION"
+          - "============================================"
+          - "  enable_build_stream:    {{ enable_build_stream }}"
+          - "  build_stream_host_ip:   {{ build_stream_host_ip }}"
+          - "  build_stream_port:      {{ build_stream_port }}"
+          - "  gitlab_host:            {{ gitlab_host }}"
+          - "  gitlab_https_port:      {{ gitlab_https_port | default(443) }}"
+          - "  gitlab_project_name:    {{ gitlab_project_name | default('omnia-catalog') }}"
+          - "============================================"
+          - "  Result: PASS"
+          - "============================================"

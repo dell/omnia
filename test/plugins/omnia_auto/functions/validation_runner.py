@@ -22,12 +22,13 @@ execution, test listing, and result summarization.
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence, Union
 
 import yaml
 
@@ -36,6 +37,9 @@ from ..vars.validation_vars import COMMANDS
 
 # Regex for safe identifiers from config YAML (no shell metacharacters)
 _SAFE_IDENT_RE = re.compile(r"^[a-zA-Z0-9_\-./]+$")
+_SAFE_MARKER_RE = re.compile(
+    r"^[A-Za-z_][A-Za-z0-9_]*(?:[+,][A-Za-z_][A-Za-z0-9_]*)*$"
+)
 
 
 def _validate_config_value(value: str, label: str) -> str:
@@ -60,6 +64,42 @@ def _validate_config_value(value: str, label: str) -> str:
             f"Unsafe {label} value in config: {value!r}"
         )
     return value
+
+
+def _validate_marker_value(value: str) -> str:
+    """Validate a safe Single, AND, or OR marker expression.
+
+    Marker names follow pytest's identifier style. A compound expression
+    may use ``+`` for AND or ``,`` for OR, but not both operators.
+    """
+    if not isinstance(value, str):
+        raise ValueError("Marker expression must be a string")
+    if value and (
+        ("+" in value and "," in value)
+        or not _SAFE_MARKER_RE.fullmatch(value)
+    ):
+        raise ValueError(
+            "Unsafe marker expression: marker names must be joined "
+            "using only '+' (AND) or ',' (OR)"
+        )
+    return value
+
+
+def _canonical_choice(
+    value: str, choices: Sequence[str], label: str,
+) -> str:
+    """Return the trusted allowlist member equal to *value*.
+
+    Returning the object from ``choices`` prevents untrusted configuration
+    text from flowing directly into an execution argument.
+    """
+    for choice in choices:
+        if value == choice:
+            return choice
+    raise ValueError(
+        f"Unsupported {label} value {value!r}; expected one of: "
+        f"{', '.join(choices)}"
+    )
 
 
 # =====================================================================
@@ -196,7 +236,9 @@ class ValidationRunner:
             Defaults to the caller's working directory.
         domain_config: Domain-specific variables dict with keys:
             ``tags`` (list), ``markers`` (list),
-            ``suites`` (dict), ``exclude_tags`` (list).
+            ``suites`` (dict), ``exclude_tags`` (list),
+            ``all_exec_tags`` (ordered list), ``all_exec_marker`` (string),
+            and ``enable_ut`` (bool).
             When omitted, tags are auto-discovered from
             ``fvt/`` subdirectories.
     """
@@ -218,18 +260,27 @@ class ValidationRunner:
         self.cat_fvt = f"fvt_{domain}"
         self.cat_nft = f"nft_{domain}"
         self.cat_ut = f"ut_{domain}"
-        self.categories = (
-            self.cat_fvt, self.cat_nft, self.cat_ut,
-        )
-
         # Domain-specific config from library/vars
         cfg = domain_config or {}
+        self._enable_ut: bool = cfg.get("enable_ut", True)
+        self.categories = (
+            (self.cat_fvt, self.cat_nft, self.cat_ut)
+            if self._enable_ut
+            else (self.cat_fvt, self.cat_nft)
+        )
         self._domain_markers: List[str] = cfg.get(
             "markers", [],
         )
         self._domain_suites: Dict = cfg.get("suites", {})
         self._exclude_tags: frozenset = frozenset(
             cfg.get("exclude_tags", []),
+        )
+        self._configured_tags: List[str] = cfg.get("tags", [])
+        self._all_exec_tags: List[str] = cfg.get(
+            "all_exec_tags", [],
+        )
+        self._all_exec_marker: str = cfg.get(
+            "all_exec_marker", "",
         )
 
     # -----------------------------------------------------------------
@@ -256,7 +307,7 @@ class ValidationRunner:
             return self._dispatch_fvt(rest)
         if arg1 == self.cat_nft:
             return self._dispatch_simple("nft", rest)
-        if arg1 == self.cat_ut:
+        if self._enable_ut and arg1 == self.cat_ut:
             return self._dispatch_simple("ut", rest)
 
         _err(f"Unknown category '{arg1}'")
@@ -353,7 +404,9 @@ class ValidationRunner:
                 args[i] == "--marker"
                 and i + 1 < len(args)
             ):
-                opts["marker"] = args[i + 1]
+                opts["marker"] = _validate_marker_value(
+                    args[i + 1]
+                )
                 i += 2
             elif args[i] in ("-v", "--verbose"):
                 opts["verbose"] = "-v"
@@ -412,6 +465,26 @@ class ValidationRunner:
         self, tag: str, marker: str, verbose: str,
     ) -> int:
         """Run playbook execution only."""
+        if not tag and self._all_exec_tags:
+            selected_marker = marker or self._all_exec_marker
+            os.environ["OMNIA_COMMAND_TYPE"] = "exec"
+            exec_dirs = [
+                os.path.join(self.fvt_dir, exec_tag)
+                for exec_tag in self._all_exec_tags
+            ]
+            marker_args = "-m deploy"
+            if selected_marker:
+                marker_args += f" --marker {selected_marker}"
+            _info("Executing the configured lifecycle scenarios...")
+            rc = self._invoke_pytest_with_summary(
+                exec_dirs, marker_args, verbose,
+            )
+            if rc == 0:
+                _ok("Lifecycle execution completed.")
+            else:
+                _fail("Lifecycle execution failed.")
+            return rc
+
         os.environ["OMNIA_COMMAND_TYPE"] = "exec"
         exec_dir = (
             os.path.join(self.fvt_dir, tag) if tag
@@ -644,47 +717,53 @@ class ValidationRunner:
             for name, sc in fvt_cfg.items():
                 if not isinstance(sc, dict):
                     continue
-                _validate_config_value(str(name), "scenario name")
                 total += 1
+                try:
+                    scenario_name = _validate_config_value(
+                        str(name), "scenario name",
+                    )
+                except ValueError as exc:
+                    _err(str(exc))
+                    failed += 1
+                    continue
                 if not sc.get("run", False):
-                    _skip(f"fvt/{name}")
+                    _skip(f"fvt/{scenario_name}")
                     skipped += 1
                     continue
 
-                env = self._build_config_env(
-                    sc, g_dataset, g_sync_in, g_sync_out,
-                )
-                extra = self._build_config_extra(sc)
-                sc_command = sc.get("command", "test")
-                if sc_command not in COMMANDS:
-                    _err(
-                        f"Invalid command '{sc_command}'"
-                        f" in config for {name}"
+                try:
+                    scenario_name = _canonical_choice(
+                        scenario_name, self._get_fvt_tags(), "scenario",
                     )
+                    env = self._build_config_env(
+                        sc, g_dataset, g_sync_in, g_sync_out,
+                    )
+                    extra = self._build_config_extra(
+                        sc, scenario_name,
+                    )
+                    sc_command = _canonical_choice(
+                        str(sc.get("command", "test")),
+                        COMMANDS,
+                        "command",
+                    )
+                except ValueError as exc:
+                    _err(f"Invalid config for {scenario_name}: {exc}")
                     failed += 1
                     continue
-                run_script = os.path.join(
-                    self.script_dir, "_run.py",
-                )
-                if not os.path.isfile(run_script):
-                    _err(f"Run script not found: {run_script}")
-                    failed += 1
-                    continue
-                cmd_args = [
-                    sys.executable, run_script,
+                runner_args = [
                     self.cat_fvt,
-                    _validate_config_value(name, "name"),
+                    scenario_name,
                     sc_command,
                 ] + extra
 
-                rc = subprocess.call(  # nosec B603
-                    cmd_args, env=env,
+                rc = self._run_config_command(
+                    runner_args, env,
                 )
                 if rc == 0:
-                    _pass(f"fvt/{name}")
+                    _pass(f"fvt/{scenario_name}")
                     passed += 1
                 else:
-                    _fail_tag(f"fvt/{name}")
+                    _fail_tag(f"fvt/{scenario_name}")
                     failed += 1
             print()
 
@@ -692,34 +771,26 @@ class ValidationRunner:
             (self.cat_nft, "nft"), (self.cat_ut, "ut"),
         ):
             cat_cfg = cfg.get(cat_key, {})
-            if not isinstance(cat_cfg, dict):
+            if not isinstance(cat_cfg, dict) or not cat_cfg:
                 continue
             total += 1
             if cat_cfg.get("run", False):
-                extra = self._build_config_extra(cat_cfg)
-                cat_command = cat_cfg.get("command", "test")
-                if cat_command not in COMMANDS:
-                    _err(
-                        f"Invalid command '{cat_command}'"
-                        f" in config for {cat_name}"
+                try:
+                    extra = self._build_config_extra(cat_cfg)
+                    cat_command = _canonical_choice(
+                        str(cat_cfg.get("command", "test")),
+                        COMMANDS,
+                        "command",
                     )
+                except ValueError as exc:
+                    _err(f"Invalid config for {cat_name}: {exc}")
                     failed += 1
                     continue
-                run_script = os.path.join(
-                    self.script_dir, "_run.py",
-                )
-                if not os.path.isfile(run_script):
-                    _err(f"Run script not found: {run_script}")
-                    failed += 1
-                    continue
-                cmd_args = [
-                    sys.executable, run_script,
-                    _validate_config_value(cat_key, "category"),
+                runner_args = [
+                    cat_key,
                     cat_command,
                 ] + extra
-                rc = subprocess.call(  # nosec B603
-                    cmd_args,
-                )
+                rc = self._run_config_command(runner_args)
                 if rc == 0:
                     _pass(cat_name)
                     passed += 1
@@ -757,8 +828,8 @@ class ValidationRunner:
         sc: dict, g_dataset: str,
         g_sync_in: str, g_sync_out: str,
     ) -> dict:
-        """Build env dict for a config scenario."""
-        env = os.environ.copy()
+        """Build validated environment overrides for a config scenario."""
+        env = {}
         ds = _validate_config_value(
             g_dataset or str(sc.get("dataset", "")), "dataset",
         )
@@ -778,21 +849,46 @@ class ValidationRunner:
             env["OMNIA_SYNC_OUTPUT_OVERRIDE"] = so
         return env
 
-    @staticmethod
-    def _build_config_extra(sc: dict) -> List[str]:
-        """Build extra CLI args from a config scenario."""
+    def _build_config_extra(
+        self, sc: dict, tag: str = "",
+    ) -> List[str]:
+        """Build allowlisted CLI args from a config scenario."""
         extra: List[str] = []
-        marker = _validate_config_value(
-            str(sc.get("marker", "")), "marker",
+        marker = self._canonical_marker(
+            sc.get("marker", ""),
         )
         if marker:
             extra.extend(["--marker", marker])
-        suite = _validate_config_value(
-            str(sc.get("suite", "")), "suite",
-        )
+        requested_suite = str(sc.get("suite", ""))
+        suite = ""
+        if requested_suite:
+            allowed_suites = (
+                _list_subdirs(os.path.join(self.fvt_dir, tag))
+                if tag else []
+            )
+            suite = _canonical_choice(
+                requested_suite, allowed_suites, "suite",
+            )
         if suite:
             extra.extend(["--suite", suite])
         return extra
+
+    def _canonical_marker(self, value: str) -> str:
+        """Accept only the shell-free marker-expression grammar."""
+        return _validate_marker_value(value)
+
+    def _run_config_command(
+        self, args: List[str], env: Optional[dict] = None,
+    ) -> int:
+        """Run one batch entry internally with isolated environment changes."""
+        original_env = os.environ.copy()
+        try:
+            if env:
+                os.environ.update(env)
+            return self.main(args)
+        finally:
+            os.environ.clear()
+            os.environ.update(original_env)
 
     # -----------------------------------------------------------------
     # PYTEST INVOCATION
@@ -804,22 +900,21 @@ class ValidationRunner:
     ) -> int:
         """Invoke pytest as a subprocess (raw)."""
         if isinstance(test_path, list):
-            paths_str = " ".join(str(p) for p in test_path)
+            test_paths = [str(path) for path in test_path]
         else:
-            paths_str = str(test_path)
+            test_paths = [str(test_path)]
 
         parts = [
             sys.executable, "-m", "pytest",
-            paths_str,
+            *test_paths,
             "-s", "--tb=short", "--no-header", "-q",
         ]
         if marker_args:
-            parts.extend(marker_args.split())
+            parts.extend(shlex.split(marker_args))
         if verbose:
-            parts.extend(verbose.split())
+            parts.extend(shlex.split(verbose))
 
-        cmd_str = " ".join(parts)
-        _cyan(f"  Command: {cmd_str}")
+        _cyan(f"  Command: {shlex.join(parts)}")
         print(flush=True)
         sys.stdout.flush()
 
@@ -828,17 +923,35 @@ class ValidationRunner:
         env = os.environ.copy()
         env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
         if log_file:
-            shell_cmd = (
-                f"set -o pipefail; "
-                f"{cmd_str} 2>&1 | tee -a {log_file}"
-            )
-            return subprocess.run(
-                ["bash", "-c", shell_cmd],
-                cwd=self.script_dir, check=False, env=env,
-            ).returncode
+            try:
+                with open(
+                    log_file, "a", encoding="utf-8",
+                ) as log_stream:
+                    with subprocess.Popen(  # nosec B603
+                        parts,
+                        cwd=self.script_dir,
+                        env=env,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        shell=False,
+                    ) as process:
+                        if process.stdout is not None:
+                            for output_line in process.stdout:
+                                sys.stdout.write(output_line)
+                                sys.stdout.flush()
+                                log_stream.write(output_line)
+                                log_stream.flush()
+                        return process.wait()
+            except OSError as exc:
+                _err(f"Unable to run pytest or write its log: {exc}")
+                return 1
         return subprocess.run(
-            ["bash", "-c", cmd_str],
-            cwd=self.script_dir, check=False, env=env,
+            parts,
+            cwd=self.script_dir,
+            check=False,
+            env=env,
+            shell=False,
         ).returncode
 
     def _invoke_pytest_with_summary(
@@ -887,6 +1000,13 @@ class ValidationRunner:
         """Discover FVT tag directories."""
         if not os.path.isdir(self.fvt_dir):
             return []
+        if self._configured_tags:
+            return [
+                name for name in self._configured_tags
+                if os.path.isdir(
+                    os.path.join(self.fvt_dir, name),
+                )
+            ]
         return sorted(
             d for d in os.listdir(self.fvt_dir)
             if (
@@ -899,7 +1019,7 @@ class ValidationRunner:
 
     def _build_verify_paths(
         self, tag: str, suite: str,
-    ) -> str:
+    ) -> Union[str, List[str]]:
         """Build test path(s) for verification."""
         if tag:
             base = os.path.join(self.fvt_dir, tag)
@@ -915,7 +1035,7 @@ class ValidationRunner:
             dirs.append(
                 os.path.join(self.fvt_dir, name),
             )
-        return " ".join(dirs)
+        return dirs
 
     def _print_banner(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, category: str, tag: str,
@@ -991,8 +1111,9 @@ class ValidationRunner:
         print(f"  ./run_validation.sh {self.cat_fvt} list")
         print(f"  ./run_validation.sh {self.cat_nft}"
               f" <command> [options]")
-        print(f"  ./run_validation.sh {self.cat_ut}"
-              f" <command> [options]")
+        if self._enable_ut:
+            print(f"  ./run_validation.sh {self.cat_ut}"
+                  f" <command> [options]")
         print()
         _yellow("CATEGORIES")
         print(
@@ -1003,10 +1124,11 @@ class ValidationRunner:
             f"  {self.cat_nft:<30}"
             " Non-Functional Tests"
         )
-        print(
-            f"  {self.cat_ut:<30}"
-            " Unit Tests"
-        )
+        if self._enable_ut:
+            print(
+                f"  {self.cat_ut:<30}"
+                " Unit Tests"
+            )
         print()
         _yellow("COMMANDS")
         print("  exec       Run Ansible playbook only (no tests)")
@@ -1048,7 +1170,8 @@ class ValidationRunner:
               f" --marker {ex_marker}")
         print(f"  ./run_validation.sh {f} list")
         print(f"  ./run_validation.sh {n} test")
-        print(f"  ./run_validation.sh {u} test")
+        if self._enable_ut:
+            print(f"  ./run_validation.sh {u} test")
         print()
 
     def _print_fvt_help(self) -> None:

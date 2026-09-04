@@ -13,7 +13,7 @@ full explanations, prerequisites, every parameter described, and examples.
 |----------|-----------|-----------|---------------|
 | Configuration | `vars/common_vars.py` | `configure`, `get_setting`, `init_module_root`, `get_module_root` | [docs/01_configuration.md](docs/01_configuration.md) |
 | Formatting | `functions/formatting_func.py` | `Colors`, `Symbols`, `TestLogger`, `log`, `set_debug_mode`, `add_session_result`, `print_summary_table` | [docs/02_formatting.md](docs/02_formatting.md) |
-| Host & Config | `functions/host_func.py` | `load_test_config`, `load_test_credentials`, `encrypt_test_credentials`, `get_testinfra_host`, `is_local_execution`, `run_on_host`, `connection_params`, `read_remote_env`, `ensure_remote_dir`, `resolve_domain_input_path` | [docs/03_host_and_config.md](docs/03_host_and_config.md) |
+| Host & Config | `functions/host_func.py` | `load_test_config`, `load_test_credentials`, `encrypt_test_credentials`, `get_testinfra_host`, `is_local_execution`, `run_on_host`, `run_ssh_command`, `connection_params`, `read_remote_env`, `ensure_remote_dir`, `resolve_domain_input_path` | [docs/03_host_and_config.md](docs/03_host_and_config.md) |
 | Sync | `functions/sync_func.py` | `clone_repo`, `sync_files` | [docs/04_sync.md](docs/04_sync.md) |
 | Runner | `functions/runner_func.py` | `run_playbook` | [docs/05_runner.md](docs/05_runner.md) |
 | Report | `functions/report_func.py` | `TestReport`, `get_current_report`, `set_current_report` | [docs/06_report.md](docs/06_report.md) |
