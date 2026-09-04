@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Execution scenario — actual omnia.sh operation tests."""
+"""Main precheck lifecycle scenario."""

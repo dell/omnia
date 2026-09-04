@@ -16,13 +16,15 @@
 Omnia Main — Non-Functional CLI Performance Tests.
 
 Verifies that omnia-cli commands complete within expected timeframes:
-  NFT_MA_007: omnia-cli status completes within threshold
-  NFT_MA_011: omnia-cli help completes within threshold
+  MAIN_NFT_007: omnia-cli status completes within threshold
+  MAIN_NFT_011: omnia-cli help completes within threshold
 """
 
 import time
 
 import pytest
+
+from library.vars import TEST_CASES as TC
 
 from library.functions import TestLogger
 from library.functions.omnia_main_func import run_omnia_cli_cmd
@@ -35,10 +37,9 @@ CLI_HELP_THRESHOLD = 5       # 5 seconds
 @pytest.mark.nft
 @pytest.mark.order(1)
 def test_cli_status_performance(host):
-    """NFT_MA_007: Verify omnia-cli status completes within threshold."""
-    tl = TestLogger(
-        "NFT: omnia-cli status performance", "NFT_MA_007"
-    )
+    """MAIN_NFT_007: Verify omnia-cli status completes within threshold."""
+    tc = TC["cli_status_performance"]
+    tl = TestLogger(tc["title"], tc["id"])
 
     start = time.time()
     result = run_omnia_cli_cmd(host, "omnia_cli_status")
@@ -76,10 +77,9 @@ def test_cli_status_performance(host):
 @pytest.mark.nft
 @pytest.mark.order(2)
 def test_cli_help_performance(host):
-    """NFT_MA_011: Verify omnia-cli help completes within threshold."""
-    tl = TestLogger(
-        "NFT: omnia-cli help performance", "NFT_MA_011"
-    )
+    """MAIN_NFT_011: Verify omnia-cli help completes within threshold."""
+    tc = TC["cli_help_performance"]
+    tl = TestLogger(tc["title"], tc["id"])
 
     start = time.time()
     result = run_omnia_cli_cmd(host, "omnia_cli_help")

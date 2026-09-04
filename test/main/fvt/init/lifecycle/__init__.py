@@ -12,20 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Omnia Main — Messages
-
-Log and assertion messages for all FVT tests.
-"""
-
-from .omnia_main_msgs import (
-    TEST_LOG_MSGS,
-    TEST_ASSERT_MSGS,
-    OMNIA_MAIN_MSGS,
-)
-
-__all__ = [
-    "TEST_LOG_MSGS",
-    "TEST_ASSERT_MSGS",
-    "OMNIA_MAIN_MSGS",
-]
+"""Extended init lifecycle validation."""

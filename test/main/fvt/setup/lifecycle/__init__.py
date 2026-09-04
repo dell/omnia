@@ -12,15 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# =============================================================================
-# Omnia Main — Test Credentials
-# =============================================================================
-# This file is auto-encrypted with Ansible Vault on first test run.
-# Fill in values below, then run tests — the file will be encrypted in-place.
-#
-# oim_password: SSH password for the remote target server (oim_server_ip).
-#               Leave empty if using passwordless SSH (key-based auth).
-# =============================================================================
-
----
-oim_password: ""
+"""Extended setup lifecycle validation."""

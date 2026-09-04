@@ -40,6 +40,7 @@ from .common_vars import (
     DOMAINS_WITH_INIT,
     REQUIRED_ENV_VARS,
     OPTIONAL_ENV_VARS,
+    RUNTIME_PATH_ENV_VARS,
     VALID_CLI_COMMANDS,
     VALID_CLI_OPTIONS,
     OMNIA_CLI_COMMANDS,
@@ -47,6 +48,16 @@ from .common_vars import (
     OMNIA_SH_GENERIC_TAGS,
     OMNIA_CLI_HELP_SECTIONS,
     CMDS,
+)
+from .test_case_vars import TEST_CASES
+from .domain_vars import (
+    ALL_EXEC_MARKER,
+    ALL_EXEC_TAGS,
+    DOMAIN_NAME as VALIDATION_DOMAIN,
+    EXCLUDE_TAGS,
+    FVT_TAGS,
+    MARKERS,
+    SUITES,
 )
 
 __all__ = [
@@ -71,6 +82,7 @@ __all__ = [
     "DOMAINS_WITH_INIT",
     "REQUIRED_ENV_VARS",
     "OPTIONAL_ENV_VARS",
+    "RUNTIME_PATH_ENV_VARS",
     "VALID_CLI_COMMANDS",
     "VALID_CLI_OPTIONS",
     "OMNIA_CLI_COMMANDS",
@@ -78,4 +90,12 @@ __all__ = [
     "OMNIA_SH_GENERIC_TAGS",
     "OMNIA_CLI_HELP_SECTIONS",
     "CMDS",
+    "TEST_CASES",
+    "ALL_EXEC_MARKER",
+    "ALL_EXEC_TAGS",
+    "VALIDATION_DOMAIN",
+    "EXCLUDE_TAGS",
+    "FVT_TAGS",
+    "MARKERS",
+    "SUITES",
 ]
