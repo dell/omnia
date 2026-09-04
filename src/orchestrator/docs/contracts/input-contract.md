@@ -57,7 +57,7 @@ This document defines all input files consumed by the `orchestrator` domain.
 
 **Purpose**: Full network specification for DHCP/PXE/DNS configuration.
 
-**Location**: `input/project_default/orchestrator/network_spec.yml`
+**Location**: `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/network_spec.yml`
 
 **Owner**: User (manually configured)
 
@@ -235,11 +235,11 @@ flows remain runnable without `repo_status.yml`.
 
 **Purpose**: Vault-encrypted credentials for provisioning and services.
 
-**Location**: `input/project_default/omnia_config_credentials.yml`
+**Location**: `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/omnia_config_credentials.yml`
 
 **Owner**: `orchestrator_credentials` role (auto-generated on first run via interactive prompts)
 
-**Vault Key**: `input/project_default/.omnia_config_credentials_key`
+**Vault Key**: `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/.omnia_config_credentials_key`
 
 | Field | Type | When Required | Description |
 |-------|------|---------------|-------------|
