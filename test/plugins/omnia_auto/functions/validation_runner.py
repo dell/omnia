@@ -236,7 +236,9 @@ class ValidationRunner:
             Defaults to the caller's working directory.
         domain_config: Domain-specific variables dict with keys:
             ``tags`` (list), ``markers`` (list),
-            ``suites`` (dict), ``exclude_tags`` (list).
+            ``suites`` (dict), ``exclude_tags`` (list),
+            ``all_exec_tags`` (ordered list), ``all_exec_marker`` (string),
+            and ``enable_ut`` (bool).
             When omitted, tags are auto-discovered from
             ``fvt/`` subdirectories.
     """
@@ -258,18 +260,27 @@ class ValidationRunner:
         self.cat_fvt = f"fvt_{domain}"
         self.cat_nft = f"nft_{domain}"
         self.cat_ut = f"ut_{domain}"
-        self.categories = (
-            self.cat_fvt, self.cat_nft, self.cat_ut,
-        )
-
         # Domain-specific config from library/vars
         cfg = domain_config or {}
+        self._enable_ut: bool = cfg.get("enable_ut", True)
+        self.categories = (
+            (self.cat_fvt, self.cat_nft, self.cat_ut)
+            if self._enable_ut
+            else (self.cat_fvt, self.cat_nft)
+        )
         self._domain_markers: List[str] = cfg.get(
             "markers", [],
         )
         self._domain_suites: Dict = cfg.get("suites", {})
         self._exclude_tags: frozenset = frozenset(
             cfg.get("exclude_tags", []),
+        )
+        self._configured_tags: List[str] = cfg.get("tags", [])
+        self._all_exec_tags: List[str] = cfg.get(
+            "all_exec_tags", [],
+        )
+        self._all_exec_marker: str = cfg.get(
+            "all_exec_marker", "",
         )
 
     # -----------------------------------------------------------------
@@ -296,7 +307,7 @@ class ValidationRunner:
             return self._dispatch_fvt(rest)
         if arg1 == self.cat_nft:
             return self._dispatch_simple("nft", rest)
-        if arg1 == self.cat_ut:
+        if self._enable_ut and arg1 == self.cat_ut:
             return self._dispatch_simple("ut", rest)
 
         _err(f"Unknown category '{arg1}'")
@@ -454,6 +465,26 @@ class ValidationRunner:
         self, tag: str, marker: str, verbose: str,
     ) -> int:
         """Run playbook execution only."""
+        if not tag and self._all_exec_tags:
+            selected_marker = marker or self._all_exec_marker
+            os.environ["OMNIA_COMMAND_TYPE"] = "exec"
+            exec_dirs = [
+                os.path.join(self.fvt_dir, exec_tag)
+                for exec_tag in self._all_exec_tags
+            ]
+            marker_args = "-m deploy"
+            if selected_marker:
+                marker_args += f" --marker {selected_marker}"
+            _info("Executing the configured lifecycle scenarios...")
+            rc = self._invoke_pytest_with_summary(
+                exec_dirs, marker_args, verbose,
+            )
+            if rc == 0:
+                _ok("Lifecycle execution completed.")
+            else:
+                _fail("Lifecycle execution failed.")
+            return rc
+
         os.environ["OMNIA_COMMAND_TYPE"] = "exec"
         exec_dir = (
             os.path.join(self.fvt_dir, tag) if tag
@@ -740,7 +771,7 @@ class ValidationRunner:
             (self.cat_nft, "nft"), (self.cat_ut, "ut"),
         ):
             cat_cfg = cfg.get(cat_key, {})
-            if not isinstance(cat_cfg, dict):
+            if not isinstance(cat_cfg, dict) or not cat_cfg:
                 continue
             total += 1
             if cat_cfg.get("run", False):
@@ -969,6 +1000,13 @@ class ValidationRunner:
         """Discover FVT tag directories."""
         if not os.path.isdir(self.fvt_dir):
             return []
+        if self._configured_tags:
+            return [
+                name for name in self._configured_tags
+                if os.path.isdir(
+                    os.path.join(self.fvt_dir, name),
+                )
+            ]
         return sorted(
             d for d in os.listdir(self.fvt_dir)
             if (
@@ -1073,8 +1111,9 @@ class ValidationRunner:
         print(f"  ./run_validation.sh {self.cat_fvt} list")
         print(f"  ./run_validation.sh {self.cat_nft}"
               f" <command> [options]")
-        print(f"  ./run_validation.sh {self.cat_ut}"
-              f" <command> [options]")
+        if self._enable_ut:
+            print(f"  ./run_validation.sh {self.cat_ut}"
+                  f" <command> [options]")
         print()
         _yellow("CATEGORIES")
         print(
@@ -1085,10 +1124,11 @@ class ValidationRunner:
             f"  {self.cat_nft:<30}"
             " Non-Functional Tests"
         )
-        print(
-            f"  {self.cat_ut:<30}"
-            " Unit Tests"
-        )
+        if self._enable_ut:
+            print(
+                f"  {self.cat_ut:<30}"
+                " Unit Tests"
+            )
         print()
         _yellow("COMMANDS")
         print("  exec       Run Ansible playbook only (no tests)")
@@ -1130,7 +1170,8 @@ class ValidationRunner:
               f" --marker {ex_marker}")
         print(f"  ./run_validation.sh {f} list")
         print(f"  ./run_validation.sh {n} test")
-        print(f"  ./run_validation.sh {u} test")
+        if self._enable_ut:
+            print(f"  ./run_validation.sh {u} test")
         print()
 
     def _print_fvt_help(self) -> None:

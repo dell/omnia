@@ -33,7 +33,7 @@ if _TEST_DIR not in sys.path:
     sys.path.insert(0, _TEST_DIR)
 
 # --- Initialize omnia_auto BEFORE any imports that use it ---
-import omnia_auto
+import omnia_auto  # noqa: E402
 omnia_auto.configure(
     module_root=_TEST_DIR,
     config_file="test_config.yml",
@@ -42,14 +42,15 @@ omnia_auto.configure(
 )
 
 # --- Common functions from omnia_auto ---
-from omnia_auto import (
+from omnia_auto import (  # noqa: E402
     get_testinfra_host,
-    is_local_execution,
     load_test_config,
     TestReport,
     set_current_report,
     get_current_report,
     get_test_output,
+    get_last_detail_fields,
+    get_last_tc_id,
     encrypt_test_credentials,
     log,
     add_session_result,
@@ -57,10 +58,22 @@ from omnia_auto import (
 )
 
 # --- Module-specific functions ---
-from library.functions.validation_func import (
+from library.functions.validation_func import (  # noqa: E402
     validate_all,
     ConfigValidationError,
 )
+from library.vars import FVT_TAGS, TEST_CASES  # noqa: E402
+
+
+_TC_ID_MAP = {
+    f"test_{key}": test_case["id"]
+    for key, test_case in TEST_CASES.items()
+}
+
+_FVT_SCENARIO_ORDER = {
+    scenario: position
+    for position, scenario in enumerate(FVT_TAGS)
+}
 
 
 # =============================================================================
@@ -138,45 +151,33 @@ def pytest_collection_modifyitems(session, config, items):
     mode, markers = _parse_marker_expression(marker_expr)
 
     if mode != "none" and markers:
-        filtered = []
+        selected = []
+        deselected = []
         for item in items:
             if mode == "and":
-                if all(_item_has_marker(item, m) for m in markers):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=(
-                            f"Missing marker(s) for AND expression: "
-                            f"{'+'.join(markers)}"
-                        )
-                    ))
-                    filtered.append(item)
+                matched = all(_item_has_marker(item, m) for m in markers)
             elif mode == "or":
-                if any(_item_has_marker(item, m) for m in markers):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=(
-                            f"No matching marker for OR expression: "
-                            f"{','.join(markers)}"
-                        )
-                    ))
-                    filtered.append(item)
-            elif mode == "single":
-                if _item_has_marker(item, markers[0]):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=f"Missing marker: {markers[0]}"
-                    ))
-                    filtered.append(item)
-        items[:] = filtered
+                matched = any(_item_has_marker(item, m) for m in markers)
+            else:
+                matched = _item_has_marker(item, markers[0])
+            (selected if matched else deselected).append(item)
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
+        items[:] = selected
 
     def _get_order(item):
         marker = item.get_closest_marker("order")
-        if marker and marker.args:
-            return marker.args[0]
-        return 999
+        local_order = marker.args[0] if marker and marker.args else 999
+        parts = item.nodeid.replace("\\", "/").split("/")
+        scenario = next(
+            (part for part in parts if part in _FVT_SCENARIO_ORDER),
+            "",
+        )
+        return (
+            _FVT_SCENARIO_ORDER.get(scenario, 999),
+            local_order,
+            item.nodeid,
+        )
 
     items.sort(key=_get_order)
 
@@ -203,16 +204,24 @@ def pytest_sessionstart(session):
     config = load_test_config()
 
     # Initialize test report
-    valid_scenarios = {"main", "setup", "init", "cli", "omnia_cli", "nft"}
-    module_name = "main"
+    valid_scenarios = {
+        "setup", "init", "cli", "omnia_cli",
+        "precheck", "validate", "cleanup", "nft",
+    }
     test_paths = (
         session.config.args if hasattr(session.config, "args") else []
     )
+    selected_scenarios = []
     for path in test_paths:
         for part in path.replace("\\", "/").split("/"):
-            if part in valid_scenarios:
-                module_name = part
+            if part in valid_scenarios and part not in selected_scenarios:
+                selected_scenarios.append(part)
                 break
+    module_name = (
+        selected_scenarios[0]
+        if len(selected_scenarios) == 1
+        else "main_fvt"
+    )
 
     report_id = os.environ.get("REPORT_ID")
     report = TestReport(
@@ -260,6 +269,7 @@ def pytest_runtest_makereport(item, call):
 
     output = get_test_output(item.name)
     details = output if output else ""
+    detail_fields = get_last_detail_fields()
     skip_reason = ""
 
     if result.skipped:
@@ -277,11 +287,7 @@ def pytest_runtest_makereport(item, call):
             + f"SKIPPED: {skip_reason}"
         )
 
-    # Extract TC ID from docstring
-    tc_id = ""
-    doc = getattr(item.obj, "__doc__", "") or ""
-    if doc.strip().startswith("TC_"):
-        tc_id = doc.strip().split(":", 1)[0].strip()
+    tc_id = _TC_ID_MAP.get(item.name, "") or get_last_tc_id()
 
     add_session_result(
         test_name=item.name,
@@ -292,7 +298,8 @@ def pytest_runtest_makereport(item, call):
 
     report = get_current_report()
     if report:
-        report.add_result({
+        report_payload = {
+            "tc_id": tc_id,
             "test_name": item.name,
             "status": status,
             "duration": getattr(result, "duration", 0),
@@ -300,7 +307,10 @@ def pytest_runtest_makereport(item, call):
             "error": (
                 str(result.longrepr) if result.failed else ""
             ),
-        })
+        }
+        if detail_fields:
+            report_payload["detail_fields"] = detail_fields
+        report.add_result(report_payload)
 
 
 # =============================================================================

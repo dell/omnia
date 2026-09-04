@@ -6,23 +6,26 @@ Unlike FVT (which verifies correctness), NFT ensures that operations
 complete within acceptable timeframes, produce consistent results
 across repeated executions, and maintain correct file permissions.
 
+All test case IDs follow `MAIN_NFT_<SEQ>` and are maintained centrally in
+`library/vars/test_case_vars.py`.
+
 ---
 
 ## Test Cases
 
 | TC ID | Test Name | Category | What It Validates |
 |-------|-----------|----------|-------------------|
-| NFT_MA_001 | `test_setup_venv_performance` | Performance | `omnia.sh --setup-venv --deps-only` completes within threshold |
-| NFT_MA_002 | `test_init_performance` | Performance | `omnia.sh --init` completes within threshold |
-| NFT_MA_003 | `test_setup_venv_idempotent` | Idempotency | Running `--setup-venv` twice produces no errors or state change |
-| NFT_MA_004 | `test_init_idempotent` | Idempotency | Running `--init` twice leaves domain dirs unchanged |
-| NFT_MA_005 | `test_check_deps_performance` | Performance | `omnia.sh --check-deps` completes within threshold |
-| NFT_MA_006 | `test_env_file_permissions` | Permissions | `/etc/omnia/omnia.env` has 0644 permissions |
-| NFT_MA_007 | `test_cli_status_performance` | Performance | `omnia-cli status` completes within 30s threshold |
-| NFT_MA_008 | `test_omnia_sh_executable` | Permissions | `omnia.sh` source is executable |
-| NFT_MA_009 | `test_omnia_cli_executable` | Permissions | `omnia-cli` source is executable |
-| NFT_MA_010 | `test_domain_init_scripts_executable` | Permissions | All `domain-init.sh` scripts are executable |
-| NFT_MA_011 | `test_cli_help_performance` | Performance | `omnia-cli help` completes within 5s threshold |
+| MAIN_NFT_001 | `test_setup_venv_performance` | Performance | `omnia.sh --setup-venv --deps-only` completes within threshold |
+| MAIN_NFT_002 | `test_init_performance` | Performance | `omnia.sh --init` completes within threshold |
+| MAIN_NFT_003 | `test_setup_venv_idempotent` | Idempotency | Running `--setup-venv` twice produces no errors or state change |
+| MAIN_NFT_004 | `test_init_idempotent` | Idempotency | Running `--init` twice leaves domain dirs unchanged |
+| MAIN_NFT_005 | `test_check_deps_performance` | Performance | `omnia.sh --check-deps` completes within threshold |
+| MAIN_NFT_006 | `test_env_file_permissions` | Permissions | `/etc/omnia/omnia.env` has 0644 permissions |
+| MAIN_NFT_007 | `test_cli_status_performance` | Performance | `omnia-cli status` completes within 30s threshold |
+| MAIN_NFT_008 | `test_omnia_sh_executable` | Permissions | `omnia.sh` source is executable |
+| MAIN_NFT_009 | `test_omnia_cli_executable` | Permissions | `omnia-cli` source is executable |
+| MAIN_NFT_010 | `test_domain_init_scripts_executable` | Permissions | All `domain-init.sh` scripts are executable |
+| MAIN_NFT_011 | `test_cli_help_performance` | Performance | `omnia-cli help` completes within 5s threshold |
 
 ---
 
@@ -44,12 +47,12 @@ hardware or network speed.
 
 ## Idempotency Checks
 
-`test_setup_venv_idempotent` (NFT_MA_003) verifies:
+`test_setup_venv_idempotent` (MAIN_NFT_003) verifies:
 1. First `--setup-venv --deps-only` run exits 0
 2. Second run exits 0 (no error about existing dirs/files)
 3. Venv and env file are still present after second run
 
-`test_init_idempotent` (NFT_MA_004) verifies:
+`test_init_idempotent` (MAIN_NFT_004) verifies:
 1. First `--init` run exits 0
 2. Second run exits 0 (no error overwriting domain files)
 3. Domain log directories and input directories are still present
@@ -62,11 +65,11 @@ NFT tests require a **fully deployed** environment. Run FVT first:
 
 ```bash
 # Deploy and verify environment
-bash run_validation.sh setup test
-bash run_validation.sh init test
+./run_validation.sh fvt_main setup test
+./run_validation.sh fvt_main init test
 
 # Then run NFT
-bash run_validation.sh nft test
+./run_validation.sh nft_main test
 ```
 
 ---
@@ -75,13 +78,13 @@ bash run_validation.sh nft test
 
 ```bash
 # Run all NFT tests
-bash run_validation.sh nft test
+./run_validation.sh nft_main test
 
 # Run performance NFT only
-bash run_validation.sh nft test --marker nft
+./run_validation.sh nft_main test --marker nft
 
 # Run with verbose output
-bash run_validation.sh nft test -v
+./run_validation.sh nft_main test -v
 ```
 
 ---
@@ -90,22 +93,22 @@ bash run_validation.sh nft test -v
 
 ```
 nft/
-├── test_performance.py       ← NFT_MA_001, NFT_MA_002, NFT_MA_005
+├── test_performance.py       ← MAIN_NFT_001, MAIN_NFT_002, MAIN_NFT_005
 │   ├── test_setup_venv_performance    (order=1)
 │   ├── test_init_performance          (order=2)
 │   └── test_check_deps_performance    (order=3)
 │
-├── test_idempotency.py       ← NFT_MA_003, NFT_MA_004
+├── test_idempotency.py       ← MAIN_NFT_003, MAIN_NFT_004
 │   ├── test_setup_venv_idempotent     (order=1)
 │   └── test_init_idempotent           (order=2)
 │
-├── test_permissions.py       ← NFT_MA_006, NFT_MA_008, NFT_MA_009, NFT_MA_010
+├── test_permissions.py       ← MAIN_NFT_006, MAIN_NFT_008, MAIN_NFT_009, MAIN_NFT_010
 │   ├── test_env_file_permissions              (order=1)
 │   ├── test_omnia_sh_executable               (order=2)
 │   ├── test_omnia_cli_executable              (order=3)
 │   └── test_domain_init_scripts_executable    (order=4)
 │
-└── test_cli_performance.py   ← NFT_MA_007, NFT_MA_011
+└── test_cli_performance.py   ← MAIN_NFT_007, MAIN_NFT_011
     ├── test_cli_status_performance    (order=1)
     └── test_cli_help_performance      (order=2)
 ```
