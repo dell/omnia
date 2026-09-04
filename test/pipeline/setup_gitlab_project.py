@@ -101,9 +101,7 @@ try:
 except ImportError:
     yaml = None  # Optional — only needed when --config is used
 
-# Suppress SSL warnings for self-signed certificates
 import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ---------------------------------------------------------------------------
 # Validation helpers
@@ -112,6 +110,7 @@ _VALID_HOSTNAME_RE = re.compile(r'^[a-zA-Z0-9]([a-zA-Z0-9._-]{0,253}[a-zA-Z0-9])
 _VALID_TOKEN_RE = re.compile(r'^[a-zA-Z0-9._-]+$')
 _VALID_IP_RE = re.compile(r'^\d{1,3}(\.\d{1,3}){3}$')
 _VALID_PROJECT_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9._-]*$')
+_VALID_CLUSTER_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]{0,63}$')
 
 
 def _validate_url(url):
@@ -147,6 +146,71 @@ def _validate_project_name(name):
     return name
 
 
+def _validate_cluster_name(name):
+    """Validate a cluster name to prevent injection into variable names or YAML."""
+    name = name.strip()
+    if not name:
+        raise ValueError("Cluster name cannot be empty")
+    if not _VALID_CLUSTER_RE.match(name):
+        raise ValueError(
+            f"Invalid cluster name: '{name}'. "
+            "Must start with a letter, contain only alphanumeric, hyphens, or "
+            "underscores, and be at most 64 characters."
+        )
+    return name
+
+
+def _validate_local_path(path, must_exist=True, kind="file"):
+    """Validate a local filesystem path to prevent traversal attacks.
+
+    Resolves symlinks and ensures the path is absolute. When *must_exist*
+    is True, also checks that the path actually exists on disk.
+    """
+    resolved = Path(path).resolve()
+    if must_exist:
+        if kind == "file" and not resolved.is_file():
+            raise ValueError(f"Local file not found: {resolved}")
+        if kind == "dir" and not resolved.is_dir():
+            raise ValueError(f"Local directory not found: {resolved}")
+    return str(resolved)
+
+
+def _validate_repo_path(repo_path):
+    """Validate a repository-relative path to prevent directory traversal.
+
+    Rejects paths containing '..' components, absolute paths, or
+    characters that could be used for injection.
+    """
+    if not repo_path:
+        return repo_path
+    # Normalise separators
+    normalized = repo_path.replace("\\", "/")
+    parts = normalized.split("/")
+    if any(part == ".." for part in parts):
+        raise ValueError(f"Directory traversal detected in repo path: {repo_path}")
+    if normalized.startswith("/"):
+        raise ValueError(f"Repo path must be relative, not absolute: {repo_path}")
+    # Reject control characters
+    if re.search(r'[\x00-\x1f]', normalized):
+        raise ValueError(f"Repo path contains invalid characters: {repo_path}")
+    return normalized
+
+
+def _sanitize_log_output(text, max_length=300):
+    """Sanitize text before printing to logs.
+
+    Strips control characters (except newline) to prevent log injection,
+    and truncates to *max_length*.
+    """
+    if not text:
+        return ""
+    # Remove control characters except newline and tab
+    cleaned = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', str(text))
+    if len(cleaned) > max_length:
+        cleaned = cleaned[:max_length] + "..."
+    return cleaned
+
+
 # ---------------------------------------------------------------------------
 # Pipeline config file parser
 # ---------------------------------------------------------------------------
@@ -173,7 +237,7 @@ def load_pipeline_config(config_path):
     # Extract global settings
     global_cfg = cfg.get("global", {}) or {}
     clusters_str = global_cfg.get("clusters", "cluster1")
-    cluster_names = [c.strip() for c in clusters_str.split(",") if c.strip()]
+    cluster_names = [_validate_cluster_name(c) for c in clusters_str.split(",") if c.strip()]
 
     variables = {}
     variables["CLUSTERS"] = ",".join(cluster_names)
@@ -186,6 +250,15 @@ def load_pipeline_config(config_path):
         variables["OMNIA_BRANCH"] = omnia_cfg["branch"]
     if omnia_cfg.get("install_path"):
         variables["OMNIA_INSTALL_PATH"] = omnia_cfg["install_path"]
+
+    # -- Global OpenBao / Vault configuration
+    vault_cfg = global_cfg.get("vault", {}) or {}
+    if vault_cfg.get("server_url"):
+        variables["VAULT_SERVER_URL"] = vault_cfg["server_url"]
+    if vault_cfg.get("auth_role"):
+        variables["VAULT_AUTH_ROLE"] = vault_cfg["auth_role"]
+    if vault_cfg.get("secret_path"):
+        variables["VAULT_SECRET_PATH"] = vault_cfg["secret_path"]
 
     # -- Global email configuration
     email_cfg = global_cfg.get("email", {}) or {}
@@ -248,26 +321,23 @@ def load_pipeline_config(config_path):
             if val is not None:
                 variables[f"{prefix}_{var_suffix}"] = str(val)
 
-        # -- Test tags
-        test_tags = cluster_cfg.get("test_tags", {}) or {}
-        test_tag_map = {
-            "repo_manager": "TEST_REPO_MANAGER_TAGS",
-            "image_build_manager": "TEST_IMAGE_BUILD_MANAGER_TAGS",
-            "orchestrator": "TEST_ORCHESTRATOR_TAGS",
-            "telemetry": "TEST_TELEMETRY_TAGS",
+        # -- Test commands
+        test_cmds = cluster_cfg.get("test_commands", {}) or {}
+        test_cmd_map = {
+            "repo_manager": "TEST_REPO_MANAGER_CMD",
+            "image_build_manager": "TEST_IMAGE_BUILD_MANAGER_CMD",
+            "orchestrator": "TEST_ORCHESTRATOR_CMD",
+            "telemetry": "TEST_TELEMETRY_CMD",
         }
-        for cfg_key, var_suffix in test_tag_map.items():
-            val = test_tags.get(cfg_key)
+        for cfg_key, var_suffix in test_cmd_map.items():
+            val = test_cmds.get(cfg_key)
             if val is not None:
                 variables[f"{prefix}_{var_suffix}"] = str(val)
 
         # -- Credential file paths (stored as File type variables)
+        # Domain credentials are managed by OpenBao — only test_creds uses CI/CD File Variables
         creds = cluster_cfg.get("credentials", {}) or {}
         cred_map = {
-            "repo_manager_creds": "REPO_MANAGER_CREDS",
-            "image_build_creds": "IMAGE_BUILD_CREDS",
-            "orchestrator_creds": "ORCHESTRATOR_CREDS",
-            "telemetry_creds": "TELEMETRY_CREDS",
             "test_creds": "TEST_CREDS",
         }
         for cfg_key, var_suffix in cred_map.items():
@@ -279,9 +349,9 @@ def load_pipeline_config(config_path):
 
 
 # Credential variable suffixes — these use File type in GitLab
+# Domain creds are managed by OpenBao; only test_creds uses CI/CD File Variables
 _FILE_TYPE_VARS = {
-    "REPO_MANAGER_CREDS", "IMAGE_BUILD_CREDS",
-    "ORCHESTRATOR_CREDS", "TELEMETRY_CREDS", "TEST_CREDS",
+    "TEST_CREDS",
 }
 
 
@@ -294,8 +364,6 @@ def apply_config_variables(client, project_id, variables):
     print("\nApplying CI/CD variables from config...")
     for var_name, value in sorted(variables.items()):
         # Determine if this is a file-type credential variable
-        suffix = var_name.split("_", 1)[1] if "_" in var_name else var_name
-        # Check all possible suffixes (strip cluster prefix)
         is_file_var = any(var_name.endswith(f"_{s}") for s in _FILE_TYPE_VARS)
 
         if is_file_var and os.path.isfile(value):
@@ -402,7 +470,7 @@ class GitLabClient:
                 existing = self.find_project(project_path)
                 if existing:
                     return existing
-        raise RuntimeError(f"Failed to create project: {resp.status_code} {resp.text[:300]}")
+        raise RuntimeError(f"Failed to create project: {resp.status_code} {_sanitize_log_output(resp.text)}")
 
     def _find_namespace(self, name):
         resp = self._get("/namespaces", params={"search": name})
@@ -432,7 +500,7 @@ class GitLabClient:
         )
         if resp.status_code in (200, 201):
             return True
-        raise RuntimeError(f"Commit failed: {resp.status_code} {resp.text[:300]}")
+        raise RuntimeError(f"Commit failed: {resp.status_code} {_sanitize_log_output(resp.text)}")
 
     def file_exists(self, project_id, file_path, ref="main"):
         """Check if a file exists in the repo."""
@@ -500,7 +568,7 @@ class GitLabClient:
             resp = self._post(f"/projects/{project_id}/variables", json=payload)
             if resp.status_code in (200, 201):
                 return "created"
-            raise RuntimeError(f"Failed to set variable {key}: {resp.status_code} {resp.text[:200]}")
+            raise RuntimeError(f"Failed to set variable {key}: {resp.status_code} {_sanitize_log_output(resp.text, 200)}")
 
     def list_variables(self, project_id):
         """List all CI/CD variable names (no values)."""
@@ -519,7 +587,7 @@ class GitLabClient:
         )
         if resp.status_code == 200:
             return resp.json()
-        raise RuntimeError(f"CI lint failed: {resp.status_code} {resp.text[:200]}")
+        raise RuntimeError(f"CI lint failed: {resp.status_code} {_sanitize_log_output(resp.text, 200)}")
 
 
 # ---------------------------------------------------------------------------
@@ -692,10 +760,10 @@ def generate_cluster_trigger_job(cluster_name):
     IMAGE_BUILD_MANAGER_TAGS: "${{{upper_prefix}_IMAGE_BUILD_MANAGER_TAGS}}"
     ORCHESTRATOR_TAGS: "${{{upper_prefix}_ORCHESTRATOR_TAGS}}"
     TELEMETRY_TAGS: "${{{upper_prefix}_TELEMETRY_TAGS}}"
-    TEST_REPO_MANAGER_TAGS: "${{{upper_prefix}_TEST_REPO_MANAGER_TAGS}}"
-    TEST_IMAGE_BUILD_MANAGER_TAGS: "${{{upper_prefix}_TEST_IMAGE_BUILD_MANAGER_TAGS}}"
-    TEST_ORCHESTRATOR_TAGS: "${{{upper_prefix}_TEST_ORCHESTRATOR_TAGS}}"
-    TEST_TELEMETRY_TAGS: "${{{upper_prefix}_TEST_TELEMETRY_TAGS}}"
+    TEST_REPO_MANAGER_CMD: "${{{upper_prefix}_TEST_REPO_MANAGER_CMD}}"
+    TEST_IMAGE_BUILD_MANAGER_CMD: "${{{upper_prefix}_TEST_IMAGE_BUILD_MANAGER_CMD}}"
+    TEST_ORCHESTRATOR_CMD: "${{{upper_prefix}_TEST_ORCHESTRATOR_CMD}}"
+    TEST_TELEMETRY_CMD: "${{{upper_prefix}_TEST_TELEMETRY_CMD}}"
     SKIP_STAGES: "${{{upper_prefix}_SKIP_STAGES}}"
   allow_failure: true
   rules:
@@ -717,10 +785,10 @@ def generate_cluster_variables(cluster_name):
   {upper_prefix}_IMAGE_BUILD_MANAGER_TAGS: ""
   {upper_prefix}_ORCHESTRATOR_TAGS: ""
   {upper_prefix}_TELEMETRY_TAGS: ""
-  {upper_prefix}_TEST_REPO_MANAGER_TAGS: ""
-  {upper_prefix}_TEST_IMAGE_BUILD_MANAGER_TAGS: ""
-  {upper_prefix}_TEST_ORCHESTRATOR_TAGS: ""
-  {upper_prefix}_TEST_TELEMETRY_TAGS: ""
+  {upper_prefix}_TEST_REPO_MANAGER_CMD: "./run_validation.sh fvt_repo_manager verify"
+  {upper_prefix}_TEST_IMAGE_BUILD_MANAGER_CMD: "./run_validation.sh fvt_image_build_manager verify"
+  {upper_prefix}_TEST_ORCHESTRATOR_CMD: "./run_validation.sh fvt_orchestrator verify"
+  {upper_prefix}_TEST_TELEMETRY_CMD: "./run_validation.sh fvt_telemetry verify"
   {upper_prefix}_SKIP_STAGES: ""
 """
 
@@ -809,40 +877,28 @@ def prompt_cluster_details(cluster_names):
 
 
 def prompt_credentials(cluster_names, domains):
-    """Prompt for credential file paths per cluster per domain.
+    """Prompt for test credential file paths per cluster.
 
     Returns dict: {var_name: file_path}
-    Only prompts if user wants to configure credentials now.
+    Domain credentials are managed by OpenBao — only test_creds is prompted here.
     """
-    answer = input("\nConfigure credential files now? (yes/no) [no]: ").strip().lower()
+    print("\n  NOTE: Domain credentials are managed by OpenBao (VAULT_SERVER_URL).")
+    answer = input("\nConfigure test credential files now? (yes/no) [no]: ").strip().lower()
     if answer not in ("yes", "y"):
-        print("  Skipping credentials. Set them later in GitLab UI: Settings > CI/CD > Variables")
+        print("  Skipping. Set TEST_CREDS later in GitLab UI: Settings > CI/CD > Variables")
         return {}
-
-    cred_map = {
-        "repo_manager": "REPO_MANAGER_CREDS",
-        "image_build_manager": "IMAGE_BUILD_CREDS",
-        "orchestrator": "ORCHESTRATOR_CREDS",
-        "telemetry": "TELEMETRY_CREDS",
-    }
 
     creds = {}
     for cluster in cluster_names:
         prefix = cluster.upper()
-        print(f"\n  Credentials for {cluster}:")
-
-        for domain in domains:
-            var_suffix = cred_map.get(domain)
-            if not var_suffix:
-                continue
-            var_name = f"{prefix}_{var_suffix}"
-            path = input(f"    Path to {domain} credentials file [{var_name}]: ").strip()
-            if path and os.path.isfile(path):
-                creds[var_name] = path
-            elif path:
-                print(f"    WARNING: File not found: {path} — skipping")
-            else:
-                print(f"    Skipping {var_name}")
+        var_name = f"{prefix}_TEST_CREDS"
+        path = input(f"  Path to test credentials file [{var_name}]: ").strip()
+        if path and os.path.isfile(path):
+            creds[var_name] = path
+        elif path:
+            print(f"    WARNING: File not found: {path} — skipping")
+        else:
+            print(f"    Skipping {var_name}")
 
     return creds
 
@@ -858,7 +914,12 @@ def cmd_create(args, client):
     print("=" * 60)
 
     # Resolve omnia root
-    omnia_root = _find_omnia_root(args.omnia_src)
+    try:
+        validated_src = _validate_local_path(args.omnia_src, must_exist=True, kind="dir")
+        omnia_root = _find_omnia_root(validated_src)
+    except (ValueError, FileNotFoundError) as e:
+        print(f"ERROR: {e}")
+        return False
     print(f"Omnia root: {omnia_root}")
 
     # Parse clusters — from config file or --clusters arg
@@ -868,7 +929,11 @@ def cmd_create(args, client):
         print(f"Loaded config: {args.config}")
         cluster_names = config_cluster_names
     else:
-        cluster_names = [c.strip() for c in args.clusters.split(",") if c.strip()]
+        try:
+            cluster_names = [_validate_cluster_name(c) for c in args.clusters.split(",") if c.strip()]
+        except ValueError as e:
+            print(f"ERROR: {e}")
+            return False
 
     if not cluster_names:
         print("ERROR: No clusters specified. Use --clusters cluster1,cluster2 or --config pipeline_config.yml")
@@ -1007,10 +1072,14 @@ def cmd_create(args, client):
             print(f"  {status}: {var_name} = {details['user']}")
             
             var_name = f"{prefix}_TARGET_PASS"
+            password = getpass.getpass(f"  Enter SSH password for {cluster} ({details['ip']}): ")
+            if not password:
+                print(f"  WARNING: No password entered for {var_name} — set it later in GitLab UI")
+                password = ""
             status = client.set_variable(
-                project_id, var_name, "CHANGE_ME_IN_GITLAB_UI", masked=True
+                project_id, var_name, password, masked=bool(password)
             )
-            print(f"  {status}: {var_name} (masked, placeholder — update in GitLab UI)")
+            print(f"  {status}: {var_name} (masked)")
 
         # Global pipeline variables
         global_keys = [
@@ -1038,10 +1107,10 @@ def cmd_create(args, client):
             ("IMAGE_BUILD_MANAGER_TAGS", ""),
             ("ORCHESTRATOR_TAGS", ""),
             ("TELEMETRY_TAGS", ""),
-            ("TEST_REPO_MANAGER_TAGS", ""),
-            ("TEST_IMAGE_BUILD_MANAGER_TAGS", ""),
-            ("TEST_ORCHESTRATOR_TAGS", ""),
-            ("TEST_TELEMETRY_TAGS", ""),
+            ("TEST_REPO_MANAGER_CMD", "./run_validation.sh fvt_repo_manager verify"),
+            ("TEST_IMAGE_BUILD_MANAGER_CMD", "./run_validation.sh fvt_image_build_manager verify"),
+            ("TEST_ORCHESTRATOR_CMD", "./run_validation.sh fvt_orchestrator verify"),
+            ("TEST_TELEMETRY_CMD", "./run_validation.sh fvt_telemetry verify"),
             ("SKIP_STAGES", ""),
         ]
         for cluster in cluster_names:
@@ -1075,11 +1144,8 @@ def cmd_create(args, client):
     if not config_vars:
         print(f"  1. Update cluster passwords in GitLab UI: Settings > CI/CD > Variables")
         print(f"     Variables: {', '.join(c.upper() + '_TARGET_PASS' for c in cluster_names)}")
-        print(f"  2. Set credential file variables (if not done above):")
-        for cluster in cluster_names:
-            prefix = cluster.upper()
-            for suffix in ["REPO_MANAGER_CREDS", "IMAGE_BUILD_CREDS", "ORCHESTRATOR_CREDS", "TELEMETRY_CREDS"]:
-                print(f"     - {prefix}_{suffix} (File type)")
+        print(f"  2. Set VAULT_SERVER_URL in GitLab CI/CD variables (required for domain credentials)")
+        print(f"     Domain credentials are fetched from OpenBao at VAULT_SECRET_PATH/<domain>")
     print(f"  {'3' if not config_vars else '1'}. Edit cluster-specific input files in the GitLab repo (clusters/<name>/inputs/)")
     print(f"  {'4' if not config_vars else '2'}. Trigger pipeline: CI/CD > Pipelines > Run pipeline")
     return True
@@ -1112,7 +1178,12 @@ def cmd_update(args, client):
 
     # Optionally update input files from src
     if args.omnia_src:
-        omnia_root = _find_omnia_root(args.omnia_src)
+        try:
+            validated_src = _validate_local_path(args.omnia_src, must_exist=True, kind="dir")
+            omnia_root = _find_omnia_root(validated_src)
+        except (ValueError, FileNotFoundError) as e:
+            print(f"ERROR: {e}")
+            return False
         # Auto-detect clusters from existing CI/CD variable
         clusters_val = None
         try:
@@ -1123,7 +1194,7 @@ def cmd_update(args, client):
             pass
 
         if args.clusters:
-            cluster_names = [c.strip() for c in args.clusters.split(",") if c.strip()]
+            cluster_names = [_validate_cluster_name(c) for c in args.clusters.split(",") if c.strip()]
         elif clusters_val:
             cluster_names = [c.strip() for c in clusters_val.split(",") if c.strip()]
         else:
@@ -1200,10 +1271,10 @@ def cmd_update(args, client):
             ("IMAGE_BUILD_MANAGER_TAGS", ""),
             ("ORCHESTRATOR_TAGS", ""),
             ("TELEMETRY_TAGS", ""),
-            ("TEST_REPO_MANAGER_TAGS", ""),
-            ("TEST_IMAGE_BUILD_MANAGER_TAGS", ""),
-            ("TEST_ORCHESTRATOR_TAGS", ""),
-            ("TEST_TELEMETRY_TAGS", ""),
+            ("TEST_REPO_MANAGER_CMD", "./run_validation.sh fvt_repo_manager verify"),
+            ("TEST_IMAGE_BUILD_MANAGER_CMD", "./run_validation.sh fvt_image_build_manager verify"),
+            ("TEST_ORCHESTRATOR_CMD", "./run_validation.sh fvt_orchestrator verify"),
+            ("TEST_TELEMETRY_CMD", "./run_validation.sh fvt_telemetry verify"),
             ("SKIP_STAGES", ""),
         ]
         for cluster in update_clusters:
@@ -1320,13 +1391,14 @@ def cmd_update_file(args, client):
     project_id = project["id"]
     print(f"Found project: {project.get('web_url', project_path)} (ID: {project_id})")
 
-    local_path = args.file
-    repo_path = args.repo_path
-
-    # Validate local file exists
-    if not os.path.isfile(local_path):
-        print(f"ERROR: Local file not found: {local_path}")
+    # Validate inputs
+    try:
+        local_path = _validate_local_path(args.file, must_exist=True, kind="file")
+    except ValueError as e:
+        print(f"ERROR: {e}")
         return False
+
+    repo_path = args.repo_path
 
     # If no repo_path specified, derive it from the local file name
     if not repo_path:
@@ -1336,6 +1408,12 @@ def cmd_update_file(args, client):
         # repo_path is a directory — append the source filename
         repo_path = repo_path + os.path.basename(local_path)
         print(f"  --repo-path is a directory, resolved to: {repo_path}")
+
+    try:
+        repo_path = _validate_repo_path(repo_path)
+    except ValueError as e:
+        print(f"ERROR: {e}")
+        return False
 
     print(f"  Local file:  {local_path}")
     print(f"  Repo path:   {repo_path}")
@@ -1395,13 +1473,14 @@ def cmd_upload_dir(args, client):
     project_id = project["id"]
     print(f"Found project: {project.get('web_url', project_path)} (ID: {project_id})")
 
-    local_dir = args.dir
-    repo_dir = args.repo_path
-
-    # Validate local directory exists
-    if not os.path.isdir(local_dir):
-        print(f"ERROR: Local directory not found: {local_dir}")
+    # Validate inputs
+    try:
+        local_dir = _validate_local_path(args.dir, must_exist=True, kind="dir")
+    except ValueError as e:
+        print(f"ERROR: {e}")
         return False
+
+    repo_dir = args.repo_path
 
     # Ensure repo_dir ends with /
     if repo_dir and not repo_dir.endswith("/"):
@@ -1411,6 +1490,12 @@ def cmd_upload_dir(args, client):
     if not repo_dir:
         repo_dir = os.path.basename(local_dir.rstrip("/")) + "/"
         print(f"  No --repo-path specified, using: {repo_dir}")
+
+    try:
+        repo_dir = _validate_repo_path(repo_dir)
+    except ValueError as e:
+        print(f"ERROR: {e}")
+        return False
 
     # Collect all files from the local directory (recursively)
     local_dir_path = Path(local_dir)
@@ -1507,6 +1592,12 @@ def cmd_delete_dir(args, client):
         print("ERROR: --repo-path is required (directory to delete)")
         return False
 
+    try:
+        repo_dir = _validate_repo_path(repo_dir)
+    except ValueError as e:
+        print(f"ERROR: {e}")
+        return False
+
     # Strip trailing slash for the tree API
     repo_dir = repo_dir.rstrip("/")
 
@@ -1585,7 +1676,7 @@ def cmd_delete(args, client):
         else:
             print(f"ERROR: Failed to delete project (HTTP {resp.status_code})")
             if resp.text:
-                print(f"Response: {resp.text}")
+                print(f"Response: {_sanitize_log_output(resp.text)}")
             return False
     except Exception as e:
         print(f"ERROR: Failed to delete project: {e}")
@@ -1671,7 +1762,10 @@ def main():
     args = parser.parse_args()
 
     # Get token
-    if not args.token:
+    if args.token:
+        print("WARNING: Passing tokens via --token is visible in process listings. "
+              "Consider omitting --token to use the secure interactive prompt.")
+    else:
         args.token = getpass.getpass("GitLab Personal Access Token: ")
         if not args.token:
             print("ERROR: Token is required")
@@ -1685,8 +1779,19 @@ def main():
         print(f"ERROR: {e}")
         sys.exit(1)
 
-    # Create client
+    # Validate config file path if provided
+    if args.config:
+        try:
+            args.config = _validate_local_path(args.config, must_exist=True, kind="file")
+        except ValueError as e:
+            print(f"ERROR: {e}")
+            sys.exit(1)
+
+    # Suppress SSL warnings only when explicitly requested
     verify_ssl = not args.no_verify_ssl
+    if not verify_ssl:
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
     client = GitLabClient(gitlab_url, token, verify_ssl=verify_ssl)
 
     # Verify connectivity

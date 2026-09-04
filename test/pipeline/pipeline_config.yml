@@ -49,6 +49,23 @@ global:
     # Note: Must be an absolute path with write permissions
     install_path: "/root/omnia"
 
+  # ---- OpenBao / Vault Configuration ----
+  # Domain credentials are fetched from OpenBao (Vault-compatible) using JWT.
+  # Set vault_server_url to enable; leave empty to use GitLab CI/CD File Variables.
+  vault:
+    # OpenBao server URL (e.g. "https://10.0.0.50:8200")
+    # Leave empty to disable OpenBao and use GitLab CI/CD File Variables instead
+    server_url: ""
+
+    # JWT authentication role name configured in OpenBao
+    # Default: "gitlab-role"
+    auth_role: "gitlab-role"
+
+    # Base path where secrets are stored (KV v2 requires /data/ after mount point)
+    # Default: "secret/data/omnia"
+    # Secrets are read from: <secret_path>/repo_manager, <secret_path>/orchestrator, etc.
+    secret_path: "secret/data/omnia"
+
   # ---- Email Notifications (Optional) ----
   # Configure email alerts when pipeline stages complete or fail.
   # Leave all fields empty to disable email notifications.
@@ -164,50 +181,34 @@ cluster1:
     # Examples: "deploy", "validate"
     telemetry: ""
 
-  # ---- Test-Time Pytest Markers ----
-  # Pytest marker expressions to filter which tests run.
-  # Markers allow running only specific test categories.
-  # Leave empty to run all tests.
-  # Syntax: Use "+" for AND, "," for OR
+  # ---- Test Commands ----
+  # Full test commands to execute for each domain's test stage.
+  # These are passed directly to the target server via SSH.
+  # Override to change the test script, test suite, or add markers.
   # Examples:
-  #   "sanity"              = Run only sanity tests
-  #   "functional"          = Run only functional tests
-  #   "sanity+positive"     = Run sanity AND positive tests
-  #   "sanity,functional"   = Run sanity OR functional tests
-  test_tags:
-    # Repo Manager test markers
-    repo_manager: ""
+  #   "./run_validation.sh fvt_repo_manager verify"                    = Default (all tests)
+  #   "./run_validation.sh fvt_repo_manager verify --marker sanity"    = Run only sanity tests
+  #   "./run_validation.sh fvt_repo_manager verify --marker functional" = Run only functional tests
+  test_commands:
+    # Repo Manager test command
+    repo_manager: "./run_validation.sh fvt_repo_manager verify"
 
-    # Image Build Manager test markers
-    image_build_manager: ""
+    # Image Build Manager test command
+    image_build_manager: "./run_validation.sh fvt_image_build_manager verify"
 
-    # Orchestrator test markers
-    orchestrator: ""
+    # Orchestrator test command
+    orchestrator: "./run_validation.sh fvt_orchestrator verify"
 
-    # Telemetry test markers
-    telemetry: ""
+    # Telemetry test command
+    telemetry: "./run_validation.sh fvt_telemetry verify"
 
-  # ---- Credential Files (Optional) ----
-  # Paths to local credential files to upload as GitLab CI/CD variables.
-  # These files are mounted during pipeline execution.
-  # Leave commented out to skip (you can set these in GitLab UI instead).
+  # ---- Credential Files ----
+  # Domain credentials (repo_manager, image_build_manager, orchestrator, telemetry)
+  # are fetched from OpenBao — these fields below are NOT used for domain creds.
+  # Test credentials are stored as GitLab CI/CD File Type Variables.
   credentials:
-    # Repo Manager credentials (Ansible vault or credentials file)
-    # Example: "/home/user/credentials/repo_manager_creds.yml"
-    # repo_manager_creds: ""
+    # Domain credentials are managed by OpenBao (see global.vault section above).
 
-    # Image Build Manager credentials
-    # Example: "/home/user/credentials/image_build_creds.yml"
-    # image_build_creds: ""
-
-    # Orchestrator credentials
-    # Example: "/home/user/credentials/orchestrator_creds.yml"
-    # orchestrator_creds: ""
-
-    # Telemetry credentials
-    # Example: "/home/user/credentials/telemetry_creds.yml"
-    # telemetry_creds: ""
-
-    # Test credentials (shared across all test stages)
+    # Test credentials (shared across all test stages, stored as CI/CD File Variable)
     # Example: "/home/user/credentials/test_creds.yml"
     # test_creds: ""

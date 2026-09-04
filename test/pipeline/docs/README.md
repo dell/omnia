@@ -7,86 +7,42 @@ more target servers, driven entirely from GitLab CI/CD.
 
 ## Table of Contents
 
-- [How It Works](#how-it-works)
-- [Prerequisites](#prerequisites)
-- [Getting Started](#getting-started)
-  - [1. Fill in pipeline_config.yml](#1-fill-in-pipeline_configyml)
-  - [2. Run the setup script](#2-run-the-setup-script)
-  - [3. Set credential file variables in GitLab](#3-set-credential-file-variables-in-gitlab)
-  - [4. Edit input files in GitLab](#4-edit-input-files-in-gitlab)
-  - [5. Trigger the pipeline](#5-trigger-the-pipeline)
-- [Pipeline Modes](#pipeline-modes)
-  - [default — Full Cycle](#default--full-cycle)
-  - [deploy — Deploy Only](#deploy--deploy-only)
-  - [cleanup — Teardown Only](#cleanup--teardown-only)
-- [Choosing Which Domains to Run](#choosing-which-domains-to-run)
-- [Stage-by-Stage Reference](#stage-by-stage-reference)
-  - [initialization](#initialization)
-  - [setup_environment](#setup_environment)
-  - [Cleanup stages](#cleanup-stages)
-  - [setup_main](#setup_main)
-  - [Domain deploy stages](#domain-deploy-stages)
-  - [Domain test stages](#domain-test-stages)
-  - [summary](#summary)
-- [Skipping Stages](#skipping-stages)
-- [Ansible Deploy Tags](#ansible-deploy-tags)
-- [Test Tags (Pytest Markers)](#test-tags-pytest-markers)
-- [Multi-Cluster Setup](#multi-cluster-setup)
-- [Credentials and Secrets](#credentials-and-secrets)
-- [Repository Layout in GitLab](#repository-layout-in-gitlab)
-- [CI/CD Variables Reference](#cicd-variables-reference)
-- [setup_gitlab_project.py Commands](#setup_gitlab_projectpy-commands)
-- [Troubleshooting](#troubleshooting)
+1. [Overview](#overview)
+2. [Prerequisites](#prerequisites)
+3. [OpenBao Configuration and GitLab Integration](#openbao-configuration-and-gitlab-integration)
+   - [Phase 1: Install and Configure OpenBao](#phase-1-install-and-configure-openbao)
+   - [Phase 2: Configure Secrets Engine](#phase-2-configure-secrets-engine)
+   - [Phase 3: Configure JWT Authentication for GitLab](#phase-3-configure-jwt-authentication-for-gitlab)
+4. [Getting Started](#getting-started)
+   - [Step 1: Fill in pipeline_config.yml](#step-1-fill-in-pipeline_configyml)
+   - [Step 2: Run the setup script](#step-2-run-the-setup-script)
+   - [Step 3: Edit input files in GitLab](#step-3-edit-input-files-in-gitlab)
+   - [Step 4: Trigger the pipeline](#step-4-trigger-the-pipeline)
+5. [Pipeline Modes](#pipeline-modes)
+6. [Domains](#domains)
+7. [Pipeline Stages](#pipeline-stages)
+8. [Configuration Reference](#configuration-reference)
+9. [Multi-Cluster Deployment](#multi-cluster-deployment)
+10. [Advanced Features](#advanced-features)
+11. [Troubleshooting](#troubleshooting)
+12. [Common Commands](#common-commands)
 
 ---
 
-## How It Works
+## Overview
 
-The pipeline has two layers:
+This pipeline automates the complete lifecycle of Omnia deployments:
 
-```
-.gitlab-ci.yml  (parent)
-  |
-  |-- trigger_cluster_cluster1  -->  .gitlab-ci-cluster.yml  (child, runs all stages)
-  |-- trigger_cluster_cluster2  -->  .gitlab-ci-cluster.yml  (child, independent)
-  |-- ...
-```
+- **Setup** -- Clones Omnia on the target server, copies configuration, builds
+  the Python virtual environment
+- **Cleanup** -- Removes previous deployments for selected domains
+- **Deploy** -- Fetches credentials from OpenBao, copies input files, encrypts
+  credentials with ansible-vault, and runs Ansible playbooks for each domain
+- **Test** -- Validates each deployed domain with automated test suites
+- **Report** -- Generates a summary and sends email notifications
 
-The **parent pipeline** (`.gitlab-ci.yml`) reads the `CLUSTERS` variable
-(e.g. `cluster1,cluster2`) and spawns one **child pipeline** per cluster.
-Each child runs the full stage sequence independently — if cluster1 fails,
-cluster2 keeps going.
-
-Each cluster's child pipeline runs the following stages in order (stages are
-skipped or enabled based on `PIPELINE_MODE`, `DOMAINS`, `TEST_MODE`, and
-`SKIP_STAGES`):
-
-```
- 1. initialization               Always runs. Loads SSH creds, tests connectivity.
- 2. setup_environment             Clones Omnia repo on target, copies omnia.env, runs omnia.sh -s.
- 3. cleanup_repo_manager          Runs repo_manager.yml --tags cleanup.
- 4. cleanup_image_build_manager   Runs image_build_manager.yml --tags cleanup.
- 5. cleanup_orchestrator          Runs cleanup_orchestrator.yml --tags cleanup.
- 6. cleanup_telemetry             Runs telemetry.yml --tags cleanup.
- 7. cleanup_omnia                 Runs omnia.sh --cleanup --all (destroys venv + data).
- 8. setup_main                   Rebuilds the venv after cleanup_omnia destroyed it.
- 9. test_main_installation       Validates the Omnia installation via run_validation.sh.
-10. repo_manager                  Copies inputs + creds, encrypts creds, runs playbook.
-11. test_repo_manager             Runs repo_manager validation tests.
-12. image_build_manager           Copies inputs + creds, encrypts creds, runs playbook.
-13. test_image_build_manager      Runs image_build_manager validation tests.
-14. orchestrator                  Copies inputs + creds, encrypts creds, runs playbook.
-15. test_orchestrator             Runs orchestrator validation tests.
-16. telemetry                     Copies inputs + creds, encrypts creds, runs playbook.
-17. test_telemetry                Runs telemetry validation tests.
-18. summary                       Generates a report and sends an email notification.
-```
-
-Every domain deploy/test stage has a **venv gate** in its `before_script`:
-it SSHs into the target, reads `OMNIA_DATA_PATH` from `omnia.env`, and checks
-that the venv and `activate-omnia.sh` exist before proceeding. If missing, the
-job fails immediately with instructions on how to fix it (run `setup_environment`
-or set `ENABLE_SETUP=true`).
+Each cluster runs as a completely independent child pipeline. If one cluster
+fails, the others continue unaffected.
 
 ---
 
@@ -94,21 +50,286 @@ or set `ENABLE_SETUP=true`).
 
 | Requirement | Details |
 |---|---|
-| GitLab instance | Self-managed or GitLab.com, with CI/CD runners enabled |
-| GitLab token | Personal Access Token with `api` scope |
-| Python 3.8+ | On the machine where you run `setup_gitlab_project.py` |
-| Python packages | `pip install pyyaml requests` |
-| Target server(s) | SSH-accessible Linux server(s) where Omnia will be deployed |
-| Target SSH user | Usually `root`; needs write access to `OMNIA_INSTALL_PATH` |
+| **GitLab** | Version 15.7+ with CI/CD pipelines enabled and a registered runner |
+| **Target server** | RHEL/Rocky Linux with SSH access (port 22) and root or sudo user |
+| **OpenBao** | Installed, unsealed, and network-reachable from the GitLab Runner on port 8200 |
+| **Python** | 3.x on the machine running `setup_gitlab_project.py` |
+| **Python packages** | `pip install pyyaml requests` |
+
+---
+
+## OpenBao Configuration and GitLab Integration
+
+The pipeline fetches domain credentials from OpenBao using JWT authentication.
+Each pipeline job gets a short-lived JWT token from GitLab, authenticates with
+OpenBao, and reads the credentials it needs. No static secrets are stored in
+GitLab.
+
+**Complete this section before proceeding to [Getting Started](#getting-started).**
+
+### Phase 1: Install and Configure OpenBao
+
+#### 1.1 Download and Install
+
+```bash
+curl -LO https://github.com/openbao/openbao/releases/download/v2.1.0/bao_2.1.0_linux_amd64.rpm
+sudo yum localinstall bao_2.1.0_linux_amd64.rpm
+```
+
+#### 1.2 Verify Installation
+
+```bash
+which bao
+bao version
+
+# Check config and TLS files
+cat /etc/openbao/openbao.hcl
+ls -la /opt/openbao/tls/
+```
+
+#### 1.3 Configure OpenBao
+
+```bash
+sudo vi /etc/openbao/openbao.hcl
+```
+
+Set the following content:
+
+```hcl
+ui = true
+
+storage "file" {
+  path = "/opt/openbao/data"
+}
+
+listener "tcp" {
+  address       = "0.0.0.0:8200"
+  tls_cert_file = "/opt/openbao/tls/tls.crt"
+  tls_key_file  = "/opt/openbao/tls/tls.key"
+}
+
+api_addr = "https://<YOUR_SERVER_IP>:8200"
+```
+
+> Replace `<YOUR_SERVER_IP>` with the IP address of the OpenBao server.
+
+#### 1.4 Open Firewall Port
+
+```bash
+sudo firewall-cmd --permanent --add-port=8200/tcp
+sudo firewall-cmd --reload
+```
+
+#### 1.5 Start OpenBao Service
+
+```bash
+sudo systemctl enable openbao
+sudo systemctl start openbao
+sudo systemctl status openbao
+```
+
+#### 1.6 Set Environment Variables
+
+```bash
+export BAO_ADDR='https://127.0.0.1:8200'
+export BAO_SKIP_VERIFY=true
+
+# Make persistent across sessions
+echo 'export BAO_ADDR="https://127.0.0.1:8200"' >> ~/.bashrc
+echo 'export BAO_SKIP_VERIFY=true' >> ~/.bashrc
+source ~/.bashrc
+```
+
+#### 1.7 Initialize and Unseal
+
+**Initialize:**
+
+```bash
+bao operator init
+```
+
+> **SAVE the 5 unseal keys and root token securely!**
+> These are required to unseal the vault after every restart.
+
+**Unseal (3 of 5 keys required):**
+
+```bash
+bao operator unseal    # Enter Unseal Key 1
+bao operator unseal    # Enter Unseal Key 2
+bao operator unseal    # Enter Unseal Key 3
+```
+
+**Verify status:**
+
+```bash
+bao status
+```
+
+Expected:
+
+```
+Initialized     true
+Sealed          false
+```
+
+**Login:**
+
+```bash
+bao login
+# Enter root token when prompted
+```
+
+### Phase 2: Configure Secrets Engine
+
+#### 2.1 Enable KV v2 Secrets Engine
+
+```bash
+bao secrets enable -path=secret kv-v2
+```
+
+#### 2.2 Store Domain Credentials
+
+```bash
+# Repo Manager credentials
+bao kv put secret/omnia/repo_manager \
+    pulp_username="admin" \
+    pulp_password="<YourPulpPassword>" \
+    docker_username="<yourdockeruser>" \
+    docker_password="<YourDockerPassword>"
+
+# Image Build Manager credentials
+bao kv put secret/omnia/image_build_manager \
+    aarch64_ssh_password="<YourPassword>" \
+    s3_access_id="<YourS3AccessID>" \
+    s3_secret_key="<YourS3SecretKey>"
+
+# Orchestrator credentials
+bao kv put secret/omnia/orchestrator \
+    provision_password="<ProvPass>" \
+    bmc_username="root" \
+    bmc_password="<BmcPass>" \
+    slurm_db_password="<SlurmPass>" \
+    openldap_db_username="admin" \
+    openldap_db_password="<LdapPass>" \
+    csi_username="" \
+    csi_password=""
+
+# Telemetry credentials
+bao kv put secret/omnia/telemetry \
+    bmc_username="admin" \
+    bmc_password="<BmcPassword>" \
+    mysqldb_user="admin" \
+    mysqldb_password="<MysqlPwd>" \
+    mysqldb_root_password="<MysqlRootPwd>" \
+    csi_username="admin" \
+    csi_password="<CsiPassword>" \
+    ldms_sampler_password="<LdmsPwd>" \
+    ufm_username="admin" \
+    ufm_password="<UfmPassword>" \
+    vast_username="admin" \
+    vast_password="<VastPassword>"
+```
+
+#### 2.3 Verify Secrets
+
+```bash
+bao kv list secret/omnia/
+bao kv get secret/omnia/repo_manager
+```
+
+### Phase 3: Configure JWT Authentication for GitLab
+
+#### 3.1 Extract GitLab SSL Certificate
+
+If GitLab uses a self-signed or internal CA certificate:
+
+```bash
+echo | openssl s_client -connect <GITLAB_IP>:443 2>/dev/null | \
+    openssl x509 -out /tmp/gitlab.crt
+```
+
+#### 3.2 Enable JWT Auth Method
+
+```bash
+bao auth enable jwt
+```
+
+#### 3.3 Configure JWT with GitLab OIDC Discovery
+
+```bash
+bao write auth/jwt/config \
+    oidc_discovery_url="https://<GITLAB_URL>" \
+    bound_issuer="https://<GITLAB_URL>" \
+    oidc_discovery_ca_pem=@/tmp/gitlab.crt
+```
+
+**Verify:**
+
+```bash
+bao read auth/jwt/config
+```
+
+#### 3.4 Create Policy
+
+```bash
+cat <<EOF > gitlab-policy.hcl
+path "secret/data/omnia/*" {
+  capabilities = ["read", "list"]
+}
+
+path "secret/metadata/omnia/*" {
+  capabilities = ["read", "list"]
+}
+
+path "auth/token/lookup-self" {
+  capabilities = ["read"]
+}
+EOF
+
+bao policy write gitlab-policy gitlab-policy.hcl
+```
+
+#### 3.5 Create JWT Role for GitLab
+
+```bash
+bao write auth/jwt/role/gitlab-role \
+    role_type="jwt" \
+    policies="gitlab-policy" \
+    token_explicit_max_ttl=3600 \
+    user_claim="user_email" \
+    bound_audiences="https://<OPENBAO_SERVER_IP>:8200"
+```
+
+**Verify:**
+
+```bash
+bao read auth/jwt/role/gitlab-role
+```
+
+#### 3.6 Set GitLab CI/CD Variables
+
+Go to your GitLab project > **Settings** > **CI/CD** > **Variables** and add:
+
+| Variable | Value | Type |
+|---|---|---|
+| `VAULT_SERVER_URL` | `https://<OPENBAO_IP>:8200` | Variable |
+| `VAULT_AUTH_ROLE` | `gitlab-role` | Variable |
+| `VAULT_SECRET_PATH` | `secret/data/omnia` | Variable |
+
+These are also set automatically when using `pipeline_config.yml` with the
+setup script.
 
 ---
 
 ## Getting Started
 
-### 1. Fill in `pipeline_config.yml`
+> **Note:** Complete the [OpenBao Configuration](#openbao-configuration-and-gitlab-integration)
+> section above before proceeding.
 
-This file is the single source of truth for all pipeline variables. Open it
-and fill in at minimum:
+### Step 1: Fill in pipeline_config.yml
+
+Open `pipeline_config.yml` and fill in your cluster connection details and
+pipeline settings:
 
 ```yaml
 global:
@@ -117,369 +338,10 @@ global:
     repo: "https://github.com/dell/omnia.git"
     branch: "main"
     install_path: "/root/omnia"
-
-cluster1:
-  connection:
-    target_ip: "10.43.0.100"          # <-- your target server IP
-    target_user: "root"
-```
-
-See `pipeline_config.yml` for full documentation on every field.
-
-### 2. Run the setup script
-
-```bash
-python3 setup_gitlab_project.py --create \
-  --gitlab-url https://gitlab.example.com \
-  --token glpat-xxxx \
-  --project-name omnia-pipeline \
-  --config pipeline_config.yml
-```
-
-The script will:
-
-1. Create the GitLab project (or find it if it already exists).
-2. Commit pipeline files (`.gitlab-ci.yml`, `.gitlab-ci-cluster.yml`,
-   `send_email.py`, `pipeline_config.yml`).
-3. Commit domain input templates from the Omnia source tree
-   (`src/<domain>/input/` files) into `clusters/<name>/inputs/<domain>/`.
-4. Commit test configuration templates (`test_config.yml`,
-   `test_run_config.yml`) into `clusters/<name>/inputs/test/<domain>/`.
-5. Commit catalog files from `src/main/samples/` into
-   `clusters/<name>/catalogs/`.
-6. **Prompt for each cluster's SSH password** (entered securely, never
-   stored in any file).
-7. Create all CI/CD variables in GitLab from the config file.
-
-If variables already exist in GitLab, they are **overwritten** with the
-values from the config file.
-
-### 3. Set credential file variables in GitLab
-
-Each domain deploy stage requires an Ansible credentials file. These are
-stored as **File-type CI/CD variables** in GitLab:
-
-1. Go to the GitLab project -> **Settings** -> **CI/CD** -> **Variables**
-2. For each domain, add a variable:
-
-| Variable Name | Type | Value |
-|---|---|---|
-| `CLUSTER1_REPO_MANAGER_CREDS` | File | Contents of `repo_manager_config_credentials.yml` |
-| `CLUSTER1_IMAGE_BUILD_CREDS` | File | Contents of `image_build_credentials.yml` |
-| `CLUSTER1_ORCHESTRATOR_CREDS` | File | Contents of `orchestrator_credentials.yml` |
-| `CLUSTER1_TELEMETRY_CREDS` | File | Contents of `telemetry_credentials.yml` |
-
-If you skip this step, the deploy stage for that domain will fail with:
-```
-ERROR: CI/CD File Variable CLUSTER1_REPO_MANAGER_CREDS not set or file not found
-```
-
-Optionally, for test stages:
-
-| Variable Name | Type | Value |
-|---|---|---|
-| `CLUSTER1_TEST_CREDS` | File | Contents of `test_creds.yml` |
-
-### 4. Edit input files in GitLab
-
-The setup script uploads default input templates. Before running the
-pipeline, review and customize them in the GitLab repository:
-
-- `clusters/cluster1/inputs/omnia.env` — Omnia environment settings
-  (especially `OMNIA_DATA_PATH`)
-- `clusters/cluster1/inputs/repo_manager/` — Repo manager configuration
-- `clusters/cluster1/inputs/image_build_manager/` — Image build configuration
-- `clusters/cluster1/inputs/orchestrator/` — Orchestrator configuration
-- `clusters/cluster1/inputs/telemetry/` — Telemetry configuration
-- `clusters/cluster1/catalogs/catalog_rhel.json` — RHEL catalog
-
-### 5. Trigger the pipeline
-
-Go to the GitLab project -> **CI/CD** -> **Pipelines** -> **Run pipeline**.
-
-The pipeline uses the CI/CD variable values set in step 2. To change
-behavior (e.g. switch to deploy mode), edit the variables in GitLab UI
-before triggering, or update `pipeline_config.yml` and re-run the setup
-script with `--update --config pipeline_config.yml`.
-
----
-
-## Pipeline Modes
-
-Set via `PIPELINE_MODE` (or `pipeline_mode` in the config file).
-
-### `default` — Full Cycle
-
-Runs everything: environment setup, cleanup of previous deployments, venv
-rebuild, domain deploys, and tests.
-
-**Stages that execute:**
-
-```
-initialization
-  -> setup_environment           Clone repo, copy omnia.env, run omnia.sh -s
-    -> cleanup_repo_manager      }
-    -> cleanup_image_build       } Clean up previous domain state
-    -> cleanup_orchestrator      }
-    -> cleanup_telemetry         }
-    -> cleanup_omnia             Destroy venv + OMNIA_DATA_PATH (only when DOMAINS=default)
-      -> setup_main             Rebuild venv via omnia.sh -s
-        -> test_main_installation  (if TEST_MODE=true)
-        -> repo_manager             }
-          -> test_repo_manager      } (if TEST_MODE=true)
-        -> image_build_manager      }
-          -> test_image_build_manager  }
-        -> orchestrator              }
-          -> test_orchestrator       }
-        -> telemetry                 }
-          -> test_telemetry          }
-  -> summary
-```
-
-When `DOMAINS` is not `default` (e.g. `repo_manager`), `cleanup_omnia` and
-`setup_main` are skipped because the venv is needed by other domains.
-
-### `deploy` — Deploy Only
-
-Skips all cleanup stages. Assumes Omnia is already installed on the target
-and the venv exists.
-
-**Stages that execute:**
-
-```
-initialization
-  -> setup_environment           (only if ENABLE_SETUP=true)
-  -> repo_manager                }
-    -> test_repo_manager         } (if TEST_MODE=true)
-  -> image_build_manager         }
-    -> test_image_build_manager  }
-  -> orchestrator                }
-    -> test_orchestrator         }
-  -> telemetry                   }
-    -> test_telemetry            }
-  -> summary
-```
-
-If the venv does not exist on the target, the venv gate will fail. Set
-`ENABLE_SETUP=true` to force `setup_environment` which clones the repo
-and creates the venv.
-
-### `cleanup` — Teardown Only
-
-Runs only the cleanup stages. Does not deploy anything.
-
-**Stages that execute:**
-
-```
-initialization
-  -> setup_environment           (only if ENABLE_SETUP=true)
-  -> cleanup_repo_manager        }
-  -> cleanup_image_build         } Clean up selected domains
-  -> cleanup_orchestrator        }
-  -> cleanup_telemetry           }
-  -> cleanup_omnia               (only if DOMAINS=default)
-  -> summary
-```
-
-Cleanup stages are non-fatal (`allow_failure: true`). If this is a fresh
-server with nothing deployed, the cleanup will report "no previous state"
-and continue.
-
----
-
-## Choosing Which Domains to Run
-
-Set via `DOMAINS` (or `domains` in the config file). The value is matched
-as a **regex** against domain names.
-
-| Value | Effect |
-|---|---|
-| `default` | All four domains |
-| `repo_manager` | Only repo_manager (cleanup + deploy + test) |
-| `image_build_manager` | Only image_build_manager |
-| `orchestrator` | Only orchestrator |
-| `telemetry` | Only telemetry |
-| `repo_manager\|image_build_manager` | Two domains (regex OR) |
-| `repo_manager\|orchestrator` | Two domains |
-| `repo_manager\|telemetry` | Two domains |
-| `image_build_manager\|orchestrator` | Two domains |
-| `image_build_manager\|telemetry` | Two domains |
-| `orchestrator\|telemetry` | Two domains |
-
-When `DOMAINS` is not `default`, the global `cleanup_omnia` and
-`setup_main` stages are skipped (they would destroy the venv that
-other domains depend on).
-
----
-
-## Stage-by-Stage Reference
-
-### `initialization`
-
-- Runs in **all** modes.
-- Reads `<CLUSTER>_TARGET_IP`, `<CLUSTER>_TARGET_USER`,
-  `<CLUSTER>_TARGET_PASS` from CI/CD variables.
-- Tests SSH connectivity to the target.
-- Writes `target.env` as a build artifact so later stages can `source` it.
-- Records `PIPELINE_TRIGGER_TIME` into `pipeline_time.env`.
-
-If this stage fails, check the target IP, username, password, and firewall.
-
-### `setup_environment`
-
-- Runs in `default` mode, or when `ENABLE_SETUP=true`.
-- SSHs into the target and performs:
-  1. Installs git if missing.
-  2. Removes any existing Omnia directory at `OMNIA_INSTALL_PATH`.
-  3. Clones `OMNIA_REPO` (branch `OMNIA_BRANCH`) to `OMNIA_INSTALL_PATH`.
-  4. Copies `clusters/<name>/inputs/omnia.env` -> target's
-     `OMNIA_INSTALL_PATH/src/main/omnia.env`.
-  5. Runs `omnia.sh -s` to create the Python venv and install dependencies.
-  6. Copies catalog files to `OMNIA_DATA_PATH/catalog/` (deploy/default mode).
-
-### Cleanup stages
-
-Each domain has its own cleanup stage:
-
-| Stage | What it runs on the target |
-|---|---|
-| `cleanup_repo_manager` | `ansible-playbook repo_manager.yml --tags cleanup` |
-| `cleanup_image_build_manager` | `ansible-playbook image_build_manager.yml --tags cleanup` |
-| `cleanup_orchestrator` | `ansible-playbook cleanup_orchestrator.yml --tags cleanup` |
-| `cleanup_telemetry` | `ansible-playbook telemetry.yml --tags cleanup` |
-| `cleanup_omnia` | `omnia.sh --cleanup --all` (destroys venv, `OMNIA_DATA_PATH`, `/etc/omnia/`) |
-
-All cleanup stages set `allow_failure: true` — if there is nothing to
-clean up (first run), the job logs a warning and moves on.
-
-`cleanup_omnia` only runs when `DOMAINS=default` because it destroys the
-shared venv.
-
-### `setup_main`
-
-- Runs in `default` mode with `DOMAINS=default` only.
-- Re-copies `omnia.env` and runs `omnia.sh -s` to rebuild the venv that
-  `cleanup_omnia` just destroyed.
-- Re-copies the catalog file to `OMNIA_DATA_PATH/catalog/`.
-
-### Domain deploy stages
-
-Each domain deploy stage (`repo_manager`, `image_build_manager`,
-`orchestrator`, `telemetry`) follows the same pattern:
-
-1. **Resolve paths** — Reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME`
-   from the target by activating the Omnia venv.
-2. **Copy input files** — SCPs `clusters/<name>/inputs/<domain>/` to the
-   target at `OMNIA_DATA_PATH/<domain>/input/OMNIA_PROJECT_NAME/`.
-3. **Copy credential file** — Reads the `<CLUSTER>_<DOMAIN>_CREDS` CI/CD
-   File Variable and SCPs it to the input directory on the target.
-4. **Encrypt credentials** — Uses `ansible-vault encrypt` with an
-   auto-generated key file (stored on the target, not in the repo).
-5. **Run playbook** — Executes the domain's Ansible playbook. If
-   `VERBOSE=true`, runs with `-vvv` instead of `-v`. If deploy tags are
-   set, passes `--tags <value>`.
-
-If any step fails, the stage fails. Credentials are encrypted on the target
-and never stored in plaintext in the pipeline or the repository.
-
-### Domain test stages
-
-Each domain test stage (`test_repo_manager`, `test_image_build_manager`,
-`test_orchestrator`, `test_telemetry`) follows the same pattern:
-
-1. **Copy test config** — SCPs `test_config.yml` and `test_run_config.yml`
-   from `clusters/<name>/inputs/test/<domain>/` to the target at
-   `OMNIA_INSTALL_PATH/test/<domain>/`.
-2. **Copy test credentials** — Reads `<CLUSTER>_TEST_CREDS` File Variable
-   and SCPs to the target as `test_creds.yml`.
-3. **Install test venv** — Runs `setup_env.sh` on the target to create a
-   separate Python venv for tests (distinct from the Omnia deploy venv).
-4. **Run tests** — Executes `run_validation.sh all verify`. If test tags
-   are set, appends `--marker <value>`.
-
-Test stages are `allow_failure: true` — a test failure does not block
-subsequent deploy stages.
-
-### `summary`
-
-- Runs **always** (even if earlier stages fail).
-- Generates a text report with pipeline metadata (mode, cluster, domains,
-  timestamps, pipeline URL).
-- Calls `send_email.py` to send the report to `EMAIL_RECIPIENTS` (if
-  configured). Email failure is non-fatal.
-- Saves the report as a build artifact at `pipeline_reports/pipeline_summary.txt`.
-
----
-
-## Skipping Stages
-
-Set `SKIP_STAGES` (or `skip_stages` in the config) to a comma-separated
-list of stage identifiers. When a stage's identifier matches, the stage is
-set to `when: never` and is completely skipped.
-
-| Identifier | Stages skipped |
-|---|---|
-| `repo_manager` | `cleanup_repo_manager` + `repo_manager` + `test_repo_manager` |
-| `image_build_manager` | `cleanup_image_build_manager` + `image_build_manager` + `test_image_build_manager` |
-| `orchestrator` | `cleanup_orchestrator` + `orchestrator` + `test_orchestrator` |
-| `telemetry` | `cleanup_telemetry` + `telemetry` + `test_telemetry` |
-| `setup_environment` | `setup_environment` only |
-| `setup_main` | `setup_main` only |
-| `cleanup_omnia` | `cleanup_omnia` only |
-| `test_main_installation` | `test_main_installation` only |
-
-Example: `skip_stages: "repo_manager,telemetry"` skips everything related
-to repo_manager and telemetry (cleanup, deploy, and test).
-
-This is different from `DOMAINS` — `DOMAINS` selects which domains to
-include; `SKIP_STAGES` forcibly removes stages regardless of mode.
-
----
-
-## Ansible Deploy Tags
-
-Each domain deploy stage accepts an optional Ansible `--tags` value. Set
-via `deploy_tags` in the config or the `<CLUSTER>_<DOMAIN>_TAGS` CI/CD
-variable.
-
-```yaml
-deploy_tags:
-  repo_manager: "deploy"       # Only run tasks tagged 'deploy'
-  orchestrator: "validate"     # Only run tasks tagged 'validate'
-```
-
-When empty (the default), the entire playbook runs without tag filtering.
-
----
-
-## Test Tags (Pytest Markers)
-
-Each domain test stage accepts an optional pytest marker expression. Set
-via `test_tags` in the config or the `<CLUSTER>_TEST_<DOMAIN>_TAGS` CI/CD
-variable.
-
-```yaml
-test_tags:
-  repo_manager: "sanity"             # Run only @pytest.mark.sanity tests
-  orchestrator: "sanity+positive"    # Run tests marked both sanity AND positive
-  telemetry: "sanity,functional"     # Run tests marked sanity OR functional
-```
-
-When empty (the default), all tests run without marker filtering.
-
-The value is passed as `run_validation.sh all verify --marker <value>`.
-
----
-
-## Multi-Cluster Setup
-
-To deploy to more than one target server:
-
-1. Add cluster names to `pipeline_config.yml`:
-
-```yaml
-global:
-  clusters: "cluster1,cluster2"
+  vault:
+    server_url: "https://<OPENBAO_IP>:8200"
+    auth_role: "gitlab-role"
+    secret_path: "secret/data/omnia"
 
 cluster1:
   connection:
@@ -488,280 +350,544 @@ cluster1:
   pipeline:
     pipeline_mode: "default"
     domains: "default"
+    test_mode: "true"
+```
+
+See `pipeline_config.yml` for full documentation of every option.
+
+### Step 2: Run the setup script
+
+```bash
+pip install pyyaml requests
+
+python3 setup_gitlab_project.py --create \
+    --gitlab-url https://gitlab.example.com \
+    --token glpat-xxxx \
+    --project-name omnia-pipeline \
+    --config pipeline_config.yml
+```
+
+The script will:
+- Create the GitLab project
+- Upload all pipeline files (`.gitlab-ci.yml`, `.gitlab-ci-cluster.yml`, etc.)
+- Upload input file templates from the Omnia source tree
+- Create all CI/CD variables from your config
+- Prompt for SSH passwords (stored as masked CI/CD variables, never in files)
+
+### Step 3: Edit input files in GitLab
+
+After the project is created, go to the GitLab repository and edit the input
+files under `clusters/cluster1/inputs/` to match your environment:
+
+- `omnia.env` -- Omnia environment settings
+- `repo_manager/` -- Pulp repository configuration
+- `orchestrator/` -- Kubernetes/orchestration configuration
+- `image_build_manager/` -- Image build settings
+- `telemetry/` -- Monitoring and observability settings
+
+### Step 4: Trigger the pipeline
+
+Go to **CI/CD > Pipelines > Run pipeline** in your GitLab project.
+
+---
+
+## Pipeline Modes
+
+The pipeline supports three execution modes that control which stages run.
+Set the mode via `pipeline_mode` in `pipeline_config.yml` or the
+`CLUSTER1_PIPELINE_MODE` CI/CD variable.
+
+### `default` -- Full Cycle
+
+Runs the complete lifecycle: setup the environment, clean up any previous
+deployment, rebuild the venv, deploy all selected domains, run tests, and
+generate a summary.
+
+**Use when:** First-time deployment, or when you want a clean full refresh.
+
+**Flow:**
+```
+initialization > setup_environment > cleanup_<domains> > cleanup_omnia >
+setup_main > test_main > deploy_<domains> > test_<domains> > summary
+```
+
+**Example:**
+```yaml
+pipeline:
+  pipeline_mode: "default"
+  domains: "default"       # all 4 domains
+  test_mode: "true"        # run validation tests after deploy
+```
+
+### `deploy` -- Deploy Only
+
+Skips cleanup and setup. Directly copies input files, fetches credentials
+from OpenBao, and runs the domain playbooks. Requires the Omnia venv to
+already exist on the target (from a previous `default` run or manual setup).
+
+**Use when:** Pushing incremental updates, re-running a specific domain
+after changing input files, or redeploying after a credential rotation.
+
+**Flow:**
+```
+initialization > deploy_<domains> > test_<domains> > summary
+```
+
+**Example:**
+```yaml
+pipeline:
+  pipeline_mode: "deploy"
+  domains: "repo_manager"    # redeploy only repo_manager
+  test_mode: "false"
+```
+
+If the target does not have Omnia installed yet, add `enable_setup: "true"`
+to force the setup_environment stage:
+
+```yaml
+pipeline:
+  pipeline_mode: "deploy"
+  enable_setup: "true"
+  domains: "orchestrator"
+```
+
+### `cleanup` -- Tear Down
+
+Runs domain-specific cleanup playbooks (`--tags cleanup`) and optionally
+runs `omnia.sh --cleanup --all` to destroy the venv and all data.
+
+**Use when:** Decommissioning a server, resetting the environment before
+a fresh deployment, or cleaning up specific domains.
+
+**Flow:**
+```
+initialization > setup_environment (if enable_setup) > cleanup_<domains> >
+cleanup_omnia (only if domains=default) > summary
+```
+
+**Example -- clean up everything:**
+```yaml
+pipeline:
+  pipeline_mode: "cleanup"
+  domains: "default"          # cleanup all domains + omnia venv
+```
+
+**Example -- clean up only orchestrator:**
+```yaml
+pipeline:
+  pipeline_mode: "cleanup"
+  domains: "orchestrator"     # only cleanup orchestrator, keep others intact
+```
+
+---
+
+## Domains
+
+The pipeline manages 4 independent domains. Each domain has its own cleanup,
+deploy, and test stages. You can run all domains or select specific ones.
+
+| Domain | Purpose | Credential file |
+|---|---|---|
+| **repo_manager** | Pulp-based package and repository management | `repo_manager_config_credentials.yml` |
+| **image_build_manager** | Container image building and registry | `image_build_credentials.yml` |
+| **orchestrator** | Kubernetes and container orchestration | `orchestrator_credentials.yml` |
+| **telemetry** | Monitoring, logging, and observability | `telemetry_credentials.yml` |
+
+### Domain Selection
+
+Set via `domains` in `pipeline_config.yml` or the `CLUSTER1_DOMAINS` CI/CD
+variable. The value is treated as a **regex pattern** matched against each
+domain name.
+
+| Setting | Domains that run | When to use |
+|---|---|---|
+| `"default"` | All 4 domains | Full deployment |
+| `"repo_manager"` | repo_manager only | Initial repo setup or repo update |
+| `"orchestrator"` | orchestrator only | Deploy/redeploy Kubernetes |
+| `"telemetry"` | telemetry only | Deploy monitoring stack |
+| `"image_build_manager"` | image_build_manager only | Deploy image builder |
+| `"repo_manager\|orchestrator"` | repo_manager + orchestrator | Deploy two domains together |
+| `"repo_manager\|image_build_manager\|telemetry"` | Three domains (skip orchestrator) | Everything except orchestrator |
+
+### Combining Modes and Domains
+
+These two settings work together. Here are common real-world scenarios:
+
+**Scenario 1: First-time full deployment with tests**
+```yaml
+pipeline:
+  pipeline_mode: "default"
+  domains: "default"
+  test_mode: "true"
+```
+
+**Scenario 2: Redeploy only repo_manager after changing Pulp credentials**
+```yaml
+pipeline:
+  pipeline_mode: "deploy"
+  domains: "repo_manager"
+  test_mode: "false"
+```
+
+**Scenario 3: Clean up orchestrator, then redeploy it fresh**
+```yaml
+# Run 1: cleanup
+pipeline:
+  pipeline_mode: "cleanup"
+  domains: "orchestrator"
+
+# Run 2: deploy
+pipeline:
+  pipeline_mode: "deploy"
+  domains: "orchestrator"
+  enable_setup: "true"
+```
+
+**Scenario 4: Deploy repo_manager and telemetry together, skip others**
+```yaml
+pipeline:
+  pipeline_mode: "deploy"
+  domains: "repo_manager|telemetry"
+  test_mode: "true"
+```
+
+**Scenario 5: Full cleanup of everything on the target**
+```yaml
+pipeline:
+  pipeline_mode: "cleanup"
+  domains: "default"
+```
+This runs all domain cleanups AND `omnia.sh --cleanup --all` which destroys
+the venv, `$OMNIA_DATA_PATH`, and `/etc/omnia/`.
+
+**Scenario 6: Dry-run to preview what would happen**
+```yaml
+pipeline:
+  pipeline_mode: "default"
+  domains: "default"
+  dry_run: "true"
+```
+Logs all commands without executing any Ansible playbooks.
+
+### Skipping Specific Domains
+
+Use `skip_stages` to exclude domains without changing the `domains` setting.
+This is useful when `domains: "default"` but you want to temporarily skip
+one domain:
+
+```yaml
+pipeline:
+  pipeline_mode: "default"
+  domains: "default"
+  skip_stages: "telemetry"         # skip telemetry cleanup + deploy + test
+```
+
+You can skip multiple domains:
+```yaml
+skip_stages: "image_build_manager,telemetry"
+```
+
+Valid values for `skip_stages`:
+- `repo_manager`, `image_build_manager`, `orchestrator`, `telemetry` --
+  skips cleanup + deploy + test for that domain
+- `setup_environment`, `setup_main`, `cleanup_omnia` --
+  skips that specific stage
+
+---
+
+## Pipeline Stages
+
+The pipeline runs these stages in order. Which stages actually execute depends
+on `PIPELINE_MODE`, `DOMAINS`, `TEST_MODE`, and `SKIP_STAGES`.
+
+```
+ Stage                         Mode: default   deploy   cleanup
+ ─────────────────────────────────────────────────────────────────
+ 1. initialization                  Y            Y        Y
+ 2. setup_environment               Y          (opt)    (opt)
+ 3. cleanup_repo_manager            Y                     Y
+ 4. cleanup_image_build_manager     Y                     Y
+ 5. cleanup_orchestrator            Y                     Y
+ 6. cleanup_telemetry               Y                     Y
+ 7. cleanup_omnia                   Y                     Y
+ 8. setup_main                      Y
+ 9. test_main_installation        (test)       (test)
+10. repo_manager                    Y            Y
+11. test_repo_manager             (test)       (test)
+12. image_build_manager             Y            Y
+13. test_image_build_manager      (test)       (test)
+14. orchestrator                    Y            Y
+15. test_orchestrator             (test)       (test)
+16. telemetry                       Y            Y
+17. test_telemetry                (test)       (test)
+18. summary                         Y            Y        Y
+```
+
+`(opt)` = runs only if `ENABLE_SETUP=true`
+`(test)` = runs only if `TEST_MODE=true`
+
+**What each stage does:**
+
+| Stage | Description |
+|---|---|
+| **initialization** | Loads cluster config from CI/CD variables, validates SSH connectivity, checks OpenBao reachability, writes `target.env` for downstream stages |
+| **setup_environment** | Clones Omnia repo on target, copies `omnia.env`, runs `omnia.sh -s` to build venv, copies catalog file |
+| **cleanup_\<domain\>** | Runs the domain's cleanup playbook (`--tags cleanup`). Non-fatal -- first run has nothing to clean |
+| **cleanup_omnia** | Runs `omnia.sh --cleanup --all` to destroy venv and data. Only runs when `DOMAINS=default` |
+| **setup_main** | Rebuilds the venv after `cleanup_omnia` destroyed it. Re-copies `omnia.env` and catalog |
+| **test_main_installation** | Installs the test venv and runs `run_validation.sh all verify` |
+| **\<domain\>** | Copies input files to target, fetches credentials from OpenBao (JWT auth), encrypts with ansible-vault, runs the domain playbook |
+| **test_\<domain\>** | Copies test config to target, installs test venv, runs domain validation tests. Non-fatal |
+| **summary** | Generates a pipeline report and sends email notification |
+
+---
+
+## Configuration Reference
+
+All configuration is in `pipeline_config.yml`. Key sections:
+
+### Global Settings
+
+| Setting | Default | Description |
+|---|---|---|
+| `global.clusters` | `"cluster1"` | Comma-separated list of cluster names |
+| `global.omnia.repo` | `https://github.com/dell/omnia.git` | Omnia Git repository URL |
+| `global.omnia.branch` | `main` | Git branch to clone |
+| `global.omnia.install_path` | `/root/omnia` | Install path on target server |
+| `global.vault.server_url` | `""` | OpenBao server URL (e.g. `https://10.0.0.50:8200`) |
+| `global.vault.auth_role` | `gitlab-role` | JWT role name configured in OpenBao |
+| `global.vault.secret_path` | `secret/data/omnia` | Base path for domain secrets |
+| `global.email.recipients` | `""` | Comma-separated email addresses for notifications |
+| `global.email.smtp_server` | `""` | SMTP server hostname |
+
+### Cluster Settings
+
+| Setting | Default | Description |
+|---|---|---|
+| `connection.target_ip` | `""` | IP address of the target server |
+| `connection.target_user` | `root` | SSH username |
+| `pipeline.pipeline_mode` | `default` | Pipeline mode: `default`, `deploy`, or `cleanup` |
+| `pipeline.domains` | `default` | Which domains to run (regex pattern) |
+| `pipeline.enable_setup` | `false` | Force setup in deploy/cleanup modes |
+| `pipeline.test_mode` | `false` | Enable test stages after deployment |
+| `pipeline.dry_run` | `false` | Simulate without making changes |
+| `pipeline.verbose` | `false` | Enable detailed logging (`-vvv`) |
+| `pipeline.skip_stages` | `""` | Comma-separated stages to skip |
+
+### Deploy Tags
+
+| Setting | Default | Description |
+|---|---|---|
+| `deploy_tags.repo_manager` | `""` | Ansible tags for repo_manager playbook |
+| `deploy_tags.image_build_manager` | `""` | Ansible tags for image_build_manager playbook |
+| `deploy_tags.orchestrator` | `""` | Ansible tags for orchestrator playbook |
+| `deploy_tags.telemetry` | `""` | Ansible tags for telemetry playbook |
+
+### Test Commands
+
+| Setting | Default |
+|---|---|
+| `test_commands.repo_manager` | `./run_validation.sh fvt_repo_manager verify` |
+| `test_commands.image_build_manager` | `./run_validation.sh fvt_image_build_manager verify` |
+| `test_commands.orchestrator` | `./run_validation.sh fvt_orchestrator verify` |
+| `test_commands.telemetry` | `./run_validation.sh fvt_telemetry verify` |
+
+---
+
+## Multi-Cluster Deployment
+
+To deploy to multiple servers, add them to `pipeline_config.yml`:
+
+```yaml
+global:
+  clusters: "cluster1,cluster2,cluster3"
+
+cluster1:
+  connection:
+    target_ip: "10.43.0.100"
+  pipeline:
+    pipeline_mode: "default"
 
 cluster2:
   connection:
     target_ip: "10.43.0.200"
-    target_user: "root"
   pipeline:
     pipeline_mode: "deploy"
-    domains: "repo_manager"
+
+cluster3:
+  connection:
+    target_ip: "10.43.0.300"
+  pipeline:
+    pipeline_mode: "cleanup"
 ```
 
-2. Re-run the setup script:
+Each cluster triggers its own independent child pipeline. If one cluster
+fails, the others continue.
+
+Then update the project:
 
 ```bash
-python3 setup_gitlab_project.py --create \
-  --gitlab-url https://gitlab.example.com \
-  --token glpat-xxxx \
-  --project-name omnia-pipeline \
-  --config pipeline_config.yml
-```
-
-The script creates a separate trigger job and set of CI/CD variables for
-each cluster. Each cluster runs as a fully independent child pipeline.
-
----
-
-## Credentials and Secrets
-
-**SSH passwords** — Prompted at runtime by the setup script. Stored as
-masked CI/CD variables (`CLUSTER1_TARGET_PASS`) in GitLab. Never written
-to any file on disk.
-
-**Domain credentials** (e.g. `repo_manager_config_credentials.yml`) —
-Stored as File-type CI/CD variables in GitLab. During the pipeline, the
-file is SCPed to the target and encrypted with `ansible-vault` using an
-auto-generated key. The plaintext credential file is never stored in the
-Git repository.
-
-**Test credentials** (`test_creds.yml`) — Stored as a File-type CI/CD
-variable (`CLUSTER1_TEST_CREDS`). Copied to the target for each test
-stage. Optional — if not set, tests use defaults.
-
----
-
-## Repository Layout in GitLab
-
-After setup, the GitLab project contains:
-
-```
-.gitlab-ci.yml                           Parent pipeline (triggers per cluster)
-.gitlab-ci-cluster.yml                   Child pipeline (all stages)
-send_email.py                            Email notification helper
-pipeline_config.yml                      Configuration template
-
-clusters/
-  cluster1/
-    inputs/
-      omnia.env                          Omnia environment config
-      repo_manager/                      Domain input files
-        repo_manager_config.yml
-        ...
-      image_build_manager/
-        image_build_config.yml
-        ...
-      orchestrator/
-        orchestrator_config.yml
-        ...
-      telemetry/
-        telemetry_config.yml
-        ...
-      test/                              Test configuration files
-        main/
-          test_config.yml
-          test_run_config.yml
-        repo_manager/
-          test_config.yml
-          test_run_config.yml
-        image_build_manager/
-          test_config.yml
-          test_run_config.yml
-        orchestrator/
-          test_config.yml
-          test_run_config.yml
-        telemetry/
-          test_config.yml
-          test_run_config.yml
-    catalogs/
-      catalog_rhel.json
-      ...
-```
-
----
-
-## CI/CD Variables Reference
-
-### Global Variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `CLUSTERS` | `cluster1` | Comma-separated list of cluster names |
-| `OMNIA_REPO` | `https://github.com/dell/omnia.git` | Omnia Git repository URL |
-| `OMNIA_BRANCH` | `main` | Branch or tag to checkout |
-| `OMNIA_INSTALL_PATH` | `/root/omnia` | Where Omnia is cloned on the target |
-| `EMAIL_RECIPIENTS` | _(empty)_ | Comma-separated email addresses for notifications |
-| `EMAIL_SENDER` | _(empty)_ | Sender address for email notifications |
-| `SMTP_SERVER` | _(empty)_ | SMTP server hostname or IP |
-| `SMTP_PORT` | `25` | SMTP port |
-
-### Per-Cluster Variables
-
-Replace `CLUSTER1` with the uppercase cluster name (e.g. `CLUSTER2`).
-
-| Variable | Default | Description |
-|---|---|---|
-| `CLUSTER1_TARGET_IP` | _(required)_ | SSH target IP or hostname |
-| `CLUSTER1_TARGET_USER` | `root` | SSH username |
-| `CLUSTER1_TARGET_PASS` | _(required)_ | SSH password (masked in GitLab) |
-| `CLUSTER1_PIPELINE_MODE` | `default` | `default`, `deploy`, or `cleanup` |
-| `CLUSTER1_DOMAINS` | `default` | Domain selection (regex pattern) |
-| `CLUSTER1_ENABLE_SETUP` | `false` | Force setup_environment in deploy/cleanup |
-| `CLUSTER1_TEST_MODE` | `false` | Enable test stages |
-| `CLUSTER1_DRY_RUN` | `false` | Simulate without executing playbooks |
-| `CLUSTER1_VERBOSE` | `false` | Ansible `-vvv` instead of `-v` |
-| `CLUSTER1_SKIP_STAGES` | _(empty)_ | Comma-separated stages to skip |
-| `CLUSTER1_REPO_MANAGER_TAGS` | _(empty)_ | Ansible `--tags` for repo_manager deploy |
-| `CLUSTER1_IMAGE_BUILD_MANAGER_TAGS` | _(empty)_ | Ansible `--tags` for image_build_manager deploy |
-| `CLUSTER1_ORCHESTRATOR_TAGS` | _(empty)_ | Ansible `--tags` for orchestrator deploy |
-| `CLUSTER1_TELEMETRY_TAGS` | _(empty)_ | Ansible `--tags` for telemetry deploy |
-| `CLUSTER1_TEST_REPO_MANAGER_TAGS` | _(empty)_ | Pytest marker for repo_manager tests |
-| `CLUSTER1_TEST_IMAGE_BUILD_MANAGER_TAGS` | _(empty)_ | Pytest marker for image_build_manager tests |
-| `CLUSTER1_TEST_ORCHESTRATOR_TAGS` | _(empty)_ | Pytest marker for orchestrator tests |
-| `CLUSTER1_TEST_TELEMETRY_TAGS` | _(empty)_ | Pytest marker for telemetry tests |
-
-### Per-Cluster File Variables
-
-These must be set as **File** type in GitLab UI (Settings -> CI/CD -> Variables).
-
-| Variable | Description |
-|---|---|
-| `CLUSTER1_REPO_MANAGER_CREDS` | `repo_manager_config_credentials.yml` contents |
-| `CLUSTER1_IMAGE_BUILD_CREDS` | `image_build_credentials.yml` contents |
-| `CLUSTER1_ORCHESTRATOR_CREDS` | `orchestrator_credentials.yml` contents |
-| `CLUSTER1_TELEMETRY_CREDS` | `telemetry_credentials.yml` contents |
-| `CLUSTER1_TEST_CREDS` | `test_creds.yml` contents (optional, shared by all test stages) |
-
----
-
-## setup_gitlab_project.py Commands
-
-| Command | Purpose |
-|---|---|
-| `--create` | Create a new GitLab project, upload all files, set CI/CD variables |
-| `--update` | Update pipeline files in an existing project |
-| `--update --config pipeline_config.yml` | Update pipeline files and refresh CI/CD variables from config |
-| `--update --update-vars` | Update pipeline files and reset CI/CD variables to defaults |
-| `--validate` | Lint the pipeline YAML via GitLab CI lint API |
-| `--list-vars` | List all CI/CD variable names in the project |
-| `--update-file --file <path> --repo-path <path>` | Upload a single file to the repository |
-| `--upload-dir --dir <path> --repo-path <path>` | Upload an entire directory to the repository |
-| `--delete-dir --repo-path <path>` | Delete a directory from the repository |
-| `--delete` | Delete the GitLab project (asks for confirmation) |
-
-Common flags: `--gitlab-url`, `--token`, `--project-name`, `--namespace`,
-`--no-verify-ssl`.
-
-### Examples
-
-```bash
-# Create project from config
-python3 setup_gitlab_project.py --create \
-  --gitlab-url https://gitlab.example.com \
-  --token glpat-xxxx \
-  --project-name omnia-pipeline \
-  --config pipeline_config.yml
-
-# Update variables after editing the config
 python3 setup_gitlab_project.py --update \
-  --gitlab-url https://gitlab.example.com \
-  --token glpat-xxxx \
-  --project-name omnia-pipeline \
-  --config pipeline_config.yml
+    --gitlab-url https://gitlab.example.com \
+    --token glpat-xxxx \
+    --project-name omnia-pipeline \
+    --config pipeline_config.yml
+```
 
-# Upload a custom input file
-python3 setup_gitlab_project.py --update-file \
-  --gitlab-url https://gitlab.example.com \
-  --token glpat-xxxx \
-  --project-name omnia-pipeline \
-  --file /path/to/custom_omnia.env \
-  --repo-path clusters/cluster1/inputs/omnia.env
+The script automatically adds trigger jobs and CI/CD variables for each
+new cluster.
 
-# Upload an entire directory
-python3 setup_gitlab_project.py --upload-dir \
-  --gitlab-url https://gitlab.example.com \
-  --token glpat-xxxx \
-  --project-name omnia-pipeline \
-  --dir /path/to/orchestrator_inputs/ \
-  --repo-path clusters/cluster1/inputs/orchestrator/
+---
 
-# Validate pipeline YAML
-python3 setup_gitlab_project.py --validate \
-  --gitlab-url https://gitlab.example.com \
-  --token glpat-xxxx \
-  --project-name omnia-pipeline
+## Advanced Features
+
+### Use Ansible Deploy Tags
+
+```yaml
+deploy_tags:
+  repo_manager: "deploy"
+  orchestrator: "validate"
+```
+
+Runs only specific tasks in the domain playbooks.
+
+### Override Test Commands
+
+```yaml
+test_commands:
+  repo_manager: "./run_validation.sh fvt_repo_manager verify --marker sanity"
+  orchestrator: "./run_validation.sh fvt_orchestrator verify --marker sanity+positive"
+```
+
+### Force Setup in Deploy Mode
+
+```yaml
+pipeline:
+  pipeline_mode: "deploy"
+  enable_setup: "true"
+```
+
+Clones Omnia and rebuilds venv before deploying. Useful when the target
+server does not have Omnia installed yet.
+
+### Rotating Credentials
+
+Update a credential in OpenBao at any time. The next pipeline run picks up
+the new value automatically -- no GitLab changes needed:
+
+```bash
+bao kv put secret/omnia/repo_manager \
+    pulp_username="admin" \
+    pulp_password="<new-password>" \
+    docker_username="<user>" \
+    docker_password="<new-password>"
 ```
 
 ---
 
 ## Troubleshooting
 
-### initialization fails: "Missing cluster connection variables"
+### Pipeline fails at initialization
 
-The CI/CD variables `CLUSTER1_TARGET_IP`, `CLUSTER1_TARGET_USER`, and
-`CLUSTER1_TARGET_PASS` are not set or are empty.
+- Check SSH connectivity to the target server
+- Verify IP address, username, password, and firewall (port 22)
+- Ensure `CLUSTER1_TARGET_IP`, `CLUSTER1_TARGET_USER`, and
+  `CLUSTER1_TARGET_PASS` are set in GitLab CI/CD variables
 
-**Fix:** Re-run the setup script with `--config pipeline_config.yml`, or
-set the variables manually in GitLab -> Settings -> CI/CD -> Variables.
+### "OpenBao server is NOT reachable"
 
-### initialization fails: "SSH connection" timeout
+The pipeline validates OpenBao connectivity during initialization:
+1. Verify `VAULT_SERVER_URL` is correct (e.g. `https://10.0.0.50:8200`)
+2. Check if OpenBao is running: `sudo systemctl status openbao`
+3. Verify network connectivity from the GitLab Runner to the OpenBao host
+4. Check firewall rules: `firewall-cmd --list-ports` (must include 8200/tcp)
 
-The target server is unreachable from the GitLab runner.
+### "OpenBao authentication failed"
 
-**Fix:** Verify the IP is correct, the server is powered on, port 22 is
-open, and the GitLab runner has network access to the target.
+JWT validation failed:
+1. Verify `oidc_discovery_url` matches your GitLab instance URL
+2. Verify `bound_audiences` in the role matches the OpenBao server URL
+3. If GitLab uses a self-signed certificate, verify `oidc_discovery_ca_pem`
+   was set (see Phase 3.3)
+4. Confirm GitLab version is 15.7+ (required for `id_tokens`)
 
-### Deploy stage fails: "Omnia venv not found"
+### "Failed to fetch secret"
 
-The venv gate check failed — the Omnia Python environment has not been
-created on the target.
+1. Verify the secret exists: `bao kv get secret/omnia/<domain>`
+2. Check the policy path includes `/data/` for KV v2: `secret/data/omnia/*`
+3. Verify `VAULT_SECRET_PATH` is set to `secret/data/omnia`
 
-**Fix:** Either:
-- Run a `default` mode pipeline first (which sets up everything).
-- Set `enable_setup: "true"` in the config to force `setup_environment`.
+### "Omnia venv not found"
 
-### Deploy stage fails: "CI/CD File Variable ... not set"
+The Python environment has not been created on the target. Either:
+- Run a `default` mode pipeline first (includes full setup), or
+- Set `enable_setup: "true"` to force environment setup
 
-The domain credential file variable is missing.
+### "CI/CD File Variable not set"
 
-**Fix:** In GitLab -> Settings -> CI/CD -> Variables, add the credential
-variable as **File** type (see [Credentials and Secrets](#credentials-and-secrets)).
+Test credential file variable is missing. Go to **Settings > CI/CD >
+Variables** and add `CLUSTER1_TEST_CREDS` as a **File** type variable.
 
-### Deploy stage fails: Ansible playbook error
+### Deploy fails with Ansible errors
 
-**Fix:**
-1. Check the input files in `clusters/<name>/inputs/<domain>/` are correct.
-2. Set `verbose: "true"` to get `-vvv` Ansible output.
-3. Set `dry_run: "true"` to see what commands would run without executing.
-4. Check the target server meets the domain's prerequisites.
+1. Check input files in `clusters/<name>/inputs/<domain>/`
+2. Set `verbose: "true"` for detailed Ansible output (`-vvv`)
+3. Set `dry_run: "true"` to see what would run without executing
+4. SSH into target and run the playbook manually to debug
 
-### Tests fail
+---
 
-Test stages are `allow_failure: true` so they do not block the pipeline.
+## Common Commands
 
-**Fix:**
-1. Check that the deploy stage for that domain succeeded.
-2. Verify `test_config.yml` and `test_run_config.yml` are correct.
-3. If using test tags, verify the markers exist in the test suite.
-4. SSH into the target and run tests manually:
-   ```bash
-   cd /root/omnia/test/<domain>
-   source .venv/bin/activate
-   ./run_validation.sh all verify
-   ```
+```bash
+# Create a new project from config
+python3 setup_gitlab_project.py --create \
+    --gitlab-url https://gitlab.example.com \
+    --token glpat-xxxx \
+    --project-name omnia-pipeline \
+    --config pipeline_config.yml
 
-### Pipeline does not trigger for a cluster
+# Update variables and files after editing config
+python3 setup_gitlab_project.py --update \
+    --gitlab-url https://gitlab.example.com \
+    --token glpat-xxxx \
+    --project-name omnia-pipeline \
+    --config pipeline_config.yml
 
-The `CLUSTERS` variable does not contain the cluster name. The parent
-pipeline checks `if: '$CLUSTERS =~ /cluster1/'` to decide whether to
-trigger each cluster.
+# Update a specific file in the project
+python3 setup_gitlab_project.py --update-file \
+    --gitlab-url https://gitlab.example.com \
+    --token glpat-xxxx \
+    --project-name omnia-pipeline \
+    --file /path/to/omnia.env \
+    --repo-path clusters/cluster1/inputs/omnia.env
 
-**Fix:** Update `CLUSTERS` to include the missing cluster name.
+# Upload a local directory to the repo
+python3 setup_gitlab_project.py --upload-dir \
+    --gitlab-url https://gitlab.example.com \
+    --token glpat-xxxx \
+    --project-name omnia-pipeline \
+    --dir /path/to/test_configs/ \
+    --repo-path clusters/cluster1/inputs/test/orchestrator/
 
-### How to re-run a single domain without a full cycle
+# List CI/CD variables
+python3 setup_gitlab_project.py --list-vars \
+    --gitlab-url https://gitlab.example.com \
+    --token glpat-xxxx \
+    --project-name omnia-pipeline
 
-Set `PIPELINE_MODE=deploy`, `DOMAINS=<domain>`, and trigger the pipeline.
-Only that domain's deploy stage runs (no cleanup, no other domains).
+# Validate pipeline YAML
+python3 setup_gitlab_project.py --validate \
+    --gitlab-url https://gitlab.example.com \
+    --token glpat-xxxx \
+    --project-name omnia-pipeline
+
+# Delete a project
+python3 setup_gitlab_project.py --delete \
+    --gitlab-url https://gitlab.example.com \
+    --token glpat-xxxx \
+    --project-name omnia-pipeline
+```
 
 ---
 

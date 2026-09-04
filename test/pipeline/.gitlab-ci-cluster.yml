@@ -38,6 +38,14 @@
 # Per-stage ansible tags (optional):
 #   REPO_MANAGER_TAGS, IMAGE_BUILD_MANAGER_TAGS, ORCHESTRATOR_TAGS
 #
+# Credential management (OpenBao / Vault):
+#   Domain credentials are fetched from OpenBao using JWT authentication.
+#   VAULT_SERVER_URL must be configured. Secrets are stored at:
+#     secret/data/omnia/repo_manager
+#     secret/data/omnia/image_build_manager
+#     secret/data/omnia/orchestrator
+#     secret/data/omnia/telemetry
+#
 # Repository layout:
 #   clusters/<name>/inputs/omnia.env      -> Omnia environment config
 #   clusters/<name>/inputs/<domain>/      -> Domain input files
@@ -46,6 +54,9 @@
 # Cluster connection details come from CI/CD variables:
 #   <CLUSTER_PREFIX>_TARGET_IP, <CLUSTER_PREFIX>_TARGET_USER,
 #   <CLUSTER_PREFIX>_TARGET_PASS
+#
+# Domain credentials come from OpenBao (Vault-compatible) via JWT auth:
+#   VAULT_SERVER_URL, VAULT_AUTH_ROLE, VAULT_SECRET_PATH
 #
 # Default mode stages (full cycle):
 #   1. initialization          -> Load cluster config, validate connectivity
@@ -81,13 +92,28 @@ variables:
   OMNIA_INSTALL_PATH: "/root/omnia"
   PIPELINE_VERSION: "3.0"
   SKIP_STAGES: ""
+  TEST_REPO_MANAGER_CMD: "./run_validation.sh fvt_repo_manager verify"
+  TEST_IMAGE_BUILD_MANAGER_CMD: "./run_validation.sh fvt_image_build_manager verify"
+  TEST_ORCHESTRATOR_CMD: "./run_validation.sh fvt_orchestrator verify"
+  TEST_TELEMETRY_CMD: "./run_validation.sh fvt_telemetry verify"
   # SKIP_STAGES: Comma-separated list of stages to skip.
   # Valid values: repo_manager, image_build_manager, orchestrator, telemetry,
   #   setup_environment, setup_main, cleanup_omnia
   # Example: SKIP_STAGES="repo_manager,telemetry" skips cleanup+deploy+test for both.
-  # Credential files are stored as GitLab CI/CD File Type Variables.
-  # Naming convention: <CLUSTER_PREFIX>_<CRED_NAME>
-  #   e.g. CLUSTER1_REPO_MANAGER_CREDS, CLUSTER2_IMAGE_BUILD_CREDS
+  #
+  # OpenBao / Vault credential management (REQUIRED):
+  #   Domain credentials are fetched from OpenBao (Vault-compatible) using JWT auth.
+  #   VAULT_SERVER_URL must be set — pipeline will fail without it.
+  #   Secrets are stored at: <VAULT_SECRET_PATH>/<domain>
+  #     e.g. secret/data/omnia/repo_manager, secret/data/omnia/orchestrator
+  #   For KV v2, include /data/ after mount point: secret/data/omnia
+  #   For KV v1, omit /data/: secret/omnia
+  VAULT_SERVER_URL: ""
+  VAULT_AUTH_ROLE: "gitlab-role"
+  VAULT_SECRET_PATH: "secret/data/omnia"
+  #
+  # Test credential files are stored as GitLab CI/CD File Type Variables.
+  # Naming convention: <CLUSTER_PREFIX>_TEST_CREDS
   # See README.md for full setup instructions.
 
 stages:
@@ -173,6 +199,64 @@ default:
           echo 'Omnia venv verified and active'
         "
       fi
+    - |
+      # Define OpenBao/Vault secret fetch function (used by deploy stages)
+      # Usage: fetch_openbao_secret <secret_name> <output_file>
+      #   secret_name: e.g. "repo_manager", "orchestrator"
+      #   output_file: local path to write the credential file
+      fetch_openbao_secret() {
+        local secret_name="$1"
+        local output_file="$2"
+        if [ -z "$VAULT_SERVER_URL" ]; then
+          echo "ERROR: VAULT_SERVER_URL is not set."
+          echo "  OpenBao is required for domain credential management."
+          echo "  Set VAULT_SERVER_URL in GitLab CI/CD variables."
+          return 1
+        fi
+        echo "  Authenticating with OpenBao..."
+        local auth_response
+        auth_response=$(curl -sk --request POST \
+          "${VAULT_SERVER_URL}/v1/auth/jwt/login" \
+          --data "{\"jwt\": \"${VAULT_ID_TOKEN}\", \"role\": \"${VAULT_AUTH_ROLE}\"}" 2>/dev/null)
+
+        local bao_token
+        bao_token=$(echo "$auth_response" | python3 -c \
+          "import sys,json;print(json.load(sys.stdin)['auth']['client_token'])" 2>/dev/null)
+
+        if [ -z "$bao_token" ]; then
+          echo "ERROR: OpenBao authentication failed"
+          # Extract error message without exposing sensitive data
+          echo "$auth_response" | python3 -c \
+            "import sys,json;r=json.load(sys.stdin);errs=r.get('errors',[]);[print(f'  {e}') for e in errs]" 2>/dev/null || true
+          return 1
+        fi
+        echo "  OpenBao authentication successful"
+
+        echo "  Fetching secret: ${secret_name}"
+        local secret_response
+        secret_response=$(curl -sk --header "X-Vault-Token: ${bao_token}" \
+          "${VAULT_SERVER_URL}/v1/${VAULT_SECRET_PATH}/${secret_name}" 2>/dev/null)
+        # Extract secret data (handles both KV v1 and KV v2 response formats)
+        # Format all values as quoted strings (JSON format) for YAML compatibility
+        python3 -c \
+          "import sys,json;\
+      r=json.loads('''$secret_response''');\
+      d=r.get('data',{});\
+      s=d['data'] if 'data' in d and isinstance(d.get('data'),dict) else d;\
+      s={k:v for k,v in s.items() if k!='metadata'};\
+      vals=list(s.values());\
+      [print(json.dumps(vals[0])) if len(s)==1 and isinstance(vals[0],str) else None];\
+      [print(f'{k}: {json.dumps(v)}') for k,v in s.items()] if len(s)>1 else None" \
+          > "$output_file" 2>/dev/null
+        if [ -s "$output_file" ]; then
+          echo "  Secret fetched successfully from OpenBao"
+          return 0
+        else
+          echo "  ERROR: Failed to fetch secret from OpenBao"
+          rm -f "$output_file"
+          return 1
+        fi
+      }
 
 # ===========================  INITIALIZATION  ==============================
 # Shared by all pipeline modes.
@@ -205,11 +289,11 @@ initialization:
       TARGET_IP_VAR="${CLUSTER_PREFIX}_TARGET_IP"
       TARGET_USER_VAR="${CLUSTER_PREFIX}_TARGET_USER"
       TARGET_PASS_VAR="${CLUSTER_PREFIX}_TARGET_PASS"
-      
+
       TARGET_IP=$(eval echo "\$$TARGET_IP_VAR")
       TARGET_USER=$(eval echo "\$$TARGET_USER_VAR")
       TARGET_PASS=$(eval echo "\$$TARGET_PASS_VAR")
-      
+
       if [ -z "$TARGET_IP" ] || [ -z "$TARGET_USER" ] || [ -z "$TARGET_PASS" ]; then
         echo "ERROR: Missing cluster connection variables"
         echo "  Required: ${TARGET_IP_VAR}, ${TARGET_USER_VAR}, ${TARGET_PASS_VAR}"
@@ -241,6 +325,38 @@ initialization:
     - rm -f ~/.ssh/known_hosts
     - ssh-keygen -R $TARGET_IP || true
     - $SSH_CMD -o ConnectTimeout=$SSH_CONNECT_TIMEOUT $TARGET_USER@$TARGET_IP "echo SSH connection successful"
+
+    # Validate OpenBao server reachability (if configured)
+    - echo "Validating OpenBao server configuration"
+    - |
+      if [ -z "$VAULT_SERVER_URL" ]; then
+        echo "  WARNING: VAULT_SERVER_URL not configured"
+        echo "  OpenBao credential management will be skipped"
+      else
+        echo "  Checking OpenBao server reachability: $VAULT_SERVER_URL"
+        # Extract host and port from URL (handle https://host:port format)
+        VAULT_HOST=$(echo "$VAULT_SERVER_URL" | sed -E 's|https?://([^:/]+).*|\1|')
+        VAULT_PORT=$(echo "$VAULT_SERVER_URL" | sed -E 's|.*:([0-9]+)/?$|\1|; s|.*||')
+        VAULT_PORT="${VAULT_PORT:-8200}"
+        
+        # Test connectivity with curl (skip certificate verification for self-signed certs)
+        if curl -sk --connect-timeout 10 --max-time 15 "$VAULT_SERVER_URL/v1/sys/health" > /dev/null 2>&1; then
+          echo "  ✓ OpenBao server is reachable at $VAULT_SERVER_URL"
+        else
+          echo "  ✗ ERROR: OpenBao server is NOT reachable"
+          echo "    URL: $VAULT_SERVER_URL"
+          echo "    Host: $VAULT_HOST"
+          echo "    Port: $VAULT_PORT"
+          echo ""
+          echo "  Troubleshooting steps:"
+          echo "    1. Verify VAULT_SERVER_URL is correct in CI/CD variables"
+          echo "    2. Check if OpenBao server is running"
+          echo "    3. Verify network connectivity to the OpenBao server"
+          echo "    4. Check firewall rules allow access to port $VAULT_PORT"
+          echo "    5. If using self-signed certificates, ensure curl can reach the server"
+          exit 1
+        fi
+      fi
 
     # Write env file for later stages
     - echo "Writing target.env for downstream stages"
@@ -863,7 +979,7 @@ test_main_installation:
           echo "  WARNING: $f not found in pipeline — using defaults"
         fi
       done
-      
+
       # Copy test credentials from CI/CD File Variable
       CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
       CRED_VAR="${CLUSTER_PREFIX}_TEST_CREDS"
@@ -907,6 +1023,9 @@ test_main_installation:
 repo_manager:
   stage: repo_manager
   timeout: 3h
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $VAULT_SERVER_URL
   rules:
     - if: '$SKIP_STAGES =~ /repo_manager/'
       when: never
@@ -971,21 +1090,17 @@ repo_manager:
         exit 1
       fi
 
-    # Step 3: Copy credential file from CI/CD File Variable
-    - echo "Step 3 - Copying credential file from CI/CD variable"
+    # Step 3: Fetch credential file from OpenBao
+    - echo "Step 3 - Fetching repo_manager credentials from OpenBao"
     - |
-      # Derive variable name: cluster1 -> CLUSTER1_REPO_MANAGER_CREDS
-      CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
-      CRED_VAR="${CLUSTER_PREFIX}_REPO_MANAGER_CREDS"
-      CRED_PATH=$(eval echo "\$$CRED_VAR")
-      if [ -n "$CRED_PATH" ] && [ -f "$CRED_PATH" ]; then
-        $SCP_CMD "$CRED_PATH" $TARGET:$INPUT_DIR/repo_manager_config_credentials.yml 2>/dev/null
-        echo "  Credential file copied to target"
-      else
-        echo "ERROR: CI/CD File Variable $CRED_VAR not set or file not found"
-        echo "  Go to Settings > CI/CD > Variables and add $CRED_VAR as File type"
+      CRED_FILE="/tmp/repo_manager_creds_$$.yml"
+      if ! fetch_openbao_secret "repo_manager" "$CRED_FILE"; then
+        echo "ERROR: Failed to fetch repo_manager credentials from OpenBao"
         exit 1
       fi
+      $SCP_CMD "$CRED_FILE" $TARGET:$INPUT_DIR/repo_manager_config_credentials.yml 2>/dev/null
+      rm -f "$CRED_FILE"
+      echo "  Credential file copied to target"
 
     # Step 4: Encrypt repo_manager_config_credentials.yml with ansible-vault
     - echo "Step 4 - Encrypting repo_manager_config_credentials.yml"
@@ -1080,7 +1195,7 @@ test_repo_manager:
           echo "  WARNING: $f not found in pipeline — using defaults"
         fi
       done
-      
+
       # Copy test credentials from CI/CD File Variable
       CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
       CRED_VAR="${CLUSTER_PREFIX}_TEST_CREDS"
@@ -1107,19 +1222,14 @@ test_repo_manager:
     # Step 3: Run repo_manager validation tests
     - echo "Step 3 - Running repo_manager validation tests"
     - |
-      TEST_TAGS_ARG=""
-      if [ -n "$TEST_REPO_MANAGER_TAGS" ]; then
-        TEST_TAGS_ARG="--marker $TEST_REPO_MANAGER_TAGS"
-        echo "  Test tags: $TEST_REPO_MANAGER_TAGS"
-      fi
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute repo_manager run_validation.sh all verify $TEST_TAGS_ARG on $TARGET"
+        echo "DRY_RUN: Would execute $TEST_REPO_MANAGER_CMD on $TARGET"
       else
         $SSH_CMD $TARGET "
           cd $OMNIA_INSTALL_PATH/test/repo_manager
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
-            ./run_validation.sh fvt_repo_manager verify $TEST_TAGS_ARG
+            $TEST_REPO_MANAGER_CMD
           else
             echo 'WARNING: run_validation.sh not found — skipping tests'
           fi
@@ -1137,6 +1247,9 @@ test_repo_manager:
 image_build_manager:
   stage: image_build_manager
   timeout: 3h
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $VAULT_SERVER_URL
   rules:
     - if: '$SKIP_STAGES =~ /image_build_manager/'
       when: never
@@ -1207,20 +1320,17 @@ image_build_manager:
         exit 1
       fi
 
-    # Step 3: Copy credential file from CI/CD File Variable
-    - echo "Step 3 - Copying credential file from CI/CD variable"
+    # Step 3: Fetch credential file from OpenBao
+    - echo "Step 3 - Fetching image_build_manager credentials from OpenBao"
     - |
-      CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
-      CRED_VAR="${CLUSTER_PREFIX}_IMAGE_BUILD_CREDS"
-      CRED_PATH=$(eval echo "\$$CRED_VAR")
-      if [ -n "$CRED_PATH" ] && [ -f "$CRED_PATH" ]; then
-        $SCP_CMD "$CRED_PATH" $TARGET:$INPUT_DIR/image_build_credentials.yml 2>/dev/null
-        echo "  Credential file copied to target"
-      else
-        echo "ERROR: CI/CD File Variable $CRED_VAR not set or file not found"
-        echo "  Go to Settings > CI/CD > Variables and add $CRED_VAR as File type"
+      CRED_FILE="/tmp/image_build_creds_$$.yml"
+      if ! fetch_openbao_secret "image_build_manager" "$CRED_FILE"; then
+        echo "ERROR: Failed to fetch image_build_manager credentials from OpenBao"
         exit 1
       fi
+      $SCP_CMD "$CRED_FILE" $TARGET:$INPUT_DIR/image_build_credentials.yml 2>/dev/null
+      rm -f "$CRED_FILE"
+      echo "  Credential file copied to target"
 
     # Step 4: Encrypt image_build_credentials.yml with ansible-vault
     - echo "Step 4 - Encrypting image_build_credentials.yml"
@@ -1315,7 +1425,7 @@ test_image_build_manager:
           echo "  WARNING: $f not found in pipeline — using defaults"
         fi
       done
-      
+
       # Copy test credentials from CI/CD File Variable
       CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
       CRED_VAR="${CLUSTER_PREFIX}_TEST_CREDS"
@@ -1342,19 +1452,14 @@ test_image_build_manager:
     # Step 3: Run image_build_manager validation tests
     - echo "Step 3 - Running image_build_manager validation tests"
     - |
-      TEST_TAGS_ARG=""
-      if [ -n "$TEST_IMAGE_BUILD_MANAGER_TAGS" ]; then
-        TEST_TAGS_ARG="--marker $TEST_IMAGE_BUILD_MANAGER_TAGS"
-        echo "  Test tags: $TEST_IMAGE_BUILD_MANAGER_TAGS"
-      fi
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute image_build_manager run_validation.sh all verify $TEST_TAGS_ARG on $TARGET"
+        echo "DRY_RUN: Would execute $TEST_IMAGE_BUILD_MANAGER_CMD on $TARGET"
       else
         $SSH_CMD $TARGET "
           cd $OMNIA_INSTALL_PATH/test/image_build_manager
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
-            ./run_validation.sh fvt_image_build_manager verify $TEST_TAGS_ARG
+            $TEST_IMAGE_BUILD_MANAGER_CMD
           else
             echo 'WARNING: run_validation.sh not found — skipping tests'
           fi
@@ -1372,6 +1477,9 @@ test_image_build_manager:
 orchestrator:
   stage: orchestrator
   timeout: 3h
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $VAULT_SERVER_URL
   rules:
     - if: '$SKIP_STAGES =~ /orchestrator/'
       when: never
@@ -1442,20 +1550,17 @@ orchestrator:
         exit 1
       fi
 
-    # Step 3: Copy credential file from CI/CD File Variable
-    - echo "Step 3 - Copying credential file from CI/CD variable"
+    # Step 3: Fetch credential file from OpenBao
+    - echo "Step 3 - Fetching orchestrator credentials from OpenBao"
     - |
-      CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
-      CRED_VAR="${CLUSTER_PREFIX}_ORCHESTRATOR_CREDS"
-      CRED_PATH=$(eval echo "\$$CRED_VAR")
-      if [ -n "$CRED_PATH" ] && [ -f "$CRED_PATH" ]; then
-        $SCP_CMD "$CRED_PATH" $TARGET:$INPUT_DIR/omnia_config_credentials.yml 2>/dev/null
-        echo "  Credential file copied to target"
-      else
-        echo "ERROR: CI/CD File Variable $CRED_VAR not set or file not found"
-        echo "  Go to Settings > CI/CD > Variables and add $CRED_VAR as File type"
+      CRED_FILE="/tmp/orchestrator_creds_$$.yml"
+      if ! fetch_openbao_secret "orchestrator" "$CRED_FILE"; then
+        echo "ERROR: Failed to fetch orchestrator credentials from OpenBao"
         exit 1
       fi
+      $SCP_CMD "$CRED_FILE" $TARGET:$INPUT_DIR/omnia_config_credentials.yml 2>/dev/null
+      rm -f "$CRED_FILE"
+      echo "  Credential file copied to target"
 
     # Step 4: Encrypt omnia_config_credentials.yml with ansible-vault
     - echo "Step 4 - Encrypting omnia_config_credentials.yml"
@@ -1548,7 +1653,7 @@ test_orchestrator:
           echo "  WARNING: $f not found in pipeline — using defaults"
         fi
       done
-      
+
       # Copy test credentials from CI/CD File Variable
       CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
       CRED_VAR="${CLUSTER_PREFIX}_TEST_CREDS"
@@ -1575,19 +1680,14 @@ test_orchestrator:
     # Step 3: Run orchestrator validation tests
     - echo "Step 3 - Running orchestrator validation tests"
     - |
-      TEST_TAGS_ARG=""
-      if [ -n "$TEST_ORCHESTRATOR_TAGS" ]; then
-        TEST_TAGS_ARG="--marker $TEST_ORCHESTRATOR_TAGS"
-        echo "  Test tags: $TEST_ORCHESTRATOR_TAGS"
-      fi
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute orchestrator run_validation.sh all verify $TEST_TAGS_ARG on $TARGET"
+        echo "DRY_RUN: Would execute $TEST_ORCHESTRATOR_CMD on $TARGET"
       else
         $SSH_CMD $TARGET "
           cd $OMNIA_INSTALL_PATH/test/orchestrator
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
-            ./run_validation.sh fvt_orchestrator verify $TEST_TAGS_ARG
+            $TEST_ORCHESTRATOR_CMD
           else
             echo 'WARNING: run_validation.sh not found — skipping tests'
           fi
@@ -1606,6 +1706,9 @@ test_orchestrator:
 telemetry:
   stage: telemetry
   timeout: 3h
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $VAULT_SERVER_URL
   rules:
     - if: '$SKIP_STAGES =~ /telemetry/'
       when: never
@@ -1675,18 +1778,17 @@ telemetry:
         echo "WARNING: clusters/$CLUSTER/inputs/telemetry/ not found — using defaults"
       fi
 
-    # Step 3: Copy credential file from CI/CD File Variable
-    - echo "Step 3 - Copying credential file from CI/CD variable"
+    # Step 3: Fetch credential file from OpenBao
+    - echo "Step 3 - Fetching telemetry credentials from OpenBao"
     - |
-      CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
-      CRED_VAR="${CLUSTER_PREFIX}_TELEMETRY_CREDS"
-      CRED_PATH=$(eval echo "\$$CRED_VAR")
-      if [ -n "$CRED_PATH" ] && [ -f "$CRED_PATH" ]; then
-        $SCP_CMD "$CRED_PATH" $TARGET:$INPUT_DIR/telemetry_credentials.yml 2>/dev/null
-        echo "  Credential file copied to target"
-      else
-        echo "WARNING: CI/CD File Variable $CRED_VAR not set — telemetry may use defaults"
+      CRED_FILE="/tmp/telemetry_creds_$$.yml"
+      if ! fetch_openbao_secret "telemetry" "$CRED_FILE"; then
+        echo "ERROR: Failed to fetch telemetry credentials from OpenBao"
+        exit 1
       fi
+      $SCP_CMD "$CRED_FILE" $TARGET:$INPUT_DIR/telemetry_credentials.yml 2>/dev/null
+      rm -f "$CRED_FILE"
+      echo "  Credential file copied to target"
 
     # Step 4: Encrypt telemetry_credentials.yml with ansible-vault
     - echo "Step 4 - Encrypting telemetry_credentials.yml"
@@ -1779,7 +1881,7 @@ test_telemetry:
           echo "  WARNING: $f not found in pipeline — using defaults"
         fi
       done
-      
+
       # Copy test credentials from CI/CD File Variable
       CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
       CRED_VAR="${CLUSTER_PREFIX}_TEST_CREDS"
@@ -1806,19 +1908,14 @@ test_telemetry:
     # Step 3: Run telemetry validation tests
     - echo "Step 3 - Running telemetry validation tests"
     - |
-      TEST_TAGS_ARG=""
-      if [ -n "$TEST_TELEMETRY_TAGS" ]; then
-        TEST_TAGS_ARG="--marker $TEST_TELEMETRY_TAGS"
-        echo "  Test tags: $TEST_TELEMETRY_TAGS"
-      fi
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute telemetry run_validation.sh all verify $TEST_TAGS_ARG on $TARGET"
+        echo "DRY_RUN: Would execute $TEST_TELEMETRY_CMD on $TARGET"
       else
         $SSH_CMD $TARGET "
           cd $OMNIA_INSTALL_PATH/test/telemetry
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
-            ./run_validation.sh fvt_telemetry verify $TEST_TAGS_ARG
+            $TEST_TELEMETRY_CMD
           else
             echo 'WARNING: run_validation.sh not found — skipping tests'
           fi
