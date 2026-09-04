@@ -338,6 +338,7 @@
   register: _existing_fg_groups
   failed_when: false
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  no_log: true
 
 - name: Delete existing metadata-service group entries for {{ fg_name }}
   ansible.builtin.uri:
