@@ -23,7 +23,9 @@ import unittest
 from jsonschema import ValidationError
 
 HERE = os.path.dirname(__file__)
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(HERE))))  # Go up 5 levels to reach build_stream root
+# Navigate from test/build_stream/nft/unit/core/catalog to src/build_stream
+# test/build_stream/nft/unit/core/catalog -> ../../../../.. -> src/build_stream
+PROJECT_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", "..", "..", "..", "src", "build_stream"))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -40,9 +42,9 @@ class TestGetPackageList(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.base_dir = os.path.dirname(__file__)
-        # Calculate path to fixtures: tests/unit/core/catalog -> core/catalog/test_fixtures
+        # Calculate path to fixtures: test/build_stream/nft/unit/core/catalog -> src/build_stream/app/core/catalog/test_fixtures
         self.fixture_path = os.path.abspath(
-            os.path.join(self.base_dir, "..", "..", "..", "..", "app", "core", "catalog", "test_fixtures", "functional_layer.json")
+            os.path.join(PROJECT_ROOT, "app", "core", "catalog", "test_fixtures", "functional_layer.json")
         )
 
     def test_get_packages_for_valid_single_role(self):

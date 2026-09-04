@@ -90,7 +90,7 @@ class TestImageGroupStatus:
         expected = {
             "BUILT", "DEPLOYING", "DEPLOYED", "RESTARTING",
             "RESTARTED", "VALIDATING", "PASSED", "FAILED", "CLEANING",
-            "CLEANED",
+            "CLEANED", "CLEANUP_FAILED",
         }
         actual = {s.value for s in ImageGroupStatus}
         assert actual == expected

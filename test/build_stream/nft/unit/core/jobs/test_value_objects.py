@@ -158,12 +158,13 @@ class TestStageName:
         """Verify we have exactly 6 canonical stages (domain-segregated).
 
         Omnia 2.3+: Domain-segregated architecture with unified stages:
+        - PARSE_CATALOG (uniqueness check before local-repo/build-image)
         - CREATE_LOCAL_REPOSITORY (repo_manager.yml)
         - BUILD_IMAGE (image_build_manager.yml handles all architectures)
         - VALIDATE, RESTART (validation/restart)
         - UPLOAD, DEPLOY (deployment)
         """
-        assert len(StageType) == 6
+        assert len(StageType) == 7
 
 
 class TestIdempotencyKey:

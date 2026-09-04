@@ -16,12 +16,20 @@
 
 import sys
 import os
+from pathlib import Path
 
 # Add build_stream source to path for imports
-# Use absolute path for local development
-_BUILD_STREAM_SRC = "/root/Documents/omnia/src/build_stream"
-if _BUILD_STREAM_SRC not in sys.path:
-    sys.path.insert(0, _BUILD_STREAM_SRC)
+# Use dynamic path resolution for both local and CI environments
+_CURRENT_DIR = Path(__file__).parent.resolve()
+# Navigate to the build_stream source directory
+# test/build_stream/nft/ -> ../../src/build_stream/
+_BUILD_STREAM_SRC = _CURRENT_DIR.parent.parent.parent / "src" / "build_stream"
+_BUILD_STREAM_APP = _BUILD_STREAM_SRC / "app"
+
+if str(_BUILD_STREAM_SRC) not in sys.path:
+    sys.path.insert(0, str(_BUILD_STREAM_SRC))
+if str(_BUILD_STREAM_APP) not in sys.path:
+    sys.path.insert(0, str(_BUILD_STREAM_APP))
 
 # Set DATABASE_URL early for test environment
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
