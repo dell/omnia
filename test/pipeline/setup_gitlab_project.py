@@ -211,6 +211,28 @@ def _sanitize_log_output(text, max_length=300):
     return cleaned
 
 
+def _sanitize_input(value, pattern, field_name, max_length=256):
+    """Validate and sanitize interactive user input against a regex pattern.
+
+    Raises ValueError if the value does not match the expected pattern.
+    This prevents command injection through interactive prompts.
+    """
+    if not value:
+        return value
+    # Strip leading/trailing whitespace
+    value = value.strip()
+    # Reject control characters
+    if re.search(r'[\x00-\x1f\x7f]', value):
+        raise ValueError(f"{field_name} contains invalid control characters")
+    # Enforce maximum length
+    if len(value) > max_length:
+        raise ValueError(f"{field_name} exceeds maximum length of {max_length}")
+    # Validate against expected pattern
+    if not re.match(pattern, value):
+        raise ValueError(f"Invalid {field_name}: '{value}'")
+    return value
+
+
 # ---------------------------------------------------------------------------
 # Pipeline config file parser
 # ---------------------------------------------------------------------------
@@ -867,11 +889,18 @@ def prompt_cluster_details(cluster_names):
 
     Returns dict: {cluster_name: {"ip": ..., "user": ...}}
     """
+    # Pattern for valid IPv4 address or hostname
+    _IP_HOSTNAME_RE = r'^[a-zA-Z0-9][a-zA-Z0-9._-]{0,253}[a-zA-Z0-9]$|^\d{1,3}(\.\d{1,3}){3}$'
+    # Pattern for valid unix username
+    _USERNAME_RE = r'^[a-zA-Z_][a-zA-Z0-9_.-]{0,31}$'
+
     details = {}
     for name in cluster_names:
         print(f"\n  Cluster: {name}")
-        ip = input(f"    Target IP [{name}]: ").strip()
-        user = input(f"    Target User [root]: ").strip() or "root"
+        raw_ip = input(f"    Target IP [{name}]: ").strip()
+        ip = _sanitize_input(raw_ip, _IP_HOSTNAME_RE, "Target IP")
+        raw_user = input(f"    Target User [root]: ").strip() or "root"
+        user = _sanitize_input(raw_user, _USERNAME_RE, "Target User")
         details[name] = {"ip": ip, "user": user}
     return details
 
@@ -882,8 +911,11 @@ def prompt_credentials(cluster_names, domains):
     Returns dict: {var_name: file_path}
     Domain credentials are managed by OpenBao — only test_creds is prompted here.
     """
+    _YES_NO_RE = r'^(yes|no|y|n)$'
+
     print("\n  NOTE: Domain credentials are managed by OpenBao (VAULT_SERVER_URL).")
-    answer = input("\nConfigure test credential files now? (yes/no) [no]: ").strip().lower()
+    raw_answer = input("\nConfigure test credential files now? (yes/no) [no]: ").strip().lower()
+    answer = _sanitize_input(raw_answer, _YES_NO_RE, "yes/no response") if raw_answer else "no"
     if answer not in ("yes", "y"):
         print("  Skipping. Set TEST_CREDS later in GitLab UI: Settings > CI/CD > Variables")
         return {}
@@ -892,11 +924,15 @@ def prompt_credentials(cluster_names, domains):
     for cluster in cluster_names:
         prefix = cluster.upper()
         var_name = f"{prefix}_TEST_CREDS"
-        path = input(f"  Path to test credentials file [{var_name}]: ").strip()
-        if path and os.path.isfile(path):
-            creds[var_name] = path
-        elif path:
-            print(f"    WARNING: File not found: {path} — skipping")
+        raw_path = input(f"  Path to test credentials file [{var_name}]: ").strip()
+        if raw_path:
+            path = _sanitize_input(raw_path, r'^[a-zA-Z0-9_./ -]+$', "file path")
+            if '..' in path:
+                raise ValueError("Path traversal detected in credential file path")
+            if os.path.isfile(path):
+                creds[var_name] = path
+            else:
+                print(f"    WARNING: File not found: {_sanitize_log_output(path)} — skipping")
         else:
             print(f"    Skipping {var_name}")
 
@@ -1073,13 +1109,13 @@ def cmd_create(args, client):
             
             var_name = f"{prefix}_TARGET_PASS"
             password = getpass.getpass(f"  Enter SSH password for {cluster} ({details['ip']}): ")
-            if not password:
+            if password:
+                status = client.set_variable(
+                    project_id, var_name, password, masked=True
+                )
+                print(f"  {status}: {var_name} (masked)")
+            else:
                 print(f"  WARNING: No password entered for {var_name} — set it later in GitLab UI")
-                password = ""
-            status = client.set_variable(
-                project_id, var_name, password, masked=bool(password)
-            )
-            print(f"  {status}: {var_name} (masked)")
 
         # Global pipeline variables
         global_keys = [
@@ -1660,7 +1696,10 @@ def cmd_delete(args, client):
     print(f"\nProject to delete: {project_url}")
     print(f"Project ID: {project_id}")
     print("\nWARNING: This action cannot be undone!")
-    confirmation = input("Type 'DELETE' to confirm deletion: ").strip()
+    raw_confirmation = input("Type 'DELETE' to confirm deletion: ").strip()
+    confirmation = _sanitize_input(
+        raw_confirmation, r'^[A-Z]{0,10}$', "confirmation keyword", max_length=10
+    ) if raw_confirmation else ""
 
     if confirmation != "DELETE":
         print("Deletion cancelled.")
