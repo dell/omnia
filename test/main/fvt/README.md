@@ -106,6 +106,20 @@ test harness venv (`test/main/.venv`), all operations execute normally.
 | TC_CL_025 | `test_dry_run_with_skip` | commands/ | sanity | Verify --dry-run --skip shows filtered domain list |
 | TC_CL_026 | `test_dry_run_without_init_error` | commands/ | sanity | Verify --dry-run without -s/-i exits with error |
 
+### --prepare-base tests (prepare_base/)
+
+| TC ID | Test | Suite | Markers | Description |
+|-------|------|-------|---------|-------------|
+| TC_PB_001 | `test_prepare_base_in_help` | prepare_base/ | sanity | Verify --prepare-base flag appears in help output |
+| TC_PB_002 | `test_prepare_base_dry_run` | prepare_base/ | sanity | Verify --prepare-base --dry-run shows domains and phases |
+| TC_PB_003 | `test_prepare_base_dry_run_skip` | prepare_base/ | sanity | Verify --prepare-base --dry-run --skip filters domains |
+| TC_PB_004 | `test_prepare_base_skip_invalid` | prepare_base/ | sanity | Verify --prepare-base --skip with invalid domain exits with error |
+| TC_PB_005 | `test_prepare_base_skip_all` | prepare_base/ | sanity | Verify --prepare-base --skip all domains shows no-op message |
+| TC_PB_006 | `test_prepare_base_dry_run_phases` | prepare_base/ | sanity | Verify --prepare-base --dry-run shows all lifecycle phases (validate, credentials, prepare) |
+| TC_PB_007 | `test_prepare_base_dry_run_fail_fast_note` | prepare_base/ | sanity | Verify --prepare-base --dry-run shows fail-fast note |
+| TC_PB_008 | `test_prepare_base_dry_run_domain_order` | prepare_base/ | sanity | Verify --prepare-base --dry-run shows correct domain order (repo_manager -> image_build_manager -> orchestrator) |
+| TC_PB_009 | `test_prepare_base_dry_run_skip_multiple` | prepare_base/ | sanity | Verify --prepare-base --dry-run --skip with 2 domains leaves only one |
+
 ---
 
 ## setup — environment

@@ -60,7 +60,7 @@ class ImageGroupStatus(str, Enum):
     """ImageGroup lifecycle states.
 
     State machine for image group lifecycle through build and deploy pipelines.
-    Terminal states: PASSED, FAILED, CLEANED.
+    Terminal states: PASSED, FAILED, CLEANED, CLEANUP_FAILED.
     """
 
     BUILT = "BUILT"
@@ -71,18 +71,21 @@ class ImageGroupStatus(str, Enum):
     VALIDATING = "VALIDATING"
     PASSED = "PASSED"
     FAILED = "FAILED"
+    CLEANING = "CLEANING"
     CLEANED = "CLEANED"
+    CLEANUP_FAILED = "CLEANUP_FAILED"
 
     def is_terminal(self) -> bool:
         """Check if status is terminal (no further transitions).
 
         Returns:
-            True if status is PASSED, FAILED, or CLEANED.
+            True if status is PASSED, FAILED, CLEANED, or CLEANUP_FAILED.
         """
         return self in {
             ImageGroupStatus.PASSED,
             ImageGroupStatus.FAILED,
             ImageGroupStatus.CLEANED,
+            ImageGroupStatus.CLEANUP_FAILED,
         }
 
 

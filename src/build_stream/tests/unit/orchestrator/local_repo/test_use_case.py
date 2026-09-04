@@ -21,12 +21,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from core.jobs.entities import Job, Stage
-from core.jobs.exceptions import JobNotFoundError
+from core.jobs.exceptions import JobNotFoundError, UpstreamStageNotCompletedError
 from core.jobs.value_objects import (
     ClientId,
     CorrelationId,
     JobId,
     StageName,
+    StageState,
     StageType,
 )
 from core.localrepo.exceptions import InputFilesMissingError
@@ -71,6 +72,21 @@ def stage_fixture(job_id):
     )
 
 
+@pytest.fixture(name="parse_catalog_stage")
+def parse_catalog_stage_fixture(job_id):
+    """Provide a COMPLETED parse-catalog stage (upstream dependency).
+
+    Reintroduced (Omnia 2.3+): create-local-repository now requires
+    parse-catalog to have completed the image_group_id uniqueness check.
+    """
+    return Stage(
+        job_id=job_id,
+        stage_name=StageName(StageType.PARSE_CATALOG.value),
+        stage_state=StageState.COMPLETED,
+        attempt=1,
+    )
+
+
 @pytest.fixture(name="command")
 def command_fixture(job_id, client_id, correlation_id):
     """Provide a CreateLocalRepoCommand."""
@@ -82,11 +98,11 @@ def command_fixture(job_id, client_id, correlation_id):
 
 
 @pytest.fixture(name="use_case")
-def use_case_fixture(job, stage):
+def use_case_fixture(job, stage, parse_catalog_stage):
     """Provide a CreateLocalRepoUseCase with mocked dependencies.
 
-    Omnia 2.3+: no upstream generate-input-files stage — create-local-repository
-    is the first stage in the build pipeline.
+    Omnia 2.3+: parse-catalog (reintroduced, minimal) is now the upstream
+    dependency for create-local-repository, which must find it COMPLETED.
     """
     job_repo = MagicMock()
     job_repo.find_by_id.return_value = job
@@ -96,6 +112,8 @@ def use_case_fixture(job, stage):
     def _find_by_job_and_name(_job_id_arg, stage_name_arg):
         if stage_name_arg.value == StageType.CREATE_LOCAL_REPOSITORY.value:
             return stage
+        if stage_name_arg.value == StageType.PARSE_CATALOG.value:
+            return parse_catalog_stage
         return None
 
     stage_repo.find_by_job_and_name.side_effect = _find_by_job_and_name
@@ -177,12 +195,37 @@ class TestCreateLocalRepoUseCase:
         with pytest.raises(JobNotFoundError):
             use_case.execute(command)
 
-    def test_execute_stage_not_found(self, use_case, command):
-        """Missing stage should raise error."""
-        use_case._stage_repo.find_by_job_and_name.side_effect = None
-        use_case._stage_repo.find_by_job_and_name.return_value = None
+    def test_execute_stage_not_found(self, use_case, command, parse_catalog_stage):
+        """Missing create-local-repository stage should raise error.
+
+        The upstream parse-catalog stage is still COMPLETED here -- only
+        the create-local-repository stage itself is missing.
+        """
+        def _only_parse_catalog_found(_job_id_arg, stage_name_arg):
+            if stage_name_arg.value == StageType.PARSE_CATALOG.value:
+                return parse_catalog_stage
+            return None
+
+        use_case._stage_repo.find_by_job_and_name.side_effect = _only_parse_catalog_found
 
         with pytest.raises(JobNotFoundError):
+            use_case.execute(command)
+
+    def test_execute_upstream_parse_catalog_not_completed(self, use_case, command, job_id):
+        """parse-catalog not COMPLETED should block create-local-repository."""
+        pending_parse_catalog = Stage(
+            job_id=job_id,
+            stage_name=StageName(StageType.PARSE_CATALOG.value),
+        )
+
+        def _pending_parse_catalog(_job_id_arg, stage_name_arg):
+            if stage_name_arg.value == StageType.PARSE_CATALOG.value:
+                return pending_parse_catalog
+            return None
+
+        use_case._stage_repo.find_by_job_and_name.side_effect = _pending_parse_catalog
+
+        with pytest.raises(UpstreamStageNotCompletedError):
             use_case.execute(command)
 
     def test_execute_input_files_missing(self, use_case, command):

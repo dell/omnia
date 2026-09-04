@@ -109,4 +109,3 @@ cert-manager:
 - `karaviMetricsPowerflex/Powerstore/Powermax`: Other storage types (disabled for PowerScale deployment)
 - `otelCollector`: OpenTelemetry Collector configuration
 - `cert-manager`: TLS certificate management
-

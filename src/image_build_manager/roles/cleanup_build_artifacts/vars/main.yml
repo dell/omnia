@@ -86,6 +86,7 @@ domain_data_cleanup_directories:
   - "{{ shared_path }}/workdir"
   - "{{ shared_path }}/log"
   - "{{ shared_path }}/output"
+  - "{{ shared_path }}/openchami"
 
 # ---------------------------------------------------------------------------
 # Log cleanup
@@ -133,7 +134,7 @@ cleanup_completed_msg:
   - "  - omnia.target service entries (minio.service, registry.service)"
   - "  - s3cmd configuration"
   - "  - image_build_credentials.yml and vault key"
-  - "  - Domain data directories (s3, registry, oci, workdir, log, output)"
+  - "  - Domain data directories (s3, registry, oci, workdir, log, output, openchami)"
   - "  - Ansible log files (/var/log/omnia/image_build_manager/)"
 minio_skip_msg: "S3 provider is '{{ s3_provider }}' — skipping MinIO cleanup (external S3)."
 

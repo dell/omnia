@@ -36,6 +36,14 @@ from library.messages.telemetry_msgs import (
     TEST_LOG_MSGS as LOG_MSGS,
     TEST_ASSERT_MSGS as ASSERT_MSGS,
 )
+from library.messages.sfm_msgs import (
+    SFM_ASSERT_MSGS,
+    SFM_LOG_MSGS,
+)
+from library.messages.ufm_msgs import (
+    UFM_ASSERT_MSGS,
+    UFM_LOG_MSGS,
+)
 from library.functions.cleanup_func import (
     verify_idrac_cleaned,
     verify_ldms_cleaned,
@@ -107,11 +115,11 @@ def test_cleanup_ufm(host):
     result = verify_ufm_cleaned(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["ufm_cleaned"], result["details"])
+        tl.passed(UFM_LOG_MSGS["cleanup_complete"], result["details"])
     else:
-        tl.failed(LOG_MSGS["ufm_not_cleaned"], result["details"])
+        tl.failed(UFM_LOG_MSGS["cleanup_incomplete"], result["details"])
 
-    assert result["success"], ASSERT_MSGS["ufm_not_cleaned"]
+    assert result["success"], UFM_ASSERT_MSGS["cleanup_incomplete"]
 
 
 @pytest.mark.functional
@@ -141,8 +149,8 @@ def test_cleanup_sfm(host):
     result = verify_sfm_cleaned(host)
 
     if result["success"]:
-        tl.passed(LOG_MSGS["sfm_cleaned"], result["details"])
+        tl.passed(SFM_LOG_MSGS["cleanup_complete"], result["details"])
     else:
-        tl.failed(LOG_MSGS["sfm_not_cleaned"], result["details"])
+        tl.failed(SFM_LOG_MSGS["cleanup_incomplete"], result["details"])
 
-    assert result["success"], ASSERT_MSGS["sfm_not_cleaned"]
+    assert result["success"], SFM_ASSERT_MSGS["cleanup_incomplete"]

@@ -90,6 +90,8 @@ test/main/
 │   │   ├── commands/                  # verify: flag parsing, error handling
 │   │   │   ├── test_commands.py       # verify: existing CLI commands
 │   │   │   └── test_skip_dryrun.py    # verify: --skip, --dry-run
+│   │   ├── prepare_base/             # verify: --prepare-base CLI tests
+│   │   │   └── test_prepare_base.py  # verify: --prepare-base, --dry-run, --skip
 │   │   └── tags/                      # verify: tag verification
 │   ├── omnia_cli/           # omnia-cli diagnostics tests
 │   │   ├── test_deploy_omnia_cli.py   # @deploy: run omnia-cli help
@@ -114,7 +116,7 @@ test/main/
 |----------|----------------------|------------------------|
 | `setup` | `omnia.sh --setup-venv --deps-only` | Env files, venv, ansible, dirs, pip packages, Galaxy collections |
 | `init` | `omnia.sh --init` | Domain log dirs, input file staging (7 domains) |
-| `cli` | `omnia.sh --help` (entry point) | Help output, flag parsing, error handling, tags |
+| `cli` | `omnia.sh --help` (entry point) | Help output, flag parsing, error handling, tags, --prepare-base |
 | `omnia_cli` | `omnia-cli help` | Status, check, version, domain queries, logs, errors |
 | `execution` | `--setup-venv --deps-only`, `--init`, `--run --tags precheck/validate` (cleanup via explicit cmd) | Venv+ansible exist, env files installed, log dirs created, input files staged |
 | `nft` | `--setup-venv`, `--init`, `omnia-cli status` | Performance thresholds, idempotency, file permissions |

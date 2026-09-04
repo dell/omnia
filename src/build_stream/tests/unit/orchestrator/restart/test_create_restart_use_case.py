@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for CreateRestartUseCase."""
+"""Unit tests for CreateRestartUseCase.
+
+The restart stage submits ``orchestrator.yml --tags pxeboot`` to the
+NFS playbook queue for asynchronous execution by the playbook watcher.
+"""
 
 import uuid
 
@@ -28,7 +32,6 @@ from core.jobs.exceptions import (
 from core.jobs.value_objects import (
     ClientId, CorrelationId, JobId, StageName, StageState, StageType,
 )
-from core.localrepo.entities import PlaybookRequest
 from orchestrator.restart.commands import CreateRestartCommand
 from orchestrator.restart.use_cases import CreateRestartUseCase
 
@@ -84,18 +87,6 @@ class MockAuditRepository:
         self.saved_events.append(event)
 
 
-class MockQueueService:
-    """Mock playbook queue request service."""
-
-    def __init__(self):
-        """Initialize mock."""
-        self.submitted_requests = []
-
-    def submit_request(self, request, correlation_id):
-        """Submit request."""
-        self.submitted_requests.append((request, correlation_id))
-
-
 class MockUUIDGenerator:
     """Mock UUID generator."""
 
@@ -107,8 +98,23 @@ class MockUUIDGenerator:
         return uuid.uuid4()
 
 
+class MockQueueService:
+    """Mock queue service."""
+
+    def __init__(self, should_fail=False):
+        """Initialize mock."""
+        self.submitted = []
+        self._should_fail = should_fail
+
+    def submit_request(self, request, correlation_id):
+        """Submit request to queue."""
+        if self._should_fail:
+            raise RuntimeError("Queue unavailable")
+        self.submitted.append(request)
+
+
 class TestCreateRestartUseCase:
-    """Test cases for CreateRestartUseCase."""
+    """Test cases for CreateRestartUseCase (orchestrator.yml --tags pxeboot)."""
 
     @pytest.fixture
     def job_id(self):
@@ -173,8 +179,13 @@ class TestCreateRestartUseCase:
         return stage
 
     @pytest.fixture
-    def use_case(self, mock_job, job_id, restart_stage):
-        """Create use case for tests."""
+    def queue_service(self):
+        """Create mock queue service."""
+        return MockQueueService()
+
+    @pytest.fixture
+    def use_case(self, mock_job, job_id, restart_stage, queue_service):
+        """Create use case for tests with queue service."""
         stages = {
             StageType.RESTART.value: restart_stage,
         }
@@ -182,8 +193,8 @@ class TestCreateRestartUseCase:
             job_repo=MockJobRepository(job=mock_job),
             stage_repo=MockStageRepository(stages=stages),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
+            queue_service=queue_service,
         )
 
     def test_execute_success(self, use_case, job_id, client_id, correlation_id):
@@ -201,8 +212,26 @@ class TestCreateRestartUseCase:
         assert result.status == "accepted"
         assert result.correlation_id == str(correlation_id)
 
+    def test_execute_submits_orchestrator_with_pxeboot_tag(
+        self, use_case, job_id, client_id, correlation_id, queue_service,
+    ):
+        """Test that restart submits orchestrator.yml --tags pxeboot to queue."""
+        command = CreateRestartCommand(
+            job_id=job_id,
+            client_id=client_id,
+            correlation_id=correlation_id,
+        )
+
+        use_case.execute(command)
+
+        assert len(queue_service.submitted) == 1
+        submitted = queue_service.submitted[0]
+        assert str(submitted.playbook_path) == "orchestrator.yml"
+        assert submitted.tags == "pxeboot"
+        assert submitted.extra_vars.to_dict()["job_id"] == str(job_id)
+
     def test_execute_success_with_image_group_id(
-        self, mock_job_with_image_group, job_id, client_id, correlation_id, restart_stage,
+        self, mock_job_with_image_group, job_id, client_id, correlation_id, restart_stage, queue_service,
     ):
         """Test successful restart execution returns image_group_id from job params."""
         stages = {
@@ -212,8 +241,8 @@ class TestCreateRestartUseCase:
             job_repo=MockJobRepository(job=mock_job_with_image_group),
             stage_repo=MockStageRepository(stages=stages),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
+            queue_service=queue_service,
         )
 
         command = CreateRestartCommand(
@@ -225,6 +254,9 @@ class TestCreateRestartUseCase:
         result = use_case.execute(command)
 
         assert result.image_group_id == "img-group-123"
+        # Verify image_group_id is passed as extra_var
+        submitted = queue_service.submitted[0]
+        assert submitted.extra_vars.to_dict()["image_group_id"] == "img-group-123"
 
     def test_execute_success_empty_image_group_id(
         self, use_case, job_id, client_id, correlation_id,
@@ -240,14 +272,14 @@ class TestCreateRestartUseCase:
 
         assert result.image_group_id == ""
 
-    def test_execute_job_not_found(self, job_id, client_id, correlation_id):
+    def test_execute_job_not_found(self, job_id, client_id, correlation_id, queue_service):
         """Test execution when job is not found."""
         use_case = CreateRestartUseCase(
             job_repo=MockJobRepository(job=None),
             stage_repo=MockStageRepository(),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
+            queue_service=queue_service,
         )
 
         command = CreateRestartCommand(
@@ -259,7 +291,7 @@ class TestCreateRestartUseCase:
         with pytest.raises(JobNotFoundError):
             use_case.execute(command)
 
-    def test_execute_job_tombstoned(self, job_id, client_id, correlation_id):
+    def test_execute_job_tombstoned(self, job_id, client_id, correlation_id, queue_service):
         """Test execution when job is tombstoned."""
         job = type('Job', (), {})()
         job.client_id = client_id
@@ -270,8 +302,8 @@ class TestCreateRestartUseCase:
             job_repo=MockJobRepository(job=job),
             stage_repo=MockStageRepository(),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
+            queue_service=queue_service,
         )
 
         command = CreateRestartCommand(
@@ -283,7 +315,7 @@ class TestCreateRestartUseCase:
         with pytest.raises(JobNotFoundError):
             use_case.execute(command)
 
-    def test_execute_client_mismatch(self, mock_job, job_id, correlation_id, restart_stage):
+    def test_execute_client_mismatch(self, mock_job, job_id, correlation_id, restart_stage, queue_service):
         """Test execution when client ID does not match."""
         different_client = ClientId("different-client")
         stages = {
@@ -293,8 +325,8 @@ class TestCreateRestartUseCase:
             job_repo=MockJobRepository(job=mock_job),
             stage_repo=MockStageRepository(stages=stages),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
+            queue_service=queue_service,
         )
 
         command = CreateRestartCommand(
@@ -307,15 +339,15 @@ class TestCreateRestartUseCase:
             use_case.execute(command)
 
     def test_execute_stage_not_found(
-        self, mock_job, job_id, client_id, correlation_id,
+        self, mock_job, job_id, client_id, correlation_id, queue_service,
     ):
         """Test execution when restart stage is not found."""
         use_case = CreateRestartUseCase(
             job_repo=MockJobRepository(job=mock_job),
             stage_repo=MockStageRepository(stages={}),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
+            queue_service=queue_service,
         )
 
         command = CreateRestartCommand(
@@ -328,7 +360,7 @@ class TestCreateRestartUseCase:
             use_case.execute(command)
 
     def test_execute_stage_already_completed_allows_rerun(
-        self, mock_job, job_id, client_id, correlation_id, completed_restart_stage,
+        self, mock_job, job_id, client_id, correlation_id, completed_restart_stage, queue_service,
     ):
         """Test that COMPLETED stage is reset for re-run (attempt incremented)."""
         stages = {
@@ -338,8 +370,8 @@ class TestCreateRestartUseCase:
             job_repo=MockJobRepository(job=mock_job),
             stage_repo=MockStageRepository(stages=stages),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
+            queue_service=queue_service,
         )
 
         command = CreateRestartCommand(
@@ -353,7 +385,7 @@ class TestCreateRestartUseCase:
         assert result.stage_name == StageType.RESTART.value
 
     def test_execute_stage_already_in_progress(
-        self, mock_job, job_id, client_id, correlation_id, in_progress_restart_stage,
+        self, mock_job, job_id, client_id, correlation_id, in_progress_restart_stage, queue_service,
     ):
         """Test execution when stage is already IN_PROGRESS."""
         stages = {
@@ -363,8 +395,8 @@ class TestCreateRestartUseCase:
             job_repo=MockJobRepository(job=mock_job),
             stage_repo=MockStageRepository(stages=stages),
             audit_repo=MockAuditRepository(),
-            queue_service=MockQueueService(),
             uuid_generator=MockUUIDGenerator(),
+            queue_service=queue_service,
         )
 
         command = CreateRestartCommand(
@@ -376,7 +408,9 @@ class TestCreateRestartUseCase:
         with pytest.raises(InvalidStateTransitionError):
             use_case.execute(command)
 
-    def test_execute_emits_audit_event(self, use_case, job_id, client_id, correlation_id):
+    def test_execute_emits_stage_started_audit_event(
+        self, use_case, job_id, client_id, correlation_id,
+    ):
         """Test that execution emits STAGE_STARTED audit event."""
         command = CreateRestartCommand(
             job_id=job_id,
@@ -387,33 +421,15 @@ class TestCreateRestartUseCase:
         use_case.execute(command)
 
         assert len(use_case._audit_repo.saved_events) == 1
-        event = use_case._audit_repo.saved_events[0]
-        assert event.event_type == "STAGE_STARTED"
-        assert event.details["stage_name"] == StageType.RESTART.value
+        started_event = use_case._audit_repo.saved_events[0]
+        assert started_event.event_type == "STAGE_STARTED"
+        assert started_event.details["stage_name"] == StageType.RESTART.value
+        assert started_event.details["tags"] == "pxeboot"
 
-    def test_execute_submits_to_queue(self, use_case, job_id, client_id, correlation_id):
-        """Test that execution submits request to queue."""
-        command = CreateRestartCommand(
-            job_id=job_id,
-            client_id=client_id,
-            correlation_id=correlation_id,
-        )
-
-        use_case.execute(command)
-
-        assert len(use_case._queue_service.submitted_requests) == 1
-        request, corr_id = use_case._queue_service.submitted_requests[0]
-        assert isinstance(request, PlaybookRequest)
-        assert request.job_id == str(job_id)
-        assert request.stage_name == StageType.RESTART.value
-        assert request.playbook_path.value == "set_pxe_boot.yml"
-        assert request.extra_vars.values["job_id"] == str(job_id)
-        assert request.extra_vars.values["attempt"] == 1
-        assert request.timeout.minutes == 30
-        assert corr_id == str(correlation_id)
-
-    def test_execute_starts_stage(self, use_case, job_id, client_id, correlation_id):
-        """Test that execution transitions stage to IN_PROGRESS."""
+    def test_execute_transitions_stage_to_in_progress(
+        self, use_case, job_id, client_id, correlation_id,
+    ):
+        """Test that execution transitions stage to IN_PROGRESS (async playbook)."""
         command = CreateRestartCommand(
             job_id=job_id,
             client_id=client_id,
@@ -423,6 +439,7 @@ class TestCreateRestartUseCase:
         use_case.execute(command)
 
         assert len(use_case._stage_repo.saved_stages) >= 1
+        # Stage should be IN_PROGRESS (playbook running async)
         saved_stage = use_case._stage_repo.saved_stages[0]
         assert saved_stage.stage_state == StageState.IN_PROGRESS
 

@@ -1,0 +1,53 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Step 0: Tag validation
+# Validates provided Ansible tags against supported tags and invalid combinations.
+
+- name: Get provided tags (excluding 'always' and 'all')
+  ansible.builtin.set_fact:
+    provided_tags: "{{ ansible_run_tags | difference(['always', 'all']) }}"
+
+- name: Identify invalid tags
+  ansible.builtin.set_fact:
+    invalid_tags: "{{ provided_tags | difference(supported_tags) }}"
+  when: provided_tags | length > 0
+
+- name: Fail if invalid tags are provided
+  ansible.builtin.fail:
+    msg: "{{ tag_validation_fail_msg }}"
+  when:
+    - provided_tags | length > 0
+    - invalid_tags | default([]) | length > 0
+
+- name: Check for invalid tag combinations
+  ansible.builtin.set_fact:
+    has_invalid_combination: true
+  when:
+    - provided_tags | length > 1
+    - item | difference(provided_tags) | length == 0
+  loop: "{{ invalid_tag_combinations }}"
+
+- name: Fail if invalid tag combination is detected
+  ansible.builtin.fail:
+    msg: "{{ tag_combination_fail_msg }}"
+  when: has_invalid_combination | default(false) | bool
+
+- name: Set skip_credentials flag for precheck/cleanup/validate tags
+  ansible.builtin.set_fact:
+    skip_build_stream_credentials: true
+    cacheable: true
+  when:
+    - provided_tags | length > 0
+    - (provided_tags | intersect(skip_credential_tags)) | length > 0

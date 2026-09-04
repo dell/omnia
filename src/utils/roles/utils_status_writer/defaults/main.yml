@@ -12,4 +12,5 @@ utils_execution_warnings: []
 
 # Status file location
 omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
-utils_status_file_path: "{{ omnia_data_path }}/utils/utils_status.yml"
+omnia_project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+utils_status_file_path: "{{ omnia_data_path }}/utils/output/{{ omnia_project_name }}/utils_status.yml"

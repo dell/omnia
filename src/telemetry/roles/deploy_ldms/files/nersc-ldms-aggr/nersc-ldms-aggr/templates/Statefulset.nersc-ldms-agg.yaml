@@ -2,6 +2,8 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  labels:
+    app: nersc-ldms-aggr
   name: nersc-ldms-aggr
   namespace: {{ .Values.namespace }}
 spec:

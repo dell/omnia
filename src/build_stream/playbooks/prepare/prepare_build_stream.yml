@@ -115,36 +115,27 @@
           postgres_user and postgres_password must be set in build_stream credentials.
           Re-run the credential utility to provide these values.
 
-    - name: Load OIM metadata for shared path
-      ansible.builtin.include_vars:
-        file: "{{ omnia_metadata_file_path | default((lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true)) ~ '/.data/oim_metadata.yml') }}"
-      when: not (standalone_mode | default(false) | bool)
-
-    - name: "[standalone] Set oim_shared_path from standalone default"
+    - name: Set oim_shared_path from OMNIA_DATA_PATH
       ansible.builtin.set_fact:
-        oim_shared_path: "{{ standalone_oim_shared_path | default(lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true)) }}"
-      when:
-        - standalone_mode | default(false) | bool
-        - oim_shared_path is not defined
+        oim_shared_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+      when: oim_shared_path is not defined
 
-    - name: Set SELinux option based on NFS type
+    - name: Set SELinux option
       ansible.builtin.set_fact:
-        selinux_option: "{{ '' if (omnia_share_option | default('') == 'NFS' and nfs_type | default('') == 'external') else ':z' }}"
+        selinux_option: ":z"
 
     - name: Register OIM host for BuildStream deployment
       ansible.builtin.add_host:
         name: oim
         groups: oim
-        ansible_host: "{{ '127.0.0.1' if (standalone_mode | default(false) | bool) else build_stream_host_ip }}"
-        ansible_connection: "{{ 'local' if (standalone_mode | default(false) | bool) else 'ssh' }}"
-        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+        ansible_host: 127.0.0.1
+        ansible_connection: local
         postgres_user: "{{ postgres_user }}"
         postgres_password: "{{ postgres_password }}"
         build_stream_host_ip: "{{ build_stream_host_ip }}"
         build_stream_port: "{{ build_stream_port | default(8010) }}"
         oim_shared_path: "{{ oim_shared_path }}"
         selinux_option: "{{ selinux_option }}"
-        standalone_mode: "{{ standalone_mode | default(false) }}"
       no_log: true
 
 # ── App code deployment ───────────────────────────────────────────

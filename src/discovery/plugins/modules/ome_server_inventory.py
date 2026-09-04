@@ -560,7 +560,7 @@ def main():
             module.fail_json(msg=(
                 f"Failed to authenticate with OME at {ome_ip}. "
                 "Please verify the ome_username and ome_password provided in "
-                "omnia_config_credentials.yml (managed via prepare_oim.yml) and rerun the playbook."
+                "discovery_credentials.yml (managed via discovery_credentials role) and rerun the playbook."
             ))
 
         devices, pagination_stats = client.get_all_devices(device_type)

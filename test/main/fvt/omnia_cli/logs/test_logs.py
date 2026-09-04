@@ -27,6 +27,7 @@ import pytest
 from library.functions import TestLogger
 from library.functions.omnia_main_func import (
     run_omnia_cli_cmd,
+    _resolve_clone_path,
 )
 from library.messages import (
     TEST_NAMES,
@@ -70,8 +71,7 @@ def test_cli_logs_no_opt_omnia_log(host):
     )
 
     # Read the omnia-cli script and verify the log path is correct
-    config = __import__("omnia_auto").load_test_config()
-    clone_path = config.get("clone_path", "")
+    clone_path = _resolve_clone_path()
     cli_path = f"{clone_path}/src/main/omnia-cli"
 
     result = host.run(f"grep -c 'base.*log' {cli_path}")

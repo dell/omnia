@@ -15,7 +15,7 @@
 
 # Discovery credential management
 # Handles creation, prompting, and encryption of credential files
-# Discovery only needs OME credentials from omnia_config_credentials.yml
+# Discovery only needs OME credentials from discovery_credentials.yml
 
 # Step 1: Validate credential file existence
 - name: Validate credential files

@@ -153,6 +153,31 @@ DRY RUN — would initialize these domains:
   Skipped: telemetry
 ```
 
+## Prepare Base (`omnia.sh --prepare-base`)
+
+Prepares the three base infrastructure domains in dependency order:
+**repo_manager** → **image_build_manager** → **orchestrator**
+
+For each domain, runs lifecycle phases: `validate` → `credentials` → `prepare`.
+If any domain fails, execution stops immediately.
+
+```bash
+./omnia.sh --prepare-base                     # Prepare all three base domains
+./omnia.sh --prepare-base --skip orchestrator # Skip orchestrator
+./omnia.sh --prepare-base --skip orchestrator,repo_manager  # Skip multiple
+./omnia.sh --prepare-base --dry-run           # Preview what would be prepared
+```
+
+**What it prepares:**
+
+| Domain | What Gets Deployed |
+|--------|--------------------|
+| `repo_manager` | Pulp server for package repos |
+| `image_build_manager` | MinIO S3 storage + container registry |
+| `orchestrator` | OpenLDAP (if enabled), functional groups |
+
+---
+
 ## Execution (`omnia.sh`)
 
 ```bash

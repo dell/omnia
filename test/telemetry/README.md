@@ -71,7 +71,8 @@ Run from inside the `test/telemetry/` directory:
 | AND (`+`) | `--marker source+sanity` | Tests with BOTH markers |
 | OR (`,`) | `--marker sink,source` | Tests with EITHER marker |
 
-Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`, `nft`, `performance`, `idempotency`
+Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`,
+`ome`, `ldms`, `sfm`, `ufm`, `nft`, `performance`, `idempotency`
 
 ### Examples
 
@@ -81,6 +82,12 @@ Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`, `nft`, `p
 ./run_validation.sh fvt_telemetry deploy verify --suite sources
 ./run_validation.sh fvt_telemetry deploy verify --suite sinks
 ./run_validation.sh fvt_telemetry cleanup test
+
+# SFM integration only (requires configure_sfm: true and SFM credentials)
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker sfm
+
+# UFM source only (requires UFM metrics enabled in telemetry_config.yml)
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker ufm
 ./run_validation.sh fvt_telemetry list
 
 # NFT
@@ -102,6 +109,45 @@ Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`, `nft`, `p
 ./run_validation.sh fvt_telemetry cleanup test                       # 5. Cleanup + verify
 ```
 
+### SFM Prometheus Remote Write
+
+SFM integration is opt-in because it changes an external SFM appliance. Set
+`configure_sfm: true`, `sfm_api_ip`, and `sfm_ssh_ip` in `test_config.yml`,
+then collect the required SFM API and SSH credentials in the encrypted
+credentials file:
+
+```bash
+bash setup_env.sh --set-creds
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker sfm
+```
+
+The SFM SSH host key (and the OIM host key in remote-runner mode) must already
+be verified in the test runner's `known_hosts`; unknown keys are rejected.
+The SFM API address must be directly reachable from the test runner. The SFM
+instance is fixed to instance 1. This lab integration does not expose an API CA
+bundle or API TLS-verification setting, so run it only on an authorized network.
+
+The SFM cases run in this order:
+
+1. Generate or validate the Victoria export, then verify the Omnia `vminsert`,
+   `vmstorage`, and `vmselect` workloads and pods.
+2. Verify the corresponding Omnia services, ports, external addresses, and
+   ready endpoints.
+3. Verify the SFM Prometheus pod, configure its `vminsert` hosts mapping, and
+   prove network reachability.
+4. Import the CA, configure and read back Remote Write, and prove target-scoped
+   forwarding health before accepting the change.
+5. Verify three SFM transceiver metrics on one switch/interface series and show
+   their earliest and latest original timestamps in the query window.
+
+Warning: this flow may import a certificate, create or update the `victoria`
+Remote Write target, and modify `/etc/hosts` inside the SFM Prometheus pod.
+The pod-local hosts entry is ephemeral and may need to be restored after a pod
+restart. A replaced certificate import is retained as rollback material. Set
+`force_external_victoria_playbook: true` to regenerate the export and force a
+certificate rotation. Run the suite only against an appliance authorized for
+configuration.
+
 ---
 
 ## Architecture
@@ -122,7 +168,7 @@ test/telemetry/
 ├── _run.py                   # Python entry point (loads domain vars, creates runner)
 ├── conftest.py               # Pytest hooks, fixtures, report generation
 ├── test_config.yml           # Non-sensitive settings (IPs, paths)
-├── test_creds.yml            # SSH creds (created by --set-creds, auto-encrypted)
+├── test_creds.yml            # OIM/OME/SFM creds (--set-creds, auto-encrypted)
 ├── .test_creds.key           # Vault key for test_creds.yml (auto-created)
 ├── test_run_config.yml       # Batch execution: scenario order, markers, suites
 │
@@ -150,6 +196,7 @@ test/telemetry/
 │   │       ├── test_ldms.py
 │   │       ├── test_ome.py
 │   │       ├── test_powerscale.py
+│   │       ├── test_sfm.py
 │   │       ├── test_ufm.py
 │   │       └── test_vast.py
 │   └── cleanup/              # Cleanup tag tests

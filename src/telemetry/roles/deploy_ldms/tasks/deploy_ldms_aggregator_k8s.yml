@@ -23,35 +23,63 @@
 
 # ---- Prepare Helm chart files on kube_vip host ----
 
-- name: Check if values.yaml already exists
-  ansible.builtin.stat:
-    path: "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr/values.yaml"
-  register: values_file_exists
-
-- name: Copy LDMS aggregator Helm chart files
+- name: Synchronize LDMS aggregator Helm chart files
   ansible.builtin.copy:
     src: "{{ role_path }}/files/nersc-ldms-aggr"
     dest: "{{ ldms_aggregator_share_path }}"
-    mode: "{{ common_mode }}"
-  when: not values_file_exists.stat.exists
+    directory_mode: "{{ common_mode }}"
+    mode: preserve
+  register: ldms_chart_sync_result
 
 - name: Copy LDMS decompose.json
   ansible.builtin.copy:
     src: "{{ role_path }}/files/nersc-ldms-aggr/scripts/decomp.json"
     dest: "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr/scripts/decomp.json"
     mode: "{{ file_permissions_644 }}"
+  register: ldms_decompose_copy_result
 
 - name: Generate LDMS machine config
   ansible.builtin.template:
     src: "{{ role_path }}/templates/ldms/ldms_machine_config.json.j2"
     dest: "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr/ldms_machine_config.json"
     mode: "{{ file_permissions_644 }}"
+  register: ldms_machine_config_result
 
 - name: Generate LDMS host map
   ansible.builtin.template:
     src: "{{ role_path }}/templates/ldms/host_map.slurm-cluster.json.j2"
     dest: "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr/host_map.slurm-cluster.json"
     mode: "{{ file_permissions_644 }}"
+  register: ldms_host_map_result
+
+- name: Inspect generated LDMS Helm configuration files
+  ansible.builtin.stat:
+    path: "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr/nersc-ldms-aggr/templates/{{ item }}"
+  loop:
+    - cm.nersc-ldms-bin.yaml
+    - cm.nersc-ldms-conf.yaml
+  register: ldms_generated_config_files
+
+- name: Determine whether LDMS aggregator configuration must be rebuilt
+  ansible.builtin.set_fact:
+    ldms_aggregator_build_required: >-
+      {{
+        (ldms_chart_sync_result.changed | default(false) | bool)
+        or (ldms_decompose_copy_result.changed | default(false) | bool)
+        or (ldms_machine_config_result.changed | default(false) | bool)
+        or (ldms_host_map_result.changed | default(false) | bool)
+        or
+        (
+          ldms_generated_config_files.results
+          | rejectattr('stat.exists', 'defined') | list | length > 0
+        )
+        or
+        (
+          ldms_generated_config_files.results
+          | selectattr('stat.exists', 'defined')
+          | rejectattr('stat.exists') | list | length > 0
+        )
+      }}
 
 - name: Clean up previous build artifacts before make
   ansible.builtin.file:
@@ -62,25 +90,35 @@
     - out_dir
     - manifest.yaml
     - values.yaml
+  when: ldms_aggregator_build_required | bool
 
-- name: Run make command inside LDMS directory
-  ansible.builtin.shell: make clean all && make
+- name: Build LDMS aggregator configuration
+  ansible.builtin.command: make
   changed_when: true
   args:
     chdir: "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr"
+  when: ldms_aggregator_build_required | bool
 
 - name: Render values.yaml
   ansible.builtin.template:
     src: "{{ role_path }}/templates/ldms/values.yaml.j2"
     dest: "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr/values.yaml"
     mode: "{{ file_permissions_644 }}"
+  register: ldms_values_result
+
+- name: Record LDMS aggregator chart configuration changes
+  ansible.builtin.set_fact:
+    ldms_aggregator_chart_changed: >-
+      {{
+        (ldms_aggregator_build_required | bool)
+        or (ldms_values_result.changed | default(false) | bool)
+      }}
 
 - name: Copy munge key to kube_vip host
   ansible.builtin.copy:
     src: "/tmp/munge.key"
     dest: "{{ ldms_aggregator_share_path }}/munge.key"
     mode: "{{ file_permissions_400 }}"
-  delegate_to: localhost
   when: munge_key_check_result | default(false) | bool
 
 - name: Render ldmsauth.conf to LDMS directory
@@ -95,57 +133,55 @@
 
 # ---- Deploy LDMS aggregator Helm chart to Kubernetes ----
 
-- name: Check if host map has nodes (non-empty)
-  ansible.builtin.shell: >
-    cat {{ ldms_aggregator_share_path }}/nersc-ldms-aggr/host_map.slurm-cluster.json | jq '. | length'
+- name: Count reachable nodes in LDMS host map
+  ansible.builtin.command:
+    argv:
+      - jq
+      - length
+      - "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr/host_map.slurm-cluster.json"
   register: host_map_count
   changed_when: false
-  failed_when: false
-  # noqa: risky-shell-pipe
 
-- name: Skip Helm deploy if no nodes configured
-  ansible.builtin.debug:
-    msg: "No Slurm nodes configured in host map. Skipping LDMS aggregator Helm deployment."
-  when: host_map_count.stdout | default('0') | int == 0
+- name: Validate LDMS host map contains reachable sampler nodes
+  ansible.builtin.assert:
+    that:
+      - host_map_count.stdout | int > 0
+    fail_msg: >-
+      The LDMS host map is empty, so the aggregator cannot be configured.
+      Verify the reachable Slurm inventory built during LDMS preflight.
 
-# ---- Create K8s secrets required by the Helm chart ----
+# ---- Reconcile K8s secrets required by the Helm chart ----
 
-- name: Check if nersc-munge-key secret exists
-  ansible.builtin.command: >
-    kubectl get secret nersc-munge-key -n {{ telemetry_namespace }}
-  register: munge_secret_check
-  changed_when: false
-  failed_when: false
-  when: host_map_count.stdout | default('0') | int > 0
-
-- name: Create nersc-munge-key secret from munge key file
-  ansible.builtin.command: >
+- name: Reconcile nersc-munge-key secret from current munge key  # noqa: risky-shell-pipe
+  ansible.builtin.shell: >-
+    set -o pipefail &&
     kubectl create secret generic nersc-munge-key
     --from-file=munge.key={{ ldms_aggregator_share_path }}/munge.key
-    -n {{ telemetry_namespace }}
-  changed_when: true
-  when:
-    - host_map_count.stdout | default('0') | int > 0
-    - munge_secret_check.rc != 0
-    - munge_key_check_result | default(false) | bool
+    -n {{ telemetry_namespace }} --dry-run=client --output=yaml |
+    kubectl apply -f -
+  args:
+    executable: /bin/bash
+  register: munge_secret_apply
+  changed_when: >-
+    'created' in munge_secret_apply.stdout
+    or 'configured' in munge_secret_apply.stdout
+  no_log: true
+  when: munge_key_check_result | default(false) | bool
 
-- name: Check if nersc-ldms-ovis-auth secret exists
-  ansible.builtin.command: >
-    kubectl get secret nersc-ldms-ovis-auth -n {{ telemetry_namespace }}
-  register: ovis_secret_check
-  changed_when: false
-  failed_when: false
-  when: host_map_count.stdout | default('0') | int > 0
-
-- name: Create nersc-ldms-ovis-auth secret from ldmsauth.conf
-  ansible.builtin.command: >
+- name: Reconcile nersc-ldms-ovis-auth secret  # noqa: risky-shell-pipe
+  ansible.builtin.shell: >-
+    set -o pipefail &&
     kubectl create secret generic nersc-ldms-ovis-auth
     --from-file=ldmsauth.conf={{ ldms_aggregator_share_path }}/ldmsauth.conf
-    -n {{ telemetry_namespace }}
-  changed_when: true
-  when:
-    - host_map_count.stdout | default('0') | int > 0
-    - ovis_secret_check.rc != 0
+    -n {{ telemetry_namespace }} --dry-run=client --output=yaml |
+    kubectl apply -f -
+  args:
+    executable: /bin/bash
+  register: ovis_secret_apply
+  changed_when: >-
+    'created' in ovis_secret_apply.stdout
+    or 'configured' in ovis_secret_apply.stdout
+  no_log: true
 
 # ---- Helm install / upgrade ----
 
@@ -155,7 +191,6 @@
   register: ldms_helm_status
   changed_when: false
   failed_when: false
-  when: host_map_count.stdout | default('0') | int > 0
 
 - name: Install nersc-ldms-aggr Helm chart (fresh install)
   ansible.builtin.command: >
@@ -165,9 +200,7 @@
     --values {{ ldms_aggregator_share_path }}/nersc-ldms-aggr/values.yaml
   register: ldms_helm_install
   changed_when: "'deployed' in ldms_helm_install.stdout | default('')"
-  when:
-    - host_map_count.stdout | default('0') | int > 0
-    - ldms_helm_status.rc != 0
+  when: ldms_helm_status.rc != 0
 
 - name: Upgrade nersc-ldms-aggr Helm chart (existing release)
   ansible.builtin.command: >
@@ -177,9 +210,31 @@
     --values {{ ldms_aggregator_share_path }}/nersc-ldms-aggr/values.yaml
   register: ldms_helm_upgrade
   changed_when: "'deployed' in ldms_helm_upgrade.stdout | default('')"
+  when: ldms_helm_status.rc == 0
+
+- name: Restart LDMS aggregator after configuration or authentication updates
+  ansible.builtin.command: >
+    kubectl rollout restart statefulset
+    -l app={{ ldms_aggregator_name }} -n {{ telemetry_namespace }}
+  changed_when: true
   when:
-    - host_map_count.stdout | default('0') | int > 0
-    - ldms_helm_status.rc == 0
+    - (ldms_helm_status.rc | default(1)) == 0
+    - >-
+      munge_secret_apply.changed | default(false)
+      or ovis_secret_apply.changed | default(false)
+      or ldms_aggregator_chart_changed | default(false)
+
+- name: Restart LDMS store after configuration or authentication updates
+  ansible.builtin.command: >
+    kubectl rollout restart statefulset
+    -l app={{ ldms_store_name }} -n {{ telemetry_namespace }}
+  changed_when: true
+  when:
+    - (ldms_helm_status.rc | default(1)) == 0
+    - >-
+      munge_secret_apply.changed | default(false)
+      or ovis_secret_apply.changed | default(false)
+      or ldms_aggregator_chart_changed | default(false)
 
 - name: Wait for LDMS aggregator StatefulSet rollout
   ansible.builtin.command: >
@@ -188,7 +243,6 @@
     --timeout={{ ldms_deploy_timeout }}
   register: ldms_agg_rollout
   changed_when: false
-  when: host_map_count.stdout | default('0') | int > 0
 
 - name: Wait for LDMS aggregator pods to be ready
   ansible.builtin.command: >
@@ -201,7 +255,6 @@
   retries: "{{ pod_ready_retries }}"
   delay: "{{ pod_ready_delay }}"
   until: ldms_agg_pods_ready.rc == 0
-  when: host_map_count.stdout | default('0') | int > 0
 
 - name: Wait for LDMS store daemon pods to be ready
   ansible.builtin.command: >
@@ -214,9 +267,7 @@
   retries: "{{ pod_ready_retries }}"
   delay: "{{ pod_ready_delay }}"
   until: ldms_store_pods_ready.rc == 0
-  when: host_map_count.stdout | default('0') | int > 0
 
 - name: Log LDMS aggregator deployment complete
   ansible.builtin.debug:
     msg: "LDMS aggregator Helm chart deployed successfully in namespace {{ telemetry_namespace }}"
-  when: host_map_count.stdout | default('0') | int > 0

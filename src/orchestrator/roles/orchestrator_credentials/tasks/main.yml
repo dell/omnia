@@ -12,15 +12,221 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# collect_orchestrator_credentials — Self-contained credential flow for orchestrator.
+# Handles: validate → create → prompt → encrypt
+# Idempotent — skips if credentials are already loaded in this run.
+#
+# Naming Convention:
+#   Role:     collect_orchestrator_credentials  (verb — what the role does: collects)
+#   Playbook: get_orchestrator_credentials.yml  (verb — what the user gets)
+#   Data:     omnia_config_credentials.yml (noun — the artifact)
 
-# Step 1: Validate credential files
-- name: Include credential validation
-  ansible.builtin.include_tasks: validate_credentials.yml
+- name: Skip credential flow if already loaded
+  ansible.builtin.debug:
+    msg: "Orchestrator credentials already loaded — skipping."
+  when: orchestrator_credentials_loaded | default(false) | bool
 
-# Step 2: Create credential files if missing
-- name: Include credential creation
-  ansible.builtin.include_tasks: create_credentials.yml
+- name: Orchestrator credential flow
+  when: not (orchestrator_credentials_loaded | default(false) | bool)
+  block:
+    # Step 1: Validate existing credential file
+    - name: Check if orchestrator credential file exists
+      ansible.builtin.stat:
+        path: "{{ credential_files[0].file_path }}"
+      register: orchestrator_cred_file_stat
 
-# Step 3: Update credentials (prompt, encrypt)
-- name: Include credential update
-  ansible.builtin.include_tasks: update_credentials_main.yml
+    - name: Check if vault key exists
+      ansible.builtin.stat:
+        path: "{{ credential_files[0].vault_path }}"
+      register: orchestrator_vault_key_stat
+
+    # Step 2: Create credential file from template if missing
+    - name: Create credential file if missing
+      when: not orchestrator_cred_file_stat.stat.exists
+      block:
+        - name: Ensure parent directory exists
+          ansible.builtin.file:
+            path: "{{ credential_files[0].file_path | dirname }}"
+            state: directory
+            mode: "0755"
+
+        - name: Create credential file from template
+          ansible.builtin.template:
+            src: "{{ credential_files[0].template }}"
+            dest: "{{ credential_files[0].file_path }}"
+            mode: "{{ credential_files[0].file_mode }}"
+          register: orchestrator_file_created
+
+        - name: Create vault key file
+          ansible.builtin.lineinfile:
+            path: "{{ credential_files[0].vault_path }}"
+            line: "{{ lookup('password', '/dev/null chars=ascii_letters length=32') }}"
+            mode: "0600"
+            owner: root
+            create: true
+          when: not orchestrator_vault_key_stat.stat.exists
+
+        - name: Encrypt newly created credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ credential_files[0].file_path }}"
+            --vault-password-file "{{ credential_files[0].vault_path }}"
+          changed_when: false
+
+    # Step 3: Create vault key if file exists but key is missing
+    - name: Ensure vault key exists for existing credential file
+      ansible.builtin.lineinfile:
+        path: "{{ credential_files[0].vault_path }}"
+        line: "{{ lookup('password', '/dev/null chars=ascii_letters length=32') }}"
+        mode: "0600"
+        owner: root
+        create: true
+      when:
+        - orchestrator_cred_file_stat.stat.exists
+        - not orchestrator_vault_key_stat.stat.exists
+
+    # Step 4: Detect if credential file is vault-encrypted or plaintext
+    - name: Check if credential file is vault-encrypted
+      ansible.builtin.shell: |
+        set -o pipefail
+        head -n1 "{{ credential_files[0].file_path }}" | grep -q '^\$ANSIBLE_VAULT;'
+      register: _is_vault_encrypted
+      changed_when: false
+      failed_when: false
+      when:
+        - orchestrator_cred_file_stat.stat.exists
+        - orchestrator_vault_key_stat.stat.exists
+
+    # Step 4a: File is vault-encrypted — decrypt, load, re-encrypt
+    - name: Load vault-encrypted credentials
+      when:
+        - orchestrator_cred_file_stat.stat.exists
+        - orchestrator_vault_key_stat.stat.exists
+        - _is_vault_encrypted.rc | default(1) == 0
+      block:
+        - name: Decrypt credential file
+          ansible.builtin.command: >-
+            ansible-vault decrypt "{{ credential_files[0].file_path }}"
+            --vault-password-file "{{ credential_files[0].vault_path }}"
+          changed_when: false
+          failed_when: false
+          register: _cred_decrypt_result
+
+        - name: Load credentials into namespaced variable
+          ansible.builtin.include_vars:
+            file: "{{ credential_files[0].file_path }}"
+            name: orchestrator_loaded_creds
+          no_log: true
+          when: _cred_decrypt_result.rc | default(1) == 0
+
+        - name: Re-encrypt credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ credential_files[0].file_path }}"
+            --vault-password-file "{{ credential_files[0].vault_path }}"
+          changed_when: false
+          failed_when: false
+          when: _cred_decrypt_result.rc | default(1) == 0
+
+    # Step 4b: File is plaintext (left unencrypted from a prior failed run) — load and encrypt
+    - name: Load plaintext credentials (recovery)
+      when:
+        - orchestrator_cred_file_stat.stat.exists
+        - orchestrator_vault_key_stat.stat.exists
+        - _is_vault_encrypted.rc | default(1) != 0
+      block:
+        - name: Load plaintext credentials into namespaced variable
+          ansible.builtin.include_vars:
+            file: "{{ credential_files[0].file_path }}"
+            name: orchestrator_loaded_creds
+          no_log: true
+
+        - name: Encrypt plaintext credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ credential_files[0].file_path }}"
+            --vault-password-file "{{ credential_files[0].vault_path }}"
+          changed_when: false
+
+        - name: Fix credential file permissions
+          ansible.builtin.file:
+            path: "{{ credential_files[0].file_path }}"
+            mode: "{{ credential_files[0].file_mode }}"
+
+    - name: Default orchestrator_loaded_creds if not loaded
+      ansible.builtin.set_fact:
+        orchestrator_loaded_creds: {}
+      when: orchestrator_loaded_creds is not defined
+
+    - name: Debug loaded credentials (for troubleshooting)
+      ansible.builtin.debug:
+        msg: "Loaded credentials keys: {{ orchestrator_loaded_creds.keys() | list }}"
+      when: orchestrator_loaded_creds is defined
+
+    # Step 5: Prompt for mandatory credentials (only if value is empty)
+    - name: Prompt for mandatory orchestrator credentials
+      ansible.builtin.include_tasks: prompt_credential_field.yml
+      loop: "{{ omnia_credentials.provision.mandatory }}"
+      loop_control:
+        loop_var: cred_field
+
+    # Step 6: Prompt for conditional mandatory credentials (only if value is empty)
+    - name: Prompt for conditional mandatory orchestrator credentials
+      ansible.builtin.include_tasks: prompt_credential_field.yml
+      loop: "{{ omnia_credentials.slurm.mandatory }}"
+      loop_control:
+        loop_var: cred_field
+      when: slurm_support | default(false) | bool
+
+    - name: Prompt for conditional mandatory orchestrator credentials (slurm_custom)
+      ansible.builtin.include_tasks: prompt_credential_field.yml
+      loop: "{{ omnia_credentials.slurm_custom.mandatory }}"
+      loop_control:
+        loop_var: cred_field
+      when: slurm_custom_support | default(false) | bool
+
+    - name: Prompt for conditional mandatory orchestrator credentials (openldap)
+      ansible.builtin.include_tasks: prompt_credential_field.yml
+      loop: "{{ omnia_credentials.openldap.mandatory }}"
+      loop_control:
+        loop_var: cred_field
+      when: openldap_support | default(false) | bool
+
+    # Step 7: Expose credentials as facts for downstream roles
+    - name: Reload final credentials
+      when: credential_files[0].file_path is file
+      block:
+        - name: Check if final credential file is vault-encrypted
+          ansible.builtin.shell: |
+            set -o pipefail
+            head -n1 "{{ credential_files[0].file_path }}" | grep -q '^\$ANSIBLE_VAULT;'
+          register: _final_is_vault
+          changed_when: false
+          failed_when: false
+
+        - name: Decrypt for final load
+          ansible.builtin.command: >-
+            ansible-vault decrypt "{{ credential_files[0].file_path }}"
+            --vault-password-file "{{ credential_files[0].vault_path }}"
+          changed_when: false
+          failed_when: false
+          when: _final_is_vault.rc | default(1) == 0
+
+        - name: Load final credentials
+          ansible.builtin.include_vars:
+            file: "{{ credential_files[0].file_path }}"
+          no_log: true
+
+        - name: Re-encrypt after final load
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ credential_files[0].file_path }}"
+            --vault-password-file "{{ credential_files[0].vault_path }}"
+          changed_when: false
+          failed_when: false
+          when: _final_is_vault.rc | default(1) == 0
+
+    - name: Mark credentials as loaded
+      ansible.builtin.set_fact:
+        orchestrator_credentials_loaded: true
+        cacheable: true
+
+- name: Display credential collection summary
+  ansible.builtin.debug:
+    msg: "{{ orchestrator_credential_collection_pass_msg }}"

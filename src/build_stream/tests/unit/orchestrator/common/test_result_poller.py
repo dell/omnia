@@ -12,9 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=C0302,C0415,R0903,R0914,W0212,W0613,W0621
+# C0302: Comprehensive test file with many test cases
+# C0415: Import outside toplevel for test-specific patterns
+# R0903: Test fixtures naturally have few public methods
+# R0914: Test helper functions may have many local variables
+# W0212: Test code accesses protected members of class under test
+# W0613,W0621: Pre-existing unused arguments and redefined names in tests
+
 """Unit tests for common ResultPoller."""
 
-import asyncio
 import json
 import uuid
 from unittest.mock import patch
@@ -124,7 +131,9 @@ def mock_uuid_gen():
 
 
 @pytest.fixture
-def result_poller(mock_result_service, mock_job_repo, mock_stage_repo, mock_audit_repo, mock_uuid_gen):
+def result_poller(
+    mock_result_service, mock_job_repo, mock_stage_repo, mock_audit_repo, mock_uuid_gen
+):
     """Create ResultPoller instance with mocked dependencies."""
     return ResultPoller(
         result_service=mock_result_service,
@@ -264,9 +273,13 @@ class MockArtifactStore:
         self._store = {}
 
     def store(self, hint, kind, content=None, **kwargs):
-        key = ArtifactKey(f"{hint.namespace}/{hint.tags.get('job_id', 'x')}/{hint.label}")
+        key = ArtifactKey(
+            f"{hint.namespace}/{hint.tags.get('job_id', 'x')}/{hint.label}"
+        )
         digest = ArtifactDigest("a" * 64)
-        ref = ArtifactRef(key=key, digest=digest, size_bytes=len(content or b""), uri=f"mem://{key}")
+        ref = ArtifactRef(
+            key=key, digest=digest, size_bytes=len(content or b""), uri=f"mem://{key}"
+        )
         self._store[key.value] = content
         return ref
 
@@ -287,13 +300,23 @@ class MockArtifactMetadataRepo:
     def find_by_job_stage_and_label(self, job_id, stage_name, label):
         return self._records.get((str(job_id), stage_name.value, label))
 
+    def list_by_job_id(self, job_id):
+        return [
+            r for r in self._records.values()
+            if str(r.job_id) == str(job_id)
+        ]
+
 
 class MockImageGroupRepo:
     """In-memory ImageGroup repository for testing."""
 
     def __init__(self):
         self._groups = {}
-        self.session = type("MockSession", (), {"commit": lambda self: None, "flush": lambda self: None})()
+        self.session = type(
+            "MockSession",
+            (),
+            {"commit": lambda self: None, "flush": lambda self: None},
+        )()
 
     def save(self, image_group):
         self._groups[str(image_group.id)] = image_group
@@ -805,3 +828,485 @@ class TestRestartFailureMarksImageGroupFailed:
 
         saved_stage = stage_repo.find_by_job_and_name(str(job_id), StageName("restart"))
         assert saved_stage.stage_state == StageState.FAILED
+
+
+class TestCleanupResultHandling:
+    """Regression tests: cleanup playbook results must finalize the
+    CleanupJobUseCase's async submission, since "cleanup" is not a
+    pipeline Stage and would otherwise raise inside the generic
+    Stage-based dispatch (StageName("cleanup") is not a valid StageType)."""
+
+    def test_cleanup_success_transitions_cleaning_to_cleaned_and_tombstones_job(self):
+        job_id = JobId(str(uuid.uuid4()))
+
+        job_repo = MockJobRepo()
+        job = type(
+            "FakeJob", (), {"job_id": job_id, "tombstoned": False,
+                             "tombstone": lambda self: setattr(self, "tombstoned", True)}
+        )()
+        job_repo.save(job)
+
+        ig_repo = MockImageGroupRepo()
+        ig = ImageGroup(
+            id=ImageGroupId("cleanup-test-group"),
+            job_id=job_id,
+            status=ImageGroupStatus.CLEANING,
+        )
+        ig_repo.save(ig)
+
+        audit_repo = MockAuditRepo()
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=job_repo,
+            stage_repo=MockStageRepo(),
+            audit_repo=audit_repo,
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            image_group_repo=ig_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="cleanup",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+        )
+
+        # Must not raise (StageName("cleanup") would raise ValueError if
+        # this fell through to the generic Stage-based dispatch).
+        poller._on_result_received(result)
+
+        saved_ig = ig_repo.find_by_job_id(job_id)
+        assert saved_ig.status == ImageGroupStatus.CLEANED
+        assert job.tombstoned is True
+        assert any(e.event_type == "JOB_CLEANED" for e in audit_repo._events)
+
+    def test_cleanup_failure_leaves_image_group_in_cleaning_for_retry(self):
+        job_id = JobId(str(uuid.uuid4()))
+
+        job_repo = MockJobRepo()
+        job = type(
+            "FakeJob", (), {"job_id": job_id, "tombstoned": False,
+                             "tombstone": lambda self: setattr(self, "tombstoned", True)}
+        )()
+        job_repo.save(job)
+
+        ig_repo = MockImageGroupRepo()
+        ig = ImageGroup(
+            id=ImageGroupId("cleanup-test-group"),
+            job_id=job_id,
+            status=ImageGroupStatus.CLEANING,
+        )
+        ig_repo.save(ig)
+
+        audit_repo = MockAuditRepo()
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=job_repo,
+            stage_repo=MockStageRepo(),
+            audit_repo=audit_repo,
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            image_group_repo=ig_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="cleanup",
+            request_id=str(uuid.uuid4()),
+            status="failed",
+            exit_code=1,
+            error_code="PLAYBOOK_FAILED",
+            error_summary="s3cmd del failed",
+        )
+
+        poller._on_result_received(result)
+
+        saved_ig = ig_repo.find_by_job_id(job_id)
+        # Left in CLEANING (not CLEANED, not reverted) so a retry DELETE
+        # can resubmit the cleanup playbook.
+        assert saved_ig.status == ImageGroupStatus.CLEANING
+        assert job.tombstoned is False
+        assert any(e.event_type == "JOB_CLEANUP_FAILED" for e in audit_repo._events)
+
+    def test_cleanup_result_for_missing_image_group_does_not_raise(self):
+        job_id = JobId(str(uuid.uuid4()))
+        ig_repo = MockImageGroupRepo()  # empty, nothing saved
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=MockStageRepo(),
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            image_group_repo=ig_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="cleanup",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+        )
+
+        # Should not raise
+        poller._on_result_received(result)
+
+    def test_cleanup_result_ignored_when_image_group_already_finalized(self):
+        """A duplicate/late result after a retry already finalized the
+        ImageGroup should be a no-op, not double-tombstone or overwrite."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        ig_repo = MockImageGroupRepo()
+        ig = ImageGroup(
+            id=ImageGroupId("cleanup-test-group"),
+            job_id=job_id,
+            status=ImageGroupStatus.CLEANED,
+        )
+        ig_repo.save(ig)
+
+        audit_repo = MockAuditRepo()
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=MockStageRepo(),
+            audit_repo=audit_repo,
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            image_group_repo=ig_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="cleanup",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+        )
+
+        poller._on_result_received(result)
+
+        assert ig_repo.find_by_job_id(job_id).status == ImageGroupStatus.CLEANED
+        assert len(audit_repo._events) == 0
+
+
+def _store_uploaded_catalog(artifact_store, artifact_metadata_repo, job_id, catalog_data):
+    """Helper: persist an uploaded catalog the way the upload stage does."""
+    content = json.dumps(catalog_data).encode("utf-8")
+    ref = artifact_store.store(
+        hint=type("H", (), {
+            "namespace": "config-files",
+            "label": "catalog_rhel.json",
+            "tags": {"job_id": str(job_id)},
+        })(),
+        kind=ArtifactKind.FILE,
+        content=content,
+    )
+    record = ArtifactRecord(
+        id=str(uuid.uuid4()),
+        job_id=JobId(str(job_id)),
+        stage_name=StageName("upload"),
+        label="catalog_rhel.json",
+        artifact_ref=ref,
+        kind=ArtifactKind.FILE,
+        content_type="application/octet-stream",
+    )
+    artifact_metadata_repo.save(record)
+
+
+class TestCreateLocalRepoSuccess:
+    """Tests for catalog metadata persistence on create-local-repository success."""
+
+    def test_persists_catalog_metadata_on_success(self):
+        """When create-local-repository succeeds, catalog metadata
+        should be extracted from the uploaded catalog and persisted."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("create-local-repository"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        artifact_store = MockArtifactStore()
+        artifact_metadata_repo = MockArtifactMetadataRepo()
+
+        catalog_data = {
+            "catalog": {
+                "name": "test catalog",
+                "version": "1.0",
+                "identifier": "test-cluster-v1",
+                "functionallayer": [
+                    {"name": "slurm_control_node_x86_64"},
+                    {"name": "slurm_node_x86_64"},
+                ],
+            }
+        }
+        _store_uploaded_catalog(
+            artifact_store, artifact_metadata_repo,
+            job_id, catalog_data,
+        )
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=artifact_metadata_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="create-local-repository",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+        )
+
+        poller._on_result_received(result)
+
+        # Verify catalog-metadata artifact was persisted
+        md = artifact_metadata_repo.find_by_job_stage_and_label(
+            job_id,
+            StageName("create-local-repository"),
+            "catalog-metadata",
+        )
+        assert md is not None, (
+            "catalog-metadata should be persisted on "
+            "create-local-repository success"
+        )
+
+        # Verify content
+        raw = artifact_store.retrieve(
+            md.artifact_ref.key, ArtifactKind.FILE,
+        )
+        metadata = json.loads(raw.decode("utf-8"))
+        assert metadata["image_group_id"] == "test-cluster-v1"
+        assert "slurm_control_node_x86_64" in metadata["roles"]
+        assert "slurm_node_x86_64" in metadata["roles"]
+        assert "parsed_at" in metadata
+
+    def test_handles_pascalcase_catalog_keys(self):
+        """Catalog metadata extraction should handle PascalCase keys."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("create-local-repository"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        artifact_store = MockArtifactStore()
+        artifact_metadata_repo = MockArtifactMetadataRepo()
+
+        catalog_data = {
+            "Catalog": {
+                "Name": "PascalCase catalog",
+                "Version": "2.0",
+                "Identifier": "pascal-case-v1",
+                "FunctionalLayer": [
+                    {"Name": "login_node_x86_64"},
+                ],
+            }
+        }
+        _store_uploaded_catalog(
+            artifact_store, artifact_metadata_repo,
+            job_id, catalog_data,
+        )
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=artifact_metadata_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="create-local-repository",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+        )
+
+        poller._on_result_received(result)
+
+        md = artifact_metadata_repo.find_by_job_stage_and_label(
+            job_id,
+            StageName("create-local-repository"),
+            "catalog-metadata",
+        )
+        assert md is not None
+        raw = artifact_store.retrieve(
+            md.artifact_ref.key, ArtifactKind.FILE,
+        )
+        metadata = json.loads(raw.decode("utf-8"))
+        assert metadata["image_group_id"] == "pascal-case-v1"
+        assert "login_node_x86_64" in metadata["roles"]
+
+    def test_skips_when_no_catalog_uploaded(self):
+        """If no catalog was uploaded, metadata persistence
+        should be skipped gracefully."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("create-local-repository"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        artifact_store = MockArtifactStore()
+        artifact_metadata_repo = MockArtifactMetadataRepo()
+        # No catalog uploaded
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=artifact_metadata_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="create-local-repository",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+        )
+
+        # Should not raise
+        poller._on_result_received(result)
+
+        md = artifact_metadata_repo.find_by_job_stage_and_label(
+            job_id,
+            StageName("create-local-repository"),
+            "catalog-metadata",
+        )
+        assert md is None
+
+    def test_skips_when_artifact_repos_not_available(self):
+        """If artifact repos are not wired, metadata persistence
+        should be skipped gracefully."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("create-local-repository"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            # No artifact_store or artifact_metadata_repo
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="create-local-repository",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+        )
+
+        # Should not raise
+        poller._on_result_received(result)
+
+    def test_synthetic_kube_control_plane_first_role(self):
+        """If service_kube_control_plane_x86_64 exists, the _first variant
+        should be added automatically."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("create-local-repository"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        artifact_store = MockArtifactStore()
+        artifact_metadata_repo = MockArtifactMetadataRepo()
+
+        catalog_data = {
+            "catalog": {
+                "name": "kube catalog",
+                "version": "1.0",
+                "identifier": "kube-cluster-v1",
+                "functionallayer": [
+                    {"name": "service_kube_control_plane_x86_64"},
+                    {"name": "service_kube_node_x86_64"},
+                ],
+            }
+        }
+        _store_uploaded_catalog(
+            artifact_store, artifact_metadata_repo,
+            job_id, catalog_data,
+        )
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=artifact_metadata_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="create-local-repository",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+        )
+
+        poller._on_result_received(result)
+
+        md = artifact_metadata_repo.find_by_job_stage_and_label(
+            job_id,
+            StageName("create-local-repository"),
+            "catalog-metadata",
+        )
+        assert md is not None
+        raw = artifact_store.retrieve(
+            md.artifact_ref.key, ArtifactKind.FILE,
+        )
+        metadata = json.loads(raw.decode("utf-8"))
+        assert "service_kube_control_plane_first_x86_64" in metadata["roles"], (
+            "Synthetic _first variant should be auto-added"
+        )
+        assert "service_kube_control_plane_first_x86_64" in metadata["role_images"]

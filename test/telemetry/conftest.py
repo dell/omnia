@@ -30,6 +30,10 @@ import os
 import pytest
 
 _TEST_DIR = os.path.dirname(os.path.abspath(__file__))
+_PLUGIN_DIR = os.path.abspath(os.path.join(_TEST_DIR, "..", "plugins"))
+while _PLUGIN_DIR in sys.path:
+    sys.path.remove(_PLUGIN_DIR)
+sys.path.insert(0, _PLUGIN_DIR)
 if _TEST_DIR not in sys.path:
     sys.path.insert(0, _TEST_DIR)
 
@@ -100,27 +104,42 @@ def pytest_addoption(parser):
 # MARKER REGISTRATION
 # =============================================================================
 
+def _redirect_stdin_to_devnull():
+    """Redirect stdin for non-interactive playbooks and close the source."""
+    source_fd = -1
+    try:
+        source_fd = os.open(os.devnull, os.O_RDONLY)
+        if source_fd == 0:
+            original_fd = source_fd
+            source_fd = os.dup(original_fd)
+            os.close(original_fd)
+        os.dup2(source_fd, 0)
+    except OSError:
+        pass  # Continue when stdin cannot be redirected.
+    finally:
+        if source_fd > 0:
+            try:
+                os.close(source_fd)
+            except OSError:
+                pass
+
+
 def pytest_configure(config):
     """Register custom markers and set verbose mode."""
     # Enable verbose logging when pytest -v is used or OMNIA_VERBOSE is set
     if config.option.verbose > 0 or os.environ.get("OMNIA_VERBOSE"):
         set_verbose_mode(True)
-    
+
     # Set environment variables for Ansible non-interactive execution
     # This prevents ansible.builtin.pause from failing in pytest
     os.environ["ANSIBLE_NOCOLOR"] = "1"
     os.environ["ANSIBLE_FORCE_COLOR"] = "0"
     os.environ["ANSIBLE_STDOUT_CALLBACK"] = "default"
-    
+
     # Redirect stdin to /dev/null to prevent pause module from blocking
     # This is safe because Ansible playbooks should not require interactive input
-    import subprocess
-    try:
-        devnull = open(os.devnull, 'r')
-        os.dup2(devnull.fileno(), 0)  # Redirect stdin (fd 0) to /dev/null
-    except Exception:
-        pass  # If it fails, continue anyway
-    
+    _redirect_stdin_to_devnull()
+
     config.addinivalue_line(
         "filterwarnings", "ignore::pytest.PytestCollectionWarning"
     )
@@ -131,9 +150,11 @@ def pytest_configure(config):
         "regression": "Regression tests",
         "deploy": "Playbook deployment tests",
         "sink": "Sink (VictoriaMetrics/VictoriaLogs/Kafka) tests",
-        "source": "Source (iDRAC/LDMS/OME) tests",
+        "source": "Source (iDRAC/LDMS/OME/SFM/UFM) tests",
         "ome": "OME (OpenManage Enterprise) specific tests",
         "ldms": "LDMS (Lightweight Distributed Metric Service) specific tests",
+        "sfm": "SFM (SmartFabric Manager) specific tests",
+        "ufm": "UFM (Unified Fabric Manager) specific tests",
         "nft": "Non-functional tests (performance, idempotency)",
         "performance": "Performance tests (execution time thresholds)",
         "idempotency": "Idempotency tests (re-run verification)",

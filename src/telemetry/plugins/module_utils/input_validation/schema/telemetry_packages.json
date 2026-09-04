@@ -18,8 +18,9 @@
     "k8s_cluster_mount": {
       "type": "string",
       "minLength": 1,
+      "pattern": "^(?!.*[\\r\\n\\u0000])/.*$",
       "description": "NFS mount point on Kubernetes cluster nodes where telemetry packages are staged.",
-      "errorMessage": "k8s_cluster_mount is required and must be a non-empty path (e.g., '/opt/omnia/k8s_mount')."
+      "errorMessage": "k8s_cluster_mount is required and must be an absolute path without NUL or newline characters (e.g., '/opt/omnia/k8s_mount')."
     },
     "slurm_cluster_mount": {
       "type": "string",

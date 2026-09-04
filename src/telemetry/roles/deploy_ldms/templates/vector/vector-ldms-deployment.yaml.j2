@@ -40,7 +40,7 @@ spec:
 
       containers:
       - name: {{ vector.ldms.container_name }}
-        image: {{ vector.image }}
+        image: {{ vector.image | trim }}
         imagePullPolicy: IfNotPresent
         
         # Command: Vector with TOML config validation

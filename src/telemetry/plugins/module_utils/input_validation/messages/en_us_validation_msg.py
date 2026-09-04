@@ -149,6 +149,10 @@ K8S_CLUSTER_MOUNT_REQUIRED_MSG = (
     "Provide the local NFS mount point on the Kubernetes cluster where telemetry packages "
     "will be staged (e.g., '/opt/omnia/k8s_mount')."
 )
+K8S_CLUSTER_MOUNT_INVALID_MSG = (
+    "k8s_cluster_mount must be an absolute path without NUL or newline "
+    "characters (e.g., '/opt/omnia/k8s_mount')."
+)
 SLURM_CLUSTER_MOUNT_REQUIRED_MSG = (
     "slurm_cluster_mount is required in telemetry_packages.yml and must be a non-empty path. "
     "Provide the local NFS mount point on the Slurm cluster where LDMS configuration and data "
@@ -191,7 +195,7 @@ K8S_CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG = (
 KAFKA_STORAGE_REQUIRED_MSG = (
     "kafka_storage section is required in telemetry_storage_config.yml "
     "when kafka is in collection_targets for any telemetry source "
-    "(idrac, ldms). Please configure kafka_storage with kafka and "
+    "(iDRAC, LDMS, or OME). Please configure kafka_storage with kafka and "
     "entity_operator.user_operator resource configurations."
 )
 

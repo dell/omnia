@@ -1,0 +1,6532 @@
+{
+  "catalog": {
+    "name": "Omnia Services Catalog - RHEL 10.0 x86_64 and aarch64",
+    "version": "1.0",
+    "identifier": "omnia-services-rhel-10-0-x86-64-aarch64",
+    "id": "3",
+    "description": "Omnia HPC and Kubernetes catalog for RHEL 10.0 with Slurm node and login compiler node on aarch64 and all other functional layers on x86_64",
+    "functionallayer": [
+      {
+        "name": "baseos_rhel_10_0_x86_64",
+        "components": [
+          "baseos_group",
+          "admin_debug_group",
+          "common_pks",
+          "infiniband_stack_driver_groupv1"
+        ]
+      },
+      {
+        "name": "baseos_rhel_10_0_aarch64",
+        "components": [
+          "baseos_group",
+          "admin_debug_group",
+          "common_pks",
+          "infiniband_stack_driver_groupv1"
+        ]
+      },
+      {
+        "name": "slurm_control_node_rhel_10_0_x86_64",
+        "components": [
+          "slurm_custom_group",
+          "openldap_group",
+          "slurm_control_node_group",
+          "common_pks",
+          "infiniband_stack_driver_groupv1"
+        ]
+      },
+      {
+        "name": "slurm_node_rhel_10_0_aarch64",
+        "components": [
+          "baseos_group",
+          "slurm_custom_group",
+          "openldap_group",
+          "ldms_group",
+          "openmpi_group",
+          "ucx_group",
+          "slurm_node_group",
+          "common_pks",
+          "infiniband_stack_driver_groupv1",
+          "vast_stack_driver_groupv1",
+          "nvidia_stack_driver_groupv1"
+        ]
+      },
+      {
+        "name": "login_node_rhel_10_0_x86_64",
+        "components": [
+          "baseos_group",
+          "slurm_custom_group",
+          "openldap_group",
+          "openmpi_group",
+          "ucx_group",
+          "login_node_group",
+          "common_pks",
+          "infiniband_stack_driver_groupv1",
+          "vast_stack_driver_groupv1"
+        ]
+      },
+      {
+        "name": "login_compiler_node_rhel_10_0_aarch64",
+        "components": [
+          "baseos_group",
+          "slurm_custom_group",
+          "openldap_group",
+          "openmpi_group",
+          "ucx_group",
+          "login_compiler_node_group",
+          "common_pks",
+          "infiniband_stack_driver_groupv1",
+          "vast_stack_driver_groupv1",
+          "nvidia_stack_driver_groupv1"
+        ]
+      },
+      {
+        "name": "service_kube_control_plane_rhel_10_0_x86_64",
+        "components": [
+          "baseos_group",
+          "service_k8s_common_group",
+          "service_k8s_telemetry_group",
+          "service_k8s_cluster_group",
+          "service_kube_control_plane_group",
+          "powerscale_csi_group",
+          "common_pks",
+          "infiniband_stack_driver_groupv1"
+        ]
+      },
+      {
+        "name": "service_kube_node_rhel_10_0_x86_64",
+        "components": [
+          "baseos_group",
+          "service_k8s_common_group",
+          "service_k8s_telemetry_group",
+          "service_kube_node_group",
+          "powerscale_csi_group",
+          "common_pks",
+          "infiniband_stack_driver_groupv1"
+        ]
+      }
+    ],
+    "groups": {
+      "baseos_group": {
+        "name": "baseos_group",
+        "type": "base_os",
+        "os_version": "10.0",
+        "os": "rhel",
+        "description": "Base OS packages for RHEL 10.0 x86_64 cluster nodes",
+        "components": [
+          "systemd",
+          "systemd_udev",
+          "kernel",
+          "dracut",
+          "dracut_live",
+          "dracut_network",
+          "squashfs_tools",
+          "nfs_utils",
+          "nfs4_acl_tools",
+          "networkmanager",
+          "nm_connection_editor",
+          "iproute",
+          "iputils",
+          "curl",
+          "bash",
+          "coreutils",
+          "grep",
+          "sed",
+          "gawk",
+          "findutils",
+          "util_linux",
+          "kbd",
+          "lsof",
+          "cryptsetup",
+          "lvm2",
+          "device_mapper",
+          "rsyslog",
+          "chrony",
+          "sudo",
+          "gzip",
+          "wget",
+          "cloud_init",
+          "glibc_langpack_en",
+          "gedit",
+          "docker_io/dellhpcomniaaisolution/image_build_el10"
+        ]
+      },
+      "admin_debug_group": {
+        "name": "admin_debug_group",
+        "type": "group",
+        "description": "Admin and debug packages for cluster node diagnostics and development",
+        "components": [
+          "which",
+          "tcpdump",
+          "traceroute",
+          "iperf3",
+          "fping",
+          "dmidecode",
+          "hwloc",
+          "hwloc_libs",
+          "lshw",
+          "pciutils",
+          "vim_enhanced",
+          "emacs",
+          "zsh",
+          "openssh",
+          "openssh_server",
+          "openssh_clients",
+          "rsync",
+          "file",
+          "libcurl",
+          "tar",
+          "bzip2",
+          "man_db",
+          "man_pages",
+          "strace",
+          "kexec_tools",
+          "openssl_devel",
+          "ipmitool",
+          "gdb",
+          "gdb_gdbserver",
+          "lldb",
+          "lldb_devel",
+          "valgrind",
+          "valgrind_devel",
+          "ltrace",
+          "kernel_tools",
+          "perf",
+          "papi",
+          "papi_devel",
+          "papi_libs",
+          "cmake",
+          "make",
+          "autoconf",
+          "automake",
+          "libtool",
+          "gcc",
+          "gcc_c++",
+          "gcc_gfortran",
+          "binutils",
+          "binutils_devel",
+          "clustershell",
+          "bash_completion",
+          "firewalld"
+        ]
+      },
+      "slurm_custom_group": {
+        "name": "slurm_custom_group",
+        "type": "group",
+        "description": "Common Slurm packages shared across all Slurm functional layers",
+        "components": [
+          "munge",
+          "firewalld",
+          "python3_firewall",
+          "pmix",
+          "nvcr_io/nvidia/hpc_benchmarks",
+          "apptainer",
+          "doca_ofed",
+          "iscsi_initiator_utils",
+          "device_mapper_multipath",
+          "sg3_utils",
+          "lsscsi",
+          "imb",
+          "osu_micro_benchmarks",
+          "likwid",
+          "geopm",
+          "papi",
+          "msr_safe",
+          "sionlib"
+        ]
+      },
+      "openldap_group": {
+        "name": "openldap_group",
+        "type": "group",
+        "description": "OpenLDAP client and authentication packages",
+        "components": [
+          "openldap_clients",
+          "nss_pam_ldapd",
+          "sssd",
+          "oddjob_mkhomedir",
+          "authselect"
+        ]
+      },
+      "slurm_control_node_group": {
+        "name": "slurm_control_node_group",
+        "type": "group",
+        "description": "Packages specific to Slurm control node",
+        "components": [
+          "slurm_slurmctld",
+          "slurm_slurmdbd",
+          "python3_pymysql",
+          "mariadb_server"
+        ]
+      },
+      "ldms_group": {
+        "name": "ldms_group",
+        "type": "group",
+        "description": "LDMS lightweight distributed metric service packages",
+        "components": [
+          "python3_devel",
+          "python3_cython",
+          "openssl_libs",
+          "ovis_ldms"
+        ]
+      },
+      "openmpi_group": {
+        "name": "openmpi_group",
+        "type": "group",
+        "description": "OpenMPI packages for HPC compute and login nodes",
+        "components": [
+          "openmpi",
+          "pmix_devel",
+          "munge_devel",
+          "gcc_c++",
+          "make"
+        ]
+      },
+      "ucx_group": {
+        "name": "ucx_group",
+        "type": "group",
+        "description": "UCX unified communication framework packages",
+        "components": [
+          "ucx",
+          "gcc_c++",
+          "make"
+        ]
+      },
+      "slurm_node_group": {
+        "name": "slurm_node_group",
+        "type": "group",
+        "description": "Packages specific to Slurm compute nodes",
+        "components": [
+          "slurm_slurmd",
+          "slurm_pam_slurm",
+          "kernel_devel",
+          "kernel_headers"
+        ]
+      },
+      "login_node_group": {
+        "name": "login_node_group",
+        "type": "group",
+        "description": "Packages specific to login nodes",
+        "components": [
+          "slurm_slurmd",
+          "slurm"
+        ]
+      },
+      "login_compiler_node_group": {
+        "name": "login_compiler_node_group",
+        "type": "group",
+        "description": "Packages specific to login compiler nodes",
+        "components": [
+          "slurm",
+          "slurm_slurmd"
+        ]
+      },
+      "service_k8s_common_group": {
+        "name": "service_k8s_common_group",
+        "type": "group",
+        "description": "Common Kubernetes packages shared across all K8s functional layers",
+        "components": [
+          "docker_io/library/busybox",
+          "python3_firewall",
+          "git",
+          "fuse_overlayfs",
+          "podman",
+          "kubeadm_1_35_1",
+          "kubelet_1_35_1",
+          "container_selinux",
+          "cri_o_1_35_1",
+          "docker_io/victoriametrics/victoria_metrics",
+          "docker_io/victoriametrics/vmagent",
+          "docker_io/victoriametrics/vmstorage",
+          "docker_io/victoriametrics/vminsert",
+          "docker_io/victoriametrics/vmselect",
+          "docker_io/victoriametrics/victoria_logs",
+          "docker_io/victoriametrics/vlagent",
+          "docker_io/alpine/kubectl",
+          "docker_io/curlimages/curl",
+          "docker_io/apache/activemq",
+          "docker_io/library/mysql",
+          "docker_io/library/python",
+          "docker_io/dellhpcomniaaisolution/idrac_telemetry_receiver",
+          "docker_io/dellhpcomniaaisolution/kafkapump",
+          "docker_io/dellhpcomniaaisolution/victoriapump",
+          "cryptography==45_0_7",
+          "omsdk==1_2_518",
+          "cffi==1_17_1",
+          "prometheus_client==0_20_0",
+          "kubernetes==33_1_0",
+          "quay_io/strimzi/operator",
+          "quay_io/strimzi/kafka",
+          "docker_io/dellhpcomniaaisolution/ubuntu_ldms",
+          "ghcr_io/open_telemetry/opentelemetry_collector_releases/opentelemetry_collector",
+          "docker_io/nginxinc/nginx_unprivileged",
+          "karavi_observability",
+          "helm_charts",
+          "quay_io/jetstack/cert_manager_controller",
+          "quay_io/jetstack/cert_manager_cainjector",
+          "quay_io/jetstack/cert_manager_webhook",
+          "quay_io/jetstack/cert_manager_acmesolver",
+          "cert_manager_v1_10_2",
+          "strimzi_kafka_operator_helm_3_chart_1_1_0",
+          "quay_io/strimzi/kafka_bridge",
+          "docker_io/victoriametrics/operator",
+          "docker_io/victoriametrics/operator",
+          "victoria_metrics_operator_0_59_3",
+          "docker_io/timberio/vector",
+          "apptainer",
+          "doca_ofed",
+          "iscsi_initiator_utils",
+          "device_mapper_multipath",
+          "sg3_utils",
+          "lsscsi",
+          "docker.io/alpine/kubectl",
+          "ghcr.io/kube-vip/kube-vip",
+          "registry.k8s.io/kube-apiserver",
+          "registry.k8s.io/kube-controller-manager",
+          "registry.k8s.io/kube-scheduler",
+          "registry.k8s.io/kube-proxy",
+          "registry.k8s.io/coredns/coredns",
+          "registry.k8s.io/etcd",
+          "registry.k8s.io/pause",
+          "docker.io/calico/cni",
+          "docker.io/calico/kube-controllers",
+          "docker.io/calico/node",
+          "quay.io/metallb/controller",
+          "quay.io/metallb/speaker",
+          "kubeadm_1_35_1",
+          "kubectl_1_35_1",
+          "kubelet_1_35_1",
+          "nfs_subdir_external_provisioner",
+          "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner",
+          "quay.io/jetstack/cert-manager-acmesolver",
+          "quay.io/jetstack/cert-manager-cainjector",
+          "quay.io/jetstack/cert-manager-controller",
+          "quay.io/jetstack/cert-manager-webhook",
+          "docker.io/library/busybox"
+        ]
+      },
+      "service_k8s_telemetry_group": {
+        "name": "service_k8s_telemetry_group",
+        "type": "group",
+        "description": "Telemetry and observability packages - VictoriaMetrics, iDRAC telemetry stack, OpenTelemetry",
+        "components": [
+          "docker_io/victoriametrics/victoria_metrics",
+          "docker_io/victoriametrics/vmagent",
+          "docker_io/victoriametrics/vmstorage",
+          "docker_io/victoriametrics/vminsert",
+          "docker_io/victoriametrics/vmselect",
+          "docker_io/victoriametrics/victoria_logs",
+          "docker_io/victoriametrics/vlagent",
+          "docker_io/victoriametrics/operator",
+          "docker_io/victoriametrics/operator",
+          "docker_io/apache/activemq",
+          "docker_io/library/mysql",
+          "docker_io/library/python",
+          "docker_io/dellhpcomniaaisolution/idrac_telemetry_receiver",
+          "docker_io/dellhpcomniaaisolution/kafkapump",
+          "docker_io/dellhpcomniaaisolution/victoriapump",
+          "docker_io/dellhpcomniaaisolution/ubuntu_ldms",
+          "cryptography==45_0_7",
+          "omsdk==1_2_518",
+          "cffi==1_17_1",
+          "prometheus_client==0_20_0",
+          "ghcr_io/open_telemetry/opentelemetry_collector_releases/opentelemetry_collector",
+          "docker_io/nginxinc/nginx_unprivileged",
+          "docker_io/timberio/vector",
+          "docker.io/victoriametrics/victoria-metrics",
+          "docker.io/victoriametrics/vmagent",
+          "docker.io/victoriametrics/vmstorage",
+          "docker.io/victoriametrics/vminsert",
+          "docker.io/victoriametrics/vmselect",
+          "docker.io/victoriametrics/victoria-logs",
+          "docker.io/victoriametrics/vlagent",
+          "docker.io/victoriametrics/operator",
+          "docker.io/victoriametrics/operator_1",
+          "victoria_metrics_operator",
+          "docker.io/apache/activemq",
+          "docker.io/library/mysql",
+          "docker.io/library/python",
+          "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
+          "docker.io/nginxinc/nginx-unprivileged",
+          "docker.io/timberio/vector",
+          "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
+          "docker.io/dellhpcomniaaisolution/kafkapump",
+          "docker.io/dellhpcomniaaisolution/victoriapump",
+          "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
+          "quay.io/strimzi/operator",
+          "quay.io/strimzi/kafka",
+          "quay.io/strimzi/kafka-bridge",
+          "strimzi_kafka_operator_helm_3_chart",
+          "pymysql",
+          "prometheus_client==0_20_0",
+          "gcc_cpp",
+          "python3",
+          "python3_pymysql",
+          "papi_rpm"
+        ]
+      },
+      "service_k8s_cluster_group": {
+        "name": "service_k8s_cluster_group",
+        "type": "group",
+        "description": "Common packages across control plane groups not in k8s worker nodes",
+        "components": [
+          "ghcr_io/kube_vip/kube_vip",
+          "docker_io/alpine/kubectl",
+          "registry_k8s_io/kube_apiserver",
+          "registry_k8s_io/kube_controller_manager",
+          "registry_k8s_io/kube_scheduler",
+          "registry_k8s_io/kube_proxy",
+          "registry_k8s_io/coredns/coredns",
+          "registry_k8s_io/pause",
+          "registry_k8s_io/etcd",
+          "docker_io/calico/cni",
+          "docker_io/calico/kube_controllers",
+          "docker_io/calico/node",
+          "quay_io/metallb/speaker",
+          "kubectl_1_35_1",
+          "prettytable==3_14_0",
+          "python3_3_12_9",
+          "git",
+          "kubernetes==33_1_0",
+          "PyMySQL==1_1_2"
+        ]
+      },
+      "service_kube_control_plane_group": {
+        "name": "service_kube_control_plane_group",
+        "type": "group",
+        "description": "Kubernetes control plane node packages",
+        "components": [
+          "ghcr_io/kube_vip/kube_vip",
+          "registry_k8s_io/kube_apiserver",
+          "registry_k8s_io/kube_controller_manager",
+          "registry_k8s_io/kube_scheduler",
+          "registry_k8s_io/kube_proxy",
+          "registry_k8s_io/coredns/coredns",
+          "docker_io/alpine/kubectl",
+          "registry_k8s_io/pause",
+          "registry_k8s_io/etcd",
+          "docker_io/calico/cni",
+          "docker_io/calico/kube_controllers",
+          "docker_io/calico/node",
+          "quay_io/metallb/speaker",
+          "quay_io/metallb/controller",
+          "calico_v3_32_1",
+          "metallb_native_v0_16_1",
+          "helm_v3_20_1_amd64",
+          "nfs_subdir_external_provisioner_4_0_18",
+          "kubectl_1_35_1",
+          "prettytable==3_14_0",
+          "python3_3_12_9",
+          "git",
+          "kubernetes==33_1_0",
+          "PyMySQL==1_1_2"
+        ]
+      },
+      "service_kube_node_group": {
+        "name": "service_kube_node_group",
+        "type": "group",
+        "description": "Kubernetes worker node packages",
+        "components": [
+          "registry_k8s_io/sig_storage/nfs_subdir_external_provisioner",
+          "quay_io/metallb/speaker",
+          "quay_io/metallb/controller"
+        ]
+      },
+      "powerscale_csi_group": {
+        "name": "powerscale_csi_group",
+        "type": "group",
+        "description": "Dell PowerScale CSI driver and related storage components",
+        "components": [
+          "csi_powerscale_v2_17_0",
+          "external_snapshotter_v8_5_0",
+          "helm_charts_2_17_0",
+          "registry_k8s_io/sig_storage/csi_attacher",
+          "registry_k8s_io/sig_storage/csi_provisioner",
+          "registry_k8s_io/sig_storage/csi_snapshotter",
+          "registry_k8s_io/sig_storage/csi_resizer",
+          "registry_k8s_io/sig_storage/csi_node_driver_registrar",
+          "registry_k8s_io/sig_storage/csi_external_health_monitor_controller",
+          "registry_k8s_io/sig_storage/snapshot_controller",
+          "quay.io/dell/container-storage-modules/csm-metrics-powerscale",
+          "quay_io/dell/container_storage_modules/csi_isilon",
+          "quay_io/dell/container_storage_modules/dell_csi_replicator",
+          "quay_io/dell/container_storage_modules/podmon",
+          "quay_io/dell/container_storage_modules/csm_authorization_sidecar",
+          "quay_io/dell/container_storage_modules/csi_metadata_retriever",
+          "quay_io/dell/container_storage_modules/csm_metrics_powerscale"
+        ]
+      },
+      "common_pks": {
+        "name": "common_pks",
+        "type": "group",
+        "description": "Common libraries and utilities shared across services",
+        "components": [
+          "cffi==1_17_1",
+          "cryptography==45_0_7",
+          "kubernetes==33_1_0",
+          "omsdk==1_2_518",
+          "prettytable==3_14_0",
+          "nvidia_hpc_benchmarks"
+        ]
+      },
+      "nvidia_stack_driver_groupv1": {
+        "name": "nvidia_stack_v1",
+        "type": "group",
+        "description": "GPU drivers, CUDA toolkit, GPU management, and HPC compilers",
+        "components": [
+          "nvidia_driver",
+          "nvidia_driver_cuda",
+          "cuda_toolkit",
+          "datacenter_gpu_manager",
+          "nvhpc"
+        ]
+      },
+      "infiniband_stack_driver_groupv1": {
+        "name": "infiniband_stack_v1",
+        "type": "group",
+        "description": "RDMA / InfiniBand network fabric stack",
+        "components": [
+          "doca_ofed"
+        ]
+      },
+      "vast_stack_driver_groupv1": {
+        "name": "vast_stack_v1",
+        "type": "group",
+        "description": "VAST Data high-performance NFS client",
+        "components": [
+          "vastnfs"
+        ]
+      }
+    },
+    "packages": {
+      "systemd": {
+        "name": "systemd",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "systemd_udev": {
+        "name": "systemd-udev",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kernel": {
+        "name": "kernel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "dracut": {
+        "name": "dracut",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "dracut_live": {
+        "name": "dracut-live",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "dracut_network": {
+        "name": "dracut-network",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "squashfs_tools": {
+        "name": "squashfs-tools",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nfs_utils": {
+        "name": "nfs-utils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nfs4_acl_tools": {
+        "name": "nfs4-acl-tools",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "networkmanager": {
+        "name": "NetworkManager",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nm_connection_editor": {
+        "name": "nm-connection-editor",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "iproute": {
+        "name": "iproute",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "iputils": {
+        "name": "iputils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "curl": {
+        "name": "docker.io/curlimages/curl",
+        "packagetype": "image",
+        "tag": "8.17.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "bash": {
+        "name": "bash",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "coreutils": {
+        "name": "coreutils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "grep": {
+        "name": "grep",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "sed": {
+        "name": "sed",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gawk": {
+        "name": "gawk",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "findutils": {
+        "name": "findutils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "util_linux": {
+        "name": "util-linux",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kbd": {
+        "name": "kbd",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "lsof": {
+        "name": "lsof",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "cryptsetup": {
+        "name": "cryptsetup",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "lvm2": {
+        "name": "lvm2",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "device_mapper": {
+        "name": "device-mapper",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "rsyslog": {
+        "name": "rsyslog",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "chrony": {
+        "name": "chrony",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "sudo": {
+        "name": "sudo",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gzip": {
+        "name": "gzip",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "wget": {
+        "name": "wget",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "cloud_init": {
+        "name": "cloud-init",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "glibc_langpack_en": {
+        "name": "glibc-langpack-en",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gedit": {
+        "name": "gedit",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "which": {
+        "name": "which",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "tcpdump": {
+        "name": "tcpdump",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "traceroute": {
+        "name": "traceroute",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "iperf3": {
+        "name": "iperf3",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "fping": {
+        "name": "fping",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "dmidecode": {
+        "name": "dmidecode",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "hwloc": {
+        "name": "hwloc",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "hwloc_libs": {
+        "name": "hwloc-libs",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "lshw": {
+        "name": "lshw",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "pciutils": {
+        "name": "pciutils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "vim_enhanced": {
+        "name": "vim-enhanced",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "emacs": {
+        "name": "emacs",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "zsh": {
+        "name": "zsh",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "openssh": {
+        "name": "openssh",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "openssh_server": {
+        "name": "openssh-server",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "openssh_clients": {
+        "name": "openssh-clients",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "rsync": {
+        "name": "rsync",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "file": {
+        "name": "file",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "libcurl": {
+        "name": "libcurl",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "tar": {
+        "name": "tar",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "bzip2": {
+        "name": "bzip2",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "man_db": {
+        "name": "man-db",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "man_pages": {
+        "name": "man-pages",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "strace": {
+        "name": "strace",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kexec_tools": {
+        "name": "kexec-tools",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "openssl_devel": {
+        "name": "openssl-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "ipmitool": {
+        "name": "ipmitool",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gdb": {
+        "name": "gdb",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gdb_gdbserver": {
+        "name": "gdb-gdbserver",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "lldb": {
+        "name": "lldb",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "lldb_devel": {
+        "name": "lldb-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "valgrind": {
+        "name": "valgrind",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "valgrind_devel": {
+        "name": "valgrind-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "ltrace": {
+        "name": "ltrace",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kernel_tools": {
+        "name": "kernel-tools",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "perf": {
+        "name": "perf",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "papi_rpm": {
+        "name": "papi",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "papi_devel": {
+        "name": "papi-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "papi_libs": {
+        "name": "papi-libs",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "cmake": {
+        "name": "cmake",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "make": {
+        "name": "make",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "autoconf": {
+        "name": "autoconf",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "automake": {
+        "name": "automake",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "libtool": {
+        "name": "libtool",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gcc": {
+        "name": "gcc",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gcc_cpp": {
+        "name": "gcc-c++",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "gcc_gfortran": {
+        "name": "gcc-gfortran",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "binutils": {
+        "name": "binutils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "binutils_devel": {
+        "name": "binutils-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "clustershell": {
+        "name": "clustershell",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "bash_completion": {
+        "name": "bash-completion",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "munge": {
+        "name": "munge",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "firewalld": {
+        "name": "firewalld",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "python3_firewall": {
+        "name": "python3-firewall",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "pmix": {
+        "name": "pmix",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nvidia_hpc_benchmarks": {
+        "name": "nvcr.io/nvidia/hpc-benchmarks",
+        "packagetype": "image",
+        "tag": "25.09",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "nvcr.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "nvcr.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "apptainer": {
+        "name": "apptainer",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "doca_ofed": {
+        "name": "doca-ofed",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "doca",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "doca",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ],
+        "version": "3.2.1"
+      },
+      "iscsi_initiator_utils": {
+        "name": "iscsi-initiator-utils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "device_mapper_multipath": {
+        "name": "device-mapper-multipath",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "sg3_utils": {
+        "name": "sg3_utils",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "lsscsi": {
+        "name": "lsscsi",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "imb": {
+        "name": "imb",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/intel/mpi-benchmarks/archive/refs/tags/IMB-v2021.8.tar.gz"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/intel/mpi-benchmarks/archive/refs/tags/IMB-v2021.8.tar.gz"
+          }
+        ]
+      },
+      "osu_micro_benchmarks": {
+        "name": "osu-micro-benchmarks",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://mvapich.cse.ohio-state.edu/download/mvapich/osu-micro-benchmarks-7.5.tar.gz"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://mvapich.cse.ohio-state.edu/download/mvapich/osu-micro-benchmarks-7.5.tar.gz"
+          }
+        ]
+      },
+      "likwid": {
+        "name": "likwid",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/rrze-hpc/likwid/archive/refs/tags/v5.4.1.tar.gz"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/rrze-hpc/likwid/archive/refs/tags/v5.4.1.tar.gz"
+          }
+        ]
+      },
+      "geopm": {
+        "name": "geopm",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/geopm/geopm/archive/refs/tags/v3.1.0.tar.gz"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/geopm/geopm/archive/refs/tags/v3.1.0.tar.gz"
+          }
+        ]
+      },
+      "papi": {
+        "name": "papi",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/icl-utk-edu/papi/releases/download/papi-7-2-0-t/papi-7.2.0.tar.gz"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/icl-utk-edu/papi/releases/download/papi-7-2-0-t/papi-7.2.0.tar.gz"
+          }
+        ]
+      },
+      "msr_safe": {
+        "name": "msr-safe",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/llnl/msr-safe/archive/refs/tags/v1.7.0.tar.gz"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/llnl/msr-safe/archive/refs/tags/v1.7.0.tar.gz"
+          }
+        ]
+      },
+      "sionlib": {
+        "name": "sionlib",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://apps.fz-juelich.de/jsc/sionlib/download.php?version=1.7.7"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://apps.fz-juelich.de/jsc/sionlib/download.php?version=1.7.7"
+          }
+        ]
+      },
+      "slurm_slurmctld": {
+        "name": "slurm-slurmctld",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "slurm_custom",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "slurm_custom",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "slurm_slurmdbd": {
+        "name": "slurm-slurmdbd",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "slurm_custom",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "slurm_custom",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "python3_pymysql": {
+        "name": "python3-PyMySQL",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "mariadb_server": {
+        "name": "mariadb-server",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "slurm_slurmd": {
+        "name": "slurm-slurmd",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "slurm_custom",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "slurm_custom",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "slurm_pam_slurm": {
+        "name": "slurm-pam_slurm",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "slurm_custom",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "slurm_custom",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kernel_devel": {
+        "name": "kernel-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kernel_headers": {
+        "name": "kernel-headers",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "python3_devel": {
+        "name": "python3-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "python3_cython": {
+        "name": "python3-cython",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "codeready-builder",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "codeready-builder",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "openssl_libs": {
+        "name": "openssl-libs",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "openmpi": {
+        "name": "openmpi",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.7.tar.gz"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.7.tar.gz"
+          }
+        ]
+      },
+      "pmix_devel": {
+        "name": "pmix-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "munge_devel": {
+        "name": "munge-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "codeready-builder",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "codeready-builder",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "openldap_clients": {
+        "name": "openldap-clients",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nss_pam_ldapd": {
+        "name": "nss-pam-ldapd",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "sssd": {
+        "name": "sssd",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "oddjob_mkhomedir": {
+        "name": "oddjob-mkhomedir",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "authselect": {
+        "name": "authselect",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "ucx": {
+        "name": "ucx",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/openucx/ucx/releases/download/v1.18.0/ucx-1.18.0.tar.gz"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/openucx/ucx/releases/download/v1.18.0/ucx-1.18.0.tar.gz"
+          }
+        ]
+      },
+      "docker.io/library/busybox": {
+        "name": "docker.io/library/busybox",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "1.36"
+      },
+      "git": {
+        "name": "git",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "reponame": "appstream"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "reponame": "appstream"
+          }
+        ]
+      },
+      "fuse_overlayfs": {
+        "name": "fuse-overlayfs",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "reponame": "appstream"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "reponame": "appstream"
+          }
+        ]
+      },
+      "podman": {
+        "name": "podman",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "reponame": "appstream"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "reponame": "appstream"
+          }
+        ]
+      },
+      "container_selinux": {
+        "name": "container-selinux",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "reponame": "appstream"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "reponame": "appstream"
+          }
+        ]
+      },
+      "docker.io/victoriametrics/victoria-metrics": {
+        "name": "docker.io/victoriametrics/victoria-metrics",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "v1.149.0"
+      },
+      "docker.io/victoriametrics/vmagent": {
+        "name": "docker.io/victoriametrics/vmagent",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "v1.149.0"
+      },
+      "docker.io/victoriametrics/vmstorage": {
+        "name": "docker.io/victoriametrics/vmstorage",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "v1.149.0-cluster"
+      },
+      "docker.io/victoriametrics/vminsert": {
+        "name": "docker.io/victoriametrics/vminsert",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "v1.149.0-cluster"
+      },
+      "docker.io/victoriametrics/vmselect": {
+        "name": "docker.io/victoriametrics/vmselect",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "v1.149.0-cluster"
+      },
+      "docker.io/victoriametrics/victoria-logs": {
+        "name": "docker.io/victoriametrics/victoria-logs",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "v1.50.0"
+      },
+      "docker.io/victoriametrics/vlagent": {
+        "name": "docker.io/victoriametrics/vlagent",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "v1.50.0"
+      },
+      "docker.io/alpine/kubectl": {
+        "name": "docker.io/alpine/kubectl",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "1.35.1"
+      },
+      "docker.io/apache/activemq": {
+        "name": "docker.io/apache/activemq",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "6.3.0"
+      },
+      "docker.io/library/mysql": {
+        "name": "docker.io/library/mysql",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "9.7.2"
+      },
+      "docker.io/library/python": {
+        "name": "docker.io/library/python",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "3.12-slim"
+      },
+      "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver": {
+        "name": "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "1.3"
+      },
+      "docker.io/dellhpcomniaaisolution/kafkapump": {
+        "name": "docker.io/dellhpcomniaaisolution/kafkapump",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "1.3"
+      },
+      "docker.io/dellhpcomniaaisolution/victoriapump": {
+        "name": "docker.io/dellhpcomniaaisolution/victoriapump",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "1.3"
+      },
+      "quay.io/strimzi/operator": {
+        "name": "quay.io/strimzi/operator",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          }
+        ],
+        "tag": "1.1.0"
+      },
+      "quay.io/strimzi/kafka": {
+        "name": "quay.io/strimzi/kafka",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          }
+        ],
+        "tag": "1.1.0-kafka-4.3.0"
+      },
+      "docker.io/dellhpcomniaaisolution/ubuntu-ldms": {
+        "name": "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "1.1"
+      },
+      "quay.io/dell/container-storage-modules/csm-metrics-powerscale": {
+        "name": "quay.io/dell/container-storage-modules/csm-metrics-powerscale",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          }
+        ],
+        "tag": "v1.12.0"
+      },
+      "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector": {
+        "name": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "ghcr.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "ghcr.io"
+          }
+        ],
+        "tag": "0.150.1"
+      },
+      "docker.io/nginxinc/nginx-unprivileged": {
+        "name": "docker.io/nginxinc/nginx-unprivileged",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "1.29"
+      },
+      "karavi_observability": {
+        "name": "karavi-observability",
+        "packagetype": "git",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/dell/karavi-observability.git"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/dell/karavi-observability.git"
+          }
+        ],
+        "version": "v1.15.0"
+      },
+      "helm_charts": {
+        "name": "helm-charts",
+        "packagetype": "git",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/dell/helm-charts.git"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/dell/helm-charts.git"
+          }
+        ],
+        "version": "container-storage-modules-1.10.0"
+      },
+      "quay.io/jetstack/cert-manager-controller": {
+        "name": "quay.io/jetstack/cert-manager-controller",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          }
+        ],
+        "tag": "v1.10.0"
+      },
+      "quay.io/jetstack/cert-manager-cainjector": {
+        "name": "quay.io/jetstack/cert-manager-cainjector",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          }
+        ],
+        "tag": "v1.10.0"
+      },
+      "quay.io/jetstack/cert-manager-webhook": {
+        "name": "quay.io/jetstack/cert-manager-webhook",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          }
+        ],
+        "tag": "v1.10.0"
+      },
+      "quay.io/jetstack/cert-manager-acmesolver": {
+        "name": "quay.io/jetstack/cert-manager-acmesolver",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          }
+        ],
+        "tag": "v1.10.0"
+      },
+      "cert_manager_v1_10_2": {
+        "name": "cert-manager-v1.10.0",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://charts.jetstack.io/charts/cert-manager-v1.10.0.tgz"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://charts.jetstack.io/charts/cert-manager-v1.10.0.tgz"
+          }
+        ]
+      },
+      "strimzi_kafka_operator_helm_3_chart": {
+        "name": "strimzi-kafka-operator-helm-3-chart-1.1.0",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tgz"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tgz"
+          }
+        ]
+      },
+      "quay.io/strimzi/kafka-bridge": {
+        "name": "quay.io/strimzi/kafka-bridge",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          }
+        ],
+        "tag": "1.0.0"
+      },
+      "docker.io/victoriametrics/operator": {
+        "name": "docker.io/victoriametrics/operator",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "v0.68.3"
+      },
+      "docker.io/victoriametrics/operator_1": {
+        "name": "docker.io/victoriametrics/operator",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "config-reloader-v0.68.3"
+      },
+      "victoria_metrics_operator": {
+        "name": "victoria-metrics-operator-0.59.3",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz"
+          }
+        ]
+      },
+      "docker.io/timberio/vector": {
+        "name": "docker.io/timberio/vector",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "0.54.0-debian"
+      },
+      "ghcr.io/kube-vip/kube-vip": {
+        "name": "ghcr.io/kube-vip/kube-vip",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "ghcr.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "ghcr.io"
+          }
+        ],
+        "tag": "v1.2.2"
+      },
+      "registry.k8s.io/kube-apiserver": {
+        "name": "registry.k8s.io/kube-apiserver",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          }
+        ],
+        "tag": "v1.35.1"
+      },
+      "registry.k8s.io/kube-controller-manager": {
+        "name": "registry.k8s.io/kube-controller-manager",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          }
+        ],
+        "tag": "v1.35.1"
+      },
+      "registry.k8s.io/kube-scheduler": {
+        "name": "registry.k8s.io/kube-scheduler",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          }
+        ],
+        "tag": "v1.35.1"
+      },
+      "registry.k8s.io/kube-proxy": {
+        "name": "registry.k8s.io/kube-proxy",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          }
+        ],
+        "tag": "v1.35.1"
+      },
+      "registry.k8s.io/coredns/coredns": {
+        "name": "registry.k8s.io/coredns/coredns",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          }
+        ],
+        "tag": "v1.13.1"
+      },
+      "registry.k8s.io/pause": {
+        "name": "registry.k8s.io/pause",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          }
+        ],
+        "tag": "3.10.1"
+      },
+      "registry.k8s.io/etcd": {
+        "name": "registry.k8s.io/etcd",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          }
+        ],
+        "tag": "3.6.6-0"
+      },
+      "docker.io/calico/cni": {
+        "name": "docker.io/calico/cni",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "v3.32.1"
+      },
+      "docker.io/calico/kube-controllers": {
+        "name": "docker.io/calico/kube-controllers",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "v3.32.1"
+      },
+      "docker.io/calico/node": {
+        "name": "docker.io/calico/node",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "v3.32.1"
+      },
+      "quay.io/metallb/speaker": {
+        "name": "quay.io/metallb/speaker",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          }
+        ],
+        "tag": "v0.16.1"
+      },
+      "python3": {
+        "name": "python3-3.12.9",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "reponame": "baseos"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "reponame": "baseos"
+          }
+        ]
+      },
+      "pymysql": {
+        "name": "PyMySQL==1.1.2",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "reponame": "pypi"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "reponame": "pypi"
+          }
+        ]
+      },
+      "quay.io/metallb/controller": {
+        "name": "quay.io/metallb/controller",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "quay.io"
+          }
+        ],
+        "tag": "v0.16.1"
+      },
+      "calico_v3_32_1": {
+        "name": "calico-v3.32.1",
+        "packagetype": "manifest",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/calico.yaml"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/calico.yaml"
+          }
+        ]
+      },
+      "metallb_native_v0_16_1": {
+        "name": "metallb-native-v0.16.1",
+        "packagetype": "manifest",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/manifests/metallb-native.yaml"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/manifests/metallb-native.yaml"
+          }
+        ]
+      },
+      "helm_v3_20_1_amd64": {
+        "name": "helm-v3.20.1-amd64",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://get.helm.sh/helm-v3.20.1-linux-amd64.tar.gz"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://get.helm.sh/helm-v3.20.1-linux-amd64.tar.gz"
+          }
+        ]
+      },
+      "nfs_subdir_external_provisioner": {
+        "name": "nfs-subdir-external-provisioner-4.0.18",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz"
+          }
+        ]
+      },
+      "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner": {
+        "name": "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "registry.k8s.io"
+          }
+        ],
+        "tag": "v4.0.2"
+      },
+      "gcc_c++": {
+        "name": "gcc-c++",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "csi_powerscale_v2_17_0": {
+        "name": "csi-powerscale-v2.17.0",
+        "packagetype": "git",
+        "version": "v2.17.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "url": "https://github.com/dell/csi-powerscale.git",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "url": "https://github.com/dell/csi-powerscale.git",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "external_snapshotter_v8_5_0": {
+        "name": "external-snapshotter-v8.5.0",
+        "packagetype": "git",
+        "version": "v8.5.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "helm_charts_2_17_0": {
+        "name": "helm-charts-2.17.0",
+        "packagetype": "git",
+        "version": "csi-isilon-2.17.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "url": "https://github.com/dell/helm-charts.git",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "name": "rhel",
+            "url": "https://github.com/dell/helm-charts.git",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "quay_io/dell/container_storage_modules/csi_isilon": {
+        "name": "quay.io/dell/container-storage-modules/csi-isilon",
+        "packagetype": "image",
+        "tag": "v2.17.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/sig_storage/csi_attacher": {
+        "name": "registry.k8s.io/sig-storage/csi-attacher",
+        "packagetype": "image",
+        "tag": "v4.11.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/sig_storage/csi_provisioner": {
+        "name": "registry.k8s.io/sig-storage/csi-provisioner",
+        "packagetype": "image",
+        "tag": "v6.2.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/sig_storage/csi_snapshotter": {
+        "name": "registry.k8s.io/sig-storage/csi-snapshotter",
+        "packagetype": "image",
+        "tag": "v8.5.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/sig_storage/csi_resizer": {
+        "name": "registry.k8s.io/sig-storage/csi-resizer",
+        "packagetype": "image",
+        "tag": "v2.1.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/sig_storage/csi_node_driver_registrar": {
+        "name": "registry.k8s.io/sig-storage/csi-node-driver-registrar",
+        "packagetype": "image",
+        "tag": "v2.16.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/sig_storage/csi_external_health_monitor_controller": {
+        "name": "registry.k8s.io/sig-storage/csi-external-health-monitor-controller",
+        "packagetype": "image",
+        "tag": "v0.17.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "quay_io/dell/container_storage_modules/dell_csi_replicator": {
+        "name": "quay.io/dell/container-storage-modules/dell-csi-replicator",
+        "packagetype": "image",
+        "tag": "v1.15.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "quay_io/dell/container_storage_modules/podmon": {
+        "name": "quay.io/dell/container-storage-modules/podmon",
+        "packagetype": "image",
+        "tag": "v1.16.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "quay_io/dell/container_storage_modules/csm_authorization_sidecar": {
+        "name": "quay.io/dell/container-storage-modules/csm-authorization-sidecar",
+        "packagetype": "image",
+        "tag": "v2.5.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "quay_io/dell/container_storage_modules/csi_metadata_retriever": {
+        "name": "quay.io/dell/container-storage-modules/csi-metadata-retriever",
+        "packagetype": "image",
+        "tag": "v1.14.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/sig_storage/snapshot_controller": {
+        "name": "registry.k8s.io/sig-storage/snapshot-controller",
+        "packagetype": "image",
+        "tag": "v8.5.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/dellhpcomniaaisolution/image_build_el10": {
+        "name": "docker.io/dellhpcomniaaisolution/image-build-el10",
+        "packagetype": "image",
+        "tag": "1.2",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "ovis_ldms": {
+        "name": "ovis-ldms",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "ldms",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "ldms",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/library/busybox": {
+        "name": "docker.io/library/busybox",
+        "packagetype": "image",
+        "tag": "1.36",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kubeadm_1_35_1": {
+        "name": "kubeadm-1.35.1",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "kubernetes-v1-35",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "kubernetes-v1-35",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kubelet_1_35_1": {
+        "name": "kubelet-1.35.1",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "kubernetes-v1-35",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "kubernetes-v1-35",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "cri_o_1_35_1": {
+        "name": "cri-o-1.35.1",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "cri-o-v1-35",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "cri-o-v1-35",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/victoriametrics/victoria_metrics": {
+        "name": "docker.io/victoriametrics/victoria-metrics",
+        "packagetype": "image",
+        "tag": "v1.149.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/victoriametrics/vmagent": {
+        "name": "docker.io/victoriametrics/vmagent",
+        "packagetype": "image",
+        "tag": "v1.149.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/victoriametrics/vmstorage": {
+        "name": "docker.io/victoriametrics/vmstorage",
+        "packagetype": "image",
+        "tag": "v1.149.0-cluster",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/victoriametrics/vminsert": {
+        "name": "docker.io/victoriametrics/vminsert",
+        "packagetype": "image",
+        "tag": "v1.149.0-cluster",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/victoriametrics/vmselect": {
+        "name": "docker.io/victoriametrics/vmselect",
+        "packagetype": "image",
+        "tag": "v1.149.0-cluster",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/victoriametrics/victoria_logs": {
+        "name": "docker.io/victoriametrics/victoria-logs",
+        "packagetype": "image",
+        "tag": "v1.50.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/victoriametrics/vlagent": {
+        "name": "docker.io/victoriametrics/vlagent",
+        "packagetype": "image",
+        "tag": "v1.50.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/alpine/kubectl": {
+        "name": "docker.io/alpine/kubectl",
+        "packagetype": "image",
+        "tag": "1.35.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/curlimages/curl": {
+        "name": "docker.io/curlimages/curl",
+        "packagetype": "image",
+        "tag": "8.17.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/apache/activemq": {
+        "name": "docker.io/apache/activemq",
+        "packagetype": "image",
+        "tag": "6.3.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/library/mysql": {
+        "name": "docker.io/library/mysql",
+        "packagetype": "image",
+        "tag": "9.7.2",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/library/python": {
+        "name": "docker.io/library/python",
+        "packagetype": "image",
+        "tag": "3.12-slim",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/dellhpcomniaaisolution/idrac_telemetry_receiver": {
+        "name": "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
+        "packagetype": "image",
+        "tag": "1.3",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/dellhpcomniaaisolution/kafkapump": {
+        "name": "docker.io/dellhpcomniaaisolution/kafkapump",
+        "packagetype": "image",
+        "tag": "1.3",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/dellhpcomniaaisolution/victoriapump": {
+        "name": "docker.io/dellhpcomniaaisolution/victoriapump",
+        "packagetype": "image",
+        "tag": "1.3",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "cryptography==45_0_7": {
+        "name": "cryptography==45.0.7",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "omsdk==1_2_518": {
+        "name": "omsdk==1.2.518",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "cffi==1_17_1": {
+        "name": "cffi==1.17.1",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "prometheus_client==0_20_0": {
+        "name": "prometheus_client==0.20.0",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kubernetes==33_1_0": {
+        "name": "kubernetes==33.1.0",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "quay_io/strimzi/operator": {
+        "name": "quay.io/strimzi/operator",
+        "packagetype": "image",
+        "tag": "1.1.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "quay_io/strimzi/kafka": {
+        "name": "quay.io/strimzi/kafka",
+        "packagetype": "image",
+        "tag": "1.1.0-kafka-4.3.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/dellhpcomniaaisolution/ubuntu_ldms": {
+        "name": "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
+        "packagetype": "image",
+        "tag": "1.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "quay_io/dell/container_storage_modules/csm_metrics_powerscale": {
+        "name": "quay.io/dell/container-storage-modules/csm-metrics-powerscale",
+        "packagetype": "image",
+        "tag": "v1.12.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "ghcr_io/open_telemetry/opentelemetry_collector_releases/opentelemetry_collector": {
+        "name": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
+        "packagetype": "image",
+        "tag": "0.150.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "ghcr.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "ghcr.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/nginxinc/nginx_unprivileged": {
+        "name": "docker.io/nginxinc/nginx-unprivileged",
+        "packagetype": "image",
+        "tag": "1.29",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "quay_io/jetstack/cert_manager_controller": {
+        "name": "quay.io/jetstack/cert-manager-controller",
+        "packagetype": "image",
+        "tag": "v1.10.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "quay_io/jetstack/cert_manager_cainjector": {
+        "name": "quay.io/jetstack/cert-manager-cainjector",
+        "packagetype": "image",
+        "tag": "v1.10.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "quay_io/jetstack/cert_manager_webhook": {
+        "name": "quay.io/jetstack/cert-manager-webhook",
+        "packagetype": "image",
+        "tag": "v1.10.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "quay_io/jetstack/cert_manager_acmesolver": {
+        "name": "quay.io/jetstack/cert-manager-acmesolver",
+        "packagetype": "image",
+        "tag": "v1.10.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "strimzi_kafka_operator_helm_3_chart_1_1_0": {
+        "name": "strimzi-kafka-operator-helm-3-chart-1.1.0",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tgz",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tgz",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "quay_io/strimzi/kafka_bridge": {
+        "name": "quay.io/strimzi/kafka-bridge",
+        "packagetype": "image",
+        "tag": "1.0.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/victoriametrics/operator": {
+        "name": "docker.io/victoriametrics/operator",
+        "packagetype": "image",
+        "tag": "v0.68.3",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "victoria_metrics_operator_0_59_3": {
+        "name": "victoria-metrics-operator-0.59.3",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/timberio/vector": {
+        "name": "docker.io/timberio/vector",
+        "packagetype": "image",
+        "tag": "0.54.0-debian",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "ghcr_io/kube_vip/kube_vip": {
+        "name": "ghcr.io/kube-vip/kube-vip",
+        "packagetype": "image",
+        "tag": "v1.2.2",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "ghcr.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "ghcr.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/kube_apiserver": {
+        "name": "registry.k8s.io/kube-apiserver",
+        "packagetype": "image",
+        "tag": "v1.35.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/kube_controller_manager": {
+        "name": "registry.k8s.io/kube-controller-manager",
+        "packagetype": "image",
+        "tag": "v1.35.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/kube_scheduler": {
+        "name": "registry.k8s.io/kube-scheduler",
+        "packagetype": "image",
+        "tag": "v1.35.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/kube_proxy": {
+        "name": "registry.k8s.io/kube-proxy",
+        "packagetype": "image",
+        "tag": "v1.35.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/coredns/coredns": {
+        "name": "registry.k8s.io/coredns/coredns",
+        "packagetype": "image",
+        "tag": "v1.13.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/pause": {
+        "name": "registry.k8s.io/pause",
+        "packagetype": "image",
+        "tag": "3.10.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/etcd": {
+        "name": "registry.k8s.io/etcd",
+        "packagetype": "image",
+        "tag": "3.6.6-0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/calico/cni": {
+        "name": "docker.io/calico/cni",
+        "packagetype": "image",
+        "tag": "v3.32.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/calico/kube_controllers": {
+        "name": "docker.io/calico/kube-controllers",
+        "packagetype": "image",
+        "tag": "v3.32.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/calico/node": {
+        "name": "docker.io/calico/node",
+        "packagetype": "image",
+        "tag": "v3.32.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "quay_io/metallb/speaker": {
+        "name": "quay.io/metallb/speaker",
+        "packagetype": "image",
+        "tag": "v0.16.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "kubectl_1_35_1": {
+        "name": "kubectl-1.35.1",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "kubernetes-v1-35",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "kubernetes-v1-35",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "prettytable==3_14_0": {
+        "name": "prettytable==3.14.0",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "python3_3_12_9": {
+        "name": "python3-3.12.9",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "PyMySQL==1_1_2": {
+        "name": "PyMySQL==1.1.2",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "quay_io/metallb/controller": {
+        "name": "quay.io/metallb/controller",
+        "packagetype": "image",
+        "tag": "v0.16.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "quay.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nfs_subdir_external_provisioner_4_0_18": {
+        "name": "nfs-subdir-external-provisioner-4.0.18",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/sig_storage/nfs_subdir_external_provisioner": {
+        "name": "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner",
+        "packagetype": "image",
+        "tag": "v4.0.2",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nvcr_io/nvidia/hpc_benchmarks": {
+        "name": "nvcr.io/nvidia/hpc-benchmarks",
+        "packagetype": "image",
+        "tag": "25.09",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "nvcr.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "nvcr.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "slurm": {
+        "name": "slurm",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "slurm_custom",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "slurm_custom",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nvidia_driver": {
+        "name": "nvidia-driver-580.159.04",
+        "packagetype": "rpm",
+        "version": "580.159.04",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "cuda",
+            "name": "nvidia",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "cuda",
+            "name": "nvidia",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nvidia_driver_cuda": {
+        "name": "nvidia-driver-cuda-580.159.04",
+        "packagetype": "rpm",
+        "version": "580.159.04",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "cuda",
+            "name": "nvidia",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "cuda",
+            "name": "nvidia",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "cuda_toolkit": {
+        "name": "cuda-toolkit",
+        "packagetype": "rpm",
+        "version": "13.3.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "cuda",
+            "name": "nvidia",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "cuda",
+            "name": "nvidia",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "datacenter_gpu_manager": {
+        "name": "datacenter-gpu-manager-4-cuda13",
+        "packagetype": "rpm",
+        "version": "4.6.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "cuda",
+            "name": "nvidia",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "cuda",
+            "name": "nvidia",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nvhpc": {
+        "name": "nvhpc",
+        "packagetype": "rpm",
+        "version": "26.5",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "nvidia-hpc-sdk",
+            "name": "nvidia",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "nvidia-hpc-sdk",
+            "name": "nvidia",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "vastnfs": {
+        "name": "vastnfs",
+        "packagetype": "rpm",
+        "version": "4.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "vast",
+            "name": "vast",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "vast",
+            "name": "vast",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

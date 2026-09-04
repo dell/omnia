@@ -20,7 +20,6 @@
 - name: Set_fact for fetch omnia config credentials
   hosts: localhost
   connection: local
-  tags: always
   tasks:
     - name: Set dynamic run tags including 'gitlab'
       when: omnia_run_tags is not defined
@@ -32,7 +31,6 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: always
   roles:
     - role: ../../roles/build_stream_setup
       vars:

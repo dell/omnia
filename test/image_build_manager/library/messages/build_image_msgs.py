@@ -110,7 +110,7 @@ TEST_NAMES = {
         "Verify MinIO and registry systemd services are active"
     ),
     "credentials_present": (
-        "Verify credentials file is synced to target"
+        "Verify credentials file is configured on the execution OIM"
     ),
     "registry_reachable": (
         "Verify container registry is reachable"
@@ -259,16 +259,19 @@ TEST_LOG_MSGS = {
 
     # repo_ssl_verify
     "repo_ssl_verify_ok": (
-        "repo_ssl_verify is configured (value: {value})"
+        "repo_ssl_verify effective value: {value} ({source})"
     ),
     "repo_ssl_verify_missing": (
-        "repo_ssl_verify is NOT configured in build_image section"
+        "repo_ssl_verify configuration is invalid"
     ),
     "repo_ssl_verify_applied_ok": (
-        "repo_ssl_verify setting applied in all build templates"
+        "repo_ssl_verify is wired into all build templates"
     ),
     "repo_ssl_verify_not_applied": (
-        "repo_ssl_verify NOT applied in {count} template(s)"
+        "repo_ssl_verify wiring missing in {count} template(s)"
+    ),
+    "repo_ssl_verify_applied_blocked": (
+        "Template check blocked by invalid repo_ssl_verify configuration"
     ),
 
     # cleanup_images
@@ -427,7 +430,9 @@ TEST_ASSERT_MSGS = {
         "\u2551\n"
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Verify oim_server_ip in test_config.yml\n"
-        "\u2551   2. Verify SSH user/password: setup_env.sh --set-password\n"     # gitleaks:allow — "password" is in user-facing instruction message, not a leaked secret
+        # gitleaks:allow — user-facing instruction, not a leaked secret
+        "\u2551   2. Verify SSH user/password: "
+        "./setup_env.sh --set-creds\n"
         "\u2551   3. Test manually: ssh root@<oim_server_ip>\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),

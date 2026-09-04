@@ -24,6 +24,7 @@ Functions for verifying LDMS data in Kafka and VictoriaMetrics:
 import json
 import time
 from typing import Any, Dict, List
+from uuid import uuid4
 
 from omnia_auto import (
     run_on_host,
@@ -41,6 +42,15 @@ from ..vars.common_vars import (
     CMDS,
     TELEMETRY_CONFIG_FILE,
     TELEMETRY_NAMESPACE,
+    LDMS_KAFKA_LATEST_TIMEOUT_SECONDS,
+    LDMS_KAFKA_EARLIEST_TIMEOUT_SECONDS,
+    LDMS_KAFKA_CLOCK_SKEW_SECONDS,
+    LDMS_KAFKA_LATEST_POLL_INTERVAL_SECONDS,
+    LDMS_KAFKA_EARLIEST_POLL_INTERVAL_SECONDS,
+    LDMS_KAFKA_OFFSET_LATEST,
+    LDMS_KAFKA_OFFSET_EARLIEST,
+    LDMS_KAFKA_CONSUMER_GROUP_TEMPLATE,
+    LDMS_KAFKA_CONSUMER_NAME_TEMPLATE,
 )
 from ..vars.ome_vars import KAFKA_BRIDGE_SERVICE
 from ..vars.ldms_vars import (
@@ -569,19 +579,22 @@ def get_kafka_bridge_port(host) -> str:
 
 def verify_ldms_data_in_kafka(
     host,
-    timeout_seconds: int = 30,
+    timeout_seconds: int = LDMS_KAFKA_LATEST_TIMEOUT_SECONDS,
+    clock_skew_seconds: int = LDMS_KAFKA_CLOCK_SKEW_SECONDS,
 ) -> Dict[str, Any]:
-    """Verify LDMS data is flowing to Kafka ldms topic.
+    """Verify fresh LDMS data is flowing to the Kafka ldms topic.
 
     Gets expected hostnames from orchestrator inventory and sampler plugins
-    from telemetry_config.yml. Verifies that data from all LDMS nodes with
-    configured plugins is present in the Kafka ldms topic.
+    from telemetry_config.yml. A unique consumer starts at the end of the
+    topic and waits for a fresh record from every expected hostname/plugin
+    instance. Historical records cannot satisfy this verification.
 
     Expected LDMS instance format: hostname.domain/plugin
 
     Args:
         host: Testinfra host connection to the OIM.
-        timeout_seconds: Max time to wait for data (default 30s).
+        timeout_seconds: Maximum time to wait for fresh data.
+        clock_skew_seconds: Allowed LDMS node clock lag.
 
     Returns:
         Dict with keys: success, found_instances, missing_instances,
@@ -632,23 +645,33 @@ def verify_ldms_data_in_kafka(
             instance = f"{hostname}.{domain_name}/{plugin}"
             expected_instances.add(instance)
 
-    consumer_group = f"ldms-verify-{int(time.time()) % 10000}"
-    consumer_name = "ldms-verify-consumer"
+    consumer_suffix = uuid4().hex
+    consumer_group = LDMS_KAFKA_CONSUMER_GROUP_TEMPLATE.format(
+        offset=LDMS_KAFKA_OFFSET_LATEST,
+        suffix=consumer_suffix,
+    )
+    consumer_name = LDMS_KAFKA_CONSUMER_NAME_TEMPLATE.format(
+        consumer_group=consumer_group,
+    )
 
     found_instances = set()
-    found_records = {}  # Store sample record per instance
+    found_records = {}  # Store the newest fresh record per expected instance
+    ignored_stale_records = 0
+    invalid_timestamp_records = 0
+    verification_started_at = time.time()
+    fresh_after = verification_started_at - clock_skew_seconds
 
     try:
-        # Step 1: Create consumer with 'earliest' offset
+        # Step 1: Create a unique consumer at the current end of the topic.
         create_cmd = LDMS_CMD_TEMPLATES["rest_create_consumer"].format(
             bridge_ip=bridge_ip,
             port=port,
             consumer_group=consumer_group,
             consumer_name=consumer_name,
-            offset="earliest",
+            offset=LDMS_KAFKA_OFFSET_LATEST,
         )
         result = run_on_kube_vip(host, create_cmd)
-        if "error_code" in result.stdout:
+        if result.rc != 0 or "error_code" in result.stdout:
             return {
                 "success": False,
                 "bridge_ip": bridge_ip,
@@ -663,7 +686,13 @@ def verify_ldms_data_in_kafka(
             consumer_name=consumer_name,
             topic=LDMS_KAFKA_TOPIC,
         )
-        run_on_kube_vip(host, subscribe_cmd)
+        result = run_on_kube_vip(host, subscribe_cmd)
+        if result.rc != 0 or "error_code" in result.stdout:
+            return {
+                "success": False,
+                "bridge_ip": bridge_ip,
+                "error": f"Failed to subscribe consumer: {result.stdout}",
+            }
 
         # Step 3: Consume records with timeout
         consume_cmd = LDMS_CMD_TEMPLATES["rest_consume_records"].format(
@@ -684,12 +713,31 @@ def verify_ldms_data_in_kafka(
                         value = record.get("value", {})
                         # LDMS record format: {"instance": "hostname.domain/plugin", ...}
                         instance = value.get("instance", "")
-                        if instance:
+                        if instance not in expected_instances:
+                            continue
+
+                        try:
+                            record_timestamp = float(value.get("timestamp"))
+                        except (TypeError, ValueError):
+                            invalid_timestamp_records += 1
+                            continue
+
+                        if record_timestamp < fresh_after:
+                            ignored_stale_records += 1
+                            continue
+
+                        previous_record = found_records.get(instance, {})
+                        previous_value = previous_record.get("value", {})
+                        try:
+                            previous_timestamp = float(
+                                previous_value.get("timestamp")
+                            )
+                        except (TypeError, ValueError):
+                            previous_timestamp = float("-inf")
+
+                        if record_timestamp >= previous_timestamp:
+                            found_records[instance] = record
                             found_instances.add(instance)
-                            if instance not in found_records:
-                                found_records[instance] = {
-                                    "value": value,
-                                }
                 except json.JSONDecodeError:
                     pass
 
@@ -697,7 +745,7 @@ def verify_ldms_data_in_kafka(
             if found_instances >= expected_instances:
                 break
 
-            time.sleep(2)
+            time.sleep(LDMS_KAFKA_LATEST_POLL_INTERVAL_SECONDS)
 
     finally:
         # Step 4: Delete consumer (cleanup)
@@ -768,7 +816,10 @@ def verify_ldms_data_in_kafka(
     if success:
         error_msg = ""
     elif missing_hostnames:
-        error_msg = f"Missing data from hostnames: {list(missing_hostnames)}"
+        error_msg = (
+            "Fresh LDMS data missing from hostnames: "
+            f"{sorted(missing_hostnames)}"
+        )
     else:
         # Some hosts have partial data
         missing_details = []
@@ -777,7 +828,7 @@ def verify_ldms_data_in_kafka(
                 missing_details.append(
                     f"{hr['hostname']}: missing {hr['plugins_missing']}"
                 )
-        error_msg = f"Missing plugins: {'; '.join(missing_details)}"
+        error_msg = f"Fresh LDMS plugins missing: {'; '.join(missing_details)}"
 
     return {
         "success": success,
@@ -787,11 +838,15 @@ def verify_ldms_data_in_kafka(
         "expected_hostnames": hostnames,
         "expected_plugins": plugins,
         "expected_instance_count": len(expected_instances),
-        "found_instances": list(found_instances),
+        "verification_started_at": verification_started_at,
+        "fresh_after": fresh_after,
+        "ignored_stale_record_count": ignored_stale_records,
+        "invalid_timestamp_record_count": invalid_timestamp_records,
+        "found_instances": sorted(found_instances),
         "found_instance_count": len(found_instances),
-        "missing_instances": list(missing_instances),
-        "found_hostnames": list(found_hostnames),
-        "missing_hostnames": list(missing_hostnames),
+        "missing_instances": sorted(missing_instances),
+        "found_hostnames": sorted(found_hostnames),
+        "missing_hostnames": sorted(missing_hostnames),
         "hostname_results": hostname_results,
         "results_by_group": results_by_group,
         "error": error_msg,
@@ -800,16 +855,17 @@ def verify_ldms_data_in_kafka(
 
 def verify_ldms_earliest_data_in_kafka(
     host,
-    timeout_seconds: int = 60,
+    timeout_seconds: int = LDMS_KAFKA_EARLIEST_TIMEOUT_SECONDS,
 ) -> Dict[str, Any]:
-    """Get earliest LDMS data from Kafka topic for each hostname.
+    """Get earliest LDMS data from Kafka for every expected instance.
 
-    Uses positions/beginning API to seek to the start of the topic,
-    then polls until first data for each hostname is found.
+    Uses a unique consumer group with the earliest offset. Kafka group
+    subscription assigns all topic partitions dynamically, so this remains
+    correct if the LDMS topic partition count changes.
 
     Args:
         host: Testinfra host connection to the OIM.
-        timeout_seconds: Max time to search for all hostnames (default 60s).
+        timeout_seconds: Maximum time to search for all instances.
 
     Returns:
         Dict with keys: success, earliest_records, hostname_results, error.
@@ -852,54 +908,62 @@ def verify_ldms_earliest_data_in_kafka(
         }
     port = get_kafka_bridge_port(host)
 
-    expected_hostnames = set(hostnames)
-    consumer_group = f"ldms-earliest-{int(time.time()) % 10000}"
-    consumer_name = "ldms-earliest-consumer"
+    expected_instances = {
+        f"{hostname}.{domain_name}/{plugin}"
+        for hostname in hostnames
+        for plugin in plugins
+    }
+    consumer_suffix = uuid4().hex
+    consumer_group = LDMS_KAFKA_CONSUMER_GROUP_TEMPLATE.format(
+        offset=LDMS_KAFKA_OFFSET_EARLIEST,
+        suffix=consumer_suffix,
+    )
+    consumer_name = LDMS_KAFKA_CONSUMER_NAME_TEMPLATE.format(
+        consumer_group=consumer_group,
+    )
 
-    found_hostnames = set()
     found_records = {}  # Store first record per instance
     total_records = 0
 
     try:
-        # Step 1: Create consumer (no auto.offset.reset for manual seek)
-        create_cmd = (
-            f'curl -s -X POST http://{bridge_ip}:{port}/consumers/{consumer_group} '
-            f'-H "content-type: application/vnd.kafka.v2+json" '
-            f'-d \'{{"name": "{consumer_name}", "format": "json"}}\''
+        # Step 1: Create a unique group whose uncommitted offsets start earliest.
+        create_cmd = LDMS_CMD_TEMPLATES["rest_create_consumer"].format(
+            bridge_ip=bridge_ip,
+            port=port,
+            consumer_group=consumer_group,
+            consumer_name=consumer_name,
+            offset=LDMS_KAFKA_OFFSET_EARLIEST,
         )
         result = run_on_kube_vip(host, create_cmd)
-        if "error_code" in result.stdout:
+        if result.rc != 0 or "error_code" in result.stdout:
             return {
                 "success": False,
                 "bridge_ip": bridge_ip,
                 "error": f"Failed to create consumer: {result.stdout}",
             }
 
-        # Step 2: Assign partitions (both partitions for ldms topic)
-        assign_cmd = (
-            f'curl -s -X POST http://{bridge_ip}:{port}/consumers/{consumer_group}'
-            f'/instances/{consumer_name}/assignments '
-            f'-H "content-type: application/vnd.kafka.v2+json" '
-            f'-d \'{{"partitions": [{{"topic": "{LDMS_KAFKA_TOPIC}", "partition": 0}}, '
-            f'{{"topic": "{LDMS_KAFKA_TOPIC}", "partition": 1}}]}}\''
+        # Step 2: Subscribe so Kafka dynamically assigns every topic partition.
+        subscribe_cmd = LDMS_CMD_TEMPLATES["rest_subscribe_topic"].format(
+            bridge_ip=bridge_ip,
+            port=port,
+            consumer_group=consumer_group,
+            consumer_name=consumer_name,
+            topic=LDMS_KAFKA_TOPIC,
         )
-        run_on_kube_vip(host, assign_cmd)
+        result = run_on_kube_vip(host, subscribe_cmd)
+        if result.rc != 0 or "error_code" in result.stdout:
+            return {
+                "success": False,
+                "bridge_ip": bridge_ip,
+                "error": f"Failed to subscribe consumer: {result.stdout}",
+            }
 
-        # Step 3: Seek to beginning (equivalent to --from-beginning)
-        seek_cmd = (
-            f'curl -s -X POST http://{bridge_ip}:{port}/consumers/{consumer_group}'
-            f'/instances/{consumer_name}/positions/beginning '
-            f'-H "content-type: application/vnd.kafka.v2+json" '
-            f'-d \'{{"partitions": [{{"topic": "{LDMS_KAFKA_TOPIC}", "partition": 0}}, '
-            f'{{"topic": "{LDMS_KAFKA_TOPIC}", "partition": 1}}]}}\''
-        )
-        run_on_kube_vip(host, seek_cmd)
-
-        # Step 4: Consume records until we find first data for all hostnames
-        consume_cmd = (
-            f'curl -s -X GET http://{bridge_ip}:{port}/consumers/{consumer_group}'
-            f'/instances/{consumer_name}/records '
-            f'-H "accept: application/vnd.kafka.json.v2+json"'
+        # Step 3: Consume until every expected hostname/plugin is represented.
+        consume_cmd = LDMS_CMD_TEMPLATES["rest_consume_records"].format(
+            bridge_ip=bridge_ip,
+            port=port,
+            consumer_group=consumer_group,
+            consumer_name=consumer_name,
         )
 
         start_time = time.time()
@@ -913,25 +977,19 @@ def verify_ldms_earliest_data_in_kafka(
                         total_records += 1
                         value = record.get("value", {})
                         instance = value.get("instance", "")
-                        if instance:
-                            # Extract hostname from instance
-                            if "/" in instance:
-                                host_part = instance.split("/")[0]
-                                if "." in host_part:
-                                    hostname = host_part.split(".")[0]
-                                    # Store first record per instance
-                                    if instance not in found_records:
-                                        found_records[instance] = record
-                                        if hostname in expected_hostnames:
-                                            found_hostnames.add(hostname)
+                        if (
+                            instance in expected_instances
+                            and instance not in found_records
+                        ):
+                            found_records[instance] = record
                 except json.JSONDecodeError:
                     pass
 
-            # Stop when we found data for all expected hostnames
-            if found_hostnames >= expected_hostnames:
+            # Stop only after all expected hostname/plugin instances are found.
+            if set(found_records) >= expected_instances:
                 break
 
-            time.sleep(0.3)
+            time.sleep(LDMS_KAFKA_EARLIEST_POLL_INTERVAL_SECONDS)
 
     finally:
         # Cleanup consumer
@@ -942,6 +1000,14 @@ def verify_ldms_earliest_data_in_kafka(
             consumer_name=consumer_name,
         )
         run_on_kube_vip(host, delete_cmd)
+
+    found_instances = set(found_records)
+    missing_instances = expected_instances - found_instances
+    found_hostnames = {
+        instance.split("/", maxsplit=1)[0].split(".", maxsplit=1)[0]
+        for instance in found_instances
+    }
+    missing_hostnames = set(hostnames) - found_hostnames
 
     # Build results per hostname
     hostname_results = []
@@ -983,9 +1049,14 @@ def verify_ldms_earliest_data_in_kafka(
             results_by_group[fg] = []
         results_by_group[fg].append(hr)
 
-    # Success if we found data for all hostnames
-    success = found_hostnames >= expected_hostnames
-    missing_hostnames_set = expected_hostnames - found_hostnames
+    # Success requires every configured plugin from every expected hostname.
+    success = not missing_instances
+    if success:
+        error_msg = ""
+    elif missing_hostnames:
+        error_msg = f"Missing hostnames: {sorted(missing_hostnames)}"
+    else:
+        error_msg = f"Missing instances: {sorted(missing_instances)}"
 
     return {
         "success": success,
@@ -994,12 +1065,14 @@ def verify_ldms_earliest_data_in_kafka(
         "domain_name": domain_name,
         "expected_hostnames": hostnames,
         "expected_plugins": plugins,
+        "expected_instance_count": len(expected_instances),
         "total_records_read": total_records,
-        "found_instances": list(found_records.keys()),
-        "found_instance_count": len(found_records),
-        "found_hostnames": list(found_hostnames),
-        "missing_hostnames": list(missing_hostnames_set),
+        "found_instances": sorted(found_instances),
+        "found_instance_count": len(found_instances),
+        "missing_instances": sorted(missing_instances),
+        "found_hostnames": sorted(found_hostnames),
+        "missing_hostnames": sorted(missing_hostnames),
         "hostname_results": hostname_results,
         "results_by_group": results_by_group,
-        "error": "" if success else f"Missing hostnames: {list(missing_hostnames_set)}",
+        "error": error_msg,
     }
