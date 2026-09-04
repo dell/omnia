@@ -338,7 +338,7 @@ initialization:
         VAULT_HOST=$(echo "$VAULT_SERVER_URL" | sed -E 's|https?://([^:/]+).*|\1|')
         VAULT_PORT=$(echo "$VAULT_SERVER_URL" | sed -E 's|.*:([0-9]+)/?$|\1|; s|.*||')
         VAULT_PORT="${VAULT_PORT:-8200}"
-        
+
         # Test connectivity with curl (skip certificate verification for self-signed certs)
         if curl -sk --connect-timeout 10 --max-time 15 "$VAULT_SERVER_URL/v1/sys/health" > /dev/null 2>&1; then
           echo "  ✓ OpenBao server is reachable at $VAULT_SERVER_URL"
