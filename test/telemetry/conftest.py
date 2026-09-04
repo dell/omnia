@@ -87,7 +87,7 @@ _TC_ID_MAP["test_deploy_telemetry"] = TEST_CASES["deploy_telemetry"]["id"]
 # =============================================================================
 
 def pytest_addoption(parser):
-    """Add --marker option for custom marker expression filtering."""
+    """Add --marker and --delete-volume options."""
     parser.addoption(
         "--marker",
         action="store",
@@ -96,6 +96,17 @@ def pytest_addoption(parser):
             "Marker filter expression. "
             "Use '+' for AND (both required): source+sanity. "
             "Use ',' for OR (either matches): sink,source."
+        ),
+    )
+    parser.addoption(
+        "--delete-volume",
+        action="store",
+        default=None,
+        help=(
+            "Control PVC/volume deletion during cleanup. "
+            "When 'true', cleanup deletes PVCs (Delete_volume=true). "
+            "When 'false' or omitted (default), PVCs are preserved. "
+            "Also accepts DELETE_VOLUME environment variable."
         ),
     )
 
@@ -398,3 +409,26 @@ def pytest_report_teststatus(report, config):
 def host():
     """Testinfra host connected to the OIM target server."""
     return get_testinfra_host()
+
+
+@pytest.fixture(scope="session")
+def delete_volume(request):
+    """Resolve Delete_volume flag from CLI option or environment variable.
+
+    Priority order:
+      1. --delete-volume CLI option (if provided)
+      2. DELETE_VOLUME environment variable (if set)
+      3. Default: false (PVCs preserved)
+
+    Returns:
+        bool: True if Delete_volume=true, False otherwise.
+    """
+    cli_value = request.config.getoption("--delete-volume")
+    if cli_value is not None:
+        return cli_value.lower() in ("true", "1", "yes")
+
+    env_value = os.environ.get("DELETE_VOLUME")
+    if env_value is not None:
+        return env_value.lower() in ("true", "1", "yes")
+
+    return False

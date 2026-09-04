@@ -42,6 +42,7 @@ from library.messages.telemetry_msgs import (
 from library.functions.cleanup_func import (
     verify_no_pods_remaining,
     verify_no_pvcs_remaining,
+    verify_pvcs_preserved,
 )
 
 
@@ -117,7 +118,7 @@ def test_deploy_idempotency(host):
 @pytest.mark.nft
 @pytest.mark.idempotency
 @pytest.mark.order(111)
-def test_cleanup_idempotency(host):
+def test_cleanup_idempotency(host, delete_volume):
     """NFT_TL_005: Cleanup idempotency — second run exits 0.
 
     Runs the full cleanup playbook twice in sequence:
@@ -126,9 +127,14 @@ def test_cleanup_idempotency(host):
 
     This validates that all cleanup tasks handle missing resources
     gracefully (--ignore-not-found, failed_when: false, helm guards).
+
+    The ``delete_volume`` fixture controls whether ``Delete_volume=true``
+    is passed — matching the production cleanup invocation.
     """
     tc = TC["nft_cleanup_idempotent"]
     tl = TestLogger(tc["title"], tc["id"])
+
+    extra_vars = {"Delete_volume": "true"} if delete_volume else None
 
     # -- Run 1: Initial cleanup -------------------------------------------
     tl.check("Running first cleanup (initial cleanup)")
@@ -136,6 +142,7 @@ def test_cleanup_idempotency(host):
         playbook=PLAYBOOK_ENTRY_POINT,
         playbook_workdir=PLAYBOOK_WORKDIR,
         tag="cleanup",
+        extra_vars=extra_vars,
     )
 
     if run1["rc"] != 0:
@@ -157,6 +164,7 @@ def test_cleanup_idempotency(host):
         playbook=PLAYBOOK_ENTRY_POINT,
         playbook_workdir=PLAYBOOK_WORKDIR,
         tag="cleanup",
+        extra_vars=extra_vars,
     )
 
     if run2["rc"] == 0:
@@ -215,19 +223,51 @@ def test_cleanup_idempotency_no_pods(host):
 @pytest.mark.nft
 @pytest.mark.idempotency
 @pytest.mark.order(113)
-def test_cleanup_idempotency_no_pvcs(host):
-    """NFT_TL_005c: Verify no PVCs after idempotent cleanup.
+def test_cleanup_idempotency_no_pvcs(host, delete_volume):
+    """NFT_TL_005c: Verify PVC state after idempotent cleanup.
 
-    After two cleanup runs, the telemetry namespace must still have
-    zero PVCs — the second run must not re-create any resources.
+    After two cleanup runs:
+      - With Delete_volume=true: zero PVCs must remain.
+      - With Delete_volume=false: PVCs must be preserved.
     """
-    tc = TC["no_pvcs_after_full_cleanup"]
-    tl = TestLogger(
-        "Verify no PVCs after idempotent cleanup",
-        tc["id"] + "-idem",
-    )
+    if delete_volume:
+        tc = TC["no_pvcs_after_full_cleanup"]
+        tl = TestLogger(
+            "Verify no PVCs after idempotent cleanup",
+            tc["id"] + "-idem",
+        )
 
-    result = verify_no_pvcs_remaining(host)
+        result = verify_no_pvcs_remaining(host)
+
+        if result["success"]:
+            tl.passed(LOG_MSGS["no_pvcs_remaining"], result["details"])
+        else:
+            tl.failed(
+                LOG_MSGS["pvcs_remaining"].format(count=result["count"]),
+                result["details"],
+            )
+
+        assert result["success"], ASSERT_MSGS["pvcs_remaining"].format(
+            count=result["count"],
+        )
+    else:
+        tc = TC["pvcs_preserved_after_cleanup"]
+        tl = TestLogger(
+            "Verify PVCs preserved after idempotent cleanup",
+            tc["id"] + "-idem",
+        )
+
+        result = verify_pvcs_preserved(host)
+
+        if result["success"]:
+            tl.passed(LOG_MSGS["pvcs_preserved"], result["details"])
+        else:
+            tl.failed(
+                LOG_MSGS["pvcs_not_preserved"],
+                result["details"],
+            )
+
+        assert result["success"], ASSERT_MSGS["pvcs_not_preserved"]
 
     if result["success"]:
         tl.passed(LOG_MSGS["no_pvcs_remaining"], result["details"])

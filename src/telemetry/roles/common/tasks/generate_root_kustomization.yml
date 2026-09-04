@@ -48,10 +48,11 @@
 
 - name: Set powerscale_volume_health_enabled fact based on external-health-monitor-controller container
   ansible.builtin.set_fact:
-    powerscale_volume_health_enabled: "{{ health_monitor_container_status.stdout == 'true' }}"
+    powerscale_volume_health_enabled: "{{ (health_monitor_container_status.stdout | default('false')) == 'true' }}"
   when:
     - telemetry_config is defined
     - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
+    - health_monitor_container_status.stdout is defined
 
 - name: Set powerscale_volume_health_enabled to false by default
   ansible.builtin.set_fact:

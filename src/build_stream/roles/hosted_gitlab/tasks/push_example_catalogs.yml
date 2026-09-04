@@ -13,21 +13,22 @@
 # limitations under the License.
 
 ---
-- name: Ensure examples directory exists on GitLab host
+# Use catalogs from src/main/samples directory instead of removed examples/catalog
+- name: Ensure catalog directory exists on GitLab host
   ansible.builtin.file:
-    path: "{{ gitlab_hosted_payload_dir }}/examples"
+    path: "{{ gitlab_hosted_payload_dir }}/catalog"
     state: directory
     mode: '0755'
 
-- name: Find all example catalog files
+- name: Find all catalog files from samples directory
   ansible.builtin.find:
-    paths: "{{ playbook_dir }}/../../examples/catalog"
+    paths: "{{ playbook_dir }}/../../../main/samples"
     patterns: "*.json"
     recurse: false
   register: example_catalog_files
   delegate_to: localhost
 
-- name: Push example catalog files to GitLab repository
+- name: Push catalog files to GitLab repository
   ansible.builtin.include_tasks: push_single_example_catalog.yml
   loop: "{{ example_catalog_files.files }}"
   loop_control:
