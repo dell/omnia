@@ -47,6 +47,7 @@ import os
 from typing import Dict, Optional
 
 import pytest
+# pylint: disable=C0114,C0115,C0413,C0411,W0105,C0103,R0914,C0415,W0212,W0611,W0621,W0613,R0903
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -79,18 +80,16 @@ def _mock_verify_token(
 
 @pytest.fixture(scope="function")
 def client(tmp_path):
-    """
-    from infra.id_generator import UUIDv4Generator  # pylint: disable=import-outside-toplevelCreate test client with mocked JWT auth and fresh DB for each test."""
+    """Create test client with mocked JWT auth and fresh DB for each test."""
     # Register JSONB type compiler for SQLite before importing app
     from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler  # pylint: disable=import-outside-toplevel
-    from sqlalchemy.dialects.postgresql import JSONB  # pylint: disable=import-outside-toplevel
     
     # Add visit_JSONB method to SQLiteTypeCompiler
     def visit_JSONB(self, type_, **kw):
         return self.visit_JSON(type_, **kw)
-    
+
     SQLiteTypeCompiler.visit_JSONB = visit_JSONB
-    
+
     os.environ["ENV"] = "dev"
     db_file = tmp_path / "test.db"
     db_url = f"sqlite:///{db_file}"
@@ -128,6 +127,7 @@ def unauth_client():
 @pytest.fixture(name="uuid_generator")
 def uuid_generator_fixture():
     """UUID generator for test fixtures."""
+    from infra.id_generator import UUIDv4Generator  # pylint: disable=import-outside-toplevel
     return UUIDv4Generator()
 
 
