@@ -19,27 +19,31 @@
 # Installs test automation dependencies and configures credentials.
 #
 # INSTALL MODES:
-#   Default              — Creates .venv/ virtual environment and installs deps
-#   Active venv          — Auto-detected; installs into the currently active venv
+#   Default              — Installs dependencies with pip --user
+#   Active venv          — Installs into the currently active venv
+#   --venv               — Creates test/main/.venv and installs there
 #
 # CREDENTIAL HANDLING:
 #   SSH credentials (OIM server):
-#     --set-password       — Prompt for SSH password (asks twice for confirmation).
-#                            If password already exists, asks yes/no to update.
-#     --update-password    — Force-update existing SSH password (prompt twice).
-#     --password <pass>    — Set SSH password directly via flag (non-interactive).
+#     --set-creds          — Prompt for SSH password (asks twice for confirmation).
+#                            If credentials exist, asks whether to update them.
+#     --update-creds       — Force-update existing SSH password (prompt twice).
+#     --creds <pass>       — Set SSH password directly (non-interactive).
 #
-#   All credentials are written to test_creds.yml and encrypted with ansible-vault.
-#   SSH credential flags require oim_server_ip to be set in test_config.yml.
+#   Credentials are written atomically by omnia_auto to test_creds.yml and
+#   encrypted with Ansible Vault. They may be prepared before selecting a
+#   remote target; oim_server_ip is informational for credential setup.
 #
 # Usage:
-#   bash setup_env.sh                        # Create .venv/ and install
-#   bash setup_env.sh --force                # Recreate .venv/ from scratch
-#   bash setup_env.sh --set-password         # Prompt for SSH password
-#   bash setup_env.sh --update-password      # Update existing SSH password
-#   bash setup_env.sh --password "secret"    # Set SSH password via flag
-#   bash setup_env.sh --debug                # Verbose pip output
-#   bash setup_env.sh --help                 # Show this help
+#   ./setup_env.sh                         # Install with pip --user
+#   ./setup_env.sh --venv                  # Create .venv/ and install
+#   ./setup_env.sh --force                 # Force-reinstall dependencies
+#   ./setup_env.sh --venv --force          # Recreate .venv/ and install
+#   ./setup_env.sh --set-creds             # Prompt for SSH password
+#   ./setup_env.sh --update-creds          # Update existing SSH password
+#   ./setup_env.sh --creds "placeholder"   # Non-interactive setup
+#   ./setup_env.sh --debug                 # Verbose pip output
+#   ./setup_env.sh --help                  # Show this help
 # =============================================================================
 
 set -euo pipefail
@@ -49,6 +53,7 @@ VENV_DIR="${SCRIPT_DIR}/.venv"
 REQUIREMENTS="${SCRIPT_DIR}/requirements.txt"
 CREDS_FILE="${SCRIPT_DIR}/test_creds.yml"
 CREDS_KEY="${SCRIPT_DIR}/.test_creds.key"
+CRED_CLI="python3 -m omnia_auto"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Colors & helpers
@@ -68,51 +73,57 @@ fail()  { echo -e "  ${RED}[FAIL]${NC} $1"; exit 1; }
 # ─────────────────────────────────────────────────────────────────────────────
 # Parse arguments
 # ─────────────────────────────────────────────────────────────────────────────
+USE_VENV=false
 FORCE=false
 DEBUG=false
 PIP_QUIET="--quiet"
-SET_PASSWORD=false
-UPDATE_PASSWORD=false
-PASSWORD_VALUE=""
+SET_CREDS=false
+UPDATE_CREDS=false
+CREDS_VALUE=""
 TEST_CONFIG="${SCRIPT_DIR}/test_config.yml"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --venv)        USE_VENV=true; shift ;;
         --force)        FORCE=true; shift ;;
         --debug)        DEBUG=true; PIP_QUIET=""; shift ;;
-        --set-password)    SET_PASSWORD=true; shift ;;
-        --update-password) UPDATE_PASSWORD=true; shift ;;
-        --password)
+        --set-creds|--set-password)       SET_CREDS=true; shift ;;
+        --update-creds|--update-password) UPDATE_CREDS=true; shift ;;
+        --creds|--password)
             if [[ $# -lt 2 ]]; then
-                fail "--password requires a value. Usage: --password <PASSWORD>"
+                fail "--creds requires a value. Usage: --creds <PASSWORD>"
             fi
-            PASSWORD_VALUE="$2"
+            CREDS_VALUE="$2"
             shift 2
             ;;
         --help|-h)
             echo ""
             echo "Omnia Main — Test Environment Setup"
             echo ""
-            echo "Usage: bash setup_env.sh [OPTIONS]"
+            echo "Usage: ./setup_env.sh [OPTIONS]"
             echo ""
             echo "INSTALL"
             echo "─────────────────────────────────────────────────────────────────"
-            echo "  (no flag)       Create .venv/ and install all dependencies."
-            echo "  --force         Delete existing .venv/ and recreate from scratch."
+            echo "  (no flag)       Baremetal mode (pip install --user)."
+            echo "  --venv          Create .venv/ and install there."
+            echo "  --force         Force-reinstall all requirements."
+            echo "                  With --venv, recreate .venv/ first."
             echo ""
             echo "CREDENTIAL MANAGEMENT"
             echo "─────────────────────────────────────────────────────────────────"
             echo "  SSH credentials are stored in test_creds.yml and encrypted with"
-            echo "  Ansible Vault automatically.  oim_server_ip must be set in"
-            echo "  test_config.yml for SSH credential flags to work."
+            echo "  Ansible Vault automatically. They are gitignored and may be"
+            echo "  created before oim_server_ip is configured."
             echo ""
-            echo "  --set-password  Interactive SSH password setup. Prompts twice for"
+            echo "  --set-creds     Interactive SSH password setup. Prompts twice for"
             echo "                  confirmation. If already set, asks yes/no to update."
             echo ""
-            echo "  --update-password"
+            echo "  --update-creds"
             echo "                  Force-update the existing SSH password."
             echo ""
-            echo "  --password PWD  Non-interactive SSH password set."
+            echo "  --creds PWD     Non-interactive SSH password set."
+            echo ""
+            echo "  Legacy aliases: --set-password, --update-password, --password"
             echo ""
             echo "OTHER"
             echo "─────────────────────────────────────────────────────────────────"
@@ -123,7 +134,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: bash setup_env.sh [--force] [--debug] [--set-password] [--help]"
+            echo "Usage: ./setup_env.sh [--venv] [--force] [--debug] [--set-creds] [--help]"
             exit 1
             ;;
     esac
@@ -158,135 +169,93 @@ fi
 ok "Python: $($PYTHON_CMD --version)"
 
 # -----------------------------------------------
-# Step 2: Create virtual environment
+# Step 2: Determine install mode
 # -----------------------------------------------
-if [ "$FORCE" = true ] && [ -d "$VENV_DIR" ]; then
-    info "Removing existing virtual environment (--force)"
-    rm -rf "$VENV_DIR"
-fi
+INSTALL_MODE="baremetal"
+PIP_USER_FLAG="--user"
 
-if [ -d "$VENV_DIR" ]; then
-    ok "Virtual environment already exists: .venv/"
+if [ "$USE_VENV" = true ]; then
+    INSTALL_MODE="venv"
+    PIP_USER_FLAG=""
+
+    if [ "$FORCE" = true ] && [ -d "$VENV_DIR" ]; then
+        info "Removing existing virtual environment (--force)"
+        rm -rf "$VENV_DIR"
+    fi
+
+    if [ -d "$VENV_DIR" ]; then
+        ok "Virtual environment already exists: .venv/"
+    else
+        info "Creating virtual environment: .venv/"
+        "$PYTHON_CMD" -m venv "$VENV_DIR"
+        ok "Virtual environment created"
+    fi
+
+    # shellcheck disable=SC1091
+    source "${VENV_DIR}/bin/activate"
+    ok "Activated .venv/"
+elif [ -n "${VIRTUAL_ENV:-}" ]; then
+    INSTALL_MODE="active-venv"
+    PIP_USER_FLAG=""
+    ok "Detected active virtual environment: ${VIRTUAL_ENV}"
 else
-    info "Creating virtual environment: .venv/"
-    "$PYTHON_CMD" -m venv "$VENV_DIR"
-    ok "Virtual environment created"
+    ok "Install mode: baremetal (system Python)"
 fi
 
-# -----------------------------------------------
-# Step 3: Activate and install dependencies
-# -----------------------------------------------
-# shellcheck disable=SC1091
-source "${VENV_DIR}/bin/activate"
+echo -e "  ${CYAN}Mode:${NC} ${INSTALL_MODE}"
 
+# -----------------------------------------------
+# Step 3: Install dependencies
+# -----------------------------------------------
 info "Upgrading pip"
-pip install --upgrade pip $PIP_QUIET
+pip install --upgrade pip $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
+    pip install --upgrade pip $PIP_QUIET
 
 info "Installing dependencies from requirements.txt"
-pip install -r "$REQUIREMENTS" $PIP_QUIET
+PIP_FORCE_ARGS=()
+if [ "$FORCE" = true ]; then
+    PIP_FORCE_ARGS=(--force-reinstall)
+    info "Force-reinstalling all requirements (--force)"
+fi
+
+pip install "${PIP_FORCE_ARGS[@]}" -r "$REQUIREMENTS" \
+    $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
+    pip install "${PIP_FORCE_ARGS[@]}" -r "$REQUIREMENTS" $PIP_QUIET
 
 # pytest-order for test ordering
 if ! pip show pytest-order &>/dev/null; then
     info "Installing pytest-order"
-    pip install pytest-order $PIP_QUIET
+    pip install pytest-order $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
+        pip install pytest-order $PIP_QUIET
 fi
 
 ok "All dependencies installed"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 4: Credential setup (--set-password / --update-password / --password)
+# Step 4: Credential setup (delegated to omnia_auto)
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Check that oim_server_ip is configured in test_config.yml
-_check_oim_server_ip() {
+# Display the configured target without requiring one during credential setup.
+_show_oim_server_ip() {
     if [ ! -f "$TEST_CONFIG" ]; then
-        fail "test_config.yml not found at ${TEST_CONFIG}. Create it first."
+        warn "test_config.yml not found — set oim_server_ip for remote mode."
+        return
     fi
     local oim_ip
     oim_ip=$(grep -E '^oim_server_ip:' "$TEST_CONFIG" 2>/dev/null | sed 's/^oim_server_ip:[[:space:]]*//; s/["'\''[:space:]]//g' || true)
-    if [ -z "$oim_ip" ]; then
-        fail "oim_server_ip is blank in test_config.yml. Set the target server IP first:\n         vi ${TEST_CONFIG}"
-    fi
-    ok "Target server: ${oim_ip}"
-}
-
-# _ensure_vault_key — creates .test_creds.key if it does not yet exist.
-_ensure_vault_key() {
-    if [ ! -f "$CREDS_KEY" ]; then
-        info "Generating vault key: .test_creds.key"
-        python3 -c "import secrets; print(secrets.token_urlsafe(32)[:32])" > "$CREDS_KEY"
-        chmod 600 "$CREDS_KEY"
-    fi
-}
-
-# _vault_encrypt — encrypt (or re-encrypt) CREDS_FILE.
-_vault_encrypt() {
-    if command -v ansible-vault &>/dev/null; then
-        ansible-vault encrypt "$CREDS_FILE" --vault-password-file "$CREDS_KEY" 2>/dev/null
-        ok "Credentials encrypted: test_creds.yml"
+    if [ -n "$oim_ip" ]; then
+        ok "Target server: ${oim_ip}"
     else
-        warn "ansible-vault not found — credentials saved as plain text"
-        warn "Install ansible-core and re-run to encrypt"
+        warn "oim_server_ip not set — credentials saved locally for later use."
     fi
 }
 
-_create_and_encrypt_creds() {
-    # Args:  $1 = oim_password
-    local _oim_pass="${1:-}"
-
-    # If file already exists and encrypted, preserve existing values
-    if [ -f "$CREDS_FILE" ]; then
-        local _tmp
-        _tmp=$(mktemp)
-        if command -v ansible-vault &>/dev/null && grep -q '^\$ANSIBLE_VAULT' "$CREDS_FILE" 2>/dev/null; then
-            ansible-vault decrypt --output "$_tmp" \
-                --vault-password-file "$CREDS_KEY" "$CREDS_FILE" 2>/dev/null || true
-        else
-            cp "$CREDS_FILE" "$_tmp"
-        fi
-        [ -z "$_oim_pass" ] && _oim_pass=$(grep -E '^oim_password:' "$_tmp" | sed 's/^oim_password:[[:space:]]*//; s/[\"'\'']//g' || true)
-        rm -f "$_tmp"
-    fi
-
-    # Write plain-text creds file
-    cat > "$CREDS_FILE" << CREDS_EOF
----
-# Omnia Main — test credentials
-# Auto-encrypted with Ansible Vault.  Do NOT commit this file.
-
-# SSH password for the remote OIM server (oim_server_ip in test_config.yml).
-# Leave empty to use key-based authentication.
-oim_password: "${_oim_pass}"
-CREDS_EOF
-    chmod 600 "$CREDS_FILE"
-
-    _ensure_vault_key
-    _vault_encrypt
-}
-
-# Prompt for credential with 2x confirmation
-# Returns credential via stdout; all prompts/errors go to stderr
-_prompt_credential() {
-    while true; do
-        read -s -r -p "  Password: " _input1
-        echo "" >&2
-        read -s -r -p "  Confirm:  " _input2
-        echo "" >&2
-
-        if [ -z "$_input1" ]; then
-            echo -e "  ${RED}Password cannot be empty. Try again.${NC}" >&2
-            echo "" >&2
-            continue
-        fi
-
-        if [ "$_input1" = "$_input2" ]; then
-            echo "$_input1"
-            return 0
-        else
-            echo -e "  ${RED}Passwords do not match. Try again.${NC}" >&2
-            echo "" >&2
-        fi
-    done
+_write_ssh_creds() {
+    local _pass="$1"
+    $CRED_CLI write-fields \
+        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+        --fields "{\"oim_password\":\"${_pass}\"}" >/dev/null 2>&1
+    ok "SSH credentials saved: test_creds.yml (encrypted)"
 }
 
 # Ask yes/no with strict validation (loops until valid answer)
@@ -303,63 +272,51 @@ _ask_yes_no() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SSH credential dispatch
+# SSH credential dispatch (--set-creds / --update-creds / --creds)
 # ─────────────────────────────────────────────────────────────────────────────
-if [ -n "$PASSWORD_VALUE" ]; then
-    # --password: non-interactive SSH password set
-    _check_oim_server_ip
-    info "Setting SSH password from --password flag"
-    _create_and_encrypt_creds "$PASSWORD_VALUE"
+if [ -n "$CREDS_VALUE" ]; then
+    _show_oim_server_ip
+    info "Setting SSH password from --creds flag"
+    _write_ssh_creds "$CREDS_VALUE"
 
-elif [ "$UPDATE_PASSWORD" = true ]; then
-    # --update-password: force update, no "already set" check
-    _check_oim_server_ip
+elif [ "$UPDATE_CREDS" = true ]; then
+    _show_oim_server_ip
     if [ ! -f "$CREDS_FILE" ]; then
-        fail "No credentials file found. Use --set-password to create one first."
+        fail "No credentials file found. Use --set-creds to create one first."
     fi
-    echo ""
-    echo -e "  ${CYAN}Update SSH password for the target OIM server.${NC}"
-    echo ""
-    _cred_input=$(_prompt_credential)
-    _create_and_encrypt_creds "$_cred_input"
-    ok "SSH password updated successfully"
+    echo -e "\n  ${CYAN}Update SSH password for the target OIM server.${NC}\n"
+    _cred_input=$($CRED_CLI prompt-and-confirm --message "SSH Password")
+    _write_ssh_creds "$_cred_input"
 
-elif [ "$SET_PASSWORD" = true ]; then
-    # --set-password: check if already set, ask to update
-    _check_oim_server_ip
+elif [ "$SET_CREDS" = true ]; then
+    _show_oim_server_ip
 
     if [ -f "$CREDS_FILE" ]; then
         warn "SSH password is already set (test_creds.yml exists)."
         if _ask_yes_no "  Do you want to update the SSH password?"; then
-            echo ""
-            echo -e "  ${CYAN}Enter new SSH password for the target OIM server.${NC}"
-            echo ""
-            _cred_input=$(_prompt_credential)
-            _create_and_encrypt_creds "$_cred_input"
-            ok "SSH password updated successfully"
+            echo -e "\n  ${CYAN}Enter new SSH password for the target OIM server.${NC}\n"
+            _cred_input=$($CRED_CLI prompt-and-confirm --message "SSH Password")
+            _write_ssh_creds "$_cred_input"
         else
-            ok "SSH password update skipped. Existing credentials kept."
+            ok "SSH password update skipped."
         fi
     else
-        echo ""
-        echo -e "  ${CYAN}Enter SSH password for the target OIM server.${NC}"
-        echo -e "  ${CYAN}This will be saved to test_creds.yml (encrypted).${NC}"
-        echo ""
-        _cred_input=$(_prompt_credential)
-        _create_and_encrypt_creds "$_cred_input"
+        echo -e "\n  ${CYAN}Enter SSH password for the target OIM server.${NC}\n"
+        _cred_input=$($CRED_CLI prompt-and-confirm --message "SSH Password")
+        _write_ssh_creds "$_cred_input"
     fi
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # No credential flags — status report
 # ─────────────────────────────────────────────────────────────────────────────
-if [ -z "$PASSWORD_VALUE" ] && [ "$UPDATE_PASSWORD" = false ] && [ "$SET_PASSWORD" = false ]; then
+if [ -z "$CREDS_VALUE" ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = false ]; then
     if [ -f "$CREDS_FILE" ]; then
         ok "Credentials file exists: test_creds.yml"
-        ok "SSH: re-run with --set-password or --update-password to change"
+        ok "SSH: re-run with --set-creds or --update-creds to change"
     else
         warn "No credentials file found (test_creds.yml)"
-        warn "SSH creds: bash setup_env.sh --set-password"
+        warn "SSH creds: ./setup_env.sh --set-creds"
     fi
 fi
 
@@ -367,9 +324,10 @@ fi
 # REGISTER run_validation FUNCTION AND TAB COMPLETION IN .venv/bin/activate
 # =============================================================================
 
-ACTIVATE_SCRIPT="${VENV_DIR}/bin/activate"
-MARKER="# >>> omnia-main-test >>>"
-MARKER_END="# <<< omnia-main-test <<<"
+if [ "$INSTALL_MODE" = "venv" ]; then
+    ACTIVATE_SCRIPT="${VENV_DIR}/bin/activate"
+    MARKER="# >>> omnia-main-test >>>"
+    MARKER_END="# <<< omnia-main-test <<<"
 
 # Remove any previous block (idempotent)
 if grep -q "${MARKER}" "${ACTIVATE_SCRIPT}" 2>/dev/null; then
@@ -402,21 +360,30 @@ _run_validation_completions() {
             scenarios="${scenarios} ${name}"
         done
     fi
-    local commands="deploy verify test"
-    local special="all list help --config --help"
+    local commands="exec verify test"
+    local categories="fvt_main nft_main"
+    local special="help --config --help"
     local options="--suite --marker -v --verbose --debug"
     local markers="sanity functional regression deploy"
     case "$COMP_CWORD" in
-        1) COMPREPLY=( $(compgen -W "${scenarios} ${special}" -- "$cur") ) ;;
+        1) COMPREPLY=( $(compgen -W "${categories} ${special}" -- "$cur") ) ;;
         2)
             case "$prev" in
-                list|help|--help|-h|--config) COMPREPLY=() ;;
-                *) COMPREPLY=( $(compgen -W "${commands}" -- "$cur") ) ;;
+                fvt_main) COMPREPLY=( $(compgen -W "${scenarios} ${commands} list" -- "$cur") ) ;;
+                nft_main) COMPREPLY=( $(compgen -W "test verify list" -- "$cur") ) ;;
+                *) COMPREPLY=() ;;
             esac ;;
+        3)
+            if [ "${COMP_WORDS[1]}" = "fvt_main" ] && \
+               [[ " ${scenarios} " == *" ${COMP_WORDS[2]} "* ]]; then
+                COMPREPLY=( $(compgen -W "${commands}" -- "$cur") )
+            else
+                COMPREPLY=( $(compgen -W "${options}" -- "$cur") )
+            fi ;;
         *)
             case "$prev" in
                 --suite)
-                    local scenario="${COMP_WORDS[1]}"
+                    local scenario="${COMP_WORDS[2]}"
                     local suites=""
                     if [ -d "${fvt_dir}/${scenario}" ]; then
                         for d in "${fvt_dir}/${scenario}"/*/; do
@@ -438,19 +405,30 @@ complete -F _run_validation_completions run_validation
 # <<< omnia-main-test <<<
 MAIN_ACTIVATE_EOF
 
-ok "Registered run_validation and tab-completion in venv activate"
+    ok "Registered run_validation and tab-completion in venv activate"
+fi
 
 echo ""
 echo "================================================================="
-echo "  Environment Ready"
+echo "  Environment Ready (${INSTALL_MODE})"
 echo "================================================================="
 echo ""
-echo "  Next steps:"
-echo "    source .venv/bin/activate"
-echo "    vi test_config.yml                  # Set oim_server_ip"
-echo "    bash setup_env.sh --set-password    # Set SSH password"
-echo "    run_validation --help               # Full usage (no ./ needed)"
-echo "    run_validation setup verify --marker sanity"
+case "$INSTALL_MODE" in
+    venv)
+        echo "  Next steps:"
+        echo "    source .venv/bin/activate"
+        ;;
+    active-venv)
+        echo "  Next steps (venv already active):"
+        ;;
+    baremetal)
+        echo "  Next steps:"
+        ;;
+esac
+echo "    vi test_config.yml                 # Set oim_server_ip"
+echo "    ./setup_env.sh --set-creds         # Optional SSH password"
+echo "    ./run_validation.sh --help"
+echo "    ./run_validation.sh fvt_main verify --marker sanity"
 echo ""
 echo "================================================================="
 echo ""

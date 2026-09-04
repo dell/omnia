@@ -15,18 +15,20 @@
 """
 Omnia Main CLI -- --prepare-base Verification.
 
-TC_PB_001: Verify --prepare-base flag appears in help output
-TC_PB_002: Verify --prepare-base --dry-run shows domains and phases
-TC_PB_003: Verify --prepare-base --dry-run --skip filters domains
-TC_PB_004: Verify --prepare-base --skip with invalid domain exits with error
-TC_PB_005: Verify --prepare-base --skip all domains shows no-op message
-TC_PB_006: Verify --prepare-base --dry-run shows all lifecycle phases
-TC_PB_007: Verify --prepare-base --dry-run shows fail-fast note
-TC_PB_008: Verify --prepare-base --dry-run shows correct domain order
-TC_PB_009: Verify --prepare-base --dry-run --skip with 2 domains
+MAIN_FVT_CLI_V024: Verify --prepare-base flag appears in help output
+MAIN_FVT_CLI_V025: Verify --prepare-base --dry-run shows domains and phases
+MAIN_FVT_CLI_V026: Verify --prepare-base --dry-run --skip filters domains
+MAIN_FVT_CLI_V027: Verify --prepare-base --skip with invalid domain exits with error
+MAIN_FVT_CLI_V028: Verify --prepare-base --skip all domains shows no-op message
+MAIN_FVT_CLI_V029: Verify --prepare-base --dry-run shows all lifecycle phases
+MAIN_FVT_CLI_V030: Verify --prepare-base --dry-run shows fail-fast note
+MAIN_FVT_CLI_V031: Verify --prepare-base --dry-run shows correct domain order
+MAIN_FVT_CLI_V032: Verify --prepare-base --dry-run --skip with 2 domains
 """
 
 import pytest
+
+from library.vars import TEST_CASES as TC
 
 from library.functions import TestLogger
 from library.functions.omnia_main_func import (
@@ -34,7 +36,6 @@ from library.functions.omnia_main_func import (
     run_omnia_cmd_expect_error,
 )
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
@@ -49,13 +50,13 @@ from library.vars.common_vars import (
 # ---------------------------------------------------------------------------
 
 @pytest.mark.sanity
-@pytest.mark.order(27)
+@pytest.mark.order(24)
 def test_prepare_base_in_help(host):
-    """TC_PB_001: Verify --prepare-base flag appears in help output."""
-    tl = TestLogger(
-        TEST_NAMES["prepare_base_in_help"], "TC_PB_001"
-    )
+    """MAIN_FVT_CLI_V024: Verify --prepare-base flag appears in help output."""
+    tc = TC["prepare_base_in_help"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(host, "omnia_sh_prepare_base_help")
+    tl.bind_result(result)
 
     found = "--prepare-base" in result.get("output", "")
 
@@ -72,13 +73,13 @@ def test_prepare_base_in_help(host):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.sanity
-@pytest.mark.order(28)
+@pytest.mark.order(25)
 def test_prepare_base_dry_run(host):
-    """TC_PB_002: Verify --prepare-base --dry-run shows domains and phases."""
-    tl = TestLogger(
-        TEST_NAMES["prepare_base_dry_run_output"], "TC_PB_002"
-    )
+    """MAIN_FVT_CLI_V025: Verify --prepare-base --dry-run shows domains and phases."""
+    tc = TC["prepare_base_dry_run"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(host, "omnia_sh_prepare_base_dry_run")
+    tl.bind_result(result)
     output = result.get("output", "")
 
     has_dry_run = "DRY RUN" in output
@@ -99,16 +100,16 @@ def test_prepare_base_dry_run(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(29)
+@pytest.mark.order(26)
 def test_prepare_base_dry_run_skip(host):
-    """TC_PB_003: Verify --prepare-base --dry-run --skip filters domains."""
-    tl = TestLogger(
-        TEST_NAMES["prepare_base_dry_run_skip"], "TC_PB_003"
-    )
+    """MAIN_FVT_CLI_V026: Verify --prepare-base --dry-run --skip filters domains."""
+    tc = TC["prepare_base_dry_run_skip"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(
         host, "omnia_sh_prepare_base_dry_run_skip",
         domain="orchestrator",
     )
+    tl.bind_result(result)
     output = result.get("output", "")
 
     has_dry_run = "DRY RUN" in output
@@ -139,17 +140,17 @@ def test_prepare_base_dry_run_skip(host):
 # --prepare-base --skip error handling tests
 # ---------------------------------------------------------------------------
 
-@pytest.mark.sanity
-@pytest.mark.order(30)
+@pytest.mark.regression
+@pytest.mark.order(27)
 def test_prepare_base_skip_invalid(host):
-    """TC_PB_004: Verify --prepare-base --skip with invalid domain exits
+    """MAIN_FVT_CLI_V027: Verify --prepare-base --skip with invalid domain exits
     with error."""
-    tl = TestLogger(
-        TEST_NAMES["prepare_base_skip_invalid"], "TC_PB_004"
-    )
+    tc = TC["prepare_base_skip_invalid"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd_expect_error(
         host, "omnia_sh_prepare_base_skip_invalid",
     )
+    tl.bind_result(result)
 
     if result["success"]:
         tl.passed(LOG["prepare_base_skip_invalid_ok"].format(
@@ -166,16 +167,16 @@ def test_prepare_base_skip_invalid(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(31)
+@pytest.mark.order(28)
 def test_prepare_base_skip_all(host):
-    """TC_PB_005: Verify --prepare-base --skip all domains shows no-op
+    """MAIN_FVT_CLI_V028: Verify --prepare-base --skip all domains shows no-op
     message."""
-    tl = TestLogger(
-        TEST_NAMES["prepare_base_skip_all"], "TC_PB_005"
-    )
+    tc = TC["prepare_base_skip_all"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(
         host, "omnia_sh_prepare_base_skip_all",
     )
+    tl.bind_result(result)
     output = result.get("output", "")
 
     has_no_op = (
@@ -196,14 +197,14 @@ def test_prepare_base_skip_all(host):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.sanity
-@pytest.mark.order(32)
+@pytest.mark.order(29)
 def test_prepare_base_dry_run_phases(host):
-    """TC_PB_006: Verify --prepare-base --dry-run shows all lifecycle
+    """MAIN_FVT_CLI_V029: Verify --prepare-base --dry-run shows all lifecycle
     phases."""
-    tl = TestLogger(
-        TEST_NAMES["prepare_base_dry_run_phases"], "TC_PB_006"
-    )
+    tc = TC["prepare_base_dry_run_phases"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(host, "omnia_sh_prepare_base_dry_run")
+    tl.bind_result(result)
     output = result.get("output", "")
 
     missing = [
@@ -222,14 +223,13 @@ def test_prepare_base_dry_run_phases(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(33)
+@pytest.mark.order(30)
 def test_prepare_base_dry_run_fail_fast_note(host):
-    """TC_PB_007: Verify --prepare-base --dry-run shows fail-fast note."""
-    tl = TestLogger(
-        TEST_NAMES["prepare_base_dry_run_fail_fast_note"],
-        "TC_PB_007",
-    )
+    """MAIN_FVT_CLI_V030: Verify --prepare-base --dry-run shows fail-fast note."""
+    tc = TC["prepare_base_dry_run_fail_fast_note"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(host, "omnia_sh_prepare_base_dry_run")
+    tl.bind_result(result)
     output = result.get("output", "")
 
     has_note = (
@@ -246,15 +246,14 @@ def test_prepare_base_dry_run_fail_fast_note(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(34)
+@pytest.mark.order(31)
 def test_prepare_base_dry_run_domain_order(host):
-    """TC_PB_008: Verify --prepare-base --dry-run shows correct domain
+    """MAIN_FVT_CLI_V031: Verify --prepare-base --dry-run shows correct domain
     order (repo_manager -> image_build_manager -> orchestrator)."""
-    tl = TestLogger(
-        TEST_NAMES["prepare_base_dry_run_domain_order"],
-        "TC_PB_008",
-    )
+    tc = TC["prepare_base_dry_run_domain_order"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(host, "omnia_sh_prepare_base_dry_run")
+    tl.bind_result(result)
     output = result.get("output", "")
 
     # Verify order by checking relative positions
@@ -281,18 +280,17 @@ def test_prepare_base_dry_run_domain_order(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(35)
+@pytest.mark.order(32)
 def test_prepare_base_dry_run_skip_multiple(host):
-    """TC_PB_009: Verify --prepare-base --dry-run --skip with 2 domains
+    """MAIN_FVT_CLI_V032: Verify --prepare-base --dry-run --skip with 2 domains
     leaves only one domain."""
-    tl = TestLogger(
-        TEST_NAMES["prepare_base_dry_run_skip_multiple"],
-        "TC_PB_009",
-    )
+    tc = TC["prepare_base_dry_run_skip_multiple"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(
         host, "omnia_sh_prepare_base_dry_run_skip",
         domain="orchestrator,repo_manager",
     )
+    tl.bind_result(result)
     output = result.get("output", "")
 
     has_dry_run = "DRY RUN" in output
