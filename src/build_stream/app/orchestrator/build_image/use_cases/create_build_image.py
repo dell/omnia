@@ -225,9 +225,9 @@ class CreateBuildImageUseCase:
         once the build completes.
         """
         try:
-            base = os.path.join(
-                os.getenv("OMNIA_DATA_PATH", "/opt/omnia"),
-                "build_stream_root"
+            base = os.environ.get(
+                "NFS_ARTIFACT_BASE",
+                os.path.join(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream_root")
             )
             job_dir = Path(base) / "artifacts" / job_id
             job_dir.mkdir(parents=True, exist_ok=True)
