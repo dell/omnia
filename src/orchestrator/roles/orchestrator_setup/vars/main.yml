@@ -25,6 +25,10 @@ default_pxe_mapping_file_path: >-
 default_catalog_file_path: "{{ lookup('env', 'CATALOG_FILE_PATH') | default(omnia_data_path | default('/opt/omnia') + '/catalog/catalog_rhel.json', true) }}"
 
 # --- Tag validation ---
+# Tags accepted by orchestrator.yml. Component-level cleanup tags (slurm,
+# k8s, openchami, openldap, storage_mounts, artifacts) are intentionally
+# absent: they are only valid when running
+# playbooks/cleanup/cleanup_orchestrator.yml directly.
 supported_tags:
   - precheck
   - validate
@@ -36,15 +40,19 @@ supported_tags:
   - validate-deployment
   - pxeboot
   - cleanup
+  - cleanup_credentials
   - upgrade
   - rollback
 
 skip_credential_tags:
   - precheck
   - cleanup
+  - cleanup_credentials
   - validate-deployment
   - validate
 
+# cleanup + cleanup_credentials is a valid pair (clean everything including
+# credential files); every other cleanup pairing is rejected.
 invalid_tag_combinations:
   - [precheck, cleanup]
   - [validate, cleanup]
@@ -55,6 +63,19 @@ invalid_tag_combinations:
   - [provision, cleanup]
   - [execute, cleanup]
   - [pxeboot, cleanup]
+  - [cleanup, upgrade]
+  - [cleanup, rollback]
+  - [precheck, cleanup_credentials]
+  - [validate, cleanup_credentials]
+  - [validate-deployment, cleanup_credentials]
+  - [credentials, cleanup_credentials]
+  - [prepare, cleanup_credentials]
+  - [deploy, cleanup_credentials]
+  - [provision, cleanup_credentials]
+  - [execute, cleanup_credentials]
+  - [pxeboot, cleanup_credentials]
+  - [cleanup_credentials, upgrade]
+  - [cleanup_credentials, rollback]
   - [precheck, upgrade]
   - [validate, upgrade]
   - [validate-deployment, upgrade]
@@ -63,7 +84,6 @@ invalid_tag_combinations:
   - [deploy, upgrade]
   - [provision, upgrade]
   - [execute, upgrade]
-  - [cleanup, upgrade]
   - [upgrade, rollback]
 
 # OIM host group
