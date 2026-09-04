@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=C0303,W0621,W0212
+
 """Unit tests for LocalRepoResultPoller."""
 
 import asyncio

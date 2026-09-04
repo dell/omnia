@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Test-specific database models with SQLite-compatible types."""
+# pylint: disable=C0301,E1102,R0903,W0611
 
-import uuid
-from datetime import datetime
+"""Test-specific database models with SQLite-compatible types."""
 
 from sqlalchemy import (
     Column,

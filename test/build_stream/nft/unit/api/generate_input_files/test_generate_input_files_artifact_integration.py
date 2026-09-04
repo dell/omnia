@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=C0301,C0303,C0411,W0611,R0913,C0415,W0612,W0718
+
 """Integration tests for generate input files API with artifact storage."""
 
 import json
@@ -23,9 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from common.config import load_config
 from container import container
-from core.artifacts.value_objects import ArtifactKind, StoreHint
 from core.jobs.value_objects import ClientId, CorrelationId, IdempotencyKey, JobId
 from infra.artifact_store.file_artifact_store import FileArtifactStore
 from orchestrator.catalog.commands.generate_input_files import GenerateInputFilesCommand
@@ -127,7 +127,7 @@ base_path = {self.temp_file_dir}/artifacts
 
         # First execute parse catalog to create prerequisite artifacts
         parse_catalog_use_case = container.parse_catalog_use_case()
-        
+
         # Create a simple catalog for testing
         catalog_data = {
             "Catalog": {
@@ -157,19 +157,19 @@ base_path = {self.temp_file_dir}/artifacts
                 "DriverPackages": {}
             }
         }
-        
+
         catalog_bytes = json.dumps(catalog_data).encode('utf-8')
-        
+
         # Import the correct command for parse catalog
         from orchestrator.catalog.commands.parse_catalog import ParseCatalogCommand
-        
+
         parse_command = ParseCatalogCommand(
             job_id=job_id,
             correlation_id=CorrelationId(str(uuid.uuid4())),
             filename="catalog.json",
             content=catalog_bytes,
         )
-        
+
         # Execute parse catalog first (this will create the necessary artifacts)
         try:
             parse_result = parse_catalog_use_case.execute(parse_command)
@@ -180,26 +180,26 @@ base_path = {self.temp_file_dir}/artifacts
                 correlation_id=CorrelationId(str(uuid.uuid4())),
                 adapter_policy_path=None,  # Use default policy
             )
-            
+
             # Execute generate input files
             result = generate_input_files_use_case.execute(command)
-            
+
             # Verify the result structure
             assert result is not None
             assert hasattr(result, 'stage_state')
             assert hasattr(result, 'generated_files')
-            
+
             # Check that artifacts were created in the file store
             artifact_store = container.artifact_store()
             base_path = Path(self.temp_file_dir) / "artifacts"
-            
+
             # Look for generated files in the artifact store
             artifact_files = list(base_path.rglob("*.json"))
-            
+
             # Should have at least some files generated (even if the process failed partially)
             # The exact number depends on the policy and catalog content
             assert len(artifact_files) >= 0  # Allow for empty result in case of failures
-            
+
             # If files were generated, verify they contain valid JSON
             for artifact_file in artifact_files:
                 assert artifact_file.exists()
@@ -211,7 +211,7 @@ base_path = {self.temp_file_dir}/artifacts
                     except json.JSONDecodeError:
                         # If it's not JSON, it might be an error log or other output
                         assert isinstance(content, str)
-        
+
         except Exception as e:
             # If parse catalog fails, generate input files should also fail
             # This is expected behavior - generate input files depends on parse catalog
@@ -221,7 +221,7 @@ base_path = {self.temp_file_dir}/artifacts
                 correlation_id=CorrelationId(str(uuid.uuid4())),
                 adapter_policy_path=None,
             )
-            
+
             # Should fail due to missing upstream stage
             with pytest.raises(Exception):  # Should raise UpstreamStageNotCompletedError or similar
                 generate_input_files_use_case.execute(command)
@@ -253,13 +253,13 @@ base_path = {self.temp_file_dir}/artifacts
                 }
             }
         }
-        
+
         policy_file = Path(self.temp_file_dir) / "custom_policy.json"
         policy_file.write_text(json.dumps(custom_policy, indent=2))
-        
+
         # First, try to run parse catalog to create prerequisite artifacts
         parse_catalog_use_case = container.parse_catalog_use_case()
-        
+
         # Create a simple catalog for testing
         catalog_data = {
             "Catalog": {
@@ -274,18 +274,18 @@ base_path = {self.temp_file_dir}/artifacts
                 "DriverPackages": {}
             }
         }
-        
+
         catalog_bytes = json.dumps(catalog_data).encode('utf-8')
-        
+
         from orchestrator.catalog.commands.parse_catalog import ParseCatalogCommand
-        
+
         parse_command = ParseCatalogCommand(
             job_id=job_id,
             correlation_id=CorrelationId(str(uuid.uuid4())),
             filename="catalog.json",
             content=catalog_bytes,
         )
-        
+
         # Try to execute parse catalog first
         try:
             parse_result = parse_catalog_use_case.execute(parse_command)
@@ -296,23 +296,23 @@ base_path = {self.temp_file_dir}/artifacts
                 correlation_id=CorrelationId(str(uuid.uuid4())),
                 adapter_policy_path=policy_file,
             )
-            
+
             # Execute generate input files
             result = generate_input_files_use_case.execute(command)
-            
+
             # Verify the result structure
             assert result is not None
             assert hasattr(result, 'stage_state')
             assert hasattr(result, 'generated_files')
-            
+
             # Check that artifacts were created
             artifact_store = container.artifact_store()
             base_path = Path(self.temp_file_dir) / "artifacts"
-            
+
             # Look for generated files
             artifact_files = list(base_path.rglob("*.json"))
             assert len(artifact_files) >= 0
-            
+
         except Exception:
             # If parse catalog fails, generate input files should also fail
             generate_input_files_use_case = container.generate_input_files_use_case()
@@ -321,7 +321,7 @@ base_path = {self.temp_file_dir}/artifacts
                 correlation_id=CorrelationId(str(uuid.uuid4())),
                 adapter_policy_path=policy_file,
             )
-            
+
             # Should fail due to missing upstream stage
             with pytest.raises(Exception):
                 generate_input_files_use_case.execute(command)
@@ -347,7 +347,7 @@ base_path = {self.temp_file_dir}/artifacts
             correlation_id=CorrelationId(str(uuid.uuid4())),
             adapter_policy_path=None,  # Use default policy
         )
-        
+
         # Should handle missing prerequisites gracefully
         try:
             result = generate_input_files_use_case.execute(command)
@@ -379,18 +379,18 @@ base_path = {self.temp_file_dir}/artifacts
             correlation_id=CorrelationId(str(uuid.uuid4())),
             adapter_policy_path=None,
         )
-        
+
         # Execute the command
         try:
             result = generate_input_files_use_case.execute(command)
-            
+
             # Check artifact metadata repository
             artifact_metadata_repo = container.artifact_metadata_repository()
-            
+
             # Look for metadata related to this job
             # (The exact implementation depends on how metadata is stored)
             assert artifact_metadata_repo is not None
-            
+
         except Exception:
             # If the execution fails, we still verify the repository exists
             artifact_metadata_repo = container.artifact_metadata_repository()

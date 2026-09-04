@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=C0301,C0411,W0611,R0913,C0415,C0412
+
 """Unit tests for local repository API routes."""
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.local_repo.routes import router
@@ -34,7 +36,6 @@ from core.localrepo.exceptions import (
     InputFilesMissingError,
     QueueUnavailableError,
 )
-from api.local_repo.schemas import CreateLocalRepoResponse
 from orchestrator.local_repo.dtos import LocalRepoResponse
 
 

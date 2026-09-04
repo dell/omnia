@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=C0303,W0621,C0116
+
 """Unit tests for ParseCatalogCommand."""
 
 from dataclasses import FrozenInstanceError

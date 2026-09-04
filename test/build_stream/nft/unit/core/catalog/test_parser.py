@@ -12,16 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=C0303,W0621,W0613,R0903
+
 """Unit tests for Catalog parser."""
 
 import json
 import os
 import tempfile
-from jsonschema import ValidationError
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
+from jsonschema import ValidationError
 
 from core.catalog.parser import ParseCatalog, _DEFAULT_SCHEMA_PATH
 
@@ -60,7 +62,7 @@ class TestParseCatalog:
         try:
             # Mock the schema loading to avoid dependency on actual schema file
             mock_schema = {"type": "object", "properties": {"Catalog": {"type": "object"}}}
-            
+
             with patch('core.catalog.parser.load_json_file') as mock_load:
                 # Configure mock to return schema for schema_path and catalog data for catalog_path
                 def load_side_effect(path):
@@ -70,14 +72,14 @@ class TestParseCatalog:
                         return catalog_data
                     else:
                         raise FileNotFoundError(f"Unexpected path: {path}")
-                
+
                 mock_load.side_effect = load_side_effect
-                
+
                 result = ParseCatalog(catalog_path)
-                
+
                 # The function should return some object (we don't need to check the exact type)
                 assert result is not None
-                
+
         finally:
             os.unlink(catalog_path)
 
@@ -113,14 +115,14 @@ class TestParseCatalog:
                         return catalog_data
                     else:
                         raise FileNotFoundError(f"Unexpected path: {path}")
-                
+
                 mock_load.side_effect = load_side_effect
-                
+
                 result = ParseCatalog(catalog_path, custom_schema_path)
-                
+
                 # The function should return some object
                 assert result is not None
-                
+
         finally:
             os.unlink(catalog_path)
 
@@ -160,12 +162,12 @@ class TestParseCatalog:
                         return invalid_catalog_data
                     else:
                         raise FileNotFoundError(f"Unexpected path: {path}")
-                
+
                 mock_load.side_effect = load_side_effect
-                
+
                 with pytest.raises(ValidationError):
                     ParseCatalog(catalog_path)
-                    
+
         finally:
             os.unlink(catalog_path)
 
@@ -242,14 +244,14 @@ class TestParseCatalog:
                         return catalog_data
                     else:
                         raise FileNotFoundError(f"Unexpected path: {path}")
-                
+
                 mock_load.side_effect = load_side_effect
-                
+
                 result = ParseCatalog(catalog_path)
-                
+
                 # The function should return some object
                 assert result is not None
-                
+
         finally:
             os.unlink(catalog_path)
 
@@ -284,13 +286,13 @@ class TestParseCatalog:
                         return catalog_data
                     else:
                         raise FileNotFoundError(f"Unexpected path: {path}")
-                
+
                 mock_load.side_effect = load_side_effect
-                
+
                 result = ParseCatalog(catalog_path)
-                
+
                 # The function should return some object
                 assert result is not None
-                
+
         finally:
             os.unlink(catalog_path)

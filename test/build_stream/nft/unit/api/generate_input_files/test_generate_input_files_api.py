@@ -1,3 +1,5 @@
+# pylint: disable=C0301,C0303,C0411,W0611,R0913,C0415,W0612,W0718,R0914
+
 """
 GenerateInputFiles API Integration Tests
 
@@ -9,7 +11,6 @@ Tests the complete API endpoint behavior including:
 - Cross-stage artifact dependencies
 """
 
-import json
 import os
 import threading
 import uuid
@@ -20,7 +21,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from main import app
-from container import DevContainer
 
 
 class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
@@ -128,7 +128,7 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
         response = client.post(
             f"/api/v1/jobs/{valid_job_id}/stages/generate-input-files"
         )
-        
+
         # Should not be 404 (endpoint exists)
         assert response.status_code != 404
         # Should require authentication
@@ -165,7 +165,7 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers={"Authorization": "Bearer test-token"},
         )
-        
+
         assert response.status_code in [412, 422]
 
     def test_invalid_job_id_format(self, client: TestClient, auth_headers: Dict[str, str]) -> None:
@@ -174,7 +174,7 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
             "/api/v1/jobs/invalid-uuid/stages/generate-input-files",
             headers=auth_headers
         )
-        
+
         # Should validate job ID format (may return 400 or 422)
         assert response.status_code in [400, 422]
 
@@ -200,7 +200,7 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
             headers=headers_with_content_type,
             data="not json content"
         )
-        
+
         assert response.status_code == 422
 
     def test_empty_request_body(self, client: TestClient, auth_headers: Dict[str, str], created_job: Dict[str, Any]) -> None:
@@ -211,7 +211,7 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
             headers=auth_headers,
             data=""
         )
-        
+
         # Should handle empty body gracefully
         assert response.status_code in [200, 400, 412, 422, 500]
 
@@ -224,20 +224,20 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
                 headers=auth_headers,
                 json={}
             )
-        
+
         # Make concurrent requests
         threads = []
         responses = []
-        
+
         for _ in range(3):
             thread = threading.Thread(target=lambda: responses.append(make_request()))
             threads.append(thread)
             thread.start()
-        
+
         # Wait for all threads to complete
         for thread in threads:
             thread.join()
-        
+
         # All requests should be processed (may succeed or fail gracefully)
         for response in responses:
             assert response.status_code in [200, 400, 409, 412, 422, 500]
@@ -250,24 +250,24 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
             headers=auth_headers,
             json={}
         )
-        
+
         if response.status_code == 200:
             data = response.json()
-            
+
             # Should have required fields
             assert "stage_state" in data
             assert data["stage_state"] in ["COMPLETED", "FAILED"]
-            
+
             # If completed, should have generated files
             if data["stage_state"] == "COMPLETED":
                 assert "generated_files" in data
                 assert isinstance(data["generated_files"], list)
-                
+
                 # Each generated file should have required fields
                 for generated_file in data["generated_files"]:
                     assert "filename" in generated_file
                     assert "artifact_ref" in generated_file
-                    
+
                     artifact_ref = generated_file["artifact_ref"]
                     assert "key" in artifact_ref
                     assert "digest" in artifact_ref
@@ -282,13 +282,13 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
             headers=auth_headers,
             json={"adapter_policy_path": "/nonexistent/path/policy.json"}
         )
-        
+
         if response.status_code in [400, 422]:
             data = response.json()
-            
+
             # Should have error information - check for common error response formats
             assert "detail" in data or "error" in data or "message" in data
-            
+
             # Check the actual structure based on what's present
             if "detail" in data:
                 if isinstance(data["detail"], dict):
@@ -315,13 +315,13 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
     def test_job_not_found_error(self, client: TestClient, auth_headers: Dict[str, str]) -> None:
         """Test behavior when job doesn't exist."""
         nonexistent_job_id = str(uuid.uuid4())
-        
+
         response = client.post(
             f"/api/v1/jobs/{nonexistent_job_id}/stages/generate-input-files",
             headers=auth_headers,
             json={}
         )
-        
+
         # Should handle nonexistent job gracefully
         assert response.status_code in [400, 404, 422, 500]
 
@@ -333,7 +333,7 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
             headers=auth_headers,
             json={}
         )
-        
+
         # May fail due to missing parse catalog artifacts
         if response.status_code in [400, 422]:
             data = response.json()
@@ -347,7 +347,7 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
             else:
                 # detail is a string
                 combined_text = str(detail).lower()
-            
+
             dependency_keywords = ["dependency", "prerequisite", "catalog", "artifact"]
             has_dependency_error = any(keyword in combined_text for keyword in dependency_keywords)
             # This is optional - the exact error handling may vary
@@ -359,13 +359,13 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
         request_data = {
             "adapter_policy_path": "/nonexistent/custom_policy.json"
         }
-        
+
         response = client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers,
             json=request_data
         )
-        
+
         # Should handle missing policy file
         assert response.status_code in [400, 412, 422, 500]
 
@@ -374,19 +374,19 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
         job_id = created_job["job_id"]
         # Make the same request twice with same idempotency key
         request_data = {}
-        
+
         response1 = client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers,
             json=request_data
         )
-        
+
         response2 = client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers,
             json=request_data
         )
-        
+
         # Both should be processed (idempotency behavior may vary)
         assert response1.status_code in [200, 400, 409, 412, 422, 500]
         assert response2.status_code in [200, 400, 409, 412, 422, 500]
@@ -395,15 +395,15 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
         """Test handling of unusually long policy paths."""
         job_id = created_job["job_id"]
         long_path = "/opt/omnia/" + "very_long_subdirectory_name/" * 20 + "policy.json"
-        
+
         request_data = {"adapter_policy_path": long_path}
-        
+
         response = client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers,
             json=request_data
         )
-        
+
         # Should handle long paths gracefully (may fail validation)
         assert response.status_code in [200, 400, 412, 422, 500]
 
@@ -416,7 +416,7 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
             "/opt/omnia/policy_with_underscores.json",
             "/opt/omnia/policy.with.dots.json"
         ]
-        
+
         for special_path in special_paths:
             request_data = {"adapter_policy_path": special_path}
             response = client.post(
@@ -424,6 +424,6 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
                 headers=auth_headers,
                 json=request_data
             )
-            
+
             # Should handle special characters (may fail if file doesn't exist)
             assert response.status_code in [200, 400, 412, 422, 500]

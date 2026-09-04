@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=W0621,W0611
+
 """Shared fixtures for artifact domain tests."""
 
 import pytest
@@ -19,7 +21,6 @@ import pytest
 from core.artifacts.value_objects import (
     ArtifactDigest,
     ArtifactKey,
-    ArtifactKind,
     ArtifactRef,
     StoreHint,
 )

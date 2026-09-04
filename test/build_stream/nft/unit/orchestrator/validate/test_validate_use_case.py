@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=C0116,W0621,W0613,R0903
+
 """Unit tests for ValidateUseCase — Phase 3 (spec §7)."""
 
 import uuid

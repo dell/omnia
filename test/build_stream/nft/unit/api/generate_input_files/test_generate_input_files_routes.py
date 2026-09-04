@@ -12,23 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=C0301,C0303,C0411,W0611,R0913,C0415,W0612,W0718,R0914
+
 """Integration tests for Generate Input Files API routes."""
 
 import json
-import uuid
-from typing import Dict, Any
+from typing import Dict
 
-import pytest
 from fastapi.testclient import TestClient
-
-from main import app
-from container import DevContainer
 
 
 class TestGenerateInputFilesRoutes:
     """Integration tests for generate input files API endpoints."""
 
-    
+
     def test_generate_input_files_endpoint_exists(self, client: TestClient) -> None:
         """Test that the generate input files endpoint exists and is accessible."""
         # Test with invalid auth to check endpoint exists (should get 401, not 404)
@@ -36,7 +33,7 @@ class TestGenerateInputFilesRoutes:
             "/api/v1/jobs/invalid-job-id/stages/generate-input-files",
             headers={"Authorization": "Bearer invalid-token"},
         )
-        
+
         # Should not be 404 (endpoint exists)
         assert response.status_code != 404
         # Should be 401 (auth required), 403 (forbidden), or 422 (validation error)
@@ -75,7 +72,7 @@ class TestGenerateInputFilesRoutes:
         response = client.post(
             "/api/v1/jobs/invalid-job-id/stages/generate-input-files",
         )
-        
+
         # With mocked auth, may get 400 (invalid job ID) instead of 401
         assert response.status_code in [400, 401]
 
@@ -86,7 +83,7 @@ class TestGenerateInputFilesRoutes:
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers={"Authorization": "Bearer test-token"},
         )
-        
+
         # May get 412 (upstream not completed) or 422 (missing correlation)
         assert response.status_code in [400, 412, 422]
 
@@ -96,7 +93,7 @@ class TestGenerateInputFilesRoutes:
             "/api/v1/jobs/invalid-uuid/stages/generate-input-files",
             headers=auth_headers
         )
-        
+
         # Should validate job ID format (may return 400 or 422)
         assert response.status_code in [400, 422]
 
@@ -112,7 +109,7 @@ class TestGenerateInputFilesRoutes:
             headers=auth_headers,
             json=request_data
         )
-        
+
         # Should reject path traversal attempts
         assert response.status_code in [400, 422]
 
@@ -128,7 +125,7 @@ class TestGenerateInputFilesRoutes:
             json=request_data,
             headers=auth_headers,
         )
-        
+
         # Should handle empty policy path (may use default or fail validation)
         assert response.status_code in [200, 400, 412, 422, 500]
 
@@ -136,7 +133,7 @@ class TestGenerateInputFilesRoutes:
         """Test that OpenAPI documentation includes generate input files endpoint."""
         response = client.get("/openapi.json")
         assert response.status_code == 200
-        
+
         openapi_spec = response.json()
         # Should contain the generate input files endpoint
         assert "/api/v1/jobs/{job_id}/stages/generate-input-files" in str(openapi_spec)
@@ -145,7 +142,7 @@ class TestGenerateInputFilesRoutes:
         """Test that API documentation page is accessible."""
         response = client.get("/docs")
         assert response.status_code == 200
-        
+
         # Check that the page is the Swagger UI documentation
         docs_content = response.text.lower()
         assert "swagger ui" in docs_content
@@ -165,7 +162,7 @@ class TestGenerateInputFilesRoutes:
             data = response.json()
             assert "stage_state" in data
             assert data["stage_state"] in ["COMPLETED", "FAILED"]
-            
+
             if data["stage_state"] == "COMPLETED":
                 assert "generated_files" in data
                 assert isinstance(data["generated_files"], list)
@@ -179,7 +176,7 @@ class TestGenerateInputFilesRoutes:
             headers=auth_headers,
             json={"adapter_policy_path": "../../../etc/passwd"}
         )
-        
+
         # Should reject path traversal attempts
         assert response.status_code in [400, 422, 500]
 
@@ -191,6 +188,6 @@ class TestGenerateInputFilesRoutes:
             headers=auth_headers,
             json={}  # No policy path - should use default
         )
-        
+
         # Should process the request (may fail due to missing dependencies)
         assert response.status_code in [200, 400, 412, 422, 500]

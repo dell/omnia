@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+# pylint: disable=C0114,C0115,C0413,C0411,W0105,C0103,R0914,C0415,W0212,W0611,W0621,W0613,R0903
 # JSONB shim for SQLite compatibility - MUST be at the very top before any imports
 import sqlalchemy.dialects.sqlite.base as sqlite_base
 from sqlalchemy import JSON
@@ -48,8 +50,6 @@ from pathlib import Path
 from typing import Dict
 
 import pytest
-# pylint: disable=C0114,C0115,C0413,C0411,W0105,C0103,R0914,C0415,W0212,W0611,W0621,W0613,R0903
-
 
 from fastapi.testclient import TestClient
 from api.dependencies import verify_token
@@ -62,7 +62,7 @@ def client(tmp_path):
     """Create test client with fresh container for each test."""
     # Register JSONB type compiler for SQLite before importing app
     from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler  # pylint: disable=import-outside-toplevel
-    
+
     # Add visit_JSONB method to SQLiteTypeCompiler
     def visit_JSONB(self, type_, **kw):
         return self.visit_JSON(type_, **kw)

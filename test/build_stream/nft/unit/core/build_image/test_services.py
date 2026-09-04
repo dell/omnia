@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=C0303,W0719,W0613,R0903,W0611
+
 """Unit tests for Build Image services."""
 
 import pytest
@@ -22,7 +24,7 @@ from core.build_image.services import (
     BuildImageConfigService,
     BuildImageQueueService,
 )
-from core.build_image.value_objects import Architecture, InventoryHost
+from core.build_image.value_objects import Architecture
 from core.build_image.entities import BuildImageRequest
 from core.localrepo.value_objects import (
     ExecutionTimeout,
@@ -68,18 +70,18 @@ class TestBuildImageConfigService:
         """Test that x86_64 doesn't require inventory host."""
         config_repo = MockBuildImageConfigRepository()
         service = BuildImageConfigService(config_repo)
-        
+
         result = service.get_inventory_host("job-123", Architecture("x86_64"), "corr-456")
-        
+
         assert result is None
 
     def test_get_inventory_host_for_aarch64_success(self):
         """Test successful inventory host retrieval for aarch64."""
         config_repo = MockBuildImageConfigRepository(inventory_host="192.168.1.100")
         service = BuildImageConfigService(config_repo)
-        
+
         result = service.get_inventory_host("job-123", Architecture("aarch64"), "corr-456")
-        
+
         assert result is not None
         assert str(result) == "192.168.1.100"
 
@@ -87,10 +89,10 @@ class TestBuildImageConfigService:
         """Test missing inventory host for aarch64."""
         config_repo = MockBuildImageConfigRepository()
         service = BuildImageConfigService(config_repo)
-        
+
         with pytest.raises(InventoryHostMissingError) as exc_info:
             service.get_inventory_host("job-123", Architecture("aarch64"), "corr-456")
-        
+
         assert "Inventory host is required for aarch64 builds" in str(exc_info.value)
         assert exc_info.value.correlation_id == "corr-456"
 
@@ -98,7 +100,7 @@ class TestBuildImageConfigService:
         """Test config error when retrieving inventory host."""
         config_repo = MockBuildImageConfigRepository(should_fail=True)
         service = BuildImageConfigService(config_repo)
-        
+
         with pytest.raises(Exception):
             service.get_inventory_host("job-123", Architecture("aarch64"), "corr-456")
 
@@ -110,7 +112,7 @@ class TestBuildImageQueueService:
         """Test successful request submission."""
         queue_repo = MockBuildImageQueueRepository()
         service = BuildImageQueueService(queue_repo)
-        
+
         request = BuildImageRequest(
             job_id="job-123",
             stage_name="build-image",
@@ -121,9 +123,9 @@ class TestBuildImageQueueService:
             submitted_at="2026-02-12T18:30:00.000Z",
             request_id="req-789",
         )
-        
+
         service.submit_request(request, "corr-456")
-        
+
         assert len(queue_repo.submitted_requests) == 1
         submitted_request = queue_repo.submitted_requests[0]
         assert submitted_request == request
@@ -132,7 +134,7 @@ class TestBuildImageQueueService:
         """Test request submission failure."""
         queue_repo = MockBuildImageQueueRepository(should_fail=True)
         service = BuildImageQueueService(queue_repo)
-        
+
         request = BuildImageRequest(
             job_id="job-123",
             stage_name="build-image",
@@ -143,7 +145,7 @@ class TestBuildImageQueueService:
             submitted_at="2026-02-12T18:30:00.000Z",
             request_id="req-789",
         )
-        
+
         # The service should let the exception bubble up
         with pytest.raises(Exception, match="Queue error"):
             service.submit_request(request, "corr-456")

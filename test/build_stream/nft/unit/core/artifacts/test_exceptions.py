@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for Artifact domain exceptions."""
+# pylint: disable=C0116,W0611
 
-import pytest
+"""Unit tests for Artifact domain exceptions."""
 
 from core.artifacts.exceptions import (
     ArtifactAlreadyExistsError,

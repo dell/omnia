@@ -58,7 +58,7 @@ def client(tmp_path):
     """Create test client with fresh container for each test."""
     # Register JSONB type compiler for SQLite before importing app
     from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler  # pylint: disable=import-outside-toplevel
-    
+
     # Add visit_JSONB method to SQLiteTypeCompiler
     def visit_JSONB(self, type_, **kw):
         return self.visit_JSON(type_, **kw)

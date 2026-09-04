@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=C0303,W0621
+
 """Integration tests for SQL repositories against PostgreSQL."""
 
 import os
@@ -222,7 +224,7 @@ class TestSqlStageRepository:
             request_client_id="request-123",
         )
         job_repo.save(job)
-        
+
         stage = Stage(
             job_id=JobId("12345678-1234-5678-9abc-123456789abc"),
             stage_name=StageName("parse-catalog"),
@@ -244,7 +246,7 @@ class TestSqlStageRepository:
     ) -> None:
         """Save multiple stages and retrieve all for a job."""
         job_id = JobId("12345678-1234-5678-9abc-123456789abc")
-        
+
         # First create a job to satisfy foreign key constraint
         job = Job(
             job_id=job_id,
@@ -252,7 +254,7 @@ class TestSqlStageRepository:
             request_client_id="request-123",
         )
         job_repo.save(job)
-        
+
         stages = [
             Stage(
                 job_id=job_id,
@@ -293,7 +295,7 @@ class TestSqlStageRepository:
             request_client_id="request-123",
         )
         job_repo.save(job)
-        
+
         stage = Stage(
             job_id=JobId("12345678-1234-5678-9abc-123456789abc"),
             stage_name=StageName("parse-catalog"),
@@ -422,11 +424,11 @@ class TestDatabaseConstraints:
         db_session.begin_nested()
         db_session.execute(text("DELETE FROM jobs WHERE job_id = :job_id"), {"job_id": str(job.job_id)})
         db_session.flush()  # Ensure the delete is executed
-        
+
         # Stage should be deleted by cascade
         found = stage_repo.find_by_job_and_name(job.job_id, stage.stage_name)
         assert found is None
-        
+
         # Rollback the nested transaction
         db_session.rollback()
 
@@ -435,7 +437,7 @@ class TestDatabaseConstraints:
     ) -> None:
         """Test that stage_name is unique within a job."""
         job_id = JobId("12345678-1234-5678-9abc-123456789abc")
-        
+
         # First create a job to satisfy foreign key constraint
         job = Job(
             job_id=job_id,
@@ -443,7 +445,7 @@ class TestDatabaseConstraints:
             request_client_id="request-123",
         )
         job_repo.save(job)
-        
+
         stage = Stage(
             job_id=job_id,
             stage_name=StageName("parse-catalog"),

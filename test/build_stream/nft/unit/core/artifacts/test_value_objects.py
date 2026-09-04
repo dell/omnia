@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=C0116
+
 """Unit tests for Artifact domain value objects."""
 
 from dataclasses import FrozenInstanceError

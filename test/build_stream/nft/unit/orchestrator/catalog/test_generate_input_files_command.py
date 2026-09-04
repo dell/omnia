@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=W0621,C0303,W0611
+
 """Unit tests for GenerateInputFilesCommand."""
 
 from dataclasses import FrozenInstanceError
-from pathlib import Path
 
 import pytest
 
@@ -64,38 +65,38 @@ class TestGenerateInputFilesCommand:
 
     def test_equality_based_on_values(self) -> None:
         policy_path = SafePath.from_string("/opt/omnia/policy.json")
-        
+
         cmd1 = GenerateInputFilesCommand(
             job_id=JobId(VALID_JOB_ID),
             correlation_id=CorrelationId(VALID_CORRELATION_ID),
             adapter_policy_path=policy_path,
         )
-        
+
         cmd2 = GenerateInputFilesCommand(
             job_id=JobId(VALID_JOB_ID),
             correlation_id=CorrelationId(VALID_CORRELATION_ID),
             adapter_policy_path=policy_path,
         )
-        
+
         assert cmd1 == cmd2
         assert hash(cmd1) == hash(cmd2)
 
     def test_inequality_with_different_values(self) -> None:
         policy_path1 = SafePath.from_string("/opt/omnia/policy1.json")
         policy_path2 = SafePath.from_string("/opt/omnia/policy2.json")
-        
+
         cmd1 = GenerateInputFilesCommand(
             job_id=JobId(VALID_JOB_ID),
             correlation_id=CorrelationId(VALID_CORRELATION_ID),
             adapter_policy_path=policy_path1,
         )
-        
+
         cmd2 = GenerateInputFilesCommand(
             job_id=JobId(VALID_JOB_ID),
             correlation_id=CorrelationId(VALID_CORRELATION_ID),
             adapter_policy_path=policy_path2,
         )
-        
+
         assert cmd1 != cmd2
         assert hash(cmd1) != hash(cmd2)
 
@@ -106,7 +107,7 @@ class TestGenerateInputFilesCommand:
             correlation_id=CorrelationId(VALID_CORRELATION_ID),
             adapter_policy_path=policy_path,
         )
-        
+
         str_repr = str(cmd)
         assert VALID_JOB_ID in str_repr
         assert VALID_CORRELATION_ID in str_repr
