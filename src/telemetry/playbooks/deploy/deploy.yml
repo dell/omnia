@@ -70,15 +70,13 @@
   tags: deploy
   when: hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool
 
-- name: "Phase 2 | Deploy UFM telemetry"
+- name: "Phase 2 | Manage UFM telemetry (deploy, disable, or re-enable)"
   ansible.builtin.import_playbook: sources/deploy_ufm.yml
   tags: deploy
-  when: hostvars['localhost']['telemetry_config'].telemetry_sources.ufm.metrics_enabled | default(false) | bool
 
-- name: "Phase 2 | Deploy VAST telemetry"
+- name: "Phase 2 | Manage VAST telemetry (deploy, disable, or re-enable)"
   ansible.builtin.import_playbook: sources/deploy_vast.yml
   tags: deploy
-  when: hostvars['localhost']['telemetry_config'].telemetry_sources.vast.metrics_enabled | default(false) | bool
 
 - name: "Phase 2 | Deploy OME telemetry"
   ansible.builtin.import_playbook: sources/deploy_ome.yml

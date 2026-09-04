@@ -59,19 +59,27 @@
         victoria_metrics_needed: "{{ 'victoria_metrics' in (telemetry_config.telemetry_sources.powerscale.collection_targets | default([])) }}"
       when: telemetry_config is defined
 
+    - name: Check if VictoriaMetrics is already deployed in cluster
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} -l app.kubernetes.io/name=vmstorage --no-headers
+      register: _vm_pods_check
+      changed_when: false
+      failed_when: false
+      when: victoria_metrics_needed | default(false) | bool
+
     - name: Set victoria_deployment_mode
       ansible.builtin.set_fact:
         victoria_deployment_mode: "cluster"
       when:
         - victoria_metrics_needed | default(false) | bool
-        - hostvars['localhost']['victoria_metrics_support'] is not defined
+        - (_vm_pods_check.stdout_lines | default([]) | select('search', 'Running') | list | length) == 0
 
-    - name: Deploy VictoriaMetrics if needed and not already deployed (standalone only)
+    - name: Deploy VictoriaMetrics if needed and not already running (standalone only)
       ansible.builtin.include_role:
         name: deploy_victoria
       when:
         - victoria_metrics_needed | default(false) | bool
-        - hostvars['localhost']['victoria_metrics_support'] is not defined
+        - (_vm_pods_check.stdout_lines | default([]) | select('search', 'Running') | list | length) == 0
 
     - name: Include deploy_powerscale role
       ansible.builtin.include_role:
