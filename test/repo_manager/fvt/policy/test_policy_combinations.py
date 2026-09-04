@@ -32,37 +32,42 @@ def test_policy_always_caching_false(host: Host):
 
     # Get all configured repos
     repos_result = get_configured_repos(host, arch="x86_64")
-    
+
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
-    
+
     configured_repos = repos_result["repos"]
-    
+
     # Find a repo with policy: always + caching: false
     found_repo = None
     for repo_name in configured_repos:
         repo_policy = check_repo_policy(host, repo_name)
         repo_caching = check_repo_caching(host, repo_name)
-        
+
         if repo_policy["success"] and repo_caching["success"]:
             policy = repo_policy.get("policy")
             caching = repo_caching.get("caching")
-            
+
             if policy == "always" and not caching:
                 found_repo = repo_name
                 break
-    
+
     if found_repo:
-        tl.passed(LOG["pulp_mode_correct"],
-                 f"{found_repo} has policy: always + caching: false (expected: immediate)")
+        tl.passed(
+            LOG["pulp_mode_correct"],
+            f"{found_repo} has policy: always + caching: false (expected: immediate)"
+        )
     else:
-        tl.passed("configuration_different",
-                 f"No repo with always+false configuration found among {len(configured_repos)} repos")
+        tl.passed(
+            "configuration_different",
+            f"No repo with always+false configuration found "
+            f"among {len(configured_repos)} repos"
+        )
         pytest.skip("No repo has always+false configuration")
 
     assert found_repo is not None, \
-        f"Expected to find repo with always+false configuration"
+        "Expected to find repo with always+false configuration"
 
 
 @pytest.mark.sanity
@@ -74,37 +79,42 @@ def test_policy_always_caching_true(host: Host):
 
     # Get all configured repos
     repos_result = get_configured_repos(host, arch="x86_64")
-    
+
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
-    
+
     configured_repos = repos_result["repos"]
-    
+
     # Find a repo with policy: always + caching: true
     found_repo = None
     for repo_name in configured_repos:
         repo_policy = check_repo_policy(host, repo_name)
         repo_caching = check_repo_caching(host, repo_name)
-        
+
         if repo_policy["success"] and repo_caching["success"]:
             policy = repo_policy.get("policy")
             caching = repo_caching.get("caching")
-            
+
             if policy == "always" and caching:
                 found_repo = repo_name
                 break
-    
+
     if found_repo:
-        tl.passed(LOG["pulp_mode_correct"],
-                 f"{found_repo} has policy: always + caching: true (expected: on_demand)")
+        tl.passed(
+            LOG["pulp_mode_correct"],
+            f"{found_repo} has policy: always + caching: true (expected: on_demand)"
+        )
     else:
-        tl.passed("configuration_different",
-                 f"No repo with always+true configuration found among {len(configured_repos)} repos")
+        tl.passed(
+            "configuration_different",
+            f"No repo with always+true configuration found "
+            f"among {len(configured_repos)} repos"
+        )
         pytest.skip("No repo has always+true configuration")
 
     assert found_repo is not None, \
-        f"Expected to find repo with always+true configuration"
+        "Expected to find repo with always+true configuration"
 
 
 @pytest.mark.sanity
@@ -116,37 +126,42 @@ def test_policy_partial_caching_false(host: Host):
 
     # Get all configured repos
     repos_result = get_configured_repos(host, arch="x86_64")
-    
+
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
-    
+
     configured_repos = repos_result["repos"]
-    
+
     # Find a repo with policy: partial + caching: false
     found_repo = None
     for repo_name in configured_repos:
         repo_policy = check_repo_policy(host, repo_name)
         repo_caching = check_repo_caching(host, repo_name)
-        
+
         if repo_policy["success"] and repo_caching["success"]:
             policy = repo_policy.get("policy")
             caching = repo_caching.get("caching")
-            
+
             if policy == "partial" and not caching:
                 found_repo = repo_name
                 break
-    
+
     if found_repo:
-        tl.passed(LOG["pulp_mode_correct"],
-                 f"{found_repo} has policy: partial + caching: false (expected: streamed)")
+        tl.passed(
+            LOG["pulp_mode_correct"],
+            f"{found_repo} has policy: partial + caching: false (expected: streamed)"
+        )
     else:
-        tl.passed("configuration_different",
-                 f"No repo with partial+false configuration found among {len(configured_repos)} repos")
+        tl.passed(
+            "configuration_different",
+            f"No repo with partial+false configuration found "
+            f"among {len(configured_repos)} repos"
+        )
         pytest.skip("No repo has partial+false configuration")
 
     assert found_repo is not None, \
-        f"Expected to find repo with partial+false configuration"
+        "Expected to find repo with partial+false configuration"
 
 
 @pytest.mark.sanity
@@ -158,35 +173,39 @@ def test_policy_partial_caching_true(host: Host):
 
     # Get all configured repos
     repos_result = get_configured_repos(host, arch="x86_64")
-    
+
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
-    
+
     configured_repos = repos_result["repos"]
-    
+
     # Find a repo with policy: partial + caching: true
     found_repo = None
     for repo_name in configured_repos:
         repo_policy = check_repo_policy(host, repo_name)
         repo_caching = check_repo_caching(host, repo_name)
-        
+
         if repo_policy["success"] and repo_caching["success"]:
             policy = repo_policy.get("policy")
             caching = repo_caching.get("caching")
-            
+
             if policy == "partial" and caching:
                 found_repo = repo_name
                 break
-    
+
     if found_repo:
-        tl.passed(LOG["pulp_mode_correct"],
-                 f"{found_repo} has policy: partial + caching: true (expected: on_demand)")
+        tl.passed(
+            LOG["pulp_mode_correct"],
+            f"{found_repo} has policy: partial + caching: true (expected: on_demand)"
+        )
     else:
-        tl.passed("configuration_different",
-                 f"No repo with partial+true configuration found among {len(configured_repos)} repos")
+        tl.passed(
+            "configuration_different",
+            f"No repo with partial+true configuration found "
+            f"among {len(configured_repos)} repos"
+        )
         pytest.skip("No repo has partial+true configuration")
 
     assert found_repo is not None, \
-        f"Expected to find repo with partial+true configuration"
-
+        "Expected to find repo with partial+true configuration"
