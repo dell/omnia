@@ -327,18 +327,24 @@
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Fetch existing metadata-service groups for delete-before-set - {{ fg_name }}
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
-    status_code: [200]
-    validate_certs: false
-    return_content: true
-  register: _existing_fg_groups
-  failed_when: false
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-  no_log: true
+  block:
+    - name: Fetch existing metadata-service groups
+      ansible.builtin.uri:
+        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+        status_code: [200]
+        validate_certs: false
+        return_content: true
+      register: _existing_fg_groups
+      failed_when: false
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+      no_log: true
+  rescue:
+    - name: Fail with metadata-service API error
+      ansible.builtin.fail:
+        msg: "Failed to fetch existing metadata-service groups for {{ fg_name }}. Check metadata-service API status and access token validity."
 
 - name: Delete existing metadata-service group entries for {{ fg_name }}
   ansible.builtin.uri:
