@@ -305,11 +305,19 @@ def _process_configured_registry_image(
 ):
     """Process one image from its exact catalog-mapped configured registry."""
     source_registry = package["source_registry"]
-    package_content = get_image_path_for_registry(package["package"], source_registry)
-    repository_name = (
-        f"container_repo_{package['package'].replace('/', '_').replace(':', '_')}"
+    package_content = get_image_path_for_registry(
+        package["package"], source_registry, registry_context
     )
-    remote_name = f"remote_{package['package'].replace('/', '_').replace(':', '_')}"
+    # Keep the configuration key as the internal Pulp identity. The catalog
+    # exposes the real endpoint, while an endpoint change should reconcile the
+    # existing Pulp objects instead of creating duplicates.
+    internal_reference = f"{source_registry}/{package_content}"
+    repository_name = (
+        f"container_repo_{internal_reference.replace('/', '_').replace(':', '_')}"
+    )
+    remote_name = (
+        f"remote_{internal_reference.replace('/', '_').replace(':', '_')}"
+    )
     package_identifier = package["package"]
 
     tag_val = None

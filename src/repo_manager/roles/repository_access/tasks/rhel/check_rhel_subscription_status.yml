@@ -1,0 +1,148 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check entitlement certs
+  ansible.builtin.shell: |
+    set -o pipefail
+    find "{{ entitlement_path }}" -maxdepth 1 -name "*.pem" -type f 2>/dev/null | wc -l
+  register: entitlement_certs_count
+  changed_when: false
+  failed_when: false
+
+- name: Extract repo baseurls if redhat.repo exists
+  ansible.builtin.shell: |
+    set -o pipefail
+    awk -F= '/^baseurl/ {print $2}' /etc/yum.repos.d/redhat.repo | grep -E 'codeready-builder|baseos|appstream' || true
+  args:
+    warn: false
+  register: repo_urls
+  changed_when: false
+  failed_when: false
+
+- name: Check subscription-manager registration status
+  ansible.builtin.command: subscription-manager status
+  register: subscription_manager_status
+  changed_when: false
+  failed_when: false
+
+- name: Determine subscription status
+  ansible.builtin.set_fact:
+    subscription_status: >-
+      {{
+        (entitlement_certs_count.stdout | default('0') | trim | int > 0)
+        and
+        (
+          ((repo_urls.stdout_lines | default([])) | length > 0)
+          or ('Overall Status: Registered' in (subscription_manager_status.stdout | default('')))
+          or ('Overall Status: Current' in (subscription_manager_status.stdout | default('')))
+        )
+      }}
+
+- name: Debug subscription status
+  ansible.builtin.debug:
+    msg: "Subscription enabled? {{ subscription_status }}"
+
+- name: Prepare host subscription access
+  when: subscription_status | bool
+  block:
+    - name: List available subscription-manager releases
+      ansible.builtin.command: subscription-manager release --list
+      register: available_releases
+      changed_when: false
+      failed_when: false
+
+    - name: Report subscription release discovery
+      ansible.builtin.debug:
+        msg: >-
+          Preparing shared RHEL subscription access. subscription-manager
+          reported releases: {{ available_releases.stdout |
+          default('none reported', true) }}
+
+    - name: Ensure shared path exists
+      ansible.builtin.file:
+        path: "{{ rhel_repo_cert_dir }}"
+        state: directory
+        mode: "{{ dir_permissions_755 | default('0755') }}"
+
+    - name: Remove stale files from rhel_repo_cert_dir before fresh copy
+      ansible.builtin.file:
+        path: "{{ rhel_repo_cert_dir }}"
+        state: absent
+
+    - name: Recreate rhel_repo_cert_dir after cleanup
+      ansible.builtin.file:
+        path: "{{ rhel_repo_cert_dir }}"
+        state: directory
+        mode: "{{ dir_permissions_755 | default('0755') }}"
+
+    - name: Find entitlement certs on oim
+      ansible.builtin.shell: |
+        set -o pipefail
+        find "{{ entitlement_path }}" -maxdepth 1 -name "*.pem" -type f 2>/dev/null
+      register: entitlement_certs_paths
+      changed_when: false
+      failed_when: false
+      when: subscription_status | bool
+
+    - name: Copy entitlement certs to shared path
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ rhel_repo_cert_dir }}"
+        mode: "{{ file_permissions_644 | default('0644') }}"
+        remote_src: true
+      loop: "{{ entitlement_certs_paths.stdout_lines | default([]) }}"
+      when: subscription_status | bool
+
+    - name: Copy Red Hat UEP cert
+      ansible.builtin.copy:
+        src: "{{ redhat_uep_cert }}"
+        dest: "{{ rhel_repo_cert_dir }}/redhat-uep.pem"
+        mode: "{{ file_permissions_644 | default('0644') }}"
+        remote_src: true
+
+    - name: Copy Red Hat repo
+      ansible.builtin.copy:
+        src: "{{ redhat_repo_file }}"
+        dest: "{{ rhel_repo_cert_dir }}/redhat.repo"
+        mode: "{{ file_permissions_644 | default('0644') }}"
+        remote_src: true
+
+    - name: Set rhel_repo_certs SELinux context
+      ansible.builtin.command:
+        argv:
+          - chcon
+          - -R
+          - system_u:object_r:container_file_t:s0
+          - "{{ rhel_repo_cert_dir }}"
+      register: rhel_certs_selinux_result
+      changed_when: rhel_certs_selinux_result.rc == 0
+      failed_when: false
+      when:
+        - ansible_selinux is defined
+        - ansible_selinux.status == 'enabled'
+
+    - name: Warn when the RHEL certificate SELinux context could not be set
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Failed to set the SELinux context on {{ rhel_repo_cert_dir }}.
+          Pulp may not be able to access the RHEL subscription certificates.
+          Error: {{ rhel_certs_selinux_result.stderr | default('unknown error', true) }}
+      when:
+        - rhel_certs_selinux_result is defined
+        - not (rhel_certs_selinux_result.skipped | default(false) | bool)
+        - rhel_certs_selinux_result.rc | default(0) != 0
+- name: Mark host repository access prepared
+  ansible.builtin.set_fact:
+    repository_access_host_prepared: true

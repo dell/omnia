@@ -35,7 +35,7 @@ def is_public_registry(registry_name):
 
 
 def build_registry_base_url(registry_config):
-    """Build the upstream base URL from a validated lowercase registry config."""
+    """Build a canonical upstream origin from a registry configuration."""
     if not isinstance(registry_config, dict):
         raise TypeError("Registry configuration must be a mapping")
 
@@ -45,34 +45,56 @@ def build_registry_base_url(registry_config):
     base_url = base_url_value.rstrip("/")
     port = registry_config.get("port")
     parsed = urlsplit(base_url)
-    if not parsed.scheme or not parsed.hostname:
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
         raise ValueError(f"Invalid registry base_url: {base_url}")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("Registry base_url must not contain credentials")
+    if parsed.path not in ("", "/") or parsed.query or parsed.fragment:
+        raise ValueError("Registry base_url must contain only scheme and host")
 
-    # Keep a port explicitly present in base_url. Otherwise add the configured port.
-    if parsed.port is not None or port is None:
-        return base_url
+    embedded_port = parsed.port
+    if embedded_port is not None and port is not None and embedded_port != port:
+        raise ValueError(
+            "Registry port conflicts with the port in registry base_url"
+        )
+    effective_port = embedded_port if embedded_port is not None else port
 
-    hostname = parsed.hostname
+    hostname = parsed.hostname.lower()
     if ":" in hostname and not hostname.startswith("["):
         hostname = f"[{hostname}]"
-    netloc = f"{hostname}:{port}"
-    return urlunsplit((parsed.scheme, netloc, parsed.path.rstrip("/"), "", ""))
+    netloc = f"{hostname}:{effective_port}" if effective_port else hostname
+    return urlunsplit((parsed.scheme.lower(), netloc, "", "", ""))
 
 
-def get_image_path_for_registry(package_name, registry_name):
-    """Return the upstream image path after validating its catalog registry prefix."""
-    prefix = f"{registry_name}/"
-    if not package_name.startswith(prefix):
+def get_registry_authority(registry_config):
+    """Return canonical ``host[:port]`` for a configured registry."""
+    return urlsplit(build_registry_base_url(registry_config)).netloc
+
+
+def get_image_path_for_registry(package_name, registry_name, registry_config):
+    """Return an image path after enforcing the configured endpoint prefix.
+
+    ``registry_name`` is the stable configuration key. It is intentionally not
+    accepted as an image-name prefix; configured registry images must use their
+    real OCI ``host[:port]`` authority in the catalog.
+    """
+    if not isinstance(package_name, str):
+        raise ValueError("Configured registry image name must be a string")
+
+    authority = get_registry_authority(registry_config)
+    image_authority, separator, image_path = package_name.partition("/")
+    if not separator or image_authority.lower() != authority.lower():
         raise ValueError(
-            f"Image '{package_name}' must start with its catalog registry '{prefix}'"
+            f"Image '{package_name}' mapped by registry '{registry_name}' must "
+            f"start with configured endpoint '{authority}/'"
         )
-    image_path = package_name[len(prefix):]
     if not image_path:
         raise ValueError(f"Image path is empty for '{package_name}'")
     return image_path
 
 
-def resolve_registry_contexts(registries, credential_data):
+def resolve_registry_contexts(  # pylint: disable=too-many-locals
+        registries, credential_data):
     """Resolve configured registries and their Ansible Vault credential records.
 
     The returned mapping is safe to pass to image tasks. Fixed keys are lowercase;
@@ -125,7 +147,12 @@ def resolve_registry_contexts(registries, credential_data):
                 )
             username = credentials.get("username", "")
             password = credentials.get("password", "")
-            if not username or not password:
+            if (
+                    not isinstance(username, str)
+                    or not username.strip()
+                    or not isinstance(password, str)
+                    or not password.strip()
+            ):
                 raise ValueError(
                     f"Basic authentication credentials are missing for registry '{registry_name}'"
                 )

@@ -120,8 +120,10 @@ metadata cache.
 - Generate `<REPO_MANAGER_DATA_PATH>/output/<project>/repo_status.yml`.
 - Include HTTPS repository URLs, file-content URLs and certificate paths.
 
-The status file is generated only when the `status` tag runs. Run it again after
-selective cleanup if downstream consumers need an updated view.
+The status file is generated only when the `status` tag runs. Selective cleanup
+removes the stale file; run `download,status` to restore deleted catalog content
+and regenerate it, or `status` alone to report the intentionally incomplete
+Pulp state.
 
 ### Step 5: Selective cleanup (tag: cleanup_repos)
 
@@ -131,6 +133,7 @@ selective cleanup if downstream consumers need an updated view.
 - Untagged `cleanup_containers`: the repository, all tags, distribution and remote.
 - `all`: every Pulp object in that cleanup category.
 - Update status rows, group state and the mirror index only after verified deletion.
+- Invalidate `repo_status.yml` after a successful cleanup.
 - Run Pulp orphan cleanup after successful changes.
 
 ### Step 6: Full cleanup (tag: cleanup_pulp)
@@ -138,6 +141,8 @@ selective cleanup if downstream consumers need an updated view.
 - Disable and remove `pulp.service` and its Quadlet.
 - Remove the Pulp container, image, configuration and data.
 - Remove Pulp CLI configuration and host integration.
+- Preserve and verify the Repo Manager CLI launcher, venv link, and backend so
+  redeployment does not require reinstalling Python dependencies.
 - Optionally preserve credentials and Repo Manager runtime logs.
 
 ---
@@ -152,7 +157,7 @@ selective cleanup if downstream consumers need an updated view.
 | Service | `pulp.service` generated from a Podman Quadlet |
 | Persistence | `<REPO_MANAGER_DATA_PATH>/pulp_config/` |
 | Certificate | Generated under `pulp_config/settings/certs/` |
-| CLI trust | `PULP_CA_BUNDLE` plus an installed host CA anchor |
+| CLI trust | Managed launcher at `/usr/local/bin/pulp`, linked from the Omnia venv, plus an installed host CA anchor |
 
 The user selects the host port in `repo_manager_endpoint_config.yml`. The
 container port remains `443`.

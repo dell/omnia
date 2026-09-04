@@ -32,7 +32,7 @@ from ansible.module_utils.input_validation.core.config import (
     files, SYSTEM_ENTITLEMENT_PATH, SYSTEM_REDHAT_REPO,
     CONTAINER_ENTITLEMENT_PATH, CONTAINER_REDHAT_REPO,
     OMNIA_ENTITLEMENT_PATH, OMNIA_REDHAT_REPO,
-    CATALOG_DIR, CATALOG_FILE_PATH, OMNIA_BASE_DIR
+    CATALOG_FILE_PATH
 )
 from ansible.module_utils.input_validation.core.utils import create_error_msg, create_file_path
 from ansible.module_utils.input_validation.messages.common_messages import (
@@ -45,16 +45,19 @@ from ansible.module_utils.input_validation.messages.common_messages import (
 )
 from ansible.module_utils.repo_manager.registry_utils import (
     PUBLIC_REGISTRY_URLS,
-    build_registry_base_url,
+    get_image_path_for_registry,
+    get_registry_authority,
 )
 from ansible.module_utils.repo_manager.catalog_resolver import (
     load_multiple_catalogs,
+    resolve_catalog_context,
     resolve_catalog_groups,
     select_package_source,
 )
 from ansible.module_utils.repo_manager.repo_settings import (
     DEFAULT_CACHING_POLICY,
     POLICY_CACHING_MAP,
+    SUBSCRIPTION_REPOSITORIES,
 )
 
 
@@ -89,46 +92,69 @@ def validate(
             f"caching_policy must be a boolean, got {type(caching_policy).__name__}"
         ))
 
-    # Collect repo names and check for duplicates
-    sub_result = _check_subscription_status(logger)
+    # Resolve the same ordered catalog contexts used by download execution.
+    _catalog_path, catalogs, load_error = _load_catalogs_for_validation(logger)
+    if load_error:
+        errors.append(load_error)
+        return errors
+    try:
+        catalog_context = resolve_catalog_context(catalogs, logger)
+    except ValueError as exc:
+        errors.append(create_error_msg("catalog.functionallayer", "", str(exc)))
+        return errors
+
+    repositories = data.get("repositories") or {}
+
+    # Collect repo names and check for duplicates.
+    shared_subscription_status = os.environ.get(
+        "REPO_MANAGER_SUBSCRIPTION_ENABLED", ""
+    ).strip().lower()
+    if shared_subscription_status in ("true", "false"):
+        sub_result = shared_subscription_status == "true"
+    else:
+        sub_result = _check_subscription_status(logger)
     logger.info(f"validate_repo_manager_config: Subscription status: {sub_result}")
 
-    all_archs = ['x86_64', 'aarch64']
+    for execution_context in catalog_context["execution_contexts"]:
+        cluster_os_version = execution_context["os_version"]
+        selected_architectures = execution_context["architectures"]
 
-    # Repository version keys are authoritative for Repo Manager.
-    repository_versions = list((data.get("repositories") or {}).keys())
-    cluster_os_version = repository_versions[0] if repository_versions else "10.0"
+        if cluster_os_version not in repositories:
+            errors.append(create_error_msg(
+                "repositories", cluster_os_version,
+                "Catalog OS version is not configured under repositories"
+            ))
 
-    # Check for duplicate repo names using new collection method
-    for arch in all_archs:
-        repos_section = data.get("repositories", {}).get(cluster_os_version, {}).get(arch, {})
-        names = _collect_all_repo_names(repos_section)
+        for arch in selected_architectures:
+            repos_section = (
+                repositories.get(cluster_os_version, {}).get(arch, {})
+            )
+            names = _collect_all_repo_names(repos_section)
+            seen = set()
+            for name in names:
+                if name in seen:
+                    errors.append(
+                        DUPLICATE_REPO_NAME_IN_ARCH_MSG.format(
+                            name=name, arch=arch
+                        )
+                    )
+                seen.add(name)
 
-        # Check for duplicates
-        seen = set()
-        for name in names:
-            if name in seen:
-                errors.append(DUPLICATE_REPO_NAME_IN_ARCH_MSG.format(name=name, arch=arch))
-            seen.add(name)
+            _validate_repo_priorities(
+                repos_section, cluster_os_version, arch, errors
+            )
 
-        _validate_repo_priorities(
-            repos_section, cluster_os_version, arch, errors
-        )
+        errors.extend(_validate_catalog_repo_mapping(
+            data, cluster_os_version, selected_architectures, logger,
+            omnia_base_dir, sub_result, catalogs=catalogs
+        ))
 
-    # Note: Software-specific validations are now handled by catalog-based approach
-    # The catalog JSON files define packages and their dependencies directly
-
-    # Validate catalog package repository mapping
-    catalog_errors = _validate_catalog_repo_mapping(
-        data, cluster_os_version, all_archs, logger, omnia_base_dir, sub_result
-    )
-    errors.extend(catalog_errors)
-
-    # Validate catalog image registry mapping
-    registry_errors = _validate_catalog_registry_mapping(
-        data, logger, omnia_base_dir
-    )
-    errors.extend(registry_errors)
+    # Registry mappings can differ by context, so validate the complete ordered
+    # context list once while de-duplicating repeated image identities.
+    errors.extend(_validate_catalog_registry_mapping(
+        data, logger, omnia_base_dir, catalogs=catalogs,
+        catalog_context=catalog_context
+    ))
 
     return errors
 
@@ -137,6 +163,7 @@ def _validate_registry_configs(config_data, _config_path):
     """Validate registry URL, authentication references, and TLS paths."""
     errors = []
     vault_paths = {}
+    registry_authorities = {}
     registries = config_data.get("registries") or {}
     if not isinstance(registries, dict):
         return errors  # The JSON schema reports the type error.
@@ -145,7 +172,17 @@ def _validate_registry_configs(config_data, _config_path):
         if not isinstance(registry_config, dict):
             continue  # The JSON schema reports the type error.
         try:
-            build_registry_base_url(registry_config)
+            authority = get_registry_authority(registry_config)
+            authority_key = authority.lower()
+            if authority_key in registry_authorities:
+                errors.append(create_error_msg(
+                    f"registries.{registry_name}.base_url",
+                    registry_config.get("base_url", ""),
+                    "Registry endpoint is already configured by registry "
+                    f"'{registry_authorities[authority_key]}'"
+                ))
+            else:
+                registry_authorities[authority_key] = registry_name
         except (TypeError, ValueError) as exc:
             errors.append(create_error_msg(
                 f"registries.{registry_name}.base_url", registry_config.get("base_url", ""),
@@ -211,38 +248,21 @@ def _collect_all_repo_names(repos_section):
 
 def _get_catalog_path(logger):
     """
-    Get catalog path using consistent priority:
-    1. CATALOG_FILE_PATH environment variable (primary)
-    2. CATALOG_DIR discovery (fallback)
-    3. Hardcoded fallback (last resort)
-    
+    Return the exact catalog selected for this Repo Manager execution.
+
     Args:
         logger: Logger instance.
-    
+
     Returns:
         str: Catalog file path or None if not found.
     """
-    # Priority 1: CATALOG_FILE_PATH environment variable
     if CATALOG_FILE_PATH:
         if os.path.exists(CATALOG_FILE_PATH):
             logger.info("Using CATALOG_FILE_PATH env var: %s", CATALOG_FILE_PATH)
             return CATALOG_FILE_PATH
         logger.warning(f"CATALOG_FILE_PATH set but file not found: {CATALOG_FILE_PATH}")
-    
-    # Priority 2: CATALOG_DIR discovery
-    if os.path.exists(CATALOG_DIR):
-        catalog_files = glob.glob(os.path.join(CATALOG_DIR, "*.json"))
-        if catalog_files:
-            logger.info(f"Using discovered catalog from CATALOG_DIR: {catalog_files[0]}")
-            return catalog_files[0]
-        logger.warning(f"CATALOG_DIR exists but no JSON files found: {CATALOG_DIR}")
-    else:
-        logger.warning(f"CATALOG_DIR not found: {CATALOG_DIR}")
-    
-    # Priority 3: Hardcoded fallback
-    catalog_path = os.path.join(OMNIA_BASE_DIR, "catalog", "catalog_rhel.json")
-    logger.warning(f"Using fallback catalog path: {catalog_path}")
-    return catalog_path
+
+    return None
 
 
 def _validate_priority(repo_config, repo_path, errors):
@@ -388,13 +408,13 @@ def _load_catalogs_for_validation(logger):
         )
 
 
-def _iter_selected_packages(catalogs, all_archs, logger):
+def _iter_selected_packages(catalogs, all_archs, logger, os_version=None):
     """Yield each unique package selected by a functional layer and architecture."""
     seen = set()
     for catalog in catalogs:
         for arch in all_archs:
             for group_name, packages in resolve_catalog_groups(
-                    catalog, arch, logger).items():
+                    catalog, arch, logger, os_version=os_version).items():
                 for package in packages:
                     package_name = package.get("package", package.get("name", ""))
                     package_type = package.get(
@@ -414,7 +434,9 @@ def _iter_selected_packages(catalogs, all_archs, logger):
                         "package_type": package_type,
                         "version": version,
                         "definition": package,
-                        "source": select_package_source(package, arch),
+                        "source": select_package_source(
+                            package, arch, os_version=os_version
+                        ),
                     }
 
 
@@ -446,7 +468,7 @@ def _effective_repo_download_policy(config_data, repo_config):
 
 def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
                                    logger, _omnia_base_dir,
-                                   subscription_enabled=False):
+                                   subscription_enabled=False, catalogs=None):
     """
     Validate that all catalog package reponame entries have corresponding repositories
     in repo_manager_config.yml.
@@ -462,9 +484,10 @@ def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
         list: List of error messages.
     """
     errors = []
-    _catalog_path, catalogs, load_error = _load_catalogs_for_validation(logger)
-    if load_error:
-        return [load_error]
+    if catalogs is None:
+        _catalog_path, catalogs, load_error = _load_catalogs_for_validation(logger)
+        if load_error:
+            return [load_error]
 
     configured_repos = {}
     for arch in all_archs:
@@ -475,13 +498,14 @@ def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
         )
         configured_repos[arch] = _collect_repo_configs(repos_section)
 
-    base_subscription_repos = {"baseos", "appstream", "codeready-builder"}
+    base_subscription_repos = set(SUBSCRIPTION_REPOSITORIES)
     missing_sources = set()
     missing_mappings = set()
     missing_urls = set()
     streamed_rpm_repos = set()
 
-    for selected in _iter_selected_packages(catalogs, all_archs, logger):
+    for selected in _iter_selected_packages(
+            catalogs, all_archs, logger, os_version=cluster_os_version):
         arch = selected["arch"]
         package_name = selected["package_name"]
         package_type = selected["package_type"]
@@ -490,7 +514,7 @@ def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
             missing_sources.add((package_name, arch))
             continue
 
-        if package_type not in ("rpm", "rpm_repo"):
+        if package_type not in ("rpm", "rpm_list", "rpm_repo"):
             continue
         reponame = source.get("reponame", "")
         if not reponame:
@@ -554,16 +578,17 @@ def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
                 arch=arch,
             )
         ))
-    
+
     if errors:
         logger.error("Found %d catalog repository validation error(s)", len(errors))
     else:
         logger.info("All catalog package repositories are configured in repo_manager_config.yml")
-    
+
     return errors
 
 
-def _validate_catalog_registry_mapping(config_data, logger, _omnia_base_dir):
+def _validate_catalog_registry_mapping(config_data, logger, _omnia_base_dir,
+                                       catalogs=None, catalog_context=None):
     """
     Validate that all catalog image registry entries have corresponding user registry
     details in repo_manager_config.yml (for private registries only).
@@ -580,49 +605,73 @@ def _validate_catalog_registry_mapping(config_data, logger, _omnia_base_dir):
         list: List of error messages.
     """
     errors = []
-    _catalog_path, catalogs, load_error = _load_catalogs_for_validation(logger)
-    if load_error:
-        return [load_error]
+    if catalogs is None:
+        _catalog_path, catalogs, load_error = _load_catalogs_for_validation(logger)
+        if load_error:
+            return [load_error]
+    if catalog_context is None:
+        try:
+            catalog_context = resolve_catalog_context(catalogs, logger)
+        except ValueError as exc:
+            return [create_error_msg("catalog.functionallayer", "", str(exc))]
 
-    # Collect configured user registries
-    configured_registries = set()
+    # Collect configured user registries.
+    configured_registries = {}
     registries_section = config_data.get("registries", {})
     if isinstance(registries_section, dict):
-        configured_registries = set(registries_section.keys())
+        configured_registries = registries_section
 
     # Check each image package's registry
     private_registries_missing = {}
     invalid_image_mappings = []
     seen_images = set()
-    for selected in _iter_selected_packages(catalogs, ['x86_64', 'aarch64'], logger):
-        if selected["package_type"] != "image" or selected["source"] is None:
-            continue
-        pkg_name = selected["package_name"]
-        image_name = selected["definition"].get("name", pkg_name)
-        registry = selected["source"].get("registry", "")
-        image_identity = (image_name, registry)
-        if image_identity in seen_images:
-            continue
-        seen_images.add(image_identity)
+    execution_contexts = catalog_context.get(
+        "execution_contexts", [catalog_context]
+    )
+    for execution_context in execution_contexts:
+        for selected in _iter_selected_packages(
+                catalogs, execution_context["architectures"], logger,
+                os_version=execution_context["os_version"]):
+            if (selected["package_type"] != "image"
+                    or selected["source"] is None):
+                continue
+            pkg_name = selected["package_name"]
+            image_name = selected["definition"].get("name", pkg_name)
+            registry = selected["source"].get("registry", "")
+            image_identity = (image_name, registry)
+            if image_identity in seen_images:
+                continue
+            seen_images.add(image_identity)
 
-        if not registry:
-            invalid_image_mappings.append(create_error_msg(
-                f"catalog.packages.{pkg_name}.sources.registry", "",
-                "Image sources must define a registry"
-            ))
-            continue
+            if not registry:
+                invalid_image_mappings.append(create_error_msg(
+                    f"catalog.packages.{pkg_name}.sources.registry", "",
+                    "Image sources must define a registry"
+                ))
+                continue
 
-        if not image_name.startswith(f"{registry}/"):
-            invalid_image_mappings.append(create_error_msg(
-                f"catalog.packages.{pkg_name}.name", image_name,
-                f"Image name must start with catalog registry '{registry}/'"
-            ))
+            if registry in PUBLIC_REGISTRY_URLS:
+                if not image_name.startswith(f"{registry}/"):
+                    invalid_image_mappings.append(create_error_msg(
+                        f"catalog.packages.{pkg_name}.name", image_name,
+                        f"Image name must start with public registry '{registry}/'"
+                    ))
+                continue
 
-        if registry in PUBLIC_REGISTRY_URLS:
-            continue
+            if registry not in configured_registries:
+                private_registries_missing.setdefault(
+                    registry, []
+                ).append(pkg_name)
+                continue
 
-        if registry not in configured_registries:
-            private_registries_missing.setdefault(registry, []).append(pkg_name)
+            try:
+                get_image_path_for_registry(
+                    image_name, registry, configured_registries[registry]
+                )
+            except (TypeError, ValueError) as exc:
+                invalid_image_mappings.append(create_error_msg(
+                    f"catalog.packages.{pkg_name}.name", image_name, str(exc)
+                ))
 
     # Generate errors for missing private registry configurations
     errors.extend(invalid_image_mappings)
@@ -634,7 +683,7 @@ def _validate_catalog_registry_mapping(config_data, logger, _omnia_base_dir):
         ))
 
     if errors:
-        logger.error(f"Found {len(errors)} missing private registry configurations")
+        logger.error("Found %d catalog registry mapping error(s)", len(errors))
     else:
         logger.info(
             "All catalog image registries are properly configured in "

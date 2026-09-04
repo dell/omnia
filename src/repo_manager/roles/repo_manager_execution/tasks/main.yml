@@ -1,0 +1,88 @@
+---
+- name: Initialize catalog execution results
+  ansible.builtin.set_fact:
+    catalog_execution_results: []
+    pulp_repo_name_migration_completed: false
+    requested_resync_repositories: >-
+      {{
+        []
+        if (resync_repos | default(none)) in [none, '', 'all']
+        else (resync_repos.split(',') | map('trim') | reject('equalto', '') | list)
+        if resync_repos is string
+        else resync_repos | list
+      }}
+
+- name: Build valid catalog repository prefixes
+  ansible.builtin.set_fact:
+    catalog_repository_context_prefixes: >-
+      {%- set prefixes = [] -%}
+      {%- for context in catalog_execution_contexts -%}
+        {%- for architecture in context.architectures -%}
+          {%- set _ = prefixes.append(
+            architecture ~ '_' ~ context.os_type ~ '_' ~
+            context.os_version ~ '_') -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ prefixes }}
+
+- name: Validate resync repository context
+  ansible.builtin.assert:
+    that:
+      - >-
+        requested_resync_repositories |
+        reject('match', '^(' ~
+          (catalog_repository_context_prefixes |
+           map('regex_escape') | join('|')) ~ ')') |
+        list | length == 0
+    fail_msg: >-
+      resync_repos contains repositories outside the catalog OS-version and
+      architecture contexts. Valid prefixes are:
+      {{ catalog_repository_context_prefixes | join(', ') }}
+  when: requested_resync_repositories | length > 0
+
+- name: Display catalog execution plan
+  ansible.builtin.debug:
+    msg: >-
+      Context {{ context_index + 1 }}/{{ catalog_execution_contexts | length }}:
+      {{ execution_context.os_type }} {{ execution_context.os_version }} —
+      {{ execution_context.architectures | join(', ') }}
+  loop: "{{ catalog_execution_contexts }}"
+  loop_control:
+    loop_var: execution_context
+    index_var: context_index
+    label: "{{ execution_context.context_id }}"
+
+- name: Prepare host repository access once
+  ansible.builtin.include_role:
+    name: ../../roles/repository_access
+    tasks_from: prepare_host_repository_access.yml
+  when:
+    - run_subscription_check | default(false) | bool
+    - not (repository_access_host_prepared | default(false) | bool)
+
+# include_tasks loops are intentionally sequential. Do not replace this with an
+# asynchronous loop: every artifact for one OS version must finish before the
+# next version begins.
+- name: Execute catalog contexts sequentially
+  ansible.builtin.include_tasks: execute_catalog_context.yml
+  loop: "{{ catalog_execution_contexts }}"
+  loop_control:
+    loop_var: execution_context
+    label: "{{ execution_context.context_id }}"
+
+- name: Set aggregate Repo Manager status
+  ansible.builtin.set_fact:
+    final_status: >-
+      {{
+        'success'
+        if (catalog_execution_results |
+            rejectattr('status', 'equalto', 'success') | list | length == 0)
+        else 'failed'
+      }}
+
+- name: Persist final catalog execution summary
+  ansible.builtin.include_tasks: persist_catalog_execution_summary.yml
+
+- name: Display catalog execution summary
+  ansible.builtin.debug:
+    msg: "{{ catalog_execution_results }}"

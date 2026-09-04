@@ -17,8 +17,8 @@
     status_code: 200
     timeout: 30
   register: _pulp_preconfigure_status
-  retries: "{{ endpoint_retries }}"
-  delay: "{{ endpoint_delay }}"
+  retries: "{{ deploy_endpoint_retries }}"
+  delay: "{{ deploy_endpoint_delay }}"
   until: _pulp_preconfigure_status.status | default(-1) == 200
 
 - name: Test configured Pulp administrator credentials
@@ -119,8 +119,18 @@
 - name: Verify Pulp CLI configuration
   ansible.builtin.command:
     argv:
-      - /usr/local/bin/pulp
+      - "{{ pulp_cli_executable }}"
       - status
   register: _pulp_cli_status
   changed_when: false
   failed_when: _pulp_cli_status.rc != 0
+
+- name: Verify Pulp CLI configuration from Omnia virtual environment
+  ansible.builtin.command:
+    argv:
+      - "{{ pulp_venv_cli_executable }}"
+      - status
+  register: _pulp_venv_cli_status
+  changed_when: false
+  failed_when: _pulp_venv_cli_status.rc != 0
+  when: pulp_cli_runtime_mode == 'venv'

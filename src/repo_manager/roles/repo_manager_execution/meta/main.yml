@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  role_name: repo_manager_execution
+  author: Dell Technologies
+  description: Execute resolved Repo Manager catalog contexts sequentially
+  license: Apache-2.0
+  min_ansible_version: "2.15"
+dependencies: []

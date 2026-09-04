@@ -47,7 +47,6 @@
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
     - "{{ playbook_dir | dirname | dirname }}/vars/cleanup_pulp_vars.yml"
-    - "{{ playbook_dir | dirname | dirname }}/vars/credential_vars.yml"
   tags: pulp
   tasks:
     - name: Report non-destructive full-cleanup check mode
@@ -96,7 +95,7 @@
           - item is string
           - item is match('^/')
           - item | length > 5
-          - item not in ['/', '/opt', '/var', '/etc', '/usr', '/root']
+          - item not in ['/', '/etc', '/home', '/media', '/mnt', '/opt', '/root', '/srv', '/usr', '/var']
           - item != omnia_data_path
           - item != repo_manager_base_dir
         fail_msg: "Unsafe Pulp cleanup target refused: {{ item }}"
@@ -105,6 +104,18 @@
         {{ pulp_cleanup_directory
            + (pulp_cleanup_log_directories
               if cleanup_logs | default(true) | bool else []) }}
+
+    - name: Validate Pulp distribution root
+      ansible.builtin.assert:
+        that:
+          - pulp_content_paths is mapping
+          - pulp_content_paths.distribution_root is string
+          - pulp_content_paths.distribution_root is match('^[^/]+(?:/[^/]+)*$')
+          - "'.' not in pulp_content_paths.distribution_root.split('/')"
+          - "'..' not in pulp_content_paths.distribution_root.split('/')"
+        fail_msg: >-
+          Unsafe Pulp distribution_root refused. Configure a relative path
+          containing no empty, current-directory, or parent-directory segments.
 
     # -------------------------------------------------------------------------
     # PHASE 2: FETCH CREDENTIALS (OPTIONAL - NOT REQUIRED FOR CLEANUP)
@@ -262,19 +273,12 @@
         tasks_from: cleanup_system_integration.yml
 
     # -------------------------------------------------------------------------
-    # PHASE 6: PRESERVE PULP CLI AND CLEAN YUM REPO FILE
+    # PHASE 6: VERIFY PRESERVED PULP CLI AND CLEAN YUM REPO FILE
     # -------------------------------------------------------------------------
-    - name: Verify Pulp CLI executable is preserved
-      ansible.builtin.stat:
-        path: /usr/local/bin/pulp
-      register: pulp_cli_executable_check
-
-    - name: Display preserved Pulp CLI status
-      ansible.builtin.debug:
-        msg: >-
-          {{ 'Pulp CLI executable preserved at /usr/local/bin/pulp'
-             if pulp_cli_executable_check.stat.exists
-             else 'Pulp CLI executable was not installed at /usr/local/bin/pulp' }}
+    - name: Verify preserved Pulp CLI command chain
+      ansible.builtin.include_role:
+        name: ../../roles/deploy_pulp
+        tasks_from: verify_preserved_cli.yml
 
     - name: Remove Pulp yum repo file
       ansible.builtin.file:
@@ -295,7 +299,7 @@
     # -------------------------------------------------------------------------
     - name: Check if credential files exist
       ansible.builtin.stat:
-        path: "{{ input_project_dir }}/repo_manager_config_credentials.yml"
+        path: "{{ repo_manager_credentials_file }}"
       register: credential_file_exists
 
     - name: Prompt user to delete credentials
@@ -306,7 +310,7 @@
           CREDENTIAL CLEANUP CONFIRMATION
           ========================================
           Credential file found at:
-            {{ input_project_dir }}/repo_manager_config_credentials.yml
+            {{ repo_manager_credentials_file }}
 
           Do you want to delete the credential files? (yes/no)
 
@@ -344,7 +348,7 @@
 
     - name: Verify credential files are removed
       ansible.builtin.stat:
-        path: "{{ input_project_dir }}/repo_manager_config_credentials.yml"
+        path: "{{ repo_manager_credentials_file }}"
       register: credential_file_check
       when: cleanup_credentials | bool
 
@@ -358,7 +362,7 @@
         msg:
           - "=========================================="
           - "Credentials preserved for next deployment"
-          - "Location: {{ input_project_dir }}/repo_manager_config_credentials.yml"
+          - "Location: {{ repo_manager_credentials_file }}"
           - "Next deployment will skip credential prompt"
           - "=========================================="
       when:

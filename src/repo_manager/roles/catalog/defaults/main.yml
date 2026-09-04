@@ -36,9 +36,3 @@ default_os_version: "10.0"
 
 # ── Post-operation validation ──
 validate_after: true
-
-# ── Transform defaults ──
-# (force is already defined above)
-
-# ── Optimize defaults ──
-common_threshold: 10

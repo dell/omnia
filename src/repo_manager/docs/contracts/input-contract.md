@@ -87,11 +87,16 @@ Resolution is performed independently for every catalog OS version and
 architecture. An x86_64 subscription on the OIM does not automatically provide
 aarch64 content unless the subscription exposes that architecture.
 
+When a catalog contains multiple minor versions, configuration must provide the
+architecture sections and repository URLs referenced by each version's
+functional layers. Unreferenced versions, architectures and repositories are
+ignored.
+
 ### Registry Structure
 
 ```yaml
 registries:
-  harbor.example.com:
+  private_registry:
     base_url: "https://harbor.example.com"
     port: 443
     auth:
@@ -116,9 +121,11 @@ registries:
 | `tls.client_key_path` | string or null | No | mTLS key |
 | `tls.insecure` | boolean | No | Disable TLS verification; not recommended |
 
-Known public registries can be used directly. A configured private registry must
-match the catalog source's `registry` value and, for basic authentication, a
-Vault credential entry.
+Known public registries can be used directly. For a configured private registry,
+`sources[].registry` contains the configuration key (`private_registry`) while
+the package key and `name` must start with the configured endpoint
+(`harbor.example.com:443/`). Alias-prefixed image names are rejected. Basic
+authentication also requires the configured Vault credential entry.
 
 ---
 
@@ -208,10 +215,19 @@ architectures and sources to synchronize.
 | `sources[].architecture` | Selects `x86_64` or `aarch64` |
 | `sources[].version` | Selects one or more OS versions |
 | `sources[].reponame` | Maps RPM content to `repositories` |
-| `sources[].registry` | Maps OCI images to public or configured registries |
+| `sources[].registry` | Maps an endpoint-prefixed OCI image to its configured registry key |
 
 Every referenced repository and non-public registry must resolve before download
-starts. Multiple tags of the same image are independent catalog identities.
+starts. A private image name must use the exact configured `host[:port]`; the
+registry configuration key is not a valid image-name prefix. Multiple tags of
+the same image are independent catalog identities.
+
+The catalog may select one or several minor versions of one OS type. Repo
+Manager creates one execution context per minor version, orders the versions
+numerically, and completes each context before starting the next. For example,
+RHEL 10.0 finishes before RHEL 10.2. A package selected in several contexts must
+provide a matching source version and architecture (or an explicit `noarch`
+source) for each context.
 
 See [Content Configuration Guide](../content-configuration-guide.md) and
 [Catalog Operations](../catalog_operations.md).
@@ -234,12 +250,12 @@ with Ansible Vault at rest.
 ```yaml
 pulp_username: "admin"
 pulp_password: "<secret>"
-docker_username: "<optional-user>"
-docker_password: "<optional-secret>"
+docker_username: ''
+docker_password: ''
 
 registry_credentials:
   registries/harbor-production:
-    registry: "harbor.example.com"
+    registry: "private_registry"
     username: "omnia-pull-user"
     password: "<secret>"
 ```
@@ -253,6 +269,10 @@ registry_credentials:
 | `registry_credentials.<vault_path>.registry` | For private registry auth | Registry mapping |
 | `registry_credentials.<vault_path>.username` | For basic auth | Registry username |
 | `registry_credentials.<vault_path>.password` | For basic auth | Registry password/token |
+
+When Docker Hub credentials are not used, both Docker values are stored as
+empty strings. Missing, YAML null, whitespace-only, and legacy `"None"` values
+are normalized to `''`; anonymous public pulls do not run `podman login`.
 
 Do not edit encrypted values directly and never commit either credential file.
 

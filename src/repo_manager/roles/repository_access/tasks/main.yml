@@ -1,0 +1,7 @@
+---
+- name: Prepare host repository access
+  ansible.builtin.include_tasks: prepare_host_repository_access.yml
+  when: not (repository_access_host_prepared | default(false) | bool)
+
+- name: Resolve active-context repository URLs
+  ansible.builtin.include_tasks: resolve_context_repository_urls.yml

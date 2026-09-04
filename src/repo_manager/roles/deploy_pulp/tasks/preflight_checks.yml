@@ -22,6 +22,93 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
+# STORAGE PATH VALIDATION
+# -----------------------------------------------------------------------------
+
+- name: Validate Pulp storage configuration structure
+  ansible.builtin.assert:
+    that:
+      - pulp_storage_paths is mapping
+      - pulp_storage_paths.default is mapping
+      - pulp_storage_paths.user_provided is mapping
+      - >-
+        (pulp_storage_paths.user_provided.keys()
+         | difference(pulp_storage_paths.default.keys())
+         | list | length) == 0
+    fail_msg: >-
+      pulp_storage_paths.user_provided must be a dictionary containing only
+      supported storage keys from pulp_storage_paths.default.
+    quiet: true
+
+- name: Validate resolved Pulp host storage paths
+  ansible.builtin.assert:
+    that:
+      - item.path is string
+      - item.path is match('^/')
+      - item.path | length > 5
+      - (item.path | ansible.builtin.normpath) == item.path
+      - item.path not in pulp_unsafe_storage_paths
+      - item.path != omnia_data_path
+      - item.path != repo_manager_runtime_dir
+      - item.path != repo_manager_base_dir
+    fail_msg: >-
+      Invalid Pulp {{ item.name }} storage path '{{ item.path }}'. Provide a
+      normalized absolute path to a dedicated directory. Broad system paths and
+      storage mount roots are not accepted.
+    quiet: true
+  loop: "{{ pulp_host_storage_paths }}"
+  loop_control:
+    label: "{{ item.name }}={{ item.path }}"
+
+- name: Check user-provided Pulp storage directories
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  loop: >-
+    {{ pulp_storage_paths.user_provided
+       | dict2items(key_name='name', value_name='path') }}
+  loop_control:
+    label: "{{ item.name }}={{ item.path }}"
+  register: pulp_user_storage_checks
+  failed_when: false
+
+- name: Validate user-provided Pulp storage directories are ready
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists | default(false)
+      - item.stat.isdir | default(false)
+      - item.stat.writeable | default(false)
+    fail_msg: >-
+      User-provided Pulp {{ item.item.name }} path '{{ item.item.path }}' must
+      already exist as a writable directory. Repo Manager does not create
+      filesystems, mount storage, or create user-provided root directories.
+    quiet: true
+  loop: "{{ pulp_user_storage_checks.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}={{ item.item.path }}"
+
+- name: Validate Pulp host storage paths are unique
+  ansible.builtin.assert:
+    that:
+      - >-
+        (pulp_host_storage_paths | map(attribute='path') | list | unique | length)
+        == (pulp_host_storage_paths | length)
+    fail_msg: >-
+      Each Pulp storage purpose must use a distinct host directory. Review
+      pulp_storage_paths in vars/default.yml.
+    quiet: true
+
+- name: Display resolved Pulp storage responsibility
+  ansible.builtin.debug:
+    msg:
+      - "Pulp host storage paths are valid absolute directories."
+      - >-
+        Default directories are created when needed; user-provided directories
+        must already exist.
+      - >-
+        Repo Manager does not create filesystems or manage storage mounts.
+      - "NFS and block storage must be mounted and writable before deployment."
+
+# -----------------------------------------------------------------------------
 # CONTAINER STATUS CHECK
 # -----------------------------------------------------------------------------
 
@@ -76,10 +163,10 @@
 
 - name: Check required directories exist
   ansible.builtin.stat:
-    path: "{{ item }}"
-  loop:
-    - "{{ pulp_shared_path }}"
-    - "{{ pulp_logs_dir | default('/var/log/pulp') }}"
+    path: "{{ item.path }}"
+  loop: "{{ pulp_host_storage_paths }}"
+  loop_control:
+    label: "{{ item.name }}={{ item.path }}"
   register: dir_checks
   failed_when: false
 
@@ -91,10 +178,12 @@
 
 - name: Display directory status
   ansible.builtin.debug:
-    msg: "Directory '{{ item.item }}': {{ 'exists' if item.stat.exists else 'will be created' }}"
+    msg: >-
+      {{ item.item.name }} directory '{{ item.item.path }}':
+      {{ 'exists' if item.stat.exists else 'will be created' }}
   loop: "{{ dir_checks.results }}"
   loop_control:
-    label: "{{ item.item }}"
+    label: "{{ item.item.name }}={{ item.item.path }}"
 
 # -----------------------------------------------------------------------------
 # SYSTEMD SERVICE CHECK

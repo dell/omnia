@@ -89,6 +89,7 @@ pulp_rpm_commands = {
     "update_remote": "pulp rpm remote update --name %s --url %s --policy %s",
     "sync_repository": "pulp rpm repository sync --name %s --remote %s",
     "publish_repository": "pulp rpm publication create --repository %s",
+    "publish_repository_version": "pulp rpm publication create --repository %s --version %s",
     "distribute_repository": "pulp rpm distribution create --name %s  --base-path %s  --repository %s",
     "update_distribution": "pulp rpm distribution update --name %s  --base-path %s  --repository %s",
     "create_remote_cert": "pulp rpm remote create --name %s --url %s --policy %s --ca-cert %s --client-cert %s --client-key %s",

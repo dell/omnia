@@ -1,0 +1,13 @@
+---
+- name: Validate host repository-access provider
+  ansible.builtin.assert:
+    that:
+      - catalog_context.platform_capabilities.repository_access == 'rhsm'
+      - cluster_os_type == 'rhel'
+    fail_msg: >-
+      Repository-access provider
+      {{ catalog_context.platform_capabilities.repository_access | default('unknown') }}
+      is not implemented for {{ cluster_os_type }}.
+
+- name: Prepare RHEL subscription access on the host
+  ansible.builtin.include_tasks: rhel/check_rhel_subscription_status.yml

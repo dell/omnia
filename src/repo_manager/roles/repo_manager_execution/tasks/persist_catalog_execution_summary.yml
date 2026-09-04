@@ -1,0 +1,46 @@
+---
+- name: Ensure catalog execution summary directory exists
+  ansible.builtin.file:
+    path: "{{ repo_manager_log_dir }}/{{ catalog_context.os_type }}"
+    state: directory
+    mode: "0755"
+
+- name: Calculate remaining catalog execution contexts
+  ansible.builtin.set_fact:
+    remaining_catalog_context_ids: >-
+      {%- set completed = catalog_execution_results |
+          map(attribute='context_id') | list -%}
+      {%- set remaining = [] -%}
+      {%- for context in catalog_execution_contexts -%}
+        {%- if context.context_id not in completed -%}
+          {%- set _ = remaining.append(context.context_id) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ remaining }}
+
+- name: Persist catalog execution summary
+  ansible.builtin.copy:
+    dest: >-
+      {{ repo_manager_log_dir }}/{{ catalog_context.os_type }}/catalog_execution_summary.yml
+    mode: "0644"
+    content: >-
+      {{
+        {
+          'schema_version': 1,
+          'os_type': catalog_context.os_type,
+          'execution_order': catalog_execution_contexts |
+            map(attribute='context_id') | list,
+          'overall_status': (
+            'failed'
+            if (catalog_execution_results |
+                rejectattr('status', 'equalto', 'success') |
+                list | length > 0)
+            else 'success'
+            if (catalog_execution_results | length ==
+                catalog_execution_contexts | length)
+            else 'in_progress'
+          ),
+          'results': catalog_execution_results,
+          'remaining_contexts': remaining_catalog_context_ids
+        } | to_nice_yaml(indent=2)
+      }}

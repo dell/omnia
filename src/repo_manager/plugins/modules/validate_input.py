@@ -113,11 +113,11 @@ def validate_csv_structure(csv_file_path, logger=None):
             reader = csv.reader(f)
             try:
                 header = next(reader)
-            except StopIteration:
+            except StopIteration as exc:
                 error_msg = f"CSV ERROR: Empty file - {csv_file_path}"
                 if logger:
                     logger.error(error_msg)
-                raise ValueError(error_msg)
+                raise ValueError(error_msg) from exc
 
             expected_columns = len(header)
             line_num = 2
@@ -145,7 +145,7 @@ def validate_csv_structure(csv_file_path, logger=None):
         error_msg = f"CSV validation error: {str(e)}"
         if logger:
             logger.error(error_msg)
-        raise ValueError(error_msg)
+        raise ValueError(error_msg) from e
 
 
 def createlogger(project_name, log_dir, tag_name=None):
@@ -194,6 +194,7 @@ def main():
         "tag_names": {"type": "list", "required": True},
         "module_utils_path": {"type": "str"},
         "csv_file_path": {"type": "str", "required": False},
+        "subscription_enabled": {"type": "bool", "required": False},
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
@@ -204,6 +205,7 @@ def main():
     input_project_dir = module.params.get("input_project_dir", "")
     tag_names = module.params["tag_names"]
     csv_file_path = module.params.get("csv_file_path", "")
+    subscription_enabled = module.params.get("subscription_enabled")
 
     # Set runtime environment before importing path-dependent module utilities.
     # REPO_MANAGER_BASE_DIR is the source checkout and must not be derived from
@@ -211,6 +213,10 @@ def main():
     os.environ.setdefault("OMNIA_DATA_PATH", omnia_base_dir)
     if input_project_dir:
         os.environ.setdefault("REPO_MANAGER_INPUT_PROJECT_DIR", input_project_dir)
+    if subscription_enabled is not None:
+        os.environ["REPO_MANAGER_SUBSCRIPTION_ENABLED"] = (
+            "true" if subscription_enabled else "false"
+        )
 
     # Import modules after setting environment variable
     # pylint: disable=no-name-in-module,E0401

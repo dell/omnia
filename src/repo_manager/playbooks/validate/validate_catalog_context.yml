@@ -1,0 +1,14 @@
+---
+- name: Publish validation context
+  ansible.builtin.set_fact:
+    catalog_context: "{{ validation_execution_context }}"
+    cluster_os_type: "{{ validation_execution_context.os_type }}"
+    cluster_os_version: "{{ validation_execution_context.os_version }}"
+    selected_architectures: "{{ validation_execution_context.architectures }}"
+    sub_final_repo_urls: {}
+
+- name: Resolve repository URLs for validation context
+  ansible.builtin.include_role:
+    name: ../../roles/repository_access
+    tasks_from: resolve_context_repository_urls.yml
+  when: run_subscription_check | default(false) | bool

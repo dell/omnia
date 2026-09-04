@@ -33,8 +33,16 @@ import hashlib
 import copy
 from collections import OrderedDict
 
-from ansible.module_utils.repo_manager.config import (
-    ARCH_SUFFIXES,
+from ansible.module_utils.repo_manager.config import DEFAULT_OS_TYPE
+from ansible.module_utils.repo_manager.catalog_execution_context_resolver import (
+    parse_functional_layer_context,
+    resolve_catalog_execution_contexts,
+)
+from ansible.module_utils.repo_manager.platform_capability_registry import (
+    get_platform_capabilities,
+)
+from ansible.module_utils.repo_manager.package_backend_registry import (
+    get_package_backend,
 )
 from ansible.module_utils.repo_manager.software_utils import normalize_repo_name
 
@@ -243,40 +251,31 @@ def compute_composite_key_hash(package_name, package_type, version, arch):
 # Catalog Resolution: Groups -> Packages (lowercase keys)
 # ---------------------------------------------------------------------------
 
-def extract_os_version_from_functional_layer(catalog, logger):
-    """Extract OS version from functional layer names in the catalog.
+def resolve_catalog_context(catalogs, logger):
+    """Resolve ordered execution contexts and referenced RPM repositories."""
+    context = resolve_catalog_execution_contexts(catalogs, logger)
+    platform_capabilities = get_platform_capabilities(context["os_type"])
+    get_package_backend(platform_capabilities["package_backend"])
+    context["platform_capabilities"] = platform_capabilities
+    for execution_context in context["execution_contexts"]:
+        execution_context["platform_capabilities"] = platform_capabilities
+        execution_context["referenced_repositories"] = (
+            collect_referenced_repositories(catalogs, execution_context, logger)
+        )
 
-    Functional layer names follow the pattern: <layer>_rhel_<version>_<arch>
-    e.g., slurm_control_node_rhel_10_0_x86_64 -> version: 10.0
-
-    Args:
-        catalog (dict): Parsed catalog data (lowercase keys).
-        logger: Logger instance.
-
-    Returns:
-        str: OS version (e.g., "10.0") or default "10.0" if not found.
-    """
-    functional_layers = catalog.get("functionallayer", [])
-
-    for fl in functional_layers:
-        fl_name = fl.get("name", "")
-        # Pattern: <layer>_rhel_<version>_<arch>
-        # Extract version between "rhel_" and "_x86_64" or "_aarch64"
-        if "rhel_" in fl_name:
-            parts = fl_name.split("rhel_")
-            if len(parts) > 1:
-                version_part = parts[1].split("_")[0]  # Get first part after rhel_
-                # Convert underscores to dots (e.g., "10_0" -> "10.0")
-                os_version = version_part.replace("_", ".")
-                logger.info("Extracted OS version '%s' from functional layer '%s'",
-                            os_version, fl_name)
-                return os_version
-
-    logger.warning("Could not extract OS version from functional layers, using default '10.0'")
-    return "10.0"
+    if len(context["execution_contexts"]) == 1:
+        context["referenced_repositories"] = context["execution_contexts"][0][
+            "referenced_repositories"
+        ]
+    else:
+        context["referenced_repositories_by_version"] = {
+            item["os_version"]: item["referenced_repositories"]
+            for item in context["execution_contexts"]
+        }
+    return context
 
 
-def resolve_catalog_groups(catalog, arch, logger):
+def resolve_catalog_groups(catalog, arch, logger, os_version=None):
     """Resolve functionallayer -> groups -> packages for a given architecture.
 
     This extracts the group names referenced by functional layers that match
@@ -290,6 +289,14 @@ def resolve_catalog_groups(catalog, arch, logger):
     Returns:
         dict: Mapping of group_name -> list of package entries.
     """
+    if os_version is None:
+        context = resolve_catalog_context([catalog], logger)
+        if len(context["execution_contexts"]) != 1:
+            raise ValueError(
+                "os_version is required when a catalog contains multiple versions"
+            )
+        os_version = context["execution_contexts"][0]["os_version"]
+
     groups = catalog.get("groups", {})
     packages = catalog.get("packages", {})
     functional_layers = catalog.get("functionallayer", [])
@@ -300,7 +307,9 @@ def resolve_catalog_groups(catalog, arch, logger):
     seen_groups = set()
     for fl in functional_layers:
         fl_name = fl.get("name", "")
-        if fl_name.endswith(f"_{arch}"):
+        parsed_context = parse_functional_layer_context(fl_name)
+        if (parsed_context["architecture"] == arch and
+                parsed_context["os_version"] == str(os_version)):
             for component in fl.get("components", []):
                 if component not in seen_groups:
                     relevant_groups.append(component)
@@ -342,7 +351,19 @@ def resolve_catalog_groups(catalog, arch, logger):
     return group_packages
 
 
-def select_package_source(package, arch):
+def _source_supports_version(source, os_version):
+    """Return whether a source is valid for the requested minor version."""
+    if os_version is None:
+        return True
+    source_versions = source.get("version")
+    if source_versions in (None, "", []):
+        return True
+    if not isinstance(source_versions, (list, tuple, set)):
+        source_versions = [source_versions]
+    return str(os_version) in {str(version) for version in source_versions}
+
+
+def select_package_source(package, arch, os_version=None):
     """Return the source explicitly compatible with ``arch``.
 
     Exact architecture entries take priority.  A ``noarch`` source is accepted
@@ -354,19 +375,62 @@ def select_package_source(package, arch):
         return None
 
     for source in sources:
-        if source.get("architecture") == arch:
+        if (source.get("architecture") == arch and
+                _source_supports_version(source, os_version)):
             return source
     for source in sources:
-        if source.get("architecture") == "noarch":
+        if (source.get("architecture") == "noarch" and
+                _source_supports_version(source, os_version)):
             return source
     return None
+
+
+def collect_referenced_repositories(catalogs, catalog_context, logger):
+    """Return catalog-referenced RPM repository names per architecture.
+
+    Only packages selected by the resolved functional layers participate. The
+    result is deterministic and can be shared by validation and subscription
+    setup so both phases require exactly the same repositories.
+    """
+    if isinstance(catalogs, dict):
+        catalogs = [catalogs]
+
+    os_version = catalog_context["os_version"]
+    referenced = {
+        architecture: []
+        for architecture in catalog_context["architectures"]
+    }
+    seen = {architecture: set() for architecture in referenced}
+
+    for catalog in catalogs:
+        for architecture in catalog_context["architectures"]:
+            group_packages = resolve_catalog_groups(
+                catalog, architecture, logger, os_version=os_version
+            )
+            for packages in group_packages.values():
+                for package in packages:
+                    package_type = package.get(
+                        "type", package.get("packagetype", "rpm")
+                    )
+                    if package_type not in ("rpm", "rpm_list", "rpm_repo"):
+                        continue
+                    source = select_package_source(
+                        package, architecture, os_version=os_version
+                    )
+                    repo_name = (source or {}).get("reponame", "")
+                    if repo_name and repo_name not in seen[architecture]:
+                        referenced[architecture].append(repo_name)
+                        seen[architecture].add(repo_name)
+
+    logger.info("Catalog-referenced RPM repositories: %s", referenced)
+    return referenced
 
 
 # ---------------------------------------------------------------------------
 # Global Package Index & Deduplication
 # ---------------------------------------------------------------------------
 
-def build_global_package_index(catalogs, logger):
+def build_global_package_index(catalogs, logger, catalog_context=None):
     """Build a global package index with first-wins deduplication across catalogs.
 
     For each architecture, iterate through catalogs in discovery order. The first
@@ -397,18 +461,27 @@ def build_global_package_index(catalogs, logger):
             }
         }
     """
+    catalog_context = catalog_context or resolve_catalog_context(catalogs, logger)
+    if "os_version" not in catalog_context:
+        raise ValueError(
+            "A version-specific catalog_context is required when a catalog "
+            "contains multiple OS versions"
+        )
+    os_version = catalog_context["os_version"]
+    selected_architectures = catalog_context["architectures"]
     global_index = {}  # arch -> OrderedDict of hash -> info
     dedup_stats = {"total": 0, "unique": 0, "duplicates": 0, "dedup_list": {}}
 
     for catalog in catalogs:
         catalog_id = catalog["identifier"]
-        catalog_name = catalog["name"]
 
-        for arch in ARCH_SUFFIXES:
+        for arch in selected_architectures:
             if arch not in global_index:
                 global_index[arch] = OrderedDict()
 
-            group_packages = resolve_catalog_groups(catalog, arch, logger)
+            group_packages = resolve_catalog_groups(
+                catalog, arch, logger, os_version=os_version
+            )
 
             for group_name, pkg_list in group_packages.items():
                 for pkg in pkg_list:
@@ -425,11 +498,14 @@ def build_global_package_index(catalogs, logger):
                     source_url = None
                     source_path = None
                     source_registry = None
-                    selected_source = select_package_source(pkg, arch)
+                    selected_source = select_package_source(
+                        pkg, arch, os_version=os_version
+                    )
                     if sources and selected_source is None:
                         raise ValueError(
                             f"Catalog package '{pkg_name}' in group '{group_name}' "
-                            f"has no source for architecture '{arch}' or 'noarch'"
+                            f"has no source for architecture '{arch}' or 'noarch' "
+                            f"compatible with {catalog_context['os_type']} {os_version}"
                         )
                     if selected_source:
                         repo_name = selected_source.get("reponame", "")
@@ -619,7 +695,9 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
 
 
 def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
-                                       os_version, logger, global_caching_policy=True):
+                                       os_version, logger,
+                                       global_caching_policy=True,
+                                       os_type=None):
     """Parse additional_repos from the new repo_manager_config.yml format.
 
     Args:
@@ -650,7 +728,9 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
             continue
 
         # Normalize repo name to standard format
-        normalized_name = normalize_repo_name(repo_name, arch, "rhel", os_version)
+        normalized_name = normalize_repo_name(
+            repo_name, arch, os_type or DEFAULT_OS_TYPE, os_version
+        )
 
         parsed.append({
             "name": normalized_name,
@@ -669,7 +749,10 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
     return parsed
 
 
-def parse_user_repos_from_config(config_data, os_version, arch, repo_config_policy, logger, global_caching_policy=True):
+def parse_user_repos_from_config(config_data, os_version, arch,
+                                 repo_config_policy, logger,
+                                 global_caching_policy=True,
+                                 os_type=None):
     """Parse user custom repositories from repo_manager_config.yml user_repos section.
 
     Args:
@@ -700,7 +783,9 @@ def parse_user_repos_from_config(config_data, os_version, arch, repo_config_poli
             continue
 
         # Normalize repo name to standard format
-        normalized_name = normalize_repo_name(repo_name, arch, "rhel", os_version)
+        normalized_name = normalize_repo_name(
+            repo_name, arch, os_type or DEFAULT_OS_TYPE, os_version
+        )
 
         parsed.append({
             "name": normalized_name,

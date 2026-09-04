@@ -5,6 +5,9 @@
     state: directory
     mode: "{{ item.mode }}"
   loop: "{{ pulp_directories_https }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when: item.create | default(true) | bool
 
 - name: Remove obsolete Pulp HTTP and custom nginx artifacts
   ansible.builtin.file:
@@ -59,8 +62,8 @@
     timeout: 30
     status_code: 200
   register: _pulp_deployment_api
-  retries: "{{ endpoint_retries }}"
-  delay: "{{ endpoint_delay }}"
+  retries: "{{ deploy_endpoint_retries }}"
+  delay: "{{ deploy_endpoint_delay }}"
   until: _pulp_deployment_api.status | default(-1) == 200
 
 - name: Inspect deployed Pulp container

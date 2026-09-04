@@ -89,11 +89,21 @@ Repo Manager deploys HTTPS only. The configured host port forwards to port
 ### 5. `pulp status` reports a self-signed certificate error
 
 **Cause**: An unmanaged Pulp CLI or direct HTTPS client is not using the Repo
-Manager CA.
+Manager CA. Older deployments also allowed the virtual environment's native
+`pulp` entry point to shadow the managed `/usr/local/bin/pulp` launcher.
 
-**Fix**: Use the managed `/usr/local/bin/pulp` command created by `prepare`.
-It supplies the generated CA automatically. For a separate diagnostic client,
-use this CA explicitly:
+**Fix**: Run `prepare` again. If `OMNIA_VENV_PATH` is non-empty, Repo Manager
+uses that virtual environment and links its `bin/pulp` entry point to the
+managed `/usr/local/bin/pulp` launcher. If `OMNIA_VENV_PATH` is unset or empty,
+Repo Manager uses the system Python runtime. The generated CA is supplied
+automatically in both modes.
+
+```bash
+cd <OMNIA_SOURCE_PATH>/repo_manager/playbooks
+ansible-playbook repo_manager.yml --tags prepare
+```
+
+For a separate diagnostic client, use this CA explicitly:
 
 ```text
 <REPO_MANAGER_DATA_PATH>/pulp_config/settings/certs/pulp_webserver.crt
@@ -101,6 +111,12 @@ use this CA explicitly:
 
 A persistent `PULP_CA_BUNDLE` shell export is not required for normal Repo
 Manager or managed Pulp CLI use.
+
+Full Pulp cleanup removes the server, CLI configuration, and CA trust while
+preserving the managed launcher and backend. The Omnia venv link is preserved
+only when `OMNIA_VENV_PATH` is configured and available. Consequently,
+`pulp --version` remains available, but server commands such as `pulp status`
+remain unavailable until `prepare` redeploys and reconfigures Pulp.
 
 ---
 
@@ -241,22 +257,29 @@ Use an exact tag whenever only one version should be deleted.
 | Direct cleanup playbook | `/var/log/omnia/repo_manager/cleanup.log` |
 | Selective cleanup details | `<REPO_MANAGER_DATA_PATH>/log/<os>/<version>/cleanup/standard.log` |
 | Selective cleanup results | `<REPO_MANAGER_DATA_PATH>/log/<os>/<version>/cleanup/cleanup_status.csv` |
+| Multi-version/shared cleanup details | `<REPO_MANAGER_DATA_PATH>/log/<os>/cleanup/standard.log` |
+| Multi-version/shared cleanup results | `<REPO_MANAGER_DATA_PATH>/log/<os>/cleanup/cleanup_status.csv` |
 
 Full Pulp cleanup removes the Repo Manager runtime log directory by default.
 Use `-e "cleanup_logs=false"` when the logs must be retained.
 
 ---
 
-### 14. `repo_status.yml` still lists deleted content
+### 14. `repo_status.yml` is absent after selective cleanup
 
-**Cause**: Selective cleanup updates cleanup and mirror-state records, but
-`repo_status.yml` is generated only by the `status` operation.
+**Cause**: This is intentional. Selective cleanup invalidates the previous
+consumer output so it cannot advertise deleted content.
 
 **Fix**:
 
 ```bash
-ansible-playbook repo_manager.yml --tags status
+ansible-playbook repo_manager.yml --tags "download,status"
 ```
+
+Using `--tags status` alone after cleanup writes the current incomplete Pulp
+state with `overall_status: failed` and lists the missing RPM repositories. The
+status play then fails so that the incomplete output cannot be mistaken for a
+ready repository service.
 
 ---
 

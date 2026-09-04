@@ -411,26 +411,19 @@ def _update_mirror_index_for_package(status_file_path, package_name, package_typ
         logger: Logger instance
     """
     try:
-        # Derive pulp_mirror_index.json path from status_file_path
-        # Expected path: .../rhel/10.0/x86_64/software_name/status.csv
-        # Mirror index: .../rhel/10.0/mirror_status/pulp_mirror_index.json
-
-        path_parts = status_file_path.split(os.sep)
-
-        # Find the OS type and version in the path
-        os_type_idx = -1
-        for i, part in enumerate(path_parts):
-            if part in ['rhel']:
-                os_type_idx = i
-                break
-
-        if os_type_idx == -1 or os_type_idx + 1 >= len(path_parts):
+        # Expected path:
+        # .../<os>/<version>/<arch>/<software>/status.csv
+        os_type, os_version = get_os_info_from_status_path(status_file_path)
+        if not os_type or not os_version:
             logger.debug(f"Could not derive mirror_index path from {status_file_path}")
             return
 
-        # Construct mirror_index path
-        base_path = os.sep.join(path_parts[:os_type_idx + 2])
-        mirror_index_path = os.path.join(base_path, "mirror_status", "pulp_mirror_index.json")
+        version_log_path = os.path.dirname(
+            os.path.dirname(os.path.dirname(status_file_path))
+        )
+        mirror_index_path = os.path.join(
+            version_log_path, "mirror_status", "pulp_mirror_index.json"
+        )
 
         if not os.path.exists(mirror_index_path):
             logger.debug(

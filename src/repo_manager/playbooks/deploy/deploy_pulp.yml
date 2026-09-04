@@ -9,7 +9,6 @@
   gather_facts: true
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
-    - "{{ playbook_dir | dirname | dirname }}/vars/credential_vars.yml"
   environment:
     PULP_CA_BUNDLE: "{{ pulp_server_crt }}"
   tags: pulp

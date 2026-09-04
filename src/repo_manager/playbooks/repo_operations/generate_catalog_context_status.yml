@@ -1,0 +1,36 @@
+---
+- name: Publish status-generation context
+  ansible.builtin.set_fact:
+    catalog_context: "{{ status_execution_context }}"
+    cluster_os_type: "{{ status_execution_context.os_type }}"
+    cluster_os_version: "{{ status_execution_context.os_version }}"
+    selected_architectures: "{{ status_execution_context.architectures }}"
+
+- name: Generate repository status for active context
+  generate_local_repo_access:
+    pulp_server_ip: "{{ pulp_server_ip }}"
+    pulp_server_port: "{{ pulp_server_port | int }}"
+    cluster_os_type: "{{ cluster_os_type }}"
+    cluster_os_version: "{{ cluster_os_version }}"
+    architectures: "{{ selected_architectures }}"
+    execution_contexts: "{{ catalog_execution_contexts }}"
+    repo_config: "{{ repo_config }}"
+    output_path: "{{ output_dir }}/repo_status.yml"
+    local_repo_config_path: "{{ repo_manager_config_file }}"
+  register: context_generate_result
+
+- name: Record status-generation result
+  ansible.builtin.set_fact:
+    status_generation_results: >-
+      {{
+        status_generation_results + [{
+          'context_id': status_execution_context.context_id,
+          'os_version': status_execution_context.os_version,
+          'architectures': status_execution_context.architectures,
+          'rpm_repositories': context_generate_result.rpm_repos_count,
+          'file_repositories': context_generate_result.file_repos_count,
+          'repository_ready': context_generate_result.repository_ready,
+          'missing_rpm_repositories':
+            context_generate_result.missing_rpm_repositories
+        }]
+      }}

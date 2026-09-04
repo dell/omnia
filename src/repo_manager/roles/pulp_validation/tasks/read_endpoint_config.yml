@@ -30,7 +30,7 @@
   block:
     - name: Check if endpoint config file exists
       ansible.builtin.stat:
-        path: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
+        path: "{{ repo_manager_endpoint_config }}"
       register: endpoint_config_file
 
     - name: Fail if endpoint config file not found
@@ -40,7 +40,7 @@
 
     - name: Include endpoint config file
       ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
+        file: "{{ repo_manager_endpoint_config }}"
         name: endpoint_config
 
   rescue:

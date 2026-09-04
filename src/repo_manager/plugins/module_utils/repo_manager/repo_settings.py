@@ -22,7 +22,7 @@ import logging
 import yaml
 
 from ansible.module_utils.repo_manager.repo_paths import (
-    OMNIA_BASE_DIR,
+    REPO_MANAGER_BASE_DIR,
     REPO_MANAGER_RUNTIME_DIR,
     PROJECT_DEFAULT_DIR,
     REPO_MANAGER_LOG_DIR,
@@ -32,7 +32,8 @@ logger = logging.getLogger(__name__)
 
 # Configuration file path
 CONFIG_FILE_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "vars", "default.yml")
+    os.environ.get("REPO_MANAGER_CONFIG_PATH")
+    or os.path.join(REPO_MANAGER_BASE_DIR, "vars", "default.yml")
 )
 
 def load_config():
@@ -46,7 +47,7 @@ def load_config():
         if os.path.exists(CONFIG_FILE_PATH):
             with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as f:
                 return yaml.safe_load(f) or {}
-    except Exception:
+    except (OSError, UnicodeError, yaml.YAMLError):
         pass
     return {}
 
@@ -90,14 +91,31 @@ def get_config_value(config_key, default_value, env_var=None):
 
     return value if value is not None else default_value
 
-def _get_nested_value(dct, keys):
-    """Helper to get nested dictionary value."""
-    for key in keys:
-        if isinstance(dct, dict) and key in dct:
-            dct = dct[key]
-        else:
-            return None
-    return dct
+
+def _normalize_relative_config_path(value, config_key):
+    """Validate and normalize a slash-delimited relative configuration path."""
+    raw_value = str(value).strip()
+    if not raw_value or os.path.isabs(raw_value):
+        raise ValueError(f"{config_key} must be a non-empty relative path")
+
+    parts = tuple(part for part in raw_value.split('/') if part)
+    if not parts or any(part in ('.', '..') for part in parts):
+        raise ValueError(f"{config_key} contains an unsafe path segment")
+    return '/'.join(parts)
+
+
+def _normalize_content_route(value):
+    """Validate and return the native Pulp content route."""
+    relative_route = _normalize_relative_config_path(
+        str(value).strip('/'), 'pulp_content_paths.content_route'
+    )
+    content_route = f"/{relative_route}"
+    if content_route != '/pulp/content':
+        raise ValueError(
+            'pulp_content_paths.content_route must remain /pulp/content'
+        )
+    return content_route
+
 
 # ----------------------------
 # Parallel Tasks Defaults
@@ -127,23 +145,44 @@ SOFTWARE_CSV_HEADER = "name,status"
 # ----------------------------
 REPO_MANAGER_CONFIG_PATH_DEFAULT = os.path.join(PROJECT_DEFAULT_DIR, "repo_manager_config.yml")
 SOFTWARE_CSV_FILENAME = "groups_status.csv"
-FRESH_INSTALLATION_STATUS = True
 
 # ----------------------------
 # Software Utilities Defaults
 # ----------------------------
-PACKAGE_TYPES = ['rpm', 'deb', 'tarball', 'image', 'manifest', 'git',
-                 'pip_module', 'deb', 'shell', 'ansible_galaxy_collection', 'iso', 'rpm_list', 'rpm_file', 'rpm_repo']
-CSV_COLUMNS = {"column1": "name", "column2": "status"}
 SOFTWARES_KEY = "softwares"
 RPM_LABEL_TEMPLATE = "RPMs for {key}"
 # Keep architecture traversal deterministic.  Several catalog operations use
 # first-wins deduplication, so a set here can change ownership between runs.
-ARCH_SUFFIXES = ("x86_64", "aarch64")
+DEFAULT_OS_TYPE = str(get_config_value(
+    "platform_config.default_os_type", ""
+))
+ARCH_SUFFIXES = tuple(get_config_value(
+    "platform_config.architecture_order", ["x86_64", "aarch64"]
+))
+PLATFORM_PROFILES = get_config_value("platform_profiles", {})
+if not isinstance(PLATFORM_PROFILES, dict):
+    raise ValueError("platform_profiles must be a mapping")
+SUPPORTED_OS_TYPES = tuple(
+    os_type for os_type, profile in PLATFORM_PROFILES.items()
+    if isinstance(profile, dict) and bool(profile.get("enabled", False))
+)
+PLATFORM_VERSION_ORDER = str(get_config_value(
+    "platform_config.version_order", "ascending"
+)).lower()
+if PLATFORM_VERSION_ORDER not in ("ascending", "descending"):
+    raise ValueError(
+        "platform_config.version_order must be 'ascending' or 'descending'"
+    )
+SUBSCRIPTION_REPOSITORIES = tuple(get_config_value(
+    "platform_profiles.rhel.subscription_repositories",
+    ["baseos", "appstream", "codeready-builder"]
+))
 
 # Target OS -> Python version mapping for pip cross-version downloads.
 OS_TARGET_PYTHON = {
-    "rhel": {"10": "3.12"},
+    "rhel": get_config_value(
+        "platform_profiles.rhel.target_python_by_os_major", {"10": "3.12"}
+    ),
 }
 
 # Architecture -> manylinux platform tags for pip --platform flag.
@@ -200,11 +239,6 @@ TASK_POLL_INTERVAL = get_config_value('parallel_config.task_poll_interval_second
 FILE_URI = "/pulp/api/v3/content/file/files/"
 
 # ----------------------------
-# Pulp Concurrency Settings
-# ----------------------------
-PULP_CONCURRENCY = get_config_value('pulp_config.concurrency', 1, 'REPO_MANAGER_PULP_CONCURRENCY')
-
-# ----------------------------
 # RPM Repository Processing Configuration
 # ----------------------------
 MAX_THREAD_POOL_SIZE = 10
@@ -218,43 +252,52 @@ if RPM_THREAD_POOL_SIZE > MAX_THREAD_POOL_SIZE:
                   RPM_THREAD_POOL_SIZE, MAX_THREAD_POOL_SIZE, MAX_THREAD_POOL_SIZE)
     RPM_THREAD_POOL_SIZE = MAX_THREAD_POOL_SIZE
 
-if RPM_THREAD_POOL_SIZE < MIN_THREAD_POOL_SIZE:
-    RPM_THREAD_POOL_SIZE = MIN_THREAD_POOL_SIZE
+RPM_THREAD_POOL_SIZE = max(RPM_THREAD_POOL_SIZE, MIN_THREAD_POOL_SIZE)
 
-RPM_PULP_TIMEOUT = get_config_value('rpm_repo_config.pulp_timeout', 86400, 'REPO_MANAGER_PULP_TIMEOUT')
 RPM_CONTINUE_ON_FAILURE = get_config_value('rpm_repo_config.continue_on_failure', True, 'REPO_MANAGER_CONTINUE_ON_FAILURE')
-RPM_FILE_LOCK_TIMEOUT = get_config_value('rpm_repo_config.file_lock_timeout', 60, 'REPO_MANAGER_FILE_LOCK_TIMEOUT')
 RPM_SYNC_STUCK_TIMEOUT = get_config_value('rpm_repo_config.sync_stuck_timeout', 600, 'REPO_MANAGER_SYNC_STUCK_TIMEOUT')
 RPM_PROGRESS_CHECK_INTERVAL = get_config_value('rpm_repo_config.progress_check_interval', 30, 'REPO_MANAGER_PROGRESS_CHECK_INTERVAL')
 RPM_CLEANUP_ON_TIMEOUT = get_config_value('rpm_repo_config.cleanup_on_timeout', True, 'REPO_MANAGER_CLEANUP_ON_TIMEOUT')
-RPM_CLEANUP_ORPHANS_ONLY = get_config_value('rpm_repo_config.cleanup_orphans_only', False, 'REPO_MANAGER_CLEANUP_ORPHANS_ONLY')
+RPM_CLI_QUERY_TIMEOUT = max(1, get_config_value(
+    'rpm_repo_config.cli_query_timeout', 150,
+    'REPO_MANAGER_PULP_QUERY_TIMEOUT'
+))
+RPM_CLI_QUERY_RETRIES = max(1, get_config_value(
+    'rpm_repo_config.cli_query_retries', 3,
+    'REPO_MANAGER_PULP_QUERY_RETRIES'
+))
+RPM_CLI_QUERY_RETRY_DELAY = max(0, get_config_value(
+    'rpm_repo_config.cli_query_retry_delay', 5,
+    'REPO_MANAGER_PULP_QUERY_RETRY_DELAY'
+))
+RPM_API_UNAVAILABLE_TIMEOUT = max(1, get_config_value(
+    'rpm_repo_config.api_unavailable_timeout', 600,
+    'REPO_MANAGER_PULP_API_UNAVAILABLE_TIMEOUT'
+))
 
 # ----------------------------
 # Cleanup Configuration
 # ----------------------------
 CLEANUP_BASE_PATH_DEFAULT = REPO_MANAGER_LOG_DIR
-CLEANUP_STATUS_FILE_PATH_DEFAULT = os.path.join(REPO_MANAGER_LOG_DIR, "cleanup_status.csv")
-CLEANUP_LOG_PATH_DEFAULT = os.path.join(REPO_MANAGER_LOG_DIR, "cleanup.log")
-
-CLEANUP_DELETE_REMOTE_DEFAULT = get_config_value('cleanup_config.delete_remote', True, 'REPO_MANAGER_CLEANUP_DELETE_REMOTE')
-CLEANUP_DELETE_DISTRIBUTION_DEFAULT = get_config_value('cleanup_config.delete_distribution', True, 'REPO_MANAGER_CLEANUP_DELETE_DISTRIBUTION')
-CLEANUP_CLEANUP_ORPHANS_AFTER_DEFAULT = get_config_value('cleanup_config.cleanup_orphans', True, 'REPO_MANAGER_CLEANUP_ORPHANS')
-CLEANUP_LIST_ONLY_DEFAULT = get_config_value('cleanup_config.list_only', False, 'REPO_MANAGER_CLEANUP_LIST_ONLY')
-CLEANUP_FORCE_DEFAULT = get_config_value('cleanup_config.force', False, 'REPO_MANAGER_CLEANUP_FORCE')
-
-CLEANUP_STATUS_SUCCESS = "Success"
-CLEANUP_STATUS_FAILED = "Failed"
-CLEANUP_STATUS_IN_PROGRESS = "In Progress"
-
-CLEANUP_STATUS_FILENAME = "cleanup_status.csv"
-CLEANUP_STATUS_CSV_HEADER = "artifact_name,artifact_type,status,message,timestamp\n"
-CLEANUP_LOG_FILE_PATH = os.path.join(REPO_MANAGER_LOG_DIR, "cleanup.log")
 
 # ----------------------------
 # Additional Repos Aggregation Settings
 # ----------------------------
+PULP_CONTENT_ROUTE = _normalize_content_route(get_config_value(
+    'pulp_content_paths.content_route', '/pulp/content'
+))
+PULP_DISTRIBUTION_ROOT = _normalize_relative_config_path(
+    get_config_value(
+        'pulp_content_paths.distribution_root', 'offline_repo/cluster'
+    ),
+    'pulp_content_paths.distribution_root',
+)
+PULP_DISTRIBUTION_ROOT_PARTS = tuple(PULP_DISTRIBUTION_ROOT.split('/'))
 AGGREGATED_REPO_SUFFIX = "repo_manager-additional"
-AGGREGATED_BASE_PATH_TEMPLATE = "offline_repo/cluster/{arch}/{os_type}/{os_version}/rpms/{repo_name}"
+AGGREGATED_BASE_PATH_TEMPLATE = (
+    f"{PULP_DISTRIBUTION_ROOT}/"
+    "{arch}/{os_type}/{os_version}/rpms/{repo_name}"
+)
 STANDARD_LOG_FILE_PATH = os.path.join(REPO_MANAGER_LOG_DIR, "standard.log")
 
 # ----------------------------
@@ -390,12 +433,13 @@ __all__ = [
     "SOFTWARE_CSV_HEADER",
     "REPO_MANAGER_CONFIG_PATH_DEFAULT",
     "SOFTWARE_CSV_FILENAME",
-    "FRESH_INSTALLATION_STATUS",
-    "PACKAGE_TYPES",
-    "CSV_COLUMNS",
     "SOFTWARES_KEY",
     "RPM_LABEL_TEMPLATE",
+    "DEFAULT_OS_TYPE",
     "ARCH_SUFFIXES",
+    "SUPPORTED_OS_TYPES",
+    "PLATFORM_VERSION_ORDER",
+    "SUBSCRIPTION_REPOSITORIES",
     "OS_TARGET_PYTHON",
     "ARCH_PIP_PLATFORMS",
     "REPO_NAME_FORMAT",
@@ -409,21 +453,10 @@ __all__ = [
     "ISO_TIMEOUT_MIN",
     "TASK_POLL_INTERVAL",
     "FILE_URI",
-    "PULP_CONCURRENCY",
     "CLEANUP_BASE_PATH_DEFAULT",
-    "CLEANUP_STATUS_FILE_PATH_DEFAULT",
-    "CLEANUP_LOG_PATH_DEFAULT",
-    "CLEANUP_DELETE_REMOTE_DEFAULT",
-    "CLEANUP_DELETE_DISTRIBUTION_DEFAULT",
-    "CLEANUP_CLEANUP_ORPHANS_AFTER_DEFAULT",
-    "CLEANUP_LIST_ONLY_DEFAULT",
-    "CLEANUP_FORCE_DEFAULT",
-    "CLEANUP_STATUS_SUCCESS",
-    "CLEANUP_STATUS_FAILED",
-    "CLEANUP_STATUS_IN_PROGRESS",
-    "CLEANUP_STATUS_FILENAME",
-    "CLEANUP_STATUS_CSV_HEADER",
-    "CLEANUP_LOG_FILE_PATH",
+    "PULP_CONTENT_ROUTE",
+    "PULP_DISTRIBUTION_ROOT",
+    "PULP_DISTRIBUTION_ROOT_PARTS",
     "AGGREGATED_REPO_SUFFIX",
     "AGGREGATED_BASE_PATH_TEMPLATE",
     "STANDARD_LOG_FILE_PATH",
@@ -436,7 +469,6 @@ __all__ = [
     "RPM_SYNC_STUCK_TIMEOUT",
     "RPM_PROGRESS_CHECK_INTERVAL",
     "RPM_CLEANUP_ON_TIMEOUT",
-    "RPM_CLEANUP_ORPHANS_ONLY",
     "iterate_all_repos",
     "get_repos_section",
     "collect_all_repo_names",

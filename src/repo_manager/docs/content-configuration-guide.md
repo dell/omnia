@@ -206,7 +206,7 @@ Configuration:
 
 ```yaml
 registries:
-  harbor.example.com:
+  private_registry:
     base_url: "https://harbor.example.com"
     port: 443
     auth:
@@ -225,24 +225,30 @@ Encrypted credential mapping:
 ```yaml
 registry_credentials:
   registries/harbor-production:
-    registry: "harbor.example.com"
+    registry: "private_registry"
     username: "omnia-pull-user"
     password: "<secret>"
 ```
 
-Catalog source:
+Catalog package and source:
 
 ```json
 {
-  "architecture": "x86_64",
-  "registry": "harbor.example.com",
-  "name": "rhel",
-  "version": ["10.0"]
+  "name": "harbor.example.com:443/library/nginx",
+  "packagetype": "image",
+  "sources": [{
+    "architecture": "x86_64",
+    "registry": "private_registry",
+    "version": ["10.0"]
+  }],
+  "tag": "1.25.2"
 }
 ```
 
 Repo Manager passes the resolved username and password to the Pulp container
 remote. Credentials are not placed in the catalog, main configuration or logs.
+The image name must use the exact configured endpoint. Names such as
+`private_registry/library/nginx` are rejected; no alias-prefix fallback exists.
 
 ---
 
@@ -291,13 +297,13 @@ These controls are independent:
 
 | Setting | Default | Purpose |
 |---------|---------|---------|
-| `parallel_config.default_nthreads` | `1` | General catalog package worker processes |
-| `rpm_repo_config.thread_pool_size` | `1` | RPM repositories processed in each Pulp stage |
+| `parallel_config.default_nthreads` | `3` | General catalog package worker processes |
+| `rpm_repo_config.thread_pool_size` | `3` | RPM repositories processed in each Pulp stage |
 | `dnf_config.max_concurrent_commands` | `1` | Maximum simultaneous DNF commands |
 
 Increasing general workers does not increase DNF concurrency. Keep DNF at one;
-increase the other controls gradually after validating Pulp CPU, memory, network
-and storage.
+reduce the other controls when Pulp CPU, memory, network, or storage is
+constrained.
 
 ## Validation Checklist
 

@@ -28,9 +28,9 @@
 pulp_status_url: "{{ pulp_protocol }}://{{ pulp_server_ip }}:{{ pulp_server_port }}/pulp/api/v3/status/"
 
 # Endpoint verification settings
-endpoint_retries: 3
-endpoint_delay: 5
-endpoint_timeout: 60
+validation_endpoint_retries: 3
+validation_endpoint_delay: 5
+validation_endpoint_timeout: 60
 
 # -----------------------------------------------------------------------------
 # STATUS MESSAGES

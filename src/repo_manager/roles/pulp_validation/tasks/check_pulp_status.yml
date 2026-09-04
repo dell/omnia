@@ -59,9 +59,9 @@
         return_content: true
         status_code: [200]
       register: result
-      retries: "{{ endpoint_retries }}"
-      delay: "{{ endpoint_delay }}"
-      timeout: "{{ endpoint_timeout }}"
+      retries: "{{ validation_endpoint_retries }}"
+      delay: "{{ validation_endpoint_delay }}"
+      timeout: "{{ validation_endpoint_timeout }}"
       until: result.status == 200
       failed_when: false
 

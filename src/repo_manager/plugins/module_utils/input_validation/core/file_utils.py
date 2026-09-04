@@ -21,10 +21,11 @@ This module provides functions for:
 - Recursive file discovery
 """
 import glob
-import os
 import json
-import yaml
+import os
 import subprocess
+
+import yaml
 
 from ansible.module_utils.input_validation.core.config import get_vault_password
 
@@ -75,19 +76,6 @@ def directory_exists(directory_path, module, logger):
     return False
 
 
-def verify_path(file_path):
-    """
-    Verifies if a file exists at the given path.
-
-    Args:
-        file_path (str): The path to the file.
-
-    Returns:
-        bool: True if the file exists, False otherwise.
-    """
-    if not os.path.exists(file_path):
-        return False
-    return os.path.isfile(file_path)
 
 
 # =============================================================================
@@ -286,28 +274,9 @@ def load_yaml_as_json(yaml_file, omnia_base_dir, project_name, logger, module):
         logger.error(" | ".join(error_parts))
         return None
 
+    return None
 
-def load_json(file_path):
-    """
-    Load JSON data from a file.
 
-    Args:
-        file_path (str): The path to the JSON file.
-
-    Returns:
-        dict: The loaded JSON data.
-
-    Raises:
-        FileNotFoundError: If the file is not found.
-        ValueError: If the JSON parsing fails.
-    """
-    try:
-        with open(file_path, 'r', encoding='utf-8') as file:
-            return json.load(file)
-    except FileNotFoundError as exc:
-        raise FileNotFoundError(f"Error: File '{file_path}' not found.") from exc
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"Error: Failed to parse JSON in file '{file_path}'.") from exc
 
 
 # =============================================================================
@@ -365,6 +334,8 @@ def process_encrypted_file(yaml_file, omnia_base_dir, project_name, logger, modu
         msg = f"Error occurred when attempting to decrypt file. Please check vault file for {yaml_file}"
         logger.error(msg)
         module.fail_json(msg)
+
+    return None
 
 
 def run_subprocess(cmd):

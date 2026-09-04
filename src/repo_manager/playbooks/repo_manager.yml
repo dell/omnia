@@ -33,7 +33,7 @@
 #   # Prepare credentials and deploy the Pulp server.
 #   # If pulp_password is omitted, Repo Manager collects or reuses credentials.
 #   ansible-playbook repo_manager.yml --tags prepare
-#   ansible-playbook repo_manager.yml --tags prepare -e "pulp_password=your_password"
+#   ansible-playbook repo_manager.yml --tags prepare -e "pulp_password=CHANGEME"
 #
 #   # Collect or update credentials without deploying Pulp.
 #   ansible-playbook repo_manager.yml --tags credentials
@@ -42,6 +42,9 @@
 #   ansible-playbook repo_manager.yml --tags precheck
 #
 #   # Download and synchronize catalog packages and repositories to Pulp.
+#   # If the catalog contains multiple OS minor versions, Repo Manager processes
+#   # them in numeric order. Every artifact for one version finishes before the
+#   # next version starts; a failed version prevents later versions from running.
 #   ansible-playbook repo_manager.yml --tags download
 #
 #   # Refresh RPM repositories that are already synchronized. Repo Manager asks
@@ -118,8 +121,10 @@
 #   #   /var/log/omnia/repo_manager/repo_manager.log
 #   # Selective cleanup detail log:
 #   #   <OMNIA_DATA_PATH>/repo_manager/log/<os>/<version>/cleanup/standard.log
+#   #   Multi-version/shared cleanup: <OMNIA_DATA_PATH>/repo_manager/log/<os>/cleanup/standard.log
 #   # Selective cleanup result table:
 #   #   <OMNIA_DATA_PATH>/repo_manager/log/<os>/<version>/cleanup/cleanup_status.csv
+#   #   Multi-version/shared cleanup: <OMNIA_DATA_PATH>/repo_manager/log/<os>/cleanup/cleanup_status.csv
 #   # Direct cleanup playbook log (when run from playbooks/cleanup/):
 #   #   /var/log/omnia/repo_manager/cleanup.log
 #   # Full Pulp cleanup removes <OMNIA_DATA_PATH>/repo_manager/log by default.
@@ -130,8 +135,6 @@
 #   ansible-playbook repo_manager.yml --tags catalog_add -e "input_file=input/additions.txt"
 #   ansible-playbook repo_manager.yml --tags catalog_delete -e "input_file=input/removals.txt"
 #   ansible-playbook repo_manager.yml --tags catalog_validate
-#   ansible-playbook repo_manager.yml --tags catalog_transform -e "input_file=input/catalog_1.0.json"
-#   ansible-playbook repo_manager.yml --tags catalog_optimize
 # =============================================================================
 # yamllint enable rule:line-length
 
@@ -289,5 +292,3 @@
     - catalog_add
     - catalog_delete
     - catalog_validate
-    - catalog_transform
-    - catalog_optimize

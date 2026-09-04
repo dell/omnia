@@ -34,11 +34,3 @@
 - name: Include catalog validate tasks
   ansible.builtin.include_tasks: validate.yml
   when: "'catalog_validate' in ansible_run_tags"
-
-- name: Include catalog transform tasks
-  ansible.builtin.include_tasks: transform.yml
-  when: "'catalog_transform' in ansible_run_tags"
-
-- name: Include catalog optimize tasks
-  ansible.builtin.include_tasks: optimize.yml
-  when: "'catalog_optimize' in ansible_run_tags"

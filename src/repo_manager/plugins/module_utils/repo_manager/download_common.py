@@ -52,6 +52,8 @@ from ansible.module_utils.repo_manager.config import (
     FILE_URI,
     OS_TARGET_PYTHON,
     ARCH_PIP_PLATFORMS,
+    PULP_DISTRIBUTION_ROOT,
+    PULP_DISTRIBUTION_ROOT_PARTS,
 )
 from ansible.module_utils.repo_manager.software_utils import build_repo_name
 
@@ -160,7 +162,7 @@ def build_content_base_dir(repo_store_path, arc, cluster_os_type, cluster_os_ver
         str: Absolute path to the base content directory.
     """
     return os.path.join(
-        repo_store_path, "offline_repo", "cluster",
+        repo_store_path, *PULP_DISTRIBUTION_ROOT_PARTS,
         arc.lower(), cluster_os_type, cluster_os_version,
     )
 
@@ -168,9 +170,8 @@ def build_content_base_dir(repo_store_path, arc, cluster_os_type, cluster_os_ver
 def get_pulp_base_path(absolute_path):
     """Convert absolute filesystem path to Pulp distribution base_path.
 
-    Pulp base_path must be relative to the content root. The offline content
-    is stored under an ``offline_repo`` directory, so the distribution base
-    path is everything from ``offline_repo`` onward (e.g.
+    Pulp base_path must be relative to the content root. The configured
+    distribution root is retained in the published path (for example,
     ``offline_repo/cluster/x86_64/rhel/10.0/git/karavi-observability``).
 
     Args:
@@ -180,15 +181,17 @@ def get_pulp_base_path(absolute_path):
         str: Relative base_path for Pulp distribution.
     """
     normalized = os.path.normpath(absolute_path)
-    marker = '/offline_repo/'
+    marker = os.sep + PULP_DISTRIBUTION_ROOT.replace('/', os.sep) + os.sep
     if marker in normalized:
         idx = normalized.find(marker) + 1
-        return normalized[idx:].strip('/')
+        return normalized[idx:].replace(os.sep, '/').strip('/')
     # Fallback: compute relative to the Omnia base directory
     repo_base = os.environ.get(
         'REPO_MANAGER_DATA_PATH', REPO_MANAGER_RUNTIME_DIR
     )
-    return os.path.relpath(absolute_path, repo_base).strip('/')
+    return os.path.relpath(absolute_path, repo_base).replace(
+        os.sep, '/'
+    ).strip('/')
 
 
 CHUNK_SIZE = 10 * 1024 * 1024  # 10MB
@@ -1033,6 +1036,8 @@ def process_tarball(package, status_file_path, version_variables, content_base_d
 
         return status
 
+    return None
+
 
 def process_iso(package, status_file_path,
                 version_variables, content_base_dir, repo_name, logger):
@@ -1139,6 +1144,8 @@ def process_iso(package, status_file_path,
             logger.info("#" * 30 + " %s end " + "#" * 30, process_iso.__name__)  # End of function
         return status
 
+    return None
+
 
 def _get_target_python_version(cluster_os_type, cluster_os_version, logger):
     """Resolve the target Python version from OS type and version.
@@ -1213,6 +1220,7 @@ def process_pip(package, status_file_path, content_base_dir, repo_name,
     logger.info("#" * 30 + " %s start " + "#" * 30, process_pip.__name__)
     status = "Success"  # Default status, updated if any step fails
     package_type = None  # Initialize to avoid E0601 error
+    package_name = "unknown"
 
     try:
         package_name = shlex.quote(package['package']).strip("'\"")
@@ -1308,8 +1316,12 @@ def process_pip(package, status_file_path, content_base_dir, repo_name,
 
         logger.info(f"Package {package_name} processed successfully!")
 
-    except (subprocess.CalledProcessError, requests.exceptions.RequestException, IOError, OSError, KeyError) as e:
-        logger.error(f"Unexpected error while processing {package_name}: {e}")
+    except (subprocess.CalledProcessError, requests.exceptions.RequestException,
+            IOError, OSError, KeyError) as error:
+        logger.error(
+            "Unexpected %s while processing %s.",
+            type(error).__name__, package_name
+        )
         status = "Failed"
 
     finally:
