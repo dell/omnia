@@ -37,16 +37,16 @@ mapping_file_key: "ADMIN_MAC"
 hostname_chars_fail_msg: |
   Failed. Hostname should not contain _ or . or space or node- as it might result in issues with provisioning/authentication
   tools like FreeIPA. Make sure the mapping file contains only the hostname, and not the domain_name. Found in:
-temp_mapping_file_path: "/opt/omnia/pxe_mapping_file.csv"
+temp_mapping_file_path: "{{ hostvars['localhost']['omnia_data_path'] | default('/opt/omnia', true) }}/pxe_mapping_file.csv"
 capital_hostname_fail_msg: |
   "Failed. Invalid hostname {{ item }}. Hostname should be in lower case and should not start with numbers.
   Refer documentation for more details."
-temp_pxe_file_path: "/opt/omnia/openchami/temp_pxe_file.csv"
+temp_pxe_file_path: "{{ hostvars['localhost']['omnia_data_path'] | default('/opt/omnia', true) }}/openchami/temp_pxe_file.csv"
 file_mode: "0644"
 functional_groups_file_path: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
 
 # Usage: updates_hosts.yml
-hosts_file_path: /opt/omnia/hosts
+hosts_file_path: "{{ hostvars['localhost']['omnia_data_path'] | default('/opt/omnia', true) }}/hosts"
 
 # Usage: validate_image.yml
 image_missing_fail_msg: |

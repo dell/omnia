@@ -14,7 +14,7 @@
 ---
 
 # Paths (mirror configure_ochami/vars/main.yml until configure_ochami is deleted)
-openchami_share_path: /opt/omnia/openchami
+openchami_share_path: "{{ hostvars['localhost']['omnia_data_path'] | default('/opt/omnia', true) }}/openchami"
 openchami_work_dir: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir"
 nodes_dir: "{{ openchami_work_dir }}/nodes"
 boot_svc_dir: "{{ openchami_work_dir }}/boot"
