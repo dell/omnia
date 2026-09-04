@@ -67,11 +67,24 @@ This document defines all input files consumed by the `orchestrator` domain.
 |-------|------|----------|-------------|
 | `Networks.admin_network.primary_oim_admin_ip` | string | Yes | OIM admin IP |
 | `Networks.admin_network.oim_nic_name` | string | Yes | OIM NIC name |
+| `Networks.admin_network.subnet` | string | Yes | Admin network address |
 | `Networks.admin_network.netmask_bits` | string | Yes | Netmask bits |
 | `Networks.admin_network.dynamic_range` | string | Yes | DHCP dynamic range (e.g., `10.5.0.100-10.5.0.200`) |
 | `Networks.admin_network.router` | string | Yes | Default gateway |
 | `Networks.admin_network.dns` | list | No | DNS forwarders |
-| `Networks.admin_network.additional_subnets` | list | No | Multi-subnet support |
+| `Networks.admin_network.ntp_servers` | list | No | NTP server or pool entries |
+| `Networks.admin_network.additional_subnets` | list | No | Subnets served through DHCP relay for multi-RAC or multi-subnet PXE |
+| `Networks.admin_network.additional_subnets[].subnet` | string | Yes, per entry | Additional network address |
+| `Networks.admin_network.additional_subnets[].netmask_bits` | string | Yes, per entry | Additional network CIDR prefix length |
+| `Networks.admin_network.additional_subnets[].router` | string | Yes, per entry | Gateway supplied as DHCP option 3 |
+| `Networks.admin_network.additional_subnets[].dynamic_range` | string | Yes, per entry | DHCP pool contained by the additional subnet |
+| `Networks.ib_network.subnet` | string | Yes, when configured | InfiniBand network address |
+| `Networks.ib_network.netmask_bits` | string | Yes, when configured | InfiniBand CIDR prefix length |
+| `Networks.ib_network.dns` | list | No | InfiniBand DNS server addresses |
+
+OIM iDRAC addresses are not part of the Orchestrator network contract. When
+iDRAC telemetry must include an OIM server, configure its address through
+`idrac_telemetry_configurations.oim_bmc_ips` in the Telemetry domain input.
 
 ---
 

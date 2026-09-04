@@ -19,14 +19,45 @@
 #
 # The orchestrator uses the full network spec for PXE boot,
 # DHCP configuration, and host networking setup.
+#
+# admin_network is mandatory and contains:
+# - oim_nic_name: OIM interface connected to the admin network.
+# - subnet: Admin network address.
+# - netmask_bits: Admin network CIDR prefix length.
+# - primary_oim_admin_ip: Configured OIM address on the admin network.
+# - router: Admin network gateway supplied as DHCP option 3. When no
+#   dedicated router exists, use primary_oim_admin_ip.
+# - dynamic_range: DHCP pool in "start_ip-end_ip" format.
+# - dns: Optional list of external DNS server addresses.
+# - ntp_servers: Optional NTP entries. Each entry requires an address and a
+#   type of either "server" or "pool". Example:
+#     ntp_servers:
+#       - { address: "172.16.10.80", type: "server" }
+# - additional_subnets: Optional subnets managed through DHCP relay for
+#   multi-RAC or multi-subnet PXE deployments. CoreDHCP selects the matching
+#   pool from the relay address (giaddr). Each entry requires:
+#     - subnet: Network address of the additional subnet.
+#     - netmask_bits: CIDR prefix length.
+#     - router: Gateway supplied as DHCP option 3.
+#     - dynamic_range: DHCP pool in "start_ip-end_ip" format. The complete
+#       range must be inside the additional subnet.
+#
+# Example additional subnet:
+#   additional_subnets:
+#     - subnet: "10.40.1.0"
+#       netmask_bits: "24"
+#       router: "10.40.1.1"
+#       dynamic_range: "10.40.1.100-10.40.1.200"
+#
+# ib_network defines the InfiniBand network subnet, CIDR prefix length, and
+# optional DNS server addresses.
 
 Networks:
 - admin_network:
     oim_nic_name: "eno1"
-    subnet: "172.16.0.0"
+    subnet: "172.16.107.0"
     netmask_bits: "24"
     primary_oim_admin_ip: "172.16.107.254"
-    primary_oim_bmc_ip: ""
     router: "172.16.107.254"
     dynamic_range: "172.16.107.201-172.16.107.250"
     dns: []
