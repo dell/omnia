@@ -60,7 +60,7 @@ Issues = "https://github.com/balajikumaran-c-s/omnia-auto/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["omnia_auto*"]
+include = ["omnia_auto*", "docs*"]
 
 [tool.setuptools.package-data]
 omnia_auto = ["py.typed"]
