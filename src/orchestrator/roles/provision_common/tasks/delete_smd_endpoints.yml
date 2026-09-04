@@ -15,9 +15,6 @@
 # Delete stale SMD endpoints before re-registration.
 # Extracted from configure_ochami/tasks/delete_smd_config.yml.
 
-- name: Include role variables for error messages
-  ansible.builtin.include_vars: "{{ role_path }}/vars/main.yml"
-
 - name: Delete all ochami component endpoints
   ansible.builtin.command: /usr/bin/ochami smd compep delete --no-confirm --all
   changed_when: true

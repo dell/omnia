@@ -15,9 +15,6 @@
 # Configure the common metadata-service group.
 # Extracted from configure_ochami/tasks/configure_metadata_svc_common.yml.
 
-- name: Include role variables for error messages
-  ansible.builtin.include_vars: "{{ role_path }}/vars/main.yml"
-
 - name: Render metadata-service group common template
   ansible.builtin.template:
     src: "{{ ms_group_common_template }}"

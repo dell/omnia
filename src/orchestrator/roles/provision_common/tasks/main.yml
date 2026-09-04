@@ -22,9 +22,6 @@
 # subset of functional groups. It performs all generic provisioning steps
 # without any hardcoded FG name checks.
 
-- name: Include role variables for error messages
-  ansible.builtin.include_vars: "{{ role_path }}/vars/main.yml"
-
 - name: Skip if no functional groups for this category
   ansible.builtin.debug:
     msg: "No functional groups found for category '{{ target_category }}'. Skipping."
