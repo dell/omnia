@@ -55,24 +55,13 @@
     mapping_group_data: "{{ (lookup('file', hostvars['localhost']['functional_groups_config_path']) | from_yaml).groups }}"
 
 # K8s deployment validation - kube_vip is only added when ALL conditions are met:
-# 1. K8s deployment is enabled in omnia_config.yml (deployment: true)
-# 2. K8s functional groups (service_kube_*) are defined in PXE mapping file
-# 3. high_availability_config.yml exists with valid kube_vip configuration
+# 1. K8s functional groups (service_kube_*) are defined in PXE mapping file
+# 2. high_availability_config.yml exists with valid kube_vip configuration
 - name: Check if high_availability_config.yml exists
   ansible.builtin.stat:
     path: "{{ hostvars['localhost']['input_project_dir'] }}/high_availability_config.yml"
   register: ha_config_stat
   delegate_to: localhost
-
-- name: Load omnia_config.yml to check K8s deployment
-  ansible.builtin.include_vars:
-    file: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config.yml"
-    name: omnia_config
-  delegate_to: localhost
-
-- name: Check if Service K8s cluster deployment is enabled in omnia_config
-  ansible.builtin.set_fact:
-    k8s_deployment_config_enabled: "{{ omnia_config.service_k8s_cluster | default([]) | selectattr('deployment', 'equalto', true) | list | length > 0 }}"
 
 - name: Check if Service K8s functional groups exist in mapping
   ansible.builtin.set_fact:
@@ -84,10 +73,6 @@
         | length > 0
       }}
 
-- name: Set final K8s deployment flag (both config and mapping must have K8s)
-  ansible.builtin.set_fact:
-    k8s_deployment_enabled: "{{ k8s_deployment_config_enabled | default(false) and k8s_groups_in_mapping | default(false) }}"
-
 - name: Load high_availability_config.yml to get kube_vip
   ansible.builtin.include_vars:
     file: "{{ hostvars['localhost']['input_project_dir'] }}/high_availability_config.yml"
@@ -95,14 +80,14 @@
   delegate_to: localhost
   when:
     - ha_config_stat.stat.exists | default(false)
-    - k8s_deployment_enabled | default(false)
+    - k8s_groups_in_mapping | default(false)
 
 - name: Set kube_vip fact
   ansible.builtin.set_fact:
     kube_vip: "{{ ha_config.service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
   when:
     - ha_config_stat.stat.exists | default(false)
-    - k8s_deployment_enabled | default(false)
+    - k8s_groups_in_mapping | default(false)
 
 - name: Generate BMC group data file
   ansible.builtin.template:
