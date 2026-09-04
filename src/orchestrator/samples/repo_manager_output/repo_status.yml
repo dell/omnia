@@ -1,0 +1,77 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Reference input for standalone Orchestrator testing.
+# Repo Manager is the canonical producer. Prefer its generated output:
+#   <REPO_MANAGER_DATA_PATH>/output/<project>/repo_status.yml
+# Edit all example URLs and certificate paths before using this file.
+
+overall_status: "success"
+cluster_os_type: "rhel"
+repo_config: "partial"
+
+repo_manager:
+  port: 2225
+  certificates:
+    server_crt: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt"
+    server_key: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.key"
+    certs_dir: "/opt/omnia/repo_manager/pulp_config/settings/certs"
+
+repositories:
+  "10.0":
+    x86_64:
+      baseos:
+        url: "https://192.0.2.10:2225/pulp/content/example/rpms/baseos/"
+        priority: 100
+      appstream:
+        url: "https://192.0.2.10:2225/pulp/content/example/rpms/appstream/"
+        priority: 100
+    aarch64:
+      baseos:
+        url: "https://192.0.2.10:2225/pulp/content/example/aarch64/rpms/baseos/"
+        priority: 100
+      appstream:
+        url: "https://192.0.2.10:2225/pulp/content/example/aarch64/rpms/appstream/"
+        priority: 100
+
+file_repos:
+  x86_64:
+    git:
+      example_git: "https://192.0.2.10:2225/pulp/content/example/git/example/"
+    tarball:
+      example_tarball: "https://192.0.2.10:2225/pulp/content/example/tarball/example/"
+    manifest:
+      example_manifest: "https://192.0.2.10:2225/pulp/content/example/manifest/example/"
+    pip_module:
+      example_module: "https://192.0.2.10:2225/pypi/example/pip_module/example/"
+    shell:
+      example_script: "https://192.0.2.10:2225/pulp/content/example/shell/example/"
+    iso:
+      example_iso: "https://192.0.2.10:2225/pulp/content/example/iso/example/"
+    ansible_galaxy_collection:
+      example_collection: "https://192.0.2.10:2225/pulp/content/example/ansible_galaxy_collection/example/"
+  aarch64: {}
+
+tarball_base_url: "https://192.0.2.10:2225/pulp/content/example/tarball/example/"
+manifest_base_url: "https://192.0.2.10:2225/pulp/content/example/manifest/example/"
+pip_base_url: "https://192.0.2.10:2225/pypi/example/pip_module/example/"
+git_base_url: "https://192.0.2.10:2225/pulp/content/example/git/example/"
+
+offline_tarball_path: "https://192.0.2.10:2225/pulp/content/example/tarball/example/"
+offline_manifest_path: "https://192.0.2.10:2225/pulp/content/example/manifest/example/"
+offline_pip_module_path: "https://192.0.2.10:2225/pypi/example/pip_module/example/"
+offline_git_path: "https://192.0.2.10:2225/pulp/content/example/git/example/"
+offline_shell_path: "https://192.0.2.10:2225/pulp/content/example/shell/example/"
+offline_iso_path: "https://192.0.2.10:2225/pulp/content/example/iso/example/"
+offline_ansible_galaxy_collection_path: "https://192.0.2.10:2225/pulp/content/example/ansible_galaxy_collection/example/"

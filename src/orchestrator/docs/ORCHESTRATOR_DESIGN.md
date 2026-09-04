@@ -269,16 +269,21 @@ grep -c 'playbooks/utils' src/orchestrator/**/*.yml            # expect: 0
 
 ```yaml
 overall_status: "success"
+image_build_type: "image-builder"
 s3_configurations:
   endpoint_url: "http://10.20.0.1:9000"
   bucket: "boot-images"
 functional_group_images:
-  x86_64:
-    - functional_group: "slurm_control_node_x86_64"
-      kernel: "boot-images/efi-images/.../vmlinuz"
-      initrd: "boot-images/efi-images/.../initramfs.img"
-      image: "boot-images/slurm_control_node_x86_64/..."
+  - x86_64:
+      - functional_group: "slurm_control_node_x86_64"
+        kernel: "boot-images/efi-images/.../vmlinuz"
+        initrd: "boot-images/efi-images/.../initramfs.img"
+        image: "boot-images/slurm_control_node_x86_64/..."
 ```
+
+The canonical reference is
+`src/image_build_manager/samples/build_status.yml`; Orchestrator does not
+maintain a duplicate sample file.
 
 ### 6.2 pxe_mapping_file.csv (Input from discovery)
 

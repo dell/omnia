@@ -18,7 +18,11 @@ omnia_metadata_file_path: "{{ omnia_data_path }}/.data/oim_metadata.yml"
 upgrade_lock_file: "{{ omnia_data_path }}/.data/upgrade_in_progress.lock"
 default_build_status_path: >-
   {{ omnia_data_path }}/image_build_manager/output/{{ project_name }}/build_status.yml
-default_repo_status_path: "{{ omnia_data_path }}/repo_manager/output/{{ project_name }}/repo_status.yml"
+default_repo_manager_data_path: >-
+  {{ lookup('env', 'REPO_MANAGER_DATA_PATH')
+     | default(omnia_data_path + '/repo_manager', true) }}
+default_repo_status_path: >-
+  {{ default_repo_manager_data_path }}/output/{{ project_name }}/repo_status.yml
 default_pxe_mapping_file_path: >-
   {{ omnia_data_path }}/orchestrator/input/{{ project_name }}/pxe_mapping_file.csv
 default_catalog_file_path: "{{ lookup('env', 'CATALOG_FILE_PATH') | default(omnia_data_path + '/catalog/catalog_rhel.json', true) }}"
@@ -43,6 +47,19 @@ skip_credential_tags:
   - cleanup
   - validate-deployment
   - validate
+
+# Flows that consume repositories, offline content, or the Pulp certificate.
+# Cleanup and input-only/credential-only flows must remain runnable without
+# an existing repo_status.yml.
+repo_status_required_tags:
+  - all
+  - precheck
+  - prepare
+  - deploy
+  - provision
+  - execute
+  - pxeboot
+  - upgrade
 
 invalid_tag_combinations:
   - [precheck, cleanup]
@@ -76,3 +93,13 @@ upgrade_in_progress_msg: >-
   "ansible-playbook /omnia/src/playbooks/upgrade/upgrade.yml"
   If you don't require input files to be migrated, reconfigure the default input files, remove the lock file using the following command
   "rm {{ upgrade_lock_file }}" and then proceed.
+repo_status_missing_fail_msg: >-
+  Required Repo Manager output was not found at '{{ repo_manager_output_path }}'.
+  Run repo_manager first or set repo_manager_output_path in orchestrator_config.yml.
+repo_status_invalid_fail_msg: >-
+  Invalid Repo Manager output at '{{ repo_manager_output_path }}'. The file must
+  report overall_status: success and contain cluster_os_type, repositories, and
+  repo_manager.certificates.server_crt.
+repo_certificate_missing_fail_msg: >-
+  Repo Manager certificate was not found at '{{ pulp_cert_path }}'. Regenerate
+  repo_status.yml and the Pulp certificate by running repo_manager.

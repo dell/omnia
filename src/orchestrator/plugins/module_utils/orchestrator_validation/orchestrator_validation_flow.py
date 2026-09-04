@@ -121,29 +121,6 @@ def validate_kernel_version_override(config_data, errors, logger=None):
             logger.error(msg)
 
 
-def validate_s3_config(config_data, errors, logger=None):
-    """
-    When s3_storage_provider is 'powerscale' or 'external', s3_endpoint is required.
-    When 'minio', s3_endpoint should not be set.
-    """
-    provider = config_data.get("s3_storage_provider", "minio")
-    endpoint = config_data.get("s3_endpoint", "")
-
-    if provider in ("powerscale", "external"):
-        if not endpoint or not endpoint.strip():
-            msg = (f"orchestrator_config: 's3_endpoint' is required when "
-                   f"s3_storage_provider is '{provider}'.")
-            errors.append(msg)
-            if logger:
-                logger.error(msg)
-
-    if provider == "minio" and endpoint:
-        msg = ("orchestrator_config: 's3_endpoint' should not be set when "
-               "s3_storage_provider is 'minio' (auto-managed).")
-        if logger:
-            logger.warning(msg)
-
-
 def validate_additional_cloud_init_config(config_data, errors, logger=None):
     """If additional_cloud_init_config_file is set, the file must exist."""
     aci_path = config_data.get("additional_cloud_init_config_file", "")
@@ -353,7 +330,6 @@ def validate_orchestrator_config_l2(config_data, input_project_dir, logger=None)
     validate_language(config_data, errors, logger)
     validate_default_lease_time(config_data, errors, logger)
     validate_kernel_version_override(config_data, errors, logger)
-    validate_s3_config(config_data, errors, logger)
     validate_additional_cloud_init_config(config_data, errors, logger)
     validate_pxe_mapping_file(config_data, input_project_dir, errors, logger)
     validate_network_spec_cross(config_data, input_project_dir, errors, logger)

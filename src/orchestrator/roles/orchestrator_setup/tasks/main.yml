@@ -185,6 +185,12 @@
     cacheable: true
 
 # Step 7: Load repo_manager output (repo_status.yml)
+- name: Determine whether repo_status.yml is required for this flow
+  ansible.builtin.set_fact:
+    _repo_status_required: >-
+      {{ omnia_run_tags | length == 0
+         or (omnia_run_tags | intersect(repo_status_required_tags) | length > 0) }}
+
 - name: Resolve repo_manager output path
   ansible.builtin.set_fact:
     repo_manager_output_path: "{{ _orch_config.repo_manager_output_path | default(default_repo_status_path, true) }}"
@@ -198,20 +204,57 @@
 - name: Load repo_status.yml from repo_manager output
   ansible.builtin.include_vars:
     file: "{{ repo_manager_output_path }}"
-  when: _repo_status_stat.stat.exists
+  when:
+    - _repo_status_required | bool
+    - _repo_status_stat.stat.exists
+
+- name: Fail when required repo_status.yml is missing
+  ansible.builtin.fail:
+    msg: "{{ repo_status_missing_fail_msg }}"
+  when:
+    - _repo_status_required | bool
+    - not _repo_status_stat.stat.exists
+
+- name: Validate required repo_status.yml contract
+  ansible.builtin.assert:
+    that:
+      - overall_status | default('') == 'success'
+      - cluster_os_type | default('') | length > 0
+      - (repositories | default({})) is mapping
+      - (repo_manager | default({})) is mapping
+      - ((repo_manager | default({})).get('certificates', {})) is mapping
+      - ((repo_manager | default({})).get('certificates', {}).get('server_crt', '')) | length > 0
+    fail_msg: "{{ repo_status_invalid_fail_msg }}"
+    quiet: true
+  when:
+    - _repo_status_required | bool
+    - _repo_status_stat.stat.exists
 
 - name: Set repo_manager facts from repo_status.yml
   ansible.builtin.set_fact:
     cluster_os_type: "{{ cluster_os_type | default('rhel') }}"
     pulp_port: "{{ repo_manager.port | default(2225) }}"
-    pulp_cert_path: >-
-      {{ repo_manager.certificates.server_crt
-         | default(omnia_data_path + '/pulp_config/pulp/settings/certs/pulp_webserver.crt') }}
-    pulp_certs_dir: >-
-      {{ repo_manager.certificates.certs_dir
-         | default(omnia_data_path + '/pulp_config/pulp/settings/certs') }}
+    pulp_cert_path: "{{ repo_manager.certificates.server_crt }}"
     cacheable: true
-  when: _repo_status_stat.stat.exists
+  when:
+    - _repo_status_required | bool
+    - _repo_status_stat.stat.exists
+
+- name: Check Repo Manager public certificate
+  ansible.builtin.stat:
+    path: "{{ pulp_cert_path }}"
+  register: _repo_certificate_stat
+  when:
+    - _repo_status_required | bool
+    - _repo_status_stat.stat.exists
+
+- name: Fail when Repo Manager public certificate is missing
+  ansible.builtin.fail:
+    msg: "{{ repo_certificate_missing_fail_msg }}"
+  when:
+    - _repo_status_required | bool
+    - _repo_status_stat.stat.exists
+    - not (_repo_certificate_stat.stat.exists | default(false))
 
 - name: Warn if repo_status.yml is missing
   ansible.builtin.debug:
@@ -220,7 +263,9 @@
       Run repo_manager.yml first to generate it, or set repo_manager_output_path
       in orchestrator_config.yml. Downstream roles (k8s_config, slurm_config)
       may fail without repo URLs.
-  when: not _repo_status_stat.stat.exists
+  when:
+    - not (_repo_status_required | bool)
+    - not _repo_status_stat.stat.exists
 
 # Step 8: Load catalog file for feature detection and OS metadata
 - name: Resolve catalog file path

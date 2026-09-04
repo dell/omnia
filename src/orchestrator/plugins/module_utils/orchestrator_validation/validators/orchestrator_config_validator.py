@@ -28,8 +28,6 @@ from ..messages.orchestrator_messages import (
     LANGUAGE_UNSUPPORTED_MSG,
     LEASE_TIME_INVALID_MSG,
     KERNEL_VERSION_FORMAT_MSG,
-    S3_ENDPOINT_REQUIRED_MSG,
-    S3_ENDPOINT_NOT_NEEDED_MSG,
     CLOUD_INIT_FILE_MISSING_MSG,
     PXE_MAPPING_REQUIRED_MSG,
     PXE_MAPPING_NOT_FOUND_MSG,
@@ -84,21 +82,6 @@ def _validate_kernel_version_override(config_data, errors, logger=None):
         errors.append(msg)
         if logger:
             logger.error(msg)
-
-
-def _validate_s3_config(config_data, errors, logger=None):
-    """Validate s3_storage_provider / s3_endpoint consistency."""
-    provider = config_data.get("s3_storage_provider", "minio")
-    endpoint = config_data.get("s3_endpoint", "")
-    if provider in ("powerscale", "external"):
-        if not endpoint or not endpoint.strip():
-            msg = S3_ENDPOINT_REQUIRED_MSG.format(provider)
-            errors.append(msg)
-            if logger:
-                logger.error(msg)
-    if provider == "minio" and endpoint:
-        if logger:
-            logger.warning(S3_ENDPOINT_NOT_NEEDED_MSG)
 
 
 def _validate_additional_cloud_init_config(config_data, errors, logger=None):
@@ -193,6 +176,5 @@ def validate(config_data, errors, logger=None):
     _validate_language(config_data, errors, logger)
     _validate_default_lease_time(config_data, errors, logger)
     _validate_kernel_version_override(config_data, errors, logger)
-    _validate_s3_config(config_data, errors, logger)
     _validate_additional_cloud_init_config(config_data, errors, logger)
     _validate_pxe_mapping_file(config_data, errors, logger)
