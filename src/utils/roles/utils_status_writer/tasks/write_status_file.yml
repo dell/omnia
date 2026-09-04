@@ -9,8 +9,8 @@
   ansible.builtin.copy:
     content: |
       ---
-      domain: utils
-      status: {{ utils_domain_status }}
+      utility: utils
+      overall_status: {{ utils_domain_status }}
       playbook: {{ utils_playbook_name | default('unknown') }}
       version: "2.2.0"
       started_at: {{ utils_execution_start_time | default(ansible_date_time.iso8601) | quote }}

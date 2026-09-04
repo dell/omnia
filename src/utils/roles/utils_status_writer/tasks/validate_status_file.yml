@@ -23,8 +23,8 @@
 - name: Verify required status fields
   ansible.builtin.assert:
     that:
-      - utils_status_content.domain is defined
-      - utils_status_content.status is defined
+      - utils_status_content.utility is defined
+      - utils_status_content.overall_status is defined
       - utils_status_content.version is defined
     fail_msg: "Status file missing required fields"
     success_msg: "Status file contains all required fields"
