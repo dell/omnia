@@ -66,6 +66,7 @@ This document defines all input files consumed by the `orchestrator` domain.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `Networks.admin_network.primary_oim_admin_ip` | string | Yes | OIM admin IP |
+| `Networks.admin_network.primary_oim_bmc_ip` | string | Yes | OIM BMC/iDRAC IP added to generated BMC group data for iDRAC telemetry; use an empty value to exclude the OIM |
 | `Networks.admin_network.oim_nic_name` | string | Yes | OIM NIC name |
 | `Networks.admin_network.subnet` | string | Yes | Admin network address |
 | `Networks.admin_network.netmask_bits` | string | Yes | Netmask bits |
@@ -81,10 +82,6 @@ This document defines all input files consumed by the `orchestrator` domain.
 | `Networks.ib_network.subnet` | string | Yes, when configured | InfiniBand network address |
 | `Networks.ib_network.netmask_bits` | string | Yes, when configured | InfiniBand CIDR prefix length |
 | `Networks.ib_network.dns` | list | No | InfiniBand DNS server addresses |
-
-OIM iDRAC addresses are not part of the Orchestrator network contract. When
-iDRAC telemetry must include an OIM server, configure its address through
-`idrac_telemetry_configurations.oim_bmc_ips` in the Telemetry domain input.
 
 ---
 

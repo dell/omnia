@@ -25,6 +25,8 @@
 # - subnet: Admin network address.
 # - netmask_bits: Admin network CIDR prefix length.
 # - primary_oim_admin_ip: Configured OIM address on the admin network.
+# - primary_oim_bmc_ip: OIM BMC/iDRAC address added to the generated BMC
+#   group data consumed by iDRAC telemetry. Leave it empty to exclude the OIM.
 # - router: Admin network gateway supplied as DHCP option 3. When no
 #   dedicated router exists, use primary_oim_admin_ip.
 # - dynamic_range: DHCP pool in "start_ip-end_ip" format.
@@ -53,18 +55,19 @@
 # optional DNS server addresses.
 
 Networks:
-- admin_network:
-    oim_nic_name: "eno1"
-    subnet: "172.16.107.0"
-    netmask_bits: "24"
-    primary_oim_admin_ip: "172.16.107.254"
-    router: "172.16.107.254"
-    dynamic_range: "172.16.107.201-172.16.107.250"
-    dns: []
-    ntp_servers: []
-    additional_subnets: []
+  - admin_network:
+      oim_nic_name: "eno1"
+      subnet: "172.16.0.0"
+      netmask_bits: "24"
+      primary_oim_admin_ip: "172.16.107.254"
+      primary_oim_bmc_ip: ""
+      router: "172.16.107.254"
+      dynamic_range: "172.16.107.201-172.16.107.250"
+      dns: []
+      ntp_servers: []
+      additional_subnets: []
 
-- ib_network:
-    subnet: "192.168.0.0"
-    netmask_bits: "24"
-    dns: []
+  - ib_network:
+      subnet: "192.168.0.0"
+      netmask_bits: "24"
+      dns: []
