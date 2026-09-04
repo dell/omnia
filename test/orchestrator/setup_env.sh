@@ -69,7 +69,7 @@ _run_validation_completions() {
     local tags="validate prepare provision cleanup"
     local commands="exec verify test list help"
     local options="--suite --marker -v --verbose --debug --config"
-    local markers="sanity functional regression deploy"
+    local markers="sanity functional deploy slurm nft performance idempotency security negative"
 
     case "$COMP_CWORD" in
         1)
