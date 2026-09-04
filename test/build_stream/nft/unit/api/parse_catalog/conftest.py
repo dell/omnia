@@ -12,6 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# JSONB shim for SQLite compatibility - MUST be at the very top before any imports
+import sqlalchemy.dialects.sqlite.base as sqlite_base
+from sqlalchemy import JSON
+if not hasattr(sqlite_base, "JSONB"):
+    sqlite_base.JSONB = JSON
+
+# PyJWT compatibility shim for different versions
+import jwt.exceptions
+# Map newer exception names to older ones or create them
+if not hasattr(jwt.exceptions, 'DecodeError'):
+    jwt.exceptions.DecodeError = jwt.exceptions.JWTDecodeError
+if not hasattr(jwt.exceptions, 'ExpiredSignatureError'):
+    class ExpiredSignatureError(jwt.exceptions.JWTException):
+        pass
+    jwt.exceptions.ExpiredSignatureError = ExpiredSignatureError
+if not hasattr(jwt.exceptions, 'InvalidAudienceError'):
+    class InvalidAudienceError(jwt.exceptions.JWTException):
+        pass
+    jwt.exceptions.InvalidAudienceError = InvalidAudienceError
+if not hasattr(jwt.exceptions, 'InvalidIssuerError'):
+    class InvalidIssuerError(jwt.exceptions.JWTException):
+        pass
+    jwt.exceptions.InvalidIssuerError = InvalidIssuerError
+if not hasattr(jwt.exceptions, 'InvalidSignatureError'):
+    class InvalidSignatureError(jwt.exceptions.JWTException):
+        pass
+    jwt.exceptions.InvalidSignatureError = InvalidSignatureError
+
 """Shared fixtures for ParseCatalog API tests."""
 
 import os
@@ -21,23 +49,18 @@ from unittest.mock import patch
 
 import pytest
 
-from infra.id_generator import UUIDv4Generator
-
 
 # pylint: disable=R0914,C0415,W0212
 # R0914: Test fixture has many local variables for setup
 # C0415: Imports inside function needed for proper test isolation
 # W0212: Protected access needed for test setup
 
-# JSONB shim for SQLite compatibility - MUST be applied before importing models
-import sqlalchemy.dialects.sqlite.base as sqlite_base
-from sqlalchemy import JSON
-if not hasattr(sqlite_base, "JSONB"):
-    sqlite_base.JSONB = JSON
-
 @pytest.fixture(scope="function")
 def client(tmp_path):
     """Create test client with fresh container for each test."""
+    # Import UUIDv4Generator inside fixture to ensure shim is applied first
+    from infra.id_generator import UUIDv4Generator  # pylint: disable=import-outside-toplevel
+    
     os.environ["ENV"] = "dev"
     db_file = tmp_path / "test.db"
     db_url = f"sqlite:///{db_file}"
@@ -68,6 +91,16 @@ base_path = /tmp/build_stream_test/nfs
     import importlib  # pylint: disable=import-outside-toplevel
     importlib.reload(config_module)
 
+    # Register JSONB type compiler for SQLite before importing container
+    from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler  # pylint: disable=import-outside-toplevel
+    from sqlalchemy.dialects.postgresql import JSONB  # pylint: disable=import-outside-toplevel
+    
+    # Add visit_JSONB method to SQLiteTypeCompiler
+    def visit_JSONB(self, type_, **kw):
+        return self.visit_JSON(type_, **kw)
+    
+    SQLiteTypeCompiler.visit_JSONB = visit_JSONB
+    
     # Reload container to pick up new config
     import app.container as container_module  # pylint: disable=import-outside-toplevel
     importlib.reload(container_module)
@@ -144,7 +177,8 @@ base_path = /tmp/build_stream_test/nfs
 @pytest.fixture(name="uuid_generator")
 def uuid_generator_fixture():
     """UUID generator for test fixtures."""
-    return UUIDv4Generator()
+    from infra.id_generator import UUIDv4Generator as UUIDv4Gen  # pylint: disable=import-outside-toplevel
+    return UUIDv4Gen()
 
 
 @pytest.fixture(name="auth_headers")

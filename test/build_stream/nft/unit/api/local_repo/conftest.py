@@ -12,6 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# JSONB shim for SQLite compatibility - MUST be at the very top before any imports
+import sqlalchemy.dialects.sqlite.base as sqlite_base
+from sqlalchemy import JSON
+if not hasattr(sqlite_base, "JSONB"):
+    sqlite_base.JSONB = JSON
+
+# PyJWT compatibility shim for different versions
+import jwt.exceptions
+# Map newer exception names to older ones or create them
+if not hasattr(jwt.exceptions, 'DecodeError'):
+    jwt.exceptions.DecodeError = jwt.exceptions.JWTDecodeError
+if not hasattr(jwt.exceptions, 'ExpiredSignatureError'):
+    class ExpiredSignatureError(jwt.exceptions.JWTException):
+        pass
+    jwt.exceptions.ExpiredSignatureError = ExpiredSignatureError
+if not hasattr(jwt.exceptions, 'InvalidAudienceError'):
+    class InvalidAudienceError(jwt.exceptions.JWTException):
+        pass
+    jwt.exceptions.InvalidAudienceError = InvalidAudienceError
+if not hasattr(jwt.exceptions, 'InvalidIssuerError'):
+    class InvalidIssuerError(jwt.exceptions.JWTException):
+        pass
+    jwt.exceptions.InvalidIssuerError = InvalidIssuerError
+if not hasattr(jwt.exceptions, 'InvalidSignatureError'):
+    class InvalidSignatureError(jwt.exceptions.JWTException):
+        pass
+    jwt.exceptions.InvalidSignatureError = InvalidSignatureError
+
+
 """Shared fixtures for Local Repository API tests."""
 
 import os
@@ -23,18 +52,23 @@ from fastapi.testclient import TestClient
 from api.dependencies import verify_token
 
 from main import app
-from infra.id_generator import UUIDv4Generator
 
-# JSONB shim for SQLite compatibility - MUST be applied before importing models
-import sqlalchemy.dialects.sqlite.base as sqlite_base
-from sqlalchemy import JSON
-if not hasattr(sqlite_base, "JSONB"):
-    sqlite_base.JSONB = JSON
 
 
 @pytest.fixture(scope="function")
 def client(tmp_path):
-    """Create test client with fresh container for each test."""
+    """
+    from infra.id_generator import UUIDv4Generator  # pylint: disable=import-outside-toplevelCreate test client with fresh container for each test."""
+    # Register JSONB type compiler for SQLite before importing app
+    from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler  # pylint: disable=import-outside-toplevel
+    from sqlalchemy.dialects.postgresql import JSONB  # pylint: disable=import-outside-toplevel
+    
+    # Add visit_JSONB method to SQLiteTypeCompiler
+    def visit_JSONB(self, type_, **kw):
+        return self.visit_JSON(type_, **kw)
+    
+    SQLiteTypeCompiler.visit_JSONB = visit_JSONB
+    
     os.environ["ENV"] = "dev"
     db_file = tmp_path / "test.db"
     db_url = f"sqlite:///{db_file}"
