@@ -25,7 +25,9 @@ Handles:
 - Domain input path resolution
 """
 
+import atexit
 import os
+import shutil
 import subprocess
 import tempfile
 from typing import Any, Dict, List, Optional, Tuple
@@ -34,7 +36,46 @@ import yaml
 import testinfra
 
 from ..vars.common_vars import get_module_root, get_setting
+from ..vars.credential_vars import VAULT_FILE_MODE, VAULT_HEADER
 from .formatting_func import log
+from .process_security import (
+    atomic_sensitive_output,
+    exclusive_sensitive_text,
+    open_sensitive_text,
+    protect_sensitive_file as _protect_sensitive_file,
+    run_vault_decrypt,
+    run_vault_encrypt,
+    sensitive_file_descriptor,
+)
+
+
+_TESTINFRA_INVENTORY_DIRS: List[str] = []
+
+
+@atexit.register
+def _cleanup_testinfra_inventory_dirs() -> None:
+    """Remove protected temporary inventories when the runner exits."""
+    while _TESTINFRA_INVENTORY_DIRS:
+        shutil.rmtree(
+            _TESTINFRA_INVENTORY_DIRS.pop(), ignore_errors=True,
+        )
+
+
+def _write_testinfra_inventory(inventory: Dict[str, Any]) -> str:
+    """Write an Ansible YAML inventory in a private temporary directory."""
+    inventory_dir = tempfile.mkdtemp(prefix="omnia_auto_testinfra_")
+    os.chmod(inventory_dir, 0o700)
+    inventory_path = os.path.join(inventory_dir, "inventory.yml")
+    try:
+        with exclusive_sensitive_text(
+            inventory_path, VAULT_FILE_MODE,
+        ) as inv_fh:
+            yaml.safe_dump(inventory, inv_fh, sort_keys=False)
+    except (OSError, ValueError, yaml.YAMLError):
+        shutil.rmtree(inventory_dir, ignore_errors=True)
+        raise
+    _TESTINFRA_INVENTORY_DIRS.append(inventory_dir)
+    return inventory_path
 
 
 # =============================================================================
@@ -118,33 +159,37 @@ def load_test_config(config_path: Optional[str] = None) -> Dict[str, Any]:
 
 def _is_vault_encrypted(file_path: str) -> bool:
     """Check if file is ansible-vault encrypted."""
-    if not os.path.exists(file_path):
+    if not os.path.lexists(file_path):
         return False
-    with open(file_path, "r", encoding="utf-8") as f:
-        first_line = f.readline().strip()
-    return first_line.startswith("$ANSIBLE_VAULT")
+    with open_sensitive_text(
+        file_path, VAULT_FILE_MODE,
+    ) as file_stream:
+        first_line = file_stream.readline().strip()
+    return first_line.startswith(VAULT_HEADER)
 
 
 def _create_vault_key(key_path: str) -> None:
     """Create a new vault key file with a random 32-char token."""
     import secrets
     key = secrets.token_urlsafe(32)[:32]
-    with open(key_path, "w", encoding="utf-8") as f:
+    with exclusive_sensitive_text(key_path, VAULT_FILE_MODE) as f:
         f.write(key)
-    os.chmod(key_path, 0o600)
 
 
 def _decrypt_vault_file(config_path: str, key_path: str) -> Dict:
     """Decrypt ansible-vault encrypted file and return as dict."""
     try:
-        result = subprocess.run(
-            [
-                "ansible-vault", "view", config_path,
-                "--vault-password-file", key_path,
-            ],
-            capture_output=True, text=True, timeout=30, check=True,
-        )
-        return yaml.safe_load(result.stdout) or {}
+        with sensitive_file_descriptor(
+            config_path, VAULT_FILE_MODE,
+        ) as config_fd, sensitive_file_descriptor(
+            key_path, VAULT_FILE_MODE,
+        ) as key_fd:
+            plaintext = run_vault_decrypt(
+                config_fd,
+                key_fd,
+                timeout=30,
+            )
+        return yaml.safe_load(plaintext) or {}
     except subprocess.CalledProcessError as exc:
         raise ValueError(
             f"Failed to decrypt {config_path}: {exc.stderr}"
@@ -153,19 +198,29 @@ def _decrypt_vault_file(config_path: str, key_path: str) -> Dict:
         raise ValueError(
             "ansible-vault not found. Install ansible."
         ) from None
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ValueError(
+            f"Failed to decrypt {config_path}: {exc}"
+        ) from exc
 
 
 def _encrypt_vault_file(config_path: str, key_path: str) -> bool:
     """Encrypt file with ansible-vault."""
     try:
-        subprocess.run(
-            [
-                "ansible-vault", "encrypt", config_path,
-                "--vault-password-file", key_path,
-            ],
-            capture_output=True, text=True, timeout=30, check=True,
-        )
-        return True
+        with sensitive_file_descriptor(
+            config_path, VAULT_FILE_MODE,
+        ) as config_fd, sensitive_file_descriptor(
+            key_path, VAULT_FILE_MODE,
+        ) as key_fd, atomic_sensitive_output(
+            config_path, VAULT_FILE_MODE,
+        ) as encrypted_fd:
+            run_vault_encrypt(
+                config_fd,
+                key_fd,
+                encrypted_fd,
+                timeout=30,
+                vault_header=VAULT_HEADER,
+            )
     except subprocess.CalledProcessError as exc:
         raise ValueError(
             f"Failed to encrypt {config_path}: {exc.stderr}"
@@ -174,6 +229,15 @@ def _encrypt_vault_file(config_path: str, key_path: str) -> bool:
         raise ValueError(
             "ansible-vault not found. Install ansible."
         ) from None
+    except subprocess.TimeoutExpired as exc:
+        raise ValueError(
+            f"Timed out while encrypting {config_path}"
+        ) from exc
+    except OSError as exc:
+        raise ValueError(
+            f"Failed to encrypt {config_path}: {exc}"
+        ) from exc
+    return True
 
 
 def load_test_credentials(
@@ -194,20 +258,22 @@ def load_test_credentials(
     """
     creds_path, key_path = _resolve_credentials_paths(creds_path, key_path)
 
-    if not os.path.exists(creds_path):
+    if not os.path.lexists(creds_path):
         return {}
 
     if _is_vault_encrypted(creds_path):
-        if os.path.exists(key_path):
+        if os.path.lexists(key_path):
             return _decrypt_vault_file(creds_path, key_path)
         raise ValueError(
             f"Credentials encrypted but key not found: {key_path}"
         )
 
-    with open(creds_path, "r", encoding="utf-8") as creds_fh:
+    with open_sensitive_text(
+        creds_path, VAULT_FILE_MODE,
+    ) as creds_fh:
         creds = yaml.safe_load(creds_fh) or {}
 
-    if not os.path.exists(key_path):
+    if not os.path.lexists(key_path):
         _create_vault_key(key_path)
 
     _encrypt_vault_file(creds_path, key_path)
@@ -226,11 +292,13 @@ def encrypt_test_credentials(
     """
     creds_path, key_path = _resolve_credentials_paths(creds_path, key_path)
 
-    if not os.path.exists(creds_path):
+    if not os.path.lexists(creds_path):
         return False
     if _is_vault_encrypted(creds_path):
+        if os.path.lexists(key_path):
+            _protect_sensitive_file(key_path)
         return True
-    if not os.path.exists(key_path):
+    if not os.path.lexists(key_path):
         _create_vault_key(key_path)
 
     _encrypt_vault_file(creds_path, key_path)
@@ -295,12 +363,6 @@ def get_testinfra_host():
     ssh_port = config.get("oim_ssh_port", 22)
     ssh_auth = credentials.get("oim_password", "")
 
-    inventory_dir = os.path.join(
-        tempfile.gettempdir(), "omnia_auto_testinfra"
-    )
-    os.makedirs(inventory_dir, exist_ok=True)
-    inventory_path = os.path.join(inventory_dir, "inventory.ini")
-
     ssh_args = get_setting(
         "ssh_opts",
         "-o StrictHostKeyChecking=no "
@@ -308,33 +370,38 @@ def get_testinfra_host():
         "-o LogLevel=ERROR",
     )
 
-    with open(inventory_path, "w", encoding="utf-8") as inv_fh:
-        inv_fh.write("[all]\n")
-        inv_fh.write(
-            f"target ansible_host={oim_ip} "
-            f"ansible_user={ssh_user} "
-            f"ansible_port={ssh_port} "
-            f"ansible_ssh_pass={ssh_auth} "
-            f"ansible_connection=ssh "
-            f"ansible_ssh_common_args='{ssh_args}'\n"
-        )
+    inventory_path = _write_testinfra_inventory({
+        "all": {
+            "hosts": {
+                "target": {
+                    "ansible_host": oim_ip,
+                    "ansible_user": ssh_user,
+                    "ansible_port": ssh_port,
+                    "ansible_ssh_pass": ssh_auth,
+                    "ansible_connection": "ssh",
+                    "ansible_ssh_common_args": ssh_args,
+                },
+            },
+        },
+    })
 
     return testinfra.get_host(
         "ansible://target", ansible_inventory=inventory_path
     )
 
 
-def run_on_host(host, cmd: str):
+def run_on_host(host, cmd: str, *args: str):
     """Run command on the target host (OIM server).
 
     Args:
         host: Testinfra host object
-        cmd: Command to execute
+        cmd: Command template to execute.
+        *args: Values that Testinfra must shell-quote into ``%s`` placeholders.
 
     Returns:
         Result with stdout, stderr, rc attributes.
     """
-    return host.run(cmd)
+    return host.run(cmd, *args)
 
 
 # =============================================================================
