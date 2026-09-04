@@ -20,7 +20,7 @@ input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 # Local work directory on the aarch64 node (no NFS mount required)
 # Derived from OMNIA_DATA_PATH on the OIM; aarch64 node uses the same base path.
 # ---------------------------------------------------------------------------
-aarch64_work_dir: "{{ hostvars['localhost']['omnia_data_path'] | default('/opt/omnia') }}/image_build_manager"
+aarch64_work_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/image_build_manager"
 ochami_aarch_64_dir: "{{ aarch64_work_dir }}/openchami/aarch64"
 
 # ---------------------------------------------------------------------------
@@ -40,7 +40,7 @@ pull_image_delay: "10"
 # ---------------------------------------------------------------------------
 repo_file_path: "/etc/yum.repos.d/repo_manager.repo"
 repo_cert_path: "{{ hostvars['localhost']['repo_cert_path'] | default('') }}"
-anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
+anchors_path: "/etc/pki/ca-trust/source/anchors/{{ repo_cert_path | basename | default('pulp_webserver.crt', true) }}"
 regctl_bin_path: "/usr/local/bin/regctl"
 
 # regctl for aarch64 — downloaded on OIM first, then SCP'd to aarch64 node

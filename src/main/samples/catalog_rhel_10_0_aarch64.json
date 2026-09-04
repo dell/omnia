@@ -121,7 +121,8 @@
           "cloud_init",
           "glibc_langpack_en",
           "gedit",
-          "docker_io/dellhpcomniaaisolution/image_build_el10"
+          "docker_io/dellhpcomniaaisolution/image_build_aarch64",
+          "ghcr_io/openchami/image_thrillhouse"
         ]
       },
       "admin_debug_group": {
@@ -3363,21 +3364,6 @@
           }
         ]
       },
-      "docker_io/dellhpcomniaaisolution/image_build_el10": {
-        "name": "docker.io/dellhpcomniaaisolution/image-build-el10",
-        "packagetype": "image",
-        "tag": "1.2",
-        "sources": [
-          {
-            "architecture": "aarch64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "ovis_ldms": {
         "name": "ovis-ldms",
         "packagetype": "rpm",
@@ -4262,6 +4248,36 @@
           {
             "architecture": "aarch64",
             "reponame": "slurm_custom",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "ghcr_io/openchami/image_thrillhouse": {
+        "name": "ghcr.io/openchami/image-thrillhouse",
+        "packagetype": "image",
+        "tag": "v0.0.24",
+        "sources": [
+          {
+            "architecture": "aarch64",
+            "registry": "ghcr.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/dellhpcomniaaisolution/image_build_aarch64": {
+        "name": "docker.io/dellhpcomniaaisolution/image-build-aarch64",
+        "packagetype": "image",
+        "tag": "1.3",
+        "sources": [
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
             "name": "rhel",
             "version": [
               "10.0"

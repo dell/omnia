@@ -37,7 +37,7 @@ from typing import Any, Dict, List, Optional
 
 from .report_html import generate_html
 
-_ANSI_RE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+_ANSI_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 
 def _resolve_report_dir(report_path: str) -> str:
@@ -51,7 +51,7 @@ def _load_report(report_dir: str, report_name: str) -> Dict[str, Any]:
     report_file = os.path.join(report_dir, f"{report_name}.json")
     if os.path.exists(report_file):
         try:
-            with open(report_file, 'r', encoding='utf-8') as fh:
+            with open(report_file, "r", encoding="utf-8") as fh:
                 return json.load(fh)
         except (json.JSONDecodeError, IOError):
             return {"servers": {}}
@@ -61,13 +61,13 @@ def _load_report(report_dir: str, report_name: str) -> Dict[str, Any]:
 def _save_json(data: Dict[str, Any], report_dir: str, report_name: str):
     """Save report data as JSON."""
     path = os.path.join(report_dir, f"{report_name}.json")
-    with open(path, "w", encoding='utf-8') as fh:
+    with open(path, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=2, default=str)
 
 
 def _strip_ansi(text: str) -> str:
     """Remove ANSI escape sequences (color codes) from text."""
-    return _ANSI_RE.sub('', text)
+    return _ANSI_RE.sub("", text)
 
 
 class TestReport:
@@ -143,11 +143,11 @@ class TestReport:
 
     def _get_playbook_logs(self) -> tuple:
         """Get playbook execution logs and command type."""
-        log_file = os.environ.get('OMNIA_LOG_FILE')
-        command_type = os.environ.get('OMNIA_COMMAND', 'execution')
+        log_file = os.environ.get("OMNIA_LOG_FILE")
+        command_type = os.environ.get("OMNIA_COMMAND", "execution")
         if log_file and os.path.exists(log_file):
             try:
-                with open(log_file, 'r', encoding='utf-8') as fh:
+                with open(log_file, "r", encoding="utf-8") as fh:
                     content = fh.read()
                     clean_content = _strip_ansi(content)
                     test_start_markers = [
@@ -172,6 +172,7 @@ class TestReport:
         details: Optional[str] = None,
         error: Optional[str] = None,
         status: Optional[str] = None,
+        tc_id: Optional[str] = None,
     ):
         """Add a test result to the report."""
         if isinstance(test_name, dict):
@@ -188,6 +189,8 @@ class TestReport:
             "timestamp": datetime.now().isoformat(),
             "duration_seconds": round(duration, 3),
         }
+        if tc_id:
+            result["tc_id"] = str(tc_id)
         if details:
             result["details"] = details
         if error:
@@ -211,8 +214,24 @@ class TestReport:
             "timestamp": payload.get("timestamp") or datetime.now().isoformat(),
             "duration_seconds": round(float(duration_seconds or 0.0), 3),
         }
+        if payload.get("tc_id"):
+            result["tc_id"] = str(payload["tc_id"])
         if payload.get("details"):
             result["details"] = payload.get("details")
+        detail_fields = payload.get("detail_fields")
+        if isinstance(detail_fields, list):
+            normalized_fields = []
+            for field in detail_fields:
+                if not isinstance(field, dict) or "key" not in field:
+                    continue
+                normalized_fields.append(
+                    {
+                        "key": str(field["key"]),
+                        "value": str(field.get("value", "")),
+                    }
+                )
+            if normalized_fields:
+                result["detail_fields"] = normalized_fields
         if payload.get("error"):
             result["error"] = payload.get("error")
         if payload.get("category"):
@@ -265,7 +284,7 @@ class TestReport:
         runs = report["servers"][server_ip]["runs"]
         existing_run_idx = next(
             (i for i, r in enumerate(runs) if r.get("report_id") == self.report_id),
-            None
+            None,
         )
 
         if existing_run_idx is not None:
@@ -298,13 +317,17 @@ class TestReport:
         json_path = os.path.join(self.report_path, f"{self.report_name}.json")
         html_path = os.path.join(self.report_path, f"{self.report_name}.html")
 
-        with open(html_path, 'w', encoding='utf-8') as fh:
+        with open(html_path, "w", encoding="utf-8") as fh:
             fh.write(generate_html(report))
 
         self._print_footer(
-            server_ip, json_path, html_path,
-            banner_stats["passed"], banner_stats["failed"],
-            banner_stats["skipped"], banner_stats["duration"]
+            server_ip,
+            json_path,
+            html_path,
+            banner_stats["passed"],
+            banner_stats["failed"],
+            banner_stats["skipped"],
+            banner_stats["duration"],
         )
 
         return html_path
@@ -315,9 +338,12 @@ class TestReport:
             run["modules"] = []
 
         existing_mod_idx = next(
-            (i for i, m in enumerate(run["modules"])
-             if m.get("module") == self.module_name),
-            None
+            (
+                i
+                for i, m in enumerate(run["modules"])
+                if m.get("module") == self.module_name
+            ),
+            None,
         )
 
         if existing_mod_idx is not None:
@@ -339,8 +365,7 @@ class TestReport:
         all_passed = sum(m["summary"]["passed"] for m in run["modules"])
         all_failed = sum(m["summary"]["failed"] for m in run["modules"])
         all_skipped = sum(
-            (m.get("summary") or {}).get("skipped", 0)
-            for m in run["modules"]
+            (m.get("summary") or {}).get("skipped", 0) for m in run["modules"]
         )
         run["summary"] = {
             "total": all_passed + all_failed + all_skipped,
@@ -365,8 +390,7 @@ class TestReport:
                 "failed": run_summary.get("failed", failed),
                 "skipped": run_summary.get("skipped", skipped),
                 "duration": sum(
-                    m.get("duration_seconds", 0)
-                    for m in current_run.get("modules", [])
+                    m.get("duration_seconds", 0) for m in current_run.get("modules", [])
                 ),
             }
         return {
@@ -399,15 +423,27 @@ class TestReport:
         result_plain = f"{passed} passed, {failed} failed, {skipped} skipped"
 
         # Truncate paths if too long
-        json_display = json_path[:content_width - 6] if len(json_path) > content_width - 6 else json_path
-        html_display = html_path[:content_width - 6] if len(html_path) > content_width - 6 else html_path
+        json_display = (
+            json_path[: content_width - 6]
+            if len(json_path) > content_width - 6
+            else json_path
+        )
+        html_display = (
+            html_path[: content_width - 6]
+            if len(html_path) > content_width - 6
+            else html_path
+        )
 
         print(f"\n\u250c{line}\u2510")
         print(f"\u2502  {'REPORT SAVED':<{content_width}}  \u2502")
         print(f"\u251c{line}\u2524")
         print(f"\u2502  {'Server:':<12}{server_ip:<{content_width - 12}}  \u2502")
-        print(f"\u2502  {'Report ID:':<12}{self.report_id:<{content_width - 12}}  \u2502")
-        print(f"\u2502  {'Duration:':<12}{duration:.2f}s{'':<{content_width - 12 - len(f'{duration:.2f}s')}}  \u2502")
+        print(
+            f"\u2502  {'Report ID:':<12}{self.report_id:<{content_width - 12}}  \u2502"
+        )
+        print(
+            f"\u2502  {'Duration:':<12}{duration:.2f}s{'':<{content_width - 12 - len(f'{duration:.2f}s')}}  \u2502"
+        )
         # Use colored version but with pre-calculated padding
         result_display = (
             f"{status_color}{passed} passed{reset}, "

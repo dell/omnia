@@ -44,10 +44,10 @@ on every login shell (via `/etc/profile.d/omnia-env.sh`):
 
 The test framework reads these from the target at runtime (sourcing
 `/etc/omnia/omnia.env`) to resolve OIM-side input paths and playbook parameters.
-The remote aarch64 builder is the intentional exception: its work directory is
-`/opt/omnia/image_build_manager`, matching the product role contract because
-that node does not run `omnia.sh` and has no `OMNIA_DATA_PATH` environment
-variable.
+The remote aarch64 builder uses
+`$OMNIA_DATA_PATH/image_build_manager`, where `OMNIA_DATA_PATH` is read from
+the execution OIM. The aarch64 node does not need to run `omnia.sh` or define
+the variable locally.
 
 ---
 
@@ -211,6 +211,10 @@ the lifecycle order `precheck` → `validate` → `prepare` → `build`; each ph
 is grouped by its documented suites, and each suite then follows its existing
 `@pytest.mark.order(n)` values.
 
+The build verification suites run in dependency order:
+`aarch64` → `s3` → `registry` → `naming` → `image_verification`. This places
+ARM-host readiness and tooling checks before artifact and package validation.
+
 ### FVT Tags
 
 | Tag | Playbook Tag | What It Tests |
@@ -227,8 +231,16 @@ is grouped by its documented suites, and each suite then follows its existing
 
 Both `image-builder` and `image-thrillhouse` produce artifacts with distinct
 suffixes (`-imgbld` / `-imgth`). The naming tests confirm that at least one
-artifact for the configured build type carries the expected suffix. Artifacts
+artifact for the recorded build type carries the expected suffix. Artifacts
 from another build type are allowed to coexist and are reported, not rejected.
+
+Every new `build_status.yml` records the `image_build_type` that produced its
+artifact paths. Build verification uses that recorded value for engine-specific
+S3 and naming checks, so changing the input configuration after a build does
+not cause the previous manifest to be interpreted with the wrong layout. The
+current input still defines the functional groups expected by the test. A
+legacy manifest without the field is accepted only when one engine can be
+inferred unambiguously from `-imgbld` or `-imgth` artifact directories.
 
 ```bash
 # Run only naming convention tests
@@ -383,15 +395,13 @@ the MinIO/registry infrastructure and the S3 buckets.
 This runs the `cleanup` playbook tag, which also removes build logs and domain
 credentials. The post-cleanup FVT cases verify local MinIO/registry services
 and data, listening ports, S3 state, s3cmd configuration, build output, and
-registry state.
+registry state. They also verify that the credential file and vault key were
+removed without reading or displaying their contents.
 
 With PowerScale, the product intentionally retains the external buckets and
-`/root/.s3cfg`. The current `TC_CL_005` and `TC_CL_006` assertions are
-MinIO-oriented and expect those resources to be absent, so a PowerScale
-`cleanup test` can fail after a successful cleanup. Use
-`./run_validation.sh fvt_image_build_manager cleanup exec` for the PowerScale
-cleanup playbook, then verify the applicable local container, service, port,
-build-output, and registry state separately.
+`/root/.s3cfg`. The MinIO-specific `IBM_FVT_CLEANUP_V004` and
+`IBM_FVT_CLEANUP_V005` cases detect PowerScale and skip while the remaining
+cleanup postconditions continue to run.
 
 #### Unit Tests
 
@@ -626,32 +636,44 @@ Generated in the configured `report_path` (tracked default
 
 ## Test Cases
 
-See [`fvt/README.md`](fvt/README.md) for the complete test case registry.
+See [`fvt/README.md`](fvt/README.md) for the authoritative registry. Its tables
+list every stable test-case ID in effective execution order and explain both
+the validation performed and the condition required to pass.
 
-| ID area | Prefix | ID count | Notes |
-|---------|--------|----------|-------|
-| precheck | TC_PC_ | 6 | 001–006 |
-| validate | TC_VL_ | 4 | 001–004 (includes repo_ssl_verify_config) |
-| prepare | TC_PR_ | 8 | 001–008 |
-| build | TC_BD_ | 21 | 001–021; TC_BD_016 physically runs under `validate/status` |
-| cleanup | TC_CL_ | 8 | 001–008 |
-| cleanup_images | TC_CI_ | 3 | 001–003 |
-| nft | NFT_ | 4 | |
-| **Reportable IDs** | | **55** | 50 tagged FVT IDs + TC_IB_001 + 4 NFT IDs |
+FVT IDs follow `IBM_FVT_<PHASE>_<TYPE><SEQ>`. `E` cases run playbooks;
+`V` cases inspect postconditions.
 
-There are 54 physical FVT/NFT test functions (50 FVT and 4 NFT).
-`TC_IB_001` is the alternate full-stack ID emitted by the same build deploy
-function that reports `TC_BD_001` for a tagged build.
+NFT IDs use `IBM_NFT_<SEQ>`. UT IDs use `IBM_UT_<SEQ>` and are resolved from
+the complete pytest node ID through the centralized registry in
+`library/vars/ut_test_case_vars.py`. See [`ut/README.md`](ut/README.md) for
+the UT ID ranges and maintenance rule.
 
-### Build-type suffix checks (TC_BD_007 – TC_BD_011)
+| Phase | Execution IDs | Verification IDs | FVT count |
+|-------|---------------|------------------|-----------|
+| precheck | `IBM_FVT_PRECHECK_E001` | `IBM_FVT_PRECHECK_V001`–`005` | 6 |
+| validate | `IBM_FVT_VALIDATE_E001` | `IBM_FVT_VALIDATE_V001`–`004` | 5 |
+| prepare | `IBM_FVT_PREPARE_E001` | `IBM_FVT_PREPARE_V001`–`007` | 8 |
+| build | `IBM_FVT_BUILD_E001` | `IBM_FVT_BUILD_V001`–`019` | 20 |
+| cleanup_images | `IBM_FVT_CLEANUP_IMAGES_E001` | `IBM_FVT_CLEANUP_IMAGES_V001`–`002` | 3 |
+| cleanup | `IBM_FVT_CLEANUP_E001` | `IBM_FVT_CLEANUP_V001`–`008` | 9 |
+| full-stack alternate | `IBM_FVT_FULL_E001` | — | 1 reportable ID |
+| nft | `IBM_NFT_001`–`004` | — | 4 |
+| ut | `IBM_UT_001`–`073` | — | 73 |
+| **Reportable IDs** | | | **129** |
+
+There are 128 physical test functions (51 FVT, 4 NFT, and 73 UT).
+`IBM_FVT_FULL_E001` is the alternate full-stack ID emitted by the same build deploy
+function that reports `IBM_FVT_BUILD_E001` for a tagged build.
+
+### Build-type suffix checks (IBM_FVT_BUILD_V013 – IBM_FVT_BUILD_V017)
 
 | Test | Build type | Checks |
 |------|-----------|--------|
-| TC_BD_007 | image-builder | At least one x86_64 registry repository ends with `-imgbld` |
-| TC_BD_008 | image-builder | At least one x86_64 S3 path includes `-imgbld` |
-| TC_BD_009 | image-thrillhouse | At least one x86_64 registry repository ends with `-imgth` |
-| TC_BD_010 | image-thrillhouse | At least one x86_64 S3 path includes `-imgth` |
-| TC_BD_011 | both | At least one registry or S3 artifact carries the configured build type's suffix; suffix populations are reported |
+| IBM_FVT_BUILD_V013 | image-builder | At least one x86_64 registry repository ends with `-imgbld` |
+| IBM_FVT_BUILD_V014 | image-builder | At least one x86_64 S3 path includes `-imgbld` |
+| IBM_FVT_BUILD_V015 | image-thrillhouse | At least one x86_64 registry repository ends with `-imgth` |
+| IBM_FVT_BUILD_V016 | image-thrillhouse | At least one x86_64 S3 path includes `-imgth` |
+| IBM_FVT_BUILD_V017 | both | Every x86_64 registry/S3 artifact has exactly one engine suffix, full names are unique, and the build-status engine has at least one artifact |
 
 ---
 
@@ -694,11 +716,11 @@ test/image_build_manager/
 │   │   ├── container/
 │   │   └── s3/
 │   ├── build/                   # Build tag
+│   │   ├── aarch64/             # AArch64 infrastructure checks (IBM_FVT_BUILD_V001–005)
 │   │   ├── s3/
 │   │   ├── registry/
-│   │   ├── naming/              # Naming convention tests (TC_BD_007-011)
-│   │   ├── aarch64/             # AArch64 infrastructure checks (TC_BD_017–021)
-│   │   └── image_verification/  # Package verification (TC_BD_014-015)
+│   │   ├── naming/              # Naming convention tests (IBM_FVT_BUILD_V013–017)
+│   │   └── image_verification/  # Package verification (IBM_FVT_BUILD_V018–019)
 │   ├── cleanup/                 # Cleanup tag
 │   │   └── cleanup/
 │   └── cleanup_images/          # Cleanup images tag
@@ -706,15 +728,17 @@ test/image_build_manager/
 │
 ├── nft/                         # Non-Functional Tests
 │   ├── README.md                # NFT documentation (thresholds, execution)
-│   ├── test_performance.py      # Performance threshold tests (NFT_001–NFT_003)
-│   └── test_idempotency.py      # Idempotency tests (NFT_004)
+│   ├── test_performance.py      # Performance threshold tests (IBM_NFT_001–IBM_NFT_003)
+│   └── test_idempotency.py      # Idempotency tests (IBM_NFT_004)
 │
 └── ut/                          # Unit Tests
-    ├── conftest.py
-    ├── test_catalog_validation.py
-    ├── test_functional_group_packages.py
-    ├── test_standalone_independence.py
-    └── test_validate_image_build_config.py
+    ├── README.md                   # UT ID ranges and execution
+    ├── conftest.py
+    ├── test_catalog_validation.py
+    ├── test_driver_group_skip.py
+    ├── test_functional_group_packages.py
+    ├── test_standalone_independence.py
+    └── test_validate_image_build_config.py
 ```
 
 ---

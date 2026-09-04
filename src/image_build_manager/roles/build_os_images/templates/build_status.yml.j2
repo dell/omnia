@@ -30,6 +30,7 @@
 # ============================================================================
 
 overall_status: "success"
+image_build_type: "{{ status_image_build_type }}"
 
 s3_configurations:
   endpoint_url: "{{ s3_endpoint | default('http://' + admin_nic_ip + ':9000') }}"

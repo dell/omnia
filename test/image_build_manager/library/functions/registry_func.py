@@ -119,9 +119,12 @@ def check_registry_images(
     found = []
     missing = []
     for img in expected:
-        # Match: exact, partial, or with version suffix
+        # Match the exact expected name or a documented suffix/version form.
         matched = any(
-            img in repo for repo in normalized_repos
+            repo == img
+            or repo.startswith(f"{img}-")
+            or repo.startswith(f"{img}_")
+            for repo in normalized_repos
         )
         if matched:
             found.append(img)
@@ -134,7 +137,7 @@ def check_registry_images(
         "found_images": found,
         "missing_images": missing,
         "details": (
-            f"All x86_64 images found in registry"
+            f"All {arch} images found in registry"
             if not missing
             else f"Missing: {', '.join(missing)}"
         ),

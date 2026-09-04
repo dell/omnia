@@ -37,7 +37,9 @@
 
 - name: Build full Podman image path for x86_64
   ansible.builtin.set_fact:
-    builder_image_path: "{{ oim_pxe_ip }}:{{ hostvars['localhost']['repo_port'] | default(2225) }}/{{ repo_builder_image }}"
+    builder_image_path: >-
+      {{ oim_pxe_ip }}:{{ hostvars['localhost']['repo_port'] | default(2225) }}/{{ repo_builder_image
+         | regex_replace('^(localhost|[^/]*[.:][^/]*)/', '') }}
 
 # ---------------------------------------------------------------------------
 # Multi-name local image detection
@@ -45,7 +47,7 @@
 # The builder image can exist locally under any of three names:
 #   1. local_tag       — the build-time tag (e.g. x86_64-image-builder/ochami)
 #   2. repo_builder_image  — upstream name (e.g. docker.io/.../image-build-el10:1.3)
-#   3. builder_image_path  — repo_manager mirror path (e.g. 10.20.0.1:2225/docker.io/...)
+#   3. builder_image_path  — repo_manager mirror path (e.g. 10.20.0.1:2225/dellhpcomniaaisolution/...)
 # If the image is found under ANY name, we tag it as local_tag and skip pulling.
 # ---------------------------------------------------------------------------
 - name: Check if builder image already exists locally (local_tag)
@@ -74,10 +76,12 @@
          or ((_upstream_name_info.images | default([])) | length > 0)
          or ((_repo_manager_name_info.images | default([])) | length > 0) }}
     _builder_image_source: >-
-      {%- if _local_tag_info.images | length > 0 -%}local_tag
-      {%- elif (_upstream_name_info.images | default([])) | length > 0 -%}upstream
-      {%- elif (_repo_manager_name_info.images | default([])) | length > 0 -%}repo_manager
-      {%- else -%}none{%- endif -%}
+      {{ 'local_tag' if _local_tag_info.images | length > 0
+         else ('upstream'
+               if (_upstream_name_info.images | default([])) | length > 0
+               else ('repo_manager'
+                     if (_repo_manager_name_info.images | default([])) | length > 0
+                     else 'none')) }}
 
 - name: Display skip notice — builder image already available
   ansible.builtin.debug:

@@ -161,9 +161,12 @@ When `aarch64_inventory_host_ip` is set in `image_build_config.yml`:
 `build_status.yml` records exact endpoint-relative S3 object paths. Paths include
 the `boot-images` bucket, omit the endpoint and `s3://` scheme, and end with a
 filename. The layout is selected globally by `image_build_type`.
+The manifest records that producing engine so its artifact paths remain
+self-describing if the input configuration changes later.
 
 ```yaml
 overall_status: "success"
+image_build_type: "image-thrillhouse"
 
 s3_configurations:
   endpoint_url: "http://10.20.0.1:9000"

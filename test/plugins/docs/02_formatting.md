@@ -153,7 +153,7 @@ This is the main way your test functions produce output.
 | Parameter | Type | Required? | What to give | Example |
 |-----------|------|-----------|--------------|---------|
 | `test_name` | `str` | **Yes** | A human-readable name for the test. This is displayed as the test header. | `"Verify containers running"` |
-| `tc_id` | `str` | No | A test case ID like `TC_BD_002`. If provided, it appears in brackets before the test name. | `"TC_BD_002"` |
+| `tc_id` | `str` | No | A test case ID like `IBM_FVT_BUILD_V006`. If provided, it appears in brackets before the test name. | `"IBM_FVT_BUILD_V006"` |
 
 ### Methods
 
@@ -164,7 +164,16 @@ This is the main way your test functions produce output.
 | `tl.passed(message, details=None)` | Prints a green ✔ PASS line | When a check passes. `details` is an optional multi-line string shown below the pass line. |
 | `tl.failed(message, details=None)` | Prints a red ✘ FAIL line | When a check fails. `details` is optional. |
 | `tl.skipped(message, details=None)` | Prints a yellow ↷ SKIP line | When a check is skipped. `details` is optional. |
+| `tl.passed_fields(message, fields)` | Prints a green ✔ PASS line followed by colored key/value fields | When named values make the result easier to understand. |
+| `tl.failed_fields(message, fields)` | Prints a red ✘ FAIL line followed by colored key/value fields | When a failure needs named diagnostic values. |
+| `tl.skipped_fields(message, fields)` | Prints a yellow ↷ SKIP line followed by colored key/value fields | When a skip needs its prerequisites or current configuration shown. |
 | `tl.get_output()` | Returns all captured output as a single string | When you need to store the output (e.g., for the test report) |
+
+The `fields` argument accepts a dictionary or an ordered iterable of
+`(key, value)` pairs. In the terminal, keys are cyan and values are bright
+white when color is supported. Reports store the same fields as structured
+data and render them with report-theme colors. Keys and values are escaped
+before HTML rendering.
 
 ### Prerequisite
 
@@ -176,7 +185,7 @@ None — works standalone.  But typically used inside a `pytest` test function.
 from omnia_auto import TestLogger
 
 def test_s3_images(host):
-    tl = TestLogger("Verify S3 images pushed", "TC_BD_002")
+    tl = TestLogger("Verify S3 images pushed", "IBM_FVT_BUILD_V006")
 
     tl.check("Checking S3 bucket for images...")
     # ... run some verification logic ...
@@ -191,10 +200,25 @@ def test_s3_images(host):
     output = tl.get_output()
 ```
 
+For named result values, use the structured fields API instead of manually
+adding ANSI color codes:
+
+```python
+tl.passed_fields(
+    "Registry naming is valid",
+    {
+        "Artifact store": "OCI registry",
+        "Architecture": "x86_64",
+        "Required suffix": "-imgth",
+        "Matching current artifacts": 5,
+    },
+)
+```
+
 ### Terminal output
 
 ```
-  ▶ [TC_BD_002] Verify S3 images pushed
+  ▶ [IBM_FVT_BUILD_V006] Verify S3 images pushed
   → Checking S3 bucket for images...
   ✔ PASS: All images pushed to S3 for 2 functional groups
     │   - slurm_node_x86_64
@@ -236,7 +260,7 @@ so that every test result is recorded.
 | `test_name` | `str` | **Yes** | The test function name (e.g., `test_s3_images`). | `"test_s3_images_x86_64"` |
 | `status` | `str` | **Yes** | One of: `"PASSED"`, `"FAILED"`, `"SKIPPED"`. | `"PASSED"` |
 | `duration` | `float` | **Yes** | How long the test took, in seconds. | `1.58` |
-| `tc_id` | `str` | No | Test case ID. | `"TC_BD_002"` |
+| `tc_id` | `str` | No | Test case ID. | `"IBM_FVT_BUILD_V006"` |
 
 ### Prerequisite
 
@@ -306,13 +330,13 @@ def pytest_sessionfinish(session, exitstatus):
 =====================================================================================
   TEST EXECUTION SUMMARY
 =====================================================================================
-  TC ID        Test Name                                Status     Duration
-  ------------ ---------------------------------------- ---------- --------
-  TC_BD_002    test_s3_images_x86_64                    PASSED        1.58s
-  TC_BD_003    test_s3_images_aarch64                   SKIPPED       0.85s
-  TC_BD_004    test_registry_images_x86_64              PASSED        1.46s
-  TC_BD_005    test_build_status                        PASSED        0.31s
-  ------------ ---------------------------------------- ---------- --------
+  TC ID                  Test Name                                Status     Duration
+  ---------------------- ---------------------------------------- ---------- --------
+  IBM_FVT_BUILD_V006 test_s3_images_x86_64                    PASSED        1.58s
+  IBM_FVT_BUILD_V007 test_s3_images_aarch64                   SKIPPED       0.85s
+  IBM_FVT_BUILD_V008 test_registry_images_x86_64              PASSED        1.46s
+  IBM_FVT_BUILD_V010 test_build_status                        PASSED        0.31s
+  ---------------------- ---------------------------------------- ---------- --------
   3 passed, 0 failed, 1 skipped / 4 total (4.20s)
 =====================================================================================
 ```

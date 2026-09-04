@@ -15,7 +15,7 @@
 """
 Image Build Cleanup Images — Deploy.
 
-TC_CI_001: Deploy image_build_manager --tags cleanup_images
+Deploy image_build_manager with the cleanup_images tag.
            Passes skip_approval=true for automation (no interactive prompt).
 """
 
@@ -38,7 +38,7 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_cleanup_images(host):
-    """TC_CI_001: Deploy image_build_manager --tags cleanup_images."""
+    """Deploy image_build_manager with the cleanup_images tag."""
     tc = TC["deploy_cleanup_images"]
     tl = TestLogger(tc["title"], tc["id"])
     result = run_playbook(

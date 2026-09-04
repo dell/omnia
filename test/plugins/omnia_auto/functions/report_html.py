@@ -23,21 +23,52 @@ import re
 from datetime import datetime
 from typing import Any, Dict
 
-_ANSI_RE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+_ANSI_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 
 def _strip_ansi(text: str) -> str:
     """Remove ANSI escape sequences from text."""
-    return _ANSI_RE.sub('', text)
+    return _ANSI_RE.sub("", text)
 
 
 def _escape_html(text: str) -> str:
     """Strip ANSI codes then escape HTML special characters."""
     text = _strip_ansi(text)
-    return (text.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace('"', "&quot;"))
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def _render_details(details: str, detail_fields: list) -> str:
+    """Escape details and style only exact structured key/value lines."""
+    if not detail_fields:
+        return _escape_html(details)
+
+    structured_lines = {
+        f"{field.get('key', '')}: {field.get('value', '')}": field
+        for field in detail_fields
+        if isinstance(field, dict)
+    }
+    rendered_lines = []
+    for raw_line in _strip_ansi(details).split("\n"):
+        content = raw_line.lstrip()
+        if content.startswith("\u2502 "):
+            content = content[2:]
+        field = structured_lines.get(content)
+        if field is None:
+            rendered_lines.append(_escape_html(raw_line))
+            continue
+        prefix = raw_line[: len(raw_line) - len(content)]
+        rendered_lines.append(
+            f'{_escape_html(prefix)}<span class="detail-key">'
+            f'{_escape_html(str(field.get("key", "")))}:</span> '
+            f'<span class="detail-value">'
+            f'{_escape_html(str(field.get("value", "")))}</span>'
+        )
+    return "\n".join(rendered_lines)
 
 
 # SVG Icons
@@ -86,7 +117,7 @@ def _donut_svg(passed: int, failed: int, skipped: int, size: int = 160) -> str:
         f'dominant-baseline="central" transform="rotate(90 {cx} {cy})">{pct}%</text>'
         f'<text class="donut-lbl" x="{cx}" y="{cy+22}" text-anchor="middle" '
         f'transform="rotate(90 {cx} {cy})">pass rate</text>'
-        f'</svg>'
+        f"</svg>"
     )
 
 
@@ -114,12 +145,12 @@ def _scenario_bars(modules: list) -> str:
             f'<div class="bar-seg bar-pass" style="width:{pw}%"></div>'
             f'<div class="bar-seg bar-fail" style="width:{fw}%"></div>'
             f'<div class="bar-seg bar-skip" style="width:{sw}%"></div>'
-            f'</div>'
+            f"</div>"
             f'<div class="bar-nums">'
             f'<span class="c-pass">{p}</span>/'
             f'<span class="c-fail">{f}</span>/'
             f'<span class="c-skip">{sk}</span>'
-            f'</div>'
+            f"</div>"
             f'<div class="bar-tip">'
             f'<div class="tip-head">{name}</div>'
             f'<div class="tip-body">'
@@ -127,7 +158,7 @@ def _scenario_bars(modules: list) -> str:
             f'<div class="tip-r"><div class="tip-d" style="background:#3fb950"></div>Passed<b>{p}</b></div>'
             f'<div class="tip-r"><div class="tip-d" style="background:#f85149"></div>Failed<b>{f}</b></div>'
             f'<div class="tip-r"><div class="tip-d" style="background:#e3b341"></div>Skipped<b>{sk}</b></div>'
-            f'</div></div></div></div>'
+            f"</div></div></div></div>"
         )
     return f'<div class="scenario-bars">{"".join(rows)}</div>'
 
@@ -192,9 +223,9 @@ def _marker_folder_breakdown(modules: list) -> str:
                 f'<td style="color:var(--green)">{st["passed"]}</td>'
                 f'<td style="color:var(--red)">{st["failed"]}</td>'
                 f'<td style="color:var(--yellow)">{st["skipped"]}</td>'
-                f'</tr>'
+                f"</tr>"
             )
-        html += '</table></div>'
+        html += "</table></div>"
 
     if folder_stats:
         html += '<div class="bd-section"><div class="bd-title">By Folder</div>'
@@ -207,19 +238,22 @@ def _marker_folder_breakdown(modules: list) -> str:
                 f'<td style="color:var(--green)">{st["passed"]}</td>'
                 f'<td style="color:var(--red)">{st["failed"]}</td>'
                 f'<td style="color:var(--yellow)">{st["skipped"]}</td>'
-                f'</tr>'
+                f"</tr>"
             )
-        html += '</table></div>'
+        html += "</table></div>"
 
-    html += '</div>'
+    html += "</div>"
     return html
 
 
 def _render_test_item(test_id: int, test: dict, icls: str, isvg: str) -> str:
     """Render a single test item row."""
     name = test.get("test_name", "unknown")
+    tc_id = test.get("tc_id", "")
+    display_name = f"[{tc_id}] {name}" if tc_id else name
     dur = test.get("duration_seconds", 0)
     details = test.get("details", "")
+    detail_fields = test.get("detail_fields", [])
     error = test.get("error", "")
 
     html = (
@@ -227,26 +261,26 @@ def _render_test_item(test_id: int, test: dict, icls: str, isvg: str) -> str:
         f'<div class="tr" onclick="togT(event,{test_id})">'
         f'<span class="tr-arr">&#9654;</span>'
         f'<div class="tr-icon {icls}">{isvg}</div>'
-        f'<span class="tr-name">{_escape_html(name)}</span>'
+        f'<span class="tr-name">{_escape_html(display_name)}</span>'
         f'<span class="tr-dur">{dur:.2f}s</span>'
-        f'</div>'
+        f"</div>"
         f'<div class="ti-out">'
     )
 
     if details:
-        html += f'<div class="obox">{_escape_html(details)}</div>'
+        html += f'<div class="obox">{_render_details(details, detail_fields)}</div>'
     if error:
         html += f'<div class="ebox">{_escape_html(error)}</div>'
     if not details and not error:
         html += '<div class="obox" style="color:var(--fg-muted)">No output</div>'
 
-    html += '</div></div>'
+    html += "</div></div>"
     return html
 
 
 def get_css() -> str:
     """Return the CSS styles for the report."""
-    return '''
+    return """
 /* Theme variables */
 [data-theme="dark"] {
   --bg-canvas:#0d1117; --bg-card:#161b22; --bg-header:#1c2128;
@@ -351,6 +385,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-canvas);col
 .ti-out{display:none;padding:8px 20px 12px 56px}
 .ti.open .ti-out{display:block}
 .obox{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:monospace;font-size:.8em;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow-y:auto}
+.detail-key{color:var(--blue);font-weight:700}
+.detail-value{color:var(--fg);font-weight:600}
 .ebox{background:var(--red-bg);border:1px solid rgba(248,81,73,.3);border-radius:8px;padding:12px;margin-top:8px;font-family:monospace;font-size:.8em;white-space:pre-wrap;max-height:160px;overflow-y:auto;color:var(--red)}
 .legend{display:flex;gap:16px;padding:10px 24px;font-size:.82em;color:var(--fg-muted);border-bottom:1px solid var(--border);background:var(--bg-header)}
 .legend-item{display:flex;align-items:center;gap:5px}
@@ -405,12 +441,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-canvas);col
 .donut-lbl{fill:var(--fg-muted);font-size:11px;font-family:system-ui}
 .scenario-bars{flex:1;min-width:260px}
 @media(max-width:920px){.lay{flex-direction:column}.side{width:100%}.breakdown{flex-direction:column}}
-'''
+"""
 
 
 def get_js() -> str:
     """Return the JavaScript for the report."""
-    return '''
+    return """
 function showSrv(ip){
   document.querySelectorAll('.srv').forEach(e=>e.classList.remove('act'));
   document.querySelectorAll('.panel').forEach(e=>e.classList.remove('act'));
@@ -443,14 +479,14 @@ function toggleTheme(){
   document.getElementById('theme-icon').innerHTML=d==='dark'?'\\u263E':'\\u2600';
   document.getElementById('theme-label').textContent=d==='dark'?'Light':'Dark';
 }
-'''
+"""
 
 
 def generate_html(data: Dict[str, Any]) -> str:
     """Generate the complete HTML report."""
-    generated = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    generated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    html = f'''<!DOCTYPE html>
+    html = f"""<!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
@@ -469,21 +505,23 @@ def generate_html(data: Dict[str, Any]) -> str:
     <span id="theme-icon">&#9790;</span> <span id="theme-label">Light</span>
   </button>
 </div>
-'''
+"""
 
     servers = data.get("servers", {})
     if not servers:
-        html += '<div style="text-align:center;padding:60px 20px;color:var(--fg-muted)">'
-        html += 'No test results yet. Run tests to generate report.</div>'
+        html += (
+            '<div style="text-align:center;padding:60px 20px;color:var(--fg-muted)">'
+        )
+        html += "No test results yet. Run tests to generate report.</div>"
     else:
         html += _generate_servers_html(servers)
 
-    html += f'''
+    html += f"""
 <div class="ft">Omnia Automation Framework &mdash; Test Report</div>
 </div>
 <script>{get_js()}</script>
 </body>
-</html>'''
+</html>"""
 
     return html
 
@@ -498,7 +536,7 @@ def _generate_servers_html(servers: Dict[str, Any]) -> str:
         runs = sd.get("runs", [])
         tp = tf = ts = 0
         for r in runs:
-            for m in (r.get("modules") or []):
+            for m in r.get("modules") or []:
                 if m.get("module") == SETUP_MODULE:
                     continue
                 ms = m.get("summary") or {}
@@ -531,7 +569,7 @@ def _generate_servers_html(servers: Dict[str, Any]) -> str:
         runs = sd.get("runs", [])
         setup_results_all = []
         for r in runs:
-            for m in (r.get("modules") or []):
+            for m in r.get("modules") or []:
                 if m.get("module") == SETUP_MODULE:
                     setup_results_all.extend(m.get("results", []))
 
@@ -539,7 +577,9 @@ def _generate_servers_html(servers: Dict[str, Any]) -> str:
         for r in runs:
             modules = r.get("modules") or []
             if not modules and "results" in r:
-                modules = [{"module": r.get("module", "unknown"), "summary": r["summary"]}]
+                modules = [
+                    {"module": r.get("module", "unknown"), "summary": r["summary"]}
+                ]
             for m in modules:
                 if m.get("module") == SETUP_MODULE:
                     continue
@@ -551,11 +591,19 @@ def _generate_servers_html(servers: Dict[str, Any]) -> str:
         act = "act" if first_server else ""
 
         executed_total = tp + tf
-        pass_rate = int(tp / executed_total * 100) if executed_total else (100 if tsk > 0 else 0)
+        pass_rate = (
+            int(tp / executed_total * 100)
+            if executed_total
+            else (100 if tsk > 0 else 0)
+        )
         total_dur = sum(
-            sum(m.get("duration_seconds", 0) or 0 for m in (
-                r.get("modules") or [{"duration_seconds": r.get("total_duration_seconds", 0)}]
-            ))
+            sum(
+                m.get("duration_seconds", 0) or 0
+                for m in (
+                    r.get("modules")
+                    or [{"duration_seconds": r.get("total_duration_seconds", 0)}]
+                )
+            )
             for r in runs
         )
 
@@ -569,7 +617,7 @@ def _generate_servers_html(servers: Dict[str, Any]) -> str:
             f'<div class="kpi kp"><div class="n">{pass_rate}%</div><div class="l">Pass Rate</div></div>'
             f'<div class="kpi kt"><div class="n">{len(runs)}</div><div class="l">Runs</div></div>'
             f'<div class="kpi kt"><div class="n">{total_dur:.0f}s</div><div class="l">Duration</div></div>'
-            f'</div>'
+            f"</div>"
         )
 
         if setup_results_all:
@@ -579,10 +627,10 @@ def _generate_servers_html(servers: Dict[str, Any]) -> str:
             html += _generate_run_html(run, run_idx, sip, test_id)
             test_id += len(run.get("modules", [{}])[0].get("results", []))
 
-        html += '</div>'
+        html += "</div>"
         first_server = False
 
-    html += '</div></div>'
+    html += "</div></div>"
     return html
 
 
@@ -626,11 +674,11 @@ def _generate_setup_panel(setup_results: list) -> str:
 
     html += (
         f'</div><div class="setup-summary">'
-        f'<span><b>{s_pass}</b> passed</span>'
-        f'<span><b>{s_fail}</b> failed</span>'
-        f'<span><b>{s_skip}</b> skipped</span>'
+        f"<span><b>{s_pass}</b> passed</span>"
+        f"<span><b>{s_fail}</b> failed</span>"
+        f"<span><b>{s_skip}</b> skipped</span>"
         f'<span style="margin-left:auto"><b>{s_total}</b> checks</span>'
-        f'</div></div>'
+        f"</div></div>"
     )
     return html
 
@@ -651,12 +699,14 @@ def _generate_run_html(run: dict, run_idx: int, sip: str, test_id_start: int) ->
 
     modules = run.get("modules", [])
     if not modules and "results" in run:
-        modules = [{
-            "module": run.get("module", "unknown"),
-            "results": run["results"],
-            "summary": run["summary"],
-            "duration_seconds": run.get("total_duration_seconds", 0)
-        }]
+        modules = [
+            {
+                "module": run.get("module", "unknown"),
+                "results": run["results"],
+                "summary": run["summary"],
+                "duration_seconds": run.get("total_duration_seconds", 0),
+            }
+        ]
 
     tdur = sum(m.get("duration_seconds", 0) for m in modules)
     rid = run.get("report_id", "")
@@ -669,10 +719,10 @@ def _generate_run_html(run: dict, run_idx: int, sip: str, test_id_start: int) ->
         f'<div class="run-title">'
         f'<span class="rid">{rid}</span>'
         f'<span style="color:var(--fg-muted);font-size:.82em">{disp_rid}</span>'
-        f'{pills}'
+        f"{pills}"
         f'<span style="color:var(--fg-muted);font-size:.8em;margin-left:8px">'
-        f'{len(modules)} scenario(s)</span>'
-        f'</div></div>'
+        f"{len(modules)} scenario(s)</span>"
+        f"</div></div>"
         f'<div class="run-info">&#9201; {tdur:.1f}s</div>'
         f'<div class="run-b">'
         f'<div class="legend">'
@@ -682,8 +732,8 @@ def _generate_run_html(run: dict, run_idx: int, sip: str, test_id_start: int) ->
         f'<div class="legend-dot" style="background:var(--red)"></div>Failed</div>'
         f'<div class="legend-item">'
         f'<div class="legend-dot" style="background:var(--yellow)"></div>Skipped</div>'
-        f'</div>'
-        f'{_marker_folder_breakdown(modules)}'
+        f"</div>"
+        f"{_marker_folder_breakdown(modules)}"
     )
 
     test_id = test_id_start
@@ -691,7 +741,7 @@ def _generate_run_html(run: dict, run_idx: int, sip: str, test_id_start: int) ->
         html += _generate_module_html(mod, mi, uid, test_id)
         test_id += len(mod.get("results", []))
 
-    html += '</div></div>'
+    html += "</div></div>"
     return html
 
 
@@ -729,11 +779,14 @@ def _generate_module_html(mod: dict, mi: int, uid: str, test_id_start: int) -> s
 
     all_results = mod.get("results", [])
     deploy_results = [
-        r for r in all_results
-        if r.get("category") == "deploy" or (
-            not r.get("category") and (
-                "deploy" in r.get("test_name", "").lower() or
-                "playbook" in r.get("test_name", "").lower()
+        r
+        for r in all_results
+        if r.get("category") == "deploy"
+        or (
+            not r.get("category")
+            and (
+                "deploy" in r.get("test_name", "").lower()
+                or "playbook" in r.get("test_name", "").lower()
             )
         )
     ]
@@ -744,11 +797,13 @@ def _generate_module_html(mod: dict, mi: int, uid: str, test_id_start: int) -> s
     test_id += len(deploy_results)
     html += _generate_dv_section(verify_results, mid, "verify", test_id)
 
-    html += '</div></div>'
+    html += "</div></div>"
     return html
 
 
-def _generate_dv_section(results: list, mid: str, section: str, test_id_start: int) -> str:
+def _generate_dv_section(
+    results: list, mid: str, section: str, test_id_start: int
+) -> str:
     """Generate deploy/verify section HTML."""
     dv_id = f"{mid}-{section}"
     has_results = bool(results)
@@ -768,7 +823,7 @@ def _generate_dv_section(results: list, mid: str, section: str, test_id_start: i
             f'<div class="dv-hdr" onclick="togDV(\'{dv_id}\')">'
             f'<span class="dv-arr">&#9660;</span>'
             f'<div class="dv-icon {icon_cls}">{icon}</div>'
-            f'<span>{label}</span>'
+            f"<span>{label}</span>"
             f'<span class="pill pp" style="margin-left:auto">{len(results)} test(s)</span>'
             f'</div><div class="dv-body">'
         )
@@ -783,18 +838,18 @@ def _generate_dv_section(results: list, mid: str, section: str, test_id_start: i
                 icls, isvg = "if", SVG_X
             html += _render_test_item(test_id, test, icls, isvg)
             test_id += 1
-        html += '</div></div>'
+        html += "</div></div>"
     else:
         html = (
             f'<div class="dv-sec shut" id="dv-{dv_id}">'
             f'<div class="dv-hdr" onclick="togDV(\'{dv_id}\')">'
             f'<span class="dv-arr">&#9660;</span>'
             f'<div class="dv-icon dv-skip">&#8212;</div>'
-            f'<span>{label}</span>'
+            f"<span>{label}</span>"
             f'<span class="pill ps" style="margin-left:auto">skipped</span>'
             f'</div><div class="dv-body">'
             f'<div class="dv-skip-msg">No {section} tests executed</div>'
-            f'</div></div>'
+            f"</div></div>"
         )
 
     return html

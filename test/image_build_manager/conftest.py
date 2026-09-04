@@ -35,6 +35,7 @@ if _TEST_DIR not in sys.path:
 
 # --- Initialize omnia_auto BEFORE any imports that use it ---
 import omnia_auto  # noqa: E402 - configure after adding the module root
+
 omnia_auto.configure(
     module_root=_TEST_DIR,
     config_file="test_config.yml",
@@ -52,6 +53,7 @@ from omnia_auto import (  # noqa: E402 - configure omnia_auto before consumers
     get_current_report,
     get_test_output,
     get_last_tc_id,
+    get_last_detail_fields,
     encrypt_test_credentials,
     log,
     add_session_result,
@@ -71,7 +73,10 @@ from library.functions.validation_func import (  # noqa: E402 - configured impor
     validate_all,
     ConfigValidationError,
 )
-from library.vars import TEST_CASES  # noqa: E402 - configured module import
+from library.vars import (  # noqa: E402 - configured module import
+    TEST_CASES,
+    UT_TEST_CASE_IDS,
+)
 
 # FVT phases and suites have independent local ``@pytest.mark.order(n)``
 # sequences. Apply lifecycle and suite ranks first so equal local order values
@@ -91,10 +96,10 @@ _FVT_SUITE_ORDER = {
     "prepare": {"": 0, "container": 1, "s3": 2},
     "build": {
         "": 0,
-        "s3": 1,
-        "registry": 2,
-        "naming": 3,
-        "aarch64": 4,
+        "aarch64": 1,
+        "s3": 2,
+        "registry": 3,
+        "naming": 4,
         "image_verification": 5,
     },
     "cleanup_images": {"": 0, "cleanup_images": 1},
@@ -106,6 +111,14 @@ _FVT_SUITE_ORDER = {
 # plus explicit overrides where function name differs from key.
 _TC_ID_MAP = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()}
 _TC_ID_MAP["test_deploy_image_build_manager"] = TEST_CASES["deploy_full"]["id"]
+
+
+def _ut_test_node_key(item):
+    """Return the stable registry key for an Image Build Manager UT item."""
+    normalized_node_id = item.nodeid.replace("\\", "/")
+    if "ut/" not in normalized_node_id:
+        return ""
+    return normalized_node_id.split("ut/", 1)[1].split("[", 1)[0]
 
 
 # =============================================================================
@@ -129,11 +142,10 @@ def pytest_addoption(parser):
 # MARKER REGISTRATION
 # =============================================================================
 
+
 def pytest_configure(config):
     """Register custom markers."""
-    config.addinivalue_line(
-        "filterwarnings", "ignore::pytest.PytestCollectionWarning"
-    )
+    config.addinivalue_line("filterwarnings", "ignore::pytest.PytestCollectionWarning")
     markers = {
         "order(n)": "Specify test execution order (lower first)",
         "x86_64": "Test applies to x86_64 architecture",
@@ -151,6 +163,7 @@ def pytest_configure(config):
 # =============================================================================
 # MARKER EXPRESSION FILTERING
 # =============================================================================
+
 
 def _parse_marker_expression(expr):
     """Parse marker expression into (mode, marker_list).
@@ -189,31 +202,35 @@ def pytest_collection_modifyitems(session, config, items):
                 if all(_item_has_marker(item, m) for m in markers):
                     filtered.append(item)
                 else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=(
-                            f"Missing marker(s) for AND expression: "
-                            f"{'+'.join(markers)}"
+                    item.add_marker(
+                        pytest.mark.skip(
+                            reason=(
+                                f"Missing marker(s) for AND expression: "
+                                f"{'+'.join(markers)}"
+                            )
                         )
-                    ))
+                    )
                     filtered.append(item)
             elif mode == "or":
                 if any(_item_has_marker(item, m) for m in markers):
                     filtered.append(item)
                 else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=(
-                            f"No matching marker for OR expression: "
-                            f"{','.join(markers)}"
+                    item.add_marker(
+                        pytest.mark.skip(
+                            reason=(
+                                f"No matching marker for OR expression: "
+                                f"{','.join(markers)}"
+                            )
                         )
-                    ))
+                    )
                     filtered.append(item)
             elif mode == "single":
                 if _item_has_marker(item, markers[0]):
                     filtered.append(item)
                 else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=f"Missing marker: {markers[0]}"
-                    ))
+                    item.add_marker(
+                        pytest.mark.skip(reason=f"Missing marker: {markers[0]}")
+                    )
                     filtered.append(item)
         items[:] = filtered
 
@@ -246,6 +263,7 @@ def pytest_collection_modifyitems(session, config, items):
 # =============================================================================
 # SESSION STARTUP — ENCRYPT, CLONE, SYNC
 # =============================================================================
+
 
 def _apply_dataset_overrides(config):
     """Apply dataset/sync overrides from environment variables.
@@ -345,11 +363,15 @@ def pytest_sessionstart(session):
     # Initialize test report
     # Detect scenario name from test paths (fvt/<scenario>/...)
     valid_scenarios = {
-        "image_build_manager", "validate", "prepare",
-        "build", "cleanup", "precheck",
+        "image_build_manager",
+        "validate",
+        "prepare",
+        "build",
+        "cleanup",
+        "precheck",
     }
     module_name = "image_build_manager"
-    test_paths = session.config.args if hasattr(session.config, 'args') else []
+    test_paths = session.config.args if hasattr(session.config, "args") else []
     for p in test_paths:
         for part in p.replace("\\", "/").split("/"):
             if part in valid_scenarios:
@@ -359,10 +381,12 @@ def pytest_sessionstart(session):
     report_id = os.environ.get("REPORT_ID")
     report = TestReport(
         module_name=module_name,
-        report_path=str(config.get(
-            "report_path",
-            os.environ.get("OMNIA_DATA_PATH", "/opt/omnia") + "/reports",
-        )),
+        report_path=str(
+            config.get(
+                "report_path",
+                os.environ.get("OMNIA_DATA_PATH", "/opt/omnia") + "/reports",
+            )
+        ),
         report_name=str(config.get("report_name", "test_report")),
         server_ip=str(config.get("oim_server_ip", "localhost")),
         report_id=report_id,
@@ -396,12 +420,12 @@ def pytest_runtest_makereport(item, call):
     if result.when == "setup" and not result.skipped:
         return
 
-    status = "PASSED" if result.passed else (
-        "SKIPPED" if result.skipped else "FAILED"
-    )
+    status = "PASSED" if result.passed else ("SKIPPED" if result.skipped else "FAILED")
 
-    output = get_test_output(item.name)
+    ut_tc_id = UT_TEST_CASE_IDS.get(_ut_test_node_key(item), "")
+    output = "" if ut_tc_id else get_test_output(item.name)
     details = output if output else ""
+    detail_fields = [] if ut_tc_id else get_last_detail_fields()
     skip_reason = ""
 
     if result.skipped:
@@ -414,15 +438,12 @@ def pytest_runtest_makereport(item, call):
             skip_reason = rep_text.split("SKIP", 1)[-1].strip()
 
     if status == "SKIPPED" and skip_reason:
-        details = (
-            (details + "\n" if details else "")
-            + f"SKIPPED: {skip_reason}"
-        )
+        details = (details + "\n" if details else "") + f"SKIPPED: {skip_reason}"
 
-    # Get TC ID from TestLogger (set during test execution)
-    tc_id = get_last_tc_id()
+    # UTs do not use TestLogger and must not inherit its process-global state.
+    tc_id = ut_tc_id or get_last_tc_id()
 
-    # Fallback: look up TC ID from TEST_CASES if TestLogger didn't set it
+    # Fallback: look up FVT/NFT ID from TEST_CASES if TestLogger didn't set it.
     if not tc_id:
         tc_id = _TC_ID_MAP.get(item.name, "")
 
@@ -437,13 +458,17 @@ def pytest_runtest_makereport(item, call):
     # Store in HTML/JSON report
     report = get_current_report()
     if report:
-        report.add_result({
+        report_payload = {
+            "tc_id": tc_id,
             "test_name": item.name,
             "status": status,
             "duration": getattr(result, "duration", 0),
             "details": details,
             "error": str(result.longrepr) if result.failed else "",
-        })
+        }
+        if detail_fields:
+            report_payload["detail_fields"] = detail_fields
+        report.add_result(report_payload)
 
 
 # =============================================================================
@@ -463,6 +488,7 @@ def pytest_report_teststatus(report, config):
 # =============================================================================
 # HOST FIXTURE
 # =============================================================================
+
 
 @pytest.fixture(scope="session")
 def host():
