@@ -15,14 +15,18 @@
 """Prepare / validate / precheck verification functions."""
 
 import json
+import os
 from typing import Dict, Any
+
+import yaml
 
 from omnia_auto import read_remote_env, resolve_domain_input_path
 
-from .host_func import load_test_config
+from .host_func import resolve_target_source_root
 from ._config_helpers import (
     _retry_run,
     _get_remote_ibm_config_path,
+    _get_s3_provider,
 )
 from ..vars.common_vars import (
     DOMAIN_NAME,
@@ -36,10 +40,10 @@ from ..vars.common_vars import (
     CREDENTIALS_FILE_NAME,
 )
 
-
 # =============================================================================
 # PREPARE VERIFICATION — EXTENDED
 # =============================================================================
+
 
 def check_s3cmd_configured(host) -> Dict[str, Any]:
     """Verify s3cmd is installed and s3cfg config exists.
@@ -50,15 +54,12 @@ def check_s3cmd_configured(host) -> Dict[str, Any]:
     which_cmd = host.run(CMDS["which_cmd"].format(binary="s3cmd"))
     s3cmd_available = which_cmd.rc == 0
 
-    cfg_cmd = host.run(
-        CMDS["file_exists"].format(path=S3CMD_CONFIG_PATH)
-    )
+    cfg_cmd = host.run(CMDS["file_exists"].format(path=S3CMD_CONFIG_PATH))
     config_exists = cfg_cmd.rc == 0 and "exists" in cfg_cmd.stdout
 
     details_lines = [
         f"  s3cmd binary: {'found' if s3cmd_available else 'NOT FOUND'}",
-        f"  {S3CMD_CONFIG_PATH}: "
-        f"{'exists' if config_exists else 'NOT FOUND'}",
+        f"  {S3CMD_CONFIG_PATH}: " f"{'exists' if config_exists else 'NOT FOUND'}",
     ]
 
     return {
@@ -72,26 +73,26 @@ def check_s3cmd_configured(host) -> Dict[str, Any]:
 def check_firewall_ports_open(host) -> Dict[str, Any]:
     """Verify container ports are listening (via ss -tlnp).
 
-    Checks that MinIO (9000, 9001) and registry (5000) ports
-    are bound and accepting connections.
+    Checks registry port 5000 for every backend. MinIO ports 9000 and 9001
+    are also required when the configured S3 provider is MinIO.
 
     Returns:
         Dict with 'success', 'open_ports', 'missing_ports', 'details'.
     """
+    backend = _get_s3_provider(host)
+    applicable_ports = [REGISTRY_PORT] if backend == "powerscale" else LISTENING_PORTS
     open_ports = []
     missing = []
 
-    for port in LISTENING_PORTS:
-        cmd = host.run(
-            CMDS["ss_listen_port"].format(port=port)
-        )
+    for port in applicable_ports:
+        cmd = host.run(CMDS["ss_listen_port"].format(port=port))
         if cmd.rc == 0 and str(port) in cmd.stdout:
             open_ports.append(port)
         else:
             missing.append(port)
 
     details_lines = []
-    for port in LISTENING_PORTS:
+    for port in applicable_ports:
         status = "listening" if port in open_ports else "NOT LISTENING"
         details_lines.append(f"  {port}/tcp: {status}")
 
@@ -99,30 +100,37 @@ def check_firewall_ports_open(host) -> Dict[str, Any]:
         "success": len(missing) == 0,
         "open_ports": open_ports,
         "missing_ports": missing,
+        "backend": backend,
         "details": "\n".join(details_lines),
     }
 
 
 def check_services_active(host) -> Dict[str, Any]:
-    """Verify MinIO and registry systemd services are active.
+    """Verify the applicable MinIO and registry services are active.
 
     Returns:
         Dict with 'success', 'results', 'details'.
     """
+    backend = _get_s3_provider(host)
+    applicable_services = (
+        [svc for svc in SYSTEMD_SERVICES if svc != "minio.service"]
+        if backend == "powerscale"
+        else SYSTEMD_SERVICES
+    )
     results = []
     all_active = True
 
-    for svc in SYSTEMD_SERVICES:
-        cmd = host.run(
-            CMDS["systemctl_is_active"].format(service=svc)
-        )
+    for svc in applicable_services:
+        cmd = host.run(CMDS["systemctl_is_active"].format(service=svc))
         state = cmd.stdout.strip() if cmd.rc == 0 else "inactive"
         is_active = state == "active"
-        results.append({
-            "service": svc,
-            "state": state,
-            "active": is_active,
-        })
+        results.append(
+            {
+                "service": svc,
+                "state": state,
+                "active": is_active,
+            }
+        )
         if not is_active:
             all_active = False
 
@@ -133,18 +141,22 @@ def check_services_active(host) -> Dict[str, Any]:
     return {
         "success": all_active,
         "results": results,
+        "backend": backend,
         "details": "\n".join(details_lines),
     }
 
 
 def check_credentials_present(host) -> Dict[str, Any]:
-    """Verify credentials file is present after prepare syncs it.
+    """Verify credentials are configured on the execution OIM.
 
     Returns:
         Dict with 'success', 'details'.
     """
     input_dir = resolve_domain_input_path(
-        host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
+        host,
+        DOMAIN_NAME,
+        ENV_OMNIA_DATA_PATH,
+        ENV_OMNIA_PROJECT_NAME,
     )
     cred_path = f"{input_dir}/{CREDENTIALS_FILE_NAME}"
 
@@ -162,38 +174,44 @@ def check_credentials_present(host) -> Dict[str, Any]:
 
 
 def check_clone_status(host) -> Dict[str, Any]:
-    """Verify the project code is synced to the target.
+    """Verify the project code is available on the execution target.
 
-    Checks that the clone_path directory exists and contains
-    the expected domain directory structure.
+    Local execution checks the current checkout.  Remote execution checks
+    ``clone_path`` and its expected domain directory structure.
 
     Returns:
         Dict with 'success', 'clone_path', 'details'.
     """
-    config = load_test_config()
-    clone_path = config["clone_path"]
+    try:
+        source_root = resolve_target_source_root()
+    except ValueError as exc:
+        return {
+            "success": False,
+            "clone_path": "",
+            "details": f"  Project path unavailable: {exc}",
+        }
 
-    dir_cmd = host.run(CMDS["dir_exists"].format(path=clone_path))
+    dir_cmd = host.run(CMDS["dir_exists"].format(path=source_root))
     if dir_cmd.rc != 0 or "exists" not in dir_cmd.stdout:
         return {
             "success": False,
-            "clone_path": clone_path,
-            "details": f"  Project path NOT FOUND: {clone_path}",
+            "clone_path": source_root,
+            "details": f"  Project path NOT FOUND: {source_root}",
         }
 
     # Check for domain directory as a basic sync validation
-    ibm_dir = f"{clone_path}/src/image_build_manager"
+    ibm_dir = os.path.join(source_root, "src", "image_build_manager")
     ibm_check = host.run(CMDS["dir_exists"].format(path=ibm_dir))
     has_ibm = ibm_check.rc == 0 and "exists" in ibm_check.stdout
 
     details_lines = [
-        f"  Path: {clone_path}",
+        f"  Path: {source_root}",
         f"  image_build_manager: {'present' if has_ibm else 'NOT FOUND'}",
     ]
 
     return {
         "success": has_ibm,
-        "clone_path": clone_path,
+        "clone_path": source_root,
         "details": "\n".join(details_lines),
     }
 
@@ -206,15 +224,10 @@ def check_registry_reachable(host) -> Dict[str, Any]:
         'details'.
     """
     hostname_cmd = host.run(CMDS["hostname_fqdn"])
-    fqdn = (
-        hostname_cmd.stdout.strip()
-        if hostname_cmd.rc == 0 else "localhost"
-    )
+    fqdn = hostname_cmd.stdout.strip() if hostname_cmd.rc == 0 else "localhost"
     registry_url = f"{fqdn}:{REGISTRY_PORT}"
 
-    cmd = host.run(
-        CMDS["curl_registry_catalog_http"].format(port=REGISTRY_PORT)
-    )
+    cmd = host.run(CMDS["curl_registry_catalog_http"].format(port=REGISTRY_PORT))
     if cmd.rc != 0 or "repositories" not in cmd.stdout:
         return {
             "success": False,
@@ -252,6 +265,7 @@ def check_registry_reachable(host) -> Dict[str, Any]:
 # VALIDATE VERIFICATION — EXTENDED
 # =============================================================================
 
+
 def check_input_config_exists(host) -> Dict[str, Any]:
     """Verify image_build_config.yml exists on target.
 
@@ -278,15 +292,17 @@ def check_input_config_exists(host) -> Dict[str, Any]:
 # VALIDATE — repo_ssl_verify CONFIG
 # =============================================================================
 
-def check_repo_ssl_verify_config(host) -> Dict[str, Any]:
-    """Verify repo_ssl_verify is set in image_build_config.yml on target.
 
-    Reads the remote config and checks that build_image.repo_ssl_verify
-    is present and is a boolean value. Reports the configured value
-    so test output shows whether SSL verification is enabled or disabled.
+def check_repo_ssl_verify_config(host) -> Dict[str, Any]:
+    """Resolve the effective repo_ssl_verify value on the target.
+
+    An omitted ``build_image.repo_ssl_verify`` is valid and resolves to
+    ``True``, matching the product schema, Ansible role, and templates.
+    Explicit values must be YAML booleans; nulls, strings, and numbers are
+    rejected instead of being coerced with Python truthiness.
 
     Returns:
-        Dict with 'success', 'ssl_verify', 'details'.
+        Dict with 'success', 'ssl_verify', 'used_default', and 'details'.
     """
     cfg_path = _get_remote_ibm_config_path(host)
 
@@ -296,57 +312,82 @@ def check_repo_ssl_verify_config(host) -> Dict[str, Any]:
         return {
             "success": False,
             "ssl_verify": None,
-            "details": (
-                f"  image_build_config.yml not readable at {cfg_path}"
-            ),
+            "used_default": False,
+            "details": (f"  image_build_config.yml not readable at {cfg_path}"),
         }
 
     try:
-        import yaml
         config = yaml.safe_load(cat_cmd.stdout)
-    except Exception:
+    except yaml.YAMLError:
         return {
             "success": False,
             "ssl_verify": None,
+            "used_default": False,
             "details": "  image_build_config.yml: failed to parse YAML",
         }
 
-    build_image = config.get("build_image", {})
-    if build_image is None:
-        build_image = {}
-
-    ssl_verify = build_image.get("repo_ssl_verify")
-
-    if ssl_verify is None:
+    if not isinstance(config, dict):
         return {
             "success": False,
             "ssl_verify": None,
+            "used_default": False,
+            "details": ("  image_build_config.yml: expected a YAML mapping"),
+        }
+
+    if "build_image" not in config:
+        build_image = {}
+    else:
+        build_image = config["build_image"]
+        if not isinstance(build_image, dict):
+            return {
+                "success": False,
+                "ssl_verify": None,
+                "used_default": False,
+                "details": ("  build_image: expected a YAML mapping"),
+            }
+
+    if "repo_ssl_verify" not in build_image:
+        return {
+            "success": True,
+            "ssl_verify": True,
+            "used_default": True,
             "details": (
-                "  build_image.repo_ssl_verify: NOT SET "
-                "(defaults to true at runtime)"
+                "  build_image.repo_ssl_verify: true " "(runtime default; key not set)"
+            ),
+        }
+
+    ssl_verify = build_image["repo_ssl_verify"]
+    if not isinstance(ssl_verify, bool):
+        value_type = type(ssl_verify).__name__
+        return {
+            "success": False,
+            "ssl_verify": None,
+            "used_default": False,
+            "details": (
+                "  build_image.repo_ssl_verify: expected boolean, " f"got {value_type}"
             ),
         }
 
     return {
         "success": True,
-        "ssl_verify": bool(ssl_verify),
+        "ssl_verify": ssl_verify,
+        "used_default": False,
         "details": (
-            f"  build_image.repo_ssl_verify: {ssl_verify}"
+            f"  build_image.repo_ssl_verify: {str(ssl_verify).lower()} " "(explicit)"
         ),
     }
 
 
-def check_repo_ssl_verify_applied(host, arch: str = "x86_64") -> Dict[str, Any]:
-    """Verify repo_ssl_verify setting is applied in built image repo configs.
+def check_repo_ssl_verify_applied(host) -> Dict[str, Any]:
+    """Verify repo_ssl_verify is wired into the image build templates.
 
-    Checks the build config templates on the target to confirm that
-    sslverify/gpgcheck are set according to the repo_ssl_verify value.
-    This is a post-build validation — run after --tags build.
+    This is a structural source-template check.  It confirms that the RHEL
+    base and compute templates reference ``repo_ssl_verify`` and emit both
+    ``sslverify`` and ``gpgcheck`` fields.  It does not inspect rendered or
+    previously built artifacts.
 
     Args:
         host: Testinfra host connection.
-        arch: Architecture to check (x86_64 or aarch64).
-
     Returns:
         Dict with 'success', 'ssl_verify', 'details'.
     """
@@ -356,20 +397,45 @@ def check_repo_ssl_verify_applied(host, arch: str = "x86_64") -> Dict[str, Any]:
         return {
             "success": False,
             "ssl_verify": None,
-            "details": f"  Cannot determine repo_ssl_verify: {ssl_result['details']}",
+            "used_default": False,
+            "blocked_by_config": True,
+            "results": [],
+            "details": (
+                "  Cannot determine repo_ssl_verify: " f"{ssl_result['details']}"
+            ),
         }
 
     ssl_verify = ssl_result["ssl_verify"]
+    used_default = ssl_result.get("used_default", False)
     expected_value = "1" if ssl_verify else "0"
 
-    # Check the OpenCHAMI image build log for sslverify setting
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
+    try:
+        source_root = resolve_target_source_root()
+    except ValueError as exc:
+        return {
+            "success": False,
+            "ssl_verify": ssl_verify,
+            "used_default": used_default,
+            "blocked_by_config": False,
+            "expected_value": expected_value,
+            "results": [],
+            "details": f"  Source path unavailable: {exc}",
+        }
+
+    # Inspect templates from the current checkout locally and clone_path
+    # only when tests execute against a remote OIM server.
+    template_dir = os.path.join(
+        source_root,
+        "src",
+        "image_build_manager",
+        "roles",
+        "build_os_images",
+        "templates",
+        "images",
+    )
     template_paths = [
-        f"{clone_path}/src/image_build_manager/roles/build_os_images/"
-        f"templates/images/rhel-base-config.yaml.j2",
-        f"{clone_path}/src/image_build_manager/roles/build_os_images/"
-        f"templates/images/rhel-compute-config.yaml.j2",
+        os.path.join(template_dir, "rhel-base-config.yaml.j2"),
+        os.path.join(template_dir, "rhel-compute-config.yaml.j2"),
     ]
 
     results = []
@@ -377,30 +443,57 @@ def check_repo_ssl_verify_applied(host, arch: str = "x86_64") -> Dict[str, Any]:
     for tpl in template_paths:
         cmd = host.run(CMDS["cat_file"].format(path=tpl))
         if cmd.rc == 0 and cmd.stdout.strip():
-            has_ssl_ref = "repo_ssl_verify" in cmd.stdout
-            results.append({
-                "template": tpl.split("/")[-1],
-                "has_ssl_ref": has_ssl_ref,
-            })
+            missing_refs = [
+                ref
+                for ref in (
+                    "repo_ssl_verify",
+                    "sslverify",
+                    "gpgcheck",
+                )
+                if ref not in cmd.stdout
+            ]
+            has_ssl_ref = not missing_refs
+            results.append(
+                {
+                    "template": os.path.basename(tpl),
+                    "has_ssl_ref": has_ssl_ref,
+                    "missing_refs": missing_refs,
+                }
+            )
             if not has_ssl_ref:
                 all_ok = False
         else:
-            results.append({
-                "template": tpl.split("/")[-1],
-                "has_ssl_ref": False,
-            })
+            results.append(
+                {
+                    "template": os.path.basename(tpl),
+                    "has_ssl_ref": False,
+                    "missing_refs": [
+                        "repo_ssl_verify",
+                        "sslverify",
+                        "gpgcheck",
+                    ],
+                }
+            )
             all_ok = False
 
     lines = [
-        f"  repo_ssl_verify: {ssl_verify} (expected sslverify={expected_value})",
+        (
+            f"  repo_ssl_verify: {str(ssl_verify).lower()} "
+            f"({'runtime default' if used_default else 'explicit'}; "
+            f"expected sslverify={expected_value})"
+        ),
     ]
     for r in results:
-        status = "references repo_ssl_verify" if r["has_ssl_ref"] else "MISSING reference"
+        status = (
+            "references repo_ssl_verify" if r["has_ssl_ref"] else "MISSING reference"
+        )
         lines.append(f"    {r['template']}: {status}")
 
     return {
         "success": all_ok,
         "ssl_verify": ssl_verify,
+        "used_default": used_default,
+        "blocked_by_config": False,
         "expected_value": expected_value,
         "results": results,
         "details": "\n".join(lines),
@@ -410,6 +503,7 @@ def check_repo_ssl_verify_applied(host, arch: str = "x86_64") -> Dict[str, Any]:
 # =============================================================================
 # PRECHECK VERIFICATION
 # =============================================================================
+
 
 def check_target_connectivity(host) -> Dict[str, Any]:
     """Verify SSH connectivity to the target host.
@@ -461,11 +555,13 @@ def check_env_vars_present(host) -> Dict[str, Any]:
     for var in required_vars:
         value = read_remote_env(host, var)
         found = bool(value)
-        results.append({
-            "variable": var,
-            "found": found,
-            "value": value if found else "(not set)",
-        })
+        results.append(
+            {
+                "variable": var,
+                "found": found,
+                "value": value if found else "(not set)",
+            }
+        )
         if not found:
             all_ok = False
 
@@ -478,9 +574,13 @@ def check_env_vars_present(host) -> Dict[str, Any]:
         "success": all_ok,
         "results": results,
         "details": "\n".join(lines),
-        "error": None if all_ok else (
-            "Required env vars missing. "
-            "Run: omnia.sh --setup-venv on the target first."
+        "error": (
+            None
+            if all_ok
+            else (
+                "Required env vars missing. "
+                "Run: omnia.sh --setup-venv on the target first."
+            )
         ),
     }
 
@@ -498,15 +598,17 @@ def check_hostname_domain(host) -> Dict[str, Any]:
     cfg_domain = read_remote_env(host, "SYSTEM_DOMAIN_NAME")
 
     actual_hostname = _retry_run(
-        host, CMDS["hostname_short"],
+        host,
+        CMDS["hostname_short"],
     ).stdout.strip()
     domain_result = _retry_run(
-        host, CMDS["hostname_domain"],
+        host,
+        CMDS["hostname_domain"],
     )
     actual_domain = domain_result.stdout.strip() if domain_result.rc == 0 else ""
 
-    hostname_match = (actual_hostname == cfg_hostname)
-    domain_match = (actual_domain == cfg_domain) if actual_domain else True
+    hostname_match = actual_hostname == cfg_hostname
+    domain_match = actual_domain == cfg_domain
 
     results = {
         "configured_hostname": cfg_hostname or "(not set)",
@@ -517,7 +619,7 @@ def check_hostname_domain(host) -> Dict[str, Any]:
         "domain_match": domain_match,
     }
 
-    all_ok = hostname_match
+    all_ok = hostname_match and domain_match
     lines = [
         f"  SYSTEM_HOSTNAME: {cfg_hostname} (actual: {actual_hostname}) "
         f"{'MATCH' if hostname_match else 'MISMATCH'}",
@@ -581,9 +683,13 @@ def check_admin_ip(host) -> Dict[str, Any]:
             f"  SYSTEM_ADMIN_NIC_IPV4: {cfg_ip} "
             f"({'assigned' if ip_assigned else 'NOT assigned'})"
         ),
-        "error": None if ip_assigned else (
-            f"SYSTEM_ADMIN_NIC_IPV4 ({cfg_ip}) is not assigned to any "
-            f"interface. Available IPs: {', '.join(all_ips)}"
+        "error": (
+            None
+            if ip_assigned
+            else (
+                f"SYSTEM_ADMIN_NIC_IPV4 ({cfg_ip}) is not assigned to any "
+                f"interface. Available IPs: {', '.join(all_ips)}"
+            )
         ),
     }
 
@@ -602,16 +708,18 @@ def check_omnia_setup(host) -> Dict[str, Any]:
     profile_file = "/etc/profile.d/omnia-env.sh"
 
     env_cmd = _retry_run(
-        host, CMDS["file_exists"].format(path=env_file),
+        host,
+        CMDS["file_exists"].format(path=env_file),
     )
     profile_cmd = _retry_run(
-        host, CMDS["file_exists"].format(path=profile_file),
+        host,
+        CMDS["file_exists"].format(path=profile_file),
     )
 
     env_exists = env_cmd.rc == 0 and "exists" in env_cmd.stdout
     profile_exists = profile_cmd.rc == 0 and "exists" in profile_cmd.stdout
 
-    all_ok = env_exists
+    all_ok = env_exists and profile_exists
     lines = [
         f"  {env_file}: {'present' if env_exists else 'MISSING'}",
         f"  {profile_file}: {'present' if profile_exists else 'MISSING'}",
@@ -622,8 +730,12 @@ def check_omnia_setup(host) -> Dict[str, Any]:
         "env_file_exists": env_exists,
         "profile_exists": profile_exists,
         "details": "\n".join(lines),
-        "error": None if all_ok else (
-            "omnia.sh setup incomplete. "
-            "Run: ./omnia.sh --setup-venv on the target."
+        "error": (
+            None
+            if all_ok
+            else (
+                "omnia.sh setup incomplete. "
+                "Run: ./omnia.sh --setup-venv on the target."
+            )
         ),
     }

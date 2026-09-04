@@ -1,0 +1,72 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Cleanup Role Variables
+# These variables are used throughout the cleanup framework
+
+# Configuration paths
+cleanup_config_path: "{{ role_path }}/config/default_cleanup.yml"
+cleanup_schema_path: "{{ role_path }}/config/cleanup_schema.json"
+
+# Component paths
+components_base_path: "{{ role_path }}/components"
+component_tasks_path: "{{ components_base_path }}/{{ component_name }}/tasks"
+component_vars_path: "{{ components_base_path }}/{{ component_name }}/vars"
+
+# State management
+state_file_path: "/var/lib/omnia/cleanup/cleanup_state.json"
+component_state_path: "/var/lib/omnia/cleanup/{{ component_name }}.state"
+
+# Logging
+log_file_path: "/opt/omnia/log/cleanup/cleanup.log"
+component_log_path: "/opt/omnia/log/cleanup/{{ component_name }}.log"
+
+# Backup
+backup_path: "/var/lib/omnia/cleanup/backups"
+component_backup_path: "{{ backup_path }}/{{ component_name }}"
+
+# Project paths
+input_project_dir: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/orchestrator/input/project_default') }}"
+omnia_config_path: "{{ input_project_dir }}/omnia_config.yml"
+storage_config_path: "{{ input_project_dir }}/storage_config.yml"
+
+# Storage paths
+omnia_shared_path: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}"
+orchestrator_output_dir: "{{ omnia_shared_path }}/output/project_default/orchestrator"
+
+# OpenCHAMI paths
+openchami_config_dir: "/etc/openchami"
+openchami_share_dir: "/opt/omnia/openchami"
+openchami_log_dir: "/opt/omnia/log/openchami"
+openchami_work_dir: "{{ omnia_shared_path }}/omnia/openchami/workdir"
+ochami_dir: "/etc/ochami"
+
+# OpenLDAP paths
+auth_container_name: "omnia_auth"
+auth_base_dir: "/opt/omnia/auth"
+auth_quadlet_file: "/etc/containers/systemd/omnia_auth.container"
+
+# Slurm paths
+slurm_config_dir: "/etc/slurm"
+slurm_log_dir: "/var/log/slurm"
+
+# K8s paths
+k8s_config_dir: "/etc/kubernetes"
+k8s_manifest_dir: "/opt/omnia/k8s/manifests"
+
+# Orchestrator artifacts
+functional_groups_config: "/opt/omnia/.data/functional_groups_config.yml"
+orchestrator_state_file: "{{ orchestrator_output_dir }}/orchestrator_state.yml"
+upgrade_lock_file: "/opt/omnia/.data/upgrade_in_progress.lock"

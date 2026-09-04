@@ -144,10 +144,19 @@ KUBE_VIP_SSH_UNREACHABLE_MSG = (
 )
 
 # telemetry_packages.yml validation messages
-CLUSTER_MOUNT_REQUIRED_MSG = (
-    "cluster_mount is required in telemetry_packages.yml and must be a non-empty path. "
+K8S_CLUSTER_MOUNT_REQUIRED_MSG = (
+    "k8s_cluster_mount is required in telemetry_packages.yml and must be a non-empty path. "
     "Provide the local NFS mount point on the Kubernetes cluster where telemetry packages "
     "will be staged (e.g., '/opt/omnia/k8s_mount')."
+)
+K8S_CLUSTER_MOUNT_INVALID_MSG = (
+    "k8s_cluster_mount must be an absolute path without NUL or newline "
+    "characters (e.g., '/opt/omnia/k8s_mount')."
+)
+SLURM_CLUSTER_MOUNT_REQUIRED_MSG = (
+    "slurm_cluster_mount is required in telemetry_packages.yml and must be a non-empty path. "
+    "Provide the local NFS mount point on the Slurm cluster where LDMS configuration and data "
+    "will be stored (e.g., '/share_omnia')."
 )
 REGISTRY_HOST_FORMAT_MSG = (
     "telemetry_registry.host must be in format 'IP:port' or 'hostname:port' "
@@ -165,20 +174,20 @@ PACKAGE_URL_INVALID_MSG = (
     "Package URL in telemetry_packages.yml must start with 'http://' or 'https://'. "
     "Provide the full download URL from the Pulp repository or external source."
 )
-CLUSTER_MOUNT_PATH_NOT_FOUND_ON_KUBE_VIP_MSG = (
-    "cluster_mount path does not exist on kube_vip host. "
+K8S_CLUSTER_MOUNT_PATH_NOT_FOUND_ON_KUBE_VIP_MSG = (
+    "k8s_cluster_mount path does not exist on kube_vip host. "
     "Ensure the NFS mount point exists on the Kubernetes "
     "cluster before running telemetry deployment. "
     "Create the directory or verify the NFS mount is active."
 )
-CLUSTER_MOUNT_KUBE_VIP_NOT_FOUND_MSG = (
-    "Cannot validate cluster_mount path existence: kube_vip "
+K8S_CLUSTER_MOUNT_KUBE_VIP_NOT_FOUND_MSG = (
+    "Cannot validate k8s_cluster_mount path existence: kube_vip "
     "could not be extracted from cluster_inventory. "
     "Ensure cluster_inventory in telemetry_config.yml points to a valid inventory file "
     "with kube_vip_group.hosts defined containing the Kubernetes control plane VIP."
 )
-CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG = (
-    "Failed to verify cluster_mount path on kube_vip via SSH. "
+K8S_CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG = (
+    "Failed to verify k8s_cluster_mount path on kube_vip via SSH. "
     "Ensure SSH access to kube_vip is configured and the host is reachable."
 )
 
@@ -186,7 +195,7 @@ CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG = (
 KAFKA_STORAGE_REQUIRED_MSG = (
     "kafka_storage section is required in telemetry_storage_config.yml "
     "when kafka is in collection_targets for any telemetry source "
-    "(idrac, ldms). Please configure kafka_storage with kafka and "
+    "(iDRAC, LDMS, or OME). Please configure kafka_storage with kafka and "
     "entity_operator.user_operator resource configurations."
 )
 

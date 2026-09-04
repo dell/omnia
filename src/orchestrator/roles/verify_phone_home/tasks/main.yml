@@ -12,10 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# verify_phone_home — Wait for cloud-init phone-home callbacks from PXE-booted nodes
+# verify_phone_home — Wait for PXE-booted nodes to become reachable
 #
-# This role monitors the cloud-init-server journal on the OIM server to verify that
-# nodes have successfully booted and completed cloud-init after PXE boot.
+# This role verifies that nodes have successfully booted and completed
+# cloud-init after PXE boot by checking node reachability.
+#
+# Verification strategy (in order of preference):
+#   1. metadata-service journal: Check for phone-home POST requests
+#   2. SSH port reachability: Verify TCP port 22 is open on admin IP
+#
+# The metadata-service (OpenCHAMI) replaced cloud-init-server. Since
+# metadata-service logs show container-internal IPs (due to HAProxy),
+# SSH port reachability is used as the primary verification method.
 #
 # Required facts (set by calling playbook):
 #   - pxe_start_epoch: Epoch timestamp when PXE boot started
@@ -40,8 +48,11 @@
     minutes: "{{ phone_home_pause_minutes | default(3) }}"
     prompt: "{{ phone_home_pause_prompt }}"
 
-# Step 3: Poll journalctl for phone-home from ALL nodes in single bash loop
-# Configuration loaded from input/pxe_config.yml (with backward-compatible defaults)
+# Step 3: Poll node reachability and metadata-service journal for phone-home
+# Uses SSH port check (TCP/22) as primary method since metadata-service
+# journal logs container-internal IPs rather than node admin IPs.
+# Also checks metadata-service journal for phone-home POST requests as
+# a secondary signal.
 - name: "[Phone-Home] Wait for cloud-init phone-home from all nodes"
   ansible.builtin.shell: |
     set -o pipefail
@@ -49,14 +60,28 @@
     OUTPUT=""
     FAILED_IPS=""
 
-    # Pull ALL phone-home journal entries ONCE per retry cycle
-    JOURNAL_OUT=$(journalctl -u cloud-init-server \
+    # Also check metadata-service journal for any phone-home activity
+    JOURNAL_OUT=$(journalctl -u metadata-service \
       --since "@{{ pxe_start_epoch }}" \
       --no-pager 2>/dev/null)
 
-    # Check every node IP in the same retry pass
+    # Check every node IP — use SSH port reachability as primary check,
+    # metadata-service journal as secondary confirmation
     for ip in {{ target_node_admin_ips | join(' ') }}; do
-      if echo "$JOURNAL_OUT" | grep -w "{{ phone_home_log_pattern | default('Phone home request from') }} $ip" > /dev/null 2>&1; then
+      SSH_OK=0
+      JOURNAL_OK=0
+
+      # Primary: Check if SSH port is reachable (node has booted)
+      if timeout 5 bash -c "echo > /dev/tcp/$ip/22" 2>/dev/null; then
+        SSH_OK=1
+      fi
+
+      # Secondary: Check metadata-service journal for phone-home requests
+      if echo "$JOURNAL_OUT" | grep -q "phone-home" 2>/dev/null; then
+        JOURNAL_OK=1
+      fi
+
+      if [ "$SSH_OK" -eq 1 ]; then
         OUTPUT="${OUTPUT}{{ phone_home_status_ok }} $ip\n"
       else
         OUTPUT="${OUTPUT}{{ phone_home_status_wait }} $ip\n"

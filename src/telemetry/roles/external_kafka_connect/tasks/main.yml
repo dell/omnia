@@ -17,7 +17,8 @@
 # external_kafka_connect — Fetch Kafka connection details for external clients
 #
 # This role runs on kube_vip to extract:
-#   - Kafka bridge LoadBalancer external IP and port
+#   - Native Kafka mTLS LoadBalancer endpoint for external clients
+#   - Kafka HTTP Bridge endpoint for REST validation
 #   - TLS certificates (CA, client cert, client key) from K8s secrets
 #   - Connection details YAML file for external integration (e.g., OME)
 #
@@ -43,14 +44,6 @@
   register: _kubectl_check
   changed_when: false
   failed_when: _kubectl_check.rc != 0
-
-- name: Clean output directory for fresh export
-  ansible.builtin.file:
-    path: "{{ kafka_output_dir }}"
-    state: absent
-  delegate_to: localhost
-  connection: local
-  run_once: true
 
 # =============================================================================
 # Validate Kafka cluster health
@@ -98,26 +91,64 @@
     | list | length) > 0
 
 # =============================================================================
-# Extract Kafka external endpoint
+# Extract Kafka external endpoints
 # =============================================================================
 
-- name: Get Kafka LoadBalancer external IP
+- name: Get native Kafka bootstrap LoadBalancer external IP
   ansible.builtin.command: >-
-    kubectl get svc {{ kafka_lb_service_name }} -n {{ kafka_namespace }}
+    kubectl get svc {{ kafka_bootstrap_service_name }} -n {{ kafka_namespace }}
     -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-  register: _kafka_lb_ip
+  register: _kafka_bootstrap_lb_ip
   changed_when: false
-  failed_when: _kafka_lb_ip.rc != 0
+  failed_when: _kafka_bootstrap_lb_ip.rc != 0
 
-- name: Set Kafka external endpoint
+- name: Get native Kafka bootstrap service port
+  ansible.builtin.command: >-
+    kubectl get svc {{ kafka_bootstrap_service_name }} -n {{ kafka_namespace }}
+    -o jsonpath='{.spec.ports[0].port}'
+  register: _kafka_bootstrap_lb_port
+  changed_when: false
+  failed_when: _kafka_bootstrap_lb_port.rc != 0
+
+- name: Set native Kafka bootstrap endpoint
   ansible.builtin.set_fact:
-    _kafka_external_ip: "{{ _kafka_lb_ip.stdout | trim }}"
-    _kafka_external_port: "{{ kafka_bootstrap_port | string }}"
+    _kafka_bootstrap_ip: "{{ _kafka_bootstrap_lb_ip.stdout | trim }}"
+    _kafka_bootstrap_port: "{{ _kafka_bootstrap_lb_port.stdout | trim }}"
 
-- name: Fail when Kafka external endpoint is not available
+- name: Fail when native Kafka bootstrap endpoint is not available
   ansible.builtin.fail:
-    msg: "{{ kafka_err_external_ip_missing }}"
-  when: _kafka_external_ip | trim | length == 0
+    msg: "{{ kafka_err_bootstrap_endpoint_missing }}"
+  when: >-
+    _kafka_bootstrap_ip | length == 0 or
+    _kafka_bootstrap_port | length == 0
+
+- name: Get Kafka HTTP Bridge LoadBalancer external IP
+  ansible.builtin.command: >-
+    kubectl get svc {{ kafka_bridge_service_name }} -n {{ kafka_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: _kafka_bridge_lb_ip
+  changed_when: false
+  failed_when: _kafka_bridge_lb_ip.rc != 0
+
+- name: Get Kafka HTTP Bridge service port
+  ansible.builtin.command: >-
+    kubectl get svc {{ kafka_bridge_service_name }} -n {{ kafka_namespace }}
+    -o jsonpath='{.spec.ports[0].port}'
+  register: _kafka_bridge_lb_port
+  changed_when: false
+  failed_when: _kafka_bridge_lb_port.rc != 0
+
+- name: Set Kafka HTTP Bridge endpoint
+  ansible.builtin.set_fact:
+    _kafka_bridge_ip: "{{ _kafka_bridge_lb_ip.stdout | trim }}"
+    _kafka_bridge_port: "{{ _kafka_bridge_lb_port.stdout | trim }}"
+
+- name: Fail when Kafka HTTP Bridge endpoint is not available
+  ansible.builtin.fail:
+    msg: "{{ kafka_err_bridge_endpoint_missing }}"
+  when: >-
+    _kafka_bridge_ip | length == 0 or
+    _kafka_bridge_port | length == 0
 
 # =============================================================================
 # Extract TLS certificates from K8s secrets
@@ -154,6 +185,14 @@
 # Write output files
 # =============================================================================
 
+- name: Clean output directory for fresh export
+  ansible.builtin.file:
+    path: "{{ kafka_output_dir }}"
+    state: absent
+  delegate_to: localhost
+  connection: local
+  run_once: true
+
 - name: Ensure output directory exists
   ansible.builtin.file:
     path: "{{ kafka_output_dir }}"
@@ -185,10 +224,15 @@
     _kafka_connect_details:
       kafka:
         namespace: "{{ kafka_namespace }}"
-        loadbalancer_service: "{{ kafka_lb_service_name }}"
-        bootstrap_server: "{{ _kafka_external_ip }}:{{ _kafka_external_port }}"
-        bootstrap_ip: "{{ _kafka_external_ip }}"
-        bootstrap_port: "{{ _kafka_external_port }}"
+        loadbalancer_service: "{{ kafka_bootstrap_service_name }}"
+        bootstrap_server: "{{ _kafka_bootstrap_ip }}:{{ _kafka_bootstrap_port }}"
+        bootstrap_ip: "{{ _kafka_bootstrap_ip }}"
+        bootstrap_port: "{{ _kafka_bootstrap_port }}"
+        bridge:
+          loadbalancer_service: "{{ kafka_bridge_service_name }}"
+          endpoint: "http://{{ _kafka_bridge_ip }}:{{ _kafka_bridge_port }}"
+          ip: "{{ _kafka_bridge_ip }}"
+          port: "{{ _kafka_bridge_port }}"
         tls:
           ca_crt: "{{ kafka_output_dir }}/ca.crt"
           client_crt: "{{ kafka_output_dir }}/user.crt"
@@ -214,7 +258,8 @@
           '',
           'Connection details written to: ' ~ kafka_output_file,
           '',
-          '[ENDPOINT] Kafka bridge: ' ~ _kafka_external_ip ~ ':' ~ _kafka_external_port,
+          '[OME ENDPOINT] Kafka mTLS bootstrap: ' ~ _kafka_bootstrap_ip ~ ':' ~ _kafka_bootstrap_port,
+          '[VALIDATION ENDPOINT] Kafka HTTP Bridge: http://' ~ _kafka_bridge_ip ~ ':' ~ _kafka_bridge_port,
           '',
           '[TLS FILES] (on this host):',
           '  CA cert (server):  ' ~ kafka_output_dir ~ '/ca.crt',
@@ -228,7 +273,7 @@
           '  Step 2: If OME UI is on a different host, copy ca.crt and user.pfx there.',
           '  Step 3: In OME UI: ' ~ kafka_ome_ui_navigation,
           '  Step 4: Click: ' ~ kafka_ome_ui_enable_label,
-          '  Step 5: Set Kafka Bootstrap Server to: ' ~ _kafka_external_ip ~ ':' ~ _kafka_external_port,
+          '  Step 5: Set Kafka Bootstrap Server to: ' ~ _kafka_bootstrap_ip ~ ':' ~ _kafka_bootstrap_port,
           '  Step 6: Set Authentication Mode to: ' ~ kafka_ome_auth_mode_value,
           '  Step 7: ' ~ kafka_ome_server_cert_note,
           '  Step 8: ' ~ kafka_ome_client_cert_note,

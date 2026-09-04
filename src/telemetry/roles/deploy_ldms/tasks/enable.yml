@@ -91,5 +91,6 @@
 
 - name: Verify LDMS telemetry
   ansible.builtin.include_tasks: verify_ldms.yml
+  when: not (skip_ldms_verify | default(false) | bool)
 
 ## Status is now collected centrally in deploy.yml Phase 4.

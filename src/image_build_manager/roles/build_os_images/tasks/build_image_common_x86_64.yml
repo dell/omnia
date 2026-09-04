@@ -27,6 +27,18 @@
     base_image_packages: "{{ hostvars['localhost']['base_image_packages'] }}"
     compute_images_dict: "{{ hostvars['localhost']['compute_images_dict'] }}"
 
+# Compute a hash of the repo configuration (URLs, priorities, names) so the
+# build cache is invalidated when repo settings change — not just packages.
+- name: Compute repo configuration hash
+  ansible.builtin.set_fact:
+    _repo_config_hash: >-
+      {{ rhel_arch_repos
+         | map('dictsort')
+         | map('join', '=')
+         | sort
+         | join('|')
+         | hash('sha256') }}
+
 - name: Configure registry host and regctl TLS
   ansible.builtin.include_tasks: configure_registry.yml
 

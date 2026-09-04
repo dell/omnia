@@ -1,0 +1,129 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# validate_input — Input file validation only (schema + logic).
+#
+# Validates:
+#   - orchestrator_config.yml (schema + logic)
+#   - network_spec.yml (schema + logic)
+#   - storage_config.yml (schema + logic, if exists)
+#   - pxe_mapping_file.csv (format validation)
+#
+# No health checks, no connectivity checks, no credential prompting.
+# This is read-only validation of input configuration files.
+
+- name: Display validation start
+  ansible.builtin.debug:
+    msg: "{{ orchestrator_input_validation_start_msg }}"
+
+# =========================================================================
+# Step 1: Validate orchestrator_config.yml (required)
+# =========================================================================
+- name: Check orchestrator_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ input_dir }}/orchestrator_config.yml"
+  register: orch_config_stat
+
+- name: Fail if orchestrator_config.yml is missing
+  ansible.builtin.fail:
+    msg: "{{ orchestrator_config_missing_msg }}"
+  when: not orch_config_stat.stat.exists
+
+- name: Run orchestrator configuration validation
+  validate_orchestrator_config:
+    input_project_dir: "{{ input_dir }}"
+    schema_dir: "{{ orchestrator_schema_dir }}"
+  register: orchestrator_validation_result
+
+- name: Fail on orchestrator_config validation errors
+  ansible.builtin.fail:
+    msg: "{{ orchestrator_validation_fail_msg }} Errors: {{ orchestrator_validation_result.errors }}"
+  when: orchestrator_validation_result.validation_failed
+
+# =========================================================================
+# Step 2: Validate network_spec.yml (required)
+# =========================================================================
+- name: Check network_spec.yml exists
+  ansible.builtin.stat:
+    path: "{{ input_dir }}/network_spec.yml"
+  register: net_spec_stat
+
+- name: Fail if network_spec.yml is missing
+  ansible.builtin.fail:
+    msg: "{{ network_spec_missing_msg }}"
+  when: not net_spec_stat.stat.exists
+
+- name: Validate network_spec.yml schema
+  ansible.builtin.include_vars:
+    file: "{{ input_dir }}/network_spec.yml"
+  register: network_spec_vars
+  failed_when: false
+
+- name: Validate network_spec.yml structure
+  ansible.builtin.debug:
+    msg: "network_spec.yml loaded successfully"
+  when: network_spec_vars is defined
+
+# =========================================================================
+# Step 3: Validate storage_config.yml (optional)
+# =========================================================================
+- name: Check storage_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ input_dir }}/storage_config.yml"
+  register: storage_spec_stat
+
+- name: Validate storage_config.yml if present
+  when: storage_spec_stat.stat.exists
+  block:
+    - name: Load storage_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_dir }}/storage_config.yml"
+      register: storage_spec_vars
+
+    - name: Validate storage_config.yml structure
+      ansible.builtin.debug:
+        msg: "storage_config.yml loaded successfully"
+      when: storage_spec_vars.storage_config is defined
+
+# =========================================================================
+# Step 4: Validate pxe_mapping_file.csv (required)
+# =========================================================================
+- name: Check pxe_mapping_file.csv exists
+  ansible.builtin.stat:
+    path: "{{ input_dir }}/pxe_mapping_file.csv"
+  register: pxe_mapping_stat
+
+- name: Fail if pxe_mapping_file.csv is missing
+  ansible.builtin.fail:
+    msg: "{{ pxe_mapping_missing_msg }}"
+  when: not pxe_mapping_stat.stat.exists
+
+- name: Validate pxe_mapping_file.csv format
+  community.general.read_csv:
+    path: "{{ input_dir }}/pxe_mapping_file.csv"
+    key: hostname
+  register: pxe_mapping_data
+  failed_when: false
+
+- name: Fail if pxe_mapping_file.csv is invalid
+  ansible.builtin.fail:
+    msg: "{{ pxe_mapping_invalid_msg }}"
+  when: pxe_mapping_data.failed
+
+# =========================================================================
+# Step 5: Display validation summary
+# =========================================================================
+- name: Validation passed
+  ansible.builtin.debug:
+    msg: "{{ orchestrator_input_validation_pass_msg }}"

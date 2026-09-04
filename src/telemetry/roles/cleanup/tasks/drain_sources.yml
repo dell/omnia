@@ -1,0 +1,63 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Mark source drain as attempted
+  ansible.builtin.set_fact:
+    _cleanup_active_component: source_drain
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'source_drain': 'attempted'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: hostvars['localhost']['_cleanup_all'] | bool
+
+- name: Wait for source pods to terminate before sink cleanup
+  ansible.builtin.command: >
+    kubectl get pods -n telemetry --no-headers --ignore-not-found
+    -l {{ item }}
+  loop:
+    - app=idrac-telemetry
+    - app=nersc-ldms
+    - app=vector-ome
+    - app=vector-ldms
+    - app.kubernetes.io/name=karavi-metrics-powerscale
+    - app.kubernetes.io/name=otel-collector
+    - app=csi-volume-exporter
+    - app=ufm-external
+    - app=vast-external
+    - app=skyway-telemetry
+    - app=powervault-telemetry
+  loop_control:
+    label: "{{ item }}"
+  register: _source_pod_drain
+  changed_when: false
+  until: _source_pod_drain.stdout | trim | length == 0
+  retries: 12
+  delay: 5
+  when: hostvars['localhost']['_cleanup_all'] | bool
+
+- name: Mark source drain as cleaned
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'source_drain': 'cleaned'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: hostvars['localhost']['_cleanup_all'] | bool

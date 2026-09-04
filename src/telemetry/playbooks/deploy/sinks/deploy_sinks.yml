@@ -157,11 +157,12 @@
     - name: Deploy Kafka
       when: deploy_kafka
       block:
-        - name: "Kafka | Include deploy_kafka role (infrastructure only)"
+        - name: "Kafka | Include deploy_kafka role"
           ansible.builtin.include_role:
             name: deploy_kafka
           vars:
-            kafka_infra_only: true
+            kafka_infra_only: >-
+              {{ hostvars['localhost']['kafka_infra_only'] | default(true) | bool }}
 
         - name: "Kafka | Record deployment result"
           ansible.builtin.set_fact:

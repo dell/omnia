@@ -19,6 +19,31 @@
 - name: Include openchami vars
   ansible.builtin.include_vars: "{{ openchami_config_vars_path }}"
 
+# Preserve the openchami cluster_name at set_fact level so that stale
+# set_fact values (e.g. from k8s_config setting cluster_name to the K8s
+# cluster name) cannot shadow the openchami cluster identity.
+- name: Pin openchami cluster_name at set_fact level
+  ansible.builtin.set_fact:
+    cluster_name: "{{ lookup('file', openchami_config_vars_path) | from_yaml | json_query('cluster_name') }}"
+    cluster_domain: "{{ lookup('file', openchami_config_vars_path) | from_yaml | json_query('cluster_domain') }}"
+
+- name: Ensure read_mapping_file is available
+  ansible.builtin.set_fact:
+    read_mapping_file: "{{ hostvars['localhost']['read_mapping_file'] }}"
+  when: hostvars['localhost']['read_mapping_file'] is defined
+
+- name: Re-read mapping file if not available
+  community.general.read_csv:
+    path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
+    key: ADMIN_MAC
+  register: _mapping_file_result
+  when: hostvars['localhost']['read_mapping_file'] is not defined
+
+- name: Set read_mapping_file from re-read result
+  ansible.builtin.set_fact:
+    read_mapping_file: "{{ _mapping_file_result }}"
+  when: hostvars['localhost']['read_mapping_file'] is not defined
+
 - name: Create ochami nodes directory
   ansible.builtin.file:
     path: "{{ nodes_dir }}"
@@ -42,16 +67,23 @@
   ansible.builtin.set_fact:
     target_fg_names: "{{ target_functional_groups | map(attribute='name') | list }}"
 
+- name: Compute filtered nodes for {{ target_category }}
+  ansible.builtin.set_fact:
+    _category_nodes: >-
+      {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
+         | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', target_fg_names)
+         | map(attribute='value')
+         | sort(attribute='XNAME')
+         | list }}
+
 - name: Generate per-category nodes YAML ({{ target_category }})
   ansible.builtin.template:
     src: "{{ openchami_nodes_template }}"
     dest: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
     mode: "{{ file_permissions_644 }}"
   vars:
-    nodes: >-
-      {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
-         | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', target_fg_names)
-         | list }}
+    mapping_nodes: "{{ _category_nodes }}"
+  delegate_to: localhost
 
 - name: Delete stale SMD endpoints (for clean re-registration)
   ansible.builtin.include_tasks: delete_smd_endpoints.yml
@@ -253,10 +285,7 @@
     dest: "{{ nodes_dir }}/hostname_{{ target_category }}.yaml"
     mode: "{{ file_permissions_644 }}"
   vars:
-    nodes: >-
-      {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
-         | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', target_fg_names)
-         | list }}
+    mapping_nodes: "{{ _category_nodes }}"
 
 - name: Load hostname YAML for metadata-service
   ansible.builtin.slurp:
@@ -298,6 +327,10 @@
   loop: "{{ target_fg_names }}"
   loop_control:
     loop_var: fg_name
+
+- name: Accumulate registered functional group names across categories
+  ansible.builtin.set_fact:
+    registered_fg_names: "{{ (registered_fg_names | default([])) + target_fg_names }}"
 
 - name: Create common SMD groups (ssh, chrony, phone_home)
   ansible.builtin.include_tasks: create_smd_group_common.yml

@@ -25,10 +25,11 @@ import os
 import time
 from typing import Any, Dict, List
 
-from omnia_auto import load_test_config, run_on_host
+from omnia_auto import load_test_config, run_on_host, is_local_execution
 
 from ..vars.common_vars import (
     CMDS,
+    REPO_ROOT,
     OMNIA_SH_PATH,
     OMNIA_CLI_PATH,
     OMNIA_RELEASE,
@@ -39,6 +40,35 @@ from ..vars.common_vars import (
     OPTIONAL_ENV_VARS,
     OMNIA_CLI_HELP_SECTIONS,
 )
+
+
+# =============================================================================
+# CLONE PATH RESOLUTION
+# =============================================================================
+
+def _resolve_clone_path() -> str:
+    """Resolve the clone path for omnia.sh commands.
+
+    Matches the IBM pattern used in ``omnia_auto.run_playbook``:
+    - **Local mode**: Returns the local repo root (computed from the
+      source tree).  ``clone_path`` in test_config.yml is ignored
+      because it refers to a path on the *remote* server.
+    - **Remote mode**: Returns ``clone_path`` from test_config.yml
+      (the path where the project is synced on the target server).
+
+    Returns:
+        Absolute path to use as ``clone_path`` in shell commands.
+    """
+    if is_local_execution():
+        return REPO_ROOT
+    config = load_test_config()
+    clone_path = config.get("clone_path", "")
+    if not clone_path:
+        raise ValueError(
+            "'clone_path' must be set in test_config.yml "
+            "for remote execution (oim_server_ip is set)"
+        )
+    return clone_path
 
 
 # =============================================================================
@@ -82,6 +112,9 @@ def is_running_from_omnia_venv() -> bool:
 def run_omnia_cmd(host, cmd_key: str, **kwargs) -> Dict[str, Any]:
     """Run an omnia.sh command on the target host.
 
+    Uses ``_resolve_clone_path()`` so that local mode resolves paths
+    from the source tree and remote mode uses ``clone_path`` from config.
+
     Args:
         host: Testinfra host connection.
         cmd_key: Key into the CMDS dict.
@@ -90,12 +123,7 @@ def run_omnia_cmd(host, cmd_key: str, **kwargs) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, rc, output, duration, error.
     """
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
-    if not clone_path:
-        import os
-        clone_path = os.getcwd()
-    kwargs.setdefault("clone_path", clone_path)
+    kwargs.setdefault("clone_path", _resolve_clone_path())
     kwargs.setdefault("omnia_sh", OMNIA_SH_PATH)
 
     cmd = CMDS[cmd_key].format(**kwargs)
@@ -117,6 +145,9 @@ def run_omnia_cmd_expect_error(
 ) -> Dict[str, Any]:
     """Run an omnia.sh command expecting a non-zero exit code.
 
+    Uses ``_resolve_clone_path()`` so that local mode resolves paths
+    from the source tree and remote mode uses ``clone_path`` from config.
+
     Args:
         host: Testinfra host connection.
         cmd_key: Key into the CMDS dict.
@@ -125,12 +156,7 @@ def run_omnia_cmd_expect_error(
     Returns:
         Dict with keys: success (True if rc!=0), rc, output, error.
     """
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
-    if not clone_path:
-        import os
-        clone_path = os.getcwd()
-    kwargs.setdefault("clone_path", clone_path)
+    kwargs.setdefault("clone_path", _resolve_clone_path())
     kwargs.setdefault("omnia_sh", OMNIA_SH_PATH)
 
     cmd = CMDS[cmd_key].format(**kwargs)
@@ -161,11 +187,7 @@ def check_env_source_validation(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, details, error, rc.
     """
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
-    if not clone_path:
-        import os
-        clone_path = os.getcwd()
+    clone_path = _resolve_clone_path()
 
     omnia_sh = f"{clone_path}/{OMNIA_SH_PATH}"
     omnia_env = f"{clone_path}/src/main/omnia.env"
@@ -744,6 +766,9 @@ def run_omnia_cli_cmd(
 ) -> Dict[str, Any]:
     """Run an omnia-cli command on the target host.
 
+    Uses ``_resolve_clone_path()`` so that local mode resolves paths
+    from the source tree and remote mode uses ``clone_path`` from config.
+
     Args:
         host: Testinfra host connection.
         cmd_key: Key into the CMDS dict.
@@ -752,12 +777,7 @@ def run_omnia_cli_cmd(
     Returns:
         Dict with keys: success, rc, output, error.
     """
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
-    if not clone_path:
-        import os
-        clone_path = os.getcwd()
-    kwargs.setdefault("clone_path", clone_path)
+    kwargs.setdefault("clone_path", _resolve_clone_path())
     kwargs.setdefault("omnia_cli", OMNIA_CLI_PATH)
 
     cmd = CMDS[cmd_key].format(**kwargs)
@@ -776,6 +796,9 @@ def run_omnia_cli_expect_error(
 ) -> Dict[str, Any]:
     """Run an omnia-cli command expecting a non-zero exit code.
 
+    Uses ``_resolve_clone_path()`` so that local mode resolves paths
+    from the source tree and remote mode uses ``clone_path`` from config.
+
     Args:
         host: Testinfra host connection.
         cmd_key: Key into the CMDS dict.
@@ -784,12 +807,7 @@ def run_omnia_cli_expect_error(
     Returns:
         Dict with keys: success (True if rc!=0), rc, output, error.
     """
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
-    if not clone_path:
-        import os
-        clone_path = os.getcwd()
-    kwargs.setdefault("clone_path", clone_path)
+    kwargs.setdefault("clone_path", _resolve_clone_path())
     kwargs.setdefault("omnia_cli", OMNIA_CLI_PATH)
 
     cmd = CMDS[cmd_key].format(**kwargs)

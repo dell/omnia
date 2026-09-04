@@ -20,4 +20,5 @@ vl_operator_install_failed_msg: >-
 
 vl_operator_not_ready_msg: >-
   VM operator not ready within {{ victoria_operator_wait_timeout }}.
-  Check: kubectl -n {{ telemetry_namespace }} logs deploy/victoria-metrics-operator
+  Check: kubectl -n {{ telemetry_namespace }} get pods
+  -l app.kubernetes.io/name=victoria-metrics-operator

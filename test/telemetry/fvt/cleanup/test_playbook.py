@@ -34,13 +34,14 @@ from library.functions import run_playbook
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
-def test_deploy_cleanup(host):
+def test_deploy_cleanup(host, delete_volume):
     """TC_CL_001: Deploy telemetry (--tags cleanup)."""
     tc = TC["deploy_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
 
+    extra_vars = {"Delete_volume": "true"} if delete_volume else None
     tl.check("Running telemetry playbook --tags cleanup")
-    result = run_playbook(tag="cleanup")
+    result = run_playbook(tag="cleanup", extra_vars=extra_vars)
 
     if result["success"]:
         tl.passed(

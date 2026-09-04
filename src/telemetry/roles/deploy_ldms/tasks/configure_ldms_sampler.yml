@@ -14,9 +14,10 @@
 ---
 
 # =============================================================================
-# Configure LDMS sampler on compute nodes
+# Configure LDMS sampler on LDMS-enabled Slurm nodes
 # =============================================================================
-# This task file configures the LDMS sampler daemon on Slurm compute nodes.
+# Shared sampler files are prepared once by prepare_ldms_sampler_config.yml.
+# This task file installs them and configures ldmsd on each reachable node.
 #
 # Configuration is read from telemetry_config.yml:
 #   - ldms_configurations.sampler_port: Port for sampler daemon
@@ -27,62 +28,14 @@
 #   - ldms_firewall_ports: Ports to open in firewall
 #   - ldms_service_template: Systemd service unit template
 #
-# Files rendered:
+# Files installed:
 #   - sampler.conf: Plugin configuration (from sampler_plugins)
 #   - ldmsauth.conf: Authentication credentials
 #   - ldmsd.sampler.env: Environment variables for systemd service
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# Phase 1: Render configuration files to NFS share (runs on kube_vip_group)
-# -----------------------------------------------------------------------------
-
-- name: Create LDMS samplers directory in NFS share
-  ansible.builtin.file:
-    path: "{{ ldms_sampler_share_path }}/samplers"
-    state: directory
-    owner: root
-    group: root
-    mode: "{{ common_mode }}"
-
-- name: Render LDMS sampler configuration
-  ansible.builtin.template:
-    src: "{{ role_path }}/templates/ldms/sampler.conf.j2"
-    dest: "{{ ldms_sampler_share_path }}/samplers/{{ ldms_sampler.config_file }}"
-    owner: root
-    group: root
-    mode: "{{ file_permissions_644 }}"
-
-- name: Ensure ldms_sampler_password is available
-  ansible.builtin.set_fact:
-    ldms_sampler_password: "{{ telemetry_credentials.ldms_sampler_password | default('') }}"
-  when:
-    - telemetry_credentials is defined
-    - telemetry_credentials.ldms_sampler_password is defined
-  no_log: true
-
-- name: Render LDMS authentication configuration
-  ansible.builtin.template:
-    src: "{{ role_path }}/templates/ldms/ldmsauth.conf.j2"
-    dest: "{{ ldms_sampler_share_path }}/samplers/{{ ldms_sampler.auth_file }}"
-    owner: root
-    group: root
-    mode: "{{ file_permissions_600 }}"
-
-- name: Render LDMS sampler environment file
-  ansible.builtin.template:
-    src: "{{ role_path }}/templates/ldms/ldmsd.sampler.env.j2"
-    dest: "{{ ldms_sampler_share_path }}/samplers/{{ ldms_sampler.env_file }}"
-    owner: root
-    group: root
-    mode: "{{ file_permissions_644 }}"
-
-- name: Log LDMS sampler configuration complete
-  ansible.builtin.debug:
-    msg: "LDMS sampler configuration rendered to {{ ldms_sampler_share_path }}/samplers/"
-
-# -----------------------------------------------------------------------------
-# Phase 2: Deploy configuration to compute nodes (runs on slurm_node groups)
+# Phase 1: Deploy configuration to each reachable LDMS-enabled Slurm node
 # -----------------------------------------------------------------------------
 
 - name: Ensure LDMS configuration directory exists
@@ -92,6 +45,7 @@
     owner: root
     group: root
     mode: "{{ common_mode }}"
+  register: ldms_sampler_config_directory_result
 
 - name: Copy sampler configuration from NFS share
   ansible.builtin.copy:
@@ -125,10 +79,15 @@
 
 - name: Set config changed flag
   ansible.builtin.set_fact:
-    ldms_config_changed: "{{ sampler_config_changed.changed or auth_config_changed.changed or env_config_changed.changed }}"
+    ldms_config_changed: >-
+      {{
+        (sampler_config_changed.changed | default(false) | bool)
+        or (auth_config_changed.changed | default(false) | bool)
+        or (env_config_changed.changed | default(false) | bool)
+      }}
 
 # -----------------------------------------------------------------------------
-# Phase 3: Configure firewall for LDMS sampler port
+# Phase 2: Configure firewall for LDMS sampler port
 # -----------------------------------------------------------------------------
 
 - name: Check if firewalld is running
@@ -146,16 +105,20 @@
     state: enabled
     immediate: true
   loop: "{{ ldms_firewall_ports }}"
-  when: firewalld_status.status.ActiveState | default('inactive') == 'active'
+  when: >-
+    (firewalld_status.status | default({})).ActiveState
+    | default('inactive') == 'active'
   register: firewall_result
 
 - name: Log firewall configuration
   ansible.builtin.debug:
     msg: "{{ ldms_sampler_firewall_msg }}"
-  when: firewalld_status.status.ActiveState | default('inactive') == 'active'
+  when: >-
+    (firewalld_status.status | default({})).ActiveState
+    | default('inactive') == 'active'
 
 # -----------------------------------------------------------------------------
-# Phase 4: Configure and start ldmsd systemd service
+# Phase 3: Configure and start ldmsd systemd service
 # -----------------------------------------------------------------------------
 
 - name: Check if ldmsd systemd service file exists
@@ -170,13 +133,14 @@
     group: root
     mode: "{{ file_permissions_644 }}"
     content: "{{ ldms_service_template }}"
-  when: not ldmsd_service_stat.stat.exists
+  when: not ((ldmsd_service_stat.stat | default({})).exists | default(false) | bool)
   register: ldmsd_service_created
 
 - name: Reload systemd daemon  # noqa: no-handler
   ansible.builtin.systemd:
     daemon_reload: true
   when: ldmsd_service_created is changed
+  register: ldmsd_daemon_reload_result
 
 - name: Restart ldmsd service if config changed
   ansible.builtin.systemd:
@@ -184,6 +148,7 @@
     state: restarted
     daemon_reload: true
   when: ldms_config_changed | default(false) | bool
+  register: ldmsd_restart_result
 
 - name: Enable and start ldmsd service
   ansible.builtin.systemd:
@@ -198,7 +163,9 @@
   register: ldmsd_status
   retries: 5
   delay: 3
-  until: ldmsd_status.status.ActiveState == 'active'
+  until: >-
+    (ldmsd_status.status | default({})).ActiveState
+    | default('inactive') == 'active'
   changed_when: false
 
 - name: Verify ldmsd is listening on sampler port
@@ -207,7 +174,41 @@
     host: "0.0.0.0"
     timeout: 30
     state: started
+  register: ldmsd_port_result
 
 - name: Log LDMS sampler service started
   ansible.builtin.debug:
     msg: "{{ ldms_sampler_started_msg }}"
+
+- name: Record sampler reachability during deployment
+  vars:
+    _ldms_sampler_direct_results:
+      - "{{ ldms_sampler_config_directory_result | default({}) }}"
+      - "{{ sampler_config_changed | default({}) }}"
+      - "{{ auth_config_changed | default({}) }}"
+      - "{{ env_config_changed | default({}) }}"
+      - "{{ firewalld_status | default({}) }}"
+      - "{{ ldmsd_service_stat | default({}) }}"
+      - "{{ ldmsd_service_created | default({}) }}"
+      - "{{ ldmsd_daemon_reload_result | default({}) }}"
+      - "{{ ldmsd_restart_result | default({}) }}"
+      - "{{ ldmsd_start_result | default({}) }}"
+      - "{{ ldmsd_status | default({}) }}"
+      - "{{ ldmsd_port_result | default({}) }}"
+    _ldms_sampler_loop_results: >-
+      {{ (firewall_result | default({})).results | default([]) }}
+  ansible.builtin.set_fact:
+    _ldms_sampler_unreachable_during_deploy: >-
+      {{
+        (
+          _ldms_sampler_direct_results
+          | selectattr('unreachable', 'defined')
+          | selectattr('unreachable') | list | length > 0
+        )
+        or
+        (
+          _ldms_sampler_loop_results
+          | selectattr('unreachable', 'defined')
+          | selectattr('unreachable') | list | length > 0
+        )
+      }}

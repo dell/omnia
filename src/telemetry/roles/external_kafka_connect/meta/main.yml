@@ -16,7 +16,7 @@
 galaxy_info:
   author: Dell Inc.
   description: >-
-    Fetches Kafka external connection details (endpoint, TLS certs)
+    Fetches Kafka external connection details (mTLS and HTTP endpoints, TLS certs)
     from the Kubernetes cluster for external client integration (e.g., OME).
   license: Apache-2.0
   min_ansible_version: "2.20"

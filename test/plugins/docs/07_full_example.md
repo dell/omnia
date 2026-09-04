@@ -22,7 +22,8 @@ your-module/
 │   │   │   └── my_func.py        # your verification functions
 │   │   ├── vars/
 │   │   │   ├── __init__.py
-│   │   │   └── common_vars.py    # your constants
+│   │   │   ├── common_vars.py    # your constants
+│   │   │   └── test_case_vars.py # centralized IDs and titles
 │   │   └── messages/
 │   │       ├── __init__.py
 │   │       └── my_msgs.py        # your test/log messages
@@ -58,6 +59,21 @@ PLAYBOOK_WORKDIR = "src/image_build_manager/playbooks"
 DOMAIN_NAME = "image_build_manager"
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
 ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
+```
+
+## `library/vars/test_case_vars.py`
+
+```python
+TEST_CASES = {
+    "deploy_prepare": {
+        "id": "IMGBM_FVT_PREPARE_E001",
+        "title": "Run Image Build Manager prepare",
+    },
+    "containers_running": {
+        "id": "IMGBM_FVT_PREPARE_V001",
+        "title": "Verify prepare containers are running",
+    },
+}
 ```
 
 ## `library/functions/__init__.py`
@@ -126,6 +142,7 @@ from omnia_auto import (
     clone_repo,
     log,
     get_test_output,
+    get_last_tc_id,
     add_session_result,
     print_summary_table,
     TestReport,
@@ -205,12 +222,14 @@ def pytest_runtest_makereport(item, call):
         status = "PASSED" if result.passed else (
             "SKIPPED" if result.skipped else "FAILED"
         )
+        tc_id = get_last_tc_id()
 
         # Add to HTML/JSON report
         report = get_current_report()
         if report:
             report.add_result({
                 "test_name": item.name,
+                "tc_id": tc_id,
                 "status": status,
                 "duration": getattr(result, "duration", 0),
                 "details": get_test_output(),
@@ -222,6 +241,7 @@ def pytest_runtest_makereport(item, call):
             test_name=item.name,
             status=status,
             duration=getattr(result, "duration", 0),
+            tc_id=tc_id,
         )
 
 
@@ -245,11 +265,13 @@ def host():
 ```python
 import pytest
 from library.functions import run_playbook, TestLogger
+from library.vars.test_case_vars import TEST_CASES as TC
 
 @pytest.mark.sanity
 def test_prepare_phase():
-    """TC_PR_001: Verify prepare phase completes."""
-    tl = TestLogger("Verify prepare phase", "TC_PR_001")
+    """Verify the prepare phase completes."""
+    tc = TC["deploy_prepare"]
+    tl = TestLogger(tc["title"], tc["id"])
 
     tl.check("Running prepare tag...")
     result = run_playbook(tag="prepare", timeout=1800)
@@ -264,8 +286,9 @@ def test_prepare_phase():
 
 @pytest.mark.sanity
 def test_containers_running(host):
-    """TC_PR_002: Verify expected containers are running."""
-    tl = TestLogger("Verify containers running", "TC_PR_002")
+    """Verify the expected containers are running."""
+    tc = TC["containers_running"]
+    tl = TestLogger(tc["title"], tc["id"])
 
     expected = ["minio-server", "registry"]
     result = host.run("podman ps --format '{{.Names}}'")
@@ -301,11 +324,11 @@ python3 -m pytest fvt/ -s -m sanity
 │  REPORT ID:   20260730143000                                       │
 └────────────────────────────────────────────────────────────────────┘
 
-  ▶ [TC_PR_001] Verify prepare phase
+  ▶ [IMGBM_FVT_PREPARE_E001] Run Image Build Manager prepare
   → Running prepare tag...
   ✔ PASS: Prepare completed in 45.2s
 
-  ▶ [TC_PR_002] Verify containers running
+  ▶ [IMGBM_FVT_PREPARE_V001] Verify prepare containers are running
   ✔ PASS: All 2 containers running
 
 ┌────────────────────────────────────────────────────────────────────┐
@@ -316,14 +339,14 @@ python3 -m pytest fvt/ -s -m sanity
 │  HTML: /opt/omnia/reports/test_report.html                          │
 └────────────────────────────────────────────────────────────────────┘
 
-=====================================================================================
+========================================================================================
   TEST EXECUTION SUMMARY
-=====================================================================================
-  TC ID        Test Name                                Status     Duration
-  ------------ ---------------------------------------- ---------- --------
-  TC_PR_001    test_prepare_phase                       PASSED       45.20s
-  TC_PR_002    test_containers_running                  PASSED        0.42s
-  ------------ ---------------------------------------- ---------- --------
+========================================================================================
+  TC ID                     Test Name                                Status     Duration
+  ------------------------- ---------------------------------------- ---------- --------
+  IMGBM_FVT_PREPARE_E001    test_prepare_phase                       PASSED       45.20s
+  IMGBM_FVT_PREPARE_V001  test_containers_running                  PASSED        0.42s
+  ------------------------- ---------------------------------------- ---------- --------
   2 passed, 0 failed, 0 skipped / 2 total (45.62s)
-=====================================================================================
+========================================================================================
 ```

@@ -70,3 +70,19 @@
           commit_message: "Add {{ gitlab_input_repo_dir }}/{{ input_file_name }}"
         status_code: [200, 201]
         validate_certs: false
+
+    - name: Update input file in GitLab repository
+      when: gitlab_input_file_check.status == 200
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_input_encoded_path }}"  # noqa: yaml[line-length]
+        method: PUT
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ gitlab_input_file_content.content }}"
+          commit_message: "Update {{ gitlab_input_repo_dir }}/{{ input_file_name }}"
+        status_code: [200, 201]
+        validate_certs: false

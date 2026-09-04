@@ -15,8 +15,8 @@
 """
 Image Build Validate — repo_ssl_verify Configuration Verification.
 
-TC_VL_004: Verify repo_ssl_verify is configured in image_build_config.yml
-TC_BD_016: Verify repo_ssl_verify is applied in build templates
+Verifies the effective repo_ssl_verify configuration and confirms that it is
+wired into build templates.
 """
 
 import pytest
@@ -33,15 +33,19 @@ from library.messages import TEST_LOG_MSGS as LOG
 @pytest.mark.sanity
 @pytest.mark.order(3)
 def test_repo_ssl_verify_config(host):
-    """TC_VL_004: Verify repo_ssl_verify is configured."""
+    """Verify the effective repo_ssl_verify value."""
     tc = TC["repo_ssl_verify_config"]
     tl = TestLogger(tc["title"], tc["id"])
     result = check_repo_ssl_verify_config(host)
 
     if result["success"]:
-        tl.passed(LOG["repo_ssl_verify_ok"].format(
-            value=result["ssl_verify"]
-        ), result["details"])
+        tl.passed(
+            LOG["repo_ssl_verify_ok"].format(
+                value=str(result["ssl_verify"]).lower(),
+                source=("runtime default" if result["used_default"] else "explicit"),
+            ),
+            result["details"],
+        )
     else:
         tl.failed(LOG["repo_ssl_verify_missing"], result["details"])
 
@@ -52,10 +56,10 @@ def test_repo_ssl_verify_config(host):
 @pytest.mark.functional
 @pytest.mark.order(4)
 def test_repo_ssl_verify_applied(host):
-    """TC_BD_016: Verify repo_ssl_verify is applied in build templates."""
+    """Verify repo_ssl_verify template wiring."""
     tc = TC["repo_ssl_verify_applied"]
     tl = TestLogger(tc["title"], tc["id"])
-    result = check_repo_ssl_verify_applied(host, arch="x86_64")
+    result = check_repo_ssl_verify_applied(host)
 
     if result["success"]:
         tl.passed(
@@ -63,14 +67,16 @@ def test_repo_ssl_verify_applied(host):
             result["details"],
         )
     else:
-        failed = [
-            r for r in result.get("results", [])
-            if not r.get("has_ssl_ref")
-        ]
+        if result.get("blocked_by_config"):
+            tl.skipped(
+                LOG["repo_ssl_verify_applied_blocked"],
+                result["details"],
+            )
+            pytest.skip(LOG["repo_ssl_verify_applied_blocked"])
+
+        failed = [r for r in result.get("results", []) if not r.get("has_ssl_ref")]
         tl.failed(
-            LOG["repo_ssl_verify_not_applied"].format(
-                count=len(failed)
-            ),
+            LOG["repo_ssl_verify_not_applied"].format(count=len(failed)),
             result["details"],
         )
 

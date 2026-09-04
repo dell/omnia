@@ -81,7 +81,7 @@ TEST_NAMES = {
         "Verify firewall ports (9000, 9001, 5000) closed after cleanup"
     ),
     "s3_artifacts_removed": (
-        "Verify S3 buckets and artifacts removed after cleanup"
+        "Verify managed S3 storage removed after cleanup"
     ),
     "s3cfg_removed": (
         "Verify s3cmd configuration removed after cleanup"
@@ -110,7 +110,7 @@ TEST_NAMES = {
         "Verify MinIO and registry systemd services are active"
     ),
     "credentials_present": (
-        "Verify credentials file is synced to target"
+        "Verify credentials file is configured on the execution OIM"
     ),
     "registry_reachable": (
         "Verify container registry is reachable"
@@ -159,6 +159,31 @@ TEST_LOG_MSGS = {
     "s3_images_missing": (
         "{count} functional group(s) have missing S3 images"
     ),
+
+    # AArch64 build node
+    "aarch64_not_configured": (
+        "aarch64_inventory_host_ip is not configured — skipping"
+    ),
+    "aarch64_ssh_ok": "Passwordless SSH to {host} works",
+    "aarch64_ssh_failed": "Passwordless SSH to {host} failed",
+    "aarch64_architecture_ok": "Node {host} is running aarch64",
+    "aarch64_architecture_failed": (
+        "Node {host} does not report aarch64 architecture"
+    ),
+    "aarch64_work_dirs_ok": (
+        "All {count} work directories exist on {host}"
+    ),
+    "aarch64_work_dirs_failed": (
+        "{count} work directories are missing on {host}"
+    ),
+    "aarch64_builder_image_ok": (
+        "Podman and AArch64 builder image verified on {host}"
+    ),
+    "aarch64_builder_image_failed": (
+        "Podman or AArch64 builder image verification failed on {host}"
+    ),
+    "aarch64_regctl_ok": "regctl is functional on {host}",
+    "aarch64_regctl_failed": "regctl is not functional on {host}",
 
     # Registry
     "registry_images_ok": (
@@ -219,6 +244,11 @@ TEST_LOG_MSGS = {
     "services_removed_ok": (
         "All systemd services stopped and removed"
     ),
+    "cleanup_verify_prerequisite": (
+        "Postcondition check: the cleanup playbook must have completed first"
+    ),
+    "containers_removed_ok": "All managed containers removed",
+    "containers_still_exist": "Managed containers remain after cleanup",
     "services_still_active": (
         "{count} service(s) still active"
     ),
@@ -228,6 +258,14 @@ TEST_LOG_MSGS = {
     "firewall_ports_still_open": (
         "{count} port(s) still open"
     ),
+    "s3_artifacts_removed_ok": "Managed MinIO storage removed",
+    "s3_artifacts_still_exist": "Managed MinIO storage still exists",
+    "cleanup_powerscale_s3_skip": (
+        "PowerScale buckets are external and retained by full cleanup"
+    ),
+    "cleanup_powerscale_s3cfg_skip": (
+        "PowerScale s3cmd configuration is retained by full cleanup"
+    ),
     "s3cfg_removed_ok": "s3cmd configuration removed",
     "s3cfg_still_exists": "s3cmd configuration still exists",
     "credentials_removed_ok": "All credentials files removed",
@@ -236,7 +274,7 @@ TEST_LOG_MSGS = {
     "build_output_still_exists": "build_status.yml still exists",
     "registry_cleaned_ok": "Registry cleaned (no images)",
     "registry_still_has_images": (
-        "Registry still has {count} image(s)"
+        "Tagged repositories remaining: {count}"
     ),
 
     # Prepare extended
@@ -259,16 +297,19 @@ TEST_LOG_MSGS = {
 
     # repo_ssl_verify
     "repo_ssl_verify_ok": (
-        "repo_ssl_verify is configured (value: {value})"
+        "repo_ssl_verify effective value: {value} ({source})"
     ),
     "repo_ssl_verify_missing": (
-        "repo_ssl_verify is NOT configured in build_image section"
+        "repo_ssl_verify configuration is invalid"
     ),
     "repo_ssl_verify_applied_ok": (
-        "repo_ssl_verify setting applied in all build templates"
+        "repo_ssl_verify is wired into all build templates"
     ),
     "repo_ssl_verify_not_applied": (
-        "repo_ssl_verify NOT applied in {count} template(s)"
+        "repo_ssl_verify wiring missing in {count} template(s)"
+    ),
+    "repo_ssl_verify_applied_blocked": (
+        "Template check blocked by invalid repo_ssl_verify configuration"
     ),
 
     # cleanup_images
@@ -278,11 +319,17 @@ TEST_LOG_MSGS = {
     "cleanup_images_s3_still_exist": (
         "S3 images still present after cleanup_images"
     ),
+    "cleanup_images_s3_not_initialized": (
+        "S3 image cleanup is not applicable in the current lifecycle state"
+    ),
     "cleanup_images_registry_ok": (
         "All registry images deleted after cleanup_images"
     ),
     "cleanup_images_registry_still_exist": (
         "Registry images still present after cleanup_images"
+    ),
+    "cleanup_images_registry_not_initialized": (
+        "Registry image cleanup is not applicable in the current lifecycle state"
     ),
 
     # Build status
@@ -321,6 +368,12 @@ TEST_LOG_MSGS = {
 _BORDER = "\u2550" * 74
 
 TEST_ASSERT_MSGS = {
+    "cleanup_postcondition_failed": (
+        "{check} cleanup postcondition failed: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Confirm the cleanup playbook completed successfully\n"
+        "  2. Inspect the cleanup playbook output and rerun verification"
+    ),
     "container_not_running": (
         "\n\u2554" + _BORDER + "\u2557\n"
         "\u2551 CONTAINER CHECK FAILED: {container}\n"
@@ -351,6 +404,37 @@ TEST_ASSERT_MSGS = {
         "\u2551      ansible-playbook image_build_manager.yml\n"
         "\u2551      or: run_validation image_build_manager deploy\n"
         "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "aarch64_ssh_failed": (
+        "Passwordless SSH to aarch64 node {host} failed: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Verify the configured AArch64 host is reachable\n"
+        "  2. Re-run the build preparation to install the SSH key"
+    ),
+    "aarch64_architecture_failed": (
+        "AArch64 node {host} architecture verification failed: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Confirm aarch64_inventory_host_ip points to an ARM node\n"
+        "  2. Run uname -m and uname -r on that node"
+    ),
+    "aarch64_work_dirs_failed": (
+        "AArch64 work-directory verification failed on {host}: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Check the execution OIM OMNIA_DATA_PATH\n"
+        "  2. Re-run the Image Build Manager build preparation"
+    ),
+    "aarch64_builder_image_failed": (
+        "AArch64 builder-image verification failed on {host}: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Verify Podman is installed on the AArch64 node\n"
+        "  2. Check podman images for an aarch64-image builder image"
+    ),
+    "aarch64_regctl_failed": (
+        "regctl verification failed on {host}: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Check /usr/local/bin/regctl on the AArch64 node\n"
+        "  2. Re-run the Image Build Manager build preparation"
     ),
 
     "s3_images_missing": (
@@ -427,7 +511,9 @@ TEST_ASSERT_MSGS = {
         "\u2551\n"
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Verify oim_server_ip in test_config.yml\n"
-        "\u2551   2. Verify SSH user/password: setup_env.sh --set-password\n"     # gitleaks:allow — "password" is in user-facing instruction message, not a leaked secret
+        # gitleaks:allow — user-facing instruction, not a leaked secret
+        "\u2551   2. Verify SSH user/password: "
+        "./setup_env.sh --set-creds\n"
         "\u2551   3. Test manually: ssh root@<oim_server_ip>\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),

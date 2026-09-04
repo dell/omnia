@@ -39,9 +39,12 @@ set -euo pipefail
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly SRC_DIR="$(dirname "$SCRIPT_DIR")"
-readonly REPO_ROOT="$(dirname "$SRC_DIR")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+SRC_DIR="$(dirname "$SCRIPT_DIR")"
+readonly SRC_DIR
+REPO_ROOT="$(dirname "$SRC_DIR")"
+readonly REPO_ROOT
 
 # Color definitions
 readonly RED='\033[0;31m'
@@ -63,6 +66,21 @@ readonly DOMAINS=(
     "repo_manager"
     "telemetry"
     "utils"
+)
+
+# Core infrastructure domain prepare order for --prepare-base
+# Only these three domains are prepared by --prepare-base
+readonly PREPARE_ORDER=(
+    "repo_manager"          # First: Pulp server for package repos
+    "image_build_manager"   # Second: MinIO + Registry for image building
+    "orchestrator"          # Third: OpenLDAP, functional groups, credential management
+)
+
+# Lifecycle tags to run for each domain (in order)
+readonly LIFECYCLE_TAGS=(
+    "validate"      # Validate input configuration
+    "credentials"   # Collect and encrypt credentials
+    "prepare"       # Deploy infrastructure
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -688,6 +706,166 @@ run_domain() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Prepare Base Domains
+# Orchestrates prepare steps of core infrastructure domains in dependency order
+# ─────────────────────────────────────────────────────────────────────────────
+prepare_base_domains() {
+    local skip_filter="${SKIP_DOMAINS:-}"
+    local dry_run="${DRY_RUN:-false}"
+    local start_time=$SECONDS
+
+    load_env
+
+    echo -e "${BLUE}================================================================================${NC}"
+    echo -e "${BLUE}               Prepare Base Infrastructure Domains${NC}"
+    echo -e "${BLUE}================================================================================${NC}"
+    echo ""
+
+    # Activate venv
+    if [ ! -f "$OMNIA_VENV_PATH/bin/activate" ]; then
+        echo -e "${RED}ERROR: Venv not found at $OMNIA_VENV_PATH${NC}"
+        echo -e "${YELLOW}Run './omnia.sh -s' first to create the venv${NC}"
+        exit 1
+    fi
+
+    # shellcheck disable=SC1091
+    source "$OMNIA_VENV_PATH/bin/activate"
+
+    # ── Build target domain list from PREPARE_ORDER ──
+    local target_domains=()
+    for domain in "${PREPARE_ORDER[@]}"; do
+        target_domains+=("$domain")
+    done
+
+    # ── Apply skip filter ──
+    if [ -n "$skip_filter" ]; then
+        IFS=',' read -ra skip_list <<< "$skip_filter"
+        local filtered_domains=()
+
+        # Validate skip domains
+        for skip_domain in "${skip_list[@]}"; do
+            skip_domain="$(echo "$skip_domain" | xargs)"
+            local valid=false
+            for domain in "${PREPARE_ORDER[@]}"; do
+                if [ "$domain" = "$skip_domain" ]; then
+                    valid=true
+                    break
+                fi
+            done
+            if [ "$valid" = false ]; then
+                echo -e "${RED}ERROR: Unknown domain in --skip: '$skip_domain'${NC}"
+                echo -e "${YELLOW}Valid domains for --prepare-base: ${PREPARE_ORDER[*]}${NC}"
+                exit 1
+            fi
+        done
+
+        for domain in "${target_domains[@]}"; do
+            local skip=false
+            for skip_domain in "${skip_list[@]}"; do
+                skip_domain="$(echo "$skip_domain" | xargs)"
+                if [ "$domain" = "$skip_domain" ]; then
+                    skip=true
+                    break
+                fi
+            done
+            if [ "$skip" = false ]; then
+                filtered_domains+=("$domain")
+            else
+                echo -e "${YELLOW}Skipping domain: $domain${NC}"
+            fi
+        done
+        target_domains=("${filtered_domains[@]}")
+    fi
+
+    # ── Bail if nothing to prepare ──
+    if [ ${#target_domains[@]} -eq 0 ]; then
+        echo -e "${YELLOW}No domains to prepare (all were skipped).${NC}"
+        deactivate 2>/dev/null || true
+        return 0
+    fi
+
+    # ── Show prepare order ──
+    echo -e "${BLUE}Preparing domains in order:${NC}"
+    for domain in "${target_domains[@]}"; do
+        echo -e "  ${GREEN}${domain}${NC}"
+    done
+    echo ""
+
+    # ── Dry-run mode ──
+    if [ "$dry_run" = true ]; then
+        echo -e "${BLUE}DRY RUN — would prepare these domains (phase-by-phase, fail-fast):${NC}"
+        echo ""
+        for tag in "${LIFECYCLE_TAGS[@]}"; do
+            echo -e "  ${BLUE}Phase: $tag${NC}"
+            for domain in "${target_domains[@]}"; do
+                echo -e "    ${GREEN}${domain}${NC}"
+            done
+            echo ""
+        done
+        echo -e "${YELLOW}Note: Execution stops immediately if any domain fails in any phase.${NC}"
+        deactivate 2>/dev/null || true
+        return 0
+    fi
+
+    # ── Run phases across all domains (phase-by-phase, not domain-by-domain) ──
+    for tag in "${LIFECYCLE_TAGS[@]}"; do
+        echo -e "${BLUE}================================================================================${NC}"
+        echo -e "${BLUE}Phase: $tag (all domains)${NC}"
+        echo -e "${BLUE}================================================================================${NC}"
+        echo ""
+
+        for domain in "${target_domains[@]}"; do
+            local playbook="$SRC_DIR/$domain/playbooks/${domain}.yml"
+
+            if [ ! -f "$playbook" ]; then
+                echo -e "${RED}  ERROR: No playbook found for $domain at $playbook${NC}"
+                echo -e "${YELLOW}  Fix the issue above and re-run: ./omnia.sh --prepare-base${NC}"
+                deactivate 2>/dev/null || true
+                return 1
+            fi
+
+            echo -e "${BLUE}  Running: $domain --tags $tag${NC}"
+
+            # Build ansible-playbook command
+            local cmd=("ansible-playbook" "$playbook" "--tags" "$tag")
+
+            echo -e "${DIM}    ${cmd[*]}${NC}"
+
+            cd "$SRC_DIR/$domain"
+            if "${cmd[@]}"; then
+                echo -e "${GREEN}    ✓ $domain $tag completed${NC}"
+            else
+                local rc=$?
+                echo -e "${RED}    ✗ $domain $tag failed (exit code: $rc)${NC}"
+                echo ""
+                echo -e "${RED}================================================================================${NC}"
+                echo -e "${RED}  FAILED: $domain failed in $tag phase. Stopping --prepare-base.${NC}"
+                echo -e "${RED}================================================================================${NC}"
+                echo -e "${YELLOW}  Fix the issue above and re-run: ./omnia.sh --prepare-base${NC}"
+                deactivate 2>/dev/null || true
+                return 1
+            fi
+            echo ""
+        done
+
+        echo -e "${GREEN}Phase $tag completed${NC}"
+        echo ""
+    done
+
+    # ── Summary (only reached on full success due to fail-fast) ──
+    echo -e "${BLUE}================================================================================${NC}"
+    echo -e "${BLUE}               Prepare Summary${NC}"
+    echo -e "${BLUE}================================================================================${NC}"
+    echo ""
+    echo -e "  Prepared: ${GREEN}${#target_domains[@]}${NC}"
+    echo -e "  Failed:   ${RED}0${NC}"
+    echo ""
+    echo -e "${GREEN}Prepared domains: ${target_domains[*]}${NC}"
+
+    deactivate 2>/dev/null || true
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Cleanup
 # ─────────────────────────────────────────────────────────────────────────────
 cleanup_omnia() {
@@ -1006,6 +1184,18 @@ SETUP COMMANDS (run once, in order):
                           ./omnia.sh -i repo_manager,telemetry  # specific set
 
 EXECUTION COMMANDS:
+  --prepare-base [options]
+                        Prepare three base infrastructure domains in dependency order.
+                        For each domain, runs lifecycle phases: validate → credentials → prepare
+                        Domains: repo_manager, image_build_manager, orchestrator
+                        Options:
+                          --skip <list>       Comma-separated domains to skip
+                          --dry-run           Show what would be prepared
+                        Example:
+                          ./omnia.sh --prepare-base
+                          ./omnia.sh --prepare-base --skip orchestrator
+                          ./omnia.sh --prepare-base --dry-run
+
   --run, -r <domain> [--tags <tags>] [extra ansible args]
                         Activate venv and run the specified domain's playbook.
                         Passes --tags and any extra args to ansible-playbook.
@@ -1152,6 +1342,11 @@ EXAMPLES:
   # Check dependency versions across all domains:
   ./omnia.sh --check-deps                      # Lists any pip/Galaxy version mismatches
 
+  # Prepare base infrastructure domains:
+  ./omnia.sh --prepare-base                     # Prepare repo_manager, image_build_manager, orchestrator
+  ./omnia.sh --prepare-base --skip orchestrator # Skip orchestrator if not needed
+  ./omnia.sh --prepare-base --dry-run           # Preview what would be prepared
+
   # Run a domain playbook:
   ./omnia.sh --run image_build_manager --tags prepare
   ./omnia.sh -r repo_manager                   # Run all tags
@@ -1199,6 +1394,10 @@ main() {
         case "$1" in
             --setup-venv|-s)
                 command="setup-venv"
+                shift
+                ;;
+            --prepare-base)
+                command="prepare-base"
                 shift
                 ;;
             --deps-only)
@@ -1293,9 +1492,9 @@ main() {
         echo -e "${YELLOW}Usage: $0 -s --force-deps or $0 -i --force-deps${NC}"
         exit 1
     fi
-    if [ -n "$SKIP_DOMAINS" ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ]; then
-        echo -e "${RED}ERROR: --skip requires --setup-venv (-s) or --init (-i)${NC}"
-        echo -e "${YELLOW}Usage: $0 -s --skip telemetry or $0 -i --skip telemetry${NC}"
+    if [ -n "$SKIP_DOMAINS" ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ] && [ "$command" != "prepare-base" ]; then
+        echo -e "${RED}ERROR: --skip requires --setup-venv (-s), --init (-i), or --prepare-base${NC}"
+        echo -e "${YELLOW}Usage: $0 -s --skip telemetry or $0 -i --skip telemetry or $0 --prepare-base --skip orchestrator${NC}"
         exit 1
     fi
     if [ -n "$SKIP_DOMAINS" ] && [ -n "$init_domain_filter" ]; then
@@ -1304,9 +1503,9 @@ main() {
         echo -e "${YELLOW}Not both.${NC}"
         exit 1
     fi
-    if [ "$DRY_RUN" = true ] && [ "$command" != "init" ] && [ "$command" != "setup-venv" ]; then
-        echo -e "${RED}ERROR: --dry-run requires --init (-i) or --setup-venv (-s)${NC}"
-        echo -e "${YELLOW}Usage: $0 -i --dry-run or $0 -i --dry-run --skip telemetry${NC}"
+    if [ "$DRY_RUN" = true ] && [ "$command" != "init" ] && [ "$command" != "setup-venv" ] && [ "$command" != "prepare-base" ]; then
+        echo -e "${RED}ERROR: --dry-run requires --init (-i), --setup-venv (-s), or --prepare-base${NC}"
+        echo -e "${YELLOW}Usage: $0 -i --dry-run or $0 --prepare-base --dry-run${NC}"
         exit 1
     fi
 
@@ -1349,6 +1548,9 @@ main() {
             echo -e "${YELLOW}Activate in your shell:${NC}"
             echo -e "  ${GREEN}source ${OMNIA_DATA_PATH}/activate-omnia.sh${NC}"
             echo ""
+            ;;
+        prepare-base)
+            prepare_base_domains
             ;;
         init)
             init_domains "$init_domain_filter"

@@ -30,7 +30,7 @@
   register: ns_result
   changed_when: "'created' in ns_result.stdout | default('')"
 
-- name: Check if VictoriaMetrics operator is installed
+- name: Check if VictoriaMetrics operator is installed (Helm release)
   ansible.builtin.command: >
     helm status victoria-metrics-operator -n {{ telemetry_namespace }}
   register: victoria_operator_status
@@ -72,7 +72,7 @@
 - name: Wait for VictoriaMetrics operator deployment
   ansible.builtin.command: >
     kubectl wait --for=condition=available --timeout={{ victoria_operator_wait_timeout }}
-    deployment/victoria-metrics-operator -n {{ telemetry_namespace }}
+    deployment -l app.kubernetes.io/name=victoria-metrics-operator -n {{ telemetry_namespace }}
   changed_when: false
   register: vm_operator_wait
   failed_when: false

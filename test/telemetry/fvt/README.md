@@ -82,32 +82,113 @@ ensure syslog is configured before verifying log ingestion.
 
 | TC ID | Test | Marker |
 |-------|------|--------|
-| TC_SR_060 | Verify UFM external service exists with correct endpoint | sanity |
-| TC_SR_061 | Verify UFM VMServiceScrape CR exists | sanity |
-| TC_SR_062 | Verify UFM credentials K8s secret exists | sanity |
-| TC_SR_063 | Verify UFM InfiniBand metrics in VictoriaMetrics | functional |
+| TC_SR_060 | Verify UFM external service exists with correct endpoint | sanity + ufm |
+| TC_SR_061 | Verify UFM VMServiceScrape CR exists | sanity + ufm |
+| TC_SR_062 | Verify UFM credentials K8s secret exists | sanity + ufm |
+| TC_SR_063 | Verify UFM InfiniBand metrics in VictoriaMetrics | functional + ufm |
+
+Run only the UFM source verification:
+
+```bash
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker ufm
+```
 
 ### Sources: OME
 
 | TC ID | Test | Marker | Condition |
 |-------|------|--------|-----------|
-| TC_SR_070 | Verify Vector-OME bridge deployment ready | sanity | always |
-| TC_SR_071 | Verify OME KafkaUser CR exists | sanity | always |
-| TC_SR_072 | Verify external Kafka TLS certificates exist | functional | configure_ome=true |
-| TC_SR_073 | Verify user.pfx certificate created for OME mTLS | functional | configure_ome=true |
-| TC_SR_074 | Verify TLS certificates uploaded to OME | functional | configure_ome=true |
-| TC_SR_075 | Verify OME Kafka forwarder connectivity status | functional | configure_ome=true |
+| TC_SR_070 | Verify Vector-OME bridge deployment ready | sanity | metrics or logs bridge enabled |
+| TC_SR_071 | Verify OME KafkaUser CR exists | sanity | metrics or logs bridge enabled |
+| TC_SR_072 | Verify external Kafka connection artifacts | functional | configure_ome=true, metrics or logs source enabled |
+| TC_SR_073 | Verify user.pfx certificate created for OME mTLS | functional | configure_ome=true, metrics or logs source enabled |
+| TC_SR_074 | Verify TLS certificates uploaded to OME | functional | configure_ome=true, metrics or logs source enabled |
+| TC_SR_075 | Verify OME Kafka forwarder connectivity status | functional | configure_ome=true, metrics or logs source enabled |
+| TC_SR_056 | Verify uploaded certificate matches generated certificate | functional | configure_ome=true, metrics or logs source enabled |
+| TC_SR_057 | Verify enabled OME Kafka topics exist | functional | configure_ome=true, metrics or logs source enabled |
+| TC_SR_058 | Verify OME telemetry data in Kafka | functional | configure_ome=true, metrics source enabled |
+| TC_SR_059 | Verify OME inventory data in Kafka | functional | configure_ome=true, metrics source enabled |
+| TC_SR_060 | Verify OME alerts data in Kafka | functional | configure_ome=true, logs source enabled |
+| TC_SR_061 | Verify OME health data in Kafka | functional | configure_ome=true, metrics source enabled |
+| TC_SR_062 | Verify OME audit logs data in Kafka | functional | configure_ome=true, logs source enabled |
+| TC_SR_064 | Verify OME telemetry metrics in VictoriaMetrics | functional | configure_ome=true, metrics source and bridge enabled |
+| TC_SR_065 | Verify OME inventory metrics in VictoriaMetrics | functional | configure_ome=true, metrics source and bridge enabled |
+| TC_SR_066 | Verify OME health metrics in VictoriaMetrics | functional | configure_ome=true, metrics source and bridge enabled |
+| TC_SR_067 | Verify OME alerts in VictoriaLogs | functional | configure_ome=true, logs source and bridge enabled |
+| TC_SR_068 | Verify OME audit logs in VictoriaLogs | functional | configure_ome=true, logs source and bridge enabled |
 
-When `configure_ome: false` in test_config.yml, only TC_SR_070 and
-TC_SR_071 run. Set `configure_ome: true` to run the full OME integration
-tests including TLS cert extraction and connectivity verification.
+When `configure_ome: false` in test_config.yml, only TC_SR_070 and TC_SR_071
+run when at least one Vector-OME bridge channel is enabled. Set
+`configure_ome: true` to run the applicable OME integration tests including
+TLS cert extraction and connectivity verification. Metrics-only configuration
+runs telemetry, inventory, and health checks; logs-only configuration runs
+alerts and auditlogs checks; enabling both channels runs all five. Kafka tests
+follow the source flags, while Victoria tests require both the matching source
+and Vector-OME bridge flag.
+The connectivity test allows up to 5 minutes for OME's asynchronous
+reconnection. Topic discovery and each OME data-topic check allow up to
+2 minutes. The VictoriaMetrics checks discover metric names dynamically and
+report a `✓` row with the true earliest and latest sample timestamp for every
+metric found in the telemetry, inventory, and health streams. The
+VictoriaLogs checks cover the event-driven alerts and auditlogs streams. The
+optional `ome.logs` route is not required because it is not one of the OME
+Kafka topics created by the supported forwarding workflow.
+
+### Sources: SFM
+
+| TC ID | Test | Marker | Condition |
+|-------|------|--------|-----------|
+| TC_SR_090 | Verify required Omnia workloads and pods for SFM | sanity | configure_sfm=true |
+| TC_SR_091 | Verify required Omnia services for SFM | sanity | configure_sfm=true |
+| TC_SR_092 | Configure and verify the SFM switch data path | functional | configure_sfm=true |
+| TC_SR_093 | Configure and verify SFM observability Remote Write | functional | configure_sfm=true |
+| TC_SR_094 | Verify three SFM metrics and timestamps in VictoriaMetrics | functional | configure_sfm=true |
+
+SFM integration is opt-in. Set `configure_sfm: true`, `sfm_api_ip`, and
+`sfm_ssh_ip` in `test_config.yml`, then run `bash setup_env.sh --set-creds` to
+store the required SFM API and SSH credentials in encrypted `test_creds.yml`.
+The runner rejects unknown SSH host keys, so verify the SFM key in
+`known_hosts` before executing these cases. The API address must be directly
+reachable from the runner. The SFM instance is fixed to instance 1. This lab
+integration has no configurable API CA bundle or API TLS-verification setting;
+run it only on an authorized network.
+
+The cases execute in dependency order: Victoria export plus Omnia workload and
+pod readiness, Omnia service and endpoint readiness, the complete SFM switch
+network configuration, transactional certificate/Remote Write configuration
+with target health, and three-metric earliest/latest timestamp verification in
+VictoriaMetrics.
+
+Warning: these tests configure an external appliance. They may import a CA
+certificate, create or update the `victoria` Remote Write target, and modify
+`/etc/hosts` inside the SFM Prometheus pod. The pod-local mapping does not
+survive pod recreation, so configuration and health helpers reapply it to the
+current pod. Previous certificate imports are retained as rollback material.
+
+```bash
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker sfm
+```
 
 ### Cleanup
 
-| TC ID | Test | Marker |
-|-------|------|--------|
-| TC_CL_002 | Verify telemetry pods removed | sanity |
-| TC_CL_003 | Verify Kafka topics removed | sanity |
+| TC ID | Test | Marker | Condition |
+|-------|------|--------|-----------|
+| TC_CL_002 | Verify telemetry pods removed | sanity | always |
+| TC_CL_003 | Verify Kafka topics removed | sanity | `DELETE_VOLUME=true` |
+| TC_CL_011 | Verify no pods remain after full cleanup | sanity | always |
+| TC_CL_012 | Verify no PVCs remain after full cleanup | sanity | `DELETE_VOLUME=true` |
+| TC_CL_013 | Verify PVCs preserved after cleanup | sanity | `DELETE_VOLUME` unset/`false` (default) |
+
+**Conditional Cleanup Tests**: When `DELETE_VOLUME` is set, the cleanup
+playbook is invoked with `-e Delete_volume=true` and all cleanup tests run.
+When unset/`false` (default), only the test matching the current
+`Delete_volume` mode is skipped (not failed). See
+`status/test_cleanup_final.py` and the `delete_volume` fixture defined
+in `conftest.py`.
+
+TC_CL_003 is skipped when `DELETE_VOLUME` is unset/`false`: per
+`src/telemetry/roles/cleanup/tasks/kafka.yml`, KafkaTopic CRDs are only
+deleted when `Delete_volume=true` — otherwise topic metadata is kept
+alongside the retained Kafka PVCs.
 
 ### Playbook Execution
 

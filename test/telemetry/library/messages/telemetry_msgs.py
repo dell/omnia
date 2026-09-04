@@ -70,12 +70,8 @@ TEST_LOG_MSGS = {
     "ldms_not_cleaned": "{count} LDMS pod(s) still present",
     "ome_cleaned": "No OME pods remaining",
     "ome_not_cleaned": "{count} OME pod(s) still present",
-    "ufm_cleaned": "No UFM resources remaining",
-    "ufm_not_cleaned": "UFM resources still present",
     "vast_cleaned": "No VAST resources remaining",
     "vast_not_cleaned": "VAST resources still present",
-    "sfm_cleaned": "No SFM pods remaining",
-    "sfm_not_cleaned": "{count} SFM pod(s) still present",
 
     # Cleanup - Sinks
     "kafka_cleaned": "No Kafka pods remaining",
@@ -88,8 +84,10 @@ TEST_LOG_MSGS = {
     # Cleanup - Final State
     "no_pods_remaining": "No pods remaining in telemetry namespace",
     "pods_remaining": "{count} pod(s) still present in telemetry namespace",
-    "no_pvcs_remaining": "No PVCs remaining in telemetry namespace",
+    "no_pvcs_remaining": "No PVCs remaining in telemetry namespace (Delete_volume=true)",
     "pvcs_remaining": "{count} PVC(s) still present in telemetry namespace",
+    "pvcs_preserved": "PVCs preserved in telemetry namespace (Delete_volume=false)",
+    "pvcs_not_preserved": "PVCs were deleted despite Delete_volume=false",
 
     # Cleanup - Idempotency / Playbook
     "cleanup_failed": "Cleanup playbook failed",
@@ -137,16 +135,6 @@ TEST_LOG_MSGS = {
 
     # Config skip
     "source_disabled": "{source} source not enabled in telemetry_config.yml",
-
-    # UFM
-    "ufm_svc_exists": "UFM external service '{service}' exists with endpoint {endpoint}",
-    "ufm_svc_missing": "UFM external service '{service}' not found",
-    "ufm_vmscrape_exists": "UFM VMServiceScrape '{name}' exists",
-    "ufm_vmscrape_missing": "UFM VMServiceScrape '{name}' not found",
-    "ufm_secret_exists": "UFM credentials secret '{secret}' exists",
-    "ufm_secret_missing": "UFM credentials secret '{secret}' not found",
-    "ufm_metrics_found": "{count} UFM metric(s) found in VictoriaMetrics",
-    "ufm_metrics_missing": "Missing UFM metrics in VictoriaMetrics: {missing}",
 
     # PowerScale / VictoriaMetrics / VictoriaLogs
     "secret_valid": "Secret '{secret}' has correct endpoint: {endpoint}",
@@ -404,25 +392,12 @@ TEST_ASSERT_MSGS = {
         "  1. kubectl get pods -n telemetry -l app=vector-ome\n"
         "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_ome\n"
     ),
-    "ufm_not_cleaned": (
-        "UFM resources still present after cleanup\n"
-        "HOW TO FIX:\n"
-        "  1. kubectl get svc,vmservicescrape,secret -n telemetry | grep ufm\n"
-        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_ufm\n"
-    ),
     "vast_not_cleaned": (
         "VAST resources still present after cleanup\n"
         "HOW TO FIX:\n"
         "  1. kubectl get svc,vmservicescrape,secret -n telemetry | grep vast\n"
         "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_vast\n"
     ),
-    "sfm_not_cleaned": (
-        "{count} SFM pod(s) still present after cleanup\n"
-        "HOW TO FIX:\n"
-        "  1. kubectl get pods -n telemetry | grep sfm\n"
-        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_sfm\n"
-    ),
-
     # Cleanup - Sinks
     "kafka_not_cleaned": (
         "{count} Kafka pod(s) still present after cleanup\n"
@@ -454,7 +429,16 @@ TEST_ASSERT_MSGS = {
         "{count} PVC(s) still present in telemetry namespace\n"
         "HOW TO FIX:\n"
         "  1. kubectl get pvc -n telemetry\n"
-        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+        "  2. Re-run cleanup with Delete_volume=true:\n"
+        "     ansible-playbook telemetry.yml --tags cleanup -e Delete_volume=true\n"
+    ),
+    "pvcs_not_preserved": (
+        "PVCs were unexpectedly deleted (Delete_volume=false)\n"
+        "Cleanup without Delete_volume=true should preserve PVCs.\n"
+        "HOW TO FIX:\n"
+        "  1. Verify cleanup was run without -e Delete_volume=true\n"
+        "  2. Check cleanup role logic for unconditional PVC deletion\n"
+        "  3. Re-deploy and re-run cleanup without Delete_volume flag\n"
     ),
 
     # Idempotency
@@ -463,33 +447,6 @@ TEST_ASSERT_MSGS = {
         "HOW TO FIX:\n"
         "  1. Check the playbook output for tasks that failed on second run\n"
         "  2. Ensure tasks use proper idempotency guards\n"
-    ),
-
-    # UFM
-    "ufm_svc_missing": (
-        "UFM external service '{service}' not found\n"
-        "HOW TO FIX:\n"
-        "  1. kubectl get svc -n telemetry | grep ufm\n"
-        "  2. Re-run telemetry deploy with UFM enabled\n"
-    ),
-    "ufm_vmscrape_missing": (
-        "UFM VMServiceScrape '{name}' not found\n"
-        "HOW TO FIX:\n"
-        "  1. kubectl get vmservicescrape -n telemetry | grep ufm\n"
-        "  2. Re-run telemetry deploy with UFM enabled\n"
-    ),
-    "ufm_secret_missing": (
-        "UFM credentials secret '{secret}' not found\n"
-        "HOW TO FIX:\n"
-        "  1. kubectl get secret -n telemetry | grep ufm\n"
-        "  2. Re-run telemetry deploy with UFM credentials\n"
-    ),
-    "ufm_metrics_missing": (
-        "UFM metrics not found in VictoriaMetrics: {missing}\n"
-        "HOW TO FIX:\n"
-        "  1. Check vmagent scrape targets for UFM\n"
-        "  2. Verify UFM endpoint is reachable: curl -sk https://<ufm-ip>:9001/metrics\n"
-        "  3. Check vmagent logs: kubectl logs -n telemetry <vmagent-pod>\n"
     ),
 
     # PowerScale

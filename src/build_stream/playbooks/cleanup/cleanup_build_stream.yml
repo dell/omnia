@@ -13,37 +13,30 @@
 # limitations under the License.
 
 ---
-# cleanup_build_stream.yml — Full domain cleanup for BuildStream
+# cleanup_build_stream.yml — BSM + Postgres + NFS cleanup for BuildStream
 #
-# Undoes all tasks performed by the build_stream deployment:
-#   1. Cleans up GitLab (cleanup_gitlab.yml)
-#   2. Stops and removes omnia_build_stream container & quadlet service
-#   3. Stops and removes playbook_watcher service
-#   4. Removes automation framework (molecule/validate)
-#   5. Stops and removes omnia_postgres container & quadlet service
-#   6. Cleans up NFS directories (logs, queue, SSL, inventory, etc.)
-#   7. Removes build_stream credential files
+# Cleans up the BuildStream infrastructure (NOT GitLab):
+#   1. Stops and removes omnia_build_stream container & quadlet service
+#   2. Stops and removes playbook_watcher service
+#   3. Removes automation framework (molecule/validate)
+#   4. Stops and removes omnia_postgres container & quadlet service
+#   5. Cleans up NFS directories (logs, queue, SSL, inventory, etc.)
+#   6. Removes build_stream credential files
 #
-# Usage:
-#   cd /omnia/build_stream && ansible-playbook playbooks/cleanup_build_stream.yml
+# GitLab cleanup is handled separately by cleanup_gitlab.yml.
+# When invoked from build_stream.yml --tags cleanup, both are imported separately.
+#
+# Usage (standalone):
+#   cd /omnia/build_stream && ansible-playbook playbooks/cleanup/cleanup_build_stream.yml
 #
 # To also delete postgres data (default: preserved):
-#   cd /omnia/build_stream && ansible-playbook playbooks/cleanup_build_stream.yml -e postgres_backup=false
-#
-# To skip GitLab cleanup:
-#   cd /omnia/build_stream && ansible-playbook playbooks/cleanup_build_stream.yml --skip-tags gitlab
+#   ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e postgres_backup=false
 
-# ── Step 1: GitLab cleanup ──────────────────────────────────────────
-- name: Cleanup GitLab deployment
-  ansible.builtin.import_playbook: cleanup_gitlab.yml
-  tags: gitlab
-
-# ── Step 2: Self-contained setup (input dirs + OIM group + metadata) ─
+# ── Step 1: Self-contained setup (input dirs + OIM group + metadata) ─
 - name: Build Stream setup (input dirs + OIM group + metadata)
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: always
   roles:
     - role: ../../roles/build_stream_setup
       vars:
@@ -55,4 +48,3 @@
   gather_facts: true
   roles:
     - cleanup_build_stream
-  tags: always

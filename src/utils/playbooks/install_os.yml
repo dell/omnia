@@ -45,7 +45,12 @@
   hosts: localhost
   connection: local
   gather_facts: true
-  tags: [always]
+  tags: [install_os, build_iso, deploy, generate_ks]
+  pre_tasks:
+    - name: Record execution start time
+      ansible.builtin.set_fact:
+        utils_execution_start_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
   roles:
     - role: validate_install_os_config
 
@@ -227,3 +232,15 @@
         dest: "{{ _status_dir }}/install_os_status.yml"
         mode: "0644"
       failed_when: false
+
+    - name: Record execution end time
+      ansible.builtin.set_fact:
+        utils_execution_end_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
+
+    - name: Write domain execution status
+      ansible.builtin.include_role:
+        name: utils_status_writer
+      vars:
+        utils_domain_status: "{{ 'success' if ansible_failed_result is not defined else 'failure' }}"
+        utils_playbook_name: "install_os.yml"

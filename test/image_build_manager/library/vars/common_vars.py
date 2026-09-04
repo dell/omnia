@@ -143,16 +143,6 @@ PLAYBOOK_CMD = (
     "ansible-playbook image_build_manager.yml"
 )
 
-# Image artifact types in S3 (per functional group)
-IMAGE_TYPES = ["initramfs", "vmlinuz", "rhel"]
-
-# Image type display names for S3 verification output
-IMAGE_TYPE_DISPLAY = {
-    "initramfs": "initramfs",
-    "vmlinuz": "vmlinuz",
-    "rhel": "rootfs",
-}
-
 # Functional group packages filename
 FG_PACKAGES_FILENAME = "functional_group_packages.yml"
 
@@ -166,7 +156,8 @@ ENV_CATALOG_FILE_PATH = "CATALOG_FILE_PATH"
 # SQUASHFS / IMAGE VERIFICATION PATHS
 # =============================================================================
 
-# Temp directory for downloading and mounting S3 images
+# Base prefixes for collision-safe image verification workspaces.
+# A unique token is appended for every verifier invocation.
 IMAGE_VERIFY_TEMP_IMAGE = "/tmp/ibm_test_image"  # nosec B108
 IMAGE_VERIFY_TEMP_MOUNT = "/tmp/ibm_test_mount"  # nosec B108
 
@@ -175,6 +166,12 @@ SQUASHFS_PACKAGE = "squashfs-tools"
 
 # S3 bucket for boot images
 S3_BOOT_IMAGES_BUCKET = "s3://boot-images"
+
+# Image engine identifiers and their collision-safe artifact suffixes.
+IMAGE_BUILD_TYPE_SUFFIXES = {
+    "image-builder": "-imgbld",
+    "image-thrillhouse": "-imgth",
+}
 
 # =============================================================================
 # CONFIG VALIDATION CONSTANTS
@@ -188,7 +185,6 @@ IPV4_PATTERN = re.compile(
 
 # Required fields in test_config.yml
 REQUIRED_CONFIG_FIELDS = [
-    "clone_path",
     "report_path",
     "report_name",
 ]
@@ -196,7 +192,6 @@ REQUIRED_CONFIG_FIELDS = [
 # Required files inside a dataset directory (when dataset is set)
 REQUIRED_DATASET_FILES = [
     "input/image_build_config.yml",
-    "input/image_build_credentials.yml",
 ]
 
 # Required files in src/ (when dataset is empty — default mode)

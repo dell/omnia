@@ -183,12 +183,13 @@ passed = [r for r in results if r["status"] == "PASSED"]
 failed = [r for r in results if r["status"] == "FAILED"]
 skipped = [r for r in results if r["status"] == "SKIPPED"]
 total = len(results)
-sep = "=" * 85
+tc_id_width = max(12, max(len(r.get("tc_id", "")) for r in results))
+sep = "=" * (tc_id_width + 63)
 print(f"\n{sep}")
 print("  TEST EXECUTION SUMMARY")
 print(sep)
-hdr = f"  {'TC ID':<12} {'Test Name':<40} {'Status':<10} {'Duration':>8}"
-div = f"  {'-' * 12} {'-' * 40} {'-' * 10} {'-' * 8}"
+hdr = f"  {'TC ID':<{tc_id_width}} {'Test Name':<40} {'Status':<10} {'Duration':>8}"
+div = f"  {'-' * tc_id_width} {'-' * 40} {'-' * 10} {'-' * 8}"
 print(hdr)
 print(div)
 cyan = "\033[36m"
@@ -207,7 +208,8 @@ for r in results:
     else:
         tag = f"\033[33m{st}\033[0m"
     pad = " " * max(1, 40 - len(name))
-    print(f"  {cyan}{tc:<12}{rst} {cyan}{name}{rst}{pad} {tag:<19} {dur:>8}")
+    status_pad = " " * max(1, 10 - len(st))
+    print(f"  {cyan}{tc:<{tc_id_width}}{rst} {cyan}{name}{rst}{pad} {tag}{status_pad} {dur:>8}")
 print(div)
 total_dur = sum(r["duration"] for r in results)
 print(
@@ -419,7 +421,7 @@ case "$SCENARIO" in
         echo -e "${YELLOW}SCENARIOS (FVT)${NC}"
         echo "  setup      omnia.sh --setup-venv: env install, venv, dirs, env validation"
         echo "  init       omnia.sh --init: domain-init.sh scripts, input staging (7 domains)"
-        echo "  cli        omnia.sh argument parsing: help flags, error handling, tags, --skip-catalog"
+        echo "  cli        omnia.sh argument parsing: help flags, error handling, tags, --skip-catalog, --prepare-base"
         echo "  omnia_cli  omnia-cli diagnostics: status, check, domain cmds, logs, help, errors"
         echo "  execution  Actual execution: setup, init, run --tags (cleanup via explicit cmd)"
         echo ""

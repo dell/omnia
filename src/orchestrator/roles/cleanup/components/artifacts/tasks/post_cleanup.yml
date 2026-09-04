@@ -1,0 +1,61 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Artifacts Post-Cleanup Task
+# Verifies cleanup success and updates component state
+
+- name: Set role path
+  ansible.builtin.set_fact:
+    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
+
+- name: Load Artifacts component configuration
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/components/artifacts/vars/component_spec.yml"
+
+- name: Display Artifacts post-cleanup validation
+  ansible.builtin.debug:
+    msg: "Starting Artifacts post-cleanup validation"
+
+- name: Verify artifact paths are removed
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: artifact_paths_check
+  failed_when: false
+  loop: "{{ artifacts_config.cleanup_paths }}"
+  when: item not in artifacts_config.preserve_paths
+
+- name: Check path verification results
+  ansible.builtin.set_fact:
+    paths_removed: "{{ artifact_paths_check.results | selectattr('stat.exists', 'equalto', false) | list | length == artifact_paths_check.results | length }}"
+  when: artifact_paths_check.results is defined
+
+- name: Display post-cleanup verification results
+  ansible.builtin.debug:
+    msg: |
+      Artifacts Post-Cleanup Verification Results:
+      ============================================
+      Paths Removed: {{ paths_removed | default(true) | bool }}
+
+      Overall Status: {{ 'SUCCESS' if (paths_removed | default(true)) else 'PARTIAL' }}"
+
+- name: Update component state
+  ansible.builtin.set_fact:
+    component_verification:
+      paths_removed: "{{ paths_removed | default(true) }}"
+      overall_status: "{{ 'success' if (paths_removed | default(true)) else 'partial' }}"
+
+- name: Generate cleanup report
+  ansible.builtin.debug:
+    msg: "Artifacts cleanup verification completed with status: {{ component_verification.overall_status }}"

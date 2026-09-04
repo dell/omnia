@@ -39,7 +39,6 @@ workflow:
     - if: '$CI_PIPELINE_SOURCE == "parent_pipeline"'
     - changes:
         - catalog_rhel.json
-        - input/**/*
         - omnia.env
     - if: '$CI_PIPELINE_SOURCE == "trigger" && $PIPELINE_TYPE == "build"'
     - if: '$CI_PIPELINE_SOURCE == "api" && $PIPELINE_TYPE == "build"'
@@ -64,10 +63,16 @@ variables:
 # ---------------------------------------------------------------------------
 # Stages -- executed in order (domain-segregated, Omnia 2.3+)
 #
-# NOTE: parse-catalog and generate-input-files stages have been retired.
-# With domain segregation, input files are domain-specific and the catalog
-# is consumed directly by each domain (image_build_manager.yml reads the
-# catalog from /opt/omnia/catalog/catalog_rhel.json).
+# NOTE: generate-input-files stage has been retired, and parse-catalog was
+# reintroduced in minimal form. With domain segregation, input files are
+# domain-specific and the catalog is consumed directly by each domain
+# (image_build_manager.yml reads the catalog from
+# /opt/omnia/catalog/catalog_rhel.json). parse-catalog no longer regenerates
+# root JSONs or catalog-metadata artifacts -- it exists solely to enforce
+# the image_group_id 1:1-with-job uniqueness check as early as possible,
+# before create-local-repository/build-image run (see
+# orchestrator.catalog.use_cases.parse_catalog for the full rationale).
+# create-local-repository now requires parse-catalog to be COMPLETED first.
 #
 # The /catalog/roles API has been retired. The build-images stage now
 # triggers the build-image API twice (once per architecture: x86_64, aarch64).
@@ -76,7 +81,7 @@ variables:
 # ---------------------------------------------------------------------------
 stages:
   - initialization
-  - copy-input-files
+  - parse-catalog
   - configure-local-repository
   - build-images
   - summary
@@ -236,23 +241,24 @@ default:
       # latest version of each config file from the branch tip, overwriting
       # the stale checkout so that the Upload API receives the current files.
       # ---------------------------------------------------------------------------
+      # Refreshes domain-segregated input files (Omnia 2.3+):
+      #   input/repo_manager/<file>        — repo_manager domain config
+      #   input/image_build_manager/<file>  — image_build_manager domain config
       refresh_input_files() {
         if [ -z "${GITLAB_API_TOKEN:-}" ]; then
           echo "  [REFRESH] GITLAB_API_TOKEN not set -- skipping file refresh" >&2
           return 0
         fi
 
-        echo "  [REFRESH] Fetching latest config files from branch ${CI_COMMIT_REF_NAME}..."
+        echo "  [REFRESH] Fetching latest build-domain config files from branch ${CI_COMMIT_REF_NAME}..."
 
         _REFRESH_COUNT=0
         _REFRESH_FAILED=0
-        for _RF_FNAME in local_repo_config.yml network_spec.yml provision_config.yml \
-               pxe_mapping_file.csv storage_config.yml telemetry_config.yml \
-               telemetry_storage_config.yml security_config.yml high_availability_config.yml \
-               omnia_config.yml build_stream_config.yml; do
 
-          # URL-encode the file path (input/<filename>)
-          _RF_ENCODED_PATH=$(printf '%s' "input/${_RF_FNAME}" | sed 's|/|%2F|g')
+        # repo_manager domain files
+        for _RF_FNAME in repo_manager_config.yml repo_manager_endpoint_config.yml; do
+          _RF_REPO_PATH="input/repo_manager/${_RF_FNAME}"
+          _RF_ENCODED_PATH=$(printf '%s' "${_RF_REPO_PATH}" | sed 's|/|%2F|g')
 
           _RF_HTTP_CODE=$(curl -s -o "/tmp/_rf_${_RF_FNAME}" -w "%{http_code}" \
             --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
@@ -261,18 +267,39 @@ default:
             --cacert "${CI_SERVER_TLS_CA_FILE}" 2>/dev/null)
 
           if [ "$_RF_HTTP_CODE" = "200" ]; then
-            mkdir -p "${CI_PROJECT_DIR}/input"
-            cp "/tmp/_rf_${_RF_FNAME}" "${CI_PROJECT_DIR}/input/${_RF_FNAME}"
+            mkdir -p "${CI_PROJECT_DIR}/input/repo_manager"
+            cp "/tmp/_rf_${_RF_FNAME}" "${CI_PROJECT_DIR}/input/repo_manager/${_RF_FNAME}"
             _REFRESH_COUNT=$((_REFRESH_COUNT + 1))
           else
-            # File may not exist in repo (optional config), not an error
             _REFRESH_FAILED=$((_REFRESH_FAILED + 1))
           fi
           rm -f "/tmp/_rf_${_RF_FNAME}"
         done
 
-        echo "  [REFRESH] Updated ${_REFRESH_COUNT} files from latest commit (${_REFRESH_FAILED} not found/skipped)"
+        # image_build_manager domain files
+        for _RF_FNAME in image_build_config.yml package_groups.yml; do
+          _RF_REPO_PATH="input/image_build_manager/${_RF_FNAME}"
+          _RF_ENCODED_PATH=$(printf '%s' "${_RF_REPO_PATH}" | sed 's|/|%2F|g')
+
+          _RF_HTTP_CODE=$(curl -s -o "/tmp/_rf_${_RF_FNAME}" -w "%{http_code}" \
+            --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+            -H "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
+            "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/files/${_RF_ENCODED_PATH}/raw?ref=${CI_COMMIT_REF_NAME}" \
+            --cacert "${CI_SERVER_TLS_CA_FILE}" 2>/dev/null)
+
+          if [ "$_RF_HTTP_CODE" = "200" ]; then
+            mkdir -p "${CI_PROJECT_DIR}/input/image_build_manager"
+            cp "/tmp/_rf_${_RF_FNAME}" "${CI_PROJECT_DIR}/input/image_build_manager/${_RF_FNAME}"
+            _REFRESH_COUNT=$((_REFRESH_COUNT + 1))
+          else
+            _REFRESH_FAILED=$((_REFRESH_FAILED + 1))
+          fi
+          rm -f "/tmp/_rf_${_RF_FNAME}"
+        done
+
+        echo "  [REFRESH] Updated ${_REFRESH_COUNT} build-domain files from latest commit (${_REFRESH_FAILED} not found/skipped)"
       }
+
 
 # ============================= STAGE 1 ====================================
 # Initialization -- Health Check + Authentication + Job Creation
@@ -532,20 +559,28 @@ initialization:
       echo ""
       echo "  [OK] Job creation complete"
       echo ""
-      echo "  Step 4/4: Implicit Upload -- sync ALL whitelisted config files"
+      echo "  Step 4/4: Implicit Upload -- sync build-domain config files"
       echo "  ------------------------------------------------------------"
 
       UPLOAD_ARGS=""
-      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml \
-             pxe_mapping_file.csv storage_config.yml telemetry_config.yml \
-             telemetry_storage_config.yml security_config.yml high_availability_config.yml \
-             omnia_config.yml build_stream_config.yml; do
-        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
+      # repo_manager domain files
+      for FNAME in repo_manager_config.yml repo_manager_endpoint_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/repo_manager/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
-          echo "    [+] ${FNAME}"
+          echo "    [+] repo_manager/${FNAME}"
         else
-          echo "    [-] ${FNAME} (not found, skipping)"
+          echo "    [-] repo_manager/${FNAME} (not found, skipping)"
+        fi
+      done
+      # image_build_manager domain files
+      for FNAME in image_build_config.yml package_groups.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/image_build_manager/${FNAME}"
+        if [ -f "${FPATH}" ]; then
+          UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
+          echo "    [+] image_build_manager/${FNAME}"
+        else
+          echo "    [-] image_build_manager/${FNAME} (not found, skipping)"
         fi
       done
 
@@ -601,127 +636,117 @@ initialization:
         - job.env
 
 # ============================= STAGE 2 ====================================
-# Copy Input Files — Domain-segregated input file placement (Omnia 2.3+)
+# Parse Catalog -- Trigger the parse-catalog stage via BSM API
 #
-# Sources omnia.env for OMNIA_DATA_PATH, OMNIA_PROJECT_NAME, CATALOG_FILE_PATH.
-# Copies domain-specific input files from the GitLab repository to their
-# runtime destinations on the OIM host:
-#
-#   input/repo_manager/*          -> ${OMNIA_DATA_PATH}/repo_manager/input/${OMNIA_PROJECT_NAME}/
-#   input/image_build_manager/*   -> ${OMNIA_DATA_PATH}/image_build_manager/input/${OMNIA_PROJECT_NAME}/
-#   catalog_rhel.json             -> ${CATALOG_FILE_PATH}
-#
-# NOTE: parse-catalog and generate-input-files stages have been retired.
+# Reintroduced (Omnia 2.3+, minimal form): enforces the image_group_id
+# 1:1-with-job uniqueness check before create-local-repository/build-image
+# run. Without this check, two jobs uploading a catalog with the same
+# image_group_id would only collide much later, deep inside build-image
+# completion. Synchronous -- the check completes within the request
+# (HTTP 200), so no polling is required. See
+# orchestrator.catalog.use_cases.parse_catalog for the full rationale.
 # ==========================================================================
-copy-input-files:
-  stage: copy-input-files
+parse-catalog:
+  stage: parse-catalog
   needs: [initialization]
   script:
     - |
       echo "============================================================"
-      echo "  [${JOB_ID}] STAGE 2: Copy Input Files (Domain-Segregated)"
+      echo "  [${JOB_ID}] STAGE 2: Parse Catalog (image_group_id uniqueness check)"
       echo "============================================================"
       echo ""
 
-      # --- Source omnia.env for path variables ---
-      OMNIA_ENV_PATH="${CI_PROJECT_DIR}/omnia.env"
-      if [ -f "${OMNIA_ENV_PATH}" ]; then
-        echo "  Sourcing omnia.env from GitLab repository..."
-        set -a
-        . "${OMNIA_ENV_PATH}"
-        set +a
-        echo "  OMNIA_DATA_PATH=${OMNIA_DATA_PATH}"
-        echo "  OMNIA_PROJECT_NAME=${OMNIA_PROJECT_NAME}"
-        echo "  CATALOG_FILE_PATH=${CATALOG_FILE_PATH}"
-        echo ""
-      else
-        echo "  WARNING: omnia.env not found in GitLab repository, using defaults"
-        OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
-        OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
-        CATALOG_FILE_PATH="${OMNIA_DATA_PATH}/catalog/catalog_rhel.json"
-        echo ""
-      fi
+      refresh_token
 
-      # --- Step 1: Verify catalog + omnia.env were uploaded ---
-      # catalog_rhel.json and omnia.env are uploaded to the OIM host
-      # via BSM API during initialization (Step 4/4).
-      echo "  Step 1/3: Verify catalog and omnia.env..."
-      echo "  ------------------------------------------------------------"
-      CATALOG_SRC="${CI_PROJECT_DIR}/${CATALOG_FILE}"
-      if [ -f "${CATALOG_SRC}" ]; then
-        echo "  [OK] ${CATALOG_FILE} present in repo (uploaded to OIM via BSM API)"
-      else
-        echo "  ERROR: ${CATALOG_FILE} not found in GitLab repository"
+      echo "  API Request:"
+      echo "  - Method: POST"
+      echo "  - Endpoint: ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/parse-catalog"
+      echo "  - Certificate: ${BSM_CERT_FILE}"
+      echo ""
+
+      HTTP_CODE=$(api_call_with_retry parse_catalog_response.json \
+        -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/parse-catalog" \
+        --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+      echo "  API Response:"
+      echo "  - HTTP Status Code: ${HTTP_CODE}"
+      echo ""
+
+      if [ "$HTTP_CODE" = "409" ]; then
+        echo "  ERROR: image_group_id in ${CATALOG_FILE} is already owned by another job"
+        echo "  Response Body:"
+        jq '.' parse_catalog_response.json 2>/dev/null || cat parse_catalog_response.json
+        echo ""
+        echo "  ACTION REQUIRED: Change the Catalog.Identifier value in ${CATALOG_FILE}"
+        echo "  to a unique image_group_id and re-trigger the pipeline."
         exit 1
       fi
-      OMNIA_ENV_SRC="${CI_PROJECT_DIR}/omnia.env"
-      if [ -f "${OMNIA_ENV_SRC}" ]; then
-        echo "  [OK] omnia.env present in repo (uploaded to OIM via BSM API)"
-      else
-        echo "  WARNING: omnia.env not found in GitLab repository"
-      fi
-      echo ""
 
-      # --- Step 2: Copy repo_manager input files ---
-      echo "  Step 2/3: Copy repo_manager input files..."
-      echo "  ------------------------------------------------------------"
-      RM_SRC="${CI_PROJECT_DIR}/input/repo_manager"
-      RM_DEST="${OMNIA_DATA_PATH}/repo_manager/input/${OMNIA_PROJECT_NAME}"
-      if [ -d "${RM_SRC}" ]; then
-        mkdir -p "${RM_DEST}"
-        cp -rv "${RM_SRC}/"* "${RM_DEST}/" 2>/dev/null || true
-        echo "  [OK] repo_manager input files copied to ${RM_DEST}"
-      else
-        echo "  [SKIP] No repo_manager input directory in GitLab repository"
+      if [ "$HTTP_CODE" = "412" ]; then
+        echo "  ERROR: Precondition failed (catalog not uploaded yet, or job in a terminal state)"
+        echo "  Response Body:"
+        jq '.' parse_catalog_response.json 2>/dev/null || cat parse_catalog_response.json
+        exit 1
       fi
-      echo ""
 
-      # --- Step 3: Copy image_build_manager input files ---
-      echo "  Step 3/3: Copy image_build_manager input files..."
-      echo "  ------------------------------------------------------------"
-      IBM_SRC="${CI_PROJECT_DIR}/input/image_build_manager"
-      IBM_DEST="${OMNIA_DATA_PATH}/image_build_manager/input/${OMNIA_PROJECT_NAME}"
-      if [ -d "${IBM_SRC}" ]; then
-        mkdir -p "${IBM_DEST}"
-        cp -rv "${IBM_SRC}/"* "${IBM_DEST}/" 2>/dev/null || true
-        echo "  [OK] image_build_manager input files copied to ${IBM_DEST}"
-      else
-        echo "  [SKIP] No image_build_manager input directory in GitLab repository"
+      if [ "$HTTP_CODE" != "200" ]; then
+        echo "  ERROR: Parse-catalog request failed"
+        echo "  Response Body:"
+        jq '.' parse_catalog_response.json 2>/dev/null || cat parse_catalog_response.json
+        exit 1
       fi
-      echo ""
 
-      echo "  ============================================================"
-      echo "  INPUT FILE COPY COMPLETE"
-      echo "  ============================================================"
+      echo "  Response Body:"
+      jq '.' parse_catalog_response.json 2>/dev/null || cat parse_catalog_response.json
+      IMAGE_GROUP_ID=$(jq -r '.image_group_id // ""' parse_catalog_response.json 2>/dev/null)
+      echo ""
+      echo "  [OK] Catalog parsed successfully -- image_group_id '${IMAGE_GROUP_ID}' is unique"
+
+      # Save for downstream stages/summary (convenience only, not required)
+      echo "IMAGE_GROUP_ID=${IMAGE_GROUP_ID}" > parse_catalog.env
+  artifacts:
+    reports:
+      dotenv: parse_catalog.env
+    paths:
+      - parse_catalog_response.json
 
 # ============================= STAGE 3 ====================================
-# Configure Local Repository -- Trigger repo_manager playbook via BSM API
-# Polls until completion
+# Configure Local Repository — Trigger repo_manager playbook via BSM API
+# Common Init: refreshes input files from GitLab + uploads via BSM API
+# (handles both new runs and retries)
 # ==========================================================================
 configure-local-repository:
   stage: configure-local-repository
-  needs: [initialization, copy-input-files]
+  needs: [initialization, parse-catalog]
   script:
     - |
       echo "============================================================"
-      echo "  [${JOB_ID}] STAGE 3: Configure Local Repository"
+      echo "  [${JOB_ID}] STAGE 2: Configure Local Repository"
       echo "============================================================"
       echo ""
 
-      # Common Init -- re-authenticate and re-upload config files (retry support)
-      echo "  Common Init -- Upload configuration files..."
+      # Common Init -- re-authenticate, refresh and upload config files (retry support)
+      echo "  Common Init -- Refresh and upload configuration files..."
       echo "  ------------------------------------------------------------"
       refresh_token
       refresh_input_files
 
       UPLOAD_ARGS=""
-      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
-             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
-             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
-        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
+      # repo_manager domain files
+      for FNAME in repo_manager_config.yml repo_manager_endpoint_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/repo_manager/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
-          echo "    [+] ${FNAME}"
+          echo "    [+] repo_manager/${FNAME}"
+        fi
+      done
+      # image_build_manager domain files
+      for FNAME in image_build_config.yml package_groups.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/image_build_manager/${FNAME}"
+        if [ -f "${FPATH}" ]; then
+          UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
+          echo "    [+] image_build_manager/${FNAME}"
         fi
       done
 
@@ -856,24 +881,32 @@ build-images:
   script:
     - |
       echo "============================================================"
-      echo "  [${JOB_ID}] STAGE 4: Build Images (Domain-Segregated)"
+      echo "  [${JOB_ID}] STAGE 3: Build Images"
       echo "============================================================"
       echo ""
 
-      # Common Init -- re-authenticate and re-upload config files (retry support)
-      echo "  Common Init -- Upload configuration files..."
+      # Common Init -- re-authenticate, refresh and upload config files (retry support)
+      echo "  Common Init -- Refresh and upload configuration files..."
       echo "  ------------------------------------------------------------"
       refresh_token
       refresh_input_files
 
+      echo "  Uploading configuration files via BSM API..."
       UPLOAD_ARGS=""
-      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
-             storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
-             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
-        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
+      # repo_manager domain files
+      for FNAME in repo_manager_config.yml repo_manager_endpoint_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/repo_manager/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
-          echo "    [+] ${FNAME}"
+          echo "    [+] repo_manager/${FNAME}"
+        fi
+      done
+      # image_build_manager domain files
+      for FNAME in image_build_config.yml package_groups.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/image_build_manager/${FNAME}"
+        if [ -f "${FPATH}" ]; then
+          UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
+          echo "    [+] image_build_manager/${FNAME}"
         fi
       done
 
@@ -1056,7 +1089,7 @@ summary:
       JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' final_status.json)
 
       # Build pipeline stages only (exclude deploy/restart/validate/pxe_boot/upload)
-      BUILD_STAGES_FILTER='.stages[]? | select(.stage_name | test("^(copy-input-files|create-local-repository|build-image(-.*)?$"))'
+      BUILD_STAGES_FILTER='.stages[]? | select(.stage_name | test("^(parse-catalog|copy-input-files|create-local-repository|build-image(-.*)?$"))'
       TOTAL_STAGES=$(jq -r "[${BUILD_STAGES_FILTER}] | length" \
         final_status.json 2>/dev/null || echo "0")
       COMPLETED=$(jq -r "[${BUILD_STAGES_FILTER} | select(.stage_state == \"COMPLETED\" or .stage_state == \"SUCCEEDED\")] | length" \
@@ -1098,13 +1131,14 @@ summary:
         # Define build stage execution order
         def stage_order:
           {
-            "copy-input-files": 1,
-            "create-local-repository": 2,
-            "build-image": 3
+            "parse-catalog": 1,
+            "copy-input-files": 2,
+            "create-local-repository": 3,
+            "build-image": 4
           };
 
         # Filter to build stages only, then sort by execution order
-        [.stages[]? | select(.stage_name | test("^(copy-input-files|create-local-repository|build-image(-.*)?$"))] |
+        [.stages[]? | select(.stage_name | test("^(parse-catalog|copy-input-files|create-local-repository|build-image(-.*)?$"))] |
         sort_by([stage_order[.stage_name] // 999, .stage_name])[] |
         "  |    \(.stage_name): \(.stage_state)" +
         (if .error_code then "  [\(.error_code)]" else "" end)
@@ -1113,7 +1147,7 @@ summary:
       echo "  +-----------------------------------------------------------+"
 
       # Print errors if any (build stages only)
-      BUILD_FAILED_FILTER='.stages[]? | select(.stage_name | test("^(copy-input-files|create-local-repository|build-image(-.*)?$")) | \
+      BUILD_FAILED_FILTER='.stages[]? | select(.stage_name | test("^(parse-catalog|copy-input-files|create-local-repository|build-image(-.*)?$")) | \
                            select(.stage_state == "FAILED")'
       ERRORS=$(jq -r "${BUILD_FAILED_FILTER} | \"  |    X \(.stage_name): \" + (.error_summary // \"no details\")" \
         final_status.json 2>/dev/null || true)

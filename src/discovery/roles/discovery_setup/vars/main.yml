@@ -28,16 +28,61 @@ upgrade_in_progress_msg: >-
 
 # --- Tag validation ---
 supported_tags:
-  - discovery
+  - precheck
   - validate
+  - credentials
+  - prepare
+  - execute
+  - discovery
   - cleanup
+  - upgrade
+  - rollback
 
 skip_credential_tags:
+  - precheck
   - cleanup
   - validate
 
 invalid_tag_combinations:
+  - [execute, cleanup]
   - [discovery, cleanup]
+  - [prepare, cleanup]
+  - [prepare, upgrade]
+  - [execute, upgrade]
+  - [discovery, upgrade]
+  - [cleanup, upgrade]
+  - [prepare, rollback]
+  - [execute, rollback]
+  - [discovery, rollback]
+  - [cleanup, rollback]
+  - [upgrade, rollback]
+  - [precheck, prepare]
+  - [precheck, execute]
+  - [precheck, discovery]
+  - [precheck, cleanup]
+  - [precheck, upgrade]
+  - [precheck, rollback]
+  - [credentials, prepare]
+  - [credentials, execute]
+  - [credentials, discovery]
+  - [credentials, cleanup]
+  - [credentials, upgrade]
+  - [credentials, rollback]
+  - [credentials, precheck]
+
+# --- Tag validation messages ---
+tag_validation_fail_msg: |
+  Invalid tag usage detected.
+  Supported tags: {{ supported_tags | join(', ') }}
+  Invalid tags provided: {{ invalid_tags | join(', ') }}
+  Please use only supported tags.
+tag_combination_fail_msg: |
+  Invalid tag combination detected: {{ ansible_run_tags | join(', ') }}
+  The following tag combinations are not allowed:
+  {% for combo in invalid_tag_combinations %}
+  - {{ combo | join(' + ') }}
+  {% endfor %}
+  Please run with only ONE tag at a time (or no tags for default flow).
 
 # Discovery setup defaults
 default_project_name: "project_default"

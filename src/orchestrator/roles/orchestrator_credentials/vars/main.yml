@@ -16,38 +16,11 @@
 # Credential file configurations — orchestrator-scoped only
 credential_files:
   - credential_type: "Omnia"
-    template: "{{ role_path }}/templates/omnia_credential.j2"
+    template: "{{ role_path }}/templates/orchestrator_credentials.j2"
     file_path: "{{ input_project_dir }}/omnia_config_credentials.yml"
     file_mode: 600
     vault_path: "{{ input_project_dir }}/.omnia_config_credentials_key"
     condition: true
-
-# Usage: fetch_mandatory_credentials.yml
-mandatory_warning_msg: "WARNING: The following are mandatory credentials and cannot be left empty. Please provide valid inputs."
-mandatory_input: "is a [MANDATORY] credential and cannot be left empty."
-optional_warning_msg: |
-  WARNING: The following are optional credentials. If left empty, these credentials will be skipped.
-  Please provide valid inputs or press Enter to skip.
-optional_input: "is an [OPTIONAL] credential and can be left empty to skip."
-conditional_mandatory_input: "is a [CONDITIONAL MANDATORY] credential and cannot be left empty when the feature is enabled."
-conditional_mandatory_warning_msg: |
-  WARNING: Conditional mandatory credentials will be prompted based on your configuration.
-  These credentials are required when specific features are enabled and cannot be left empty.
-
-# Usage: prompt_credentials.yml
-mandatory_password_fail_msg: "Failed. Password is required for mandatory credential or any username input. Please provide valid password."
-password_match_fail_msg: "Failed. Passwords do not match. Please try again."
-password_fail_msg: "Failed. Please provide valid password."
-mandatory_credentials_msg: "Failed. Please provide valid username for mandatory credential."
-username_fail_msg: "Failed. Please provide valid username."
-credential_encrypt_fail_msg: "Failed to encrypt credential file."
-
-docker_hub_warning: |
-  Docker Hub Usage Warning:
-  Unauthenticated access may result in rate limiting or throttling.
-  Login for higher pull limits and reliable access.
-  Proceed to enter your Docker credentials if you want to avoid pull rate limits.
-  Press Enter.
 
 # Credential definitions — orchestrator-scoped only
 # Other domains (discovery, image_build_manager, build_stream) own their own credentials.
@@ -66,8 +39,11 @@ omnia_credentials:
     mandatory:
       - { username: openldap_db_username, password: openldap_db_password }
 
-# Pre-requisite vars
-ansible_vault_search_key: "$ANSIBLE_VAULT;"
-conf_file_mode: "0600"
-password_fail_msg_validation: "Failed to validate credentials file"
-include_credentials_msg: "Failed to include {{ credential_file_path }}"
+# Error messages
+mandatory_warning_msg: "WARNING: The following are mandatory credentials and cannot be left empty."
+password_fail_msg: "Failed. Password is required for mandatory credential or any username input."
+password_match_fail_msg: "Failed. Passwords do not match. Please try again."
+credential_encrypt_fail_msg: "Failed to encrypt credential file."
+
+# Credential collection messages
+orchestrator_credential_collection_pass_msg: "Orchestrator credential collection completed."

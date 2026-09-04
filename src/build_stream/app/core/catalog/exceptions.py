@@ -38,6 +38,14 @@ class InvalidCatalogFormatError(CatalogParseError):
     """Catalog JSON has invalid structure (wrong number of top-level keys, etc.)."""
 
 
+class CatalogNotUploadedError(CatalogParseError):
+    """No catalog has been uploaded for this job yet, or it isn't valid JSON.
+
+    Raised by parse-catalog when it can't find a catalog artifact from the
+    prior "upload" stage to check. Maps to HTTP 412 Precondition Failed.
+    """
+
+
 class CatalogSchemaValidationError(CatalogParseError):
     """Catalog JSON fails schema validation."""
 
