@@ -156,6 +156,42 @@ def check_repo_configured(host, repo_name: str, arch: str = "x86_64", os_version
     }
 
 
+def get_configured_repos(host, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+    """Get list of all configured repositories from repo_manager_config.yml."""
+    input_path = _get_input_path()
+    config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
+    
+    # Check if config file exists
+    result = _cmd_file_exists(host, config_path)
+    if result.rc != 0 or "exists" not in result.stdout:
+        return {
+            "success": False,
+            "details": f"Config file not found at {config_path}",
+            "error": f"{INPUT_FILES['repo_manager_config']} not found",
+            "repos": []
+        }
+    
+    # Read the config file and get all configured repos
+    cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); repos = config.get('repositories', {}).get('" + os_version + "', {}).get('" + arch + "', {}).keys(); print(','.join(repos) if repos else '')\""
+    result = run_on_host(host, cmd)
+    
+    if result.rc == 0 and result.stdout.strip():
+        repo_list = result.stdout.strip().split(',')
+        return {
+            "success": True,
+            "details": f"Found {len(repo_list)} configured repos: {', '.join(repo_list)}",
+            "error": "",
+            "repos": repo_list
+        }
+    
+    return {
+        "success": True,
+        "details": "No repositories configured",
+        "error": "",
+        "repos": []
+    }
+
+
 def check_pulp_container_running(host) -> Dict[str, Any]:
     """Verify Pulp container is running."""
     cmd = CMDS["container_running"].format(name=PULP_CONTAINER_NAME)
@@ -175,7 +211,8 @@ def check_pulp_container_running(host) -> Dict[str, Any]:
 
 def check_pulp_status_healthy(host) -> Dict[str, Any]:
     """Verify Pulp status command succeeds and reports healthy."""
-    result = run_on_host(host, CMDS["pulp_status"])
+    cmd = "PULP_CA_BUNDLE=/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt " + CMDS["pulp_status"]
+    result = run_on_host(host, cmd)
     if result.rc == 0 and result.stdout.strip():
         return {
             "success": True,
@@ -406,7 +443,7 @@ def check_pulp_directories_removed(host) -> Dict[str, Any]:
 
 def check_pulp_cli_repository_list(host) -> Dict[str, Any]:
     """Verify Pulp CLI can list RPM repositories."""
-    cmd = "pulp rpm repository list"
+    cmd = "PULP_CA_BUNDLE=/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt pulp rpm repository list"
     result = run_on_host(host, cmd)
     if result.rc == 0:
         repo_count = result.stdout.count("Name:")
@@ -424,7 +461,7 @@ def check_pulp_cli_repository_list(host) -> Dict[str, Any]:
 
 def check_pulp_api_detailed_status(host) -> Dict[str, Any]:
     """Verify Pulp API detailed health (DB, workers, content apps, storage)."""
-    cmd = "pulp status"
+    cmd = "PULP_CA_BUNDLE=/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt pulp status"
     result = run_on_host(host, cmd)
     if result.rc != 0:
         return {
@@ -1097,7 +1134,7 @@ def check_pulp_remote_policy(host, repo_name: str, arch: str = "x86_64", os_vers
     full_remote_name = f"{arch}_rhel_{os_version}_{repo_name}"
     
     # Use Pulp CLI to get the actual remote policy
-    cmd = f"pulp rpm remote show --name {full_remote_name}"
+    cmd = f"PULP_CA_BUNDLE=/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt pulp rpm remote show --name {full_remote_name}"
     result = run_on_host(host, cmd)
     
     if result.rc == 0:
@@ -1131,7 +1168,7 @@ def check_pulp_repository_exists(host, repo_name: str, arch: str = "x86_64", os_
     full_repo_name = f"{arch}_rhel_{os_version}_{repo_name}"
     
     # Use Pulp CLI to check if repository exists
-    cmd = f"pulp rpm repository show --name {full_repo_name}"
+    cmd = f"PULP_CA_BUNDLE=/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt pulp rpm repository show --name {full_repo_name}"
     result = run_on_host(host, cmd)
     
     if result.rc == 0:
