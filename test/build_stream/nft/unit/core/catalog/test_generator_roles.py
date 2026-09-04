@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import os
 import sys
 import tempfile
@@ -21,7 +22,9 @@ from jsonschema import ValidationError
 HERE = os.path.dirname(__file__)
 # Navigate from test/build_stream/nft/unit/core/catalog to src/build_stream
 # test/build_stream/nft/unit/core/catalog -> ../../../../.. -> src/build_stream
-PROJECT_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", "..", "..", "..", "src", "build_stream"))
+PROJECT_ROOT = os.path.abspath(
+    os.path.join(HERE, "..", "..", "..", "..", "..", "..", "src", "build_stream")
+)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -35,7 +38,14 @@ from core.catalog.generator import (
 class TestGetFunctionalLayerRolesFromFile(unittest.TestCase):
     def test_returns_all_role_names_from_fixture(self):
         fixture_path = os.path.abspath(
-            os.path.join(PROJECT_ROOT, "app", "core", "catalog", "test_fixtures", "functional_layer.json")
+            os.path.join(
+                PROJECT_ROOT,
+                "app",
+                "core",
+                "catalog",
+                "test_fixtures",
+                "functional_layer.json",
+            )
         )
 
         roles = get_functional_layer_roles_from_file(fixture_path)
@@ -79,9 +89,7 @@ class TestGetFunctionalLayerRolesFromFile(unittest.TestCase):
                 }
             }
             json_path = os.path.join(tmp_dir, "functional_layer_invalid.json")
-            with open(json_path, "w") as f:
-                import json
-
+            with open(json_path, "w", encoding="utf-8") as f:
                 json.dump(invalid_json, f)
 
             with self.assertRaises(ValidationError):

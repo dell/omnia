@@ -20,11 +20,16 @@ import unittest
 HERE = os.path.dirname(__file__)
 # Navigate from test/build_stream/nft/unit/core/catalog to src/build_stream
 # test/build_stream/nft/unit/core/catalog -> ../../../../.. -> src/build_stream
-PROJECT_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", "..", "..", "..", "src", "build_stream"))
+PROJECT_ROOT = os.path.abspath(
+    os.path.join(HERE, "..", "..", "..", "..", "..", "..", "src", "build_stream")
+)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from core.catalog.generator import generate_root_json_from_catalog, _DEFAULT_SCHEMA_PATH
+from core.catalog.generator import (
+    generate_root_json_from_catalog,
+    _DEFAULT_SCHEMA_PATH,
+)
 
 # Maintained catalog lives in the examples directory (sibling of build_stream).
 EXAMPLES_CATALOG = os.path.join(
@@ -34,9 +39,14 @@ EXAMPLES_CATALOG = os.path.join(
 
 class TestGeneratorDefaults(unittest.TestCase):
     def test_default_schema_path_points_to_resources(self):
-        # The default schema path should point to the actual resources directory
-        expected_schema = os.path.join(PROJECT_ROOT, "app", "core", "catalog", "resources", "CatalogSchema.json")
-        self.assertEqual(os.path.abspath(_DEFAULT_SCHEMA_PATH), os.path.abspath(expected_schema))
+        # The default schema path should point to the actual resources
+        # directory
+        expected_schema = os.path.join(
+            PROJECT_ROOT, "app", "core", "catalog", "resources", "CatalogSchema.json"
+        )
+        self.assertEqual(
+            os.path.abspath(_DEFAULT_SCHEMA_PATH), os.path.abspath(expected_schema)
+        )
 
     def test_generate_root_json_with_defaults_writes_output(self):
         catalog_path = EXAMPLES_CATALOG
@@ -52,14 +62,15 @@ class TestGeneratorDefaults(unittest.TestCase):
                 output_root=tmpdir,
             )
 
-            # We expect at least one arch/os/version directory with functional_layer.json
+            # We expect at least one arch/os/version directory with
+            # functional_layer.json
             found = False
-            for root, dirs, files in os.walk(tmpdir):
+            for _, _, files in os.walk(tmpdir):
                 if "functional_layer.json" in files:
                     found = True
                     break
 
-            self.assertTrue(found, "functional_layer.json not generated under any arch/os/version")
+            self.assertTrue(found, "functional_layer.json not generated")
 
 
 if __name__ == "__main__":

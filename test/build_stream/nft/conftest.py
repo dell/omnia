@@ -33,3 +33,12 @@ if str(_BUILD_STREAM_APP) not in sys.path:
 
 # Set DATABASE_URL early for test environment
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+
+# JSONB shim for SQLite compatibility
+# SQLite doesn't support JSONB, so we map it to JSON for tests
+import sqlalchemy.dialects.sqlite.base as sqlite_base
+from sqlalchemy import JSON
+
+# Add JSONB as an alias for JSON in SQLite dialect
+if not hasattr(sqlite_base, "JSONB"):
+    sqlite_base.JSONB = JSON

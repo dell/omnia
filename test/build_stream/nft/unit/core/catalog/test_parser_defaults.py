@@ -19,7 +19,9 @@ import pytest
 HERE = os.path.dirname(__file__)
 # Navigate from test/build_stream/nft/unit/core/catalog to src/build_stream
 # test/build_stream/nft/unit/core/catalog -> ../../../../.. -> src/build_stream
-PROJECT_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", "..", "..", "..", "src", "build_stream"))
+PROJECT_ROOT = os.path.abspath(
+    os.path.join(HERE, "..", "..", "..", "..", "..", "..", "src", "build_stream")
+)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -28,16 +30,24 @@ from core.catalog.parser import ParseCatalog, _DEFAULT_SCHEMA_PATH
 
 class TestParseCatalogDefaults:
     def test_default_schema_path_points_to_resources(self):
-        # The default schema path should point to the actual resources directory in core/catalog
-        expected_schema = os.path.join(PROJECT_ROOT, "app", "core", "catalog", "resources", "CatalogSchema.json")
-        assert os.path.abspath(_DEFAULT_SCHEMA_PATH) == os.path.abspath(expected_schema)
+        # The default schema path should point to the actual resources
+        # directory in core/catalog
+        expected_schema = os.path.join(
+            PROJECT_ROOT, "app", "core", "catalog", "resources", "CatalogSchema.json"
+        )
+        assert os.path.abspath(_DEFAULT_SCHEMA_PATH) == os.path.abspath(
+            expected_schema
+        )
 
     def test_parse_catalog_with_explicit_paths_uses_fixture(self):
-        # Use the maintained catalog from the examples directory (sibling of build_stream)
+        # Use the maintained catalog from the examples directory
+        # (sibling of build_stream)
         catalog_path = os.path.join(
             os.path.dirname(PROJECT_ROOT), "examples", "catalog", "catalog_rhel.json"
         )
-        schema_path = os.path.join(PROJECT_ROOT, "core", "catalog", "resources", "CatalogSchema.json")
+        schema_path = os.path.join(
+            PROJECT_ROOT, "core", "catalog", "resources", "CatalogSchema.json"
+        )
 
         # Skip test if the examples catalog or schema isn't available
         if not os.path.exists(catalog_path) or not os.path.exists(schema_path):

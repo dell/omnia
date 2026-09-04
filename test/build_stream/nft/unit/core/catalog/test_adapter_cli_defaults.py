@@ -18,16 +18,20 @@ import os
 import sys
 import tempfile
 import unittest
-import pytest
 
 HERE = os.path.dirname(__file__)
 # Navigate from test/build_stream/nft/unit/core/catalog to src/build_stream
 # test/build_stream/nft/unit/core/catalog -> ../../../../.. -> src/build_stream
-PROJECT_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", "..", "..", "..", "src", "build_stream"))
+PROJECT_ROOT = os.path.abspath(
+    os.path.join(HERE, "..", "..", "..", "..", "..", "..", "src", "build_stream")
+)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from core.catalog.adapter import generate_omnia_json_from_catalog, _DEFAULT_SCHEMA_PATH
+from core.catalog.adapter import (
+    generate_omnia_json_from_catalog,
+    _DEFAULT_SCHEMA_PATH,
+)
 
 # Maintained catalog lives in the examples directory (sibling of build_stream).
 EXAMPLES_CATALOG = os.path.join(
@@ -37,9 +41,14 @@ EXAMPLES_CATALOG = os.path.join(
 
 class TestAdapterDefaults(unittest.TestCase):
     def test_default_schema_path_points_to_resources(self):
-        # The default schema path should point to the actual resources directory in core/catalog
-        expected_schema = os.path.join(PROJECT_ROOT, "app", "core", "catalog", "resources", "CatalogSchema.json")
-        self.assertEqual(os.path.abspath(_DEFAULT_SCHEMA_PATH), os.path.abspath(expected_schema))
+        # The default schema path should point to the actual resources
+        # directory in core/catalog
+        expected_schema = os.path.join(
+            PROJECT_ROOT, "app", "core", "catalog", "resources", "CatalogSchema.json"
+        )
+        self.assertEqual(
+            os.path.abspath(_DEFAULT_SCHEMA_PATH), os.path.abspath(expected_schema)
+        )
 
     @unittest.skip(
         "Legacy adapter path (generate_all_configs) is unused in production; "
@@ -62,12 +71,12 @@ class TestAdapterDefaults(unittest.TestCase):
 
             # We expect some JSON files under arch/os/version
             found_any_json = False
-            for root, dirs, files in os.walk(tmpdir):
+            for _, _, files in os.walk(tmpdir):
                 if any(f.endswith('.json') for f in files):
                     found_any_json = True
                     break
 
-            self.assertTrue(found_any_json, "No JSON configs generated under any arch/os/version")
+            self.assertTrue(found_any_json, "No JSON configs generated")
 
 
 if __name__ == "__main__":
