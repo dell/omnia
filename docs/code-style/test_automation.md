@@ -229,11 +229,11 @@ files. **Never hardcode TC IDs or titles.** UT mappings follow section 3.10.
 # In library/vars/test_case_vars.py:
 TEST_CASES = {
     "deploy_prepare": {
-        "id": "IBM_FVT_PREPARE_E001",
+        "id": "IMGBM_FVT_PREPARE_E001",
         "title": "Deploy <domain_name> (prepare)",
     },
     "verify_resource": {
-        "id": "IBM_FVT_PREPARE_V001",
+        "id": "IMGBM_FVT_PREPARE_V001",
         "title": "Verify <resource> after prepare",
     },
 }
@@ -243,15 +243,15 @@ TEST_CASES = {
 
 | Rule | Allowed | Forbidden |
 |------|---------|-----------|
-| TC ID source | `TC["key"]["id"]` | Hardcoded `"IBM_FVT_PREPARE_V001"` in test code |
+| TC ID source | `TC["key"]["id"]` | Hardcoded `"IMGBM_FVT_PREPARE_V001"` in test code |
 | Title source | `TC["key"]["title"]` | Hardcoded string in test code |
-| TestLogger init | `TestLogger(tc["title"], tc["id"])` | `TestLogger("...", "IBM_FVT_PREPARE_V001")` |
-| Docstring | Description only (no TC IDs) | `"""IBM_FVT_PREPARE_V001: Verify ...` |
+| TestLogger init | `TestLogger(tc["title"], tc["id"])` | `TestLogger("...", "IMGBM_FVT_PREPARE_V001")` |
+| Docstring | Description only (no TC IDs) | `"""IMGBM_FVT_PREPARE_V001: Verify ...` |
 | Dict keys | Match function name without `test_` prefix | Arbitrary keys |
 
 **Verification** — this grep must return zero results:
 ```bash
-grep -Ern "['\"]IBM_(FVT|NFT|UT)_[A-Z0-9_]+['\"]" fvt/ nft/ ut/ \
+grep -Ern "['\"]IMGBM_(FVT|NFT|UT)_[A-Z0-9_]+['\"]" fvt/ nft/ ut/ \
   --include="*.py"
 ```
 
@@ -292,7 +292,7 @@ def test_verify_resource(host):
 | Format | Rule |
 |--------|------|
 | **Pattern** | `<DOMAIN>_FVT_<PHASE>_<TYPE><SEQ>` |
-| **Domain** | Stable uppercase domain code, such as `IBM` for Image Build Manager |
+| **Domain** | Stable uppercase domain code, such as `IMGBM` for Image Build Manager |
 | **Level** | `FVT` identifies a Functional Verification Test |
 | **Phase** | Runner lifecycle phase, such as `PRECHECK`, `VALIDATE`, `PREPARE`, `BUILD`, or `CLEANUP` |
 | **Type** | `E` when the test runs a playbook; `V` when it verifies postconditions |
@@ -302,9 +302,9 @@ Examples:
 
 | ID | Meaning |
 |----|---------|
-| `IBM_FVT_PREPARE_E001` | Run the Image Build Manager prepare playbook |
-| `IBM_FVT_PREPARE_V001` | Verify the first prepare postcondition |
-| `IBM_FVT_BUILD_V006` | Verify a stable Image Build Manager build contract |
+| `IMGBM_FVT_PREPARE_E001` | Run the Image Build Manager prepare playbook |
+| `IMGBM_FVT_PREPARE_V001` | Verify the first prepare postcondition |
+| `IMGBM_FVT_BUILD_V006` | Verify a stable Image Build Manager build contract |
 
 IDs remain stable when execution order changes, and retired IDs must not be
 reused. Existing modules with legacy IDs may retain them until an atomic
@@ -428,7 +428,7 @@ Tests produce structured output via `TestLogger`:
 
 ### 3.10 Unit Test Case IDs
 
-Unit-test IDs use `<DOMAIN>_UT_<SEQ>` (for example, `IBM_UT_001`). Keep the
+Unit-test IDs use `<DOMAIN>_UT_<SEQ>` (for example, `IMGBM_UT_001`). Keep the
 mapping between each test file/class/method node and its test-case ID in one
 central registry; do not embed numeric IDs independently in test methods.
 Parameterized variants may share the method-level ID. Store IDs explicitly so
@@ -445,7 +445,7 @@ NFT tests live in `nft/` alongside `fvt/` and validate **performance** and **ide
 2. **Marker**: All NFT tests MUST use `@pytest.mark.nft`.
 3. **README**: Each `nft/` directory MUST contain a `README.md` documenting test cases, thresholds, and execution instructions.
 4. **TC ID Prefix**: NFT test-case IDs use `<DOMAIN>_NFT_` (for example,
-   `IBM_NFT_001`).
+   `IMGBM_NFT_001`).
 5. **Thresholds**: Performance thresholds MUST be defined as module-level constants, not inline.
 6. **Prerequisites**: NFT tests require a fully deployed environment. Document prerequisites in the `README.md`.
 7. **Execution**: NFT tests are run via `./run_validation.sh nft test`.
@@ -458,7 +458,7 @@ PREPARE_THRESHOLD = 300  # 5 minutes
 @pytest.mark.nft
 @pytest.mark.order(1)
 def test_prepare_performance(run_playbook):
-    """IBM_NFT_001: Prepare completes within threshold."""
+    """IMGBM_NFT_001: Prepare completes within threshold."""
     start = time.time()
     result = run_playbook(tag="prepare", timeout=PREPARE_THRESHOLD + 60)
     elapsed = time.time() - start
@@ -632,11 +632,11 @@ All FVT/NFT test-case metadata MUST be centralized in `test_case_vars.py`:
 ```python
 TEST_CASES: Dict[str, Dict[str, str]] = {
     "deploy_prepare": {
-        "id": "IBM_FVT_PREPARE_E001",
+        "id": "IMGBM_FVT_PREPARE_E001",
         "title": "Deploy <domain_name> (prepare)",
     },
     "verify_resource": {
-        "id": "IBM_FVT_PREPARE_V001",
+        "id": "IMGBM_FVT_PREPARE_V001",
         "title": "Verify <resource> after prepare",
     },
 }
@@ -734,9 +734,9 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
 |------|-----------|---------|
 | Test function | `test_<feature>_<aspect>` | `test_resource_after_prepare` |
 | Test file | `test_<component>.py` | `test_containers.py` |
-| FVT case ID | `<DOMAIN>_FVT_<PHASE>_<TYPE><SEQ>` | `IBM_FVT_PREPARE_V001` |
-| NFT case ID | `<DOMAIN>_NFT_<SEQ>` | `IBM_NFT_001` |
-| UT case ID | `<DOMAIN>_UT_<SEQ>` | `IBM_UT_001` |
+| FVT case ID | `<DOMAIN>_FVT_<PHASE>_<TYPE><SEQ>` | `IMGBM_FVT_PREPARE_V001` |
+| NFT case ID | `<DOMAIN>_NFT_<SEQ>` | `IMGBM_NFT_001` |
+| UT case ID | `<DOMAIN>_UT_<SEQ>` | `IMGBM_UT_001` |
 
 ---
 

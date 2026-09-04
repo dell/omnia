@@ -18,7 +18,7 @@
 def _class_cases(file_name, class_name, cases):
     """Build explicit pytest-node-to-test-case-ID mappings for one class."""
     return {
-        f"{file_name}::{class_name}::{method_name}": f"IBM_UT_{sequence:03d}"
+        f"{file_name}::{class_name}::{method_name}": f"IMGBM_UT_{sequence:03d}"
         for sequence, method_name in cases.items()
     }
 

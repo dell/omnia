@@ -399,8 +399,8 @@ registry state. They also verify that the credential file and vault key were
 removed without reading or displaying their contents.
 
 With PowerScale, the product intentionally retains the external buckets and
-`/root/.s3cfg`. The MinIO-specific `IBM_FVT_CLEANUP_V004` and
-`IBM_FVT_CLEANUP_V005` cases detect PowerScale and skip while the remaining
+`/root/.s3cfg`. The MinIO-specific `IMGBM_FVT_CLEANUP_V004` and
+`IMGBM_FVT_CLEANUP_V005` cases detect PowerScale and skip while the remaining
 cleanup postconditions continue to run.
 
 #### Unit Tests
@@ -640,40 +640,40 @@ See [`fvt/README.md`](fvt/README.md) for the authoritative registry. Its tables
 list every stable test-case ID in effective execution order and explain both
 the validation performed and the condition required to pass.
 
-FVT IDs follow `IBM_FVT_<PHASE>_<TYPE><SEQ>`. `E` cases run playbooks;
+FVT IDs follow `IMGBM_FVT_<PHASE>_<TYPE><SEQ>`. `E` cases run playbooks;
 `V` cases inspect postconditions.
 
-NFT IDs use `IBM_NFT_<SEQ>`. UT IDs use `IBM_UT_<SEQ>` and are resolved from
+NFT IDs use `IMGBM_NFT_<SEQ>`. UT IDs use `IMGBM_UT_<SEQ>` and are resolved from
 the complete pytest node ID through the centralized registry in
 `library/vars/ut_test_case_vars.py`. See [`ut/README.md`](ut/README.md) for
 the UT ID ranges and maintenance rule.
 
 | Phase | Execution IDs | Verification IDs | FVT count |
 |-------|---------------|------------------|-----------|
-| precheck | `IBM_FVT_PRECHECK_E001` | `IBM_FVT_PRECHECK_V001`–`005` | 6 |
-| validate | `IBM_FVT_VALIDATE_E001` | `IBM_FVT_VALIDATE_V001`–`004` | 5 |
-| prepare | `IBM_FVT_PREPARE_E001` | `IBM_FVT_PREPARE_V001`–`007` | 8 |
-| build | `IBM_FVT_BUILD_E001` | `IBM_FVT_BUILD_V001`–`019` | 20 |
-| cleanup_images | `IBM_FVT_CLEANUP_IMAGES_E001` | `IBM_FVT_CLEANUP_IMAGES_V001`–`002` | 3 |
-| cleanup | `IBM_FVT_CLEANUP_E001` | `IBM_FVT_CLEANUP_V001`–`008` | 9 |
-| full-stack alternate | `IBM_FVT_FULL_E001` | — | 1 reportable ID |
-| nft | `IBM_NFT_001`–`004` | — | 4 |
-| ut | `IBM_UT_001`–`073` | — | 73 |
+| precheck | `IMGBM_FVT_PRECHECK_E001` | `IMGBM_FVT_PRECHECK_V001`–`005` | 6 |
+| validate | `IMGBM_FVT_VALIDATE_E001` | `IMGBM_FVT_VALIDATE_V001`–`004` | 5 |
+| prepare | `IMGBM_FVT_PREPARE_E001` | `IMGBM_FVT_PREPARE_V001`–`007` | 8 |
+| build | `IMGBM_FVT_BUILD_E001` | `IMGBM_FVT_BUILD_V001`–`019` | 20 |
+| cleanup_images | `IMGBM_FVT_CLEANUP_IMAGES_E001` | `IMGBM_FVT_CLEANUP_IMAGES_V001`–`002` | 3 |
+| cleanup | `IMGBM_FVT_CLEANUP_E001` | `IMGBM_FVT_CLEANUP_V001`–`008` | 9 |
+| full-stack alternate | `IMGBM_FVT_FULL_E001` | — | 1 reportable ID |
+| nft | `IMGBM_NFT_001`–`004` | — | 4 |
+| ut | `IMGBM_UT_001`–`073` | — | 73 |
 | **Reportable IDs** | | | **129** |
 
 There are 128 physical test functions (51 FVT, 4 NFT, and 73 UT).
-`IBM_FVT_FULL_E001` is the alternate full-stack ID emitted by the same build deploy
-function that reports `IBM_FVT_BUILD_E001` for a tagged build.
+`IMGBM_FVT_FULL_E001` is the alternate full-stack ID emitted by the same build deploy
+function that reports `IMGBM_FVT_BUILD_E001` for a tagged build.
 
-### Build-type suffix checks (IBM_FVT_BUILD_V013 – IBM_FVT_BUILD_V017)
+### Build-type suffix checks (IMGBM_FVT_BUILD_V013 – IMGBM_FVT_BUILD_V017)
 
 | Test | Build type | Checks |
 |------|-----------|--------|
-| IBM_FVT_BUILD_V013 | image-builder | At least one x86_64 registry repository ends with `-imgbld` |
-| IBM_FVT_BUILD_V014 | image-builder | At least one x86_64 S3 path includes `-imgbld` |
-| IBM_FVT_BUILD_V015 | image-thrillhouse | At least one x86_64 registry repository ends with `-imgth` |
-| IBM_FVT_BUILD_V016 | image-thrillhouse | At least one x86_64 S3 path includes `-imgth` |
-| IBM_FVT_BUILD_V017 | both | Every x86_64 registry/S3 artifact has exactly one engine suffix, full names are unique, and the build-status engine has at least one artifact |
+| IMGBM_FVT_BUILD_V013 | image-builder | At least one x86_64 registry repository ends with `-imgbld` |
+| IMGBM_FVT_BUILD_V014 | image-builder | At least one x86_64 S3 path includes `-imgbld` |
+| IMGBM_FVT_BUILD_V015 | image-thrillhouse | At least one x86_64 registry repository ends with `-imgth` |
+| IMGBM_FVT_BUILD_V016 | image-thrillhouse | At least one x86_64 S3 path includes `-imgth` |
+| IMGBM_FVT_BUILD_V017 | both | Every x86_64 registry/S3 artifact has exactly one engine suffix, full names are unique, and the build-status engine has at least one artifact |
 
 ---
 
@@ -716,11 +716,11 @@ test/image_build_manager/
 │   │   ├── container/
 │   │   └── s3/
 │   ├── build/                   # Build tag
-│   │   ├── aarch64/             # AArch64 infrastructure checks (IBM_FVT_BUILD_V001–005)
+│   │   ├── aarch64/             # AArch64 infrastructure checks (IMGBM_FVT_BUILD_V001–005)
 │   │   ├── s3/
 │   │   ├── registry/
-│   │   ├── naming/              # Naming convention tests (IBM_FVT_BUILD_V013–017)
-│   │   └── image_verification/  # Package verification (IBM_FVT_BUILD_V018–019)
+│   │   ├── naming/              # Naming convention tests (IMGBM_FVT_BUILD_V013–017)
+│   │   └── image_verification/  # Package verification (IMGBM_FVT_BUILD_V018–019)
 │   ├── cleanup/                 # Cleanup tag
 │   │   └── cleanup/
 │   └── cleanup_images/          # Cleanup images tag
@@ -728,8 +728,8 @@ test/image_build_manager/
 │
 ├── nft/                         # Non-Functional Tests
 │   ├── README.md                # NFT documentation (thresholds, execution)
-│   ├── test_performance.py      # Performance threshold tests (IBM_NFT_001–IBM_NFT_003)
-│   └── test_idempotency.py      # Idempotency tests (IBM_NFT_004)
+│   ├── test_performance.py      # Performance threshold tests (IMGBM_NFT_001–IMGBM_NFT_003)
+│   └── test_idempotency.py      # Idempotency tests (IMGBM_NFT_004)
 │
 └── ut/                          # Unit Tests
     ├── README.md                   # UT ID ranges and execution

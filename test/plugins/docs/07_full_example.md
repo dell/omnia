@@ -66,11 +66,11 @@ ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
 ```python
 TEST_CASES = {
     "deploy_prepare": {
-        "id": "IBM_FVT_PREPARE_E001",
+        "id": "IMGBM_FVT_PREPARE_E001",
         "title": "Run Image Build Manager prepare",
     },
     "containers_running": {
-        "id": "IBM_FVT_PREPARE_V001",
+        "id": "IMGBM_FVT_PREPARE_V001",
         "title": "Verify prepare containers are running",
     },
 }
@@ -324,11 +324,11 @@ python3 -m pytest fvt/ -s -m sanity
 │  REPORT ID:   20260730143000                                       │
 └────────────────────────────────────────────────────────────────────┘
 
-  ▶ [IBM_FVT_PREPARE_E001] Run Image Build Manager prepare
+  ▶ [IMGBM_FVT_PREPARE_E001] Run Image Build Manager prepare
   → Running prepare tag...
   ✔ PASS: Prepare completed in 45.2s
 
-  ▶ [IBM_FVT_PREPARE_V001] Verify prepare containers are running
+  ▶ [IMGBM_FVT_PREPARE_V001] Verify prepare containers are running
   ✔ PASS: All 2 containers running
 
 ┌────────────────────────────────────────────────────────────────────┐
@@ -344,8 +344,8 @@ python3 -m pytest fvt/ -s -m sanity
 ========================================================================================
   TC ID                     Test Name                                Status     Duration
   ------------------------- ---------------------------------------- ---------- --------
-  IBM_FVT_PREPARE_E001    test_prepare_phase                       PASSED       45.20s
-  IBM_FVT_PREPARE_V001  test_containers_running                  PASSED        0.42s
+  IMGBM_FVT_PREPARE_E001    test_prepare_phase                       PASSED       45.20s
+  IMGBM_FVT_PREPARE_V001  test_containers_running                  PASSED        0.42s
   ------------------------- ---------------------------------------- ---------- --------
   2 passed, 0 failed, 0 skipped / 2 total (45.62s)
 ========================================================================================

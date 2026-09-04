@@ -153,7 +153,7 @@ This is the main way your test functions produce output.
 | Parameter | Type | Required? | What to give | Example |
 |-----------|------|-----------|--------------|---------|
 | `test_name` | `str` | **Yes** | A human-readable name for the test. This is displayed as the test header. | `"Verify containers running"` |
-| `tc_id` | `str` | No | A test case ID like `IBM_FVT_BUILD_V006`. If provided, it appears in brackets before the test name. | `"IBM_FVT_BUILD_V006"` |
+| `tc_id` | `str` | No | A test case ID like `IMGBM_FVT_BUILD_V006`. If provided, it appears in brackets before the test name. | `"IMGBM_FVT_BUILD_V006"` |
 
 ### Methods
 
@@ -185,7 +185,7 @@ None — works standalone.  But typically used inside a `pytest` test function.
 from omnia_auto import TestLogger
 
 def test_s3_images(host):
-    tl = TestLogger("Verify S3 images pushed", "IBM_FVT_BUILD_V006")
+    tl = TestLogger("Verify S3 images pushed", "IMGBM_FVT_BUILD_V006")
 
     tl.check("Checking S3 bucket for images...")
     # ... run some verification logic ...
@@ -218,7 +218,7 @@ tl.passed_fields(
 ### Terminal output
 
 ```
-  ▶ [IBM_FVT_BUILD_V006] Verify S3 images pushed
+  ▶ [IMGBM_FVT_BUILD_V006] Verify S3 images pushed
   → Checking S3 bucket for images...
   ✔ PASS: All images pushed to S3 for 2 functional groups
     │   - slurm_node_x86_64
@@ -260,7 +260,7 @@ so that every test result is recorded.
 | `test_name` | `str` | **Yes** | The test function name (e.g., `test_s3_images`). | `"test_s3_images_x86_64"` |
 | `status` | `str` | **Yes** | One of: `"PASSED"`, `"FAILED"`, `"SKIPPED"`. | `"PASSED"` |
 | `duration` | `float` | **Yes** | How long the test took, in seconds. | `1.58` |
-| `tc_id` | `str` | No | Test case ID. | `"IBM_FVT_BUILD_V006"` |
+| `tc_id` | `str` | No | Test case ID. | `"IMGBM_FVT_BUILD_V006"` |
 
 ### Prerequisite
 
@@ -332,10 +332,10 @@ def pytest_sessionfinish(session, exitstatus):
 =====================================================================================
   TC ID                  Test Name                                Status     Duration
   ---------------------- ---------------------------------------- ---------- --------
-  IBM_FVT_BUILD_V006 test_s3_images_x86_64                    PASSED        1.58s
-  IBM_FVT_BUILD_V007 test_s3_images_aarch64                   SKIPPED       0.85s
-  IBM_FVT_BUILD_V008 test_registry_images_x86_64              PASSED        1.46s
-  IBM_FVT_BUILD_V010 test_build_status                        PASSED        0.31s
+  IMGBM_FVT_BUILD_V006 test_s3_images_x86_64                    PASSED        1.58s
+  IMGBM_FVT_BUILD_V007 test_s3_images_aarch64                   SKIPPED       0.85s
+  IMGBM_FVT_BUILD_V008 test_registry_images_x86_64              PASSED        1.46s
+  IMGBM_FVT_BUILD_V010 test_build_status                        PASSED        0.31s
   ---------------------- ---------------------------------------- ---------- --------
   3 passed, 0 failed, 1 skipped / 4 total (4.20s)
 =====================================================================================

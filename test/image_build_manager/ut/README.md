@@ -6,18 +6,18 @@ Manager.
 
 ## Test identification
 
-Each existing unit test has a stable ID in the range `IBM_UT_001` through
-`IBM_UT_073`. The centralized mapping is maintained in
+Each existing unit test has a stable ID in the range `IMGBM_UT_001` through
+`IMGBM_UT_073`. The centralized mapping is maintained in
 `library/vars/ut_test_case_vars.py`; pytest method names remain descriptive
 and unchanged.
 
 | ID range | Test file | Coverage |
 |----------|-----------|----------|
-| `IBM_UT_001`–`014` | `test_catalog_validation.py` | Catalog schema and sample catalog structure |
-| `IBM_UT_015`–`032` | `test_driver_group_skip.py` | Driver-group detection and package exclusion |
-| `IBM_UT_033`–`044` | `test_functional_group_packages.py` | Functional-group package structure and content |
-| `IBM_UT_045`–`057` | `test_standalone_independence.py` | Standalone role dependencies and repository structure |
-| `IBM_UT_058`–`073` | `test_validate_image_build_config.py` | Image-build configuration, repository status, and input files |
+| `IMGBM_UT_001`–`014` | `test_catalog_validation.py` | Catalog schema and sample catalog structure |
+| `IMGBM_UT_015`–`032` | `test_driver_group_skip.py` | Driver-group detection and package exclusion |
+| `IMGBM_UT_033`–`044` | `test_functional_group_packages.py` | Functional-group package structure and content |
+| `IMGBM_UT_045`–`057` | `test_standalone_independence.py` | Standalone role dependencies and repository structure |
+| `IMGBM_UT_058`–`073` | `test_validate_image_build_config.py` | Image-build configuration, repository status, and input files |
 
 The runner resolves each ID from the test file, class, and method portion of
 the pytest node ID and displays it in the summary and generated reports.

@@ -159,7 +159,7 @@ def get_last_tc_id() -> str:
     table display. The TC ID is set when TestLogger.__init__ is called.
 
     Returns:
-        str: Test case ID (e.g., "IBM_FVT_BUILD_V001") or empty string.
+        str: Test case ID (e.g., "IMGBM_FVT_BUILD_V001") or empty string.
     """
     return _last_tc_id
 
@@ -329,7 +329,7 @@ def add_session_result(
         test_name: Short test function name.
         status: ``PASSED``, ``FAILED``, or ``SKIPPED``.
         duration: Duration in seconds.
-        tc_id: Test case ID (e.g. ``IBM_FVT_PREPARE_E001``).
+        tc_id: Test case ID (e.g. ``IMGBM_FVT_PREPARE_E001``).
     """
     _SESSION_RESULTS.append({
         "test_name": test_name,

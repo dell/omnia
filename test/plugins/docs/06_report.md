@@ -54,7 +54,7 @@ There are two ways to add results:
 
 ```python
 report.add_result({
-    "tc_id": "IBM_FVT_BUILD_V006",
+    "tc_id": "IMGBM_FVT_BUILD_V006",
     "test_name": "test_s3_images_x86_64",
     "status": "PASSED",           # "PASSED", "FAILED", or "SKIPPED"
     "duration": 1.58,             # seconds (also accepts "duration_seconds")
@@ -68,7 +68,7 @@ report.add_result({
 
 ```python
 report.add_result(
-    tc_id="IBM_FVT_BUILD_V006",
+    tc_id="IMGBM_FVT_BUILD_V006",
     test_name="test_s3_images_x86_64",
     status="PASSED",
     duration=1.58,
@@ -80,7 +80,7 @@ report.add_result(
 
 | Parameter | Type | Required? | What to give | Example |
 |-----------|------|-----------|--------------|---------|
-| `tc_id` | `str` | No | Stable test-case ID stored in JSON and shown with the HTML test name. | `"IBM_FVT_BUILD_V006"` |
+| `tc_id` | `str` | No | Stable test-case ID stored in JSON and shown with the HTML test name. | `"IMGBM_FVT_BUILD_V006"` |
 | `test_name` | `str` | **Yes** | Name of the test. | `"test_s3_images_x86_64"` |
 | `passed` | `bool` | No | `True` for pass, `False` for fail. Only used if `status` is not given. | `True` |
 | `status` | `str` | No | `"PASSED"`, `"FAILED"`, or `"SKIPPED"`. Overrides `passed`. | `"PASSED"` |
