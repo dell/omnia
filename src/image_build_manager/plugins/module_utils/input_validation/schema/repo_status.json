@@ -1,0 +1,128 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "repo_status",
+    "description": "Consumer-side schema for repo_status.yml produced by repo_manager.",
+    "type": "object",
+    "required": [
+        "overall_status",
+        "cluster_os_type",
+        "repo_config",
+        "repo_manager",
+        "repositories"
+    ],
+    "properties": {
+        "overall_status": {
+            "type": "string",
+            "const": "success"
+        },
+        "cluster_os_type": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^\\S(?:.*\\S)?$"
+        },
+        "repo_config": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^\\S(?:.*\\S)?$"
+        },
+        "repo_manager": {
+            "type": "object",
+            "oneOf": [
+                {"$ref": "#/$defs/managedRepoManager"},
+                {"$ref": "#/$defs/internetRepoManager"}
+            ]
+        },
+        "repositories": {
+            "type": "object",
+            "minProperties": 1,
+            "patternProperties": {
+                "^[0-9]+(?:\\.[0-9]+)*$": {
+                    "type": "object",
+                    "required": ["x86_64"],
+                    "properties": {
+                        "x86_64": {"$ref": "#/$defs/architectureRepositories"},
+                        "aarch64": {"$ref": "#/$defs/architectureRepositories"}
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "additionalProperties": false
+        },
+        "registries": {"type": "object"},
+        "file_repos": {"type": "object"}
+    },
+    "$defs": {
+        "nonEmptyString": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^\\S(?:.*\\S)?$"
+        },
+        "repository": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^https?://\\S+$",
+                    "format": "uri"
+                },
+                "priority": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                }
+            },
+            "additionalProperties": true
+        },
+        "architectureRepositories": {
+            "type": "object",
+            "patternProperties": {
+                "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$": {"$ref": "#/$defs/repository"}
+            },
+            "additionalProperties": false
+        },
+        "managedRepoManager": {
+            "type": "object",
+            "required": ["port", "certificates"],
+            "properties": {
+                "port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535
+                },
+                "certificates": {"$ref": "#/$defs/managedCertificates"}
+            },
+            "additionalProperties": false
+        },
+        "managedCertificates": {
+            "type": "object",
+            "required": ["server_crt", "server_key", "certs_dir"],
+            "properties": {
+                "server_crt": {"$ref": "#/$defs/nonEmptyString"},
+                "server_key": {"$ref": "#/$defs/nonEmptyString"},
+                "certs_dir": {"$ref": "#/$defs/nonEmptyString"}
+            },
+            "additionalProperties": false
+        },
+        "internetRepoManager": {
+            "type": "object",
+            "required": ["port", "certificates"],
+            "properties": {
+                "port": {"const": ""},
+                "certificates": {"$ref": "#/$defs/emptyCertificates"}
+            },
+            "additionalProperties": false
+        },
+        "emptyCertificates": {
+            "type": "object",
+            "required": ["server_crt", "server_key", "certs_dir"],
+            "properties": {
+                "server_crt": {"const": ""},
+                "server_key": {"const": ""},
+                "certs_dir": {"const": ""}
+            },
+            "additionalProperties": false
+        }
+    },
+    "additionalProperties": true
+}
