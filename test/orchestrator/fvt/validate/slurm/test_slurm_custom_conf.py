@@ -16,6 +16,7 @@ TC_SL_048: Validate slurm_conf merge functionality
 TC_SL_049: Validate custom scheduling parameters in slurm.conf
 TC_SL_050: Validate slurm.conf syntax is valid
 TC_SL_051: Validate custom conf files exist if configured
+TC_SL_052: Validate deployed slurm.conf matches input configuration
 """
 
 import pytest
@@ -25,6 +26,7 @@ from library.functions import (
     TestLogger,
     run_on_host,
     load_test_config,
+    check_slurm_config_integrity,
 )
 from library.messages.slurm_msgs import (
     TEST_LOG_MSGS as LOG,
@@ -417,3 +419,30 @@ def test_slurm_conf_syntax_valid(host: Host):
     else:
         tl.passed("Syntax check skipped", "SLURM not deployed or scontrol not available")
         pytest.skip("SLURM not deployed - cannot check syntax")
+
+
+@pytest.mark.slurm
+@pytest.mark.functional
+@pytest.mark.order(19)
+def test_slurm_config_integrity(host: Host):
+    """TC_SL_052: Validate deployed slurm.conf matches input configuration."""
+    _skip_if_slurm_disabled(host)
+
+    tc = TC["slurm_config_integrity"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Checking SLURM config integrity")
+
+    result = check_slurm_config_integrity(host)
+
+    # Skip if config file not found (SLURM not fully deployed)
+    if "not found" in result.get("error", "").lower() or "input config file not found" in result.get("error", "").lower():
+        tl.passed("SLURM config not deployed", result["details"])
+        pytest.skip("SLURM config file not found - SLURM not fully deployed")
+
+    if result["success"]:
+        tl.passed("slurm_config_integrity_ok", result["details"])
+    else:
+        tl.failed("slurm_config_integrity_failed", result["error"])
+
+    assert result["success"], result["error"]

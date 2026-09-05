@@ -18,6 +18,9 @@ Orchestrator — Domain-specific validation variables.
 Defines FVT tags, pytest markers, suite directories, and cleanup
 exclusions used by ``ValidationRunner`` for this domain.
 
+Includes support for both FVT (Functional Verification Tests) and
+NFT (Non-Functional Tests) for comprehensive testing coverage.
+
 To register a new domain, create a similar file in that domain's
 ``library/vars/`` folder and import it in ``_run.py``.
 """
@@ -44,6 +47,8 @@ FVT_TAGS: List[str] = [
     "roles",
     "playbooks",
     "slurm",
+    "nft",
+    "negative",
 ]
 
 # =====================================================================
@@ -53,9 +58,13 @@ FVT_TAGS: List[str] = [
 MARKERS: List[str] = [
     "sanity",
     "functional",
-    "regression",
     "deploy",
     "slurm",
+    "nft",
+    "performance",
+    "idempotency",
+    "security",
+    "negative",
 ]
 
 # =====================================================================
@@ -72,6 +81,8 @@ SUITES: Dict[str, List[str]] = {
     "roles": [],
     "playbooks": [],
     "slurm": [],
+    "nft": [],
+    "negative": [],
 }
 
 # =====================================================================
@@ -81,4 +92,6 @@ SUITES: Dict[str, List[str]] = {
 EXCLUDE_TAGS: List[str] = [
     "cleanup",
     "rollback",
+    "nft",
+    "negative",
 ]

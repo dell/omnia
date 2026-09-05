@@ -51,8 +51,10 @@
 #   Standard: "functional"              — tests with @pytest.mark.functional
 #
 # Available markers:
-#   Quality:       sanity, functional, regression
+#   Quality:       sanity, functional
 #   Execution:     deploy
+#   NFT:           nft, performance, idempotency, security
+#   Negative:       negative
 #
 # -----------------------------------------------------------------------------
 # Available FVT Suites (subfolders under fvt/<tag>/)
@@ -108,3 +110,23 @@ fvt_orchestrator:
     marker: ""
     dataset: ""
     sync_input: false
+
+# =============================================================================
+# NFT — Non-Functional Tests
+# =============================================================================
+nft_orchestrator:
+  run: false
+  command: "test"
+  marker: "nft"
+  dataset: ""
+  sync_input: false
+
+# =============================================================================
+# Negative — Error Scenario Tests
+# =============================================================================
+negative_orchestrator:
+  run: false
+  command: "test"
+  marker: "negative"
+  dataset: ""
+  sync_input: false
