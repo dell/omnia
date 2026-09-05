@@ -13,9 +13,14 @@
 # limitations under the License.
 """Unit tests for strict image-build input and repo-status schemas."""
 
+# Pytest injects fixtures by reusing fixture function names as test arguments,
+# and descriptive test names make per-test docstrings redundant.
+# pylint: disable=missing-function-docstring,redefined-outer-name
+
 import copy
 import importlib.util
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -39,13 +44,6 @@ REPO_VALIDATOR_PATH = (
 )
 
 
-class _Logger:
-    """Minimal logger accepted by validation helpers."""
-
-    def error(self, _message):
-        """Discard expected validation messages."""
-
-
 def _load_module(name, path):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
@@ -56,7 +54,7 @@ def _load_module(name, path):
 
 ENGINE = _load_module("image_build_validation_engine", ENGINE_PATH)
 REPO_VALIDATOR = _load_module("repo_status_validator", REPO_VALIDATOR_PATH)
-LOGGER = _Logger()
+LOGGER = logging.getLogger(__name__)
 
 
 def _schema(name):
@@ -88,7 +86,7 @@ def valid_config():
 
 
 def test_valid_boolean_values_pass(valid_config):
-    assert _validate(valid_config, "image_build_config.json") == []
+    assert not _validate(valid_config, "image_build_config.json")
 
 
 @pytest.mark.parametrize(
@@ -139,7 +137,7 @@ def test_empty_scalar_values_fail(valid_config, path, value):
 def test_optional_arm_host_may_be_empty(valid_config):
     valid_config["aarch64_inventory_host_ip"] = ""
     errors = _validate(valid_config, "image_build_config.json")
-    assert errors == []
+    assert not errors
 
 
 def test_optional_arm_host_must_be_ipv4_when_set(valid_config):
@@ -175,7 +173,7 @@ def test_powerscale_accepts_valid_endpoint(valid_config):
         "provider": "powerscale",
         "endpoint_url": "https://powerscale.example.com:9021",
     }
-    assert _validate(valid_config, "image_build_config.json") == []
+    assert not _validate(valid_config, "image_build_config.json")
 
 
 def test_arm_host_requires_nonempty_ssh_user(valid_config):
@@ -241,8 +239,8 @@ def valid_repo_status():
 
 
 def test_valid_repo_status_passes_schema_and_logic(valid_repo_status):
-    assert _validate(valid_repo_status, "repo_status.json", "repo_status.yml") == []
-    assert REPO_VALIDATOR.validate(valid_repo_status, LOGGER) == []
+    assert not _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
+    assert not REPO_VALIDATOR.validate(valid_repo_status, LOGGER)
 
 
 def test_repo_status_requires_success(valid_repo_status):
@@ -266,7 +264,7 @@ def test_repo_status_allows_empty_internet_repo_manager_values(valid_repo_status
             "certs_dir": "",
         },
     }
-    assert _validate(valid_repo_status, "repo_status.json", "repo_status.yml") == []
+    assert not _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
 
 
 def test_repo_status_checks_repo_manager_structure_only(valid_repo_status):
@@ -278,7 +276,7 @@ def test_repo_status_checks_repo_manager_structure_only(valid_repo_status):
             "certs_dir": "",
         },
     }
-    assert _validate(valid_repo_status, "repo_status.json", "repo_status.yml") == []
+    assert not _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
 
 
 def test_repo_status_requires_certificate_structure(valid_repo_status):
@@ -326,8 +324,8 @@ def test_internet_repo_status_sample_passes_contract():
         / "src/image_build_manager/samples/repo_manager_output/repo_status_internet.yml"
     )
     data = yaml.safe_load(sample_path.read_text(encoding="utf-8"))
-    assert _validate(data, "repo_status.json", "repo_status.yml") == []
-    assert REPO_VALIDATOR.validate(data, LOGGER) == []
+    assert not _validate(data, "repo_status.json", "repo_status.yml")
+    assert not REPO_VALIDATOR.validate(data, LOGGER)
 
 
 def test_repo_contract_runs_in_build_setup_not_general_validation():
