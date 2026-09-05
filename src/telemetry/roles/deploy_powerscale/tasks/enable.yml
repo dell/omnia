@@ -16,6 +16,10 @@
 # Deploy PowerScale Telemetry (Metrics)
 # Gated by: telemetry_sources.powerscale.metrics_enabled
 #
+# Re-enable aware: if the CSM Metrics PowerScale Deployment already exists at
+# 0 replicas (previously disabled), scales it back up, preserving existing
+# PVCs and data.
+#
 # DATA PIPELINE:
 #   PowerScale CSI Driver → CSM Metrics PowerScale → vmagent(shared) → victoria_metrics
 #
@@ -31,6 +35,28 @@
 #
 # What Omnia does NOT do:
 #   - Omnia does NOT deploy or configure PowerScale itself
+
+# --- Detect re-enable scenario ---
+- name: Check if CSM Metrics PowerScale deployment already exists (re-enable detection)
+  ansible.builtin.command: >
+    kubectl get deployment csm-metrics-powerscale -n {{ telemetry_namespace }}
+    -o jsonpath='{.spec.replicas}'
+  register: ps_deploy_current_replicas
+  changed_when: false
+  failed_when: false
+
+- name: Detect re-enable scenario (deployment at 0 replicas)
+  ansible.builtin.set_fact:
+    powerscale_is_reenable: "{{ ps_deploy_current_replicas.rc == 0 and ps_deploy_current_replicas.stdout == '0' }}"
+
+- name: Display re-enable detection result
+  ansible.builtin.debug:
+    msg: >-
+      {% if powerscale_is_reenable | bool %}
+      Re-enable detected: CSM Metrics PowerScale deployment exists at 0 replicas — will scale back up
+      {% else %}
+      Fresh deploy or already running — proceeding with standard enable flow
+      {% endif %}
 
 - name: Set PowerScale configuration facts
   ansible.builtin.set_fact:

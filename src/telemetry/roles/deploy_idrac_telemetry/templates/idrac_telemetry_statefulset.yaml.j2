@@ -37,7 +37,7 @@ metadata:
 spec:
   podManagementPolicy: Parallel
   serviceName: {{ idrac_telemetry_service_name }}
-  replicas: 1
+  replicas: {{ idrac_replica_count | default(1) }}
   selector:
     matchLabels:
       app: {{ idrac_telemetry_k8s_name }}

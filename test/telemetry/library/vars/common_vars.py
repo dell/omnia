@@ -499,4 +499,30 @@ CMDS = {
         "kubectl get namespace {namespace}"
         " --no-headers --ignore-not-found 2>/dev/null"
     ),
+
+    # --- Enable/Disable verification ---
+    "kubectl_get_sts_replicas": (
+        "kubectl get statefulset {name} -n {namespace}"
+        " -o jsonpath='{{.spec.replicas}}' 2>/dev/null"
+    ),
+    "kubectl_get_deploy_replicas": (
+        "kubectl get deployment {name} -n {namespace}"
+        " -o jsonpath='{{.spec.replicas}}' 2>/dev/null"
+    ),
+    "kubectl_get_pvcs_by_label": (
+        "kubectl get pvc -n {namespace}"
+        " -l {label_selector}"
+        " --no-headers --ignore-not-found 2>/dev/null"
+    ),
+    "kubectl_get_pvcs_by_prefix": (
+        "kubectl get pvc -n {namespace}"
+        " --no-headers --ignore-not-found 2>/dev/null"
+        " | grep '^{prefix}'"
+    ),
+    "kubectl_get_all_pvcs": (
+        "kubectl get pvc -n {namespace}"
+        " --no-headers --ignore-not-found"
+        " -o custom-columns='NAME:.metadata.name,STATUS:.status.phase,CAPACITY:.spec.resources.requests.storage'"
+        " 2>/dev/null"
+    ),
 }

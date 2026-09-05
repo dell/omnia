@@ -16,10 +16,16 @@
 # =============================================================================
 # deploy_powerscale — Disable PowerScale telemetry
 # =============================================================================
-# Scales down PowerScale telemetry resources when no telemetry sources
-# require PowerScale.
+# Scales down all PowerScale telemetry resources to 0 replicas when
+# telemetry_sources.powerscale.metrics_enabled and logs_enabled are both false.
 #
-# This stops PowerScale telemetry but preserves PVCs for future re-enablement.
+# Resources scaled down:
+#   - csm-metrics-powerscale Deployment (CSM Metrics PowerScale exporter)
+#   - csi-volume-exporter Deployment (PV status metrics, if present)
+#
+# All PVCs, ConfigMaps, Secrets, and Services are preserved for
+# future re-enablement. Re-enabling will scale back up and reattach
+# existing volumes with no data loss.
 # =============================================================================
 
 - name: Load telemetry configuration
@@ -27,27 +33,58 @@
     name: common
     tasks_from: load_telemetry_config
 
-- name: Check if PowerScale resources exist
+# --- Scale down CSM Metrics PowerScale Deployment ---
+- name: Check if CSM Metrics PowerScale deployment exists
   ansible.builtin.command: >
     kubectl get deployment csm-metrics-powerscale -n {{ telemetry_namespace }}
   register: powerscale_check
   changed_when: false
   failed_when: false
 
-- name: Scale down PowerScale resources
+- name: Scale down CSM Metrics PowerScale deployment to 0 replicas
   ansible.builtin.command: >
     kubectl scale deployment csm-metrics-powerscale
     -n {{ telemetry_namespace }} --replicas=0
-  register: scale_down_result
-  changed_when: "'scaled' in scale_down_result.stdout"
+  register: ps_scale_down
+  changed_when: "'scaled' in ps_scale_down.stdout"
   when: powerscale_check.rc == 0
 
-- name: Display scale down result
+- name: Display CSM Metrics PowerScale scale down result
   ansible.builtin.debug:
-    msg: "Scaling down PowerScale telemetry to 0 replicas"
+    msg: "Scaled down csm-metrics-powerscale to 0 replicas — PVCs preserved"
   when: powerscale_check.rc == 0
 
-- name: PowerScale resources not found
+# --- Scale down CSI Volume Exporter Deployment (if present) ---
+- name: Check if CSI Volume Exporter deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment csi-volume-exporter -n {{ telemetry_namespace }}
+  register: csi_exporter_check
+  changed_when: false
+  failed_when: false
+
+- name: Scale down CSI Volume Exporter deployment to 0 replicas
+  ansible.builtin.command: >
+    kubectl scale deployment csi-volume-exporter
+    -n {{ telemetry_namespace }} --replicas=0
+  register: csi_exporter_scale
+  changed_when: "'scaled' in csi_exporter_scale.stdout"
+  when: csi_exporter_check.rc == 0
+
+- name: Display CSI Volume Exporter scale down result
   ansible.builtin.debug:
-    msg: "PowerScale telemetry resources not found, nothing to scale down"
-  when: powerscale_check.rc != 0
+    msg: "Scaled down csi-volume-exporter to 0 replicas"
+  when: csi_exporter_check.rc == 0
+
+# --- Summary ---
+- name: Display PowerScale disable summary
+  ansible.builtin.debug:
+    msg: >-
+      PowerScale telemetry disabled — all pods scaled to 0 replicas.
+      PVCs and configuration preserved for future re-enablement.
+      To re-enable: set telemetry_sources.powerscale.metrics_enabled: true and run deploy.
+  when: powerscale_check.rc == 0
+
+- name: PowerScale resources not found — nothing to scale down
+  ansible.builtin.debug:
+    msg: "No PowerScale telemetry resources found in namespace {{ telemetry_namespace }}, nothing to scale down"
+  when: powerscale_check.rc != 0 and csi_exporter_check.rc != 0

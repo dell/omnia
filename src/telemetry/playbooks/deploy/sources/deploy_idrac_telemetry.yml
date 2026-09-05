@@ -70,27 +70,39 @@
       no_log: true
       when: hostvars['localhost']['telemetry_credentials'] is defined
 
+    - name: Determine iDRAC enabled state
+      ansible.builtin.set_fact:
+        idrac_metrics_enabled: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+      when: telemetry_config is defined
+
+    # --- Infrastructure deployment (only when iDRAC is enabled) ---
     - name: Check if Kafka is needed for iDRAC telemetry
       ansible.builtin.set_fact:
         kafka_needed: "{{ 'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) }}"
-      when: telemetry_config is defined
+      when:
+        - telemetry_config is defined
+        - idrac_metrics_enabled | default(false) | bool
 
     - name: Deploy Kafka if needed and not already deployed (standalone only)
       ansible.builtin.include_role:
         name: deploy_kafka
       when:
+        - idrac_metrics_enabled | default(false) | bool
         - kafka_needed | default(false) | bool
         - hostvars['localhost']['kafka_support'] is not defined
 
     - name: Check if VictoriaMetrics is needed for iDRAC telemetry
       ansible.builtin.set_fact:
         victoria_metrics_needed: "{{ 'victoria_metrics' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) }}"
-      when: telemetry_config is defined
+      when:
+        - telemetry_config is defined
+        - idrac_metrics_enabled | default(false) | bool
 
     - name: Set victoria_cluster variables
       ansible.builtin.set_fact:
         victoria_deployment_mode: "cluster"
       when:
+        - idrac_metrics_enabled | default(false) | bool
         - victoria_metrics_needed | default(false) | bool
         - hostvars['localhost']['victoria_metrics_support'] is not defined
 
@@ -98,9 +110,11 @@
       ansible.builtin.include_role:
         name: deploy_victoria
       when:
+        - idrac_metrics_enabled | default(false) | bool
         - victoria_metrics_needed | default(false) | bool
         - hostvars['localhost']['victoria_metrics_support'] is not defined
 
+    # --- Role inclusion (always — role's main.yml routes to enable or disable) ---
     - name: Include deploy_idrac_telemetry role
       ansible.builtin.include_role:
         name: deploy_idrac_telemetry

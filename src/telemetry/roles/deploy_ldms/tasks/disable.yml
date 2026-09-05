@@ -16,10 +16,18 @@
 # =============================================================================
 # deploy_ldms — Disable LDMS telemetry
 # =============================================================================
-# Scales down LDMS telemetry resources when no telemetry sources
-# require LDMS.
+# Scales down all LDMS telemetry resources to 0 replicas when
+# telemetry_sources.ldms.metrics_enabled is false.
 #
-# This stops LDMS telemetry but preserves PVCs for future re-enablement.
+# Resources scaled down:
+#   - nersc-ldms-agg StatefulSet (LDMS aggregator)
+#   - vector-ldms Deployment (Kafka-to-VictoriaMetrics bridge)
+#   - vmagent-vector Deployment (shared metrics agent, only if no other
+#     sources use it — currently OME also uses vmagent-vector)
+#
+# All PVCs, ConfigMaps, Secrets, and Services are preserved for
+# future re-enablement. Re-enabling will scale back up and reattach
+# existing volumes with no data loss.
 # =============================================================================
 
 - name: Load telemetry configuration
@@ -27,27 +35,98 @@
     name: common
     tasks_from: load_telemetry_config
 
-- name: Check if LDMS resources exist
+# --- Scale down LDMS Aggregator StatefulSet ---
+- name: Check if LDMS aggregator StatefulSet exists
   ansible.builtin.command: >
     kubectl get statefulset nersc-ldms-agg -n {{ telemetry_namespace }}
-  register: ldms_check
+  register: ldms_agg_check
   changed_when: false
   failed_when: false
 
-- name: Scale down LDMS resources
+- name: Scale down LDMS aggregator StatefulSet to 0 replicas
   ansible.builtin.command: >
     kubectl scale statefulset nersc-ldms-agg
     -n {{ telemetry_namespace }} --replicas=0
-  register: scale_down_result
-  changed_when: "'scaled' in scale_down_result.stdout"
-  when: ldms_check.rc == 0
+  register: ldms_agg_scale
+  changed_when: "'scaled' in ldms_agg_scale.stdout"
+  when: ldms_agg_check.rc == 0
 
-- name: Display scale down result
+- name: Display LDMS aggregator scale down result
   ansible.builtin.debug:
-    msg: "Scaling down LDMS telemetry to 0 replicas"
-  when: ldms_check.rc == 0
+    msg: "Scaled down nersc-ldms-agg to 0 replicas — PVCs preserved"
+  when: ldms_agg_check.rc == 0
 
-- name: LDMS resources not found
+# --- Scale down Vector-LDMS Bridge Deployment ---
+- name: Check if Vector-LDMS deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment vector-ldms -n {{ telemetry_namespace }}
+  register: vector_ldms_check
+  changed_when: false
+  failed_when: false
+
+- name: Scale down Vector-LDMS deployment to 0 replicas
+  ansible.builtin.command: >
+    kubectl scale deployment vector-ldms
+    -n {{ telemetry_namespace }} --replicas=0
+  register: vector_ldms_scale
+  changed_when: "'scaled' in vector_ldms_scale.stdout"
+  when: vector_ldms_check.rc == 0
+
+- name: Display Vector-LDMS scale down result
   ansible.builtin.debug:
-    msg: "LDMS telemetry resources not found, nothing to scale down"
-  when: ldms_check.rc != 0
+    msg: "Scaled down vector-ldms to 0 replicas"
+  when: vector_ldms_check.rc == 0
+
+# --- Scale down vmagent-vector Deployment (only if OME is also disabled) ---
+- name: Check if OME metrics are enabled (vmagent-vector is shared)
+  ansible.builtin.set_fact:
+    ome_metrics_enabled: >-
+      {{
+        (telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool)
+        or
+        (telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool)
+      }}
+
+- name: Check if vmagent-vector deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment vmagent-vector -n {{ telemetry_namespace }}
+  register: vmagent_vector_check
+  changed_when: false
+  failed_when: false
+  when: not (ome_metrics_enabled | bool)
+
+- name: Scale down vmagent-vector deployment to 0 replicas
+  ansible.builtin.command: >
+    kubectl scale deployment vmagent-vector
+    -n {{ telemetry_namespace }} --replicas=0
+  register: vmagent_vector_scale
+  changed_when: "'scaled' in vmagent_vector_scale.stdout"
+  when:
+    - not (ome_metrics_enabled | bool)
+    - vmagent_vector_check.rc | default(1) == 0
+
+- name: Display vmagent-vector scale down result
+  ansible.builtin.debug:
+    msg: "Scaled down vmagent-vector to 0 replicas (OME also disabled)"
+  when:
+    - not (ome_metrics_enabled | bool)
+    - vmagent_vector_check.rc | default(1) == 0
+
+- name: Skip vmagent-vector scale down (OME still enabled)
+  ansible.builtin.debug:
+    msg: "Skipping vmagent-vector scale-down — OME bridge still enabled and uses this deployment"
+  when: ome_metrics_enabled | bool
+
+# --- Summary ---
+- name: Display LDMS disable summary
+  ansible.builtin.debug:
+    msg: >-
+      LDMS telemetry disabled — all LDMS pods scaled to 0 replicas.
+      PVCs and configuration preserved for future re-enablement.
+      To re-enable: set telemetry_sources.ldms.metrics_enabled: true and run deploy.
+  when: ldms_agg_check.rc == 0
+
+- name: LDMS resources not found — nothing to scale down
+  ansible.builtin.debug:
+    msg: "No LDMS telemetry resources found in namespace {{ telemetry_namespace }}, nothing to scale down"
+  when: ldms_agg_check.rc != 0 and vector_ldms_check.rc != 0

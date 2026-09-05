@@ -19,6 +19,10 @@
 # Configures LDMS sampler and aggregator on compute nodes, deploys the
 # Vector-LDMS bridge (Kafka-to-VictoriaMetrics ingestion pipeline).
 #
+# Re-enable aware: if the LDMS aggregator StatefulSet already exists at
+# 0 replicas (previously disabled), scales it back up along with the
+# Vector-LDMS bridge, preserving existing PVCs and data.
+#
 # LDMS Architecture:
 #   Compute nodes (LDMS sampler) → LDMS aggregator (K8s) → Kafka 'ldms' topic
 #   → Vector-LDMS bridge → vmagent-vector → VictoriaMetrics
@@ -42,6 +46,28 @@
   ansible.builtin.include_role:
     name: common
     tasks_from: derive_sink_support_flags
+
+# --- Detect re-enable scenario ---
+- name: Check if LDMS aggregator StatefulSet already exists (re-enable detection)
+  ansible.builtin.command: >
+    kubectl get statefulset nersc-ldms-agg -n {{ telemetry_namespace }}
+    -o jsonpath='{.spec.replicas}'
+  register: ldms_agg_current_replicas
+  changed_when: false
+  failed_when: false
+
+- name: Detect re-enable scenario (aggregator at 0 replicas)
+  ansible.builtin.set_fact:
+    ldms_is_reenable: "{{ ldms_agg_current_replicas.rc == 0 and ldms_agg_current_replicas.stdout == '0' }}"
+
+- name: Display re-enable detection result
+  ansible.builtin.debug:
+    msg: >-
+      {% if ldms_is_reenable | bool %}
+      Re-enable detected: LDMS aggregator StatefulSet exists at 0 replicas — will scale back up
+      {% else %}
+      Fresh deploy or already running — proceeding with standard enable flow
+      {% endif %}
 
 - name: Configure LDMS sampler
   ansible.builtin.include_tasks: configure_ldms_sampler.yml

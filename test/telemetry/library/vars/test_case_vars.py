@@ -509,6 +509,58 @@ TEST_CASES = {
         "title": "Verify PVCs preserved after cleanup (Delete_volume=false)",
     },
 
+    # -- Enable/Disable: iDRAC ----------------------------------------------
+    "disable_idrac_replicas": {
+        "id": "TC_ED_001",
+        "title": "Verify iDRAC StatefulSet scaled to 0 when disabled",
+    },
+    "disable_idrac_pvcs": {
+        "id": "TC_ED_002",
+        "title": "Verify iDRAC PVCs preserved when disabled",
+    },
+    "reenable_idrac": {
+        "id": "TC_ED_003",
+        "title": "Verify iDRAC StatefulSet scaled back up on re-enable",
+    },
+
+    # -- Enable/Disable: LDMS -----------------------------------------------
+    "disable_ldms_replicas": {
+        "id": "TC_ED_004",
+        "title": "Verify LDMS resources scaled to 0 when disabled",
+    },
+    "disable_ldms_pvcs": {
+        "id": "TC_ED_005",
+        "title": "Verify LDMS PVCs preserved when disabled",
+    },
+    "reenable_ldms": {
+        "id": "TC_ED_006",
+        "title": "Verify LDMS resources scaled back up on re-enable",
+    },
+
+    # -- Enable/Disable: PowerScale -----------------------------------------
+    "disable_powerscale_replicas": {
+        "id": "TC_ED_007",
+        "title": "Verify PowerScale deployments scaled to 0 when disabled",
+    },
+    "reenable_powerscale": {
+        "id": "TC_ED_008",
+        "title": "Verify PowerScale deployments scaled back up on re-enable",
+    },
+
+    # -- Enable/Disable: Cross-source ---------------------------------------
+    "disable_infra_preserved": {
+        "id": "TC_ED_009",
+        "title": "Verify sinks (Kafka/VM) still running when sources disabled",
+    },
+    "disable_deploy_playbook": {
+        "id": "TC_ED_010",
+        "title": "Verify deploy playbook succeeds with disabled sources",
+    },
+    "source_state_matches_config": {
+        "id": "TC_ED_011",
+        "title": "Verify all source states match telemetry_config.yml",
+    },
+
     # -- NFT: Performance ---------------------------------------------------
     "nft_validate_perf": {
         "id": "NFT_TL_001",

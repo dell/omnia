@@ -47,21 +47,30 @@
         ansible_user: root
       when: kube_vip_group is not defined
 
+    - name: Determine LDMS enabled state
+      ansible.builtin.set_fact:
+        ldms_metrics_enabled: "{{ hostvars['localhost']['telemetry_config'].telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
+
     - name: Set slurm inventory file from cluster_inventory in telemetry_config
       ansible.builtin.set_fact:
         slurm_inventory_file: "{{ hostvars['localhost']['telemetry_config'].cluster_inventory | default('') }}"
-      when: slurm_inventory_file is not defined
+      when:
+        - slurm_inventory_file is not defined
+        - ldms_metrics_enabled | default(false) | bool
 
     - name: Check if slurm inventory file exists
       ansible.builtin.stat:
         path: "{{ slurm_inventory_file }}"
       register: slurm_inv_stat
       delegate_to: localhost
-      when: slurm_inventory_file | default('') | length > 0
+      when:
+        - ldms_metrics_enabled | default(false) | bool
+        - slurm_inventory_file | default('') | length > 0
       # Note: Not in a loop - single delegation to localhost for file existence check
 
     - name: Load slurm inventory for aggregator/sampler node delegation
       when:
+        - ldms_metrics_enabled | default(false) | bool
         - slurm_inventory_file | default('') | length > 0
         - slurm_inv_stat.stat.exists | default(false)
       block:
@@ -342,27 +351,39 @@
           aggregator cannot be configured safely without current
           authentication material.
   tasks:
+    - name: Determine LDMS enabled state (tasks scope)
+      ansible.builtin.set_fact:
+        ldms_metrics_enabled: "{{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
+      when: telemetry_config is defined
+
+    # --- Infrastructure deployment (only when LDMS is enabled) ---
     - name: Check if Kafka is needed for LDMS telemetry
       ansible.builtin.set_fact:
         kafka_needed: "{{ 'kafka' in (telemetry_config.telemetry_sources.ldms.collection_targets | default([])) }}"
-      when: telemetry_config is defined
+      when:
+        - telemetry_config is defined
+        - ldms_metrics_enabled | default(false) | bool
 
     - name: Deploy Kafka if needed and not already deployed (standalone only)
       ansible.builtin.include_role:
         name: deploy_kafka
       when:
+        - ldms_metrics_enabled | default(false) | bool
         - kafka_needed | default(false) | bool
         - hostvars['localhost']['kafka_support'] is not defined
 
     - name: Check if VictoriaMetrics is needed for LDMS telemetry
       ansible.builtin.set_fact:
         victoria_metrics_needed: "{{ 'victoria_metrics' in (telemetry_config.telemetry_sources.ldms.collection_targets | default([])) }}"
-      when: telemetry_config is defined
+      when:
+        - telemetry_config is defined
+        - ldms_metrics_enabled | default(false) | bool
 
     - name: Set victoria_deployment_mode
       ansible.builtin.set_fact:
         victoria_deployment_mode: "cluster"
       when:
+        - ldms_metrics_enabled | default(false) | bool
         - victoria_metrics_needed | default(false) | bool
         - hostvars['localhost']['victoria_metrics_support'] is not defined
 
@@ -370,9 +391,11 @@
       ansible.builtin.include_role:
         name: deploy_victoria
       when:
+        - ldms_metrics_enabled | default(false) | bool
         - victoria_metrics_needed | default(false) | bool
         - hostvars['localhost']['victoria_metrics_support'] is not defined
 
+    # --- Role inclusion (always — role's main.yml routes to enable or disable) ---
     - name: Include deploy_ldms role (K8s deployment only)
       ansible.builtin.include_role:
         name: deploy_ldms
@@ -385,6 +408,10 @@
   hosts: ldms_deploy_aggregator_control
   gather_facts: false
   any_errors_fatal: true
+  pre_tasks:
+    - name: Skip play if LDMS is disabled
+      ansible.builtin.meta: end_host
+      when: not (hostvars['localhost']['telemetry_config'].telemetry_sources.ldms.metrics_enabled | default(false) | bool)
   tasks:
     - name: Set telemetry credentials from localhost
       ansible.builtin.set_fact:
@@ -412,6 +439,10 @@
   hosts: kube_vip_group
   gather_facts: true
   any_errors_fatal: true
+  pre_tasks:
+    - name: Skip play if LDMS is disabled
+      ansible.builtin.meta: end_host
+      when: not (hostvars['localhost']['telemetry_config'].telemetry_sources.ldms.metrics_enabled | default(false) | bool)
   tasks:
     - name: Set telemetry credentials from localhost
       ansible.builtin.set_fact:
