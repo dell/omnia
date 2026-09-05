@@ -12,24 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Phone-home verification messages and patterns
+# Node-registration verification messages and patterns
 # Timing configuration is loaded from input/pxe_config.yml by the playbook
 
 # Status messages
-phone_home_status_ok: "✅ Phone-home confirmed:"
-phone_home_status_wait: "⏳ Still waiting for phone-home:"
+node_registration_status_ok: "OK Node registered:"
+node_registration_status_wait: "WAIT Still waiting for node registration:"
 
 # Error messages
-phone_home_fail_msg: |
-  FATAL: Required facts missing for phone-home verification.
+node_registration_fail_msg: |
+  FATAL: Required facts missing for node-registration verification.
   pxe_start_epoch = {{ pxe_start_epoch | default('UNDEFINED') }}
   target_node_admin_ips = {{ target_node_admin_ips | default('UNDEFINED') }}
   Ensure facts are set correctly.
 
-phone_home_success_msg: >
-  [Phone-Home] ✅ All {{ target_node_admin_ips | length }}
-  nodes completed cloud-init and phoned home successfully.
+node_registration_success_msg: >
+  [Node-Registration] All {{ target_node_admin_ips | length }}
+  nodes completed cloud-init and registered successfully.
 
-phone_home_pause_prompt: >
-  Waiting {{ phone_home_pause_minutes | default(3) }} minutes for nodes to boot and begin
-  cloud-init before starting phone-home polling...
+node_registration_pause_prompt: >
+  Waiting {{ node_registration_pause_minutes | default(3) }} minutes for nodes to boot and begin
+  cloud-init before starting node-registration polling...

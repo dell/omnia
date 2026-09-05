@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.3.0] - 2026-09-05
 
 ### Added
 - Precheck environment role with validate_system_environment integration
@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive role metadata for collect_repo_credentials role
 
 ### Changed
+- Galaxy version set to 2.3.0.
 - Replaced hardcoded `/opt/omnia` paths with environment variable references
 - Updated ansible-lint configuration to enable security rules
 - Enhanced Jinja2 template syntax with proper operator precedence

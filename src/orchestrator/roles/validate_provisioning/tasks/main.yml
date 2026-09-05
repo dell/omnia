@@ -36,9 +36,15 @@
       Authorization: "Bearer {{ openchami_access_token }}"
   register: smd_components
 
-- name: Build expected node list from functional groups
+# Build expected nodes from the PXE mapping file's XNAME column (not group
+# names).  The previous code used fg_config 'group' attribute which contains
+# GROUP_NAMEs (grp1, grp2) — comparing those against SMD xnames always
+# produced mismatches.
+- name: Build expected node list from mapping file xnames
   ansible.builtin.set_fact:
-    expected_nodes: "{{ fg_config.functional_groups | map(attribute='group') | flatten | unique | list }}"
+    expected_nodes: >-
+      {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
+         | map(attribute='value.XNAME') | unique | list }}
 
 - name: Build registered node list from SMD
   ansible.builtin.set_fact:
@@ -175,7 +181,7 @@
 # Write orchestrator_status.yml — the canonical status contract consumed by
 # external tools. During the provisioning-only path (no PXE boot) the node
 # status is derived from SMD registration.  When PXE boot is enabled the
-# set_pxe_boot.yml playbook overwrites this file with phone-home results.
+# pxeboot.yml playbook overwrites this file with node-registration results.
 - name: Compute per-node provisioning status from SMD
   ansible.builtin.set_fact:
     provisioning_nodes_status: >-
