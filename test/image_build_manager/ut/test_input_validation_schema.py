@@ -257,6 +257,50 @@ def test_repo_status_requires_repo_manager_contract(valid_repo_status):
     assert any("repo_manager" in error for error in errors)
 
 
+def test_repo_status_allows_empty_internet_repo_manager_values(valid_repo_status):
+    valid_repo_status["repo_manager"] = {
+        "port": "",
+        "certificates": {
+            "server_crt": "",
+            "server_key": "",
+            "certs_dir": "",
+        },
+    }
+    assert _validate(valid_repo_status, "repo_status.json", "repo_status.yml") == []
+
+
+def test_repo_status_checks_repo_manager_structure_only(valid_repo_status):
+    valid_repo_status["repo_manager"] = {
+        "port": "",
+        "certificates": {
+            "server_crt": "/optional/ca.crt",
+            "server_key": "",
+            "certs_dir": "",
+        },
+    }
+    assert _validate(valid_repo_status, "repo_status.json", "repo_status.yml") == []
+
+
+def test_repo_status_requires_certificate_structure(valid_repo_status):
+    del valid_repo_status["repo_manager"]["certificates"]["server_key"]
+    errors = _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
+    assert any("server_key" in error for error in errors)
+
+
+@pytest.mark.parametrize("invalid_port", ["2225", 0, 65536, True, None])
+def test_repo_status_rejects_invalid_port_type_or_range(
+    valid_repo_status, invalid_port
+):
+    valid_repo_status["repo_manager"]["port"] = invalid_port
+    assert _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
+
+
+def test_repo_status_requires_certificate_values_to_be_strings(valid_repo_status):
+    valid_repo_status["repo_manager"]["certificates"]["server_crt"] = None
+    errors = _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
+    assert any("server_crt" in error for error in errors)
+
+
 def test_repo_status_rejects_blank_url(valid_repo_status):
     valid_repo_status["repositories"]["10.0"]["x86_64"]["baseos"]["url"] = ""
     errors = _validate(valid_repo_status, "repo_status.json", "repo_status.yml")

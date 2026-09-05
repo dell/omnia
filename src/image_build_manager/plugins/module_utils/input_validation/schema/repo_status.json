@@ -27,10 +27,33 @@
         },
         "repo_manager": {
             "type": "object",
-            "oneOf": [
-                {"$ref": "#/$defs/managedRepoManager"},
-                {"$ref": "#/$defs/internetRepoManager"}
-            ]
+            "description": "Repository service metadata. Values may be empty for internet-hosted repositories, but the structure is always required.",
+            "required": ["port", "certificates"],
+            "properties": {
+                "port": {
+                    "description": "Managed repository service port, or an empty string in internet mode.",
+                    "oneOf": [
+                        {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 65535
+                        },
+                        {"const": ""}
+                    ]
+                },
+                "certificates": {
+                    "type": "object",
+                    "description": "Certificate path structure. Individual paths may be empty in internet mode.",
+                    "required": ["server_crt", "server_key", "certs_dir"],
+                    "properties": {
+                        "server_crt": {"type": "string"},
+                        "server_key": {"type": "string"},
+                        "certs_dir": {"type": "string"}
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "additionalProperties": false
         },
         "repositories": {
             "type": "object",
@@ -52,11 +75,6 @@
         "file_repos": {"type": "object"}
     },
     "$defs": {
-        "nonEmptyString": {
-            "type": "string",
-            "minLength": 1,
-            "pattern": "^\\S(?:.*\\S)?$"
-        },
         "repository": {
             "type": "object",
             "properties": {
@@ -78,48 +96,6 @@
             "type": "object",
             "patternProperties": {
                 "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$": {"$ref": "#/$defs/repository"}
-            },
-            "additionalProperties": false
-        },
-        "managedRepoManager": {
-            "type": "object",
-            "required": ["port", "certificates"],
-            "properties": {
-                "port": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 65535
-                },
-                "certificates": {"$ref": "#/$defs/managedCertificates"}
-            },
-            "additionalProperties": false
-        },
-        "managedCertificates": {
-            "type": "object",
-            "required": ["server_crt", "server_key", "certs_dir"],
-            "properties": {
-                "server_crt": {"$ref": "#/$defs/nonEmptyString"},
-                "server_key": {"$ref": "#/$defs/nonEmptyString"},
-                "certs_dir": {"$ref": "#/$defs/nonEmptyString"}
-            },
-            "additionalProperties": false
-        },
-        "internetRepoManager": {
-            "type": "object",
-            "required": ["port", "certificates"],
-            "properties": {
-                "port": {"const": ""},
-                "certificates": {"$ref": "#/$defs/emptyCertificates"}
-            },
-            "additionalProperties": false
-        },
-        "emptyCertificates": {
-            "type": "object",
-            "required": ["server_crt", "server_key", "certs_dir"],
-            "properties": {
-                "server_crt": {"const": ""},
-                "server_key": {"const": ""},
-                "certs_dir": {"const": ""}
             },
             "additionalProperties": false
         }
