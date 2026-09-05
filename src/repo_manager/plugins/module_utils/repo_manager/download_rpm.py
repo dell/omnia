@@ -20,9 +20,7 @@ import os
 import glob
 from collections import OrderedDict
 from pathlib import Path
-from ansible.module_utils.repo_manager.config import (
-    PULP_DISTRIBUTION_ROOT_PARTS,
-)
+from ansible.module_utils.repo_manager.config import PULP_DISTRIBUTION_ROOT_PARTS
 from ansible.module_utils.repo_manager.dnf_package_manager import (
     build_dnf_download_command,
     build_dnf_info_command,
@@ -32,6 +30,7 @@ from ansible.module_utils.repo_manager.rpm_package_processor import (
     catalog_rpm_type,
     partition_rpm_work,
 )
+from ansible.module_utils.repo_manager.pulp_commands import pulp_rpm_commands
 from multiprocessing import Lock
 from ansible.module_utils.repo_manager.parse_and_download import write_status_to_file, _prefix_repo_name_with_arch
 
@@ -63,7 +62,7 @@ def _check_repo_exists_in_pulp(repo_name, logger):
 
     try:
         result = subprocess.run(
-            ['pulp', 'rpm', 'repository', 'show', '--name', repo_name],
+            pulp_rpm_commands["show_repository"] % repo_name,
             capture_output=True, text=True, check=False
         )
         exists = result.returncode == 0
@@ -71,8 +70,8 @@ def _check_repo_exists_in_pulp(repo_name, logger):
         if not exists:
             logger.warning(f"Repository '{repo_name}' does not exist in Pulp")
         return exists
-    except Exception as e:
-        logger.error(f"Error checking repository existence: {e}")
+    except Exception:
+        logger.error("Unable to check whether the RPM repository exists")
         _repo_exists_cache[repo_name] = False
         return False
 
@@ -453,8 +452,8 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
         else:
             status = "Failed"
 
-    except Exception as e:
-        logger.error(f"Exception occurred: {e}")
+    except Exception:
+        logger.error("RPM package processing failed")
         status = "Failed"
         repo_mapping = package.get("repo_mapping", {})
         rpm_type_mapping = package.get("rpm_type_mapping", {})

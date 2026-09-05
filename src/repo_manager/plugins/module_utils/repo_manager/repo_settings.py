@@ -126,14 +126,13 @@ DNF_MAX_CONCURRENT_COMMANDS = get_config_value(
     'dnf_config.max_concurrent_commands', 1,
     'REPO_MANAGER_DNF_MAX_CONCURRENT_COMMANDS'
 )
-# nosec B108 - These are default paths, actual paths are configurable via parameters
-LOG_DIR_DEFAULT = os.path.join(REPO_MANAGER_LOG_DIR, "thread_logs")  # nosec B108
-DEFAULT_LOG_FILE = os.path.join(REPO_MANAGER_LOG_DIR, "task_results_table.log")  # nosec B108
+LOG_DIR_DEFAULT = os.path.join(REPO_MANAGER_LOG_DIR, "thread_logs")
+DEFAULT_LOG_FILE = os.path.join(REPO_MANAGER_LOG_DIR, "task_results_table.log")
 # setup_standard_logger expects a directory and creates standard.log inside it.
 DEFAULT_SLOG_FILE = REPO_MANAGER_LOG_DIR
 CSV_FILE_PATH_DEFAULT = [
-    os.path.join(REPO_MANAGER_LOG_DIR, "x86_64/status_results_table.csv"),  # nosec B108
-    os.path.join(REPO_MANAGER_LOG_DIR, "aarch64/status_results_table.csv")  # nosec B108
+    os.path.join(REPO_MANAGER_LOG_DIR, "x86_64/status_results_table.csv"),
+    os.path.join(REPO_MANAGER_LOG_DIR, "aarch64/status_results_table.csv")
 ]
 DEFAULT_REPO_STORE_PATH = REPO_MANAGER_RUNTIME_DIR
 DEFAULT_STATUS_FILENAME = "status.csv"

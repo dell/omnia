@@ -13,7 +13,6 @@
 # limitations under the License.
 ---
 
-local_repo_access_dest_path: "{{ output_dir }}/repo_status.yml"
 base_path: "{{ repo_manager_log_dir }}"
 clean_rpms: true
 rpm_dir_path: >-
@@ -35,3 +34,13 @@ sw_download_msg: "The specified software packages have already been downloaded."
 meta_dest: "{{ repo_manager_offline_repo_dir }}/.data"
 metadata_file_path: "{{ meta_dest }}/localrepo_metadata.yml"
 folder_mode: "0755"
+
+# =============================================================================
+# FAILURE AND ASSERTION MESSAGES
+# =============================================================================
+parse_and_download_fail_the_playbook_execution_msg: "Task execution failed: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+parse_and_download_validate_active_package_backend_msg: >-
+  Package backend
+  {{ catalog_context.platform_capabilities.package_backend | default('unknown') }}
+  is not implemented by process_rpm_config.

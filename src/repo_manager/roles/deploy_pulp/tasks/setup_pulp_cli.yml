@@ -30,9 +30,8 @@
   ansible.builtin.assert:
     that:
       - pulp_venv_path is match('^/')
-    fail_msg: >-
-      OMNIA_VENV_PATH must be an absolute path when it is configured.
-      Received: {{ pulp_venv_path }}
+    fail_msg: "{{ deploy_pulp_validate_configured_omnia_virtual_environment_path_msg }}"
+    quiet: true
   when: pulp_cli_runtime_mode == 'venv'
 
 - name: Inspect configured Omnia virtual environment CLI directory
@@ -46,10 +45,8 @@
     that:
       - _pulp_venv_cli_directory.stat.exists | default(false)
       - _pulp_venv_cli_directory.stat.isdir | default(false)
-    fail_msg: >-
-      The Omnia virtual environment CLI directory is unavailable at
-      {{ pulp_venv_cli_executable | dirname }}. Set OMNIA_VENV_PATH to the
-      deployed Omnia virtual environment and run the prepare operation again.
+    fail_msg: "{{ deploy_pulp_require_the_configured_omnia_virtual_environment_cli_directory_msg }}"
+    quiet: true
   when: pulp_cli_runtime_mode == 'venv'
 
 - name: Inspect selected Pulp CLI Python runtime
@@ -64,14 +61,8 @@
       - _pulp_cli_runtime_python.stat.exists | default(false)
       - _pulp_cli_runtime_python.stat.isreg | default(false)
       - _pulp_cli_runtime_python.stat.executable | default(false)
-    fail_msg: >-
-      Python is unavailable at {{ pulp_cli_runtime_python_executable }}.
-      {% if pulp_cli_runtime_mode == 'venv' %}
-      Correct OMNIA_VENV_PATH and run the dependency setup before prepare.
-      {% else %}
-      Install the Repo Manager system Python dependencies before prepare.
-      {% endif %}
-
+    fail_msg: "{{ deploy_pulp_require_an_executable_pulp_cli_python_runtime_msg }}"
+    quiet: true
 - name: Verify pulp-cli is installed in the selected Python runtime
   ansible.builtin.command:
     argv:
@@ -86,11 +77,8 @@
   ansible.builtin.assert:
     that:
       - _pulp_cli_runtime_import.rc == 0
-    fail_msg: >-
-      pulp-cli is not installed for {{ pulp_cli_runtime_python_executable }}.
-      Install the Repo Manager requirements for the selected
-      {{ pulp_cli_runtime_mode }} runtime and run prepare again.
-
+    fail_msg: "{{ deploy_pulp_require_pulp_cli_in_the_selected_python_runtime_msg }}"
+    quiet: true
 - name: Ensure Pulp CLI backend directory exists
   ansible.builtin.file:
     path: "{{ pulp_cli_backend | dirname }}"
@@ -118,10 +106,8 @@
       - _pulp_cli_backend_state.stat.exists
       - _pulp_cli_backend_state.stat.isreg
       - _pulp_cli_backend_state.stat.executable
-    fail_msg: >-
-      The managed Pulp CLI backend is unavailable. Reinstall pulp-cli and run
-      the prepare operation again.
-
+    fail_msg: "{{ deploy_pulp_require_a_valid_managed_pulp_cli_backend_msg }}"
+    quiet: true
 - name: Install managed Pulp CLI launcher
   ansible.builtin.template:
     src: pulp_cli_launcher.sh.j2
@@ -143,17 +129,13 @@
 
 - name: Verify managed Pulp CLI launcher
   ansible.builtin.command:
-    argv:
-      - "{{ pulp_cli_executable }}"
-      - --version
+    argv: "{{ [pulp_cli_executable] + pulp_cli_commands.common.version }}"
   register: pulp_cli_version
   changed_when: false
 
 - name: Verify managed Pulp CLI from Omnia virtual environment
   ansible.builtin.command:
-    argv:
-      - "{{ pulp_venv_cli_executable }}"
-      - --version
+    argv: "{{ [pulp_venv_cli_executable] + pulp_cli_commands.common.version }}"
   register: _pulp_venv_cli_version
   changed_when: false
   when: pulp_cli_runtime_mode == 'venv'

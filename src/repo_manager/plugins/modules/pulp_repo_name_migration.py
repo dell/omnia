@@ -1,51 +1,4 @@
-from ansible.module_utils.repo_manager import config
-DOCUMENTATION = r"""
----
-module: pulp_repo_name_migration
-short_description: Migrate Pulp repository names to new format
-description:
-  - This module migrates Pulp repository names from old to new naming convention.
-  - It handles renaming of repositories, remotes, and distributions.
-version_added: "1.0.0"
-options:
-    old_prefix:
-      description: Old repository name prefix
-      required: false
-      type: str
-    new_prefix:
-      description: New repository name prefix
-      required: false
-      type: str
-    dry_run:
-      description: Perform dry run without changes
-      required: false
-      type: bool
-      default: False
-
-author:
-  - Dell Technologies (@dell)
-"""
-
-EXAMPLES = r"""
-- name: Migrate repository names
-  pulp_repo_name_migration:
-    old_prefix: "local_"
-    new_prefix: "omnia_"
-    dry_run: false
-"""
-
-RETURN = r"""
-migrated_repos:
-  description: List of migrated repositories
-  type: list
-  returned: success
-migration_count:
-  description: Number of migrations performed
-  type: int
-  returned: success
-"""
-
-
+#!/usr/bin/python3
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -60,8 +13,7 @@ migration_count:
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Pulp Repository Name Migration Utility
+"""Migrate Pulp repositories from legacy names to context-aware names.
 
 Migrates Pulp repositories, distributions, and remotes from the old naming format
 to the new naming format that includes OS type and OS version.
@@ -84,9 +36,9 @@ Migration strategy (create-copy-switch):
       3. Create a new publication for the new repo.
       4. Create a new distribution with updated name and base_path.
       5. Rename the remote via REST API PATCH (preserves TLS certificates
-         and ``RemoteArtifact`` links for on-demand content).  Falls back
-         to delete+recreate with a post-migration sync if rename fails.
-      6. Delete the old distribution, publications, and repo.
+         and ``RemoteArtifact`` links for on-demand content). If rename fails,
+         remove the incomplete new objects and retain the old working objects.
+      6. Keep the old distribution, publications, and repository available.
     This preserves all existing content — nothing is re-downloaded.
 
     Content copy mechanism varies by repo type:
@@ -98,29 +50,116 @@ Migration strategy (create-copy-switch):
         followed by ``pulp python publication create`` for the new repo.
 """
 
-import json
-import os
-import re
-import subprocess
-import shlex
+import base64
 import csv
 import glob
 import http.client
+import json
+import os
+import platform
+import re
 import ssl
-import base64
-from typing import Dict, List, Any, Optional
+import subprocess
+from typing import Any, Dict, List, Optional, Sequence
 from urllib.parse import urlparse
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.repo_manager import config
 from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
 from ansible.module_utils.repo_manager.config import (
-    pulp_rpm_commands,
-    pulp_file_commands,
-    pulp_python_commands,
     ARCH_SUFFIXES,
     PULP_DISTRIBUTION_ROOT,
 )
+from ansible.module_utils.repo_manager.pulp_commands import (
+    pulp_common_commands,
+    pulp_file_commands,
+    pulp_python_commands,
+    pulp_rpm_commands,
+)
+from ansible.module_utils.repo_manager.repo_file_utils import (
+    atomic_write_repo_file,
+    repo_file_error_message,
+)
 from ansible.module_utils.repo_manager.software_utils import build_repo_name_prefix
+from ansible.module_utils.repo_manager.security_utils import (
+    mask_sensitive_data,
+    normalize_pulp_distribution_url,
+    redact_sensitive_output,
+    validate_repository_id,
+)
+
+DOCUMENTATION = r"""
+---
+module: pulp_repo_name_migration
+short_description: Migrate legacy Pulp repository names
+description:
+  - Migrates legacy Pulp RPM, file, and Python repository names.
+  - Preserves existing content while creating context-aware names.
+options:
+  cluster_os_type:
+    description: Operating-system family used in the target names.
+    required: true
+    type: str
+  cluster_os_version:
+    description: Operating-system version used in the target names.
+    required: true
+    type: str
+  base_path:
+    description: Directory containing repository status files.
+    required: false
+    type: path
+  dry_run:
+    description: Report migrations without applying them.
+    required: false
+    type: bool
+    default: false
+  log_dir:
+    description: Directory for the migration log.
+    required: false
+    type: path
+  pulp_base_url:
+    description: Trusted public HTTPS origin for Pulp distributions.
+    required: true
+    type: str
+  repo_file_path:
+    description: Destination path for the generated DNF repository file.
+    required: true
+    type: path
+  pulp_ssl_ca_cert:
+    description: CA certificate used to validate the Pulp HTTPS endpoint.
+    required: true
+    type: path
+author:
+  - Dell Technologies (@dell)
+"""
+
+EXAMPLES = r"""
+- name: Migrate repository names
+  pulp_repo_name_migration:
+    cluster_os_type: rhel
+    cluster_os_version: "10.0"
+    base_path: "{{ repo_manager_log_dir }}/rhel/10.0"
+    log_dir: "{{ repo_manager_log_dir }}/rhel/10.0"
+    pulp_base_url: https://192.0.2.10:2225
+    repo_file_path: "{{ pulp_repo_file_path }}"
+    pulp_ssl_ca_cert: "{{ pulp_server_crt }}"
+    dry_run: false
+"""
+
+RETURN = r"""
+results:
+  description: Result records for each migration operation.
+  type: list
+  returned: always
+summary_table:
+  description: Human-readable migration summary.
+  type: str
+  returned: always
+msg:
+  description: Migration result summary.
+  type: str
+  returned: success
+"""
 
 # ============================================================================
 # Constants
@@ -151,19 +190,19 @@ RPM_FILE_INDICATOR_TYPES = {"rpm_file"}
 PULP_CMD_TIMEOUT = 1800  # 30 minutes
 
 
-def run_cmd(cmd: str, logger) -> Dict[str, Any]:
-    """Execute a shell command and return structured result."""
+def run_cmd(cmd: Sequence[str], logger) -> Dict[str, Any]:
+    """Execute one centrally defined argv command and return its result."""
+    cmd_list = [str(value) for value in cmd]
     try:
-        cmd_list = shlex.split(cmd)
         result = subprocess.run(
             cmd_list, capture_output=True, text=True, timeout=PULP_CMD_TIMEOUT,
-            shell=False
+            shell=False, check=False,
         )
         return {"rc": result.returncode, "stdout": result.stdout.strip(),
-                "stderr": result.stderr.strip()}
-    except (subprocess.SubprocessError, OSError) as exc:
-        logger.error("Command failed: %s - %s", cmd, exc)
-        return {"rc": 1, "stdout": "", "stderr": str(exc)}
+                "stderr": redact_sensitive_output(result.stderr.strip(), cmd_list)}
+    except (subprocess.SubprocessError, OSError):
+        logger.error("Command failed: %s", mask_sensitive_data(cmd))
+        return {"rc": 1, "stdout": "", "stderr": "Unable to execute command"}
 
 
 def safe_json_parse(data: str, default=None):
@@ -241,7 +280,7 @@ def compute_new_base_path(old_base_path: str, old_name: str, new_name: str,
 # Pulp listing helpers
 # ============================================================================
 
-def list_pulp_entities(cmd: str, logger) -> List[Dict]:
+def list_pulp_entities(cmd: Sequence[str], logger) -> List[Dict]:
     """Run a Pulp list command and return parsed JSON list."""
     result = run_cmd(cmd, logger)
     if result["rc"] != 0:
@@ -285,7 +324,7 @@ class _PulpApiSession:
     def _load_config(self):
         """Load Pulp server URL and credentials from the CLI config file.
 
-        Reads the Pulp CLI config (``/etc/pulp/cli.toml``) and builds the auth header.
+        Reads the configured Pulp CLI profile and builds the auth header.
         The raw password is NOT stored as an instance attribute.
         """
         cfg = self._read_toml_config()
@@ -296,20 +335,25 @@ class _PulpApiSession:
             cli_section = cfg.get("cli", {})
             base_url = cli_section.get("base_url", "https://localhost")
 
-            # Enforce HTTPS to prevent Man-in-the-Middle attacks.
-            if base_url.startswith("http://"):
-                base_url = "https://" + base_url[len("http://"):]
-
             self._base_url = base_url
             self._parsed = urlparse(base_url)
+            if (
+                    self._parsed.scheme != "https"
+                    or not self._parsed.hostname
+                    or self._parsed.username is not None
+                    or self._parsed.password is not None
+            ):
+                raise ValueError(
+                    "Pulp CLI base_url must be an HTTPS origin without credentials"
+                )
 
             # Build the auth header in one shot from the config dict.
             # The password is never assigned to a local variable — it is
             # consumed directly by _build_auth_header and discarded.
             self._auth_header = self._build_auth_header(cli_section)
 
-        except Exception as exc:
-            self._logger.error("Failed to process Pulp CLI config: %s", exc)
+        except Exception:
+            self._logger.error("Failed to process Pulp CLI configuration.")
 
     @staticmethod
     def _read_toml_config() -> Optional[dict]:
@@ -374,8 +418,12 @@ class _PulpApiSession:
 
     def _make_connection(self) -> http.client.HTTPSConnection:
         """Create a fresh HTTPS connection to the Pulp server."""
-        # nosec B323 - Pulp server uses self-signed certificates
-        context = ssl._create_unverified_context()  # nosec B323
+        ca_bundle = (
+            os.environ.get("PULP_CA_BUNDLE")
+            or config.PULP_SSL_CA_CERT
+        )
+        context = ssl.create_default_context(cafile=ca_bundle)
+        context.check_hostname = True
         port = self._parsed.port or 443
         return http.client.HTTPSConnection(
             self._parsed.hostname, port, context=context, timeout=120
@@ -398,8 +446,9 @@ class _PulpApiSession:
 
         Returns ``{"ok": True/False, "status": <int>, "body": <parsed_json>}``.
         """
-        conn = self._make_connection()
+        conn = None
         try:
+            conn = self._make_connection()
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": self._auth_header,
@@ -412,21 +461,28 @@ class _PulpApiSession:
             ok = resp.status in (200, 201, 202)
             if not ok:
                 self._logger.error("Pulp API POST %s returned %d: %s",
-                                   uri, resp.status, body_raw[:500])
+                                   uri, resp.status,
+                                   redact_sensitive_output(body_raw[:500], []))
             return {"ok": ok, "status": resp.status, "body": body}
-        except Exception as exc:
-            self._logger.error("Pulp API POST %s failed: %s", uri, exc)
-            return {"ok": False, "status": 0, "body": {"error": str(exc)}}
+        except Exception:
+            self._logger.error("Pulp API POST %s failed.", uri)
+            return {
+                "ok": False,
+                "status": 0,
+                "body": {"error": "Pulp API request failed"},
+            }
         finally:
-            conn.close()
+            if conn is not None:
+                conn.close()
 
     def get(self, uri: str) -> Dict[str, Any]:
         """Make a GET request to the Pulp REST API over HTTPS.
 
         Returns ``{"ok": True/False, "status": <int>, "body": <parsed_json>}``.
         """
-        conn = self._make_connection()
+        conn = None
         try:
+            conn = self._make_connection()
             headers = {
                 "Authorization": self._auth_header,
             }
@@ -438,21 +494,28 @@ class _PulpApiSession:
             ok = resp.status == 200
             if not ok:
                 self._logger.error("Pulp API GET %s returned %d: %s",
-                                   uri, resp.status, body_raw[:500])
+                                   uri, resp.status,
+                                   redact_sensitive_output(body_raw[:500], []))
             return {"ok": ok, "status": resp.status, "body": body}
-        except Exception as exc:
-            self._logger.error("Pulp API GET %s failed: %s", uri, exc)
-            return {"ok": False, "status": 0, "body": {"error": str(exc)}}
+        except Exception:
+            self._logger.error("Pulp API GET %s failed.", uri)
+            return {
+                "ok": False,
+                "status": 0,
+                "body": {"error": "Pulp API request failed"},
+            }
         finally:
-            conn.close()
+            if conn is not None:
+                conn.close()
 
     def patch(self, uri: str, data: dict) -> Dict[str, Any]:
         """Make a PATCH request to the Pulp REST API over HTTPS.
 
         Returns ``{"ok": True/False, "status": <int>, "body": <parsed_json>}``.
         """
-        conn = self._make_connection()
+        conn = None
         try:
+            conn = self._make_connection()
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": self._auth_header,
@@ -465,13 +528,19 @@ class _PulpApiSession:
             ok = resp.status in (200, 202)
             if not ok:
                 self._logger.error("Pulp API PATCH %s returned %d: %s",
-                                   uri, resp.status, body_raw[:500])
+                                   uri, resp.status,
+                                   redact_sensitive_output(body_raw[:500], []))
             return {"ok": ok, "status": resp.status, "body": body}
-        except Exception as exc:
-            self._logger.error("Pulp API PATCH %s failed: %s", uri, exc)
-            return {"ok": False, "status": 0, "body": {"error": str(exc)}}
+        except Exception:
+            self._logger.error("Pulp API PATCH %s failed.", uri)
+            return {
+                "ok": False,
+                "status": 0,
+                "body": {"error": "Pulp API request failed"},
+            }
         finally:
-            conn.close()
+            if conn is not None:
+                conn.close()
 
 
 def _rename_remote_via_api(old_remote_href: str, new_name: str, logger) -> bool:
@@ -613,11 +682,11 @@ def _delete_old_repo_entities(repo_type: str, old_name: str, logger,
 
     # 1. Delete old distribution (best-effort)
     if "delete_distribution" in cmds:
-        run_cmd(cmds["delete_distribution"] % shlex.quote(old_name), logger)
+        run_cmd(cmds["delete_distribution"] % old_name, logger)
 
     # 2. Delete old publications (RPM only — file/python pubs are auto-managed)
     if repo_type == "rpm" and "list_publications" in cmds:
-        pub_res = run_cmd(cmds["list_publications"] % shlex.quote(old_name), logger)
+        pub_res = run_cmd(cmds["list_publications"] % old_name, logger)
         if pub_res["rc"] == 0:
             pubs = safe_json_parse(pub_res["stdout"], default=[])
             for pub in pubs:
@@ -627,11 +696,11 @@ def _delete_old_repo_entities(repo_type: str, old_name: str, logger,
 
     # 3. Delete old remote (best-effort) — skip if it was renamed
     if not skip_remote and "delete_remote" in cmds:
-        run_cmd(cmds["delete_remote"] % shlex.quote(old_name), logger)
+        run_cmd(cmds["delete_remote"] % old_name, logger)
 
     # 4. Delete old repository
     if "delete_repository" in cmds:
-        run_cmd(cmds["delete_repository"] % shlex.quote(old_name), logger)
+        run_cmd(cmds["delete_repository"] % old_name, logger)
 
 
 # ============================================================================
@@ -653,11 +722,8 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
       4. Create a new distribution with the new name and updated base_path.
       5. Rename the remote via the Pulp REST API (PATCH) to preserve TLS
          certificates and ``RemoteArtifact`` links (critical for on-demand
-         content).  Falls back to delete+recreate if rename fails.
-      6. Delete the old distribution, publications, and repository.
-         The old remote is only deleted if it could not be renamed.
-      7. If the remote had to be recreated (fallback), trigger a re-sync to
-         recreate ``RemoteArtifact`` entries for on-demand content.
+         content). If rename fails, roll back the new repository and leave the
+         complete old repository/remote/distribution untouched.
     """
     results = []
 
@@ -689,13 +755,13 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
                     idx, len(old_repos), old_name, new_name)
 
         # Idempotency: check if new-format repo already exists
-        check = run_cmd(pulp_rpm_commands["show_repository"] % shlex.quote(new_name), logger)
+        check = run_cmd(pulp_rpm_commands["show_repository"] % new_name, logger)
         if check["rc"] == 0:
             # New repo exists — but is the migration complete?
             # Check if distribution also exists; if not, it's a partial migration
             # from a previous failed/timed-out run.
             dist_check = run_cmd(
-                pulp_rpm_commands["check_distribution"] % shlex.quote(new_name), logger
+                pulp_rpm_commands["check_distribution"] % new_name, logger
             )
             if dist_check["rc"] == 0:
                 # Fully migrated — safe to skip
@@ -712,7 +778,7 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
                                "new repo exists but distribution missing. "
                                "Deleting incomplete repo and retrying...",
                                idx, len(old_repos), old_name)
-                run_cmd(pulp_rpm_commands["delete_repository"] % shlex.quote(new_name), logger)
+                run_cmd(pulp_rpm_commands["delete_repository"] % new_name, logger)
 
         if dry_run:
             logger.info("[RPM %d/%d] DryRun '%s' -> '%s'",
@@ -724,7 +790,7 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
 
         # -- Step 1: Create new repository --------------------------------
         create_res = run_cmd(
-            pulp_rpm_commands["create_repository"] % shlex.quote(new_name), logger
+            pulp_rpm_commands["create_repository"] % new_name, logger
         )
         if create_res["rc"] != 0:
             results.append({"name": old_name, "new_name": new_name,
@@ -738,7 +804,7 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
 
         # -- Step 2: Copy content from old repo to new repo ---------------
         old_repo_info = safe_json_parse(
-            run_cmd(pulp_rpm_commands["show_repository"] % shlex.quote(old_name), logger
+            run_cmd(pulp_rpm_commands["show_repository"] % old_name, logger
                     ).get("stdout", ""), default=None
         )
         copy_ok = False
@@ -752,7 +818,7 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
                 if not dest_repo_href:
                     # Fallback: look up the newly created repo to get its href
                     new_show = safe_json_parse(
-                        run_cmd(pulp_rpm_commands["show_repository"] % shlex.quote(new_name),
+                        run_cmd(pulp_rpm_commands["show_repository"] % new_name,
                                 logger).get("stdout", ""), default=None
                     )
                     dest_repo_href = new_show.get("pulp_href", "") if new_show else ""
@@ -762,7 +828,7 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
                         "source_repo_version": version_href,
                         "dest_repo": dest_repo_href,
                     }])
-                    copy_cmd = f"pulp rpm copy --config {shlex.quote(copy_config)}"
+                    copy_cmd = pulp_rpm_commands["copy_content"] % copy_config
                     logger.info("[RPM %d/%d] Copying content from '%s' (this may take several minutes for large repos)...",
                                 idx, len(old_repos), old_name)
                     copy_res = run_cmd(copy_cmd, logger)
@@ -784,7 +850,7 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
 
         if not copy_ok:
             # Rollback: remove the new repo we just created
-            run_cmd(pulp_rpm_commands["delete_repository"] % shlex.quote(new_name), logger)
+            run_cmd(pulp_rpm_commands["delete_repository"] % new_name, logger)
             results.append({"name": old_name, "new_name": new_name,
                             "type": "rpm_repository", "status": "Failed",
                             "message": "Content copy failed; rolled back"})
@@ -792,7 +858,7 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
 
         # -- Step 3: Create new publication --------------------------------
         pub_res = run_cmd(
-            pulp_rpm_commands["publish_repository"] % shlex.quote(new_name), logger
+            pulp_rpm_commands["publish_repository"] % new_name, logger
         )
         if pub_res["rc"] != 0:
             logger.warning("Publication creation for '%s' failed: %s",
@@ -806,7 +872,7 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
         #         new: opt/omnia/.../rpms/x86_64_rhel_10.0_epel
         #    NOTE: Old distribution is preserved so the old repo remains accessible.
         # if "delete_distribution" in pulp_rpm_commands:
-        #     run_cmd(pulp_rpm_commands["delete_distribution"] % shlex.quote(old_name), logger)
+        #     run_cmd(pulp_rpm_commands["delete_distribution"] % old_name, logger)
 
         # -- Step 5: Create new distribution with updated base_path -------
         arch = None
@@ -830,16 +896,15 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
         # Remove any stale distribution with the new name before creating
         # (handles re-runs after partial cleanup or failed previous migration)
         stale_dist_check = run_cmd(
-            pulp_rpm_commands["check_distribution"] % shlex.quote(new_name), logger
+            pulp_rpm_commands["check_distribution"] % new_name, logger
         )
         if stale_dist_check["rc"] == 0:
             logger.info("Removing stale distribution '%s' before re-creating", new_name)
-            run_cmd(pulp_rpm_commands["delete_distribution"] % shlex.quote(new_name), logger)
+            run_cmd(pulp_rpm_commands["delete_distribution"] % new_name, logger)
 
         logger.info("Creating distribution '%s' with base_path '%s'", new_name, new_base_path)
         dist_create_cmd = pulp_rpm_commands["distribute_repository"] % (
-            shlex.quote(new_name), shlex.quote(new_base_path),
-            shlex.quote(new_name)
+            new_name, new_base_path, new_name
         )
         dist_create_res = run_cmd(dist_create_cmd, logger)
         if dist_create_res["rc"] != 0:
@@ -847,7 +912,7 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
                          new_name, dist_create_res["stderr"])
             # Rollback: remove the new repo we just created since it's unusable
             # without a distribution (serving endpoint)
-            run_cmd(pulp_rpm_commands["delete_repository"] % shlex.quote(new_name), logger)
+            run_cmd(pulp_rpm_commands["delete_repository"] % new_name, logger)
             results.append({"name": old_name, "new_name": new_name,
                             "type": "rpm_repository", "status": "Failed",
                             "message": f"Distribution creation failed: {dist_create_res['stderr']}"})
@@ -868,35 +933,22 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
                     logger.info("Renamed remote '%s' -> '%s' (preserving certs and RemoteArtifacts)",
                                 old_name, new_name)
                 else:
-                    # Fallback: recreate remote (will lose certs and RemoteArtifacts)
-                    logger.warning("Remote rename failed for '%s'; falling back to delete+recreate "
-                                   "(WARNING: on-demand content may not be served until re-sync)",
-                                   old_name)
-                    remote_url = old_remote.get("url", "")
-                    remote_policy = old_remote.get("policy", "on_demand")
-                    ca_cert = old_remote.get("ca_cert", "")
-                    client_cert = old_remote.get("client_cert", "")
-                    client_key = old_remote.get("client_key", "")
-
-                    if ca_cert and client_cert and client_key:
-                        remote_create_cmd = (
-                            pulp_rpm_commands.get("create_remote_cert", "") % (
-                                shlex.quote(new_name), shlex.quote(remote_url),
-                                shlex.quote(remote_policy), shlex.quote(ca_cert),
-                                shlex.quote(client_cert), shlex.quote(client_key),
-                            )
-                        )
-                    else:
-                        remote_create_cmd = (
-                            pulp_rpm_commands["create_remote"] % (
-                                shlex.quote(new_name), shlex.quote(remote_url),
-                                shlex.quote(remote_policy),
-                            )
-                        )
-                    remote_res = run_cmd(remote_create_cmd, logger)
-                    if remote_res["rc"] != 0:
-                        logger.warning("Remote recreation for '%s' failed: %s",
-                                       new_name, remote_res["stderr"])
+                    logger.error(
+                        "Remote rename failed for '%s'; rolling back the new "
+                        "repository and retaining the last-known-good objects.",
+                        old_name,
+                    )
+                    _delete_old_repo_entities("rpm", new_name, logger)
+                    results.append({
+                        "name": old_name,
+                        "new_name": new_name,
+                        "type": "rpm_repository",
+                        "status": "Failed",
+                        "message": (
+                            "Remote rename failed; old repository retained"
+                        ),
+                    })
+                    continue
 
         # -- Step 7: Keep old RPM entities (repo, publications, remote, distribution)
         #    RPM repos have different base_paths for old vs new distributions,
@@ -904,23 +956,6 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
         #    the old-format repos accessible.
         #    Use roles/cleanup_pulp/tasks/delete_migrated_pulp_rpm_repos.yml to clean up when ready.
         # _delete_old_repo_entities("rpm", old_name, logger, skip_remote=remote_renamed)
-
-        # -- Step 8: Re-sync to recreate RemoteArtifacts (if remote was recreated)
-        #    When the remote was recreated (not renamed), RemoteArtifacts for
-        #    on-demand content were lost.  A sync recreates them without
-        #    re-downloading any content that already exists in the repo.
-        if not remote_renamed and old_remote:
-            logger.info("Triggering post-migration sync for '%s' to recreate RemoteArtifacts...",
-                        new_name)
-            sync_res = run_cmd(
-                pulp_rpm_commands["sync_repository"] % (
-                    shlex.quote(new_name), shlex.quote(new_name)
-                ), logger
-            )
-            if sync_res["rc"] != 0:
-                logger.warning("Post-migration sync for '%s' failed: %s. "
-                               "On-demand packages may not be served until a manual re-sync.",
-                               new_name, sync_res["stderr"])
 
         results.append({"name": old_name, "new_name": new_name,
                         "type": "rpm_repository", "status": "Success",
@@ -982,11 +1017,11 @@ def migrate_file_repos(os_type: str, os_version: str, dry_run: bool,
         logger.info("[File %d/%d] Processing '%s' -> '%s'",
                     idx, len(old_repos), old_name, new_name)
 
-        check = run_cmd(pulp_file_commands["show_repository"] % shlex.quote(new_name), logger)
+        check = run_cmd(pulp_file_commands["show_repository"] % new_name, logger)
         if check["rc"] == 0:
             # New repo exists — but is the migration complete?
             dist_check = run_cmd(
-                pulp_file_commands["show_distribution"] % shlex.quote(new_name), logger
+                pulp_file_commands["show_distribution"] % new_name, logger
             )
             if dist_check["rc"] == 0:
                 logger.info("[File %d/%d] Skipped '%s' — already migrated to '%s'",
@@ -1000,7 +1035,7 @@ def migrate_file_repos(os_type: str, os_version: str, dry_run: bool,
                                "new repo exists but distribution missing. "
                                "Deleting incomplete repo and retrying...",
                                idx, len(old_repos), old_name)
-                run_cmd(pulp_file_commands["delete_repository"] % shlex.quote(new_name), logger)
+                run_cmd(pulp_file_commands["delete_repository"] % new_name, logger)
                 # Fall through to re-create from scratch
 
         if dry_run:
@@ -1011,7 +1046,7 @@ def migrate_file_repos(os_type: str, os_version: str, dry_run: bool,
 
         # -- Step 1: Create new repository --------------------------------
         create_res = run_cmd(
-            pulp_file_commands["create_repository"] % shlex.quote(new_name), logger
+            pulp_file_commands["create_repository"] % new_name, logger
         )
         if create_res["rc"] != 0:
             results.append({"name": old_name, "new_name": new_name,
@@ -1026,14 +1061,14 @@ def migrate_file_repos(os_type: str, os_version: str, dry_run: bool,
         if not new_repo_href:
             # Fallback: look up the newly created repo to get its href
             new_show = safe_json_parse(
-                run_cmd(pulp_file_commands["show_repository"] % shlex.quote(new_name),
+                run_cmd(pulp_file_commands["show_repository"] % new_name,
                         logger).get("stdout", ""), default=None
             )
             new_repo_href = new_show.get("pulp_href", "") if new_show else ""
 
         # -- Step 2+3: Copy content from old repo to new repo via REST API -
         old_repo_info = safe_json_parse(
-            run_cmd(pulp_file_commands["show_repository"] % shlex.quote(old_name), logger
+            run_cmd(pulp_file_commands["show_repository"] % old_name, logger
                     ).get("stdout", ""), default=None
         )
         copy_ok = False
@@ -1061,7 +1096,7 @@ def migrate_file_repos(os_type: str, os_version: str, dry_run: bool,
             copy_ok = True  # Cannot read old repo info
 
         if not copy_ok:
-            run_cmd(pulp_file_commands["delete_repository"] % shlex.quote(new_name), logger)
+            run_cmd(pulp_file_commands["delete_repository"] % new_name, logger)
             results.append({"name": old_name, "new_name": new_name,
                             "type": "file_repository", "status": "Failed",
                             "message": "Content copy failed; rolled back"})
@@ -1070,7 +1105,7 @@ def migrate_file_repos(os_type: str, os_version: str, dry_run: bool,
         # -- Step 4: Create new publication --------------------------------
         pub_cmd = pulp_file_commands.get("publication_create", "")
         if pub_cmd:
-            pub_res = run_cmd(pub_cmd % shlex.quote(new_name), logger)
+            pub_res = run_cmd(pub_cmd % new_name, logger)
             if pub_res["rc"] != 0:
                 logger.warning("Publication creation for '%s' failed: %s",
                                new_name, pub_res["stderr"])
@@ -1084,7 +1119,7 @@ def migrate_file_repos(os_type: str, os_version: str, dry_run: bool,
         #    The old FILE REPOSITORY is still preserved — only the distribution
         #    (serving endpoint) is replaced.
         if "delete_distribution" in pulp_file_commands:
-            run_cmd(pulp_file_commands["delete_distribution"] % shlex.quote(old_name), logger)
+            run_cmd(pulp_file_commands["delete_distribution"] % old_name, logger)
 
         # -- Step 6: Create new distribution with updated base_path -------
         arch = None
@@ -1103,8 +1138,7 @@ def migrate_file_repos(os_type: str, os_version: str, dry_run: bool,
             if dist_create_cmd:
                 dist_res = run_cmd(
                     dist_create_cmd % (
-                        shlex.quote(new_name), shlex.quote(new_base_path),
-                        shlex.quote(new_name)
+                        new_name, new_base_path, new_name
                     ), logger
                 )
                 if dist_res["rc"] != 0:
@@ -1172,7 +1206,7 @@ def migrate_python_repos(os_type: str, os_version: str, dry_run: bool,
         logger.info("[Python %d/%d] Processing '%s' -> '%s'",
                     idx, len(old_repos), old_name, new_name)
 
-        check = run_cmd(pulp_python_commands["show_repository"] % shlex.quote(new_name), logger)
+        check = run_cmd(pulp_python_commands["show_repository"] % new_name, logger)
         if check["rc"] == 0:
             # New repo exists — but is the migration complete?
             # Check if a distribution with the new name exists in the already-fetched list
@@ -1190,7 +1224,7 @@ def migrate_python_repos(os_type: str, os_version: str, dry_run: bool,
                                "new repo exists but distribution missing. "
                                "Deleting incomplete repo and retrying...",
                                idx, len(old_repos), old_name)
-                run_cmd(pulp_python_commands["delete_repository"] % shlex.quote(new_name), logger)
+                run_cmd(pulp_python_commands["delete_repository"] % new_name, logger)
                 # Fall through to re-create from scratch
 
         if dry_run:
@@ -1200,7 +1234,7 @@ def migrate_python_repos(os_type: str, os_version: str, dry_run: bool,
             continue
 
         # -- Step 1: Create new repository --------------------------------
-        create_cmd = f"pulp python repository create --name {shlex.quote(new_name)}"
+        create_cmd = pulp_python_commands["create_repository"] % new_name
         create_res = run_cmd(create_cmd, logger)
         if create_res["rc"] != 0:
             results.append({"name": old_name, "new_name": new_name,
@@ -1214,7 +1248,7 @@ def migrate_python_repos(os_type: str, os_version: str, dry_run: bool,
 
         # -- Step 2: Copy content from old repo to new repo ---------------
         old_repo_info = safe_json_parse(
-            run_cmd(pulp_python_commands["show_repository"] % shlex.quote(old_name), logger
+            run_cmd(pulp_python_commands["show_repository"] % old_name, logger
                     ).get("stdout", ""), default=None
         )
         copy_ok = False
@@ -1249,14 +1283,14 @@ def migrate_python_repos(os_type: str, os_version: str, dry_run: bool,
             copy_ok = True  # Cannot read old repo info
 
         if not copy_ok:
-            run_cmd(pulp_python_commands["delete_repository"] % shlex.quote(new_name), logger)
+            run_cmd(pulp_python_commands["delete_repository"] % new_name, logger)
             results.append({"name": old_name, "new_name": new_name,
                             "type": "python_repository", "status": "Failed",
                             "message": "Content copy failed; rolled back"})
             continue
 
         # -- Step 3: Create new publication --------------------------------
-        pub_cmd = f"pulp python publication create --repository {shlex.quote(new_name)}"
+        pub_cmd = pulp_python_commands["publication_create"] % new_name
         pub_res = run_cmd(pub_cmd, logger)
         if pub_res["rc"] != 0:
             logger.warning("Publication creation for '%s' failed: %s",
@@ -1274,7 +1308,7 @@ def migrate_python_repos(os_type: str, os_version: str, dry_run: bool,
         #    The old PYTHON REPOSITORY is still preserved — only the distribution
         #    (serving endpoint) is replaced.
         if "delete_distribution" in pulp_python_commands:
-            run_cmd(pulp_python_commands["delete_distribution"] % shlex.quote(old_name), logger)
+            run_cmd(pulp_python_commands["delete_distribution"] % old_name, logger)
 
         # -- Step 5: Create new distribution with updated base_path -------
         arch = None
@@ -1289,10 +1323,8 @@ def migrate_python_repos(os_type: str, os_version: str, dry_run: bool,
                                               arch, os_type, os_version)
 
         if new_base_path:
-            dist_create_cmd = (
-                f"pulp python distribution create --name {shlex.quote(new_name)} "
-                f"--base-path {shlex.quote(new_base_path)} "
-                f"--repository {shlex.quote(new_name)}"
+            dist_create_cmd = pulp_python_commands["distribution_create"] % (
+                new_name, new_name, new_base_path,
             )
             dist_res = run_cmd(dist_create_cmd, logger)
             if dist_res["rc"] != 0:
@@ -1387,10 +1419,14 @@ def migrate_status_csv_files(os_type: str, os_version: str,
                                 "status": "DryRun",
                                 "message": "Would add new-format entries alongside old"})
 
-        except Exception as exc:
-            logger.error("Error processing %s: %s", status_file, exc)
+        except Exception:
+            logger.error(
+                "Error processing status file %s",
+                os.path.basename(status_file),
+            )
             results.append({"name": status_file, "type": "status_csv",
-                            "status": "Failed", "message": str(exc)})
+                            "status": "Failed",
+                            "message": "Unable to process status file"})
 
     return results
 
@@ -1431,11 +1467,11 @@ def _delete_old_entity(entity_type: str, sub_type: str, name: str,
         # Delete distribution with same name (best-effort)
         del_key = "delete_distribution"
         if del_key in cmds:
-            run_cmd(cmds[del_key] % shlex.quote(name), logger)
+            run_cmd(cmds[del_key] % name, logger)
 
         # Delete publications (RPM only)
         if entity_type == "rpm" and "list_publications" in cmds:
-            pub_res = run_cmd(cmds["list_publications"] % shlex.quote(name), logger)
+            pub_res = run_cmd(cmds["list_publications"] % name, logger)
             if pub_res["rc"] == 0:
                 pubs = safe_json_parse(pub_res["stdout"], default=[])
                 for pub in pubs:
@@ -1445,7 +1481,7 @@ def _delete_old_entity(entity_type: str, sub_type: str, name: str,
 
         # Delete remote with same name (best-effort)
         if "delete_remote" in cmds:
-            run_cmd(cmds["delete_remote"] % shlex.quote(name), logger)
+            run_cmd(cmds["delete_remote"] % name, logger)
 
     # Now delete the entity itself
     delete_key = f"delete_{sub_type}"
@@ -1453,7 +1489,7 @@ def _delete_old_entity(entity_type: str, sub_type: str, name: str,
         result["message"] = f"No delete command for {entity_type} {sub_type}"
         return result
 
-    del_res = run_cmd(cmds[delete_key] % shlex.quote(name), logger)
+    del_res = run_cmd(cmds[delete_key] % name, logger)
     if del_res["rc"] == 0:
         result["status"] = "Success"
         result["message"] = "Deleted stale old-format entity"
@@ -1536,8 +1572,7 @@ def cleanup_stale_old_format(os_type: str, os_version: str, dry_run: bool,
     deleted_count = sum(1 for r in results if r["status"] == "Success")
     if deleted_count > 0 and not dry_run:
         logger.info("Running orphan cleanup after stale entity removal...")
-        orphan_res = run_cmd(pulp_rpm_commands.get("orphan_cleanup",
-                             "pulp orphan cleanup --protection-time 0"), logger)
+        orphan_res = run_cmd(pulp_common_commands["orphan_cleanup"], logger)
         if orphan_res["rc"] == 0:
             results.append({"name": "orphan_cleanup", "new_name": "",
                             "type": "cleanup_orphans", "status": "Success",
@@ -1554,39 +1589,52 @@ def cleanup_stale_old_format(os_type: str, os_version: str, dry_run: bool,
 # YUM repo file regeneration
 # ============================================================================
 
-def regenerate_yum_repo_file(logger) -> Dict[str, Any]:
-    """Regenerate /etc/yum.repos.d/pulp.repo from current Pulp RPM distributions.
+def regenerate_yum_repo_file(
+        logger, pulp_base_url: str, repo_file_path: str,
+        pulp_ssl_ca_cert: str) -> Dict[str, Any]:
+    """Atomically regenerate the configured DNF file from Pulp distributions.
 
     This ensures that after renaming distributions the dnf/yum configuration
     on the OIM matches the new names.
     """
-    result = {"name": "pulp.repo", "type": "yum_repo_file",
-              "status": "Failed", "message": ""}
+    result = {
+        "name": "pulp.repo", "type": "yum_repo_file",
+        "status": "Failed", "message": "", "changed": False,
+    }
 
     try:
         dists = list_pulp_entities(
-            "pulp rpm distribution list --field base_url,name --limit 1000", logger
+            pulp_rpm_commands["list_distributions_with_urls"], logger
         )
         if not dists:
             result["message"] = "No RPM distributions found"
             result["status"] = "Skipped"
             return result
 
-        # Get system architecture to filter repos
-        import platform
-        system_arch = platform.machine()
-        logger.info(f"System architecture: {system_arch}")
-
-        repo_file_path = "/etc/yum.repos.d/pulp.repo"
-        repo_content = ""
-        enabled_count = 0
-        disabled_count = 0
-
+        normalized_distributions = []
         for dist in dists:
             name = dist.get("name", "")
             base_url = dist.get("base_url", "")
             if not name or not base_url:
                 continue
+            normalized_distributions.append({
+                "name": validate_repository_id(name),
+                "base_url": normalize_pulp_distribution_url(
+                    base_url, pulp_base_url
+                ),
+            })
+
+        # Get system architecture to filter repos
+        system_arch = platform.machine()
+        logger.info(f"System architecture: {system_arch}")
+
+        repo_content = ""
+        enabled_count = 0
+        disabled_count = 0
+
+        for dist in normalized_distributions:
+            name = dist["name"]
+            base_url = dist["base_url"]
 
             # Determine if repo should be enabled based on architecture
             # Repo names follow pattern: {arch}_{os_type}_{version}_{repo_name}
@@ -1595,7 +1643,7 @@ def regenerate_yum_repo_file(logger) -> Dict[str, Any]:
                  if name.startswith(f"{candidate}_")),
                 None,
             )
-            
+
             # Enable repo only if it matches system architecture
             if repo_arch == system_arch:
                 enabled = 1
@@ -1603,7 +1651,10 @@ def regenerate_yum_repo_file(logger) -> Dict[str, Any]:
             elif repo_arch in ['x86_64', 'aarch64'] and repo_arch != system_arch:
                 enabled = 0
                 disabled_count += 1
-                logger.info(f"Disabling repo '{name}' (arch mismatch: repo={repo_arch}, system={system_arch})")
+                logger.info(
+                    "Disabling repo '%s' (arch mismatch: repo=%s, system=%s)",
+                    name, repo_arch, system_arch,
+                )
             else:
                 # No architecture prefix or unknown pattern - enable by default
                 enabled = 1
@@ -1615,21 +1666,35 @@ def regenerate_yum_repo_file(logger) -> Dict[str, Any]:
                 f"baseurl={base_url}\n"
                 f"enabled={enabled}\n"
                 f"gpgcheck=0\n"
-                f"sslverify=0\n\n"
+                f"sslverify=1\n"
+                f"sslcacert={pulp_ssl_ca_cert}\n\n"
             )
 
         if repo_content:
-            with open(repo_file_path, "w", encoding="utf-8") as fh:
-                fh.write(repo_content.strip() + "\n")
+            desired_content = repo_content.strip() + "\n"
+            file_changed = atomic_write_repo_file(
+                repo_file_path, desired_content
+            )
+            if not file_changed:
+                result["status"] = "Skipped"
+                result["message"] = "DNF repository file is already current"
+                return result
             result["status"] = "Success"
-            result["message"] = f"Regenerated with {len(dists)} distributions ({enabled_count} enabled, {disabled_count} disabled)"
+            result["changed"] = True
+            result["message"] = (
+                f"Regenerated with {len(normalized_distributions)} distributions "
+                f"({enabled_count} enabled, {disabled_count} disabled)"
+            )
         else:
             result["status"] = "Skipped"
             result["message"] = "No valid distributions to write"
 
-    except Exception as exc:
-        result["message"] = str(exc)
-        logger.error("Failed to regenerate pulp.repo: %s", exc)
+    except OSError as error:
+        result["message"] = repo_file_error_message(error)
+        logger.error(result["message"])
+    except (AttributeError, KeyError, TypeError, ValueError):
+        result["message"] = "Invalid Pulp distribution data"
+        logger.error("Pulp returned invalid RPM distribution data")
 
     return result
 
@@ -1693,12 +1758,16 @@ def format_migration_table(results: List[Dict[str, Any]]) -> str:
 # ============================================================================
 
 def run_module():
+    """Execute repository migration and report structured Ansible results."""
     module_args = dict(
         cluster_os_type=dict(type="str", required=True),
         cluster_os_version=dict(type="str", required=True),
         base_path=dict(type="str", default=config.REPO_MANAGER_LOG_DIR),
         dry_run=dict(type="bool", default=False),
         log_dir=dict(type="str", default=LOG_DIR),
+        pulp_base_url=dict(type="str", required=True),
+        repo_file_path=dict(type="path", required=True),
+        pulp_ssl_ca_cert=dict(type="path", required=True),
     )
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
@@ -1708,6 +1777,9 @@ def run_module():
     base_path = module.params["base_path"]
     dry_run = module.params["dry_run"] or module.check_mode
     log_dir = module.params["log_dir"]
+    pulp_base_url = module.params["pulp_base_url"]
+    repo_file_path = module.params["repo_file_path"]
+    pulp_ssl_ca_cert = module.params["pulp_ssl_ca_cert"]
 
     logger = setup_standard_logger(log_dir, LOG_FILENAME)
     logger.info("=" * 60)
@@ -1749,7 +1821,9 @@ def run_module():
         # 6. Regenerate yum repo file (only if not dry run)
         if not dry_run:
             logger.info("--- Regenerating pulp.repo ---")
-            yum_result = regenerate_yum_repo_file(logger)
+            yum_result = regenerate_yum_repo_file(
+                logger, pulp_base_url, repo_file_path, pulp_ssl_ca_cert
+            )
             all_results.append(yum_result)
 
         # Summary
@@ -1760,7 +1834,9 @@ def run_module():
         repo_types = {"rpm_repository", "file_repository", "python_repository"}
         repo_results = [r for r in all_results if r.get("type") in repo_types]
         success_count = sum(1 for r in repo_results if r["status"] == "Success")
-        failed_count = sum(1 for r in repo_results if r["status"] == "Failed")
+        failed_count = sum(
+            1 for result in all_results if result["status"] == "Failed"
+        )
         skipped_count = sum(1 for r in repo_results if r["status"] in ("Skipped", "DryRun"))
         already_new_count = sum(1 for r in repo_results if r["status"] == "AlreadyNew")
 
@@ -1780,7 +1856,13 @@ def run_module():
                     parts.append(f"{t_already} already new")
                 breakdown_parts.append(f"{label}: {', '.join(parts)}")
 
-        changed = success_count > 0 and not dry_run
+        changed = (
+            not dry_run
+            and (
+                success_count > 0
+                or any(result.get("changed") for result in all_results)
+            )
+        )
 
         logger.info("Migration complete: %d succeeded, %d failed, %d skipped, %d already in new format",
                      success_count, failed_count, skipped_count, already_new_count)
@@ -1809,12 +1891,13 @@ def run_module():
                 summary_table=table,
             )
 
-    except Exception as exc:
-        logger.error("Unexpected error during migration: %s", exc, exc_info=True)
-        module.fail_json(msg=f"Migration failed: {exc}", changed=False)
+    except Exception:
+        logger.error("Unexpected error during repository migration.")
+        module.fail_json(msg="Repository migration failed.", changed=False)
 
 
 def main():
+    """Run the Ansible module entry point."""
     run_module()
 
 

@@ -97,6 +97,10 @@ success_count:
   returned: always
 """
 from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
+from ansible.module_utils.repo_manager.security_utils import (
+    redact_sensitive_value,
+    validate_no_url_credentials,
+)
 from ansible.module_utils.repo_manager.software_utils import (
     load_json,
     set_version_variables,
@@ -304,10 +308,10 @@ def determine_function(
             ]
 
         raise ValueError(f"Unknown task type: {task_type}")
-    except Exception as e:
+    except Exception as error:
         raise RuntimeError(
-            f"Failed to determine function for task: {str(e)}"
-        ) from e
+            "Failed to determine the artifact processor for this task"
+        ) from error
 
 
 def generate_pretty_table(
@@ -356,9 +360,9 @@ def generate_pretty_table(
         slogger.info("Task results table generated successfully")
         return table.get_string()
 
-    except Exception as e:
-        slogger.error(f"Error occurred while generating pretty table: {e}")
-        return f"Error: {e}"
+    except Exception:
+        slogger.error("Error occurred while generating the package-status table")
+        return "Error: unable to generate the package-status table"
 
 
 def generate_software_status_table(status_dict, slogger):
@@ -400,9 +404,9 @@ def generate_software_status_table(status_dict, slogger):
         slogger.info("Software status table generation completed successfully")
         return "\n\n".join(tables)
 
-    except Exception as e:
-        slogger.error(f"Error occurred while generating software status table: {e}")
-        return f"Error: {e}"
+    except Exception:
+        slogger.error("Error occurred while generating the software-status table")
+        return "Error: unable to generate the software-status table"
 
 
 def main():
@@ -486,6 +490,10 @@ def main():
     }
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
     tasks = module.params["tasks"]
+    try:
+        validate_no_url_credentials(tasks)
+    except ValueError:
+        module.fail_json(msg="Task list contains a credential-bearing URL.")
     nthreads = module.params["nthreads"]
     dnf_max_concurrent_commands = module.params["dnf_max_concurrent_commands"]
     log_dir = module.params["log_dir"]
@@ -512,7 +520,7 @@ def main():
     start_time = datetime.now()
     formatted_start_time = start_time.strftime("%I:%M:%S %p")
     slogger.info(f"Start execution time: {formatted_start_time}")
-    slogger.info(f"Task list: {tasks}")
+    slogger.info("Task list: %s", redact_sensitive_value(tasks))
     slogger.info(f"Number of threads: {nthreads}")
     slogger.info(
         "Maximum concurrent DNF commands: %d", dnf_max_concurrent_commands
@@ -572,8 +580,8 @@ def main():
                         if isinstance(group_def, dict) and group_def.get("version"):
                             sw_entry["version"] = group_def["version"]
                         user_data["softwares"].append(sw_entry)
-            except Exception as catalog_err:
-                slogger.warning(f"Could not load catalog for version variables: {catalog_err}")
+            except Exception:
+                slogger.warning("Could not load catalog for version variables.")
 
         _, software_names = get_subgroup_dict(user_data, slogger)
         version_variables = set_version_variables(
@@ -610,7 +618,7 @@ def main():
 
         slogger.info(f"End execution time: {formatted_end_time}")
         slogger.info(f"Total execution time: {total_duration}")
-        slogger.info(f"Task results: {task_results}")
+        slogger.info("Task results: %s", redact_sensitive_value(task_results))
 
         table_output = generate_pretty_table(
             task_results, total_duration, overall_status, slogger,
@@ -627,7 +635,7 @@ def main():
         if overall_status == "SUCCESS":
             result["overall_status"] = "SUCCESS"
             result["changed"] = True
-            slogger.info(f"Result: {result}")
+            slogger.info("Result: %s", redact_sensitive_value(result))
             module.exit_json(**result)
         elif overall_status == "PARTIAL":
             result["overall_status"] = "PARTIAL"

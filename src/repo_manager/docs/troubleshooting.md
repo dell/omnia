@@ -20,6 +20,11 @@ export CATALOG_FILE_PATH=/path/to/catalog.json
 `CATALOG_FILE_PATH` may use any file name, but it must identify an existing
 regular file whose extension is `.json`.
 
+If context resolution reports `invalid artifact URL`, verify that catalog
+artifact URLs use HTTP(S), do not contain embedded credentials or fragments,
+and do not place passwords or tokens in query parameters. Public selectors
+such as `?version=1.7.7` are supported.
+
 ---
 
 ### 2. Runtime input file is missing

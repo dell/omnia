@@ -5,13 +5,18 @@
 
 """Context-aware identity helpers for the Pulp RPM backend."""
 
+from ansible.module_utils.repo_manager.security_utils import (
+    validate_repository_id,
+)
+
 
 def _path_component(value, field_name):
     """Return a safe, non-empty Pulp base-path component."""
     component = str(value or "").strip().strip("/")
-    if not component or component in (".", "..") or "/" in component:
-        raise ValueError(f"Invalid Pulp RPM {field_name}: '{value}'")
-    return component
+    try:
+        return validate_repository_id(component)
+    except ValueError as error:
+        raise ValueError(f"Invalid Pulp RPM {field_name}") from error
 
 
 def build_rpm_distribution_identity(distribution_root, architecture, os_type,
@@ -19,13 +24,17 @@ def build_rpm_distribution_identity(distribution_root, architecture, os_type,
                                     package_version=None):
     """Return the repository name and Pulp base path for an RPM distribution."""
     root = str(distribution_root or "").strip().strip("/")
-    if not root or any(part in ("", ".", "..") for part in root.split("/")):
-        raise ValueError(
-            f"Invalid Pulp RPM distribution root: '{distribution_root}'"
-        )
+    if not root:
+        raise ValueError("Invalid Pulp RPM distribution root")
+    try:
+        root_parts = [
+            validate_repository_id(part) for part in root.split("/")
+        ]
+    except ValueError as error:
+        raise ValueError("Invalid Pulp RPM distribution root") from error
 
     components = [
-        root,
+        "/".join(root_parts),
         _path_component(architecture, "architecture"),
         _path_component(os_type, "OS type"),
         _path_component(os_version, "OS version"),
@@ -38,4 +47,4 @@ def build_rpm_distribution_identity(distribution_root, architecture, os_type,
         components.append(_path_component(version, "repository version"))
         repository_name = f"{repository_name}_{version}"
 
-    return repository_name, "/".join(components)
+    return validate_repository_id(repository_name), "/".join(components)

@@ -4,6 +4,13 @@
 # you may not use this file except in compliance with the License.
 ---
 
+- name: Load Repo Manager environment facts when required
+  ansible.builtin.include_tasks: load_config.yml
+  when: not (repo_manager_config_loaded | default(false) | bool)
+
+- name: Validate the catalog input before context resolution
+  ansible.builtin.include_tasks: validate_catalog_input.yml
+
 - name: Resolve catalog operating-system context
   resolve_catalog_context:
     catalog_path: "{{ catalog_file }}"

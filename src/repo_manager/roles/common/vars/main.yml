@@ -36,3 +36,14 @@ podman_login_fail_msg: >
 project_dir_not_exist_fail_msg: |
   "The project directory at {{ input_project_dir }} does not exist.
   Please ensure the directory exists before re-running the playbook."
+
+# =============================================================================
+# FAILURE AND ASSERTION MESSAGES
+# =============================================================================
+common_validate_docker_credentials_before_podman_login_msg: >-
+  Docker Hub credentials are incomplete. Provide both docker_username and
+  docker_password, or leave both empty for anonymous access.
+
+common_podman_login_check_msg: >-
+  {{ podman_login_fail_msg }} Podman returned exit code
+  {{ podman_login_output.rc }}.

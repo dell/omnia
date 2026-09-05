@@ -63,9 +63,9 @@ pulp_cleanup_log_directories:
 # Pulp CLI config files to remove
 pulp_cli_config_files:
   - "{{ pulp_cli_config_dir }}/cli.toml"
-  - "/etc/pulp/cli.toml"
-  - "/root/.config/pulp/cli.toml"
-  - "/root/.config/pulp"
+  - "{{ pulp_system_cli_config_file }}"
+  - "{{ pulp_root_cli_config_file }}"
+  - "{{ pulp_root_cli_config_dir }}"
 
 # Credential files to remove (optional - controlled by cleanup_credentials flag)
 credential_files_to_cleanup:
@@ -73,7 +73,7 @@ credential_files_to_cleanup:
   - "{{ repo_manager_credentials_key_file }}"
 
 # Omnia target file that may reference pulp.service
-omnia_target: "/etc/systemd/system/omnia.target"
+omnia_target: "{{ omnia_systemd_target_file }}"
 
 # =============================================================================
 # CLEANUP CONFIGURATION

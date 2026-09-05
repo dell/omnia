@@ -72,6 +72,8 @@
         OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
         OMNIA_DATA_PATH: "{{ omnia_data_path }}"
         REPO_MANAGER_DATA_PATH: "{{ repo_manager_runtime_dir }}"
+        PULP_CLI_CONFIG_PATH: "{{ pulp_system_cli_config_file }}"
+        PULP_CLI_EXECUTABLE: "{{ pulp_cli_executable }}"
       register: task_results
 
     - name: Set fact for overall status
@@ -101,17 +103,17 @@
 
     - name: Report partial package-processing result
       ansible.builtin.debug:
-        msg: "Some tasks partially failed. Please review the task details above for more information. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs/" # noqa: yaml[line-length]
+        msg: "Some tasks partially failed. Please review the task details above for more information. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs/"  # noqa: yaml[line-length]
       when: task_results.overall_status == "PARTIAL"
 
     - name: Report package-processing failure
       ansible.builtin.debug:
-        msg: "Some tasks failed. Please review the task details above for more information. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs/" # noqa: yaml[line-length]
+        msg: "Some tasks failed. Please review the task details above for more information. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs/"  # noqa: yaml[line-length]
       when: task_results.overall_status == "FAILURE"
 
     - name: Report package-processing timeout
       ansible.builtin.debug:
-        msg: "Some tasks failed due to timeout. Please review the task details above for more information. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs" # noqa: yaml[line-length]
+        msg: "Some tasks failed due to timeout. Please review the task details above for more information. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs"  # noqa: yaml[line-length]
       when: task_results.overall_status == "TIMEOUT"
 
   rescue:
@@ -125,4 +127,4 @@
 
     - name: Fail the playbook execution
       ansible.builtin.fail:
-        msg: "Task execution failed: {{ ansible_failed_result.msg | default('Unknown error') }}"
+        msg: "{{ parse_and_download_fail_the_playbook_execution_msg }}"

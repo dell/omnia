@@ -1,7 +1,21 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 ---
 - name: Initialize catalog execution results
   ansible.builtin.set_fact:
     catalog_execution_results: []
+    catalog_execution_halted: false
     pulp_repo_name_migration_completed: false
     requested_resync_repositories: >-
       {{
@@ -34,10 +48,8 @@
           (catalog_repository_context_prefixes |
            map('regex_escape') | join('|')) ~ ')') |
         list | length == 0
-    fail_msg: >-
-      resync_repos contains repositories outside the catalog OS-version and
-      architecture contexts. Valid prefixes are:
-      {{ catalog_repository_context_prefixes | join(', ') }}
+    fail_msg: "{{ repo_manager_execution_validate_resync_repository_context_msg }}"
+    quiet: true
   when: requested_resync_repositories | length > 0
 
 - name: Display catalog execution plan
@@ -69,6 +81,7 @@
   loop_control:
     loop_var: execution_context
     label: "{{ execution_context.context_id }}"
+  when: not (catalog_execution_halted | bool)
 
 - name: Set aggregate Repo Manager status
   ansible.builtin.set_fact:

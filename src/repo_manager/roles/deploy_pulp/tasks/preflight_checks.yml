@@ -35,9 +35,7 @@
         (pulp_storage_paths.user_provided.keys()
          | difference(pulp_storage_paths.default.keys())
          | list | length) == 0
-    fail_msg: >-
-      pulp_storage_paths.user_provided must be a dictionary containing only
-      supported storage keys from pulp_storage_paths.default.
+    fail_msg: "{{ deploy_pulp_validate_pulp_storage_configuration_structure_msg }}"
     quiet: true
 
 - name: Validate resolved Pulp host storage paths
@@ -51,10 +49,7 @@
       - item.path != omnia_data_path
       - item.path != repo_manager_runtime_dir
       - item.path != repo_manager_base_dir
-    fail_msg: >-
-      Invalid Pulp {{ item.name }} storage path '{{ item.path }}'. Provide a
-      normalized absolute path to a dedicated directory. Broad system paths and
-      storage mount roots are not accepted.
+    fail_msg: "{{ deploy_pulp_validate_resolved_pulp_host_storage_paths_msg }}"
     quiet: true
   loop: "{{ pulp_host_storage_paths }}"
   loop_control:
@@ -77,10 +72,7 @@
       - item.stat.exists | default(false)
       - item.stat.isdir | default(false)
       - item.stat.writeable | default(false)
-    fail_msg: >-
-      User-provided Pulp {{ item.item.name }} path '{{ item.item.path }}' must
-      already exist as a writable directory. Repo Manager does not create
-      filesystems, mount storage, or create user-provided root directories.
+    fail_msg: "{{ deploy_pulp_validate_user_provided_pulp_storage_directories_are_ready_msg }}"
     quiet: true
   loop: "{{ pulp_user_storage_checks.results | default([]) }}"
   loop_control:
@@ -92,9 +84,7 @@
       - >-
         (pulp_host_storage_paths | map(attribute='path') | list | unique | length)
         == (pulp_host_storage_paths | length)
-    fail_msg: >-
-      Each Pulp storage purpose must use a distinct host directory. Review
-      pulp_storage_paths in vars/default.yml.
+    fail_msg: "{{ deploy_pulp_validate_pulp_host_storage_paths_are_unique_msg }}"
     quiet: true
 
 - name: Display resolved Pulp storage responsibility
@@ -191,7 +181,7 @@
 
 - name: Check if Pulp systemd service exists
   ansible.builtin.stat:
-    path: "/etc/containers/systemd/{{ pulp_container_name }}.container"
+    path: "{{ pulp_quadlet_file }}"
   register: quadlet_file_check
 
 - name: Set systemd service status

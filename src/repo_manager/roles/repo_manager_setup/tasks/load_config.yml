@@ -34,17 +34,23 @@
 - name: Resolve configuration from environment
   ansible.builtin.set_fact:
     omnia_data_path: >-
-      {{ (lookup('env', 'OMNIA_DATA_PATH')
-          | default(lookup('env', 'OMNIA_BASE_DIR'), true)
+      {{ (lookup('ansible.builtin.env', 'OMNIA_DATA_PATH')
+          | default(lookup('ansible.builtin.env', 'OMNIA_BASE_DIR'), true)
           | default('/opt/omnia', true))
          | ansible.builtin.normpath }}
     repo_manager_runtime_dir: >-
-      {{ (lookup('env', 'REPO_MANAGER_DATA_PATH')
+      {{ (lookup('ansible.builtin.env', 'REPO_MANAGER_DATA_PATH')
           | default(omnia_data_path + '/repo_manager', true))
          | ansible.builtin.normpath }}
-    admin_nic_ip: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true) }}"
-    catalog_file: "{{ lookup('env', 'CATALOG_FILE_PATH') | default('', true) }}"
-    project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+    admin_nic_ip: >-
+      {{ lookup('ansible.builtin.env', 'SYSTEM_ADMIN_NIC_IPV4')
+         | default('', true) }}
+    catalog_file: >-
+      {{ lookup('ansible.builtin.env', 'CATALOG_FILE_PATH')
+         | default('', true) }}
+    project_name: >-
+      {{ lookup('ansible.builtin.env', 'OMNIA_PROJECT_NAME')
+         | default('project_default', true) }}
     cacheable: true
 
 # --- Validate required variables via module (single source of truth) ---
@@ -84,17 +90,13 @@
       - pulp_content_paths.distribution_root is match('^[^/]+(?:/[^/]+)*$')
       - "'.' not in pulp_content_paths.distribution_root.split('/')"
       - "'..' not in pulp_content_paths.distribution_root.split('/')"
-    fail_msg: >-
-      Invalid Repo Manager path configuration. OMNIA_DATA_PATH and
-      REPO_MANAGER_DATA_PATH must be safe absolute paths, and
-      OMNIA_PROJECT_NAME must be one path segment. Pulp content_route must
-      remain /pulp/content and distribution_root must be a safe relative path.
-
+    fail_msg: "{{ repo_manager_setup_validate_resolved_repo_manager_paths_msg }}"
+    quiet: true
 # --- Set all derived paths in a single set_fact ---
 - name: Set project dirs and derived paths
   ansible.builtin.set_fact:
     input_project_dir: >-
-      {{ (lookup('env', 'REPO_MANAGER_INPUT_PROJECT_DIR')
+      {{ (lookup('ansible.builtin.env', 'REPO_MANAGER_INPUT_PROJECT_DIR')
           | default(repo_manager_runtime_dir + '/input/' + project_name, true))
          | ansible.builtin.normpath }}
     output_project_dir: "{{ repo_manager_runtime_dir }}/output/{{ project_name }}"
@@ -107,55 +109,8 @@
     that:
       - input_project_dir is match('^/')
       - (input_project_dir | regex_replace('/+$', '')) not in ['', '/opt', '/var', '/etc', '/usr', '/root']
-    fail_msg: >-
-      REPO_MANAGER_INPUT_PROJECT_DIR must resolve to a safe absolute path.
-
-# --- Load repo_manager_config.yml to determine catalog usage ---
-- name: Load repo_manager_config.yml to determine catalog usage
-  ansible.builtin.include_vars:
-    file: "{{ repo_manager_config_file }}"
-  register: _repo_config
-  failed_when: false
-
-- name: Set catalog source mode
-  ansible.builtin.set_fact:
-    catalog_source_mode: "{{ catalog_config.source | default('config') }}"
-    cacheable: true
-
-# --- Conditional catalog file validation ---
-- name: Validate catalog file exists (catalog mode)
-  when: catalog_source_mode == 'catalog'
-  block:
-    - name: Fail if CATALOG_FILE_PATH env var is not set
-      ansible.builtin.fail:
-        msg: >-
-          CATALOG_FILE_PATH environment variable is not set.
-          When catalog source is 'catalog', set CATALOG_FILE_PATH.
-          Example: export CATALOG_FILE_PATH=/path/to/catalog.json
-      when: catalog_file | length == 0
-
-    - name: Stat catalog file
-      ansible.builtin.stat:
-        path: "{{ catalog_file }}"
-      register: _catalog_check
-
-    - name: Validate catalog file is a regular file
-      ansible.builtin.assert:
-        that:
-          - _catalog_check.stat.exists
-          - _catalog_check.stat.isreg
-        fail_msg: >-
-          Catalog file not found or not a regular file: {{ catalog_file }}
-          Please ensure the catalog file exists at the specified path.
-
-    - name: Validate catalog file has .json extension
-      ansible.builtin.assert:
-        that:
-          - catalog_file | regex_search('\\.json$')
-        fail_msg: >-
-          CATALOG_FILE_PATH must be a .json file: {{ catalog_file }}
-          Please ensure the catalog file has a .json extension.
-
+    fail_msg: "{{ repo_manager_setup_validate_resolved_project_input_path_msg }}"
+    quiet: true
 # --- Verify project input directory exists ---
 - name: Verify project input directory exists
   ansible.builtin.stat:
@@ -172,13 +127,18 @@
 
 - name: Ensure domain-specific directories exist
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ item.path }}"
     state: directory
-    mode: '0755'
+    mode: "{{ item.mode }}"
   loop:
-    - "{{ shared_path }}"
-    - "{{ output_project_dir }}"
-    - "{{ log_dir }}"
+    - path: "{{ shared_path }}"
+      mode: "0755"
+    - path: "{{ output_project_dir }}"
+      mode: "0755"
+    - path: "{{ log_dir }}"
+      mode: "0700"
+  loop_control:
+    label: "{{ item.path }}"
   become: true
 
 # --- Validate domain directories were created ---
@@ -194,7 +154,7 @@
 
 - name: Fail if any required directory is missing
   ansible.builtin.fail:
-    msg: "Required directory does not exist: {{ item.item }}"
+    msg: "{{ repo_manager_setup_fail_if_any_required_directory_is_missing_msg }}"
   when: not item.stat.exists
   loop: "{{ _dir_checks.results }}"
 

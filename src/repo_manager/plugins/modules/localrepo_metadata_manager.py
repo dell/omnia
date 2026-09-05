@@ -1,19 +1,21 @@
+#!/usr/bin/python
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
-#  Licensed under the Apache License, Version 2.0 (the "License");
-#  you may not use this file except in compliance with the License.
-#  You may obtain a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Generate, compare, and update local repository metadata."""
 
 # pylint: disable=import-error,no-name-in-module
-#!/usr/bin/python
 
 import shutil
 from pathlib import Path
@@ -69,21 +71,8 @@ changed:
   type: bool
   returned: always
 """
-
-
-"""
-localrepo_metadata_manager.py
-
-This Ansible custom module manages local repository metadata by:
-- Generating metadata based on software and repository configuration files.
-- Comparing and updating metadata while ignoring specific keys.
-- Appending metadata footers with timestamps and policy info.
-
-It supports check mode and can conditionally update metadata only if changes are detected.
-"""
-
-
 def main():
+    """Execute the requested local repository metadata operation."""
 
     argument_spec = {
         "software_config_path": {"type": "str", "required": False, "default": ""},
@@ -91,7 +80,12 @@ def main():
         "output_file": {"type": "str", "required": True},
         "update_metadata": {"type": "bool", "default": False},
         "ignore_keys": {"type": "list", "elements": "str", "default": ["lastrun_timestamp"]},
-        "sub_urls": {"type": "dict", "required": False, "default": {}},
+        "sub_urls": {
+            "type": "dict",
+            "required": False,
+            "default": {},
+            "no_log": True,
+        },
         "cluster_os_version": {"type": "str", "required": True},
         "architectures": {
             "type": "list", "elements": "str", "required": True
@@ -141,8 +135,8 @@ def main():
                 update_result = handle_update_data(output_file, metadata_rerun_file_path, ignore_keys)
                 module.exit_json(changed=update_result["changed"], diff=update_result["diff"])
 
-    except Exception as e:
-        module.fail_json(msg=str(e))
+    except Exception:
+        module.fail_json(msg="Failed to process local repository metadata.")
 
 
 if __name__ == '__main__':

@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,14 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Build catalog-scoped artifact and RPM task lists for parallel execution."""
+
 # pylint: disable=import-error,no-name-in-module,too-many-locals,too-many-statements
-#!/usr/bin/python
 
 import os
 import shutil
 from datetime import datetime
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
+from ansible.module_utils.repo_manager.security_utils import (
+    redact_sensitive_value,
+    validate_no_url_credentials,
+)
 from ansible.module_utils.repo_manager.software_utils import (
     transform_package_dict,
     remove_duplicates_from_trans,
@@ -46,6 +52,12 @@ from ansible.module_utils.repo_manager.mirror_status import (
     migrate_mirror_index,
     detect_package_changes,
     filter_tasks_for_processing,
+)
+from ansible.module_utils.repo_manager.config import (
+    LOG_DIR_DEFAULT,
+    MIRROR_INDEX_FILENAME,
+    MIRROR_STATUS_DIR,
+    REPO_MANAGER_CONFIG_PATH_DEFAULT,
 )
 
 DOCUMENTATION = r"""
@@ -88,14 +100,6 @@ task_count:
   type: int
   returned: success
 """
-
-from ansible.module_utils.repo_manager.config import (
-    LOG_DIR_DEFAULT,
-    REPO_MANAGER_CONFIG_PATH_DEFAULT,
-    MIRROR_STATUS_DIR,
-    MIRROR_INDEX_FILENAME,
-)
-
 
 def packages_requiring_reconciliation(change_results, configured_registry_names):
     """Return mirrored packages whose external Pulp state must be revalidated."""
@@ -235,7 +239,7 @@ def main():
             for pkg_info in packages_to_process:
                 group_name = pkg_info["group_name"]
                 pkg_def = dict(pkg_info["definition"])
-                
+
                 # Normalize field names for parallel_tasks compatibility
                 if "type" not in pkg_def:
                     pkg_def["type"] = pkg_def.get("packagetype", "rpm")
@@ -245,7 +249,7 @@ def main():
                     pkg_def["version"] = pkg_def.get("tag", "")
                 # For tarballs/downloads, ensure url/path keys exist
                 # (already lowercase in catalog data)
-                
+
                 pkg_def["catalog_name"] = pkg_info["catalog_name"]
                 pkg_def["catalogs"] = pkg_info["catalogs"]
 
@@ -356,7 +360,11 @@ def main():
             else:
                 user_repos_config[arch] = []
 
-        logger.info(f"Package processing completed: {final_tasks_dict}")
+        validate_no_url_credentials(final_tasks_dict)
+        logger.info(
+            "Package processing completed: %s",
+            redact_sensitive_value(final_tasks_dict),
+        )
         module.exit_json(
             changed=False,
             software_dict=final_tasks_dict,
@@ -366,9 +374,13 @@ def main():
             sw_archs=sw_archs
         )
 
-    except Exception as e:
-        logger.error(f"Error occurred: {str(e)}")
-        module.fail_json(msg=str(e))
+    except Exception as error:
+        logger.error(
+            "Package task preparation failed (%s).", type(error).__name__
+        )
+        module.fail_json(
+            msg=f"Package task preparation failed ({type(error).__name__})."
+        )
 
 
 if __name__ == "__main__":

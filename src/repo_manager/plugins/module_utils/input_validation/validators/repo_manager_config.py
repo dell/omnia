@@ -58,6 +58,11 @@ from ansible.module_utils.repo_manager.repo_settings import (
     DEFAULT_CACHING_POLICY,
     POLICY_CACHING_MAP,
     SUBSCRIPTION_REPOSITORIES,
+    iterate_all_repos,
+)
+from ansible.module_utils.repo_manager.security_utils import (
+    redact_url_credentials,
+    validate_repository_url,
 )
 
 
@@ -83,6 +88,7 @@ def validate(
     repo_manager_config_yml = create_file_path(input_file_path, files["repo_manager_config"])
 
     errors.extend(_validate_registry_configs(data, repo_manager_config_yml))
+    errors.extend(_validate_repository_urls(data))
 
     # Validate caching_policy parameter
     caching_policy = data.get("caching_policy")
@@ -184,8 +190,11 @@ def _validate_registry_configs(config_data, _config_path):
             else:
                 registry_authorities[authority_key] = registry_name
         except (TypeError, ValueError) as exc:
+            safe_base_url = redact_url_credentials(
+                registry_config.get("base_url", "")
+            )
             errors.append(create_error_msg(
-                f"registries.{registry_name}.base_url", registry_config.get("base_url", ""),
+                f"registries.{registry_name}.base_url", safe_base_url,
                 str(exc)
             ))
 
@@ -223,10 +232,41 @@ def _validate_registry_configs(config_data, _config_path):
         ):
             if path and not os.path.isfile(path):
                 errors.append(create_error_msg(
-                    f"registries.{registry_name}.tls.{key}", path,
-                    f"{missing_message}: {path}"
+                    f"registries.{registry_name}.tls.{key}", "<configured path>",
+                    f"{missing_message}: configured path does not exist"
                 ))
 
+    return errors
+
+
+def _validate_repository_urls(config_data):
+    """Reject unsafe RPM URLs without echoing a credential-bearing value."""
+    errors = []
+    repositories = config_data.get("repositories") or {}
+    if not isinstance(repositories, dict):
+        return errors
+
+    for version, version_repositories in repositories.items():
+        if not isinstance(version_repositories, dict):
+            continue
+        for arch, repositories_for_arch in version_repositories.items():
+            if not isinstance(repositories_for_arch, dict):
+                continue
+            for repo_name, repo_config in iterate_all_repos(
+                    repositories_for_arch):
+                if not isinstance(repo_config, dict):
+                    continue
+                url = repo_config.get("url")
+                if not url or not isinstance(url, str):
+                    continue
+                try:
+                    validate_repository_url(url)
+                except ValueError as error:
+                    errors.append(create_error_msg(
+                        f"repositories.{version}.{arch}.{repo_name}.url",
+                        "<redacted URL>",
+                        str(error),
+                    ))
     return errors
 
 

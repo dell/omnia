@@ -327,9 +327,9 @@ def process_encrypted_file(yaml_file, omnia_base_dir, project_name, logger, modu
         except FileNotFoundError:
             logger.error(f"File {yaml_file} not found")
             module.fail_json(msg=f"File {yaml_file} not found")
-        except yaml.YAMLError as e:
-            logger.error(f"Error loading YAML: {e}")
-            module.fail_json(f"Error loading YAML: {e}")
+        except yaml.YAMLError:
+            logger.error("Unable to parse the YAML configuration")
+            module.fail_json(msg="Unable to parse the YAML configuration")
     else:
         msg = f"Error occurred when attempting to decrypt file. Please check vault file for {yaml_file}"
         logger.error(msg)

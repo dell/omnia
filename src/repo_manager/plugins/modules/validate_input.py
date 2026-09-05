@@ -34,6 +34,7 @@ import os
 import csv
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.repo_manager.standard_logger import secure_log_file
 
 DOCUMENTATION = r"""
 ---
@@ -166,7 +167,7 @@ def createlogger(project_name, log_dir, tag_name=None):
         log_filename = f"validation_omnia_{project_name}.log"
 
     log_file_path = os.path.join(log_dir, log_filename)
-    os.makedirs(log_dir, exist_ok=True)
+    secure_log_file(log_file_path)
     logging.basicConfig(
         filename=log_file_path,
         format="%(asctime)s %(message)s",
@@ -257,7 +258,7 @@ def main():
 
     input_files = file_utils.files_recursively(omnia_base_dir + "/" + project_name, extensions['json'])
     input_files = input_files + file_utils.files_recursively(omnia_base_dir + "/" + project_name, extensions['yml'])
-    
+
     input_file_dict = {file_utils.file_name_from_path(file_path): file_path for file_path in input_files}
 
     if not input_files:

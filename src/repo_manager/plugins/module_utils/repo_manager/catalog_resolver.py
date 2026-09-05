@@ -45,6 +45,16 @@ from ansible.module_utils.repo_manager.package_backend_registry import (
     get_package_backend,
 )
 from ansible.module_utils.repo_manager.software_utils import normalize_repo_name
+from ansible.module_utils.repo_manager.security_utils import (
+    ArtifactUrlValidationError,
+    parse_python_requirement,
+    validate_artifact_url,
+    validate_repository_url,
+)
+
+
+class CatalogResolutionError(ValueError):
+    """A catalog failure message that is safe to return through Ansible."""
 
 
 # ---------------------------------------------------------------------------
@@ -164,9 +174,16 @@ def load_catalog(catalog_file, logger):
             }
             # Preserve optional scalar fields
             for opt_field in ("tag", "version", "registry", "path", "url"):
-                upper_key = opt_field.capitalize()
-                val = pkg_val.get(upper_key) or pkg_val.get(opt_field)
+                possible_keys = [opt_field.capitalize(), opt_field]
+                if opt_field == "url":
+                    possible_keys = ["URL", "Url", "url", "URI", "Uri", "uri"]
+                val = next(
+                    (pkg_val[key] for key in possible_keys if pkg_val.get(key) is not None),
+                    None,
+                )
                 if val is not None:
+                    if opt_field == "url" and str(val).strip():
+                        val = validate_artifact_url(val)
                     normalized_pkg[opt_field] = val
 
             # Normalize Sources
@@ -181,13 +198,16 @@ def load_catalog(catalog_file, logger):
                         "version": ["Version", "version"],
                         "reponame": ["RepoName", "repoName", "reponame"],
                         "registry": ["Registry", "registry"],
-                        "url": ["URL", "url"],
+                        "url": ["URL", "Url", "url", "URI", "Uri", "uri"],
                         "path": ["Path", "path"],
                     }
                     for norm_key, possible_keys in source_fields.items():
                         for key in possible_keys:
                             if key in source:
-                                normalized_source[norm_key] = source[key]
+                                value = source[key]
+                                if norm_key == "url" and str(value).strip():
+                                    value = validate_artifact_url(value)
+                                normalized_source[norm_key] = value
                                 break
                     normalized_sources.append(normalized_source)
                 normalized_pkg["sources"] = normalized_sources
@@ -213,15 +233,40 @@ def load_multiple_catalogs(catalog_path, logger):
     """
     catalog_files = discover_catalogs(catalog_path, logger)
     catalogs = []
+    failure_categories = set()
     for cf in catalog_files:
         try:
             catalog = load_catalog(cf, logger)
             catalogs.append(catalog)
-        except (ValueError, json.JSONDecodeError) as exc:
-            logger.error("Skipping invalid catalog %s: %s", cf, exc)
+        except json.JSONDecodeError:
+            failure_category = "malformed JSON"
+            failure_categories.add(failure_category)
+            logger.error(
+                "Skipping catalog %s: %s",
+                os.path.basename(cf), failure_category,
+            )
+        except ArtifactUrlValidationError:
+            failure_category = "invalid artifact URL"
+            failure_categories.add(failure_category)
+            logger.error(
+                "Skipping catalog %s: %s",
+                os.path.basename(cf), failure_category,
+            )
+        except ValueError:
+            failure_category = "invalid catalog structure"
+            failure_categories.add(failure_category)
+            logger.error(
+                "Skipping catalog %s: %s",
+                os.path.basename(cf), failure_category,
+            )
 
     if not catalogs:
-        raise ValueError(f"No valid catalogs found in: {catalog_path}")
+        failure_summary = ", ".join(sorted(failure_categories))
+        if not failure_summary:
+            failure_summary = "no valid catalog content"
+        raise CatalogResolutionError(
+            f"Selected catalog could not be loaded ({failure_summary})"
+        )
 
     logger.info("Successfully loaded %d catalog(s)", len(catalogs))
     return catalogs
@@ -491,6 +536,17 @@ def build_global_package_index(catalogs, logger, catalog_context=None):
                     pkg_version = pkg.get("version", pkg.get("tag", ""))
                     if pkg_version is None:
                         pkg_version = ""
+                    if pkg_type == "pip_module":
+                        _pip_name, _pip_version, pkg_name = (
+                            parse_python_requirement(pkg_name, pkg_version)
+                        )
+                        # The canonical requirement already contains the
+                        # Python version. Keep the composite version empty so
+                        # embedded and separately configured forms produce the
+                        # same mirror identity and existing embedded pins keep
+                        # their established hash.
+                        pkg_version = ""
+                        pkg["package"] = pkg_name
 
                     # Extract repo_name, url, and path from sources array for current arch
                     sources = pkg.get("sources", [])
@@ -668,6 +724,7 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
         if not url:
             # Empty repo definition (e.g., subscription repos)
             continue
+        url = validate_repository_url(url)
 
         gpgkey = repo_def.get("gpgkey", "")
         policy = repo_def.get("policy", repo_config_policy)
@@ -726,6 +783,7 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
         url = repo_def.get("url", "")
         if not url:
             continue
+        url = validate_repository_url(url)
 
         # Normalize repo name to standard format
         normalized_name = normalize_repo_name(
@@ -781,6 +839,7 @@ def parse_user_repos_from_config(config_data, os_version, arch,
         url = repo_def.get("url", "")
         if not url:
             continue
+        url = validate_repository_url(url)
 
         # Normalize repo name to standard format
         normalized_name = normalize_repo_name(

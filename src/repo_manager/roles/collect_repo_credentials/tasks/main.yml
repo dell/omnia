@@ -19,6 +19,7 @@
   ansible.builtin.include_vars:
     file: "{{ repo_manager_config_file }}"
     name: _repo_manager_config_data
+  no_log: true
 
 - name: Ensure credential directory exists
   ansible.builtin.file:
@@ -49,9 +50,7 @@
 
 - name: Fail when encrypted credentials have no vault key
   ansible.builtin.fail:
-    msg: >-
-      The encrypted repo manager credential file has no matching vault key at
-      {{ repo_manager_credential_file.vault_path }}.
+    msg: "{{ collect_repo_credentials_fail_when_encrypted_credentials_have_no_vault_key_msg }}"
   when:
     - _credential_file_stat.stat.exists | bool
     - _credential_file_head.stdout | default('') is search('ANSIBLE_VAULT')
@@ -113,7 +112,7 @@
         that:
           - _pulp_password_input.user_input | string | length > 0
           - _pulp_password_input.user_input == _pulp_password_confirmation.user_input
-        fail_msg: "pulp_password is empty or the confirmation does not match."
+        fail_msg: "{{ collect_repo_credentials_validate_pulp_password_msg }}"
         quiet: true
       no_log: true
 
@@ -160,9 +159,7 @@
       - >-
         (docker_username | length == 0 and docker_password | length == 0) or
         (docker_username | length > 0 and docker_password | length > 0)
-    fail_msg: >-
-      Docker Hub credentials must be stored as either two non-empty strings or
-      two empty strings.
+    fail_msg: "{{ collect_repo_credentials_validate_canonical_docker_credential_values_msg }}"
     quiet: true
   no_log: true
 

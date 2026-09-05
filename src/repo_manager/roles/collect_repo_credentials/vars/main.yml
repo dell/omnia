@@ -20,3 +20,29 @@ repo_manager_credential_file:
 # Set default username (no prompting)
 pulp_username: 'admin'
 registry_credentials: {}
+
+# =============================================================================
+# FAILURE AND ASSERTION MESSAGES
+# =============================================================================
+collect_repo_credentials_fail_when_encrypted_credentials_have_no_vault_key_msg: >-
+  The encrypted repo manager credential file has no matching vault key at
+  {{ repo_manager_credential_file.vault_path }}.
+
+collect_repo_credentials_validate_pulp_password_msg: "pulp_password is empty or the confirmation does not match."
+
+collect_repo_credentials_validate_canonical_docker_credential_values_msg: >-
+  Docker Hub credentials must be stored as either two non-empty strings or
+  two empty strings.
+
+collect_repo_credentials_validate_docker_password_is_not_empty_msg: "docker_password cannot be empty when docker_username is set."
+
+collect_repo_credentials_validate_docker_passwords_match_msg: "Docker passwords do not match. Please run again."
+
+collect_repo_credentials_validate_resolved_docker_credential_pair_msg: >-
+  docker_username and docker_password must both be empty or both be set.
+
+collect_repo_credentials_validate_configured_registry_password_confirmation_msg: >-
+  Password for registry {{ registry_config.registry_name }} is empty or
+  the confirmation does not match.
+
+collect_repo_credentials_validate_configured_registry_credential_pair_msg: "Username and password are required for {{ registry_config.registry_name }}."

@@ -19,6 +19,7 @@
 #   - Pulp container and image
 #   - Pulp data directories (settings, nginx, etc.)
 #   - Pulp CLI configuration files
+#   - DNF Pulp repository configuration and public repository status
 #   - Log files (optional)
 #   - Credential files (interactive prompt - user decides)
 # All tasks run on localhost (OIM).
@@ -40,6 +41,7 @@
 #     ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default' -e 'cleanup_logs=false' -e 'cleanup_credentials=false'
 # =============================================================================
 
+# Step 1: Remove the Pulp deployment and selected persistent state.
 - name: Cleanup Pulp container and data
   hosts: localhost
   connection: local
@@ -47,6 +49,7 @@
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
     - "{{ playbook_dir | dirname | dirname }}/vars/cleanup_pulp_vars.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/pulp_cli_commands.yml"
   tags: pulp
   tasks:
     - name: Report non-destructive full-cleanup check mode
@@ -71,7 +74,7 @@
 
     - name: Check if Pulp quadlet file exists
       ansible.builtin.stat:
-        path: "/etc/containers/systemd/{{ pulp_container_name }}.container"
+        path: "{{ pulp_quadlet_file }}"
       register: pulp_quadlet_check
 
     - name: Set validation facts
@@ -98,7 +101,7 @@
           - item not in ['/', '/etc', '/home', '/media', '/mnt', '/opt', '/root', '/srv', '/usr', '/var']
           - item != omnia_data_path
           - item != repo_manager_base_dir
-        fail_msg: "Unsafe Pulp cleanup target refused: {{ item }}"
+        fail_msg: "{{ cleanup_pulp_validate_pulp_cleanup_targets_are_not_broad_system_paths_msg }}"
         quiet: true
       loop: >-
         {{ pulp_cleanup_directory
@@ -113,10 +116,8 @@
           - pulp_content_paths.distribution_root is match('^[^/]+(?:/[^/]+)*$')
           - "'.' not in pulp_content_paths.distribution_root.split('/')"
           - "'..' not in pulp_content_paths.distribution_root.split('/')"
-        fail_msg: >-
-          Unsafe Pulp distribution_root refused. Configure a relative path
-          containing no empty, current-directory, or parent-directory segments.
-
+        fail_msg: "{{ cleanup_pulp_validate_pulp_distribution_root_msg }}"
+        quiet: true
     # -------------------------------------------------------------------------
     # PHASE 2: FETCH CREDENTIALS (OPTIONAL - NOT REQUIRED FOR CLEANUP)
     # -------------------------------------------------------------------------
@@ -134,7 +135,7 @@
           - "Cleanup will remove Pulp container and data directories"
 
     # -------------------------------------------------------------------------
-    # PHASE 3: CLEANUP PULP
+    # PHASE 3: INVALIDATE CONSUMER STATE AND CLEANUP PULP
     # -------------------------------------------------------------------------
     - name: Display cleanup info
       ansible.builtin.debug:
@@ -143,6 +144,9 @@
           - "Container: {{ pulp_container_name }}"
           - "Image: {{ pulp_image }}"
           - "=================================="
+
+    - name: Invalidate Pulp consumer state before removing the endpoint
+      ansible.builtin.include_tasks: invalidate_pulp_consumer_state.yml
 
     - name: Reload systemd daemon
       ansible.builtin.systemd:
@@ -161,7 +165,7 @@
 
     - name: Remove Pulp systemd unit files
       ansible.builtin.file:
-        path: "/etc/containers/systemd/{{ pulp_container_name }}.container"
+        path: "{{ pulp_quadlet_file }}"
         state: absent
       when: pulp_quadlet_exists
       register: pulp_unit_removed
@@ -186,7 +190,8 @@
       ansible.builtin.assert:
         that:
           - pulp_container_verify.containers | default([]) | length == 0
-        fail_msg: "Pulp container still exists; refusing to delete Pulp data directories"
+        fail_msg: "{{ cleanup_pulp_fail_when_pulp_runtime_objects_remain_msg }}"
+        quiet: true
 
     - name: Check whether the Pulp container image exists
       containers.podman.podman_image_info:
@@ -242,7 +247,7 @@
       ansible.builtin.file:
         path: "{{ repo_manager_log_dir }}"
         state: directory
-        mode: "0755"
+        mode: "0700"
       when: cleanup_logs | default(true) | bool
 
     # -------------------------------------------------------------------------
@@ -260,7 +265,7 @@
 
     - name: Verify Pulp CLI config directory is removed
       ansible.builtin.stat:
-        path: /root/.config/pulp
+        path: "{{ pulp_root_cli_config_dir }}"
       register: pulp_cli_config_check
 
     - name: Display Pulp CLI config cleanup status
@@ -273,26 +278,12 @@
         tasks_from: cleanup_system_integration.yml
 
     # -------------------------------------------------------------------------
-    # PHASE 6: VERIFY PRESERVED PULP CLI AND CLEAN YUM REPO FILE
+    # PHASE 6: VERIFY PRESERVED PULP CLI
     # -------------------------------------------------------------------------
     - name: Verify preserved Pulp CLI command chain
       ansible.builtin.include_role:
         name: ../../roles/deploy_pulp
         tasks_from: verify_preserved_cli.yml
-
-    - name: Remove Pulp yum repo file
-      ansible.builtin.file:
-        path: /etc/yum.repos.d/pulp.repo
-        state: absent
-
-    - name: Verify pulp.repo is removed
-      ansible.builtin.stat:
-        path: /etc/yum.repos.d/pulp.repo
-      register: pulp_repo_check
-
-    - name: Display pulp.repo cleanup status
-      ansible.builtin.debug:
-        msg: "Pulp yum repo file removed: {{ not pulp_repo_check.stat.exists }}"
 
     # -------------------------------------------------------------------------
     # PHASE 7: CLEANUP CREDENTIAL FILES

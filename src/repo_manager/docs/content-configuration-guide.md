@@ -91,13 +91,18 @@ required unless custom authentication or TLS settings are needed.
 | `rpm_repo` | `name` | `reponame` | RPM |
 | `rpm_file` | `name` and direct source | `reponame` when applicable | RPM |
 | `image` | `name`, `tag` | `registry` | Container |
-| `pip_module` | `name`, `version` | package source | Python |
+| `pip_module` | `name` with optional exact `==version`, or separate `version` | package source | Python |
 | `tarball` | `name`, `version` | URL/source metadata | File |
 | `manifest` | `name`, `version` | URL/source metadata | File |
 | `git` | `name`, version/ref | URL/source metadata | File |
 | `iso` | `name`, `version` | URL/source metadata | File |
 | `shell` | `name`, `version` | URL/source metadata | File |
 | `ansible_galaxy_collection` | collection name, version | Galaxy source | File |
+
+Python packages may use either `name: "cffi==1.17.1"` or the equivalent
+`name: "cffi"` with `version: "1.17.1"`. Repo Manager canonicalizes both to
+`cffi==1.17.1` for download, Pulp identity, status tracking and selective
+cleanup. When both forms provide a version, the values must match.
 
 ### rpm and rpm_repo
 

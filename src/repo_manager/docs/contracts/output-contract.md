@@ -20,7 +20,6 @@ to downstream Omnia components.
 ```yaml
 overall_status: "success"
 cluster_os_type: "rhel"
-primary_os_version: "10.0"
 repo_config: "partial"
 
 execution_contexts:
@@ -32,14 +31,10 @@ execution_contexts:
 overall_status_by_version:
   "10.0": "success"
 
-missing_repositories_by_version:
-  "10.0": {}
-
 repo_manager:
   port: 2225
   certificates:
     server_crt: "<REPO_MANAGER_DATA_PATH>/pulp_config/settings/certs/pulp_webserver.crt"
-    server_key: "<REPO_MANAGER_DATA_PATH>/pulp_config/settings/certs/pulp_webserver.key"
     certs_dir: "<REPO_MANAGER_DATA_PATH>/pulp_config/settings/certs"
 
 repositories:
@@ -68,11 +63,6 @@ file_repos:
       cffi_1_17_1: "https://192.0.2.10:2225/pypi/.../"
   aarch64: {}
 
-file_repos_by_version:
-  "10.0":
-    x86_64: {}
-    aarch64: {}
-
 offline_tarball_path: "https://192.0.2.10:2225/pulp/content/.../tarball/"
 offline_pip_module_path: "https://192.0.2.10:2225/pypi/.../pip_module/"
 ```
@@ -83,13 +73,12 @@ offline_pip_module_path: "https://192.0.2.10:2225/pypi/.../pip_module/"
 |-------|------|-------------|
 | `overall_status` | string | Aggregate repository readiness across the selected catalog contexts |
 | `cluster_os_type` | string | Catalog OS type, normally `rhel` |
-| `primary_os_version` | string | First context in deterministic execution order |
 | `execution_contexts` | list | Ordered catalog OS-version and architecture contexts |
 | `overall_status_by_version` | object | Per-version state: `pending`, `success`, or `failed` |
-| `missing_repositories_by_version` | object | Catalog-required RPM repositories without a published Pulp URL, grouped by version and architecture |
 | `repo_config` | string | Repository policy reported by the generator |
 | `repo_manager.port` | integer | Pulp HTTPS host port |
-| `repo_manager.certificates.*` | string | Pulp certificate and certificate-directory paths |
+| `repo_manager.certificates.server_crt` | string | Public Pulp server certificate path |
+| `repo_manager.certificates.certs_dir` | string | Pulp public certificate directory |
 | `repositories.<version>.<arch>.<repo>.url` | string | RPM distribution URL |
 | `repositories.<version>.<arch>.<repo>.priority` | integer | Optional DNF priority copied from the repository input (1-100; lower values have higher precedence) |
 | `registries.<name>.base_url` | string | Configured private-registry URL without credentials |
@@ -97,7 +86,6 @@ offline_pip_module_path: "https://192.0.2.10:2225/pypi/.../pip_module/"
 | `registries.<name>.host` | string | Canonical OCI `host[:port]` authority |
 | `registries.<name>.tls` | object | Non-secret TLS settings used by downstream consumers |
 | `file_repos.<arch>.<type>.<artifact>` | string | File or Python distribution URL |
-| `file_repos_by_version.<version>.<arch>` | object | Authoritative version-scoped file and Python URLs |
 | `*_base_url` | string | Base URL for a content type when available |
 | `offline_*_path` | string | Backward-compatible type URL |
 
@@ -108,8 +96,8 @@ completes, or `failed` as soon as a context fails.
 Repository URLs are generated from actual Pulp distributions. Empty architecture
 maps are valid only when the catalog did not reference an RPM repository for
 that architecture. If required repositories are missing, the affected version
-and aggregate status are `failed`, and `missing_repositories_by_version` lists
-the missing names.
+and aggregate status are `failed`; the generating Ansible module returns the
+missing names to the calling playbook for its failure report.
 Registry authentication references, usernames, passwords and tokens are never
 written to `repo_status.yml`.
 

@@ -142,12 +142,12 @@ def load_mirror_index(mirror_index_path, logger):
                     mirror_index_path,
                     len(data.get("MirrorIndex", {}).get("packages", {})))
         return data
-    except (json.JSONDecodeError, ValueError) as e:
-        logger.error(f"Mirror index file corrupted at {mirror_index_path}: {e}")
+    except (json.JSONDecodeError, ValueError):
+        logger.error("Mirror index file is corrupted")
         logger.info("Starting fresh with empty mirror index")
         return _empty_mirror_index()
-    except Exception as e:
-        logger.error(f"Error loading mirror index from {mirror_index_path}: {e}")
+    except Exception:
+        logger.error("Unable to load the mirror index")
         logger.info("Starting fresh with empty mirror index")
         return _empty_mirror_index()
 

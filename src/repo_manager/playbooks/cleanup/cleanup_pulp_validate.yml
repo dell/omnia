@@ -37,6 +37,7 @@
     oim_group: true
   tags: always
 
+# Step 1: Validate the host and Pulp state before cleanup.
 - name: Validate Pulp cleanup prerequisites
   hosts: oim
   connection: ssh
@@ -58,7 +59,7 @@
 
     - name: Check if Pulp quadlet file exists
       ansible.builtin.stat:
-        path: "/etc/containers/systemd/{{ pulp_container_name }}.container"
+        path: "{{ pulp_quadlet_file }}"
       register: pulp_quadlet_check
 
     - name: Set validation facts

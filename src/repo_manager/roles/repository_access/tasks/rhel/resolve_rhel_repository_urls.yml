@@ -77,6 +77,7 @@
   ansible.builtin.include_vars:
     file: "{{ local_repo_config_path }}"
     name: local_config
+  no_log: true
 
 - name: Validate catalog version and architectures exist in repository configuration
   ansible.builtin.assert:
@@ -85,9 +86,8 @@
       - >-
         arch_item in
         (local_config.repositories.get(cluster_os_version, {}) | default({}))
-    fail_msg: >-
-      Catalog-selected repository configuration is missing for RHEL
-      {{ cluster_os_version }} / {{ arch_item }}.
+    fail_msg: "{{ repository_access_validate_catalog_version_and_architectures_exist_in_repository_configuration_msg }}"
+    quiet: true
   loop: "{{ archs }}"
   loop_control:
     loop_var: arch_item
@@ -114,6 +114,7 @@
   loop: "{{ archs }}"
   loop_control:
     loop_var: arch_item
+  no_log: true
 
 - name: Calculate repositories that require explicit URLs
   ansible.builtin.set_fact:
@@ -138,11 +139,7 @@
 
 - name: Fail when a referenced repository has no explicit URL
   ansible.builtin.fail:
-    msg: >-
-      Repository URLs are required for RHEL {{ cluster_os_version }} /
-      {{ arch_item }}: {{ invalid_explicit_repos_by_arch[arch_item] | join(', ') }}.
-      Only catalog-referenced subscription repositories may omit URLs when a
-      RHEL subscription is enabled.
+    msg: "{{ repository_access_fail_when_a_referenced_repository_has_no_explicit_url_msg }}"
   when: invalid_explicit_repos_by_arch[arch_item] | length > 0
   loop: "{{ archs }}"
   loop_control:
@@ -164,6 +161,7 @@
         patterns: "*.pem"
         file_type: file
       register: copied_subscription_certificates
+      no_log: true
 
     - name: Select subscription client certificate and key
       ansible.builtin.set_fact:
@@ -176,6 +174,7 @@
              rejectattr('path', 'search', '-key\.pem$') |
              rejectattr('path', 'equalto', omnia_rhel_cert_dir + '/redhat-uep.pem') |
              map(attribute='path') | list }}
+      no_log: true
 
     - name: Validate copied subscription certificates
       ansible.builtin.assert:
@@ -183,10 +182,9 @@
           - subscription_client_keys | length > 0
           - subscription_client_certs | length > 0
           - (omnia_rhel_cert_dir + '/redhat-uep.pem') is file
-        fail_msg: >-
-          RHEL subscription certificates required by Repo Manager are missing
-          from {{ omnia_rhel_cert_dir }}.
-
+        fail_msg: "{{ repository_access_validate_copied_subscription_certificates_msg }}"
+        quiet: true
+      no_log: true
     - name: Build x86_64 subscription repository list
       ansible.builtin.set_fact:
         sub_rhel_x86_64_urls: "{{ sub_rhel_x86_64_urls + [subscription_repo] }}"
@@ -221,6 +219,7 @@
         - repo_name in required_repos_by_arch.x86_64
         - >-
           (configured_repo.get('url', '') | default('', true) | trim | length) == 0
+      no_log: true
 
     - name: Build aarch64 subscription repository list
       ansible.builtin.set_fact:
@@ -256,6 +255,7 @@
         - repo_name in required_repos_by_arch.aarch64
         - >-
           (configured_repo.get('url', '') | default('', true) | trim | length) == 0
+      no_log: true
 
     - name: Calculate unresolved subscription repositories
       ansible.builtin.set_fact:
@@ -280,10 +280,7 @@
 
     - name: Fail when subscription cannot provide a referenced repository
       ansible.builtin.fail:
-        msg: >-
-          RHEL subscription and explicit configuration do not provide
-          {{ unresolved_subscription_repos_by_arch[arch_item] | join(', ') }}
-          for RHEL {{ cluster_os_version }} / {{ arch_item }}.
+        msg: "{{ repository_access_fail_when_subscription_cannot_provide_a_referenced_repository_msg }}"
       when: unresolved_subscription_repos_by_arch[arch_item] | length > 0
       loop: "{{ archs }}"
       loop_control:
@@ -301,12 +298,16 @@
         client_key: "{{ item.sslclientkey }}"
         timeout: 30
       loop: "{{ sub_rhel_x86_64_urls + sub_rhel_aarch64_urls }}"
+      loop_control:
+        label: "{{ item.name }}"
+      no_log: true
 
 - name: Publish repositories supplied by the RHEL subscription
   ansible.builtin.set_fact:
     sub_final_repo_urls:
       x86_64: "{{ sub_rhel_x86_64_urls }}"
       aarch64: "{{ sub_rhel_aarch64_urls }}"
+  no_log: true
 
 - name: Display selected repository configuration summary
   ansible.builtin.debug:
@@ -314,4 +315,6 @@
       os_version: "{{ cluster_os_version }}"
       architectures: "{{ archs }}"
       referenced_repositories: "{{ referenced_repos_by_arch }}"
-      subscription_repositories: "{{ sub_final_repo_urls }}"
+      subscription_repositories:
+        x86_64: "{{ sub_rhel_x86_64_urls | map(attribute='name') | list }}"
+        aarch64: "{{ sub_rhel_aarch64_urls | map(attribute='name') | list }}"

@@ -28,6 +28,11 @@ from ansible.module_utils.repo_manager.common_functions import (
     load_yaml_file,
     load_vault_yaml
 )
+from ansible.module_utils.repo_manager.security_utils import redact_sensitive_value
+from ansible.module_utils.repo_manager.standard_logger import (
+    UrlCredentialRedactionFilter,
+    secure_log_file,
+)
 from ansible.module_utils.repo_manager.registry_utils import resolve_registry_contexts
 # Global lock for logging synchronization
 log_lock = multiprocessing.Lock()
@@ -180,8 +185,7 @@ def log_table_output(table_output, log_file):
         RuntimeError: If there is an error during the file writing process or directory creation.
     """
     try:
-        # Ensure the directory for the log file exists
-        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        secure_log_file(log_file)
         # Write the table output to the log file
         with open(log_file, "w", encoding="utf-8") as file:
             file.write("Command Execution Results Table:\n")  # Add a header to the table
@@ -199,14 +203,14 @@ def setup_logger(log_dir, log_file_path):
     Returns:
         logging.Logger: The configured logger instance.
     """
-    # Ensure the log directory exists
-    os.makedirs(log_dir, exist_ok=True)
+    secure_log_file(log_file_path)
     logger = logging.getLogger(log_file_path)  # Create a logger with the provided log file path
     logger.setLevel(logging.INFO)  # Set the log level to INFO
     # Check if the logger already has handlers to avoid duplicate log entries
     if not logger.hasHandlers():
         # Create a file handler to write logs to the specified file
         file_handler = logging.FileHandler(log_file_path)
+        file_handler.addFilter(UrlCredentialRedactionFilter())
         # Define the format for log messages
         formatter = logging.Formatter('%(asctime)s - %(levelname)-7s - [%(filename)s] - %(message)s')
         # Apply the formatter to the file handler
@@ -263,11 +267,12 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
             if timeout and elapsed_time > timeout:
                 with log_lock:
                     logger.info(
-                      f"Timeout reached ({elapsed_time:.2f}s), stopping task execution for {task}."
+                      "Timeout reached (%.2fs), stopping task execution for %s.",
+                      elapsed_time, redact_sensitive_value(task)
                     )
                 return {
-                    "task": task,
-                    "package": package_display,
+                    "task": redact_sensitive_value(task),
+                    "package": redact_sensitive_value(package_display),
                     "status": "TIMEOUT",
                     "output": "",
                     "error": f"Timeout reached after {elapsed_time:.2f}s"
@@ -289,8 +294,8 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
             logger.info(f"### {execute_task.__name__} end ###")
 
         return {
-            "task": task,
-            "package": package_display,
+            "task": redact_sensitive_value(task),
+            "package": redact_sensitive_value(package_display),
             "status": result.upper(),
             "output": result,
             "error": ""
@@ -302,8 +307,8 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
         with log_lock:
             logger.error("%s", safe_error)
         return {
-            "task": task,
-            "package": package_display,
+            "task": redact_sensitive_value(task),
+            "package": redact_sensitive_value(package_display),
             "status": "FAILED",
             "output": "",
             "error": safe_error,
@@ -382,9 +387,10 @@ def worker_process(task, determine_function, user_data, version_variables, arc, 
                 "Worker process %s encountered an internal %s.",
                 os.getpid(), type(error).__name__
             )
+        safe_task = redact_sensitive_value(task)
         return {
-            "task": task,
-            "package": task.get("package", task.get("Name", "unknown")),
+            "task": safe_task,
+            "package": safe_task.get("package", safe_task.get("Name", "unknown")),
             "status": "FAILED",
             "output": "",
             "error": "Task execution failed due to an internal error.",
@@ -415,9 +421,10 @@ def _task_resource_key(task):
 
 def _failed_worker_result(task, error_message, status="FAILED"):
     """Build a stable result when a worker cannot return normally."""
+    safe_task = redact_sensitive_value(task)
     return {
-        "task": task,
-        "package": task.get("package", task.get("Name", "unknown")),
+        "task": safe_task,
+        "package": safe_task.get("package", safe_task.get("Name", "unknown")),
         "status": status,
         "output": "",
         "error": error_message,

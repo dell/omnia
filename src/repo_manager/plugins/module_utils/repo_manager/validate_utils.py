@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Validate repository certificate configuration and filesystem state."""
+
 # pylint: disable=import-error,no-name-in-module
 import os
 from ansible.module_utils.repo_manager.common_functions import load_yaml_file

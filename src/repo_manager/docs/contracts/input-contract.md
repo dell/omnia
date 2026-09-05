@@ -216,6 +216,14 @@ architectures and sources to synchronize.
 | `sources[].version` | Selects one or more OS versions |
 | `sources[].reponame` | Maps RPM content to `repositories` |
 | `sources[].registry` | Maps an endpoint-prefixed OCI image to its configured registry key |
+| `url` or `sources[].url` | HTTP(S) download URL for a direct artifact |
+
+Direct artifact URLs may contain a public selection query such as
+`download.php?version=1.7.7`. They must not contain URL user information,
+fragments, malformed escapes, or credential-bearing query keys such as
+`token`, `password`, `secret`, `signature`, or `api_key`. RPM repository and
+container-registry base URLs use the stricter repository URL contract and do
+not accept query strings.
 
 Every referenced repository and non-public registry must resolve before download
 starts. A private image name must use the exact configured `host[:port]`; the

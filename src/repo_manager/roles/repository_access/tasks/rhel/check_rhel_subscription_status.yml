@@ -24,7 +24,8 @@
 - name: Extract repo baseurls if redhat.repo exists
   ansible.builtin.shell: |
     set -o pipefail
-    awk -F= '/^baseurl/ {print $2}' /etc/yum.repos.d/redhat.repo | grep -E 'codeready-builder|baseos|appstream' || true
+    awk -F= '/^baseurl/ {print $2}' {{ redhat_repo_file | quote }} |
+    grep -E 'codeready-builder|baseos|appstream' || true
   args:
     warn: false
   register: repo_urls
@@ -74,7 +75,9 @@
       ansible.builtin.file:
         path: "{{ rhel_repo_cert_dir }}"
         state: directory
-        mode: "{{ dir_permissions_755 | default('0755') }}"
+        owner: root
+        group: root
+        mode: "0700"
 
     - name: Remove stale files from rhel_repo_cert_dir before fresh copy
       ansible.builtin.file:
@@ -85,7 +88,9 @@
       ansible.builtin.file:
         path: "{{ rhel_repo_cert_dir }}"
         state: directory
-        mode: "{{ dir_permissions_755 | default('0755') }}"
+        owner: root
+        group: root
+        mode: "0700"
 
     - name: Find entitlement certs on oim
       ansible.builtin.shell: |
@@ -95,20 +100,30 @@
       changed_when: false
       failed_when: false
       when: subscription_status | bool
+      no_log: true
 
     - name: Copy entitlement certs to shared path
       ansible.builtin.copy:
         src: "{{ item }}"
         dest: "{{ rhel_repo_cert_dir }}"
-        mode: "{{ file_permissions_644 | default('0644') }}"
+        owner: root
+        group: root
+        mode: >-
+          {{ '0600' if (item | basename) is match('.*-key\.pem$')
+             else (file_permissions_644 | default('0644')) }}
         remote_src: true
       loop: "{{ entitlement_certs_paths.stdout_lines | default([]) }}"
       when: subscription_status | bool
+      loop_control:
+        label: "entitlement certificate"
+      no_log: true
 
     - name: Copy Red Hat UEP cert
       ansible.builtin.copy:
         src: "{{ redhat_uep_cert }}"
         dest: "{{ rhel_repo_cert_dir }}/redhat-uep.pem"
+        owner: root
+        group: root
         mode: "{{ file_permissions_644 | default('0644') }}"
         remote_src: true
 
@@ -116,6 +131,8 @@
       ansible.builtin.copy:
         src: "{{ redhat_repo_file }}"
         dest: "{{ rhel_repo_cert_dir }}/redhat.repo"
+        owner: root
+        group: root
         mode: "{{ file_permissions_644 | default('0644') }}"
         remote_src: true
 

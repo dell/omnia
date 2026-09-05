@@ -37,3 +37,38 @@ required_repos_by_arch:
        if 'aarch64' in selected_architectures else [] }}
 required_repos: >-
   {{ (required_repos_by_arch.x86_64 + required_repos_by_arch.aarch64) | unique }}
+
+# =============================================================================
+# FAILURE AND ASSERTION MESSAGES
+# =============================================================================
+repository_access_validate_host_repository_access_provider_msg: >-
+  Repository-access provider
+  {{ catalog_context.platform_capabilities.repository_access | default('unknown') }}
+  is not implemented for {{ cluster_os_type }}.
+
+
+repository_access_validate_context_repository_access_provider_msg: >-
+  Repository-access provider
+  {{ catalog_context.platform_capabilities.repository_access | default('unknown') }}
+  is not implemented for {{ cluster_os_type }}.
+
+
+repository_access_validate_catalog_version_and_architectures_exist_in_repository_configuration_msg: >-
+  Catalog-selected repository configuration is missing for RHEL
+  {{ cluster_os_version }} / {{ arch_item }}.
+
+repository_access_fail_when_a_referenced_repository_has_no_explicit_url_msg: >-
+  Repository URLs are required for RHEL {{ cluster_os_version }} /
+  {{ arch_item }}: {{ invalid_explicit_repos_by_arch[arch_item] | join(', ') }}.
+  Only catalog-referenced subscription repositories may omit URLs when a
+  RHEL subscription is enabled.
+
+repository_access_validate_copied_subscription_certificates_msg: >-
+  RHEL subscription certificates required by Repo Manager are missing
+  from {{ omnia_rhel_cert_dir }}.
+
+
+repository_access_fail_when_subscription_cannot_provide_a_referenced_repository_msg: >-
+  RHEL subscription and explicit configuration do not provide
+  {{ unresolved_subscription_repos_by_arch[arch_item] | join(', ') }}
+  for RHEL {{ cluster_os_version }} / {{ arch_item }}.

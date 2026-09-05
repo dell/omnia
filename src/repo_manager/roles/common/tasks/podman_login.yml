@@ -33,7 +33,5 @@
 
 - name: Podman login check
   ansible.builtin.fail:
-    msg: >-
-      {{ podman_login_fail_msg }} Podman returned exit code
-      {{ podman_login_output.rc }}.
+    msg: "{{ common_podman_login_check_msg }}"
   when: podman_login_output.rc != 0

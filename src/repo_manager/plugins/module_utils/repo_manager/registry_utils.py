@@ -46,7 +46,7 @@ def build_registry_base_url(registry_config):
     port = registry_config.get("port")
     parsed = urlsplit(base_url)
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
-        raise ValueError(f"Invalid registry base_url: {base_url}")
+        raise ValueError("Registry base_url must be a valid HTTP(S) origin")
     if parsed.username is not None or parsed.password is not None:
         raise ValueError("Registry base_url must not contain credentials")
     if parsed.path not in ("", "/") or parsed.query or parsed.fragment:
@@ -240,6 +240,8 @@ def find_invalid_cert_paths(registries):
             ("client_key_path", client_key),
         ):
             if path and not os.path.isfile(path):
-                invalid_entries.append(f"{registry_name}: {key} '{path}' does not exist.")
+                invalid_entries.append(
+                    f"{registry_name}: configured {key} path does not exist."
+                )
 
     return invalid_entries

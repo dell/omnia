@@ -21,11 +21,14 @@
 # -----------------------------------------------------------------------------
 # PULP ENDPOINT CONFIGURATION
 # -----------------------------------------------------------------------------
-# These are set dynamically after reading pulp status
-# pulp_protocol: set from pulp status command
-# pulp_server_ip: set from pulp status command
-# pulp_server_port: set from pulp status command
-pulp_status_url: "{{ pulp_protocol }}://{{ pulp_server_ip }}:{{ pulp_server_port }}/pulp/api/v3/status/"
+# These are set by tasks/read_endpoint_config.yml. Pulp status metadata is
+# observational only and must not replace the configured consumer endpoint.
+# pulp_protocol: always https
+# pulp_server_ip: optional endpoint config value or SYSTEM_ADMIN_NIC_IPV4
+# pulp_server_port: required endpoint config value
+pulp_status_url: >-
+  {{ pulp_protocol }}://{{ pulp_server_ip }}:{{ pulp_server_port
+  }}/pulp/api/v3/status/
 
 # Endpoint verification settings
 validation_endpoint_retries: 3
@@ -35,8 +38,27 @@ validation_endpoint_timeout: 60
 # -----------------------------------------------------------------------------
 # STATUS MESSAGES
 # -----------------------------------------------------------------------------
-pulp_status_fail_msg: "Pulp endpoint is not up. Status code: {{ result.status }}"
-pulp_container_success_msg: "The {{ pulp_container_name }} container is up and running."
+pulp_status_fail_msg: >-
+  Pulp endpoint is not up. Status code: {{ result.status }}
+pulp_container_success_msg: >-
+  The {{ pulp_container_name }} container is up and running.
 pulp_container_fail_msg: >-
   The Pulp Container is not found on the OIM.
-  Please run playbooks/deploy/deploy_pulp.yml first, and then rerun repo_manager.yml
+  Please run playbooks/deploy/deploy_pulp.yml first, and then rerun
+  repo_manager.yml.
+
+# =============================================================================
+# FAILURE AND ASSERTION MESSAGES
+# =============================================================================
+pulp_validation_validate_endpoint_configuration_contract_msg: >-
+  Invalid repo_manager_endpoint_config.yml. Only pulp_server_ip (optional)
+  and pulp_server_port (required integer from 1 to 65535) are supported.
+  pulp_server_ip must be provided either in the file or through
+  SYSTEM_ADMIN_NIC_IPV4.
+
+
+pulp_validation_validate_pulp_endpoint_ip_belongs_to_this_host_msg: >-
+  Pulp endpoint IP {{ pulp_server_ip }} is not assigned to this host.
+  Set pulp_server_ip in repo_manager_endpoint_config.yml or correct
+  SYSTEM_ADMIN_NIC_IPV4. Available IPv4 addresses:
+  {{ ansible_all_ipv4_addresses | join(', ') }}.

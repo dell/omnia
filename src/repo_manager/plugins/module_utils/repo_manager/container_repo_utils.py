@@ -24,8 +24,15 @@ container repositories and distributions in Pulp.
 
 import multiprocessing
 from ansible.module_utils.repo_manager.parse_and_download import execute_command
-from ansible.module_utils.repo_manager.config import (
-    pulp_container_commands
+from ansible.module_utils.repo_manager.pulp_commands import (
+    build_container_tags_href,
+    pulp_common_commands,
+    pulp_container_commands,
+)
+from ansible.module_utils.repo_manager.security_utils import (
+    validate_container_reference,
+    validate_container_tag,
+    validate_repository_id,
 )
 remote_creation_lock = multiprocessing.Lock()
 repository_creation_lock = multiprocessing.Lock()
@@ -64,17 +71,19 @@ def create_container_repository(repo_name, logger):
               False if there was an error.
     """
     try:
-        if not execute_command(pulp_container_commands["show_container_repo"] % (repo_name),
-                               logger):
-            command = pulp_container_commands["create_container_repo"] % (repo_name)
+        repo_name = validate_repository_id(repo_name)
+        if not execute_command(
+                pulp_container_commands["show_repository"] % repo_name,
+                logger):
+            command = pulp_container_commands["create_repository"] % repo_name
             result = execute_command(command, logger)
             logger.info(f"Repository created successfully: {repo_name}")
             return result
         else:
             logger.info(f"Repository {repo_name} already exists.")
             return True
-    except Exception as e:
-        logger.error(f"Failed to create repository {repo_name}. Error: {e}")
+    except Exception:
+        logger.error("Failed to create the container repository")
         return False
 
 
@@ -87,7 +96,8 @@ def extract_existing_tags(remote_name, logger):
         list: A list of existing tags, or an empty list if an error occurs.
     """
     try:
-        command = pulp_container_commands["list_container_remote_tags"] % remote_name
+        remote_name = validate_repository_id(remote_name)
+        command = pulp_container_commands["list_remote_tags"] % remote_name
         result = execute_command(command, logger, type_json=True)
 
         if not result or not isinstance(result, dict) or "stdout" not in result:
@@ -103,8 +113,8 @@ def extract_existing_tags(remote_name, logger):
         # Keep the old key as a compatibility alias for older responses.
         return remotes[0].get("includes", remotes[0].get("include_tags", []))
 
-    except Exception as e:
-        logger.error(f"Error extracting tags: {e}")
+    except Exception:
+        logger.error("Failed to extract container remote tags")
         return []
 
 
@@ -122,21 +132,26 @@ def create_container_distribution(repo_name, package_content, logger):
         Exception: If there is an error creating or updating the distribution.
     """
     try:
+        repo_name = validate_repository_id(repo_name)
+        package_content = validate_container_reference(package_content)
         # Get lock for this specific distribution
         dist_lock = get_container_distribution_lock(repo_name)
 
         with dist_lock:
-            if not execute_command(pulp_container_commands["show_container_distribution"] % (repo_name),
-                                   logger):
-                command = pulp_container_commands["distribute_container_repository"] % (repo_name,
-                                                                                        repo_name, package_content)
+            if not execute_command(
+                    pulp_container_commands["show_distribution"] % repo_name,
+                    logger):
+                command = pulp_container_commands["distribution_create"] % (
+                    repo_name, repo_name, package_content,
+                )
                 return execute_command(command, logger)
             else:
-                command = pulp_container_commands["update_container_distribution"] % (repo_name,
-                                                                                      repo_name, package_content)
+                command = pulp_container_commands["distribution_update"] % (
+                    repo_name, repo_name, package_content,
+                )
                 return execute_command(command, logger)
-    except Exception as e:
-        logger.error(f"Error creating distribution {repo_name}: {e}")
+    except Exception:
+        logger.error("Failed to create the container distribution")
         return False
 
 
@@ -153,8 +168,15 @@ def sync_container_repository(repo_name, remote_name, package_content, logger, t
         bool: True if the synchronization is successful, False otherwise.
     """
     try:
+        repo_name = validate_repository_id(repo_name)
+        remote_name = validate_repository_id(remote_name)
+        package_content = validate_container_reference(package_content)
+        if tag is not None:
+            tag = validate_container_tag(tag)
         logger.info(f"Getting repository version before sync for {repo_name}")
-        verify_command = pulp_container_commands["show_container_repo"] % repo_name
+        verify_command = (
+            pulp_container_commands["show_repository"] % repo_name
+        )
         verify_result_before = execute_command(verify_command, logger, type_json=True)
 
         version_before = None
@@ -165,7 +187,9 @@ def sync_container_repository(repo_name, remote_name, package_content, logger, t
                 version_before = repo_data_before.get("latest_version_href")
                 logger.info(f"Repository version before sync: {version_before}")
 
-        command = pulp_container_commands["sync_container_repository"] % (repo_name, remote_name)
+        command = pulp_container_commands["sync_repository"] % (
+            repo_name, remote_name,
+        )
         result = execute_command(command, logger)
         if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
             logger.error(f"Sync command failed for repository {repo_name}")
@@ -190,7 +214,10 @@ def sync_container_repository(repo_name, remote_name, package_content, logger, t
                     # Check if tag actually exists using precise Pulp commands
                     try:
                         # Step 1: Get distribution to find repository href
-                        dist_command = f"pulp container distribution show --name {repo_name}"
+                        dist_command = (
+                            pulp_container_commands["show_distribution"]
+                            % repo_name
+                        )
                         dist_result = execute_command(dist_command, logger, type_json=True)
 
                         if not dist_result or not isinstance(dist_result, dict) or "stdout" not in dist_result:
@@ -207,7 +234,10 @@ def sync_container_repository(repo_name, remote_name, package_content, logger, t
                             logger.info(f"Found repository href: {repo_href}")
 
                             # Step 2: Get repository version href
-                            repo_command = f"pulp container repository show --href {repo_href}"
+                            repo_command = (
+                                pulp_container_commands["show_repository_href"]
+                                % repo_href
+                            )
                             repo_result = execute_command(repo_command, logger, type_json=True)
 
                             if not repo_result or not isinstance(repo_result, dict) or "stdout" not in repo_result:
@@ -224,10 +254,8 @@ def sync_container_repository(repo_name, remote_name, package_content, logger, t
                             logger.info(f"Found repository version href: {repo_ver_href}")
 
                             # Step 3: Check if tag exists in content
-                            tags_command = (
-                                f"pulp show --href "
-                                f"'/pulp/api/v3/content/container/tags/"
-                                f"?repository_version={repo_ver_href}'"
+                            tags_command = pulp_common_commands["show_href"] % (
+                                build_container_tags_href(repo_ver_href)
                             )
                             tags_result = execute_command(tags_command, logger, type_json=True)
 
@@ -263,9 +291,10 @@ def sync_container_repository(repo_name, remote_name, package_content, logger, t
                                              f"This indicates the tag likely does not exist in the upstream registry.")
                                 return False
 
-                    except Exception as e:
+                    except Exception:
                         logger.error(
-                            f"Error checking repository tag existence: {e}. Assuming tag doesn't exist."
+                            "Failed to check repository tag existence; "
+                            "treating the tag as unavailable"
                         )
                         return False
 
@@ -275,6 +304,6 @@ def sync_container_repository(repo_name, remote_name, package_content, logger, t
                 )
         result = create_container_distribution(repo_name, package_content, logger)
         return result
-    except Exception as e:
-        logger.error(f"Failed to synchronize repository {repo_name} with remote {remote_name}. Error: {e}")
+    except Exception:
+        logger.error("Failed to synchronize the container repository")
         return False

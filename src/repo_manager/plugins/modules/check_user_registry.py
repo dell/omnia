@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,8 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Validate configured container registries and their TLS settings."""
+
 # pylint: disable=import-error,no-name-in-module
-#!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager.common_functions import (
@@ -98,8 +100,8 @@ def main():
     timeout = module.params['timeout']
     try:
         config_data = load_yaml_file(config_path)
-    except FileNotFoundError as e:
-        module.fail_json(msg=str(e))
+    except FileNotFoundError:
+        module.fail_json(msg="Registry configuration file was not found")
 
     registries = config_data.get("registries") or {}
 

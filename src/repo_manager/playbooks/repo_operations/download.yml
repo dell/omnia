@@ -34,21 +34,28 @@
 #   ansible-playbook playbooks/repo_operations/download.yml -e 'project_name=project_default'
 # =============================================================================
 
+# Step 1: Prepare, validate, and download the selected repository content.
 - name: Download and sync repositories
   hosts: localhost
   connection: local
   gather_facts: true
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/pulp_cli_commands.yml"
   environment:
     PULP_CA_BUNDLE: "{{ pulp_server_crt }}"
   tasks:
+    - name: Load Repo Manager runtime configuration when required
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+      when: not (repo_manager_setup_done | default(false) | bool)
+
     # -------------------------------------------------------------------------
     # PHASE 0: SETUP PULP CLI
     # -------------------------------------------------------------------------
-    - name: Check if pulp CLI exists at /usr/local/bin/pulp
+    - name: Check if configured Pulp CLI exists
       ansible.builtin.stat:
-        path: /usr/local/bin/pulp
+        path: "{{ pulp_cli_executable }}"
       register: pulp_system_cli_check
 
     - name: Find pulp CLI path from current environment
@@ -58,30 +65,26 @@
       failed_when: false
       when: not pulp_system_cli_check.stat.exists
 
-    - name: Create symlink for pulp CLI at /usr/local/bin/pulp
+    - name: Create symlink for the configured Pulp CLI
       when:
         - not pulp_system_cli_check.stat.exists
         - pulp_which_result.rc | default(1) == 0
         - pulp_which_result.stdout | default('') | length > 0
       ansible.builtin.file:
         src: "{{ pulp_which_result.stdout }}"
-        dest: /usr/local/bin/pulp
+        dest: "{{ pulp_cli_executable }}"
         state: link
 
-    - name: Verify pulp CLI is accessible at /usr/local/bin/pulp
-      ansible.builtin.command: /usr/local/bin/pulp --version
+    - name: Verify configured Pulp CLI is accessible
+      ansible.builtin.command:
+        argv: "{{ [pulp_cli_executable] + pulp_cli_commands.common.version }}"
       register: pulp_cli_version
       changed_when: false
       failed_when: false
 
     - name: Fail if pulp CLI is not available
       ansible.builtin.fail:
-        msg: |
-          Pulp CLI not found at /usr/local/bin/pulp.
-          Please ensure pulp-cli is installed and the virtual environment is activated:
-            source <venv_path>/bin/activate
-            pip install pulp-cli
-          Then run the playbook again to create the symlink automatically.
+        msg: "{{ download_fail_if_pulp_cli_is_not_available_msg }}"
       when: pulp_cli_version.rc != 0
 
     # -------------------------------------------------------------------------
@@ -95,7 +98,7 @@
       ansible.builtin.file:
         path: "{{ repo_manager_log_dir }}"
         state: directory
-        mode: "0755"
+        mode: "0700"
 
     - name: Set dynamic run tags including 'local_repo'
       ansible.builtin.set_fact:
@@ -114,25 +117,15 @@
       ansible.builtin.include_vars:
         file: "{{ repo_manager_config_file }}"
         name: repo_manager_config
+      no_log: true
 
     - name: Resolve cluster OS details from catalog functional layers
-      resolve_catalog_context:
-        catalog_path: "{{ lookup('env', 'CATALOG_FILE_PATH') }}"
-      environment:
-        REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"
-        REPO_MANAGER_CONFIG_PATH: "{{ repo_manager_base_dir }}/vars/default.yml"
-      register: download_catalog_context
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+        tasks_from: resolve_catalog_context.yml
 
-    - name: Set cluster OS details from resolved catalog context
+    - name: Set repository policy from configuration
       ansible.builtin.set_fact:
-        catalog_context: "{{ download_catalog_context.catalog_context }}"
-        cluster_os_type: "{{ download_catalog_context.catalog_context.os_type }}"
-        catalog_execution_contexts: >-
-          {{ download_catalog_context.catalog_context.execution_contexts }}
-        cluster_os_version: >-
-          {{ download_catalog_context.catalog_context.execution_contexts[0].os_version }}
-        selected_architectures: >-
-          {{ download_catalog_context.catalog_context.execution_contexts[0].architectures }}
         repo_config: "{{ repo_manager_config.repo_config | default('partial') }}"
 
     # -------------------------------------------------------------------------
@@ -141,6 +134,16 @@
     - name: Load and reconcile credentials
       ansible.builtin.include_role:
         name: ../../roles/collect_repo_credentials
+
+    - name: Invalidate status from an earlier download invocation
+      ansible.builtin.file:
+        path: "{{ output_dir }}/repo_status.yml"
+        state: absent
+
+    - name: Initialize terminal download status
+      ansible.builtin.set_fact:
+        final_status: failed
+        catalog_execution_results: []
 
     # -------------------------------------------------------------------------
     # PHASE 3: PULP VALIDATION
@@ -160,7 +163,9 @@
               - "========================================"
 
         - name: Verify Pulp is healthy before operations
-          ansible.builtin.include_tasks: ../../roles/deploy_pulp/tasks/pulp_health_check.yml
+          ansible.builtin.include_role:
+            name: deploy_pulp
+            tasks_from: pulp_health_check.yml
 
         - name: Validate Pulp Container and Endpoint
           ansible.builtin.include_role:
@@ -179,22 +184,17 @@
         - name: Set validation failure flag
           ansible.builtin.set_fact:
             pulp_validation_passed: false
+            final_status: failed
             cacheable: true
 
-        - name: Pulp validation failed - aborting operations
-          ansible.builtin.fail:
-            msg: |
-              PULP VALIDATION FAILED
-              =====================
-              Pulp container or endpoint is not available.
-              Please ensure Pulp is properly deployed and running before proceeding.
+        - name: Record Pulp validation failure
+          ansible.builtin.debug:
+            msg: "{{ download_pulp_validation_failed_aborting_operations_msg }}"
 
-              Troubleshooting steps:
-              1. Check if Pulp container is running: podman ps | grep pulp
-              2. Check Pulp container logs: podman logs pulp
-              3. Restart Pulp if needed: podman restart pulp
-              4. Verify network connectivity to Pulp endpoint
-              5. Check Pulp status: pulp status
+    - name: Fail when Pulp endpoint configuration could not be resolved
+      ansible.builtin.fail:
+        msg: "{{ download_pulp_validation_failed_aborting_operations_msg }}"
+      when: pulp_server_ip is undefined or pulp_server_port is undefined
 
     # -------------------------------------------------------------------------
     # PHASE 4: SELINUX CONFIGURATION
@@ -234,9 +234,15 @@
       when: pulp_validation_passed | default(false)
 
     - name: Execute catalog OS-version contexts
-      ansible.builtin.include_role:
-        name: ../../roles/repo_manager_execution
       when: pulp_validation_passed | default(false)
+      block:
+        - name: Run sequential catalog execution
+          ansible.builtin.include_role:
+            name: ../../roles/repo_manager_execution
+      rescue:
+        - name: Record unexpected execution failure
+          ansible.builtin.set_fact:
+            final_status: failed
 
     # -------------------------------------------------------------------------
     # PHASE 6: COMPLETION
@@ -247,25 +253,28 @@
         state: directory
         mode: "0755"
         recurse: true
-      when:
-        - pulp_validation_passed | default(false)
-        - final_status is defined
 
     - name: Generate repo_status.yml with final status
       generate_local_repo_access:
+        pulp_cli_executable: "{{ pulp_cli_executable }}"
         pulp_server_ip: "{{ pulp_server_ip }}"
         pulp_server_port: "{{ pulp_server_port | int }}"
-        cluster_os_type: "{{ cluster_os_type }}"
-        cluster_os_version: "{{ cluster_os_version }}"
-        architectures: "{{ selected_architectures }}"
+        cluster_os_type: "{{ catalog_execution_contexts[0].os_type }}"
+        cluster_os_version: "{{ catalog_execution_contexts[0].os_version }}"
+        architectures: "{{ catalog_execution_contexts[0].architectures }}"
         repo_config: "{{ repo_config | default('partial') }}"
         output_path: "{{ output_dir }}/repo_status.yml"
         local_repo_config_path: "{{ repo_manager_config_file }}"
         overall_status: "{{ 'success' if final_status | default('') | lower == 'success' else 'failed' }}"
         execution_contexts: "{{ catalog_execution_contexts }}"
-      when:
-        - pulp_validation_passed | default(false)
-        - final_status is defined
+        execution_results: "{{ catalog_execution_results | default([]) }}"
+      environment:
+        REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"
+        REPO_MANAGER_INPUT_PROJECT_DIR: "{{ input_project_dir }}"
+        OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
+        OMNIA_DATA_PATH: "{{ omnia_data_path }}"
+        REPO_MANAGER_DATA_PATH: "{{ repo_manager_runtime_dir }}"
+      register: terminal_repo_status
 
     - name: Display final status
       ansible.builtin.debug:
@@ -273,4 +282,12 @@
           - "========== REPO MANAGER COMPLETE =========="
           - "Status: {{ final_status | default('unknown') }}"
           - "============================================"
-      when: pulp_validation_passed | default(false)
+    - name: Fail after publishing unsuccessful terminal status
+      ansible.builtin.fail:
+        msg: >-
+          Repo Manager download failed. A fail-closed repo_status.yml was
+          written; review the version-specific standard and task logs.
+      when:
+        - >-
+          final_status | default('failed') | lower != 'success' or
+          not (terminal_repo_status.repository_ready | default(false) | bool)

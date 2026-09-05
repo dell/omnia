@@ -20,7 +20,7 @@ Compatibility re-export of local_repo configuration.
 Concrete definitions have been split into:
   - repo_paths.py   : directory and file path constants
   - repo_settings.py: general settings and tunables
-  - pulp_commands.py: Pulp/CLI command templates
+  - pulp_commands.py: shell-free Pulp CLI command definitions
 """
 
 from ansible.module_utils.repo_manager.repo_paths import (
@@ -33,6 +33,8 @@ from ansible.module_utils.repo_manager.repo_paths import (
     REPO_MANAGER_OFFLINE_REPO_DIR,
     REPO_MANAGER_DATA_DIR,
     CLI_FILE_PATH,
+    PULP_REPO_FILE_PATH,
+    PULP_CLI_EXECUTABLE,
     PULP_SSL_CA_CERT,
     OMNIA_CREDENTIALS_YAML_PATH,
     OMNIA_CREDENTIALS_VAULT_PATH,
@@ -96,15 +98,16 @@ from ansible.module_utils.repo_manager.repo_settings import (
     get_repos_section,
     collect_all_repo_names,
 )
-from ansible.module_utils.repo_manager.pulp_commands import (
-    pulp_file_commands,
-    pulp_python_commands,
-    pulp_container_commands,
-    pulp_rpm_commands,
+from ansible.module_utils.repo_manager.dnf_package_manager import (
     DNF_COMMANDS,
     DNF_INFO_COMMANDS,
 )
-
+from ansible.module_utils.repo_manager.pulp_commands import (
+    pulp_container_commands,
+    pulp_file_commands,
+    pulp_python_commands,
+    pulp_rpm_commands,
+)
 __all__ = (
     [
         "REPO_MANAGER_BASE_DIR",
@@ -116,6 +119,8 @@ __all__ = (
         "REPO_MANAGER_OFFLINE_REPO_DIR",
         "REPO_MANAGER_DATA_DIR",
         "CLI_FILE_PATH",
+        "PULP_REPO_FILE_PATH",
+        "PULP_CLI_EXECUTABLE",
         "PULP_SSL_CA_CERT",
         "OMNIA_CREDENTIALS_YAML_PATH",
         "OMNIA_CREDENTIALS_VAULT_PATH",
@@ -175,16 +180,16 @@ __all__ = (
         "RPM_CLI_QUERY_RETRIES",
         "RPM_CLI_QUERY_RETRY_DELAY",
         "RPM_API_UNAVAILABLE_TIMEOUT",
-        iterate_all_repos,
-        get_repos_section,
-        collect_all_repo_names,
+        "iterate_all_repos",
+        "get_repos_section",
+        "collect_all_repo_names",
     ]
     + [
-        "pulp_file_commands",
-        "pulp_python_commands",
-        "pulp_container_commands",
-        "pulp_rpm_commands",
         "DNF_COMMANDS",
         "DNF_INFO_COMMANDS",
+        "pulp_container_commands",
+        "pulp_file_commands",
+        "pulp_python_commands",
+        "pulp_rpm_commands",
     ]
 )

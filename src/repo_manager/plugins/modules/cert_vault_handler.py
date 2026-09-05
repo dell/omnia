@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,8 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Encrypt and decrypt configured repository certificate files."""
+
 # pylint: disable=import-error,no-name-in-module
-#!/usr/bin/python
 import os
 from datetime import datetime
 from ansible.module_utils.basic import AnsibleModule
@@ -141,7 +143,7 @@ def main():
 
     local_repo_path = os.path.join(vault_key_path, "repo_manager_config.yml")
     local_repo_config = load_yaml_file(local_repo_path)
-    
+
     # Collect all repos with certificates from new structure
     all_repos_with_certs = []
     for arch in architectures:
@@ -153,7 +155,7 @@ def main():
                 if has_certs:
                     entry = {"name": repo_name, **repo_config}
                     all_repos_with_certs.append(entry)
-    
+
     if not all_repos_with_certs:
         log.info("No repos with certificates found, proceeding without encryption")
         module.exit_json()
@@ -163,7 +165,9 @@ def main():
         for key in CERT_KEYS:
             path = entry.get(key)
             if path and not os.path.isfile(path):
-                module.fail_json(msg=f"Missing {key} for repo '{entry['name']}': {path}")
+                module.fail_json(
+                    msg=f"Configured {key} is missing for repo '{entry['name']}'."
+                )
 
     messages = []
     changed = False
@@ -173,17 +177,23 @@ def main():
         gen_result = {}
         gen_result = generate_vault_key(vault_key_path)
         if gen_result is None:
-            module.fail_json(msg=f"Unable to create key: {vault_key_path}")
+            module.fail_json(msg="Unable to create the certificate vault key.")
         log.info("User repo found, proceeding to encrypt")
         for entry in cert_entries:
             for key in CERT_KEYS:
                 path = entry.get(key)
                 if path:
-                    result, msg = process_file(path, vault_key_path, mode)
+                    result, _message = process_file(path, vault_key_path, mode)
                     if result is False:
-                        module.fail_json(msg=f"Failed to {mode} {key} for '{entry['name']}': {msg}")
+                        module.fail_json(
+                            msg=f"Failed to {mode} configured {key} for "
+                            f"repo '{entry['name']}'."
+                        )
                     else:
-                        messages.append(msg)
+                        messages.append(
+                            f"{mode.title()} completed for {key} on "
+                            f"repo '{entry['name']}'."
+                        )
                         changed = True
 
     module.exit_json(changed=changed, msg="; ".join(messages))

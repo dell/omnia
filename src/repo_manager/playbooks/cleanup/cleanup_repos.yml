@@ -41,12 +41,14 @@
 #   # Examples: x86_64_rhel_10.0_epel, aarch64_rhel_10.0_epel, x86_64_rhel_10.0_appstream, aarch64_rhel_10.0_baseos
 #   # Note: Repository names follow the format <arch>_<os_type>_<os_version>_<name>
 
+# Step 1: Validate and execute the requested selective cleanup.
 - name: Pulp Cleanup
   hosts: localhost
   connection: local
   gather_facts: false
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/pulp_cli_commands.yml"
   environment:
     PULP_CA_BUNDLE: "{{ pulp_server_crt }}"
   pre_tasks:
@@ -61,9 +63,9 @@
         tasks_from: resolve_catalog_context.yml
 
     # Step 0: Setup pulp CLI
-    - name: Check if pulp CLI exists at /usr/local/bin/pulp
+    - name: Check if configured Pulp CLI exists
       ansible.builtin.stat:
-        path: /usr/local/bin/pulp
+        path: "{{ pulp_cli_executable }}"
       register: pulp_system_cli_check
 
     - name: Find pulp CLI path from current environment
@@ -73,30 +75,26 @@
       failed_when: false
       when: not pulp_system_cli_check.stat.exists
 
-    - name: Create symlink for pulp CLI at /usr/local/bin/pulp
+    - name: Create symlink for the configured Pulp CLI
       ansible.builtin.file:
         src: "{{ pulp_which_result.stdout }}"
-        dest: /usr/local/bin/pulp
+        dest: "{{ pulp_cli_executable }}"
         state: link
       when:
         - not pulp_system_cli_check.stat.exists
         - pulp_which_result.rc | default(1) == 0
         - pulp_which_result.stdout | default('') | length > 0
 
-    - name: Verify pulp CLI is accessible at /usr/local/bin/pulp
-      ansible.builtin.command: /usr/local/bin/pulp --version
+    - name: Verify configured Pulp CLI is accessible
+      ansible.builtin.command:
+        argv: "{{ [pulp_cli_executable] + pulp_cli_commands.common.version }}"
       register: pulp_cli_version
       changed_when: false
       failed_when: false
 
     - name: Fail if pulp CLI is not available
       ansible.builtin.fail:
-        msg: |
-          Pulp CLI not found at /usr/local/bin/pulp.
-          Please ensure pulp-cli is installed and the virtual environment is activated:
-            source <venv_path>/bin/activate
-            pip install pulp-cli
-          Then run the playbook again to create the symlink automatically.
+        msg: "{{ cleanup_repos_fail_if_pulp_cli_is_not_available_msg }}"
       when: pulp_cli_version.rc != 0
 
     - name: Validate cleanup catalog context
@@ -105,10 +103,8 @@
           - cluster_os_type | length > 0
           - cluster_os_version | length > 0
           - selected_architectures | length > 0
-        fail_msg: >-
-          Cleanup requires a valid CATALOG_FILE_PATH so repository state is
-          updated under the correct OS version and architecture.
-
+        fail_msg: "{{ cleanup_repos_validate_cleanup_catalog_context_msg }}"
+        quiet: true
     # Step 1: Input Validation
     - name: Set cleanup input presence flag
       ansible.builtin.set_fact:
@@ -121,13 +117,8 @@
       ansible.builtin.assert:
         that:
           - has_cleanup_input | bool
-        fail_msg: |
-          No cleanup items specified. Please provide at least one of:
-            cleanup_repos: ['repo1', 'repo2']
-            cleanup_containers: ['container1', 'container2']
-            cleanup_files: ['file1', 'file2']
-            cleanup_pulp_config: true
-
+        fail_msg: "{{ cleanup_repos_validate_input_at_least_one_cleanup_type_must_be_specified_msg }}"
+        quiet: true
     # Step 2: User Confirmation
     - name: Parse cleanup lists - repos
       ansible.builtin.set_fact:
@@ -169,7 +160,8 @@
           else (cleanup_files | default([])) }}
 
     - name: Check Pulp endpoint before artifact cleanup
-      ansible.builtin.command: /usr/local/bin/pulp status
+      ansible.builtin.command:
+        argv: "{{ [pulp_cli_executable] + pulp_cli_commands.common.status }}"
       register: cleanup_pulp_endpoint
       changed_when: false
       failed_when: false
@@ -183,9 +175,7 @@
 
     - name: Fail when Pulp endpoint is unavailable for artifact cleanup
       ansible.builtin.fail:
-        msg: >-
-          Pulp endpoint is not available. Cleanup was not started.
-          {{ cleanup_pulp_endpoint.stderr | default('No endpoint details returned.') }}
+        msg: "{{ cleanup_repos_fail_when_pulp_endpoint_is_unavailable_for_artifact_cleanup_msg }}"
       when:
         - cleanup_pulp_endpoint is not skipped
         - cleanup_pulp_endpoint.rc | default(1) != 0
@@ -280,6 +270,9 @@
         - cleanup_pulp_config | default(false) | bool
         - not ansible_check_mode
       block:
+        - name: Invalidate Pulp consumer state before configuration cleanup
+          ansible.builtin.include_tasks: invalidate_pulp_consumer_state.yml
+
         - name: Resolve all Pulp configuration cleanup paths
           ansible.builtin.set_fact:
             pulp_config_cleanup_directories:
@@ -297,7 +290,7 @@
               - item != omnia_data_path
               - item != repo_manager_runtime_dir
               - item != repo_manager_base_dir
-            fail_msg: "Unsafe Pulp config cleanup target refused: {{ item }}"
+            fail_msg: "{{ cleanup_repos_validate_pulp_configuration_cleanup_paths_msg }}"
             quiet: true
           loop: "{{ pulp_config_cleanup_directories }}"
 
@@ -316,7 +309,7 @@
 
         - name: Remove Pulp Quadlet file
           ansible.builtin.file:
-            path: "/etc/containers/systemd/{{ pulp_container_name | default('pulp') }}.container"
+            path: "{{ pulp_quadlet_file }}"
             state: absent
           register: pulp_service_file_result
 
@@ -339,7 +332,8 @@
           ansible.builtin.assert:
             that:
               - pulp_container_verify.containers | default([]) | length == 0
-            fail_msg: "Pulp container still exists; refusing to remove its configuration"
+            fail_msg: "{{ cleanup_repos_fail_when_pulp_container_remains_after_config_cleanup_msg }}"
+            quiet: true
 
         - name: Remove all resolved Pulp configuration directories
           ansible.builtin.file:
@@ -350,7 +344,7 @@
 
         - name: Remove Pulp CLI config directory
           ansible.builtin.file:
-            path: "/root/.config/pulp"
+            path: "{{ pulp_root_cli_config_dir }}"
             state: absent
           register: pulp_cli_config_cleanup
 
@@ -358,15 +352,6 @@
           ansible.builtin.include_role:
             name: ../../roles/deploy_pulp
             tasks_from: cleanup_system_integration.yml
-
-        - name: Remove stale Pulp repository consumer configuration
-          ansible.builtin.file:
-            path: "{{ item }}"
-            state: absent
-          loop:
-            - /etc/yum.repos.d/pulp.repo
-            - "{{ output_project_dir }}/repo_status.yml"
-          register: pulp_consumer_config_cleanup
 
         - name: Verify preserved Pulp CLI command chain
           ansible.builtin.include_role:
@@ -387,7 +372,7 @@
               - "CLI config removed: {{ pulp_cli_config_cleanup.changed | default(false) }}"
               - >-
                 Consumer files removed:
-                {{ pulp_consumer_config_cleanup.results
+                {{ pulp_consumer_state_removed.results
                    | selectattr('changed') | list | length }}
               - "Config paths: {{ pulp_config_cleanup_directories | join(', ') }}"
               - "==========================================="

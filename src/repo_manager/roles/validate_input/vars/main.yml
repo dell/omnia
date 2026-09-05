@@ -37,3 +37,18 @@ validation_success_msg: >-
 validation_error_msg: >-
   Input validation failed. Please check the validation output above
   for detailed error information.
+
+# =============================================================================
+# FAILURE AND ASSERTION MESSAGES
+# =============================================================================
+validate_input_fail_on_validation_errors_msg: >-
+  {{ validation_error_msg }}
+  {% if validation_status.errors is defined and validation_status.errors | length > 0 %}
+  Errors: {{ validation_status.errors | join('; ') }}
+  {% endif %}
+  {% if validation_status.invalid_files is defined and validation_status.invalid_files | length > 0 %}
+  Invalid files: {{ validation_status.invalid_files | join(', ') }}
+  {% endif %}
+  {% if validation_status.log_file is defined %}
+  Log file: {{ validation_status.log_file }}
+  {% endif %}
