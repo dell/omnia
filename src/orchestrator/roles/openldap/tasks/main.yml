@@ -23,7 +23,7 @@
 
     - name: Set the server-ip required by LDAP
       ansible.builtin.set_fact:
-        ldap_server_ip: "{{ hostvars['localhost']['Networks'][0]['admin_network']['primary_oim_admin_ip'] }}"
+        ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
 
     - name: Set the ldap_connection_type required by LDAP
       ansible.builtin.set_fact:

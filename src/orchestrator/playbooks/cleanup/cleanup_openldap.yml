@@ -31,7 +31,7 @@
   gather_facts: false
   vars:
     auth_container_name: omnia_auth
-    auth_base_dir: /opt/omnia/auth
+    auth_base_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/auth"
     auth_quadlet_file: /etc/containers/systemd/omnia_auth.container
   tasks:
     - name: Stop OpenLDAP service

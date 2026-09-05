@@ -133,11 +133,11 @@ src/orchestrator/
 |------|-------|
 | Main playbook | `playbooks/orchestrator.yml` |
 | Input config | `orchestrator_config.yml` |
-| Credential file | `omnia_config_credentials.yml` |
-| Credential key | `.omnia_config_credentials_key` |
-| Input subdir | `input/project_default/orchestrator/` |
-| Output subdir | `output/project_default/orchestrator/` |
-| Log path | `/opt/omnia/log/core/orchestrator/orchestrator.log` |
+| Credential file | `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/omnia_config_credentials.yml` |
+| Credential key | `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/.omnia_config_credentials_key` |
+| Input directory | `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/` |
+| Output directory | `$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/` |
+| Log path | `$OMNIA_DATA_PATH/log/core/orchestrator/orchestrator.log` |
 
 ### Ansible Config (ansible.cfg)
 
@@ -269,16 +269,20 @@ grep -c 'playbooks/utils' src/orchestrator/**/*.yml            # expect: 0
 
 ```yaml
 overall_status: "success"
+image_build_type: "image-builder"
 s3_configurations:
   endpoint_url: "http://10.20.0.1:9000"
   bucket: "boot-images"
 functional_group_images:
-  x86_64:
-    - functional_group: "slurm_control_node_x86_64"
-      kernel: "boot-images/efi-images/.../vmlinuz"
-      initrd: "boot-images/efi-images/.../initramfs.img"
-      image: "boot-images/slurm_control_node_x86_64/..."
+  - x86_64:
+      - functional_group: "slurm_control_node_x86_64"
+        kernel: "boot-images/efi-images/.../vmlinuz"
+        initrd: "boot-images/efi-images/.../initramfs.img"
+        image: "boot-images/slurm_control_node_x86_64/..."
 ```
+
+The Orchestrator-owned reference copy is
+`src/orchestrator/samples/image_build_manager_output/build_status.yml`.
 
 ### 6.2 pxe_mapping_file.csv (Input from discovery)
 
@@ -287,13 +291,13 @@ functional_group_images:
 
 ### 6.3 Orchestrator Outputs
 
-**Location**: `output/project_default/orchestrator/`
+**Location**: `$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/`
 
 - `functional_groups_config.yml` — Generated functional groups
 - `orchestrator_state.yml` — Support flags for standalone runs
 - BSS boot parameter configurations
 - Cloud-init default/group/node configurations
-- `/opt/omnia/hosts` — Ansible inventory
+- `$OMNIA_DATA_PATH/hosts` — Ansible inventory
 
 ---
 
@@ -410,7 +414,7 @@ accidental execution during the default flow. They must be explicitly requested.
 | Credential file | `omnia_config_credentials.yml` | Shared naming |
 | Phase directories | `<phase>/` | `precheck/`, `prepare/`, `deploy/`, `cleanup/` |
 | Component playbooks | `<phase>_<component>.yml` | `precheck_openchami.yml`, `cleanup_openldap.yml` |
-| Log path | `/opt/omnia/log/core/<domain>/` | `/opt/omnia/log/core/orchestrator/` |
+| Log path | `$OMNIA_DATA_PATH/log/core/<domain>/` | `$OMNIA_DATA_PATH/log/core/orchestrator/` |
 
 ---
 

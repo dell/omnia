@@ -32,7 +32,7 @@
   pre_tasks:
     - name: Load orchestrator state
       ansible.builtin.include_vars:
-        file: "{{ hostvars['localhost']['orchestrator_output_dir'] | default('/opt/omnia/.data') }}/orchestrator_state.yml"
+        file: "{{ hostvars['localhost']['orchestrator_output_dir'] }}/orchestrator_state.yml"
 
     - name: Load functional groups configuration
       ansible.builtin.include_vars:

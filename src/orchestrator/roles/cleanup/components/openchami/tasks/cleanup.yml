@@ -79,14 +79,14 @@
 
 - name: Remove OpenCHAMI workdir
   ansible.builtin.file:
-    path: "{{ openchami_config.work_dir | default('/opt/omnia/openchami/workdir') }}"
+    path: "{{ openchami_config.work_dir }}"
     state: absent
   failed_when: false
   tags: openchami
 
 - name: Remove OpenCHAMI log directory
   ansible.builtin.file:
-    path: "{{ openchami_config.log_dir | default('/opt/omnia/log/openchami') }}"
+    path: "{{ openchami_config.log_dir }}"
     state: absent
   failed_when: false
   tags: openchami
@@ -119,7 +119,7 @@
     path: "{{ item }}"
     state: absent
   failed_when: false
-  loop: "{{ openchami_config.inventory_dirs | default(['/opt/omnia/openchami/inventory']) }}"
+  loop: "{{ openchami_config.inventory_dirs }}"
   tags: openchami
 
 - name: Display OpenCHAMI cleanup completion

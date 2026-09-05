@@ -41,7 +41,7 @@ component_spec:
     retry_delay: 5
 
   logging:
-    log_file: "/opt/omnia/log/cleanup/openldap.log"
+    log_file: "{{ omnia_data_path }}/orchestrator/log/cleanup/openldap.log"
     log_level: "INFO"
     log_format: "detailed"
 
@@ -56,7 +56,7 @@ component_metadata:
 openldap_config:
   service_name: "omnia_auth"
   container_name: "omnia_auth"
-  base_dir: "/opt/omnia/auth"
+  base_dir: "{{ omnia_data_path }}/auth"
   quadlet_file: "/etc/containers/systemd/omnia_auth.container"
 
   cleanup_operations:

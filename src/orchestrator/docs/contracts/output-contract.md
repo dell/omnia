@@ -10,7 +10,7 @@ This document defines all output artifacts produced by the `orchestrator` domain
 
 **Purpose**: Maps PXE mapping file entries into functional groups used by BSS, cloud-init, and service configuration roles.
 
-**Location**: `/opt/omnia/.data/functional_groups_config.yml`
+**Location**: `$OMNIA_DATA_PATH/.data/functional_groups_config.yml`
 
 **Producer**: `orchestrator_functional_groups` role (Step 3)
 
@@ -83,7 +83,7 @@ Produced by `configure_ochami` role on the OIM host.
 
 ## 4. Ansible Inventory
 
-**Location**: `/opt/omnia/hosts`
+**Location**: `$OMNIA_DATA_PATH/hosts`
 
 **Producer**: `passwordless_ssh` role
 
