@@ -81,17 +81,23 @@
   when: existing_instanceinfos.json | default([]) | length > 0
 
 - name: Fetch existing metadata-service groups
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
-    status_code: [200]
-    validate_certs: false
-    return_content: true
-  register: existing_groups
-  failed_when: false
-  no_log: true
+  block:
+    - name: Fetch existing metadata-service groups
+      ansible.builtin.uri:
+        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+        status_code: [200]
+        validate_certs: false
+        return_content: true
+      register: existing_groups
+      failed_when: false
+      no_log: true
+  rescue:
+    - name: Fail with metadata-service API error
+      ansible.builtin.fail:
+        msg: "{{ metadata_service_api_fail_msg }}"
 
 - name: Delete existing metadata-service groups
   ansible.builtin.uri:
