@@ -110,7 +110,29 @@ _FVT_SUITE_ORDER = {
 # Auto-generates from TEST_CASES keys (e.g. "deploy_build" → "test_deploy_build")
 # plus explicit overrides where function name differs from key.
 _TC_ID_MAP = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()}
-_TC_ID_MAP["test_deploy_image_build_manager"] = TEST_CASES["deploy_full"]["id"]
+_TC_ID_MAP.update(
+    {
+        "test_credentials_present": TEST_CASES["credentials_present_vl"]["id"],
+        "test_storage_backend_after_prepare": TEST_CASES["storage_backend"]["id"],
+        "test_registry_after_prepare": TEST_CASES["registry_container_running"]["id"],
+        "test_s3_buckets_after_prepare": TEST_CASES["s3_buckets_created"]["id"],
+        "test_build_status": TEST_CASES["build_status_file"]["id"],
+        "test_image_packages_x86_64": TEST_CASES["packages_x86_64"]["id"],
+        "test_image_packages_aarch64": TEST_CASES["packages_aarch64"]["id"],
+        "test_registry_naming_image_builder_x86_64": TEST_CASES[
+            "registry_naming_ib_x86_64"
+        ]["id"],
+        "test_s3_naming_image_builder_x86_64": TEST_CASES[
+            "s3_naming_ib_x86_64"
+        ]["id"],
+        "test_registry_naming_image_thrillhouse_x86_64": TEST_CASES[
+            "registry_naming_th_x86_64"
+        ]["id"],
+        "test_s3_naming_image_thrillhouse_x86_64": TEST_CASES[
+            "s3_naming_th_x86_64"
+        ]["id"],
+    }
+)
 
 
 def _ut_test_node_key(item):
@@ -119,6 +141,20 @@ def _ut_test_node_key(item):
     if "ut/" not in normalized_node_id:
         return ""
     return normalized_node_id.split("ut/", 1)[1].split("[", 1)[0]
+
+
+def _registered_test_case_id(item):
+    """Resolve a stable UT, NFT, or FVT ID without process-global state."""
+    ut_tc_id = UT_TEST_CASE_IDS.get(_ut_test_node_key(item), "")
+    if ut_tc_id:
+        return ut_tc_id
+
+    if item.name == "test_deploy_image_build_manager":
+        deploy_tag = os.environ.get("OMNIA_DEPLOY_TAG", "")
+        deploy_key = f"deploy_{deploy_tag}" if deploy_tag else "deploy_full"
+        return TEST_CASES.get(deploy_key, {}).get("id", "")
+
+    return _TC_ID_MAP.get(item.name, "")
 
 
 # =============================================================================
@@ -423,6 +459,7 @@ def pytest_runtest_makereport(item, call):
     status = "PASSED" if result.passed else ("SKIPPED" if result.skipped else "FAILED")
 
     ut_tc_id = UT_TEST_CASE_IDS.get(_ut_test_node_key(item), "")
+    registered_tc_id = _registered_test_case_id(item)
     output = "" if ut_tc_id else get_test_output(item.name)
     details = output if output else ""
     detail_fields = [] if ut_tc_id else get_last_detail_fields()
@@ -440,12 +477,9 @@ def pytest_runtest_makereport(item, call):
     if status == "SKIPPED" and skip_reason:
         details = (details + "\n" if details else "") + f"SKIPPED: {skip_reason}"
 
-    # UTs do not use TestLogger and must not inherit its process-global state.
-    tc_id = ut_tc_id or get_last_tc_id()
-
-    # Fallback: look up FVT/NFT ID from TEST_CASES if TestLogger didn't set it.
-    if not tc_id:
-        tc_id = _TC_ID_MAP.get(item.name, "")
+    # Prefer the node/function registry for every test level. TestLogger state
+    # remains a compatibility fallback for an unregistered legacy case.
+    tc_id = registered_tc_id or get_last_tc_id()
 
     # Accumulate for summary table (shared via omnia_auto)
     add_session_result(

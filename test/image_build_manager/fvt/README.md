@@ -61,6 +61,9 @@ command; `verify` runs only the verification cases.
 These cases validate the effective runtime inputs without building images.
 `IMGBM_FVT_VALIDATE_V004` belongs to this phase because it checks build-template
 wiring before a build begins and executes in the `validate/status` suite.
+The validate tag does not require or validate `repo_status.yml`; that external
+contract is consumed only by build, execute, architecture-specific, and
+default build flows.
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
@@ -93,7 +96,7 @@ before artifact verification.
 
 | Sequence | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |----------|-------|------|-------|---------|------------|---------------|
-| 0 | IMGBM_FVT_BUILD_E001 | `test_deploy_image_build_manager` | root | deploy, sanity | Runs `image_build_manager.yml --tags build`. | Build playbook exits successfully. |
+| 0 | IMGBM_FVT_BUILD_E001 | `test_deploy_image_build_manager` | root | deploy, sanity | Runs `image_build_manager.yml --tags build`; setup validates the repo-manager output contract before parsing repository URLs. | Build playbook exits successfully with a structurally valid, successful `repo_status.yml`. Internet mode may use empty repo-manager port and certificate path values. |
 | 1 | IMGBM_FVT_BUILD_V001 | `test_aarch64_ssh_connectivity` | aarch64 | aarch64, sanity | Runs a non-interactive SSH command and reports the source OIM, destination, and authentication mode. | Passwordless SSH exits zero and returns `OK`; skips when no AArch64 host is configured. |
 | 2 | IMGBM_FVT_BUILD_V002 | `test_aarch64_architecture` | aarch64 | aarch64, functional | Collects the architecture, kernel name, and kernel release from the configured ARM host. | Host reports `aarch64`; skips when no AArch64 host is configured. |
 | 3 | IMGBM_FVT_BUILD_V003 | `test_aarch64_work_dirs` | aarch64 | aarch64, sanity | Checks and lists the Image Build Manager root, OpenCHAMI, work, and log directories on the ARM host. | All four directories exist below the execution OIM's `OMNIA_DATA_PATH`; skips when no AArch64 host is configured. |
@@ -124,6 +127,15 @@ before artifact verification.
 - The AArch64 cases verify the postconditions of `build_image_aarch64.yml`.
   Initial password-based access is a playbook prerequisite; `IMGBM_FVT_BUILD_V001`
   verifies that passwordless access was established successfully.
+
+### Repo-status contract boundary
+
+The build setup validates `repo_status.yml` only when repository data is
+needed. Required structural keys include status, OS metadata, repo-manager
+metadata, and architecture repository mappings. Managed-repository metadata
+uses a numeric port and may provide certificate paths. Internet mode preserves
+the same structure but may set the port and certificate path strings to empty.
+At least one usable x86_64 repository URL is required for a build.
 
 ### Naming test commands
 

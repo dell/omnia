@@ -220,9 +220,9 @@ ARM-host readiness and tooling checks before artifact and package validation.
 | Tag | Playbook Tag | What It Tests |
 |-----|-------------|---------------|
 | `precheck` | `--tags precheck` | Env vars, hostname, IP, connectivity, omnia.sh setup |
-| `validate` | `--tags validate` | Input/credentials presence, effective `repo_ssl_verify`, and template wiring |
+| `validate` | `--tags validate` | Configuration, credentials, package/catalog input, effective `repo_ssl_verify`, and template wiring; does not consume `repo_status.yml` |
 | `prepare` | `--tags prepare` | MinIO, registry, systemd, S3 buckets |
-| `build` | `--tags build` | S3 images, registry images, build_status, **naming convention** |
+| `build` | `--tags build` | Build-only repo-status contract validation, S3 images, registry images, build_status, and **naming convention** |
 | `cleanup` | `--tags cleanup` | Remove local MinIO/registry data and services, build output/logs, MinIO s3cmd config, and domain credentials; external PowerScale storage and s3cmd config are retained |
 | `cleanup_images` | `--tags cleanup_images` | Delete S3 + registry images |
 | *(none)* | *(no tag)* | Full end-to-end (prepare + build) |
@@ -658,10 +658,10 @@ the UT ID ranges and maintenance rule.
 | cleanup | `IMGBM_FVT_CLEANUP_E001` | `IMGBM_FVT_CLEANUP_V001`–`008` | 9 |
 | full-stack alternate | `IMGBM_FVT_FULL_E001` | — | 1 reportable ID |
 | nft | `IMGBM_NFT_001`–`004` | — | 4 |
-| ut | `IMGBM_UT_001`–`073` | — | 73 |
-| **Reportable IDs** | | | **129** |
+| ut | `IMGBM_UT_001`–`099` | — | 99 |
+| **Reportable IDs** | | | **155** |
 
-There are 128 physical test functions (51 FVT, 4 NFT, and 73 UT).
+There are 154 physical test functions (51 FVT, 4 NFT, and 99 UT).
 `IMGBM_FVT_FULL_E001` is the alternate full-stack ID emitted by the same build deploy
 function that reports `IMGBM_FVT_BUILD_E001` for a tagged build.
 
@@ -737,6 +737,7 @@ test/image_build_manager/
     ├── test_catalog_validation.py
     ├── test_driver_group_skip.py
     ├── test_functional_group_packages.py
+    ├── test_input_validation_schema.py  # IMGBM_UT_074–099
     ├── test_standalone_independence.py
     └── test_validate_image_build_config.py
 ```
