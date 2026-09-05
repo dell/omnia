@@ -13,38 +13,45 @@
 # limitations under the License.
 ---
 # PXE Boot Configuration
-# This file configures PXE boot and phone-home verification timing
+# This file configures PXE boot and node-registration verification timing
 #
 # Usage:
 #   - To run PXE boot: ansible-playbook orchestrator.yml --tags setpxe
 #   - Standalone: ansible-playbook setpxe/set_pxe_boot.yml
 
 # ─────────────────────────────────────────────────────────────────────────
-# Phone-Home Verification Configuration
+# Node-Registration Verification Configuration
 # ─────────────────────────────────────────────────────────────────────────
 
-# Enable/disable phone-home verification (default: true)
+# Enable/disable node-registration verification (default: true)
 # When enabled, the playbook waits for nodes to boot and send cloud-init callbacks
 # When disabled, the playbook exits immediately after PXE boot
-enable_phone_home: true
+# Legacy variable name: enable_phone_home (deprecated, will be removed)
+enable_node_registration: true
 
-# Initial wait time before starting phone-home polling (in minutes)
+# Initial wait time before starting node-registration polling (in minutes)
 # Nodes need time to boot and begin cloud-init before we start checking
 # Recommended: 3-5 minutes for typical hardware
-phone_home_pause_minutes: 3
+# Legacy variable name: phone_home_pause_minutes (deprecated, will be removed)
+node_registration_pause_minutes: 3
 
-# Maximum number of phone-home polling retries
-# Total wait time = phone_home_retries × phone_home_delay
+# Maximum number of node-registration polling retries
+# Total wait time = node_registration_retries × node_registration_delay
 # Example: 120 retries × 15 seconds = 30 minutes
-phone_home_retries: 120
+# Legacy variable name: phone_home_retries (deprecated, will be removed)
+node_registration_retries: 120
 
-# Delay between phone-home polling retries (in seconds)
-phone_home_delay: 15
+# Delay between node-registration polling retries (in seconds)
+# Legacy variable name: phone_home_delay (deprecated, will be removed)
+node_registration_delay: 15
 
-# Journal log pattern to search for phone-home callbacks
+# Journal log pattern to search for node-registration callbacks
 # This pattern is used to grep the metadata-service journal on OIM
 # Do not change unless you've customized cloud-init configuration
-phone_home_log_pattern: "phone-home"
+# Note: The cloud-init standard uses "phone-home" in the journal, so this
+# pattern remains as "phone-home" for compatibility with cloud-init.
+# Legacy variable name: phone_home_log_pattern (deprecated, will be removed)
+node_registration_log_pattern: "phone-home"
 
 # ─────────────────────────────────────────────────────────────────────────
 # PXE Boot Configuration (Advanced)

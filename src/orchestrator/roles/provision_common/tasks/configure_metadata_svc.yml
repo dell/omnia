@@ -270,11 +270,19 @@
   ansible.builtin.set_fact:
     functional_group_name: "{{ fg_name }}"
 
+# Strip OS version suffix (e.g. _rhel_10_0, _ubuntu_24_04, _rocky_9_5) from the FG name
+# so the template lookup resolves to the base template (ms-group-slurm_control_node_x86_64.yaml.j2).
+- name: Derive template base name from fg_name
+  ansible.builtin.set_fact:
+    _ms_template_base: >-
+      {{ fg_name
+         | regex_replace('_(rhel|ubuntu|rocky)_[0-9]+(_[0-9]+)*_', '_') }}
+
 - name: Load metadata-service group template - {{ fg_name }}
   block:
     - name: Render metadata-service group template - {{ fg_name }}
       ansible.builtin.template:
-        src: "{{ ochami_template_dir }}/metadata_svc/ms-group-{{ fg_name }}.yaml.j2"
+        src: "{{ ochami_template_dir }}/metadata_svc/ms-group-{{ _ms_template_base }}.yaml.j2"
         dest: "{{ metadata_svc_dir }}/ms-group-{{ fg_name }}.yaml"
         mode: "{{ file_permissions_644 }}"
       vars:

@@ -282,7 +282,7 @@ src/orchestrator/
 │   │
 │   ├── pxeboot/                         # PXE boot on iDRAC nodes
 │   │   ├── ansible.cfg
-│   │   ├── pxeboot.yml                  # BMC inventory, reboot, phone-home verify
+│   │   ├── pxeboot.yml                  # BMC inventory, reboot, node-registration verify
 │   │   └── README.md
 │   │
 │   ├── cleanup/                         # Component teardown
@@ -545,7 +545,7 @@ pxeboot.yml:
     1. Build BMC inventory from pxe_mapping_file
     2. Set PXE one-time boot via iDRAC
     3. Graceful reboot
-    4. Phone-home verification
+    4. Node-registration verification
 ```
 
 ### 6.6 Tag: `cleanup` — Component Teardown (Opt-In)
