@@ -15,7 +15,7 @@
 
 # Container image
 omnia_auth_image: "docker.io/dellhpcomniaaisolution/omnia_auth"
-omnia_auth_tag: "1.1"
+omnia_auth_tag: "1.2"
 omnia_auth_container_name: "omnia_auth"
 
 # Directory paths
