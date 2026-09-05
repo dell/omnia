@@ -37,13 +37,19 @@ def load_yaml(path):
     """Load a YAML file, returning None on failure."""
     if not os.path.isfile(path):
         return None
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f)
+    except (OSError, yaml.YAMLError):
+        return None
 
 
 def load_json(path):
     """Load a JSON file, returning None on failure."""
     if not os.path.isfile(path):
         return None
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
