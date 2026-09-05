@@ -33,7 +33,8 @@ pulp_webserver_cert_path: "{{ hostvars['localhost']['pulp_cert_path'] }}"
 anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 
 # Usage: create_node_dir.yml
-nodes_yaml: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes_{{ target_category | default('kubernetes') }}.yaml"
+nodes_yaml: >-
+  {{ hostvars['localhost']['omnia_data_path'] }}/openchami/workdir/nodes/nodes_{{ target_category | default('kubernetes') }}.yaml
 worker_components:
   - 'kubernetes'
   - 'kubelet'
@@ -80,8 +81,10 @@ nfs_export_help_msg: |
 # Usage create_k8s_config_nfs.yml
 packages_base_dir_x86_64: "{{ k8s_client_mount_path }}/packages/x86_64"
 packages_base_dir_aarch64: "{{ k8s_client_mount_path }}/packages/aarch64"
-offline_repo_basepath_x86_64: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso"
-offline_repo_basepath_aarch64: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso"
+offline_repo_basepath_x86_64: >-
+  {{ hostvars['localhost']['omnia_data_path'] }}/offline_repo/cluster/x86_64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso
+offline_repo_basepath_aarch64: >-
+  {{ hostvars['localhost']['omnia_data_path'] }}/offline_repo/cluster/aarch64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso
 packages_layout_x86_64:
   - cuda
 packages_layout_aarch64:

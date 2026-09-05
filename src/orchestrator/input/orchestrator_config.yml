@@ -18,13 +18,14 @@
 # SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
 # ***********************************************************************
 
-#### Mandatory
+#### Mandatory field (optional path override)
 # This depicts the path where user has kept the PXE mapping file.
+# Leave empty to use $OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv.
 # The mapping file consists of the Service tag, Admin MAC,Hostname and its respective admin IP address and/or BMC IP.
 # Ensure that admin IPs given in mapping file are within the network defined in the network_spec.yml
 # A templates for mapping file exists in omnia/examples, namely, pxe_mapping_file.csv
 # Format of csv: FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP
-pxe_mapping_file_path: "/opt/omnia/orchestrator/input/project_default/pxe_mapping_file.csv"
+pxe_mapping_file_path: ""
 
 #### Mandatory
 # Language that needs to be set during OS provisioning.
@@ -75,7 +76,7 @@ boot_kernel_params: ""
 # Path to the catalog JSON file produced by repo_manager.
 # Contains functionallayer, groups, and package definitions used to derive
 # feature flags (k8s, slurm, openldap, etc.) and OS metadata.
-# Default: "/opt/omnia/catalog/catalog_rhel.json" (from CATALOG_FILE_PATH env)
+# Default: "$OMNIA_DATA_PATH/catalog/catalog_rhel.json" (from CATALOG_FILE_PATH env)
 catalog_file_path: ""
 
 #### Optional
@@ -86,14 +87,15 @@ catalog_file_path: ""
 # Default: true
 enable_pxe_boot: true
 
-image_build_manager_output_path: "/opt/omnia/image_build_manager/output/project_default/build_status.yml"
+# Leave empty to use the current OMNIA_DATA_PATH and OMNIA_PROJECT_NAME.
+image_build_manager_output_path: ""
 
 #### Optional
 # Path to repo_status.yml produced by repo_manager.
 # Contains RPM repo URLs, Pulp certificate paths, and offline content paths
 # consumed by k8s_config, slurm_config, and cloud-init templates.
-# Default: "/opt/omnia/repo_manager/output/project_default/repo_status.yml"
-repo_manager_output_path: "/opt/omnia/repo_manager/output/project_default/repo_status.yml"
+# Default: "$OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/repo_status.yml"
+repo_manager_output_path: ""
 
 #### Optional
 # Enable NVIDIA DCGM (Data Center GPU Manager) installation on GPU nodes.

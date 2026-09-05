@@ -40,7 +40,17 @@
     - item | intersect(omnia_run_tags) | length == item | length
   loop: "{{ invalid_tag_combinations }}"
 
-# Step 1: Upgrade guard — block if upgrade is in progress
+# Step 1: Resolve configuration from environment variables
+- name: Resolve configuration from environment
+  ansible.builtin.set_fact:
+    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+    project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+    admin_nic_ip: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true) }}"
+    host_name: "{{ lookup('env', 'SYSTEM_HOSTNAME') | default('oim', true) }}"
+    domain_name: "{{ lookup('env', 'SYSTEM_DOMAIN_NAME') | default('omnia.cluster', true) }}"
+    cacheable: true
+
+# Step 2: Upgrade guard — block if upgrade is in progress
 - name: Check upgrade lock file
   ansible.builtin.stat:
     path: "{{ upgrade_lock_file }}"
@@ -54,16 +64,6 @@
     - not (upgrade_mode | default(false) | bool)
     - "'upgrade' not in (ansible_run_tags | default([]))"
     - "'rollback' not in (ansible_run_tags | default([]))"
-
-# Step 2: Resolve configuration from environment variables
-- name: Resolve configuration from environment
-  ansible.builtin.set_fact:
-    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
-    project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
-    admin_nic_ip: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true) }}"
-    host_name: "{{ lookup('env', 'SYSTEM_HOSTNAME') | default('oim', true) }}"
-    domain_name: "{{ lookup('env', 'SYSTEM_DOMAIN_NAME') | default('omnia.cluster', true) }}"
-    cacheable: true
 
 - name: Set domain root directory
   ansible.builtin.set_fact:
@@ -160,7 +160,7 @@
 
 - name: Set oim_shared_path fallback
   ansible.builtin.set_fact:
-    oim_shared_path: "{{ omnia_data_path | default('/opt/omnia') }}"
+    oim_shared_path: "{{ omnia_data_path }}"
     cacheable: true
   when: oim_shared_path is not defined or oim_shared_path | length == 0
 
@@ -174,7 +174,7 @@
 - name: Set image_build_manager_output_path and boot params on localhost
   ansible.builtin.set_fact:
     image_build_manager_output_path: >-
-      {{ _orch_config.image_build_manager_output_path | default(default_build_status_path) }}
+      {{ _orch_config.image_build_manager_output_path | default(default_build_status_path, true) }}
     boot_kernel_params: "{{ _orch_config.boot_kernel_params | default('') }}"
     pxe_mapping_file_path: >-
       {{ (_orch_config.pxe_mapping_file_path | default('')) | ternary(
@@ -185,9 +185,15 @@
     cacheable: true
 
 # Step 7: Load repo_manager output (repo_status.yml)
+- name: Determine whether repo_status.yml is required for this flow
+  ansible.builtin.set_fact:
+    _repo_status_required: >-
+      {{ omnia_run_tags | length == 0
+         or (omnia_run_tags | intersect(repo_status_required_tags) | length > 0) }}
+
 - name: Resolve repo_manager output path
   ansible.builtin.set_fact:
-    repo_manager_output_path: "{{ _orch_config.repo_manager_output_path | default(default_repo_status_path) }}"
+    repo_manager_output_path: "{{ _orch_config.repo_manager_output_path | default(default_repo_status_path, true) }}"
     cacheable: true
 
 - name: Check if repo_status.yml exists
@@ -198,16 +204,57 @@
 - name: Load repo_status.yml from repo_manager output
   ansible.builtin.include_vars:
     file: "{{ repo_manager_output_path }}"
-  when: _repo_status_stat.stat.exists
+  when:
+    - _repo_status_required | bool
+    - _repo_status_stat.stat.exists
+
+- name: Fail when required repo_status.yml is missing
+  ansible.builtin.fail:
+    msg: "{{ repo_status_missing_fail_msg }}"
+  when:
+    - _repo_status_required | bool
+    - not _repo_status_stat.stat.exists
+
+- name: Validate required repo_status.yml contract
+  ansible.builtin.assert:
+    that:
+      - overall_status | default('') == 'success'
+      - cluster_os_type | default('') | length > 0
+      - (repositories | default({})) is mapping
+      - (repo_manager | default({})) is mapping
+      - ((repo_manager | default({})).get('certificates', {})) is mapping
+      - ((repo_manager | default({})).get('certificates', {}).get('server_crt', '')) | length > 0
+    fail_msg: "{{ repo_status_invalid_fail_msg }}"
+    quiet: true
+  when:
+    - _repo_status_required | bool
+    - _repo_status_stat.stat.exists
 
 - name: Set repo_manager facts from repo_status.yml
   ansible.builtin.set_fact:
     cluster_os_type: "{{ cluster_os_type | default('rhel') }}"
     pulp_port: "{{ repo_manager.port | default(2225) }}"
-    pulp_cert_path: "{{ repo_manager.certificates.server_crt | default('/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.crt') }}"
-    pulp_certs_dir: "{{ repo_manager.certificates.certs_dir | default('/opt/omnia/pulp_config/pulp/settings/certs') }}"
+    pulp_cert_path: "{{ repo_manager.certificates.server_crt }}"
     cacheable: true
-  when: _repo_status_stat.stat.exists
+  when:
+    - _repo_status_required | bool
+    - _repo_status_stat.stat.exists
+
+- name: Check Repo Manager public certificate
+  ansible.builtin.stat:
+    path: "{{ pulp_cert_path }}"
+  register: _repo_certificate_stat
+  when:
+    - _repo_status_required | bool
+    - _repo_status_stat.stat.exists
+
+- name: Fail when Repo Manager public certificate is missing
+  ansible.builtin.fail:
+    msg: "{{ repo_certificate_missing_fail_msg }}"
+  when:
+    - _repo_status_required | bool
+    - _repo_status_stat.stat.exists
+    - not (_repo_certificate_stat.stat.exists | default(false))
 
 - name: Warn if repo_status.yml is missing
   ansible.builtin.debug:
@@ -216,7 +263,9 @@
       Run repo_manager.yml first to generate it, or set repo_manager_output_path
       in orchestrator_config.yml. Downstream roles (k8s_config, slurm_config)
       may fail without repo URLs.
-  when: not _repo_status_stat.stat.exists
+  when:
+    - not (_repo_status_required | bool)
+    - not _repo_status_stat.stat.exists
 
 # Step 8: Load catalog file for feature detection and OS metadata
 - name: Resolve catalog file path

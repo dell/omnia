@@ -34,14 +34,14 @@
 - name: Clean orchestrator deployment outputs
   tags: artifacts
   ansible.builtin.file:
-    path: "/opt/omnia/output/project_default/orchestrator"
+    path: "{{ orchestrator_output_dir }}"
     state: absent
   failed_when: false
 
 - name: Clean cleanup framework logs
   tags: artifacts
   ansible.builtin.file:
-    path: "/opt/omnia/log/cleanup"
+    path: "{{ omnia_data_path }}/orchestrator/log/cleanup"
     state: absent
   failed_when: false
 

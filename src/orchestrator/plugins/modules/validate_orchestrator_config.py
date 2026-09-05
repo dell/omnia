@@ -56,13 +56,20 @@ options:
     description: Path to the directory containing JSON schema files.
     required: true
     type: str
+  log_dir:
+    description: Directory where the validation log is written.
+    required: false
+    type: str
 '''
 
 EXAMPLES = r'''
 - name: Validate orchestrator configuration files
   validate_orchestrator_config:
-    input_project_dir: /opt/omnia/input/project_default
-    schema_dir: "{{ role_path }}/../../plugins/module_utils/input_validation/schema"
+    input_project_dir: >-
+      {{ omnia_data_path }}/orchestrator/input/{{ project_name }}
+    schema_dir: >-
+      {{ role_path }}/../../plugins/module_utils/input_validation/schema
+    log_dir: "{{ omnia_data_path }}/log/core/playbooks"
   register: validation_result
 '''
 
@@ -76,8 +83,6 @@ validation_errors:
   type: list
   returned: failure
 '''
-
-VALIDATION_LOG_PATH = "/opt/omnia/log/core/playbooks/"
 
 # Files to validate and their corresponding schema names
 VALIDATION_FILES = [
@@ -94,10 +99,10 @@ VALIDATION_FILES = [
 ]
 
 
-def create_logger(project_name):
+def create_logger(project_name, log_dir):
     """Create a logger for orchestrator validation."""
     log_file = os.path.join(
-        VALIDATION_LOG_PATH, f"orchestrator_validation_{project_name}.log"
+        log_dir, f"orchestrator_validation_{project_name}.log"
     )
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
     logging.basicConfig(
@@ -190,15 +195,19 @@ def run_module():
     module_args = dict(
         input_project_dir=dict(type="str", required=True),
         schema_dir=dict(type="str", required=True),
+        log_dir=dict(type="str", required=False),
     )
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
     input_project_dir = module.params["input_project_dir"]
     schema_dir = module.params["schema_dir"]
+    log_dir = module.params["log_dir"] or os.path.join(
+        os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "log", "core", "playbooks"
+    )
     project_name = os.path.basename(input_project_dir)
 
-    logger, log_file = create_logger(project_name)
+    logger, log_file = create_logger(project_name, log_dir)
     logger.info("=== Orchestrator Validation Start ===")
 
     all_errors = []

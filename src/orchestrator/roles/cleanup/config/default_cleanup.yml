@@ -30,8 +30,8 @@ cleanup_components:
     cleanup_paths:
       - "/etc/openchami"
       - "/etc/ochami"
-      - "/opt/omnia/openchami/workdir"
-      - "/opt/omnia/log/openchami"
+      - "{{ omnia_data_path }}/openchami/workdir"
+      - "{{ omnia_data_path }}/orchestrator/log/openchami"
     description: "OpenCHAMI services, containers, configuration, and artifacts"
 
   openldap:
@@ -43,7 +43,7 @@ cleanup_components:
     rollback_supported: true
     preserve: []
     cleanup_paths:
-      - "/opt/omnia/auth"
+      - "{{ omnia_data_path }}/auth"
     description: "OpenLDAP container, Quadlet units, and data"
 
   slurm:
@@ -102,8 +102,8 @@ cleanup_components:
     rollback_supported: false
     preserve: []
     cleanup_paths:
-      - "/opt/omnia/.data/functional_groups_config.yml"
-      - "/opt/omnia/output/project_default/orchestrator"
+      - "{{ omnia_data_path }}/.data/functional_groups_config.yml"
+      - "{{ orchestrator_output_dir }}"
     description: "Orchestrator artifacts, state files, and output directories"
 
 # Global cleanup settings
@@ -111,6 +111,6 @@ global_settings:
   skip_approval: false
   dry_run: false
   state_file_path: "/var/lib/omnia/cleanup/cleanup_state.json"
-  log_file_path: "/opt/omnia/log/cleanup/cleanup.log"
+  log_file_path: "{{ omnia_data_path }}/orchestrator/log/cleanup/cleanup.log"
   backup_before_cleanup: false
   backup_path: "/var/lib/omnia/cleanup/backups"

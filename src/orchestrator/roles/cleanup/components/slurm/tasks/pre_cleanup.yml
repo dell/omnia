@@ -37,7 +37,7 @@
 
 - name: Read omnia_config for slurm cluster configuration
   ansible.builtin.include_vars:
-    file: "/opt/omnia/orchestrator/input/project_default/omnia_config.yml"
+    file: "{{ input_project_dir }}/omnia_config.yml"
   register: omnia_config_loaded
   failed_when: false
 
@@ -58,7 +58,7 @@
 
 - name: Read storage_config for mount information
   ansible.builtin.include_vars:
-    file: "/opt/omnia/orchestrator/input/project_default/storage_config.yml"
+    file: "{{ input_project_dir }}/storage_config.yml"
   register: storage_config_loaded
   failed_when: false
   when: slurm_configured | bool
