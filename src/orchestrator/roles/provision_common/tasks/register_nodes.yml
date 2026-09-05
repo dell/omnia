@@ -16,6 +16,19 @@
 # Extracted from configure_ochami/tasks/orchestration_mapping_nodes.yml.
 # Uses per-category nodes YAML and upsert semantics (no --overwrite).
 
+- name: Check if openchami configs_vars.yaml exists
+  ansible.builtin.stat:
+    path: "{{ openchami_config_vars_path }}"
+  register: _openchami_config_stat
+
+- name: Fail with clear message if configs_vars.yaml is missing
+  ansible.builtin.fail:
+    msg: >-
+      OpenCHAMI configuration file not found: {{ openchami_config_vars_path }}.
+      This file is generated during the deploy stage. Run the orchestrator
+      deploy stage first: ansible-playbook orchestrator.yml --tags deploy
+  when: not _openchami_config_stat.stat.exists
+
 - name: Include openchami vars
   ansible.builtin.include_vars: "{{ openchami_config_vars_path }}"
 
@@ -332,7 +345,7 @@
   ansible.builtin.set_fact:
     registered_fg_names: "{{ (registered_fg_names | default([])) + target_fg_names }}"
 
-- name: Create common SMD groups (ssh, chrony, phone_home)
+- name: Create common SMD groups (ssh, chrony, node_registration)
   ansible.builtin.include_tasks: create_smd_group_common.yml
   loop: "{{ common_metadata_svc_groups }}"
   loop_control:

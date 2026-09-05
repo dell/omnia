@@ -2,6 +2,11 @@
 
 All notable changes to the `omnia.discovery` collection will be documented in this file.
 
+## [2.3.0] - 2026-09-05
+
+### Changed
+- Galaxy version set to 2.3.0.
+
 ## [3.0.0] - 2026-07-30
 
 ### Added

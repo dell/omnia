@@ -1,12 +1,12 @@
-# verify_phone_home
+# verify_node_registration
 
-Verify cloud-init phone-home callbacks from PXE-booted nodes.
+Verify cloud-init node-registration callbacks from PXE-booted nodes.
 
 ## Description
 
 This role verifies that nodes have successfully booted and completed cloud-init
 after PXE boot. It uses SSH port reachability (TCP/22) as the primary check
-and monitors the metadata-service journal for phone-home POST requests as
+and monitors the metadata-service journal for node-registration POST requests as
 secondary confirmation.
 
 ## Requirements
@@ -21,18 +21,18 @@ Available variables are listed below (see `vars/main.yml`):
 
 ```yaml
 # Pause before polling (minutes)
-phone_home_pause_minutes: 3
+node_registration_pause_minutes: 3
 
 # Polling configuration
-phone_home_retries: 120
-phone_home_delay: 15
+node_registration_retries: 120
+node_registration_delay: 15
 
-# Journal pattern to match
-phone_home_log_pattern: "phone-home"
+# Journal pattern to match (cloud-init standard, not renamed)
+node_registration_log_pattern: "phone-home"
 
 # Status indicators
-phone_home_status_ok: "[OK]"
-phone_home_status_wait: "[WAIT]"
+node_registration_status_ok: "[OK]"
+node_registration_status_wait: "[WAIT]"
 ```
 
 ## Required Facts
@@ -51,7 +51,7 @@ None.
 ## Example Playbook
 
 ```yaml
-- name: Verify phone-home from PXE-booted nodes
+- name: Verify node-registration from PXE-booted nodes
   hosts: oim_server
   become: true
   vars:
@@ -60,7 +60,7 @@ None.
       - 172.16.1.50
       - 172.16.1.51
   roles:
-    - role: verify_phone_home
+    - role: verify_node_registration
 ```
 
 ## Workflow
@@ -70,7 +70,7 @@ None.
 3. **Poll reachability** - Check SSH port (TCP/22) on each node and metadata-service journal
 4. **Retry loop** - Retry until all nodes are reachable or retries exhausted
 5. **Parse results** - Extract list of failed IPs
-6. **Cache results** - Store `phone_home_failed_ips` on localhost for reporting
+6. **Cache results** - Store `node_registration_failed_ips` on localhost for reporting
 7. **Report outcome** - Display success or warning message
 
 ## Output Facts
@@ -79,8 +79,8 @@ After execution, the following facts are available on `localhost`:
 
 | Fact | Description |
 |------|-------------|
-| `phone_home_failed_ips` | List of IPs that did not phone home |
-| `phone_home_completed` | Boolean indicating the role completed |
+| `node_registration_failed_ips` | List of IPs that did not register |
+| `node_registration_completed` | Boolean indicating the role completed |
 
 ## Tasks
 

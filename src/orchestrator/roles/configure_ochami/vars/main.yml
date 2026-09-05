@@ -34,7 +34,7 @@ openchami_groups_common_template: "{{ role_path }}/templates/nodes/groups_common
 common_metadata_svc_groups:
   - ssh
   - chrony
-  - phone_home
+  - node_registration
 
 # Usage: configure_boot_svc_group.yml, configure_boot_svc_metadata_svc.yml
 boot_svc_template: boot_svc/boot-svc.yaml.j2
