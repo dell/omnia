@@ -1,0 +1,37 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Namespace for all Victoria components (must match external_victoria_connect)
+victoria_namespace: "telemetry"
+
+# VMCluster service names (must match external_victoria_connect)
+vm_vminsert_service: "vminsert-victoria-cluster"
+vm_vmselect_service: "vmselect-victoria-cluster"
+
+# VLAgent service name (must match external_victoria_connect)
+vl_vlagent_service: "vlagent"
+
+# Output paths (must match external_victoria_connect)
+victoria_output_dir: >-
+  {{ output_project_dir | default('/opt/omnia/telemetry/output/project_default') }}/external_victoria
+
+# Error messages
+victoria_disconnect_err_kube_vip_unreachable: >-
+  kube_vip host is not reachable over SSH: {{ ansible_host | default(inventory_hostname) }}.
+  Ensure the Kubernetes control plane VIP is reachable from this host.
+
+# SFM disconnect instructions
+sfm_ui_navigation: "Observability -> Settings -> Prometheus Remote Write"
+sfm_remote_write_disable_value: "OFF"

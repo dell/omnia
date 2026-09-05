@@ -24,21 +24,37 @@
 
 - name: Check if VAST resources exist
   ansible.builtin.command: >
-    kubectl get service vast-telemetry-external -n {{ telemetry_namespace }}
+    kubectl get service vast-external -n {{ telemetry_namespace }}
   register: vast_check
   changed_when: false
   failed_when: false
 
 - name: Delete VAST external service
   ansible.builtin.command: >
-    kubectl delete service vast-telemetry-external -n {{ telemetry_namespace }}
+    kubectl delete service vast-external -n {{ telemetry_namespace }}
   register: delete_svc_result
   changed_when: "'deleted' in delete_svc_result.stdout"
   when: vast_check.rc == 0
 
+- name: Discover Victoria API resources
+  ansible.builtin.command: >
+    kubectl api-resources --namespaced=true --api-group=operator.victoriametrics.com --output=name
+  register: _vast_victoria_api_resources
+  changed_when: false
+  when: vast_check.rc == 0
+
+- name: Delete VAST VMServiceScrape
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete vmservicescrape vast-storage-metrics --ignore-not-found=true
+  register: delete_vmscrape_result
+  changed_when: "'deleted' in delete_vmscrape_result.stdout"
+  when:
+    - vast_check.rc == 0
+    - 'vmservicescrapes.operator.victoriametrics.com' in _vast_victoria_api_resources.stdout_lines
+
 - name: Display result
   ansible.builtin.debug:
-    msg: "VAST telemetry resources removed"
+    msg: "VAST telemetry resources removed (service and VMServiceScrape)"
   when: vast_check.rc == 0
 
 - name: VAST resources not found

@@ -22,7 +22,7 @@
 # VAST credentials, and generates VAST scrape config manifests.
 # All K8s tasks execute on the kube_vip host.
 
-- name: Deploy VAST Telemetry
+- name: Manage VAST Telemetry
   hosts: kube_vip_group
   gather_facts: true
   any_errors_fatal: true
@@ -54,25 +54,88 @@
       no_log: true
       when: hostvars['localhost']['telemetry_credentials'] is defined
 
-    - name: Check if VictoriaMetrics is needed for VAST telemetry
+    # --- Determine VAST lifecycle state ---
+    - name: Determine if VAST telemetry is enabled in config
       ansible.builtin.set_fact:
-        victoria_metrics_needed: "{{ 'victoria_metrics' in (telemetry_config.telemetry_sources.vast.collection_targets | default([])) }}"
-      when: telemetry_config is defined
+        _vast_enabled: >-
+          {{
+            (telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool)
+            or
+            (telemetry_config.telemetry_sources.vast.logs_enabled | default(false) | bool)
+          }}
 
-    - name: Set victoria_deployment_mode
+    - name: Check if VAST resources are already deployed in cluster
+      ansible.builtin.command: >
+        kubectl get svc -n {{ telemetry_namespace }} vast-external --no-headers
+      register: _vast_deployed_check
+      changed_when: false
+      failed_when: false
+
+    - name: Set VAST deployment state
       ansible.builtin.set_fact:
-        victoria_deployment_mode: "cluster"
-      when:
-        - victoria_metrics_needed | default(false) | bool
-        - hostvars['localhost']['victoria_metrics_support'] is not defined
+        _vast_already_deployed: "{{ _vast_deployed_check.rc == 0 }}"
 
-    - name: Deploy VictoriaMetrics if needed and not already deployed (standalone only)
-      ansible.builtin.include_role:
-        name: deploy_victoria
-      when:
-        - victoria_metrics_needed | default(false) | bool
-        - hostvars['localhost']['victoria_metrics_support'] is not defined
+    # --- Enabled: Deploy or re-enable (scale up) ---
+    - name: Deploy or re-enable VAST telemetry
+      when: _vast_enabled | bool
+      block:
+        - name: Display VAST deployment action
+          ansible.builtin.debug:
+            msg: >-
+              {{ 'Re-enabling VAST telemetry (scaling up)'
+                 if (_vast_already_deployed | bool)
+                 else 'Deploying VAST telemetry (fresh deployment)' }}
 
-    - name: Include deploy_vast role
-      ansible.builtin.include_role:
-        name: deploy_vast
+        - name: Check if VictoriaMetrics is needed for VAST telemetry
+          ansible.builtin.set_fact:
+            victoria_metrics_needed: "{{ 'victoria_metrics' in (telemetry_config.telemetry_sources.vast.collection_targets | default([])) }}"
+          when: telemetry_config is defined
+
+        - name: Check if VictoriaMetrics is already deployed in cluster
+          ansible.builtin.command: >
+            kubectl get pods -n {{ telemetry_namespace }} -l app.kubernetes.io/name=vmstorage --no-headers
+          register: _vm_pods_check
+          changed_when: false
+          failed_when: false
+          when: victoria_metrics_needed | default(false) | bool
+
+        - name: Set victoria_deployment_mode
+          ansible.builtin.set_fact:
+            victoria_deployment_mode: "cluster"
+          when:
+            - victoria_metrics_needed | default(false) | bool
+            - (_vm_pods_check.stdout_lines | default([]) | select('search', 'Running') | list | length) == 0
+
+        - name: Deploy VictoriaMetrics if needed and not already running (standalone only)
+          ansible.builtin.include_role:
+            name: deploy_victoria
+          when:
+            - victoria_metrics_needed | default(false) | bool
+            - (_vm_pods_check.stdout_lines | default([]) | select('search', 'Running') | list | length) == 0
+
+        - name: Include deploy_vast role (enable)
+          ansible.builtin.include_role:
+            name: deploy_vast
+
+    # --- Not enabled + Deployed: Disable (scale down) ---
+    - name: Disable VAST telemetry (scale down)
+      when:
+        - not (_vast_enabled | bool)
+        - _vast_already_deployed | bool
+      block:
+        - name: Display VAST disable action
+          ansible.builtin.debug:
+            msg: "VAST telemetry is disabled in config but deployed in cluster - scaling down"
+
+        - name: Include deploy_vast disable tasks
+          ansible.builtin.include_role:
+            name: deploy_vast
+            tasks_from: disable
+
+    # --- Not enabled + Not deployed: Skip ---
+    - name: Skip VAST telemetry (not enabled, not deployed)
+      ansible.builtin.debug:
+        msg: "VAST telemetry is not enabled and not deployed - skipping"
+      when:
+        - not (_vast_enabled | bool)
+        - not (_vast_already_deployed | bool)

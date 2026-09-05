@@ -24,21 +24,37 @@
 
 - name: Check if UFM resources exist
   ansible.builtin.command: >
-    kubectl get service ufm-telemetry-external -n {{ telemetry_namespace }}
+    kubectl get service ufm-external -n {{ telemetry_namespace }}
   register: ufm_check
   changed_when: false
   failed_when: false
 
 - name: Delete UFM external service
   ansible.builtin.command: >
-    kubectl delete service ufm-telemetry-external -n {{ telemetry_namespace }}
+    kubectl delete service ufm-external -n {{ telemetry_namespace }}
   register: delete_result
   changed_when: "'deleted' in delete_result.stdout"
   when: ufm_check.rc == 0
 
+- name: Discover Victoria API resources
+  ansible.builtin.command: >
+    kubectl api-resources --namespaced=true --api-group=operator.victoriametrics.com --output=name
+  register: _ufm_victoria_api_resources
+  changed_when: false
+  when: ufm_check.rc == 0
+
+- name: Delete UFM VMServiceScrape
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete vmservicescrape ufm-infiniband-metrics --ignore-not-found=true
+  register: delete_vmscrape_result
+  changed_when: "'deleted' in delete_vmscrape_result.stdout"
+  when:
+    - ufm_check.rc == 0
+    - 'vmservicescrapes.operator.victoriametrics.com' in _ufm_victoria_api_resources.stdout_lines
+
 - name: Display result
   ansible.builtin.debug:
-    msg: "UFM telemetry resources removed"
+    msg: "UFM telemetry resources removed (service and VMServiceScrape)"
   when: ufm_check.rc == 0
 
 - name: UFM resources not found

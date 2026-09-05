@@ -22,7 +22,7 @@
 # UFM credentials, and generates UFM scrape config manifests.
 # All K8s tasks execute on the kube_vip host.
 
-- name: Deploy UFM Telemetry
+- name: Manage UFM Telemetry
   hosts: kube_vip_group
   gather_facts: true
   any_errors_fatal: true
@@ -54,25 +54,88 @@
       no_log: true
       when: hostvars['localhost']['telemetry_credentials'] is defined
 
-    - name: Check if VictoriaMetrics is needed for UFM telemetry
+    # --- Determine UFM lifecycle state ---
+    - name: Determine if UFM telemetry is enabled in config
       ansible.builtin.set_fact:
-        victoria_metrics_needed: "{{ 'victoria_metrics' in (telemetry_config.telemetry_sources.ufm.collection_targets | default([])) }}"
-      when: telemetry_config is defined
+        _ufm_enabled: >-
+          {{
+            (telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool)
+            or
+            (telemetry_config.telemetry_sources.ufm.logs_enabled | default(false) | bool)
+          }}
 
-    - name: Set victoria_deployment_mode
+    - name: Check if UFM resources are already deployed in cluster
+      ansible.builtin.command: >
+        kubectl get svc -n {{ telemetry_namespace }} ufm-external --no-headers
+      register: _ufm_deployed_check
+      changed_when: false
+      failed_when: false
+
+    - name: Set UFM deployment state
       ansible.builtin.set_fact:
-        victoria_deployment_mode: "cluster"
-      when:
-        - victoria_metrics_needed | default(false) | bool
-        - hostvars['localhost']['victoria_metrics_support'] is not defined
+        _ufm_already_deployed: "{{ _ufm_deployed_check.rc == 0 }}"
 
-    - name: Deploy VictoriaMetrics if needed and not already deployed (standalone only)
-      ansible.builtin.include_role:
-        name: deploy_victoria
-      when:
-        - victoria_metrics_needed | default(false) | bool
-        - hostvars['localhost']['victoria_metrics_support'] is not defined
+    # --- Enabled: Deploy or re-enable (scale up) ---
+    - name: Deploy or re-enable UFM telemetry
+      when: _ufm_enabled | bool
+      block:
+        - name: Display UFM deployment action
+          ansible.builtin.debug:
+            msg: >-
+              {{ 'Re-enabling UFM telemetry (scaling up)'
+                 if (_ufm_already_deployed | bool)
+                 else 'Deploying UFM telemetry (fresh deployment)' }}
 
-    - name: Include deploy_ufm role
-      ansible.builtin.include_role:
-        name: deploy_ufm
+        - name: Check if VictoriaMetrics is needed for UFM telemetry
+          ansible.builtin.set_fact:
+            victoria_metrics_needed: "{{ 'victoria_metrics' in (telemetry_config.telemetry_sources.ufm.collection_targets | default([])) }}"
+          when: telemetry_config is defined
+
+        - name: Check if VictoriaMetrics is already deployed in cluster
+          ansible.builtin.command: >
+            kubectl get pods -n {{ telemetry_namespace }} -l app.kubernetes.io/name=vmstorage --no-headers
+          register: _vm_pods_check
+          changed_when: false
+          failed_when: false
+          when: victoria_metrics_needed | default(false) | bool
+
+        - name: Set victoria_deployment_mode
+          ansible.builtin.set_fact:
+            victoria_deployment_mode: "cluster"
+          when:
+            - victoria_metrics_needed | default(false) | bool
+            - (_vm_pods_check.stdout_lines | default([]) | select('search', 'Running') | list | length) == 0
+
+        - name: Deploy VictoriaMetrics if needed and not already running (standalone only)
+          ansible.builtin.include_role:
+            name: deploy_victoria
+          when:
+            - victoria_metrics_needed | default(false) | bool
+            - (_vm_pods_check.stdout_lines | default([]) | select('search', 'Running') | list | length) == 0
+
+        - name: Include deploy_ufm role (enable)
+          ansible.builtin.include_role:
+            name: deploy_ufm
+
+    # --- Not enabled + Deployed: Disable (scale down) ---
+    - name: Disable UFM telemetry (scale down)
+      when:
+        - not (_ufm_enabled | bool)
+        - _ufm_already_deployed | bool
+      block:
+        - name: Display UFM disable action
+          ansible.builtin.debug:
+            msg: "UFM telemetry is disabled in config but deployed in cluster - scaling down"
+
+        - name: Include deploy_ufm disable tasks
+          ansible.builtin.include_role:
+            name: deploy_ufm
+            tasks_from: disable
+
+    # --- Not enabled + Not deployed: Skip ---
+    - name: Skip UFM telemetry (not enabled, not deployed)
+      ansible.builtin.debug:
+        msg: "UFM telemetry is not enabled and not deployed - skipping"
+      when:
+        - not (_ufm_enabled | bool)
+        - not (_ufm_already_deployed | bool)
