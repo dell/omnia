@@ -5,6 +5,11 @@ for the image_build_manager playbook. Unlike FVT (which verifies correctness),
 NFT checks operation duration and confirms that required services are
 available after prepare is run twice.
 
+The performance lifecycle follows the Image Build Manager runtime contract:
+prepare creates infrastructure, build validates and consumes
+`repo_status.yml`, and cleanup removes managed state. The validate-only flow is
+not part of NFT and does not consume repo status.
+
 ---
 
 ## Test Cases
@@ -53,9 +58,11 @@ containers were never recreated.
 ## Prerequisites
 
 Run these commands from `test/image_build_manager/`. NFT requires a valid
-target environment, input configuration, and credentials; the NFT suite runs
-its own prepare, build, and cleanup operations. Running FVT precheck and
-validate first is recommended:
+target environment, input configuration, credentials, and build-time
+`repo_status.yml`; the NFT suite runs its own prepare, build, and cleanup
+operations. Internet-backed repo status may keep repo-manager port and
+certificate paths empty as long as their required structure is present.
+Running FVT precheck and validate first is recommended:
 
 ```bash
 # Validate prerequisites
