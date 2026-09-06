@@ -15,6 +15,19 @@ for each catalog OS-version and architecture context.
 See `vars/main.yml` for the RHEL provider variables. Platform capability
 defaults are defined in `../../vars/default.yml`.
 
+The host subscription check runs once and publishes `subscription_status` for
+both validation and repository resolution. For each catalog execution context,
+the role processes only `catalog_context.referenced_repositories`:
+
+- An explicit URL always takes precedence.
+- With subscription access, only a referenced BaseOS, AppStream or CodeReady
+  Builder repository with an empty or missing URL uses subscription discovery.
+- Without subscription access, every referenced RPM repository, including
+  BaseOS, AppStream and CodeReady Builder, requires an explicit URL.
+- Missing repositories are reported together across selected architectures.
+- In subscription mode, every resolved referenced repository is checked for
+  `repodata/repomd.xml` before Pulp synchronization.
+
 ## Dependencies
 
 None.

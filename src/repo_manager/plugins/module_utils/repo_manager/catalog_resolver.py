@@ -688,7 +688,9 @@ def build_tasklist_from_index(global_index, arch, logger):
 # Repo URL Extraction from New Config Format
 # ---------------------------------------------------------------------------
 
-def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_version, logger, global_caching_policy=True):
+def parse_repo_urls_from_config(
+        config_data, repo_config_policy, arch, os_version, logger,
+        global_caching_policy=True, referenced_repo_names=None):
     """Parse repository URLs from the new repo_manager_config.yml format.
 
     The new config has:
@@ -705,6 +707,8 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
         os_version (str): OS version key (e.g., "10.0").
         logger: Logger instance.
         global_caching_policy (bool): Global caching policy from config (default: True).
+        referenced_repo_names (iterable): Optional catalog-selected repository
+            names. Repositories outside this set are ignored before URL parsing.
 
     Returns:
         list[dict]: List of parsed repo entries with url, gpgkey, name, policy, etc.
@@ -712,11 +716,16 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
     repositories = config_data.get("repositories", {})
     version_repos = repositories.get(os_version, {})
     arch_repos = version_repos.get(arch, {})
+    referenced_repos = (
+        set(referenced_repo_names) if referenced_repo_names is not None else None
+    )
 
     parsed = []
     for repo_name, repo_def in arch_repos.items():
         if repo_name in ("additional_repos", "user_repos"):
             # Additional and user repos handled separately
+            continue
+        if referenced_repos is not None and repo_name not in referenced_repos:
             continue
         if not isinstance(repo_def, dict):
             continue
@@ -754,7 +763,8 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
 def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
                                        os_version, logger,
                                        global_caching_policy=True,
-                                       os_type=None):
+                                       os_type=None,
+                                       referenced_repo_names=None):
     """Parse additional_repos from the new repo_manager_config.yml format.
 
     Args:
@@ -764,6 +774,8 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
         os_version (str): OS version key.
         logger: Logger instance.
         global_caching_policy (bool): Global caching policy from config (default: True).
+        referenced_repo_names (iterable): Optional catalog-selected repository
+            names. Repositories outside this set are ignored before URL parsing.
 
     Returns:
         list[dict]: List of additional repo entries.
@@ -772,12 +784,17 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
     version_repos = repositories.get(os_version, {})
     arch_repos = version_repos.get(arch, {})
     additional = arch_repos.get("additional_repos", {})
+    referenced_repos = (
+        set(referenced_repo_names) if referenced_repo_names is not None else None
+    )
 
     if not additional or not isinstance(additional, dict):
         return []
 
     parsed = []
     for repo_name, repo_def in additional.items():
+        if referenced_repos is not None and repo_name not in referenced_repos:
+            continue
         if not isinstance(repo_def, dict):
             continue
         url = repo_def.get("url", "")
@@ -810,7 +827,8 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
 def parse_user_repos_from_config(config_data, os_version, arch,
                                  repo_config_policy, logger,
                                  global_caching_policy=True,
-                                 os_type=None):
+                                 os_type=None,
+                                 referenced_repo_names=None):
     """Parse user custom repositories from repo_manager_config.yml user_repos section.
 
     Args:
@@ -820,6 +838,8 @@ def parse_user_repos_from_config(config_data, os_version, arch,
         repo_config_policy: Default repo policy from config
         logger: Logger instance
         global_caching_policy (bool): Global caching policy from config (default: True).
+        referenced_repo_names (iterable): Optional catalog-selected repository
+            names. Repositories outside this set are ignored before URL parsing.
 
     Returns:
         list: Parsed user repository entries
@@ -828,12 +848,17 @@ def parse_user_repos_from_config(config_data, os_version, arch,
     version_repos = repositories.get(os_version, {})
     arch_repos = version_repos.get(arch, {})
     user_repos = arch_repos.get("user_repos", {})
+    referenced_repos = (
+        set(referenced_repo_names) if referenced_repo_names is not None else None
+    )
 
     if not user_repos or not isinstance(user_repos, dict):
         return []
 
     parsed = []
     for repo_name, repo_def in user_repos.items():
+        if referenced_repos is not None and repo_name not in referenced_repos:
+            continue
         if not isinstance(repo_def, dict):
             continue
         url = repo_def.get("url", "")

@@ -80,12 +80,16 @@ different priorities.
 |--------------------|------------------|--------|
 | Enabled | `baseos: {}` | Resolve the matching RHEL EUS repository and entitlement certificates |
 | Enabled | Entry contains a user URL | Use the user-provided URL and settings |
+| Enabled | Referenced custom repository has no URL | Validation fails; subscriptions exempt only BaseOS/AppStream/CRB |
 | Disabled | Entry contains a valid URL | Use the configured URL |
-| Disabled | Empty BaseOS/AppStream/CRB entry | Validation fails with the missing source |
+| Disabled | Referenced BaseOS/AppStream/CRB entry is missing or empty | Validation fails and reports every missing repository |
 
 Resolution is performed independently for every catalog OS version and
 architecture. An x86_64 subscription on the OIM does not automatically provide
 aarch64 content unless the subscription exposes that architecture.
+When subscription access is enabled, Repo Manager validates
+`repodata/repomd.xml` for every resolved catalog-referenced repository,
+including repositories using an explicit URL.
 
 When a catalog contains multiple minor versions, configuration must provide the
 architecture sections and repository URLs referenced by each version's

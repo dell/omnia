@@ -30,6 +30,7 @@
     module_utils_path: "{{ (role_path + '/../../plugins/module_utils/') | ansible.builtin.realpath }}"
     csv_file_path: "{{ csv_file_path }}"
     subscription_enabled: "{{ subscription_status | default(false) | bool }}"
+    catalog_execution_contexts: "{{ catalog_execution_contexts | default([]) }}"
   environment:
     OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
     OMNIA_DATA_PATH: "{{ omnia_data_path }}"

@@ -96,6 +96,12 @@
         - run_subscription_check | default(false) | bool
         - not (repository_access_host_prepared | default(false) | bool)
 
+    # Validate mappings and explicit URLs with the shared subscription result
+    # before any configured repository URL is contacted.
+    - name: Validate repo_manager input configuration
+      ansible.builtin.include_role:
+        name: ../../roles/validate_input
+
     - name: Validate repository access for catalog contexts
       ansible.builtin.include_tasks: validate_catalog_context.yml
       loop: "{{ catalog_execution_contexts }}"
@@ -103,10 +109,3 @@
         loop_var: validation_execution_context
         label: "{{ validation_execution_context.context_id }}"
       when: run_subscription_check | default(false) | bool
-
-    # -------------------------------------------------------------------------
-    # PHASE 4: INPUT VALIDATION
-    # -------------------------------------------------------------------------
-    - name: Validate repo_manager input configuration
-      ansible.builtin.include_role:
-        name: ../../roles/validate_input

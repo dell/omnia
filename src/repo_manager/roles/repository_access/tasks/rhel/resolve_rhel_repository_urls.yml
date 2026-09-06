@@ -11,68 +11,6 @@
     referenced_repos_by_arch: "{{ catalog_context.referenced_repositories }}"
     repo_baseurls: []
 
-- name: Resolve version-specific subscription URLs
-  when:
-    - subscription_status_flag
-    - required_repos | length > 0
-  block:
-    - name: Extract EUS baseurls for the active RHEL version
-      vars:
-        eus_pattern: "rhel-{{ rhel_version }}-for-x86_64-(appstream|baseos)-eus-rpms|codeready-builder-for-rhel-{{ rhel_version }}-x86_64-eus-rpms"
-      ansible.builtin.shell: |
-        set -o pipefail
-        awk '
-          /^\[/ {section=$0}
-          /^baseurl/ && section ~ /({{ eus_pattern }})/ {
-            gsub(/\$releasever/, "{{ cluster_os_version }}", $3)
-            gsub(/\/rhel{{ rhel_version }}\/[0-9]+\.[0-9]+\//,
-                 "/rhel{{ rhel_version }}/{{ cluster_os_version }}/", $3)
-            print $3
-          }
-        ' {{ redhat_repo_file }}
-      register: eus_baseurls
-      changed_when: false
-      failed_when: false
-
-    - name: Extract standard baseurls for the active RHEL version
-      vars:
-        std_pattern: "rhel-{{ rhel_version }}-for-x86_64-(appstream|baseos)-rpms|codeready-builder-for-rhel-{{ rhel_version }}-x86_64-rpms"
-      ansible.builtin.shell: |
-        set -o pipefail
-        awk '
-          /^\[/ {section=$0}
-          /^baseurl/ && section ~ /({{ std_pattern }})/ {
-            gsub(/\$releasever/, "{{ cluster_os_version }}", $3)
-            gsub(/\/rhel{{ rhel_version }}\/[0-9]+\.[0-9]+\//,
-                 "/rhel{{ rhel_version }}/{{ cluster_os_version }}/", $3)
-            print $3
-          }
-        ' {{ redhat_repo_file }}
-      register: standard_baseurls
-      changed_when: false
-      failed_when: false
-
-    - name: Prefer EUS URLs for catalog-required repositories
-      ansible.builtin.set_fact:
-        repo_baseurls: >-
-          {%- set selected_urls = [] -%}
-          {%- set eus_urls = eus_baseurls.stdout_lines | default([]) -%}
-          {%- set standard_urls = standard_baseurls.stdout_lines | default([]) -%}
-          {%- for repo_name in required_repos -%}
-            {%- set eus_matches = eus_urls | select('search', repo_name) | list -%}
-            {%- set standard_matches = standard_urls | select('search', repo_name) | list -%}
-            {%- if eus_matches | length > 0 -%}
-              {%- set _ = selected_urls.append(eus_matches[0]) -%}
-            {%- elif standard_matches | length > 0 -%}
-              {%- set _ = selected_urls.append(standard_matches[0]) -%}
-            {%- endif -%}
-          {%- endfor -%}
-          {{ selected_urls | map('regex_replace', '([^/])$', '\1/') | list }}
-
-    - name: Display active RHEL subscription URLs
-      ansible.builtin.debug:
-        msg: "{{ repo_baseurls }}"
-
 - name: Load Repo Manager repository configuration
   ansible.builtin.include_vars:
     file: "{{ local_repo_config_path }}"
@@ -126,7 +64,8 @@
         {%- set subscription_allowed = required_repos_by_arch.get(architecture, [])
             if subscription_status_flag else [] -%}
         {%- set configured = configured_repos_by_arch.get(architecture, {}) -%}
-        {%- for repo_name in referenced | difference(subscription_allowed) -%}
+        {%- for repo_name in referenced |
+              reject('in', subscription_allowed) | list -%}
           {%- set repo_config = configured.get(repo_name, {}) -%}
           {%- if repo_config is not mapping or
                  (repo_config.get('url', '') | default('', true) | trim | length) == 0 -%}
@@ -137,13 +76,110 @@
       {%- endfor -%}
       {{ result }}
 
+- name: Build missing explicit repository summary
+  ansible.builtin.set_fact:
+    invalid_explicit_repo_summary: >-
+      {%- set result = [] -%}
+      {%- for architecture in archs -%}
+        {%- set missing = invalid_explicit_repos_by_arch.get(architecture, []) -%}
+        {%- if missing | length > 0 -%}
+          {%- set _ = result.append(
+            architecture ~ ': ' ~ (missing | join(', '))) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ result }}
+
 - name: Fail when a referenced repository has no explicit URL
   ansible.builtin.fail:
     msg: "{{ repository_access_fail_when_a_referenced_repository_has_no_explicit_url_msg }}"
-  when: invalid_explicit_repos_by_arch[arch_item] | length > 0
-  loop: "{{ archs }}"
-  loop_control:
-    loop_var: arch_item
+  when: invalid_explicit_repo_summary | length > 0
+
+- name: Calculate subscription repositories requiring discovery
+  ansible.builtin.set_fact:
+    subscription_discovery_repos_by_arch: >-
+      {%- set result = {} -%}
+      {%- for architecture in archs -%}
+        {%- set discovery = [] -%}
+        {%- set configured = configured_repos_by_arch.get(architecture, {}) -%}
+        {%- for repo_name in required_repos_by_arch.get(architecture, []) -%}
+          {%- set repo_config = configured.get(repo_name, {}) -%}
+          {%- if repo_config is not mapping or
+                 (repo_config.get('url', '') | default('', true) |
+                  trim | length) == 0 -%}
+            {%- set _ = discovery.append(repo_name) -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- set _ = result.update({architecture: discovery}) -%}
+      {%- endfor -%}
+      {{ result }}
+
+- name: Combine subscription repositories requiring discovery
+  ansible.builtin.set_fact:
+    subscription_discovery_repos: >-
+      {{ subscription_discovery_repos_by_arch.values() |
+         flatten | unique | list }}
+
+- name: Resolve version-specific subscription URLs
+  when:
+    - subscription_status_flag
+    - subscription_discovery_repos | length > 0
+  block:
+    - name: Extract EUS baseurls for the active RHEL version
+      vars:
+        eus_pattern: "rhel-{{ rhel_version }}-for-x86_64-(appstream|baseos)-eus-rpms|codeready-builder-for-rhel-{{ rhel_version }}-x86_64-eus-rpms"
+      ansible.builtin.shell: |
+        set -o pipefail
+        awk '
+          /^\[/ {section=$0}
+          /^baseurl/ && section ~ /({{ eus_pattern }})/ {
+            gsub(/\$releasever/, "{{ cluster_os_version }}", $3)
+            gsub(/\/rhel{{ rhel_version }}\/[0-9]+\.[0-9]+\//,
+                 "/rhel{{ rhel_version }}/{{ cluster_os_version }}/", $3)
+            print $3
+          }
+        ' {{ redhat_repo_file }}
+      register: eus_baseurls
+      changed_when: false
+      failed_when: false
+
+    - name: Extract standard baseurls for the active RHEL version
+      vars:
+        std_pattern: "rhel-{{ rhel_version }}-for-x86_64-(appstream|baseos)-rpms|codeready-builder-for-rhel-{{ rhel_version }}-x86_64-rpms"
+      ansible.builtin.shell: |
+        set -o pipefail
+        awk '
+          /^\[/ {section=$0}
+          /^baseurl/ && section ~ /({{ std_pattern }})/ {
+            gsub(/\$releasever/, "{{ cluster_os_version }}", $3)
+            gsub(/\/rhel{{ rhel_version }}\/[0-9]+\.[0-9]+\//,
+                 "/rhel{{ rhel_version }}/{{ cluster_os_version }}/", $3)
+            print $3
+          }
+        ' {{ redhat_repo_file }}
+      register: standard_baseurls
+      changed_when: false
+      failed_when: false
+
+    - name: Prefer EUS URLs for repositories requiring discovery
+      ansible.builtin.set_fact:
+        repo_baseurls: >-
+          {%- set selected_urls = [] -%}
+          {%- set eus_urls = eus_baseurls.stdout_lines | default([]) -%}
+          {%- set standard_urls = standard_baseurls.stdout_lines | default([]) -%}
+          {%- for repo_name in subscription_discovery_repos -%}
+            {%- set eus_matches = eus_urls | select('search', repo_name) | list -%}
+            {%- set standard_matches = standard_urls | select('search', repo_name) | list -%}
+            {%- if eus_matches | length > 0 -%}
+              {%- set _ = selected_urls.append(eus_matches[0]) -%}
+            {%- elif standard_matches | length > 0 -%}
+              {%- set _ = selected_urls.append(standard_matches[0]) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ selected_urls | map('regex_replace', '([^/])$', '\1/') | list }}
+
+    - name: Display active RHEL subscription URLs
+      ansible.builtin.debug:
+        msg: "{{ repo_baseurls }}"
 
 - name: Initialize subscription repository results
   ansible.builtin.set_fact:
@@ -153,7 +189,7 @@
 - name: Build catalog-required repositories from subscription URLs
   when:
     - subscription_status_flag
-    - required_repos | length > 0
+    - subscription_discovery_repos | length > 0
   block:
     - name: Find copied subscription certificate files
       ansible.builtin.find:
@@ -197,6 +233,7 @@
           {{ configured_repos_by_arch.get('x86_64', {}).get(repo_name) |
              default({}, true) }}
         subscription_repo:
+          architecture: x86_64
           name: "{{ repo_name }}"
           url: "{{ repo_url }}"
           gpgkey: "{{ configured_repo.get('gpgkey', '') | default('', true) }}"
@@ -216,9 +253,9 @@
         loop_var: repo_url
       when:
         - "'x86_64' in archs"
-        - repo_name in required_repos_by_arch.x86_64
         - >-
-          (configured_repo.get('url', '') | default('', true) | trim | length) == 0
+          repo_name in
+          subscription_discovery_repos_by_arch.get('x86_64', [])
       no_log: true
 
     - name: Build aarch64 subscription repository list
@@ -233,6 +270,7 @@
           {{ configured_repos_by_arch.get('aarch64', {}).get(repo_name) |
              default({}, true) }}
         subscription_repo:
+          architecture: aarch64
           name: "{{ repo_name }}"
           url: "{{ repo_url | replace('x86_64', 'aarch64') }}"
           gpgkey: "{{ configured_repo.get('gpgkey', '') | default('', true) }}"
@@ -252,9 +290,9 @@
         loop_var: repo_url
       when:
         - "'aarch64' in archs"
-        - repo_name in required_repos_by_arch.aarch64
         - >-
-          (configured_repo.get('url', '') | default('', true) | trim | length) == 0
+          repo_name in
+          subscription_discovery_repos_by_arch.get('aarch64', [])
       no_log: true
 
     - name: Calculate unresolved subscription repositories
@@ -274,33 +312,75 @@
               {%- endif -%}
             {%- endfor -%}
             {%- set _ = result.update({architecture:
-                  required_repos_by_arch.get(architecture, []) | difference(available)}) -%}
+                  required_repos_by_arch.get(architecture, []) |
+                  reject('in', available) | list}) -%}
+          {%- endfor -%}
+          {{ result }}
+
+    - name: Build unresolved subscription repository summary
+      ansible.builtin.set_fact:
+        unresolved_subscription_repo_summary: >-
+          {%- set result = [] -%}
+          {%- for architecture in archs -%}
+            {%- set missing = unresolved_subscription_repos_by_arch.get(
+              architecture, []) -%}
+            {%- if missing | length > 0 -%}
+              {%- set _ = result.append(
+                architecture ~ ': ' ~ (missing | join(', '))) -%}
+            {%- endif -%}
           {%- endfor -%}
           {{ result }}
 
     - name: Fail when subscription cannot provide a referenced repository
       ansible.builtin.fail:
         msg: "{{ repository_access_fail_when_subscription_cannot_provide_a_referenced_repository_msg }}"
-      when: unresolved_subscription_repos_by_arch[arch_item] | length > 0
-      loop: "{{ archs }}"
-      loop_control:
-        loop_var: arch_item
+      when: unresolved_subscription_repo_summary | length > 0
 
-    - name: Verify discovered subscription repository metadata
-      ansible.builtin.uri:
-        url: "{{ item.url | regex_replace('/+$', '') }}/repodata/repomd.xml"
-        method: GET
-        status_code: 200
-        return_content: false
-        validate_certs: true
-        ca_path: "{{ item.sslcacert }}"
-        client_cert: "{{ item.sslclientcert }}"
-        client_key: "{{ item.sslclientkey }}"
-        timeout: 30
-      loop: "{{ sub_rhel_x86_64_urls + sub_rhel_aarch64_urls }}"
-      loop_control:
-        label: "{{ item.name }}"
-      no_log: true
+- name: Build catalog repository metadata validation targets
+  ansible.builtin.set_fact:
+    resolved_repository_validation_targets: >-
+      {%- set result = [] -%}
+      {%- for architecture in archs -%}
+        {%- set configured = configured_repos_by_arch.get(architecture, {}) -%}
+        {%- for repo_name in referenced_repos_by_arch.get(architecture, []) -%}
+          {%- set repo_config = configured.get(repo_name, {}) -%}
+          {%- if repo_config is mapping and
+                 (repo_config.get('url', '') | default('', true) |
+                  trim | length) > 0 -%}
+            {%- set _ = result.append({
+              'architecture': architecture,
+              'name': repo_name,
+              'url': repo_config.get('url'),
+              'sslcacert': repo_config.get('sslcacert', ''),
+              'sslclientcert': repo_config.get('sslclientcert', ''),
+              'sslclientkey': repo_config.get('sslclientkey', '')
+            }) -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {%- for repo in sub_rhel_x86_64_urls + sub_rhel_aarch64_urls -%}
+        {%- set _ = result.append(repo) -%}
+      {%- endfor -%}
+      {{ result }}
+  when: subscription_status_flag
+  no_log: true
+
+- name: Verify resolved catalog repository metadata
+  ansible.builtin.uri:
+    url: "{{ item.url | regex_replace('/+$', '') }}/repodata/repomd.xml"
+    method: GET
+    status_code: 200
+    return_content: false
+    validate_certs: true
+    ca_path: "{{ item.sslcacert | default(omit, true) }}"
+    client_cert: "{{ item.sslclientcert | default(omit, true) }}"
+    client_key: "{{ item.sslclientkey | default(omit, true) }}"
+    timeout: 30
+  loop: "{{ resolved_repository_validation_targets | default([]) }}"
+  loop_control:
+    label: "{{ item.architecture }} / {{ item.name }}"
+  when: subscription_status_flag
+  no_log: true
 
 - name: Publish repositories supplied by the RHEL subscription
   ansible.builtin.set_fact:

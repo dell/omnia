@@ -45,19 +45,28 @@ description:
   - It performs comprehensive validation of repo_manager configuration.
 version_added: "1.0.0"
 options:
-    config_path:
-      description: Path to configuration file
+    omnia_base_dir:
+      description: Omnia data directory
       required: true
       type: str
-    schema_path:
-      description: Path to JSON schema file
-      required: false
+    project_name:
+      description: Project input directory name
+      required: true
       type: str
-    strict:
-      description: Enable strict validation mode
+    tag_names:
+      description: Operation tags selecting input contracts
+      required: true
+      type: list
+      elements: str
+    subscription_enabled:
+      description: Shared repository subscription decision
       required: false
       type: bool
-      default: True
+    catalog_execution_contexts:
+      description: Ordered catalog contexts resolved by Repo Manager setup
+      required: false
+      type: list
+      elements: dict
 
 author:
   - Dell Technologies (@dell)
@@ -196,6 +205,10 @@ def main():
         "module_utils_path": {"type": "str"},
         "csv_file_path": {"type": "str", "required": False},
         "subscription_enabled": {"type": "bool", "required": False},
+        "catalog_execution_contexts": {
+            "type": "list", "elements": "dict", "required": False,
+            "default": [],
+        },
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
@@ -206,7 +219,6 @@ def main():
     input_project_dir = module.params.get("input_project_dir", "")
     tag_names = module.params["tag_names"]
     csv_file_path = module.params.get("csv_file_path", "")
-    subscription_enabled = module.params.get("subscription_enabled")
 
     # Set runtime environment before importing path-dependent module utilities.
     # REPO_MANAGER_BASE_DIR is the source checkout and must not be derived from
@@ -214,11 +226,6 @@ def main():
     os.environ.setdefault("OMNIA_DATA_PATH", omnia_base_dir)
     if input_project_dir:
         os.environ.setdefault("REPO_MANAGER_INPUT_PROJECT_DIR", input_project_dir)
-    if subscription_enabled is not None:
-        os.environ["REPO_MANAGER_SUBSCRIPTION_ENABLED"] = (
-            "true" if subscription_enabled else "false"
-        )
-
     # Import modules after setting environment variable
     # pylint: disable=no-name-in-module,E0401
     global config, file_utils, validation_engine, msg

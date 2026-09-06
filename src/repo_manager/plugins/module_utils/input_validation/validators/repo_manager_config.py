@@ -14,30 +14,25 @@
 # pylint: disable=import-error,no-name-in-module,too-many-positional-arguments,too-many-arguments
 # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 """
-Repo manager configuration validator.
+Repo Manager configuration validator.
 
 This module validates repo_manager_config.yml for:
 - User registry configuration
-- Repository URL validation
-- Subscription status checking
+- Catalog-scoped repository URL validation
+- Shared subscription-status consumption
 - Catalog package repository mapping validation
 - Catalog image registry mapping validation
 """
 import os
-import glob
-import re
 import json
 
 from ansible.module_utils.input_validation.core.config import (
-    files, SYSTEM_ENTITLEMENT_PATH, SYSTEM_REDHAT_REPO,
-    CONTAINER_ENTITLEMENT_PATH, CONTAINER_REDHAT_REPO,
-    OMNIA_ENTITLEMENT_PATH, OMNIA_REDHAT_REPO,
-    CATALOG_FILE_PATH
+    files, CATALOG_FILE_PATH
 )
 from ansible.module_utils.input_validation.core.utils import create_error_msg, create_file_path
 from ansible.module_utils.input_validation.messages.common_messages import (
     CERTIFICATE_FILE_NOT_FOUND_MSG, KEY_FILE_NOT_FOUND_MSG,
-    NO_REQUIRED_REPO_URLS_MSG, DUPLICATE_REPO_NAME_IN_ARCH_MSG,
+    DUPLICATE_REPO_NAME_IN_ARCH_MSG,
     PRIORITY_MUST_BE_INTEGER_MSG, PRIORITY_MUST_BE_IN_RANGE_MSG,
     ADDITIONAL_REPO_PRIORITY_CONFLICT_MSG,
     MISSING_REPO_CONFIGURATION_MSG, MISSING_REPO_URL_MSG,
@@ -67,7 +62,8 @@ from ansible.module_utils.repo_manager.security_utils import (
 
 
 def validate(
-    input_file_path, data, logger, _module, omnia_base_dir, _module_utils_base, _project_name
+    input_file_path, data, logger, module, omnia_base_dir,
+    _module_utils_base, _project_name
 ):
     """
     Validates local repo configuration.
@@ -88,7 +84,6 @@ def validate(
     repo_manager_config_yml = create_file_path(input_file_path, files["repo_manager_config"])
 
     errors.extend(_validate_registry_configs(data, repo_manager_config_yml))
-    errors.extend(_validate_repository_urls(data))
 
     # Validate caching_policy parameter
     caching_policy = data.get("caching_policy")
@@ -98,30 +93,46 @@ def validate(
             f"caching_policy must be a boolean, got {type(caching_policy).__name__}"
         ))
 
-    # Resolve the same ordered catalog contexts used by download execution.
+    # Load catalog content for source validation, but consume the execution
+    # contexts and subscription decision already resolved by orchestration.
+    # Validation must never perform a second subscription check.
     _catalog_path, catalogs, load_error = _load_catalogs_for_validation(logger)
     if load_error:
         errors.append(load_error)
         return errors
-    try:
-        catalog_context = resolve_catalog_context(catalogs, logger)
-    except ValueError as exc:
-        errors.append(create_error_msg("catalog.functionallayer", "", str(exc)))
+    module_params = getattr(module, "params", {}) or {}
+    execution_contexts = module_params.get("catalog_execution_contexts")
+    subscription_enabled = module_params.get("subscription_enabled")
+    if not isinstance(execution_contexts, list) or not execution_contexts:
+        errors.append(create_error_msg(
+            "catalog_execution_contexts", "",
+            "Resolved catalog execution contexts were not provided"
+        ))
         return errors
+    if not isinstance(subscription_enabled, bool):
+        errors.append(create_error_msg(
+            "subscription_enabled", "",
+            "Resolved subscription status was not provided"
+        ))
+        return errors
+    for execution_context in execution_contexts:
+        if (not isinstance(execution_context, dict)
+                or not isinstance(
+                    execution_context.get("referenced_repositories"), dict
+                )):
+            errors.append(create_error_msg(
+                "catalog_execution_contexts", "",
+                "Resolved catalog repository mapping was not provided"
+            ))
+            return errors
 
     repositories = data.get("repositories") or {}
+    logger.info(
+        "validate_repo_manager_config: Using shared subscription status: %s",
+        subscription_enabled,
+    )
 
-    # Collect repo names and check for duplicates.
-    shared_subscription_status = os.environ.get(
-        "REPO_MANAGER_SUBSCRIPTION_ENABLED", ""
-    ).strip().lower()
-    if shared_subscription_status in ("true", "false"):
-        sub_result = shared_subscription_status == "true"
-    else:
-        sub_result = _check_subscription_status(logger)
-    logger.info(f"validate_repo_manager_config: Subscription status: {sub_result}")
-
-    for execution_context in catalog_context["execution_contexts"]:
+    for execution_context in execution_contexts:
         cluster_os_version = execution_context["os_version"]
         selected_architectures = execution_context["architectures"]
 
@@ -135,7 +146,13 @@ def validate(
             repos_section = (
                 repositories.get(cluster_os_version, {}).get(arch, {})
             )
-            names = _collect_all_repo_names(repos_section)
+            referenced_repo_names = set(
+                execution_context["referenced_repositories"].get(arch, [])
+            )
+            names = [
+                name for name in _collect_all_repo_names(repos_section)
+                if name in referenced_repo_names
+            ]
             seen = set()
             for name in names:
                 if name in seen:
@@ -147,19 +164,23 @@ def validate(
                 seen.add(name)
 
             _validate_repo_priorities(
-                repos_section, cluster_os_version, arch, errors
+                repos_section, cluster_os_version, arch, errors,
+                referenced_repo_names=referenced_repo_names,
             )
 
         errors.extend(_validate_catalog_repo_mapping(
             data, cluster_os_version, selected_architectures, logger,
-            omnia_base_dir, sub_result, catalogs=catalogs
+            omnia_base_dir, subscription_enabled, catalogs=catalogs,
+            referenced_repositories=execution_context.get(
+                "referenced_repositories", {}
+            )
         ))
 
     # Registry mappings can differ by context, so validate the complete ordered
     # context list once while de-duplicating repeated image identities.
     errors.extend(_validate_catalog_registry_mapping(
         data, logger, omnia_base_dir, catalogs=catalogs,
-        catalog_context=catalog_context
+        catalog_context={"execution_contexts": execution_contexts}
     ))
 
     return errors
@@ -239,21 +260,42 @@ def _validate_registry_configs(config_data, _config_path):
     return errors
 
 
-def _validate_repository_urls(config_data):
-    """Reject unsafe RPM URLs without echoing a credential-bearing value."""
+def _validate_repository_urls(config_data, os_version=None,
+                              architectures=None,
+                              referenced_repositories=None):
+    """Reject unsafe RPM URLs within the requested catalog scope.
+
+    Omitting the optional scope retains the all-repository utility behavior
+    used by direct security tests. Production validation always supplies the
+    catalog version, selected architectures and referenced repository map.
+    """
     errors = []
     repositories = config_data.get("repositories") or {}
     if not isinstance(repositories, dict):
         return errors
 
-    for version, version_repositories in repositories.items():
+    version_items = repositories.items()
+    if os_version is not None:
+        version_items = [(os_version, repositories.get(os_version, {}))]
+
+    selected_architectures = (
+        set(architectures) if architectures is not None else None
+    )
+    for version, version_repositories in version_items:
         if not isinstance(version_repositories, dict):
             continue
         for arch, repositories_for_arch in version_repositories.items():
+            if (selected_architectures is not None
+                    and arch not in selected_architectures):
+                continue
             if not isinstance(repositories_for_arch, dict):
                 continue
             for repo_name, repo_config in iterate_all_repos(
                     repositories_for_arch):
+                if (referenced_repositories is not None
+                        and repo_name not in referenced_repositories.get(
+                            arch, [])):
+                    continue
                 if not isinstance(repo_config, dict):
                     continue
                 url = repo_config.get("url")
@@ -318,18 +360,27 @@ def _validate_priority(repo_config, repo_path, errors):
                 errors.append(PRIORITY_MUST_BE_IN_RANGE_MSG.format(repo_path=repo_path))
 
 
-def _validate_repo_priorities(repos_section, cluster_os_version, arch, errors):
-    """Validate all priority fields and the aggregated additional-repo contract."""
+def _validate_repo_priorities(repos_section, cluster_os_version, arch, errors,
+                              referenced_repo_names=None):
+    """Validate priorities for the selected catalog repository scope."""
     base_path = f"repositories.{cluster_os_version}.{arch}"
+    referenced = (
+        set(referenced_repo_names)
+        if referenced_repo_names is not None else None
+    )
     for repo_name, repo_config in (repos_section or {}).items():
         repo_path = f"{base_path}.{repo_name}"
         if repo_name in ("additional_repos", "user_repos"):
             if not isinstance(repo_config, dict):
                 continue
             for nested_name, nested_config in repo_config.items():
+                if referenced is not None and nested_name not in referenced:
+                    continue
                 _validate_priority(
                     nested_config, f"{repo_path}.{nested_name}", errors
                 )
+        elif referenced is not None and repo_name not in referenced:
+            continue
         else:
             _validate_priority(repo_config, repo_path, errors)
 
@@ -338,7 +389,9 @@ def _validate_repo_priorities(repos_section, cluster_os_version, arch, errors):
         return
 
     effective_priorities = set()
-    for repo_config in additional_repos.values():
+    for repo_name, repo_config in additional_repos.items():
+        if referenced is not None and repo_name not in referenced:
+            continue
         if not isinstance(repo_config, dict):
             continue
         if not str(repo_config.get("url") or "").strip():
@@ -357,78 +410,6 @@ def _validate_repo_priorities(repos_section, cluster_os_version, arch, errors):
                 str(value) for value in sorted(effective_priorities)
             ),
         ))
-
-
-def _check_subscription_status(logger=None):
-    """
-    Check if the system has an active Red Hat subscription enabled.
-
-    Returns:
-        bool: True if subscription is enabled, False otherwise.
-    """
-    # Check all possible entitlement certificate locations
-    entitlement_paths = [
-        (SYSTEM_ENTITLEMENT_PATH, SYSTEM_REDHAT_REPO),
-        (CONTAINER_ENTITLEMENT_PATH, CONTAINER_REDHAT_REPO),
-        (OMNIA_ENTITLEMENT_PATH, OMNIA_REDHAT_REPO),
-    ]
-
-    has_entitlement = False
-    entitlement_certs = []
-    repo_file_to_check = None
-
-    for entitlement_path, repo_path in entitlement_paths:
-        entitlement_certs = glob.glob(entitlement_path)
-        has_entitlement = len(entitlement_certs) > 0
-        if has_entitlement:
-            repo_file_to_check = repo_path
-            if logger:
-                logger.info(
-                    f"Found {len(entitlement_certs)} entitlement certs at {entitlement_path}"
-                )
-            break
-    else:
-        if logger:
-            logger.info("No entitlement certs found in any known location")
-
-    # Check repos
-    has_repos = False
-    repo_urls = []
-    redhat_repo_used = None
-
-    if repo_file_to_check and os.path.exists(repo_file_to_check):
-        try:
-            with open(repo_file_to_check, "r", encoding="utf-8") as f:
-                for line in f:
-                    if re.match(r"^\s*baseurl\s*=", line):
-                        url = line.split("=", 1)[1].strip()
-                        if re.search(r"(codeready-builder|baseos|appstream)", url, re.IGNORECASE):
-                            repo_urls.append(url)
-
-            if repo_urls:
-                has_repos = True
-                redhat_repo_used = repo_file_to_check
-                if logger:
-                    logger.info(f"Found {len(repo_urls)} repo URLs in {repo_file_to_check}")
-            elif logger:
-                logger.info(f"{NO_REQUIRED_REPO_URLS_MSG} in {repo_file_to_check}")
-        except (IOError, OSError) as e:
-            if logger:
-                logger.warning(f"Error reading {repo_file_to_check}: {e}")
-    elif logger:
-        logger.info(f"Repo file {repo_file_to_check} does not exist")
-
-    subscription_enabled = has_entitlement and has_repos
-
-    if logger:
-        logger.info(
-            f"Subscription enabled: {subscription_enabled} "
-            f"(entitlement={has_entitlement}, repos={has_repos}, "
-            f"entitlement_source={entitlement_certs[0] if entitlement_certs else 'None'}, "
-            f"repo_source={redhat_repo_used})"
-        )
-
-    return subscription_enabled
 
 
 def _load_catalogs_for_validation(logger):
@@ -508,7 +489,8 @@ def _effective_repo_download_policy(config_data, repo_config):
 
 def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
                                    logger, _omnia_base_dir,
-                                   subscription_enabled=False, catalogs=None):
+                                   subscription_enabled=False, catalogs=None,
+                                   referenced_repositories=None):
     """
     Validate that all catalog package reponame entries have corresponding repositories
     in repo_manager_config.yml.
@@ -519,6 +501,11 @@ def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
         all_archs (list): List of architectures to validate.
         logger: Logger instance.
         _omnia_base_dir (str): Base directory for catalog path (unused).
+        subscription_enabled (bool): Shared subscription decision.
+        catalogs (list): Loaded catalog documents.
+        referenced_repositories (dict): Authoritative catalog-selected
+            repository names by architecture. When omitted, names are derived
+            for direct helper compatibility.
 
     Returns:
         list: List of error messages.
@@ -539,6 +526,10 @@ def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
         configured_repos[arch] = _collect_repo_configs(repos_section)
 
     base_subscription_repos = set(SUBSCRIPTION_REPOSITORIES)
+    selected_repos_by_arch = {
+        arch: set((referenced_repositories or {}).get(arch, []))
+        for arch in all_archs
+    }
     missing_sources = set()
     missing_mappings = set()
     missing_urls = set()
@@ -561,26 +552,40 @@ def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
             missing_mappings.add(("<missing reponame>", arch))
             continue
 
-        repo_config = configured_repos.get(arch, {}).get(reponame)
-        subscription_provides_repo = (
-            subscription_enabled and reponame in base_subscription_repos
-        )
+        if referenced_repositories is None:
+            selected_repos_by_arch[arch].add(reponame)
 
-        # Subscription supplies only these three RHEL repositories. Every other
-        # selected source still requires a configured, non-empty URL.
-        if not subscription_provides_repo:
-            if repo_config is None:
-                missing_mappings.add((reponame, arch))
-                continue
-            if not str(repo_config.get("url") or "").strip():
-                missing_urls.add((reponame, arch))
-                continue
+        repo_config = configured_repos.get(arch, {}).get(reponame)
 
         if (package_type == "rpm_repo"
                 and _effective_repo_download_policy(
                     config_data, repo_config or {}
                 ) == "streamed"):
             streamed_rpm_repos.add((package_name, reponame, arch))
+
+    # Apply mapping and URL rules once per referenced repository. In
+    # non-subscription mode every selected RPM repository, including BaseOS,
+    # AppStream and CodeReady Builder, requires an explicit URL. Subscription
+    # mode exempts only those exact three names when discovery will supply them.
+    for arch in all_archs:
+        for reponame in sorted(selected_repos_by_arch.get(arch, set())):
+            repo_config = configured_repos.get(arch, {}).get(reponame)
+            subscription_provides_repo = (
+                subscription_enabled and reponame in base_subscription_repos
+            )
+            if repo_config is None:
+                if not subscription_provides_repo:
+                    missing_mappings.add((reponame, arch))
+                continue
+            if not isinstance(repo_config, dict):
+                missing_urls.add((reponame, arch))
+                continue
+
+            url = repo_config.get("url")
+            if not str(url or "").strip():
+                if not subscription_provides_repo:
+                    missing_urls.add((reponame, arch))
+                continue
 
     for package_name, arch in sorted(missing_sources):
         errors.append(create_error_msg(
@@ -618,6 +623,13 @@ def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
                 arch=arch,
             )
         ))
+
+    errors.extend(_validate_repository_urls(
+        config_data,
+        os_version=cluster_os_version,
+        architectures=all_archs,
+        referenced_repositories=selected_repos_by_arch,
+    ))
 
     if errors:
         logger.error("Found %d catalog repository validation error(s)", len(errors))

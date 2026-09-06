@@ -139,6 +139,9 @@ def main():
         "architectures": {
             "type": "list", "elements": "str", "required": True
         },
+        "referenced_repositories": {
+            "type": "dict", "required": False, "default": None
+        },
     }
 
     module = AnsibleModule(argument_spec=module_args)
@@ -148,6 +151,7 @@ def main():
     cluster_os_type = module.params["cluster_os_type"]
     cluster_os_version = module.params["cluster_os_version"]
     selected_architectures = module.params["architectures"]
+    referenced_repositories = module.params["referenced_repositories"]
     logger = setup_standard_logger(log_dir)
     start_time = datetime.now().strftime("%I:%M:%S %p")
     logger.info(f"Start execution time: {start_time}")
@@ -180,6 +184,17 @@ def main():
                 "Catalog architectures changed between setup and task "
                 f"preparation: expected {selected_architectures}, resolved "
                 f"{active_context['architectures']}"
+            )
+        if referenced_repositories is None:
+            # Preserve direct module callers while the production role passes
+            # the setup-resolved map explicitly.
+            referenced_repositories = active_context[
+                "referenced_repositories"
+            ]
+        elif referenced_repositories != active_context["referenced_repositories"]:
+            raise ValueError(
+                "Catalog repository mapping changed between setup and task "
+                "preparation"
             )
 
         # Build global package index with cross-catalog deduplication
@@ -286,8 +301,11 @@ def main():
         local_config = []
         explicitly_configured_repos = set()
         for arch in sw_archs:
+            referenced_repo_names = referenced_repositories.get(arch, [])
             repos = parse_repo_urls_from_config(config_data, repo_config, arch,
-                                                 cluster_os_version, logger, global_caching_policy)
+                                                 cluster_os_version, logger,
+                                                 global_caching_policy,
+                                                 referenced_repo_names)
             for repo in repos:
                 sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, repo["name"])
                 pulp_policy = resolve_pulp_policy(repo.get("policy", repo_config),
@@ -343,7 +361,8 @@ def main():
         for arch in sw_archs:
             add_repos = parse_additional_repos_from_config(
                 config_data, repo_config, arch, cluster_os_version, logger,
-                global_caching_policy, os_type=cluster_os_type)
+                global_caching_policy, os_type=cluster_os_type,
+                referenced_repo_names=referenced_repositories.get(arch, []))
             if add_repos:
                 additional_repos_config[arch] = add_repos
             else:
@@ -354,7 +373,8 @@ def main():
         for arch in sw_archs:
             user_repos = parse_user_repos_from_config(
                 config_data, cluster_os_version, arch, repo_config, logger,
-                global_caching_policy, os_type=cluster_os_type)
+                global_caching_policy, os_type=cluster_os_type,
+                referenced_repo_names=referenced_repositories.get(arch, []))
             if user_repos:
                 user_repos_config[arch] = user_repos
             else:
