@@ -85,7 +85,11 @@ when explicitly selected. Do not combine cleanup tags with the standard workflow
 - Validate YAML syntax and JSON schemas.
 - Validate catalog-to-repository and catalog-to-registry mappings.
 - Validate lowercase configuration keys, repository policies and registry TLS.
-- Detect missing URLs when RHEL subscription content is unavailable.
+- Check RHEL subscription access once and reuse that result for input validation
+  and repository URL resolution.
+- Validate only repositories referenced by the selected catalog version and
+  architectures. When subscription content is unavailable, every referenced
+  RPM repository requires an explicit URL.
 
 ### Step 2: Prepare (tag: prepare)
 
@@ -100,9 +104,10 @@ when explicitly selected. Do not combine cleanup tags with the standard workflow
 ### Step 3: Download (tag: download)
 
 1. Load and reconcile credentials.
-2. Detect the RHEL subscription state.
-3. Populate empty BaseOS, AppStream and CodeReady Builder entries from the
-   subscription when available.
+2. Reuse the RHEL subscription state established for this execution.
+3. Use explicit URLs first. For referenced empty or missing BaseOS, AppStream
+   and CodeReady Builder entries, prefer the matching EUS URL and otherwise use
+   the standard subscription URL.
 4. Resolve functional layers, groups and packages from the catalog.
 5. Match RPM sources by OS version, architecture and `reponame`.
 6. Match container sources by `registry`.

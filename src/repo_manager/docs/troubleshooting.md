@@ -170,20 +170,56 @@ appstream: {}
 codeready-builder: {}
 ```
 
-**Cause**: Empty entries require a valid RHEL subscription on the Repo Manager
-host. Repo Manager resolves the matching EUS repository and entitlement
-certificates for each catalog version and architecture.
+**Cause**: Only catalog-referenced `baseos`, `appstream` and
+`codeready-builder` entries may omit their URLs, and only when the Repo Manager
+host has usable RHEL subscription access. Every referenced repository requires
+an explicit URL when subscription access is disabled.
 
-**Fix**:
+**Verify the host subscription without displaying certificate content**:
 
-- With a subscription, verify `subscription-manager identity` and available
-  repositories.
-- Without a subscription, provide the repository `url` and any required TLS
-  fields in `repo_manager_config.yml`.
-- If a user URL is present, it takes precedence over subscription discovery.
+```bash
+subscription-manager identity
+subscription-manager status
+subscription-manager release --list
+subscription-manager repos --list-enabled
+```
 
-For mixed `x86_64` and `aarch64` catalogs, every referenced architecture must
-have a matching repository entry or subscription source.
+Then run the Repo Manager precheck from its playbook directory:
+
+```bash
+ansible-playbook repo_manager.yml --tags precheck -vv
+```
+
+Use the failure summary to check the active catalog minor version and every
+selected architecture. The repository key must exactly match the catalog
+`reponame`; accepted mappings can be flat or nested under `user_repos` or
+`additional_repos`.
+
+| Condition | Resolution |
+|-----------|------------|
+| Subscription is valid and a referenced subscription repository is empty | Ensure the repository is available for the active RHEL version; Repo Manager prefers EUS and then tries standard |
+| Subscription is valid but a custom repository is empty | Add its explicit URL; subscriptions do not supply custom repositories |
+| Subscription is unavailable | Add an explicit URL for every referenced repository, including BaseOS, AppStream and CodeReady Builder |
+| An explicit URL is configured | Repo Manager uses it instead of subscription discovery |
+| An unused repository is empty or missing | No action is required for the current catalog execution |
+
+For an explicit repository URL that does not require client authentication,
+verify its metadata endpoint without downloading repository content:
+
+```bash
+REPO_URL="https://mirror.example/rhel/10.2/x86_64/baseos/"
+curl --fail --silent --show-error --output /dev/null \
+  "${REPO_URL%/}/repodata/repomd.xml"
+```
+
+Do not place repository credentials directly in this command. For mTLS URLs,
+use the configured CA, client certificate and client key through a protected
+configuration and rely on Repo Manager precheck for the authoritative result.
+
+For mixed `x86_64` and `aarch64` catalogs, each architecture needs its own
+matching repository entry or subscription source. An x86_64 URL cannot satisfy
+an aarch64 repository. When several repositories are missing, Repo Manager
+reports them together by architecture.
 
 ---
 

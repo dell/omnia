@@ -78,18 +78,37 @@ different priorities.
 
 | Subscription state | Repository entry | Result |
 |--------------------|------------------|--------|
-| Enabled | `baseos: {}` | Resolve the matching RHEL EUS repository and entitlement certificates |
-| Enabled | Entry contains a user URL | Use the user-provided URL and settings |
-| Enabled | Referenced custom repository has no URL | Validation fails; subscriptions exempt only BaseOS/AppStream/CRB |
-| Disabled | Entry contains a valid URL | Use the configured URL |
-| Disabled | Referenced BaseOS/AppStream/CRB entry is missing or empty | Validation fails and reports every missing repository |
+| Enabled | Referenced `baseos`, `appstream` or `codeready-builder` has a non-empty URL | Use the explicit URL and configured settings |
+| Enabled | Referenced `baseos`, `appstream` or `codeready-builder` is empty or missing | Resolve EUS first, otherwise standard, and apply entitlement certificates |
+| Enabled | Referenced repository with any other name has a non-empty URL | Use the explicit URL |
+| Enabled | Referenced repository with any other name is empty or missing | Validation fails |
+| Disabled | Any referenced repository has a non-empty URL | Use the explicit URL |
+| Disabled | Any referenced repository is empty or missing | Validation fails, including BaseOS, AppStream and CodeReady Builder |
+| Either | Repository is not referenced by the selected catalog content | Ignore it for this execution |
 
-Resolution is performed independently for every catalog OS version and
-architecture. An x86_64 subscription on the OIM does not automatically provide
-aarch64 content unless the subscription exposes that architecture.
+The subscription state is determined once for an execution. The same Boolean
+result is passed to catalog mapping validation and active-context repository
+resolution so that precheck and download apply the same URL requirement.
+
+The repository lookup is performed independently for every catalog OS version
+and architecture. The matching version and architecture sections must exist.
+Entries may be flat or nested under `user_repos` or `additional_repos`; these
+locations are flattened only for mapping and retain their normal runtime
+processing behavior. An x86_64 subscription on the OIM does not automatically
+provide aarch64 content unless the corresponding subscription URL is available
+for aarch64.
+
 When subscription access is enabled, Repo Manager validates
 `repodata/repomd.xml` for every resolved catalog-referenced repository,
-including repositories using an explicit URL.
+including repositories using an explicit URL. If a required subscription
+repository has no EUS URL, Repo Manager tries its standard URL. The resolved
+URL uses the active catalog minor version. A referenced repository that remains
+unavailable causes the context to fail before Pulp synchronization.
+
+When subscription access is disabled, no repository is exempt from the
+explicit-URL requirement. Validation collects missing mappings and empty URLs
+for all selected architectures instead of requiring the administrator to fix
+one unused or missing repository at a time.
 
 When a catalog contains multiple minor versions, configuration must provide the
 architecture sections and repository URLs referenced by each version's
