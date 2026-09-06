@@ -56,6 +56,7 @@
 #   ansible-playbook repo_manager.yml --tags upgrade
 # =============================================================================
 
+# Step 1: Report the reserved upgrade operation.
 - name: Upgrade Repo Manager
   hosts: localhost
   connection: local

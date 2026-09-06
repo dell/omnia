@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/usr/bin/python
+"""Validate certificate settings for configured user repositories."""
+
 # pylint: disable=import-error,no-name-in-module,line-too-long
 
 from ansible.module_utils.basic import AnsibleModule
@@ -59,12 +61,6 @@ invalid_repos:
   type: list
   returned: always
 """
-
-
-
-"""Ansible module to validate certificates for a repository."""
-
-
 def main():
     """
     Main function for the Ansible module.
@@ -79,8 +75,11 @@ def main():
     """
     module_args = {
         "local_repo_config_path": {"type": "str", "required": True},
-        "certs_path": {"type": "str", "required": True},
-        "cluster_os_version": {"type": "str", "required": False, "default": "10.0"},
+        "certs_path": {"type": "str", "required": True, "no_log": True},
+        "cluster_os_version": {"type": "str", "required": True},
+        "architectures": {
+            "type": "list", "elements": "str", "required": True
+        },
     }
 
     result = {
@@ -98,7 +97,8 @@ def main():
         validation_result = validate_certificates(
             local_repo_config_path=module.params['local_repo_config_path'],
             certs_path=module.params['certs_path'],
-            cluster_os_version=module.params['cluster_os_version']
+            cluster_os_version=module.params['cluster_os_version'],
+            architectures=module.params['architectures']
         )
 
         if validation_result.get("status") == "error":
@@ -108,15 +108,15 @@ def main():
                 repo_name = item.split(" ")[0]
                 result["msg"] += (
                     f"  - {item}\n"
-                    f"    Expected certificate files should exist under: "
-                    f"{module.params['certs_path']}/{repo_name}/\n"
+                    f"    Verify the configured certificate files for "
+                    f"repository '{repo_name}'.\n"
                 )
         else:
             result["msg"] = "All certificate checks passed for repositories."
-    except Exception as e:
+    except Exception:
         # Catching general exception at top level to return a clean failure via Ansible
         result["failed"] = True
-        result["msg"] = f"Validation failed: {str(e)}"
+        result["msg"] = "Certificate validation failed unexpectedly."
         module.fail_json(**result)
 
     module.exit_json(**result)

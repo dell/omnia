@@ -22,12 +22,23 @@
 #       are defined in vars/default.yml to avoid duplication.
 # =============================================================================
 
-# Directories/files to remove during Pulp cleanup (runs on OIM)
-# NOTE: We clean both current paths (under repo_manager) and stale paths (old locations)
+# Directories/files to remove during full Pulp cleanup (runs on OIM).
+# Custom storage values must point to dedicated directories below administrator-
+# managed mount points. Cleanup removes Pulp-owned data directories but never
+# unmounts storage or removes/formats the underlying filesystem.
 pulp_cleanup_directory:
-  # Clean up current Pulp data under repo_manager_runtime_dir.
+  # Remove resolved Pulp data first. With the defaults these are children of
+  # pulp_config_dir; listing them explicitly also supports custom storage.
+  - "{{ pulp_database_dir }}"
+  - "{{ pulp_content_dir }}"
+  - "{{ pulp_container_work_dir }}"
+  - "{{ pulp_settings_dir }}"
+  - "{{ pulp_cli_config_dir }}"
+
+  # Clean up remaining current Pulp data under repo_manager_runtime_dir.
   - "{{ pulp_config_dir }}"
   - "{{ rhel_repo_certs_dir }}"
+  - "{{ pulp_distribution_root_dir }}"
   - "{{ repo_manager_offline_repo_dir }}"
   - "{{ repo_manager_data_dir }}"
   # Clean up output directory (repo_status.yml, status files)
@@ -43,6 +54,7 @@ pulp_cleanup_directory:
 
 # Log paths are separate so cleanup_logs=false genuinely preserves them.
 pulp_cleanup_log_directories:
+  - "{{ pulp_logs_dir }}"
   - "{{ repo_manager_log_dir }}"
   - "{{ omnia_base_dir }}/log/pulp"
   - "{{ omnia_base_dir }}/log/repo_manager"
@@ -50,18 +62,18 @@ pulp_cleanup_log_directories:
 
 # Pulp CLI config files to remove
 pulp_cli_config_files:
-  - "{{ pulp_config_dir }}/pulp_ha/cli.toml"
-  - "/etc/pulp/cli.toml"
-  - "/root/.config/pulp/cli.toml"
-  - "/root/.config/pulp"
+  - "{{ pulp_cli_config_dir }}/cli.toml"
+  - "{{ pulp_system_cli_config_file }}"
+  - "{{ pulp_root_cli_config_file }}"
+  - "{{ pulp_root_cli_config_dir }}"
 
 # Credential files to remove (optional - controlled by cleanup_credentials flag)
 credential_files_to_cleanup:
-  - "{{ input_project_dir }}/repo_manager_config_credentials.yml"
-  - "{{ input_project_dir }}/.repo_manager_config_credentials_key"
+  - "{{ repo_manager_credentials_file }}"
+  - "{{ repo_manager_credentials_key_file }}"
 
 # Omnia target file that may reference pulp.service
-omnia_target: "/etc/systemd/system/omnia.target"
+omnia_target: "{{ omnia_systemd_target_file }}"
 
 # =============================================================================
 # CLEANUP CONFIGURATION
@@ -89,3 +101,6 @@ cleanup_pulp_note: |
   6. The log directory has been cleaned for fresh deployment.
   7. To preserve logs, run with: -e "cleanup_logs=false"
   8. To preserve credentials, run with: -e "cleanup_credentials=false"
+  9. Storage mounts and filesystems were not unmounted, formatted, or removed.
+  10. The managed Pulp CLI launcher, backend, and Omnia venv link were preserved.
+      Server commands such as 'pulp status' remain unavailable until redeployment.

@@ -22,6 +22,7 @@
 #   ansible-playbook playbooks/validate/validate_config.yml -e 'project_name=project_default'
 # =============================================================================
 
+# Step 1: Validate Repo Manager configuration and catalog inputs.
 - name: Validate repo_manager configuration
   hosts: localhost
   connection: local
@@ -40,12 +41,13 @@
       ansible.builtin.file:
         path: "{{ repo_manager_log_dir }}"
         state: directory
-        mode: "0755"
+        mode: "0700"
 
-    - name: Validate required environment variables using setup role
+    - name: Load Repo Manager runtime configuration when required
       ansible.builtin.include_role:
         name: ../../roles/repo_manager_setup
         tasks_from: load_config.yml
+      when: not (repo_manager_config_loaded | default(false) | bool)
 
     - name: Enable subscription check when validate_config.yml is run directly
       ansible.builtin.set_fact:
@@ -64,45 +66,46 @@
     # -------------------------------------------------------------------------
     - name: Validate repo_manager_config.yml exists
       ansible.builtin.stat:
-        path: "{{ input_project_dir }}/repo_manager_config.yml"
+        path: "{{ repo_manager_config_file }}"
       register: repo_config_file
 
     - name: Fail if repo_manager_config.yml is missing
       ansible.builtin.fail:
-        msg: |
-          repo_manager_config.yml not found.
-          File: {{ input_project_dir }}/repo_manager_config.yml
-          Please create the configuration file.
+        msg: "{{ validate_config_fail_if_repo_manager_config_yml_is_missing_msg }}"
       when: not repo_config_file.stat.exists
 
     - name: Load repo_manager_config.yml
       ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/repo_manager_config.yml"
+        file: "{{ repo_manager_config_file }}"
         name: repo_manager_config_data
+      no_log: true
 
-    - name: Set cluster OS version from repo_manager_config
-      ansible.builtin.set_fact:
-        cluster_os_version: "{{ (repo_manager_config_data.repositories | dict2items | first).key | default('10.0') }}"
-        cluster_os_type: "rhel"
+    - name: Resolve cluster OS details from catalog functional layers
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+        tasks_from: resolve_catalog_context.yml
 
     # -------------------------------------------------------------------------
     # PHASE 3: RHEL SUBSCRIPTION CHECK
     # -------------------------------------------------------------------------
-    - name: Check RHEL subscription enabled or not
+    - name: Prepare host repository access once
       ansible.builtin.include_role:
-        name: ../../roles/validate_subscription
-        tasks_from: check_rhel_subscription.yml
-      when: run_subscription_check | default(false) | bool
+        name: ../../roles/repository_access
+        tasks_from: prepare_host_repository_access.yml
+      when:
+        - run_subscription_check | default(false) | bool
+        - not (repository_access_host_prepared | default(false) | bool)
 
-    - name: Configure RHEL OS URLs for codeready-builder baseos appstream repositories
-      ansible.builtin.include_role:
-        name: ../../roles/validate_subscription
-        tasks_from: configure_rhel_os_urls.yml
-      when: run_subscription_check | default(false) | bool
-
-    # -------------------------------------------------------------------------
-    # PHASE 4: INPUT VALIDATION
-    # -------------------------------------------------------------------------
+    # Validate mappings and explicit URLs with the shared subscription result
+    # before any configured repository URL is contacted.
     - name: Validate repo_manager input configuration
       ansible.builtin.include_role:
         name: ../../roles/validate_input
+
+    - name: Validate repository access for catalog contexts
+      ansible.builtin.include_tasks: validate_catalog_context.yml
+      loop: "{{ catalog_execution_contexts }}"
+      loop_control:
+        loop_var: validation_execution_context
+        label: "{{ validation_execution_context.context_id }}"
+      when: run_subscription_check | default(false) | bool

@@ -66,7 +66,7 @@ registries:
 ### With Pre-provided Password
 
 ```bash
-ansible-playbook playbook.yml -e pulp_password='your_password'
+ansible-playbook playbook.yml -e pulp_password='CHANGEME'
 ```
 
 ### Standalone Credential Collection
@@ -87,16 +87,21 @@ pulp_username: "admin"
 pulp_password: "encrypted_password"
 
 # Docker Hub Credentials (optional)
-docker_username: "docker_user"
-docker_password: "encrypted_password"
+docker_username: ''
+docker_password: ''
 
 # Configured registry credentials (optional)
 registry_credentials:
   registries/harbor-production:
-    registry: "harbor.example.com"
+    registry: "private_registry"
     username: "registry_user"
     password: "encrypted_password"
 ```
+
+When Docker Hub authentication is required, set both values through the
+credential prompt. When it is not required, the role stores both fields as
+`''`. Blank YAML values, whitespace-only values, and legacy `"None"` values are
+automatically repaired to empty strings.
 
 ## Authentication Types
 

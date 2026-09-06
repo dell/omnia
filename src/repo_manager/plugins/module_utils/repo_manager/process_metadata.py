@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,20 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Read, compare, and update Repo Manager metadata files."""
+
 # pylint: disable=import-error,no-name-in-module
-#!/usr/bin/python
 
 from datetime import datetime
 from pathlib import Path
 import os
 import json
 import yaml
-# Import default variables from config.py
-from ansible.module_utils.repo_manager.config import ARCH_SUFFIXES
-from ansible.module_utils.repo_manager.config import (
-    get_repos_section,
-    iterate_all_repos
-)
+from ansible.module_utils.repo_manager.config import iterate_all_repos
 
 
 def load_yaml(path):
@@ -164,31 +161,11 @@ def get_diff(base, other):
     return diff
 
 
-def get_os_type(config):
-    """
-    Extract and validate the OS type from the given configuration.
-
-    - Reads the value of 'cluster_os_type' from the config dictionary.
-    - Converts it to lowercase for consistency.
-    - Validates that the OS type is 'rhel'.
-    - If the OS type is not supported, the module fails with an error.
-    - Returns the validated OS type string.
-
-    Parameters:
-        config (dict): Configuration dictionary that should contain 'cluster_os_type'.
-
-    Returns:
-        str: Validated OS type.
-    """
-    cluster_os_type = config.get('cluster_os_type', '').lower()
-
-    if cluster_os_type not in ['rhel']:
-        raise ValueError(f"Unsupported cluster_os_type: {cluster_os_type}")
-
-    return cluster_os_type
 
 
-def handle_generate_metadata(sw_config, repo_data, output_file, sub_urls=None):
+def handle_generate_metadata(sw_config, repo_data, output_file,
+                             cluster_os_version, architectures,
+                             sub_urls=None):
     """
     Generates metadata for repository configurations based on the provided software configuration
     and repository data files. The metadata is written to the specified output file.
@@ -211,39 +188,37 @@ def handle_generate_metadata(sw_config, repo_data, output_file, sub_urls=None):
 
     # In catalog mode, get cluster_os_type and repo_config from repo_manager_config.yml
     if not config:
-        # Catalog mode - extract from repo_manager_config.yml
-        # Default to 'rhel' if not specified (catalog-based approach)
+        # Catalog mode. The OS type is not used for repository iteration; keep
+        # it empty when the source data does not explicitly provide one.
         config = {
-            "cluster_os_type": repo_data_dict.get("cluster_os_type", "rhel"),
+            "cluster_os_type": repo_data_dict.get("cluster_os_type", ""),
             "repo_config": repo_data_dict.get("repo_config", "always")
         }
 
     # Fetch the default repository policy, fallback to "always" if not set
     default_policy = config.get("repo_config", "always")
 
-    # Get cluster OS version for new structure
-    cluster_os_version = repo_data_dict.get("cluster_os_version", "10.0")
-
-    # Process repositories using new structure
+    # Process only the repositories selected by the current catalog context.
     repositories = repo_data_dict.get("repositories", {})
-    for version, version_data in repositories.items():
-        for arch in ARCH_SUFFIXES:
-            repos_section = version_data.get(arch, {})
-            if not repos_section:
-                continue
-            for repo_name, repo_config in iterate_all_repos(repos_section):
-                if repo_config and isinstance(repo_config, dict):
-                    new_policy = generate_policy_dict([repo_config], default_policy)
-                else:
-                    new_policy = default_policy
-                update_metadata_file(output_file, repo_name, new_policy)
+    version_data = repositories.get(cluster_os_version, {})
+    for arch in architectures:
+        repos_section = version_data.get(arch, {})
+        if not repos_section:
+            continue
+        for repo_name, repo_config in iterate_all_repos(repos_section):
+            policy_source = {"name": repo_name}
+            if repo_config and isinstance(repo_config, dict):
+                policy_source.update(repo_config)
+            new_policy = generate_policy_dict([policy_source], default_policy)
+            section_name = f"{repo_name}_{cluster_os_version}_{arch}"
+            update_metadata_file(output_file, section_name, new_policy)
 
     # Record RHEL subscription repos if provided (in-memory URLs from subscription manager)
     if sub_urls:
-        for arch in ARCH_SUFFIXES:
+        for arch in architectures:
             arch_repos = sub_urls.get(arch, [])
             if arch_repos:
-                sub_key = f"subscription_url_{arch}"
+                sub_key = f"subscription_url_{cluster_os_version}_{arch}"
                 sub_policy = generate_policy_dict(arch_repos, default_policy)
                 update_metadata_file(output_file, sub_key, sub_policy)
 

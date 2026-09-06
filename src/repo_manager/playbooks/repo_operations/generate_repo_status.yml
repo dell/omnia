@@ -28,24 +28,32 @@
 #   - Legacy offline paths for backward compatibility
 #
 # Usage:
-#   ansible-playbook playbooks/repo_operations/generate_repo_status.yml -e 'project_name=project_default'
+#   ansible-playbook playbooks/repo_operations/generate_repo_status.yml
+#     -e 'project_name=project_default'
 # =============================================================================
 
+# Step 1: Inspect Pulp and generate the Repo Manager status document.
 - name: Generate repo_status.yml
   hosts: localhost
   connection: local
   gather_facts: false
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/pulp_cli_commands.yml"
   environment:
     PULP_CA_BUNDLE: "{{ pulp_server_crt }}"
   tasks:
+    - name: Load Repo Manager runtime configuration when required
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+      when: not (repo_manager_setup_done | default(false) | bool)
+
     # -------------------------------------------------------------------------
     # PHASE 0: SETUP PULP CLI
     # -------------------------------------------------------------------------
-    - name: Check if pulp CLI exists at /usr/local/bin/pulp
+    - name: Check if configured Pulp CLI exists
       ansible.builtin.stat:
-        path: /usr/local/bin/pulp
+        path: "{{ pulp_cli_executable }}"
       register: pulp_system_cli_check
 
     - name: Find pulp CLI path from current environment
@@ -55,30 +63,26 @@
       failed_when: false
       when: not pulp_system_cli_check.stat.exists
 
-    - name: Create symlink for pulp CLI at /usr/local/bin/pulp
+    - name: Create symlink for the configured Pulp CLI
       when:
         - not pulp_system_cli_check.stat.exists
         - pulp_which_result.rc | default(1) == 0
         - pulp_which_result.stdout | default('') | length > 0
       ansible.builtin.file:
         src: "{{ pulp_which_result.stdout }}"
-        dest: /usr/local/bin/pulp
+        dest: "{{ pulp_cli_executable }}"
         state: link
 
-    - name: Verify pulp CLI is accessible at /usr/local/bin/pulp
-      ansible.builtin.command: /usr/local/bin/pulp --version
+    - name: Verify configured Pulp CLI is accessible
+      ansible.builtin.command:
+        argv: "{{ [pulp_cli_executable] + pulp_cli_commands.common.version }}"
       register: pulp_cli_version
       changed_when: false
       failed_when: false
 
     - name: Fail if pulp CLI is not available
       ansible.builtin.fail:
-        msg: |
-          Pulp CLI not found at /usr/local/bin/pulp.
-          Please ensure pulp-cli is installed and the virtual environment is activated:
-            source <venv_path>/bin/activate
-            pip install pulp-cli
-          Then run the playbook again to create the symlink automatically.
+        msg: "{{ generate_repo_status_fail_if_pulp_cli_is_not_available_msg }}"
       when: pulp_cli_version.rc != 0
 
     # -------------------------------------------------------------------------
@@ -90,48 +94,34 @@
         tasks_from: read_endpoint_config.yml
 
     - name: Verify Pulp is healthy before status generation
-      ansible.builtin.include_tasks: ../../roles/deploy_pulp/tasks/pulp_health_check.yml
+      ansible.builtin.include_role:
+        name: deploy_pulp
+        tasks_from: pulp_health_check.yml
 
     - name: Run pulp status command
-      ansible.builtin.command: /usr/local/bin/pulp status
-      register: pulp_status_output
+      ansible.builtin.command:
+        argv: "{{ [pulp_cli_executable] + pulp_cli_commands.common.status }}"
       changed_when: false
-
-    - name: Parse pulp status
-      ansible.builtin.set_fact:
-        pulp_status: "{{ pulp_status_output.stdout | from_json }}"
-
-    - name: Set pulp connection facts
-      ansible.builtin.set_fact:
-        pulp_content_origin: "{{ pulp_status.content_settings.content_origin }}"
-        pulp_protocol: "{{ pulp_status.content_settings.content_origin | urlsplit('scheme') | lower }}"
-        pulp_server_ip: "{{ pulp_status.content_settings.content_origin | urlsplit('hostname') }}"
-        pulp_server_port: "{{ pulp_status.content_settings.content_origin | urlsplit('port') }}"
 
     - name: Load repo_manager_config.yml
       ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/repo_manager_config.yml"
+        file: "{{ repo_manager_config_file }}"
         name: repo_manager_config_data
+      no_log: true
 
     - name: Set omnia base path
       ansible.builtin.set_fact:
         omnia_base: "{{ omnia_data_path }}"
 
-    - name: Set catalog path
-      ansible.builtin.set_fact:
-        catalog_path: >-
-          {{ lookup('env', 'CATALOG_FILE_PATH') |
-             default(omnia_base + '/catalog/catalog_rhel.json', true) }}
+    - name: Resolve cluster OS details from catalog functional layers
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+        tasks_from: resolve_catalog_context.yml
 
-    - name: Load catalog JSON
+    - name: Set repository policy from configuration
       ansible.builtin.set_fact:
-        catalog_data: "{{ lookup('file', catalog_path) | from_json }}"
-
-    - name: Set cluster OS facts from catalog
-      ansible.builtin.set_fact:
-        cluster_os_type: "{{ (catalog_data.catalog.name | lower | regex_search('(rhel)')) | default('rhel') }}"
-        cluster_os_version: "{{ (catalog_data.catalog.name | regex_search('([0-9]+\\.[0-9]+)')) | default('10.0') }}"
-        repo_config: "{{ repo_manager_config_data.repo_config_policy | default('partial') }}"
+        repo_config: >-
+          {{ repo_manager_config_data.repo_config | default('partial') }}
 
     - name: Display Pulp connection info
       ansible.builtin.debug:
@@ -140,7 +130,10 @@
           - "Protocol: {{ pulp_protocol }}"
           - "IP: {{ pulp_server_ip }}"
           - "Port: {{ pulp_server_port }}"
-          - "Cluster OS: {{ cluster_os_type }} {{ cluster_os_version }}"
+          - >-
+            Cluster contexts:
+            {{ catalog_execution_contexts |
+               map(attribute='context_id') | join(', ') }}
           - "Repo Config: {{ repo_config }}"
           - "======================================"
 
@@ -154,23 +147,30 @@
         mode: "0755"
         recurse: true
 
-    - name: Generate repo_status.yml
+    - name: Generate terminal status for all catalog contexts
       generate_local_repo_access:
+        pulp_cli_executable: "{{ pulp_cli_executable }}"
         pulp_server_ip: "{{ pulp_server_ip }}"
         pulp_server_port: "{{ pulp_server_port | int }}"
-        cluster_os_type: "{{ cluster_os_type }}"
-        cluster_os_version: "{{ cluster_os_version }}"
+        cluster_os_type: "{{ catalog_execution_contexts[0].os_type }}"
+        cluster_os_version: "{{ catalog_execution_contexts[0].os_version }}"
+        architectures: "{{ catalog_execution_contexts[0].architectures }}"
+        execution_contexts: "{{ catalog_execution_contexts }}"
         repo_config: "{{ repo_config }}"
         output_path: "{{ output_dir }}/repo_status.yml"
-        local_repo_config_path: "{{ input_project_dir }}/repo_manager_config.yml"
-      register: generate_result
+        local_repo_config_path: "{{ repo_manager_config_file }}"
+      register: status_generation_result
+
+    - name: Fail when catalog-required RPM repositories are unavailable
+      ansible.builtin.fail:
+        # yamllint disable-line rule:line-length
+        msg: "{{ generate_repo_status_fail_when_catalog_required_rpm_repositories_are_unavailable_msg }}"
+      when: not (status_generation_result.repository_ready | default(false) | bool)
 
     - name: Display generation result
       ansible.builtin.debug:
         msg:
           - "========== GENERATION COMPLETE =========="
-          - "Output file: {{ generate_result.output_file }}"
-          - "RPM repositories: {{ generate_result.rpm_repos_count }}"
-          - "File repositories: {{ generate_result.file_repos_count }}"
-          - "{{ generate_result.msg }}"
+          - "Output file: {{ output_dir }}/repo_status.yml"
+          - "Status: {{ status_generation_result.published_status }}"
           - "=========================================="

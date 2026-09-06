@@ -1,0 +1,132 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Publish active catalog execution context
+  ansible.builtin.set_fact:
+    catalog_context: "{{ execution_context }}"
+    cluster_os_type: "{{ execution_context.os_type }}"
+    cluster_os_version: "{{ execution_context.os_version }}"
+    selected_architectures: "{{ execution_context.architectures }}"
+    active_resync_repositories: >-
+      {%- if (resync_repos | default(none)) == 'all' -%}
+      all
+      {%- elif requested_resync_repositories | length > 0 -%}
+        {%- set prefixes = [] -%}
+        {%- for architecture in execution_context.architectures -%}
+          {%- set _ = prefixes.append(
+            architecture ~ '_' ~ execution_context.os_type ~ '_' ~
+            execution_context.os_version ~ '_') -%}
+        {%- endfor -%}
+        {{ requested_resync_repositories |
+           select('match', '^(' ~
+             (prefixes | map('regex_escape') | join('|')) ~ ')') | list }}
+      {%- else -%}
+      {{ none }}
+      {%- endif -%}
+    overall_status_dict: {}
+    sub_final_repo_urls: {}
+    context_start_epoch: "{{ lookup('pipe', 'date +%s') | int }}"
+
+- name: Display catalog context start
+  ansible.builtin.debug:
+    msg:
+      - "========== CATALOG CONTEXT START =========="
+      - "OS: {{ cluster_os_type }} {{ cluster_os_version }}"
+      - "Architectures: {{ selected_architectures | join(', ') }}"
+      - >-
+        Log: {{ repo_manager_log_dir ~ '/' ~ cluster_os_type ~ '/' ~
+        cluster_os_version ~ '/standard.log' }}
+      - "==========================================="
+
+- name: Execute active catalog context
+  block:
+    - name: Resolve repository URLs for the active catalog context
+      ansible.builtin.include_role:
+        name: ../../roles/repository_access
+        tasks_from: resolve_context_repository_urls.yml
+      when: run_subscription_check | default(false) | bool
+
+    - name: Run active context validation
+      ansible.builtin.include_role:
+        name: validation
+
+    - name: Download active context artifacts
+      ansible.builtin.include_role:
+        name: parse_and_download
+
+    - name: Run active context completion tasks
+      ansible.builtin.include_role:
+        name: parse_and_download
+        tasks_from: display_repository_download_summary.yml
+      when: final_status | default('') | lower == 'success'
+
+    - name: Record successful catalog context
+      ansible.builtin.set_fact:
+        catalog_execution_results: >-
+          {{
+            catalog_execution_results + [{
+              'context_id': execution_context.context_id,
+              'os_type': cluster_os_type,
+              'os_version': cluster_os_version,
+              'architectures': selected_architectures,
+              'status': final_status | default('failed') | lower,
+              'duration_seconds':
+                (lookup('pipe', 'date +%s') | int) -
+                (context_start_epoch | int),
+              'log_path': repo_manager_log_dir ~ '/' ~ cluster_os_type ~ '/' ~
+                cluster_os_version ~ '/standard.log'
+            }]
+          }}
+
+    - name: Update catalog execution summary after context success
+      ansible.builtin.include_tasks: persist_catalog_execution_summary.yml
+
+  rescue:
+    - name: Record failed catalog context
+      ansible.builtin.set_fact:
+        catalog_execution_results: >-
+          {{
+            catalog_execution_results + [{
+              'context_id': execution_context.context_id,
+              'os_type': cluster_os_type,
+              'os_version': cluster_os_version,
+              'architectures': selected_architectures,
+              'status': 'failed',
+              'duration_seconds':
+                (lookup('pipe', 'date +%s') | int) -
+                (context_start_epoch | int),
+              'log_path': repo_manager_log_dir ~ '/' ~ cluster_os_type ~ '/' ~
+                cluster_os_version ~ '/standard.log',
+              'error': ansible_failed_result.msg | default('Unknown error')
+            }]
+          }}
+
+    - name: Update catalog execution summary after context failure
+      ansible.builtin.include_tasks: persist_catalog_execution_summary.yml
+
+    - name: Halt later catalog contexts after failure
+      ansible.builtin.set_fact:
+        catalog_execution_halted: true
+        final_status: failed
+
+- name: Display catalog context completion
+  ansible.builtin.debug:
+    msg:
+      - "========== CATALOG CONTEXT COMPLETE =========="
+      - "OS: {{ cluster_os_type }} {{ cluster_os_version }}"
+      - "Status: {{ final_status | upper }}"
+      - >-
+        Duration: {{ (lookup('pipe', 'date +%s') | int) -
+        (context_start_epoch | int) }} seconds
+      - "=============================================="

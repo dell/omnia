@@ -25,11 +25,20 @@ The ONLY reliable signals are from task progress_reports:
 - manifest.total≥1           → Tag exists (regardless of sync success/failure)
 """
 
-import json
-import logging
 import re
 import uuid
-from time import time as current_time
+
+from ansible.module_utils.repo_manager.pulp_commands import (
+    build_container_remote_command,
+    pulp_container_commands as central_container_commands,
+    pulp_task_commands,
+)
+from ansible.module_utils.repo_manager.security_utils import (
+    validate_container_reference,
+    validate_container_tag,
+    validate_repository_id,
+    validate_repository_url,
+)
 
 
 def validate_tag_via_pulp_sync(image_name, tag, logger,
@@ -49,11 +58,17 @@ def validate_tag_via_pulp_sync(image_name, tag, logger,
         bool: True if tag exists upstream, False if definitively not found.
               Returns True on ambiguous results (safe default for airgap).
     """
+    image_name = validate_container_reference(image_name)
+    tag = validate_container_tag(tag)
+    if package_content is not None:
+        package_content = validate_container_reference(package_content)
     unique_id = uuid.uuid4().hex[:8]
     sanitized_image = image_name.replace('/', '_').replace(':', '_')
     sanitized_tag = tag.replace('/', '_').replace('.', '_').replace('-', '_')
     temp_remote_name = f"temp_val_{sanitized_image}_{sanitized_tag}_{unique_id}"
     temp_repo_name = f"temp_repo_{sanitized_image}_{sanitized_tag}_{unique_id}"
+    temp_remote_name = validate_repository_id(temp_remote_name)
+    temp_repo_name = validate_repository_id(temp_repo_name)
 
     try:
         # Step 1: Create temp remote (always on_demand for validation)
@@ -68,10 +83,12 @@ def validate_tag_via_pulp_sync(image_name, tag, logger,
             )
         else:
             base_url, package_content = get_repo_url_and_content(image_name)
-            create_remote_cmd = pulp_container_commands["create_container_remote"] % (
-                temp_remote_name, base_url, package_content,
-                "on_demand",  # Always on_demand for validation
-                tag
+            base_url = validate_repository_url(base_url)
+            package_content = validate_container_reference(package_content)
+            create_remote_cmd = build_container_remote_command(
+                "create", name=temp_remote_name, url=base_url,
+                upstream_name=package_content, policy="on_demand",
+                include_tags=[tag],
             )
             remote_created = execute_command(create_remote_cmd, logger)
         if not remote_created:
@@ -91,8 +108,8 @@ def validate_tag_via_pulp_sync(image_name, tag, logger,
             return True
 
         # Step 3: Sync (capture full output for task href extraction)
-        sync_cmd = pulp_container_commands["sync_container_repository"] % (
-            temp_repo_name, temp_remote_name
+        sync_cmd = central_container_commands["sync_repository"] % (
+            temp_repo_name, temp_remote_name,
         )
         sync_result = execute_command(sync_cmd, logger, enhanced_error_info=True)
 
@@ -107,7 +124,7 @@ def validate_tag_via_pulp_sync(image_name, tag, logger,
             return True
 
         # Step 5: Inspect task progress reports
-        task_cmd = f"pulp task show --href {task_href}"
+        task_cmd = pulp_task_commands["show"] % task_href
         task_result = execute_command(task_cmd, logger, type_json=True)
 
         if not task_result or not isinstance(task_result, dict):
@@ -122,11 +139,6 @@ def validate_tag_via_pulp_sync(image_name, tag, logger,
             return True
 
         progress_reports = task_data.get("progress_reports", [])
-        error_desc = ""
-        error_obj = task_data.get("error")
-        if error_obj and isinstance(error_obj, dict):
-            error_desc = error_obj.get("description", "")
-
         # Step 6: Classify based on progress reports
         is_valid, reason = _classify_tag_validation(progress_reports)
 
@@ -137,7 +149,7 @@ def validate_tag_via_pulp_sync(image_name, tag, logger,
             else:
                 logger.warning(
                     f"⚠ Tag EXISTS but sync issue for {image_name}:{tag} "
-                    f"({reason}). Detail: {error_desc}"
+                    f"({reason})."
                 )
         elif is_valid is False:
             logger.error(f"✗ Tag NOT FOUND: {image_name}:{tag} ({reason})")
@@ -149,9 +161,9 @@ def validate_tag_via_pulp_sync(image_name, tag, logger,
 
         return is_valid if is_valid is not None else True
 
-    except Exception as e:
+    except Exception:  # pylint: disable=broad-exception-caught
         logger.error(
-            f"Validation exception for {image_name}:{tag}: {e} — "
+            f"Validation exception for {image_name}:{tag} — "
             f"assuming tag is valid"
         )
         return True
@@ -241,17 +253,19 @@ def _cleanup_temp_resources(temp_remote_name, temp_repo_name,
                              pulp_container_commands, execute_command, logger):
     """Clean up temporary validation resources. Always called."""
     try:
+        temp_repo_name = validate_repository_id(temp_repo_name)
         destroy_repo_cmd = (
-            f"pulp container repository destroy --name {temp_repo_name}"
+            central_container_commands["delete_repository"] % temp_repo_name
         )
         execute_command(destroy_repo_cmd, logger)
-    except Exception as e:
-        logger.debug(f"Cleanup repo {temp_repo_name} failed: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.debug("Temporary container repository cleanup failed")
 
     try:
+        temp_remote_name = validate_repository_id(temp_remote_name)
         destroy_remote_cmd = (
-            f"pulp container remote destroy --name {temp_remote_name}"
+            central_container_commands["delete_remote"] % temp_remote_name
         )
         execute_command(destroy_remote_cmd, logger)
-    except Exception as e:
-        logger.debug(f"Cleanup remote {temp_remote_name} failed: {e}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.debug("Temporary container remote cleanup failed")

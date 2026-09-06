@@ -6,17 +6,17 @@
 # Pulp always uses HTTPS. The configured port is the host-facing port; the
 # container's built-in nginx terminates TLS on port 443.
 pulp_shared_path: "{{ pulp_config_dir }}"
-pulp_ha_dir: "{{ pulp_config_dir }}/pulp_ha"
-settings_py_path: "{{ pulp_config_dir }}/settings/settings.py"
+pulp_ha_dir: "{{ pulp_cli_config_dir }}"
+settings_py_path: "{{ pulp_settings_dir }}/settings.py"
 pulp_config_filepath: "{{ pulp_ha_dir }}/cli.toml"
-config_default_dir: "/etc/pulp"
-config_default_loc: "{{ config_default_dir }}/cli.toml"
+config_default_dir: "{{ pulp_system_cli_config_file | dirname }}"
+config_default_loc: "{{ pulp_system_cli_config_file }}"
 
 pulp_dir_permissions: "0755"
 pulp_public_dir_permissions: "0755"
 logs_dir_permission: "0755"
 pulp_pgsql_dir_permissions: "0700"
-pulp_settings_permissions: "0644"
+pulp_settings_permissions: "0600"
 pulp_secret_permissions: "0600"
 pulp_cli_permissions: "0600"
 pulp_certificate_permissions: "0644"
@@ -24,57 +24,232 @@ pulp_private_key_permissions: "0600"
 pulp_csr_permissions: "0600"
 
 device_name: "/dev/fuse:/dev/fuse:rwm"
-pulp_container_https_port: 443
+pulp_container_https_port: "{{ pulp_deployment_defaults.https.container_port }}"
 pulp_publish_port: "{{ pulp_server_port }}:{{ pulp_container_https_port }}"
 pulp_base_url: "https://{{ pulp_server_ip }}:{{ pulp_server_port }}"
 pulp_status_url: "{{ pulp_base_url }}/pulp/api/v3/status/"
 
 pull_image_retries: 5
 pull_image_delay: 10
-endpoint_retries: 30
-endpoint_delay: 10
+deploy_endpoint_retries: 30
+deploy_endpoint_delay: 10
 
 arg_list:
-  - "-e PULP_WORKERS=10"
-  - "-e PULP_API_WORKERS=10"
-  - "-e PULP_CONTENT_WORKERS=10"
-  - "-e PULP_GUNICORN_TIMEOUT=30"
-  - "-e PULP_API_WORKERS_MAX_REQUESTS=1000"
-  - "-e PULP_API_WORKERS_MAX_REQUESTS_JITTER=50"
+  - "-e PULP_WORKERS={{ pulp_deployment_defaults.workers.task }}"
+  - "-e PULP_API_WORKERS={{ pulp_deployment_defaults.workers.api }}"
+  - "-e PULP_CONTENT_WORKERS={{ pulp_deployment_defaults.workers.content }}"
+  - >-
+    {{ '-e PULP_GUNICORN_TIMEOUT=' ~
+       pulp_deployment_defaults.timeouts.gunicorn_seconds }}
+  - >-
+    {{ '-e PULP_API_WORKERS_MAX_REQUESTS=' ~
+       pulp_deployment_defaults.timeouts.api_max_requests }}
+  - >-
+    {{ '-e PULP_API_WORKERS_MAX_REQUESTS_JITTER=' ~
+       pulp_deployment_defaults.timeouts.api_max_requests_jitter }}
+
+# Resolved host paths validated before deployment. Repo Manager creates these
+# directories but does not create filesystems or manage storage mounts.
+pulp_host_storage_paths:
+  - name: "settings"
+    path: "{{ pulp_settings_dir }}"
+  - name: "database"
+    path: "{{ pulp_database_dir }}"
+  - name: "content"
+    path: "{{ pulp_content_dir }}"
+  - name: "container_work"
+    path: "{{ pulp_container_work_dir }}"
+  - name: "service_logs"
+    path: "{{ pulp_logs_dir }}"
+  - name: "cli_config"
+    path: "{{ pulp_cli_config_dir }}"
+
+# Broad paths are never accepted as Pulp storage targets. A configured mount
+# must use a dedicated child directory, for example /mnt/pulp-db/postgresql.
+pulp_unsafe_storage_paths:
+  - "/"
+  - "/etc"
+  - "/home"
+  - "/media"
+  - "/mnt"
+  - "/opt"
+  - "/root"
+  - "/srv"
+  - "/usr"
+  - "/var"
 
 pulp_directories_https:
-  - { path: "{{ pulp_shared_path }}", mode: "{{ pulp_dir_permissions }}" }
-  - { path: "{{ pulp_logs_dir }}", mode: "{{ logs_dir_permission }}" }
-  - { path: "{{ pulp_shared_path }}/settings", mode: "{{ pulp_dir_permissions }}" }
-  - { path: "{{ pulp_certs_dir }}", mode: "{{ pulp_dir_permissions }}" }
-  - { path: "{{ pulp_shared_path }}/settings/pulp_storage", mode: "{{ pulp_public_dir_permissions }}" }
-  - { path: "{{ pulp_shared_path }}/settings/pgsql", mode: "{{ pulp_pgsql_dir_permissions }}" }
-  - { path: "{{ pulp_shared_path }}/settings/containers", mode: "{{ pulp_public_dir_permissions }}" }
-  - { path: "{{ pulp_ha_dir }}", mode: "{{ pulp_dir_permissions }}" }
+  - path: "{{ pulp_shared_path }}"
+    mode: "{{ pulp_dir_permissions }}"
+    create: true
+  - path: "{{ pulp_logs_dir }}"
+    mode: "{{ logs_dir_permission }}"
+    create: "{{ 'service_log_path' not in pulp_storage_paths.user_provided }}"
+  - path: "{{ pulp_settings_dir }}"
+    mode: "{{ pulp_dir_permissions }}"
+    create: "{{ 'settings_path' not in pulp_storage_paths.user_provided }}"
+  - path: "{{ pulp_certs_dir }}"
+    mode: "{{ pulp_dir_permissions }}"
+    create: true
+  - path: "{{ pulp_content_dir }}"
+    mode: "{{ pulp_public_dir_permissions }}"
+    create: "{{ 'content_path' not in pulp_storage_paths.user_provided }}"
+  - path: "{{ pulp_database_dir }}"
+    mode: "{{ pulp_pgsql_dir_permissions }}"
+    create: "{{ 'database_path' not in pulp_storage_paths.user_provided }}"
+  - path: "{{ pulp_container_work_dir }}"
+    mode: "{{ pulp_public_dir_permissions }}"
+    create: >-
+      {{ 'container_work_path' not in pulp_storage_paths.user_provided }}
+  - path: "{{ pulp_ha_dir }}"
+    mode: "{{ pulp_dir_permissions }}"
+    create: "{{ 'cli_config_path' not in pulp_storage_paths.user_provided }}"
 
 pulp_legacy_deployment_paths:
   - "{{ pulp_shared_path }}/nginx"
   - "{{ pulp_shared_path }}/pulp_crt_track.txt"
 
 volumes_https:
-  - "{{ pulp_shared_path }}/settings:/etc/pulp{{ selinux_option }}"
-  - "{{ pulp_shared_path }}/settings/pulp_storage:/var/lib/pulp{{ selinux_option }}"
-  - "{{ pulp_shared_path }}/settings/pgsql:/var/lib/pgsql{{ selinux_option }}"
-  - "{{ pulp_shared_path }}/settings/containers:/var/lib/containers{{ selinux_option }}"
-  - "{{ pulp_logs_dir }}:/var/log/pulp{{ selinux_option }}"
-  - "{{ pulp_ha_dir }}:/root/.config/pulp{{ selinux_option }}"
+  - >-
+    {{ pulp_settings_dir ~ ':' ~
+       pulp_deployment_defaults.container_mounts.settings_path ~
+       selinux_option }}
+  - >-
+    {{ pulp_content_dir ~ ':' ~
+       pulp_deployment_defaults.container_mounts.content_path ~
+       selinux_option }}
+  - >-
+    {{ pulp_database_dir ~ ':' ~
+       pulp_deployment_defaults.container_mounts.database_path ~
+       selinux_option }}
+  - >-
+    {{ pulp_container_work_dir ~ ':' ~
+       pulp_deployment_defaults.container_mounts.container_work_path ~
+       selinux_option }}
+  - >-
+    {{ pulp_logs_dir ~ ':' ~
+       pulp_deployment_defaults.container_mounts.service_log_path ~
+       selinux_option }}
+  - >-
+    {{ pulp_ha_dir ~ ':' ~
+       pulp_deployment_defaults.container_mounts.cli_config_path ~
+       selinux_option }}
 
-cert_validity_days: 3650
-cert_renewal_threshold_seconds: 2592000
+cert_validity_days: >-
+  {{ pulp_deployment_defaults.https.certificate_validity_days }}
+cert_renewal_threshold_seconds: >-
+  {{ pulp_deployment_defaults.https.certificate_renewal_threshold_seconds }}
 cert_subject_alt_names:
   - "IP:{{ pulp_server_ip }}"
   - "DNS:pulp"
   - "DNS:localhost"
 
 pulp_deployed_msg: "The {{ pulp_container_name }} container has been successfully deployed."
-pulp_deployed_fail_msg: |
-  The {{ pulp_container_name }} container deployment failed. Common causes:
-  - Missing or inaccessible Pulp container image
-  - The configured host port is already in use
-  - Pulp storage is unavailable or incorrectly labelled
-  - Insufficient memory or disk space
+
+# =============================================================================
+# FAILURE AND ASSERTION MESSAGES
+# =============================================================================
+deploy_pulp_validate_pulp_administrator_credentials_msg: >-
+  Pulp username and password are required in the encrypted Repo Manager
+  credential file.
+
+deploy_pulp_verify_deployed_pulp_container_is_running_msg: "Pulp container {{ pulp_container_name }} is not running after deployment."
+
+deploy_pulp_validate_resolved_pulp_deployment_inputs_msg: "Pulp endpoint facts must be validated before deployment."
+
+deploy_pulp_validate_pulp_storage_configuration_structure_msg: >-
+  pulp_storage_paths.user_provided must be a dictionary containing only
+  supported storage keys from pulp_storage_paths.default.
+
+deploy_pulp_validate_resolved_pulp_host_storage_paths_msg: >-
+  Invalid Pulp {{ item.name }} storage path '{{ item.path }}'. Provide a
+  normalized absolute path to a dedicated directory. Broad system paths and
+  storage mount roots are not accepted.
+
+deploy_pulp_validate_user_provided_pulp_storage_directories_are_ready_msg: >-
+  User-provided Pulp {{ item.item.name }} path '{{ item.item.path }}' must
+  already exist as a writable directory. Repo Manager does not create
+  filesystems, mount storage, or create user-provided root directories.
+
+deploy_pulp_validate_pulp_host_storage_paths_are_unique_msg: >-
+  Each Pulp storage purpose must use a distinct host directory. Review
+  pulp_storage_paths in vars/default.yml.
+
+deploy_pulp_validate_persistent_pulp_secret_key_msg: >-
+  The persistent Pulp secret key is empty or invalid. Restore
+  {{ pulp_secret_key_file }} from backup before redeploying.
+
+deploy_pulp_fail_with_helpful_error_message_msg: |
+  Failed to pull Pulp image: {{ pulp_image }}
+
+  Error: {{ pulp_pull_result.stderr | default('Unknown error') }}
+
+  Possible causes:
+  - Network connectivity issues
+  - Docker Hub rate limiting (consider using docker_username/docker_password)
+  - Invalid image name or tag
+  - Registry authentication required
+
+  Troubleshooting:
+  1. Check network connectivity: podman pull {{ pulp_image }}
+  2. If rate limited, configure Docker Hub credentials in repo_manager_config_credentials.yml
+  3. Verify the image exists: https://hub.docker.com/r/pulp/pulp/tags
+
+
+deploy_pulp_require_a_running_pulp_container_msg: >-
+  Pulp container '{{ pulp_container_name }}' is not running. Inspect
+  systemctl status {{ pulp_container_name }}.service and podman logs
+  {{ pulp_container_name }}.
+
+
+deploy_pulp_validate_pulp_internal_service_health_msg: >-
+  Pulp HTTPS is reachable, but its database, workers, or content apps are
+  unhealthy. Inspect podman logs {{ pulp_container_name }}.
+
+deploy_pulp_validate_configured_omnia_virtual_environment_path_msg: >-
+  OMNIA_VENV_PATH must be an absolute path when it is configured.
+  Received: {{ pulp_venv_path }}
+
+deploy_pulp_require_the_configured_omnia_virtual_environment_cli_directory_msg: >-
+  The Omnia virtual environment CLI directory is unavailable at
+  {{ pulp_venv_cli_executable | dirname }}. Set OMNIA_VENV_PATH to the
+  deployed Omnia virtual environment and run the prepare operation again.
+
+deploy_pulp_require_an_executable_pulp_cli_python_runtime_msg: >-
+  Python is unavailable at {{ pulp_cli_runtime_python_executable }}.
+  {% if pulp_cli_runtime_mode == 'venv' %}
+  Correct OMNIA_VENV_PATH and run the dependency setup before prepare.
+  {% else %}
+  Install the Repo Manager system Python dependencies before prepare.
+  {% endif %}
+
+
+deploy_pulp_require_pulp_cli_in_the_selected_python_runtime_msg: >-
+  pulp-cli is not installed for {{ pulp_cli_runtime_python_executable }}.
+  Install the Repo Manager requirements for the selected
+  {{ pulp_cli_runtime_mode }} runtime and run prepare again.
+
+
+deploy_pulp_require_a_valid_managed_pulp_cli_backend_msg: >-
+  The managed Pulp CLI backend is unavailable. Reinstall pulp-cli and run
+  the prepare operation again.
+
+
+deploy_pulp_require_a_valid_preserved_pulp_cli_command_chain_msg: >-
+  Pulp was removed, but the preserved CLI command chain is inconsistent.
+  Install the Repo Manager requirements and run prepare again.
+
+deploy_pulp_require_a_valid_preserved_virtual_environment_pulp_cli_link_msg: >-
+  The Pulp CLI link in OMNIA_VENV_PATH could not be preserved.
+  Run the dependency setup and prepare again.
+
+deploy_pulp_verify_pulp_container_is_running_msg: |
+  Pulp container is not running!
+
+  Status: {{ pulp_status.stdout | default('Container not found') }}
+
+  Troubleshooting:
+  1. Check container logs: podman logs {{ pulp_container_name }}
+  2. Check systemd status: systemctl status {{ pulp_container_name }}
+  3. Verify storage is accessible
+  4. Run cleanup and redeploy if needed

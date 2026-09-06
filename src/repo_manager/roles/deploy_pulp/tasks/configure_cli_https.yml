@@ -1,12 +1,24 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 ---
 - name: Validate Pulp administrator credentials
   ansible.builtin.assert:
     that:
       - pulp_username | default('') | length > 0
       - pulp_password | default('') | length > 0
-    fail_msg: >-
-      Pulp username and password are required in the encrypted Repo Manager
-      credential file.
+    fail_msg: "{{ deploy_pulp_validate_pulp_administrator_credentials_msg }}"
+    quiet: true
   no_log: true
 
 - name: Wait for Pulp before configuring credentials
@@ -17,8 +29,8 @@
     status_code: 200
     timeout: 30
   register: _pulp_preconfigure_status
-  retries: "{{ endpoint_retries }}"
-  delay: "{{ endpoint_delay }}"
+  retries: "{{ deploy_endpoint_retries }}"
+  delay: "{{ deploy_endpoint_delay }}"
   until: _pulp_preconfigure_status.status | default(-1) == 200
 
 - name: Test configured Pulp administrator credentials
@@ -103,7 +115,7 @@
 
 - name: Ensure root Pulp CLI configuration directory exists
   ansible.builtin.file:
-    path: /root/.config/pulp
+    path: "{{ pulp_root_cli_config_dir }}"
     state: directory
     owner: root
     group: root
@@ -112,15 +124,21 @@
 - name: Link root Pulp CLI configuration to the canonical file
   ansible.builtin.file:
     src: "{{ pulp_config_filepath }}"
-    dest: /root/.config/pulp/cli.toml
+    dest: "{{ pulp_root_cli_config_file }}"
     state: link
     force: true
 
 - name: Verify Pulp CLI configuration
   ansible.builtin.command:
-    argv:
-      - /usr/local/bin/pulp
-      - status
+    argv: "{{ [pulp_cli_executable] + pulp_cli_commands.common.status }}"
   register: _pulp_cli_status
   changed_when: false
   failed_when: _pulp_cli_status.rc != 0
+
+- name: Verify Pulp CLI configuration from Omnia virtual environment
+  ansible.builtin.command:
+    argv: "{{ [pulp_venv_cli_executable] + pulp_cli_commands.common.status }}"
+  register: _pulp_venv_cli_status
+  changed_when: false
+  failed_when: _pulp_venv_cli_status.rc != 0
+  when: pulp_cli_runtime_mode == 'venv'

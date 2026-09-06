@@ -85,7 +85,11 @@ when explicitly selected. Do not combine cleanup tags with the standard workflow
 - Validate YAML syntax and JSON schemas.
 - Validate catalog-to-repository and catalog-to-registry mappings.
 - Validate lowercase configuration keys, repository policies and registry TLS.
-- Detect missing URLs when RHEL subscription content is unavailable.
+- Check RHEL subscription access once and reuse that result for input validation
+  and repository URL resolution.
+- Validate only repositories referenced by the selected catalog version and
+  architectures. When subscription content is unavailable, every referenced
+  RPM repository requires an explicit URL.
 
 ### Step 2: Prepare (tag: prepare)
 
@@ -100,9 +104,10 @@ when explicitly selected. Do not combine cleanup tags with the standard workflow
 ### Step 3: Download (tag: download)
 
 1. Load and reconcile credentials.
-2. Detect the RHEL subscription state.
-3. Populate empty BaseOS, AppStream and CodeReady Builder entries from the
-   subscription when available.
+2. Reuse the RHEL subscription state established for this execution.
+3. Use explicit URLs first. For referenced empty or missing BaseOS, AppStream
+   and CodeReady Builder entries, prefer the matching EUS URL and otherwise use
+   the standard subscription URL.
 4. Resolve functional layers, groups and packages from the catalog.
 5. Match RPM sources by OS version, architecture and `reponame`.
 6. Match container sources by `registry`.
@@ -120,8 +125,10 @@ metadata cache.
 - Generate `<REPO_MANAGER_DATA_PATH>/output/<project>/repo_status.yml`.
 - Include HTTPS repository URLs, file-content URLs and certificate paths.
 
-The status file is generated only when the `status` tag runs. Run it again after
-selective cleanup if downstream consumers need an updated view.
+The status file is generated only when the `status` tag runs. Selective cleanup
+removes the stale file; run `download,status` to restore deleted catalog content
+and regenerate it, or `status` alone to report the intentionally incomplete
+Pulp state.
 
 ### Step 5: Selective cleanup (tag: cleanup_repos)
 
@@ -131,6 +138,7 @@ selective cleanup if downstream consumers need an updated view.
 - Untagged `cleanup_containers`: the repository, all tags, distribution and remote.
 - `all`: every Pulp object in that cleanup category.
 - Update status rows, group state and the mirror index only after verified deletion.
+- Invalidate `repo_status.yml` after a successful cleanup.
 - Run Pulp orphan cleanup after successful changes.
 
 ### Step 6: Full cleanup (tag: cleanup_pulp)
@@ -138,6 +146,8 @@ selective cleanup if downstream consumers need an updated view.
 - Disable and remove `pulp.service` and its Quadlet.
 - Remove the Pulp container, image, configuration and data.
 - Remove Pulp CLI configuration and host integration.
+- Preserve and verify the Repo Manager CLI launcher, venv link, and backend so
+  redeployment does not require reinstalling Python dependencies.
 - Optionally preserve credentials and Repo Manager runtime logs.
 
 ---
@@ -152,7 +162,7 @@ selective cleanup if downstream consumers need an updated view.
 | Service | `pulp.service` generated from a Podman Quadlet |
 | Persistence | `<REPO_MANAGER_DATA_PATH>/pulp_config/` |
 | Certificate | Generated under `pulp_config/settings/certs/` |
-| CLI trust | `PULP_CA_BUNDLE` plus an installed host CA anchor |
+| CLI trust | Managed launcher at `/usr/local/bin/pulp`, linked from the Omnia venv, plus an installed host CA anchor |
 
 The user selects the host port in `repo_manager_endpoint_config.yml`. The
 container port remains `443`.

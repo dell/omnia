@@ -20,7 +20,6 @@ import multiprocessing
 import subprocess
 import time
 import json
-import traceback
 import yaml
 import requests
 from cryptography.fernet import Fernet
@@ -29,11 +28,62 @@ from ansible.module_utils.repo_manager.common_functions import (
     load_yaml_file,
     load_vault_yaml
 )
+from ansible.module_utils.repo_manager.security_utils import redact_sensitive_value
+from ansible.module_utils.repo_manager.standard_logger import (
+    UrlCredentialRedactionFilter,
+    secure_log_file,
+)
 from ansible.module_utils.repo_manager.registry_utils import resolve_registry_contexts
 # Global lock for logging synchronization
 log_lock = multiprocessing.Lock()
 docker_password_cipher = Fernet(Fernet.generate_key())
 PROGRESS_LOG_INTERVAL_SECONDS = 60
+
+
+def load_repository_credentials(vault_yml_path, vault_password_file):
+    """Load repository credentials without exposing parser or vault output."""
+    try:
+        return load_vault_yaml(vault_yml_path, vault_password_file)
+    except subprocess.CalledProcessError as error:
+        raise RuntimeError("Vault decryption failed.") from error
+    except yaml.YAMLError as error:
+        raise RuntimeError(
+            "Failed to parse decrypted credential YAML."
+        ) from error
+
+
+def normalize_docker_credentials(credential_data):
+    """Return a canonical optional Docker Hub credential pair.
+
+    YAML nulls, missing keys, whitespace-only values, and the legacy literal
+    ``"None"`` produced by the former null conversion are treated as empty.
+    Usernames are trimmed. Non-empty passwords are preserved exactly.
+    """
+    if credential_data is None:
+        credential_data = {}
+    if not isinstance(credential_data, dict):
+        raise RuntimeError("Docker credential document must be a mapping.")
+
+    username_value = credential_data.get("docker_username")
+    password_value = credential_data.get("docker_password")
+    username = "" if username_value is None else str(username_value).strip()
+    password = "" if password_value is None else str(password_value)
+
+    if username == "None":
+        username = ""
+    if not password.strip() or password.strip() == "None":
+        password = ""
+
+    # A password without a username is an orphaned optional secret. Treat the
+    # pair as anonymous access. A username without a password is actionable and
+    # must not silently fall back to anonymous Docker Hub pulls.
+    if not username:
+        return "", ""
+    if not password:
+        raise RuntimeError(
+            "Docker Hub password is required when docker_username is set."
+        )
+    return username, password
 
 
 def load_docker_credentials(vault_yml_path, vault_password_file):
@@ -54,7 +104,8 @@ def load_docker_credentials(vault_yml_path, vault_password_file):
         vault_password_file (str): Path to the vault password file (used only when encrypted).
 
     Returns:
-        tuple: (docker_username, docker_password) or (None, None) if not provided.
+        tuple: Encrypted Docker credential pair, or two empty strings when
+               anonymous Docker Hub access is configured.
 
     Raises:
         RuntimeError: If vault decryption fails, YAML parsing fails, Docker Hub API
@@ -62,17 +113,15 @@ def load_docker_credentials(vault_yml_path, vault_password_file):
                      is not installed.
     """
     try:
-        data = load_vault_yaml(vault_yml_path, vault_password_file)
-        docker_username = data.get("docker_username")
-        docker_secret_token = None
-        if data.get("docker_password"):
-            docker_secret_token = docker_password_cipher.encrypt(
-                data.get("docker_password").encode("utf-8")
-            ).decode("utf-8")
+        data = load_repository_credentials(vault_yml_path, vault_password_file)
+        docker_username, docker_secret = normalize_docker_credentials(data)
 
-        # If either credential is missing, skip validation
-        if not docker_username or not docker_secret_token:
-            return None, None
+        if not docker_username:
+            return "", ""
+
+        docker_secret_token = docker_password_cipher.encrypt(
+            docker_secret.encode("utf-8")
+        ).decode("utf-8")
 
         # Validate credentials using Docker Hub API
         try:
@@ -121,9 +170,9 @@ def load_docker_credentials(vault_yml_path, vault_password_file):
             ) from error
 
     except subprocess.CalledProcessError as error:
-        raise RuntimeError(f"Vault decryption failed: {error.stderr.strip()}") from error
+        raise RuntimeError("Vault decryption failed.") from error
     except yaml.YAMLError as error:
-        raise RuntimeError(f"Failed to parse decrypted YAML: {error}") from error
+        raise RuntimeError("Failed to parse decrypted credential YAML.") from error
 
 
 def log_table_output(table_output, log_file):
@@ -136,15 +185,14 @@ def log_table_output(table_output, log_file):
         RuntimeError: If there is an error during the file writing process or directory creation.
     """
     try:
-        # Ensure the directory for the log file exists
-        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        secure_log_file(log_file)
         # Write the table output to the log file
         with open(log_file, "w", encoding="utf-8") as file:
             file.write("Command Execution Results Table:\n")  # Add a header to the table
             file.write(table_output)  # Write the actual table content
-    except Exception as e:
-        # If there is an error, raise a RuntimeError with the error message
-        raise RuntimeError(f"Failed to write table output to log file: {str(e)}")
+    except Exception as error:
+        # Do not propagate exception-controlled paths or values into worker logs.
+        raise RuntimeError("Failed to write task results to the log file.") from error
 
 
 def setup_logger(log_dir, log_file_path):
@@ -155,14 +203,14 @@ def setup_logger(log_dir, log_file_path):
     Returns:
         logging.Logger: The configured logger instance.
     """
-    # Ensure the log directory exists
-    os.makedirs(log_dir, exist_ok=True)
+    secure_log_file(log_file_path)
     logger = logging.getLogger(log_file_path)  # Create a logger with the provided log file path
     logger.setLevel(logging.INFO)  # Set the log level to INFO
     # Check if the logger already has handlers to avoid duplicate log entries
     if not logger.hasHandlers():
         # Create a file handler to write logs to the specified file
         file_handler = logging.FileHandler(log_file_path)
+        file_handler.addFilter(UrlCredentialRedactionFilter())
         # Define the format for log messages
         formatter = logging.Formatter('%(asctime)s - %(levelname)-7s - [%(filename)s] - %(message)s')
         # Apply the formatter to the file handler
@@ -219,11 +267,12 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
             if timeout and elapsed_time > timeout:
                 with log_lock:
                     logger.info(
-                      f"Timeout reached ({elapsed_time:.2f}s), stopping task execution for {task}."
+                      "Timeout reached (%.2fs), stopping task execution for %s.",
+                      elapsed_time, redact_sensitive_value(task)
                     )
                 return {
-                    "task": task,
-                    "package": package_display,
+                    "task": redact_sensitive_value(task),
+                    "package": redact_sensitive_value(package_display),
                     "status": "TIMEOUT",
                     "output": "",
                     "error": f"Timeout reached after {elapsed_time:.2f}s"
@@ -245,22 +294,24 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
             logger.info(f"### {execute_task.__name__} end ###")
 
         return {
-            "task": task,
-            "package": package_display,
+            "task": redact_sensitive_value(task),
+            "package": redact_sensitive_value(package_display),
             "status": result.upper(),
             "output": result,
             "error": ""
         }
-    except Exception as e:
-        # Log the error if the task fails
+    except Exception as error:
+        # Preserve the result contract without exposing exception-controlled data.
+        error_type = type(error).__name__
+        safe_error = f"Task execution failed ({error_type})."
         with log_lock:
-            logger.error(f"Task failed: {str(e)}")
+            logger.error("%s", safe_error)
         return {
-            "task": task,
-            "package": package_display,
+            "task": redact_sensitive_value(task),
+            "package": redact_sensitive_value(package_display),
             "status": "FAILED",
             "output": "",
-            "error": str(e)  # Include the error message
+            "error": safe_error,
         }
 
 
@@ -302,7 +353,7 @@ def worker_process(task, determine_function, user_data, version_variables, arc, 
             docker_username, docker_secret_token = load_docker_credentials(
                 omnia_credentials_yaml_path, omnia_credentials_vault_path)
         else:
-            docker_username, docker_secret_token = None, None
+            docker_username, docker_secret_token = "", ""
 
         # Different resources remain parallel. Tasks that share a Pulp resource
         # (notably multiple tags of one image) are serialized end to end. RPM
@@ -330,13 +381,16 @@ def worker_process(task, determine_function, user_data, version_variables, arc, 
         with log_lock:
             logger.info("Worker process %d completed task execution.", os.getpid())
         return result
-    except Exception:  # pylint: disable=broad-exception-caught
+    except Exception as error:  # pylint: disable=broad-exception-caught
         with log_lock:
-            logger.error("Worker process %s encountered an internal error.", os.getpid())
-            logger.error("Traceback:\n%s", traceback.format_exc())
+            logger.error(
+                "Worker process %s encountered an internal %s.",
+                os.getpid(), type(error).__name__
+            )
+        safe_task = redact_sensitive_value(task)
         return {
-            "task": task,
-            "package": task.get("package", task.get("Name", "unknown")),
+            "task": safe_task,
+            "package": safe_task.get("package", safe_task.get("Name", "unknown")),
             "status": "FAILED",
             "output": "",
             "error": "Task execution failed due to an internal error.",
@@ -367,9 +421,10 @@ def _task_resource_key(task):
 
 def _failed_worker_result(task, error_message, status="FAILED"):
     """Build a stable result when a worker cannot return normally."""
+    safe_task = redact_sensitive_value(task)
     return {
-        "task": task,
-        "package": task.get("package", task.get("Name", "unknown")),
+        "task": safe_task,
+        "package": safe_task.get("package", safe_task.get("Name", "unknown")),
         "status": status,
         "output": "",
         "error": error_message,
@@ -428,7 +483,7 @@ def execute_parallel(
         raise ValueError("dnf_max_concurrent_commands must be between 1 and 5")
 
     config = load_yaml_file(local_repo_config_path)
-    credential_data = load_vault_yaml(
+    credential_data = load_repository_credentials(
         omnia_credentials_yaml_path, omnia_credentials_vault_path
     )
     registry_contexts = resolve_registry_contexts(
@@ -540,7 +595,10 @@ def execute_parallel(
                 try:
                     task_results_data.append(async_result.get())
                 except Exception as error:  # pylint: disable=broad-exception-caught
-                    standard_logger.error("Worker result collection failed: %s", error)
+                    standard_logger.error(
+                        "Worker result collection failed (%s).",
+                        type(error).__name__
+                    )
                     task_results_data.append(
                         _failed_worker_result(
                             task, "Worker process did not return a result."
