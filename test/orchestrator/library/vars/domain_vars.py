@@ -56,6 +56,7 @@ MARKERS: List[str] = [
     "regression",
     "deploy",
     "slurm",
+    "buildstream",
 ]
 
 # =====================================================================
