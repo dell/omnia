@@ -201,6 +201,14 @@ CMDS: Dict[str, str] = {
     "kubectl_get_pods": (
         "kubectl get pods -A -o wide 2>/dev/null"
     ),
+    "kubectl_get_system_pods": (
+        "kubectl get pods -n kube-system -o wide 2>/dev/null"
+    ),
+    "kubectl_cluster_info": "kubectl cluster-info 2>/dev/null",
+    "kubectl_get_nodes_labels": (
+        "kubectl get nodes --show-labels --no-headers 2>/dev/null"
+    ),
+    "kubectl_describe_nodes": "kubectl describe nodes 2>/dev/null",
 
     # --- Slurm ---
     "sinfo": "sinfo -N -l 2>/dev/null",

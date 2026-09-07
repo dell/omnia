@@ -57,10 +57,11 @@
 # -----------------------------------------------------------------------------
 # Available FVT Suites (subfolders under fvt/<tag>/)
 # -----------------------------------------------------------------------------
-#   validate:   status
+#   validate:   status, slurm, kubernetes
 #   prepare:    openchami
-#   provision:  (none)
+#   provision:  slurm, kubernetes
 #   cleanup:    status
+#   kubernetes: (comprehensive K8s tests)
 #
 # =============================================================================
 
@@ -98,6 +99,14 @@ fvt_orchestrator:
     command: "test"
     suite: ""
     marker: ""
+    dataset: ""
+    sync_input: true
+
+  kubernetes:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "kubernetes"
     dataset: ""
     sync_input: true
 

@@ -44,6 +44,7 @@ FVT_TAGS: List[str] = [
     "roles",
     "playbooks",
     "slurm",
+    "kubernetes",
 ]
 
 # =====================================================================
@@ -56,6 +57,7 @@ MARKERS: List[str] = [
     "regression",
     "deploy",
     "slurm",
+    "kubernetes",
 ]
 
 # =====================================================================
@@ -63,15 +65,16 @@ MARKERS: List[str] = [
 # =====================================================================
 
 SUITES: Dict[str, List[str]] = {
-    "validate": ["status", "slurm"],
+    "validate": ["status", "slurm", "kubernetes"],
     "prepare": ["openchami"],
-    "provision": ["slurm"],
+    "provision": ["slurm", "kubernetes"],
     "cleanup": ["status"],
     "rollback": [],
     "modules": [],
     "roles": [],
     "playbooks": [],
     "slurm": [],
+    "kubernetes": [],
 }
 
 # =====================================================================
