@@ -28,6 +28,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from omnia_auto import load_test_config, run_on_host
+from ..vars.common_vars import CMDS
 from ..vars.k8s_vars import (
     K8S_DIRECTORIES,
     K8S_CONFIG_FILES,

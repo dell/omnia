@@ -209,6 +209,59 @@ CMDS: Dict[str, str] = {
         "kubectl get nodes --show-labels --no-headers 2>/dev/null"
     ),
     "kubectl_describe_nodes": "kubectl describe nodes 2>/dev/null",
+    "kubectl_get_control_plane_nodes": (
+        "kubectl get nodes --no-headers -l node-role.kubernetes.io/control-plane 2>/dev/null"
+    ),
+    "kubectl_get_etcd_pods": (
+        "kubectl get pods -n kube-system -l component=etcd --no-headers 2>/dev/null"
+    ),
+    "kubectl_get_coredns_pods": (
+        "kubectl get pods -n kube-system --no-headers 2>/dev/null | grep coredns"
+    ),
+    "kubectl_get_kube_proxy_pods": (
+        "kubectl get pods -n kube-system --no-headers 2>/dev/null | grep kube-proxy"
+    ),
+    "kubectl_get_component_pods": (
+        "kubectl get pods -n kube-system --no-headers 2>/dev/null | grep {component}"
+    ),
+    "kubectl_get_pods_namespace": (
+        "kubectl get pods -n {namespace} --no-headers 2>/dev/null"
+    ),
+    "kubectl_run_pod": (
+        "kubectl run {pod_name} --image={image} --restart=Never "
+        "-- sh -c '{command}' 2>&1"
+    ),
+    "kubectl_delete_pod": (
+        "kubectl delete pod {pod_name} -n {namespace} --ignore-not-found 2>/dev/null"
+    ),
+    "kubectl_get_pod_status": (
+        "kubectl get pod {pod_name} -n {namespace} --no-headers "
+        "-o custom-columns=STATUS:.status.phase 2>/dev/null"
+    ),
+    "kubectl_get_componentstatus": (
+        "kubectl get componentstatus 2>/dev/null"
+    ),
+    "kubectl_get_pv": "kubectl get pv 2>/dev/null",
+    "kubectl_get_pvc": "kubectl get pvc -n {namespace} 2>/dev/null",
+    "kubectl_get_sc": "kubectl get sc 2>/dev/null",
+    "kubectl_get_pods_all": (
+        "kubectl get pods -A --no-headers 2>/dev/null"
+    ),
+    "kubectl_version": "kubectl version --client 2>/dev/null",
+    "kubeadm_version": "kubeadm version 2>/dev/null",
+    "crio_version": "crio --version 2>/dev/null",
+    "systemctl_is_active_service": (
+        "systemctl is-active {service} 2>/dev/null"
+    ),
+    "ssh_hostname": (
+        "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "
+        "root@{host} hostname 2>/dev/null"
+    ),
+    "ssh_cmd": (
+        "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 "
+        "root@{host} {command} 2>/dev/null"
+    ),
+    "firewall_list_all": "firewall-cmd --list-all 2>/dev/null",
 
     # --- Slurm ---
     "sinfo": "sinfo -N -l 2>/dev/null",
