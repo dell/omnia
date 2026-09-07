@@ -1,0 +1,257 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Shared cleanup logic used by both orchestrator cleanup entry points:
+#   - cleanup_full.yml         (imported by orchestrator.yml; cleanup / cleanup_credentials)
+#   - cleanup_orchestrator.yml (standalone; component-level tags)
+#
+# Deliberately carries NO tags of its own. Tags are supplied by the
+# including task in each entry point, which is what keeps component-level
+# tags (slurm, k8s, ...) reachable standalone but not via orchestrator.yml.
+
+- name: Resolve configuration from environment
+  ansible.builtin.set_fact:
+    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+    project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+    cacheable: true
+
+- name: Set domain root directory
+  ansible.builtin.set_fact:
+    _domain_root_dir: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}"
+    cacheable: true
+
+- name: Set input_project_dir and output_project_dir
+  ansible.builtin.set_fact:
+    input_project_dir: "{{ omnia_data_path }}/orchestrator/input/{{ project_name }}"
+    output_project_dir: "{{ omnia_data_path }}/orchestrator/output/{{ project_name }}"
+    omnia_project_input_dir: "{{ omnia_data_path }}/orchestrator/input/{{ project_name }}"
+    orchestrator_output_dir: "{{ omnia_data_path }}/orchestrator/output/{{ project_name }}"
+    cacheable: true
+
+- name: Verify orchestrator input directory exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}"
+  register: orchestrator_input_stat
+
+- name: Auto-copy input files from source if runtime input dir is missing
+  when: not orchestrator_input_stat.stat.exists
+  block:
+    - name: Check if source input directory exists
+      ansible.builtin.stat:
+        path: "{{ _domain_root_dir }}/input"
+      register: _source_dir_check
+
+    - name: Create runtime input directory
+      ansible.builtin.file:
+        path: "{{ input_project_dir }}"
+        state: directory
+        mode: '0755'
+      when: _source_dir_check.stat.exists
+
+    - name: Copy input files from source to runtime directory
+      ansible.builtin.command:
+        cmd: "cp -a {{ _domain_root_dir }}/input/. {{ input_project_dir }}/"
+      when: _source_dir_check.stat.exists
+      changed_when: true
+
+    - name: Fail if no input files available
+      ansible.builtin.fail:
+        msg: >-
+          Orchestrator input directory '{{ input_project_dir }}' does not exist
+          and no source input files found at '{{ _domain_root_dir }}/input/'.
+      when: not _source_dir_check.stat.exists
+
+- name: Ensure orchestrator output directory exists
+  ansible.builtin.file:
+    path: "{{ orchestrator_output_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Display cleanup information
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      Orchestrator Cleanup
+      ============================================================
+      Tags: {{ ansible_run_tags | join(', ') if ansible_run_tags else 'None' }}
+      Skip Approval: {{ skip_approval }}
+      Dry Run: {{ dry_run }}
+      ============================================================
+
+- name: Load cleanup configuration
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir | dirname | dirname }}/roles/cleanup/config/default_cleanup.yml"
+
+- name: Set global settings
+  ansible.builtin.set_fact:
+    global_settings:
+      skip_approval: "{{ skip_approval }}"
+      dry_run: "{{ dry_run }}"
+
+# 'cleanup' means "every enabled component". Component names are matched
+# literally, so 'cleanup' is translated to the sentinel 'all' here.
+- name: Set effective tags
+  ansible.builtin.set_fact:
+    effective_tags: >-
+      {{ ['all'] if ('cleanup' in ansible_run_tags and 'cleanup_credentials' not in ansible_run_tags)
+      else ansible_run_tags }}
+
+- name: Filter components based on tags
+  ansible.builtin.set_fact:
+    target_components: "{{ cleanup_components | dict2items | selectattr('key', 'in', effective_tags) | items2dict }}"
+  when:
+    - effective_tags | length > 0
+    - effective_tags[0] != 'all'
+    - cleanup_components is defined
+
+- name: Use all components when 'all' tag
+  ansible.builtin.set_fact:
+    target_components: "{{ cleanup_components }}"
+  when:
+    - effective_tags | length == 0 or effective_tags[0] == 'all'
+    - cleanup_components is defined
+
+- name: Add credentials component when cleanup_credentials tag is used
+  ansible.builtin.set_fact:
+    target_components: >-
+      {{ target_components | combine({'credentials': cleanup_components.credentials
+      | combine({'enabled': true}, recursive=false)}, recursive=false) }}
+  when:
+    - ansible_run_tags is defined
+    - ansible_run_tags | select('equalto', 'cleanup_credentials') | list | length > 0
+    - target_components is defined
+    - target_components.keys() | list | select('equalto', 'credentials') | list | length == 0
+
+- name: Add all components when both cleanup and cleanup_credentials are present
+  ansible.builtin.set_fact:
+    target_components: >-
+      {{ cleanup_components | combine({'credentials': cleanup_components.credentials
+      | combine({'enabled': true}, recursive=false)}, recursive=false) }}
+  when:
+    - ansible_run_tags is defined
+    - ansible_run_tags | select('equalto', 'cleanup') | list | length > 0
+    - ansible_run_tags | select('equalto', 'cleanup_credentials') | list | length > 0
+
+- name: Validate cleanup configuration
+  ansible.builtin.assert:
+    that:
+      - target_components is defined
+    fail_msg: "Invalid cleanup configuration: target_components not found"
+
+- name: Fail if no components selected
+  ansible.builtin.fail:
+    msg: "No components selected for cleanup"
+  when: target_components.keys() | list | length == 0
+
+- name: Display selected components
+  ansible.builtin.debug:
+    msg: "Components to cleanup: {{ target_components.keys() | list | join(', ') }}"
+
+# With 'all', honour each component's enabled flag (this is what keeps
+# credentials out of a plain --tags cleanup run). With explicit component
+# tags the user asked for them by name, so run them regardless.
+- name: Filter enabled components
+  ansible.builtin.set_fact:
+    enabled_components: "{{ target_components | dict2items | selectattr('value.enabled', 'equalto', true) | items2dict }}"
+  when: effective_tags | length == 0 or effective_tags[0] == 'all'
+
+- name: Use all selected components when specific tags
+  ansible.builtin.set_fact:
+    enabled_components: "{{ target_components }}"
+  when: effective_tags | length > 0 and effective_tags[0] != 'all'
+
+- name: Add storage_mounts dependency for Slurm or K8s
+  ansible.builtin.set_fact:
+    enabled_components: "{{ enabled_components | combine({'storage_mounts': cleanup_components.storage_mounts}, recursive=false) }}"
+  when:
+    - effective_tags | length > 0
+    - effective_tags | intersect(['slurm', 'k8s']) | length > 0
+
+- name: Set execution order (priority descending)
+  ansible.builtin.set_fact:
+    execution_order: "{{ enabled_components | dict2items | sort(attribute='value.priority', reverse=true) | map(attribute='key') | list }}"
+
+# storage_mounts must unmount before slurm/k8s delete the underlying paths.
+# reject/select are used rather than difference/intersect because the latter
+# are set-based and discard the priority ordering established above.
+- name: Reorder to ensure storage_mounts runs before slurm/k8s
+  ansible.builtin.set_fact:
+    execution_order: >-
+      {{ (execution_order | reject('in', ['storage_mounts', 'slurm', 'k8s']) | list)
+      + ['storage_mounts']
+      + (execution_order | select('in', ['slurm', 'k8s']) | list) }}
+  when:
+    - "'storage_mounts' in execution_order"
+    - execution_order | select('in', ['slurm', 'k8s']) | list | length > 0
+
+- name: Display cleanup plan
+  ansible.builtin.debug:
+    msg: |
+      Cleanup Plan:
+      =============
+      Components: {{ execution_order | join(' -> ') }}
+      Total: {{ execution_order | length }}
+
+# Confirmation is required by default. A non-interactive run (no TTY) receives
+# empty input and aborts, rather than hanging -- automation must pass
+# SKIP_APPROVAL=true explicitly.
+- name: Confirm destructive cleanup
+  ansible.builtin.pause:
+    prompt: |
+      About to permanently delete data for: {{ execution_order | join(', ') }}
+      This includes data on shared NFS storage, which cannot be recovered.
+      Type 'yes' to proceed (anything else aborts)
+  register: cleanup_confirmation
+  when:
+    - not skip_approval | bool
+    - not dry_run | bool
+
+- name: Abort when cleanup is not confirmed
+  ansible.builtin.fail:
+    msg: >-
+      Cleanup aborted: confirmation not given. Re-run and type 'yes' at the
+      prompt, or set SKIP_APPROVAL=true for non-interactive use.
+  when:
+    - not skip_approval | bool
+    - not dry_run | bool
+    - cleanup_confirmation.user_input | default('') | trim | lower != 'yes'
+
+# 'apply' propagates check_mode into the component task files and any files
+# they include in turn (e.g. slurm -> storage_mounts), so DRY_RUN=true is
+# honoured everywhere from this single point.
+- name: Execute cleanup tasks for each component
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir | dirname | dirname }}/roles/cleanup/components/{{ component_name }}/tasks/cleanup.yml"
+    apply:
+      check_mode: "{{ dry_run | bool }}"
+  loop: "{{ execution_order }}"
+  loop_control:
+    loop_var: component_name
+  vars:
+    cleanup_components: "{{ target_components }}"
+    global_settings: "{{ global_settings }}"
+    trigger_component: "{{ 'slurm' if component_name == 'slurm' else 'k8s' if component_name == 'k8s' else omit }}"
+
+- name: Display cleanup completion
+  ansible.builtin.debug:
+    msg: |
+      ============================================================
+      Orchestrator Cleanup Completed
+      ============================================================
+      Status: completed
+      Components Cleaned: {{ execution_order | length }}
+      Components Failed: 0
+      Errors: None
+      ============================================================

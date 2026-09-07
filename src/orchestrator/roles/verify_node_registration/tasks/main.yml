@@ -1,0 +1,170 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# verify_node_registration — Wait for PXE-booted nodes to become reachable
+#
+# This role verifies that nodes have successfully booted and completed
+# cloud-init after PXE boot by checking node reachability.
+#
+# Verification strategy:
+#   1. SSH port reachability: Verify TCP port 22 is open on admin IP
+#   2. Boot time check: Verify node booted AFTER pxe_start_epoch via
+#      /proc/uptime to reject stale boots from previously running nodes
+#   3. metadata-service journal: Check for node-registration POST requests
+#      (secondary signal; logs may show container-internal IPs due to HAProxy)
+#
+# Required facts (set by calling playbook):
+#   - pxe_start_epoch: Epoch timestamp when PXE boot started
+#   - target_node_admin_ips: List of admin IPs to wait for
+#
+# This role runs on the OIM server (not localhost).
+
+# Step 1: Assert required facts are available
+- name: "[Node-Registration] Assert required facts are available"
+  ansible.builtin.assert:
+    that:
+      - pxe_start_epoch is defined
+      - pxe_start_epoch | string | length > 0
+      - target_node_admin_ips is defined
+      - target_node_admin_ips | length > 0
+    fail_msg: "{{ node_registration_fail_msg }}"
+    success_msg: "[Node-Registration] Facts confirmed. Waiting for {{ target_node_admin_ips | length }} nodes."
+
+# Step 2: Pause before polling (uses config from input/pxe_config.yml)
+- name: "[Node-Registration] Wait for nodes to begin cloud-init"
+  ansible.builtin.pause:
+    minutes: "{{ node_registration_pause_minutes | default(3) }}"
+    prompt: "{{ node_registration_pause_prompt }}"
+
+# Step 3: Poll node reachability, boot freshness, and metadata-service journal.
+# SSH port check (TCP/22) confirms the node is reachable.
+# /proc/uptime check confirms the node booted AFTER pxe_start_epoch,
+# preventing false positives from stale boots (e.g. nodes up for 23 days).
+# metadata-service journal is checked as a secondary signal.
+- name: "[Node-Registration] Wait for cloud-init node registration from all nodes"
+  ansible.builtin.shell: |
+    set -o pipefail
+    MISSING_NODES=0
+    OUTPUT=""
+    FAILED_IPS=""
+
+    # Also check metadata-service journal for any node-registration activity
+    JOURNAL_OUT=$(journalctl -u metadata-service \
+      --since "@{{ pxe_start_epoch }}" \
+      --no-pager 2>/dev/null)
+
+    PXE_START={{ pxe_start_epoch }}
+
+    # Check every node IP — verify SSH reachability AND that the node
+    # booted after pxe_start_epoch to avoid stale detection
+    # from nodes that have been up for days.
+    for ip in {{ target_node_admin_ips | join(' ') }}; do
+      SSH_OK=0
+      BOOT_FRESH=0
+      JOURNAL_OK=0
+
+      # Primary: Check if SSH port is reachable (node has booted)
+      if timeout 5 bash -c "echo > /dev/tcp/$ip/22" 2>/dev/null; then
+        SSH_OK=1
+
+        # Verify the node actually rebooted after PXE boot was triggered.
+        # Read uptime from /proc/uptime via SSH to compute boot epoch.
+        UPTIME_SECS=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
+          -o BatchMode=yes root@"$ip" \
+          "cat /proc/uptime 2>/dev/null | awk '{printf \"%d\", \$1}'" 2>/dev/null)
+
+        if [ -n "$UPTIME_SECS" ]; then
+          NOW=$(date +%s)
+          BOOT_EPOCH=$((NOW - UPTIME_SECS))
+          if [ "$BOOT_EPOCH" -ge "$PXE_START" ]; then
+            BOOT_FRESH=1
+          fi
+        fi
+      fi
+
+      # Secondary: Check metadata-service journal for node-registration requests
+      if echo "$JOURNAL_OUT" | grep -q "{{ node_registration_log_pattern | default('phone-home') }}" 2>/dev/null; then
+        JOURNAL_OK=1
+      fi
+
+      if [ "$SSH_OK" -eq 1 ] && [ "$BOOT_FRESH" -eq 1 ]; then
+        OUTPUT="${OUTPUT}{{ node_registration_status_ok }} $ip (booted after PXE trigger)\n"
+      elif [ "$SSH_OK" -eq 1 ] && [ "$BOOT_FRESH" -eq 0 ]; then
+        OUTPUT="${OUTPUT}{{ node_registration_status_wait }} $ip (stale boot — node has not rebooted yet)\n"
+        MISSING_NODES=1
+        FAILED_IPS="${FAILED_IPS}${ip} "
+      else
+        OUTPUT="${OUTPUT}{{ node_registration_status_wait }} $ip\n"
+        MISSING_NODES=1
+        FAILED_IPS="${FAILED_IPS}${ip} "
+      fi
+    done
+
+    echo -e "$OUTPUT"
+    # Print failed IPs on a dedicated line so Ansible can parse it
+    echo "NODE_REG_FAILED_IPS=${FAILED_IPS}"
+    # Exit 1 if any node is missing — triggers Ansible until retry
+    exit $MISSING_NODES
+  args:
+    executable: /bin/bash
+  register: node_registration_poll_result
+  until: node_registration_poll_result.rc == 0
+  retries: "{{ node_registration_retries | default(120) }}"
+  delay: "{{ node_registration_delay | default(15) }}"
+  changed_when: false
+  become: true
+  ignore_errors: true
+
+# Step 4: Print per-node registration status from final poll
+- name: "[Node-Registration] Display node-registration status per node"
+  ansible.builtin.debug:
+    msg: "{{ node_registration_poll_result.stdout_lines | default([]) }}"
+
+# Step 5: Extract node-registration failed IPs from the poll output
+- name: "[Node-Registration] Parse failed IPs from poll output"
+  ansible.builtin.set_fact:
+    node_registration_failed_ips: >-
+      {{ (node_registration_poll_result.stdout_lines | default([])
+          | select('match', '^NODE_REG_FAILED_IPS=')
+          | first | default('NODE_REG_FAILED_IPS='))
+          .split('=', 1)[1] | trim | split() | reject('equalto', '') | list }}
+  when: node_registration_poll_result.rc | default(0) != 0
+
+- name: "[Node-Registration] Default node_registration_failed_ips to empty when all succeeded"
+  ansible.builtin.set_fact:
+    node_registration_failed_ips: []
+  when: node_registration_poll_result.rc | default(0) == 0
+
+# Step 6: Cache node-registration results on localhost so reporting play can use them
+- name: "[Node-Registration] Store node-registration failure list on localhost"
+  ansible.builtin.set_fact:
+    node_registration_failed_ips: "{{ node_registration_failed_ips | default([]) }}"
+    node_registration_completed: true
+    cacheable: true
+  delegate_to: localhost
+  delegate_facts: true
+
+# Step 7: Report outcome
+- name: "[Node-Registration] All nodes completed cloud-init successfully"
+  ansible.builtin.debug:
+    msg: "{{ node_registration_success_msg }}"
+  when: node_registration_failed_ips | default([]) | length == 0
+
+- name: "[Node-Registration] WARNING — some nodes failed node-registration"
+  ansible.builtin.debug:
+    msg: >-
+      [Node-Registration] WARNING: {{ node_registration_failed_ips | length }} node(s) did NOT register:
+      {{ node_registration_failed_ips | join(', ') }}.
+      These nodes may not have booted successfully or cloud-init failed.
+  when: node_registration_failed_ips | default([]) | length > 0

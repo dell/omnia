@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Create a common SMD group (ssh, chrony, phone_home).
+# Create a common SMD group (ssh, chrony, node_registration).
 # Extracted from configure_ochami/tasks/create_groups_common.yml.
 # Called in a loop with common_group_name set by the caller.
 
