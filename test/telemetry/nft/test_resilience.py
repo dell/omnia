@@ -559,8 +559,9 @@ def test_operator_pod_recovery(host):
             "prefix": "victoria-metrics-operator",
             "cr_cmd": (
                 f"kubectl get vmcluster -n {TELEMETRY_NAMESPACE} "
-                f"-o jsonpath='{{.items[0].status.clusterStatus}}' 2>/dev/null"
+                f"-o jsonpath='{{.items[0].status.updateStatus}}' 2>/dev/null"
             ),
+            "cr_healthy_values": ["operational", "expanding"],
             "name": "VictoriaMetrics Operator",
         },
         {
@@ -570,6 +571,7 @@ def test_operator_pod_recovery(host):
                 f"-o jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'"
                 f" 2>/dev/null"
             ),
+            "cr_healthy_values": ["True"],
             "name": "Strimzi Cluster Operator",
         },
     ]
@@ -582,6 +584,7 @@ def test_operator_pod_recovery(host):
         result = verify_operator_recovery(
             host, op["prefix"], op["cr_cmd"],
             timeout=OPERATOR_RECOVERY_TIMEOUT,
+            cr_healthy_values=op.get("cr_healthy_values"),
         )
         all_details.append(f"{op['name']}: {result['details']}")
         if not result["success"]:

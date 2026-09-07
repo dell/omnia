@@ -487,7 +487,8 @@ def verify_pods_after_reboot(host, timeout=600, poll_interval=15,
 # -------------------------------------------------------------------------
 
 def verify_operator_recovery(host, operator_prefix, cr_check_cmd,
-                             timeout=300, namespace=None):
+                             timeout=300, namespace=None,
+                             cr_healthy_values=None):
     """Delete an operator pod and verify its CRs are still reconciled.
 
     Args:
@@ -496,6 +497,9 @@ def verify_operator_recovery(host, operator_prefix, cr_check_cmd,
         cr_check_cmd: Command to check if CRs are healthy after recovery.
         timeout: Max seconds to wait for operator recovery.
         namespace: K8s namespace (default: telemetry).
+        cr_healthy_values: List of acceptable CR status values
+            (e.g. ['operational', 'expanding']). If None, any non-empty
+            output is treated as healthy.
 
     Returns:
         dict with keys: success, deleted, recovery, cr_healthy, details.
@@ -532,11 +536,18 @@ def verify_operator_recovery(host, operator_prefix, cr_check_cmd,
 
     # Check if CRs are healthy
     cr_result = run_on_kube_vip(host, cr_check_cmd)
-    cr_healthy = cr_result.rc == 0 and cr_result.stdout.strip()
+    cr_output = cr_result.stdout.strip() if cr_result.rc == 0 else ""
 
+    if cr_healthy_values:
+        cr_healthy = cr_output in cr_healthy_values
+    else:
+        cr_healthy = bool(cr_output)
+
+    cr_status_str = cr_output if cr_output else "<empty>"
     details = (
         f"Operator '{operator_prefix}' recovered in {recovery['elapsed']}s. "
-        f"CR health: {'healthy' if cr_healthy else 'unhealthy'}"
+        f"CR status: {cr_status_str} "
+        f"({'healthy' if cr_healthy else 'unhealthy'})"
     )
 
     return {
