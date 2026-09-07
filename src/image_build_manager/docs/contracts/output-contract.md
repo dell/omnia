@@ -25,6 +25,7 @@ filename rather than a directory.
 
 ```yaml
 overall_status: "success"
+image_build_type: "image-thrillhouse"
 
 s3_configurations:
   endpoint_url: "http://10.20.0.1:9000"
@@ -38,7 +39,10 @@ functional_group_images:
       image: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/rootfs.squashfs"
 ```
 
-The object layout depends on `image_build_type`:
+`image_build_type` records the engine that produced this manifest. It is build
+provenance, so consumers must use this value when interpreting artifact paths
+rather than reading the potentially newer value from `image_build_config.yml`.
+The object layout depends on this recorded value:
 
 - `image-builder` publishes versioned kernel and initrd objects beneath the
   `efi-images/` prefix inside `boot-images`, and a versioned rootfs object under
@@ -68,12 +72,27 @@ bucket or S3 scheme.
 | Field | Type | Description |
 |-------|------|-------------|
 | `overall_status` | string | `"success"` or `"failed"` |
+| `image_build_type` | string | Producing engine: `"image-builder"` or `"image-thrillhouse"` |
 | `s3_configurations.endpoint_url` | string | S3 HTTP(S) endpoint URL, without the artifact path |
 | `s3_configurations.bucket` | string | Artifact bucket; currently `"boot-images"` |
 | `functional_group_images[].functional_group` | string | Group name with arch suffix |
 | `functional_group_images[].kernel` | string | Exact endpoint-relative kernel object path (`vmlinuz*`) |
 | `functional_group_images[].initrd` | string | Exact endpoint-relative initrd object path (`initramfs*`) |
 | `functional_group_images[].image` | string | Exact endpoint-relative rootfs object path (`rhel*` or `rootfs.squashfs`) |
+
+### Compatibility and engine changes
+
+Current manifests always include `image_build_type`. Validation of a legacy
+manifest that does not contain the field may infer the engine only when all
+artifact directories consistently contain one recognized suffix: `-imgbld`
+or `-imgth`. Ambiguous or suffix-free legacy manifests must be regenerated.
+
+Changing `image_build_config.yml` does not alter an existing manifest. Tests
+use the manifest engine for path-layout checks and the current input for the
+expected functional-group set. When those engine values differ, test output
+reports the difference while validating the artifacts produced by the recorded
+build. A new build overwrites the latest manifest with the newly selected
+engine.
 
 ### S3 Endpoint
 

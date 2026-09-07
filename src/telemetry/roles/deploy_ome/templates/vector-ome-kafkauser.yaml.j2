@@ -3,8 +3,8 @@
 # Purpose: Dedicated Strimzi KafkaUser for Vector-OME Kafka consumer
 # Security: mTLS authentication with least-privilege ACLs
 #
-# Note: Only Vector-OME requires a new KafkaUser. Vector-iDRAC and Vector-LDMS
-#       reuse the existing kafkapump KafkaUser (broad wildcard ACLs cover consumer access).
+# Note: Vector-iDRAC and Vector-LDMS reuse the existing kafkapump KafkaUser,
+#       while Vector-OME requires a separate identity for its external producer security domain.
 #       OME is an external producer with a different security domain, so it gets a
 #       dedicated, least-privilege KafkaUser.
 

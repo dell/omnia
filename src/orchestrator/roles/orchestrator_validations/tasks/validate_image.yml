@@ -99,11 +99,16 @@
     - _all_fg_entries | default([]) | length > 0
     - _fg_image_entry | default({}) | length == 0
 
-- name: Find matching FG entry (_first fallback — strip _first and retry)
+# The "_first" suffix is an orchestrator-internal concept (marks the first
+# control-plane node).  image_build_manager builds a single image for
+# "service_kube_control_plane" — there is no separate "_first" image.
+# Fall back to matching without "_first" so the same image is reused.
+- name: Find matching FG entry (strip _first suffix fallback)
   ansible.builtin.set_fact:
     _fg_image_entry: >-
       {{ _all_fg_entries
-         | selectattr('functional_group', 'search', '^' + (_fg_prefix | regex_replace('_first$', '')) + '_.*' + _fg_arch + '$')
+         | selectattr('functional_group', 'search',
+             '^' + _fg_prefix | regex_replace('_first$', '') + '_.*' + _fg_arch + '$')
          | list | first | default({}) }}
   when:
     - _all_fg_entries | default([]) | length > 0

@@ -27,7 +27,7 @@
     dest: "{{ nodes_dir }}/groups-{{ additional_metadata_svc_fg_smd_group_name }}.yml"
     mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
   vars:
-    nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
+    smd_group_nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
 
 - name: Delete SMD group - {{ additional_metadata_svc_fg_smd_group_name }}
   ansible.builtin.command: >-

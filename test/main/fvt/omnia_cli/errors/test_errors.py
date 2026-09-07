@@ -15,32 +15,33 @@
 """
 Omnia CLI — Error Handling Verification.
 
-TC_OC_011: Verify omnia-cli unknown command exits with error
+MAIN_FVT_OMNIA_CLI_V012: Verify omnia-cli unknown command exits with error
 """
 
 import pytest
+
+from library.vars import TEST_CASES as TC
 
 from library.functions import TestLogger
 from library.functions.omnia_main_func import (
     run_omnia_cli_expect_error,
 )
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
 
 
-@pytest.mark.sanity
-@pytest.mark.order(10)
+@pytest.mark.regression
+@pytest.mark.order(12)
 def test_cli_unknown_command(host):
-    """TC_OC_011: Verify omnia-cli unknown command exits with error."""
-    tl = TestLogger(
-        TEST_NAMES["cli_unknown_command"], "TC_OC_011"
-    )
+    """MAIN_FVT_OMNIA_CLI_V012: Verify omnia-cli unknown command exits with error."""
+    tc = TC["cli_unknown_command"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cli_expect_error(
         host, "omnia_cli_unknown"
     )
+    tl.bind_result(result)
 
     if result["success"]:
         tl.passed(LOG["cli_unknown_error_ok"].format(

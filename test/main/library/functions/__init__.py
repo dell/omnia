@@ -25,7 +25,6 @@ from omnia_auto import (
     Symbols,
     log,
     set_debug_mode,
-    TestLogger,
     get_test_output,
     get_testinfra_host,
     load_test_config,
@@ -40,6 +39,7 @@ from omnia_auto import (
 
 # --- Omnia Main verification ---
 from .omnia_main_func import (
+    resolve_runtime_paths,
     is_running_from_omnia_venv,
     run_omnia_cmd,
     run_omnia_cmd_expect_error,
@@ -55,8 +55,6 @@ from .omnia_main_func import (
     check_domain_output_dirs,
     check_help_output,
     check_error_contains,
-    check_pip_packages,
-    check_galaxy_collections,
     run_omnia_cli_cmd,
     run_omnia_cli_expect_error,
     check_cli_help_output,
@@ -69,6 +67,8 @@ from .validation_func import (
     validate_all,
     ConfigValidationError,
 )
+from .output_func import TestLogger, command_result_fields
+from .dependency_func import check_galaxy_collections, check_pip_packages
 
 __all__ = [
     "Colors",
@@ -87,6 +87,7 @@ __all__ = [
     "get_current_report",
     "set_current_report",
     "is_running_from_omnia_venv",
+    "resolve_runtime_paths",
     "run_omnia_cmd",
     "run_omnia_cmd_expect_error",
     "check_env_file_installed",
@@ -110,4 +111,5 @@ __all__ = [
     "validate_test_config",
     "validate_all",
     "ConfigValidationError",
+    "command_result_fields",
 ]

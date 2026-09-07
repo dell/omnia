@@ -167,6 +167,9 @@
     "additional_repos_entry": {
       "type": ["object", "null"],
       "description": "Additional repositories section (map of repo_name -> repo config)",
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9_.-]+$"
+      },
       "additionalProperties": {
         "$ref": "#/definitions/repo_entry"
       }
@@ -174,6 +177,9 @@
     "arch_repos": {
       "type": "object",
       "description": "Repository definitions for a specific architecture",
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9_.-]+$"
+      },
       "properties": {
         "additional_repos": {
           "$ref": "#/definitions/additional_repos_entry"
@@ -181,6 +187,9 @@
         "user_repos": {
           "type": ["object", "null"],
           "description": "User custom repositories",
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9_.-]+$"
+          },
           "additionalProperties": {
             "$ref": "#/definitions/repo_entry"
           }

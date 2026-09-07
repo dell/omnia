@@ -53,7 +53,7 @@
         - hostvars['localhost']['cluster_inv'] is defined
   tags: deploy
 
-# ── Phase 2: Source deployment ─────────────────────────────────────────────────
+# ── Phase 2: Source deployment ──────────────────────────────────────────────
 # Each source: generates manifests and applies its own resources independently
 - name: "Phase 2 | Deploy iDRAC telemetry"
   ansible.builtin.import_playbook: sources/deploy_idrac_telemetry.yml

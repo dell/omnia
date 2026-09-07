@@ -16,8 +16,8 @@
 Image Build Cleanup Images — Verification.
 
 Validates that --tags cleanup_images removed built images:
-  TC_CI_002: S3 images deleted (boot-images bucket contents empty)
-  TC_CI_003: Registry images deleted (no tagged images remain)
+  - S3 images are deleted (boot-images bucket contents are empty).
+  - Registry images are deleted (no tagged images remain).
 
 Note: Docker Distribution keeps repository metadata even after all
 manifests are deleted, so ``regctl repo ls`` may still list repo names.
@@ -38,12 +38,18 @@ from library.messages import TEST_LOG_MSGS as LOG
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_s3_images_cleaned(host):
-    """TC_CI_002: Verify S3 images deleted after cleanup_images."""
+    """Verify S3 images are deleted after cleanup_images."""
     tc = TC["s3_images_cleaned"]
     tl = TestLogger(tc["title"], tc["id"])
     result = check_s3_images_removed(host)
 
-    if result["success"]:
+    if result.get("skipped"):
+        tl.skipped(
+            LOG["cleanup_images_s3_not_initialized"],
+            result["details"],
+        )
+        pytest.skip(result["details"])
+    elif result["success"]:
         tl.passed(LOG["cleanup_images_s3_ok"], result["details"])
     else:
         tl.failed(
@@ -51,21 +57,26 @@ def test_s3_images_cleaned(host):
             result["details"],
         )
 
-    assert result["success"], (
-        f"S3 images not cleaned: {result.get('remaining_objects', 0)} "
-        f"object(s) remaining"
+    assert result["success"], result.get(
+        "details", "S3 image cleanup could not be verified"
     )
 
 
 @pytest.mark.sanity
 @pytest.mark.order(2)
 def test_registry_images_cleaned(host):
-    """TC_CI_003: Verify registry images deleted after cleanup_images."""
+    """Verify registry images are deleted after cleanup_images."""
     tc = TC["registry_images_cleaned"]
     tl = TestLogger(tc["title"], tc["id"])
-    result = check_registry_cleaned(host)
+    result = check_registry_cleaned(host, require_available=True)
 
-    if result["success"]:
+    if result.get("skipped"):
+        tl.skipped(
+            LOG["cleanup_images_registry_not_initialized"],
+            result["details"],
+        )
+        pytest.skip(result["details"])
+    elif result["success"]:
         tl.passed(LOG["cleanup_images_registry_ok"], result["details"])
     else:
         tl.failed(
@@ -74,6 +85,5 @@ def test_registry_images_cleaned(host):
         )
 
     assert result["success"], (
-        f"Registry images not cleaned: "
-        f"{', '.join(result.get('repos_with_tags', []))}"
+        result.get("details", "Registry image cleanup could not be verified")
     )

@@ -36,6 +36,15 @@ from ._config_helpers import (                       # noqa: F401
     get_configured_functional_groups,
 )
 
+# --- AArch64 build-node checks -----------------------------------------------
+from .aarch64_func import (                          # noqa: F401
+    check_aarch64_architecture,
+    check_aarch64_builder_image,
+    check_aarch64_regctl_installed,
+    check_aarch64_ssh_connectivity,
+    check_aarch64_work_dirs,
+)
+
 # --- Container checks --------------------------------------------------------
 from .container_func import (                        # noqa: F401
     check_container_running,
@@ -58,6 +67,7 @@ from .build_status_func import (                     # noqa: F401
     check_build_status_file,
     check_functional_groups_built,
     check_build_status_s3_match,
+    resolve_build_status_image_type,
 )
 
 # --- Image content (squashfs + RPM) ------------------------------------------
@@ -104,6 +114,12 @@ from .log_func import (                              # noqa: F401
 __all__ = [
     # Config helpers
     "get_configured_functional_groups",
+    # AArch64 build-node checks
+    "check_aarch64_architecture",
+    "check_aarch64_builder_image",
+    "check_aarch64_regctl_installed",
+    "check_aarch64_ssh_connectivity",
+    "check_aarch64_work_dirs",
     # Container checks
     "check_container_running",
     "check_s3_containers",
@@ -116,6 +132,7 @@ __all__ = [
     "check_build_status_file",
     "check_functional_groups_built",
     "check_build_status_s3_match",
+    "resolve_build_status_image_type",
     # Image content
     "verify_image_packages",
     # Cleanup verification

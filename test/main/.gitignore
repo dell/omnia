@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+reports/
+test_creds.yml
+test_creds.yml.bak
+.test_creds.key
+.test_creds.key.bak
+.run_validation_rc

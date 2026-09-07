@@ -28,7 +28,6 @@ from ._config_helpers import (
     _load_remote_ibm_config,
 )
 from .s3_func import (
-    _BUILD_TYPE_SUFFIXES,
     _artifact_identity_error,
     _artifact_layout_result,
     _load_build_status_manifest,
@@ -43,6 +42,7 @@ from ..vars.common_vars import (
     DOMAIN_NAME,
     PACKAGE_GROUPS_FILENAME,
     IMAGE_VERIFY_TEMP_MOUNT,
+    IMAGE_BUILD_TYPE_SUFFIXES,
     SQUASHFS_PACKAGE,
     S3_BOOT_IMAGES_BUCKET,
 )
@@ -96,14 +96,14 @@ def _check_squashfs_tools(host) -> Dict[str, Any]:
 
 
 def _get_packages_from_catalog(
-    host, functional_group: str
+    host, functional_group: str, arch: str
 ) -> List[str]:
     """Resolve expected packages from the catalog JSON on target.
 
     Follows the catalog resolution chain:
         functionallayer[name].components[]
-        -> groups[comp].components[]
-        -> packages[key].name
+        -> non-driver groups[comp].components[]
+        -> architecture-matching packages[key].name
 
     Returns:
         List of RPM package names, or empty list if unavailable.
@@ -138,10 +138,20 @@ def _get_packages_from_catalog(
     # Resolve RPM packages through groups
     pkg_names: list[str] = []
     for comp_name in target_layer.get("components", []):
+        # Keep validation aligned with parse_catalog: hardware driver groups
+        # are installed after boot and are not baked into the OS image.
+        if "driver_group" in comp_name:
+            continue
         group = groups.get(comp_name, {})
         for pkg_key in group.get("components", []):
             pkg_data = packages.get(pkg_key, {})
             if pkg_data.get("packagetype", "") != "rpm":
+                continue
+            arch_match = any(
+                source.get("architecture") == arch
+                for source in pkg_data.get("sources", [])
+            )
+            if not arch_match:
                 continue
             rpm_name = pkg_data.get("name", "")
             if rpm_name:
@@ -218,7 +228,7 @@ def _get_packages_from_package_groups(
 
 
 def _get_image_packages_from_config(
-    host, functional_group: str
+    host, functional_group: str, arch: str
 ) -> List[str]:
     """Get expected packages for a functional group.
 
@@ -244,7 +254,7 @@ def _get_image_packages_from_config(
 
     if fg_source == "catalog":
         return _get_packages_from_catalog(
-            host, functional_group,
+            host, functional_group, arch,
         )
 
     # config mode
@@ -332,9 +342,7 @@ def verify_image_packages(
             ),
         }
 
-    expected_suffix = _BUILD_TYPE_SUFFIXES[expected["image_build_type"]]
-
-    status_entries, status_bucket, status_error = (
+    status_entries, status_bucket, manifest_build_type, status_error = (
         _load_build_status_manifest(host, arch)
     )
     if status_error:
@@ -345,6 +353,7 @@ def verify_image_packages(
             "details": status_error,
             "error": status_error,
         }
+    expected_suffix = IMAGE_BUILD_TYPE_SUFFIXES[manifest_build_type]
 
     temp_root, temp_image, temp_mount = _new_image_verification_paths()
 
@@ -373,7 +382,7 @@ def verify_image_packages(
         host.run(CMDS["mkdir_p"].format(path=temp_mount))
 
         for fg in groups:
-            expected_pkgs = _get_image_packages_from_config(host, fg)
+            expected_pkgs = _get_image_packages_from_config(host, fg, arch)
             if not expected_pkgs:
                 results.append({
                     "functional_group": fg,
