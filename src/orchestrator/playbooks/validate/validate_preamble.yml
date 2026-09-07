@@ -41,6 +41,8 @@
   hosts: oim
   connection: ssh
   gather_facts: false
-  roles:
-    - role: validate_preamble
-      tasks_from: oim.yml
+  tasks:
+    - name: Load OIM-specific preamble
+      ansible.builtin.include_role:
+        name: validate_preamble
+        tasks_from: oim.yml
