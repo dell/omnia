@@ -109,6 +109,7 @@ def pytest_configure(config):
         "deploy": "Playbook deployment tests (requires full environment)",
         "slurm": "Slurm-specific tests (requires Slurm enabled)",
         "kubernetes": "Kubernetes-specific tests (requires K8s enabled)",
+        "buildstream": "BuildStream pipeline validation (post-provision sanity)",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")

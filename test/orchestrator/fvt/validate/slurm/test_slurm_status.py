@@ -54,6 +54,7 @@ def _skip_if_slurm_disabled(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_slurm_enabled(host):
     """TC_SL_001: Verify Slurm is enabled in catalog."""
@@ -77,6 +78,7 @@ def test_slurm_enabled(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_slurmctld_running(host):
     """TC_SL_003: Verify Slurm controller daemon (slurmctld) is running."""
@@ -98,6 +100,7 @@ def test_slurmctld_running(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_slurmd_running(host):
     """TC_SL_004: Verify Slurm compute daemon (slurmd) is running."""
@@ -119,6 +122,7 @@ def test_slurmd_running(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_slurmdbd_running(host):
     """TC_SL_005: Verify Slurm database daemon (slurmdbd) is running."""
@@ -140,6 +144,7 @@ def test_slurmdbd_running(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(5)
 def test_munge_running(host):
     """TC_SL_006: Verify Munge authentication service is running."""
@@ -161,6 +166,7 @@ def test_munge_running(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(6)
 def test_slurm_services_running(host):
     """TC_SL_007: Verify all Slurm services are running."""
@@ -182,6 +188,7 @@ def test_slurm_services_running(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(7)
 def test_slurm_directories_exist(host):
     """TC_SL_008: Verify Slurm directories exist on NFS."""
@@ -203,6 +210,7 @@ def test_slurm_directories_exist(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(8)
 def test_slurm_config_files_exist(host):
     """TC_SL_009: Verify Slurm configuration files exist."""
@@ -224,6 +232,7 @@ def test_slurm_config_files_exist(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(9)
 def test_slurmctld_responding(host):
     """TC_SL_012: Verify Slurm controller is responding."""

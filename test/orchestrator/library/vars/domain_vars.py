@@ -65,6 +65,7 @@ MARKERS: List[str] = [
     "deploy",
     "slurm",
     "kubernetes",
+    "buildstream",
 ]
 
 # =====================================================================
