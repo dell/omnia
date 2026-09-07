@@ -1,4 +1,4 @@
-# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,22 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# BuildStream Manager Configuration (Omnia 2.3 — domain-segregated)
-#
-# In the multi-repo design (Omnia 2.3), pxe_buildstream_manager lives in
-# build_stream/roles/ but reads orchestrator input files (pxe_mapping_file.csv,
-# gitlab_config.yml) from the orchestrator input directory.
-# The restart_state and artifacts remain under build_stream_root.
+# BuildStream Manager Configuration
 omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
 restart_state_dir: "{{ omnia_data_path }}/build_stream_root/restart_state"
-
-# Orchestrator input directory — where pxe_mapping_file.csv and gitlab_config.yml live
-orchestrator_input_dir: "{{ omnia_data_path }}/orchestrator/input/project_default"
-
-# input_dir resolves to the orchestrator input directory for CSV/config reads.
-# Playbooks can override via extra_vars if needed.
-input_dir: "{{ hostvars['localhost']['orchestrator_input_project_dir'] | default(orchestrator_input_dir) }}"
-
+input_dir: "{{ hostvars['localhost']['input_project_dir'] | default(omnia_data_path + '/input/project_default') }}"
 bsm_enabled: "{{ enable_build_stream | default(false) | bool }}"
 
 # GitLab Configuration

@@ -72,6 +72,7 @@ ansible-playbook playbooks/slurm_config_util.yml
 | `utils_setup` | Environment validation and initialization |
 | `iso_creation` | Create custom OS installation ISOs |
 | `iso_delivery` | Deliver ISOs via iDRAC virtual media |
+| `pxe_buildstream_manager` | Manage PXE boot with BuildStream |
 | `fetch_iso` | Download and validate OS ISOs |
 | `log_collector` | Collect logs from cluster nodes |
 | `create_container_group` | Create container groups for infrastructure |
