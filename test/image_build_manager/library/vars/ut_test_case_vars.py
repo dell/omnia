@@ -23,6 +23,14 @@ def _class_cases(file_name, class_name, cases):
     }
 
 
+def _module_cases(file_name, cases):
+    """Build explicit pytest-node-to-test-case-ID mappings for module tests."""
+    return {
+        f"{file_name}::{function_name}": f"IMGBM_UT_{sequence:03d}"
+        for sequence, function_name in cases.items()
+    }
+
+
 # Every sequence is explicit so formatting or reordering cannot renumber a
 # published case. Add new cases with the next available sequence.
 UT_TEST_CASE_IDS = {
@@ -187,6 +195,37 @@ UT_TEST_CASE_IDS = {
         "TestNoHardcodedOmniaPaths",
         {
             73: "test_role_vars_no_omnia_defaults",
+        },
+    ),
+    **_module_cases(
+        "test_input_validation_schema.py",
+        {
+            74: "test_valid_boolean_values_pass",
+            75: "test_top_level_required_values_must_exist",
+            76: "test_quoted_boolean_values_fail",
+            77: "test_empty_scalar_values_fail",
+            78: "test_optional_arm_host_may_be_empty",
+            79: "test_optional_arm_host_must_be_ipv4_when_set",
+            80: "test_minio_requires_empty_endpoint",
+            81: "test_minio_endpoint_key_is_required",
+            82: "test_powerscale_requires_nonempty_endpoint",
+            83: "test_powerscale_accepts_valid_endpoint",
+            84: "test_arm_host_requires_nonempty_ssh_user",
+            85: "test_all_build_controls_are_required",
+            86: "test_package_groups_schema_rejects_blank_package",
+            87: "test_valid_repo_status_passes_schema_and_logic",
+            88: "test_repo_status_requires_success",
+            89: "test_repo_status_requires_repo_manager_contract",
+            90: "test_repo_status_allows_empty_internet_repo_manager_values",
+            91: "test_repo_status_checks_repo_manager_structure_only",
+            92: "test_repo_status_requires_certificate_structure",
+            93: "test_repo_status_rejects_invalid_port_type_or_range",
+            94: "test_repo_status_requires_certificate_values_to_be_strings",
+            95: "test_repo_status_rejects_blank_url",
+            96: "test_repo_status_requires_usable_x86_repository",
+            97: "test_repo_status_boolean_priority_fails",
+            98: "test_internet_repo_status_sample_passes_contract",
+            99: "test_repo_contract_runs_in_build_setup_not_general_validation",
         },
     ),
 }

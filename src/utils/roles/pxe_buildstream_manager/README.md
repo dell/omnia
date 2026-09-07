@@ -4,7 +4,7 @@ Manages PXE boot operations with BuildStream integration for compute node provis
 
 ## Description
 
-This role orchestrates PXE boot processes integrated with BuildStream Manager (BSM) for large-scale compute node provisioning. It handles effective inventory computation, phone-home verification, GitLab integration, and restart state management.
+This role orchestrates PXE boot processes integrated with BuildStream Manager (BSM) for large-scale compute node provisioning. It handles effective inventory computation, node-registration verification, GitLab integration, and restart state management.
 
 ## Requirements
 
@@ -21,7 +21,7 @@ Available variables are listed below, along with default values (see `vars/main.
 # BuildStream Manager configuration
 enable_build_stream: false
 buildstream_timeout: 3600
-phone_home_timeout: 1800
+node_registration_timeout: 1800
 
 # GitLab integration
 gitlab_upload_enabled: false
@@ -48,14 +48,14 @@ None.
       vars:
         enable_build_stream: true
         buildstream_timeout: 7200
-        phone_home_timeout: 2400
+        node_registration_timeout: 2400
 ```
 
 ## Tasks
 
 - `main.yml` - Main orchestration
 - `compute_effective_inventory.yml` - Calculate nodes needing restart
-- `cloudinit_phone_home.yml` - Handle post-boot phone-home verification
+- `cloudinit_node_registration.yml` - Handle post-boot node-registration verification
 - `upload_to_gitlab.yml` - Upload results to GitLab server
 - `update_restart_state.yml` - Update restart state tracking
 - `write_node_results.yml` - Write node provisioning results
