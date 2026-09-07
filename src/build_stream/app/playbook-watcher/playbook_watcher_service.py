@@ -585,7 +585,8 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
                     return None
             
             # Validate config_path is within allowed directory
-            if not config_path.startswith("/opt/omnia/") or ".." in config_path:
+            allowed_base = os.path.join(OMNIA_DATA_PATH, "")
+            if not config_path.startswith(allowed_base) or ".." in config_path:
                 log_secure_info("error", "Invalid config_path", config_path[:8])
                 return None
         else:
@@ -1235,8 +1236,8 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                 log_secure_info("warning", f"Failed to parse test output log: {e}", job_id)
         
         # Extract current run from shared test_report.json by report_id and save to artifact_dir
-        # Omnia 2.3: reports are written to /opt/omnia/reports/ by the orchestrator test framework
-        report_source_path = "/opt/omnia/reports/orchestrator_test_report.json"
+        # Omnia 2.3: reports are written to {OMNIA_DATA_PATH}/reports/ by the orchestrator test framework
+        report_source_path = os.path.join(OMNIA_DATA_PATH, "reports", "orchestrator_test_report.json")
         log_secure_info('info', f"Attempting to extract test results from {report_source_path}", job_id)
         log_secure_info('info', f"Extracted report_id from log: {report_id}", job_id)
         
