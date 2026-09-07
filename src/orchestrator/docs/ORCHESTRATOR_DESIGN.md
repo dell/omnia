@@ -61,7 +61,7 @@ src/orchestrator/
 │   │
 │   ├── pxeboot/                        # PXE boot on iDRAC nodes
 │   │   ├── ansible.cfg
-│   │   ├── pxeboot.yml                 # BMC inventory, reboot, phone-home verify
+│   │   ├── pxeboot.yml                 # BMC inventory, reboot, node-registration verify
 │   │   └── README.md
 │   │
 │   ├── cleanup/                        # Component teardown
