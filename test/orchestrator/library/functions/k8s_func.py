@@ -36,6 +36,11 @@ from ..vars.k8s_vars import (
     K8S_CONFIG_FILES,
     K8S_SYSTEM_PODS,
     K8S_NFS_CONFIG_DIR,
+    K8S_HA_CONFIG_FILE,
+    K8S_ETCD_NAMESPACE,
+    K8S_ETCD_PKI_CACERT,
+    K8S_ETCD_PKI_CERT,
+    K8S_ETCD_PKI_KEY,
 )
 
 
@@ -1569,4 +1574,1418 @@ def check_k8s_ldap_integration(host) -> Dict[str, Any]:
         "success": False,
         "details": "OpenLDAP container not running",
         "error": "OpenLDAP integration may not be properly configured",
+    }
+
+
+# =============================================================================
+# CRI-O / CONTAINER RUNTIME CHECKS
+# =============================================================================
+
+def check_crio_running(host) -> Dict[str, Any]:
+    """Check if CRI-O (crio or cri-o) service is running on all K8s nodes.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, failed_nodes
+    """
+    all_nodes = get_k8s_all_nodes(host)
+
+    if not all_nodes:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No K8s nodes found in PXE mapping",
+            "error": "No nodes available",
+            "failed_nodes": [],
+        }
+
+    failed_nodes = []
+    for node in all_nodes:
+        node_ip = get_node_ip_from_pxe(host, node)
+        if not node_ip:
+            failed_nodes.append(f"{node} (no IP)")
+            continue
+
+        # Try crio first, then cri-o
+        cmd = _ssh_cmd(node_ip, "systemctl is-active crio 2>/dev/null || systemctl is-active cri-o 2>/dev/null")
+        result = run_on_host(host, cmd)
+
+        if result.rc != 0 or "active" not in result.stdout:
+            failed_nodes.append(node)
+
+    if not failed_nodes:
+        return {
+            "success": True,
+            "details": f"CRI-O active on all {len(all_nodes)} K8s nodes",
+            "error": "",
+            "failed_nodes": [],
+        }
+
+    return {
+        "success": False,
+        "details": f"CRI-O failed on {len(failed_nodes)}/{len(all_nodes)} nodes",
+        "error": f"Failed nodes: {failed_nodes}",
+        "failed_nodes": failed_nodes,
+    }
+
+
+def check_chronyd_running(host) -> Dict[str, Any]:
+    """Check if chronyd service is active on all K8s control plane nodes.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, failed_nodes
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+
+    if not cp_nodes:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No K8s control plane nodes found",
+            "error": "No control plane nodes available",
+            "failed_nodes": [],
+        }
+
+    failed_nodes = []
+    for node in cp_nodes:
+        node_ip = get_node_ip_from_pxe(host, node)
+        if not node_ip:
+            failed_nodes.append(f"{node} (no IP)")
+            continue
+
+        cmd = _ssh_cmd(node_ip, "systemctl is-active chronyd 2>/dev/null")
+        result = run_on_host(host, cmd)
+
+        if result.rc != 0 or "active" not in result.stdout:
+            failed_nodes.append(node)
+
+    if not failed_nodes:
+        return {
+            "success": True,
+            "details": f"chronyd active on all {len(cp_nodes)} control plane nodes",
+            "error": "",
+            "failed_nodes": [],
+        }
+
+    return {
+        "success": False,
+        "details": f"chronyd failed on {len(failed_nodes)}/{len(cp_nodes)} control plane nodes",
+        "error": f"Failed nodes: {failed_nodes}",
+        "failed_nodes": failed_nodes,
+    }
+
+
+def _get_software_config(host) -> Optional[Dict]:
+    """Read and parse software_config.json from the project input directory.
+
+    Returns:
+        Parsed JSON dict, or None if not available.
+    """
+    config = load_test_config()
+    project = config.get("project_name", "project_default")
+    sw_config_path = f"/opt/omnia/orchestrator/input/{project}/software_config.json"
+
+    cmd = f"test -f {sw_config_path} && cat {sw_config_path}"
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return None
+
+    import json
+    try:
+        return json.loads(result.stdout)
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+
+def _get_service_k8s_version(host) -> Optional[str]:
+    """Extract service_k8s version from software_config.json.
+
+    Returns:
+        Version string (e.g. '1.34.1') or None.
+    """
+    sw_config = _get_software_config(host)
+    if not sw_config:
+        return None
+
+    for sw in sw_config.get("softwares", []):
+        if isinstance(sw, dict) and sw.get("name") == "service_k8s":
+            version = (sw.get("version") or "").strip()
+            if version.startswith("v"):
+                version = version[1:]
+            return version if version else None
+
+    return None
+
+
+def _is_powerscale_csi_configured(host) -> bool:
+    """Check if csi_driver_powerscale is in software_config.json."""
+    sw_config = _get_software_config(host)
+    if not sw_config:
+        return False
+
+    return any(
+        isinstance(sw, dict) and sw.get("name") == "csi_driver_powerscale"
+        for sw in sw_config.get("softwares", [])
+    )
+
+
+def check_kubectl_version(host) -> Dict[str, Any]:
+    """Check if kubectl client version matches the expected version from software_config.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, expected_version, actual_versions
+    """
+    expected = _get_service_k8s_version(host)
+    if not expected:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "service_k8s version not found in software_config.json",
+            "error": "Cannot determine expected K8s version",
+            "expected_version": None,
+            "actual_versions": [],
+        }
+
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    if not cp_nodes:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+            "expected_version": expected,
+            "actual_versions": [],
+        }
+
+    mismatches = []
+    actual_versions = []
+    for node in cp_nodes:
+        node_ip = get_node_ip_from_pxe(host, node)
+        if not node_ip:
+            continue
+
+        cmd = _ssh_cmd(node_ip, "kubectl version --client 2>/dev/null")
+        result = run_on_host(host, cmd)
+
+        if result.rc != 0:
+            mismatches.append(f"{node} (kubectl not available)")
+            continue
+
+        match = re.search(r'v?(\d+\.\d+\.\d+)', result.stdout)
+        if not match:
+            mismatches.append(f"{node} (cannot parse version)")
+            continue
+
+        actual = match.group(1)
+        actual_versions.append(f"{node}={actual}")
+        if actual != expected:
+            mismatches.append(f"{node}: expected {expected}, got {actual}")
+
+    if not mismatches:
+        return {
+            "success": True,
+            "details": f"kubectl version {expected} on all control planes",
+            "error": "",
+            "expected_version": expected,
+            "actual_versions": actual_versions,
+        }
+
+    return {
+        "success": False,
+        "details": f"kubectl version mismatch on {len(mismatches)} node(s)",
+        "error": "; ".join(mismatches),
+        "expected_version": expected,
+        "actual_versions": actual_versions,
+    }
+
+
+def check_kubeadm_crio_version_match(host) -> Dict[str, Any]:
+    """Check if kubeadm and CRI-O versions match on control plane nodes.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, node_results
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    if not cp_nodes:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+            "node_results": [],
+        }
+
+    mismatches = []
+    node_results = []
+    for node in cp_nodes:
+        node_ip = get_node_ip_from_pxe(host, node)
+        if not node_ip:
+            continue
+
+        # Get kubeadm version
+        ka_cmd = _ssh_cmd(node_ip, "kubeadm version -o short 2>/dev/null")
+        ka_result = run_on_host(host, ka_cmd)
+        ka_match = re.search(r'v?(\d+\.\d+\.\d+)', ka_result.stdout) if ka_result.rc == 0 else None
+        kubeadm_ver = ka_match.group(1) if ka_match else None
+
+        # Get crio version
+        crio_cmd = _ssh_cmd(node_ip, "crio --version 2>/dev/null || cri-o --version 2>/dev/null")
+        crio_result = run_on_host(host, crio_cmd)
+        crio_match = re.search(r'(\d+\.\d+\.\d+)', crio_result.stdout) if crio_result.rc == 0 else None
+        crio_ver = crio_match.group(1) if crio_match else None
+
+        node_results.append(f"{node}: kubeadm={kubeadm_ver}, crio={crio_ver}")
+
+        if not kubeadm_ver or not crio_ver:
+            mismatches.append(f"{node}: cannot parse versions (kubeadm={kubeadm_ver}, crio={crio_ver})")
+        elif kubeadm_ver != crio_ver:
+            mismatches.append(f"{node}: kubeadm={kubeadm_ver} != crio={crio_ver}")
+
+    if not mismatches:
+        return {
+            "success": True,
+            "details": f"kubeadm/CRI-O versions match on all {len(cp_nodes)} control plane nodes",
+            "error": "",
+            "node_results": node_results,
+        }
+
+    return {
+        "success": False,
+        "details": f"Version mismatch on {len(mismatches)} node(s)",
+        "error": "; ".join(mismatches),
+        "node_results": node_results,
+    }
+
+
+def check_container_runtime(host) -> Dict[str, Any]:
+    """Check if all nodes are using the expected container runtime (CRI-O).
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, node_results
+    """
+    from ..vars.k8s_vars import K8S_EXPECTED_CONTAINER_RUNTIME
+
+    expected_version = _get_service_k8s_version(host)
+    expected_runtime = K8S_EXPECTED_CONTAINER_RUNTIME
+
+    cp_ip = _get_first_control_plane_ip(host)
+    if not cp_ip:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+            "node_results": [],
+        }
+
+    cmd = _ssh_cmd(cp_ip, "kubectl get nodes -o wide --no-headers 2>/dev/null")
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "details": "Cannot query node runtime information",
+            "error": f"kubectl get nodes -o wide failed: {result.stdout}",
+            "node_results": [],
+        }
+
+    lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
+    mismatches = []
+    node_results = []
+
+    for line in lines:
+        parts = line.split()
+        if not parts:
+            continue
+        node_name = parts[0]
+        # Container runtime is the last column in kubectl get nodes -o wide
+        runtime = parts[-1] if len(parts) >= 7 else "unknown"
+
+        if expected_version:
+            expected_str = f"{expected_runtime}://{expected_version}"
+            is_correct = (runtime == expected_str)
+        else:
+            expected_str = f"{expected_runtime}://"
+            is_correct = runtime.startswith(expected_str)
+
+        node_results.append(f"{node_name}: {runtime}")
+        if not is_correct:
+            mismatches.append(f"{node_name}: expected {expected_str}, got {runtime}")
+
+    if not mismatches:
+        return {
+            "success": True,
+            "details": f"All nodes using {expected_runtime}" + (f"://{expected_version}" if expected_version else ""),
+            "error": "",
+            "node_results": node_results,
+        }
+
+    return {
+        "success": False,
+        "details": f"Runtime mismatch on {len(mismatches)} node(s)",
+        "error": "; ".join(mismatches),
+        "node_results": node_results,
+    }
+
+
+def check_k8s_component_status(host) -> Dict[str, Any]:
+    """Check K8s cluster health using kubectl get componentstatus.
+
+    Expects controller-manager, scheduler, etcd-0 to be Healthy.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, unhealthy_components
+    """
+    cp_ip = _get_first_control_plane_ip(host)
+    if not cp_ip:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+            "unhealthy_components": [],
+        }
+
+    cmd = _ssh_cmd(cp_ip, "kubectl get componentstatus --no-headers 2>/dev/null")
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "details": "kubectl get componentstatus failed",
+            "error": f"Command failed: {result.stdout}",
+            "unhealthy_components": [],
+        }
+
+    lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
+    unhealthy = []
+    components = []
+
+    for line in lines:
+        parts = line.split()
+        if len(parts) >= 2:
+            name = parts[0]
+            status = parts[1]
+            components.append(f"{name}: {status}")
+            if status != "Healthy":
+                unhealthy.append(name)
+
+    if not unhealthy:
+        return {
+            "success": True,
+            "details": f"All {len(components)} K8s components are Healthy",
+            "error": "",
+            "unhealthy_components": [],
+        }
+
+    return {
+        "success": False,
+        "details": f"{len(unhealthy)} component(s) unhealthy: {', '.join(unhealthy)}",
+        "error": f"Unhealthy: {unhealthy}",
+        "unhealthy_components": unhealthy,
+    }
+
+
+# =============================================================================
+# ETCD DETAILED CHECKS
+# =============================================================================
+
+def check_k8s_etcd_health_detailed(host) -> Dict[str, Any]:
+    """Check etcd cluster health using etcdctl endpoint health from within etcd pods.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, healthy_count, total_count
+    """
+    cp_ip = _get_first_control_plane_ip(host)
+    if not cp_ip:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    # Find etcd pods
+    find_cmd = _ssh_cmd(
+        cp_ip,
+        f"kubectl get pods -n {K8S_ETCD_NAMESPACE} -o name 2>/dev/null | grep '^pod/etcd-'"
+    )
+    result = run_on_host(host, find_cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "details": "No etcd pods found in kube-system namespace",
+            "error": "etcd pods not found",
+        }
+
+    etcd_pods = [
+        line.strip().replace("pod/", "")
+        for line in result.stdout.strip().split('\n')
+        if line.strip()
+    ]
+
+    if not etcd_pods:
+        return {
+            "success": False,
+            "details": "No etcd pods found",
+            "error": "etcd pods list is empty",
+        }
+
+    healthy_count = 0
+    total_count = len(etcd_pods)
+    unhealthy_pods = []
+    outputs = []
+
+    for pod in etcd_pods:
+        health_cmd = _ssh_cmd(
+            cp_ip,
+            f"kubectl exec -n {K8S_ETCD_NAMESPACE} {pod} -- "
+            f"etcdctl --endpoints=https://127.0.0.1:2379 "
+            f"--cacert={K8S_ETCD_PKI_CACERT} --cert={K8S_ETCD_PKI_CERT} --key={K8S_ETCD_PKI_KEY} "
+            f"endpoint health 2>/dev/null"
+        )
+        hresult = run_on_host(host, health_cmd)
+        output = hresult.stdout.strip()
+        outputs.append(f"{pod}: {output}")
+
+        if hresult.rc == 0 and "is healthy" in output.lower():
+            healthy_count += 1
+        else:
+            unhealthy_pods.append(pod)
+
+    if healthy_count == total_count:
+        return {
+            "success": True,
+            "details": f"All {total_count} etcd endpoints are healthy",
+            "error": "",
+            "healthy_count": healthy_count,
+            "total_count": total_count,
+        }
+
+    return {
+        "success": False,
+        "details": f"{healthy_count}/{total_count} etcd endpoints healthy; unhealthy: {unhealthy_pods}",
+        "error": "\n".join(outputs),
+        "healthy_count": healthy_count,
+        "total_count": total_count,
+    }
+
+
+def check_k8s_etcd_member_list(host) -> Dict[str, Any]:
+    """Check etcd member list matches expected control plane count.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, member_count, expected_count
+    """
+    cp_ip = _get_first_control_plane_ip(host)
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    if not cp_ip or not cp_nodes:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    expected_count = len(cp_nodes)
+
+    # Find an etcd pod
+    find_cmd = _ssh_cmd(
+        cp_ip,
+        f"kubectl get pods -n {K8S_ETCD_NAMESPACE} -o name 2>/dev/null | grep '^pod/etcd-' | head -1"
+    )
+    result = run_on_host(host, find_cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "details": "No etcd pods found",
+            "error": "Cannot find etcd pods for member list check",
+        }
+
+    etcd_pod = result.stdout.strip().replace("pod/", "")
+
+    member_cmd = _ssh_cmd(
+        cp_ip,
+        f"kubectl exec -n {K8S_ETCD_NAMESPACE} {etcd_pod} -- "
+        f"etcdctl --endpoints=https://127.0.0.1:2379 "
+        f"--cacert={K8S_ETCD_PKI_CACERT} --cert={K8S_ETCD_PKI_CERT} --key={K8S_ETCD_PKI_KEY} "
+        f"member list -w table 2>/dev/null"
+    )
+    mresult = run_on_host(host, member_cmd)
+
+    if mresult.rc != 0 or not mresult.stdout.strip():
+        return {
+            "success": False,
+            "details": "etcdctl member list failed",
+            "error": f"Command output: {mresult.stdout}",
+        }
+
+    # Count member lines (excluding header and separator lines)
+    member_lines = [
+        line for line in mresult.stdout.strip().split('\n')
+        if line.strip() and "|" in line and "ID" not in line.upper() and "---" not in line
+    ]
+    member_count = len(member_lines)
+
+    if member_count >= expected_count:
+        return {
+            "success": True,
+            "details": f"etcd member list verified ({member_count} members, expected {expected_count})",
+            "error": "",
+            "member_count": member_count,
+            "expected_count": expected_count,
+        }
+
+    return {
+        "success": False,
+        "details": f"etcd member count mismatch: found {member_count}, expected {expected_count}",
+        "error": mresult.stdout.strip(),
+        "member_count": member_count,
+        "expected_count": expected_count,
+    }
+
+
+def check_k8s_etcd_leader_consistency(host) -> Dict[str, Any]:
+    """Check etcd leader identification and RAFT consistency across control planes.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, leader_found, raft_terms_consistent
+    """
+    import json as json_mod
+
+    cp_ip = _get_first_control_plane_ip(host)
+    if not cp_ip:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    # Find etcd pods
+    find_cmd = _ssh_cmd(
+        cp_ip,
+        f"kubectl get pods -n {K8S_ETCD_NAMESPACE} -o name 2>/dev/null | grep '^pod/etcd-'"
+    )
+    result = run_on_host(host, find_cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "details": "No etcd pods found",
+            "error": "Cannot find etcd pods",
+        }
+
+    etcd_pods = [
+        line.strip().replace("pod/", "")
+        for line in result.stdout.strip().split('\n')
+        if line.strip()
+    ]
+
+    members = []
+    leader_found = False
+    raft_terms = set()
+
+    for pod in etcd_pods:
+        status_cmd = _ssh_cmd(
+            cp_ip,
+            f"kubectl exec -n {K8S_ETCD_NAMESPACE} {pod} -- "
+            f"etcdctl --endpoints=https://127.0.0.1:2379 "
+            f"--cacert={K8S_ETCD_PKI_CACERT} --cert={K8S_ETCD_PKI_CERT} --key={K8S_ETCD_PKI_KEY} "
+            f"endpoint status -w json 2>/dev/null"
+        )
+        sresult = run_on_host(host, status_cmd)
+
+        if sresult.rc != 0 or not sresult.stdout.strip():
+            continue
+
+        try:
+            data = json_mod.loads(sresult.stdout.strip())
+            entry = data[0] if isinstance(data, list) and data else data
+            status = entry.get("Status", {})
+            header = status.get("header", {})
+            member_id = header.get("member_id", 0)
+            leader_id = status.get("leader", 0)
+            raft_term = header.get("raft_term", 0)
+            is_leader = (member_id != 0 and member_id == leader_id)
+
+            if is_leader:
+                leader_found = True
+            raft_terms.add(raft_term)
+
+            members.append({
+                "pod": pod,
+                "is_leader": is_leader,
+                "raft_term": raft_term,
+            })
+        except (json_mod.JSONDecodeError, KeyError, IndexError, TypeError):
+            continue
+
+    if not members:
+        return {
+            "success": False,
+            "details": "Could not parse etcd status from any pod",
+            "error": "etcdctl endpoint status failed on all pods",
+        }
+
+    raft_consistent = len(raft_terms) == 1
+
+    if leader_found and raft_consistent:
+        leader_pod = next((m["pod"] for m in members if m["is_leader"]), "unknown")
+        return {
+            "success": True,
+            "details": f"etcd leader: {leader_pod}, RAFT terms consistent ({len(members)} members)",
+            "error": "",
+            "leader_found": True,
+            "raft_terms_consistent": True,
+        }
+
+    issues = []
+    if not leader_found:
+        issues.append("no etcd leader found")
+    if not raft_consistent:
+        issues.append(f"RAFT terms inconsistent: {raft_terms}")
+
+    return {
+        "success": False,
+        "details": f"etcd consistency issues: {'; '.join(issues)}",
+        "error": "; ".join(issues),
+        "leader_found": leader_found,
+        "raft_terms_consistent": raft_consistent,
+    }
+
+
+# =============================================================================
+# HA / VIRTUAL IP CHECKS
+# =============================================================================
+
+def check_k8s_virtual_ip(host) -> Dict[str, Any]:
+    """Check that the HA virtual IP is configured on exactly one control plane node.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, vip, nodes_with_vip
+    """
+    config = load_test_config()
+    project = config.get("project_name", "project_default")
+    ha_config_path = f"/opt/omnia/orchestrator/input/{project}/high_availability_config.yml"
+
+    # Read HA config to get virtual IP
+    cmd = f"test -f {ha_config_path} && cat {ha_config_path}"
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "HA config file not found - VIP check not applicable",
+            "error": "high_availability_config.yml not found",
+        }
+
+    import yaml
+    try:
+        ha_config = yaml.safe_load(result.stdout)
+    except yaml.YAMLError:
+        return {
+            "success": False,
+            "details": "Invalid YAML in HA config",
+            "error": "Cannot parse high_availability_config.yml",
+        }
+
+    # Extract virtual IP
+    virtual_ip = None
+    ha_entries = ha_config.get("service_k8s_cluster_ha", [])
+    if isinstance(ha_entries, list) and ha_entries:
+        virtual_ip = ha_entries[0].get("virtual_ip_address")
+
+    if not virtual_ip:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No virtual_ip_address found in HA config",
+            "error": "VIP not configured",
+        }
+
+    # Check each control plane node for VIP
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    if not cp_nodes:
+        return {
+            "success": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes in PXE mapping",
+            "vip": virtual_ip,
+            "nodes_with_vip": [],
+        }
+
+    nodes_with_vip = []
+    for node in cp_nodes:
+        node_ip = get_node_ip_from_pxe(host, node)
+        if not node_ip:
+            continue
+
+        check_cmd = _ssh_cmd(node_ip, f"ip -4 -o addr show 2>/dev/null | grep '{virtual_ip}/'")
+        check_result = run_on_host(host, check_cmd)
+
+        if check_result.rc == 0 and virtual_ip in check_result.stdout:
+            nodes_with_vip.append(node)
+
+    if len(nodes_with_vip) == 1:
+        return {
+            "success": True,
+            "details": f"VIP {virtual_ip} configured on exactly one control plane: {nodes_with_vip[0]}",
+            "error": "",
+            "vip": virtual_ip,
+            "nodes_with_vip": nodes_with_vip,
+        }
+
+    if len(nodes_with_vip) == 0:
+        return {
+            "success": False,
+            "details": f"VIP {virtual_ip} not found on any control plane node",
+            "error": "VIP not configured on any node",
+            "vip": virtual_ip,
+            "nodes_with_vip": [],
+        }
+
+    return {
+        "success": False,
+        "details": f"VIP {virtual_ip} found on multiple nodes: {nodes_with_vip}",
+        "error": f"VIP on multiple nodes: {nodes_with_vip}",
+        "vip": virtual_ip,
+        "nodes_with_vip": nodes_with_vip,
+    }
+
+
+# =============================================================================
+# NETWORK AND COMPONENT POD CHECKS
+# =============================================================================
+
+def _check_pods_with_prefix(host, prefix: str, component: str) -> Dict[str, Any]:
+    """Generic check for pods with a given name prefix across all namespaces.
+
+    Args:
+        host: Testinfra host connection
+        prefix: Pod name prefix (e.g., 'calico', 'kube-vip')
+        component: Human-readable name for logging
+
+    Returns:
+        Dict with success, details, error, total_pods, failed_pods
+    """
+    cp_ip = _get_first_control_plane_ip(host)
+    if not cp_ip:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+            "total_pods": 0,
+            "failed_pods": [],
+        }
+
+    cmd = _ssh_cmd(
+        cp_ip,
+        f"kubectl get pods --all-namespaces --no-headers 2>/dev/null | grep '{prefix}'"
+    )
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "details": f"No {component} pods found",
+            "error": f"No pods matching prefix '{prefix}'",
+            "total_pods": 0,
+            "failed_pods": [],
+        }
+
+    lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
+    failed = []
+    total = 0
+
+    for line in lines:
+        parts = line.split()
+        if len(parts) >= 4:
+            total += 1
+            ns = parts[0]
+            pod_name = parts[1]
+            status = parts[3]
+            if status not in ("Running", "Completed"):
+                failed.append(f"{ns}/{pod_name} ({status})")
+
+    if total == 0:
+        return {
+            "success": False,
+            "details": f"No {component} pods found",
+            "error": f"No pods matching prefix '{prefix}'",
+            "total_pods": 0,
+            "failed_pods": [],
+        }
+
+    if not failed:
+        return {
+            "success": True,
+            "details": f"All {total} {component} pods are Running",
+            "error": "",
+            "total_pods": total,
+            "failed_pods": [],
+        }
+
+    return {
+        "success": False,
+        "details": f"{len(failed)}/{total} {component} pod(s) not Running",
+        "error": f"Failed: {failed}",
+        "total_pods": total,
+        "failed_pods": failed,
+    }
+
+
+def check_k8s_kube_vip_pods(host) -> Dict[str, Any]:
+    """Check if kube-vip pods are running."""
+    return _check_pods_with_prefix(host, "kube-vip", "kube-vip")
+
+
+def check_k8s_calico_pods(host) -> Dict[str, Any]:
+    """Check if Calico network pods are running."""
+    return _check_pods_with_prefix(host, "calico", "Calico")
+
+
+def check_k8s_metallb_pods(host) -> Dict[str, Any]:
+    """Check if MetalLB system pods are running.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error
+    """
+    cp_ip = _get_first_control_plane_ip(host)
+    if not cp_ip:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    cmd = _ssh_cmd(cp_ip, "kubectl get pods -n metallb-system --no-headers 2>/dev/null")
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        # Check if namespace exists
+        ns_cmd = _ssh_cmd(cp_ip, "kubectl get ns metallb-system 2>/dev/null")
+        ns_result = run_on_host(host, ns_cmd)
+        if ns_result.rc != 0:
+            return {
+                "success": False,
+                "details": "metallb-system namespace not found",
+                "error": "MetalLB may not be installed",
+            }
+        return {
+            "success": False,
+            "details": "No pods found in metallb-system namespace",
+            "error": "MetalLB pods missing",
+        }
+
+    lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
+    failed = []
+    total = 0
+
+    for line in lines:
+        parts = line.split()
+        if len(parts) >= 3:
+            total += 1
+            pod_name = parts[0]
+            status = parts[2]
+            if status not in ("Running", "Completed"):
+                failed.append(f"{pod_name} ({status})")
+
+    if not failed:
+        return {
+            "success": True,
+            "details": f"All {total} MetalLB pods are Running",
+            "error": "",
+        }
+
+    return {
+        "success": False,
+        "details": f"{len(failed)}/{total} MetalLB pod(s) not Running",
+        "error": f"Failed: {failed}",
+    }
+
+
+# =============================================================================
+# STORAGE CHECKS
+# =============================================================================
+
+def check_k8s_nfs_provisioner_pod(host) -> Dict[str, Any]:
+    """Check if NFS client provisioner pod is running."""
+    from ..vars.k8s_vars import K8S_NFS_PROVISIONER_POD_PREFIX
+    return _check_pods_with_prefix(host, K8S_NFS_PROVISIONER_POD_PREFIX, "NFS provisioner")
+
+
+def check_k8s_snapshot_controller_pods(host) -> Dict[str, Any]:
+    """Check if snapshot-controller pods are running (only when PowerScale CSI configured)."""
+    if not _is_powerscale_csi_configured(host):
+        return {
+            "success": True,
+            "skipped": True,
+            "details": "PowerScale CSI not configured - snapshot-controller check skipped",
+            "error": "",
+        }
+    return _check_pods_with_prefix(host, "snapshot-controller", "snapshot-controller")
+
+
+def check_k8s_isilon_csi_pods(host) -> Dict[str, Any]:
+    """Check if Isilon CSI driver pods are running (only when PowerScale CSI configured)."""
+    if not _is_powerscale_csi_configured(host):
+        return {
+            "success": True,
+            "skipped": True,
+            "details": "PowerScale CSI not configured - Isilon CSI check skipped",
+            "error": "",
+        }
+
+    cp_ip = _get_first_control_plane_ip(host)
+    if not cp_ip:
+        return {
+            "success": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    cmd = _ssh_cmd(cp_ip, "kubectl get pods -n isilon --no-headers 2>/dev/null")
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "details": "No Isilon CSI pods found in isilon namespace",
+            "error": "Isilon CSI driver pods missing",
+        }
+
+    lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
+    failed = []
+    total = 0
+
+    for line in lines:
+        parts = line.split()
+        if len(parts) >= 3:
+            total += 1
+            pod_name = parts[0]
+            status = parts[2]
+            if status not in ("Running", "Completed"):
+                failed.append(f"{pod_name} ({status})")
+
+    if not failed:
+        return {
+            "success": True,
+            "details": f"All {total} Isilon CSI pods are Running",
+            "error": "",
+        }
+
+    return {
+        "success": False,
+        "details": f"{len(failed)}/{total} Isilon CSI pod(s) not Running",
+        "error": f"Failed: {failed}",
+    }
+
+
+def check_k8s_default_storage_class(host) -> Dict[str, Any]:
+    """Check if the default storage class is set correctly.
+
+    If PowerScale CSI is configured, expects 'ps01'. Otherwise, expects 'nfs-client'.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, expected_sc, actual_sc
+    """
+    from ..vars.k8s_vars import K8S_DEFAULT_STORAGE_CLASS_CSI, K8S_DEFAULT_STORAGE_CLASS_NFS
+
+    is_csi = _is_powerscale_csi_configured(host)
+    expected_sc = K8S_DEFAULT_STORAGE_CLASS_CSI if is_csi else K8S_DEFAULT_STORAGE_CLASS_NFS
+
+    cp_ip = _get_first_control_plane_ip(host)
+    if not cp_ip:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+            "expected_sc": expected_sc,
+            "actual_sc": None,
+        }
+
+    cmd = _ssh_cmd(cp_ip, "kubectl get sc --no-headers 2>/dev/null")
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "details": "Cannot query storage classes",
+            "error": f"kubectl get sc failed: {result.stdout}",
+            "expected_sc": expected_sc,
+            "actual_sc": None,
+        }
+
+    lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
+    actual_default = None
+
+    for line in lines:
+        parts = line.split()
+        if len(parts) >= 1:
+            sc_name = parts[0]
+            # Default SC has "(default)" annotation appended
+            if "(default)" in line:
+                actual_default = sc_name
+
+    if actual_default == expected_sc:
+        return {
+            "success": True,
+            "details": f"Default storage class is '{expected_sc}' (CSI={is_csi})",
+            "error": "",
+            "expected_sc": expected_sc,
+            "actual_sc": actual_default,
+        }
+
+    return {
+        "success": False,
+        "details": f"Expected default SC '{expected_sc}', got '{actual_default}'",
+        "error": f"Storage class mismatch: expected={expected_sc}, actual={actual_default}",
+        "expected_sc": expected_sc,
+        "actual_sc": actual_default,
+    }
+
+
+def check_k8s_persistent_volumes(host) -> Dict[str, Any]:
+    """Check that all Persistent Volumes are Bound with the expected storage class.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, pv_count, issues
+    """
+    from ..vars.k8s_vars import K8S_DEFAULT_STORAGE_CLASS_CSI, K8S_DEFAULT_STORAGE_CLASS_NFS
+
+    is_csi = _is_powerscale_csi_configured(host)
+    expected_sc = K8S_DEFAULT_STORAGE_CLASS_CSI if is_csi else K8S_DEFAULT_STORAGE_CLASS_NFS
+
+    cp_ip = _get_first_control_plane_ip(host)
+    if not cp_ip:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    cmd = _ssh_cmd(cp_ip, "kubectl get pv --no-headers 2>/dev/null")
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": True,
+            "details": "No Persistent Volumes found in the cluster",
+            "error": "",
+            "pv_count": 0,
+            "issues": [],
+        }
+
+    lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
+    issues = []
+    checked = 0
+
+    for line in lines:
+        parts = line.split()
+        if len(parts) >= 5:
+            pv_name = parts[0]
+            status = parts[4]
+            # Storage class is typically in column 6 (0-indexed 5)
+            sc = parts[5] if len(parts) > 5 else ""
+
+            # Skip Released PVs
+            if status == "Released":
+                continue
+
+            checked += 1
+            if status != "Bound":
+                issues.append(f"PV {pv_name}: not Bound (status={status})")
+
+    if not issues:
+        return {
+            "success": True,
+            "details": f"All {checked} PV(s) are Bound",
+            "error": "",
+            "pv_count": checked,
+            "issues": [],
+        }
+
+    return {
+        "success": False,
+        "details": f"{len(issues)} PV issue(s) found",
+        "error": "; ".join(issues),
+        "pv_count": checked,
+        "issues": issues,
+    }
+
+
+def check_k8s_nfs_storage_class(host) -> Dict[str, Any]:
+    """Check if NFS StorageClass is dynamic and properly configured.
+
+    Skipped if PowerScale CSI is configured.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, skipped
+    """
+    if _is_powerscale_csi_configured(host):
+        return {
+            "success": True,
+            "skipped": True,
+            "details": "PowerScale CSI configured - NFS StorageClass check skipped",
+            "error": "",
+        }
+
+    cp_ip = _get_first_control_plane_ip(host)
+    if not cp_ip:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    import json as json_mod
+
+    cmd = _ssh_cmd(cp_ip, "kubectl get sc nfs-client -o json 2>/dev/null")
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "details": "StorageClass 'nfs-client' not found",
+            "error": "NFS StorageClass missing",
+        }
+
+    try:
+        sc = json_mod.loads(result.stdout)
+    except (json_mod.JSONDecodeError, ValueError):
+        return {
+            "success": False,
+            "details": "Cannot parse StorageClass output",
+            "error": "Invalid JSON from kubectl get sc",
+        }
+
+    provisioner = sc.get("provisioner", "")
+    binding_mode = sc.get("volumeBindingMode", "")
+
+    issues = []
+    if not provisioner or provisioner == "kubernetes.io/no-provisioner":
+        issues.append(f"No dynamic provisioner (provisioner={provisioner})")
+    if binding_mode and binding_mode != "Immediate":
+        issues.append(f"Unexpected volumeBindingMode: {binding_mode}")
+
+    if not issues:
+        return {
+            "success": True,
+            "details": f"NFS StorageClass 'nfs-client' is dynamic (provisioner={provisioner})",
+            "error": "",
+        }
+
+    return {
+        "success": False,
+        "details": f"NFS StorageClass validation failed: {'; '.join(issues)}",
+        "error": "; ".join(issues),
+    }
+
+
+def check_k8s_telemetry_pvcs(host) -> Dict[str, Any]:
+    """Check if telemetry PVCs are Bound with the correct storage class.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, pvc_count, issues
+    """
+    from ..vars.k8s_vars import K8S_DEFAULT_STORAGE_CLASS_CSI, K8S_DEFAULT_STORAGE_CLASS_NFS
+
+    cp_ip = _get_first_control_plane_ip(host)
+    if not cp_ip:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    # Check if telemetry namespace exists
+    ns_cmd = _ssh_cmd(cp_ip, "kubectl get ns telemetry 2>/dev/null")
+    ns_result = run_on_host(host, ns_cmd)
+    if ns_result.rc != 0:
+        return {
+            "success": True,
+            "skipped": True,
+            "details": "telemetry namespace not found - PVC check skipped",
+            "error": "",
+        }
+
+    cmd = _ssh_cmd(cp_ip, "kubectl get pvc -n telemetry --no-headers 2>/dev/null")
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "details": "No PVCs found in telemetry namespace",
+            "error": "telemetry PVCs missing",
+        }
+
+    lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
+    issues = []
+    pvc_count = 0
+
+    for line in lines:
+        parts = line.split()
+        if len(parts) >= 3:
+            pvc_count += 1
+            pvc_name = parts[0]
+            status = parts[1]
+            if status != "Bound":
+                issues.append(f"PVC {pvc_name}: status={status} (expected Bound)")
+
+    if not issues:
+        return {
+            "success": True,
+            "details": f"All {pvc_count} telemetry PVC(s) are Bound",
+            "error": "",
+            "pvc_count": pvc_count,
+            "issues": [],
+        }
+
+    return {
+        "success": False,
+        "details": f"{len(issues)}/{pvc_count} telemetry PVC(s) not Bound",
+        "error": "; ".join(issues),
+        "pvc_count": pvc_count,
+        "issues": issues,
+    }
+
+
+# =============================================================================
+# BUSYBOX POD DEPLOYMENT TEST
+# =============================================================================
+
+def check_k8s_busybox_pod(host) -> Dict[str, Any]:
+    """Deploy a basic BusyBox pod and verify it reaches Running/Ready state.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error
+    """
+    cp_ip = _get_first_control_plane_ip(host)
+    if not cp_ip:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    pod_name = "omnia-busybox-test"
+    ns = "default"
+
+    # Cleanup any existing pod
+    cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --ignore-not-found 2>/dev/null")
+    run_on_host(host, cleanup_cmd)
+    time.sleep(2)
+
+    # Create BusyBox pod
+    create_cmd = _ssh_cmd(
+        cp_ip,
+        f"kubectl run {pod_name} --image=busybox:1.36 --restart=Never "
+        f"-- sh -c 'echo BusyBox running && sleep 30' 2>&1"
+    )
+    result = run_on_host(host, create_cmd)
+
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": f"BusyBox pod creation failed: {result.stdout}",
+            "error": "kubectl run failed",
+        }
+
+    # Wait for pod to reach Running/Ready
+    max_wait = 60
+    wait_time = 0
+    phase = "Unknown"
+    while wait_time < max_wait:
+        check_cmd = _ssh_cmd(
+            cp_ip,
+            f"kubectl get pod {pod_name} -n {ns} --no-headers "
+            f"-o custom-columns=STATUS:.status.phase 2>/dev/null"
+        )
+        check_result = run_on_host(host, check_cmd)
+        phase = check_result.stdout.strip()
+
+        if phase in ("Running", "Succeeded"):
+            # Cleanup
+            cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --ignore-not-found 2>/dev/null")
+            run_on_host(host, cleanup_cmd)
+
+            return {
+                "success": True,
+                "details": f"BusyBox pod created and reached {phase} state in ~{wait_time}s",
+                "error": "",
+            }
+
+        if phase == "Failed":
+            break
+
+        time.sleep(5)
+        wait_time += 5
+
+    # Cleanup
+    cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --ignore-not-found 2>/dev/null")
+    run_on_host(host, cleanup_cmd)
+
+    return {
+        "success": False,
+        "details": f"BusyBox pod did not reach Running state (last phase: {phase})",
+        "error": "Pod scheduling/startup failed",
     }

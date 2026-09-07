@@ -54,6 +54,31 @@ K8S_DIRECTORIES: List[str] = [
 K8S_NFS_CONFIG_DIR = "/opt/omnia/kubernetes"
 
 # =============================================================================
+# Kubernetes HA Configuration
+# =============================================================================
+K8S_HA_CONFIG_FILE = "/opt/omnia/input/project_default/high_availability_config.yml"
+
+# =============================================================================
+# etcd Configuration
+# =============================================================================
+K8S_ETCD_NAMESPACE = "kube-system"
+K8S_ETCD_PKI_CACERT = "/etc/kubernetes/pki/etcd/ca.crt"
+K8S_ETCD_PKI_CERT = "/etc/kubernetes/pki/etcd/server.crt"
+K8S_ETCD_PKI_KEY = "/etc/kubernetes/pki/etcd/server.key"
+
+# =============================================================================
+# NFS Provisioner Constants
+# =============================================================================
+K8S_NFS_PROVISIONER_POD_PREFIX = "nfs-client-nfs-subdir-external-provisioner"
+K8S_DEFAULT_STORAGE_CLASS_CSI = "ps01"
+K8S_DEFAULT_STORAGE_CLASS_NFS = "nfs-client"
+
+# =============================================================================
+# Container Runtime
+# =============================================================================
+K8S_EXPECTED_CONTAINER_RUNTIME = "cri-o"
+
+# =============================================================================
 # Kubernetes Configuration Files
 # =============================================================================
 K8S_CONFIG_FILES: List[str] = [
@@ -220,5 +245,95 @@ TEST_CASES: Dict[str, dict] = {
     "k8s_cluster_info": {
         "id": "TC_K8_030",
         "title": "Verify kubectl cluster-info returns valid data",
+    },
+    # CRI-O / Container Runtime Tests
+    "k8s_crio_running": {
+        "id": "TC_K8_031",
+        "title": "Verify CRI-O service is running on all nodes",
+    },
+    "k8s_chronyd_running": {
+        "id": "TC_K8_032",
+        "title": "Verify chronyd service is active on control plane nodes",
+    },
+    "k8s_kubectl_version": {
+        "id": "TC_K8_033",
+        "title": "Verify kubectl version matches software config",
+    },
+    "k8s_kubeadm_crio_version_match": {
+        "id": "TC_K8_034",
+        "title": "Verify kubeadm version matches CRI-O version",
+    },
+    "k8s_container_runtime": {
+        "id": "TC_K8_035",
+        "title": "Verify all nodes use expected container runtime",
+    },
+    "k8s_component_status": {
+        "id": "TC_K8_036",
+        "title": "Verify K8s component status (controller, scheduler, etcd)",
+    },
+    # etcd Detailed Tests
+    "k8s_etcd_health_detailed": {
+        "id": "TC_K8_037",
+        "title": "Verify etcd cluster endpoint health via etcdctl",
+    },
+    "k8s_etcd_member_list": {
+        "id": "TC_K8_038",
+        "title": "Verify etcd member list matches control plane count",
+    },
+    "k8s_etcd_leader_consistency": {
+        "id": "TC_K8_039",
+        "title": "Verify etcd leader identification and RAFT consistency",
+    },
+    # HA / VIP Tests
+    "k8s_virtual_ip": {
+        "id": "TC_K8_040",
+        "title": "Verify VIP is configured on exactly one control plane",
+    },
+    # Network Pod Tests
+    "k8s_kube_vip_pods": {
+        "id": "TC_K8_041",
+        "title": "Verify kube-vip pods are running",
+    },
+    "k8s_calico_pods": {
+        "id": "TC_K8_042",
+        "title": "Verify Calico network pods are running",
+    },
+    "k8s_metallb_pods": {
+        "id": "TC_K8_043",
+        "title": "Verify MetalLB system pods are running",
+    },
+    # Storage Tests
+    "k8s_nfs_provisioner_pod": {
+        "id": "TC_K8_044",
+        "title": "Verify NFS client provisioner pod is running",
+    },
+    "k8s_snapshot_controller_pods": {
+        "id": "TC_K8_045",
+        "title": "Verify snapshot-controller pods are running",
+    },
+    "k8s_isilon_csi_pods": {
+        "id": "TC_K8_046",
+        "title": "Verify Isilon CSI driver pods are running",
+    },
+    "k8s_default_storage_class": {
+        "id": "TC_K8_047",
+        "title": "Verify default storage class is set correctly",
+    },
+    "k8s_persistent_volumes": {
+        "id": "TC_K8_048",
+        "title": "Verify Persistent Volumes are Bound with correct storage class",
+    },
+    "k8s_nfs_storage_class": {
+        "id": "TC_K8_049",
+        "title": "Verify NFS StorageClass is dynamic and properly configured",
+    },
+    "k8s_telemetry_pvcs": {
+        "id": "TC_K8_050",
+        "title": "Verify telemetry PVCs are Bound with correct PV and size",
+    },
+    # Workload Test
+    "k8s_busybox_pod": {
+        "id": "TC_K8_051",
+        "title": "Deploy and verify basic BusyBox pod",
     },
 }

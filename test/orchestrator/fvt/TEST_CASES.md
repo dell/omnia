@@ -174,6 +174,62 @@
 
 ---
 
+## Kubernetes Services & Versions (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_031 | `test_k8s_crio_running` | Verify CRI-O service running on all nodes | kubernetes, sanity |
+|| TC_K8_032 | `test_k8s_chronyd_running` | Verify chronyd service on control planes | kubernetes, sanity |
+|| TC_K8_033 | `test_k8s_kubectl_version` | Verify kubectl version matches software config | kubernetes, sanity |
+|| TC_K8_034 | `test_k8s_kubeadm_crio_version_match` | Verify kubeadm version matches CRI-O | kubernetes, sanity |
+|| TC_K8_035 | `test_k8s_container_runtime` | Verify all nodes use expected runtime | kubernetes, sanity |
+|| TC_K8_036 | `test_k8s_component_status` | Verify K8s component status healthy | kubernetes, sanity |
+
+---
+
+## Kubernetes etcd Detailed Tests (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_037 | `test_k8s_etcd_health_detailed` | Verify etcd endpoint health via etcdctl | kubernetes, sanity |
+|| TC_K8_038 | `test_k8s_etcd_member_list` | Verify etcd member count matches CPs | kubernetes, sanity |
+|| TC_K8_039 | `test_k8s_etcd_leader_consistency` | Verify etcd leader and RAFT consistency | kubernetes, sanity |
+
+---
+
+## Kubernetes HA / Virtual IP (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_040 | `test_k8s_virtual_ip` | Verify VIP on exactly one control plane | kubernetes, sanity |
+
+---
+
+## Kubernetes Network Pods (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_041 | `test_k8s_kube_vip_pods` | Verify kube-vip pods running | kubernetes, sanity |
+|| TC_K8_042 | `test_k8s_calico_pods` | Verify Calico network pods running | kubernetes, sanity |
+|| TC_K8_043 | `test_k8s_metallb_pods` | Verify MetalLB system pods running | kubernetes, sanity |
+
+---
+
+## Kubernetes Storage & CSI (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_044 | `test_k8s_nfs_provisioner_pod` | Verify NFS provisioner pod running | kubernetes, sanity |
+|| TC_K8_045 | `test_k8s_snapshot_controller_pods` | Verify snapshot-controller pods (CSI) | kubernetes, sanity |
+|| TC_K8_046 | `test_k8s_isilon_csi_pods` | Verify Isilon CSI driver pods (CSI) | kubernetes, sanity |
+|| TC_K8_047 | `test_k8s_default_storage_class` | Verify default StorageClass set | kubernetes, sanity |
+|| TC_K8_048 | `test_k8s_persistent_volumes` | Verify PVs Bound with correct SC | kubernetes, sanity |
+|| TC_K8_049 | `test_k8s_nfs_storage_class` | Verify NFS StorageClass dynamic | kubernetes, sanity |
+|| TC_K8_050 | `test_k8s_telemetry_pvcs` | Verify telemetry PVCs Bound | kubernetes, sanity |
+|| TC_K8_051 | `test_k8s_busybox_pod` | Deploy and verify BusyBox pod | kubernetes, functional |
+
+---
+
 ## Kubernetes Comprehensive Tests (`fvt/kubernetes/`)
 
 || TC ID | Test Function | Description | Marker |
@@ -261,7 +317,7 @@
 
 ## Test Summary
 
-**Total Test Cases: 104**
+**Total Test Cases: 125**
 
 | Category | Count |
 |----------|-------|
@@ -277,6 +333,11 @@
 | K8s Pod Tests | 4 |
 | K8s SSH Tests | 3 |
 | K8s Config Tests | 3 |
+| K8s Services & Versions | 6 |
+| K8s etcd Detailed Tests | 3 |
+| K8s HA / Virtual IP | 1 |
+| K8s Network Pods | 3 |
+| K8s Storage & CSI | 8 |
 | K8s Comprehensive Tests | 10 |
 | K8s Provision Tests | 1 |
 | Validate Tests | 6 |
@@ -285,6 +346,6 @@
 | Cleanup Tests | 4 |
 | Rollback Tests | 1 |
 | DCGM Tests | 3 |
-| **Total** | **104** |
+| **Total** | **125** |
 
 **Note**: Some test IDs may be reused across different test files (e.g., TC_SL_001 appears in both status and infrastructure tests). This is intentional as they test different aspects of the same functionality.
