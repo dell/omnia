@@ -1,0 +1,53 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Full orchestrator cleanup — the entry point imported by orchestrator.yml.
+#
+# USAGE (via orchestrator.yml):
+#   ansible-playbook playbooks/orchestrator.yml --tags cleanup
+#       Cleans every enabled component. Credentials are preserved.
+#   ansible-playbook playbooks/orchestrator.yml --tags cleanup_credentials
+#       Cleans orchestrator credential files only.
+#   ansible-playbook playbooks/orchestrator.yml --tags cleanup,cleanup_credentials
+#       Cleans every enabled component AND credential files.
+#
+# This playbook intentionally exposes ONLY the 'cleanup' and
+# 'cleanup_credentials' tags. Component-level cleanup (slurm, k8s,
+# openchami, ...) is available from cleanup_orchestrator.yml, which is run
+# directly. Keeping the tag sets separate is what stops component tags from
+# being reachable through orchestrator.yml.
+
+- name: Orchestrator Cleanup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    skip_approval: "{{ lookup('env', 'SKIP_APPROVAL') | default('false', true) | bool }}"
+    dry_run: "{{ lookup('env', 'DRY_RUN') | default('false', true) | bool }}"
+
+  tasks:
+    # 'apply' is required: tags on include_tasks are not inherited by the
+    # included tasks, so without it a tagged run includes the file but skips
+    # everything in it.
+    - name: Run orchestrator cleanup
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/tasks/prepare_and_select.yml"
+        apply:
+          tags:
+            - cleanup
+            - cleanup_credentials
+      tags:
+        - cleanup
+        - cleanup_credentials
