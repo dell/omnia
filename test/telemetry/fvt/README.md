@@ -204,20 +204,25 @@ alongside the retained Kafka PVCs.
 
 ```bash
 # Verify all (except cleanup)
-./run_validation.sh telemetry verify
+./run_validation.sh fvt_telemetry verify
 
 # Verify deploy tag only
-./run_validation.sh telemetry deploy verify
+./run_validation.sh fvt_telemetry deploy verify
 
 # Exec playbook + verify
-./run_validation.sh telemetry test
+./run_validation.sh fvt_telemetry test
 
 # Exec with specific tag + verify
-./run_validation.sh telemetry deploy test
+./run_validation.sh fvt_telemetry deploy test
 
 # Sanity only
-./run_validation.sh telemetry verify --marker sanity
+./run_validation.sh fvt_telemetry verify --marker sanity
 
 # Sources only
-./run_validation.sh telemetry deploy verify --suite sources
+./run_validation.sh fvt_telemetry deploy verify --suite sources
 ```
+
+## Related Documentation
+
+- See `../nft/README.md` for NFT test cases (performance, idempotency, resilience)
+- See `../README.md` for overall test automation documentation
