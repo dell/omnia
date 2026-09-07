@@ -59,36 +59,49 @@
 # =========================================================================
 # Step 3: Process PXE mapping file (for validate_provisioning)
 # =========================================================================
+- name: Resolve pxe_mapping_file_path from localhost if not set locally
+  ansible.builtin.set_fact:
+    pxe_mapping_file_path: "{{ hostvars['localhost']['pxe_mapping_file_path'] | default('') }}"
+  when: pxe_mapping_file_path is not defined or pxe_mapping_file_path | length == 0
+
 - name: Create temp mapping file from source
   ansible.builtin.shell: |
     set -o pipefail
     sed 's/^[[:space:]]*//g' "{{ pxe_mapping_file_path }}" | sed 's/[[:space:]]*$//g' > /tmp/omnia_validate_mapping.csv
   changed_when: false
-  when: read_mapping_file is not defined
+  when:
+    - read_mapping_file is not defined
+    - pxe_mapping_file_path | default('') | length > 0
 
 - name: Remove comment lines from temp mapping file
   ansible.builtin.lineinfile:
     path: /tmp/omnia_validate_mapping.csv
     regexp: '\s*#'
     state: absent
-  when: read_mapping_file is not defined
+  when:
+    - read_mapping_file is not defined
+    - pxe_mapping_file_path | default('') | length > 0
 
 - name: Generate xnames in temp mapping file
   generate_xname_in_mapping_file:
     mapping_file_path: /tmp/omnia_validate_mapping.csv
-  when: read_mapping_file is not defined
+  when:
+    - read_mapping_file is not defined
+    - pxe_mapping_file_path | default('') | length > 0
 
 - name: Read PXE mapping CSV into temp var
   community.general.read_csv:
     path: /tmp/omnia_validate_mapping.csv
     key: ADMIN_MAC
   register: _validate_csv_result
-  when: read_mapping_file is not defined
+  when:
+    - read_mapping_file is not defined
+    - pxe_mapping_file_path | default('') | length > 0
 
 - name: Promote CSV result to read_mapping_file fact
   ansible.builtin.set_fact:
     read_mapping_file: "{{ _validate_csv_result }}"
-  when: read_mapping_file is not defined and _validate_csv_result is not skipped
+  when: read_mapping_file is not defined and _validate_csv_result is defined and _validate_csv_result is not skipped
 
 - name: Clean up temp mapping file
   ansible.builtin.file:
