@@ -27,9 +27,9 @@ from library.functions.k8s_func import (
     check_k8s_nfs_client_target,
 )
 from library.vars.k8s_vars import TEST_CASES
-from library.messages.k8s_msgs import LOG_MSGS, ASSERT_MSGS
+from library.messages.k8s_msgs import TEST_LOG_MSGS as LOG, TEST_ASSERT_MSGS as ASSERT
 
-from omnia_auto import log, set_last_tc_id
+from omnia_auto import log, get_last_tc_id
 
 
 # =============================================================================
@@ -42,7 +42,6 @@ from omnia_auto import log, set_last_tc_id
 def test_k8s_firewall_ports_control_plane(host):
     """TC_K8_052: Verify firewall ports on control plane nodes match cloud-init."""
     tc = TEST_CASES["k8s_firewall_ports_control_plane"]
-    set_last_tc_id(tc["id"])
     log(f"[{tc['id']}] {tc['title']}", "TEST")
 
     result = check_k8s_firewall_ports_control_plane(host)
@@ -53,16 +52,16 @@ def test_k8s_firewall_ports_control_plane(host):
 
     if result["success"]:
         log(
-            LOG_MSGS["firewall_ports_cp_ok"].format(
+            LOG["firewall_ports_cp_ok"].format(
                 count=result.get("nodes_checked", 0)
             ),
             "OK",
         )
     else:
-        log(ASSERT_MSGS["firewall_ports_cp_failed"], "FAIL")
+        log(ASSERT["firewall_ports_cp_failed"], "FAIL")
 
     assert result["success"], (
-        LOG_MSGS["firewall_ports_cp_failed"].format(error=result["error"])
+        LOG["firewall_ports_cp_failed"].format(error=result["error"])
     )
 
 
@@ -72,7 +71,6 @@ def test_k8s_firewall_ports_control_plane(host):
 def test_k8s_firewall_ports_workers(host):
     """TC_K8_053: Verify firewall ports on worker nodes match cloud-init."""
     tc = TEST_CASES["k8s_firewall_ports_workers"]
-    set_last_tc_id(tc["id"])
     log(f"[{tc['id']}] {tc['title']}", "TEST")
 
     result = check_k8s_firewall_ports_workers(host)
@@ -83,16 +81,16 @@ def test_k8s_firewall_ports_workers(host):
 
     if result["success"]:
         log(
-            LOG_MSGS["firewall_ports_workers_ok"].format(
+            LOG["firewall_ports_workers_ok"].format(
                 count=result.get("nodes_checked", 0)
             ),
             "OK",
         )
     else:
-        log(ASSERT_MSGS["firewall_ports_workers_failed"], "FAIL")
+        log(ASSERT["firewall_ports_workers_failed"], "FAIL")
 
     assert result["success"], (
-        LOG_MSGS["firewall_ports_workers_failed"].format(error=result["error"])
+        LOG["firewall_ports_workers_failed"].format(error=result["error"])
     )
 
 
@@ -106,7 +104,6 @@ def test_k8s_firewall_ports_workers(host):
 def test_k8s_nfs_client_target(host):
     """TC_K8_054: Verify nfs-client.target is active on all K8s nodes."""
     tc = TEST_CASES["k8s_nfs_client_target"]
-    set_last_tc_id(tc["id"])
     log(f"[{tc['id']}] {tc['title']}", "TEST")
 
     result = check_k8s_nfs_client_target(host)
@@ -117,14 +114,14 @@ def test_k8s_nfs_client_target(host):
 
     if result["success"]:
         log(
-            LOG_MSGS["nfs_client_target_ok"].format(
+            LOG["nfs_client_target_ok"].format(
                 count=result.get("nodes_checked", 0)
             ),
             "OK",
         )
     else:
-        log(ASSERT_MSGS["nfs_client_target_failed"], "FAIL")
+        log(ASSERT["nfs_client_target_failed"], "FAIL")
 
     assert result["success"], (
-        LOG_MSGS["nfs_client_target_failed"].format(error=result["error"])
+        LOG["nfs_client_target_failed"].format(error=result["error"])
     )

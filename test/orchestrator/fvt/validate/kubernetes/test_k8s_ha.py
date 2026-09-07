@@ -26,8 +26,8 @@ from library.functions.k8s_func import (
     check_k8s_virtual_ip,
 )
 from library.messages import (
-    K8S_TEST_LOG_MSGS as LOG,
-    K8S_TEST_ASSERT_MSGS as ASSERT,
+    TEST_LOG_MSGS as LOG,
+    TEST_ASSERT_MSGS as ASSERT,
 )
 from library.vars.k8s_vars import TEST_CASES as TC
 
