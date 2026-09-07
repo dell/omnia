@@ -96,11 +96,11 @@ fvt_orchestrator:
     sync_input: true
 
   provision:
-    run: false
-    command: "test"
-    suite: ""
+    run: true
+    command: "exec"
+    suite: "kubernetes"
     marker: ""
-    dataset: ""
+    dataset: "k8s_only"
     sync_input: true
 
   cleanup:

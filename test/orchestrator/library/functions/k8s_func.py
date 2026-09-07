@@ -28,13 +28,9 @@ import time
 from typing import Any, Dict, List, Optional
 
 from omnia_auto import load_test_config, run_on_host
-from ..vars.common_vars import CMDS
 from ..vars.k8s_vars import (
-    K8S_SERVICES,
-    K8S_CONTROL_PLANE_SERVICES,
     K8S_DIRECTORIES,
     K8S_CONFIG_FILES,
-    K8S_SYSTEM_PODS,
     K8S_NFS_CONFIG_DIR,
     K8S_ETCD_NAMESPACE,
     K8S_ETCD_PKI_CACERT,
@@ -51,7 +47,7 @@ from ..vars.common_vars import INPUT_PATH_TEMPLATE
 # NODE DISCOVERY FUNCTIONS
 # =============================================================================
 
-def _get_project_path(host) -> str:
+def _get_project_path(host) -> str:  # pylint: disable=unused-argument
     """Get the project input path using domain-scoped INPUT_PATH_TEMPLATE."""
     config = load_test_config()
     project = config.get("project_name", "project_default")
@@ -670,7 +666,7 @@ def check_k8s_etcd_healthy(host) -> Dict[str, Any]:
 
     return {
         "success": False,
-        "details": f"etcd pods not all Running",
+        "details": "etcd pods not all Running",
         "error": f"etcd status: {result.stdout}",
     }
 
@@ -1453,7 +1449,7 @@ def check_k8s_node_taints(host) -> Dict[str, Any]:
     # Just verify the command works; taint policies vary
     return {
         "success": True,
-        "details": f"Node taints queried successfully",
+        "details": "Node taints queried successfully",
         "error": "",
     }
 
@@ -1917,7 +1913,7 @@ def check_container_runtime(host) -> Dict[str, Any]:
 
         if expected_version:
             expected_str = f"{expected_runtime}://{expected_version}"
-            is_correct = (runtime == expected_str)
+            is_correct = runtime == expected_str
         else:
             expected_str = f"{expected_runtime}://"
             is_correct = runtime.startswith(expected_str)
@@ -2695,10 +2691,8 @@ def check_k8s_persistent_volumes(host) -> Dict[str, Any]:
     Returns:
         Dict with success, details, error, pv_count, issues
     """
-    from ..vars.k8s_vars import K8S_DEFAULT_STORAGE_CLASS_CSI, K8S_DEFAULT_STORAGE_CLASS_NFS
-
-    is_csi = _is_powerscale_csi_configured(host)
-    expected_sc = K8S_DEFAULT_STORAGE_CLASS_CSI if is_csi else K8S_DEFAULT_STORAGE_CLASS_NFS
+    # Note: Storage class validation is reserved for future enhancement
+    # Currently just checks PV status regardless of storage class type
 
     cp_ip = _get_first_control_plane_ip(host)
     if not cp_ip:
@@ -2730,8 +2724,6 @@ def check_k8s_persistent_volumes(host) -> Dict[str, Any]:
         if len(parts) >= 5:
             pv_name = parts[0]
             status = parts[4]
-            # Storage class is typically in column 6 (0-indexed 5)
-            sc = parts[5] if len(parts) > 5 else ""
 
             # Skip Released PVs
             if status == "Released":
@@ -2840,8 +2832,7 @@ def check_k8s_telemetry_pvcs(host) -> Dict[str, Any]:
     Returns:
         Dict with success, details, error, pvc_count, issues
     """
-    from ..vars.k8s_vars import K8S_DEFAULT_STORAGE_CLASS_CSI, K8S_DEFAULT_STORAGE_CLASS_NFS
-
+    # Note: Storage class validation is reserved for future enhancement
     cp_ip = _get_first_control_plane_ip(host)
     if not cp_ip:
         return {

@@ -30,7 +30,7 @@ oim_ssh_port: 22
 clone_path: "/root/omnia"
 
 # The dataset name selects the local folder under test/orchestrator/datasets/.
-dataset: "slurm_only"
+dataset: "k8s_only"
 
 # Only change if the target uses a different project name than the dataset.
 project_name: "project_default"
