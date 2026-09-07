@@ -17,6 +17,11 @@
 # Called in a loop with fg_name set by the caller.
 # Uses delete-then-set for idempotency.
 
+- name: Load S3 configuration messages
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../orchestrator_common/vars/s3_config_messages.yml"
+  run_once: true
+
 - name: Set functional_group_name for template compatibility
   ansible.builtin.set_fact:
     functional_group_name: "{{ fg_name }}"
@@ -28,11 +33,7 @@
     that:
       - s3_configurations is defined
       - s3_configurations.endpoint_url is defined
-    fail_msg: >-
-      s3_configurations not available for boot service template generation.
-      Run image_build_manager before orchestrator to generate build_status.yml,
-      or set image_build_manager_output_path in orchestrator_config.yml.
-      Boot service templates require S3 endpoint URL to construct PXE boot HTTP URLs.
+    fail_msg: "{{ s3_config_not_available_msg }}"
 
 - name: Load nodes YAML for boot-service template - {{ fg_name }}
   ansible.builtin.slurp:

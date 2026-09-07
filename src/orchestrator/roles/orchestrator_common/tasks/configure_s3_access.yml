@@ -28,6 +28,10 @@
 # - execute/provision/pxeboot tags: Require build_status.yml (needed for boot service templates)
 # - Default flow (no tags): Require build_status.yml (complete flow needs it)
 
+- name: Load S3 configuration messages
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/vars/s3_config_messages.yml"
+
 - name: Load orchestrator config for build_status path
   ansible.builtin.include_vars:
     file: "{{ hostvars['localhost']['input_project_dir'] }}/orchestrator_config.yml"
@@ -58,21 +62,14 @@
 
 - name: Fail if build_status.yml is required but missing
   ansible.builtin.fail:
-    msg: >-
-      image_build_manager output not found at '{{ _build_status_path }}'.
-      This is required for {{ hostvars['localhost']['omnia_run_tags'] | default(['default flow']) | join(', ') }}.
-      Run image_build_manager before orchestrator to generate build_status.yml.
-      Or set image_build_manager_output_path in orchestrator_config.yml.
+    msg: "{{ build_status_missing_required_msg }}"
   when:
     - _build_status_required | bool
     - not _build_status_stat.stat.exists
 
 - name: Skip S3 configuration for prepare/deploy tags when build_status.yml is missing
   ansible.builtin.debug:
-    msg: >-
-      Skipping S3 configuration - build_status.yml not found and not required
-      for current tags: {{ hostvars['localhost']['omnia_run_tags'] | default(['default flow']) | join(', ') }}.
-      S3 configuration will be loaded during execute/provision phases.
+    msg: "{{ build_status_missing_optional_msg }}"
   when:
     - not _build_status_required | bool
     - not _build_status_stat.stat.exists
@@ -94,9 +91,7 @@
 
 - name: Validate build_status overall_status
   ansible.builtin.fail:
-    msg: >-
-      image_build_manager build_status.yml reports overall_status='{{ _build_status.overall_status | default("unknown") }}'.
-      Expected 'success'. Fix image builds before running orchestrator.
+    msg: "{{ build_status_invalid_msg }}"
   when:
     - _build_status_stat.stat.exists
     - (_build_status.overall_status | default('')) != 'success'
