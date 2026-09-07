@@ -15,26 +15,31 @@
                 },
                 "endpoint_url": {
                     "type": "string",
-                    "description": "S3 endpoint URL. Required for 'powerscale' provider; auto-set for 'minio'."
+                    "description": "S3 endpoint URL. Must be empty for 'minio' and a valid HTTP(S) URL for 'powerscale'."
                 }
             },
-            "required": ["provider"],
+            "required": ["provider", "endpoint_url"],
             "additionalProperties": false
         },
         "aarch64_inventory_host_ip": {
-            "type": "string",
-            "description": "IP address of the ARM admin node for aarch64 image builds. Leave empty to skip aarch64 builds.",
-            "pattern": "^$|^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+            "description": "Optional IPv4 address of the ARM admin node. An empty string disables aarch64 builds.",
+            "anyOf": [
+                {"const": ""},
+                {"type": "string", "format": "ipv4"}
+            ]
         },
         "aarch64_ssh_user": {
             "type": "string",
             "description": "SSH user for connecting to the ARM build host.",
             "default": "root",
             "minLength": 1,
-            "maxLength": 64
+            "maxLength": 64,
+            "pattern": "^\\S(?:.*\\S)?$"
         },
         "repo_manager_output_path": {
             "type": "string",
+            "minLength": 1,
+            "pattern": "^\\S+$",
             "description": "Full path to repo_status.yml produced by repo_manager. Supports multiple projects."
         },
         "image_build_type": {
@@ -83,8 +88,76 @@
                     "default": true
                 }
             },
+            "required": [
+                "max_parallel",
+                "build_timeout",
+                "force_rebuild",
+                "backup_s3_images",
+                "repo_ssl_verify"
+            ],
             "additionalProperties": false
         }
     },
-    "required": ["s3_configurations"]
+    "required": [
+        "repo_manager_output_path",
+        "s3_configurations",
+        "image_build_type",
+        "functional_groups_source",
+        "build_image"
+    ],
+    "allOf": [
+        {
+            "if": {
+                "properties": {
+                    "s3_configurations": {
+                        "properties": {"provider": {"const": "minio"}},
+                        "required": ["provider"]
+                    }
+                },
+                "required": ["s3_configurations"]
+            },
+            "then": {
+                "properties": {
+                    "s3_configurations": {
+                        "properties": {"endpoint_url": {"const": ""}}
+                    }
+                }
+            }
+        },
+        {
+            "if": {
+                "properties": {
+                    "s3_configurations": {
+                        "properties": {"provider": {"const": "powerscale"}},
+                        "required": ["provider"]
+                    }
+                },
+                "required": ["s3_configurations"]
+            },
+            "then": {
+                "properties": {
+                    "s3_configurations": {
+                        "properties": {
+                            "endpoint_url": {
+                                "type": "string",
+                                "minLength": 1,
+                                "pattern": "^https?://\\S+$",
+                                "format": "uri"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "if": {
+                "properties": {
+                    "aarch64_inventory_host_ip": {"not": {"const": ""}}
+                },
+                "required": ["aarch64_inventory_host_ip"]
+            },
+            "then": {"required": ["aarch64_ssh_user"]}
+        }
+    ],
+    "additionalProperties": false
 }

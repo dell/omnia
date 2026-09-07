@@ -12,12 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Step 5: Load repo_status.yml and validate via Python module
+# Step 5: Validate and load repo_status.yml via Python modules
 # Step 6: Set repo facts and build repo lists
 #
-# Uses plugins/modules/parse_repo_status.py for repo_status.yml parsing,
-# port extraction, and repo list building. Validates repo manager certificate
-# (derived from repo_status.yml) and sets S3 endpoint facts.
+# Contract validation is intentionally performed here, only for build/execute
+# flows where needs_repo_status=true. The validate tag does not load this file.
+
+- name: Validate repo_status.yml contract
+  validate_repo_status_contract:
+    repo_status_file: "{{ repo_manager_output_path }}"
+    schema_file: "{{ _domain_root_dir }}/plugins/module_utils/input_validation/schema/repo_status.json"
 
 # --- Parse repo_status.yml via Python module ---
 - name: Parse repo_status.yml via module

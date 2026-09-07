@@ -17,6 +17,10 @@
 # Validates:
 #   - image_build_config.yml (required)
 #   - image_build_credentials.yml (optional — may be encrypted/absent on first run)
+#   - package_groups.yml (required in config mode; validated when present)
+#   - catalog JSON (required in catalog mode)
+# repo_status.yml is intentionally validated later by image_build_setup only
+# for build/execute flows that set needs_repo_status=true.
 #
 # Runs as a standalone role or embedded in image_build_manager.yml flow.
 
