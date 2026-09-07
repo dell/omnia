@@ -22,19 +22,31 @@
   delay: "{{ max_delay }}"
   changed_when: false
 
-- name: Generate access token # noqa: command-instead-of-shell
-  ansible.builtin.shell: sudo bash -lc 'gen_access_token'
-  register: access_token_result
-  retries: "{{ max_retries }}"
-  delay: "{{ max_delay }}"
-  until: access_token_result.rc == 0
-  changed_when: false
-  no_log: true
+- name: Generate access token
+  block:
+    - name: Generate access token # noqa: command-instead-of-shell
+      ansible.builtin.shell: sudo bash -lc 'gen_access_token'
+      register: access_token_result
+      retries: "{{ max_retries }}"
+      delay: "{{ max_delay }}"
+      until: access_token_result.rc == 0
+      changed_when: false
+      no_log: true
+  rescue:
+    - name: Fail with access token generation error
+      ansible.builtin.fail:
+        msg: "{{ access_token_generation_fail_msg }}"
 
 - name: Set ochami_env
-  ansible.builtin.set_fact:
-    ochami_env: "{{ {cluster_env_key: access_token_result.stdout} }}"
-  no_log: true
+  block:
+    - name: Set ochami_env
+      ansible.builtin.set_fact:
+        ochami_env: "{{ {cluster_env_key: access_token_result.stdout} }}"
+      no_log: true
+  rescue:
+    - name: Fail with environment variable setting error
+      ansible.builtin.fail:
+        msg: "{{ ochami_env_setting_fail_msg }}"
 
 - name: Verify ochami installation
   environment: "{{ ochami_env }}"
