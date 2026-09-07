@@ -24,9 +24,9 @@
 # Tags (pick ONE — mutually exclusive):
 #   (none)      — Default flow: validate + deploy
 #   precheck    — Validate environment prerequisites (opt-in only)
-#   validate    — Input validation only (alias: validation)
-#   credentials — Collect telemetry credentials (opt-in only)
-#   prepare     — Validate + collect credentials (opt-in only)
+#   validate    — Input validation + collect credentials (alias: validation)
+#   prepare     — Input validation + collect credentials (alias: validate)
+#   credentials — Collect telemetry credentials only (opt-in only)
 #   execute     — Deploy all enabled telemetry (alias: deploy)
 #   cleanup     — Cleanup all telemetry components
 #   upgrade     — Upgrade telemetry components (placeholder)
@@ -71,7 +71,7 @@
 # =========================================================================
 - name: "Validation | Validate telemetry input files"
   ansible.builtin.import_playbook: validate/validation.yml
-  tags: [validate, validation]
+  tags: [validate, validation, prepare]
 
 # =========================================================================
 # FLOW: precheck — Environment validation (opt-in only)
@@ -90,20 +90,8 @@
   tags:
     - never
     - credentials
-
-# =========================================================================
-# FLOW: prepare — Validate + Credentials before deployment (opt-in only)
-# =========================================================================
-- name: "Prepare | Validate inputs and collect credentials"
-  ansible.builtin.import_playbook: validate/validation.yml
-  tags:
-    - never
-    - prepare
-
-- name: "Prepare | Collect telemetry credentials"
-  ansible.builtin.import_playbook: credentials/get_telemetry_credentials.yml
-  tags:
-    - never
+    - validate
+    - validation
     - prepare
 
 # =========================================================================

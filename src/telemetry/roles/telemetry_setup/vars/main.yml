@@ -55,10 +55,16 @@ telemetry_usage_info_msg:
 # -----------------------------------------------------------------------------
 kubernetes_install_failure_msg: >-
   Failed to install Python kubernetes module.
+  {% if telemetry_packages_config.install_mode | default('offline') == 'online' %}
   - Online installation failed (no internet or pip unavailable)
-  - Offline packages not found at {{ offline_python_packages_dir | default('/opt/omnia/telemetry/packages/python') }}
-
   To fix:
-  1. Ensure internet connectivity, OR
+  1. Ensure internet connectivity
+  2. Verify pip is available: pip3 --version
+  3. Re-run the playbook
+  {% else %}
+  - Offline installation failed (packages not found at {{ offline_python_packages_dir | default('/opt/omnia/telemetry/packages/python') }})
+  To fix:
+  1. Ensure repo_url is set in telemetry_packages.yml
   2. Download packages: pip3 download kubernetes -d {{ offline_python_packages_dir | default('/opt/omnia/telemetry/packages/python') }}/
   3. Re-run the playbook
+  {% endif %}
