@@ -49,7 +49,7 @@ service_retry_interval: 15
 common_metadata_svc_groups:
   - ssh
   - chrony
-  - phone_home
+  - node_registration
 
 # Common group template
 openchami_groups_common_template: "{{ ochami_template_dir }}/nodes/groups_common.yaml.j2"

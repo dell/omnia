@@ -17,7 +17,7 @@ issuing boot configuration and power commands.
 
 ## Inventory Format
 
-Inventory must include BMC IPs in the `[bmc]` group. For phone-home verification,
+Inventory must include BMC IPs in the `[bmc]` group. For node-registration verification,
 also include `admin_ip` and `hostname` as host variables:
 
 ```ini
