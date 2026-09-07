@@ -53,7 +53,7 @@ logger = logging.getLogger(__name__)
 ARTIFACTS_BASE = os.environ.get(
     "NFS_ARTIFACT_BASE", "/opt/omnia/build_stream_root"
 ) + "/artifacts"
-CONFIG_PATH = "/opt/omnia/automation/omnia_test_config.yml"
+CONFIG_PATH = "/opt/omnia/build_stream/validate/config.yml"
 DEFAULT_TIMEOUT_MINUTES = 150
 
 
