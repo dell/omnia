@@ -43,7 +43,15 @@ REPO_MANAGER_OFFLINE_REPO_DIR = os.path.join(
 )
 REPO_MANAGER_DATA_DIR = os.path.join(REPO_MANAGER_RUNTIME_DIR, '.data')
 
-CLI_FILE_PATH = "/etc/pulp/cli.toml"
+CLI_FILE_PATH = os.environ.get(
+    "PULP_CLI_CONFIG_PATH", "/etc/pulp/cli.toml"
+)
+PULP_REPO_FILE_PATH = os.environ.get(
+    "PULP_REPO_FILE_PATH", "/etc/yum.repos.d/pulp.repo"
+)
+PULP_CLI_EXECUTABLE = os.environ.get(
+    "PULP_CLI_EXECUTABLE", "/usr/local/bin/pulp"
+)
 PULP_SSL_CA_CERT = os.path.join(
     REPO_MANAGER_RUNTIME_DIR, "pulp_config", "settings", "certs",
     "pulp_webserver.crt"
@@ -70,6 +78,8 @@ __all__ = [
     "REPO_MANAGER_OFFLINE_REPO_DIR",
     "REPO_MANAGER_DATA_DIR",
     "CLI_FILE_PATH",
+    "PULP_REPO_FILE_PATH",
+    "PULP_CLI_EXECUTABLE",
     "PULP_SSL_CA_CERT",
     "CATALOG_PATH",
     "OMNIA_CREDENTIALS_YAML_PATH",

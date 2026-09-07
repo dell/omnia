@@ -20,6 +20,11 @@ export CATALOG_FILE_PATH=/path/to/catalog.json
 `CATALOG_FILE_PATH` may use any file name, but it must identify an existing
 regular file whose extension is `.json`.
 
+If context resolution reports `invalid artifact URL`, verify that catalog
+artifact URLs use HTTP(S), do not contain embedded credentials or fragments,
+and do not place passwords or tokens in query parameters. Public selectors
+such as `?version=1.7.7` are supported.
+
 ---
 
 ### 2. Runtime input file is missing
@@ -89,11 +94,21 @@ Repo Manager deploys HTTPS only. The configured host port forwards to port
 ### 5. `pulp status` reports a self-signed certificate error
 
 **Cause**: An unmanaged Pulp CLI or direct HTTPS client is not using the Repo
-Manager CA.
+Manager CA. Older deployments also allowed the virtual environment's native
+`pulp` entry point to shadow the managed `/usr/local/bin/pulp` launcher.
 
-**Fix**: Use the managed `/usr/local/bin/pulp` command created by `prepare`.
-It supplies the generated CA automatically. For a separate diagnostic client,
-use this CA explicitly:
+**Fix**: Run `prepare` again. If `OMNIA_VENV_PATH` is non-empty, Repo Manager
+uses that virtual environment and links its `bin/pulp` entry point to the
+managed `/usr/local/bin/pulp` launcher. If `OMNIA_VENV_PATH` is unset or empty,
+Repo Manager uses the system Python runtime. The generated CA is supplied
+automatically in both modes.
+
+```bash
+cd <OMNIA_SOURCE_PATH>/repo_manager/playbooks
+ansible-playbook repo_manager.yml --tags prepare
+```
+
+For a separate diagnostic client, use this CA explicitly:
 
 ```text
 <REPO_MANAGER_DATA_PATH>/pulp_config/settings/certs/pulp_webserver.crt
@@ -101,6 +116,12 @@ use this CA explicitly:
 
 A persistent `PULP_CA_BUNDLE` shell export is not required for normal Repo
 Manager or managed Pulp CLI use.
+
+Full Pulp cleanup removes the server, CLI configuration, and CA trust while
+preserving the managed launcher and backend. The Omnia venv link is preserved
+only when `OMNIA_VENV_PATH` is configured and available. Consequently,
+`pulp --version` remains available, but server commands such as `pulp status`
+remain unavailable until `prepare` redeploys and reconfigures Pulp.
 
 ---
 
@@ -149,20 +170,56 @@ appstream: {}
 codeready-builder: {}
 ```
 
-**Cause**: Empty entries require a valid RHEL subscription on the Repo Manager
-host. Repo Manager resolves the matching EUS repository and entitlement
-certificates for each catalog version and architecture.
+**Cause**: Only catalog-referenced `baseos`, `appstream` and
+`codeready-builder` entries may omit their URLs, and only when the Repo Manager
+host has usable RHEL subscription access. Every referenced repository requires
+an explicit URL when subscription access is disabled.
 
-**Fix**:
+**Verify the host subscription without displaying certificate content**:
 
-- With a subscription, verify `subscription-manager identity` and available
-  repositories.
-- Without a subscription, provide the repository `url` and any required TLS
-  fields in `repo_manager_config.yml`.
-- If a user URL is present, it takes precedence over subscription discovery.
+```bash
+subscription-manager identity
+subscription-manager status
+subscription-manager release --list
+subscription-manager repos --list-enabled
+```
 
-For mixed `x86_64` and `aarch64` catalogs, every referenced architecture must
-have a matching repository entry or subscription source.
+Then run the Repo Manager precheck from its playbook directory:
+
+```bash
+ansible-playbook repo_manager.yml --tags precheck -vv
+```
+
+Use the failure summary to check the active catalog minor version and every
+selected architecture. The repository key must exactly match the catalog
+`reponame`; accepted mappings can be flat or nested under `user_repos` or
+`additional_repos`.
+
+| Condition | Resolution |
+|-----------|------------|
+| Subscription is valid and a referenced subscription repository is empty | Ensure the repository is available for the active RHEL version; Repo Manager prefers EUS and then tries standard |
+| Subscription is valid but a custom repository is empty | Add its explicit URL; subscriptions do not supply custom repositories |
+| Subscription is unavailable | Add an explicit URL for every referenced repository, including BaseOS, AppStream and CodeReady Builder |
+| An explicit URL is configured | Repo Manager uses it instead of subscription discovery |
+| An unused repository is empty or missing | No action is required for the current catalog execution |
+
+For an explicit repository URL that does not require client authentication,
+verify its metadata endpoint without downloading repository content:
+
+```bash
+REPO_URL="https://mirror.example/rhel/10.2/x86_64/baseos/"
+curl --fail --silent --show-error --output /dev/null \
+  "${REPO_URL%/}/repodata/repomd.xml"
+```
+
+Do not place repository credentials directly in this command. For mTLS URLs,
+use the configured CA, client certificate and client key through a protected
+configuration and rely on Repo Manager precheck for the authoritative result.
+
+For mixed `x86_64` and `aarch64` catalogs, each architecture needs its own
+matching repository entry or subscription source. An x86_64 URL cannot satisfy
+an aarch64 repository. When several repositories are missing, Repo Manager
+reports them together by architecture.
 
 ---
 
@@ -241,22 +298,29 @@ Use an exact tag whenever only one version should be deleted.
 | Direct cleanup playbook | `/var/log/omnia/repo_manager/cleanup.log` |
 | Selective cleanup details | `<REPO_MANAGER_DATA_PATH>/log/<os>/<version>/cleanup/standard.log` |
 | Selective cleanup results | `<REPO_MANAGER_DATA_PATH>/log/<os>/<version>/cleanup/cleanup_status.csv` |
+| Multi-version/shared cleanup details | `<REPO_MANAGER_DATA_PATH>/log/<os>/cleanup/standard.log` |
+| Multi-version/shared cleanup results | `<REPO_MANAGER_DATA_PATH>/log/<os>/cleanup/cleanup_status.csv` |
 
 Full Pulp cleanup removes the Repo Manager runtime log directory by default.
 Use `-e "cleanup_logs=false"` when the logs must be retained.
 
 ---
 
-### 14. `repo_status.yml` still lists deleted content
+### 14. `repo_status.yml` is absent after selective cleanup
 
-**Cause**: Selective cleanup updates cleanup and mirror-state records, but
-`repo_status.yml` is generated only by the `status` operation.
+**Cause**: This is intentional. Selective cleanup invalidates the previous
+consumer output so it cannot advertise deleted content.
 
 **Fix**:
 
 ```bash
-ansible-playbook repo_manager.yml --tags status
+ansible-playbook repo_manager.yml --tags "download,status"
 ```
+
+Using `--tags status` alone after cleanup writes the current incomplete Pulp
+state with `overall_status: failed` and lists the missing RPM repositories. The
+status play then fails so that the incomplete output cannot be mistaken for a
+ready repository service.
 
 ---
 

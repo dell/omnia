@@ -78,20 +78,48 @@ different priorities.
 
 | Subscription state | Repository entry | Result |
 |--------------------|------------------|--------|
-| Enabled | `baseos: {}` | Resolve the matching RHEL EUS repository and entitlement certificates |
-| Enabled | Entry contains a user URL | Use the user-provided URL and settings |
-| Disabled | Entry contains a valid URL | Use the configured URL |
-| Disabled | Empty BaseOS/AppStream/CRB entry | Validation fails with the missing source |
+| Enabled | Referenced `baseos`, `appstream` or `codeready-builder` has a non-empty URL | Use the explicit URL and configured settings |
+| Enabled | Referenced `baseos`, `appstream` or `codeready-builder` is empty or missing | Resolve EUS first, otherwise standard, and apply entitlement certificates |
+| Enabled | Referenced repository with any other name has a non-empty URL | Use the explicit URL |
+| Enabled | Referenced repository with any other name is empty or missing | Validation fails |
+| Disabled | Any referenced repository has a non-empty URL | Use the explicit URL |
+| Disabled | Any referenced repository is empty or missing | Validation fails, including BaseOS, AppStream and CodeReady Builder |
+| Either | Repository is not referenced by the selected catalog content | Ignore it for this execution |
 
-Resolution is performed independently for every catalog OS version and
-architecture. An x86_64 subscription on the OIM does not automatically provide
-aarch64 content unless the subscription exposes that architecture.
+The subscription state is determined once for an execution. The same Boolean
+result is passed to catalog mapping validation and active-context repository
+resolution so that precheck and download apply the same URL requirement.
+
+The repository lookup is performed independently for every catalog OS version
+and architecture. The matching version and architecture sections must exist.
+Entries may be flat or nested under `user_repos` or `additional_repos`; these
+locations are flattened only for mapping and retain their normal runtime
+processing behavior. An x86_64 subscription on the OIM does not automatically
+provide aarch64 content unless the corresponding subscription URL is available
+for aarch64.
+
+When subscription access is enabled, Repo Manager validates
+`repodata/repomd.xml` for every resolved catalog-referenced repository,
+including repositories using an explicit URL. If a required subscription
+repository has no EUS URL, Repo Manager tries its standard URL. The resolved
+URL uses the active catalog minor version. A referenced repository that remains
+unavailable causes the context to fail before Pulp synchronization.
+
+When subscription access is disabled, no repository is exempt from the
+explicit-URL requirement. Validation collects missing mappings and empty URLs
+for all selected architectures instead of requiring the administrator to fix
+one unused or missing repository at a time.
+
+When a catalog contains multiple minor versions, configuration must provide the
+architecture sections and repository URLs referenced by each version's
+functional layers. Unreferenced versions, architectures and repositories are
+ignored.
 
 ### Registry Structure
 
 ```yaml
 registries:
-  harbor.example.com:
+  private_registry:
     base_url: "https://harbor.example.com"
     port: 443
     auth:
@@ -116,9 +144,11 @@ registries:
 | `tls.client_key_path` | string or null | No | mTLS key |
 | `tls.insecure` | boolean | No | Disable TLS verification; not recommended |
 
-Known public registries can be used directly. A configured private registry must
-match the catalog source's `registry` value and, for basic authentication, a
-Vault credential entry.
+Known public registries can be used directly. For a configured private registry,
+`sources[].registry` contains the configuration key (`private_registry`) while
+the package key and `name` must start with the configured endpoint
+(`harbor.example.com:443/`). Alias-prefixed image names are rejected. Basic
+authentication also requires the configured Vault credential entry.
 
 ---
 
@@ -208,10 +238,27 @@ architectures and sources to synchronize.
 | `sources[].architecture` | Selects `x86_64` or `aarch64` |
 | `sources[].version` | Selects one or more OS versions |
 | `sources[].reponame` | Maps RPM content to `repositories` |
-| `sources[].registry` | Maps OCI images to public or configured registries |
+| `sources[].registry` | Maps an endpoint-prefixed OCI image to its configured registry key |
+| `url` or `sources[].url` | HTTP(S) download URL for a direct artifact |
+
+Direct artifact URLs may contain a public selection query such as
+`download.php?version=1.7.7`. They must not contain URL user information,
+fragments, malformed escapes, or credential-bearing query keys such as
+`token`, `password`, `secret`, `signature`, or `api_key`. RPM repository and
+container-registry base URLs use the stricter repository URL contract and do
+not accept query strings.
 
 Every referenced repository and non-public registry must resolve before download
-starts. Multiple tags of the same image are independent catalog identities.
+starts. A private image name must use the exact configured `host[:port]`; the
+registry configuration key is not a valid image-name prefix. Multiple tags of
+the same image are independent catalog identities.
+
+The catalog may select one or several minor versions of one OS type. Repo
+Manager creates one execution context per minor version, orders the versions
+numerically, and completes each context before starting the next. For example,
+RHEL 10.0 finishes before RHEL 10.2. A package selected in several contexts must
+provide a matching source version and architecture (or an explicit `noarch`
+source) for each context.
 
 See [Content Configuration Guide](../content-configuration-guide.md) and
 [Catalog Operations](../catalog_operations.md).
@@ -234,12 +281,12 @@ with Ansible Vault at rest.
 ```yaml
 pulp_username: "admin"
 pulp_password: "<secret>"
-docker_username: "<optional-user>"
-docker_password: "<optional-secret>"
+docker_username: ''
+docker_password: ''
 
 registry_credentials:
   registries/harbor-production:
-    registry: "harbor.example.com"
+    registry: "private_registry"
     username: "omnia-pull-user"
     password: "<secret>"
 ```
@@ -253,6 +300,10 @@ registry_credentials:
 | `registry_credentials.<vault_path>.registry` | For private registry auth | Registry mapping |
 | `registry_credentials.<vault_path>.username` | For basic auth | Registry username |
 | `registry_credentials.<vault_path>.password` | For basic auth | Registry password/token |
+
+When Docker Hub credentials are not used, both Docker values are stored as
+empty strings. Missing, YAML null, whitespace-only, and legacy `"None"` values
+are normalized to `''`; anonymous public pulls do not run `podman login`.
 
 Do not edit encrypted values directly and never commit either credential file.
 

@@ -49,16 +49,7 @@
 
 - name: Verify Pulp container is running
   ansible.builtin.fail:
-    msg: |
-      Pulp container is not running!
-
-      Status: {{ pulp_status.stdout | default('Container not found') }}
-
-      Troubleshooting:
-      1. Check container logs: podman logs {{ pulp_container_name }}
-      2. Check systemd status: systemctl status {{ pulp_container_name }}
-      3. Verify storage is accessible
-      4. Run cleanup and redeploy if needed
+    msg: "{{ deploy_pulp_verify_pulp_container_is_running_msg }}"
   when: not container_is_running
 
 # -----------------------------------------------------------------------------

@@ -31,12 +31,32 @@ from __future__ import absolute_import, division, print_function
 import json
 import os
 import re
-import shlex
 import subprocess
-from urllib.parse import urlparse, urlunparse
+import tempfile
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager.path_resolver import get_repo_manager_data_path
+from ansible.module_utils.repo_manager.pulp_commands import (
+    command_argv,
+    pulp_file_commands,
+    pulp_python_commands,
+    pulp_rpm_commands,
+)
+from ansible.module_utils.repo_manager.repo_paths import PULP_CLI_EXECUTABLE
+from ansible.module_utils.repo_manager.registry_utils import get_registry_authority
+from ansible.module_utils.repo_manager.repo_settings import (
+    PULP_CONTENT_ROUTE,
+    PULP_DISTRIBUTION_ROOT,
+    PULP_DISTRIBUTION_ROOT_PARTS,
+)
+from ansible.module_utils.repo_manager.repository_status_builder import (
+    build_terminal_context_status,
+    summarize_execution_contexts,
+)
+from ansible.module_utils.repo_manager.security_utils import (
+    normalize_managed_python_distribution_url,
+    normalize_pulp_distribution_url,
+)
 
 __metaclass__ = type  # pylint: disable=invalid-name
 
@@ -45,8 +65,9 @@ DOCUMENTATION = r'''
 module: generate_local_repo_access
 short_description: Generate repo_status.yml with repository URLs
 description:
-    - Queries Pulp API to get all available distributions
+    - Queries the Pulp CLI to get all available distributions
     - Generates YAML with repository URLs in the required format
+    - Marks status failed when catalog-required RPM distributions are missing
 options:
     pulp_server_ip:
         description: Pulp server IP address
@@ -82,6 +103,20 @@ options:
         required: false
         type: str
         default: "success"
+    execution_contexts:
+        description: Selected version and architecture contexts from the catalog
+        required: false
+        type: list
+        elements: dict
+    execution_results:
+        description: Final results for contexts attempted by the download operation
+        required: false
+        type: list
+        elements: dict
+    pulp_cli_executable:
+        description: Absolute path to the Pulp CLI executable.
+        required: false
+        type: path
 
 author:
     - Dell Technologies
@@ -92,6 +127,7 @@ EXAMPLES = r'''
   generate_local_repo_access:
     pulp_server_ip: 192.168.1.100
     pulp_server_port: 2225
+    pulp_cli_executable: "{{ pulp_cli_executable }}"
     cluster_os_type: rhel
     cluster_os_version: "9.4"
     repo_config: partial
@@ -107,6 +143,22 @@ rpm_repos_count:
 file_repos_count:
     description: Number of file repositories found
     type: int
+    returned: success
+repository_ready:
+    description: Whether every catalog-required RPM repository has a published URL
+    type: bool
+    returned: success
+missing_rpm_repositories:
+    description: Missing RPM repository names grouped by version and architecture
+    type: dict
+    returned: success
+published_status:
+    description: Status written to repo_status.yml
+    type: str
+    returned: success
+status_generation_error:
+    description: Whether live Pulp status collection failed
+    type: bool
     returned: success
 msg:
     description: Status message
@@ -147,7 +199,8 @@ def _repo_version_config(config, cluster_os_version):
     return {}
 
 
-def _build_repo_priority_map(config, cluster_os_version):
+def _build_repo_priority_map(  # pylint: disable=too-many-locals,too-many-branches
+        config, cluster_os_version):
     """Map ``(architecture, output repository name)`` to explicit priority.
 
     Pulp exposes all ``additional_repos`` as one distribution per architecture,
@@ -230,25 +283,39 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
         self.pulp_protocol = 'https'
         self.cluster_os_type = module.params['cluster_os_type']
         self.cluster_os_version = module.params['cluster_os_version']
+        self.architectures = module.params['architectures']
         self.output_path = module.params['output_path']
+        self.pulp_cli_executable = module.params.get(
+            'pulp_cli_executable', PULP_CLI_EXECUTABLE
+        )
         self.certs_dir = os.path.join(
             get_repo_manager_data_path(), 'pulp_config', 'settings', 'certs'
         )
         self.local_repo_config_path = module.params.get('local_repo_config_path', '')
         self.repo_config = module.params.get('repo_config', 'partial')
         self.overall_status = module.params.get('overall_status', 'success')
+        self.execution_contexts = module.params.get('execution_contexts') or [{
+            'context_id': f'{self.cluster_os_type}_{self.cluster_os_version}',
+            'os_type': self.cluster_os_type,
+            'os_version': self.cluster_os_version,
+            'architectures': self.architectures,
+        }]
+        self.execution_results = module.params.get('execution_results') or []
 
         self.base_url = f"{self.pulp_protocol}://{self.pulp_server_ip}:{self.pulp_server_port}"
         self.rpm_distributions = []
         self.file_distributions = []
         self.python_distributions = []
+        self.missing_rpm_repositories = {}
+        self.missing_rpm_repositories_by_version = {}
         self._local_repo_config = None
 
     def run_pulp_command(self, cmd):
         """Run a pulp CLI command and return JSON output."""
         try:
-            # Use shlex.split to safely parse command arguments
-            cmd_list = shlex.split(cmd)
+            cmd_list = command_argv(
+                cmd, executable=self.pulp_cli_executable
+            )
             result = subprocess.run(
                 cmd_list,
                 shell=False,
@@ -257,39 +324,38 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
                 timeout=60,
                 check=False
             )
-            if result.returncode == 0 and result.stdout.strip():
-                return json.loads(result.stdout)
-            return []
-        except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError):
-            return []
+            if result.returncode != 0 or not result.stdout.strip():
+                raise ValueError("Pulp distribution query failed")
+            payload = json.loads(result.stdout)
+            if not isinstance(payload, list):
+                raise ValueError("Pulp distribution query returned invalid data")
+            return payload
+        except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError) as error:
+            raise ValueError("Pulp distribution query failed") from error
 
     def fetch_distributions(self):
         """Fetch all relevant distributions from Pulp."""
         self.rpm_distributions = self.run_pulp_command(
-            "/usr/local/bin/pulp rpm distribution list"
+            pulp_rpm_commands["list_distributions"]
         )
         self.file_distributions = self.run_pulp_command(
-            "/usr/local/bin/pulp file distribution list"
+            pulp_file_commands["list_distributions"]
         )
         self.python_distributions = self.run_pulp_command(
-            "/usr/local/bin/pulp python distribution list"
+            pulp_python_commands["list_distributions"]
         )
 
     def _normalise_base_url(self, base_url):
-        """Return base_url with exactly one trailing slash.
-
-        Some Pulp plugins (e.g. pulp_python) report a content host of ``pulp``
-        instead of the public Pulp server. Rewrite that to the configured Pulp
-        server IP and port so cluster nodes can resolve the URL.
-        """
+        """Return a distribution URL bound to the configured Pulp origin."""
         if not base_url:
             return ''
-        parsed = urlparse(base_url)
-        if parsed.hostname and parsed.hostname.lower() == 'pulp':
-            netloc = f"{self.pulp_server_ip}:{self.pulp_server_port}"
-            parsed = parsed._replace(netloc=netloc)
-            base_url = urlunparse(parsed)
-        return base_url.rstrip('/') + '/'
+        return normalize_pulp_distribution_url(base_url, self.base_url)
+
+    def _normalise_python_base_url(self, base_url, base_path):
+        """Return a Python distribution URL bound to the public Pulp origin."""
+        return normalize_managed_python_distribution_url(
+            base_url, base_path, self.base_url
+        )
 
     @staticmethod
     def _yaml_key(name):
@@ -318,31 +384,52 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
     def _parse_base_path(self, base_path):
         """Parse a distribution base_path into its components.
 
-        Expected layout: offline_repo/cluster/<arch>/<os>/<ver>/<type>/[...]
+        Expected layout: <distribution-root>/<arch>/<os>/<ver>/<type>/[...]
         Returns a dict with arch, os_type, os_version, content_type and
         the trailing segments, or None if the path does not match.
         """
         if not base_path:
             return None
         parts = base_path.strip('/').split('/')
-        if len(parts) < 6 or parts[0] != 'offline_repo' or parts[1] != 'cluster':
+        root_size = len(PULP_DISTRIBUTION_ROOT_PARTS)
+        if (
+                len(parts) < root_size + 4
+                or tuple(parts[:root_size]) != PULP_DISTRIBUTION_ROOT_PARTS
+        ):
             return None
         return {
-            'arch': parts[2],
-            'os_type': parts[3],
-            'os_version': parts[4],
-            'content_type': parts[5],
-            'rest': parts[6:],
+            'arch': parts[root_size],
+            'os_type': parts[root_size + 1],
+            'os_version': parts[root_size + 2],
+            'content_type': parts[root_size + 3],
+            'rest': parts[root_size + 4:],
         }
 
-    def _extract_repo_name_from_distribution(self, dist):
+    def _context_values(self, context=None):
+        """Return normalized OS, version and architectures for a context."""
+        selected_context = context or {}
+        return (
+            selected_context.get('os_type', self.cluster_os_type),
+            str(selected_context.get(
+                'os_version', self.cluster_os_version
+            )),
+            list(selected_context.get(
+                'architectures', self.architectures
+            )),
+        )
+
+    def _extract_repo_name_from_distribution(self, dist, context=None):
         """Extract the repository name from a distribution.
 
-        Returns tuple of (arch, repo_name) or (None, None) if cannot parse.
+        Returns tuple of (arch, repo_name) or (None, None) if it does not
+        belong to the selected catalog context.
         """
         base_url = dist.get('base_url', '')
         base_path = dist.get('base_path', '')
         name = dist.get('name', '')
+        selected_os_type, selected_os_version, selected_architectures = (
+            self._context_values(context)
+        )
 
         if not base_url:
             return None, None
@@ -351,6 +438,10 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
         parsed = self._parse_base_path(base_path)
         if parsed and parsed['content_type'] == 'rpms':
             arch = parsed['arch']
+            if (arch not in selected_architectures or
+                    parsed['os_type'] != selected_os_type or
+                    parsed['os_version'] != selected_os_version):
+                return None, None
             rest = parsed['rest']
             if not rest:
                 return None, None
@@ -359,30 +450,22 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
             repo_name = rest[-1] if rest else ''
 
             # Strip the ``<arch>_<os>_<ver>_`` prefix if present
-            prefix = f"{arch}_{self.cluster_os_type}_{self.cluster_os_version}_"
+            prefix = (
+                f"{arch}_{selected_os_type}_{selected_os_version}_"
+            )
             if repo_name.startswith(prefix):
                 repo_name = repo_name[len(prefix):]
 
             return arch, repo_name
 
         # Fallback: derive architecture and repo name from the distribution name
-        arch = None
-        if name.startswith('x86_64_'):
-            arch = 'x86_64'
-        elif name.startswith('aarch64_'):
-            arch = 'aarch64'
-        else:
-            return None, None
+        for arch in selected_architectures:
+            prefix = f"{arch}_{selected_os_type}_{selected_os_version}_"
+            if name.startswith(prefix):
+                return arch, name[len(prefix):]
+        return None, None
 
-        prefix = f"{arch}_{self.cluster_os_type}_{self.cluster_os_version}_"
-        if name.startswith(prefix):
-            repo_name = name[len(prefix):]
-        else:
-            repo_name = name.split('_', 1)[1] if '_' in name else name
-
-        return arch, repo_name
-
-    def parse_rpm_distributions(self):
+    def parse_rpm_distributions(self, context=None):
         """Parse RPM distributions and return a dict organized by version and arch.
 
         Returns:
@@ -394,23 +477,30 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
                 }
             }
         """
+        _os_type, selected_os_version, selected_architectures = (
+            self._context_values(context)
+        )
         repositories = {}
         priority_map = _build_repo_priority_map(
-            self._load_local_repo_config(), self.cluster_os_version
+            self._load_local_repo_config(), selected_os_version
         )
 
         for dist in self.rpm_distributions:
             base_url = dist.get('base_url', '')
-            arch, repo_name = self._extract_repo_name_from_distribution(dist)
+            arch, repo_name = self._extract_repo_name_from_distribution(
+                dist, context
+            )
 
             if not arch or not repo_name:
                 continue
 
             # Use the cluster_os_version as the version key
-            version = self.cluster_os_version
+            version = selected_os_version
 
             if version not in repositories:
-                repositories[version] = {'x86_64': {}, 'aarch64': {}}
+                repositories[version] = {
+                    arch: {} for arch in selected_architectures
+                }
 
             if arch not in repositories[version]:
                 repositories[version][arch] = {}
@@ -426,16 +516,68 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
             else:
                 repositories[version][arch][key] = {}
 
-        # Ensure both architectures exist even if empty
-        if self.cluster_os_version not in repositories:
-            repositories[self.cluster_os_version] = {'x86_64': {}, 'aarch64': {}}
+        # Ensure every catalog-selected architecture exists even if empty.
+        if selected_os_version not in repositories:
+            repositories[selected_os_version] = {
+                arch: {} for arch in selected_architectures
+            }
 
         return repositories
 
-    def _add_file_distribution(self, file_repos, dist):
+    def find_missing_rpm_repositories(self, repositories, context=None):
+        """Return catalog-required repositories missing a published URL.
+
+        Older direct callers may omit ``referenced_repositories`` from their
+        execution context. In that compatibility case there is no catalog
+        requirement to validate here.
+        """
+        active_context = context or next(
+            (
+                item for item in self.execution_contexts
+                if str(item.get('os_version')) ==
+                str(self.cluster_os_version)
+            ),
+            {},
+        )
+        referenced = active_context.get('referenced_repositories')
+        if not isinstance(referenced, dict):
+            return {}
+
+        selected_os_version = str(
+            active_context.get('os_version', self.cluster_os_version)
+        )
+        selected_architectures = list(
+            active_context.get('architectures', self.architectures)
+        )
+        version_repositories = repositories.get(
+            selected_os_version, {}
+        )
+        missing = {}
+        for architecture in selected_architectures:
+            required = referenced.get(architecture, [])
+            if not isinstance(required, list):
+                continue
+            published = version_repositories.get(architecture, {})
+            available = {
+                name for name, repository in published.items()
+                if isinstance(repository, dict) and repository.get('url')
+            }
+            unavailable = [
+                name for name in required
+                if self._yaml_key(name) not in available
+            ]
+            if unavailable:
+                missing[architecture] = unavailable
+        return missing
+
+    def _add_file_distribution(self, file_repos, dist, context=None,
+                               python_distribution=False):
         """Add a single file/python distribution to the file_repos map."""
         base_url = dist.get('base_url', '')
         base_path = dist.get('base_path', '')
+        selected_os_type, selected_os_version, selected_architectures = (
+            self._context_values(context)
+        )
 
         if not base_url:
             return
@@ -445,42 +587,62 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
             return
 
         arch = parsed['arch']
+        if (arch not in selected_architectures or
+                parsed['os_type'] != selected_os_type or
+                parsed['os_version'] != selected_os_version):
+            return
         content_type = parsed['content_type']
-        rest = parsed['rest']
-
         if arch not in file_repos:
             file_repos[arch] = {}
         if content_type not in file_repos[arch]:
             file_repos[arch][content_type] = {}
 
-        package_name = '/'.join(rest) if rest else ''
+        package_name = '/'.join(parsed['rest']) if parsed['rest'] else ''
         if package_name:
             key = self._yaml_key(package_name)
-            file_repos[arch][content_type][key] = self._normalise_base_url(base_url)
+            if python_distribution:
+                file_repos[arch][content_type][key] = (
+                    self._normalise_python_base_url(
+                        base_url, base_path
+                    )
+                )
+            else:
+                file_repos[arch][content_type][key] = (
+                    self._normalise_base_url(base_url)
+                )
 
-    def parse_file_distributions(self):
+    def parse_file_distributions(self, context=None):
         """Parse file and python distributions by base_path."""
-        file_repos = {'x86_64': {}, 'aarch64': {}}
+        _os_type, _os_version, selected_architectures = (
+            self._context_values(context)
+        )
+        file_repos = {arch: {} for arch in selected_architectures}
 
         for dist in self.file_distributions:
-            self._add_file_distribution(file_repos, dist)
+            self._add_file_distribution(file_repos, dist, context)
 
         # Pulp python distributions are stored under the pip_module type.
         for dist in self.python_distributions:
-            self._add_file_distribution(file_repos, dist)
+            self._add_file_distribution(
+                file_repos, dist, context, python_distribution=True
+            )
 
         return file_repos
 
-    def _legacy_type_url(self, file_repos, content_type):
-        """Return the x86_64 type-level base URL for a content type."""
-        arch = 'x86_64'
+    def _legacy_type_url(self, file_repos, content_type, os_version=None,
+                         architectures=None):
+        """Return the primary-context type-level URL for compatibility."""
+        selected_architectures = architectures or self.architectures
+        selected_version = os_version or self.cluster_os_version
+        arch = selected_architectures[0]
         if arch in file_repos and content_type in file_repos[arch]:
             for package_url in file_repos[arch][content_type].values():
                 return self._type_level_url(package_url)
         return (
             f"{self.pulp_protocol}://{self.pulp_server_ip}:{self.pulp_server_port}"
-            f"/pulp/content/offline_repo/cluster/{arch}/{self.cluster_os_type}"
-            f"/{self.cluster_os_version}/{content_type}/"
+            f"{PULP_CONTENT_ROUTE}/{PULP_DISTRIBUTION_ROOT}/{arch}/"
+            f"{self.cluster_os_type}"
+            f"/{selected_version}/{content_type}/"
         )
 
     def _load_local_repo_config(self):
@@ -521,37 +683,49 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
             registry_config = {
                 'base_url': registry.get('base_url', ''),
                 'port': registry.get('port'),
+                'host': get_registry_authority(registry),
             }
             tls_config = registry.get('tls') or {}
             if tls_config:
-                registry_config['tls'] = tls_config
+                # repo_status.yml is world-readable operational output. Keep
+                # only the non-path setting required to describe reachability;
+                # client-key and certificate paths remain internal inputs.
+                registry_config['tls'] = {
+                    'insecure': bool(tls_config.get('insecure', False)),
+                }
 
             if registry_config:
                 registries[name] = registry_config
 
         return registries
 
-    def generate_yaml_content(self):
-        """Generate the repo_status.yml content using actual Pulp distribution URLs."""
-        self.fetch_distributions()
+    def _empty_repository_map(self):
+        """Return selected version/architecture keys without consumable URLs."""
+        return {
+            str(context['os_version']): {
+                architecture: {}
+                for architecture in context['architectures']
+            }
+            for context in self.execution_contexts
+        }
 
-        repositories = self.parse_rpm_distributions()
-        file_repos = self.parse_file_distributions()
-        registries = self.load_user_registries()
-
-        # Build the data structure matching the expected format
-        data = {
-            'overall_status': str(self.overall_status).lower(),
-            'cluster_os_type': str(self.cluster_os_type),
+    def _build_status_data(self, overall_status, status_by_version,
+                           repositories):
+        """Build fields common to successful and failed status documents."""
+        primary_context = self.execution_contexts[0]
+        return {
+            'overall_status': overall_status,
+            'cluster_os_type': str(primary_context['os_type']),
             'repo_config': str(self.repo_config),
+            'execution_contexts': summarize_execution_contexts(
+                self.execution_contexts
+            ),
+            'overall_status_by_version': status_by_version,
             'repo_manager': {
                 'port': self.pulp_server_port,
                 'certificates': {
                     'server_crt': os.path.join(
                         self.certs_dir, 'pulp_webserver.crt'
-                    ),
-                    'server_key': os.path.join(
-                        self.certs_dir, 'pulp_webserver.key'
                     ),
                     'certs_dir': self.certs_dir,
                 }
@@ -559,38 +733,18 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
             'repositories': repositories,
         }
 
-        # Add registries section if any exist
-        if registries:
-            data['registries'] = registries
-
-        # Add file_repos section
-        if file_repos and (file_repos.get('x86_64') or file_repos.get('aarch64')):
-            data['file_repos'] = file_repos
-
-        # Add legacy base URLs
-        data['tarball_base_url'] = self._legacy_type_url(file_repos, 'tarball')
-        data['manifest_base_url'] = self._legacy_type_url(file_repos, 'manifest')
-        data['pip_base_url'] = self._legacy_type_url(file_repos, 'pip_module')
-        data['git_base_url'] = self._legacy_type_url(file_repos, 'git')
-        data['offline_tarball_path'] = self._legacy_type_url(file_repos, 'tarball')
-        data['offline_manifest_path'] = self._legacy_type_url(file_repos, 'manifest')
-        data['offline_pip_module_path'] = self._legacy_type_url(file_repos, 'pip_module')
-        data['offline_git_path'] = self._legacy_type_url(file_repos, 'git')
-        data['offline_shell_path'] = self._legacy_type_url(file_repos, 'shell')
-        data['offline_iso_path'] = self._legacy_type_url(file_repos, 'iso')
-        data['offline_ansible_galaxy_collection_path'] = self._legacy_type_url(
-            file_repos, 'ansible_galaxy_collection'
-        )
-
-        # Custom YAML dumper that quotes string values but not keys
-        # and renders empty dicts as {} on same line
+    @staticmethod
+    def _dump_yaml(data):
+        """Serialize status with the established quoted-value format."""
         class QuotedValueDumper(yaml.SafeDumper):
             """Custom YAML dumper that quotes string values and handles empty dicts."""
 
         def quoted_mapping_representer(dumper, mapping_data):
             # Empty dict should be rendered as {}
             if not mapping_data:
-                return dumper.represent_mapping('tag:yaml.org,2002:map', mapping_data, flow_style=True)
+                return dumper.represent_mapping(
+                    'tag:yaml.org,2002:map', mapping_data, flow_style=True
+                )
 
             pairs = []
             for key, value in mapping_data.items():
@@ -609,25 +763,131 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
         QuotedValueDumper.add_representer(dict, quoted_mapping_representer)
         QuotedValueDumper.add_representer(str, quoted_str_representer)
 
-        content = yaml.dump(
+        return yaml.dump(
             data, Dumper=QuotedValueDumper, sort_keys=False, default_flow_style=False
         )
+
+    def generate_failed_yaml_content(self):
+        """Generate a fail-closed status without publishing repository URLs."""
+        status_by_version, _aggregate_status = build_terminal_context_status(
+            self.execution_contexts,
+            self.execution_results,
+            'failed',
+        )
+        for version in self.missing_rpm_repositories_by_version:
+            status_by_version[str(version)] = 'failed'
+        data = self._build_status_data(
+            'failed', status_by_version, self._empty_repository_map()
+        )
+        for field_name in (
+                'tarball_base_url', 'manifest_base_url', 'pip_base_url',
+                'git_base_url', 'offline_tarball_path',
+                'offline_manifest_path', 'offline_pip_module_path',
+                'offline_git_path', 'offline_shell_path', 'offline_iso_path',
+                'offline_ansible_galaxy_collection_path'):
+            data[field_name] = ''
+        return self._dump_yaml(data), 0, 0
+
+    def generate_yaml_content(self):
+        """Generate one terminal status from all selected catalog contexts."""
+        if str(self.overall_status).lower() != 'success':
+            return self.generate_failed_yaml_content()
+
+        self.fetch_distributions()
+        repositories = {}
+        missing_by_version = {}
+        for context in self.execution_contexts:
+            context_repositories = self.parse_rpm_distributions(context)
+            version = str(context['os_version'])
+            repositories[version] = context_repositories[version]
+            context_missing = self.find_missing_rpm_repositories(
+                context_repositories, context
+            )
+            if context_missing:
+                missing_by_version[version] = context_missing
+
+        self.missing_rpm_repositories = (
+            next(iter(missing_by_version.values()), {})
+            if len(self.execution_contexts) == 1
+            else missing_by_version
+        )
+        self.missing_rpm_repositories_by_version = missing_by_version
+        if missing_by_version:
+            return self.generate_failed_yaml_content()
+
+        status_by_version, aggregate_status = build_terminal_context_status(
+            self.execution_contexts,
+            self.execution_results,
+            self.overall_status,
+        )
+        if aggregate_status != 'success':
+            return self.generate_failed_yaml_content()
+
+        primary_context = self.execution_contexts[0]
+        primary_file_repos = self.parse_file_distributions(primary_context)
+        registries = self.load_user_registries()
+        data = self._build_status_data(
+            aggregate_status, status_by_version, repositories
+        )
+        if registries:
+            data['registries'] = registries
+        if primary_file_repos and any(primary_file_repos.values()):
+            data['file_repos'] = primary_file_repos
+
+        legacy_url_args = (
+            str(primary_context['os_version']),
+            list(primary_context['architectures']),
+        )
+        data['tarball_base_url'] = self._legacy_type_url(
+            primary_file_repos, 'tarball', *legacy_url_args)
+        data['manifest_base_url'] = self._legacy_type_url(
+            primary_file_repos, 'manifest', *legacy_url_args)
+        data['pip_base_url'] = self._legacy_type_url(
+            primary_file_repos, 'pip_module', *legacy_url_args)
+        data['git_base_url'] = self._legacy_type_url(
+            primary_file_repos, 'git', *legacy_url_args)
+        data['offline_tarball_path'] = data['tarball_base_url']
+        data['offline_manifest_path'] = data['manifest_base_url']
+        data['offline_pip_module_path'] = data['pip_base_url']
+        data['offline_git_path'] = data['git_base_url']
+        data['offline_shell_path'] = self._legacy_type_url(
+            primary_file_repos, 'shell', *legacy_url_args)
+        data['offline_iso_path'] = self._legacy_type_url(
+            primary_file_repos, 'iso', *legacy_url_args)
+        data['offline_ansible_galaxy_collection_path'] = self._legacy_type_url(
+            primary_file_repos, 'ansible_galaxy_collection', *legacy_url_args
+        )
+
         return (
-            content,
+            self._dump_yaml(data),
             len(self.rpm_distributions),
             len(self.file_distributions) + len(self.python_distributions)
         )
 
     def write_yaml(self, content):
-        """Write the YAML content to file."""
+        """Atomically write validated YAML content to the configured path."""
         output_dir = os.path.dirname(self.output_path)
         if output_dir and not os.path.exists(output_dir):
             os.makedirs(output_dir, mode=0o755)
 
-        with open(self.output_path, 'w', encoding='utf-8') as output_file:
-            output_file.write(content)
-
-        os.chmod(self.output_path, 0o644)
+        destination_directory = output_dir or os.curdir
+        temporary_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                    mode='w', encoding='utf-8',
+                    dir=destination_directory,
+                    prefix=f".{os.path.basename(self.output_path)}.",
+                    delete=False) as output_file:
+                temporary_path = output_file.name
+                output_file.write(content)
+                output_file.flush()
+                os.fsync(output_file.fileno())
+            os.chmod(temporary_path, 0o644)
+            os.replace(temporary_path, self.output_path)
+            temporary_path = None
+        finally:
+            if temporary_path and os.path.exists(temporary_path):
+                os.unlink(temporary_path)
 
 
 def main():
@@ -638,10 +898,22 @@ def main():
             'pulp_server_port': {'type': 'int', 'required': True},
             'cluster_os_type': {'type': 'str', 'required': True},
             'cluster_os_version': {'type': 'str', 'required': True},
+            'architectures': {
+                'type': 'list', 'elements': 'str', 'required': True
+            },
             'output_path': {'type': 'str', 'required': True},
+            'pulp_cli_executable': {
+                'type': 'path', 'default': PULP_CLI_EXECUTABLE
+            },
             'local_repo_config_path': {'type': 'str', 'default': ''},
             'repo_config': {'type': 'str', 'default': 'partial'},
             'overall_status': {'type': 'str', 'default': 'success'},
+            'execution_contexts': {
+                'type': 'list', 'elements': 'dict', 'default': []
+            },
+            'execution_results': {
+                'type': 'list', 'elements': 'dict', 'default': []
+            },
         },
         supports_check_mode=True
     )
@@ -651,21 +923,41 @@ def main():
 
     generator = LocalRepoAccessGenerator(module)
 
+    status_generation_error = False
     try:
-        content, rpm_count, file_count = generator.generate_yaml_content()
+        try:
+            content, rpm_count, file_count = generator.generate_yaml_content()
+        except (ValueError, yaml.YAMLError):
+            status_generation_error = True
+            content, rpm_count, file_count = (
+                generator.generate_failed_yaml_content()
+            )
 
         if not module.check_mode:
             generator.write_yaml(content)
-
+        published_status = yaml.safe_load(content)['overall_status']
+        repository_ready = (
+            published_status == 'success' and not status_generation_error
+        )
         module.exit_json(
-            changed=True,
+            changed=not module.check_mode,
             output_file=module.params['output_path'],
             rpm_repos_count=rpm_count,
             file_repos_count=file_count,
-            msg=f"Generated repo_status.yml with {rpm_count} RPM repos and {file_count} file repos"
+            repository_ready=repository_ready,
+            missing_rpm_repositories=generator.missing_rpm_repositories,
+            published_status=published_status,
+            status_generation_error=status_generation_error,
+            msg=(
+                "Generated terminal repo_status.yml"
+                if not status_generation_error
+                else "Generated fail-closed repo_status.yml after status collection failure"
+            ),
         )
-    except (OSError, ValueError, yaml.YAMLError) as err:
-        module.fail_json(msg=f"Failed to generate repo_status.yml: {str(err)}")
+    except (OSError, ValueError, yaml.YAMLError):
+        module.fail_json(
+            msg="Failed to write terminal repo_status.yml"
+        )
 
 
 if __name__ == '__main__':

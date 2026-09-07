@@ -1,0 +1,71 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# REPOSITORY ACCESS ROLE VARIABLES
+# =============================================================================
+
+# Usage: check_rhel_subscription.yml
+rhel_repo_cert_dir: "{{ rhel_repo_certs_dir }}"
+rhel_version: "{{ cluster_os_version.split('.')[0] }}"
+redhat_uep_cert: "/etc/rhsm/ca/redhat-uep.pem"
+entitlement_path: "/etc/pki/entitlement"
+redhat_repo_file: "/etc/yum.repos.d/redhat.repo"
+
+# Usage: configure_rhel_os_urls.yml
+local_repo_config_path: "{{ repo_manager_config_file }}"
+omnia_rhel_cert_dir: "{{ rhel_repo_cert_dir }}"
+required_repos_by_arch:
+  x86_64: >-
+    {{ (catalog_context.referenced_repositories.get('x86_64', []) |
+        select('in', platform_profiles.rhel.subscription_repositories) | list)
+       if 'x86_64' in selected_architectures else [] }}
+  aarch64: >-
+    {{ (catalog_context.referenced_repositories.get('aarch64', []) |
+        select('in', platform_profiles.rhel.subscription_repositories) | list)
+       if 'aarch64' in selected_architectures else [] }}
+# =============================================================================
+# FAILURE AND ASSERTION MESSAGES
+# =============================================================================
+repository_access_validate_host_repository_access_provider_msg: >-
+  Repository-access provider
+  {{ catalog_context.platform_capabilities.repository_access | default('unknown') }}
+  is not implemented for {{ cluster_os_type }}.
+
+
+repository_access_validate_context_repository_access_provider_msg: >-
+  Repository-access provider
+  {{ catalog_context.platform_capabilities.repository_access | default('unknown') }}
+  is not implemented for {{ cluster_os_type }}.
+
+
+repository_access_validate_catalog_version_and_architectures_exist_in_repository_configuration_msg: >-
+  Catalog-selected repository configuration is missing for RHEL
+  {{ cluster_os_version }} / {{ arch_item }}.
+
+repository_access_fail_when_a_referenced_repository_has_no_explicit_url_msg: >-
+  Repository URLs are required for RHEL {{ cluster_os_version }}:
+  {{ invalid_explicit_repo_summary | join('; ') }}.
+  Only catalog-referenced subscription repositories may omit URLs when a
+  RHEL subscription is enabled.
+
+repository_access_validate_copied_subscription_certificates_msg: >-
+  RHEL subscription certificates required by Repo Manager are missing
+  from {{ omnia_rhel_cert_dir }}.
+
+
+repository_access_fail_when_subscription_cannot_provide_a_referenced_repository_msg: >-
+  RHEL subscription and explicit configuration do not provide these
+  repositories for RHEL {{ cluster_os_version }}:
+  {{ unresolved_subscription_repo_summary | join('; ') }}.
