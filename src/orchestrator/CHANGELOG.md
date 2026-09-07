@@ -5,6 +5,8 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
 ## [2.3.0] - 2026-09-05
 
 ### Fixed
+- Orchestrator fails with `symmetric_difference` NoneType error on `--tags provision` — `provision_preamble.yml` was missing the first-control-plane rename step that `validate_mapping_file.yml` performs during precheck (#472).
+- K8s nodes receive random DHCP IPs instead of ADMIN_IPs from PXE mapping file when both K8s and Slurm catalogs are provisioned — `delete_smd_endpoints.yml` used `--all` which wiped previously-registered categories (#463).
 - Stale phone-home detection: verify node boot time is after PXE start epoch to reject nodes that have been up for days (#461).
 - `failed_nodes.json` wrong count due to `set_fact` + `delegate_to` race condition when multiple BMC hosts fail PXE boot simultaneously (#460).
 - Orchestrator inventory includes `kube_vip_group` even for slurm-only clusters (#459).
