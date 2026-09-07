@@ -50,7 +50,8 @@ from core.deploy.services import DeployQueueService
 from orchestrator.deploy.commands.deploy_command import DeployCommand
 from orchestrator.deploy.dtos.deploy_response import DeployResponseDTO
 
-DEPLOY_PLAYBOOK_NAME = "deploy_build_stream.yml"
+ORCHESTRATOR_PLAYBOOK_NAME = "orchestrator.yml"
+DEPLOY_PLAYBOOK_TAGS = "provision"
 DEFAULT_TIMEOUT_MINUTES = 60
 
 
@@ -243,12 +244,8 @@ class DeployUseCase:
         return stage
 
     def _create_request(self, command: DeployCommand, stage: Stage) -> DeployPlaybookRequest:
-        """Create deploy playbook request entity.
-
-        Submits ``deploy_build_stream.yml`` which internally invokes
-        orchestrator with ``--tags provision`` for node provisioning.
-        """
-        playbook_path = PlaybookPath(DEPLOY_PLAYBOOK_NAME)
+        """Create deploy playbook request entity."""
+        playbook_path = PlaybookPath(ORCHESTRATOR_PLAYBOOK_NAME)
 
         extra_vars_dict = {
             "job_id": str(command.job_id),
@@ -267,6 +264,7 @@ class DeployUseCase:
             timeout=ExecutionTimeout(DEFAULT_TIMEOUT_MINUTES),
             submitted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             request_id=str(self._uuid_generator.generate()),
+            tags=DEPLOY_PLAYBOOK_TAGS,
         )
 
     def _submit_to_queue(

@@ -140,10 +140,8 @@ HOST_LOG_BASE_DIR = Path(f"{OMNIA_DATA_PATH}/build_stream/logs")
 PLAYBOOK_LOG_BASE_DIR = Path("/var/log/omnia")
 
 # Build Stream artifacts directory
-# Domain-segregated (Omnia 2.3+): use OMNIA_DATA_PATH directly.
-# The old NFS_SHARE_PATH / "omnia" / "build_stream_root" path added a
-# spurious "/omnia/" segment when NFS_SHARE_PATH was already /opt/omnia.
-BUILD_STREAM_ROOT = Path(OMNIA_DATA_PATH) / "build_stream_root"
+NFS_SHARE_PATH = Path(os.getenv("NFS_SHARE_PATH", ""))
+BUILD_STREAM_ROOT = NFS_SHARE_PATH / "omnia" / "build_stream_root"
 ARTIFACTS_DIR = BUILD_STREAM_ROOT / "artifacts"
 
 POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "2"))

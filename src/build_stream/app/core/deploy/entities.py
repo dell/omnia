@@ -28,19 +28,16 @@ class DeployPlaybookRequest:
     Written to the NFS queue for OIM Playbook Watcher consumption.
     Compatible with PlaybookRequest interface for reuse of existing repository.
 
-    The deploy stage submits ``deploy_build_stream.yml`` which internally
-    calls orchestrator with ``--tags provision``.
-
     Attributes:
         job_id: Parent job identifier.
         stage_name: Stage identifier (deploy).
-        playbook_path: Validated path to the deploy playbook.
+        playbook_path: Validated path to the provision playbook.
         extra_vars: Ansible extra variables (includes job_id, image_group_id).
         correlation_id: Request tracing identifier.
         timeout: Execution timeout configuration.
         submitted_at: Request submission timestamp.
         request_id: Unique request identifier.
-        tags: Ansible tags (empty — tags are handled inside the playbook).
+        tags: Ansible tags for selective playbook execution (e.g., "prepare,deploy").
     """
 
     job_id: str

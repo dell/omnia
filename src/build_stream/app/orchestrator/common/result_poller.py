@@ -839,8 +839,7 @@ class ResultPoller:
     def _on_restart_completed(self, result: PlaybookResult) -> None:
         """Store node_results.json and failed_nodes.json as artifacts on restart completion.
 
-        Both files are created by restart_build_stream.yml (via the
-        pxe_buildstream_manager role in build_stream/roles/).
+        Both files are created by the playbook (Play 6 in set_pxe_boot.yml).
         This method reads them from NFS and stores them in ArtifactStore
         so they can be downloaded via the API by GitLab CI.
 

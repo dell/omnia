@@ -14,16 +14,10 @@
 
 """CreateRestart use case implementation.
 
-The restart stage invokes the ``restart_build_stream.yml`` playbook which
-orchestrates two phases:
-
-  Phase 1: Call orchestrator with ``--tags pxeboot`` to PXE boot nodes
-  Phase 2: Run pxe_buildstream_manager post-processing (compute effective
-           inventory, write node results, update restart state, upload
-           failed_nodes.json to GitLab)
-
-The playbook request is submitted to the NFS queue for the playbook
-watcher to pick up and execute asynchronously.
+The restart stage invokes the orchestrator playbook with the ``pxeboot``
+tag to perform PXE boot on the provisioned nodes.  The playbook request
+is submitted to the NFS queue for the playbook watcher to pick up and
+execute asynchronously.
 
 Guarantees:
 - Stage guard enforcement: Only PENDING stages can be started
@@ -65,7 +59,8 @@ from core.localrepo.value_objects import (
 from orchestrator.restart.commands import CreateRestartCommand
 from orchestrator.restart.dtos import RestartResponse
 
-RESTART_PLAYBOOK_NAME = "restart_build_stream.yml"
+ORCHESTRATOR_PLAYBOOK_NAME = "orchestrator.yml"
+PXE_BOOT_TAGS = "pxeboot"
 DEFAULT_TIMEOUT_MINUTES = 60
 
 
@@ -77,11 +72,9 @@ def _now_iso() -> str:
 class CreateRestartUseCase:
     """Use case for triggering the restart stage.
 
-    Submits ``restart_build_stream.yml`` to the NFS queue.  The playbook
-    watcher picks up the request and executes the restart playbook which:
-    1. Invokes orchestrator with ``--tags pxeboot`` for PXE boot
-    2. Runs pxe_buildstream_manager post-processing (node results,
-       restart state, GitLab upload)
+    Submits the orchestrator playbook with the ``pxeboot`` tag to the
+    NFS queue.  The playbook watcher picks up the request and executes
+    ``ansible-playbook orchestrator.yml --tags pxeboot`` on the OIM host.
 
     Guarantees:
     - Stage guard enforcement: Only PENDING stages can be started
@@ -124,7 +117,7 @@ class CreateRestartUseCase:
         """Execute the restart stage.
 
         Validates preconditions, creates a playbook request for
-        ``restart_build_stream.yml``, submits it to the NFS queue,
+        ``orchestrator.yml --tags pxeboot``, submits it to the NFS queue,
         and emits audit events.
 
         Args:
@@ -159,7 +152,7 @@ class CreateRestartUseCase:
 
         log_secure_info(
             "info",
-            f"Restart stage submitted (restart_build_stream.yml): "
+            f"Restart stage submitted (orchestrator.yml --tags pxeboot): "
             f"job_id={command.job_id}",
             job_id=str(command.job_id),
         )
@@ -255,15 +248,13 @@ class CreateRestartUseCase:
     ) -> PlaybookRequest:
         """Create restart playbook request entity.
 
-        Submits ``restart_build_stream.yml`` with the job_id and
-        image_group_id as extra variables.  The restart playbook
-        internally invokes orchestrator with ``--tags pxeboot`` and
-        then runs pxe_buildstream_manager post-processing.
+        Submits ``orchestrator.yml --tags pxeboot`` with the job_id and
+        image_group_id as extra variables.
         """
         return PlaybookRequest(
             job_id=str(command.job_id),
             stage_name=StageType.RESTART.value,
-            playbook_path=PlaybookPath(RESTART_PLAYBOOK_NAME),
+            playbook_path=PlaybookPath(ORCHESTRATOR_PLAYBOOK_NAME),
             extra_vars=ExtraVars(values={
                 "job_id": str(command.job_id),
                 "image_group_id": image_group_id,
@@ -273,6 +264,7 @@ class CreateRestartUseCase:
             timeout=ExecutionTimeout(DEFAULT_TIMEOUT_MINUTES),
             submitted_at=_now_iso(),
             request_id=str(self._uuid_generator.generate()),
+            tags=PXE_BOOT_TAGS,
         )
 
     def _submit_to_queue(
@@ -349,7 +341,8 @@ class CreateRestartUseCase:
             timestamp=datetime.now(timezone.utc),
             details={
                 "stage_name": StageType.RESTART.value,
-                "playbook": RESTART_PLAYBOOK_NAME,
+                "playbook": ORCHESTRATOR_PLAYBOOK_NAME,
+                "tags": PXE_BOOT_TAGS,
             },
         )
         self._audit_repo.save(event)

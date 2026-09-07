@@ -1,12 +1,9 @@
 ---
 galaxy_info:
   role_name: pxe_buildstream_manager
-  namespace: omnia.build_stream
+  namespace: omnia
   author: Dell Technologies Omnia Team
-  description: >-
-    Post-PXE boot processing for BuildStream restart stage.
-    Computes effective inventory, writes node results, updates restart state,
-    and uploads failed_nodes.json to GitLab.
+  description: Manage PXE boot operations with BuildStream integration
   company: Dell Technologies
 
   license: Apache-2.0
@@ -23,6 +20,5 @@ galaxy_info:
     - buildstream
     - provisioning
     - gitlab
-    - restart
 
 dependencies: []
