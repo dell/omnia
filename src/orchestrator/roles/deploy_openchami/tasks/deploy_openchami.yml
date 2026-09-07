@@ -42,14 +42,8 @@
       ansible.builtin.fail:
         msg: "{{ network_spec_syntax_fail_msg }} Error: {{ include_network_spec.message }}"
 
-- name: Verify s3_configurations is set from configure_s3_access
-  ansible.builtin.assert:
-    that:
-      - s3_configurations is defined
-      - s3_configurations.endpoint_url is defined
-    fail_msg: >-
-      s3_configurations not set. Ensure the 'Configure S3 access' play
-      runs before deploy_openchami. Check image_build_manager_output_path in orchestrator_config.yml.
+# Removed premature s3_configurations assertion - OpenCHAMI deployment doesn't need S3 config
+# S3 configuration is only needed during provision phase for boot service templates
 
 - name: Parse network_spec data
   ansible.builtin.set_fact:

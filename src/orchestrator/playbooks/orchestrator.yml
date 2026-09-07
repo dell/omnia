@@ -193,12 +193,12 @@
     - prepare
     - deploy
 
-# Validate deployment health (prepare + deploy + validate-deployment tags)
+# Validate deployment health (validate-deployment tag only)
+# Note: S3 configuration is optional during prepare/deploy phases, so validation
+# is deferred until validate-deployment, execute, or provision phases when S3 is required
 - name: Validate OpenCHAMI readiness
   ansible.builtin.import_playbook: validate/validate_openchami.yml
   tags:
-    - prepare
-    - deploy
     - validate-deployment
 
 - name: Validate OpenLDAP readiness

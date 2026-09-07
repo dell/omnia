@@ -21,6 +21,19 @@
   ansible.builtin.set_fact:
     functional_group_name: "{{ fg_name }}"
 
+# Validate s3_configurations FIRST - boot service templates require S3 endpoint URL
+# This check must happen before loading nodes files to provide clear error messaging
+- name: Validate s3_configurations is available for boot service template
+  ansible.builtin.assert:
+    that:
+      - s3_configurations is defined
+      - s3_configurations.endpoint_url is defined
+    fail_msg: >-
+      s3_configurations not available for boot service template generation.
+      Run image_build_manager before orchestrator to generate build_status.yml,
+      or set image_build_manager_output_path in orchestrator_config.yml.
+      Boot service templates require S3 endpoint URL to construct PXE boot HTTP URLs.
+
 - name: Load nodes YAML for boot-service template - {{ fg_name }}
   ansible.builtin.slurp:
     src: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
