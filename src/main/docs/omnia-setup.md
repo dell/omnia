@@ -9,8 +9,9 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 | `--setup-venv, -s` | Install env system-wide, create/update Python venv, install deps, run domain-init.sh, copy catalog, install omnia-cli |
 | `--init, -i [domain,...]` | Run domain-init.sh scripts (all or comma-separated subset) |
 | `--run, -r <domain> [--tags <tags>]` | Activate venv and run a domain's playbook |
+| `--prepare-base` | Prepare Repo Manager, Image Build Manager, and Orchestrator in dependency order |
 | `--check-deps` | Audit all domains for pip/Galaxy version mismatches |
-| `--cleanup` | Remove venv, system env files, and activation script. Data is preserved. |
+| `--cleanup` | Remove the venv, system env, omnia-cli, shared Bash completion, activation script, and dependency cache. Runtime data is preserved. |
 | `--cleanup --all` | Remove everything: venv, system env, AND all data at `$OMNIA_DATA_PATH/` (full reset) |
 | `--help, -h` | Show help message |
 
@@ -20,14 +21,16 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 |--------|-------------|
 | `--deps-only` | Install deps only, skip input file staging. Use with `-s` or `-i`. |
 | `--force-deps` | Bypass dependency cache and force reinstall. Use with `-s` or `-i`. |
+| `--skip <domain,...>` | Skip domains with `-s`, `-i`, or `--prepare-base`; only the three base domains are valid with `--prepare-base`. |
+| `--dry-run` | Preview domain initialization with `-s`/`-i`, or base-domain phases with `--prepare-base`; no domains are initialized or prepared. Other `-s` setup steps still run. |
 | `--skip-catalog` | With `-s`: skip the automatic catalog copy. |
-| `--skip-omnia-cli` | With `-s`: skip installing omnia-cli and bash completion. |
+| `--skip-omnia-cli` | With `-s`: skip installing omnia-cli and shared `omnia-cli`/`omnia.sh` Bash completion. |
 
 ## What `--setup-venv` Does
 
 1. **Installs env system-wide** — Copies `omnia.env` → `/etc/omnia/omnia.env`, creates `/etc/profile.d/omnia-env.sh` drop-in, sources vars into current session
 2. **Validates environment** — Checks required env vars are set (e.g., `SYSTEM_ADMIN_NIC_IPV4`)
-3. **Creates base directories** — Sets up `/opt/omnia/{log,.data}`
+3. **Creates base directories** — Creates `$OMNIA_DATA_PATH` and its `.data` directory
 4. **Finds Python 3.11+** — Searches for python3.12, python3.11, or python3
 5. **Creates or updates venv** — Sets up virtual environment at `$OMNIA_VENV_PATH`
 6. **Upgrades pip** — Ensures latest pip, setuptools, wheel
@@ -37,12 +40,16 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
    - Creates Ansible log directories
    - Stages input files from flat `src/<domain>/input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
 8. **Copies catalog** — Copies catalog files from `src/main/samples/` to `$OMNIA_DATA_PATH/catalog/` (use `--skip-catalog` to suppress)
-9. **Installs omnia-cli** — Copies `omnia-cli` to `/usr/local/bin/omnia-cli` and bash completion to `/etc/bash_completion.d/omnia-cli` (use `--skip-omnia-cli` to suppress)
+9. **Installs omnia-cli** — Copies `omnia-cli` to `/usr/local/bin/omnia-cli` and shared completion for `omnia-cli` and `omnia.sh` to `/etc/bash_completion.d/omnia-bash-completion` (use `--skip-omnia-cli` to suppress)
 10. **Displays summary** — Shows venv path, Python version, installed Ansible and collections
 
 Use `--deps-only` to skip input file staging in step 7 (e.g., in CI or if you manage input files externally). Dependencies are still installed.
 
 Use `--force-deps` to bypass the dependency cache and force a fresh `pip install` + `ansible-galaxy collection install`.
+
+Bash completion loaders normally pick up the installed file in a fresh shell.
+To use it immediately, source `/etc/bash_completion.d/omnia-bash-completion` or source the
+generated `${OMNIA_DATA_PATH:-/opt/omnia}/activate-omnia.sh` helper.
 
 ```bash
 ./omnia.sh -s                      # Full setup: venv + deps + input copy + catalog + omnia-cli
@@ -50,11 +57,11 @@ Use `--force-deps` to bypass the dependency cache and force a fresh `pip install
 ./omnia.sh -s --skip-catalog       # Setup without catalog copy
 ./omnia.sh -s --skip-omnia-cli     # Setup without omnia-cli install
 ./omnia.sh -s --force-deps         # Force reinstall all deps (bypass cache)
-./omnia.sh --init                  # Stage input files only (all domains)
+./omnia.sh --init                  # Install deps and stage inputs for all domains
 ./omnia.sh -i telemetry            # Init single domain
 ./omnia.sh -i repo_manager,telemetry  # Init specific domains
 ./omnia.sh --check-deps            # Audit dependency version mismatches
-./omnia.sh --cleanup               # Remove venv + env (preserve data)
+./omnia.sh --cleanup               # Remove environment + CLI integration; preserve runtime data
 ./omnia.sh --cleanup --all         # Full reset (remove everything)
 ```
 
@@ -83,13 +90,14 @@ Removes the Omnia environment without touching runtime data:
 
 1. **Removes the Python venv** at `$OMNIA_VENV_PATH`
 2. **Removes system env files** — `/etc/omnia/omnia.env`, `/etc/profile.d/omnia-env.sh`
-3. **Removes activation script** — `activate-omnia.sh`
-4. **Preserves data** — `$OMNIA_DATA_PATH/` is NOT removed
+3. **Removes CLI integration** — `/usr/local/bin/omnia-cli` and `/etc/bash_completion.d/omnia-bash-completion`
+4. **Removes activation script and dependency cache** — `activate-omnia.sh` and `$OMNIA_DATA_PATH/.data/deps-cache/`
+5. **Preserves runtime data** — input, output, and logs under `$OMNIA_DATA_PATH/` are not removed
 
 With `--all`, also removes all data at `$OMNIA_DATA_PATH/` (prompts for confirmation).
 
 ```bash
-./omnia.sh --cleanup               # Venv + env only
+./omnia.sh --cleanup               # Remove environment + CLI integration; preserve runtime data
 ./omnia.sh --cleanup --all         # Full reset (prompts for confirmation)
 ```
 

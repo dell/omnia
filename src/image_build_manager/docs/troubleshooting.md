@@ -11,10 +11,14 @@ repo_status.yml not found at .../repo_status.yml
 **Fix**: Copy sample file and edit with actual URLs:
 ```bash
 mkdir -p /opt/omnia/repo_manager/output/project_default
-cp samples/repo_manager_output/repo_status.yml \
+cp src/image_build_manager/samples/repo_manager_output/repo_status.yml \
    /opt/omnia/repo_manager/output/project_default/
 vi /opt/omnia/repo_manager/output/project_default/repo_status.yml
 ```
+
+Run these commands from the repository root, or use an absolute source path.
+Replace every `{{ admin_nic_ip }}` placeholder with a literal hostname or IP;
+the reference template is not schema-valid until those URLs are resolved.
 
 ---
 
@@ -24,8 +28,9 @@ vi /opt/omnia/repo_manager/output/project_default/repo_status.yml
 No functional groups found for the target architecture.
 ```
 
-**Fix** (config mode): Ensure `input/project_default/package_groups.yml` has at least
-one functional group defined with a matching `_x86_64` or `_aarch64` suffix:
+**Fix** (config mode): Ensure the staged
+`<OMNIA_DATA_PATH>/image_build_manager/input/<project>/package_groups.yml` has
+at least one functional group with the target `_x86_64` or `_aarch64` suffix:
 ```yaml
 functional_groups:
   slurm_node_x86_64:
@@ -45,8 +50,12 @@ functional layers ending with `_x86_64` or `_aarch64`.
 fatal: Destination directory /etc/containers/systemd does not exist
 ```
 
-**Fix**: Ensure the `prepare` tag ran on the correct host (`oim` group).
-The `deploy_minio` and `deploy_registry` roles create this directory automatically.
+**Fix**: Create the Quadlet directory, then rerun `prepare`:
+
+```bash
+sudo install -d -m 0755 /etc/containers/systemd
+ansible-playbook image_build_manager.yml --tags prepare
+```
 
 ---
 
@@ -92,7 +101,8 @@ in `image_build_config.yml` is needed.
 No match for argument: <package-name>
 ```
 
-**Fix**: The RPM name in `functional_group_packages.yml` is not in any repo:
+**Fix**: In config mode, check `package_groups.yml`; in catalog mode, check the
+package entry in the catalog. The requested RPM is not in any configured repo:
 - Fix the package name
 - Add the missing repo to `repo_status.yml`
 - Sync the package in repo_manager
@@ -118,10 +128,15 @@ http: server gave HTTP response to HTTPS client
 dial tcp: lookup <hostname>.vm.cluster: no such host
 ```
 
-**Fix**: Ensure `SYSTEM_ADMIN_NIC_IPV4` is set correctly:
+**Fix**: Verify that `SYSTEM_HOSTNAME` and `SYSTEM_DOMAIN_NAME` form the
+hostname used in the repository URLs and that it resolves to
+`SYSTEM_ADMIN_NIC_IPV4`:
 ```bash
-export SYSTEM_ADMIN_NIC_IPV4=<your_admin_ip>
+getent hosts "${SYSTEM_HOSTNAME}.${SYSTEM_DOMAIN_NAME}"
 ```
+
+Correct DNS or `/etc/hosts` if it does not resolve, and confirm that
+`SYSTEM_ADMIN_NIC_IPV4` is assigned to the intended local interface.
 
 ---
 
@@ -168,12 +183,12 @@ ssh-copy-id root@<aarch64_ip>
 Unable to pull the aarch64 image builder image from both repo manager and upstream registry
 ```
 
-**Cause**: Neither the repo manager (Pulp) nor the upstream registry (DockerHub)
-could provide the builder image.
+**Cause**: Neither the repo manager (Pulp) nor the selected builder's upstream
+registry could provide the image.
 
 **Fix**:
 - Ensure repo manager has synced the builder image, or
-- Ensure the aarch64 node has internet access for DockerHub fallback
+- Ensure the aarch64 node can access the configured upstream registry
 
 ---
 
@@ -186,9 +201,12 @@ regctl binary could not be obtained for the aarch64 node
 **Cause**: The regctl binary could not be copied from OIM or downloaded.
 
 **Fix**:
-- Ensure the OIM host has regctl installed (runs as part of `prepare` tag)
+- Check the staged ARM binary on OIM at
+  `$OMNIA_DATA_PATH/image_build_manager/aarch64/regctl-linux-arm64`; the
+  aarch64 build flow attempts to download it before connecting to the node
 - Ensure the aarch64 node is reachable via SSH from OIM
-- If both fail, manually install regctl on the aarch64 node:
+- Ensure either OIM or the aarch64 node can reach GitHub releases, or manually
+  install `regctl` on the aarch64 node:
 ```bash
 curl -L -o /usr/local/bin/regctl \
   https://github.com/regclient/regclient/releases/latest/download/regctl-linux-arm64
@@ -210,15 +228,15 @@ chmod 755 /usr/local/bin/regctl
 ## Debug Commands
 
 ```bash
-# Verbose validation (no side effects)
+# Verbose validation (writes validation logs and may ensure runtime directories)
 cd playbooks
 ansible-playbook image_build_manager.yml --tags validate -vvv
 
 # Check package_groups.yml functional groups
 grep -A2 'functional_groups:' /opt/omnia/image_build_manager/input/project_default/package_groups.yml
 
-# Dry-run validation
-ansible-playbook image_build_manager.yml --tags validate --check
+# Parse and syntax-check the top-level playbook without executing tasks
+ansible-playbook image_build_manager.yml --syntax-check
 
 # Check MinIO status
 systemctl status minio.service
