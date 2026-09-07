@@ -17,6 +17,18 @@
 # =============================================================================
 
 ---
+admin_network:
+  oim_nic_name: "eno1"
+  subnet: "10.40.8.0"
+  netmask_bits: "24"
+  primary_oim_admin_ip: "10.40.8.1"
+  primary_oim_bmc_ip: ""
+  router: "10.40.8.1"
+  dynamic_range: "10.40.8.100-10.40.8.200"
+  dns: []
+  ntp_servers: []
+  additional_subnets: []
+
 Networks:
   - name: "k8s_network"
     type: "vlan"

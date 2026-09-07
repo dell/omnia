@@ -32,12 +32,12 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_k8s_provision(host):
-    """TC_K8_000: Deploy orchestrator.yml --tags provision_kubernetes."""
+    """TC_K8_000: Deploy orchestrator.yml --tags provision."""
     tl = TestLogger(
-        TEST_NAMES["deploy_playbook"].format(tag="provision_kubernetes"),
+        TEST_NAMES["deploy_playbook"].format(tag="provision"),
         "TC_K8_000",
     )
-    result = run_playbook(tag="provision_kubernetes")
+    result = run_playbook(tag="provision")
 
     if result["success"]:
         tl.passed(LOG["playbook_success"].format(
@@ -52,6 +52,6 @@ def test_k8s_provision(host):
         )
 
     assert result["success"], ASSERT["playbook_failed"].format(
-        playbook="orchestrator.yml", tag="provision_kubernetes",
+        playbook="orchestrator.yml", tag="provision",
         rc=result["rc"], duration=result["duration"],
     )
