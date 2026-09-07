@@ -794,6 +794,7 @@ def generate_cluster_trigger_job(cluster_name):
     IMAGE_BUILD_MANAGER_TAGS: "${{{upper_prefix}_IMAGE_BUILD_MANAGER_TAGS}}"
     ORCHESTRATOR_TAGS: "${{{upper_prefix}_ORCHESTRATOR_TAGS}}"
     TELEMETRY_TAGS: "${{{upper_prefix}_TELEMETRY_TAGS}}"
+    TEST_MAIN_CMD: "${{{upper_prefix}_TEST_MAIN_CMD}}"
     TEST_REPO_MANAGER_CMD: "${{{upper_prefix}_TEST_REPO_MANAGER_CMD}}"
     TEST_IMAGE_BUILD_MANAGER_CMD: "${{{upper_prefix}_TEST_IMAGE_BUILD_MANAGER_CMD}}"
     TEST_ORCHESTRATOR_CMD: "${{{upper_prefix}_TEST_ORCHESTRATOR_CMD}}"
@@ -819,6 +820,7 @@ def generate_cluster_variables(cluster_name):
   {upper_prefix}_IMAGE_BUILD_MANAGER_TAGS: ""
   {upper_prefix}_ORCHESTRATOR_TAGS: ""
   {upper_prefix}_TELEMETRY_TAGS: ""
+  {upper_prefix}_TEST_MAIN_CMD: "./run_validation.sh all verify"
   {upper_prefix}_TEST_REPO_MANAGER_CMD: "./run_validation.sh fvt_repo_manager verify"
   {upper_prefix}_TEST_IMAGE_BUILD_MANAGER_CMD: "./run_validation.sh fvt_image_build_manager verify"
   {upper_prefix}_TEST_ORCHESTRATOR_CMD: "./run_validation.sh fvt_orchestrator verify"
@@ -1166,6 +1168,7 @@ def cmd_create(args, client):
             ("IMAGE_BUILD_MANAGER_TAGS", ""),
             ("ORCHESTRATOR_TAGS", ""),
             ("TELEMETRY_TAGS", ""),
+            ("TEST_MAIN_CMD", "./run_validation.sh all verify"),
             ("TEST_REPO_MANAGER_CMD", "./run_validation.sh fvt_repo_manager verify"),
             ("TEST_IMAGE_BUILD_MANAGER_CMD", "./run_validation.sh fvt_image_build_manager verify"),
             ("TEST_ORCHESTRATOR_CMD", "./run_validation.sh fvt_orchestrator verify"),
@@ -1339,6 +1342,7 @@ def cmd_update(args, client):
             ("IMAGE_BUILD_MANAGER_TAGS", ""),
             ("ORCHESTRATOR_TAGS", ""),
             ("TELEMETRY_TAGS", ""),
+            ("TEST_MAIN_CMD", "./run_validation.sh all verify"),
             ("TEST_REPO_MANAGER_CMD", "./run_validation.sh fvt_repo_manager verify"),
             ("TEST_IMAGE_BUILD_MANAGER_CMD", "./run_validation.sh fvt_image_build_manager verify"),
             ("TEST_ORCHESTRATOR_CMD", "./run_validation.sh fvt_orchestrator verify"),

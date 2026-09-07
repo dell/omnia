@@ -92,6 +92,7 @@ variables:
   OMNIA_INSTALL_PATH: "/root/omnia"
   PIPELINE_VERSION: "3.0"
   SKIP_STAGES: ""
+  TEST_MAIN_CMD: "./run_validation.sh all verify"
   TEST_REPO_MANAGER_CMD: "./run_validation.sh fvt_repo_manager verify"
   TEST_IMAGE_BUILD_MANAGER_CMD: "./run_validation.sh fvt_image_build_manager verify"
   TEST_ORCHESTRATOR_CMD: "./run_validation.sh fvt_orchestrator verify"
@@ -996,19 +997,19 @@ test_main_installation:
     - |
       $SSH_CMD $TARGET "
         cd $OMNIA_INSTALL_PATH/test/main
-        bash setup_env.sh
+        bash setup_env.sh --venv
       "
 
     # Step 3: Activate test venv and run all verification tests
-    - echo "Step 3 - Running run_validation.sh all verify"
+    - echo "Step 3 - Running $TEST_MAIN_CMD"
     - |
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute run_validation.sh all verify on $TARGET"
+        echo "DRY_RUN: Would execute $TEST_MAIN_CMD on $TARGET"
       else
         $SSH_CMD $TARGET "
           cd $OMNIA_INSTALL_PATH/test/main
           source .venv/bin/activate
-          ./run_validation.sh all verify
+          $TEST_MAIN_CMD
         "
       fi
 
