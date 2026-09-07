@@ -508,4 +508,42 @@ TEST_CASES = {
         "id": "NFT_TL_005",
         "title": "Cleanup playbook idempotency (second run exits 0)",
     },
+
+    # -- NFT: Resilience -----------------------------------------------------
+    "nft_sink_pod_recovery": {
+        "id": "NFT_TL_006",
+        "title": "Sink pod deletion & recovery (Kafka broker)",
+    },
+    "nft_source_pod_recovery": {
+        "id": "NFT_TL_007",
+        "title": "Source pod deletion & recovery (enabled sources)",
+    },
+    "nft_sts_pod_recovery": {
+        "id": "NFT_TL_008",
+        "title": "StatefulSet storage pod recovery (vmstorage/vlstorage)",
+    },
+    "nft_pvc_persistence": {
+        "id": "NFT_TL_009",
+        "title": "PVC persistence after pod deletion",
+    },
+    "nft_service_endpoints": {
+        "id": "NFT_TL_010",
+        "title": "Service endpoint availability after pod restart",
+    },
+    "nft_data_after_restart": {
+        "id": "NFT_TL_011",
+        "title": "Data ingestion after sink restart",
+    },
+    "nft_node_reboot": {
+        "id": "NFT_TL_012",
+        "title": "Node reboot recovery (all pods Running)",
+    },
+    "nft_full_lifecycle": {
+        "id": "NFT_TL_013",
+        "title": "Full lifecycle (cleanup -> redeploy -> verify)",
+    },
+    "nft_operator_recovery": {
+        "id": "NFT_TL_014",
+        "title": "Operator pod recovery (VM/Strimzi operators)",
+    },
 }

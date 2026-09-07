@@ -1,6 +1,7 @@
-# Telemetry — NFT Test Cases
+# Telemetry -- NFT Test Cases
 
-Non-Functional Tests (NFT) for telemetry playbook performance and idempotency.
+Non-Functional Tests (NFT) for telemetry playbook performance, idempotency,
+and resilience.
 
 ## Test Categories
 
@@ -8,6 +9,7 @@ Non-Functional Tests (NFT) for telemetry playbook performance and idempotency.
 |----------|-------------|--------|
 | Performance | Verify playbooks complete within time thresholds | performance |
 | Idempotency | Verify playbooks can run multiple times safely | idempotency |
+| Resilience | Verify recovery from pod deletion, node reboot, and lifecycle | resilience |
 
 ## Test Case Registry
 
@@ -40,6 +42,29 @@ without errors:
 - **Cleanup idempotency**: Running cleanup twice should succeed (rc=0) both times
 - **Resource verification**: After idempotent cleanup, no resources should remain
 
+### Resilience Tests
+
+| TC ID | Test | Recovery Timeout | Marker |
+|-------|------|-----------------|--------|
+| NFT_TL_006 | Sink pod deletion & recovery (Kafka broker) | 300s | nft, resilience |
+| NFT_TL_007 | Source pod deletion & recovery (enabled sources) | 300s | nft, resilience |
+| NFT_TL_008 | StatefulSet storage pod recovery (vmstorage/vlstorage) | 600s | nft, resilience |
+| NFT_TL_009 | PVC persistence after pod deletion | N/A | nft, resilience |
+| NFT_TL_010 | Service endpoint availability after pod restart | N/A | nft, resilience |
+| NFT_TL_011 | Data ingestion after sink restart | N/A | nft, resilience |
+| NFT_TL_012 | Node reboot recovery (all pods Running) | 600s | nft, resilience |
+| NFT_TL_013 | Full lifecycle (cleanup -> redeploy -> verify) | 720s | nft, resilience |
+| NFT_TL_014 | Operator pod recovery (VM/Strimzi operators) | 300s | nft, resilience |
+
+**Resilience tests** verify the telemetry stack's ability to recover:
+- **Pod deletion**: K8s controllers (Deployments/StatefulSets) must recreate deleted pods
+- **PVC persistence**: Persistent volume data must survive pod restarts
+- **Service endpoints**: Services must regain active endpoints after pod recreation
+- **Data continuity**: VictoriaMetrics must retain queryable data after storage pod restart
+- **Node reboot**: All pods must return to Running state after node reboot
+- **Full lifecycle**: Complete cleanup and redeployment must produce a healthy stack
+- **Operator recovery**: Operator pods must be recreated and CRs must reconcile
+
 ## Execution
 
 ```bash
@@ -51,6 +76,12 @@ without errors:
 
 # Run only idempotency tests
 ./run_validation.sh nft test --marker idempotency
+
+# Run only resilience tests
+./run_validation.sh nft test --marker resilience
+
+# Run resilience + performance together
+./run_validation.sh nft test --marker resilience,performance
 
 # Run with verbose output
 ./run_validation.sh nft test -v
@@ -65,36 +96,92 @@ without errors:
 
 ```
 1. NFT_TL_001: Run validate playbook, measure duration
-   ├─ Assert: rc=0 (playbook succeeded)
-   └─ Assert: duration < 30s
+   |-- Assert: rc=0 (playbook succeeded)
+   +-- Assert: duration < 30s
 
 2. NFT_TL_002: Run deploy playbook, measure duration
-   ├─ Assert: rc=0 (playbook succeeded)
-   └─ Assert: duration < 600s
+   |-- Assert: rc=0 (playbook succeeded)
+   +-- Assert: duration < 600s
 
 3. NFT_TL_003: Run cleanup playbook, measure duration
-   ├─ Assert: rc=0 (playbook succeeded)
-   └─ Assert: duration < 300s
+   |-- Assert: rc=0 (playbook succeeded)
+   +-- Assert: duration < 300s
 ```
 
 ### Idempotency Test Flow
 
 ```
 1. NFT_TL_004: Deploy idempotency
-   ├─ Run 1: Deploy playbook (initial deployment)
-   ├─ Run 2: Deploy playbook (idempotent re-run)
-   └─ Assert: Both runs exit 0
+   |-- Run 1: Deploy playbook (initial deployment)
+   |-- Run 2: Deploy playbook (idempotent re-run)
+   +-- Assert: Both runs exit 0
 
 2. NFT_TL_005: Cleanup idempotency
-   ├─ Run 1: Cleanup playbook (initial cleanup)
-   ├─ Run 2: Cleanup playbook (idempotent re-run)
-   └─ Assert: Both runs exit 0
+   |-- Run 1: Cleanup playbook (initial cleanup)
+   |-- Run 2: Cleanup playbook (idempotent re-run)
+   +-- Assert: Both runs exit 0
 
 3. TC_CL_012-idem: Verify no pods remain
-   └─ Assert: kubectl get pods -n telemetry returns 0 pods
+   +-- Assert: kubectl get pods -n telemetry returns 0 pods
 
 4. TC_CL_013-idem: Verify no PVCs remain
-   └─ Assert: kubectl get pvc -n telemetry returns 0 PVCs
+   +-- Assert: kubectl get pvc -n telemetry returns 0 PVCs
+```
+
+### Resilience Test Flow
+
+```
+1. NFT_TL_006: Sink pod deletion & recovery
+   |-- Delete Kafka broker pods (force, grace-period=0)
+   |-- Wait up to 300s for StatefulSet to recreate 3 broker pods
+   +-- Assert: All 3 broker pods Running
+
+2. NFT_TL_007: Source pod deletion & recovery
+   |-- Skip if no sources enabled
+   |-- For each enabled source (iDRAC, Vector-LDMS, Vector-OME):
+   |   |-- Delete pods by prefix
+   |   +-- Wait for controller to recreate
+   +-- Assert: All source pods recovered
+
+3. NFT_TL_008: StatefulSet storage pod recovery
+   |-- Delete vmstorage pods (3 replicas)
+   |-- Wait for STS to recreate with same identity
+   |-- Delete vlstorage pods (3 replicas)
+   |-- Wait for STS to recreate
+   +-- Assert: All storage pods Running, re-attached to PVCs
+
+4. NFT_TL_009: PVC persistence after pod deletion
+   |-- Query all PVCs in telemetry namespace
+   +-- Assert: All PVCs in Bound state (data preserved)
+
+5. NFT_TL_010: Service endpoint availability
+   |-- Check endpoints for kafka-kafka-bootstrap, vmselect,
+   |   vminsert, vlselect
+   +-- Assert: All services have active endpoints
+
+6. NFT_TL_011: Data ingestion after sink restart
+   |-- Query VictoriaMetrics with 'up' metric
+   +-- Assert: Results returned (data survived restart)
+
+7. NFT_TL_012: Node reboot recovery
+   |-- Resolve kube_vip IP (skip if unavailable)
+   |-- Reboot node via SSH
+   |-- Wait for node to come back (600s timeout)
+   |-- Wait for all telemetry pods to reach Running (600s timeout)
+   +-- Assert: All pods Running after reboot
+
+8. NFT_TL_013: Full lifecycle
+   |-- Run cleanup playbook (teardown)
+   |-- Run deploy playbook (redeploy)
+   |-- Verify all pods Running
+   +-- Assert: Complete cycle succeeds
+
+9. NFT_TL_014: Operator pod recovery
+   |-- Delete victoria-metrics-operator pod
+   |-- Wait for recreation, check VMCluster CR health
+   |-- Delete strimzi-cluster-operator pod
+   |-- Wait for recreation, check Kafka CR Ready status
+   +-- Assert: Both operators recovered, CRs reconciled
 ```
 
 ## Why NFT Matters
@@ -109,18 +196,34 @@ without errors:
 - **Error recovery**: Users can re-run after failures without manual cleanup
 - **CI/CD safety**: Automated pipelines can safely retry operations
 
+### Resilience Testing
+- **Pod self-healing**: Kubernetes must automatically recover deleted pods
+- **Data durability**: PVC-backed storage must survive pod restarts
+- **Service continuity**: Service endpoints must recover after disruptions
+- **Disaster recovery**: System must function after node reboots
+- **Operational confidence**: Full lifecycle (tear down + rebuild) must work
+
 ## Expected Results
 
 All NFT tests should **PASS** on a healthy telemetry deployment:
 
 ```
-NFT_TL_001: ✔ PASS  (validate: 12.3s < 30s)
-NFT_TL_002: ✔ PASS  (deploy: 487.2s < 600s)
-NFT_TL_003: ✔ PASS  (cleanup: 125.4s < 300s)
-NFT_TL_004: ✔ PASS  (deploy idempotent: run1=0, run2=0)
-NFT_TL_005: ✔ PASS  (cleanup idempotent: run1=0, run2=0)
-TC_CL_012-idem: ✔ PASS  (0 pods remaining)
-TC_CL_013-idem: ✔ PASS  (0 PVCs remaining)
+NFT_TL_001: PASS  (validate: 12.3s < 30s)
+NFT_TL_002: PASS  (deploy: 487.2s < 600s)
+NFT_TL_003: PASS  (cleanup: 125.4s < 300s)
+NFT_TL_004: PASS  (deploy idempotent: run1=0, run2=0)
+NFT_TL_005: PASS  (cleanup idempotent: run1=0, run2=0)
+TC_CL_012-idem: PASS  (0 pods remaining)
+TC_CL_013-idem: PASS  (0 PVCs remaining)
+NFT_TL_006: PASS  (kafka-broker: 3/3 recovered in 45s)
+NFT_TL_007: PASS  (idrac-telemetry: 1/1 recovered in 30s)
+NFT_TL_008: PASS  (vmstorage: 3/3, vlstorage: 3/3 recovered)
+NFT_TL_009: PASS  (18/18 PVCs Bound)
+NFT_TL_010: PASS  (4/4 services have endpoints)
+NFT_TL_011: PASS  (query 'up' returned 12 results)
+NFT_TL_012: PASS  (42 pods Running after node reboot in 180s)
+NFT_TL_013: PASS  (cleanup=125s, deploy=487s, 42 pods Running)
+NFT_TL_014: PASS  (VM operator + Strimzi operator recovered)
 ```
 
 ## Troubleshooting
@@ -143,6 +246,29 @@ If an idempotency test fails:
    - `failed_when: false` for cleanup commands
    - `--ignore-not-found=true` for kubectl delete
    - Helm guards for already-uninstalled releases
+
+### Resilience Test Failures
+
+If a resilience test fails:
+1. **Pod recovery failures**: Check controller events
+   - `kubectl describe sts <name> -n telemetry`
+   - `kubectl describe deployment <name> -n telemetry`
+   - Look for scheduling failures (insufficient resources, node affinity)
+2. **PVC not Bound**: Check storage provisioner
+   - `kubectl get pvc -n telemetry`
+   - `kubectl get sc` (storage class availability)
+3. **Service endpoint failures**: Check pod readiness probes
+   - `kubectl get endpoints -n telemetry`
+   - Pods must pass readiness checks before being added to endpoints
+4. **Data queryability failures**: Check vmstorage + vmselect logs
+   - `kubectl logs -n telemetry <vmstorage-pod>`
+   - Verify PVC data integrity after restart
+5. **Node reboot failures**: Check kubelet and container runtime
+   - `systemctl status kubelet` on the rebooted node
+   - `kubectl get nodes` for NotReady status
+6. **Operator recovery failures**: Check operator logs
+   - `kubectl logs -n telemetry <operator-pod>`
+   - Verify CRD versions are compatible
 
 ## Related Documentation
 

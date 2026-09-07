@@ -93,6 +93,44 @@ TEST_LOG_MSGS = {
     "idempotent_passed": "Idempotency verified: second run exited 0 (duration={duration}s)",
     "idempotent_failed": "Idempotency failed: second run exited {rc}",
 
+    # Resilience - Pod Recovery
+    "pod_recovery_passed": "Pod '{prefix}' recovered successfully in {elapsed}s",
+    "pod_recovery_failed": "Pod '{prefix}' failed to recover: {error}",
+    "sts_recovery_passed": "StatefulSet pods recovered: {prefixes}",
+    "sts_recovery_failed": "StatefulSet pod recovery failed: {prefixes}",
+
+    # Resilience - PVC Persistence
+    "pvcs_bound": "All {total} PVCs in Bound state ({bound} bound)",
+    "pvcs_not_bound": "{not_bound} of {total} PVC(s) not in Bound state",
+
+    # Resilience - Service Endpoints
+    "services_available": "All {count} core services have active endpoints",
+    "services_unavailable": "Services missing endpoints: {unavailable}",
+
+    # Resilience - Data Continuity
+    "data_queryable": "VictoriaMetrics returned {count} result(s) for '{query}'",
+    "data_not_queryable": "VictoriaMetrics query '{query}' returned no data: {error}",
+
+    # Resilience - Node Reboot
+    "node_reboot_passed": (
+        "Node {node_ip} rebooted; {total} pods Running after {elapsed}s"
+    ),
+    "node_reboot_failed": "Node {node_ip} did not come back after reboot",
+    "node_reboot_pods_failed": (
+        "After reboot: {running}/{total} pods Running (some not ready)"
+    ),
+
+    # Resilience - Full Lifecycle
+    "lifecycle_passed": (
+        "Full lifecycle passed: cleanup={cleanup_dur}s, "
+        "deploy={deploy_dur}s, {total} pods Running"
+    ),
+    "lifecycle_failed": "{not_running} pod(s) not Running after full lifecycle",
+
+    # Resilience - Operator Recovery
+    "operator_recovery_passed": "All operators recovered and CRs reconciled",
+    "operator_recovery_failed": "Operator recovery or CR reconciliation failed",
+
     # All pods running
     "all_pods_running": "All {total} pods running in telemetry namespace",
     "some_pods_not_running": "{not_running}/{total} pod(s) not in Running state",
@@ -420,6 +458,64 @@ TEST_ASSERT_MSGS = {
         "HOW TO FIX:\n"
         "  1. Check the playbook output for tasks that failed on second run\n"
         "  2. Ensure tasks use proper idempotency guards\n"
+    ),
+
+    # Resilience - Pod Recovery
+    "pod_recovery_failed": (
+        "Pod '{prefix}' did not recover after deletion: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry | grep {prefix}\n"
+        "  2. kubectl describe pod <pod-name> -n telemetry\n"
+        "  3. Check controller (Deployment/StatefulSet) events\n"
+    ),
+    "sts_recovery_failed": (
+        "StatefulSet storage pod recovery failed:\n{details}\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get sts -n telemetry\n"
+        "  2. kubectl describe sts <sts-name> -n telemetry\n"
+        "  3. Check PVC binding: kubectl get pvc -n telemetry\n"
+    ),
+    "pvcs_not_bound": (
+        "{not_bound} PVC(s) not in Bound state: {names}\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pvc -n telemetry\n"
+        "  2. kubectl describe pvc <pvc-name> -n telemetry\n"
+        "  3. Check storage provisioner and PV availability\n"
+    ),
+    "services_unavailable": (
+        "Services missing endpoints: {unavailable}\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get endpoints -n telemetry\n"
+        "  2. Verify backing pods are Running: kubectl get pods -n telemetry\n"
+        "  3. Check service selector matches pod labels\n"
+    ),
+    "data_not_queryable": (
+        "VictoriaMetrics query '{query}' returned no data: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Check vmselect pod is Running: kubectl get pods -n telemetry | grep vmselect\n"
+        "  2. Check vmstorage: kubectl get pods -n telemetry | grep vmstorage\n"
+        "  3. Verify data was persisted: check PVC content\n"
+    ),
+    "node_reboot_failed": (
+        "After node reboot: {running}/{total} pods Running\n{details}\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry\n"
+        "  2. kubectl describe pods -n telemetry | grep -A5 'not ready'\n"
+        "  3. Check node status: kubectl get nodes\n"
+    ),
+    "lifecycle_failed": (
+        "Full lifecycle failed: {running}/{total} pods Running after redeploy\n"
+        "HOW TO FIX:\n"
+        "  1. Check deploy playbook output for errors\n"
+        "  2. kubectl get pods -n telemetry\n"
+        "  3. Re-run: ansible-playbook telemetry.yml --tags execute\n"
+    ),
+    "operator_recovery_failed": (
+        "Operator recovery failed:\n{details}\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get pods -n telemetry | grep operator\n"
+        "  2. kubectl logs <operator-pod> -n telemetry\n"
+        "  3. Check CR status: kubectl get vmcluster,kafka -n telemetry\n"
     ),
 
     # PowerScale

@@ -136,9 +136,10 @@ def pytest_configure(config):
         "ldms": "LDMS (Lightweight Distributed Metric Service) specific tests",
         "sfm": "SFM (SmartFabric Manager) specific tests",
         "ufm": "UFM (Unified Fabric Manager) specific tests",
-        "nft": "Non-functional tests (performance, idempotency)",
+        "nft": "Non-functional tests (performance, idempotency, resilience)",
         "performance": "Performance tests (execution time thresholds)",
         "idempotency": "Idempotency tests (re-run verification)",
+        "resilience": "Resilience tests (pod recovery, reboot, lifecycle)",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")

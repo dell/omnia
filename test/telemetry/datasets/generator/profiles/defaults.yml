@@ -2,7 +2,7 @@
 # All sources enabled, all sinks enabled
 
 kube_vip: "10.0.0.100"
-bmc_group_data_path: "/opt/omnia/input/project_default/bmc_group_data.csv"
+bmc_group_data_path: "/opt/omnia/telemetry/input/project_default/bmc_group_data.csv"
 
 # Sources
 idrac_metrics_enabled: true

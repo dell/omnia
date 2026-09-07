@@ -24,6 +24,7 @@ Module-specific functions live in separate files:
   - ome_func.py         — OME Kafka connectivity verification
   - sfm_func.py         — SFM Prometheus Remote Write integration
   - sfm_metrics_func.py — attributed SFM-to-VictoriaMetrics verification
+  - resilience_func.py  — NFT resilience (pod recovery, reboot, lifecycle)
   - validation_func.py  — config validation
 """
 
@@ -123,6 +124,19 @@ from .vast_func import (
     get_vast_endpoint_from_config,
 )
 
+# --- Resilience ---
+from .resilience_func import (
+    delete_pods_by_prefix,
+    wait_pods_ready_by_prefix,
+    verify_pod_recreation,
+    verify_all_pvcs_bound,
+    verify_service_endpoints_available,
+    verify_data_queryable_after_restart,
+    reboot_node_and_wait,
+    verify_pods_after_reboot,
+    verify_operator_recovery,
+)
+
 # --- Validation ---
 from .validation_func import (
     validate_test_config,
@@ -216,6 +230,16 @@ __all__ = [
     "verify_vast_metrics",
     "verify_vast_logs",
     "get_vast_endpoint_from_config",
+    # resilience
+    "delete_pods_by_prefix",
+    "wait_pods_ready_by_prefix",
+    "verify_pod_recreation",
+    "verify_all_pvcs_bound",
+    "verify_service_endpoints_available",
+    "verify_data_queryable_after_restart",
+    "reboot_node_and_wait",
+    "verify_pods_after_reboot",
+    "verify_operator_recovery",
     # validation
     "validate_test_config",
     "validate_all",
