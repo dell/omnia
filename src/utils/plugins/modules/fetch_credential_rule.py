@@ -94,9 +94,22 @@ failed:
 
 import json
 import os
+from pathlib import Path
 from typing import Tuple, Dict, Any
 
 from ansible.module_utils.basic import AnsibleModule
+
+try:
+    from ansible_collections.omnia.utils.plugins.module_utils.security_utils import validate_file_path
+except ImportError:
+    # Fallback for development/testing
+    def validate_file_path(file_path: str, allowed_base_dirs=None) -> Tuple[bool, str]:
+        """Fallback validation if security_utils not available"""
+        if not file_path:
+            return False, "File path cannot be empty"
+        if '..' in file_path:
+            return False, "File path cannot contain '..'"
+        return True, ""
 
 def load_rules(file_path: str) -> Dict[str, Any]:
     """Loads validation rules from JSON file.
@@ -140,11 +153,27 @@ def main():
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
     params = module.params
     module_utils_base = module.params["module_utils_path"]
-    credentials_schema = os.path.join(module_utils_base,'input_validation','schema',\
-                                      'credential_rules.json')
+    
+    # Validate module_utils_path for security (path traversal and command injection)
+    path_valid, path_error = validate_file_path(module_utils_base)
+    if not path_valid:
+        module.fail_json(msg=f"Invalid module_utils_path: {path_error}")
+    
+    # Construct and validate credentials schema path
+    try:
+        credentials_schema = Path(module_utils_base) / 'input_validation' / 'schema' / 'credential_rules.json'
+        credentials_schema = credentials_schema.resolve()
+        
+        # Validate resolved path for security
+        path_valid, path_error = validate_file_path(str(credentials_schema))
+        if not path_valid:
+            module.fail_json(msg=f"Invalid schema path after resolution: {path_error}")
+    except (ValueError, RuntimeError) as e:
+        module.fail_json(msg=f"Failed to resolve schema path: {str(e)}")
+    
     # Load validation rules
     try:
-        rules = load_rules(credentials_schema)
+        rules = load_rules(str(credentials_schema))
     except (FileNotFoundError, json.JSONDecodeError, PermissionError) as e:
         module.fail_json(msg=f"Failed to load rules: {e}")
 

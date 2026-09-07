@@ -48,7 +48,7 @@
             )
             else 'collection_error'
           }}
-        failure_detail: "{{ (unreachable_results | map(attribute='msg') | list | first) | default(ansible_failed_result.msg | default('unknown error')) }}"
+        failure_detail: "{{ ((unreachable_results | map(attribute='msg') | list | first) | default(ansible_failed_result.msg | default('unknown error'))) | sanitize_log_message }}"
         warning_payload:
           source: "{{ stage }}"
           node_name: "{{ inventory_hostname }}"
@@ -104,7 +104,7 @@
             )
             else 'collection_error'
           }}
-        failure_detail: "{{ (unreachable_results | map(attribute='msg') | list | first) | default(ansible_failed_result.msg | default('unknown error')) }}"
+        failure_detail: "{{ ((unreachable_results | map(attribute='msg') | list | first) | default(ansible_failed_result.msg | default('unknown error'))) | sanitize_log_message }}"
         warning_payload:
           source: "{{ stage }}"
           node_name: "{{ inventory_hostname }}"
