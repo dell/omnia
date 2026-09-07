@@ -96,8 +96,8 @@
 #   upgrade   -> upgrade_openchami.yml   + upgrade_openldap.yml
 #   rollback  -> rollback_openchami.yml  + rollback_openldap.yml  (reserved — not supported)
 #
-# Inputs:  /opt/omnia/orchestrator/input/project_default/
-# Outputs: /opt/omnia/orchestrator/output/project_default/
+# Inputs:  $OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/
+# Outputs: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/
 
 # =========================================================================
 # SHARED: Setup orchestrator environment (always runs for any tag)

@@ -35,7 +35,7 @@ try:
     DEFAULT_BUILD_STREAM_BASE = Path(local_config.file_store.base_path)
 except (FileNotFoundError, AttributeError):
     # Fallback to default path if config is not available
-    DEFAULT_BUILD_STREAM_BASE = Path("/opt/omnia/build_stream_root")
+    DEFAULT_BUILD_STREAM_BASE = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia")) / "build_stream_root"
 
 def _get_omnia_data_path() -> str:
     """Read OMNIA_DATA_PATH from environment (sourced from omnia.env).
@@ -84,14 +84,14 @@ class NfsInputRepository(BuildStreamConfigRepository, BuildImageInventoryReposit
         config_file_path: Optional[str] = None,
         playbook_input_dir: str = DEFAULT_PLAYBOOK_INPUT_DIR,
         build_stream_base: str = DEFAULT_BUILD_STREAM_BASE,
-        inventory_base_dir: str = "/opt/omnia/build_stream_inv",
+        inventory_base_dir: str = None,
     ):
         """Initialize repository with consolidated paths.
 
         Args:
             config_file_path: Full path to build_stream_config.yml.  If None,
                              constructed from OMNIA_DATA_PATH / OMNIA_PROJECT_NAME.
-            playbook_input_dir: Destination path for repo_manager domain input.
+            playbook_input_dir: Destination path for image_build_manager domain input.
             build_stream_base: Base path for build stream job data.
             inventory_base_dir: Base directory for inventory files.
         """
@@ -109,6 +109,8 @@ class NfsInputRepository(BuildStreamConfigRepository, BuildImageInventoryReposit
         self._build_stream_base = Path(build_stream_base)
 
         # Initialize inventory directory paths
+        if inventory_base_dir is None:
+            inventory_base_dir = os.path.join(_get_omnia_data_path(), "build_stream_inv")
         self._inventory_base_dir = Path(inventory_base_dir)
 
     # === Configuration Methods ===

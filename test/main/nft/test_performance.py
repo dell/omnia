@@ -16,12 +16,14 @@
 Omnia Main — Non-Functional Performance Tests.
 
 Verifies that key omnia.sh operations complete within expected timeframes:
-  NFT_MA_001: --setup-venv --deps-only completes within threshold
-  NFT_MA_002: --init completes within threshold
-  NFT_MA_005: --check-deps completes within threshold
+  MAIN_NFT_001: --setup-venv --deps-only completes within threshold
+  MAIN_NFT_002: --init completes within threshold
+  MAIN_NFT_005: --check-deps completes within threshold
 """
 
 import pytest
+
+from library.vars import TEST_CASES as TC
 
 from library.functions import TestLogger
 from library.functions.omnia_main_func import run_omnia_cmd
@@ -35,10 +37,9 @@ CHECK_DEPS_THRESHOLD = 10    # 10 seconds (file scan only)
 @pytest.mark.nft
 @pytest.mark.order(1)
 def test_setup_venv_performance(host):
-    """NFT_MA_001: Verify --setup-venv --deps-only completes within threshold."""
-    tl = TestLogger(
-        "NFT: setup-venv --deps-only performance", "NFT_MA_001"
-    )
+    """MAIN_NFT_001: Verify --setup-venv --deps-only completes within threshold."""
+    tc = TC["setup_venv_performance"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(host, "omnia_sh_setup_venv")
 
     duration = result.get("duration", 0)
@@ -83,8 +84,9 @@ def test_setup_venv_performance(host):
 @pytest.mark.nft
 @pytest.mark.order(2)
 def test_init_performance(host):
-    """NFT_MA_002: Verify --init completes within threshold."""
-    tl = TestLogger("NFT: init performance", "NFT_MA_002")
+    """MAIN_NFT_002: Verify --init completes within threshold."""
+    tc = TC["init_performance"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(host, "omnia_sh_init")
 
     duration = result.get("duration", 0)
@@ -118,10 +120,9 @@ def test_init_performance(host):
 @pytest.mark.nft
 @pytest.mark.order(3)
 def test_check_deps_performance(host):
-    """NFT_MA_005: Verify --check-deps completes within threshold."""
-    tl = TestLogger(
-        "NFT: check-deps performance", "NFT_MA_005"
-    )
+    """MAIN_NFT_005: Verify --check-deps completes within threshold."""
+    tc = TC["check_deps_performance"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(host, "omnia_sh_check_deps")
 
     duration = result.get("duration", 0)

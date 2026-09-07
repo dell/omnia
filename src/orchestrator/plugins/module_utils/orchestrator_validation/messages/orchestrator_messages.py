@@ -37,15 +37,6 @@ KERNEL_VERSION_FORMAT_MSG = (
     "match expected format X.Y.Z-<suffix> (e.g. 5.14.0-427.13.1.el9_4.x86_64)."
 )
 
-S3_ENDPOINT_REQUIRED_MSG = (
-    "orchestrator_config: 's3_endpoint' is required when "
-    "s3_storage_provider is '{}'."
-)
-S3_ENDPOINT_NOT_NEEDED_MSG = (
-    "orchestrator_config: 's3_endpoint' should not be set when "
-    "s3_storage_provider is 'minio' (auto-managed)."
-)
-
 CLOUD_INIT_FILE_MISSING_MSG = (
     "orchestrator_config: 'additional_cloud_init_config_file' path "
     "'{}' does not exist."

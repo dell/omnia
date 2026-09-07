@@ -9,12 +9,15 @@ available after prepare is run twice.
 
 ## Test Cases
 
+NFT IDs use `IMGBM_NFT_<SEQ>`: `IMGBM` identifies Image Build Manager, `NFT`
+identifies the test level, and `SEQ` is a stable three-digit sequence.
+
 | TC ID | Test Name | Category | What It Validates |
 |-------|-----------|----------|-------------------|
-| NFT_001 | `test_prepare_performance` | Performance | Prepare completes within threshold |
-| NFT_002 | `test_build_performance` | Performance | Build completes within threshold |
-| NFT_003 | `test_cleanup_performance` | Performance | Cleanup completes within threshold |
-| NFT_004 | `test_prepare_idempotent` | Idempotency | Prepare succeeds twice and required services remain available |
+| IMGBM_NFT_001 | `test_prepare_performance` | Performance | Prepare completes within threshold |
+| IMGBM_NFT_002 | `test_build_performance` | Performance | Build completes within threshold |
+| IMGBM_NFT_003 | `test_cleanup_performance` | Performance | Cleanup completes within threshold |
+| IMGBM_NFT_004 | `test_prepare_idempotent` | Idempotency | Prepare succeeds twice and required services remain available |
 
 ---
 
@@ -33,7 +36,7 @@ based on target hardware capabilities.
 
 ## Idempotency Checks
 
-The idempotency test (`NFT_004`) verifies:
+The idempotency test (`IMGBM_NFT_004`) verifies:
 
 1. **First run** — Prepare completes successfully
 2. **Second run** — Prepare completes successfully without errors
@@ -63,7 +66,7 @@ validate first is recommended:
 ./run_validation.sh nft_image_build_manager test
 ```
 
-NFT_003 executes the cleanup tag. A full NFT run therefore removes local
+IMGBM_NFT_003 executes the cleanup tag. A full NFT run therefore removes local
 MinIO/registry data and services, build output/logs, and
 `image_build_credentials.yml` with its vault key. The default MinIO flow also
 removes s3cmd configuration. External PowerScale S3 storage and
@@ -91,18 +94,18 @@ removes s3cmd configuration. External PowerScale S3 storage and
 
 ```
 nft/
-├── test_performance.py    ← NFT_001, NFT_002, NFT_003
+├── test_performance.py    ← IMGBM_NFT_001, IMGBM_NFT_002, IMGBM_NFT_003
 │   ├── test_prepare_performance    (order=1)
 │   ├── test_build_performance      (order=2)
 │   └── test_cleanup_performance    (order=3)
 │
-└── test_idempotency.py    ← NFT_004
+└── test_idempotency.py    ← IMGBM_NFT_004
     └── test_prepare_idempotent     (order=1)
 ```
 
 Tests use `@pytest.mark.nft` and `@pytest.mark.order(n)` markers. Within the
-performance tests, the markers enforce prepare -> build -> cleanup. NFT_004 is
-also marked `order=1`; its position relative to NFT_001 follows pytest's
+performance tests, the markers enforce prepare -> build -> cleanup. IMGBM_NFT_004 is
+also marked `order=1`; its position relative to IMGBM_NFT_001 follows pytest's
 collection order, and it independently executes prepare twice.
 
 ---

@@ -87,7 +87,7 @@ ACTIVE_STATUSES = {
     ImageGroupStatus.VALIDATING.value,
 }
 
-DEFAULT_NFS_ARTIFACT_BASE = "/opt/omnia/build_stream_root"
+DEFAULT_NFS_ARTIFACT_BASE = os.path.join(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream_root")
 CLEANUP_PLAYBOOK_NAME = "image_build_manager.yml"
 CLEANUP_PLAYBOOK_TAGS = "cleanup_images"
 CLEANUP_TIMEOUT_MINUTES = 30

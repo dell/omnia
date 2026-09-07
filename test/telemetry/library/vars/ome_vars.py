@@ -271,115 +271,66 @@ OME_CMD_TEMPLATES: Dict[str, str] = {
 
     # Get forwarder details
     "ome_get_forwarder": (
-        "curl -sk -u '{user}:{secret}' --max-time 15"
-        " -w '\nHTTP_CODE:%{{http_code}}'"
-        " 'https://{ome_ip}/api/DataForwardingService/"
-        "Forwarders({forwarder_id})'"
+        "curl -sk -u %s --max-time 15"
+        " -w '\nHTTP_CODE:%%{http_code}' %s"
     ),
 
     # Get forwarder connectivity status
     "ome_get_forwarder_status": (
-        "curl -sk -u '{user}:{secret}' --max-time 15"
-        " -w '\nHTTP_CODE:%{{http_code}}'"
-        " 'https://{ome_ip}/api/DataForwardingService/"
-        "Forwarders({forwarder_id})/ConnectivityStatus'"
+        "curl -sk -u %s --max-time 15"
+        " -w '\nHTTP_CODE:%%{http_code}' %s"
     ),
 
     # Get the current forwarder connection settings
     "ome_get_forwarder_config": (
-        "curl -sk -u '{user}:{secret}' --max-time 15"  # gitleaks:allow
-        " -w '\nHTTP_CODE:%{{http_code}}'"
-        " 'https://{ome_ip}/api/DataForwardingService/"
-        "Forwarders({forwarder_id})/ForwarderConfigurations'"
+        "curl -sk -u %s --max-time 15"
+        " -w '\nHTTP_CODE:%%{http_code}' %s"
     ),
 
     # Get all forwarders
     "ome_get_forwarders_list": (
-        "curl -sk -u '{user}:{secret}' --max-time 15"
-        " 'https://{ome_ip}/api/DataForwardingService/Forwarders'"
+        "curl -sk -u %s --max-time 15"
+        " %s"
     ),
 
     # Upload server certificate (CA) - cert content sent as base64 in JSON
     "ome_upload_server_cert": (
-        "curl -sk -u '{user}:{secret}' --max-time 30"
-        " -w 'HTTP_CODE:%{{http_code}}'"
+        "curl -sk -u %s --max-time 30"
+        " -w 'HTTP_CODE:%%{http_code}'"
         " -X POST -H 'Content-Type: application/json'"
-        " -d '{{\"CertData\": \"{cert_data_b64}\","
-        " \"CertFormat\": \"X_509\", \"ClientType\": \"KAFKA\"}}'"
-        " 'https://{ome_ip}/api/ApplicationService/"
-        "Actions/ApplicationService.UploadServerCertificate'"
+        " -d %s %s"
     ),
 
     # Upload client certificate (PFX) - cert content sent as base64 in JSON
     "ome_upload_client_cert": (
-        "curl -sk -u '{user}:{secret}' --max-time 30"
-        " -w 'HTTP_CODE:%{{http_code}}'"
+        "curl -sk -u %s --max-time 30"
+        " -w 'HTTP_CODE:%%{http_code}'"
         " -X POST -H 'Content-Type: application/json'"
-        " -d '{{\"CertData\": \"{cert_data_b64}\","
-        " \"CertFormat\": \"PKCS_12\", \"ClientType\": \"KAFKA\","
-        " \"Passphrase\": \"{pfx_secret}\"}}'"
-        " 'https://{ome_ip}/api/ApplicationService/"
-        "Actions/ApplicationService.UploadClientCertificate'"
+        " -d %s %s"
     ),
 
     # View uploaded client certificate
     "ome_view_client_cert": (
-        "curl -sk -u '{user}:{secret}' --max-time 15"
+        "curl -sk -u %s --max-time 15"
         " -X POST"
         " -H 'Content-Type: application/json'"
-        " -d '{{\"ClientType\": \"KAFKA\"}}'"
-        " 'https://{ome_ip}/api/ApplicationService/"
-        "Actions/ApplicationService.ViewClientCertificate'"
+        " -d %s %s"
     ),
 
     # Test Kafka connection
     "ome_test_kafka_connection": (
-        "curl -sk -u '{user}:{secret}' --max-time 30"
-        " -w 'HTTP_CODE:%{{http_code}}'"
+        "curl -sk -u %s --max-time 30"
+        " -w 'HTTP_CODE:%%{http_code}'"
         " -X POST -H 'Content-Type: application/json'"
-        " -d '{{\"Id\": {forwarder_id},"
-        " \"ForwarderConfigurations\": ["
-        "{{\"ConfigurationName\": \"OMEIdentifier\", "
-        "\"ConfigurationValue\": \"{ome_identifier}\"}},"
-        "{{\"ConfigurationName\": \"ClientType\", "
-        "\"ConfigurationValue\": \"KAFKA\"}},"
-        "{{\"ConfigurationName\": \"BrokerList\", "
-        "\"ConfigurationValue\": \"{broker_list}\"}},"
-        "{{\"ConfigurationName\": \"AuthMode\", "
-        "\"ConfigurationValue\": \"2\"}},"
-        "{{\"ConfigurationName\": \"ServerCert\", "
-        "\"ConfigurationValue\": \"true\"}},"
-        "{{\"ConfigurationName\": \"ClientCert\", "
-        "\"ConfigurationValue\": \"true\"}}"
-        "]}}'"
-        " 'https://{ome_ip}/api/DataForwardingService/"
-        "Actions/DataForwardingService.TestConnection'"
+        " -d %s %s"
     ),
 
     # Update forwarder settings
     "ome_update_forwarder": (
-        "curl -sk -u '{user}:{secret}' --max-time 30"
-        " -w 'HTTP_CODE:%{{http_code}}'"
+        "curl -sk -u %s --max-time 30"
+        " -w 'HTTP_CODE:%%{http_code}'"
         " -X POST -H 'Content-Type: application/json'"
-        " -d '{{\"Id\": {forwarder_id}, \"Enabled\": true,"
-        " \"ForwarderConfigurations\": ["
-        "{{\"ConfigurationName\": \"OMEIdentifier\", "
-        "\"ConfigurationValue\": \"{ome_identifier}\"}},"
-        "{{\"ConfigurationName\": \"ClientType\", "
-        "\"ConfigurationValue\": \"KAFKA\"}},"
-        "{{\"ConfigurationName\": \"BrokerList\", "
-        "\"ConfigurationValue\": \"{broker_list}\"}},"
-        "{{\"ConfigurationName\": \"AuthMode\", "
-        "\"ConfigurationValue\": \"2\"}},"
-        "{{\"ConfigurationName\": \"ServerCert\", "
-        "\"ConfigurationValue\": \"true\"}},"
-        "{{\"ConfigurationName\": \"ClientCert\", "
-        "\"ConfigurationValue\": \"true\"}},"
-        "{{\"ConfigurationName\": \"HeartBeat\", "
-        "\"ConfigurationValue\": \"120\"}}"
-        "]}}'"
-        " 'https://{ome_ip}/api/DataForwardingService/"
-        "Actions/DataForwardingService.ForwarderSettings'"
+        " -d %s %s"
     ),
 
     # -------------------------------------------------------------------------
@@ -389,20 +340,20 @@ OME_CMD_TEMPLATES: Dict[str, str] = {
     # Convert PEM to PFX
     "openssl_create_pfx": (
         "openssl pkcs12 -export"
-        " -out {cert_dir}/user.pfx"
-        " -inkey {cert_dir}/user.key"
-        " -in {cert_dir}/user.crt"
-        " -passout pass:{secret}"
+        " -out %s"
+        " -inkey %s"
+        " -in %s"
+        " -passout %s"
     ),
 
     # Read local certificate subject/issuer/validity for comparison
     "openssl_cert_details": (
-        "openssl x509 -in {cert_path} -noout"
+        "openssl x509 -in %s -noout"
         " -subject -issuer -dates -serial"
     ),
 
     # Check file exists
-    "file_exists": "test -f {path} && echo 'exists' || echo 'missing'",
+    "file_exists": "test -f %s && echo 'exists' || echo 'missing'",
 
     # -------------------------------------------------------------------------
     # K8s Resource Commands

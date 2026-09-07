@@ -23,16 +23,23 @@ and repository operations used across the repo manager system.
 import os
 import subprocess
 import json
-import re
 import shlex
 import tempfile
 from multiprocessing import Lock
-from ansible.module_utils.repo_manager.config import ARCH_SUFFIXES, STATUS_CSV_HEADER
+from ansible.module_utils.repo_manager.config import (
+    ARCH_SUFFIXES,
+    PULP_CLI_EXECUTABLE,
+    STATUS_CSV_HEADER,
+)
 from ansible.module_utils.repo_manager.mirror_status import (
     load_mirror_index,
     save_mirror_index,
     update_mirror_index_entry,
     find_mirror_entry,
+)
+from ansible.module_utils.repo_manager.security_utils import (
+    mask_sensitive_data,
+    redact_sensitive_output,
 )
 
 
@@ -63,39 +70,6 @@ def _atomic_write_lines(destination, lines):
             os.unlink(temp_path)
 
 
-def mask_sensitive_data(command):
-    """
-    Mask sensitive command arguments and return a log-safe command string.
-    """
-    if isinstance(command, (list, tuple)):
-        safe_args = [str(value) for value in command]
-        for index, value in enumerate(safe_args[:-1]):
-            if value in ("--password", "--username", "--token"):
-                safe_args[index + 1] = "******"
-        return shlex.join(safe_args)
-
-    cmd_string = str(command)
-    cmd_string = re.sub(r'(--password\s+)(\'[^\']*\'|"[^"]*"|[^\s]+)', r'\1******', cmd_string)
-    cmd_string = re.sub(r'(--username\s+)(\'[^\']*\'|"[^"]*"|[^\s]+)', r'\1******', cmd_string)
-    cmd_string = re.sub(r'(--token\s+)(\'[^\']*\'|"[^"]*"|[^\s]+)', r'\1******', cmd_string)
-    return cmd_string
-
-
-def redact_sensitive_output(output, command):
-    """Remove credential argument values if a command repeats them in output."""
-    if not output or not isinstance(command, (list, tuple)):
-        return output
-
-    redacted = str(output)
-    command_values = [str(value) for value in command]
-    for index, value in enumerate(command_values[:-1]):
-        if value in ("--password", "--username", "--token"):
-            secret = command_values[index + 1]
-            if secret:
-                redacted = redacted.replace(secret, "******")
-    return redacted
-
-
 def execute_command(command, logger, type_json=False, enhanced_error_info=False):  # pylint: disable=too-many-return-statements
     """
     Executes a command and captures the output (both stdout and stderr).
@@ -116,6 +90,7 @@ def execute_command(command, logger, type_json=False, enhanced_error_info=False)
     """
     logger.info(f"--- {execute_command.__name__} START ---")
     status = {}
+    safe_cmd_string = "<command omitted>"
 
     try:
         # Mask sensitive info before logging
@@ -128,6 +103,8 @@ def execute_command(command, logger, type_json=False, enhanced_error_info=False)
             if isinstance(command, (list, tuple))
             else shlex.split(command)
         )
+        if cmd_args and cmd_args[0] == "pulp":
+            cmd_args[0] = PULP_CLI_EXECUTABLE
 
         # Run the command with list arguments
         cmd = subprocess.run(
@@ -164,8 +141,8 @@ def execute_command(command, logger, type_json=False, enhanced_error_info=False)
                 return False
             try:
                 status["stdout"] = json.loads(status["stdout"])
-            except json.JSONDecodeError as error:
-                logger.error(f"Failed to parse JSON output: {error}")
+            except json.JSONDecodeError:
+                logger.error("Command returned invalid JSON output")
                 if enhanced_error_info:
                     status["success"] = False
                     return status
@@ -173,20 +150,20 @@ def execute_command(command, logger, type_json=False, enhanced_error_info=False)
 
         logger.info("Command succeeded.")
         return status
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Command failed: {safe_cmd_string} - {e}")
+    except subprocess.CalledProcessError:
+        logger.error("Command failed: %s", safe_cmd_string)
         return False
-    except subprocess.TimeoutExpired as e:
-        logger.error(f"Command timed out: {safe_cmd_string} - {e}")
+    except subprocess.TimeoutExpired:
+        logger.error("Command timed out: %s", safe_cmd_string)
         if enhanced_error_info:
             return {"success": False, "returncode": -1,
-                    "stdout": None, "stderr": str(e)}
+                    "stdout": None, "stderr": "Command timed out"}
         return False
-    except OSError as e:
-        logger.error(f"OS error during command: {safe_cmd_string} - {e}")
+    except OSError:
+        logger.error("OS error during command: %s", safe_cmd_string)
         if enhanced_error_info:
             return {"success": False, "returncode": -1,
-                    "stdout": None, "stderr": str(e)}
+                    "stdout": None, "stderr": "Unable to execute command"}
         return False
 
     finally:
@@ -341,11 +318,11 @@ def write_status_to_file(status_file_path, package_name, package_type, status,
                 status_file_path, package_name, package_type, status,
                 repo_name, catalog_name, logger
             )
-    except OSError as e:
-        logger.error(f"Failed to write to status file: {status_file_path}. Error: {str(e)}")
+    except OSError as error:
+        logger.error("Failed to update the package status file")
         raise RuntimeError(
-            f"Failed to write to status file: {status_file_path}. Error: {str(e)}"
-        ) from e
+            "Failed to update the package status file"
+        ) from error
     finally:
         logger.info(f"--- {write_status_to_file.__name__} END ---")
 
@@ -411,26 +388,19 @@ def _update_mirror_index_for_package(status_file_path, package_name, package_typ
         logger: Logger instance
     """
     try:
-        # Derive pulp_mirror_index.json path from status_file_path
-        # Expected path: .../rhel/10.0/x86_64/software_name/status.csv
-        # Mirror index: .../rhel/10.0/mirror_status/pulp_mirror_index.json
-
-        path_parts = status_file_path.split(os.sep)
-
-        # Find the OS type and version in the path
-        os_type_idx = -1
-        for i, part in enumerate(path_parts):
-            if part in ['rhel']:
-                os_type_idx = i
-                break
-
-        if os_type_idx == -1 or os_type_idx + 1 >= len(path_parts):
+        # Expected path:
+        # .../<os>/<version>/<arch>/<software>/status.csv
+        os_type, os_version = get_os_info_from_status_path(status_file_path)
+        if not os_type or not os_version:
             logger.debug(f"Could not derive mirror_index path from {status_file_path}")
             return
 
-        # Construct mirror_index path
-        base_path = os.sep.join(path_parts[:os_type_idx + 2])
-        mirror_index_path = os.path.join(base_path, "mirror_status", "pulp_mirror_index.json")
+        version_log_path = os.path.dirname(
+            os.path.dirname(os.path.dirname(status_file_path))
+        )
+        mirror_index_path = os.path.join(
+            version_log_path, "mirror_status", "pulp_mirror_index.json"
+        )
 
         if not os.path.exists(mirror_index_path):
             logger.debug(

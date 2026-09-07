@@ -18,76 +18,17 @@
 # NOTE: max_retries, rhel_repo_certs_dir are defined in vars/default.yml
 # =============================================================================
 
-# Default variables
-k8s_support: false
-service_k8s_support: false
-k8s_arch: []
-service_k8s_arch: []
-software_csv_path: "{{ repo_manager_log_dir }}/groups_status.csv"
-usage_message: |
-  "WARNING:
-  If you have modified any <software_name>.json file (e.g., `additional_software.json`),
-  please run this playbook using:
-    ansible-playbook repo_manager.yml -e "softwares=<list of softwares names seprated by comma>"
-
-  Example:
-    ansible-playbook repo_manager.yml -e "softwares=additional_software"
-    ansible-playbook repo_manager.yml -e "softwares=compute_k8s,slurm"
-
-  If you have NOT modified any software JSON files, you can run:
-    ansible-playbook repo_manager.yml"
-softwares_var_not_provided: "No softwares variable provided. Skipping."
-softwares_invalid_msg: "Invalid software_name(s) found: {{ softwares_list | difference(software_names) }}. Allowed values: {{ software_names }}"
-
 # Usage: main.yml
-project_input_path: "{{ input_project_dir }}"
-local_repo_config_path: "{{ project_input_path }}/repo_manager_config.yml"
-var_mount_percentage_limit: 80
-var_mount_overuse_msg: |
-  [WARNING] repo_manager.yml may fail as /var mount usage has exceeded the limit of {{ var_mount_percentage_limit }}%.
-  Current usage: {{ var_mount_use_percentage.stdout }}%.
-  This could result in failures when downloading large packages or images.
-
-  For OMNIA disk spaces requirements follow : https://omnia-doc.readthedocs.io/en/latest
+local_repo_config_path: "{{ repo_manager_config_file }}"
 user_repo_cert_dir: "{{ omnia_base_dir }}/user_repo_certs"
-yum_repos_path: "/etc/yum.repos.d"
-yum_conf_path: "/etc/yum.conf"
 dnf_conf_path: "/etc/dnf/dnf.conf"
 dnf_max_parallel: 10
 dnf_max_mode: "0644"
 
-python_version: "{{ ansible_python_interpreter }}"
-user_fail_msg: "Failed. Omnia playbooks should run as root user."
-warning_wait_time_warning: 15
-rhel_repo_cert_dir: "{{ rhel_repo_certs_dir }}"
-omnia_rhel_cert_dir: "{{ rhel_repo_certs_dir }}"
-rhel_version: "{{ cluster_os_version.split('.')[0] | default('10') }}"
-required_repos:
-  - codeready-builder
-  - baseos
-  - appstream
-redhat_uep_cert: "/etc/rhsm/ca/redhat-uep.pem"
-entitlement_path: "/etc/pki/entitlement"
-redhat_repo_file: "/etc/yum.repos.d/redhat.repo"
-
-
-# Usage: validate_repo_manager_config.yml
-local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in repo_manager_config.yml. Fix errors and re-run playbook again."
-repo_store_path_fail_msg: "Failed. Ensure repo_store_path is defined and it should start with '/' and should not end with '/'"
-omnia_registry_fail_msg: "Failed. omnia_registry should be defined in repo_manager_config.yml."
-omnia_registry_string_fail_msg: "Each item in omnia_registry should be a string."
-
 # Usage: configured registry validation
-user_registry_fail_msg: "Failed. Please ensure registries is a valid mapping in {{ project_input_path }}/repo_manager_config.yml"
-user_registry_fail_host_cert_path_msg: "Failed. Registry TLS paths must use the lowercase tls configuration keys"
 time_out: 30
 user_registry_msg: "Above configured registries are not reachable. Please make sure each registry is accessible from the Omnia Infrastructure Manager."   # noqa: yaml[line-length]
 unreachable_registries_fail_msg: "Unreachable registries detected: {{ registry_check_result.unreachable_registries | join(', ') }}. {{ user_registry_msg }} Please check registry connectivity and configuration before proceeding."  # noqa: yaml[line-length]
-cert_path_failure_msg: "Certificate file path {{ item.item.cert_path }} does not exist on the Omnia Infrastructure Manager for host {{ item.item.host }}. Please verify that correct cert_path is given in {{ project_input_path }}/repo_manager_config.yml"  # noqa: yaml[line-length]
-
-# Usage: validate_user_repo certificates
-user_repos_fail_msg: "Failed. Please ensure user_repos entries have valid URLs and proper configuration."
-user_repos_fail_url_gpg_key_msg: "Failed. Each entry in user_repos should have a url field defined"
 
 meta_dest: "{{ repo_manager_offline_repo_dir }}/.data"
 metadata_file_path: "{{ meta_dest }}/localrepo_metadata.yml"
@@ -95,12 +36,3 @@ metadata_identical_msg: "Metadata is identical. No changes detected."
 metadata_warn_msg: |
   WARNING: Metadata has changed since last run.
   Execution may fail if there is no internet on OIM.
-build_stream_auto_accept_metadata_msg: "Build stream is enabled, automatically accepting metadata changes."
-
-# Usage: remove_k8s_line.yml
-software_csv_file_path: "{{ repo_manager_log_dir }}/groups_status.csv"
-k8s_local_repo_metadata_file_path: "{{ repo_manager_log_dir }}/k8s_local_repo_metadata.yml"
-
-# Usage: subscription validation
-rhel_repos_fail_msg: "Failed. Please ensure RHEL subscription repos (baseos, appstream, codeready-builder) are configured in repositories section."
-rhel_repos_fail_url_gpg_key_msg: "Failed. RHEL subscription repos require valid URL or active subscription."

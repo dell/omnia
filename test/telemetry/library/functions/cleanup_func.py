@@ -22,7 +22,7 @@ from the telemetry namespace.
 
 from typing import Dict, Any, List
 
-from omnia_auto import run_on_host
+from .telemetry_func import run_on_kube_vip
 
 from library.vars.common_vars import (
     CMDS,
@@ -59,7 +59,7 @@ def _get_pod_count_by_prefix(host, prefix, namespace=None):
     """
     ns = namespace or TELEMETRY_NAMESPACE
     cmd = CMDS["kubectl_get_pod_count"].format(namespace=ns, prefix=prefix)
-    result = run_on_host(host, cmd)
+    result = run_on_kube_vip(host, cmd)
     if result.rc != 0:
         return 0
     try:
@@ -83,7 +83,7 @@ def _get_resource_count(host, resource_type, namespace=None):
     cmd = CMDS["kubectl_count_resources"].format(
         resource=resource_type, namespace=ns,
     )
-    result = run_on_host(host, cmd)
+    result = run_on_kube_vip(host, cmd)
     if result.rc != 0:
         return 0
     try:
@@ -434,4 +434,45 @@ def verify_no_pvcs_remaining(host, namespace=None) -> Dict[str, Any]:
         "details": f"{count} PVC(s) still present in namespace '{ns}'",
         "error": f"{count} PVC(s) remain after full cleanup",
         "count": count,
+    }
+
+
+def verify_pvcs_preserved(host, namespace=None) -> Dict[str, Any]:
+    """Verify PVCs are preserved after cleanup (Delete_volume=false).
+
+    When cleanup runs without ``Delete_volume=true``, persistent volume
+    claims must be retained so that data survives a redeploy.  This
+    function succeeds when at least one PVC still exists.
+
+    Args:
+        host: testinfra host connected to kube_vip.
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        dict with keys: success (bool), details (str), error (str),
+                        count (int).
+    """
+    ns = namespace or TELEMETRY_NAMESPACE
+    count = _get_resource_count(host, "pvc", ns)
+    if count > 0:
+        return {
+            "success": True,
+            "details": (
+                f"{count} PVC(s) preserved in namespace '{ns}' "
+                f"(Delete_volume=false)"
+            ),
+            "error": "",
+            "count": count,
+        }
+    return {
+        "success": False,
+        "details": (
+            f"No PVCs found in namespace '{ns}' — "
+            f"expected PVCs to be preserved (Delete_volume=false)"
+        ),
+        "error": (
+            "PVCs were deleted despite Delete_volume=false; "
+            "volumes should have been preserved"
+        ),
+        "count": 0,
     }

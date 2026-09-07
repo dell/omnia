@@ -41,7 +41,13 @@ Usage from a consumer module::
 import os
 import shlex
 import subprocess
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
+from .process_security import (
+    descriptor_tuple,
+    scrubbed_subprocess_environment,
+    sshpass_pipe,
+)
 
 
 # =====================================================================
@@ -56,7 +62,7 @@ def _parse_ssh_opts(ssh_opts: str) -> List[str]:
 def _build_ssh_cmd_list(
     ip: str,
     user: str,
-    auth_secret: Optional[str],
+    auth_fd: Optional[int],
     ssh_opts: str,
     remote_cmd: str,
 ) -> List[str]:
@@ -65,7 +71,7 @@ def _build_ssh_cmd_list(
     Args:
         ip: Target host IP.
         user: SSH user.
-        auth_secret: SSH auth secret (sshpass is used when set).
+        auth_fd: Descriptor read by sshpass, or ``None`` for key auth.
         ssh_opts: SSH options string.
         remote_cmd: Command to execute on the remote host.
 
@@ -75,15 +81,17 @@ def _build_ssh_cmd_list(
     opts = _parse_ssh_opts(ssh_opts)
     target = f"{user}@{ip}"
 
-    if auth_secret:
-        return ["sshpass", "-p", auth_secret, "ssh"] + opts + [target, remote_cmd]
+    if auth_fd is not None:
+        return [
+            "sshpass", "-d", str(auth_fd), "ssh",
+        ] + opts + [target, remote_cmd]
     return ["ssh"] + opts + [target, remote_cmd]
 
 
 def _build_scp_cmd_list(
     ip: str,
     user: str,
-    auth_secret: Optional[str],
+    auth_fd: Optional[int],
     ssh_opts: str,
     src: str,
     dest: str,
@@ -93,7 +101,7 @@ def _build_scp_cmd_list(
     Args:
         ip: Target host IP.
         user: SSH user.
-        auth_secret: SSH auth secret (sshpass is used when set).
+        auth_fd: Descriptor read by sshpass, or ``None`` for key auth.
         ssh_opts: SSH options string.
         src: Local source path.
         dest: Remote destination path.
@@ -104,24 +112,29 @@ def _build_scp_cmd_list(
     opts = _parse_ssh_opts(ssh_opts)
     target = f"{user}@{ip}:{dest}"
 
-    if auth_secret:
-        return ["sshpass", "-p", auth_secret, "scp"] + opts + [src, target]
+    if auth_fd is not None:
+        return [
+            "sshpass", "-d", str(auth_fd), "scp",
+        ] + opts + [src, target]
     return ["scp"] + opts + [src, target]
 
 
-def _build_rsync_ssh_e(auth_secret: Optional[str], ssh_opts: str) -> str:
+def _build_rsync_ssh_e(auth_fd: Optional[int], ssh_opts: str) -> str:
     """Build the ``-e`` argument for rsync over SSH.
 
     Args:
-        auth_secret: SSH auth secret (sshpass is used when set).
+        auth_fd: Descriptor read by sshpass, or ``None`` for key auth.
         ssh_opts: SSH options string.
 
     Returns:
         SSH command string for rsync ``-e``.
     """
-    if auth_secret:
-        return f"sshpass -p {shlex.quote(auth_secret)} ssh {ssh_opts}"
-    return f"ssh {ssh_opts}"
+    opts = _parse_ssh_opts(ssh_opts)
+    if auth_fd is not None:
+        return shlex.join([
+            "sshpass", "-d", str(auth_fd), "ssh", *opts,
+        ])
+    return shlex.join(["ssh", *opts])
 
 
 # =====================================================================
@@ -171,7 +184,11 @@ def clone_repo(
         result["error"] = "'dest' is required"
         return result
 
-    def _run_cmd(cmd_list: List[str]) -> subprocess.CompletedProcess:
+    def _run_cmd(
+        cmd_list: List[str],
+        pass_fds: Tuple[int, ...] = (),
+        env: Optional[Dict[str, str]] = None,
+    ) -> subprocess.CompletedProcess:
         """Run a command list with timeout."""
         return subprocess.run(
             cmd_list,
@@ -179,6 +196,8 @@ def clone_repo(
             text=True,
             timeout=timeout,
             check=False,
+            pass_fds=pass_fds,
+            env=env,
         )
 
     def _run_local(cmd: str) -> subprocess.CompletedProcess:
@@ -187,8 +206,15 @@ def clone_repo(
 
     def _run_ssh(remote_cmd: str) -> subprocess.CompletedProcess:
         """Run a remote command via SSH (list args)."""
-        cmd_list = _build_ssh_cmd_list(ip, user, auth_secret, ssh_opts, remote_cmd)
-        return _run_cmd(cmd_list)
+        with sshpass_pipe(auth_secret) as auth_fd:
+            cmd_list = _build_ssh_cmd_list(
+                ip, user, auth_fd, ssh_opts, remote_cmd,
+            )
+            return _run_cmd(
+                cmd_list,
+                descriptor_tuple(auth_fd),
+                scrubbed_subprocess_environment(),
+            )
 
     def _run(cmd: str) -> subprocess.CompletedProcess:
         """Run command locally or via SSH based on mode."""
@@ -222,8 +248,8 @@ def clone_repo(
 
     except subprocess.TimeoutExpired:
         result["error"] = f"clone_repo timed out after {timeout}s"
-    except OSError as exc:
-        result["error"] = f"OS error during clone: {exc}"
+    except (OSError, ValueError) as exc:
+        result["error"] = f"Error during clone: {exc}"
 
     return result
 
@@ -314,35 +340,44 @@ def sync_files(
         # --- SSH mode ---------------------------------------------
         if mkdir:
             dest_dir = dest if is_dir else os.path.dirname(dest)
-            mkdir_cmd = _build_ssh_cmd_list(
-                ip, user, auth_secret, ssh_opts,
-                f"mkdir -p {shlex.quote(dest_dir)}",
-            )
-            subprocess.run(
-                mkdir_cmd,
-                capture_output=True, text=True,
-                timeout=30, check=False,
-            )
+            with sshpass_pipe(auth_secret) as auth_fd:
+                mkdir_cmd = _build_ssh_cmd_list(
+                    ip, user, auth_fd, ssh_opts,
+                    f"mkdir -p {shlex.quote(dest_dir)}",
+                )
+                subprocess.run(
+                    mkdir_cmd,
+                    capture_output=True, text=True,
+                    timeout=30, check=False,
+                    pass_fds=descriptor_tuple(auth_fd),
+                    env=scrubbed_subprocess_environment(),
+                )
 
         if is_dir:
-            ssh_e = _build_rsync_ssh_e(auth_secret, ssh_opts)
-            r = subprocess.run(
-                [
-                    "rsync", "-avz", "-e", ssh_e,
-                    f"{src}/", f"{user}@{ip}:{dest}/",
-                ],
-                capture_output=True, text=True,
-                timeout=timeout, check=False,
-            )
+            with sshpass_pipe(auth_secret) as auth_fd:
+                ssh_e = _build_rsync_ssh_e(auth_fd, ssh_opts)
+                r = subprocess.run(
+                    [
+                        "rsync", "-avz", "-e", ssh_e,
+                        f"{src}/", f"{user}@{ip}:{dest}/",
+                    ],
+                    capture_output=True, text=True,
+                    timeout=timeout, check=False,
+                    pass_fds=descriptor_tuple(auth_fd),
+                    env=scrubbed_subprocess_environment(),
+                )
         else:
-            scp_cmd = _build_scp_cmd_list(
-                ip, user, auth_secret, ssh_opts, src, dest,
-            )
-            r = subprocess.run(
-                scp_cmd,
-                capture_output=True, text=True,
-                timeout=timeout, check=False,
-            )
+            with sshpass_pipe(auth_secret) as auth_fd:
+                scp_cmd = _build_scp_cmd_list(
+                    ip, user, auth_fd, ssh_opts, src, dest,
+                )
+                r = subprocess.run(
+                    scp_cmd,
+                    capture_output=True, text=True,
+                    timeout=timeout, check=False,
+                    pass_fds=descriptor_tuple(auth_fd),
+                    env=scrubbed_subprocess_environment(),
+                )
 
         if r.returncode != 0:
             result["error"] = f"sync failed: {r.stderr}"
@@ -353,7 +388,7 @@ def sync_files(
 
     except subprocess.TimeoutExpired:
         result["error"] = f"sync_files timed out after {timeout}s"
-    except OSError as exc:
-        result["error"] = f"OS error during sync: {exc}"
+    except (OSError, ValueError) as exc:
+        result["error"] = f"Error during sync: {exc}"
 
     return result

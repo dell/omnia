@@ -142,10 +142,15 @@ minio_skip_msg: "S3 provider is '{{ s3_provider }}' — skipping MinIO cleanup (
 cleanup_images_summary_header: "=== Image Cleanup Summary ==="
 cleanup_images_approval_msg: "Approval required. You will be prompted to confirm."
 cleanup_images_skip_approval_msg: "skip_approval=true — proceeding without confirmation."
+cleanup_images_nothing_to_delete_msg: "No matching images found — no deletion required."
 cleanup_images_approval_prompt: >-
   The above images will be PERMANENTLY DELETED. Type 'yes' to proceed or press Enter to abort
 cleanup_images_abort_msg: "Image cleanup aborted by user."
 cleanup_images_s3_done_msg: "S3 image cleanup complete (pattern: '{{ cleanup_image_pattern }}')."
 cleanup_images_s3_skip_msg: "s3cmd not available — skipping S3 image cleanup."
+cleanup_images_s3_not_initialized_msg: >-
+  S3 image cleanup is not applicable because s3cmd configuration is absent.
 cleanup_images_registry_done_msg: "Registry image cleanup complete (pattern: '{{ cleanup_image_pattern }}')."
 cleanup_images_registry_skip_msg: "regctl not available — skipping registry image cleanup."
+cleanup_images_registry_not_initialized_msg: >-
+  Registry image cleanup is not applicable because managed registry state is absent.

@@ -58,7 +58,7 @@ from core.localrepo.services import PlaybookQueueResultService
 # ``images.image_name``. The CleanUp API reads this column verbatim
 # and passes it directly to ``s3cmd del --recursive --force``.
 DEFAULT_S3_BUCKET_URI = "s3://boot-images"
-DEFAULT_NFS_ARTIFACT_BASE = "/opt/omnia/build_stream_root"
+DEFAULT_NFS_ARTIFACT_BASE = os.path.join(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream_root")
 
 
 def _discover_s3_image_paths(

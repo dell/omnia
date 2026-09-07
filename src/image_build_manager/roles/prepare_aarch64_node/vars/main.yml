@@ -40,7 +40,7 @@ pull_image_delay: "10"
 # ---------------------------------------------------------------------------
 repo_file_path: "/etc/yum.repos.d/repo_manager.repo"
 repo_cert_path: "{{ hostvars['localhost']['repo_cert_path'] | default('') }}"
-anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
+anchors_path: "/etc/pki/ca-trust/source/anchors/{{ repo_cert_path | basename | default('pulp_webserver.crt', true) }}"
 regctl_bin_path: "/usr/local/bin/regctl"
 
 # regctl for aarch64 — downloaded on OIM first, then SCP'd to aarch64 node
