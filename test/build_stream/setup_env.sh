@@ -25,32 +25,33 @@
 #
 # CREDENTIAL HANDLING:
 #   SSH credentials (OIM server — only needed for remote execution):
-#     --set-password       — Prompt for SSH password (asks twice for confirmation).
+#     --set-creds          — Prompt for SSH password (asks twice for confirmation).
 #                            If password already exists, asks yes/no to update.
-#     --update-password    — Force-update existing SSH password (prompt twice).
-#     --password <pass>    — Set SSH password directly via flag (non-interactive).
+#     --update-creds       — Force-update existing SSH password (prompt twice).
+#     --creds-stdin        — Read SSH password from standard input.
 #
 #   Domain credentials (BuildStream — GitLab, BSM, Postgres):
 #     --set-domain-creds   — Interactive prompt for GitLab root password,
 #                            GitLab SSH password, BSM auth username/password,
 #                            and Postgres username/password.
 #                            If creds already exist, asks yes/no to update.
-#     --domain-creds <json> — Set all domain credentials non-interactively.
-#                            Pass as JSON: '{"gitlab_root_password":"x","gitlab_ssh_password":"y",...}'
+#     --update-domain-creds — Force-update domain credentials interactively.
+#     --domain-creds-stdin — Read domain credential JSON from standard input.
 #
 #   All credentials are written to test_creds.yml and encrypted with ansible-vault.
-#   SSH credential flags (--set-password / --password) require oim_server_ip to be
+#   SSH credential flags (--set-creds / --creds-stdin) require oim_server_ip to be
 #   set in test_config.yml — they are only needed for remote test execution.
-#   Domain credential flags (--set-domain-creds / --domain-creds) do NOT require
+#   Domain credential flags (--set-domain-creds / --domain-creds-stdin) do NOT require
 #   oim_server_ip — they only write to the local test_creds.yml file.
 #
 # Usage:
 #   bash setup_env.sh                        # Baremetal or active venv
 #   bash setup_env.sh --venv                 # Create .venv/ and install there
+#   bash setup_env.sh --force                 # Force-reinstall dependencies
 #   bash setup_env.sh --venv --force         # Recreate .venv/ from scratch
-#   bash setup_env.sh --set-password         # Prompt for SSH password (remote mode)
-#   bash setup_env.sh --update-password      # Update existing SSH password
-#   bash setup_env.sh --password "secret"    # Set SSH password via flag
+#   bash setup_env.sh --set-creds            # Prompt for SSH password (remote mode)
+#   bash setup_env.sh --update-creds         # Update existing SSH password
+#   printf '%s' "$OIM_PASSWORD" | bash setup_env.sh --creds-stdin
 #   bash setup_env.sh --set-domain-creds     # Prompt for GitLab + BSM + Postgres creds
 #   bash setup_env.sh --debug                # Verbose pip output
 #   bash setup_env.sh --help                 # Show this help
@@ -61,6 +62,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${SCRIPT_DIR}/.venv"
 REQUIREMENTS="${SCRIPT_DIR}/requirements.txt"
+WHEEL_PATH="${SCRIPT_DIR}/../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl"
 CREDS_FILE="${SCRIPT_DIR}/test_creds.yml"
 CREDS_KEY="${SCRIPT_DIR}/.test_creds.key"
 
@@ -84,36 +86,31 @@ fail()  { echo -e "  ${RED}[FAIL]${NC} $1"; exit 1; }
 # ─────────────────────────────────────────────────────────────────────────────
 USE_VENV=false
 FORCE=false
-DEBUG=false
 PIP_QUIET="--quiet"
 SET_PASSWORD=false
 UPDATE_PASSWORD=false
-PASSWORD_VALUE=""
+PASSWORD_STDIN=false
 SET_DOMAIN_CREDS=false
-DOMAIN_CREDS_JSON=""
+UPDATE_DOMAIN_CREDS=false
+DOMAIN_CREDS_STDIN=false
 TEST_CONFIG="${SCRIPT_DIR}/test_config.yml"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --venv)         USE_VENV=true; shift ;;
         --force)        FORCE=true; shift ;;
-        --debug)        DEBUG=true; PIP_QUIET=""; shift ;;
-        --set-password)    SET_PASSWORD=true; shift ;;
-        --update-password) UPDATE_PASSWORD=true; shift ;;
-        --password)
-            if [[ $# -lt 2 ]]; then
-                fail "--password requires a value. Usage: --password <PASSWORD>"
-            fi
-            PASSWORD_VALUE="$2"
-            shift 2
-            ;;
+        --debug)        PIP_QUIET=""; shift ;;
+        --set-creds|--set-password)       SET_PASSWORD=true; shift ;;
+        --update-creds|--update-password) UPDATE_PASSWORD=true; shift ;;
+        --creds-stdin|--password-stdin)   PASSWORD_STDIN=true; shift ;;
         --set-domain-creds) SET_DOMAIN_CREDS=true; shift ;;
-        --domain-creds)
-            if [[ $# -lt 2 ]]; then
-                fail "--domain-creds requires a JSON value. Usage: --domain-creds '{\"gitlab_root_password\":\"x\",...}'"
-            fi
-            DOMAIN_CREDS_JSON="$2"
-            shift 2
+        --update-domain-creds) UPDATE_DOMAIN_CREDS=true; shift ;;
+        --domain-creds-stdin) DOMAIN_CREDS_STDIN=true; shift ;;
+        --password|--password=*|--creds|--creds=*)
+            fail "Secret-valued command-line flags are no longer supported. Pipe the password to --creds-stdin."
+            ;;
+        --domain-creds|--domain-creds=*)
+            fail "Secret-valued command-line flags are no longer supported. Pipe JSON to --domain-creds-stdin."
             ;;
         --help|-h)
             echo ""
@@ -134,8 +131,8 @@ while [[ $# -gt 0 ]]; do
             echo "                  inside it. After setup, activate with:"
             echo "                    source .venv/bin/activate"
             echo ""
-            echo "  --force         Only used with --venv. Deletes the existing .venv/"
-            echo "                  directory and recreates it from scratch."
+            echo "  --force         Force-reinstall all packages from requirements.txt."
+            echo "                  With --venv, also recreates .venv/ from scratch."
             echo ""
             echo "CREDENTIAL MANAGEMENT — SSH (OIM server access)"
             echo "─────────────────────────────────────────────────────────────────"
@@ -144,14 +141,17 @@ while [[ $# -gt 0 ]]; do
             echo "  test_config.yml for SSH credential flags to work."
             echo "  NOTE: Only needed for REMOTE test execution. Skip for local mode."
             echo ""
-            echo "  --set-password  Interactive SSH password setup. Prompts twice for"
+            echo "  --set-creds     Interactive SSH password setup. Prompts twice for"
             echo "                  confirmation. If already set, asks yes/no to update."
             echo ""
-            echo "  --update-password"
+            echo "  --update-creds"
             echo "                  Force-update the existing SSH password. Prompts twice."
             echo "                  Overwrites test_creds.yml and re-encrypts."
             echo ""
-            echo "  --password PWD  Non-interactive SSH password set (overwrites existing)."
+            echo "  --creds-stdin"
+            echo "                  Read the SSH password from standard input."
+            echo "                  Aliases: --set-password, --update-password,"
+            echo "                           --password-stdin"
             echo ""
             echo "CREDENTIAL MANAGEMENT — Domain (GitLab / BSM / Postgres)"
             echo "─────────────────────────────────────────────────────────────────"
@@ -171,10 +171,13 @@ while [[ $# -gt 0 ]]; do
             echo "                    postgres_password          — Postgres DB password"
             echo "                  If already set, asks yes/no to update each field."
             echo ""
-            echo "  --domain-creds JSON"
-            echo "                  Non-interactive domain cred set via JSON string."
+            echo "  --update-domain-creds"
+            echo "                  Force-update domain credentials interactively."
+            echo ""
+            echo "  --domain-creds-stdin"
+            echo "                  Read non-interactive domain credential JSON from stdin."
             echo "                  Example:"
-            echo "                    --domain-creds '{\"gitlab_root_password\":\"pass\",\"gitlab_ssh_password\":\"pass\"}'"
+            echo "                    printf '%s' '{...}' | bash setup_env.sh --domain-creds-stdin"
             echo ""
             echo "OTHER OPTIONS"
             echo "─────────────────────────────────────────────────────────────────"
@@ -186,10 +189,11 @@ while [[ $# -gt 0 ]]; do
             echo "─────────────────────────────────────────────────────────────────"
             echo "  bash setup_env.sh                          # Baremetal install"
             echo "  bash setup_env.sh --venv                   # Create .venv/ and install"
+            echo "  bash setup_env.sh --force                  # Force-reinstall dependencies"
             echo "  bash setup_env.sh --venv --force           # Recreate .venv/ from scratch"
-            echo "  bash setup_env.sh --set-password           # Set SSH password (remote mode)"
-            echo "  bash setup_env.sh --update-password        # Update existing SSH password"
-            echo "  bash setup_env.sh --password 'mypass'      # Set SSH password (inline)"
+            echo "  bash setup_env.sh --set-creds              # Set SSH password (remote mode)"
+            echo "  bash setup_env.sh --update-creds           # Update existing SSH password"
+            echo "  printf '%s' \"\$OIM_PASSWORD\" | bash setup_env.sh --creds-stdin"
             echo "  bash setup_env.sh --set-domain-creds       # Set GitLab/BSM/Postgres creds"
             echo "  bash setup_env.sh --venv --set-domain-creds  # Venv + domain creds prompt"
             echo "  bash setup_env.sh --debug                  # Verbose pip output"
@@ -205,10 +209,64 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         *)
-            fail "Unknown option: $1 (use --help for usage)"
+            fail "Unknown option. Use --help for supported arguments."
             ;;
     esac
 done
+
+ssh_action_count=0
+for selected in "$SET_PASSWORD" "$UPDATE_PASSWORD" "$PASSWORD_STDIN"; do
+    if [ "$selected" = true ]; then
+        ssh_action_count=$((ssh_action_count + 1))
+    fi
+done
+if [ "$ssh_action_count" -gt 1 ]; then
+    fail "Use only one OIM SSH credential action per invocation."
+fi
+
+domain_action_count=0
+for selected in \
+    "$SET_DOMAIN_CREDS" "$UPDATE_DOMAIN_CREDS" "$DOMAIN_CREDS_STDIN"; do
+    if [ "$selected" = true ]; then
+        domain_action_count=$((domain_action_count + 1))
+    fi
+done
+if [ "$domain_action_count" -gt 1 ]; then
+    fail "Use only one domain credential action per invocation."
+fi
+if [ "$PASSWORD_STDIN" = true ] && [ "$DOMAIN_CREDS_STDIN" = true ]; then
+    fail "Only one credential payload can be read from stdin per invocation."
+fi
+
+CREDENTIAL_STDIN_FILE=""
+_cleanup_credential_stdin() {
+    if [ -n "${CREDENTIAL_STDIN_FILE:-}" ]; then
+        rm -f -- "$CREDENTIAL_STDIN_FILE"
+        CREDENTIAL_STDIN_FILE=""
+    fi
+}
+trap _cleanup_credential_stdin EXIT
+trap '_cleanup_credential_stdin; exit 129' HUP
+trap '_cleanup_credential_stdin; exit 130' INT
+trap '_cleanup_credential_stdin; exit 143' TERM
+
+if [ "$PASSWORD_STDIN" = true ] || [ "$DOMAIN_CREDS_STDIN" = true ]; then
+    old_umask=$(umask)
+    umask 077
+    if ! CREDENTIAL_STDIN_FILE=$(mktemp \
+        "${TMPDIR:-/tmp}/omnia_build_stream_creds.XXXXXX"); then
+        umask "$old_umask"
+        fail "Unable to create a private credential input file."
+    fi
+    umask "$old_umask"
+    if ! head -c 65537 > "$CREDENTIAL_STDIN_FILE"; then
+        fail "Unable to read the credential payload from standard input."
+    fi
+    credential_stdin_size=$(wc -c < "$CREDENTIAL_STDIN_FILE")
+    if [ "$credential_stdin_size" -gt 65536 ]; then
+        fail "Credential input exceeds the 64 KiB limit."
+    fi
+fi
 
 echo ""
 echo "================================================================="
@@ -219,24 +277,22 @@ echo ""
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 1: Check Python 3.12+
 # ─────────────────────────────────────────────────────────────────────────────
+_python_is_supported() {
+    "$1" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)' \
+        </dev/null 2>/dev/null
+}
+
 PYTHON_CMD=""
 for cmd in python3.12 python3 python; do
-    if command -v "$cmd" &>/dev/null; then
-        version=$("$cmd" --version 2>&1 | grep -oP '\d+\.\d+')
-        major=$(echo "$version" | cut -d. -f1)
-        minor=$(echo "$version" | cut -d. -f2)
-        if [ "$major" -ge 3 ] && [ "$minor" -ge 12 ]; then
-            PYTHON_CMD="$cmd"
-            break
-        fi
+    if command -v "$cmd" >/dev/null 2>&1 && _python_is_supported "$cmd"; then
+        PYTHON_CMD="$cmd"
+        break
     fi
 done
 
 if [ -z "$PYTHON_CMD" ]; then
     fail "Python 3.12+ is required but not found. Install: dnf install python3.12 python3.12-pip"
 fi
-
-ok "Python: $($PYTHON_CMD --version 2>&1)"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 2: Determine install mode
@@ -264,12 +320,14 @@ if [ "$USE_VENV" = true ]; then
 
     # shellcheck disable=SC1091
     source "${VENV_DIR}/bin/activate"
+    PYTHON_CMD="${VENV_DIR}/bin/python"
     ok "Activated .venv/"
 
 elif [ -n "${VIRTUAL_ENV:-}" ]; then
     # User has their own venv already activated
     INSTALL_MODE="active-venv"
     PIP_USER_FLAG=""
+    PYTHON_CMD="${VIRTUAL_ENV}/bin/python"
     ok "Detected active virtual environment: ${VIRTUAL_ENV}"
 
 else
@@ -279,24 +337,101 @@ else
     ok "Install mode: baremetal (system Python)"
 fi
 
+if ! _python_is_supported "$PYTHON_CMD"; then
+    fail "The selected Python interpreter must be version 3.12 or newer: ${PYTHON_CMD}"
+fi
+
+ok "Python: $($PYTHON_CMD --version 2>&1)"
 echo -e "  ${CYAN}Mode:${NC} ${INSTALL_MODE}"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 3: Install dependencies
 # ─────────────────────────────────────────────────────────────────────────────
+_pip_install() {
+    PIP_NO_INPUT=1 "$PYTHON_CMD" -m pip install --no-input "$@" </dev/null
+}
+
 info "Upgrading pip"
-pip install --upgrade pip $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
-    pip install --upgrade pip $PIP_QUIET
+_pip_install --upgrade pip $PIP_QUIET $PIP_USER_FLAG
+
+if [ ! -f "$WHEEL_PATH" ]; then
+    fail "omnia-auto wheel not found: ${WHEEL_PATH}"
+fi
 
 info "Installing dependencies from requirements.txt"
-pip install -r "$REQUIREMENTS" $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
-    pip install -r "$REQUIREMENTS" $PIP_QUIET
+PIP_FORCE_ARGS=()
+if [ "$FORCE" = true ]; then
+    PIP_FORCE_ARGS=(--force-reinstall)
+    info "Force-reinstalling all requirements (--force)"
+fi
+
+_pip_install "${PIP_FORCE_ARGS[@]}" -r "$REQUIREMENTS" \
+    $PIP_QUIET $PIP_USER_FLAG
 
 # pytest-order for test ordering
-if ! pip show pytest-order &>/dev/null; then
+if ! PIP_NO_INPUT=1 "$PYTHON_CMD" -m pip show pytest-order \
+    </dev/null >/dev/null 2>&1; then
     info "Installing pytest-order"
-    pip install pytest-order $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
-        pip install pytest-order $PIP_QUIET
+    _pip_install pytest-order $PIP_QUIET $PIP_USER_FLAG
+fi
+
+_omnia_auto_has_required_features() {
+    "$PYTHON_CMD" -c '
+import inspect
+import omnia_auto
+params = inspect.signature(omnia_auto.sync_files).parameters
+if not {"auth_secret", "port"}.issubset(params) or not callable(omnia_auto.connection_params):
+    raise SystemExit(1)
+' 2>/dev/null \
+        && "$PYTHON_CMD" -m omnia_auto write-field --help 2>/dev/null \
+            | grep -q -- "--value-stdin" \
+        && "$PYTHON_CMD" -m omnia_auto write-fields --help 2>/dev/null \
+            | grep -q -- "--fields-stdin"
+}
+
+_omnia_auto_matches_local_wheel() {
+    "$PYTHON_CMD" - "$WHEEL_PATH" 2>/dev/null <<'PY'
+import importlib.util
+from pathlib import Path, PurePosixPath
+import sys
+import zipfile
+
+wheel_path = Path(sys.argv[1])
+spec = importlib.util.find_spec("omnia_auto")
+if spec is None or not spec.submodule_search_locations:
+    raise SystemExit(1)
+package_root = Path(next(iter(spec.submodule_search_locations))).resolve()
+with zipfile.ZipFile(wheel_path) as archive:
+    members = [
+        name for name in archive.namelist()
+        if name.startswith("omnia_auto/") and not name.endswith("/")
+    ]
+    if not members:
+        raise SystemExit(1)
+    for name in members:
+        relative_path = PurePosixPath(name).relative_to("omnia_auto")
+        if ".." in relative_path.parts:
+            raise SystemExit(1)
+        installed_path = package_root.joinpath(*relative_path.parts)
+        if (
+            not installed_path.is_file()
+            or installed_path.read_bytes() != archive.read(name)
+        ):
+            raise SystemExit(1)
+PY
+}
+
+
+if ! _omnia_auto_has_required_features \
+    || ! _omnia_auto_matches_local_wheel; then
+    info "Refreshing the same-version local omnia-auto wheel"
+    _pip_install --force-reinstall --no-deps \
+        "$WHEEL_PATH" $PIP_QUIET $PIP_USER_FLAG
+fi
+
+if ! _omnia_auto_has_required_features \
+    || ! _omnia_auto_matches_local_wheel; then
+    fail "Installed omnia-auto does not match the required local wheel API"
 fi
 
 ok "All dependencies installed"
@@ -318,138 +453,47 @@ _check_oim_server_ip() {
     ok "Target server: ${oim_ip}"
 }
 
-# _ensure_vault_key — creates .test_creds.key if it does not yet exist.
-_ensure_vault_key() {
-    if [ ! -f "$CREDS_KEY" ]; then
-        info "Generating vault key: .test_creds.key"
-        python3 -c "import secrets; print(secrets.token_urlsafe(32)[:32])" > "$CREDS_KEY"
-        chmod 600 "$CREDS_KEY"
-    fi
+_credential_cli() {
+    "$PYTHON_CMD" -m omnia_auto "$@"
 }
 
-# _vault_encrypt — encrypt (or re-encrypt) CREDS_FILE.
-_vault_encrypt() {
-    if command -v ansible-vault &>/dev/null; then
-        ansible-vault encrypt "$CREDS_FILE" --vault-password-file "$CREDS_KEY" 2>/dev/null
-        ok "Credentials encrypted: test_creds.yml"
-    else
-        warn "ansible-vault not found — credentials saved as plain text"
-        warn "Install ansible-core and re-run to encrypt"
-    fi
+# Write SSH credentials to the shared test_creds.yml file.
+_write_ssh_creds() {
+    local _pass="$1"
+    printf '%s' "$_pass" | _credential_cli write-field \
+        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+        --field oim_password --value-stdin >/dev/null
+    ok "SSH credentials saved: test_creds.yml (encrypted)"
 }
 
-# _decrypt_creds_temp — decrypt CREDS_FILE to a temp file.
-# Sets DECRYPTED_CREDS_TMP and caller MUST clean it up.
-_decrypt_creds_temp() {
-    DECRYPTED_CREDS_TMP=$(mktemp)
-    if command -v ansible-vault &>/dev/null && grep -q '^\$ANSIBLE_VAULT' "$CREDS_FILE" 2>/dev/null; then
-        ansible-vault decrypt --output "$DECRYPTED_CREDS_TMP" \
-            --vault-password-file "$CREDS_KEY" "$CREDS_FILE" 2>/dev/null || true
-    else
-        cp "$CREDS_FILE" "$DECRYPTED_CREDS_TMP"
-    fi
+_write_ssh_creds_stdin() {
+    _credential_cli write-field \
+        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+        --field oim_password --value-stdin \
+        < "$CREDENTIAL_STDIN_FILE" >/dev/null
+    ok "SSH credentials saved: test_creds.yml (encrypted)"
 }
 
-# _read_field_from_tmp <field> — read a plain-text field value from DECRYPTED_CREDS_TMP.
-_read_field_from_tmp() {
-    local _field="$1"
-    grep -E "^${_field}:" "$DECRYPTED_CREDS_TMP" 2>/dev/null \
-        | sed "s/^${_field}:[[:space:]]*//; s/[\"']//g" || true
-}
-
-_create_and_encrypt_creds() {
-    # Args:  $1 = oim_password   (optional; keep existing if empty)
-    #        $2 = gitlab_root_password (optional)
-    #        $3 = gitlab_ssh_password  (optional)
-    #        $4 = build_stream_auth_username (optional)
-    #        $5 = build_stream_auth_password (optional)
-    #        $6 = postgres_user        (optional)
-    #        $7 = postgres_password    (optional)
-    local _oim_pass="${1:-}"
-    local _gl_root="${2:-}"
-    local _gl_ssh="${3:-}"
-    local _bs_user="${4:-}"
-    local _bs_pass="${5:-}"
-    local _pg_user="${6:-}"
-    local _pg_pass="${7:-}"
-
-    # If file already exists, preserve existing values for fields not being updated
-    if [ -f "$CREDS_FILE" ]; then
-        _decrypt_creds_temp
-        [ -z "$_oim_pass" ] && _oim_pass=$(_read_field_from_tmp "oim_password")
-        [ -z "$_gl_root" ]  && _gl_root=$(_read_field_from_tmp "gitlab_root_password")
-        [ -z "$_gl_ssh" ]   && _gl_ssh=$(_read_field_from_tmp "gitlab_ssh_password")
-        [ -z "$_bs_user" ]  && _bs_user=$(_read_field_from_tmp "build_stream_auth_username")
-        [ -z "$_bs_pass" ]  && _bs_pass=$(_read_field_from_tmp "build_stream_auth_password")
-        [ -z "$_pg_user" ]  && _pg_user=$(_read_field_from_tmp "postgres_user")
-        [ -z "$_pg_pass" ]  && _pg_pass=$(_read_field_from_tmp "postgres_password")
-        rm -f "$DECRYPTED_CREDS_TMP"
-    fi
-
-    # Write plain-text creds file (all fields)
-    cat > "$CREDS_FILE" << CREDS_EOF
----
-# Build Stream — test credentials
-# Auto-encrypted with Ansible Vault.  Do NOT commit this file.
-
-# SSH password for the remote OIM server (oim_server_ip in test_config.yml).
-# Leave empty for key-based authentication or local execution.
-oim_password: "${_oim_pass}"
-
-# GitLab root user password (set during GitLab installation).
-# Required for API operations and runner registration.
-gitlab_root_password: "${_gl_root}"
-
-# SSH password for the GitLab server host.
-# Required for passwordless SSH setup between OIM and GitLab host.
-gitlab_ssh_password: "${_gl_ssh}"
-
-# BuildStream Manager (BSM) API authentication credentials.
-# Used by BSM registrar for API access.
-build_stream_auth_username: "${_bs_user}"
-build_stream_auth_password: "${_bs_pass}"
-
-# Postgres database credentials for BSM.
-# Used by the build_stream_db container.
-postgres_user: "${_pg_user}"
-postgres_password: "${_pg_pass}"
-CREDS_EOF
-    chmod 600 "$CREDS_FILE"
-
-    _ensure_vault_key
-    _vault_encrypt
-}
-
-# Prompt for credential with 2x confirmation
-# Returns credential via stdout; all prompts/errors go to stderr
-_prompt_credential() {
-    while true; do
-        read -s -r -p "  Password: " _input1
-        echo "" >&2
-        read -s -r -p "  Confirm:  " _input2
-        echo "" >&2
-
-        if [ -z "$_input1" ]; then
-            echo -e "  ${RED}Password cannot be empty. Try again.${NC}" >&2
-            echo "" >&2
-            continue
-        fi
-
-        if [ "$_input1" = "$_input2" ]; then
-            echo "$_input1"
-            return 0
-        else
-            echo -e "  ${RED}Passwords do not match. Try again.${NC}" >&2
-            echo "" >&2
+# Return success only when every named field exists and is non-empty. Values
+# remain inside the pipeline and are never printed or stored by this script.
+_credential_fields_are_set() {
+    local _field
+    for _field in "$@"; do
+        if ! _credential_cli read-field \
+            --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+            --field "$_field" 2>/dev/null \
+            | grep -z '[^[:space:]]' >/dev/null; then
+            return 1
         fi
     done
+    return 0
 }
 
 # Ask yes/no with strict validation (loops until valid answer)
 _ask_yes_no() {
     local prompt="$1"
     while true; do
-        read -r -p "$prompt (yes/no): " answer
+        read -r -p "$prompt (yes/no): " answer </dev/tty
         case "$answer" in
             yes|YES|Yes|y|Y) return 0 ;;
             no|NO|No|n|N)   return 1 ;;
@@ -458,178 +502,84 @@ _ask_yes_no() {
     done
 }
 
-# _prompt_domain_creds — interactive prompt for BuildStream domain credentials.
-# Reads existing values from a decrypted copy; shows current value as default.
+# Build Stream domain credential fields. GitLab credentials are mandatory;
+# BSM and Postgres fields are conditional and may remain empty.
+DOMAIN_CRED_SPEC='[
+  {"field":"gitlab_root_password","label":"GitLab Root Password","group":"GitLab Credentials","secret":true,"confirm":true},
+  {"field":"gitlab_ssh_password","label":"GitLab SSH Password","secret":true,"confirm":true},
+  {"field":"build_stream_auth_username","label":"BuildStream Auth Username","group":"BuildStream Manager Credentials","secret":false,"optional":true},
+  {"field":"build_stream_auth_password","label":"BuildStream Auth Password","secret":true,"confirm":true,"optional":true},
+  {"field":"postgres_user","label":"Postgres Username","group":"Postgres Credentials","secret":false,"optional":true},
+  {"field":"postgres_password","label":"Postgres Password","secret":true,"confirm":true,"optional":true}
+]'
+
+# Prompt for Build Stream domain credentials through omnia_auto.
 _prompt_domain_creds() {
-    local _existing_gl_root="" _existing_gl_ssh=""
-    local _existing_bs_user="" _existing_bs_pass=""
-    local _existing_pg_user="" _existing_pg_pass=""
-
-    if [ -f "$CREDS_FILE" ]; then
-        _decrypt_creds_temp
-        _existing_gl_root=$(_read_field_from_tmp "gitlab_root_password")
-        _existing_gl_ssh=$(_read_field_from_tmp "gitlab_ssh_password")
-        _existing_bs_user=$(_read_field_from_tmp "build_stream_auth_username")
-        _existing_bs_pass=$(_read_field_from_tmp "build_stream_auth_password")
-        _existing_pg_user=$(_read_field_from_tmp "postgres_user")
-        _existing_pg_pass=$(_read_field_from_tmp "postgres_password")
-        rm -f "$DECRYPTED_CREDS_TMP"
-    fi
-
     echo ""
     echo -e "  ${CYAN}BuildStream Domain Credentials${NC}"
-    echo -e "  ${CYAN}──────────────────────────────────────────────────────────${NC}"
-    echo ""
+    echo -e "  ${CYAN}Press Enter to keep an existing value.${NC}"
 
-    # --- GitLab Root Password (mandatory) ---
-    echo -e "  ${YELLOW}1/6${NC} GitLab Root Password ${CYAN}[MANDATORY]${NC}"
-    if [ -n "$_existing_gl_root" ]; then
-        echo -e "       Current: ${CYAN}(set)${NC}"
-    fi
-    echo -e "       ${CYAN}(hidden input)${NC}"
-    read -s -r -p "  GitLab Root Password: " _new_gl_root1; echo ""
-    if [ -n "$_new_gl_root1" ]; then
-        read -s -r -p "  Confirm:              " _new_gl_root2; echo ""
-        if [ "$_new_gl_root1" != "$_new_gl_root2" ]; then
-            fail "GitLab root passwords do not match. Re-run --set-domain-creds."
-        fi
-        _existing_gl_root="$_new_gl_root1"
-    else
-        [ -n "$_existing_gl_root" ] && warn "GitLab root password unchanged (kept existing)." || \
-            fail "GitLab root password is mandatory. Cannot be empty."
-    fi
-    echo ""
+    _credential_cli prompt-fields \
+        --creds-path "$CREDS_FILE" \
+        --key-path "$CREDS_KEY" \
+        --spec "$DOMAIN_CRED_SPEC" </dev/tty
 
-    # --- GitLab SSH Password (mandatory) ---
-    echo -e "  ${YELLOW}2/6${NC} GitLab SSH Password ${CYAN}[MANDATORY]${NC}"
-    if [ -n "$_existing_gl_ssh" ]; then
-        echo -e "       Current: ${CYAN}(set)${NC}"
+    if ! _credential_fields_are_set \
+        gitlab_root_password gitlab_ssh_password; then
+        fail "GitLab root and SSH passwords are mandatory. Re-run credential setup."
     fi
-    echo -e "       ${CYAN}(hidden input)${NC}"
-    read -s -r -p "  GitLab SSH Password: " _new_gl_ssh1; echo ""
-    if [ -n "$_new_gl_ssh1" ]; then
-        read -s -r -p "  Confirm:             " _new_gl_ssh2; echo ""
-        if [ "$_new_gl_ssh1" != "$_new_gl_ssh2" ]; then
-            fail "GitLab SSH passwords do not match. Re-run --set-domain-creds."
-        fi
-        _existing_gl_ssh="$_new_gl_ssh1"
-    else
-        [ -n "$_existing_gl_ssh" ] && warn "GitLab SSH password unchanged (kept existing)." || \
-            fail "GitLab SSH password is mandatory. Cannot be empty."
-    fi
-    echo ""
 
-    # --- BSM Auth Username ---
-    echo -e "  ${YELLOW}3/6${NC} BuildStream Auth Username ${CYAN}[CONDITIONAL]${NC}"
-    local _prompt_bs_user="  BSM Auth Username"
-    [ -n "$_existing_bs_user" ] && _prompt_bs_user="${_prompt_bs_user} [current: ${_existing_bs_user}]"
-    read -r -p "${_prompt_bs_user}: " _new_bs_user
-    _existing_bs_user="${_new_bs_user:-$_existing_bs_user}"
     echo ""
-
-    # --- BSM Auth Password ---
-    echo -e "  ${YELLOW}4/6${NC} BuildStream Auth Password ${CYAN}[CONDITIONAL]${NC}"
-    if [ -n "$_existing_bs_pass" ]; then
-        echo -e "       Current: ${CYAN}(set)${NC}"
-    fi
-    echo -e "       ${CYAN}(hidden input)${NC}"
-    read -s -r -p "  BSM Auth Password: " _new_bs_pass1; echo ""
-    if [ -n "$_new_bs_pass1" ]; then
-        read -s -r -p "  Confirm:           " _new_bs_pass2; echo ""
-        if [ "$_new_bs_pass1" != "$_new_bs_pass2" ]; then
-            fail "BSM auth passwords do not match. Re-run --set-domain-creds."
-        fi
-        _existing_bs_pass="$_new_bs_pass1"
-    else
-        [ -n "$_existing_bs_pass" ] && warn "BSM auth password unchanged (kept existing)."
-    fi
-    echo ""
-
-    # --- Postgres Username ---
-    echo -e "  ${YELLOW}5/6${NC} Postgres Username ${CYAN}[CONDITIONAL]${NC}"
-    local _prompt_pg_user="  Postgres Username"
-    [ -n "$_existing_pg_user" ] && _prompt_pg_user="${_prompt_pg_user} [current: ${_existing_pg_user}]"
-    read -r -p "${_prompt_pg_user}: " _new_pg_user
-    _existing_pg_user="${_new_pg_user:-$_existing_pg_user}"
-    echo ""
-
-    # --- Postgres Password ---
-    echo -e "  ${YELLOW}6/6${NC} Postgres Password ${CYAN}[CONDITIONAL]${NC}"
-    if [ -n "$_existing_pg_pass" ]; then
-        echo -e "       Current: ${CYAN}(set)${NC}"
-    fi
-    echo -e "       ${CYAN}(hidden input)${NC}"
-    read -s -r -p "  Postgres Password: " _new_pg_pass1; echo ""
-    if [ -n "$_new_pg_pass1" ]; then
-        read -s -r -p "  Confirm:           " _new_pg_pass2; echo ""
-        if [ "$_new_pg_pass1" != "$_new_pg_pass2" ]; then
-            fail "Postgres passwords do not match. Re-run --set-domain-creds."
-        fi
-        _existing_pg_pass="$_new_pg_pass1"
-    else
-        [ -n "$_existing_pg_pass" ] && warn "Postgres password unchanged (kept existing)."
-    fi
-    echo ""
-
-    # Write back preserving oim_password
-    _create_and_encrypt_creds "" \
-        "$_existing_gl_root" "$_existing_gl_ssh" \
-        "$_existing_bs_user" "$_existing_bs_pass" \
-        "$_existing_pg_user" "$_existing_pg_pass"
+    ok "Domain credentials saved: test_creds.yml (encrypted)"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SSH credential dispatch
 # ─────────────────────────────────────────────────────────────────────────────
-if [ -n "$PASSWORD_VALUE" ]; then
-    # --password: non-interactive SSH password set
+if [ "$PASSWORD_STDIN" = true ]; then
     _check_oim_server_ip
-    info "Setting SSH password from --password flag"
-    _create_and_encrypt_creds "$PASSWORD_VALUE"
+    info "Reading SSH password from standard input"
+    _write_ssh_creds_stdin
 
 elif [ "$UPDATE_PASSWORD" = true ]; then
-    # --update-password: force update, no "already set" check
     _check_oim_server_ip
-    if [ ! -f "$CREDS_FILE" ]; then
-        fail "No credentials file found. Use --set-password to create one first."
+    if ! _credential_fields_are_set oim_password; then
+        fail "No SSH password found. Use --set-password to create one first."
     fi
-    echo ""
-    echo -e "  ${CYAN}Update SSH password for the target OIM server.${NC}"
-    echo -e "  ${CYAN}Existing domain credentials are preserved.${NC}"
-    echo ""
-    _cred_input=$(_prompt_credential)
-    _create_and_encrypt_creds "$_cred_input"
-    ok "SSH password updated successfully"
+    echo -e "\n  ${CYAN}Update SSH password for the target OIM server.${NC}\n"
+    _cred_input=$(
+        _credential_cli prompt-and-confirm --message "SSH Password" </dev/tty
+    )
+    _write_ssh_creds "$_cred_input"
+    unset _cred_input
 
 elif [ "$SET_PASSWORD" = true ]; then
-    # --set-password: check if already set, ask to update
     _check_oim_server_ip
 
-    if [ -f "$CREDS_FILE" ]; then
-        warn "SSH password is already set (test_creds.yml exists)."
+    if _credential_fields_are_set oim_password; then
+        warn "SSH password is already set."
         if _ask_yes_no "  Do you want to update the SSH password?"; then
-            echo ""
-            echo -e "  ${CYAN}Enter new SSH password for the target OIM server.${NC}"
-            echo -e "  ${CYAN}Existing domain credentials are preserved.${NC}"
-            echo ""
-            _cred_input=$(_prompt_credential)
-            _create_and_encrypt_creds "$_cred_input"
-            ok "SSH password updated successfully"
+            echo -e "\n  ${CYAN}Enter new SSH password for the target OIM server.${NC}\n"
+            _cred_input=$(
+                _credential_cli prompt-and-confirm --message "SSH Password" </dev/tty
+            )
+            _write_ssh_creds "$_cred_input"
+            unset _cred_input
         else
-            ok "SSH password update skipped. Existing credentials kept."
+            ok "SSH password update skipped."
         fi
     else
-        echo ""
-        echo -e "  ${CYAN}Enter SSH password for the target OIM server.${NC}"
-        echo -e "  ${CYAN}This will be saved to test_creds.yml (encrypted).${NC}"
-        echo ""
-        _cred_input=$(_prompt_credential)
-        _create_and_encrypt_creds "$_cred_input"
+        echo -e "\n  ${CYAN}Enter SSH password for the target OIM server.${NC}\n"
+        _cred_input=$(
+            _credential_cli prompt-and-confirm --message "SSH Password" </dev/tty
+        )
+        _write_ssh_creds "$_cred_input"
+        unset _cred_input
     fi
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Domain credential dispatch  (--set-domain-creds / --domain-creds)
+# Domain credential dispatch
 #
 # Domain credentials are primarily stored on the target server at:
 #   /opt/omnia/build_stream/input/<project>/build_stream_credentials.yml
@@ -651,7 +601,7 @@ _check_server_creds_exist() {
 
     # Try SSH to check if the file exists and has content
     local ssh_result
-    ssh_result=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
+    ssh_result=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 \
         "$oim_ip" "test -s ${server_creds_path} && echo 'exists'" 2>/dev/null || true)
 
     if [ "$ssh_result" = "exists" ]; then
@@ -660,45 +610,47 @@ _check_server_creds_exist() {
     return 1  # creds don't exist or SSH failed
 }
 
-if [ -n "$DOMAIN_CREDS_JSON" ]; then
-    # --domain-creds JSON: non-interactive
-    info "Setting domain credentials from --domain-creds flag"
-    _gl_root=$(echo "$DOMAIN_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('gitlab_root_password',''))" 2>/dev/null || true)
-    _gl_ssh=$(echo "$DOMAIN_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('gitlab_ssh_password',''))" 2>/dev/null || true)
-    _bs_user=$(echo "$DOMAIN_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('build_stream_auth_username',''))" 2>/dev/null || true)
-    _bs_pass=$(echo "$DOMAIN_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('build_stream_auth_password',''))" 2>/dev/null || true)
-    _pg_user=$(echo "$DOMAIN_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('postgres_user',''))" 2>/dev/null || true)
-    _pg_pass=$(echo "$DOMAIN_CREDS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('postgres_password',''))" 2>/dev/null || true)
-    _create_and_encrypt_creds "" "$_gl_root" "$_gl_ssh" "$_bs_user" "$_bs_pass" "$_pg_user" "$_pg_pass"
-    ok "Domain credentials set"
+if [ "$DOMAIN_CREDS_STDIN" = true ]; then
+    info "Reading domain credentials from standard input"
+    _credential_cli write-fields \
+        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+        --fields-stdin < "$CREDENTIAL_STDIN_FILE" >/dev/null
+    ok "Domain credentials saved: test_creds.yml (encrypted)"
 
-elif [ "$SET_DOMAIN_CREDS" = true ]; then
-    # --set-domain-creds: check server first before prompting
-    if _check_server_creds_exist; then
+elif [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
+    if [ "$SET_DOMAIN_CREDS" = true ] && _check_server_creds_exist; then
         ok "Domain credentials already configured on the target server."
         ok "Source: /opt/omnia/build_stream/input/project_default/build_stream_credentials.yml"
         ok "Test cases will read credentials directly from the server."
-        ok "To force update, use: --domain-creds '{...}'"
-    else
-        info "Server credentials not found — prompting for domain credentials"
+        ok "To force a local update, use --update-domain-creds."
+        SET_DOMAIN_CREDS=false
+    fi
+
+    if [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
+        if [ "$SET_DOMAIN_CREDS" = true ]; then
+            info "Server credentials not found — prompting for domain credentials"
+        fi
         _prompt_domain_creds
-        ok "Domain credentials saved to test_creds.yml"
     fi
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # No credential flags — status report
 # ─────────────────────────────────────────────────────────────────────────────
-if [ -z "$PASSWORD_VALUE" ] && [ "$UPDATE_PASSWORD" = false ] && [ "$SET_PASSWORD" = false ] \
-   && [ -z "$DOMAIN_CREDS_JSON" ] && [ "$SET_DOMAIN_CREDS" = false ]; then
-    if [ -f "$CREDS_FILE" ]; then
-        ok "Credentials file exists: test_creds.yml"
-        ok "SSH:    re-run with --set-password or --update-password to change"
-        ok "Domain: re-run with --set-domain-creds to update GitLab/BSM/Postgres creds"
+if [ "$PASSWORD_STDIN" = false ] && [ "$UPDATE_PASSWORD" = false ] && [ "$SET_PASSWORD" = false ] \
+   && [ "$DOMAIN_CREDS_STDIN" = false ] && [ "$SET_DOMAIN_CREDS" = false ] \
+   && [ "$UPDATE_DOMAIN_CREDS" = false ]; then
+    if _credential_fields_are_set oim_password; then
+        ok "SSH credentials: test_creds.yml (encrypted)"
     else
-        warn "No credentials file found (test_creds.yml)"
-        warn "SSH creds:    bash setup_env.sh --set-password       (remote mode only)"
-        warn "Domain creds: bash setup_env.sh --set-domain-creds   (GitLab/BSM/Postgres)"
+        warn "No SSH credentials (test_creds.yml)"
+        warn "  Set with: bash setup_env.sh --set-password"
+    fi
+    if _credential_fields_are_set gitlab_root_password gitlab_ssh_password; then
+        ok "Build Stream domain credentials: test_creds.yml (encrypted)"
+    else
+        warn "Build Stream domain credentials are incomplete"
+        warn "  Set with: bash setup_env.sh --set-domain-creds"
     fi
 fi
 
@@ -888,8 +840,8 @@ echo ""
 echo "  Credentials (two separate types):"
 echo ""
 echo "    1. SSH credentials (test_creds.yml) — for REMOTE test execution only:"
-if [ -f "$CREDS_FILE" ]; then
-    echo "       test_creds.yml exists (encrypted)"
+if _credential_fields_are_set oim_password; then
+    echo "       SSH credentials are set (encrypted)"
     echo "       To update:  bash setup_env.sh --set-password"
     echo "       Force update: bash setup_env.sh --update-password"
 else
@@ -900,6 +852,7 @@ echo ""
 echo "    2. Domain credentials (GitLab / BSM / Postgres):"
 echo "       Used by the build_stream playbook for deployment."
 echo "       To set/update: bash setup_env.sh --set-domain-creds"
+echo "       Force update:  bash setup_env.sh --update-domain-creds"
 
 echo ""
 echo "================================================================="

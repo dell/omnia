@@ -308,7 +308,12 @@ def write_yaml_file(path, data, description=None):
         if description:
             logging.info(f"Wrote {description} to {path}")
     except Exception as e:
-        logging.error("Failed to write %s to %s: %s", description or 'YAML', path, e)
+        logging.error(
+            "Failed to write %s to %s: %s",
+            description or 'YAML',
+            path,
+            type(e).__name__,
+        )
         raise FailedManifestCreateException() from e
 
 def main():  # pylint: disable=too-many-locals
@@ -383,6 +388,5 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as e:  # pylint: disable=broad-exception-caught
-        logging.critical("Fatal error: %s", e)
+        logging.critical("Fatal error: %s", type(e).__name__)
         sys.exit(1)
-
