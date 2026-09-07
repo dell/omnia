@@ -13,7 +13,115 @@
 #  limitations under the License.
 
 #!/usr/bin/python
-""" Ansible module to update BMC group entry in CSV file. """
+"""Ansible module to update BMC group entry in CSV file."""
+
+DOCUMENTATION = r'''
+---
+module: update_bmc_group_entry
+short_description: Add, delete, or verify BMC entries in a group CSV file
+version_added: "2.3.0"
+description:
+  - Manages BMC group entries stored in a CSV file with columns
+    C(BMC_IP), C(GROUP_NAME), and C(PARENT).
+  - Supports three operations selected via boolean flags —
+    add (default), delete (C(delete=true)), or verify (C(verify_bmc=true)).
+  - For add and verify operations, checks BMC reachability and Redfish
+    authentication before recording the entry.
+options:
+  csv_path:
+    description: >
+      Absolute path to the BMC group entries CSV file.
+      Created automatically if it does not exist.
+      Should be derived from C(telemetry_data_path) at the playbook level.
+    type: str
+    required: true
+  nodes:
+    description: >
+      List of node dictionaries with keys C(bmc_ip), C(group_name), C(parent).
+    type: list
+    elements: dict
+    default: []
+  bmc_username:
+    description: BMC username for Redfish reachability check.
+    type: str
+    required: false
+  bmc_password:
+    description: BMC password for Redfish reachability check.
+    type: str
+    required: false
+  delete:
+    description: When true, deletes the specified BMC entries instead of adding.
+    type: bool
+    default: false
+  verify_bmc:
+    description: When true, only verifies reachability without modifying the CSV.
+    type: bool
+    default: false
+author:
+  - Dell Technologies (@dell)
+'''
+
+EXAMPLES = r'''
+- name: Add BMC entries to group file
+  omnia.telemetry.update_bmc_group_entry:
+    csv_path: "{{ telemetry_data_path }}/bmc_group_entries.csv"
+    nodes: "{{ bmc_nodes }}"
+    bmc_username: "{{ bmc_username }}"
+    bmc_password: "{{ bmc_password }}"
+
+- name: Delete BMC entries
+  omnia.telemetry.update_bmc_group_entry:
+    csv_path: "{{ telemetry_data_path }}/bmc_group_entries.csv"
+    nodes: "{{ nodes_to_remove }}"
+    delete: true
+
+- name: Verify BMC reachability
+  omnia.telemetry.update_bmc_group_entry:
+    nodes: "{{ bmc_nodes }}"
+    bmc_username: "{{ bmc_username }}"
+    bmc_password: "{{ bmc_password }}"
+    verify_bmc: true
+'''
+
+RETURN = r'''
+changed:
+  description: Whether any entries were added, deleted, or verified.
+  type: bool
+  returned: always
+added:
+  description: List of BMC IPs successfully added.
+  type: list
+  elements: str
+  returned: always
+  sample: ["192.168.1.10"]
+deleted:
+  description: List of BMC IPs successfully deleted.
+  type: list
+  elements: str
+  returned: always
+  sample: []
+invalid_creds:
+  description: BMC IPs that returned HTTP 401 (invalid credentials).
+  type: list
+  elements: str
+  returned: always
+unreachable_bmc:
+  description: BMC IPs that could not be reached.
+  type: list
+  elements: str
+  returned: always
+redfish_disabled:
+  description: BMC IPs where Redfish API returned HTTP 404.
+  type: list
+  elements: str
+  returned: always
+verified_bmc:
+  description: BMC IPs that passed reachability verification.
+  type: list
+  elements: str
+  returned: when verify_bmc is true
+'''
+
 import csv
 import os
 import requests
@@ -173,7 +281,7 @@ def verify_bmc_entries(nodes, bmc_creds, module, result):
 def main():
     "Main function for the custom ansible module - update_bmc_group_entry"
     module_args = {
-        'csv_path': {'type': 'str', 'required': False, 'default': '/opt/omnia/telemetry/bmc_group_entries.csv' },
+        'csv_path': {'type': 'str', 'required': True},
         'nodes': {'type': 'list', 'elements': 'dict', 'required': False, 'default': []},
         'bmc_username': {'type': 'str', 'required': False, 'no_log': True},
         'bmc_password': {'type': 'str', 'required': False, 'no_log': True},

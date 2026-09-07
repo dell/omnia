@@ -1,0 +1,57 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Common variables shared across all telemetry playbooks and roles
+# =============================================================================
+# This file is the domain-level vars file for telemetry.  Playbooks should
+# reference this instead of traversing into roles/common/vars/main.yml.
+# The role vars/main.yml imports the same definitions for role-internal use.
+
+# Namespace
+telemetry_namespace: "telemetry"
+
+# Deploy directory on NFS share (where manifests are staged)
+telemetry_deploy_dir: "{{ k8s_cluster_mount | default(omnia_data_path | default('/opt/omnia') + '/k8s_mount') }}/telemetry"
+telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
+
+# Input files (project directory based — input_project_dir set by telemetry_setup role)
+telemetry_config_file: "{{ input_project_dir }}/telemetry_config.yml"
+telemetry_storage_config_file: "{{ input_project_dir }}/telemetry_storage_config.yml"
+telemetry_packages_file: "{{ input_project_dir }}/telemetry_packages.yml"
+
+# Cluster inventory file (specified in telemetry_config.yml as cluster_inventory)
+# This file contains both Kubernetes and Slurm inventory from orchestrator
+
+# Verification timeouts (shared defaults)
+deploy_timeout: "600s"
+verify_timeout: "300s"
+
+# =============================================================================
+# Python dependency installation
+# =============================================================================
+# Offline Python packages directory - derived from telemetry_data_path
+offline_python_packages_dir: "{{ telemetry_data_path | default(omnia_data_path | default('/opt/omnia') + '/telemetry') }}/packages/python"
+
+# Error message for kubernetes module installation failure
+kubernetes_install_failure_msg: >-
+  Failed to install Python kubernetes module.
+  - Online installation failed (no internet or pip unavailable)
+  - Offline packages not found at {{ offline_python_packages_dir }}
+
+  To fix:
+  1. Ensure internet connectivity, OR
+  2. Download packages: pip3 download kubernetes -d {{ offline_python_packages_dir }}/
+  3. Re-run the playbook

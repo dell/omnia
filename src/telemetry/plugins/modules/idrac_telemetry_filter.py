@@ -15,6 +15,81 @@
 # pylint: disable=import-error
 
 #!/usr/bin/python
+"""Filter iDRAC BMCs by firmware version and Datacenter license status."""
+
+DOCUMENTATION = r'''
+---
+module: idrac_telemetry_filter
+short_description: Filter iDRAC BMCs by firmware and license eligibility
+version_added: "2.3.0"
+description:
+  - Queries each BMC in the provided list via the Redfish API to check
+    firmware version and Datacenter license status.
+  - BMCs that meet both the minimum firmware version requirement and
+    possess a valid iDRAC Datacenter license are added to the
+    C(telemetry_idrac) list; all others go to C(failed_idrac).
+options:
+  bmc_ip_list:
+    description: List of BMC IP addresses to evaluate.
+    type: list
+    elements: str
+    required: true
+  bmc_username:
+    description: BMC username for Redfish authentication.
+    type: str
+    required: true
+  bmc_password:
+    description: BMC password for Redfish authentication.
+    type: str
+    required: true
+  min_firmware_version_reqd:
+    description: >
+      Minimum iDRAC firmware major version required (integer).
+      For example, C(7) for iDRAC 9 firmware 7.x.
+    type: int
+    required: true
+author:
+  - Dell Technologies (@dell)
+'''
+
+EXAMPLES = r'''
+- name: Filter eligible iDRAC nodes for telemetry
+  omnia.telemetry.idrac_telemetry_filter:
+    bmc_ip_list: "{{ bmc_ips }}"
+    bmc_username: "{{ bmc_username }}"
+    bmc_password: "{{ bmc_password }}"
+    min_firmware_version_reqd: 7
+  register: filter_result
+
+- name: Show eligible nodes
+  ansible.builtin.debug:
+    var: filter_result.telemetry_idrac
+'''
+
+RETURN = r'''
+telemetry_idrac:
+  description: List of BMC IPs that meet firmware and license requirements.
+  type: list
+  elements: str
+  returned: always
+  sample: ["192.168.1.10", "192.168.1.11"]
+failed_idrac:
+  description: List of BMC IPs that do not meet requirements.
+  type: list
+  elements: str
+  returned: always
+  sample: ["192.168.1.12"]
+telemetry_idrac_count:
+  description: Number of eligible BMCs.
+  type: int
+  returned: always
+  sample: 2
+failed_idrac_count:
+  description: Number of ineligible BMCs.
+  type: int
+  returned: always
+  sample: 1
+'''
 
 import traceback
 import requests

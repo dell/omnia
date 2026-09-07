@@ -17,6 +17,80 @@
 This module connects to iDRAC nodes and disables telemetry collection
 by sending PATCH requests to the Redfish API endpoint."""
 
+DOCUMENTATION = r'''
+---
+module: disable_idrac_telemetry
+short_description: Disable telemetry on iDRAC nodes via Redfish API
+version_added: "2.3.0"
+description:
+  - Iterates over a list of iDRAC IP addresses and disables telemetry
+    collection by sending PATCH requests to the Redfish Attributes endpoint.
+  - Tries multiple telemetry property names in order of preference to
+    support iDRAC 9 and iDRAC 10 firmware variants.
+options:
+  idrac_ips:
+    description: List of iDRAC IP addresses on which to disable telemetry.
+    type: list
+    elements: str
+    required: true
+  username:
+    description: iDRAC username for Redfish authentication.
+    type: str
+    required: true
+  password:
+    description: iDRAC password for Redfish authentication.
+    type: str
+    required: true
+  timeout:
+    description: HTTP request timeout in seconds.
+    type: int
+    default: 30
+author:
+  - Dell Technologies (@dell)
+'''
+
+EXAMPLES = r'''
+- name: Disable telemetry on all iDRAC nodes
+  omnia.telemetry.disable_idrac_telemetry:
+    idrac_ips: "{{ telemetry_idrac_ips }}"
+    username: "{{ idrac_username }}"
+    password: "{{ idrac_password }}"
+    timeout: 60
+
+- name: Disable telemetry on a single node
+  omnia.telemetry.disable_idrac_telemetry:
+    idrac_ips:
+      - "192.168.1.100"
+    username: admin
+    password: "{{ vault_idrac_password }}"
+'''
+
+RETURN = r'''
+changed:
+  description: Whether telemetry was disabled on any node.
+  type: bool
+  returned: always
+disabled_ips:
+  description: List of iDRAC IPs where telemetry was successfully disabled.
+  type: list
+  elements: str
+  returned: always
+  sample: ["192.168.1.100"]
+failed_ips:
+  description: List of dicts for iDRAC IPs that failed.
+  type: list
+  elements: dict
+  returned: always
+  sample:
+    - ip: "192.168.1.101"
+      msg: "Timeout while connecting to iDRAC 192.168.1.101"
+msg:
+  description: Summary message.
+  type: str
+  returned: always
+  sample: "Disabled telemetry on 1 iDRAC nodes."
+'''
+
 import requests
 import urllib3
 from ansible.module_utils.basic import AnsibleModule

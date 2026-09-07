@@ -19,6 +19,123 @@ iDRAC IPs with associated service type and authentication details.
 It uses parameterized queries to prevent SQL injection.
 It handles retries and delays for robustness."""
 
+DOCUMENTATION = r'''
+---
+module: insert_idracips_mysqldb
+short_description: Insert iDRAC IPs into MySQL database in Kubernetes
+version_added: "2.3.0"
+description:
+  - Connects to MySQL pods running inside Kubernetes and inserts iDRAC IP
+    entries into the C(services) table with service type and credentials.
+  - Resolves pod IPs via the Kubernetes API and uses PyMySQL with
+    parameterized queries (INSERT IGNORE) to prevent SQL injection.
+  - Supports configurable retry count and delay for transient failures.
+options:
+  telemetry_namespace:
+    description: Kubernetes namespace where the MySQL pods are running.
+    type: str
+    required: true
+  idrac_podnames_ips:
+    description: >
+      Dictionary mapping pod names to lists of iDRAC IPs owned by that pod.
+    type: dict
+    required: true
+  mysqldb_k8s_name:
+    description: Kubernetes name of the MySQL pod or StatefulSet.
+    type: str
+    required: true
+  mysqldb_container_port:
+    description: TCP port of the MySQL container inside the pod.
+    type: int
+    required: true
+  mysqldb_name:
+    description: Name of the MySQL database.
+    type: str
+    required: true
+  mysql_user:
+    description: MySQL username for authentication.
+    type: str
+    required: true
+  mysqldb_password:
+    description: MySQL password for authentication.
+    type: str
+    required: true
+  bmc_username:
+    description: BMC username stored with each iDRAC IP entry.
+    type: str
+    required: true
+  bmc_password:
+    description: BMC password stored with each iDRAC IP entry.
+    type: str
+    required: true
+  telemetry_idrac:
+    description: List of iDRAC IPs eligible for insertion (working set).
+    type: list
+    elements: str
+    required: true
+  service_type:
+    description: Service type value to store in the database.
+    type: str
+    required: true
+  auth_type:
+    description: Authentication type value to store in the database.
+    type: str
+    required: true
+  db_retries:
+    description: Number of retry attempts per IP on failure.
+    type: int
+    default: 3
+  db_delay:
+    description: Delay in seconds between retries.
+    type: int
+    default: 3
+author:
+  - Dell Technologies (@dell)
+'''
+
+EXAMPLES = r'''
+- name: Insert iDRAC IPs into MySQL for each pod
+  omnia.telemetry.insert_idracips_mysqldb:
+    telemetry_namespace: telemetry
+    idrac_podnames_ips: "{{ idrac_podname_ips }}"
+    mysqldb_k8s_name: mysql-idrac
+    mysqldb_container_port: 3306
+    mysqldb_name: idrac_telemetry_db
+    mysql_user: "{{ mysql_user }}"
+    mysqldb_password: "{{ mysql_password }}"
+    bmc_username: "{{ bmc_username }}"
+    bmc_password: "{{ bmc_password }}"
+    telemetry_idrac: "{{ telemetry_idrac }}"
+    service_type: iDRAC
+    auth_type: basic
+'''
+
+RETURN = r'''
+changed:
+  description: Whether any IPs were inserted.
+  type: bool
+  returned: always
+inserted_ips:
+  description: >
+    Dictionary mapping pod names to per-IP insertion results.
+  type: dict
+  returned: always
+  sample:
+    idrac-pod-0:
+      - ip: "192.168.1.10"
+        changed: true
+        msg: "Successfully inserted iDRAC IP 192.168.1.10 into MySQL."
+failed_ips:
+  description: List of dicts for IPs that could not be inserted.
+  type: list
+  elements: dict
+  returned: always
+  sample:
+    - pod: idrac-pod-0
+      ip: "192.168.1.11"
+      msg: "Failed after 3 attempts: Connection refused"
+'''
+
 import time
 import json
 import ipaddress

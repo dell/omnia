@@ -60,5 +60,5 @@ kubernetes_install_failure_msg: >-
 
   To fix:
   1. Ensure internet connectivity, OR
-  2. Download packages: pip3 download kubernetes -d /opt/omnia/telemetry/packages/python/
+  2. Download packages: pip3 download kubernetes -d {{ offline_python_packages_dir | default('/opt/omnia/telemetry/packages/python') }}/
   3. Re-run the playbook
