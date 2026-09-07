@@ -10,7 +10,7 @@ Only the latest released version of Omnia is supported with security updates. Us
 
 If you discover a security vulnerability in Omnia, please do **not** create a public GitHub issue.
 
-Please report it using GitHub's **Private Vulnerability Reporting** feature.
+Please report it using GitHub's [**Private Vulnerability Reporting**](https://github.com/dell/omnia/security/advisories) feature.
 
 Please include:
 
@@ -35,6 +35,6 @@ Please avoid public disclosure until the issue has been reviewed and a fix is av
 
 ## Contact
 
-For security-related concerns, please use GitHub's **Private Vulnerability Reporting** feature.
+For security-related concerns, please use GitHub's [**Private Vulnerability Reporting**](https://github.com/dell/omnia/security/advisories) feature.
 
 Thank you for helping make Omnia more secure.

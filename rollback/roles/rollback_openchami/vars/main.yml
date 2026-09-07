@@ -16,7 +16,7 @@
 # ============================================================================
 # rollback_openchami — Variables
 # ============================================================================
-# Rollback target: Omnia 2.1.0.0 (from Omnia 2.2.0.0)
+# Rollback target: Omnia 2.1.0.0 (from Omnia 2.2.0.1)
 # Reverses the upgrade performed by upgrade_openchami role.
 # ============================================================================
 
@@ -192,7 +192,7 @@ rollback_messages:
       ════════════════════════════════════════════
         OPENCHAMI ROLLBACK COMPLETED SUCCESSFULLY
       ════════════════════════════════════════════
-      Rolled back from Omnia 2.2.0.0 to Omnia 2.1.0.0.
+      Rolled back from Omnia 2.2.0.1 to Omnia 2.1.0.0.
       All v2.1 containers are running. Database restored.
       Cloud-init data reloaded from backup.
     failure: |

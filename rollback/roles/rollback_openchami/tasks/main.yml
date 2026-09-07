@@ -16,7 +16,7 @@
 # ============================================================================
 # rollback_openchami — Main Orchestration
 # ============================================================================
-# Reverse the OpenCHAMI upgrade (2.2.0.0 → 2.1.0.0) by restoring:
+# Reverse the OpenCHAMI upgrade (2.2.0.1 → 2.1.0.0) by restoring:
 #   1. Quadlet files and openchami.target from backup
 #   2. v2.1 RPMs (openchami + ochami CLI) from backup
 #   3. Configuration files (coredhcp.yaml, Corefile, configs_vars.yaml)
