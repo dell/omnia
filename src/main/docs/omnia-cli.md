@@ -4,7 +4,7 @@ The `omnia-cli` script provides status checking and diagnostics for all Omnia do
 
 ## Install to PATH
 
-`omnia-cli` is installed automatically during `./omnia.sh -s` to `/usr/local/bin/omnia-cli`. Bash completion is installed to `/etc/bash_completion.d/omnia-cli`.
+`omnia-cli` is installed automatically during `./omnia.sh -s` to `/usr/local/bin/omnia-cli`. The shared Bash completion installed at `/etc/bash_completion.d/omnia-bash-completion` supports `omnia-cli`, `omnia.sh`, and `./omnia.sh`.
 
 To skip the install:
 ```bash
@@ -15,9 +15,16 @@ Manual install (if needed):
 ```bash
 sudo cp omnia-cli /usr/local/bin/
 sudo chmod +x /usr/local/bin/omnia-cli
-sudo cp omnia-cli-completion.bash /etc/bash_completion.d/omnia-cli
-source /etc/bash_completion.d/omnia-cli  # or re-login
+sudo mkdir -p /etc/bash_completion.d
+sudo cp omnia-bash-completion /etc/bash_completion.d/omnia-bash-completion
+source /etc/bash_completion.d/omnia-bash-completion  # or re-login
 ```
+
+The same completion definitions can therefore be used for diagnostics such as
+`omnia-cli st<Tab>` and lifecycle commands such as
+`./omnia.sh --run image_<Tab> --tags pre<Tab>`.
+Completions are command-aware: `omnia-cli` uses the documented hyphenated names,
+and `omnia.sh --tags` suggests only tags supported by the selected domain.
 
 After installation, run `omnia-cli` directly without `./` or path prefix:
 
@@ -32,6 +39,8 @@ omnia-cli version
 | Command | Description |
 |---------|-------------|
 | `status [--project <name>]` | Show all domain statuses for a project |
+| `check [--project <name>]` | Validate input files and output existence for all domains |
+| `edit <domain> [--project <name>]` | Select and edit a domain input file |
 | `repo-manager [--project <name>]` | Detailed repo_manager diagnostics |
 | `image-build [--project <name>]` | Detailed image_build_manager diagnostics |
 | `orchestrator [--project <name>]` | Orchestrator status |
@@ -39,8 +48,7 @@ omnia-cli version
 | `telemetry [--project <name>]` | Telemetry stack status |
 | `build-stream [--project <name>]` | Build stream (GitLab) status |
 | `utils [--project <name>]` | Shared utilities status |
-| `logs <domain>` | Browse and tail domain log files (default: 30 logs, use --limit <n>) |
-| `vault edit <domain>` | Edit domain credentials file (Ansible Vault) |
+| `logs <domain> [--project <name>] [--limit <n>]` | Browse and tail domain log files |
 | `version` | Show Omnia version info |
 | `help [<domain>]` | Show help (or domain-specific help) |
 
@@ -103,7 +111,7 @@ Omnia Domain Status  (project: project_default)
     No output directory
 
 ------------------------------------------------------------
-  2/6 domains completed for project project_default
+  2/7 domains completed for project project_default
 ```
 
 ## Domain-Specific Commands
@@ -146,20 +154,21 @@ Browse and tail domain log files interactively. Searches the following locations
 4. Domain output directory: `$OMNIA_DATA_PATH/<domain>/output/<project>/*.log`
 
 ```bash
-./omnia-cli logs image_build_manager
-./omnia-cli logs repo_manager --project prod
+./omnia-cli logs image-build
+./omnia-cli logs repo-manager --project prod
 ./omnia-cli logs orchestrator --limit 50
 ./omnia-cli logs discovery -l 100
 ```
 
-### vault edit
+### edit
 
-Edit domain credentials files using Ansible Vault. Prompts for the vault
-password and opens the credentials file in `$EDITOR` (defaults to `vi`).
+List a domain's input files and select one to open in `$EDITOR` (defaults to
+`vi`). Credential and Vault-encrypted files are opened with `ansible-vault edit`;
+plain-text files use the configured editor.
 
 ```bash
-./omnia-cli vault edit image_build_manager
-./omnia-cli vault edit repo_manager
+./omnia-cli edit image-build
+./omnia-cli edit repo-manager --project prod
 ```
 
 ## Output Directory Resolution
