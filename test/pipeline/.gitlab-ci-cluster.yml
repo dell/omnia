@@ -92,7 +92,7 @@ variables:
   OMNIA_INSTALL_PATH: "/root/omnia"
   PIPELINE_VERSION: "3.0"
   SKIP_STAGES: ""
-  TEST_MAIN_CMD: "./run_validation.sh all verify"
+  TEST_MAIN_CMD: "./run_validation.sh fvt_main verify"
   TEST_REPO_MANAGER_CMD: "./run_validation.sh fvt_repo_manager verify"
   TEST_IMAGE_BUILD_MANAGER_CMD: "./run_validation.sh fvt_image_build_manager verify"
   TEST_ORCHESTRATOR_CMD: "./run_validation.sh fvt_orchestrator verify"
