@@ -668,7 +668,7 @@ DOMAIN_TEST_MAP = {
     },
 }
 # NOTE: test_creds.yml files contain sensitive data and are NOT committed to the repo.
-# They should be set as a CI/CD File Variable (CLUSTER1_TEST_CREDS) in GitLab UI.
+# Test credentials are now managed through the pipeline_config.yml file.
 
 
 def _find_omnia_root(omnia_src_path):
@@ -820,7 +820,7 @@ def generate_cluster_variables(cluster_name):
   {upper_prefix}_IMAGE_BUILD_MANAGER_TAGS: ""
   {upper_prefix}_ORCHESTRATOR_TAGS: ""
   {upper_prefix}_TELEMETRY_TAGS: ""
-  {upper_prefix}_TEST_MAIN_CMD: "./run_validation.sh all verify"
+  {upper_prefix}_TEST_MAIN_CMD: "./run_validation.sh fvt_main verify"
   {upper_prefix}_TEST_REPO_MANAGER_CMD: "./run_validation.sh fvt_repo_manager verify"
   {upper_prefix}_TEST_IMAGE_BUILD_MANAGER_CMD: "./run_validation.sh fvt_image_build_manager verify"
   {upper_prefix}_TEST_ORCHESTRATOR_CMD: "./run_validation.sh fvt_orchestrator verify"
@@ -1029,12 +1029,6 @@ def cmd_create(args, client):
     print(f"  Input files:    {len(input_files)}")
     print(f"  Test files:     {len(test_files)}")
 
-    # Prompt for cluster details (skip if config file provides them)
-    if not config_vars:
-        print("\nCluster connection details:")
-        cluster_details = prompt_cluster_details(cluster_names)
-    else:
-        cluster_details = None
 
     # Build commit actions
     actions = []
@@ -1112,35 +1106,11 @@ def cmd_create(args, client):
                 print(f"  {status}: {key} = {default_val}")
 
     else:
-        # ---- Interactive mode: prompt for details and set defaults
 
         # CLUSTERS variable
         clusters_val = ",".join(cluster_names)
         status = client.set_variable(project_id, "CLUSTERS", clusters_val)
         print(f"  {status}: CLUSTERS = {clusters_val}")
-
-        # Cluster connection details (from cluster_details)
-        for cluster in cluster_names:
-            prefix = cluster.upper()
-            details = cluster_details[cluster]
-            
-            var_name = f"{prefix}_TARGET_IP"
-            status = client.set_variable(project_id, var_name, details["ip"])
-            print(f"  {status}: {var_name} = {details['ip']}")
-            
-            var_name = f"{prefix}_TARGET_USER"
-            status = client.set_variable(project_id, var_name, details["user"])
-            print(f"  {status}: {var_name} = {details['user']}")
-            
-            var_name = f"{prefix}_TARGET_PASS"
-            password = getpass.getpass(f"  Enter SSH password for {cluster} ({details['ip']}): ")
-            if password:
-                status = client.set_variable(
-                    project_id, var_name, password, masked=True
-                )
-                print(f"  {status}: {var_name} (masked)")
-            else:
-                print(f"  WARNING: No password entered for {var_name} — set it later in GitLab UI")
 
         # Global pipeline variables
         global_keys = [
@@ -1151,6 +1121,9 @@ def cmd_create(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
+            ("VAULT_SERVER_URL", ""),
+            ("VAULT_AUTH_ROLE", ""),
+            ("VAULT_SECRET_PATH", ""),
         ]
         for key, default_val in global_keys:
             status = client.set_variable(project_id, key, default_val)
@@ -1168,7 +1141,7 @@ def cmd_create(args, client):
             ("IMAGE_BUILD_MANAGER_TAGS", ""),
             ("ORCHESTRATOR_TAGS", ""),
             ("TELEMETRY_TAGS", ""),
-            ("TEST_MAIN_CMD", "./run_validation.sh all verify"),
+            ("TEST_MAIN_CMD", "./run_validation.sh fvt_main verify"),
             ("TEST_REPO_MANAGER_CMD", "./run_validation.sh fvt_repo_manager verify"),
             ("TEST_IMAGE_BUILD_MANAGER_CMD", "./run_validation.sh fvt_image_build_manager verify"),
             ("TEST_ORCHESTRATOR_CMD", "./run_validation.sh fvt_orchestrator verify"),
@@ -1181,15 +1154,6 @@ def cmd_create(args, client):
                 var_name = f"{prefix}_{key}"
                 status = client.set_variable(project_id, var_name, default_val)
                 print(f"  {status}: {var_name} = {default_val}")
-
-        # Credential files (optional)
-        creds = prompt_credentials(cluster_names, domains)
-        for var_name, file_path in creds.items():
-            content = Path(file_path).read_text(encoding="utf-8")
-            status = client.set_variable(
-                project_id, var_name, content, var_type="file", masked=False
-            )
-            print(f"  {status}: {var_name} (file variable)")
 
     # Summary
     clusters_val = ",".join(cluster_names)
@@ -1301,17 +1265,8 @@ def cmd_update(args, client):
     # Apply CI/CD variables from config file or --update-vars
     if args.config:
         config_cluster_names, config_vars, config_cluster_ips = load_pipeline_config(args.config)
-        config_secrets = {}
-        # Collect passwords interactively (NOT from file) to prevent taint-tracking
-        # from linking file data to credentials (CWE-522).
-        for cluster in config_cluster_names:
-            prefix = cluster.upper()
-            target_ip = config_cluster_ips.get(cluster, cluster)
-            password = getpass.getpass(f"  Enter SSH password for {cluster} ({target_ip}): ")
-            if password:
-                config_secrets[f"{prefix}_TARGET_PASS"] = password
         print(f"\nApplying variables from config: {args.config}")
-        apply_config_variables(client, project_id, config_vars, config_secrets)
+        apply_config_variables(client, project_id, config_vars, secrets=None)
         print(f"  {len(config_vars)} variables applied")
     elif args.update_vars:
         print("\nUpdating CI/CD variables (defaults)...")
@@ -1325,6 +1280,9 @@ def cmd_update(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
+            ("VAULT_SERVER_URL", ""),
+            ("VAULT_AUTH_ROLE", ""),
+            ("VAULT_SECRET_PATH", ""),
         ]
         for key, default_val in global_keys:
             status = client.set_variable(project_id, key, default_val)
@@ -1342,7 +1300,7 @@ def cmd_update(args, client):
             ("IMAGE_BUILD_MANAGER_TAGS", ""),
             ("ORCHESTRATOR_TAGS", ""),
             ("TELEMETRY_TAGS", ""),
-            ("TEST_MAIN_CMD", "./run_validation.sh all verify"),
+            ("TEST_MAIN_CMD", "./run_validation.sh fvt_main verify"),
             ("TEST_REPO_MANAGER_CMD", "./run_validation.sh fvt_repo_manager verify"),
             ("TEST_IMAGE_BUILD_MANAGER_CMD", "./run_validation.sh fvt_image_build_manager verify"),
             ("TEST_ORCHESTRATOR_CMD", "./run_validation.sh fvt_orchestrator verify"),
