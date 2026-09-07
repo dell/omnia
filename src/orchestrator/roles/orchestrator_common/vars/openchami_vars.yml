@@ -18,3 +18,5 @@ cert_wait_time: 10
 cert_restart_fail_msg: "Failed to restart acme-deploy service"
 openchami_auth_retries: 5
 openchami_auth_delay: 5
+access_token_generation_fail_msg: "Failed to generate access token after {{ openchami_auth_retries }} retries. Check tokensmith service status and logs."
+ochami_env_setting_fail_msg: "Failed to set ochami_env environment variable. Check access token generation and retry."

@@ -76,8 +76,9 @@ readonly PREPARE_ORDER=(
     "orchestrator"          # Third: OpenLDAP, functional groups, credential management
 )
 
-# Lifecycle tags to run for each domain (in order)
-readonly LIFECYCLE_TAGS=(
+# Lifecycle phases to run for each base domain (in order). Repo Manager uses
+# precheck for its validation phase; the other base domains use validate.
+readonly LIFECYCLE_PHASES=(
     "validate"      # Validate input configuration
     "credentials"   # Collect and encrypt credentials
     "prepare"       # Deploy infrastructure
@@ -403,9 +404,9 @@ else
     return 1 2>/dev/null || exit 1
 fi
 
-# Load omnia-cli bash completion
-if [ -f /etc/bash_completion.d/omnia-cli ]; then
-    source /etc/bash_completion.d/omnia-cli
+# Load the shared omnia-cli and omnia.sh Bash completion
+if [ -f /etc/bash_completion.d/omnia-bash-completion ]; then
+    source /etc/bash_completion.d/omnia-bash-completion
 fi
 ACTIVATE_EOF
     chmod +x "${OMNIA_DATA_PATH}/activate-omnia.sh"
@@ -709,6 +710,17 @@ run_domain() {
 # Prepare Base Domains
 # Orchestrates prepare steps of core infrastructure domains in dependency order
 # ─────────────────────────────────────────────────────────────────────────────
+prepare_tag_for_phase() {
+    local domain="$1"
+    local phase="$2"
+
+    if [ "$domain" = "repo_manager" ] && [ "$phase" = "validate" ]; then
+        printf '%s' "precheck"
+    else
+        printf '%s' "$phase"
+    fi
+}
+
 prepare_base_domains() {
     local skip_filter="${SKIP_DOMAINS:-}"
     local dry_run="${DRY_RUN:-false}"
@@ -795,10 +807,12 @@ prepare_base_domains() {
     if [ "$dry_run" = true ]; then
         echo -e "${BLUE}DRY RUN — would prepare these domains (phase-by-phase, fail-fast):${NC}"
         echo ""
-        for tag in "${LIFECYCLE_TAGS[@]}"; do
-            echo -e "  ${BLUE}Phase: $tag${NC}"
+        for phase in "${LIFECYCLE_PHASES[@]}"; do
+            echo -e "  ${BLUE}Phase: $phase${NC}"
             for domain in "${target_domains[@]}"; do
-                echo -e "    ${GREEN}${domain}${NC}"
+                local domain_tag
+                domain_tag="$(prepare_tag_for_phase "$domain" "$phase")"
+                echo -e "    ${GREEN}${domain}${NC} ${DIM}(--tags ${domain_tag})${NC}"
             done
             echo ""
         done
@@ -808,14 +822,16 @@ prepare_base_domains() {
     fi
 
     # ── Run phases across all domains (phase-by-phase, not domain-by-domain) ──
-    for tag in "${LIFECYCLE_TAGS[@]}"; do
+    for phase in "${LIFECYCLE_PHASES[@]}"; do
         echo -e "${BLUE}================================================================================${NC}"
-        echo -e "${BLUE}Phase: $tag (all domains)${NC}"
+        echo -e "${BLUE}Phase: $phase (all domains)${NC}"
         echo -e "${BLUE}================================================================================${NC}"
         echo ""
 
         for domain in "${target_domains[@]}"; do
             local playbook="$SRC_DIR/$domain/playbooks/${domain}.yml"
+            local domain_tag
+            domain_tag="$(prepare_tag_for_phase "$domain" "$phase")"
 
             if [ ! -f "$playbook" ]; then
                 echo -e "${RED}  ERROR: No playbook found for $domain at $playbook${NC}"
@@ -824,22 +840,22 @@ prepare_base_domains() {
                 return 1
             fi
 
-            echo -e "${BLUE}  Running: $domain --tags $tag${NC}"
+            echo -e "${BLUE}  Running: $domain --tags $domain_tag${NC}"
 
             # Build ansible-playbook command
-            local cmd=("ansible-playbook" "$playbook" "--tags" "$tag")
+            local cmd=("ansible-playbook" "$playbook" "--tags" "$domain_tag")
 
             echo -e "${DIM}    ${cmd[*]}${NC}"
 
             cd "$SRC_DIR/$domain"
             if "${cmd[@]}"; then
-                echo -e "${GREEN}    ✓ $domain $tag completed${NC}"
+                echo -e "${GREEN}    ✓ $domain $domain_tag completed${NC}"
             else
                 local rc=$?
-                echo -e "${RED}    ✗ $domain $tag failed (exit code: $rc)${NC}"
+                echo -e "${RED}    ✗ $domain $domain_tag failed (exit code: $rc)${NC}"
                 echo ""
                 echo -e "${RED}================================================================================${NC}"
-                echo -e "${RED}  FAILED: $domain failed in $tag phase. Stopping --prepare-base.${NC}"
+                echo -e "${RED}  FAILED: $domain failed in $phase phase. Stopping --prepare-base.${NC}"
                 echo -e "${RED}================================================================================${NC}"
                 echo -e "${YELLOW}  Fix the issue above and re-run: ./omnia.sh --prepare-base${NC}"
                 deactivate 2>/dev/null || true
@@ -848,7 +864,7 @@ prepare_base_domains() {
             echo ""
         done
 
-        echo -e "${GREEN}Phase $tag completed${NC}"
+        echo -e "${GREEN}Phase $phase completed${NC}"
         echo ""
     done
 
@@ -883,7 +899,7 @@ cleanup_omnia() {
         echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
         echo -e "  - Profile drop-in:      ${PROFILE_DROP_IN}"
         echo -e "  - omnia-cli:            /usr/local/bin/omnia-cli"
-        echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-cli"
+        echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-bash-completion"
         echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
         echo -e "  - ALL data:             ${OMNIA_DATA_PATH}/ (input, output, logs, everything)"
     else
@@ -892,7 +908,7 @@ cleanup_omnia() {
         echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
         echo -e "  - Profile drop-in:      ${PROFILE_DROP_IN}"
         echo -e "  - omnia-cli:            /usr/local/bin/omnia-cli"
-        echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-cli"
+        echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-bash-completion"
         echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
         echo -e "  - Dependency cache:     ${OMNIA_DATA_PATH}/.data/deps-cache/"
         echo ""
@@ -950,10 +966,10 @@ cleanup_omnia() {
         echo -e "  ${GREEN}Removed.${NC}"
     fi
 
-    # Remove bash completion
-    if [ -f "/etc/bash_completion.d/omnia-cli" ]; then
-        echo -e "${BLUE}Removing bash completion from /etc/bash_completion.d/omnia-cli${NC}"
-        rm -f /etc/bash_completion.d/omnia-cli
+    # Remove Bash completion
+    if [ -f "/etc/bash_completion.d/omnia-bash-completion" ]; then
+        echo -e "${BLUE}Removing Bash completion from /etc/bash_completion.d/omnia-bash-completion${NC}"
+        rm -f /etc/bash_completion.d/omnia-bash-completion
         echo -e "  ${GREEN}Removed.${NC}"
     fi
 
@@ -1186,7 +1202,8 @@ SETUP COMMANDS (run once, in order):
 EXECUTION COMMANDS:
   --prepare-base [options]
                         Prepare three base infrastructure domains in dependency order.
-                        For each domain, runs lifecycle phases: validate → credentials → prepare
+                        Runs validation → credentials → prepare. Validation uses
+                        precheck for repo_manager and validate for the other domains.
                         Domains: repo_manager, image_build_manager, orchestrator
                         Options:
                           --skip <list>       Comma-separated domains to skip
@@ -1213,41 +1230,18 @@ RECOMMENDED EXECUTION ORDER:
   WARNING: Running a later step without completing earlier steps may fail.
            The CLI will warn you if prerequisite outputs are missing.
 
-  Tags by domain (use --tags <tag> to run a specific stage):
-  Execution order: precheck -> validate -> prepare -> execute -> cleanup
+  Public tags by domain (use --tags <tag> to select a stage):
+    build_stream:        precheck validate credentials prepare execute build cleanup upgrade rollback
+    discovery:           precheck validate credentials prepare execute discovery cleanup upgrade rollback
+    image_build_manager: precheck validate credentials prepare execute build cleanup cleanup_images upgrade rollback
+    orchestrator:        precheck validate credentials prepare deploy provision execute validate-deployment pxeboot cleanup cleanup_credentials upgrade rollback
+    repo_manager:        precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos upgrade rollback catalog_generate catalog_add catalog_delete catalog_validate
+    telemetry:           precheck validate validation execute deploy cleanup cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria
+    utils:               precheck setup collect install_os cleanup cleanup_logs cleanup_install_os upgrade rollback
 
-    repo_manager:
-      precheck        Environment prerequisite check      (never: explicit only)
-      validate        Validate input configurations
-      prepare         Deploy Pulp server
-      execute         Deploy + download + status (full domain tasks)
-      cleanup         Remove Pulp server and all data     (never: explicit only)
-
-    image_build_manager:
-      precheck        Environment prerequisite check      (never: explicit only)
-      validate        Validate image build configuration
-      prepare         Deploy build infrastructure (MinIO + Registry)
-      execute         Build OS images (full domain tasks)
-      cleanup         Remove build infrastructure         (never: explicit only)
-
-    orchestrator:
-      precheck        Validate orchestrator prerequisites (never: explicit only)
-      validate        Validate orchestrator configuration
-      prepare         Prepare orchestrator components
-      execute         Deploy + provision (full domain tasks)
-      cleanup         Remove orchestrator components      (never: explicit only)
-
-    telemetry:
-      precheck        Validate telemetry prerequisites    (never: explicit only)
-      validate        Validate telemetry input files
-      prepare         Prepare telemetry components
-      execute         Deploy all telemetry sources + sinks (full domain tasks)
-      cleanup         Remove telemetry components         (never: explicit only)
-
-  Without --tags, --run <domain> executes the full domain (equivalent to --tags execute).
-  Tags marked "(never: explicit only)" require --tags <tag> to run;
-  they are skipped during a normal full domain run.
-  Additional domain-specific tags are available — see domain help.
+  Without --tags, each playbook runs its full default flow. Tags marked with
+  Ansible's "never" tag run only when explicitly selected. Domain playbooks
+  validate supported tags and combinations.
 
 DIAGNOSTIC COMMANDS:
   --check-deps          Audit all domain requirements.txt and requirements.yml
@@ -1256,9 +1250,10 @@ DIAGNOSTIC COMMANDS:
 
 CLEANUP COMMANDS:
   --cleanup             Remove venv, system env files (/etc/omnia/omnia.env,
-                        /etc/profile.d/omnia-env.sh), activation script, and
-                        dependency cache. Runtime data at \$OMNIA_DATA_PATH/
-                        (input, output, logs) is preserved.
+                        /etc/profile.d/omnia-env.sh), omnia-cli, shared Bash
+                        completion, activation script, and dependency cache.
+                        Runtime data at \$OMNIA_DATA_PATH/ (input, output, logs)
+                        is preserved.
   --cleanup --all       Remove EVERYTHING: venv, system env, cache, AND all data at
                         \$OMNIA_DATA_PATH/ (full reset). Prompts for confirmation.
 
@@ -1268,15 +1263,19 @@ OPTIONS:
   --force-deps          With -s or -i: bypass the dependency cache and force a
                         fresh pip install + Galaxy collection install.
   --skip <domain,...>   With -s or -i: skip specific domains during init.
-                        Cannot be combined with an explicit domain list.
+                        With --prepare-base: skip only repo_manager,
+                        image_build_manager, or orchestrator.
+                        Cannot be combined with an explicit -i domain list.
                         Examples:
                           ./omnia.sh -i --skip telemetry
                           ./omnia.sh -s --skip telemetry,utils
                           ./omnia.sh -i --skip build_stream --deps-only
-  --dry-run             With -s or -i: show which domains would be initialized
-                        without executing. Useful for previewing --skip behavior.
+  --dry-run             With -s or -i: show which domains would be initialized.
+                        With --prepare-base: show which base domains and phases
+                        would run. Does not initialize or prepare domains; other
+                        setup steps still run when used with -s.
   --skip-catalog        With -s: skip the automatic catalog copy.
-  --skip-omnia-cli      With -s: skip installing omnia-cli and bash completion
+  --skip-omnia-cli      With -s: skip installing omnia-cli and shared bash completion
                         to /usr/local/bin/ and /etc/bash_completion.d/.
   --help, -h            Show this help message.
 
@@ -1298,7 +1297,7 @@ DIAGNOSTICS (see omnia-cli):
   omnia-cli help [<domain>]                   CLI help
 
 INSTALL omnia-cli TO PATH (automatic during --setup-venv):
-  omnia-cli and bash completion are installed automatically.
+  omnia-cli and shared completion for omnia-cli and omnia.sh are installed automatically.
   To skip: omnia.sh -s --skip-omnia-cli
   Manual: sudo cp omnia-cli /usr/local/bin/ && sudo chmod +x /usr/local/bin/omnia-cli
 
@@ -1349,14 +1348,14 @@ EXAMPLES:
 
   # Run a domain playbook:
   ./omnia.sh --run image_build_manager --tags prepare
-  ./omnia.sh -r repo_manager                   # Run all tags
-  ./omnia.sh -r telemetry                      # Run all tags
+  ./omnia.sh -r repo_manager                   # Run the default Repo Manager flow
+  ./omnia.sh -r telemetry                      # Run the default Telemetry flow
 
-  # Validate a domain (uses --tags validate):
+  # Validate domain input:
   ./omnia.sh --run image_build_manager --tags validate
-  ./omnia.sh -r repo_manager --tags validate
+  ./omnia.sh -r repo_manager --tags precheck
 
-  # Cleanup (remove venv + system env, preserve data):
+  # Cleanup (remove environment + CLI integration, preserve runtime data):
   ./omnia.sh --cleanup
 
   # Full cleanup (remove EVERYTHING including data):
@@ -1519,18 +1518,20 @@ main() {
                 copy_catalog
             fi
 
-            # Install omnia-cli and bash completion unless --skip-omnia-cli
+            # Install omnia-cli and shared completion unless --skip-omnia-cli
             if [ "$SKIP_OMNIA_CLI" = false ]; then
                 local cli_src="${SCRIPT_DIR}/omnia-cli"
-                local completion_src="${SCRIPT_DIR}/omnia-cli-completion.bash"
+                local completion_src="${SCRIPT_DIR}/omnia-bash-completion"
+                local completion_dest="/etc/bash_completion.d/omnia-bash-completion"
                 if [ -f "$cli_src" ]; then
                     cp "$cli_src" /usr/local/bin/omnia-cli
                     chmod +x /usr/local/bin/omnia-cli
                     echo -e "${GREEN}Installed omnia-cli to /usr/local/bin/omnia-cli${NC}"
                 fi
                 if [ -f "$completion_src" ]; then
-                    cp "$completion_src" /etc/bash_completion.d/omnia-cli
-                    echo -e "${GREEN}Installed bash completion to /etc/bash_completion.d/omnia-cli${NC}"
+                    mkdir -p /etc/bash_completion.d
+                    cp "$completion_src" "$completion_dest"
+                    echo -e "${GREEN}Installed Bash completion for omnia-cli and omnia.sh to ${completion_dest}${NC}"
                 fi
             else
                 echo -e "${DIM}Skipping omnia-cli install (--skip-omnia-cli)${NC}"
