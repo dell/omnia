@@ -89,6 +89,13 @@
     - ha_config_stat.stat.exists | default(false)
     - k8s_groups_in_mapping | default(false)
 
+# Ensure kube_vip is always defined so the template task vars block
+# does not self-reference an undefined variable (Jinja2 recursion error).
+- name: Default kube_vip if not set
+  ansible.builtin.set_fact:
+    kube_vip: ""
+  when: kube_vip is not defined
+
 - name: Generate BMC group data file
   ansible.builtin.template:
     src: "{{ ochami_template_dir }}/nodes/bmc_group_data.csv.j2"
@@ -111,7 +118,7 @@
     mode: "{{ file_permissions_644 }}"
   vars:
     mapping_nodes_var: "{{ mapping_nodes }}"
-    kube_vip: "{{ kube_vip | default('') }}"
+    inventory_kube_vip: "{{ kube_vip | default('') }}"
 
 - name: Copy orchestrator inventory to localhost
   ansible.builtin.fetch:
