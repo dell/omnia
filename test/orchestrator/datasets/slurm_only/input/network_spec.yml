@@ -18,7 +18,7 @@
 
 ---
 Networks:
-- admin_network:
+  - admin_network:
     oim_nic_name: "eno12399"
     subnet: "172.16.0.0"
     netmask_bits: "24"
@@ -31,12 +31,12 @@ Networks:
     ntp_servers:
       - "172.16.0.254"
     additional_subnets: []
-- ib_network:
+  - ib_network:
     subnet: "192.168.0.0"
     netmask_bits: "24"
     dns:
       - "192.168.0.254"
-- slurm_network:
+  - slurm_network:
     subnet: "192.168.0.0"
     netmask_bits: "24"
     gateway: "192.168.0.254"
