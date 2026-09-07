@@ -31,14 +31,22 @@ K8S_NODE = "service_kube_node"
 # =============================================================================
 # Kubernetes Services (on provisioned nodes)
 # =============================================================================
+# Source: cloud-init templates start crio.service + kubelet on all K8s nodes.
+# chronyd runs on control plane for time synchronization.
 K8S_SERVICES: List[str] = [
     "kubelet",       # Kubernetes node agent
-    "containerd",    # Container runtime
+    "crio",          # CRI-O container runtime (source: systemctl start crio.service)
 ]
 
 K8S_CONTROL_PLANE_SERVICES: List[str] = [
     "kubelet",
-    "containerd",
+    "crio",
+    "chronyd",
+]
+
+# Systemd targets managed on K8s nodes
+K8S_SYSTEMD_TARGETS: List[str] = [
+    "nfs-client.target",   # NFS client mounts for K8s shared storage
 ]
 
 # =============================================================================
@@ -51,12 +59,59 @@ K8S_DIRECTORIES: List[str] = [
     "/var/lib/kubelet",                # Kubelet data
 ]
 
-K8S_NFS_CONFIG_DIR = "/opt/omnia/kubernetes"
+# Source: storage_config.yml mounts[name=nfs_k8s].mount_point
+K8S_NFS_CONFIG_DIR = "/opt/omnia/k8s_mount"
 
 # =============================================================================
-# Kubernetes HA Configuration
+# Kubernetes HA Configuration (resolved at runtime via INPUT_PATH_TEMPLATE)
 # =============================================================================
-K8S_HA_CONFIG_FILE = "/opt/omnia/input/project_default/high_availability_config.yml"
+# Note: K8S_HA_CONFIG_FILE is NOT used directly; k8s_func.py resolves the path
+# dynamically from load_test_config().project_name + INPUT_PATH_TEMPLATE.
+
+# =============================================================================
+# Kubernetes Firewall Ports (from cloud-init templates)
+# =============================================================================
+# Source: ms-group-service_kube_control_plane_first_x86_64.yaml.j2 (lines 393-434)
+K8S_FIREWALL_PORTS_CONTROL_PLANE: List[str] = [
+    "6443/tcp",           # Kubernetes API server
+    "2379-2380/tcp",      # etcd client/peer
+    "10250/tcp",          # Kubelet API
+    "10251/tcp",          # kube-scheduler (deprecated)
+    "10252/tcp",          # kube-controller-manager (deprecated)
+    "10257/tcp",          # kube-controller-manager (secure)
+    "10259/tcp",          # kube-scheduler (secure)
+    "30000-32767/tcp",    # NodePort Services
+    "179/tcp",            # BGP (Calico)
+    "4789/udp",           # VXLAN
+    "5473/tcp",           # Calico Typha
+    "51820/udp",          # WireGuard IPv4
+    "51821/udp",          # WireGuard IPv6
+    "9100/tcp",           # Node Exporter
+    "7472/tcp",           # MetalLB (memberlist TCP)
+    "7472/udp",           # MetalLB (memberlist UDP)
+    "7946/tcp",           # MetalLB (gossip TCP)
+    "7946/udp",           # MetalLB (gossip UDP)
+    "9090/tcp",           # Prometheus
+    "8080/tcp",           # Generic HTTP
+]
+
+# Source: ms-group-service_kube_node_x86_64.yaml.j2 (lines 194-227)
+K8S_FIREWALL_PORTS_WORKER: List[str] = [
+    "10250/tcp",          # Kubelet API
+    "30000-32767/tcp",    # NodePort Services
+    "179/tcp",            # BGP (Calico)
+    "4789/udp",           # VXLAN
+    "5473/tcp",           # Calico Typha
+    "51820/udp",          # WireGuard IPv4
+    "51821/udp",          # WireGuard IPv6
+    "9100/tcp",           # Node Exporter
+    "7472/tcp",           # MetalLB (memberlist TCP)
+    "7472/udp",           # MetalLB (memberlist UDP)
+    "7946/tcp",           # MetalLB (gossip TCP)
+    "7946/udp",           # MetalLB (gossip UDP)
+    "9090/tcp",           # Prometheus
+    "8080/tcp",           # Generic HTTP
+]
 
 # =============================================================================
 # etcd Configuration
@@ -142,7 +197,7 @@ TEST_CASES: Dict[str, dict] = {
     },
     "containerd_running": {
         "id": "TC_K8_006",
-        "title": "Verify containerd service is running on all nodes",
+        "title": "Verify container runtime (CRI-O) is running on all nodes",
     },
     "k8s_system_pods_running": {
         "id": "TC_K8_007",
@@ -335,5 +390,19 @@ TEST_CASES: Dict[str, dict] = {
     "k8s_busybox_pod": {
         "id": "TC_K8_051",
         "title": "Deploy and verify basic BusyBox pod",
+    },
+    # Firewall Tests
+    "k8s_firewall_ports_control_plane": {
+        "id": "TC_K8_052",
+        "title": "Verify firewall ports on control plane nodes match cloud-init",
+    },
+    "k8s_firewall_ports_workers": {
+        "id": "TC_K8_053",
+        "title": "Verify firewall ports on worker nodes match cloud-init",
+    },
+    # Systemd Target Tests
+    "k8s_nfs_client_target": {
+        "id": "TC_K8_054",
+        "title": "Verify nfs-client.target is active on all K8s nodes",
     },
 }

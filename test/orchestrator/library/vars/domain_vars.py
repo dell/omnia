@@ -45,6 +45,13 @@ FVT_TAGS: List[str] = [
     "playbooks",
     "slurm",
     "kubernetes",
+    # Standalone K8s sub-tags (used by fvt_k8s)
+    "services",
+    "etcd",
+    "ha",
+    "network",
+    "storage",
+    "firewall",
 ]
 
 # =====================================================================

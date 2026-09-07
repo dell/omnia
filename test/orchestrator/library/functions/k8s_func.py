@@ -36,12 +36,15 @@ from ..vars.k8s_vars import (
     K8S_CONFIG_FILES,
     K8S_SYSTEM_PODS,
     K8S_NFS_CONFIG_DIR,
-    K8S_HA_CONFIG_FILE,
     K8S_ETCD_NAMESPACE,
     K8S_ETCD_PKI_CACERT,
     K8S_ETCD_PKI_CERT,
     K8S_ETCD_PKI_KEY,
+    K8S_FIREWALL_PORTS_CONTROL_PLANE,
+    K8S_FIREWALL_PORTS_WORKER,
+    K8S_SYSTEMD_TARGETS,
 )
+from ..vars.common_vars import INPUT_PATH_TEMPLATE
 
 
 # =============================================================================
@@ -49,10 +52,10 @@ from ..vars.k8s_vars import (
 # =============================================================================
 
 def _get_project_path(host) -> str:
-    """Get the project input path."""
+    """Get the project input path using domain-scoped INPUT_PATH_TEMPLATE."""
     config = load_test_config()
     project = config.get("project_name", "project_default")
-    return f"/opt/omnia/orchestrator/input/{project}"
+    return INPUT_PATH_TEMPLATE.format(project=project)
 
 
 def get_k8s_nodes_from_pxe(host, group_keyword: str) -> List[str]:
@@ -66,9 +69,8 @@ def get_k8s_nodes_from_pxe(host, group_keyword: str) -> List[str]:
     Returns:
         List of node hostnames
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    project_path = _get_project_path(host)
+    pxe_mapping_path = f"{project_path}/pxe_mapping_file.csv"
 
     cmd = (
         f"if [ -f {pxe_mapping_path} ]; then "
@@ -126,9 +128,8 @@ def get_node_ip_from_pxe(host, hostname: str) -> Optional[str]:
     Returns:
         IP address or None if not found
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    project_path = _get_project_path(host)
+    pxe_mapping_path = f"{project_path}/pxe_mapping_file.csv"
 
     cmd = (
         f"if [ -f {pxe_mapping_path} ]; then "
@@ -173,11 +174,8 @@ def check_k8s_enabled(host) -> Dict[str, Any]:
     Returns:
         Dict with success, details, error, skipped
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    orchestrator_config_path = (
-        f"/opt/omnia/orchestrator/input/{project}/orchestrator_config.yml"
-    )
+    project_path = _get_project_path(host)
+    orchestrator_config_path = f"{project_path}/orchestrator_config.yml"
 
     cmd = f"test -f {orchestrator_config_path} && cat {orchestrator_config_path}"
     result = run_on_host(host, cmd)
@@ -465,7 +463,11 @@ def check_kubelet_running(host) -> Dict[str, Any]:
 
 
 def check_containerd_running(host) -> Dict[str, Any]:
-    """Check if containerd service is running on all K8s nodes.
+    """Check if container runtime (CRI-O) is running on all K8s nodes.
+
+    Note: This function name is retained for backward compatibility but now
+    checks CRI-O (crio.service) instead of containerd, since the source
+    cloud-init templates use ``systemctl start crio.service``.
 
     Args:
         host: Testinfra host connection
@@ -491,7 +493,8 @@ def check_containerd_running(host) -> Dict[str, Any]:
             failed_nodes.append(f"{node} (no IP)")
             continue
 
-        cmd = _ssh_cmd(node_ip, "systemctl is-active containerd 2>/dev/null")
+        # Check CRI-O (source: cloud-init starts crio.service)
+        cmd = _ssh_cmd(node_ip, "systemctl is-active crio 2>/dev/null")
         result = run_on_host(host, cmd)
 
         if result.rc != 0 or "active" not in result.stdout:
@@ -500,14 +503,14 @@ def check_containerd_running(host) -> Dict[str, Any]:
     if not failed_nodes:
         return {
             "success": True,
-            "details": f"containerd active on all {len(all_nodes)} K8s nodes",
+            "details": f"CRI-O active on all {len(all_nodes)} K8s nodes",
             "error": "",
             "failed_nodes": [],
         }
 
     return {
         "success": False,
-        "details": f"containerd failed on {len(failed_nodes)}/{len(all_nodes)} nodes",
+        "details": f"CRI-O failed on {len(failed_nodes)}/{len(all_nodes)} nodes",
         "error": f"Failed nodes: {failed_nodes}",
         "failed_nodes": failed_nodes,
     }
@@ -1542,11 +1545,8 @@ def check_k8s_ldap_integration(host) -> Dict[str, Any]:
         Dict with success, details, error, skipped
     """
     # Check if OpenLDAP is enabled
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    orchestrator_config_path = (
-        f"/opt/omnia/orchestrator/input/{project}/orchestrator_config.yml"
-    )
+    project_path = _get_project_path(host)
+    orchestrator_config_path = f"{project_path}/orchestrator_config.yml"
 
     cmd = f"test -f {orchestrator_config_path} && grep -i 'openldap' {orchestrator_config_path}"
     result = run_on_host(host, cmd)
@@ -1686,9 +1686,8 @@ def _get_software_config(host) -> Optional[Dict]:
     Returns:
         Parsed JSON dict, or None if not available.
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    sw_config_path = f"/opt/omnia/orchestrator/input/{project}/software_config.json"
+    project_path = _get_project_path(host)
+    sw_config_path = f"{project_path}/software_config.json"
 
     cmd = f"test -f {sw_config_path} && cat {sw_config_path}"
     result = run_on_host(host, cmd)
@@ -2297,9 +2296,8 @@ def check_k8s_virtual_ip(host) -> Dict[str, Any]:
     Returns:
         Dict with success, details, error, vip, nodes_with_vip
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    ha_config_path = f"/opt/omnia/orchestrator/input/{project}/high_availability_config.yml"
+    project_path = _get_project_path(host)
+    ha_config_path = f"{project_path}/high_availability_config.yml"
 
     # Read HA config to get virtual IP
     cmd = f"test -f {ha_config_path} && cat {ha_config_path}"
@@ -2988,4 +2986,204 @@ def check_k8s_busybox_pod(host) -> Dict[str, Any]:
         "success": False,
         "details": f"BusyBox pod did not reach Running state (last phase: {phase})",
         "error": "Pod scheduling/startup failed",
+    }
+
+
+# =============================================================================
+# FIREWALL PORT VERIFICATION
+# =============================================================================
+
+def check_k8s_firewall_ports_control_plane(host) -> Dict[str, Any]:
+    """Verify firewall ports on control plane nodes match cloud-init templates.
+
+    Checks that all required ports from K8S_FIREWALL_PORTS_CONTROL_PLANE are
+    open on each control plane node.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, nodes_checked, missing_ports
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    if not cp_nodes:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes in PXE mapping",
+            "nodes_checked": 0,
+            "missing_ports": {},
+        }
+
+    missing_ports = {}
+    nodes_checked = 0
+
+    for node in cp_nodes:
+        node_ip = get_node_ip_from_pxe(host, node)
+        if not node_ip:
+            continue
+
+        nodes_checked += 1
+        cmd = _ssh_cmd(node_ip, "firewall-cmd --list-all 2>/dev/null")
+        result = run_on_host(host, cmd)
+
+        if result.rc != 0:
+            missing_ports[node] = ["FIREWALL_NOT_ACCESSIBLE"]
+            continue
+
+        fw_output = result.stdout.lower()
+        node_missing = []
+
+        for port_spec in K8S_FIREWALL_PORTS_CONTROL_PLANE:
+            # Normalize for comparison (e.g., "6443/tcp")
+            if port_spec.lower() not in fw_output:
+                node_missing.append(port_spec)
+
+        if node_missing:
+            missing_ports[node] = node_missing
+
+    if not missing_ports:
+        return {
+            "success": True,
+            "details": f"All required firewall ports open on {nodes_checked} control plane node(s)",
+            "error": "",
+            "nodes_checked": nodes_checked,
+            "missing_ports": {},
+        }
+
+    return {
+        "success": False,
+        "details": f"Missing firewall ports on {len(missing_ports)} node(s)",
+        "error": f"Missing ports: {missing_ports}",
+        "nodes_checked": nodes_checked,
+        "missing_ports": missing_ports,
+    }
+
+
+def check_k8s_firewall_ports_workers(host) -> Dict[str, Any]:
+    """Verify firewall ports on worker nodes match cloud-init templates.
+
+    Checks that all required ports from K8S_FIREWALL_PORTS_WORKER are
+    open on each worker node.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, nodes_checked, missing_ports
+    """
+    worker_nodes = get_k8s_worker_nodes(host)
+    if not worker_nodes:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No worker nodes found",
+            "error": "No worker nodes in PXE mapping",
+            "nodes_checked": 0,
+            "missing_ports": {},
+        }
+
+    missing_ports = {}
+    nodes_checked = 0
+
+    for node in worker_nodes:
+        node_ip = get_node_ip_from_pxe(host, node)
+        if not node_ip:
+            continue
+
+        nodes_checked += 1
+        cmd = _ssh_cmd(node_ip, "firewall-cmd --list-all 2>/dev/null")
+        result = run_on_host(host, cmd)
+
+        if result.rc != 0:
+            missing_ports[node] = ["FIREWALL_NOT_ACCESSIBLE"]
+            continue
+
+        fw_output = result.stdout.lower()
+        node_missing = []
+
+        for port_spec in K8S_FIREWALL_PORTS_WORKER:
+            if port_spec.lower() not in fw_output:
+                node_missing.append(port_spec)
+
+        if node_missing:
+            missing_ports[node] = node_missing
+
+    if not missing_ports:
+        return {
+            "success": True,
+            "details": f"All required firewall ports open on {nodes_checked} worker node(s)",
+            "error": "",
+            "nodes_checked": nodes_checked,
+            "missing_ports": {},
+        }
+
+    return {
+        "success": False,
+        "details": f"Missing firewall ports on {len(missing_ports)} worker node(s)",
+        "error": f"Missing ports: {missing_ports}",
+        "nodes_checked": nodes_checked,
+        "missing_ports": missing_ports,
+    }
+
+
+# =============================================================================
+# SYSTEMD TARGET VERIFICATION
+# =============================================================================
+
+def check_k8s_nfs_client_target(host) -> Dict[str, Any]:
+    """Verify nfs-client.target is active on all K8s nodes.
+
+    Source: cloud-init templates restart nfs-client.target on all K8s nodes
+    to ensure NFS mounts are established before K8s services start.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, nodes_checked, failed_nodes
+    """
+    all_nodes = get_k8s_control_plane_nodes(host) + get_k8s_worker_nodes(host)
+    if not all_nodes:
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "No K8s nodes found",
+            "error": "No K8s nodes in PXE mapping",
+            "nodes_checked": 0,
+            "failed_nodes": [],
+        }
+
+    failed_nodes = []
+    nodes_checked = 0
+
+    for node in all_nodes:
+        node_ip = get_node_ip_from_pxe(host, node)
+        if not node_ip:
+            continue
+
+        nodes_checked += 1
+        for target in K8S_SYSTEMD_TARGETS:
+            cmd = _ssh_cmd(node_ip, f"systemctl is-active {target} 2>/dev/null")
+            result = run_on_host(host, cmd)
+
+            if result.stdout.strip() != "active":
+                failed_nodes.append(f"{node} ({target}: {result.stdout.strip()})")
+
+    if not failed_nodes:
+        return {
+            "success": True,
+            "details": f"nfs-client.target active on all {nodes_checked} K8s node(s)",
+            "error": "",
+            "nodes_checked": nodes_checked,
+            "failed_nodes": [],
+        }
+
+    return {
+        "success": False,
+        "details": f"nfs-client.target not active on {len(failed_nodes)} node(s)",
+        "error": f"Failed: {failed_nodes}",
+        "nodes_checked": nodes_checked,
+        "failed_nodes": failed_nodes,
     }

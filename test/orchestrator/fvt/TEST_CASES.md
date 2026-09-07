@@ -125,7 +125,7 @@
 ||-------|---------------|-------------|--------|
 || TC_K8_001 | `test_k8s_enabled` | Verify K8s is enabled in config | kubernetes, sanity |
 || TC_K8_005 | `test_kubelet_running` | Verify kubelet running on all nodes | kubernetes, sanity |
-|| TC_K8_006 | `test_containerd_running` | Verify containerd running on all nodes | kubernetes, sanity |
+|| TC_K8_006 | `test_containerd_running` | Verify container runtime (CRI-O) running on all nodes | kubernetes, sanity |
 || TC_K8_008 | `test_k8s_apiserver_responding` | Verify K8s API server responding | kubernetes, sanity |
 || TC_K8_009 | `test_k8s_directories_exist` | Verify K8s directories exist | kubernetes, sanity |
 || TC_K8_010 | `test_k8s_config_files_exist` | Verify K8s config files exist | kubernetes, sanity |
@@ -230,6 +230,16 @@
 
 ---
 
+## Kubernetes Firewall & Systemd Targets (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_052 | `test_k8s_firewall_ports_control_plane` | Verify firewall ports on CP nodes | kubernetes, sanity |
+|| TC_K8_053 | `test_k8s_firewall_ports_workers` | Verify firewall ports on workers | kubernetes, sanity |
+|| TC_K8_054 | `test_k8s_nfs_client_target` | Verify nfs-client.target active | kubernetes, sanity |
+
+---
+
 ## Kubernetes Comprehensive Tests (`fvt/kubernetes/`)
 
 || TC ID | Test Function | Description | Marker |
@@ -317,7 +327,7 @@
 
 ## Test Summary
 
-**Total Test Cases: 125**
+**Total Test Cases: 128**
 
 | Category | Count |
 |----------|-------|
@@ -338,6 +348,7 @@
 | K8s HA / Virtual IP | 1 |
 | K8s Network Pods | 3 |
 | K8s Storage & CSI | 8 |
+| K8s Firewall & Targets | 3 |
 | K8s Comprehensive Tests | 10 |
 | K8s Provision Tests | 1 |
 | Validate Tests | 6 |
@@ -346,6 +357,6 @@
 | Cleanup Tests | 4 |
 | Rollback Tests | 1 |
 | DCGM Tests | 3 |
-| **Total** | **125** |
+| **Total** | **128** |
 
 **Note**: Some test IDs may be reused across different test files (e.g., TC_SL_001 appears in both status and infrastructure tests). This is intentional as they test different aspects of the same functionality.

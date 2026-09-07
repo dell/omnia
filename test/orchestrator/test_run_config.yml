@@ -28,6 +28,7 @@
 # Top-level categories match the run_validation.sh first argument:
 #
 #   fvt_orchestrator  — Functional Verification Tests (playbook tags)
+#   fvt_k8s           — Standalone Kubernetes Verification Tests
 #
 # FVT scenarios (nested under fvt_orchestrator):
 #   Each scenario maps to an Ansible playbook tag.  Fields:
@@ -102,18 +103,73 @@ fvt_orchestrator:
     dataset: ""
     sync_input: true
 
-  kubernetes:
-    run: false
-    command: "test"
-    suite: ""
-    marker: "kubernetes"
-    dataset: ""
-    sync_input: true
-
   cleanup:
     run: false
     command: "test"
     suite: ""
     marker: ""
     dataset: ""
+    sync_input: false
+
+# =============================================================================
+# FVT — Kubernetes-Specific Verification Tests
+# =============================================================================
+# Standalone K8s entry point.  Run with:
+#   ./run_validation.sh fvt_k8s <tag> <command> [options]
+#
+# Tags map to fvt/validate/kubernetes/ test files:
+#   services   — CRI-O, chronyd, kubectl/kubeadm versions, runtime, status
+#   etcd       — etcd health, member list, leader consistency
+#   ha         — Virtual IP / HA configuration
+#   network    — kube-vip, Calico, MetalLB pods
+#   storage    — NFS, StorageClass, PVs, CSI, telemetry PVCs
+#   firewall   — Firewall port verification on CP and workers
+# =============================================================================
+fvt_k8s:
+  services:
+    run: true
+    command: "verify"
+    suite: "kubernetes"
+    marker: "kubernetes,sanity"
+    dataset: "k8s_only"
+    sync_input: true
+
+  etcd:
+    run: true
+    command: "verify"
+    suite: "kubernetes"
+    marker: "kubernetes,sanity"
+    dataset: "k8s_only"
+    sync_input: false
+
+  ha:
+    run: false
+    command: "verify"
+    suite: "kubernetes"
+    marker: "kubernetes,sanity"
+    dataset: "k8s_only"
+    sync_input: false
+
+  network:
+    run: true
+    command: "verify"
+    suite: "kubernetes"
+    marker: "kubernetes,sanity"
+    dataset: "k8s_only"
+    sync_input: false
+
+  storage:
+    run: false
+    command: "verify"
+    suite: "kubernetes"
+    marker: "kubernetes,sanity"
+    dataset: "k8s_only"
+    sync_input: false
+
+  firewall:
+    run: false
+    command: "verify"
+    suite: "kubernetes"
+    marker: "kubernetes,sanity"
+    dataset: "k8s_only"
     sync_input: false

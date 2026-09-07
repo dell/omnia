@@ -39,8 +39,8 @@ TEST_LOG_MSGS: Dict[str, str] = {
     # Service checks
     "kubelet_check_ok": "kubelet service is active on all nodes",
     "kubelet_check_failed": "kubelet service failed on nodes: {nodes}",
-    "containerd_check_ok": "containerd service is active on all nodes",
-    "containerd_check_failed": "containerd service failed on nodes: {nodes}",
+    "containerd_check_ok": "Container runtime (CRI-O) is active on all nodes",
+    "containerd_check_failed": "Container runtime (CRI-O) failed on nodes: {nodes}",
 
     # Pod checks
     "system_pods_ok": "All kube-system pods are Running",
@@ -153,6 +153,16 @@ TEST_LOG_MSGS: Dict[str, str] = {
     # Workload
     "busybox_pod_ok": "BusyBox pod deployed and reached Running state",
     "busybox_pod_failed": "BusyBox pod deployment failed: {error}",
+
+    # Firewall
+    "firewall_ports_cp_ok": "All required firewall ports open on {count} control plane node(s)",
+    "firewall_ports_cp_failed": "Missing firewall ports on control plane nodes: {error}",
+    "firewall_ports_workers_ok": "All required firewall ports open on {count} worker node(s)",
+    "firewall_ports_workers_failed": "Missing firewall ports on worker nodes: {error}",
+
+    # Systemd Targets
+    "nfs_client_target_ok": "nfs-client.target active on all {count} K8s node(s)",
+    "nfs_client_target_failed": "nfs-client.target not active on some nodes: {error}",
 }
 
 # =============================================================================
@@ -201,14 +211,14 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
     ),
     "containerd_not_running": (
         "\n\u2554" + _BORDER + "\u2557\n"
-        "\u2551 CONTAINERD SERVICE NOT RUNNING\n"
+        "\u2551 CONTAINER RUNTIME (CRI-O) NOT RUNNING\n"
         "\u2560" + _BORDER + "\u2563\n"
-        "\u2551 containerd is not active on one or more nodes.\n"
+        "\u2551 CRI-O (crio.service) is not active on one or more nodes.\n"
         "\u2551\n"
         "\u2551 HOW TO FIX:\n"
-        "\u2551   1. SSH to the node and check: systemctl status containerd\n"
-        "\u2551   2. Check containerd logs: journalctl -xeu containerd\n"
-        "\u2551   3. Restart containerd: systemctl restart containerd\n"
+        "\u2551   1. SSH to the node and check: systemctl status crio\n"
+        "\u2551   2. Check CRI-O logs: journalctl -xeu crio\n"
+        "\u2551   3. Restart CRI-O: systemctl restart crio\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
     "system_pods_not_running": (
@@ -426,7 +436,7 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Check node status: kubectl get nodes -l '!node-role.kubernetes.io/control-plane'\n"
         "\u2551   2. Check kubelet logs: journalctl -u kubelet -f\n"
-        "\u2551   3. Check containerd: systemctl status containerd\n"
+        "\u2551   3. Check CRI-O: systemctl status crio\n"
         "\u2551   4. Verify network connectivity between nodes\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
@@ -704,6 +714,46 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551   1. Check available resources: kubectl top nodes\n"
         "\u2551   2. Check scheduler: kubectl get pods -n kube-system | grep scheduler\n"
         "\u2551   3. Check events: kubectl get events\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "firewall_ports_cp_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 FIREWALL PORTS MISSING ON CONTROL PLANE\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Required firewall ports are not open on control plane nodes.\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check current ports: firewall-cmd --list-all\n"
+        "\u2551   2. Add missing ports: firewall-cmd --add-port=<port> --permanent\n"
+        "\u2551   3. Reload: firewall-cmd --reload\n"
+        "\u2551   4. Re-provision if cloud-init setup is incomplete\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "firewall_ports_workers_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 FIREWALL PORTS MISSING ON WORKER NODES\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Required firewall ports are not open on worker nodes.\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check current ports: firewall-cmd --list-all\n"
+        "\u2551   2. Add missing ports: firewall-cmd --add-port=<port> --permanent\n"
+        "\u2551   3. Reload: firewall-cmd --reload\n"
+        "\u2551   4. Re-provision if cloud-init setup is incomplete\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "nfs_client_target_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 NFS-CLIENT.TARGET NOT ACTIVE\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 nfs-client.target is not active on one or more K8s nodes.\n"
+        "\u2551 NFS mounts may not be established.\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check: systemctl status nfs-client.target\n"
+        "\u2551   2. Enable: systemctl enable --now nfs-client.target\n"
+        "\u2551   3. Verify NFS mounts: mount | grep nfs\n"
+        "\u2551   4. Check NFS server reachability\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 }

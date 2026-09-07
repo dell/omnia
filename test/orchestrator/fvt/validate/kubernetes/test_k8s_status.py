@@ -17,7 +17,7 @@ Orchestrator Validate — Kubernetes Service Status.
 
 TC_K8_001: Verify K8s is enabled in catalog
 TC_K8_005: Verify kubelet service is running on all nodes
-TC_K8_006: Verify containerd service is running on all nodes
+TC_K8_006: Verify container runtime (CRI-O) is running on all nodes
 TC_K8_008: Verify Kubernetes API server is responding
 TC_K8_009: Verify Kubernetes directories exist on nodes
 TC_K8_010: Verify Kubernetes configuration files exist
@@ -98,13 +98,13 @@ def test_kubelet_running(host):
 @pytest.mark.sanity
 @pytest.mark.order(3)
 def test_containerd_running(host):
-    """TC_K8_006: Verify containerd service is running on all nodes."""
+    """TC_K8_006: Verify container runtime (CRI-O) is running on all nodes."""
     _skip_if_k8s_disabled(host)
 
     tc = TC["containerd_running"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Checking containerd service status on all nodes")
+    tl.check("Checking container runtime (CRI-O) status on all nodes")
     result = check_containerd_running(host)
 
     if result["success"]:
