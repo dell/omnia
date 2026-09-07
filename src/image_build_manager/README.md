@@ -109,7 +109,7 @@ ansible-playbook image_build_manager.yml --tags cleanup_images \
 
 | File | Location | Description |
 |------|----------|-------------|
-| `build_status.yml` | `output/<project>/` | Per-group S3 artifact paths for provisioning |
+| `build_status.yml` | `output/<project>/` | Producing image engine and per-group S3 artifact paths for provisioning |
 
 See `samples/` for example input and output files.
 

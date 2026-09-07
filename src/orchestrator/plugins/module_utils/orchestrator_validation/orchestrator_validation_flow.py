@@ -121,29 +121,6 @@ def validate_kernel_version_override(config_data, errors, logger=None):
             logger.error(msg)
 
 
-def validate_s3_config(config_data, errors, logger=None):
-    """
-    When s3_storage_provider is 'powerscale' or 'external', s3_endpoint is required.
-    When 'minio', s3_endpoint should not be set.
-    """
-    provider = config_data.get("s3_storage_provider", "minio")
-    endpoint = config_data.get("s3_endpoint", "")
-
-    if provider in ("powerscale", "external"):
-        if not endpoint or not endpoint.strip():
-            msg = (f"orchestrator_config: 's3_endpoint' is required when "
-                   f"s3_storage_provider is '{provider}'.")
-            errors.append(msg)
-            if logger:
-                logger.error(msg)
-
-    if provider == "minio" and endpoint:
-        msg = ("orchestrator_config: 's3_endpoint' should not be set when "
-               "s3_storage_provider is 'minio' (auto-managed).")
-        if logger:
-            logger.warning(msg)
-
-
 def validate_additional_cloud_init_config(config_data, errors, logger=None):
     """If additional_cloud_init_config_file is set, the file must exist."""
     aci_path = config_data.get("additional_cloud_init_config_file", "")
@@ -155,21 +132,19 @@ def validate_additional_cloud_init_config(config_data, errors, logger=None):
             logger.error(msg)
 
 
-def validate_pxe_mapping_file(config_data, errors, logger=None):
+def validate_pxe_mapping_file(
+    config_data, input_project_dir, errors, logger=None
+):
     """
-    If pxe_mapping_file_path is set, validate the mapping file:
+    Validate the configured PXE mapping file, or the project-default file:
       - File must exist
       - Required header columns must be present
       - No duplicate SERVICE_TAGs, HOSTNAMEs, or ADMIN_IPs
       - ADMIN_IP values must be valid IPv4
     """
-    path = config_data.get("pxe_mapping_file_path", "")
-    if not path:
-        msg = "orchestrator_config: 'pxe_mapping_file_path' is required."
-        errors.append(msg)
-        if logger:
-            logger.error(msg)
-        return
+    path = config_data.get("pxe_mapping_file_path") or os.path.join(
+        input_project_dir, "pxe_mapping_file.csv"
+    )
 
     if not os.path.isfile(path):
         msg = f"orchestrator_config: pxe_mapping_file_path '{path}' does not exist."
@@ -240,8 +215,10 @@ def validate_network_spec_cross(config_data, input_project_dir, errors, logger=N
     """
     Cross-validate ADMIN_IPs in the mapping file against network_spec.yml subnets.
     """
-    path = config_data.get("pxe_mapping_file_path", "")
-    if not path or not os.path.isfile(path):
+    path = config_data.get("pxe_mapping_file_path") or os.path.join(
+        input_project_dir, "pxe_mapping_file.csv"
+    )
+    if not os.path.isfile(path):
         return
 
     ns_path = os.path.join(input_project_dir, "network_spec.yml")
@@ -353,8 +330,7 @@ def validate_orchestrator_config_l2(config_data, input_project_dir, logger=None)
     validate_language(config_data, errors, logger)
     validate_default_lease_time(config_data, errors, logger)
     validate_kernel_version_override(config_data, errors, logger)
-    validate_s3_config(config_data, errors, logger)
     validate_additional_cloud_init_config(config_data, errors, logger)
-    validate_pxe_mapping_file(config_data, errors, logger)
+    validate_pxe_mapping_file(config_data, input_project_dir, errors, logger)
     validate_network_spec_cross(config_data, input_project_dir, errors, logger)
     return errors

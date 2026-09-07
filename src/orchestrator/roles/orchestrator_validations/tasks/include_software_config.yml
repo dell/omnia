@@ -65,7 +65,18 @@
          if (catalog_data.catalog.packages is defined and
              catalog_data.catalog.packages.kubeadm is defined)
          else '' -%}
-      {{ fl_ver if fl_ver else pkg_ver }}
+      {% set ns = namespace(key_ver='') -%}
+      {% if not fl_ver and not pkg_ver and catalog_data.catalog.packages is defined -%}
+        {% for key in catalog_data.catalog.packages.keys() -%}
+          {% if not ns.key_ver and key is match('kubeadm.*|kubectl.*|kubelet.*') -%}
+            {% set ns.key_ver = catalog_data.catalog.packages[key].name
+               | default(key)
+               | regex_search('[0-9]+\\.[0-9]+\\.[0-9]+')
+               | default('', true) -%}
+          {% endif -%}
+        {% endfor -%}
+      {% endif -%}
+      {{ fl_ver if fl_ver else (pkg_ver if pkg_ver else ns.key_ver) }}
   when:
     - service_k8s_support | default(false) | bool
     - catalog_data is defined

@@ -28,7 +28,7 @@
     omnia_config_path: "{{ omnia_config_dir }}/{{ omnia_config_file }}"
     classification_file_path: "{{ role_path }}/../../vars/functional_group_classification.yml"
 
-- name: Check the functional_groups_config.yml file is created in /opt/omnia/.data
+- name: Check whether the generated functional groups configuration exists
   ansible.builtin.stat:
     path: "{{ functional_groups_config_path }}"
   register: functional_groups_file

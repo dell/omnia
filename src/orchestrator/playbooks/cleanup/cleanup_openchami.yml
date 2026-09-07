@@ -36,9 +36,9 @@
   gather_facts: true
   vars:
     openchami_config_dir: /etc/openchami
-    openchami_share_dir: /opt/omnia/openchami
-    openchami_log_dir: /opt/omnia/log/openchami
-    openchami_work_dir: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}/omnia/openchami/workdir"
+    openchami_share_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/openchami"
+    openchami_log_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/orchestrator/log/openchami"
+    openchami_work_dir: "{{ openchami_share_dir }}/workdir"
     ochami_dir: /etc/ochami
   tasks:
     - name: Stop OpenCHAMI services
@@ -94,7 +94,7 @@
 
     - name: Remove generated inventories
       ansible.builtin.file:
-        path: "{{ hostvars['localhost']['orchestrator_output_dir'] | default('/opt/omnia/output/project_default/orchestrator') }}/inventories"
+        path: "{{ hostvars['localhost']['orchestrator_output_dir'] }}/inventories"
         state: absent
       failed_when: false
 
@@ -120,17 +120,17 @@
         path: "{{ item }}"
         state: absent
       loop:
-        - /opt/omnia/.data/functional_groups_config.yml
-        - "{{ orchestrator_output_dir | default('/opt/omnia/output/project_default/orchestrator') }}/orchestrator_state.yml"
+        - "{{ hostvars['localhost']['omnia_data_path'] }}/.data/functional_groups_config.yml"
+        - "{{ hostvars['localhost']['orchestrator_output_dir'] }}/orchestrator_state.yml"
 
     - name: Remove orchestrator output directory
       ansible.builtin.file:
-        path: "{{ orchestrator_output_dir | default('/opt/omnia/output/project_default/orchestrator') }}"
+        path: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
         state: absent
 
     - name: Remove upgrade lock file if present
       ansible.builtin.file:
-        path: "/opt/omnia/.data/upgrade_in_progress.lock"
+        path: "{{ hostvars['localhost']['omnia_data_path'] }}/.data/upgrade_in_progress.lock"
         state: absent
 
     - name: OpenCHAMI cleanup completed

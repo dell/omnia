@@ -11,7 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# pylint: disable=line-too-long,import-error,no-name-in-module,unused-import
+# pylint: disable=duplicate-code,import-error,line-too-long
+# pylint: disable=no-name-in-module,unused-import
 
 """
 Compatibility re-export of local_repo configuration.
@@ -19,7 +20,7 @@ Compatibility re-export of local_repo configuration.
 Concrete definitions have been split into:
   - repo_paths.py   : directory and file path constants
   - repo_settings.py: general settings and tunables
-  - pulp_commands.py: Pulp/CLI command templates
+  - pulp_commands.py: shell-free Pulp CLI command definitions
 """
 
 from ansible.module_utils.repo_manager.repo_paths import (
@@ -32,6 +33,8 @@ from ansible.module_utils.repo_manager.repo_paths import (
     REPO_MANAGER_OFFLINE_REPO_DIR,
     REPO_MANAGER_DATA_DIR,
     CLI_FILE_PATH,
+    PULP_REPO_FILE_PATH,
+    PULP_CLI_EXECUTABLE,
     PULP_SSL_CA_CERT,
     OMNIA_CREDENTIALS_YAML_PATH,
     OMNIA_CREDENTIALS_VAULT_PATH,
@@ -51,12 +54,13 @@ from ansible.module_utils.repo_manager.repo_settings import (
     SOFTWARE_CSV_HEADER,
     REPO_MANAGER_CONFIG_PATH_DEFAULT,
     SOFTWARE_CSV_FILENAME,
-    FRESH_INSTALLATION_STATUS,
-    PACKAGE_TYPES,
-    CSV_COLUMNS,
     SOFTWARES_KEY,
     RPM_LABEL_TEMPLATE,
+    DEFAULT_OS_TYPE,
     ARCH_SUFFIXES,
+    SUPPORTED_OS_TYPES,
+    PLATFORM_VERSION_ORDER,
+    SUBSCRIPTION_REPOSITORIES,
     OS_TARGET_PYTHON,
     ARCH_PIP_PLATFORMS,
     REPO_NAME_FORMAT,
@@ -70,21 +74,10 @@ from ansible.module_utils.repo_manager.repo_settings import (
     ISO_TIMEOUT_MIN,
     TASK_POLL_INTERVAL,
     FILE_URI,
-    PULP_CONCURRENCY,
     CLEANUP_BASE_PATH_DEFAULT,
-    CLEANUP_STATUS_FILE_PATH_DEFAULT,
-    CLEANUP_LOG_PATH_DEFAULT,
-    CLEANUP_DELETE_REMOTE_DEFAULT,
-    CLEANUP_DELETE_DISTRIBUTION_DEFAULT,
-    CLEANUP_CLEANUP_ORPHANS_AFTER_DEFAULT,
-    CLEANUP_LIST_ONLY_DEFAULT,
-    CLEANUP_FORCE_DEFAULT,
-    CLEANUP_STATUS_SUCCESS,
-    CLEANUP_STATUS_FAILED,
-    CLEANUP_STATUS_IN_PROGRESS,
-    CLEANUP_STATUS_FILENAME,
-    CLEANUP_STATUS_CSV_HEADER,
-    CLEANUP_LOG_FILE_PATH,
+    PULP_CONTENT_ROUTE,
+    PULP_DISTRIBUTION_ROOT,
+    PULP_DISTRIBUTION_ROOT_PARTS,
     AGGREGATED_REPO_SUFFIX,
     AGGREGATED_BASE_PATH_TEMPLATE,
     STANDARD_LOG_FILE_PATH,
@@ -97,20 +90,24 @@ from ansible.module_utils.repo_manager.repo_settings import (
     RPM_SYNC_STUCK_TIMEOUT,
     RPM_PROGRESS_CHECK_INTERVAL,
     RPM_CLEANUP_ON_TIMEOUT,
-    RPM_CLEANUP_ORPHANS_ONLY,
+    RPM_CLI_QUERY_TIMEOUT,
+    RPM_CLI_QUERY_RETRIES,
+    RPM_CLI_QUERY_RETRY_DELAY,
+    RPM_API_UNAVAILABLE_TIMEOUT,
     iterate_all_repos,
     get_repos_section,
     collect_all_repo_names,
 )
-from ansible.module_utils.repo_manager.pulp_commands import (
-    pulp_file_commands,
-    pulp_python_commands,
-    pulp_container_commands,
-    pulp_rpm_commands,
+from ansible.module_utils.repo_manager.dnf_package_manager import (
     DNF_COMMANDS,
     DNF_INFO_COMMANDS,
 )
-
+from ansible.module_utils.repo_manager.pulp_commands import (
+    pulp_container_commands,
+    pulp_file_commands,
+    pulp_python_commands,
+    pulp_rpm_commands,
+)
 __all__ = (
     [
         "REPO_MANAGER_BASE_DIR",
@@ -122,6 +119,8 @@ __all__ = (
         "REPO_MANAGER_OFFLINE_REPO_DIR",
         "REPO_MANAGER_DATA_DIR",
         "CLI_FILE_PATH",
+        "PULP_REPO_FILE_PATH",
+        "PULP_CLI_EXECUTABLE",
         "PULP_SSL_CA_CERT",
         "OMNIA_CREDENTIALS_YAML_PATH",
         "OMNIA_CREDENTIALS_VAULT_PATH",
@@ -141,12 +140,13 @@ __all__ = (
         "SOFTWARE_CSV_HEADER",
         "REPO_MANAGER_CONFIG_PATH_DEFAULT",
         "SOFTWARE_CSV_FILENAME",
-        "FRESH_INSTALLATION_STATUS",
-        "PACKAGE_TYPES",
-        "CSV_COLUMNS",
         "SOFTWARES_KEY",
         "RPM_LABEL_TEMPLATE",
+        "DEFAULT_OS_TYPE",
         "ARCH_SUFFIXES",
+        "SUPPORTED_OS_TYPES",
+        "PLATFORM_VERSION_ORDER",
+        "SUBSCRIPTION_REPOSITORIES",
         "OS_TARGET_PYTHON",
         "ARCH_PIP_PLATFORMS",
         "REPO_NAME_FORMAT",
@@ -160,21 +160,10 @@ __all__ = (
         "ISO_TIMEOUT_MIN",
         "TASK_POLL_INTERVAL",
         "FILE_URI",
-        "PULP_CONCURRENCY",
         "CLEANUP_BASE_PATH_DEFAULT",
-        "CLEANUP_STATUS_FILE_PATH_DEFAULT",
-        "CLEANUP_LOG_PATH_DEFAULT",
-        "CLEANUP_DELETE_REMOTE_DEFAULT",
-        "CLEANUP_DELETE_DISTRIBUTION_DEFAULT",
-        "CLEANUP_CLEANUP_ORPHANS_AFTER_DEFAULT",
-        "CLEANUP_LIST_ONLY_DEFAULT",
-        "CLEANUP_FORCE_DEFAULT",
-        "CLEANUP_STATUS_SUCCESS",
-        "CLEANUP_STATUS_FAILED",
-        "CLEANUP_STATUS_IN_PROGRESS",
-        "CLEANUP_STATUS_FILENAME",
-        "CLEANUP_STATUS_CSV_HEADER",
-        "CLEANUP_LOG_FILE_PATH",
+        "PULP_CONTENT_ROUTE",
+        "PULP_DISTRIBUTION_ROOT",
+        "PULP_DISTRIBUTION_ROOT_PARTS",
         "AGGREGATED_REPO_SUFFIX",
         "AGGREGATED_BASE_PATH_TEMPLATE",
         "STANDARD_LOG_FILE_PATH",
@@ -187,17 +176,20 @@ __all__ = (
         "RPM_SYNC_STUCK_TIMEOUT",
         "RPM_PROGRESS_CHECK_INTERVAL",
         "RPM_CLEANUP_ON_TIMEOUT",
-        "RPM_CLEANUP_ORPHANS_ONLY",
-        iterate_all_repos,
-        get_repos_section,
-        collect_all_repo_names,
+        "RPM_CLI_QUERY_TIMEOUT",
+        "RPM_CLI_QUERY_RETRIES",
+        "RPM_CLI_QUERY_RETRY_DELAY",
+        "RPM_API_UNAVAILABLE_TIMEOUT",
+        "iterate_all_repos",
+        "get_repos_section",
+        "collect_all_repo_names",
     ]
     + [
-        "pulp_file_commands",
-        "pulp_python_commands",
-        "pulp_container_commands",
-        "pulp_rpm_commands",
         "DNF_COMMANDS",
         "DNF_INFO_COMMANDS",
+        "pulp_container_commands",
+        "pulp_file_commands",
+        "pulp_python_commands",
+        "pulp_rpm_commands",
     ]
 )

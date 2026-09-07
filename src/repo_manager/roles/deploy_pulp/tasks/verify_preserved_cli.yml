@@ -1,0 +1,147 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Inspect preserved system Pulp CLI launcher
+  ansible.builtin.stat:
+    path: "{{ pulp_cli_executable }}"
+    follow: false
+  register: _preserved_pulp_launcher
+
+- name: Inspect preserved Pulp CLI backend
+  ansible.builtin.stat:
+    path: "{{ pulp_cli_backend }}"
+    follow: false
+  register: _preserved_pulp_backend
+
+- name: Inspect configured Omnia virtual environment CLI directory
+  ansible.builtin.stat:
+    path: "{{ pulp_venv_cli_executable | dirname }}"
+    follow: false
+  register: _preserved_pulp_venv_directory
+  when:
+    - pulp_cli_runtime_mode == 'venv'
+    - pulp_venv_path is match('^/')
+
+- name: Verify preserved Pulp CLI launcher ownership marker
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -Fqx
+      - "# Managed by Omnia Repo Manager"
+      - "{{ pulp_cli_executable }}"
+  register: _preserved_pulp_launcher_marker
+  changed_when: false
+  failed_when: false
+
+- name: Require a valid preserved Pulp CLI command chain
+  ansible.builtin.assert:
+    that:
+      - _preserved_pulp_launcher.stat.exists | default(false)
+      - _preserved_pulp_launcher.stat.isreg | default(false)
+      - _preserved_pulp_launcher.stat.executable | default(false)
+      - _preserved_pulp_launcher_marker.rc == 0
+      - _preserved_pulp_backend.stat.exists | default(false)
+      - _preserved_pulp_backend.stat.isreg | default(false)
+      - _preserved_pulp_backend.stat.executable | default(false)
+    fail_msg: "{{ deploy_pulp_require_a_valid_preserved_pulp_cli_command_chain_msg }}"
+    quiet: true
+  when: _preserved_pulp_launcher_marker.rc == 0
+
+- name: Preserve the configured virtual environment Pulp CLI link
+  ansible.builtin.file:
+    src: "{{ pulp_cli_executable }}"
+    dest: "{{ pulp_venv_cli_executable }}"
+    state: link
+    force: true
+  when:
+    - _preserved_pulp_launcher_marker.rc == 0
+    - pulp_cli_runtime_mode == 'venv'
+    - pulp_venv_path is match('^/')
+    - _preserved_pulp_venv_directory.stat.exists | default(false)
+    - _preserved_pulp_venv_directory.stat.isdir | default(false)
+
+- name: Inspect preserved Omnia virtual environment Pulp CLI link
+  ansible.builtin.stat:
+    path: "{{ pulp_venv_cli_executable }}"
+    follow: false
+  register: _preserved_pulp_venv_link
+  when:
+    - _preserved_pulp_launcher_marker.rc == 0
+    - pulp_cli_runtime_mode == 'venv'
+    - pulp_venv_path is match('^/')
+    - _preserved_pulp_venv_directory.stat.exists | default(false)
+    - _preserved_pulp_venv_directory.stat.isdir | default(false)
+
+- name: Require a valid preserved virtual environment Pulp CLI link
+  ansible.builtin.assert:
+    that:
+      - _preserved_pulp_venv_link.stat.exists | default(false)
+      - _preserved_pulp_venv_link.stat.islnk | default(false)
+      - _preserved_pulp_venv_link.stat.lnk_source == pulp_cli_executable
+    fail_msg: "{{ deploy_pulp_require_a_valid_preserved_virtual_environment_pulp_cli_link_msg }}"
+    quiet: true
+  when:
+    - _preserved_pulp_launcher_marker.rc == 0
+    - pulp_cli_runtime_mode == 'venv'
+    - pulp_venv_path is match('^/')
+    - _preserved_pulp_venv_directory.stat.exists | default(false)
+    - _preserved_pulp_venv_directory.stat.isdir | default(false)
+
+- name: Report unavailable configured virtual environment during cleanup
+  ansible.builtin.debug:
+    msg: >-
+      OMNIA_VENV_PATH is set to {{ pulp_venv_path }}, but its bin directory is
+      unavailable. The system Pulp CLI was preserved and cleanup will continue.
+  when:
+    - _preserved_pulp_launcher_marker.rc == 0
+    - pulp_cli_runtime_mode == 'venv'
+    - >-
+      (pulp_venv_path is not match('^/')) or
+      not ((_preserved_pulp_venv_directory.stat.exists | default(false)) and
+           (_preserved_pulp_venv_directory.stat.isdir | default(false)))
+
+- name: Verify preserved Pulp CLI can report its version
+  ansible.builtin.command:
+    argv: "{{ [pulp_cli_executable] + pulp_cli_commands.common.version }}"
+  register: _preserved_pulp_cli_version
+  changed_when: false
+  when: _preserved_pulp_launcher_marker.rc == 0
+
+- name: Display preserved Pulp CLI status
+  ansible.builtin.debug:
+    msg:
+      - "Runtime mode: {{ pulp_cli_runtime_mode }}"
+      - "System launcher: {{ pulp_cli_executable }}"
+      - >-
+        Venv link:
+        {% if pulp_cli_runtime_mode != 'venv' %}
+        not configured
+        {% elif (_preserved_pulp_venv_directory.stat.exists | default(false))
+                and (_preserved_pulp_venv_directory.stat.isdir
+                     | default(false)) %}
+        {{ pulp_venv_cli_executable }} -> {{ pulp_cli_executable }}
+        {% else %}
+        unavailable
+        {% endif %}
+      - "Backend: {{ pulp_cli_backend }}"
+      - "Version: {{ _preserved_pulp_cli_version.stdout }}"
+      - "Server commands remain unavailable until Pulp is prepared again."
+  when: _preserved_pulp_launcher_marker.rc == 0
+
+- name: Report unmanaged or absent Pulp CLI
+  ansible.builtin.debug:
+    msg: >-
+      No Repo Manager-managed Pulp CLI launcher was present. Cleanup did not
+      modify any independently installed Pulp CLI.
+  when: _preserved_pulp_launcher_marker.rc != 0

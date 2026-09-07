@@ -29,10 +29,12 @@
   delay: "{{ max_delay }}"
   until: access_token_result.rc == 0
   changed_when: false
+  no_log: true
 
 - name: Set ochami_env
   ansible.builtin.set_fact:
     ochami_env: "{{ {cluster_env_key: access_token_result.stdout} }}"
+  no_log: true
 
 - name: Verify ochami installation
   environment: "{{ ochami_env }}"

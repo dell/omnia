@@ -28,12 +28,10 @@
     filter_slurm_nfs: []
     filter_service_k8s_nfs: []
 
-- name: Check if slurm support is true and if slurm control nodes exist in functional_groups
+- name: Initialize support flags
   ansible.builtin.set_fact:
-    slurm_support: true
-  when:
-    - hostvars['localhost']['slurm_support'] | default(false) | bool
-    - (hostvars['localhost']['functional_groups'] | map(attribute='name') | select('match', '^slurm_control_node_') | list | length) > 0
+    slurm_support: "{{ hostvars['localhost']['slurm_support'] | default(false) }}"
+    service_k8s_support: "{{ hostvars['localhost']['service_k8s_support'] | default(false) }}"
 
 - name: Include omnia_config
   ansible.builtin.include_vars:

@@ -14,16 +14,15 @@
 ---
 # Architecture-agnostic variables — build_arch is set by the calling playbook
 # ---------------------------------------------------------------------------
-# Build-type suffix — applied to ALL output artifact names (base image, compute
-# image, S3 prefixes) so the two build engines produce clearly distinct artifacts
-# that can coexist in the same OCI registry and S3 bucket without overwriting
-# each other.
+# Build-type suffix — applied to all output artifact names (base image, compute
+# image, and S3 prefixes) so artifacts produced by the two build engines remain
+# distinct and can coexist without overwriting each other.
 #
-#   image-builder     →  suffix "-imgbld"   e.g. rhel-x86_64-base-imgbld
-#   image-thrillhouse →  suffix "-imgth"    e.g. rhel-x86_64-base-imgth
+#   image-builder     → suffix "-imgbld", for example rhel-x86_64-base-imgbld
+#   image-thrillhouse → suffix "-imgth", for example rhel-x86_64-base-imgth
 #
-# Suffix is preferred over prefix so alphabetic registry/S3 listings keep all
-# "rhel-*" images grouped together; the engine qualifier trails the semantic name.
+# The engine qualifier trails the semantic name so registry and S3 listings keep
+# related "rhel-*" artifacts grouped together.
 # ---------------------------------------------------------------------------
 _build_type_suffix: "{{ (_is_thrillhouse | bool) | ternary('-imgth', '-imgbld') }}"
 rhel_arch_base_image_name: "rhel-{{ build_arch }}-base{{ _build_type_suffix }}"
@@ -76,8 +75,12 @@ anchors_path: "/etc/pki/ca-trust/source/anchors/{{ _cert_basename }}"
 _workdir_suffix: "{{ (_is_thrillhouse | bool) | ternary('image-thrillhouse', 'image-builder') }}"
 openchami_work_dir: "{{ shared_path }}/workdir/{{ _workdir_suffix }}"
 
-# Cert mount is conditional — only included when repo_cert_path is non-empty
-_cert_mount: "-v {{ repo_cert_path }}:{{ anchors_path }}:z"
+# The aarch64 preparation role copies the OIM certificate to anchors_path on the
+# remote build host. Delegated builds must mount that remote path, while x86_64
+# builds continue to mount the original OIM path.
+_cert_host_path: >-
+  {{ (build_arch == 'aarch64') | ternary(anchors_path, repo_cert_path) }}
+_cert_mount: "-v {{ _cert_host_path }}:{{ anchors_path }}:z"
 
 # Config mount path differs: image-builder uses /home/builder/config.yaml, thrillhouse uses /config.yaml
 _config_mount_path: "{{ (_is_thrillhouse | bool) | ternary('/config.yaml', '/home/builder/config.yaml') }}"

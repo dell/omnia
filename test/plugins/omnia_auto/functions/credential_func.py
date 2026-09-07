@@ -61,6 +61,29 @@ from ..messages.credential_msgs import (
     CREDENTIAL_LOG_MSGS as LOG,
     CREDENTIAL_ERROR_MSGS as ERR,
 )
+from .process_security import (
+    atomic_sensitive_output,
+    exclusive_sensitive_text,
+    open_sensitive_text,
+    protect_sensitive_file as _protect_sensitive_file,
+    run_vault_decrypt,
+    run_vault_encrypt,
+    sensitive_file_descriptor,
+    temporary_sensitive_descriptor,
+)
+
+
+def _run_vault_encrypt(
+    plaintext_fd: int, key_fd: int, encrypted_fd: int,
+) -> None:
+    """Encrypt descriptor content and validate the resulting Vault payload."""
+    run_vault_encrypt(
+        plaintext_fd,
+        key_fd,
+        encrypted_fd,
+        timeout=VAULT_TIMEOUT,
+        vault_header=VAULT_HEADER,
+    )
 
 
 # =====================================================================
@@ -76,7 +99,8 @@ def ensure_vault_key(key_path: str) -> Dict[str, Any]:
     Returns:
         Dict with keys: created (bool), message (str).
     """
-    if os.path.exists(key_path):
+    if os.path.lexists(key_path):
+        _protect_sensitive_file(key_path)
         return {
             "created": False,
             "message": LOG["vault_key_exists"].format(key_path=key_path),
@@ -85,9 +109,8 @@ def ensure_vault_key(key_path: str) -> Dict[str, Any]:
     parent = os.path.dirname(key_path)
     if parent:
         os.makedirs(parent, exist_ok=True)
-    with open(key_path, "w", encoding="utf-8") as key_fh:
+    with exclusive_sensitive_text(key_path, VAULT_FILE_MODE) as key_fh:
         key_fh.write(token)
-    os.chmod(key_path, VAULT_FILE_MODE)
     return {
         "created": True,
         "message": LOG["vault_key_created"].format(key_path=key_path),
@@ -107,9 +130,11 @@ def is_vault_encrypted(creds_path: str) -> bool:
     Returns:
         True if the first line starts with ``$ANSIBLE_VAULT``.
     """
-    if not os.path.exists(creds_path):
+    if not os.path.lexists(creds_path):
         return False
-    with open(creds_path, "r", encoding="utf-8") as creds_fh:
+    with open_sensitive_text(
+        creds_path, VAULT_FILE_MODE,
+    ) as creds_fh:
         first_line = creds_fh.readline().strip()
     return first_line.startswith(VAULT_HEADER)
 
@@ -124,23 +149,25 @@ def vault_encrypt(creds_path: str, key_path: str) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), message (str), error (str).
     """
-    if is_vault_encrypted(creds_path):
-        return {
-            "success": True,
-            "message": LOG["creds_already_encrypted"].format(
-                creds_path=creds_path,
-            ),
-            "error": "",
-        }
     try:
-        subprocess.run(
-            [
-                "ansible-vault", "encrypt", creds_path,
-                "--vault-password-file", key_path,
-            ],
-            capture_output=True, text=True,
-            timeout=VAULT_TIMEOUT, check=True,
-        )
+        if is_vault_encrypted(creds_path):
+            return {
+                "success": True,
+                "message": LOG["creds_already_encrypted"].format(
+                    creds_path=creds_path,
+                ),
+                "error": "",
+            }
+
+        with sensitive_file_descriptor(
+            creds_path, VAULT_FILE_MODE,
+        ) as creds_fd, sensitive_file_descriptor(
+            key_path, VAULT_FILE_MODE,
+        ) as key_fd, atomic_sensitive_output(
+            creds_path, VAULT_FILE_MODE,
+        ) as encrypted_fd:
+            _run_vault_encrypt(creds_fd, key_fd, encrypted_fd)
+
         return {
             "success": True,
             "message": LOG["creds_encrypted"].format(
@@ -154,14 +181,25 @@ def vault_encrypt(creds_path: str, key_path: str) -> Dict[str, Any]:
             "message": "",
             "error": ERR["vault_not_installed"],
         }
-    except subprocess.CalledProcessError as exc:
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        error_text = getattr(exc, "stderr", "") or str(exc)
         return {
             "success": False,
             "message": "",
             "error": ERR["encrypt_failed"].format(
                 creds_path=creds_path,
                 key_path=key_path,
-                error=exc.stderr.strip(),
+                error=error_text.strip(),
+            ),
+        }
+    except (OSError, ValueError) as exc:
+        return {
+            "success": False,
+            "message": "",
+            "error": ERR["encrypt_failed"].format(
+                creds_path=creds_path,
+                key_path=key_path,
+                error=str(exc),
             ),
         }
 
@@ -178,7 +216,7 @@ def vault_decrypt_to_dict(
     Returns:
         Dict with keys: success (bool), data (dict), error (str).
     """
-    if not os.path.exists(creds_path):
+    if not os.path.lexists(creds_path):
         return {
             "success": False,
             "data": {},
@@ -186,7 +224,7 @@ def vault_decrypt_to_dict(
                 creds_path=creds_path,
             ),
         }
-    if not os.path.exists(key_path):
+    if not os.path.lexists(key_path):
         return {
             "success": False,
             "data": {},
@@ -195,15 +233,17 @@ def vault_decrypt_to_dict(
             ),
         }
     try:
-        result = subprocess.run(
-            [
-                "ansible-vault", "view", creds_path,
-                "--vault-password-file", key_path,
-            ],
-            capture_output=True, text=True,
-            timeout=VAULT_TIMEOUT, check=True,
-        )
-        data = yaml.safe_load(result.stdout) or {}
+        with sensitive_file_descriptor(
+            creds_path, VAULT_FILE_MODE,
+        ) as creds_fd, sensitive_file_descriptor(
+            key_path, VAULT_FILE_MODE,
+        ) as key_fd:
+            plaintext = run_vault_decrypt(
+                creds_fd,
+                key_fd,
+                timeout=VAULT_TIMEOUT,
+            )
+        data = yaml.safe_load(plaintext) or {}
         return {"success": True, "data": data, "error": ""}
     except FileNotFoundError:
         return {
@@ -211,14 +251,20 @@ def vault_decrypt_to_dict(
             "data": {},
             "error": ERR["vault_not_installed"],
         }
-    except subprocess.CalledProcessError as exc:
+    except (
+        OSError,
+        ValueError,
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+    ) as exc:
+        error_text = getattr(exc, "stderr", "") or str(exc)
         return {
             "success": False,
             "data": {},
             "error": ERR["decrypt_failed"].format(
                 creds_path=creds_path,
                 key_path=key_path,
-                error=exc.stderr.strip(),
+                error=error_text.strip(),
             ),
         }
 
@@ -261,7 +307,9 @@ def read_credential_field(
             }
         data = result["data"]
     else:
-        with open(creds_path, "r", encoding="utf-8") as creds_fh:
+        with open_sensitive_text(
+            creds_path, VAULT_FILE_MODE,
+        ) as creds_fh:
             data = yaml.safe_load(creds_fh) or {}
 
     value = data.get(field)
@@ -308,7 +356,9 @@ def write_credential_fields(
                 }
             existing = result["data"]
         else:
-            with open(creds_path, "r", encoding="utf-8") as creds_fh:
+            with open_sensitive_text(
+                creds_path, VAULT_FILE_MODE,
+            ) as creds_fh:
                 existing = yaml.safe_load(creds_fh) or {}
 
     existing.update(fields)
@@ -319,20 +369,51 @@ def write_credential_fields(
     if parent:
         os.makedirs(parent, exist_ok=True)
 
-    with open(creds_path, "w", encoding="utf-8") as creds_fh:
-        if header_comment:
-            for line in header_comment.strip().splitlines():
-                creds_fh.write(f"# {line}\n")
-            creds_fh.write("\n")
-        yaml.safe_dump(
-            existing, creds_fh,
-            default_flow_style=False, allow_unicode=True,
-        )
-    os.chmod(creds_path, VAULT_FILE_MODE)
+    try:
+        with temporary_sensitive_descriptor(
+            parent or None, VAULT_FILE_MODE,
+        ) as plaintext_fd:
+            with os.fdopen(
+                os.dup(plaintext_fd), "w", encoding="utf-8",
+            ) as creds_fh:
+                if header_comment:
+                    for line in header_comment.strip().splitlines():
+                        creds_fh.write(f"# {line}\n")
+                    creds_fh.write("\n")
+                yaml.safe_dump(
+                    existing, creds_fh,
+                    default_flow_style=False, allow_unicode=True,
+                )
+            os.lseek(plaintext_fd, 0, os.SEEK_SET)
 
-    enc_result = vault_encrypt(creds_path, key_path)
-    if not enc_result["success"]:
-        return enc_result
+            with sensitive_file_descriptor(
+                key_path, VAULT_FILE_MODE,
+            ) as key_fd, atomic_sensitive_output(
+                creds_path, VAULT_FILE_MODE,
+            ) as encrypted_fd:
+                _run_vault_encrypt(plaintext_fd, key_fd, encrypted_fd)
+    except FileNotFoundError:
+        return {
+            "success": False,
+            "message": "",
+            "error": ERR["vault_not_installed"],
+        }
+    except (
+        OSError,
+        ValueError,
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+    ) as exc:
+        error_text = getattr(exc, "stderr", "") or str(exc)
+        return {
+            "success": False,
+            "message": "",
+            "error": ERR["encrypt_failed"].format(
+                creds_path=creds_path,
+                key_path=key_path,
+                error=error_text.strip(),
+            ),
+        }
 
     return {
         "success": True,
@@ -387,6 +468,16 @@ def prompt_and_confirm(
         )
 
 
+def _read_visible_input(prompt_text: str) -> str:
+    """Read one visible terminal line without using Python's ``input``."""
+    sys.stdout.write(prompt_text)
+    sys.stdout.flush()
+    value = sys.stdin.readline()
+    if value == "":
+        raise EOFError("EOF when reading a line")
+    return value.rstrip("\r\n")
+
+
 def prompt_fields_interactive(
     field_spec: list,
     existing: Dict[str, str] = None,
@@ -397,7 +488,7 @@ def prompt_fields_interactive(
         - field: YAML field name (required)
         - label: Display label (optional, defaults to field)
         - group: Group header to print before this field (optional)
-        - secret: If True, use getpass (no echo) (default True)
+        - secret: If True, read with getpass (no echo) (default True)
         - confirm: If True and secret, prompt twice and verify match (default False)
         - optional: If True, allow empty value (default False)
 
@@ -415,15 +506,21 @@ def prompt_fields_interactive(
             {"field": "bmc_password", "label": "BMC Password", "secret": True, "confirm": True},
         ])
     """
+    if not isinstance(field_spec, list):
+        raise ValueError("Credential field specification must be a list")
     if existing is None:
         existing = {}
+    if not isinstance(existing, dict):
+        raise ValueError("Existing credential values must be a mapping")
 
     result = {}
     current_group = None
 
     for spec in field_spec:
+        if not isinstance(spec, dict):
+            raise ValueError("Each credential field specification must be a mapping")
         field_name = spec.get("field")
-        if not field_name:
+        if not isinstance(field_name, str) or not field_name:
             continue
 
         label = spec.get("label", field_name)
@@ -440,9 +537,7 @@ def prompt_fields_interactive(
         # Get existing value
         existing_val = existing.get(field_name, "")
 
-        # Build prompt with existing value hint
         if is_secret:
-            # For secrets, show [set] if exists
             if existing_val:
                 prompt_text = f"  {label} [set]: "
             else:
@@ -460,12 +555,11 @@ def prompt_fields_interactive(
                     )
                     raise ValueError(f"{label} confirmation failed")
         else:
-            # For non-secrets, show existing value in brackets
             if existing_val:
                 prompt_text = f"  {label} [{existing_val}]: "
             else:
                 prompt_text = f"  {label}: "
-            entered = input(prompt_text)
+            entered = _read_visible_input(prompt_text)
 
         # Use entered value or fall back to existing
         final_value = entered if entered else existing_val
@@ -497,7 +591,9 @@ def read_all_fields(
         return vault_decrypt_to_dict(creds_path, key_path)
 
     try:
-        with open(creds_path, "r", encoding="utf-8") as creds_fh:
+        with open_sensitive_text(
+            creds_path, VAULT_FILE_MODE,
+        ) as creds_fh:
             data = yaml.safe_load(creds_fh) or {}
         return {"success": True, "data": data, "error": ""}
     except Exception as exc:

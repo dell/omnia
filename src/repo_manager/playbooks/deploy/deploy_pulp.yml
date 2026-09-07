@@ -3,13 +3,14 @@
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 ---
+# Step 1: Deploy and validate the local Pulp service.
 - name: Deploy Pulp HTTPS container
   hosts: localhost
   connection: local
   gather_facts: true
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
-    - "{{ playbook_dir | dirname | dirname }}/vars/credential_vars.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/pulp_cli_commands.yml"
   environment:
     PULP_CA_BUNDLE: "{{ pulp_server_crt }}"
   tags: pulp
@@ -43,7 +44,8 @@
         that:
           - pulp_username | default('') | length > 0
           - pulp_password | default('') | length > 0
-        fail_msg: "Pulp administrator credentials are required for deployment."
+        fail_msg: "{{ deploy_pulp_require_pulp_credentials_msg }}"
+        quiet: true
       no_log: true
 
     - name: Run Pulp deployment preflight checks

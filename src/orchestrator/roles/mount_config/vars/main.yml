@@ -28,9 +28,8 @@ omnia_config_vars: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/omnia
 omnia_run_tags: "{{ hostvars['localhost']['omnia_run_tags'] }}"
 
 # Usage: build_host_mount_map.yml
-# pxe_mapping_file_path  = omnia shared path + strip prefix /opt from hostvars['localhost']['pxe_mapping_file_path']
 omnia_shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"
-pxe_mapping_file_path: "{{ omnia_shared_path }}/{{ hostvars['localhost']['pxe_mapping_file_path'] | regex_replace('^/opt', '') }}"
+pxe_mapping_file_path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
 group_host_map: {}
 host_mount_map: {}
 ms_ds_dict:

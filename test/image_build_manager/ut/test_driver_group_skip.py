@@ -30,7 +30,8 @@ import pytest
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 
 SAMPLE_CATALOG = (
-    REPO_ROOT / "src" / "main" / "samples" / "catalog_rhel.json"
+    REPO_ROOT / "src" / "main" / "samples"
+    / "catalog_rhel_10_0_x86_aarch64.json"
 )
 
 # ---------------------------------------------------------------------------
@@ -61,7 +62,6 @@ if str(_PLUGINS_DIR) not in sys.path:
 from parse_catalog import (  # noqa: E402
     _is_driver_group,
     _collect_driver_groups,
-    _resolve_layer_packages,
     resolve_catalog,
     DRIVER_GROUP_MARKER,
 )
@@ -324,7 +324,7 @@ class TestSampleCatalogDriverGroups:
         with open(SAMPLE_CATALOG, "r", encoding="utf-8") as f:
             catalog = json.load(f)["catalog"]
         driver_keys = [
-            key for key in catalog
+            key for key in catalog.get("groups", {})
             if DRIVER_GROUP_MARKER in key
         ]
         assert len(driver_keys) > 0, (
@@ -333,30 +333,41 @@ class TestSampleCatalogDriverGroups:
             "vast_stack_driver_groupv1"
         )
 
-    def test_sample_driver_groups_not_in_groups(self):
-        """Driver groups must be at catalog top level, not inside groups."""
+    def test_sample_driver_groups_defined_in_groups(self):
+        """Expected driver stacks must be defined in catalog groups."""
         with open(SAMPLE_CATALOG, "r", encoding="utf-8") as f:
             catalog = json.load(f)["catalog"]
         groups = catalog.get("groups", {})
-        driver_in_groups = [
+        driver_groups = {
             key for key in groups
             if DRIVER_GROUP_MARKER in key
-        ]
-        assert len(driver_in_groups) == 0, (
-            f"Driver groups found inside 'groups' section: {driver_in_groups}. "
-            "They should be at the catalog top level."
+        }
+        expected = {
+            "nvidia_stack_driver_groupv1",
+            "infiniband_stack_driver_groupv1",
+            "vast_stack_driver_groupv1",
+        }
+        assert expected <= driver_groups, (
+            "Sample catalog is missing driver groups: "
+            f"{sorted(expected - driver_groups)}"
         )
 
     def test_sample_driver_groups_excluded_from_resolution(self):
         """Resolving the sample catalog must skip driver groups."""
+        with open(SAMPLE_CATALOG, "r", encoding="utf-8") as f:
+            catalog = json.load(f)["catalog"]
+        expected = {
+            component
+            for layer in catalog["functionallayer"]
+            if layer["name"].endswith("_x86_64")
+            for component in layer["components"]
+            if DRIVER_GROUP_MARKER in component
+        }
         result = resolve_catalog(
             catalog_file=str(SAMPLE_CATALOG),
             build_arch="x86_64",
         )
-        skipped = result["skipped_driver_groups"]
-        assert "nvidia_stack_driver_groupv1" in skipped
-        assert "infiniband_stack_driver_groupv1" in skipped
-        assert "vast_stack_driver_groupv1" in skipped
+        assert set(result["skipped_driver_groups"]) == expected
 
         # Verify no driver packages in compute dict
         for fg_name, fg_data in result["compute_images_dict"].items():
