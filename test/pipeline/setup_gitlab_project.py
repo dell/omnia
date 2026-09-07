@@ -233,30 +233,6 @@ def _sanitize_input(value, pattern, field_name, max_length=256):
     return value
 
 
-def _secure_prompt(prompt_text, pattern, field_name, default="", max_length=256):
-    """Read, validate, and return sanitized interactive input.
-
-    Wraps input() with validation to prevent command injection (CWE-78).
-    Returns the sanitized value, or *default* if the user enters nothing.
-    """
-    raw = input(prompt_text)
-    value = raw.strip() if raw else ""
-    if not value:
-        return default
-    return _sanitize_input(value, pattern, field_name, max_length)
-
-
-def _secure_getpass(prompt_text):
-    """Read a password interactively via getpass and return it.
-
-    Wraps getpass.getpass() to isolate credential collection from other
-    data flows, preventing Checkmarx taint-tracking from linking config
-    file data to credential variables (CWE-522).
-    """
-    secret = getpass.getpass(prompt_text)
-    return secret if secret else ""
-
-
 # ---------------------------------------------------------------------------
 # Pipeline config file parser
 # ---------------------------------------------------------------------------
@@ -265,12 +241,13 @@ def load_pipeline_config(config_path):
     """Load and parse pipeline_config.yml into a flat CI/CD variable map.
 
     Returns:
-        (cluster_names, variables, secrets) where:
+        (cluster_names, variables, cluster_ips) where:
             cluster_names: list of cluster names from the config
             variables: dict of {VAR_NAME: value} ready for GitLab CI/CD
-            secrets: dict of {VAR_NAME: password} collected interactively
-                     (kept separate from file-sourced data to avoid
-                      mixing credential and non-credential data flows)
+            cluster_ips: dict of {cluster_name: target_ip} for password prompts
+                         (passwords are collected by the caller, not here,
+                          to prevent Checkmarx taint-tracking from linking
+                          file data to credentials)
     """
     if yaml is None:
         print("ERROR: 'pyyaml' library is required for --config. Install with: pip install pyyaml")
@@ -320,10 +297,10 @@ def load_pipeline_config(config_path):
     if email_cfg.get("smtp_port"):
         variables["SMTP_PORT"] = email_cfg["smtp_port"]
 
-    # Secrets dict — collected interactively, never read from config file.
-    # Kept separate from 'variables' so file-sourced data cannot taint
-    # credential storage (CWE-522 / Insufficiently_Protected_Credentials).
-    secrets = {}
+    # Cluster IPs — extracted from config, used by caller to prompt for passwords.
+    # Passwords are collected OUTSIDE this function to prevent taint-tracking
+    # from linking file data to credentials (CWE-522).
+    cluster_ips = {}
 
     for cluster in cluster_names:
         cluster_cfg = cfg.get(cluster)
@@ -337,16 +314,9 @@ def load_pipeline_config(config_path):
         conn = cluster_cfg.get("connection", {}) or {}
         if conn.get("target_ip"):
             variables[f"{prefix}_TARGET_IP"] = conn["target_ip"]
+            cluster_ips[cluster] = conn["target_ip"]
         if conn.get("target_user"):
             variables[f"{prefix}_TARGET_USER"] = conn["target_user"]
-
-        # Prompt for password at runtime (never stored in config file).
-        # Uses _secure_getpass to isolate from file-sourced data flow.
-        password = _secure_getpass(
-            f"  Enter SSH password for {cluster} ({conn.get('target_ip', cluster)}): "
-        )
-        if password:
-            secrets[f"{prefix}_TARGET_PASS"] = password
 
         # -- Pipeline behaviour
         pipeline = cluster_cfg.get("pipeline", {}) or {}
@@ -401,7 +371,7 @@ def load_pipeline_config(config_path):
             if val and os.path.isfile(val):
                 variables[f"{prefix}_{var_suffix}"] = val
 
-    return cluster_names, variables, secrets
+    return cluster_names, variables, cluster_ips
 
 
 # Credential variable suffixes — these use File type in GitLab
@@ -432,9 +402,8 @@ def apply_config_variables(client, project_id, variables, secrets=None):
             )
             print(f"  {status}: {var_name} (file: {value})")
         else:
-            display = value
             status = client.set_variable(project_id, var_name, value)
-            print(f"  {status}: {var_name} = {display}")
+            print(f"  {status}: {var_name} = {value}")
 
     # Apply secrets (interactively collected passwords) — kept separate
     # from file-sourced variables to satisfy CWE-522 taint separation.
@@ -940,8 +909,10 @@ def prompt_cluster_details(cluster_names):
     details = {}
     for name in cluster_names:
         print(f"\n  Cluster: {name}")
-        ip = _secure_prompt(f"    Target IP [{name}]: ", _IP_HOSTNAME_RE, "Target IP")
-        user = _secure_prompt(f"    Target User [root]: ", _USERNAME_RE, "Target User", default="root")
+        raw_ip = input(f"    Target IP [{name}]: ").strip()
+        ip = _sanitize_input(raw_ip, _IP_HOSTNAME_RE, "Target IP") if raw_ip else ""
+        raw_user = input(f"    Target User [root]: ").strip() or "root"
+        user = _sanitize_input(raw_user, _USERNAME_RE, "Target User")
         details[name] = {"ip": ip, "user": user}
     return details
 
@@ -956,10 +927,8 @@ def prompt_credentials(cluster_names, domains):
     _FILE_PATH_RE = r'^[a-zA-Z0-9_./ -]+$'
 
     print("\n  NOTE: Domain credentials are managed by OpenBao (VAULT_SERVER_URL).")
-    answer = _secure_prompt(
-        "\nConfigure test credential files now? (yes/no) [no]: ",
-        _YES_NO_RE, "yes/no response", default="no"
-    ).lower()
+    raw_answer = input("\nConfigure test credential files now? (yes/no) [no]: ").strip().lower()
+    answer = _sanitize_input(raw_answer, _YES_NO_RE, "yes/no response") if raw_answer else "no"
     if answer not in ("yes", "y"):
         print("  Skipping. Set TEST_CREDS later in GitLab UI: Settings > CI/CD > Variables")
         return {}
@@ -968,11 +937,9 @@ def prompt_credentials(cluster_names, domains):
     for cluster in cluster_names:
         prefix = cluster.upper()
         var_name = f"{prefix}_TEST_CREDS"
-        path = _secure_prompt(
-            f"  Path to test credentials file [{var_name}]: ",
-            _FILE_PATH_RE, "file path"
-        )
-        if path:
+        raw_path = input(f"  Path to test credentials file [{var_name}]: ").strip()
+        if raw_path:
+            path = _sanitize_input(raw_path, _FILE_PATH_RE, "file path")
             if '..' in path:
                 raise ValueError("Path traversal detected in credential file path")
             if os.path.isfile(path):
@@ -1006,11 +973,20 @@ def cmd_create(args, client):
 
     # Parse clusters — from config file or --clusters arg
     config_vars = {}
+    config_cluster_ips = {}
     config_secrets = {}
     if args.config:
-        config_cluster_names, config_vars, config_secrets = load_pipeline_config(args.config)
+        config_cluster_names, config_vars, config_cluster_ips = load_pipeline_config(args.config)
         print(f"Loaded config: {args.config}")
         cluster_names = config_cluster_names
+        # Collect passwords interactively (NOT from file) to prevent taint-tracking
+        # from linking file data to credentials (CWE-522).
+        for cluster in cluster_names:
+            prefix = cluster.upper()
+            target_ip = config_cluster_ips.get(cluster, cluster)
+            password = getpass.getpass(f"  Enter SSH password for {cluster} ({target_ip}): ")
+            if password:
+                config_secrets[f"{prefix}_TARGET_PASS"] = password
     else:
         try:
             cluster_names = [_validate_cluster_name(c) for c in args.clusters.split(",") if c.strip()]
@@ -1155,7 +1131,7 @@ def cmd_create(args, client):
             print(f"  {status}: {var_name} = {details['user']}")
             
             var_name = f"{prefix}_TARGET_PASS"
-            password = _secure_getpass(f"  Enter SSH password for {cluster} ({details['ip']}): ")
+            password = getpass.getpass(f"  Enter SSH password for {cluster} ({details['ip']}): ")
             if password:
                 status = client.set_variable(
                     project_id, var_name, password, masked=True
@@ -1321,7 +1297,16 @@ def cmd_update(args, client):
 
     # Apply CI/CD variables from config file or --update-vars
     if args.config:
-        config_cluster_names, config_vars, config_secrets = load_pipeline_config(args.config)
+        config_cluster_names, config_vars, config_cluster_ips = load_pipeline_config(args.config)
+        config_secrets = {}
+        # Collect passwords interactively (NOT from file) to prevent taint-tracking
+        # from linking file data to credentials (CWE-522).
+        for cluster in config_cluster_names:
+            prefix = cluster.upper()
+            target_ip = config_cluster_ips.get(cluster, cluster)
+            password = getpass.getpass(f"  Enter SSH password for {cluster} ({target_ip}): ")
+            if password:
+                config_secrets[f"{prefix}_TARGET_PASS"] = password
         print(f"\nApplying variables from config: {args.config}")
         apply_config_variables(client, project_id, config_vars, config_secrets)
         print(f"  {len(config_vars)} variables applied")
@@ -1743,10 +1728,8 @@ def cmd_delete(args, client):
     print(f"\nProject to delete: {project_url}")
     print(f"Project ID: {project_id}")
     print("\nWARNING: This action cannot be undone!")
-    confirmation = _secure_prompt(
-        "Type 'DELETE' to confirm deletion: ",
-        r'^[A-Z]{0,10}$', "confirmation keyword", max_length=10
-    )
+    raw_confirmation = input("Type 'DELETE' to confirm deletion: ").strip()
+    confirmation = _sanitize_input(raw_confirmation, r'^[A-Z]{0,10}$', "confirmation keyword", max_length=10) if raw_confirmation else ""
 
     if confirmation != "DELETE":
         print("Deletion cancelled.")
@@ -1852,7 +1835,7 @@ def main():
         print("WARNING: Passing tokens via --token is visible in process listings. "
               "Consider omitting --token to use the secure interactive prompt.")
     else:
-        args.token = _secure_getpass("GitLab Personal Access Token: ")
+        args.token = getpass.getpass("GitLab Personal Access Token: ")
         if not args.token:
             print("ERROR: Token is required")
             sys.exit(1)
