@@ -31,7 +31,8 @@ Manager contributors. Operator behavior is documented in
 | `roles/repo_manager_setup` | Environment loading and derived runtime paths |
 | `roles/deploy_pulp` | HTTPS certificates, Quadlet, Pulp service and managed CLI |
 | `roles/validate_input` | JSON Schema and cross-file input validation |
-| `roles/validate_subscription` | Subscription/EUS repository and entitlement resolution |
+| `roles/repository_access` | Platform repository-access dispatch and RHEL subscription/EUS resolution |
+| `roles/repo_manager_execution` | Ordered OS-version context execution and aggregate status |
 | `roles/parse_and_download` | Catalog task preparation and execution |
 | `roles/catalog` | Generate, add, delete and validate catalog JSON |
 | `plugins/modules` | Stable Ansible interfaces and result conversion |
@@ -53,7 +54,10 @@ environment + staged YAML + catalog JSON
         setup and schema validation
                     |
                     v
-       subscription/registry resolution
+       catalog execution-context resolution
+                    |
+                    v
+       repository-access/registry resolution
                     |
                     v
        functional-group task preparation
@@ -107,9 +111,16 @@ The resolver performs these operations:
 5. Resolve `registry` against known public registries or configured registries.
 6. Deduplicate equivalent tasks using a composite content identity.
 
-The catalog controls which functional groups and architectures are processed.
-The host architecture does not remove valid `aarch64` catalog tasks; DNF uses
-the target architecture mode for those tasks.
+The catalog controls which functional groups, OS minor versions and
+architectures are processed. Versions are sorted numerically according to
+`platform_config.version_order` and executed sequentially. Every artifact for
+one version finishes before the next version starts. The host architecture does
+not remove valid `aarch64` catalog tasks; DNF uses the target architecture mode
+for those tasks.
+
+One-version catalogs use the same context loop once. Multiple OS types in one
+catalog execution are rejected. Platform profiles for future operating systems
+remain disabled until their repository-access and package backends exist.
 
 ---
 
@@ -191,6 +202,7 @@ removes the complete repository.
 | `dnf_config.max_concurrent_commands` | Bounds DNF commands independently (`1-5`, default `1`) |
 | Resource locks | Serialize creation/update of the same Pulp object |
 | DNF semaphore | Protect shared per-architecture DNF metadata caches |
+| Context-specific DNF repository pattern | Prevent one OS minor version from resolving packages from another |
 | File locks | Serialize CSV/log updates within the process tree |
 | Atomic replacement | Prevent partial Vault, CSV, text and mirror-index files |
 
@@ -199,7 +211,8 @@ does not raise DNF concurrency. The supported operating model is one Repo
 Manager playbook instance at a time; process-local locks do not coordinate two
 independent playbook invocations.
 
-The parent process polls asynchronous results and writes a progress heartbeat
+DNF cache and persistent metadata are isolated by package manager, OS type,
+minor version and architecture. The parent process polls asynchronous results and writes a progress heartbeat
 approximately every 60 seconds. Heartbeats are observational and do not change
 timeouts or task results.
 
@@ -214,7 +227,16 @@ remote -> repository -> sync/upload -> repository version -> distribution
 ```
 
 Creation checks are idempotent. Existing objects are updated or reused. Pulp
-task completion is verified before mirror state is marked successful.
+task completion is verified before mirror state is marked successful. Every
+sync request uses a unique correlation ID; after its task href is discovered,
+progress and cancellation target that exact task.
+
+A repository is ready for artifact processing only when synchronized content,
+a publication and a distribution all exist. This check includes repositories
+skipped during a rerun so a process interrupted between synchronization and
+publication repairs its incomplete state. A timed-out refresh may roll back
+only versions created by that refresh; it never deletes the repository or its
+last known-good publication/distribution.
 
 The deployment uses a systemd-enabled Podman Quadlet. The configured host port
 maps to container HTTPS port `443`. Certificates and the Pulp CLI CA configuration
@@ -229,6 +251,7 @@ are generated from the runtime path, not endpoint input fields.
 | Invalid environment or input | Fail before content changes |
 | Pulp endpoint unavailable | Fail immediately with endpoint context |
 | Worker/package failure | Record package and group result, return non-success |
+| RPM repository-stage failure | Finish diagnostics for other repositories, then fail before artifact processing |
 | Timeout | Stop the worker pool and report timeout |
 | Credential re-encryption failure | Fail and report possible plaintext exposure |
 | SELinux certificate labeling failure | Fail before repository synchronization |

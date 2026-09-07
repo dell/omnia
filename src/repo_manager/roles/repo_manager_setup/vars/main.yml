@@ -13,12 +13,30 @@
 # limitations under the License.
 ---
 # =============================================================================
-# REPO MANAGER SETUP ROLE VARIABLES
+# FAILURE AND ASSERTION MESSAGES
 # =============================================================================
-# This file contains variables for the repo_manager_setup role.
-# =============================================================================
+repo_manager_setup_validate_resolved_repo_manager_paths_msg: >-
+  Invalid Repo Manager path configuration. OMNIA_DATA_PATH and
+  REPO_MANAGER_DATA_PATH must be safe absolute paths, and
+  OMNIA_PROJECT_NAME must be one path segment. Pulp content_route must
+  remain /pulp/content and distribution_root must be a safe relative path.
 
-# -----------------------------------------------------------------------------
-# ERROR MESSAGES
-# -----------------------------------------------------------------------------
-log_dir_creation_fail_msg: "Failed to create log directory: {{ repo_manager_log_dir }}"
+
+repo_manager_setup_validate_resolved_project_input_path_msg: >-
+  REPO_MANAGER_INPUT_PROJECT_DIR must resolve to a safe absolute path.
+
+
+repo_manager_setup_fail_if_catalog_file_path_env_var_is_not_set_msg: >-
+  CATALOG_FILE_PATH environment variable is not set.
+  Export the absolute path of the Repo Manager catalog JSON file.
+
+repo_manager_setup_validate_catalog_file_path_msg: >-
+  CATALOG_FILE_PATH must be an absolute path ending in .json:
+  {{ catalog_file }}
+
+repo_manager_setup_validate_catalog_file_is_a_regular_file_msg: >-
+  Catalog file not found or not a regular file: {{ catalog_file }}
+  Please ensure the catalog file exists at the specified path.
+
+
+repo_manager_setup_fail_if_any_required_directory_is_missing_msg: "Required directory does not exist: {{ item.item }}"

@@ -1,0 +1,59 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Ensure catalog execution summary directory exists
+  ansible.builtin.file:
+    path: "{{ repo_manager_log_dir }}/{{ catalog_context.os_type }}"
+    state: directory
+    mode: "0755"
+
+- name: Calculate remaining catalog execution contexts
+  ansible.builtin.set_fact:
+    remaining_catalog_context_ids: >-
+      {%- set completed = catalog_execution_results |
+          map(attribute='context_id') | list -%}
+      {%- set remaining = [] -%}
+      {%- for context in catalog_execution_contexts -%}
+        {%- if context.context_id not in completed -%}
+          {%- set _ = remaining.append(context.context_id) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ remaining }}
+
+- name: Persist catalog execution summary
+  ansible.builtin.copy:
+    dest: >-
+      {{ repo_manager_log_dir }}/{{ catalog_context.os_type }}/catalog_execution_summary.yml
+    mode: "0644"
+    content: >-
+      {{
+        {
+          'schema_version': 1,
+          'os_type': catalog_context.os_type,
+          'execution_order': catalog_execution_contexts |
+            map(attribute='context_id') | list,
+          'overall_status': (
+            'failed'
+            if (catalog_execution_results |
+                rejectattr('status', 'equalto', 'success') |
+                list | length > 0)
+            else 'success'
+            if (catalog_execution_results | length ==
+                catalog_execution_contexts | length)
+            else 'in_progress'
+          ),
+          'results': catalog_execution_results,
+          'remaining_contexts': remaining_catalog_context_ids
+        } | to_nice_yaml(indent=2)
+      }}
