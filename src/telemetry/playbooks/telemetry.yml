@@ -90,7 +90,7 @@
 # =========================================================================
 # FLOW: cleanup — Remove telemetry components (opt-in only)
 # =========================================================================
-# Each source has its own tag (cleanup_idrac, cleanup_ome, etc.).
+# Each source has its own tag (cleanup_idrac, cleanup_ldms, cleanup_ome, etc.).
 # --tags cleanup runs ALL cleanups (sources + sinks).
 # Individual source tags (cleanup_powerscale, etc.) clean only that source.
 # Sinks (Kafka, VictoriaMetrics, VictoriaLogs) are shared infrastructure

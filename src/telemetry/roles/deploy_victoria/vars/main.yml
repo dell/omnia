@@ -54,8 +54,8 @@ victoria_operator_auto_install_msg: "VictoriaMetrics operator auto-installed for
 victoria_operator_skip_existing_msg: "VictoriaMetrics operator already installed; skipping helm install"
 victoria_tarball_not_found_msg: >-
   VictoriaMetrics operator tarball not found at
-  {{ k8s_cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.victoria_metrics_operator | basename) }}.
-  Download from {{ telemetry_packages_config.telemetry_packages.victoria_metrics_operator }} may have failed.
+  {{ k8s_cluster_mount }}/telemetry/{{ (telemetry_packages_config.telemetry_packages.victoria_metrics_operator | default('') | basename) }}.
+  Download from {{ telemetry_packages_config.telemetry_packages.victoria_metrics_operator | default('') }} may have failed.
 
 # Download timeout
 victoria_download_timeout: 300

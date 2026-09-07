@@ -15,11 +15,13 @@
 """
 Omnia CLI — Deploy (help + version baseline).
 
-TC_OC_001: Verify omnia-cli help returns usage text
-TC_OC_002: Verify omnia-cli version shows release info
+MAIN_FVT_OMNIA_CLI_E001: Verify omnia-cli help returns usage text
+MAIN_FVT_OMNIA_CLI_E002: Verify omnia-cli version shows release info
 """
 
 import pytest
+
+from library.vars import TEST_CASES as TC
 
 from library.functions import TestLogger
 from library.functions.omnia_main_func import (
@@ -27,7 +29,6 @@ from library.functions.omnia_main_func import (
     check_cli_version_output,
 )
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
@@ -37,11 +38,11 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_cli_help_output(host):
-    """TC_OC_001: Verify omnia-cli help returns usage text."""
-    tl = TestLogger(
-        TEST_NAMES["cli_help_output"], "TC_OC_001"
-    )
+    """MAIN_FVT_OMNIA_CLI_E001: Verify omnia-cli help returns usage text."""
+    tc = TC["cli_help_output"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_cli_help_output(host)
+    tl.bind_result(result)
 
     if result["success"]:
         tl.passed(LOG["cli_help_ok"])
@@ -62,11 +63,11 @@ def test_cli_help_output(host):
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_cli_version_output(host):
-    """TC_OC_002: Verify omnia-cli version shows release info."""
-    tl = TestLogger(
-        TEST_NAMES["cli_version_output"], "TC_OC_002"
-    )
+    """MAIN_FVT_OMNIA_CLI_E002: Verify omnia-cli version shows release info."""
+    tc = TC["cli_version_output"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_cli_version_output(host)
+    tl.bind_result(result)
 
     if result["success"]:
         tl.passed(LOG["cli_version_ok"].format(

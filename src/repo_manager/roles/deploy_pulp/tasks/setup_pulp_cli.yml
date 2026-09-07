@@ -15,64 +15,70 @@
 # =============================================================================
 # SETUP PULP CLI - Ensure pulp CLI is available with managed TLS trust
 # =============================================================================
-# Preserve the installed console entry point as a backend and install a small
-# launcher at /usr/local/bin/pulp. The launcher supplies PULP_CA_BUNDLE so the
-# pip-installed CLI can validate Repo Manager's private certificate without a
-# manual shell export. Caller-provided PULP_CA_BUNDLE values still take priority.
+# Use the Omnia virtual environment only when OMNIA_VENV_PATH is non-empty.
+# Otherwise use the system Python runtime. The launcher supplies PULP_CA_BUNDLE
+# so the CLI validates Repo Manager's private certificate in both modes.
 # =============================================================================
 
-- name: Check if pulp CLI exists at /usr/local/bin/pulp
+- name: Display selected Pulp CLI runtime
+  ansible.builtin.debug:
+    msg: >-
+      Pulp CLI runtime: {{ pulp_cli_runtime_mode }}
+      (Python: {{ pulp_cli_runtime_python_executable }})
+
+- name: Validate configured Omnia virtual environment path
+  ansible.builtin.assert:
+    that:
+      - pulp_venv_path is match('^/')
+    fail_msg: "{{ deploy_pulp_validate_configured_omnia_virtual_environment_path_msg }}"
+    quiet: true
+  when: pulp_cli_runtime_mode == 'venv'
+
+- name: Inspect configured Omnia virtual environment CLI directory
   ansible.builtin.stat:
-    path: "{{ pulp_cli_executable }}"
-  register: pulp_system_cli_check
+    path: "{{ pulp_venv_cli_executable | dirname }}"
+  register: _pulp_venv_cli_directory
+  when: pulp_cli_runtime_mode == 'venv'
 
-- name: Find pulp CLI path from current environment
-  ansible.builtin.command: which pulp
-  register: pulp_which_result
-  changed_when: false
-  failed_when: false
-  when: not pulp_system_cli_check.stat.exists
+- name: Require the configured Omnia virtual environment CLI directory
+  ansible.builtin.assert:
+    that:
+      - _pulp_venv_cli_directory.stat.exists | default(false)
+      - _pulp_venv_cli_directory.stat.isdir | default(false)
+    fail_msg: "{{ deploy_pulp_require_the_configured_omnia_virtual_environment_cli_directory_msg }}"
+    quiet: true
+  when: pulp_cli_runtime_mode == 'venv'
 
-- name: Create symlink for pulp CLI at /usr/local/bin/pulp
-  ansible.builtin.file:
-    src: "{{ pulp_which_result.stdout }}"
-    dest: "{{ pulp_cli_executable }}"
-    state: link
-  when:
-    - not pulp_system_cli_check.stat.exists
-    - pulp_which_result.rc | default(1) == 0
-    - pulp_which_result.stdout | default('') | length > 0
+- name: Inspect selected Pulp CLI Python runtime
+  ansible.builtin.stat:
+    path: "{{ pulp_cli_runtime_python_executable }}"
+    follow: true
+  register: _pulp_cli_runtime_python
 
-- name: Verify installed Pulp CLI before configuring its launcher
+- name: Require an executable Pulp CLI Python runtime
+  ansible.builtin.assert:
+    that:
+      - _pulp_cli_runtime_python.stat.exists | default(false)
+      - _pulp_cli_runtime_python.stat.isreg | default(false)
+      - _pulp_cli_runtime_python.stat.executable | default(false)
+    fail_msg: "{{ deploy_pulp_require_an_executable_pulp_cli_python_runtime_msg }}"
+    quiet: true
+- name: Verify pulp-cli is installed in the selected Python runtime
   ansible.builtin.command:
     argv:
-      - "{{ pulp_cli_executable }}"
-      - --version
-  register: _pulp_cli_installed_version
+      - "{{ pulp_cli_runtime_python_executable }}"
+      - -c
+      - "from pulp_cli import main"
+  register: _pulp_cli_runtime_import
   changed_when: false
   failed_when: false
 
-- name: Fail if pulp CLI is not available
-  ansible.builtin.fail:
-    msg: |
-      Pulp CLI not found at /usr/local/bin/pulp.
-      Please ensure pulp-cli is installed and the virtual environment is activated:
-        source <venv_path>/bin/activate
-        pip install pulp-cli
-      Then run the playbook again to create the symlink automatically.
-  when: _pulp_cli_installed_version.rc != 0
-
-- name: Check whether the Pulp CLI launcher is managed by Repo Manager
-  ansible.builtin.command:
-    argv:
-      - grep
-      - -Fqx
-      - "# Managed by Omnia Repo Manager"
-      - "{{ pulp_cli_executable }}"
-  register: _pulp_cli_launcher_check
-  changed_when: false
-  failed_when: false
-
+- name: Require pulp-cli in the selected Python runtime
+  ansible.builtin.assert:
+    that:
+      - _pulp_cli_runtime_import.rc == 0
+    fail_msg: "{{ deploy_pulp_require_pulp_cli_in_the_selected_python_runtime_msg }}"
+    quiet: true
 - name: Ensure Pulp CLI backend directory exists
   ansible.builtin.file:
     path: "{{ pulp_cli_backend | dirname }}"
@@ -81,25 +87,13 @@
     group: root
     mode: "0755"
 
-- name: Resolve the installed Pulp CLI entry point
-  ansible.builtin.command:
-    argv:
-      - readlink
-      - -f
-      - "{{ pulp_cli_executable }}"
-  register: _pulp_cli_source
-  changed_when: false
-  when: _pulp_cli_launcher_check.rc != 0
-
-- name: Preserve installed Pulp CLI as managed backend
-  ansible.builtin.copy:
-    src: "{{ _pulp_cli_source.stdout }}"
+- name: Install Pulp CLI backend for the selected runtime
+  ansible.builtin.template:
+    src: pulp_cli_backend.py.j2
     dest: "{{ pulp_cli_backend }}"
-    remote_src: true
     owner: root
     group: root
     mode: "0755"
-  when: _pulp_cli_launcher_check.rc != 0
 
 - name: Verify managed Pulp CLI backend exists
   ansible.builtin.stat:
@@ -112,10 +106,8 @@
       - _pulp_cli_backend_state.stat.exists
       - _pulp_cli_backend_state.stat.isreg
       - _pulp_cli_backend_state.stat.executable
-    fail_msg: >-
-      The managed Pulp CLI backend is unavailable. Reinstall pulp-cli and run
-      the prepare operation again.
-
+    fail_msg: "{{ deploy_pulp_require_a_valid_managed_pulp_cli_backend_msg }}"
+    quiet: true
 - name: Install managed Pulp CLI launcher
   ansible.builtin.template:
     src: pulp_cli_launcher.sh.j2
@@ -125,14 +117,35 @@
     mode: "0755"
     force: true
 
+- name: Link Omnia virtual environment Pulp CLI to managed launcher
+  ansible.builtin.file:
+    src: "{{ pulp_cli_executable }}"
+    dest: "{{ pulp_venv_cli_executable }}"
+    state: link
+    force: true
+  when:
+    - pulp_cli_runtime_mode == 'venv'
+    - pulp_venv_cli_executable != pulp_cli_executable
+
 - name: Verify managed Pulp CLI launcher
   ansible.builtin.command:
-    argv:
-      - "{{ pulp_cli_executable }}"
-      - --version
+    argv: "{{ [pulp_cli_executable] + pulp_cli_commands.common.version }}"
   register: pulp_cli_version
   changed_when: false
 
+- name: Verify managed Pulp CLI from Omnia virtual environment
+  ansible.builtin.command:
+    argv: "{{ [pulp_venv_cli_executable] + pulp_cli_commands.common.version }}"
+  register: _pulp_venv_cli_version
+  changed_when: false
+  when: pulp_cli_runtime_mode == 'venv'
+
 - name: Display pulp CLI status
   ansible.builtin.debug:
-    msg: "Pulp CLI: {{ pulp_cli_version.stdout }}"
+    msg:
+      - "Runtime mode: {{ pulp_cli_runtime_mode }}"
+      - "System Pulp CLI: {{ pulp_cli_version.stdout }}"
+      - >-
+        Omnia venv Pulp CLI:
+        {{ _pulp_venv_cli_version.stdout
+           if pulp_cli_runtime_mode == 'venv' else 'not configured' }}

@@ -38,6 +38,13 @@
 #   cleanup_install_os - Cleanup OS installation artifacts only
 #   upgrade           - Upgrade flow (placeholder)
 #   rollback          - Rollback flow (placeholder)
+#
+# NOTE: This utils domain does not support the following standard lifecycle tags
+# as it is a utility domain rather than a full deployment domain:
+#   - validate        (not applicable - utilities have their own validation)
+#   - credentials     (not applicable - utilities handle credentials internally)
+#   - prepare         (not applicable - utilities don't require infrastructure setup)
+#   - execute         (not applicable - utilities run directly without orchestration)
 
 # =========================================================================
 # Step 0: Setup - load env vars (omnia.env), validate host
@@ -47,6 +54,11 @@
   connection: local
   gather_facts: true
   tags: always
+  pre_tasks:
+    - name: Record execution start time
+      ansible.builtin.set_fact:
+        utils_execution_start_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
   roles:
     - utils_setup
 
@@ -123,3 +135,24 @@
     - name: Rollback placeholder
       ansible.builtin.debug:
         msg: "Utils rollback - not implemented yet"
+
+# =========================================================================
+# Step 9: Write domain status file (runs after all flows)
+# =========================================================================
+- name: Write utils domain status
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tags: always
+  post_tasks:
+    - name: Record execution end time
+      ansible.builtin.set_fact:
+        utils_execution_end_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
+
+    - name: Write execution status
+      ansible.builtin.include_role:
+        name: utils_status_writer
+      vars:
+        utils_domain_status: "{{ 'success' if ansible_failed_result is not defined else 'failure' }}"
+        utils_playbook_name: "utils.yml"

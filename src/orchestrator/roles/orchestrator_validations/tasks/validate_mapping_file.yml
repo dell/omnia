@@ -40,6 +40,7 @@
   ansible.builtin.slurp:
     path: "{{ temp_pxe_file_path }}"
   register: mapping_file_raw
+  no_log: true
 
 - name: Replace only the first occurrence of service_kube_control_plane_<arch> with _first_<arch>
   ansible.builtin.set_fact:
@@ -52,12 +53,14 @@
             count=1
           )
       }}
+  no_log: true
 
 - name: Write updated mapping file back to disk
   ansible.builtin.copy:
     content: "{{ modified_mapping_file }}"
     dest: "{{ temp_pxe_file_path }}"
     mode: "0644"
+  no_log: true
 
 - name: Generate xnames in temporary mapping file
   generate_xname_in_mapping_file:
@@ -68,6 +71,7 @@
     path: "{{ temp_pxe_file_path }}"
     key: "{{ mapping_file_key }}"
   register: read_mapping_file
+  no_log: true
 
 - name: Initialize count variables
   ansible.builtin.set_fact:

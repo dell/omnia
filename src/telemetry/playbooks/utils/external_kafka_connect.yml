@@ -14,9 +14,9 @@
 ---
 # external_kafka_connect.yml — Fetch Kafka external connection details
 #
-# Extracts Kafka bridge endpoint, TLS certificates, and connection details
-# from the deployed telemetry Kafka cluster for external client integration
-# (e.g., Dell OME).
+# Extracts the native Kafka mTLS endpoint, HTTP Bridge endpoint, TLS
+# certificates, and connection details from the deployed telemetry Kafka
+# cluster for external client integration (e.g., Dell OME).
 #
 # Usage:
 #   ansible-playbook playbooks/telemetry.yml --tags external_kafka

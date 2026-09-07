@@ -28,7 +28,7 @@
 #
 # SECTIONS:
 #   1. Cluster Inventory    : Path to Ansible inventory for telemetry deployment
-#   2. Telemetry Sources    : Data collectors (iDRAC, LDMS, PowerScale, UFM, VAST)
+#   2. Telemetry Sources    : Data collectors (iDRAC, LDMS, PowerScale, UFM, VAST, OME)
 #   3. Telemetry Bridges    : Data routers (Vector pipelines)
 #   4. Telemetry Sinks      : Storage backends (victoria_metrics, victoria_logs, Kafka)
 #   5. Source Configurations: Detailed settings per source (PowerScale, LDMS, UFM, VAST)
@@ -354,7 +354,7 @@ telemetry_sinks:
 
     # Topic partitions per source (auto-created for enabled sources targeting kafka)
     # Only sources with kafka in collection_targets get topics.
-    # Topic name = source name (e.g., "idrac", "ldms")
+    # Topic name = source name (for example, "idrac" or "ldms")
     topic_partitions:
       idrac: 1
       ldms: 2

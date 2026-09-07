@@ -27,6 +27,7 @@
 #
 # Fields:
 #   overall_status  -- "success" or "failed"
+#   image_build_type -- Engine that produced this manifest and its artifacts
 #   s3_configurations:
 #     endpoint_url  -- S3 endpoint (auto-detected for MinIO, user-provided for PowerScale)
 #     bucket        -- Always "boot-images"
@@ -42,6 +43,7 @@
 # ============================================================================
 
 overall_status: "success"
+image_build_type: "image-builder"
 
 s3_configurations:
   endpoint_url: "http://10.20.0.1:9000"
@@ -50,15 +52,15 @@ s3_configurations:
 functional_group_images:
   - x86_64:
       - functional_group: "os_x86_64"
-        kernel: "boot-images/efi-images/os_x86_64/rhel-os_x86_64_omnia_omnia-services-rhel-10-0/vmlinuz-5.14.0-503.46.1.el10_0.x86_64" # noqa: yaml[line-length]
-        initrd: "boot-images/efi-images/os_x86_64/rhel-os_x86_64_omnia_omnia-services-rhel-10-0/initramfs-5.14.0-503.46.1.el10_0.x86_64.img" # noqa: yaml[line-length]
-        image: "boot-images/os_x86_64/rhel-os_x86_64_omnia_omnia-services-rhel-10-0/rhel10.0-rhel-os_x86_64_omnia_omnia-services-rhel-10-0-10.0" # noqa: yaml[line-length]
+        kernel: "boot-images/efi-images/os_x86_64/rhel-os_x86_64_omnia_omnia-services-rhel-10-0-imgbld/vmlinuz-5.14.0-503.46.1.el10_0.x86_64" # noqa: yaml[line-length]
+        initrd: "boot-images/efi-images/os_x86_64/rhel-os_x86_64_omnia_omnia-services-rhel-10-0-imgbld/initramfs-5.14.0-503.46.1.el10_0.x86_64.img" # noqa: yaml[line-length]
+        image: "boot-images/os_x86_64/rhel-os_x86_64_omnia_omnia-services-rhel-10-0-imgbld/rhel10.0-rhel-os_x86_64_omnia_omnia-services-rhel-10-0-imgbld-10.0" # noqa: yaml[line-length]
       - functional_group: "slurm_control_node_x86_64"
-        kernel: "boot-images/efi-images/slurm_control_node_x86_64/rhel-slurm_control_node_x86_64_omnia_omnia-services-rhel-10-0/vmlinuz-5.14.0-503.46.1.el10_0.x86_64" # noqa: yaml[line-length]
-        initrd: "boot-images/efi-images/slurm_control_node_x86_64/rhel-slurm_control_node_x86_64_omnia_omnia-services-rhel-10-0/initramfs-5.14.0-503.46.1.el10_0.x86_64.img" # noqa: yaml[line-length]
-        image: "boot-images/slurm_control_node_x86_64/rhel-slurm_control_node_x86_64_omnia_omnia-services-rhel-10-0/rhel10.0-rhel-slurm_control_node_x86_64_omnia_omnia-services-rhel-10-0-10.0" # noqa: yaml[line-length]
+        kernel: "boot-images/efi-images/slurm_control_node_x86_64/rhel-slurm_control_node_x86_64_omnia_omnia-services-rhel-10-0-imgbld/vmlinuz-5.14.0-503.46.1.el10_0.x86_64" # noqa: yaml[line-length]
+        initrd: "boot-images/efi-images/slurm_control_node_x86_64/rhel-slurm_control_node_x86_64_omnia_omnia-services-rhel-10-0-imgbld/initramfs-5.14.0-503.46.1.el10_0.x86_64.img" # noqa: yaml[line-length]
+        image: "boot-images/slurm_control_node_x86_64/rhel-slurm_control_node_x86_64_omnia_omnia-services-rhel-10-0-imgbld/rhel10.0-rhel-slurm_control_node_x86_64_omnia_omnia-services-rhel-10-0-imgbld-10.0" # noqa: yaml[line-length]
   - aarch64:
       - functional_group: "slurm_node_aarch64"
-        kernel: "boot-images/efi-images/slurm_node_aarch64/rhel-slurm_node_aarch64_omnia_omnia-services-rhel-10-0/vmlinuz-5.14.0-503.46.1.el10_0.aarch64" # noqa: yaml[line-length]
-        initrd: "boot-images/efi-images/slurm_node_aarch64/rhel-slurm_node_aarch64_omnia_omnia-services-rhel-10-0/initramfs-5.14.0-503.46.1.el10_0.aarch64.img" # noqa: yaml[line-length]
-        image: "boot-images/slurm_node_aarch64/rhel-slurm_node_aarch64_omnia_omnia-services-rhel-10-0/rhel10.0-rhel-slurm_node_aarch64_omnia_omnia-services-rhel-10-0-10.0" # noqa: yaml[line-length]
+        kernel: "boot-images/efi-images/slurm_node_aarch64/rhel-slurm_node_aarch64_omnia_omnia-services-rhel-10-0-imgbld/vmlinuz-5.14.0-503.46.1.el10_0.aarch64" # noqa: yaml[line-length]
+        initrd: "boot-images/efi-images/slurm_node_aarch64/rhel-slurm_node_aarch64_omnia_omnia-services-rhel-10-0-imgbld/initramfs-5.14.0-503.46.1.el10_0.aarch64.img" # noqa: yaml[line-length]
+        image: "boot-images/slurm_node_aarch64/rhel-slurm_node_aarch64_omnia_omnia-services-rhel-10-0-imgbld/rhel10.0-rhel-slurm_node_aarch64_omnia_omnia-services-rhel-10-0-imgbld-10.0" # noqa: yaml[line-length]

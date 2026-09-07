@@ -42,9 +42,12 @@ options:
 EXAMPLES = r'''
 - name: Generate functional groups from mapping file
   generate_functional_groups:
-    mapping_file_path: /opt/omnia/input/project_default/pxe_mapping_file.csv
-    functional_groups_file_path: /opt/omnia/.data/functional_groups_config.yml
-    omnia_config_path: /opt/omnia/input/project_default/omnia_config.yml
+    mapping_file_path: >-
+      {{ omnia_data_path }}/orchestrator/input/{{ project_name }}/pxe_mapping_file.csv
+    functional_groups_file_path: >-
+      {{ omnia_data_path }}/.data/functional_groups_config.yml
+    omnia_config_path: >-
+      {{ omnia_data_path }}/orchestrator/input/{{ project_name }}/omnia_config.yml
     classification_file_path: "{{ role_path }}/../../vars/functional_group_classification.yml"
   register: fg_result
 '''

@@ -26,9 +26,9 @@
     src: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
   register: boot_svc_nodes_raw
 
-- name: Set nodes fact for boot-service template - {{ fg_name }}
+- name: Set boot_svc_nodes fact for boot-service template - {{ fg_name }}
   ansible.builtin.set_fact:
-    nodes: "{{ (boot_svc_nodes_raw.content | b64decode | from_yaml).nodes }}"
+    boot_svc_nodes: "{{ (boot_svc_nodes_raw.content | b64decode | from_yaml).nodes }}"
 
 - name: Set kernel, initrd and image from validated images - {{ fg_name }}
   ansible.builtin.set_fact:

@@ -5,6 +5,15 @@ All notable changes to the omnia.utils collection will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-09-05
+
+### Changed
+- Galaxy version set to 2.3.0.
+- Renamed `phone_home` to `node_registration` in `pxe_buildstream_manager` role to avoid confusion with Dell Phone Home functionality.
+  - Task file: `cloudinit_phone_home.yml` → `cloudinit_node_registration.yml`
+  - Variables: `phone_home_*` → `node_registration_*`
+  - User-facing messages and documentation updated
+
 ## [2.2.0] - 2026-08-04
 
 ### Added

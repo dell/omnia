@@ -30,13 +30,15 @@
   register: health_monitor_ready
   changed_when: false
   failed_when: false
-  when: isilon_pod.stdout | length > 0
+  when: isilon_pod.stdout | default('') | length > 0
 
 - name: Set health monitor status fact
   ansible.builtin.set_fact:
     health_monitor_available: >-
       {{ (health_monitor_ready.stdout | default('false')) == 'true' }}
-  when: isilon_pod.stdout | length > 0
+  when:
+    - isilon_pod.stdout | default('') | length > 0
+    - health_monitor_ready.stdout is defined
 
 - name: Set health monitor status to false if pod not found
   ansible.builtin.set_fact:
@@ -82,6 +84,41 @@
   ansible.builtin.debug:
     msg: "Skipping CSI Volume Exporter deployment due to missing external-health-monitor-controller"
   when: not deploy_csi_exporter
+
+- name: Download pip packages for CSI Volume Exporter
+  when: deploy_csi_exporter
+  block:
+    - name: Create pip packages directory on NFS
+      ansible.builtin.file:
+        path: "{{ telemetry_deployments_dir }}/pip-packages"
+        state: directory
+        mode: "0755"
+
+    - name: Download kubernetes and prometheus_client wheels from Pulp (offline mode)
+      ansible.builtin.command: >
+        pip3 download --no-index
+        --find-links {{ offline_pip_module_path }}/kubernetes==33.1.0
+        --find-links {{ offline_pip_module_path }}/prometheus_client==0.20.0
+        --trusted-host {{ pulp_server_ip }}
+        -d {{ telemetry_deployments_dir }}/pip-packages
+        kubernetes==33.1.0 prometheus_client==0.20.0
+      register: pip_download_offline
+      changed_when: "'Saved' in pip_download_offline.stdout"
+      failed_when: pip_download_offline.rc != 0
+      delegate_to: localhost
+      when:
+        - install_mode == 'offline'
+        - offline_pip_module_path | length > 0
+
+    - name: Download kubernetes and prometheus_client wheels from PyPI (online mode)
+      ansible.builtin.command: >
+        pip3 download -d {{ telemetry_deployments_dir }}/pip-packages
+        kubernetes==33.1.0 prometheus_client==0.20.0
+      register: pip_download_online
+      changed_when: "'Saved' in pip_download_online.stdout"
+      failed_when: pip_download_online.rc != 0
+      when:
+        - install_mode == 'online'
 
 - name: Render CSI Volume Exporter manifest
   ansible.builtin.template:

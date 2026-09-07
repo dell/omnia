@@ -20,8 +20,10 @@
 # Usage:
 #   - Set oim_server_ip to the target server where omnia.sh runs.
 #   - Leave oim_server_ip empty to run tests locally on the same machine.
-#   - Sensitive credentials (SSH password) go in test_creds.yml
-#     (auto-encrypted with Ansible Vault on first run).
+#   - Runtime paths are resolved from the target Omnia environment; do not
+#     duplicate OMNIA_DATA_PATH, OMNIA_PROJECT_NAME, or OMNIA_VENV_PATH here.
+#   - Create optional SSH credentials with ./setup_env.sh --set-creds.
+#     The generated test_creds.yml is encrypted and gitignored.
 # =============================================================================
 
 ---
@@ -31,6 +33,11 @@
 # =============================================================================
 # IP address of the server where omnia.sh is deployed.
 # Leave empty for local mode (running directly on the target server).
+# Set to a remote IP to run verification commands over SSH/Testinfra.
+#
+# When a remote IP is set, the framework will:
+#   1. Sync the local project code to clone_path on the target (rsync)
+#   2. Run omnia.sh and verification commands on the target
 oim_server_ip: ""
 
 # SSH username for remote server (only needed for remote mode).
@@ -40,35 +47,48 @@ oim_ssh_user: root
 oim_ssh_port: 22
 
 # =============================================================================
-# PROJECT SYNC SETTINGS (remote execution only)
+# PROJECT SYNC SETTINGS (remote execution)
 # =============================================================================
-# Absolute path on the TARGET SERVER where the project code is synced.
 # The local omnia monorepo is synced (rsync) to clone_path on the target.
 # omnia.sh runs from <clone_path>/src/main/
 #
-# IMPORTANT: This path is ONLY used in remote mode (when oim_server_ip is set).
-# In local mode, paths are resolved automatically from the source tree.
+# clone_path:   Absolute path on the TARGET SERVER where the project code is
+#               synced.
+#               Only used in remote mode. In local mode, the source path is
+#               resolved automatically from the current checkout.
 clone_path: "/root/omnia"
 
 # =============================================================================
-# OMNIA RUNTIME PATHS (on target host)
+# TARGET RUNTIME ENVIRONMENT (read-only; no values configured here)
 # =============================================================================
-# These must match the values in omnia.env on the target.
-# Used by verification functions to check directory creation and file staging.
-omnia_data_path: "/opt/omnia"
-venv_path: "/opt/omnia/venv"
-project_name: "project_default"
+# Runtime values are resolved on the target in this order:
+#   1. /etc/omnia/omnia.env
+#   2. <clone_path>/src/main/omnia.env during initial bootstrap
+#   3. The production defaults used by omnia.sh
+#
+# Variables resolved:
+#   - OMNIA_DATA_PATH
+#   - OMNIA_PROJECT_NAME
+#   - OMNIA_VENV_PATH
 
 # =============================================================================
 # REPORT CONFIGURATION
 # =============================================================================
 # Directory where test reports (JSON + HTML) are saved.
+# Can be:
+#   - A folder name relative to the current working directory: reports
+#   - An absolute path: /var/reports/omnia_main
+# No spaces allowed in the path.
 report_path: /opt/omnia/reports
 
 # Base name for report files (without extension).
+# Generates: omnia_main_test_report.json, omnia_main_test_report.html
+# No spaces allowed. Only letters, numbers, underscores, and hyphens.
 report_name: omnia_main_test_report
 
 # Custom report ID (optional).
-# When set, reports use this ID instead of a timestamp.
+# When set, reports use this ID instead of a timestamp (YYYYMMDDHHmmSS).
+# This groups multiple scenario runs under the same report entry.
 # Leave empty to auto-generate from timestamp.
+# No spaces allowed. Only letters, numbers, underscores, and hyphens.
 report_id: ""

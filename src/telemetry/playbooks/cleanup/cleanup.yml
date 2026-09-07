@@ -34,6 +34,7 @@
 #   ansible-playbook telemetry.yml --tags cleanup_ome,cleanup_powerscale
 #
 #   # Cleanup multiple components
+#   ansible-playbook cleanup/cleanup.yml --tags cleanup_kafka,cleanup_ldms
 #   ansible-playbook cleanup/cleanup.yml --tags cleanup_kafka,cleanup_idrac
 #   ansible-playbook telemetry.yml --tags cleanup_kafka,cleanup_victoria_metrics
 #

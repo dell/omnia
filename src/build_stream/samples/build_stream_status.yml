@@ -1,0 +1,48 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# SAMPLE: build_stream_status.yml -- build_stream output contract
+# ============================================================================
+#
+# This is a REFERENCE TEMPLATE showing the output produced by
+# build_stream after a successful setup.
+#
+# Runtime location (created by build_stream):
+#   /opt/omnia/output/build_stream/build_stream_status.yml
+#
+# Producer: build_stream domain (prepare_build_stream role)
+# Consumer: CI/CD pipelines, operators, playbook-watcher
+#
+# Fields:
+#   overall_status  -- "prepared" | "running" | "failed"
+#   gitlab_host     -- IP where GitLab CE is deployed
+#   gitlab_https_port -- HTTPS port
+#   gitlab_url      -- Full GitLab HTTPS URL
+#   build_stream_host -- IP where BSM API runs (OIM server)
+#   build_stream_port -- BSM API listen port
+#   bsm_api_url     -- Full BSM API base URL
+# ============================================================================
+
+overall_status: "prepared"
+
+# --- GitLab Endpoints ---
+gitlab_host: "10.0.0.50"
+gitlab_https_port: 443
+gitlab_url: "https://10.0.0.50:443"
+
+# --- BuildStream Manager (BSM) API ---
+build_stream_host: "10.0.0.100"
+build_stream_port: 8010
+bsm_api_url: "https://10.0.0.100:8010"

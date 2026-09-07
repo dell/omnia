@@ -42,7 +42,7 @@ vector:
     app_name: "vector-ome"
     service_name: "vector-ome"
     container_name: "vector-ome"
-    kafka_topics_pattern: "{{ telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome') }}.*"
+    kafka_topics_pattern: "^{{ telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome') | regex_escape }}\\..*$"
     consumer_group: "vector-ome-group"
     kafka_user: "vector-ome-user"
     health_port: 8688
