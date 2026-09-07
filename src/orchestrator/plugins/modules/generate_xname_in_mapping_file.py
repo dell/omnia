@@ -15,7 +15,9 @@
 # pylint: disable=import-error,no-name-in-module,line-too-long
 #!/usr/bin/python
 
-import pandas as pd
+import csv
+import os
+import tempfile
 from ansible.module_utils.basic import AnsibleModule
 
 DOCUMENTATION = r'''
@@ -53,17 +55,21 @@ def generate_xname_in_mapping_file(mapping_file_path, module):
         module (AnsibleModule): The Ansible module instance for handling exit and failure.
     """
     try:
-        csv_file = pd.read_csv(mapping_file_path)
-        if len(csv_file) == 0:
+        with open(mapping_file_path, newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames is None:
+                module.fail_json(msg="Please provide details in mapping file.")
+            fieldnames = [h.strip() for h in reader.fieldnames]
+            rows = []
+            for row in reader:
+                rows.append({k.strip(): v.strip() if isinstance(v, str) else v for k, v in row.items()})
+
+        if len(rows) == 0:
             module.fail_json(msg="Please provide details in mapping file.")
 
-        # Strip whitespace from column values and names
-        csv_file = csv_file.apply(lambda x: x.str.strip() if x.dtype == 'object' else x)
- 
-        # The resulting XNAME values will have the format 'x1000c0s<d><b><d>n0', where <b> is a letter and <d> is a digit
-        xname_values = []
-
-        for i in range(len(csv_file)):
+        # The resulting XNAME values will have the format 'x1000c0s<d>b<d>n0'
+        out_fieldnames = [f for f in fieldnames if f != "XNAME"] + ["XNAME"]
+        for i, row in enumerate(rows):
             # `c` will be based on i // 100 (every 100 entries we increment `c`)
             c_index = i // 100
             # `s` will be based on i // 10 (every 10 entries we increment `s`)
@@ -71,13 +77,17 @@ def generate_xname_in_mapping_file(mapping_file_path, module):
             # `digit` cycles from 0 to 9
             digit = i % 10
             # Build the 'xname' with updated logic for `c` and `s` indices
-            xname = f'x1000c{c_index}s{s_index}b{digit}n0'
-            xname_values.append(xname)
+            row["XNAME"] = f"x1000c{c_index}s{s_index}b{digit}n0"
 
-        csv_file['XNAME'] = xname_values
-
-        # Update the mapping file with the new XNAME values
-        csv_file.to_csv(mapping_file_path, index=False)
+        # Write atomically via temp file to avoid partial writes
+        dir_name = os.path.dirname(mapping_file_path)
+        with tempfile.NamedTemporaryFile(mode="w", dir=dir_name, suffix=".csv",
+                                         delete=False, newline="", encoding="utf-8") as tmp:
+            writer = csv.DictWriter(tmp, fieldnames=out_fieldnames, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(rows)
+            tmp_path = tmp.name
+        os.replace(tmp_path, mapping_file_path)
 
         # If all checks pass
         module.exit_json(changed=False, msg="Xnames are generated successfully in the mapping file.")

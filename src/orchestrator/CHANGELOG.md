@@ -5,6 +5,13 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
 ## [2.3.0] - 2026-09-05
 
 ### Fixed
+- Inventory generation fails with `Recursive loop detected in template` — renamed template var from `kube_vip` to `inventory_kube_vip` to avoid self-reference when fact is not set.
+- validate_preamble OIM tasks fail with undefined `pxe_mapping_file_path` — resolve from localhost hostvars and add defensive `when` guards.
+- validate_preamble playbook uses `roles:` which doesn't resolve OIM hostvars — changed to `tasks:` with `include_role:` for proper variable resolution.
+- Metadata-service configuration fails with `File not found: nodes_slurm.yaml` during K8s provisioning — `nodes_yaml` from `slurm_config/vars/main.yml` defaulted to slurm category; force-set for current category (#473).
+- `generate_xname_in_mapping_file` module fails with `No module named 'pandas'` on OIM — replaced pandas with Python stdlib `csv` module (#473).
+- Orchestrator fails with `symmetric_difference` NoneType error on `--tags provision` — `provision_preamble.yml` was missing the first-control-plane rename step that `validate_mapping_file.yml` performs during precheck (#472).
+- K8s nodes receive random DHCP IPs instead of ADMIN_IPs from PXE mapping file when both K8s and Slurm catalogs are provisioned — `delete_smd_endpoints.yml` used `--all` which wiped previously-registered categories (#463).
 - Stale phone-home detection: verify node boot time is after PXE start epoch to reject nodes that have been up for days (#461).
 - `failed_nodes.json` wrong count due to `set_fact` + `delegate_to` race condition when multiple BMC hosts fail PXE boot simultaneously (#460).
 - Orchestrator inventory includes `kube_vip_group` even for slurm-only clusters (#459).
