@@ -98,6 +98,29 @@
         name: common
         tasks_from: generate_root_kustomization
 
+    - name: Check if kustomization has any resources to apply
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          grep -cE '^\s+-\s+\S' {{ telemetry_deployments_dir }}/kustomization.yaml || echo 0
+        executable: /bin/bash
+      register: kustomization_resource_count
+      changed_when: false
+      failed_when: false
+
+    - name: Set kustomization has resources flag
+      ansible.builtin.set_fact:
+        _kustomization_has_resources: "{{ (kustomization_resource_count.stdout | trim | int) > 0 }}"
+
+    - name: Warn when kustomization has no resources
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Generated kustomization.yaml has no resources to apply.
+          This typically means all telemetry sources are disabled or sink
+          support flags were not properly derived. Check the diagnostics
+          output above for variable values. Skipping kubectl apply.
+      when: not (_kustomization_has_resources | bool)
+
     - name: Apply full-stack kustomization
       ansible.builtin.command: >
         kubectl apply -k {{ telemetry_deployments_dir }}/
@@ -105,14 +128,17 @@
       changed_when: >
         'created' in fullstack_kustomize_result.stdout
         or 'configured' in fullstack_kustomize_result.stdout
+      when: _kustomization_has_resources | bool
 
     - name: Log full-stack apply result
       ansible.builtin.debug:
         msg: "Full-stack kustomize apply result: {{ fullstack_kustomize_result.stdout_lines | default([]) }}"
+      when: _kustomization_has_resources | bool
 
     - name: Wait for newly created pods to be scheduled
       ansible.builtin.pause:
         seconds: 15
+      when: _kustomization_has_resources | bool
 
     - name: Wait for all telemetry pods to reach Ready state
       ansible.builtin.shell:
@@ -127,11 +153,13 @@
       register: pod_wait_result
       changed_when: false
       failed_when: false
+      when: _kustomization_has_resources | bool
 
     - name: Display pod stabilization result
       ansible.builtin.debug:
         msg: "All telemetry pods have been checked for Ready state"
         verbosity: 1
+      when: _kustomization_has_resources | bool
 
     - name: Collect pod status in telemetry namespace
       ansible.builtin.command: >
