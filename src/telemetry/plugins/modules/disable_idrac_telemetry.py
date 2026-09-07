@@ -17,6 +17,12 @@
 This module connects to iDRAC nodes and disables telemetry collection
 by sending PATCH requests to the Redfish API endpoint."""
 
+import requests
+import urllib3
+from ansible.module_utils.basic import AnsibleModule
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 DOCUMENTATION = r'''
 ---
 module: disable_idrac_telemetry
@@ -91,12 +97,6 @@ msg:
   sample: "Disabled telemetry on 1 iDRAC nodes."
 '''
 
-import requests
-import urllib3
-from ansible.module_utils.basic import AnsibleModule
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 
 def disable_telemetry_on_idrac(idrac_ip, username, password, timeout=30):
     """
@@ -141,10 +141,10 @@ def disable_telemetry_on_idrac(idrac_ip, username, password, timeout=30):
                 json=payload,
                 headers=headers,
                 auth=(username, password),
-                verify=False,  # NOSONAR - iDRAC BMC uses self-signed certificates
+                verify=False,  # nosec - iDRAC BMC uses self-signed certificates
                 timeout=timeout
             )
-            
+
             if response.status_code in [200, 202, 204]:
                 return {
                     "success": True,
@@ -152,34 +152,33 @@ def disable_telemetry_on_idrac(idrac_ip, username, password, timeout=30):
                     "status_code": response.status_code,
                     "msg": f"Successfully disabled telemetry on iDRAC {idrac_ip} using {property_name}"
                 }
-            elif response.status_code == 400:
+            if response.status_code == 400:
                 # Property not supported, try next one
                 continue
-            else:
-                return {
-                    "success": False,
-                    "ip": idrac_ip,
-                    "status_code": response.status_code,
-                    "msg": (
-                        f"Failed to disable telemetry on iDRAC {idrac_ip}. "
-                        f"Status: {response.status_code}, Response: {response.text}"
-                    )
-                }
-        
+            return {
+                "success": False,
+                "ip": idrac_ip,
+                "status_code": response.status_code,
+                "msg": (
+                    f"Failed to disable telemetry on iDRAC {idrac_ip}. "
+                    f"Status: {response.status_code}, Response: {response.text}"
+                )
+            }
+
         except requests.exceptions.Timeout:
             return {
                 "success": False,
                 "ip": idrac_ip,
                 "msg": f"Timeout while connecting to iDRAC {idrac_ip}"
             }
-        
+
         except requests.exceptions.ConnectionError:
             return {
                 "success": False,
                 "ip": idrac_ip,
                 "msg": f"Connection error while connecting to iDRAC {idrac_ip}"
             }
-        
+
         except (requests.exceptions.RequestException, OSError) as e:
             return {
                 "success": False,
@@ -193,7 +192,8 @@ def disable_telemetry_on_idrac(idrac_ip, username, password, timeout=30):
         "ip": idrac_ip,
         "msg": (
             f"Failed to disable telemetry on iDRAC {idrac_ip}. "
-            f"None of the supported telemetry properties were found: {', '.join(telemetry_properties)}"
+            f"None of the supported telemetry properties were found: "
+            f"{', '.join(telemetry_properties)}"
         )
     }
 

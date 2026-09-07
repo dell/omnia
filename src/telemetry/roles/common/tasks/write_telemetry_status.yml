@@ -138,6 +138,9 @@
     msg: >-
       Telemetry deployment completed with failures.
       Review the status summary above and check
-      {{ output_project_dir | default(telemetry_data_path | default('/opt/omnia/telemetry') + '/output/' + (project_name | default('project_default'))) }}/telemetry_status.yml
-      for details.
+      {{ _status_path }}/telemetry_status.yml for details.
+  vars:
+    _default_base: "{{ telemetry_data_path | default('/opt/omnia/telemetry') }}"
+    _output_dir: "{{ _default_base + '/output/' + (project_name | default('project_default')) }}"
+    _status_path: "{{ output_project_dir | default(_output_dir) }}"
   when: _deployment_status | trim == 'failed'

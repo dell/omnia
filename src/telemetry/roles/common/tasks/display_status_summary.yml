@@ -23,6 +23,10 @@
       - "======================================================================"
       - ""
       - "Deployment status:"
-      - "  {{ output_project_dir | default(omnia_data_path | default('/opt/omnia') + '/telemetry/output/' + (project_name | default('project_default'))) }}/telemetry_status.yml"
+      - "  {{ _status_path }}/telemetry_status.yml"
       - ""
       - "======================================================================"
+  vars:
+    _default_base: "{{ omnia_data_path | default('/opt/omnia') }}"
+    _output_dir: "{{ _default_base + '/telemetry/output/' + (project_name | default('project_default')) }}"
+    _status_path: "{{ output_project_dir | default(_output_dir) }}"

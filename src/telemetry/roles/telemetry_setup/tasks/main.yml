@@ -28,7 +28,7 @@
   ansible.builtin.include_tasks: load_config.yml
 
 - name: Validate system environment
-  omnia.telemetry.validate_system_environment:
+  validate_system_environment:
     required_vars:
       - OMNIA_DATA_PATH
     validate_hostname: false

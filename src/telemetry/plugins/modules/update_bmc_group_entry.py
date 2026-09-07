@@ -148,7 +148,7 @@ def is_bmc_reachable_or_auth(ip, username, password, module):
             url,
             auth=HTTPBasicAuth(username, password),
             timeout=30,
-            verify=False  # NOSONAR - BMC uses self-signed certificates
+            verify=False  # nosec - BMC uses self-signed certificates
         )
 
         if response.status_code == 200:
