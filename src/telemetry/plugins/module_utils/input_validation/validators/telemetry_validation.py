@@ -26,6 +26,96 @@ from ansible.module_utils.input_validation.core.validation_utils import create_e
 from ansible.module_utils.input_validation.validators import powerscale_telemetry_validation
 
 
+_SSH_OPTIONS = (
+    "-o", "StrictHostKeyChecking=no",
+    "-o", "UserKnownHostsFile=/dev/null",
+    "-o", "ConnectTimeout=10",
+    "-o", "BatchMode=yes",
+)
+_REMOTE_DIRECTORY_CHECK = 'IFS= read -r mount_path && test -d "$mount_path"'
+
+
+def _canonical_ipv4(value):
+    """Return a canonical IPv4 string, or an empty string when invalid."""
+    if not isinstance(value, str):
+        return ""
+    components = value.strip().split(".")
+    if len(components) != 4:
+        return ""
+    canonical_components = []
+    for component in components:
+        if (
+            not component
+            or len(component) > 3
+            or not component.isascii()
+            or not component.isdigit()
+        ):
+            return ""
+        number = int(component)
+        if number > 255:
+            return ""
+        canonical_components.append(str(number))
+    return ".".join(canonical_components)
+
+
+def _validated_mount_path(value):
+    """Return a safe absolute mount path, or an empty string when invalid."""
+    if not isinstance(value, str) or not value or not os.path.isabs(value):
+        return ""
+    if any(character in value for character in ("\x00", "\r", "\n")):
+        return ""
+    return value
+
+
+def _inventory_kube_vip(inventory_data):
+    """Return the inventory kube VIP and a safely shaped children mapping."""
+    if not isinstance(inventory_data, dict):
+        return "", {}
+    all_group = inventory_data.get("all", {})
+    if not isinstance(all_group, dict):
+        return "", {}
+    children = all_group.get("children", {})
+    if not isinstance(children, dict):
+        return "", {}
+    kube_vip_group = children.get("kube_vip_group", {})
+    if not isinstance(kube_vip_group, dict):
+        return "", children
+    hosts = kube_vip_group.get("hosts", {})
+    if not isinstance(hosts, dict) or not hosts:
+        return "", children
+    first_host_name = next(iter(hosts))
+    first_host_data = hosts.get(first_host_name, {})
+    if isinstance(first_host_data, dict) and "ansible_host" in first_host_data:
+        return first_host_data["ansible_host"], children
+    return first_host_name, children
+
+
+def _check_ssh_reachability(host):
+    """Run a fixed SSH no-op against a canonical IPv4 destination."""
+    return subprocess.run(
+        ["ssh", *_SSH_OPTIONS, "--", host, "true"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        shell=False,
+        timeout=15,
+    )
+
+
+def _check_remote_directory(host, mount_path):
+    """Check a remote path while transporting the path only as stdin data."""
+    return subprocess.run(
+        ["ssh", *_SSH_OPTIONS, "--", host, _REMOTE_DIRECTORY_CHECK],
+        input=f"{mount_path}\n",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+        shell=False,
+        timeout=15,
+    )
+
+
 def validate_telemetry_config(
     input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
 ):
@@ -132,33 +222,35 @@ def validate_telemetry_config(
                 # Extract kube_vip from cluster_inventory structure:
                 # all.children.kube_vip_group.hosts.<hostname>.ansible_host or <hostname>
                 # Check for service cluster nodes (service_kube_control_plane)
-                if cluster_inv_data and "all" in cluster_inv_data:
-                    children = cluster_inv_data.get("all", {}).get("children", {})
-                    kube_vip_group = children.get("kube_vip_group", {})
-                    hosts = kube_vip_group.get("hosts", {})
-                    if hosts:
-                        first_host_name = list(hosts.keys())[0]
-                        first_host_data = hosts.get(first_host_name, {})
-                        if isinstance(first_host_data, dict) and "ansible_host" in first_host_data:
-                            kube_vip = first_host_data["ansible_host"]
-                        else:
-                            kube_vip = first_host_name
+                kube_vip, children = _inventory_kube_vip(cluster_inv_data)
+                if children:
+                    if kube_vip:
                         logger.info(f"Extracted kube_vip '{kube_vip}' from cluster_inventory")
                     
                     # Check for service cluster nodes (service_kube_control_plane and service_kube_node)
                     service_kube_control_plane_found = False
                     service_kube_node_found = False
                     for group_name in children.keys():
+                        if not isinstance(group_name, str):
+                            continue
                         if group_name.startswith("service_kube_control_plane"):
                             service_kube_control_plane_found = True
-                            group_hosts = children.get(group_name, {}).get("hosts", {})
+                            group_data = children.get(group_name, {})
+                            group_hosts = (
+                                group_data.get("hosts", {})
+                                if isinstance(group_data, dict) else {}
+                            )
                             if group_hosts and len(group_hosts) > 0:
                                 logger.info(f"Found service_kube_control_plane group: {group_name} with {len(group_hosts)} node(s)")
                             else:
                                 logger.warning(f"service_kube_control_plane group '{group_name}' has no hosts")
                         elif group_name.startswith("service_kube_node"):
                             service_kube_node_found = True
-                            group_hosts = children.get(group_name, {}).get("hosts", {})
+                            group_data = children.get(group_name, {})
+                            group_hosts = (
+                                group_data.get("hosts", {})
+                                if isinstance(group_data, dict) else {}
+                            )
                             if group_hosts and len(group_hosts) > 0:
                                 logger.info(f"Found service_kube_node group: {group_name} with {len(group_hosts)} node(s)")
                             else:
@@ -168,47 +260,20 @@ def validate_telemetry_config(
             except (yaml.YAMLError, OSError, KeyError, TypeError) as e:
                 logger.warning(f"Failed to extract kube_vip from cluster_inventory: {e}")
 
-    kube_vip_valid = False
-    if kube_vip and isinstance(kube_vip, str):
-        octets = kube_vip.strip().split(".")
-        if len(octets) == 4:
-            kube_vip_valid = True
-            for octet in octets:
-                try:
-                    val = int(octet)
-                    if val < 0 or val > 255:
-                        kube_vip_valid = False
-                        break
-                except ValueError:
-                    kube_vip_valid = False
-                    break
-            if not kube_vip_valid:
-                errors.append(create_error_msg(
-                    "kube_vip",
-                    kube_vip,
-                    en_us_validation_msg.KUBE_VIP_INVALID_IPV4_MSG
-                ))
+    safe_kube_vip = _canonical_ipv4(kube_vip)
+    if kube_vip:
+        if not safe_kube_vip:
+            errors.append(create_error_msg(
+                "kube_vip",
+                kube_vip,
+                en_us_validation_msg.KUBE_VIP_INVALID_IPV4_MSG
+            ))
         logger.info(f"kube_vip L2 validation checked: {kube_vip}")
 
-        if kube_vip_valid:
+        if safe_kube_vip:
             # Check SSH reachability of kube_vip
             try:
-                ssh_reach_cmd = [
-                    "ssh",
-                    "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null",
-                    "-o", "ConnectTimeout=10",
-                    "-o", "BatchMode=yes",
-                    kube_vip,
-                    "true"
-                ]
-                reach_result = subprocess.run(
-                    ssh_reach_cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    check=False,
-                    timeout=15
-                )
+                reach_result = _check_ssh_reachability(safe_kube_vip)
                 if reach_result.returncode != 0:
                     errors.append(create_error_msg(
                         "kube_vip",
@@ -216,7 +281,6 @@ def validate_telemetry_config(
                         en_us_validation_msg.KUBE_VIP_SSH_UNREACHABLE_MSG
                     ))
                     logger.error(f"kube_vip '{kube_vip}' is not reachable via SSH")
-                    kube_vip_valid = False
                 else:
                     logger.info(f"kube_vip '{kube_vip}' is reachable via SSH")
             except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError) as e:
@@ -226,7 +290,6 @@ def validate_telemetry_config(
                     en_us_validation_msg.KUBE_VIP_SSH_UNREACHABLE_MSG
                 ))
                 logger.warning(f"SSH reachability check for kube_vip failed: {e}")
-                kube_vip_valid = False
 
         # kube_vip validation complete
 
@@ -928,135 +991,204 @@ def validate_telemetry_packages(
     # Validate k8s_cluster_mount
     # =========================================================================
     k8s_cluster_mount = data.get("k8s_cluster_mount", "")
-    if not k8s_cluster_mount or (isinstance(k8s_cluster_mount, str) and k8s_cluster_mount.strip() == ""):
+    safe_k8s_cluster_mount = _validated_mount_path(k8s_cluster_mount)
+    if not k8s_cluster_mount or (
+        isinstance(k8s_cluster_mount, str)
+        and k8s_cluster_mount.strip() == ""
+    ):
         errors.append(create_error_msg(
             "k8s_cluster_mount",
             k8s_cluster_mount,
             en_us_validation_msg.K8S_CLUSTER_MOUNT_REQUIRED_MSG
         ))
+    elif not safe_k8s_cluster_mount:
+        errors.append(create_error_msg(
+            "k8s_cluster_mount",
+            k8s_cluster_mount,
+            en_us_validation_msg.K8S_CLUSTER_MOUNT_INVALID_MSG
+        ))
     else:
         logger.info(f"k8s_cluster_mount validation PASSED: {k8s_cluster_mount}")
-        
+
         # Cross-file validation: check if k8s_cluster_mount exists on kube_vip
         input_dir = os.path.dirname(input_file_path)
         telemetry_config_path = os.path.join(input_dir, "telemetry_config.yml")
-        
+
         if os.path.exists(telemetry_config_path):
             try:
-                with open(telemetry_config_path, 'r', encoding='utf-8') as f:
-                    telemetry_config = yaml.safe_load(f)
-                
-                kube_vip = telemetry_config.get("kube_vip", "") if isinstance(telemetry_config, dict) else ""
+                with open(
+                    telemetry_config_path, "r", encoding="utf-8"
+                ) as config_stream:
+                    telemetry_config = yaml.safe_load(config_stream)
 
-                # If kube_vip not in telemetry_config, try to extract from cluster_inventory
-                if (not kube_vip or not isinstance(kube_vip, str) or not kube_vip.strip()):
-                    cluster_inventory = telemetry_config.get("cluster_inventory", "") if isinstance(telemetry_config, dict) else ""
-                    if cluster_inventory and isinstance(cluster_inventory, str) and cluster_inventory.strip():
-                        cluster_inv_path = cluster_inventory.strip()
-                        if not os.path.isabs(cluster_inv_path):
-                            cluster_inv_full_path = os.path.join(input_dir, cluster_inv_path)
-                        else:
-                            cluster_inv_full_path = cluster_inv_path
-
-                        if os.path.exists(cluster_inv_full_path) and os.path.isfile(cluster_inv_full_path):
-                            try:
-                                with open(cluster_inv_full_path, "r", encoding="utf-8") as inv_file:
-                                    cluster_inv_data = yaml.safe_load(inv_file)
-                                # Extract kube_vip from cluster_inventory structure
-                                if cluster_inv_data and "all" in cluster_inv_data:
-                                    children = cluster_inv_data.get("all", {}).get("children", {})
-                                    kube_vip_group = children.get("kube_vip_group", {})
-                                    hosts = kube_vip_group.get("hosts", {})
-                                    if hosts:
-                                        first_host_name = list(hosts.keys())[0]
-                                        first_host_data = hosts.get(first_host_name, {})
-                                        if isinstance(first_host_data, dict) and "ansible_host" in first_host_data:
-                                            kube_vip = first_host_data["ansible_host"]
-                                        else:
-                                            kube_vip = first_host_name
-                                        logger.info(f"Extracted kube_vip '{kube_vip}' from cluster_inventory for k8s_cluster_mount validation")
-                            except (yaml.YAMLError, OSError, KeyError, TypeError) as e:
-                                logger.warning(f"Failed to extract kube_vip from cluster_inventory: {e}")
-
-                if kube_vip and isinstance(kube_vip, str) and kube_vip.strip():
-                    # First, verify kube_vip is reachable via SSH
-                    logger.info(f"Pre-checking SSH reachability to kube_vip '{kube_vip}' before k8s_cluster_mount path validation")
-                    
-                    try:
-                        ssh_reach_cmd = [
-                            "ssh",
-                            "-o", "StrictHostKeyChecking=no",
-                            "-o", "UserKnownHostsFile=/dev/null",
-                            "-o", "ConnectTimeout=10",
-                            "-o", "BatchMode=yes",
-                            kube_vip,
-                            "true"
-                        ]
-                        reach_result = subprocess.run(
-                            ssh_reach_cmd,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            check=False,
-                            timeout=15
+                kube_vip = (
+                    telemetry_config.get("kube_vip", "")
+                    if isinstance(telemetry_config, dict) else ""
+                )
+                cluster_inventory = (
+                    telemetry_config.get("cluster_inventory", "")
+                    if isinstance(telemetry_config, dict) else ""
+                )
+                if (
+                    (
+                        not isinstance(kube_vip, str)
+                        or not kube_vip.strip()
+                    )
+                    and isinstance(cluster_inventory, str)
+                    and cluster_inventory.strip()
+                ):
+                    cluster_inv_path = cluster_inventory.strip()
+                    if not os.path.isabs(cluster_inv_path):
+                        cluster_inv_full_path = os.path.join(
+                            input_dir, cluster_inv_path,
                         )
-                        
+                    else:
+                        cluster_inv_full_path = cluster_inv_path
+
+                    if os.path.isfile(cluster_inv_full_path):
+                        try:
+                            with open(
+                                cluster_inv_full_path,
+                                "r",
+                                encoding="utf-8",
+                            ) as inv_file:
+                                cluster_inv_data = yaml.safe_load(inv_file)
+                            kube_vip, _children = _inventory_kube_vip(
+                                cluster_inv_data,
+                            )
+                            if kube_vip:
+                                logger.info(
+                                    "Extracted kube_vip '%s' from "
+                                    "cluster_inventory for "
+                                    "k8s_cluster_mount validation",
+                                    kube_vip,
+                                )
+                        except (
+                            yaml.YAMLError, OSError, KeyError, TypeError
+                        ) as error:
+                            logger.warning(
+                                "Failed to extract kube_vip from "
+                                "cluster_inventory: %s",
+                                error,
+                            )
+
+                safe_kube_vip = _canonical_ipv4(kube_vip)
+                if safe_kube_vip:
+                    # First, verify kube_vip is reachable via SSH
+                    logger.info(
+                        "Pre-checking SSH reachability to kube_vip '%s' "
+                        "before k8s_cluster_mount path validation",
+                        safe_kube_vip,
+                    )
+
+                    try:
+                        reach_result = _check_ssh_reachability(
+                            safe_kube_vip,
+                        )
+
                         if reach_result.returncode != 0:
-                            logger.warning(f"kube_vip '{kube_vip}' is not reachable via SSH, skipping k8s_cluster_mount path check")
-                            logger.info("k8s_cluster_mount path validation skipped due to kube_vip SSH unreachability")
+                            logger.warning(
+                                "kube_vip '%s' is not reachable via SSH; "
+                                "skipping k8s_cluster_mount path check",
+                                safe_kube_vip,
+                            )
+                            logger.info(
+                                "k8s_cluster_mount path validation skipped "
+                                "due to kube_vip SSH unreachability"
+                            )
                         else:
-                            logger.info(f"kube_vip '{kube_vip}' is reachable, proceeding with k8s_cluster_mount path check")
-                            
+                            logger.info(
+                                "kube_vip '%s' is reachable; proceeding "
+                                "with k8s_cluster_mount path check",
+                                safe_kube_vip,
+                            )
+
                             # Now check if k8s_cluster_mount path exists
                             try:
-                                ssh_cmd = [
-                                    "ssh",
-                                    "-o", "StrictHostKeyChecking=no",
-                                    "-o", "UserKnownHostsFile=/dev/null",
-                                    "-o", "ConnectTimeout=10",
-                                    kube_vip,
-                                    f"test -d {k8s_cluster_mount}"
-                                ]
-                                result = subprocess.run(
-                                    ssh_cmd,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE,
-                                    check=False,
-                                    timeout=15
+                                result = _check_remote_directory(
+                                    safe_kube_vip,
+                                    safe_k8s_cluster_mount,
                                 )
-                                
+
                                 if result.returncode != 0:
                                     errors.append(create_error_msg(
                                         "k8s_cluster_mount",
                                         k8s_cluster_mount,
                                         en_us_validation_msg.K8S_CLUSTER_MOUNT_PATH_NOT_FOUND_ON_KUBE_VIP_MSG
                                     ))
-                                    logger.error(f"k8s_cluster_mount path '{k8s_cluster_mount}' does not exist on kube_vip '{kube_vip}'")
+                                    logger.error(
+                                        "k8s_cluster_mount path '%s' does "
+                                        "not exist on kube_vip '%s'",
+                                        safe_k8s_cluster_mount,
+                                        safe_kube_vip,
+                                    )
                                 else:
-                                    logger.info(f"k8s_cluster_mount path '{k8s_cluster_mount}' exists on kube_vip '{kube_vip}'")
-                            
-                            except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError) as e:
-                                logger.warning(f"SSH check for k8s_cluster_mount path failed: {e}")
+                                    logger.info(
+                                        "k8s_cluster_mount path '%s' exists "
+                                        "on kube_vip '%s'",
+                                        safe_k8s_cluster_mount,
+                                        safe_kube_vip,
+                                    )
+
+                            except (
+                                subprocess.TimeoutExpired,
+                                subprocess.SubprocessError,
+                                OSError,
+                            ) as error:
+                                logger.warning(
+                                    "SSH check for k8s_cluster_mount path "
+                                    "failed: %s",
+                                    error,
+                                )
                                 errors.append(create_error_msg(
                                     "k8s_cluster_mount",
                                     k8s_cluster_mount,
                                     en_us_validation_msg.K8S_CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG
                                 ))
-                    
-                    except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError) as e:
-                        logger.warning(f"SSH reachability check for kube_vip failed: {e}")
-                        logger.info("k8s_cluster_mount path validation skipped due to kube_vip SSH check failure")
+
+                    except (
+                        subprocess.TimeoutExpired,
+                        subprocess.SubprocessError,
+                        OSError,
+                    ) as error:
+                        logger.warning(
+                            "SSH reachability check for kube_vip failed: %s",
+                            error,
+                        )
+                        logger.info(
+                            "k8s_cluster_mount path validation skipped "
+                            "due to kube_vip SSH check failure"
+                        )
                 else:
-                    logger.warning("kube_vip not found in telemetry_config.yml, skipping k8s_cluster_mount path check")
+                    if kube_vip:
+                        errors.append(create_error_msg(
+                            "kube_vip",
+                            kube_vip,
+                            en_us_validation_msg.KUBE_VIP_INVALID_IPV4_MSG
+                        ))
+                    logger.warning(
+                        "A valid kube_vip was not found in "
+                        "cluster_inventory; skipping k8s_cluster_mount "
+                        "path check"
+                    )
                     errors.append(create_error_msg(
                         "k8s_cluster_mount",
                         k8s_cluster_mount,
                         en_us_validation_msg.K8S_CLUSTER_MOUNT_KUBE_VIP_NOT_FOUND_MSG
                     ))
-            
-            except (yaml.YAMLError, IOError, OSError) as e:
-                logger.warning(f"Failed to load telemetry_config.yml for kube_vip lookup: {e}")
+
+            except (yaml.YAMLError, OSError) as error:
+                logger.warning(
+                    "Failed to load telemetry_config.yml for kube_vip "
+                    "lookup: %s",
+                    error,
+                )
         else:
-            logger.warning(f"telemetry_config.yml not found at {telemetry_config_path}, skipping k8s_cluster_mount path check")
+            logger.warning(
+                "telemetry_config.yml not found at %s; skipping "
+                "k8s_cluster_mount path check",
+                telemetry_config_path,
+            )
 
     # =========================================================================
     # Validate slurm_cluster_mount

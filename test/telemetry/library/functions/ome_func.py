@@ -175,6 +175,15 @@ def _format_ome_action_error(result, body, http_code):
     return f"{status}: {detail}" if detail else status
 
 
+def _run_ome_api_command(host, template_name, ome_user, ome_secret, *args):
+    """Run an OME curl template with Testinfra-quoted dynamic arguments."""
+    command = OME_CMD_TEMPLATES[template_name]
+    authentication = f"{ome_user}:{ome_secret}"
+    return run_on_host(
+        host, command, authentication, *(str(value) for value in args),
+    )
+
+
 def verify_ome_kafka_connectivity(host, ome_ip, ome_user,
                                   ome_secret, forwarder_id=10):
     """Check OME Kafka forwarder connectivity status via REST API.
@@ -193,11 +202,17 @@ def verify_ome_kafka_connectivity(host, ome_ip, ome_user,
         forwarder_name, forwarder_enabled, error.
     """
     # First get forwarder details
-    forwarder_cmd = OME_CMD_TEMPLATES["ome_get_forwarder"].format(
-        user=ome_user, secret=ome_secret,
-        ome_ip=ome_ip, forwarder_id=forwarder_id,
+    forwarder_url = (
+        f"https://{ome_ip}/api/DataForwardingService/"
+        f"Forwarders({forwarder_id})"
     )
-    result = run_on_host(host, forwarder_cmd)
+    result = _run_ome_api_command(
+        host,
+        "ome_get_forwarder",
+        ome_user,
+        ome_secret,
+        forwarder_url,
+    )
     forwarder_body, forwarder_http_code = _parse_http_code(result.stdout)
     forwarder_name = ""
     forwarder_enabled = False
@@ -237,11 +252,17 @@ def verify_ome_kafka_connectivity(host, ome_ip, ome_user,
             pass
 
     # Get connectivity status
-    status_cmd = OME_CMD_TEMPLATES["ome_get_forwarder_status"].format(
-        user=ome_user, secret=ome_secret,
-        ome_ip=ome_ip, forwarder_id=forwarder_id,
+    status_url = (
+        f"https://{ome_ip}/api/DataForwardingService/"
+        f"Forwarders({forwarder_id})/ConnectivityStatus"
     )
-    result = run_on_host(host, status_cmd)
+    result = _run_ome_api_command(
+        host,
+        "ome_get_forwarder_status",
+        ome_user,
+        ome_secret,
+        status_url,
+    )
     status_body, status_http_code = _parse_http_code(result.stdout)
 
     if _is_auth_http_code(status_http_code):
@@ -332,13 +353,17 @@ def get_ome_kafka_forwarder_config(host, ome_ip, ome_user, ome_secret,
     Returns:
         dict containing the configuration map, current broker, and error.
     """
-    cmd = OME_CMD_TEMPLATES["ome_get_forwarder_config"].format(
-        ome_ip=ome_ip,
-        user=ome_user,
-        secret=ome_secret,
-        forwarder_id=forwarder_id,
+    config_url = (
+        f"https://{ome_ip}/api/DataForwardingService/"
+        f"Forwarders({forwarder_id})/ForwarderConfigurations"
     )
-    result = run_on_host(host, cmd)
+    result = _run_ome_api_command(
+        host,
+        "ome_get_forwarder_config",
+        ome_user,
+        ome_secret,
+        config_url,
+    )
     body, http_code = _parse_http_code(result.stdout)
 
     if _is_auth_http_code(http_code):
@@ -554,10 +579,16 @@ def get_ome_forwarders(host, ome_ip, ome_user, ome_secret):
     Returns:
         dict with keys: success, forwarders (list), error.
     """
-    cmd = OME_CMD_TEMPLATES["ome_get_forwarders_list"].format(
-        user=ome_user, secret=ome_secret, ome_ip=ome_ip,
+    forwarders_url = (
+        f"https://{ome_ip}/api/DataForwardingService/Forwarders"
     )
-    result = run_on_host(host, cmd)
+    result = _run_ome_api_command(
+        host,
+        "ome_get_forwarders_list",
+        ome_user,
+        ome_secret,
+        forwarders_url,
+    )
 
     if result.rc != 0 or not result.stdout.strip():
         return {
@@ -635,8 +666,8 @@ def verify_external_kafka_certs(host):
 
     for cert_file in OME_KAFKA_CERT_FILES:
         path = f"{cert_dir}/{cert_file}"
-        cmd = OME_CMD_TEMPLATES["file_exists"].format(path=path)
-        result = run_on_host(host, cmd)
+        cmd = OME_CMD_TEMPLATES["file_exists"]
+        result = run_on_host(host, cmd, path)
         if result.rc == 0 and "exists" in result.stdout:
             found.append(cert_file)
         else:
@@ -742,11 +773,15 @@ def convert_certs_to_pfx(host, pfx_secret=""):
     """
     cert_dir = _get_cert_dir(host)
     pfx_path = f"{cert_dir}/user.pfx"
-    cmd = OME_CMD_TEMPLATES["openssl_create_pfx"].format(
-        cert_dir=cert_dir,
-        secret=pfx_secret,
+    cmd = OME_CMD_TEMPLATES["openssl_create_pfx"]
+    result = run_on_host(
+        host,
+        cmd,
+        pfx_path,
+        f"{cert_dir}/user.key",
+        f"{cert_dir}/user.crt",
+        f"pass:{pfx_secret}",
     )
-    result = run_on_host(host, cmd)
     if result.rc != 0:
         return {
             "success": False,
@@ -755,8 +790,8 @@ def convert_certs_to_pfx(host, pfx_secret=""):
         }
 
     # Verify PFX file was created
-    verify_cmd = OME_CMD_TEMPLATES["file_exists"].format(path=pfx_path)
-    verify_result = run_on_host(host, verify_cmd)
+    verify_cmd = OME_CMD_TEMPLATES["file_exists"]
+    verify_result = run_on_host(host, verify_cmd, pfx_path)
     exists = (
         verify_result.rc == 0
         and "exists" in verify_result.stdout
@@ -801,8 +836,7 @@ def _read_file_base64(host, file_path):
     Returns:
         str: Base64-encoded content, or empty string on error.
     """
-    cmd = f"base64 -w0 {file_path} 2>/dev/null"
-    result = run_on_host(host, cmd)
+    result = run_on_host(host, "base64 -w0 %s 2>/dev/null", file_path)
     if result.rc == 0:
         return result.stdout.strip()
     return ""
@@ -859,11 +893,23 @@ def upload_ome_server_cert(host, ome_ip, ome_user, ome_secret):
             "error": f"Cannot read {ca_crt_path}",
         }
 
-    cmd = OME_CMD_TEMPLATES["ome_upload_server_cert"].format(
-        ome_ip=ome_ip, user=ome_user, secret=ome_secret,
-        cert_data_b64=ca_b64,
+    payload = json.dumps({
+        "CertData": ca_b64,
+        "CertFormat": "X_509",
+        "ClientType": "KAFKA",
+    })
+    upload_url = (
+        f"https://{ome_ip}/api/ApplicationService/Actions/"
+        "ApplicationService.UploadServerCertificate"
     )
-    result = run_on_host(host, cmd)
+    result = _run_ome_api_command(
+        host,
+        "ome_upload_server_cert",
+        ome_user,
+        ome_secret,
+        payload,
+        upload_url,
+    )
     _, http_code = _parse_http_code(result.stdout)
 
     # 204 No Content = success
@@ -910,11 +956,24 @@ def upload_ome_client_cert(host, ome_ip, ome_user, ome_secret,
             "error": f"Cannot read {pfx_path}",
         }
 
-    cmd = OME_CMD_TEMPLATES["ome_upload_client_cert"].format(
-        ome_ip=ome_ip, user=ome_user, secret=ome_secret,
-        cert_data_b64=pfx_b64, pfx_secret=pfx_secret,
+    payload = json.dumps({
+        "CertData": pfx_b64,
+        "CertFormat": "PKCS_12",
+        "ClientType": "KAFKA",
+        "Passphrase": pfx_secret,
+    })
+    upload_url = (
+        f"https://{ome_ip}/api/ApplicationService/Actions/"
+        "ApplicationService.UploadClientCertificate"
     )
-    result = run_on_host(host, cmd)
+    result = _run_ome_api_command(
+        host,
+        "ome_upload_client_cert",
+        ome_user,
+        ome_secret,
+        payload,
+        upload_url,
+    )
     _, http_code = _parse_http_code(result.stdout)
 
     # 204 No Content = success
@@ -945,10 +1004,19 @@ def view_ome_client_cert(host, ome_ip, ome_user, ome_secret):
     Returns:
         dict with keys: success, cert_info, error.
     """
-    cmd = OME_CMD_TEMPLATES["ome_view_client_cert"].format(
-        ome_ip=ome_ip, user=ome_user, secret=ome_secret,
+    payload = json.dumps({"ClientType": "KAFKA"})
+    view_url = (
+        f"https://{ome_ip}/api/ApplicationService/Actions/"
+        "ApplicationService.ViewClientCertificate"
     )
-    result = run_on_host(host, cmd)
+    result = _run_ome_api_command(
+        host,
+        "ome_view_client_cert",
+        ome_user,
+        ome_secret,
+        payload,
+        view_url,
+    )
 
     if result.rc != 0 or not result.stdout.strip():
         return {
@@ -997,8 +1065,8 @@ def get_local_cert_details(host):
         not_before, not_after, serial, error.
     """
     cert_path = f"{_get_cert_dir(host)}/user.crt"
-    cmd = OME_CMD_TEMPLATES["openssl_cert_details"].format(cert_path=cert_path)
-    result = run_on_host(host, cmd)
+    cmd = OME_CMD_TEMPLATES["openssl_cert_details"]
+    result = run_on_host(host, cmd, cert_path)
 
     if result.rc != 0:
         return {
@@ -1181,12 +1249,47 @@ def send_ome_kafka_test_connection(
     Returns:
         dict with keys: success, http_code, error.
     """
-    cmd = OME_CMD_TEMPLATES["ome_test_kafka_connection"].format(
-        ome_ip=ome_ip, user=ome_user, secret=ome_secret,
-        forwarder_id=forwarder_id, ome_identifier=ome_identifier,
-        broker_list=broker_list,
+    payload = json.dumps({
+        "Id": forwarder_id,
+        "ForwarderConfigurations": [
+            {
+                "ConfigurationName": "OMEIdentifier",
+                "ConfigurationValue": ome_identifier,
+            },
+            {
+                "ConfigurationName": "ClientType",
+                "ConfigurationValue": "KAFKA",
+            },
+            {
+                "ConfigurationName": "BrokerList",
+                "ConfigurationValue": broker_list,
+            },
+            {
+                "ConfigurationName": "AuthMode",
+                "ConfigurationValue": "2",
+            },
+            {
+                "ConfigurationName": "ServerCert",
+                "ConfigurationValue": "true",
+            },
+            {
+                "ConfigurationName": "ClientCert",
+                "ConfigurationValue": "true",
+            },
+        ],
+    })
+    action_url = (
+        f"https://{ome_ip}/api/DataForwardingService/Actions/"
+        "DataForwardingService.TestConnection"
     )
-    result = run_on_host(host, cmd)
+    result = _run_ome_api_command(
+        host,
+        "ome_test_kafka_connection",
+        ome_user,
+        ome_secret,
+        payload,
+        action_url,
+    )
     body, http_code = _parse_http_code(result.stdout)
 
     # The supported OME TestConnection action documents HTTP 200 as success.
@@ -1223,12 +1326,52 @@ def update_ome_forwarder_settings(host, ome_ip, ome_user, ome_secret,
     Returns:
         dict with keys: success, http_code, error.
     """
-    cmd = OME_CMD_TEMPLATES["ome_update_forwarder"].format(
-        ome_ip=ome_ip, user=ome_user, secret=ome_secret,
-        forwarder_id=forwarder_id, ome_identifier=ome_identifier,
-        broker_list=broker_list,
+    payload = json.dumps({
+        "Id": forwarder_id,
+        "Enabled": True,
+        "ForwarderConfigurations": [
+            {
+                "ConfigurationName": "OMEIdentifier",
+                "ConfigurationValue": ome_identifier,
+            },
+            {
+                "ConfigurationName": "ClientType",
+                "ConfigurationValue": "KAFKA",
+            },
+            {
+                "ConfigurationName": "BrokerList",
+                "ConfigurationValue": broker_list,
+            },
+            {
+                "ConfigurationName": "AuthMode",
+                "ConfigurationValue": "2",
+            },
+            {
+                "ConfigurationName": "ServerCert",
+                "ConfigurationValue": "true",
+            },
+            {
+                "ConfigurationName": "ClientCert",
+                "ConfigurationValue": "true",
+            },
+            {
+                "ConfigurationName": "HeartBeat",
+                "ConfigurationValue": "120",
+            },
+        ],
+    })
+    action_url = (
+        f"https://{ome_ip}/api/DataForwardingService/Actions/"
+        "DataForwardingService.ForwarderSettings"
     )
-    result = run_on_host(host, cmd)
+    result = _run_ome_api_command(
+        host,
+        "ome_update_forwarder",
+        ome_user,
+        ome_secret,
+        payload,
+        action_url,
+    )
     body, http_code = _parse_http_code(result.stdout)
 
     # The supported OME ForwarderSettings action documents HTTP 200 as success.

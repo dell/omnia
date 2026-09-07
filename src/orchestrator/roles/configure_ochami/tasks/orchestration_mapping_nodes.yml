@@ -17,7 +17,9 @@
   environment: "{{ hostvars['oim']['ochami_env'] }}"
   block:
     - name: Set openchami SELinux context
-      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"
+      ansible.builtin.command: >-
+        chcon -R system_u:object_r:container_file_t:s0
+        {{ hostvars['localhost']['omnia_data_path'] }}/openchami
       changed_when: true
       failed_when: false
 
@@ -36,7 +38,7 @@
         dest: "{{ openchami_nodes_vars_path }}"
         mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
       vars:
-        nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
+        mapping_nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items | map(attribute='value') | list }}"
 
     - name: Create orchestrator output directory on OIM
       ansible.builtin.file:

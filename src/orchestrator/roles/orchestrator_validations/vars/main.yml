@@ -37,16 +37,16 @@ mapping_file_key: "ADMIN_MAC"
 hostname_chars_fail_msg: |
   Failed. Hostname should not contain _ or . or space or node- as it might result in issues with provisioning/authentication
   tools like FreeIPA. Make sure the mapping file contains only the hostname, and not the domain_name. Found in:
-temp_mapping_file_path: "/opt/omnia/pxe_mapping_file.csv"
+temp_mapping_file_path: "{{ hostvars['localhost']['omnia_data_path'] }}/pxe_mapping_file.csv"
 capital_hostname_fail_msg: |
   "Failed. Invalid hostname {{ item }}. Hostname should be in lower case and should not start with numbers.
   Refer documentation for more details."
-temp_pxe_file_path: "/opt/omnia/openchami/temp_pxe_file.csv"
+temp_pxe_file_path: "{{ hostvars['localhost']['omnia_data_path'] }}/openchami/temp_pxe_file.csv"
 file_mode: "0644"
 functional_groups_file_path: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
 
 # Usage: updates_hosts.yml
-hosts_file_path: /opt/omnia/hosts
+hosts_file_path: "{{ hostvars['localhost']['omnia_data_path'] }}/hosts"
 
 # Usage: validate_image.yml
 image_missing_fail_msg: |
@@ -99,7 +99,7 @@ openldap_container_missing_msg: "{{ '\x1b[31m' }}\
   \n\
   To resolve this issue:\n\
   1. Ensure the 'openldap_group' is present in the catalog\n\
-  2. Check /opt/omnia/auth/ for configuration and certificate files\n\
+  2. Check {{ hostvars['localhost']['omnia_data_path'] }}/auth/ for configuration and certificate files\n\
   3. Check container logs: podman logs omnia_auth\n\
   4. Re-run orchestrator.yml to retry the deployment\n\
   \n\

@@ -36,7 +36,7 @@ import signal
 import subprocess
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .host_func import (
     load_test_config,
@@ -44,6 +44,11 @@ from .host_func import (
     is_local_execution,
 )
 from .formatting_func import TestLogger, Colors, Symbols
+from .process_security import (
+    descriptor_tuple,
+    scrubbed_subprocess_environment,
+    sshpass_pipe,
+)
 from ..vars.common_vars import get_setting, get_module_root
 from ..messages.runner_msgs import (
     RUNNER_LOG_MSGS,
@@ -147,7 +152,6 @@ def run_playbook(
         cmd = ansible_cmd
         log.check(RUNNER_LOG_MSGS["connecting_local"])
     else:
-        cmd = _wrap_ssh(ansible_cmd, config, credentials)
         host = config["oim_server_ip"]
         port = config.get("oim_ssh_port", 22)
         log.check(RUNNER_LOG_MSGS["connecting_remote"].format(
@@ -160,7 +164,27 @@ def run_playbook(
     ))
     log.check(RUNNER_LOG_MSGS["streaming_output"])
 
-    return _stream_cmd(cmd, playbook, t, tag, config, playbook_workdir)
+    if local_mode:
+        return _stream_cmd(
+            cmd, playbook, t, tag, config, playbook_workdir,
+        )
+
+    try:
+        with sshpass_pipe(oim_auth) as auth_fd:
+            cmd = _wrap_ssh(
+                ansible_cmd, config, credentials, auth_fd=auth_fd,
+            )
+            return _stream_cmd(
+                cmd,
+                playbook,
+                t,
+                tag,
+                config,
+                playbook_workdir,
+                pass_fds=descriptor_tuple(auth_fd),
+            )
+    except (OSError, ValueError) as exc:
+        return _fail(playbook, 0.0, str(exc))
 
 
 # =====================================================================
@@ -213,6 +237,7 @@ def _wrap_ssh(
     cmd: str,
     config: Dict,
     credentials: Dict,
+    auth_fd: Optional[int] = None,
 ) -> str:
     """Wrap a command in SSH for remote execution."""
     host = config["oim_server_ip"]
@@ -221,8 +246,12 @@ def _wrap_ssh(
     oim_auth = credentials.get("oim_password", "")
 
     if oim_auth:
+        if auth_fd is None:
+            raise ValueError(
+                "An authentication descriptor is required for sshpass"
+            )
         parts = [
-            "sshpass", "-p", shlex.quote(oim_auth),
+            "sshpass", "-d", str(auth_fd),
             "ssh", "-T",
         ]
     else:
@@ -252,6 +281,7 @@ def _stream_cmd(
     tag: Optional[str],
     config: Dict,
     pb_workdir: str = "src",
+    pass_fds: Tuple[int, ...] = (),
 ) -> Dict[str, Any]:
     """Execute *cmd* via subprocess, streaming output line-by-line.
 
@@ -275,6 +305,8 @@ def _stream_cmd(
             bufsize=1,
             text=True,
             preexec_fn=os.setsid,
+            pass_fds=pass_fds,
+            env=scrubbed_subprocess_environment(),
         )
 
         # Lightweight timeout watchdog (no reader threads)

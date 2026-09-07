@@ -46,33 +46,66 @@
   failed_when: false
   changed_when: false
 
+- name: Check if s3cmd configuration exists
+  ansible.builtin.stat:
+    path: "{{ s3cmd_config }}"
+  register: _s3cmd_config
+
 - name: Check if regctl is available
   ansible.builtin.stat:
     path: /usr/local/bin/regctl
   register: _regctl_available
 
+- name: Check if managed registry storage exists
+  ansible.builtin.stat:
+    path: "{{ registry_storage_dir }}"
+  register: _registry_storage
+
+- name: Check registry service state
+  # Query only; the command result is intentionally kept compact in FVT logs.
+  ansible.builtin.command: systemctl is-active registry  # noqa command-instead-of-module
+  register: _registry_service
+  failed_when: false
+  changed_when: false
+
+- name: Initialize image cleanup discovery results
+  ansible.builtin.set_fact:
+    _s3_object_paths: []
+    _repos_to_delete: []
+
 # ── 2. Discover S3 objects ─────────────────────────────────────────────────
 
 - name: Discover S3 images to delete
-  when: _s3cmd_available.rc == 0
+  when:
+    - _s3cmd_available.rc == 0
+    - _s3cmd_config.stat.exists | default(false)
   block:
     - name: "List S3 objects in boot-images bucket (pattern: {{ cleanup_image_pattern }})"
-      ansible.builtin.shell: |
-        set -o pipefail
-        s3cmd ls -r s3://boot-images/ 2>/dev/null | awk '{print $NF}' | grep -E '{{ cleanup_image_s3_regex }}' || true
-      args:
-        executable: /bin/bash
-      register: _s3_boot_objects
+      ansible.builtin.command: s3cmd ls -r s3://boot-images/
+      register: _s3_listing
       changed_when: false
+
+    - name: Filter S3 objects matching cleanup pattern
+      ansible.builtin.set_fact:
+        _s3_object_paths: >-
+          {{ _s3_listing.stdout_lines | default([])
+             | map('regex_replace', '^.*\\s+(s3://\\S+)$', '\\1')
+             | select('match', '^s3://boot-images/')
+             | select('search', cleanup_image_s3_regex)
+             | list }}
 
 - name: Set S3 object count
   ansible.builtin.set_fact:
-    _s3_object_count: "{{ _s3_boot_objects.stdout_lines | default([]) | length }}"
+    _s3_object_count: "{{ _s3_object_paths | length }}"
 
 # ── 3. Discover registry repos and tags ────────────────────────────────────
 
 - name: Discover registry images to delete
-  when: _regctl_available.stat.exists | default(false)
+  when:
+    - _regctl_available.stat.exists | default(false)
+    - >-
+      (_registry_storage.stat.exists | default(false)) or
+      (_registry_service.rc == 0 and _registry_service.stdout == 'active')
   block:
     - name: Compute registry host for image cleanup
       ansible.builtin.set_fact:
@@ -83,8 +116,12 @@
                   + (hostvars['localhost']['domain_name'] | default('omnia.cluster')) }}
 
     - name: List registry repositories
-      ansible.builtin.shell: |
-        /usr/local/bin/regctl repo ls {{ _cleanup_registry_host }}:5000 2>/dev/null || true
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/regctl
+          - repo
+          - ls
+          - "{{ _cleanup_registry_host }}:5000"
       register: _registry_repos
       changed_when: false
 
@@ -100,8 +137,12 @@
           {{ result }}
 
     - name: Enumerate tags for each matching repo
-      ansible.builtin.shell: |
-        /usr/local/bin/regctl tag ls {{ _cleanup_registry_host }}:5000/{{ item }} 2>/dev/null || true
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/regctl
+          - tag
+          - ls
+          - "{{ _cleanup_registry_host }}:5000/{{ item }}"
       register: _repo_tags
       loop: "{{ _repos_to_delete }}"
       loop_control:
@@ -117,6 +158,11 @@
          | map(attribute='stdout_lines', default=[])
          | map('length') | sum }}
 
+- name: Set total image cleanup count
+  ansible.builtin.set_fact:
+    _cleanup_image_count: >-
+      {{ (_s3_object_count | int) + (_registry_tag_count | int) }}
+
 # ── 4. Display summary and prompt for approval ────────────────────────────
 
 - name: Display cleanup summary
@@ -128,18 +174,26 @@
       - "  Registry repos with tags: {{ _registry_repo_count }}"
       - "  Registry tags to delete: {{ _registry_tag_count }}"
       - ""
-      - "{{ cleanup_images_approval_msg if not (skip_approval | default(false) | bool) else cleanup_images_skip_approval_msg }}"
+      - >-
+        {{ cleanup_images_nothing_to_delete_msg
+           if (_cleanup_image_count | int) == 0
+           else (cleanup_images_approval_msg
+                 if not (skip_approval | default(false) | bool)
+                 else cleanup_images_skip_approval_msg) }}
 
 - name: Prompt for approval before deleting images
   ansible.builtin.pause:
     prompt: "{{ cleanup_images_approval_prompt }}"
   register: _approval_response
-  when: not (skip_approval | default(false) | bool)
+  when:
+    - (_cleanup_image_count | int) > 0
+    - not (skip_approval | default(false) | bool)
 
 - name: Evaluate approval
   ansible.builtin.set_fact:
     _cleanup_approved: >-
-      {{ (skip_approval | default(false) | bool) or
+      {{ (_cleanup_image_count | int) == 0 or
+         (skip_approval | default(false) | bool) or
          (_approval_response.user_input | default('') | lower in ['y', 'yes']) }}
 
 - name: Abort cleanup (not approved)
@@ -153,21 +207,28 @@
   when:
     - _cleanup_approved | bool
     - _s3cmd_available.rc == 0
+    - _s3cmd_config.stat.exists | default(false)
   block:
     - name: Delete matching S3 boot-images objects
       ansible.builtin.command: "s3cmd del {{ item }}"
-      loop: "{{ _s3_boot_objects.stdout_lines | default([]) }}"
+      loop: "{{ _s3_object_paths }}"
       loop_control:
         label: "{{ item | basename }}"
-      changed_when: true
-      failed_when: false
-      when: _s3_boot_objects.stdout_lines | default([]) | length > 0
+      register: _s3_delete_objects
+      changed_when: _s3_delete_objects.rc == 0
+      failed_when: _s3_delete_objects.rc != 0
+      when:
+        - cleanup_image_pattern != '*'
+        - _s3_object_paths | length > 0
 
     - name: "Delete all S3 boot-images recursively (clean all)"
       ansible.builtin.command: "s3cmd del -r s3://boot-images/ --force"
-      changed_when: true
-      failed_when: false
-      when: cleanup_image_pattern == '*'
+      register: _s3_delete_all
+      changed_when: _s3_delete_all.rc == 0
+      failed_when: _s3_delete_all.rc != 0
+      when:
+        - cleanup_image_pattern == '*'
+        - _s3_object_paths | length > 0
 
     - name: Display S3 image cleanup result
       ansible.builtin.debug:
@@ -177,6 +238,13 @@
   ansible.builtin.debug:
     msg: "{{ cleanup_images_s3_skip_msg }}"
   when: _s3cmd_available.rc != 0
+
+- name: Skip S3 image cleanup (configuration not initialized)
+  ansible.builtin.debug:
+    msg: "{{ cleanup_images_s3_not_initialized_msg }}"
+  when:
+    - _s3cmd_available.rc == 0
+    - not (_s3cmd_config.stat.exists | default(false))
 
 # ── 6. Registry image cleanup (digest-based, tag-only) ────────────────────
 #
@@ -264,3 +332,11 @@
   ansible.builtin.debug:
     msg: "{{ cleanup_images_registry_skip_msg }}"
   when: not (_regctl_available.stat.exists | default(false))
+
+- name: Skip registry image cleanup (managed state not initialized)
+  ansible.builtin.debug:
+    msg: "{{ cleanup_images_registry_not_initialized_msg }}"
+  when:
+    - _regctl_available.stat.exists | default(false)
+    - not (_registry_storage.stat.exists | default(false))
+    - _registry_service.rc != 0 or _registry_service.stdout != 'active'

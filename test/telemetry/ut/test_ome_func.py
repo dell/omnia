@@ -358,11 +358,11 @@ def test_ome_forwarder_actions_require_documented_http_200(monkeypatch):
         object(), "ome.example", "admin", "secret", "kafka.example:9094",
     )
 
-    commands = []
+    calls = []
     response = SimpleNamespace(rc=0, stdout="HTTP_CODE:200", stderr="")
 
-    def _run_action(_host, command):
-        commands.append(command)
+    def _run_action(_host, command, *args):
+        calls.append((command, args))
         return response
 
     monkeypatch.setattr(ome_func, "run_on_host", _run_action)
@@ -370,11 +370,13 @@ def test_ome_forwarder_actions_require_documented_http_200(monkeypatch):
     save_result = ome_func.update_ome_forwarder_settings(*args)
     assert test_result["success"] is True
     assert save_result["success"] is True
-    assert "Actions/DataForwardingService.TestConnection" in commands[0]
-    assert "Actions/DataForwardingService.ForwarderSettings" in commands[1]
-    assert '"Id": 10' in commands[0]
-    assert '"ForwarderConfigurations"' in commands[0]
-    assert '"Enabled": true' in commands[1]
+    assert "Actions/DataForwardingService.TestConnection" in calls[0][1][-1]
+    assert "Actions/DataForwardingService.ForwarderSettings" in calls[1][1][-1]
+    test_payload = json.loads(calls[0][1][1])
+    save_payload = json.loads(calls[1][1][1])
+    assert test_payload["Id"] == 10
+    assert test_payload["ForwarderConfigurations"]
+    assert save_payload["Enabled"] is True
 
     response = SimpleNamespace(rc=0, stdout="HTTP_CODE:202", stderr="")
     monkeypatch.setattr(ome_func, "run_on_host", lambda *_args: response)
@@ -392,6 +394,67 @@ def test_ome_forwarder_actions_require_documented_http_200(monkeypatch):
     monkeypatch.setattr(ome_func, "run_on_host", lambda *_args: response)
     result = ome_func.send_ome_kafka_test_connection(*args)
     assert result["error"] == "HTTP 400: Broker certificate is not trusted"
+
+
+def test_ome_api_values_use_testinfra_quoted_arguments(monkeypatch):
+    """Keep hostile OME credentials and payload values out of shell templates."""
+    captured = {}
+    response = SimpleNamespace(
+        rc=0, stdout=json.dumps({"value": []}), stderr="",
+    )
+
+    def _run_action(_host, command, *args):
+        captured.update(command=command, args=args)
+        return response
+
+    monkeypatch.setattr(ome_func, "run_on_host", _run_action)
+    ome_user = "admin'; touch /tmp/must-not-run; '"
+    ome_secret = "secret $(must-not-run)"
+
+    result = ome_func.get_ome_forwarders(
+        object(), "ome.example", ome_user, ome_secret,
+    )
+
+    assert result["success"] is True
+    assert ome_user not in captured["command"]
+    assert ome_secret not in captured["command"]
+    assert captured["command"].count("%s") == 2
+    assert captured["args"] == (
+        f"{ome_user}:{ome_secret}",
+        "https://ome.example/api/DataForwardingService/Forwarders",
+    )
+
+
+def test_ome_pfx_secret_uses_testinfra_quoted_argument(monkeypatch):
+    """Keep a hostile PFX passphrase out of the OpenSSL shell template."""
+    calls = []
+    responses = iter([
+        SimpleNamespace(rc=0, stdout="", stderr=""),
+        SimpleNamespace(rc=0, stdout="exists\n", stderr=""),
+    ])
+
+    def _run_action(_host, command, *args):
+        calls.append((command, args))
+        return next(responses)
+
+    monkeypatch.setattr(ome_func, "run_on_host", _run_action)
+    monkeypatch.setattr(
+        ome_func, "_get_cert_dir", lambda _host: "/private/cert path",
+    )
+    pfx_secret = "secret'; touch /tmp/must-not-run; '"
+
+    result = ome_func.convert_certs_to_pfx(object(), pfx_secret)
+
+    assert result["success"] is True
+    assert pfx_secret not in calls[0][0]
+    assert calls[0][0].count("%s") == 4
+    assert calls[0][1] == (
+        "/private/cert path/user.pfx",
+        "/private/cert path/user.key",
+        "/private/cert path/user.crt",
+        f"pass:{pfx_secret}",
+    )
+    assert calls[1][1] == ("/private/cert path/user.pfx",)
 
 
 def test_ome_connectivity_stops_on_empty_http_401(monkeypatch):

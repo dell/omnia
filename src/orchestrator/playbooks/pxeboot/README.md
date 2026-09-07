@@ -149,7 +149,7 @@ FAILED! => BMC credentials not found. Run orchestrator credentials first
 ### pxe_mapping_file.csv not found
 
 ```
-FAILED! => pxe_mapping_file.csv not found at /opt/omnia/orchestrator/input/project_default/pxe_mapping_file.csv
+FAILED! => pxe_mapping_file.csv not found at $OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv
 ```
 
 **Solution**: Copy `pxe_mapping_file.csv` to the orchestrator input directory.

@@ -28,8 +28,8 @@ openchami_config:
   config_dirs:
     - "/etc/openchami"
     - "/etc/ochami"
-  workdir: "/opt/omnia/openchami/workdir"
-  log_dir: "/opt/omnia/log/openchami"
+  workdir: "{{ omnia_data_path }}/openchami/workdir"
+  log_dir: "{{ omnia_data_path }}/orchestrator/log/openchami"
   inventory_dirs:
-    - "/opt/omnia/openchami/inventory"
-  output_dir: "/opt/omnia/output/project_default/orchestrator"
+    - "{{ omnia_data_path }}/openchami/inventory"
+  output_dir: "{{ orchestrator_output_dir }}"

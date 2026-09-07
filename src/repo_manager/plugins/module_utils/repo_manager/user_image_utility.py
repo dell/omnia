@@ -13,63 +13,53 @@
 # limitations under the License.
 """Pulp remote handling for catalog-mapped configured registries."""
 
-import json
-
 from ansible.module_utils.repo_manager.container_repo_utils import extract_existing_tags
 from ansible.module_utils.repo_manager.parse_and_download import execute_command
-from ansible.module_utils.repo_manager.config import pulp_container_commands
-
-
-def _append_registry_options(command, registry_context, clear_missing=False):
-    """Append auth/TLS options and explicitly clear removed values on updates."""
-    tls = registry_context.get("tls") or {}
-    command.extend([
-        "--tls-validation",
-        "false" if tls.get("insecure", False) else "true",
-    ])
-
-    ca_path = tls.get("ca_path") or ""
-    client_cert = tls.get("client_cert_path") or ""
-    client_key = tls.get("client_key_path") or ""
-    if ca_path:
-        command.extend(["--ca-cert", f"@{ca_path}"])
-    elif clear_missing:
-        command.extend(["--ca-cert", ""])
-    if client_cert:
-        command.extend(["--client-cert", f"@{client_cert}"])
-    elif clear_missing:
-        command.extend(["--client-cert", ""])
-    if client_key:
-        command.extend(["--client-key", f"@{client_key}"])
-    elif clear_missing:
-        command.extend(["--client-key", ""])
-
-    if registry_context.get("auth_type") == "basic":
-        command.extend([
-            "--username", registry_context["username"],
-            "--password", registry_context["password"],
-        ])
-    elif clear_missing:
-        command.extend(["--username", "", "--password", ""])
-    return command
+from ansible.module_utils.repo_manager.pulp_commands import (
+    build_container_remote_command,
+    pulp_container_commands,
+)
+from ansible.module_utils.repo_manager.security_utils import (
+    validate_container_policy,
+    validate_container_reference,
+    validate_container_tag,
+    validate_repository_id,
+    validate_repository_url,
+)
 
 
 def _build_remote_command(
     action, remote_name, registry_context, image_path, policy_type, tags=None
 ):
     """Build a Pulp container remote create/update argv list."""
-    command = [
-        "pulp", "container", "remote", action,
-        "--name", remote_name,
-        "--url", registry_context["base_url"],
-        "--upstream-name", image_path,
-        "--policy", policy_type,
-        "--exclude-tags", json.dumps(["*sha256*.sig"]),
-    ]
+    remote_name = validate_repository_id(remote_name)
+    image_path = validate_container_reference(image_path)
+    policy_type = validate_container_policy(policy_type)
+    base_url = validate_repository_url(registry_context["base_url"])
     if tags is not None:
-        command.extend(["--include-tags", json.dumps(tags)])
-    return _append_registry_options(
-        command, registry_context, clear_missing=(action == "update")
+        tags = [validate_container_tag(tag) for tag in tags]
+    tls = registry_context.get("tls") or {}
+    uses_basic_auth = registry_context.get("auth_type") == "basic"
+    return build_container_remote_command(
+        action,
+        name=remote_name,
+        url=base_url,
+        upstream_name=image_path,
+        policy=policy_type,
+        include_tags=tags,
+        username=registry_context.get("username") if uses_basic_auth else None,
+        password=registry_context.get("password") if uses_basic_auth else None,
+        tls_validation=not tls.get("insecure", False),
+        ca_cert=f"@{tls['ca_path']}" if tls.get("ca_path") else None,
+        client_cert=(
+            f"@{tls['client_cert_path']}"
+            if tls.get("client_cert_path") else None
+        ),
+        client_key=(
+            f"@{tls['client_key_path']}"
+            if tls.get("client_key_path") else None
+        ),
+        clear_missing=(action == "update"),
     )
 
 
@@ -81,8 +71,13 @@ def create_or_update_configured_remote(
     Existing tags are retained and deduplicated. Authentication, URL, policy,
     and TLS options are reconciled even when the requested tag already exists.
     """
+    remote_name = validate_repository_id(remote_name)
+    image_path = validate_container_reference(image_path)
+    policy_type = validate_container_policy(policy_type)
+    if tag is not None:
+        tag = validate_container_tag(tag)
     remote_exists = execute_command(
-        pulp_container_commands["show_container_remote"] % remote_name, logger
+        pulp_container_commands["show_remote"] % remote_name, logger
     )
 
     tags = None if tag is None else list(dict.fromkeys(

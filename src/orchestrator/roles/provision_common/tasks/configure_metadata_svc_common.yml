@@ -66,6 +66,7 @@
   register: _existing_common_groups
   failed_when: false
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  no_log: true
 
 - name: Delete existing metadata-service common group entries
   ansible.builtin.uri:
