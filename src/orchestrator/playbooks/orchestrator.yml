@@ -20,7 +20,7 @@
 # Usage (run ONE tag at a time — no comma-separated tags):
 #   cd src/orchestrator
 #   ansible-playbook playbooks/orchestrator.yml                        # Default: precheck + prepare + execute
-#   ansible-playbook playbooks/orchestrator.yml --tags precheck        # Validate inputs + prerequisites (read-only)
+#   ansible-playbook playbooks/orchestrator.yml --tags precheck        # Generate FGs, then validate inputs + prerequisites
 #   ansible-playbook playbooks/orchestrator.yml --tags validate        # Validate input files only (schema + logic)
 #   ansible-playbook playbooks/orchestrator.yml --tags credentials     # Prompt for credentials (standalone, idempotent)
 #   ansible-playbook playbooks/orchestrator.yml --tags prepare         # Credentials + deploy + validate-deployment
@@ -37,7 +37,7 @@
 #
 # Tags (mutually exclusive — pick ONE):
 #   (none)       — Default flow: precheck + prepare + execute
-#   precheck     — Validate inputs, parameters, boot images (read-only, no system changes)
+#   precheck     — Generate functional groups, then validate inputs, parameters, and boot images
 #   validate     — Validate input files only (schema + logic, no health checks)
 #   credentials  — Prompt for credentials (standalone, idempotent)
 #   prepare      — Invoke credentials + deploy + validate-deployment tags
@@ -120,20 +120,23 @@
     - role: orchestrator_setup
       vars:
         openchami_vars_support: true
-        omnia_metadata_support: true
         oim_group: true
 
-# Shared — generate functional groups from pxe_mapping_file.csv
+# Generate functional groups for lifecycle flows that consume them
 - name: Generate functional groups configuration
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: always
   roles:
     - orchestrator_functional_groups
+  tags:
+    - precheck
+    - prepare
+    - provision
+    - execute
 
 # =========================================================================
-# FLOW: precheck — Validate inputs and prerequisites (read-only)
+# FLOW: precheck — Generate functional groups, then validate prerequisites
 # =========================================================================
 
 # Steps 1–4: Validate input, parameters, timezone, boot images, config vars
@@ -157,7 +160,7 @@
   connection: local
   gather_facts: false
   roles:
-    - validate_input
+    - validate_orchestrator_input
   tags:
     - validate
 
@@ -193,6 +196,13 @@
     - prepare
     - deploy
 
+# Standalone validation needs the persisted cluster and S3 facts before the
+# readiness playbooks run. This play is selected only by validate-deployment.
+- name: Validate preamble (standalone prerequisites)
+  ansible.builtin.import_playbook: validate/validate_preamble.yml
+  tags:
+    - validate-deployment
+
 # Validate deployment health (prepare + deploy + validate-deployment tags)
 - name: Validate OpenCHAMI readiness
   ansible.builtin.import_playbook: validate/validate_openchami.yml
@@ -206,17 +216,6 @@
   tags:
     - prepare
     - deploy
-    - validate-deployment
-
-# =========================================================================
-# FLOW: validate-deployment — Standalone health check (read-only)
-# Loads cluster config from OIM, authenticates, then runs all validations.
-# =========================================================================
-
-# Validate preamble: load cluster config + auth for standalone --tags validate-deployment
-- name: Validate preamble (standalone prerequisites)
-  ansible.builtin.import_playbook: validate/validate_preamble.yml
-  tags:
     - validate-deployment
 
 # =========================================================================

@@ -16,9 +16,9 @@
 # Based on functional_group_prefix, or apply to all
 # Expected input: config_item (either mount_item or swap_item)
 
-- name: Initialize target_functional_groups
+- name: Initialize mount target functional groups
   ansible.builtin.set_fact:
-    target_functional_groups: []
+    mount_target_functional_groups: []
 
 - name: Create metadata-service groups dict
   ansible.builtin.set_fact:
@@ -30,7 +30,7 @@
   block:
     - name: Find all functional groups matching any prefix
       ansible.builtin.set_fact:
-        target_functional_groups: >-
+        mount_target_functional_groups: >-
           {{
             metadata_svc_groups_dict.keys() | list |
             select('match', '^(' + (config_item.functional_group_prefix | join('|')) + ')') |

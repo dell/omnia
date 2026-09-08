@@ -32,6 +32,11 @@
     ms_group_common_entries: "{{ ms_group_common_raw.content | b64decode | from_yaml }}"
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
+- name: Initialize metadata-service common group bodies
+  ansible.builtin.set_fact:
+    _ms_group_bodies: []
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
 - name: Build metadata-service group body for each common entry
   ansible.builtin.set_fact:
     _ms_group_bodies: >-
@@ -55,18 +60,23 @@
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Fetch existing metadata-service groups for delete-before-set - common
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
-    status_code: [200]
-    validate_certs: false
-    return_content: true
-  register: _existing_common_groups
-  failed_when: false
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-  no_log: true
+  block:
+    - name: Fetch existing metadata-service groups
+      ansible.builtin.uri:
+        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+        status_code: [200]
+        validate_certs: false
+        return_content: true
+      register: _existing_common_groups
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+      no_log: true
+  rescue:
+    - name: Fail with metadata-service API error
+      ansible.builtin.fail:
+        msg: "{{ metadata_service_api_fail_msg }}"
 
 - name: Delete existing metadata-service common group entries
   ansible.builtin.uri:
@@ -78,7 +88,12 @@
     validate_certs: false
   loop: >-
     {{ _existing_common_groups.json | default([])
-       | selectattr('metadata.name', 'in', _ms_group_bodies | default([]) | map(attribute='metadata.name') | list)
+       | selectattr(
+           'metadata.name',
+           'in',
+           (_ms_group_bodies | default([]) | map(attribute='metadata.name') | list)
+           + ['node_registration']
+         )
        | list }}
   loop_control:
     label: "{{ item.metadata.name | default(item.metadata.uid) }}"
