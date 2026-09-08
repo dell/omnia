@@ -26,6 +26,10 @@ Run from the `src/orchestrator` directory:
 # All enabled components. Credential files are preserved.
 ansible-playbook playbooks/orchestrator.yml --tags cleanup
 
+# Non-interactive selection: clean Kubernetes and preserve Slurm storage.
+ansible-playbook playbooks/orchestrator.yml --tags cleanup \
+  -e cleanup_k8s=true -e cleanup_slurm=false
+
 # Credential files only.
 ansible-playbook playbooks/orchestrator.yml --tags cleanup_credentials
 
@@ -65,8 +69,11 @@ ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags slurm,k8s
 
 Slurm and Kubernetes cleanup remove their shared data first and then invoke
 scoped `storage_mounts` cleanup. This ordering keeps the share reachable while
-server-side data is deleted. Selecting `storage_mounts` directly cleans all
-Orchestrator-managed mounts.
+server-side data is deleted. A full `--tags cleanup` run does not execute an
+additional global storage-mount pass. Each domain performs its own scoped
+unmount and fstab cleanup after either deleting or preserving its data.
+Selecting `storage_mounts` directly through the component playbook still
+cleans all Orchestrator-managed mounts.
 
 Component storage is resolved through the same contract used during
 provisioning: `slurm_cluster[].nfs_storage_name`, optional
@@ -80,15 +87,19 @@ before shared data is removed.
 
 Components run in descending priority: OpenCHAMI 100, OpenLDAP 90, Slurm 80,
 Kubernetes 70, storage mounts 60, artifacts 50, and credentials 10. Slurm and
-Kubernetes perform their scoped unmount internally after deleting shared data;
-the later storage-mount pass is idempotent.
+Kubernetes perform their scoped unmount internally after deleting shared data.
+The independent storage-mount component is available only when explicitly
+selected through the component cleanup playbook.
 
 ## Shared (NFS) data cleanup
 
-By default, Slurm and K8s cleanup removes their directories from the **shared
-filesystem**, not just the local mount point — so the data is deleted on the NFS server.
-This is done by writing through the mount point while the share is still mounted, which
+When selected, Slurm and K8s cleanup removes data from the **shared filesystem**,
+not just the local mount point, so the data is deleted on the NFS server. This is
+done by writing through the mount point while the share is still mounted, which
 means no SSH access to the NFS server is required and it works with NFS appliances.
+Kubernetes cleanup removes every entry below its configured NFS mount, including
+hidden and dynamically generated content. Slurm cleanup removes its configured
+data directories while retaining `preserve_directories`.
 
 Order of operations per component:
 
@@ -112,26 +123,48 @@ removed.
 (`projects`, `scratch`, `apps`, …) may hold data Omnia did not create. Verify backups
 before running, and do a `DRY_RUN=true` pass first.
 
-## Confirmation
+## Shared-data selection and confirmation
 
-Cleanup asks for confirmation before deleting anything:
+For a full `orchestrator.yml --tags cleanup` run, Slurm and Kubernetes are
+selected independently with the `cleanup_slurm` and `cleanup_k8s` extra
+variables:
 
+| Value | Behaviour |
+|-------|-----------|
+| `true` | No prompt; delete that component's shared data, unmount its configured storage, and remove its fstab entries |
+| `false` | No prompt; preserve that component's data, then unmount its storage and remove its fstab entries |
+| omitted | Prompt for data deletion; only an exact `yes` deletes data, while every other answer preserves it; storage cleanup still runs |
+
+Examples:
+
+```bash
+# Clean both data domains without prompting.
+ansible-playbook playbooks/orchestrator.yml --tags cleanup \
+  -e cleanup_k8s=true -e cleanup_slurm=true
+
+# Preserve both data domains without prompting. Other enabled cleanup
+# components, such as OpenCHAMI, OpenLDAP, and artifacts, still run.
+ansible-playbook playbooks/orchestrator.yml --tags cleanup \
+  -e cleanup_k8s=false -e cleanup_slurm=false
+
+# Clean Slurm without prompting and ask independently about Kubernetes.
+ansible-playbook playbooks/orchestrator.yml --tags cleanup \
+  -e cleanup_slurm=true
 ```
-About to permanently delete data for: openchami, openldap, artifacts, storage_mounts, slurm, k8s
-This includes data on shared NFS storage, which cannot be recovered.
-Type 'yes' to proceed (anything else aborts)
-```
 
-Anything other than `yes` aborts before any component runs.
-
-Non-interactive runs (CI, scripts, cron) receive no input and therefore **abort**. Pass
-`SKIP_APPROVAL=true` to bypass the prompt:
+An omitted value is intentionally interactive. Non-interactive automation must
+set both extra variables or use `SKIP_APPROVAL=true`. `SKIP_APPROVAL=true`
+selects any omitted Slurm or Kubernetes cleanup, preserving the historical
+non-interactive full-cleanup behavior:
 
 ```bash
 SKIP_APPROVAL=true ansible-playbook playbooks/orchestrator.yml --tags cleanup
 ```
 
 Confirmation is skipped automatically when `DRY_RUN=true`, since nothing is modified.
+
+Explicit component runs through `cleanup_orchestrator.yml` retain one
+all-or-nothing confirmation for the selected component list.
 
 ## Dry run mode
 
