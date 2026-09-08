@@ -85,7 +85,7 @@
 #   - slurm_login_compiler_node: Slurm login compiler nodes (optional for LDMS)
 #
 # Required format: Ansible YAML inventory
-# Example: /omnia/src/telemetry/input/orchestrator_inventory.yml
+# Example: /opt/omnia/telemetry/input/project_default/orchestrator_inventory.yml
 cluster_inventory: ""
 
 # ============================================================================
@@ -372,7 +372,7 @@ telemetry_sinks:
 idrac_telemetry_configurations:
   # Path to BMC inventory CSV file for iDRAC telemetry
   # Required when telemetry_sources.idrac.metrics_enabled is true
-  # Example: "/opt/omnia/input/bmc_group_data.csv"
+  # Example: "/opt/omnia/telemetry/input/project_default/bmc_group_data.csv"
   bmc_group_data_path: ""
 
   # MySQL database storage for iDRAC telemetry
