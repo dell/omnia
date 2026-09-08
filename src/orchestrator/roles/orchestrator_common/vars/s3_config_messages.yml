@@ -16,13 +16,13 @@
 # S3 Configuration Messages
 build_status_missing_required_msg: >-
   image_build_manager output not found at '{{ _build_status_path }}'.
-  This is required for {{ hostvars['localhost']['omnia_run_tags'] | default(['default flow']) | join(', ') }}.
+  This is required for {{ _s3_run_tags | default(['default flow'], true) | join(', ') }}.
   Run image_build_manager before orchestrator to generate build_status.yml.
   Or set image_build_manager_output_path in orchestrator_config.yml.
 
 build_status_missing_optional_msg: >-
   Skipping S3 configuration - build_status.yml not found and not required
-  for current tags: {{ hostvars['localhost']['omnia_run_tags'] | default(['default flow']) | join(', ') }}.
+  for current tags: {{ _s3_run_tags | default(['default flow'], true) | join(', ') }}.
   S3 configuration will be loaded during execute/provision phases.
 
 build_status_invalid_msg: >-

@@ -13,19 +13,6 @@
 # limitations under the License.
 
 ---
-# Simple Cleanup Role Entry Point
-
-- name: Display cleanup banner
-  ansible.builtin.debug:
-    msg: "============================================================\nOrchestrator Cleanup\n============================================================"
-
-- name: Debug cleanup components
-  ansible.builtin.debug:
-    msg: "Cleanup components: {{ cleanup_components | default('UNDEFINED') }}"
-
-- name: Debug global settings
-  ansible.builtin.debug:
-    msg: "Global settings: {{ global_settings | default('UNDEFINED') }}"
-
-- name: Execute cleanup engine
+# Canonical Cleanup Role Entry Point
+- name: Execute canonical cleanup engine
   ansible.builtin.include_tasks: cleanup_engine.yml

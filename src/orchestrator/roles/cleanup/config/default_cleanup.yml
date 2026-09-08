@@ -103,7 +103,6 @@ cleanup_components:
     rollback_supported: false
     preserve: []
     cleanup_paths:
-      - "{{ omnia_data_path }}/.data/functional_groups_config.yml"
       - "{{ orchestrator_output_dir }}"
     description: "Orchestrator artifacts, state files, and output directories"
 

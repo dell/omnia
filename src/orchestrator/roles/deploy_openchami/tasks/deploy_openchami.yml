@@ -46,9 +46,9 @@
 # S3 configuration is only needed during provision phase for boot service templates
 
 - name: Parse network_spec data
-  ansible.builtin.set_fact:
-    network_data: "{{ network_data | default({}) | combine({item.key: item.value}) }}"
-  with_dict: "{{ Networks }}"
+  ansible.builtin.include_role:
+    name: orchestrator_common
+    tasks_from: normalize_network_spec.yml
 
 - name: Set admin network nic and ip from network_spec
   ansible.builtin.set_fact:
