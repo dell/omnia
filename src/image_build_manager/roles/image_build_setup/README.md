@@ -19,7 +19,9 @@ configuration, and conditionally validates/parses `repo_status.yml`.
 7. Sets initial OS facts (`cluster_os_type`, `cluster_os_version`, `repo_port`) from `repo_status.yml`
    - **Note**: `cluster_os_type` and `cluster_os_version` may be overridden downstream by
      `fetch_build_packages` from catalog baseos group or `package_groups.yml` OS metadata
-8. Builds per-architecture repo lists (`repo_manager_repos_x86_64`, `repo_manager_repos_aarch64`).
+8. Builds version-tagged, per-architecture repo lists
+   (`repo_manager_repos_x86_64`, `repo_manager_repos_aarch64`). The package
+   fetch role selects only entries matching the catalog-resolved OS version.
 9. Validates the repo manager certificate when a path is supplied and sets S3 endpoint facts.
 
 `repo_status.yml` is not required for `validate`, `credentials`, `prepare`,
