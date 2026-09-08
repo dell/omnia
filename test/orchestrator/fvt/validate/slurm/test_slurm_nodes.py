@@ -45,6 +45,7 @@ def _skip_if_slurm_disabled(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_slurm_nodes_registered(host):
     """TC_SL_010: Verify Slurm nodes are registered in cluster."""
@@ -66,6 +67,7 @@ def test_slurm_nodes_registered(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_slurm_partitions_exist(host):
     """TC_SL_011: Verify Slurm partitions are configured."""

@@ -585,7 +585,8 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
                     return None
             
             # Validate config_path is within allowed directory
-            if not config_path.startswith("/opt/omnia/") or ".." in config_path:
+            allowed_base = os.path.join(OMNIA_DATA_PATH, "")
+            if not config_path.startswith(allowed_base) or ".." in config_path:
                 log_secure_info("error", "Invalid config_path", config_path[:8])
                 return None
         else:
@@ -1017,10 +1018,14 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Execute Molecule test automation and capture results.
-    
+    """Execute test automation via run_validation.sh and capture results.
+
+    Runs: ./run_validation.sh fvt_orchestrator verify --marker buildstream
+    This sources setup_env.sh (venv activation + deps), then executes pytest
+    against test/orchestrator/fvt/validate/ with the buildstream marker.
+
     Args:
-        request_data: Parsed request dictionary with molecule-specific fields
+        request_data: Parsed request dictionary with test_automation-specific fields
         
     Returns:
         Result dictionary with execution details
@@ -1029,8 +1034,9 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     stage_type = request_data["stage_type"]
     # Hardcoded values to prevent Checkmarx stored command injection
     # These values are not configurable in this release
-    scenario_name = "provision"  # Hardcoded, not from request_data
-    test_suite = "build_stream"  # Hardcoded, not from request_data
+    # Omnia 2.3: uses run_validation.sh fvt_orchestrator verify --marker buildstream
+    scenario_name = "validate"  # Hardcoded, not from request_data
+    test_suite = "buildstream"  # Hardcoded marker name, not from request_data
     
     # Compute artifact_dir locally to break taint chain from request_data to subprocess.run env
     # Use a temp directory with timestamp (no job_id/attempt) for molecule execution,
@@ -1041,9 +1047,9 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     timeout_minutes = 150  # Hardcoded default, not from request_data
     correlation_id = request_data.get("correlation_id", job_id)
     
-    log_secure_info("info", "Executing molecule for job", job_id)
+    log_secure_info("info", "Executing test validation for job", job_id)
     log_secure_info("debug", "Stage type", stage_type)
-    log_secure_info("debug", "Using hardcoded scenario", scenario_name)
+    log_secure_info("debug", "Using hardcoded scenario/marker", f"{scenario_name}/{test_suite}")
     
     started_at = datetime.now(timezone.utc)
     
@@ -1074,25 +1080,50 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "timestamp": started_at.isoformat(),
         }
     
-    # Build molecule command - execute directly on OIM host, not via podman exec
-    # run_molecule.sh format: run_molecule.sh <scenario> <command> [--suite <suite>] [--marker <marker>]
-    cmd = [
-        "bash", "/opt/omnia/automation/run_molecule.sh",
-        "provision",  # First scenario
-        "verify"  # Use verify command for validation stage
-    ]
-    
-    # Add test suite if specified
-    if test_suite:
-        cmd.extend(["--suite", "build_stream"])
+    # Build test command - execute run_validation.sh on OIM host
+    # run_validation.sh delegates to _run.py which runs pytest with markers
+    # Usage: ./run_validation.sh fvt_orchestrator verify --marker buildstream
+    #
+    # Pipeline-safe environment setup (no interactive prompts, no waiting):
+    #   1. cd to test/orchestrator directory
+    #   2. Create venv if it doesn't exist (idempotent)
+    #   3. Activate venv
+    #   4. Install deps only if requirements.txt is newer than venv marker
+    #   5. Run: python3 _run.py fvt_orchestrator verify --marker buildstream
+    # Test directory: uses OMNIA_CLONE_PATH (set by build_stream setup) or
+    # falls back to /root/omnia (default clone_path in test_config.yml)
+    clone_path = os.environ.get("OMNIA_CLONE_PATH", "/root/omnia")
+    test_dir = os.path.join(clone_path, "test", "orchestrator")
+    setup_and_run = (
+        f'set -eo pipefail && '
+        f'cd {test_dir} && '
+        # Create venv if missing (idempotent, no prompt)
+        f'{{ [ -d .venv ] || python3 -m venv .venv; }} && '
+        # Activate venv
+        f'source .venv/bin/activate && '
+        # Install/upgrade deps only when requirements.txt is newer than marker
+        # or marker doesn't exist yet (first run). Touch marker after install.
+        f'if [ ! -f .venv/.deps_installed ] || '
+        f'   [ requirements.txt -nt .venv/.deps_installed ]; then '
+        f'  echo "Installing test dependencies..." && '
+        f'  pip install --upgrade pip -q && '
+        f'  pip install -r requirements.txt -q && '
+        f'  touch .venv/.deps_installed; '
+        f'fi && '
+        # Run the validation (exec replaces the shell with python3)
+        f'exec python3 _run.py fvt_orchestrator verify --marker buildstream'
+    )
+    cmd = ["bash", "-c", setup_and_run]
     
     # Set environment variables
     # Use temp_report_dir (hardcoded, no tainted data) to break taint chain
     env = os.environ.copy()
     env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
     env["MOLECULE_REPORT_DIR"] = temp_report_dir
+    # Pass REPORT_ID so test framework can tag the report with job_id for extraction
+    env["REPORT_ID"] = f"{job_id}_attempt_{attempt}"
     
-    log_secure_info("info", "Executing molecule command for job", job_id)
+    log_secure_info("info", "Executing run_validation.sh for job", job_id)
     
     try:
         timeout_seconds = timeout_minutes * 60
@@ -1116,7 +1147,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         attempt = request_data.get("attempt", 1)
 
         # Build NFS log path (consistent with execute_playbook)
-        host_log_file_path, _, _ = _build_log_paths(
+        host_log_file_path, _ = _build_log_paths(
             "validate", started_at, attempt
         )
 
@@ -1125,7 +1156,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             with open(str(host_log_file_path), 'w') as f:
                 f.write(f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}\n")
         except OSError:
-            log_secure_info("warning", "Failed to write molecule NFS log", job_id)
+            log_secure_info("warning", "Failed to write test NFS log", job_id)
 
         # Move log to job-specific directory on NFS
         if host_log_file_path.exists():
@@ -1143,12 +1174,12 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                     shutil.copy2(src, dst)
                 elif os.path.isdir(src):
                     shutil.copytree(src, dst, dirs_exist_ok=True)
-            log_secure_info("info", "Copied molecule reports to job artifact directory", job_id)
+            log_secure_info("info", "Copied test reports to job artifact directory", job_id)
         except OSError:
-            log_secure_info("warning", "Failed to copy molecule reports to artifact dir", job_id)
+            log_secure_info("warning", "Failed to copy test reports to artifact dir", job_id)
 
-        # Also write molecule output log to the artifact directory
-        artifact_log_path = os.path.join(artifact_dir, "molecule_output.log")
+        # Also write test output log to the artifact directory
+        artifact_log_path = os.path.join(artifact_dir, "validate_output.log")
         try:
             with open(artifact_log_path, 'w') as f:
                 f.write(f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}\n")
@@ -1164,7 +1195,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         # Use the NFS log path as the canonical log_file_path
         log_file_path = str(host_log_file_path)
         
-        # Parse metadata from molecule_output.log (report_id, suites)
+        # Parse metadata from test output log (report_id, suites)
         test_summary = {"total": 0, "passed": 0, "failed": 0, "skipped": 0, "errors": 0}
         report_id = None
         
@@ -1173,36 +1204,45 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                 with open(log_file_path, 'r') as f:
                     log_content = f.read()
                     
-                    # Extract report_id: "Report ID:   2b4ade78"
-                    report_id_match = re.search(r'Report ID:\s+([a-f0-9]+)', log_content)
+                    # Extract report_id from log output
+                    # TestReport header: "REPORT ID:  <id>" (box format)
+                    # ValidationRunner banner: "Report ID : <id>" (green text)
+                    # report_id can be UUID with hyphens + _attempt_N suffix
+                    # e.g. 550e8400-e29b-41d4-a716-446655440000_attempt_1
+                    report_id_match = re.search(r'Report\s*ID\s*:\s*([a-zA-Z0-9\-_]+)', log_content, re.IGNORECASE)
                     if report_id_match:
                         report_id = report_id_match.group(1)
+                    elif f"{job_id}_attempt_{attempt}" in log_content:
+                        report_id = f"{job_id}_attempt_{attempt}"
                     
-                    # Extract top-level Suite from header (e.g., 'Suite    : build_stream')
                     # Strip ANSI color codes first
                     try:
                         sanitized = re.sub(r'\x1B\[[0-?]*[ -/]*[@-~]', '', log_content)
                     except re.error:
                         sanitized = log_content
+
+                    # Extract suite/marker info from run_validation output
                     header_suite_match = re.search(r'(?m)^\s*Suite\s*:\s*([\w\-.]+)', sanitized)
                     if header_suite_match:
                         test_summary["suite"] = header_suite_match.group(1)
                     else:
-                        # Fallback: parse from 'Suite/Marker: -m <suite>' line
-                        marker_match = re.search(r'(?m)^\s*Suite/Marker\s*:\s*.*?-m\s+([\w\-.]+)', sanitized)
+                        marker_match = re.search(r'(?m)^\s*(?:Suite/Marker|Marker)\s*:\s*.*?([\w\-.]+)\s*$', sanitized)
                         if marker_match:
                             test_summary["suite"] = marker_match.group(1)
+                        else:
+                            test_summary["suite"] = "buildstream"
                     
             except (OSError, IOError, ValueError) as e:
-                log_secure_info("warning", f"Failed to parse molecule_output.log: {e}", job_id)
+                log_secure_info("warning", f"Failed to parse test output log: {e}", job_id)
         
         # Extract current run from shared test_report.json by report_id and save to artifact_dir
-        report_source_path = "/opt/omnia/automation/reports/test_report.json"
+        # Omnia 2.3: reports are written to {OMNIA_DATA_PATH}/reports/ by the orchestrator test framework
+        report_source_path = os.path.join(OMNIA_DATA_PATH, "reports", "orchestrator_test_report.json")
         log_secure_info('info', f"Attempting to extract test results from {report_source_path}", job_id)
         log_secure_info('info', f"Extracted report_id from log: {report_id}", job_id)
         
         if not report_id:
-            log_secure_info('warning', "No report_id found in molecule_output.log, skipping JSON extraction", job_id)
+            log_secure_info('warning', "No report_id found in validate output log, skipping JSON extraction", job_id)
         elif not os.path.exists(report_source_path):
             log_secure_info('warning', f"test_report.json not found at {report_source_path}, skipping JSON extraction", job_id)
         else:
@@ -1238,13 +1278,13 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                             module_info = modules[0]
                             scenario = module_info.get("module", "unknown")
                             molecule_command = module_info.get("molecule_command", "verify")
-                            duration_seconds = module_info.get("duration_seconds", 0)
+                            test_duration = module_info.get("duration_seconds", 0)
                             results = module_info.get("results", [])
                             tests = [{"name": r.get("test_name"), "status": r.get("status")} for r in results if r.get("test_name")]
                             test_summary["scenario"] = scenario
                             test_summary["molecule_command"] = molecule_command
                             test_summary["report_id"] = report_id
-                            test_summary["duration_seconds"] = duration_seconds
+                            test_summary["duration_seconds"] = test_duration
                             test_summary["tests"] = tests
                             
                             summary_block = current_run.get("summary", {})
@@ -1260,7 +1300,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                             else:
                                 log_secure_info('warning', f"Summary block is not a dict: {type(summary_block)}", job_id)
                                 
-                            log_secure_info('info', f"Test scenario: {scenario}, command: {molecule_command}, duration: {duration_seconds}s, tests: {len(tests)}, report_id: {report_id}", job_id)
+                            log_secure_info('info', f"Test scenario: {scenario}, command: {molecule_command}, duration: {test_duration}s, tests: {len(tests)}, report_id: {report_id}", job_id)
                             
                             # Save filtered report to artifact_dir
                             filtered_report = {
@@ -1297,7 +1337,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             status = "failed"
             exit_code = result.returncode
         
-        log_secure_info("info", "Molecule execution completed for job", job_id)
+        log_secure_info("info", "Test validation completed for job", job_id)
         log_secure_info("debug", "Execution status", status)
         
         result_data = {
@@ -1319,9 +1359,9 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         # Add error details if failed
         if status == "failed":
             if exit_code == 124:
-                result_data["error_summary"] = f"Molecule execution timed out after {timeout_minutes} minutes"
+                result_data["error_summary"] = f"Test validation timed out after {timeout_minutes} minutes"
             elif test_summary["failed"] > 0:
-                # Parse specific test failures from molecule_output.log
+                # Parse specific test failures from validate_output.log
                 failed_tests = []
                 if os.path.exists(log_file_path):
                     try:
@@ -1338,7 +1378,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                 else:
                     result_data["error_summary"] = f"Test failures: {test_summary['failed']} failed, {test_summary['errors']} errors"
             else:
-                result_data["error_summary"] = f"Molecule exited with code {exit_code}"
+                result_data["error_summary"] = f"Test validation exited with code {exit_code}"
         
         return result_data
         
@@ -1346,11 +1386,11 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
         
-        log_secure_info("error", "Molecule execution timed out for job", job_id)
+        log_secure_info("error", "Test validation timed out for job", job_id)
 
         # Build NFS log path for timeout case
         err_attempt = request_data.get("attempt", 1)
-        err_log_path, _, _ = _build_log_paths("validate", started_at, err_attempt)
+        err_log_path, _ = _build_log_paths("validate", started_at, err_attempt)
         err_log_path = move_log_to_job_directory(err_log_path, job_id) if err_log_path.exists() else err_log_path
 
         return {
@@ -1360,7 +1400,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "correlation_id": correlation_id,
             "status": "failed",
             "exit_code": 124,
-            "error_summary": f"Molecule execution timed out after {timeout_minutes} minutes",
+            "error_summary": f"Test validation timed out after {timeout_minutes} minutes",
             "artifact_dir": artifact_dir,
             "log_file_path": str(err_log_path),
             "started_at": started_at.isoformat(),
@@ -1373,11 +1413,11 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
         
-        log_secure_info("error", "Unexpected error executing molecule for job", job_id, exc_info=True)
+        log_secure_info("error", "Unexpected error executing test validation for job", job_id, exc_info=True)
 
         # Build NFS log path for error case
         err_attempt = request_data.get("attempt", 1)
-        err_log_path, _, _ = _build_log_paths("validate", started_at, err_attempt)
+        err_log_path, _ = _build_log_paths("validate", started_at, err_attempt)
         err_log_path = move_log_to_job_directory(err_log_path, job_id) if err_log_path.exists() else err_log_path
 
         return {
@@ -1387,7 +1427,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "correlation_id": correlation_id,
             "status": "failed",
             "exit_code": -1,
-            "error_summary": f"System error during molecule execution: {str(e)}",
+            "error_summary": f"System error during test validation: {str(e)}",
             "artifact_dir": artifact_dir,
             "log_file_path": str(err_log_path),
             "started_at": started_at.isoformat(),

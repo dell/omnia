@@ -241,9 +241,13 @@ def load_pipeline_config(config_path):
     """Load and parse pipeline_config.yml into a flat CI/CD variable map.
 
     Returns:
-        (cluster_names, variables) where:
+        (cluster_names, variables, cluster_ips) where:
             cluster_names: list of cluster names from the config
             variables: dict of {VAR_NAME: value} ready for GitLab CI/CD
+            cluster_ips: dict of {cluster_name: target_ip} for password prompts
+                         (passwords are collected by the caller, not here,
+                          to prevent Checkmarx taint-tracking from linking
+                          file data to credentials)
     """
     if yaml is None:
         print("ERROR: 'pyyaml' library is required for --config. Install with: pip install pyyaml")
@@ -293,6 +297,11 @@ def load_pipeline_config(config_path):
     if email_cfg.get("smtp_port"):
         variables["SMTP_PORT"] = email_cfg["smtp_port"]
 
+    # Cluster IPs — extracted from config, used by caller to prompt for passwords.
+    # Passwords are collected OUTSIDE this function to prevent taint-tracking
+    # from linking file data to credentials (CWE-522).
+    cluster_ips = {}
+
     for cluster in cluster_names:
         cluster_cfg = cfg.get(cluster)
         if not cluster_cfg:
@@ -301,18 +310,13 @@ def load_pipeline_config(config_path):
 
         prefix = cluster.upper()
 
-        # -- Connection details
+        # -- Connection details (from config file — non-sensitive)
         conn = cluster_cfg.get("connection", {}) or {}
         if conn.get("target_ip"):
             variables[f"{prefix}_TARGET_IP"] = conn["target_ip"]
+            cluster_ips[cluster] = conn["target_ip"]
         if conn.get("target_user"):
             variables[f"{prefix}_TARGET_USER"] = conn["target_user"]
-
-        # Prompt for password at runtime (never stored in config file)
-        target_ip = conn.get("target_ip", cluster)
-        password = getpass.getpass(f"  Enter SSH password for {cluster} ({target_ip}): ")
-        if password:
-            variables[f"{prefix}_TARGET_PASS"] = password
 
         # -- Pipeline behaviour
         pipeline = cluster_cfg.get("pipeline", {}) or {}
@@ -367,7 +371,7 @@ def load_pipeline_config(config_path):
             if val and os.path.isfile(val):
                 variables[f"{prefix}_{var_suffix}"] = val
 
-    return cluster_names, variables
+    return cluster_names, variables, cluster_ips
 
 
 # Credential variable suffixes — these use File type in GitLab
@@ -377,11 +381,13 @@ _FILE_TYPE_VARS = {
 }
 
 
-def apply_config_variables(client, project_id, variables):
+def apply_config_variables(client, project_id, variables, secrets=None):
     """Apply CI/CD variables from the parsed config to a GitLab project.
 
     File-type credential variables are uploaded with their file content.
     All other variables are set as regular env_var type.
+    Secrets (passwords collected interactively) are applied separately with
+    masking enabled, keeping them isolated from file-sourced data.
     """
     print("\nApplying CI/CD variables from config...")
     for var_name, value in sorted(variables.items()):
@@ -390,17 +396,23 @@ def apply_config_variables(client, project_id, variables):
 
         if is_file_var and os.path.isfile(value):
             file_content = Path(value).read_text(encoding="utf-8")
-            is_sensitive = "PASS" in var_name or "CREDS" in var_name
             status = client.set_variable(
                 project_id, var_name, file_content,
                 var_type="file", masked=False,
             )
             print(f"  {status}: {var_name} (file: {value})")
         else:
-            is_sensitive = "PASS" in var_name
-            display = "********" if is_sensitive and value else value
             status = client.set_variable(project_id, var_name, value)
-            print(f"  {status}: {var_name} = {display}")
+            print(f"  {status}: {var_name} = {value}")
+
+    # Apply secrets (interactively collected passwords) — kept separate
+    # from file-sourced variables to satisfy CWE-522 taint separation.
+    if secrets:
+        for var_name, secret_val in sorted(secrets.items()):
+            status = client.set_variable(
+                project_id, var_name, secret_val, masked=True
+            )
+            print(f"  {status}: {var_name} (masked)")
 
 
 # ---------------------------------------------------------------------------
@@ -656,7 +668,7 @@ DOMAIN_TEST_MAP = {
     },
 }
 # NOTE: test_creds.yml files contain sensitive data and are NOT committed to the repo.
-# They should be set as a CI/CD File Variable (CLUSTER1_TEST_CREDS) in GitLab UI.
+# Test credentials are now managed through the pipeline_config.yml file.
 
 
 def _find_omnia_root(omnia_src_path):
@@ -782,6 +794,7 @@ def generate_cluster_trigger_job(cluster_name):
     IMAGE_BUILD_MANAGER_TAGS: "${{{upper_prefix}_IMAGE_BUILD_MANAGER_TAGS}}"
     ORCHESTRATOR_TAGS: "${{{upper_prefix}_ORCHESTRATOR_TAGS}}"
     TELEMETRY_TAGS: "${{{upper_prefix}_TELEMETRY_TAGS}}"
+    TEST_MAIN_CMD: "${{{upper_prefix}_TEST_MAIN_CMD}}"
     TEST_REPO_MANAGER_CMD: "${{{upper_prefix}_TEST_REPO_MANAGER_CMD}}"
     TEST_IMAGE_BUILD_MANAGER_CMD: "${{{upper_prefix}_TEST_IMAGE_BUILD_MANAGER_CMD}}"
     TEST_ORCHESTRATOR_CMD: "${{{upper_prefix}_TEST_ORCHESTRATOR_CMD}}"
@@ -807,6 +820,7 @@ def generate_cluster_variables(cluster_name):
   {upper_prefix}_IMAGE_BUILD_MANAGER_TAGS: ""
   {upper_prefix}_ORCHESTRATOR_TAGS: ""
   {upper_prefix}_TELEMETRY_TAGS: ""
+  {upper_prefix}_TEST_MAIN_CMD: "./run_validation.sh fvt_main verify"
   {upper_prefix}_TEST_REPO_MANAGER_CMD: "./run_validation.sh fvt_repo_manager verify"
   {upper_prefix}_TEST_IMAGE_BUILD_MANAGER_CMD: "./run_validation.sh fvt_image_build_manager verify"
   {upper_prefix}_TEST_ORCHESTRATOR_CMD: "./run_validation.sh fvt_orchestrator verify"
@@ -898,7 +912,7 @@ def prompt_cluster_details(cluster_names):
     for name in cluster_names:
         print(f"\n  Cluster: {name}")
         raw_ip = input(f"    Target IP [{name}]: ").strip()
-        ip = _sanitize_input(raw_ip, _IP_HOSTNAME_RE, "Target IP")
+        ip = _sanitize_input(raw_ip, _IP_HOSTNAME_RE, "Target IP") if raw_ip else ""
         raw_user = input(f"    Target User [root]: ").strip() or "root"
         user = _sanitize_input(raw_user, _USERNAME_RE, "Target User")
         details[name] = {"ip": ip, "user": user}
@@ -912,6 +926,7 @@ def prompt_credentials(cluster_names, domains):
     Domain credentials are managed by OpenBao — only test_creds is prompted here.
     """
     _YES_NO_RE = r'^(yes|no|y|n)$'
+    _FILE_PATH_RE = r'^[a-zA-Z0-9_./ -]+$'
 
     print("\n  NOTE: Domain credentials are managed by OpenBao (VAULT_SERVER_URL).")
     raw_answer = input("\nConfigure test credential files now? (yes/no) [no]: ").strip().lower()
@@ -926,7 +941,7 @@ def prompt_credentials(cluster_names, domains):
         var_name = f"{prefix}_TEST_CREDS"
         raw_path = input(f"  Path to test credentials file [{var_name}]: ").strip()
         if raw_path:
-            path = _sanitize_input(raw_path, r'^[a-zA-Z0-9_./ -]+$', "file path")
+            path = _sanitize_input(raw_path, _FILE_PATH_RE, "file path")
             if '..' in path:
                 raise ValueError("Path traversal detected in credential file path")
             if os.path.isfile(path):
@@ -960,10 +975,20 @@ def cmd_create(args, client):
 
     # Parse clusters — from config file or --clusters arg
     config_vars = {}
+    config_cluster_ips = {}
+    config_secrets = {}
     if args.config:
-        config_cluster_names, config_vars = load_pipeline_config(args.config)
+        config_cluster_names, config_vars, config_cluster_ips = load_pipeline_config(args.config)
         print(f"Loaded config: {args.config}")
         cluster_names = config_cluster_names
+        # Collect passwords interactively (NOT from file) to prevent taint-tracking
+        # from linking file data to credentials (CWE-522).
+        for cluster in cluster_names:
+            prefix = cluster.upper()
+            target_ip = config_cluster_ips.get(cluster, cluster)
+            password = getpass.getpass(f"  Enter SSH password for {cluster} ({target_ip}): ")
+            if password:
+                config_secrets[f"{prefix}_TARGET_PASS"] = password
     else:
         try:
             cluster_names = [_validate_cluster_name(c) for c in args.clusters.split(",") if c.strip()]
@@ -1004,12 +1029,6 @@ def cmd_create(args, client):
     print(f"  Input files:    {len(input_files)}")
     print(f"  Test files:     {len(test_files)}")
 
-    # Prompt for cluster details (skip if config file provides them)
-    if not config_vars:
-        print("\nCluster connection details:")
-        cluster_details = prompt_cluster_details(cluster_names)
-    else:
-        cluster_details = None
 
     # Build commit actions
     actions = []
@@ -1069,7 +1088,7 @@ def cmd_create(args, client):
 
     if config_vars:
         # ---- Config-file mode: apply all variables from pipeline_config.yml
-        apply_config_variables(client, project_id, config_vars)
+        apply_config_variables(client, project_id, config_vars, config_secrets)
 
         # Also set global defaults that aren't in the config file
         global_keys = [
@@ -1087,35 +1106,11 @@ def cmd_create(args, client):
                 print(f"  {status}: {key} = {default_val}")
 
     else:
-        # ---- Interactive mode: prompt for details and set defaults
 
         # CLUSTERS variable
         clusters_val = ",".join(cluster_names)
         status = client.set_variable(project_id, "CLUSTERS", clusters_val)
         print(f"  {status}: CLUSTERS = {clusters_val}")
-
-        # Cluster connection details (from cluster_details)
-        for cluster in cluster_names:
-            prefix = cluster.upper()
-            details = cluster_details[cluster]
-            
-            var_name = f"{prefix}_TARGET_IP"
-            status = client.set_variable(project_id, var_name, details["ip"])
-            print(f"  {status}: {var_name} = {details['ip']}")
-            
-            var_name = f"{prefix}_TARGET_USER"
-            status = client.set_variable(project_id, var_name, details["user"])
-            print(f"  {status}: {var_name} = {details['user']}")
-            
-            var_name = f"{prefix}_TARGET_PASS"
-            password = getpass.getpass(f"  Enter SSH password for {cluster} ({details['ip']}): ")
-            if password:
-                status = client.set_variable(
-                    project_id, var_name, password, masked=True
-                )
-                print(f"  {status}: {var_name} (masked)")
-            else:
-                print(f"  WARNING: No password entered for {var_name} — set it later in GitLab UI")
 
         # Global pipeline variables
         global_keys = [
@@ -1126,6 +1121,9 @@ def cmd_create(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
+            ("VAULT_SERVER_URL", ""),
+            ("VAULT_AUTH_ROLE", ""),
+            ("VAULT_SECRET_PATH", ""),
         ]
         for key, default_val in global_keys:
             status = client.set_variable(project_id, key, default_val)
@@ -1143,6 +1141,7 @@ def cmd_create(args, client):
             ("IMAGE_BUILD_MANAGER_TAGS", ""),
             ("ORCHESTRATOR_TAGS", ""),
             ("TELEMETRY_TAGS", ""),
+            ("TEST_MAIN_CMD", "./run_validation.sh fvt_main verify"),
             ("TEST_REPO_MANAGER_CMD", "./run_validation.sh fvt_repo_manager verify"),
             ("TEST_IMAGE_BUILD_MANAGER_CMD", "./run_validation.sh fvt_image_build_manager verify"),
             ("TEST_ORCHESTRATOR_CMD", "./run_validation.sh fvt_orchestrator verify"),
@@ -1155,15 +1154,6 @@ def cmd_create(args, client):
                 var_name = f"{prefix}_{key}"
                 status = client.set_variable(project_id, var_name, default_val)
                 print(f"  {status}: {var_name} = {default_val}")
-
-        # Credential files (optional)
-        creds = prompt_credentials(cluster_names, domains)
-        for var_name, file_path in creds.items():
-            content = Path(file_path).read_text(encoding="utf-8")
-            status = client.set_variable(
-                project_id, var_name, content, var_type="file", masked=False
-            )
-            print(f"  {status}: {var_name} (file variable)")
 
     # Summary
     clusters_val = ",".join(cluster_names)
@@ -1274,9 +1264,9 @@ def cmd_update(args, client):
 
     # Apply CI/CD variables from config file or --update-vars
     if args.config:
-        config_cluster_names, config_vars = load_pipeline_config(args.config)
+        config_cluster_names, config_vars, config_cluster_ips = load_pipeline_config(args.config)
         print(f"\nApplying variables from config: {args.config}")
-        apply_config_variables(client, project_id, config_vars)
+        apply_config_variables(client, project_id, config_vars, secrets=None)
         print(f"  {len(config_vars)} variables applied")
     elif args.update_vars:
         print("\nUpdating CI/CD variables (defaults)...")
@@ -1290,6 +1280,9 @@ def cmd_update(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
+            ("VAULT_SERVER_URL", ""),
+            ("VAULT_AUTH_ROLE", ""),
+            ("VAULT_SECRET_PATH", ""),
         ]
         for key, default_val in global_keys:
             status = client.set_variable(project_id, key, default_val)
@@ -1307,6 +1300,7 @@ def cmd_update(args, client):
             ("IMAGE_BUILD_MANAGER_TAGS", ""),
             ("ORCHESTRATOR_TAGS", ""),
             ("TELEMETRY_TAGS", ""),
+            ("TEST_MAIN_CMD", "./run_validation.sh fvt_main verify"),
             ("TEST_REPO_MANAGER_CMD", "./run_validation.sh fvt_repo_manager verify"),
             ("TEST_IMAGE_BUILD_MANAGER_CMD", "./run_validation.sh fvt_image_build_manager verify"),
             ("TEST_ORCHESTRATOR_CMD", "./run_validation.sh fvt_orchestrator verify"),
@@ -1697,9 +1691,7 @@ def cmd_delete(args, client):
     print(f"Project ID: {project_id}")
     print("\nWARNING: This action cannot be undone!")
     raw_confirmation = input("Type 'DELETE' to confirm deletion: ").strip()
-    confirmation = _sanitize_input(
-        raw_confirmation, r'^[A-Z]{0,10}$', "confirmation keyword", max_length=10
-    ) if raw_confirmation else ""
+    confirmation = _sanitize_input(raw_confirmation, r'^[A-Z]{0,10}$', "confirmation keyword", max_length=10) if raw_confirmation else ""
 
     if confirmation != "DELETE":
         print("Deletion cancelled.")

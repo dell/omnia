@@ -1,0 +1,357 @@
+#!/bin/bash
+
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# =============================================================================
+# Bash completion for omnia-cli and omnia.sh
+# =============================================================================
+# Install:
+#   cp omnia-bash-completion /etc/bash_completion.d/omnia-bash-completion
+# Or source manually:
+#   source omnia-bash-completion
+#
+# The same installed file serves both commands. Installed automatically by:
+#   omnia.sh --setup-venv
+# =============================================================================
+
+_omnia_domains="build_stream discovery image_build_manager orchestrator \
+repo_manager telemetry utils"
+_omnia_prepare_domains="repo_manager image_build_manager orchestrator"
+_omnia_cli_domains="repo-manager image-build orchestrator discovery telemetry \
+build-stream utils"
+
+_omnia_init_completion() {
+    if declare -F _init_completion > /dev/null; then
+        _init_completion
+        return
+    fi
+
+    # Minimal fallback for systems where bash-completion is not loaded. These
+    # variables are local to the calling completion function through Bash's
+    # dynamic scoping.
+    words=("${COMP_WORDS[@]}")
+    cword="${COMP_CWORD:-0}"
+    cur="${words[cword]:-}"
+    if ((cword > 0)); then
+        prev="${words[cword - 1]}"
+    else
+        prev=""
+    fi
+}
+
+_omnia_complete_words() {
+    local candidates="$1"
+    local value="$2"
+    mapfile -t COMPREPLY < <(compgen -W "$candidates" -- "$value")
+}
+
+_omnia_complete_csv() {
+    local candidates="$1"
+    local value="$2"
+    local prefix=""
+
+    if [[ "$value" == *,* ]]; then
+        prefix="${value%,*},"
+        value="${value##*,}"
+    fi
+
+    local matches=()
+    local match
+    mapfile -t matches < <(compgen -W "$candidates" -- "$value")
+    COMPREPLY=()
+    for match in "${matches[@]}"; do
+        COMPREPLY+=("${prefix}${match}")
+    done
+
+    # Keep the cursor attached to the completed value so another comma-separated
+    # item can be entered without deleting Bash's automatically inserted space.
+    compopt -o nospace 2>/dev/null || true
+}
+
+_omnia_tags_for_domain() {
+    local domain="$1"
+
+    case "$domain" in
+        build_stream)
+            printf '%s' "precheck validate credentials prepare execute build cleanup upgrade rollback"
+            ;;
+        discovery)
+            printf '%s' "precheck validate credentials prepare execute discovery cleanup upgrade rollback"
+            ;;
+        image_build_manager)
+            printf '%s' "precheck validate credentials prepare execute build cleanup cleanup_images upgrade rollback"
+            ;;
+        orchestrator)
+            printf '%s' "precheck validate credentials prepare deploy provision execute validate-deployment pxeboot cleanup cleanup_credentials upgrade rollback"
+            ;;
+        repo_manager)
+            printf '%s' "precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos upgrade rollback catalog_generate catalog_add catalog_delete catalog_validate"
+            ;;
+        telemetry)
+            printf '%s' "precheck validate validation execute deploy cleanup cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria"
+            ;;
+        utils)
+            printf '%s' "precheck setup collect install_os cleanup cleanup_logs cleanup_install_os upgrade rollback"
+            ;;
+    esac
+}
+
+_omnia_complete_csv_tags() {
+    local value="$1"
+    local domain="$2"
+    local tags
+    tags=$(_omnia_tags_for_domain "$domain")
+
+    _omnia_complete_csv "$tags" "$value"
+}
+
+_omnia_cli_completions() {
+    local cur prev words cword
+    _omnia_init_completion || return
+
+    # All top-level commands
+    local commands="status check edit logs repo-manager image-build \
+orchestrator discovery telemetry build-stream utils version help"
+
+    # Determine which command was typed (skip flags and their values)
+    local command=""
+    local i
+    for ((i = 1; i < cword; i++)); do
+        case "${words[i]}" in
+            --project|-p|--limit|-l)
+                ((i++))  # skip the project value
+                ;;
+            -*)
+                ;;
+            *)
+                if [ -z "$command" ]; then
+                    command="${words[i]}"
+                fi
+                ;;
+        esac
+    done
+
+    # Complete --project value: auto-discover project names from disk
+    if [ "$prev" = "--project" ] || [ "$prev" = "-p" ]; then
+        local data_path="${OMNIA_DATA_PATH:-/opt/omnia}"
+        local projects=()
+        if [ -d "$data_path" ]; then
+            local dir
+            for dir in "$data_path"/*/input/*/; do
+                if [ -d "$dir" ]; then
+                    local pname
+                    pname=$(basename "$dir")
+                    local found=0
+                    local p
+                    for p in "${projects[@]+"${projects[@]}"}"; do
+                        [ "$p" = "$pname" ] && found=1 && break
+                    done
+                    [ "$found" -eq 0 ] && projects+=("$pname")
+                fi
+            done
+            for dir in "$data_path"/*/output/*/; do
+                if [ -d "$dir" ]; then
+                    local pname
+                    pname=$(basename "$dir")
+                    local found=0
+                    local p
+                    for p in "${projects[@]+"${projects[@]}"}"; do
+                        [ "$p" = "$pname" ] && found=1 && break
+                    done
+                    [ "$found" -eq 0 ] && projects+=("$pname")
+                fi
+            done
+        fi
+        if [ "${#projects[@]}" -gt 0 ]; then
+            _omnia_complete_words "${projects[*]}" "$cur"
+        fi
+        return
+    fi
+
+    # No command yet — complete commands
+    if [ -z "$command" ]; then
+        _omnia_complete_words "$commands" "$cur"
+        return
+    fi
+
+    # Command is set — complete based on context
+    case "$command" in
+        edit|logs|log|help)
+            # These commands take a domain as the next positional arg
+            local has_domain=0
+            for ((i = 1; i < cword; i++)); do
+                case "${words[i]}" in
+                    --project|-p|--limit|-l)
+                        ((i++))
+                        ;;
+                    edit|logs|log|help)
+                        ;;
+                    -*)
+                        ;;
+                    *)
+                        if [ "${words[i]}" != "$command" ]; then
+                            has_domain=1
+                        fi
+                        ;;
+                esac
+            done
+            if [ "$has_domain" -eq 0 ]; then
+                _omnia_complete_words "$_omnia_cli_domains" "$cur"
+            else
+                if [[ "$cur" == -* ]]; then
+                    case "$command" in
+                        edit)
+                            _omnia_complete_words "--project -p" "$cur"
+                            ;;
+                        logs|log)
+                            _omnia_complete_words "--project -p --limit -l" "$cur"
+                            ;;
+                    esac
+                fi
+            fi
+            ;;
+        status|check|repo-manager|repo_manager|image-build|image_build| \
+        image-build-manager|image_build_manager|orchestrator|discovery| \
+        telemetry|build-stream|build_stream|utils)
+            # These commands only take --project
+            if [[ "$cur" == -* ]]; then
+                _omnia_complete_words "--project -p" "$cur"
+            fi
+            ;;
+        version)
+            # No further args
+            ;;
+    esac
+}
+
+_omnia_sh_completions() {
+    local cur prev words cword
+    _omnia_init_completion || return
+
+    local commands="--setup-venv -s --init -i --prepare-base --run -r \
+--check-deps --cleanup --help -h"
+    local setup_options="--deps-only --force-deps --skip --dry-run \
+--skip-catalog --skip-omnia-cli"
+    local init_options="--deps-only --force-deps --skip --dry-run"
+    local prepare_options="--skip --dry-run"
+    local command=""
+    local run_domain=""
+    local init_has_domains=0
+    local i
+
+    for ((i = 1; i < cword; i++)); do
+        case "${words[i]}" in
+            --setup-venv|-s)
+                command="setup"
+                ;;
+            --init|-i)
+                command="init"
+                ;;
+            --prepare-base)
+                command="prepare"
+                ;;
+            --run|-r)
+                command="run"
+                if ((i + 1 < cword)); then
+                    run_domain="${words[i + 1]}"
+                    ((i++))
+                fi
+                ;;
+            --cleanup)
+                command="cleanup"
+                ;;
+            --check-deps)
+                command="check"
+                ;;
+            --help|-h)
+                command="help"
+                ;;
+            --skip|--tags|-t)
+                ((i++))
+                ;;
+            --*)
+                ;;
+            *)
+                if [ "$command" = "init" ]; then
+                    init_has_domains=1
+                fi
+                ;;
+        esac
+    done
+
+    case "$prev" in
+        --run|-r)
+            _omnia_complete_words "$_omnia_domains" "$cur"
+            return
+            ;;
+        --skip)
+            if [ "$command" = "prepare" ]; then
+                _omnia_complete_csv "$_omnia_prepare_domains" "$cur"
+            else
+                _omnia_complete_csv "$_omnia_domains" "$cur"
+            fi
+            return
+            ;;
+        --tags|-t)
+            _omnia_complete_csv_tags "$cur" "$run_domain"
+            return
+            ;;
+        --init|-i)
+            if [[ "$cur" == -* ]]; then
+                _omnia_complete_words "$init_options" "$cur"
+            else
+                _omnia_complete_csv "$_omnia_domains" "$cur"
+            fi
+            return
+            ;;
+    esac
+
+    case "$command" in
+        setup)
+            _omnia_complete_words "$setup_options" "$cur"
+            ;;
+        init)
+            if [ "$init_has_domains" -eq 0 ] && [[ "$cur" != -* ]]; then
+                _omnia_complete_csv "$_omnia_domains" "$cur"
+            else
+                _omnia_complete_words "$init_options" "$cur"
+            fi
+            ;;
+        prepare)
+            _omnia_complete_words "$prepare_options" "$cur"
+            ;;
+        run)
+            if [ -z "$run_domain" ]; then
+                _omnia_complete_words "$_omnia_domains" "$cur"
+            else
+                _omnia_complete_words "--tags -t" "$cur"
+            fi
+            ;;
+        cleanup)
+            _omnia_complete_words "--all" "$cur"
+            ;;
+        check|help)
+            COMPREPLY=()
+            ;;
+        *)
+            _omnia_complete_words "$commands" "$cur"
+            ;;
+    esac
+}
+
+complete -F _omnia_cli_completions omnia-cli
+complete -F _omnia_cli_completions ./omnia-cli
+complete -F _omnia_sh_completions omnia.sh
+complete -F _omnia_sh_completions ./omnia.sh

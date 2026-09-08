@@ -40,6 +40,7 @@ from library.messages import (
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_input_config_exists(host):
     """TC_VL_001: Verify orchestrator_config.yml exists on target."""
@@ -55,6 +56,7 @@ def test_input_config_exists(host):
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_omnia_config_exists(host):
     """TC_VL_002: Verify omnia_config.yml exists on target."""
@@ -70,6 +72,7 @@ def test_omnia_config_exists(host):
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_network_spec_exists(host):
     """TC_VL_003: Verify network_spec.yml exists on target."""
@@ -85,6 +88,7 @@ def test_network_spec_exists(host):
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_credentials_present(host):
     """TC_VL_004: Verify credentials file present on target."""
@@ -100,6 +104,7 @@ def test_credentials_present(host):
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(5)
 def test_repo_status_exists(host):
     """TC_VL_005: Verify repo_status.yml exists on target."""
