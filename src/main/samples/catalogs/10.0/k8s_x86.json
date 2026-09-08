@@ -66,7 +66,7 @@
           "nm_connection_editor",
           "iproute",
           "iputils",
-          "curl",
+          "docker.io/curlimages/curl",
           "bash",
           "coreutils",
           "grep",
@@ -158,7 +158,7 @@
           "kubernetes==33_1_0",
           "omsdk==1_2_518",
           "prettytable==3_14_0",
-          "nvidia_hpc_benchmarks"
+          "nvcr.io/nvidia/hpc-benchmarks"
         ]
       },
       "image_thrillhouse_group": {
@@ -174,7 +174,7 @@
         "type": "group",
         "description": "Common Kubernetes packages shared across all K8s functional layers",
         "components": [
-          "docker_io/library/busybox",
+          "docker.io/library/busybox",
           "python3_firewall",
           "git",
           "fuse_overlayfs",
@@ -183,51 +183,49 @@
           "kubelet_1_35_1",
           "container_selinux",
           "cri_o_1_35_1",
-          "docker_io/victoriametrics/victoria_metrics",
-          "docker_io/victoriametrics/vmagent",
-          "docker_io/victoriametrics/vmstorage",
-          "docker_io/victoriametrics/vminsert",
-          "docker_io/victoriametrics/vmselect",
-          "docker_io/victoriametrics/victoria_logs",
-          "docker_io/victoriametrics/vlagent",
-          "docker_io/alpine/kubectl",
-          "docker_io/curlimages/curl",
-          "docker_io/apache/activemq",
-          "docker_io/library/mysql",
-          "docker_io/library/python",
-          "docker_io/dellhpcomniaaisolution/idrac_telemetry_receiver",
-          "docker_io/dellhpcomniaaisolution/kafkapump",
-          "docker_io/dellhpcomniaaisolution/victoriapump",
+          "docker.io/victoriametrics/victoria-metrics",
+          "docker.io/victoriametrics/vmagent",
+          "docker.io/victoriametrics/vmstorage",
+          "docker.io/victoriametrics/vminsert",
+          "docker.io/victoriametrics/vmselect",
+          "docker.io/victoriametrics/victoria-logs",
+          "docker.io/victoriametrics/vlagent",
+          "docker.io/alpine/kubectl",
+          "docker.io/curlimages/curl",
+          "docker.io/apache/activemq",
+          "docker.io/library/mysql",
+          "docker.io/library/python",
+          "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
+          "docker.io/dellhpcomniaaisolution/kafkapump",
+          "docker.io/dellhpcomniaaisolution/victoriapump",
           "cryptography==45_0_7",
           "omsdk==1_2_518",
           "cffi==1_17_1",
           "prometheus_client==0_20_0",
           "kubernetes==33_1_0",
-          "quay_io/strimzi/operator",
-          "quay_io/strimzi/kafka",
-          "docker_io/dellhpcomniaaisolution/ubuntu_ldms",
-          "ghcr_io/open_telemetry/opentelemetry_collector_releases/opentelemetry_collector",
-          "docker_io/nginxinc/nginx_unprivileged",
+          "quay.io/strimzi/operator",
+          "quay.io/strimzi/kafka",
+          "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
+          "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
+          "docker.io/nginxinc/nginx-unprivileged",
           "karavi_observability",
           "helm_charts",
-          "quay_io/jetstack/cert_manager_controller",
-          "quay_io/jetstack/cert_manager_cainjector",
-          "quay_io/jetstack/cert_manager_webhook",
-          "quay_io/jetstack/cert_manager_acmesolver",
+          "quay.io/jetstack/cert-manager-controller",
+          "quay.io/jetstack/cert-manager-cainjector",
+          "quay.io/jetstack/cert-manager-webhook",
+          "quay.io/jetstack/cert-manager-acmesolver",
           "cert_manager_v1_10_2",
           "strimzi_kafka_operator_helm_3_chart_1_1_0",
-          "quay_io/strimzi/kafka_bridge",
-          "docker_io/victoriametrics/operator",
-          "docker_io/victoriametrics/operator",
+          "quay.io/strimzi/kafka-bridge",
+          "docker.io/victoriametrics/operator",
           "victoria_metrics_operator_0_59_3",
-          "docker_io/timberio/vector",
+          "docker.io/timberio/vector",
           "apptainer",
           "doca_ofed",
           "iscsi_initiator_utils",
           "device_mapper_multipath",
           "sg3_utils",
           "lsscsi",
-          "docker.io/alpine/kubectl",
           "ghcr.io/kube-vip/kube-vip",
           "registry.k8s.io/kube-apiserver",
           "registry.k8s.io/kube-controller-manager",
@@ -241,16 +239,9 @@
           "docker.io/calico/node",
           "quay.io/metallb/controller",
           "quay.io/metallb/speaker",
-          "kubeadm_1_35_1",
           "kubectl_1_35_1",
-          "kubelet_1_35_1",
           "nfs_subdir_external_provisioner",
-          "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner",
-          "quay.io/jetstack/cert-manager-acmesolver",
-          "quay.io/jetstack/cert-manager-cainjector",
-          "quay.io/jetstack/cert-manager-controller",
-          "quay.io/jetstack/cert-manager-webhook",
-          "docker.io/library/busybox"
+          "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner"
         ]
       },
       "service_k8s_telemetry_group": {
@@ -258,29 +249,6 @@
         "type": "group",
         "description": "Telemetry and observability packages - VictoriaMetrics, iDRAC telemetry stack, OpenTelemetry",
         "components": [
-          "docker_io/victoriametrics/victoria_metrics",
-          "docker_io/victoriametrics/vmagent",
-          "docker_io/victoriametrics/vmstorage",
-          "docker_io/victoriametrics/vminsert",
-          "docker_io/victoriametrics/vmselect",
-          "docker_io/victoriametrics/victoria_logs",
-          "docker_io/victoriametrics/vlagent",
-          "docker_io/victoriametrics/operator",
-          "docker_io/victoriametrics/operator",
-          "docker_io/apache/activemq",
-          "docker_io/library/mysql",
-          "docker_io/library/python",
-          "docker_io/dellhpcomniaaisolution/idrac_telemetry_receiver",
-          "docker_io/dellhpcomniaaisolution/kafkapump",
-          "docker_io/dellhpcomniaaisolution/victoriapump",
-          "docker_io/dellhpcomniaaisolution/ubuntu_ldms",
-          "cryptography==45_0_7",
-          "omsdk==1_2_518",
-          "cffi==1_17_1",
-          "prometheus_client==0_20_0",
-          "ghcr_io/open_telemetry/opentelemetry_collector_releases/opentelemetry_collector",
-          "docker_io/nginxinc/nginx_unprivileged",
-          "docker_io/timberio/vector",
           "docker.io/victoriametrics/victoria-metrics",
           "docker.io/victoriametrics/vmagent",
           "docker.io/victoriametrics/vmstorage",
@@ -289,24 +257,27 @@
           "docker.io/victoriametrics/victoria-logs",
           "docker.io/victoriametrics/vlagent",
           "docker.io/victoriametrics/operator",
-          "docker.io/victoriametrics/operator_1",
-          "victoria_metrics_operator",
           "docker.io/apache/activemq",
           "docker.io/library/mysql",
           "docker.io/library/python",
-          "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
-          "docker.io/nginxinc/nginx-unprivileged",
-          "docker.io/timberio/vector",
           "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
           "docker.io/dellhpcomniaaisolution/kafkapump",
           "docker.io/dellhpcomniaaisolution/victoriapump",
           "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
+          "cryptography==45_0_7",
+          "omsdk==1_2_518",
+          "cffi==1_17_1",
+          "prometheus_client==0_20_0",
+          "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
+          "docker.io/nginxinc/nginx-unprivileged",
+          "docker.io/timberio/vector",
+          "docker.io/victoriametrics/operator_1",
+          "victoria_metrics_operator",
           "quay.io/strimzi/operator",
           "quay.io/strimzi/kafka",
           "quay.io/strimzi/kafka-bridge",
           "strimzi_kafka_operator_helm_3_chart",
           "pymysql",
-          "prometheus_client==0_20_0",
           "gcc_cpp",
           "python3",
           "python3_pymysql",
@@ -318,19 +289,19 @@
         "type": "group",
         "description": "Common packages across control plane groups not in k8s worker nodes",
         "components": [
-          "ghcr_io/kube_vip/kube_vip",
-          "docker_io/alpine/kubectl",
-          "registry_k8s_io/kube_apiserver",
-          "registry_k8s_io/kube_controller_manager",
-          "registry_k8s_io/kube_scheduler",
-          "registry_k8s_io/kube_proxy",
-          "registry_k8s_io/coredns/coredns",
-          "registry_k8s_io/pause",
-          "registry_k8s_io/etcd",
-          "docker_io/calico/cni",
-          "docker_io/calico/kube_controllers",
-          "docker_io/calico/node",
-          "quay_io/metallb/speaker",
+          "ghcr.io/kube-vip/kube-vip",
+          "docker.io/alpine/kubectl",
+          "registry.k8s.io/kube-apiserver",
+          "registry.k8s.io/kube-controller-manager",
+          "registry.k8s.io/kube-scheduler",
+          "registry.k8s.io/kube-proxy",
+          "registry.k8s.io/coredns/coredns",
+          "registry.k8s.io/pause",
+          "registry.k8s.io/etcd",
+          "docker.io/calico/cni",
+          "docker.io/calico/kube-controllers",
+          "docker.io/calico/node",
+          "quay.io/metallb/speaker",
           "kubectl_1_35_1",
           "prettytable==3_14_0",
           "python3_3_12_9",
@@ -344,20 +315,20 @@
         "type": "group",
         "description": "Kubernetes control plane node packages",
         "components": [
-          "ghcr_io/kube_vip/kube_vip",
-          "registry_k8s_io/kube_apiserver",
-          "registry_k8s_io/kube_controller_manager",
-          "registry_k8s_io/kube_scheduler",
-          "registry_k8s_io/kube_proxy",
-          "registry_k8s_io/coredns/coredns",
-          "docker_io/alpine/kubectl",
-          "registry_k8s_io/pause",
-          "registry_k8s_io/etcd",
-          "docker_io/calico/cni",
-          "docker_io/calico/kube_controllers",
-          "docker_io/calico/node",
-          "quay_io/metallb/speaker",
-          "quay_io/metallb/controller",
+          "ghcr.io/kube-vip/kube-vip",
+          "registry.k8s.io/kube-apiserver",
+          "registry.k8s.io/kube-controller-manager",
+          "registry.k8s.io/kube-scheduler",
+          "registry.k8s.io/kube-proxy",
+          "registry.k8s.io/coredns/coredns",
+          "docker.io/alpine/kubectl",
+          "registry.k8s.io/pause",
+          "registry.k8s.io/etcd",
+          "docker.io/calico/cni",
+          "docker.io/calico/kube-controllers",
+          "docker.io/calico/node",
+          "quay.io/metallb/speaker",
+          "quay.io/metallb/controller",
           "calico_v3_32_1",
           "metallb_native_v0_16_1",
           "helm_v3_20_1_amd64",
@@ -375,9 +346,9 @@
         "type": "group",
         "description": "Kubernetes worker node packages",
         "components": [
-          "registry_k8s_io/sig_storage/nfs_subdir_external_provisioner",
-          "quay_io/metallb/speaker",
-          "quay_io/metallb/controller"
+          "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner",
+          "quay.io/metallb/speaker",
+          "quay.io/metallb/controller"
         ]
       },
       "powerscale_csi_group": {
@@ -400,8 +371,7 @@
           "quay_io/dell/container_storage_modules/dell_csi_replicator",
           "quay_io/dell/container_storage_modules/podmon",
           "quay_io/dell/container_storage_modules/csm_authorization_sidecar",
-          "quay_io/dell/container_storage_modules/csi_metadata_retriever",
-          "quay_io/dell/container_storage_modules/csm_metrics_powerscale"
+          "quay_io/dell/container_storage_modules/csi_metadata_retriever"
         ]
       },
       "infiniband_stack_driver_groupv1": {
@@ -443,21 +413,6 @@
           {
             "architecture": "x86_64",
             "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/victoriametrics/vminsert": {
-        "name": "docker.io/victoriametrics/vminsert",
-        "packagetype": "image",
-        "tag": "v1.149.0-cluster",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -516,21 +471,6 @@
           {
             "architecture": "x86_64",
             "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "registry_k8s_io/kube_apiserver": {
-        "name": "registry.k8s.io/kube-apiserver",
-        "packagetype": "image",
-        "tag": "v1.35.1",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "registry.k8s.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -668,51 +608,6 @@
           }
         ]
       },
-      "docker_io/alpine/kubectl": {
-        "name": "docker.io/alpine/kubectl",
-        "packagetype": "image",
-        "tag": "1.35.1",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "registry_k8s_io/kube_proxy": {
-        "name": "registry.k8s.io/kube-proxy",
-        "packagetype": "image",
-        "tag": "v1.35.1",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "registry.k8s.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "quay_io/jetstack/cert_manager_cainjector": {
-        "name": "quay.io/jetstack/cert-manager-cainjector",
-        "packagetype": "image",
-        "tag": "v1.10.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "quay.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "openssh_clients": {
         "name": "openssh-clients",
         "packagetype": "rpm",
@@ -720,21 +615,6 @@
           {
             "architecture": "x86_64",
             "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "registry_k8s_io/etcd": {
-        "name": "registry.k8s.io/etcd",
-        "packagetype": "image",
-        "tag": "3.6.6-0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "registry.k8s.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -784,51 +664,6 @@
           }
         ]
       },
-      "curl": {
-        "name": "docker.io/curlimages/curl",
-        "packagetype": "image",
-        "tag": "8.17.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/victoriametrics/operator": {
-        "name": "docker.io/victoriametrics/operator",
-        "packagetype": "image",
-        "tag": "v0.68.3",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "quay_io/metallb/controller": {
-        "name": "quay.io/metallb/controller",
-        "packagetype": "image",
-        "tag": "v0.16.1",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "quay.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "file": {
         "name": "file",
         "packagetype": "rpm",
@@ -850,21 +685,6 @@
           {
             "architecture": "x86_64",
             "name": "pypi",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "registry_k8s_io/kube_controller_manager": {
-        "name": "registry.k8s.io/kube-controller-manager",
-        "packagetype": "image",
-        "tag": "v1.35.1",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "registry.k8s.io",
-            "name": "rhel",
             "version": [
               "10.0"
             ]
@@ -905,21 +725,6 @@
           {
             "architecture": "x86_64",
             "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "quay_io/jetstack/cert_manager_acmesolver": {
-        "name": "quay.io/jetstack/cert-manager-acmesolver",
-        "packagetype": "image",
-        "tag": "v1.10.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "quay.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1020,21 +825,6 @@
           {
             "architecture": "x86_64",
             "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/dellhpcomniaaisolution/idrac_telemetry_receiver": {
-        "name": "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
-        "packagetype": "image",
-        "tag": "1.3",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1261,51 +1051,6 @@
           }
         ]
       },
-      "docker_io/library/busybox": {
-        "name": "docker.io/library/busybox",
-        "packagetype": "image",
-        "tag": "1.36",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/victoriametrics/victoria_metrics": {
-        "name": "docker.io/victoriametrics/victoria-metrics",
-        "packagetype": "image",
-        "tag": "v1.149.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/library/mysql": {
-        "name": "docker.io/library/mysql",
-        "packagetype": "image",
-        "tag": "9.7.2",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector": {
         "name": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
         "packagetype": "image",
@@ -1328,36 +1073,6 @@
           {
             "architecture": "x86_64",
             "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "registry_k8s_io/pause": {
-        "name": "registry.k8s.io/pause",
-        "packagetype": "image",
-        "tag": "3.10.1",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "registry.k8s.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "nvidia_hpc_benchmarks": {
-        "name": "nvcr.io/nvidia/hpc-benchmarks",
-        "packagetype": "image",
-        "tag": "25.09",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "nvcr.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1437,21 +1152,6 @@
           }
         ]
       },
-      "docker_io/victoriametrics/vmagent": {
-        "name": "docker.io/victoriametrics/vmagent",
-        "packagetype": "image",
-        "tag": "v1.149.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "docker.io/apache/activemq": {
         "name": "docker.io/apache/activemq",
         "packagetype": "image",
@@ -1503,21 +1203,6 @@
           {
             "architecture": "x86_64",
             "reponame": "appstream",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "registry_k8s_io/sig_storage/nfs_subdir_external_provisioner": {
-        "name": "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner",
-        "packagetype": "image",
-        "tag": "v4.0.2",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "registry.k8s.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1583,21 +1268,6 @@
           }
         ]
       },
-      "docker_io/timberio/vector": {
-        "name": "docker.io/timberio/vector",
-        "packagetype": "image",
-        "tag": "0.54.0-debian",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "gcc_gfortran": {
         "name": "gcc-gfortran",
         "packagetype": "rpm",
@@ -1623,21 +1293,6 @@
               "10.0"
             ],
             "url": "https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/calico.yaml"
-          }
-        ]
-      },
-      "registry_k8s_io/coredns/coredns": {
-        "name": "registry.k8s.io/coredns/coredns",
-        "packagetype": "image",
-        "tag": "v1.13.1",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "registry.k8s.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
           }
         ]
       },
@@ -1683,21 +1338,6 @@
           }
         ]
       },
-      "quay_io/strimzi/kafka_bridge": {
-        "name": "quay.io/strimzi/kafka-bridge",
-        "packagetype": "image",
-        "tag": "1.0.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "quay.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "docker.io/calico/cni": {
         "name": "docker.io/calico/cni",
         "packagetype": "image",
@@ -1712,21 +1352,6 @@
           }
         ],
         "tag": "v3.32.1"
-      },
-      "docker_io/curlimages/curl": {
-        "name": "docker.io/curlimages/curl",
-        "packagetype": "image",
-        "tag": "8.17.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
       },
       "lsof": {
         "name": "lsof",
@@ -1753,36 +1378,6 @@
               "10.0"
             ],
             "reponame": "appstream"
-          }
-        ]
-      },
-      "docker_io/library/python": {
-        "name": "docker.io/library/python",
-        "packagetype": "image",
-        "tag": "3.12-slim",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "quay_io/dell/container_storage_modules/csm_metrics_powerscale": {
-        "name": "quay.io/dell/container-storage-modules/csm-metrics-powerscale",
-        "packagetype": "image",
-        "tag": "v1.12.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "quay.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
           }
         ]
       },
@@ -1932,21 +1527,6 @@
           }
         ]
       },
-      "docker_io/apache/activemq": {
-        "name": "docker.io/apache/activemq",
-        "packagetype": "image",
-        "tag": "6.3.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "perf": {
         "name": "perf",
         "packagetype": "rpm",
@@ -2060,36 +1640,6 @@
         ],
         "tag": "v1.149.0"
       },
-      "docker_io/victoriametrics/vlagent": {
-        "name": "docker.io/victoriametrics/vlagent",
-        "packagetype": "image",
-        "tag": "v1.50.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "registry_k8s_io/kube_scheduler": {
-        "name": "registry.k8s.io/kube-scheduler",
-        "packagetype": "image",
-        "tag": "v1.35.1",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "registry.k8s.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "iperf3": {
         "name": "iperf3",
         "packagetype": "rpm",
@@ -2167,21 +1717,6 @@
           {
             "architecture": "x86_64",
             "reponame": "appstream",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/dellhpcomniaaisolution/victoriapump": {
-        "name": "docker.io/dellhpcomniaaisolution/victoriapump",
-        "packagetype": "image",
-        "tag": "1.3",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -2301,36 +1836,6 @@
           }
         ]
       },
-      "docker_io/nginxinc/nginx_unprivileged": {
-        "name": "docker.io/nginxinc/nginx-unprivileged",
-        "packagetype": "image",
-        "tag": "1.29",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "ghcr_io/open_telemetry/opentelemetry_collector_releases/opentelemetry_collector": {
-        "name": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
-        "packagetype": "image",
-        "tag": "0.150.1",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "ghcr.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "strimzi_kafka_operator_helm_3_chart_1_1_0": {
         "name": "strimzi-kafka-operator-helm-3-chart-1.1.0",
         "packagetype": "tarball",
@@ -2432,21 +1937,6 @@
           }
         ]
       },
-      "docker_io/victoriametrics/victoria_logs": {
-        "name": "docker.io/victoriametrics/victoria-logs",
-        "packagetype": "image",
-        "tag": "v1.50.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "libcurl": {
         "name": "libcurl",
         "packagetype": "rpm",
@@ -2461,21 +1951,6 @@
           }
         ]
       },
-      "quay_io/metallb/speaker": {
-        "name": "quay.io/metallb/speaker",
-        "packagetype": "image",
-        "tag": "v0.16.1",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "quay.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "ipmitool": {
         "name": "ipmitool",
         "packagetype": "rpm",
@@ -2483,21 +1958,6 @@
           {
             "architecture": "x86_64",
             "reponame": "appstream",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/dellhpcomniaaisolution/ubuntu_ldms": {
-        "name": "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
-        "packagetype": "image",
-        "tag": "1.1",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -2520,21 +1980,6 @@
         ],
         "tag": "1.1.0"
       },
-      "docker_io/calico/node": {
-        "name": "docker.io/calico/node",
-        "packagetype": "image",
-        "tag": "v3.32.1",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "papi": {
         "name": "papi",
         "packagetype": "tarball",
@@ -2556,21 +2001,6 @@
           {
             "architecture": "x86_64",
             "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "quay_io/jetstack/cert_manager_webhook": {
-        "name": "quay.io/jetstack/cert-manager-webhook",
-        "packagetype": "image",
-        "tag": "v1.10.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "quay.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -2614,21 +2044,6 @@
           {
             "architecture": "x86_64",
             "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "quay_io/strimzi/kafka": {
-        "name": "quay.io/strimzi/kafka",
-        "packagetype": "image",
-        "tag": "1.1.0-kafka-4.3.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "quay.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -2758,21 +2173,6 @@
           {
             "architecture": "x86_64",
             "reponame": "appstream",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/calico/kube_controllers": {
-        "name": "docker.io/calico/kube-controllers",
-        "packagetype": "image",
-        "tag": "v3.32.1",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -3095,21 +2495,6 @@
           }
         ]
       },
-      "docker_io/victoriametrics/vmstorage": {
-        "name": "docker.io/victoriametrics/vmstorage",
-        "packagetype": "image",
-        "tag": "v1.149.0-cluster",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "quay_io/dell/container_storage_modules/csi_metadata_retriever": {
         "name": "quay.io/dell/container-storage-modules/csi-metadata-retriever",
         "packagetype": "image",
@@ -3366,21 +2751,6 @@
           }
         ]
       },
-      "quay_io/strimzi/operator": {
-        "name": "quay.io/strimzi/operator",
-        "packagetype": "image",
-        "tag": "1.1.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "quay.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "sed": {
         "name": "sed",
         "packagetype": "rpm",
@@ -3438,21 +2808,6 @@
         ],
         "tag": "v1.35.1"
       },
-      "ghcr_io/kube_vip/kube_vip": {
-        "name": "ghcr.io/kube-vip/kube-vip",
-        "packagetype": "image",
-        "tag": "v1.2.2",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "ghcr.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "man_db": {
         "name": "man-db",
         "packagetype": "rpm",
@@ -3496,21 +2851,6 @@
           }
         ]
       },
-      "docker_io/victoriametrics/vmselect": {
-        "name": "docker.io/victoriametrics/vmselect",
-        "packagetype": "image",
-        "tag": "v1.149.0-cluster",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "docker.io/dellhpcomniaaisolution/ubuntu-ldms": {
         "name": "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
         "packagetype": "image",
@@ -3525,21 +2865,6 @@
           }
         ],
         "tag": "1.1"
-      },
-      "docker_io/calico/cni": {
-        "name": "docker.io/calico/cni",
-        "packagetype": "image",
-        "tag": "v3.32.1",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
       },
       "binutils": {
         "name": "binutils",
@@ -3628,21 +2953,6 @@
         ],
         "tag": "1.35.1"
       },
-      "quay_io/jetstack/cert_manager_controller": {
-        "name": "quay.io/jetstack/cert-manager-controller",
-        "packagetype": "image",
-        "tag": "v1.10.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "quay.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "quay.io/metallb/controller": {
         "name": "quay.io/metallb/controller",
         "packagetype": "image",
@@ -3700,21 +3010,6 @@
           }
         ]
       },
-      "docker_io/dellhpcomniaaisolution/kafkapump": {
-        "name": "docker.io/dellhpcomniaaisolution/kafkapump",
-        "packagetype": "image",
-        "tag": "1.3",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "zsh": {
         "name": "zsh",
         "packagetype": "rpm",
@@ -3736,6 +3031,36 @@
           {
             "architecture": "x86_64",
             "reponame": "epel",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker.io/curlimages/curl": {
+        "name": "docker.io/curlimages/curl",
+        "packagetype": "image",
+        "tag": "8.17.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nvcr.io/nvidia/hpc-benchmarks": {
+        "name": "nvcr.io/nvidia/hpc-benchmarks",
+        "packagetype": "image",
+        "tag": "25.09",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "nvcr.io",
             "name": "rhel",
             "version": [
               "10.0"

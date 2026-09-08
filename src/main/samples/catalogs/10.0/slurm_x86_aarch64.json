@@ -110,7 +110,7 @@
           "nm_connection_editor",
           "iproute",
           "iputils",
-          "curl",
+          "docker.io/curlimages/curl",
           "bash",
           "coreutils",
           "grep",
@@ -202,7 +202,7 @@
           "kubernetes==33_1_0",
           "omsdk==1_2_518",
           "prettytable==3_14_0",
-          "nvidia_hpc_benchmarks"
+          "nvcr.io/nvidia/hpc-benchmarks"
         ]
       },
       "image_thrillhouse_group": {
@@ -222,7 +222,7 @@
           "firewalld",
           "python3_firewall",
           "pmix",
-          "nvcr_io/nvidia/hpc_benchmarks",
+          "nvcr.io/nvidia/hpc-benchmarks",
           "apptainer",
           "doca_ofed",
           "iscsi_initiator_utils",
@@ -693,29 +693,6 @@
           {
             "architecture": "aarch64",
             "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "curl": {
-        "name": "docker.io/curlimages/curl",
-        "packagetype": "image",
-        "tag": "8.17.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "registry": "docker.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1198,29 +1175,6 @@
           {
             "architecture": "aarch64",
             "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "nvidia_hpc_benchmarks": {
-        "name": "nvcr.io/nvidia/hpc-benchmarks",
-        "packagetype": "image",
-        "tag": "25.09",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "nvcr.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "registry": "nvcr.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -2642,29 +2596,6 @@
           }
         ]
       },
-      "nvcr_io/nvidia/hpc_benchmarks": {
-        "name": "nvcr.io/nvidia/hpc-benchmarks",
-        "packagetype": "image",
-        "tag": "25.09",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "nvcr.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "registry": "nvcr.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "nvidia_driver": {
         "name": "nvidia-driver-580.159.04",
         "packagetype": "rpm",
@@ -3407,6 +3338,52 @@
           {
             "architecture": "aarch64",
             "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker.io/curlimages/curl": {
+        "name": "docker.io/curlimages/curl",
+        "packagetype": "image",
+        "tag": "8.17.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "nvcr.io/nvidia/hpc-benchmarks": {
+        "name": "nvcr.io/nvidia/hpc-benchmarks",
+        "packagetype": "image",
+        "tag": "25.09",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "nvcr.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "nvcr.io",
             "name": "rhel",
             "version": [
               "10.0"
