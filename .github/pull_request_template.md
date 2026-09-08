@@ -10,7 +10,7 @@
 
 <!-- Required: use #123, owner/repository#123, or a full GitHub issue URL. -->
 
-- Closes #
+- Fixes #
 
 ### Changes
 
