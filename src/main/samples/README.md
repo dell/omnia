@@ -3,15 +3,70 @@
 Reference files for Omnia deployment. These are **not** used at runtime — they
 serve as documentation and starting-point examples.
 
-## Files
+## Catalog Files
 
-| File | Domain | Description |
-|------|--------|-------------|
-| `catalog_rhel.json` | image_build_manager | Compact RHEL 10.0 catalog example. |
-| `catalog_rhel_10_0_x86_64.json` | repo_manager, image_build_manager | RHEL 10.0 x86_64 catalog. |
-| `catalog_rhel_10_0_aarch64.json` | repo_manager, image_build_manager | RHEL 10.0 aarch64 catalog. |
-| `catalog_rhel_10_0_x86_aarch64.json` | repo_manager, image_build_manager | RHEL 10.0 dual-architecture catalog. |
-| `catalog_rhel_10_2_x86_aarch64.json` | repo_manager, image_build_manager | RHEL 10.2 dual-architecture catalog. |
+### Main Catalog
+
+| File | Description |
+|------|-------------|
+| `catalog_rhel.json` | Default RHEL 10.0 catalog with all Slurm + K8s layers on x86_64 (7 layers, 23 groups, 222 packages) |
+
+### Modular Catalogs (catalogs/ directory)
+
+Organized by OS version and workload type for flexible deployment scenarios:
+
+```
+catalogs/
+├── 10.0/
+│   ├── slurm_x86.json           # All Slurm layers on x86_64
+│   ├── slurm_aarch64.json       # All Slurm layers on aarch64
+│   ├── slurm_x86_aarch64.json   # Mixed: x86_64 control/login, aarch64 node/login-compiler
+│   ├── k8s_x86.json             # K8s only on x86_64
+│   ├── slurm_k8s_x86.json       # All Slurm + K8s on x86_64
+│   └── slurm_k8s_combined.json  # Mixed Slurm + K8s (x86_64 mgmt/K8s, aarch64 compute)
+│
+└── 10.2/
+    ├── slurm_x86.json           # All Slurm layers on x86_64
+    ├── slurm_aarch64.json       # All Slurm layers on aarch64
+    ├── slurm_x86_aarch64.json   # Mixed: x86_64 control/login, aarch64 node/login-compiler
+    ├── k8s_x86.json             # K8s only on x86_64
+    ├── slurm_k8s_x86.json       # All Slurm + K8s on x86_64
+    └── slurm_k8s_combined.json  # Mixed Slurm + K8s (x86_64 mgmt/K8s, aarch64 compute)
+```
+
+### Catalog Selection Guide
+
+| Use Case | Recommended Catalog |
+|----------|---------------------|
+| Homogeneous x86_64 cluster (Slurm + K8s) | `slurm_k8s_x86.json` |
+| Homogeneous x86_64 cluster (Slurm only) | `slurm_x86.json` |
+| Homogeneous x86_64 cluster (K8s only) | `k8s_x86.json` |
+| Homogeneous aarch64 cluster (Slurm only) | `slurm_aarch64.json` |
+| Heterogeneous cluster (x86_64 mgmt + aarch64 compute) | `slurm_x86_aarch64.json` |
+| Heterogeneous cluster with K8s | `slurm_k8s_combined.json` |
+
+### Functional Layers by Catalog Type
+
+**Slurm-only catalogs** include:
+- `baseos` - Base OS packages
+- `slurm_control_node` - Slurm controller (slurmctld, slurmdbd)
+- `slurm_node` - Slurm compute node (slurmd)
+- `login_node` - Login node
+- `login_compiler_node` - Login node with compilers
+
+**K8s-only catalogs** include:
+- `baseos` - Base OS packages
+- `service_kube_control_plane` - K8s control plane
+- `service_kube_node` - K8s worker node
+
+**Combined catalogs** include all of the above.
+
+### Driver Groups
+
+All Slurm catalogs include these driver groups where applicable:
+- `infiniband_stack_driver_groupv1` - RDMA/InfiniBand (DOCA OFED)
+- `vast_stack_driver_groupv1` - VAST Data NFS client
+- `nvidia_stack_driver_groupv1` - NVIDIA GPU drivers, CUDA, HPC SDK (on slurm_node and login_compiler_node)
 
 ## Usage
 
@@ -20,9 +75,12 @@ serve as documentation and starting-point examples.
 sudo mkdir -p /opt/omnia/catalog
 sudo cp samples/catalog_rhel_10_2_x86_aarch64.json /opt/omnia/catalog/
 
-# Select the catalog and use catalog-backed functional groups:
-export CATALOG_FILE_PATH=/opt/omnia/catalog/catalog_rhel_10_2_x86_aarch64.json
-# Set functional_groups_source: "catalog" in image_build_config.yml.
+# Or use a specific modular catalog:
+sudo cp samples/catalogs/10.2/slurm_k8s_x86.json /opt/omnia/catalog/catalog_rhel.json
+
+# Then configure image_build_config.yml:
+#   catalog_file: "/opt/omnia/catalog/catalog_rhel.json"
+#   functional_groups_source: "catalog"
 ```
 
 ## Catalog JSON Structure

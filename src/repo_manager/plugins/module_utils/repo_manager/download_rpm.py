@@ -15,11 +15,14 @@
 # pylint: disable=import-error,no-name-in-module,too-many-positional-arguments,too-many-arguments
 """This module handles downloading RPM files for local repository"""
 
-import subprocess
-import os
 import glob
+import os
+import subprocess
+import time
 from collections import OrderedDict
+from multiprocessing import Lock
 from pathlib import Path
+
 from ansible.module_utils.repo_manager.config import PULP_DISTRIBUTION_ROOT_PARTS
 from ansible.module_utils.repo_manager.dnf_package_manager import (
     build_dnf_download_command,
@@ -31,8 +34,10 @@ from ansible.module_utils.repo_manager.rpm_package_processor import (
     partition_rpm_work,
 )
 from ansible.module_utils.repo_manager.pulp_commands import pulp_rpm_commands
-from multiprocessing import Lock
-from ansible.module_utils.repo_manager.parse_and_download import write_status_to_file, _prefix_repo_name_with_arch
+from ansible.module_utils.repo_manager.parse_and_download import (
+    _prefix_repo_name_with_arch,
+    write_status_to_file,
+)
 
 file_lock = Lock()
 
@@ -43,6 +48,73 @@ _rpm_locks_lock = Lock()
 
 # Cache for repo existence checks to avoid repeated Pulp API calls
 _repo_exists_cache = {}
+
+
+# A Pulp content worker can restart briefly while DNF is refreshing repository
+# metadata. Keep this retry local to DNF execution so genuine catalog or package
+# errors continue to fail without delay.
+DNF_TRANSIENT_RETRY_ATTEMPTS = 3
+DNF_TRANSIENT_RETRY_DELAY_SECONDS = 30
+
+_DNF_TRANSIENT_ERROR_MARKERS = (
+    "failed to download metadata for repo",
+    "cannot download repomd.xml",
+    "all mirrors were tried",
+    "connection refused",
+    "connection reset by peer",
+    "operation timed out",
+    "timeout was reached",
+    "service unavailable",
+    "bad gateway",
+    "gateway timeout",
+)
+
+_DNF_NON_RETRYABLE_ERROR_MARKERS = (
+    "no match for argument",
+    "unable to find a match",
+    "no package",
+    "checksum",
+    "digest mismatch",
+    "gpg check failed",
+)
+
+
+def _is_transient_dnf_failure(result):
+    """Return whether a failed DNF result indicates temporary unavailability."""
+    if result.returncode == 0:
+        return False
+
+    output = f"{result.stdout or ''}\n{result.stderr or ''}".lower()
+    if any(marker in output for marker in _DNF_NON_RETRYABLE_ERROR_MARKERS):
+        return False
+    return any(marker in output for marker in _DNF_TRANSIENT_ERROR_MARKERS)
+
+
+def _run_dnf_command(command, logger):
+    """Run DNF and retry only temporary repository-service failures."""
+    result = None
+    for attempt in range(1, DNF_TRANSIENT_RETRY_ATTEMPTS + 1):
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            shell=False,
+            text=True,
+        )
+        if not _is_transient_dnf_failure(result):
+            return result
+
+        if attempt < DNF_TRANSIENT_RETRY_ATTEMPTS:
+            logger.warning(
+                "DNF repository metadata is temporarily unavailable; "
+                "retrying in %d seconds (attempt %d/%d).",
+                DNF_TRANSIENT_RETRY_DELAY_SECONDS,
+                attempt + 1,
+                DNF_TRANSIENT_RETRY_ATTEMPTS,
+            )
+            time.sleep(DNF_TRANSIENT_RETRY_DELAY_SECONDS)
+
+    return result
 
 
 def _check_repo_exists_in_pulp(repo_name, logger):
@@ -223,12 +295,7 @@ def _download_rpm_packages(
             cluster_os_type, cluster_os_version, preferred_repo_option
         )
         logger.info("Executing command: %s", " ".join(dnf_download_command))
-        result = subprocess.run(
-            dnf_download_command,
-            check=False,
-            capture_output=True,
-            text=True
-        )
+        result = _run_dnf_command(dnf_download_command, logger)
         logger.info("Return code: %s", result.returncode)
         if result.returncode != 0 and result.stderr and result.stderr.strip():
             logger.error("STDERR: %s", result.stderr.strip())
@@ -275,9 +342,7 @@ def _download_rpm_packages(
             cluster_os_type, cluster_os_version, preferred_repo_option
         )
         logger.info("Executing command: %s", " ".join(command))
-        retry_result = subprocess.run(
-            command, check=False, capture_output=True, text=True
-        )
+        retry_result = _run_dnf_command(command, logger)
         logger.info("Return code: %s", retry_result.returncode)
         if (retry_result.returncode != 0 and retry_result.stderr
                 and retry_result.stderr.strip()):
@@ -355,12 +420,7 @@ def _validate_rpm_packages(
             prefixed_repo_name, pkg
         )
         logger.info("Executing command: %s", " ".join(dnf_info_command))
-        result = subprocess.run(
-            dnf_info_command,
-            check=False,
-            capture_output=True,
-            text=True
-        )
+        result = _run_dnf_command(dnf_info_command, logger)
         logger.info("Return code: %s", result.returncode)
         if result.returncode != 0 and result.stderr and result.stderr.strip():
             logger.error("STDERR: %s", result.stderr.strip())
@@ -386,7 +446,7 @@ def _validate_rpm_packages(
 
 
 def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
-               cluster_os_version, repo_config_value, arc, logger):
+                cluster_os_version, repo_config_value, arc, logger):
     """
         Downloads RPMs using DNF based on repo configuration, retries failures,
         writes status to file, and returns overall status: Success, Partial, or Failed.
