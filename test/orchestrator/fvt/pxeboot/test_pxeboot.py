@@ -43,7 +43,9 @@ def test_orchestrator_config_exists():
     """TC_PXE_001: Verify orchestrator_config.yml exists."""
     tl = TestLogger("Orchestrator Config Exists", "TC_PXE_001")
     test_config = load_test_config()
-    orchestrator_config_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/orchestrator_config.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    orchestrator_config_path = input_dir + "//orchestrator_config.yml"
 
     if Path(orchestrator_config_path).exists():
         tl.passed("PXE boot configuration validation passed", f"orchestrator_config.yml found at {orchestrator_config_path}")
@@ -57,7 +59,9 @@ def test_pxe_boot_flag_validation():
     """TC_PXE_002: Verify enable_pxe_boot flag is properly configured."""
     tl = TestLogger("PXE Boot Flag Validation", "TC_PXE_002")
     test_config = load_test_config()
-    orchestrator_config_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/orchestrator_config.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    orchestrator_config_path = input_dir + "//orchestrator_config.yml"
 
     try:
         with open(orchestrator_config_path, 'r', encoding='utf-8') as f:
@@ -82,7 +86,9 @@ def test_pxe_mapping_file_exists():
     """TC_PXE_003: Verify pxe_mapping_file.csv exists."""
     tl = TestLogger("PXE Mapping File Exists", "TC_PXE_003")
     test_config = load_test_config()
-    pxe_mapping_file_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/pxe_mapping_file.csv"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    pxe_mapping_file_path = input_dir + "//pxe_mapping_file.csv"
 
     if Path(pxe_mapping_file_path).exists():
         tl.passed("PXE boot configuration validation passed", f"pxe_mapping_file.csv found at {pxe_mapping_file_path}")
@@ -96,7 +102,9 @@ def test_pxe_mapping_file_format():
     """TC_PXE_004: Validate pxe_mapping_file.csv format."""
     tl = TestLogger("PXE Mapping File Format", "TC_PXE_004")
     test_config = load_test_config()
-    pxe_mapping_file_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/pxe_mapping_file.csv"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    pxe_mapping_file_path = input_dir + "//pxe_mapping_file.csv"
 
     if not Path(pxe_mapping_file_path).exists():
         tl.passed("PXE boot configuration validation passed", "pxe_mapping_file.csv not found (PXE boot may be disabled)")
@@ -139,7 +147,9 @@ def test_set_pxe_boot_config_exists():
     """TC_PXE_005: Verify set_pxe_boot_config.yml exists."""
     tl = TestLogger("Set PXE Boot Config Exists", "TC_PXE_005")
     test_config = load_test_config()
-    set_pxe_boot_config_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/set_pxe_boot_config.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    set_pxe_boot_config_path = input_dir + "//set_pxe_boot_config.yml"
 
     if Path(set_pxe_boot_config_path).exists():
         tl.passed("PXE boot configuration validation passed", f"set_pxe_boot_config.yml found at {set_pxe_boot_config_path}")
@@ -153,7 +163,9 @@ def test_set_pxe_boot_config_validation():
     """TC_PXE_006: Validate set_pxe_boot_config.yml parameters."""
     tl = TestLogger("Set PXE Boot Config Validation", "TC_PXE_006")
     test_config = load_test_config()
-    set_pxe_boot_config_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/set_pxe_boot_config.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    set_pxe_boot_config_path = input_dir + "//set_pxe_boot_config.yml"
 
     if not Path(set_pxe_boot_config_path).exists():
         tl.passed("PXE boot configuration validation passed", "set_pxe_boot_config.yml not found (using defaults)")
@@ -219,7 +231,9 @@ def test_bmc_credentials_file_exists():
     """TC_PXE_007: Verify omnia_config_credentials.yml exists."""
     tl = TestLogger("BMC Credentials File Exists", "TC_PXE_007")
     test_config = load_test_config()
-    credentials_file_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/omnia_config_credentials.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    credentials_file_path = input_dir + "//omnia_config_credentials.yml"
 
     if Path(credentials_file_path).exists():
         tl.passed("PXE boot configuration validation passed", f"omnia_config_credentials.yml found at {credentials_file_path}")
@@ -233,7 +247,9 @@ def test_bmc_credentials_validation():
     """TC_PXE_008: Validate BMC credentials are available."""
     tl = TestLogger("BMC Credentials Validation", "TC_PXE_008")
     test_config = load_test_config()
-    credentials_file_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/omnia_config_credentials.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    credentials_file_path = input_dir + "//omnia_config_credentials.yml"
 
     if not Path(credentials_file_path).exists():
         tl.passed("PXE boot configuration validation passed", "omnia_config_credentials.yml not found (credentials may be encrypted)")
@@ -266,7 +282,9 @@ def test_pxe_boot_skip_when_disabled():
     """TC_PXE_009: Verify PXE boot is properly skipped when disabled."""
     tl = TestLogger("PXE Boot Skip When Disabled", "TC_PXE_009")
     test_config = load_test_config()
-    orchestrator_config_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/orchestrator_config.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    orchestrator_config_path = input_dir + "//orchestrator_config.yml"
 
     try:
         with open(orchestrator_config_path, 'r', encoding='utf-8') as f:

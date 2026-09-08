@@ -44,7 +44,9 @@ def test_network_spec_exists():
     """TC_NET_001: Verify network_spec.yml exists."""
     tl = TestLogger("Network Spec Exists", "TC_NET_001")
     test_config = load_test_config()
-    network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    network_spec_path = input_dir + "//network_spec.yml"
 
     if Path(network_spec_path).exists():
         tl.passed("Network configuration validation passed", f"network_spec.yml found at {network_spec_path}")
@@ -58,7 +60,9 @@ def test_network_spec_valid_yaml():
     """TC_NET_002: Verify network_spec.yml is valid YAML."""
     tl = TestLogger("Network Spec Valid YAML", "TC_NET_002")
     test_config = load_test_config()
-    network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    network_spec_path = input_dir + "//network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -78,7 +82,9 @@ def test_admin_network_required_fields():
     """TC_NET_003: Verify admin_network has all required fields."""
     tl = TestLogger("Admin Network Required Fields", "TC_NET_003")
     test_config = load_test_config()
-    network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    network_spec_path = input_dir + "//network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -118,7 +124,9 @@ def test_ip_address_format_validation():
     """TC_NET_004: Validate IP address formats in network_spec.yml."""
     tl = TestLogger("IP Address Format Validation", "TC_NET_004")
     test_config = load_test_config()
-    network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    network_spec_path = input_dir + "//network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -170,7 +178,9 @@ def test_dynamic_range_format_validation():
     """TC_NET_005: Validate dynamic range format (start-end)."""
     tl = TestLogger("Dynamic Range Format Validation", "TC_NET_005")
     test_config = load_test_config()
-    network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    network_spec_path = input_dir + "//network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -210,7 +220,9 @@ def test_netmask_bits_validation():
     """TC_NET_006: Validate netmask_bits (1-32)."""
     tl = TestLogger("Netmask Bits Validation", "TC_NET_006")
     test_config = load_test_config()
-    network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    network_spec_path = input_dir + "//network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -245,7 +257,9 @@ def test_additional_subnets_validation():
     """TC_NET_007: Validate additional_subnets configuration."""
     tl = TestLogger("Additional Subnets Validation", "TC_NET_007")
     test_config = load_test_config()
-    network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    network_spec_path = input_dir + "//network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -294,7 +308,9 @@ def test_dns_configuration_validation():
     """TC_NET_008: Validate DNS server configuration."""
     tl = TestLogger("DNS Configuration Validation", "TC_NET_008")
     test_config = load_test_config()
-    network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    network_spec_path = input_dir + "//network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -329,7 +345,9 @@ def test_ntp_servers_validation():
     """TC_NET_009: Validate NTP server configuration."""
     tl = TestLogger("NTP Servers Validation", "TC_NET_009")
     test_config = load_test_config()
-    network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    network_spec_path = input_dir + "//network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -374,7 +392,9 @@ def test_ib_network_validation():
     """TC_NET_010: Validate InfiniBand network configuration."""
     tl = TestLogger("InfiniBand Network Validation", "TC_NET_010")
     test_config = load_test_config()
-    network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    network_spec_path = input_dir + "//network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -471,7 +491,9 @@ def test_subnet_containment_check():
     """TC_NET_013: Verify subnets are properly contained within their CIDR ranges."""
     tl = TestLogger("Subnet Containment Check", "TC_NET_013")
     test_config = load_test_config()
-    network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    network_spec_path = input_dir + "//network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -549,7 +571,9 @@ def test_static_routes_table_validation(host):
     """TC_NET_014: Validate static routes table for multi-subnet configuration."""
     tl = TestLogger("Static Routes Table Validation", "TC_NET_014")
     test_config = load_test_config()
-    network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    network_spec_path = input_dir + "//network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -639,7 +663,9 @@ def test_network_interface_configuration_validation(host):
     """TC_NET_016: Validate network interface configuration."""
     tl = TestLogger("Network Interface Configuration Validation", "TC_NET_016")
     test_config = load_test_config()
-    network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
+    input_dir = test_config.get("input_project_dir",
+                                    "/opt/omnia/orchestrator/input/project_default")
+    network_spec_path = input_dir + "//network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
