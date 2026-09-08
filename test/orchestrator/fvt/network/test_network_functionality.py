@@ -26,10 +26,11 @@ Tests network configuration including:
 - Subnet containment checks
 """
 
-import pytest
-import yaml
 import ipaddress
 from pathlib import Path
+
+import pytest
+import yaml
 
 from library.functions import (
     TestLogger,
@@ -39,7 +40,7 @@ from library.functions import (
 
 @pytest.mark.sanity
 @pytest.mark.order(1)
-def test_network_spec_exists(host):
+def test_network_spec_exists():
     """TC_NET_001: Verify network_spec.yml exists."""
     tl = TestLogger("Network Spec Exists", "TC_NET_001")
     test_config = load_test_config()
@@ -53,14 +54,14 @@ def test_network_spec_exists(host):
 
 @pytest.mark.functional
 @pytest.mark.order(2)
-def test_network_spec_valid_yaml(host):
+def test_network_spec_valid_yaml():
     """TC_NET_002: Verify network_spec.yml is valid YAML."""
     tl = TestLogger("Network Spec Valid YAML", "TC_NET_002")
     test_config = load_test_config()
     network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
 
     try:
-        with open(network_spec_path, 'r') as f:
+        with open(network_spec_path, 'r', encoding='utf-8') as f:
             network_spec = yaml.safe_load(f)
 
         if network_spec and "Networks" in network_spec:
@@ -73,14 +74,14 @@ def test_network_spec_valid_yaml(host):
 
 @pytest.mark.functional
 @pytest.mark.order(3)
-def test_admin_network_required_fields(host):
+def test_admin_network_required_fields():
     """TC_NET_003: Verify admin_network has all required fields."""
     tl = TestLogger("Admin Network Required Fields", "TC_NET_003")
     test_config = load_test_config()
     network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
 
     try:
-        with open(network_spec_path, 'r') as f:
+        with open(network_spec_path, 'r', encoding='utf-8') as f:
             network_spec = yaml.safe_load(f)
 
         networks = network_spec.get("Networks", [])
@@ -113,14 +114,14 @@ def test_admin_network_required_fields(host):
 
 @pytest.mark.functional
 @pytest.mark.order(4)
-def test_ip_address_format_validation(host):
+def test_ip_address_format_validation():
     """TC_NET_004: Validate IP address formats in network_spec.yml."""
     tl = TestLogger("IP Address Format Validation", "TC_NET_004")
     test_config = load_test_config()
     network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
 
     try:
-        with open(network_spec_path, 'r') as f:
+        with open(network_spec_path, 'r', encoding='utf-8') as f:
             network_spec = yaml.safe_load(f)
 
         networks = network_spec.get("Networks", [])
@@ -165,14 +166,14 @@ def test_ip_address_format_validation(host):
 
 @pytest.mark.functional
 @pytest.mark.order(5)
-def test_dynamic_range_format_validation(host):
+def test_dynamic_range_format_validation():
     """TC_NET_005: Validate dynamic range format (start-end)."""
     tl = TestLogger("Dynamic Range Format Validation", "TC_NET_005")
     test_config = load_test_config()
     network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
 
     try:
-        with open(network_spec_path, 'r') as f:
+        with open(network_spec_path, 'r', encoding='utf-8') as f:
             network_spec = yaml.safe_load(f)
 
         networks = network_spec.get("Networks", [])
@@ -205,14 +206,14 @@ def test_dynamic_range_format_validation(host):
 
 @pytest.mark.functional
 @pytest.mark.order(6)
-def test_netmask_bits_validation(host):
+def test_netmask_bits_validation():
     """TC_NET_006: Validate netmask_bits (1-32)."""
     tl = TestLogger("Netmask Bits Validation", "TC_NET_006")
     test_config = load_test_config()
     network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
 
     try:
-        with open(network_spec_path, 'r') as f:
+        with open(network_spec_path, 'r', encoding='utf-8') as f:
             network_spec = yaml.safe_load(f)
 
         networks = network_spec.get("Networks", [])
@@ -225,7 +226,7 @@ def test_netmask_bits_validation(host):
 
                 try:
                     bits = int(netmask_bits)
-                    if not (1 <= bits <= 32):
+                    if not 1 <= bits <= 32:
                         validation_errors.append(f"netmask_bits must be between 1-32: {bits}")
                 except ValueError:
                     validation_errors.append(f"Invalid netmask_bits: {netmask_bits}")
@@ -240,14 +241,14 @@ def test_netmask_bits_validation(host):
 
 @pytest.mark.functional
 @pytest.mark.order(7)
-def test_additional_subnets_validation(host):
+def test_additional_subnets_validation():
     """TC_NET_007: Validate additional_subnets configuration."""
     tl = TestLogger("Additional Subnets Validation", "TC_NET_007")
     test_config = load_test_config()
     network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
 
     try:
-        with open(network_spec_path, 'r') as f:
+        with open(network_spec_path, 'r', encoding='utf-8') as f:
             network_spec = yaml.safe_load(f)
 
         networks = network_spec.get("Networks", [])
@@ -289,14 +290,14 @@ def test_additional_subnets_validation(host):
 
 @pytest.mark.functional
 @pytest.mark.order(8)
-def test_dns_configuration_validation(host):
+def test_dns_configuration_validation():
     """TC_NET_008: Validate DNS server configuration."""
     tl = TestLogger("DNS Configuration Validation", "TC_NET_008")
     test_config = load_test_config()
     network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
 
     try:
-        with open(network_spec_path, 'r') as f:
+        with open(network_spec_path, 'r', encoding='utf-8') as f:
             network_spec = yaml.safe_load(f)
 
         networks = network_spec.get("Networks", [])
@@ -324,14 +325,14 @@ def test_dns_configuration_validation(host):
 
 @pytest.mark.functional
 @pytest.mark.order(9)
-def test_ntp_servers_validation(host):
+def test_ntp_servers_validation():
     """TC_NET_009: Validate NTP server configuration."""
     tl = TestLogger("NTP Servers Validation", "TC_NET_009")
     test_config = load_test_config()
     network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
 
     try:
-        with open(network_spec_path, 'r') as f:
+        with open(network_spec_path, 'r', encoding='utf-8') as f:
             network_spec = yaml.safe_load(f)
 
         networks = network_spec.get("Networks", [])
@@ -369,14 +370,14 @@ def test_ntp_servers_validation(host):
 
 @pytest.mark.functional
 @pytest.mark.order(10)
-def test_ib_network_validation(host):
+def test_ib_network_validation():
     """TC_NET_010: Validate InfiniBand network configuration."""
     tl = TestLogger("InfiniBand Network Validation", "TC_NET_010")
     test_config = load_test_config()
     network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
 
     try:
-        with open(network_spec_path, 'r') as f:
+        with open(network_spec_path, 'r', encoding='utf-8') as f:
             network_spec = yaml.safe_load(f)
 
         networks = network_spec.get("Networks", [])
@@ -401,7 +402,7 @@ def test_ib_network_validation(host):
                 # Validate netmask_bits
                 try:
                     bits = int(ib["netmask_bits"])
-                    if not (1 <= bits <= 32):
+                    if not 1 <= bits <= 32:
                         validation_errors.append(f"IB netmask_bits must be between 1-32: {bits}")
                 except ValueError:
                     validation_errors.append(f"Invalid IB netmask_bits: {ib['netmask_bits']}")
@@ -416,7 +417,7 @@ def test_ib_network_validation(host):
 
 @pytest.mark.functional
 @pytest.mark.order(11)
-def test_coredhcp_config_exists(host):
+def test_coredhcp_config_exists():
     """TC_NET_011: Verify CoreDHCP configuration exists."""
     tl = TestLogger("CoreDHCP Config Exists", "TC_NET_011")
     coredhcp_config_path = "/etc/openchami/configs/coredhcp.yaml"
@@ -424,12 +425,12 @@ def test_coredhcp_config_exists(host):
     if Path(coredhcp_config_path).exists():
         tl.passed("Network configuration validation passed", f"CoreDHCP config found at {coredhcp_config_path}")
     else:
-        tl.passed("Network configuration validation passed", f"CoreDHCP config not found (may not be deployed yet)")
+        tl.passed("Network configuration validation passed", "CoreDHCP config not found (may not be deployed yet)")
 
 
 @pytest.mark.functional
 @pytest.mark.order(12)
-def test_coredhcp_multi_subnet_rules(host):
+def test_coredhcp_multi_subnet_rules():
     """TC_NET_012: Verify CoreDHCP multi-subnet rules are configured."""
     tl = TestLogger("CoreDHCP Multi-Subnet Rules", "TC_NET_012")
     coredhcp_config_path = "/etc/openchami/configs/coredhcp.yaml"
@@ -439,7 +440,7 @@ def test_coredhcp_multi_subnet_rules(host):
         return
 
     try:
-        with open(coredhcp_config_path, 'r') as f:
+        with open(coredhcp_config_path, 'r', encoding='utf-8') as f:
             coredhcp_config = yaml.safe_load(f)
 
         # Check if coresmd plugin has multi-subnet rules
@@ -466,14 +467,14 @@ def test_coredhcp_multi_subnet_rules(host):
 
 @pytest.mark.functional
 @pytest.mark.order(13)
-def test_subnet_containment_check(host):
+def test_subnet_containment_check():
     """TC_NET_013: Verify subnets are properly contained within their CIDR ranges."""
     tl = TestLogger("Subnet Containment Check", "TC_NET_013")
     test_config = load_test_config()
     network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
 
     try:
-        with open(network_spec_path, 'r') as f:
+        with open(network_spec_path, 'r', encoding='utf-8') as f:
             network_spec = yaml.safe_load(f)
 
         networks = network_spec.get("Networks", [])
@@ -551,7 +552,7 @@ def test_static_routes_table_validation(host):
     network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
 
     try:
-        with open(network_spec_path, 'r') as f:
+        with open(network_spec_path, 'r', encoding='utf-8') as f:
             network_spec = yaml.safe_load(f)
 
         networks = network_spec.get("Networks", [])
@@ -591,7 +592,7 @@ def test_static_routes_table_validation(host):
 
 @pytest.mark.functional
 @pytest.mark.order(15)
-def test_coredhcp_pool_configuration_validation(host):
+def test_coredhcp_pool_configuration_validation():
     """TC_NET_015: Validate CoreDHCP pool configuration for multi-subnet."""
     tl = TestLogger("CoreDHCP Pool Configuration Validation", "TC_NET_015")
     coredhcp_config_path = "/etc/openchami/configs/coredhcp.yaml"
@@ -601,7 +602,7 @@ def test_coredhcp_pool_configuration_validation(host):
         return
 
     try:
-        with open(coredhcp_config_path, 'r') as f:
+        with open(coredhcp_config_path, 'r', encoding='utf-8') as f:
             coredhcp_config = yaml.safe_load(f)
 
         validation_errors = []
@@ -641,7 +642,7 @@ def test_network_interface_configuration_validation(host):
     network_spec_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/network_spec.yml"
 
     try:
-        with open(network_spec_path, 'r') as f:
+        with open(network_spec_path, 'r', encoding='utf-8') as f:
             network_spec = yaml.safe_load(f)
 
         networks = network_spec.get("Networks", [])
@@ -675,7 +676,7 @@ def test_network_interface_configuration_validation(host):
 
 @pytest.mark.functional
 @pytest.mark.order(17)
-def test_dns_forwarder_configuration_validation(host):
+def test_dns_forwarder_configuration_validation():
     """TC_NET_017: Validate DNS forwarder configuration."""
     tl = TestLogger("DNS Forwarder Configuration Validation", "TC_NET_017")
     coredns_config_path = "/etc/openchami/configs/Corefile"
@@ -685,7 +686,7 @@ def test_dns_forwarder_configuration_validation(host):
         return
 
     try:
-        with open(coredns_config_path, 'r') as f:
+        with open(coredns_config_path, 'r', encoding='utf-8') as f:
             coredns_config = f.read()
 
         validation_errors = []

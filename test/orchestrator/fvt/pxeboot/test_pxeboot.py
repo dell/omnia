@@ -25,10 +25,11 @@ Tests PXE boot functionality including:
 - Failed nodes output validation
 """
 
-import pytest
-import yaml
 import json
 from pathlib import Path
+
+import pytest
+import yaml
 
 from library.functions import (
     TestLogger,
@@ -38,7 +39,7 @@ from library.functions import (
 
 @pytest.mark.sanity
 @pytest.mark.order(1)
-def test_orchestrator_config_exists(host):
+def test_orchestrator_config_exists():
     """TC_PXE_001: Verify orchestrator_config.yml exists."""
     tl = TestLogger("Orchestrator Config Exists", "TC_PXE_001")
     test_config = load_test_config()
@@ -52,14 +53,14 @@ def test_orchestrator_config_exists(host):
 
 @pytest.mark.functional
 @pytest.mark.order(2)
-def test_pxe_boot_flag_validation(host):
+def test_pxe_boot_flag_validation():
     """TC_PXE_002: Verify enable_pxe_boot flag is properly configured."""
     tl = TestLogger("PXE Boot Flag Validation", "TC_PXE_002")
     test_config = load_test_config()
     orchestrator_config_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/orchestrator_config.yml"
 
     try:
-        with open(orchestrator_config_path, 'r') as f:
+        with open(orchestrator_config_path, 'r', encoding='utf-8') as f:
             orchestrator_config = yaml.safe_load(f)
 
         if "enable_pxe_boot" not in orchestrator_config:
@@ -77,7 +78,7 @@ def test_pxe_boot_flag_validation(host):
 
 @pytest.mark.sanity
 @pytest.mark.order(3)
-def test_pxe_mapping_file_exists(host):
+def test_pxe_mapping_file_exists():
     """TC_PXE_003: Verify pxe_mapping_file.csv exists."""
     tl = TestLogger("PXE Mapping File Exists", "TC_PXE_003")
     test_config = load_test_config()
@@ -86,12 +87,12 @@ def test_pxe_mapping_file_exists(host):
     if Path(pxe_mapping_file_path).exists():
         tl.passed("PXE boot configuration validation passed", f"pxe_mapping_file.csv found at {pxe_mapping_file_path}")
     else:
-        tl.passed("PXE boot configuration validation passed", f"pxe_mapping_file.csv not found (PXE boot may be disabled)")
+        tl.passed("PXE boot configuration validation passed", "pxe_mapping_file.csv not found (PXE boot may be disabled)")
 
 
 @pytest.mark.functional
 @pytest.mark.order(4)
-def test_pxe_mapping_file_format(host):
+def test_pxe_mapping_file_format():
     """TC_PXE_004: Validate pxe_mapping_file.csv format."""
     tl = TestLogger("PXE Mapping File Format", "TC_PXE_004")
     test_config = load_test_config()
@@ -102,7 +103,7 @@ def test_pxe_mapping_file_format(host):
         return
 
     try:
-        with open(pxe_mapping_file_path, 'r') as f:
+        with open(pxe_mapping_file_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
 
         if len(lines) < 2:
@@ -111,7 +112,7 @@ def test_pxe_mapping_file_format(host):
 
         # Validate header
         header = lines[0].strip().split(',')
-        expected_columns = 9  # FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP
+        # FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP
         if len(header) < 9:
             tl.failed("PXE boot configuration validation failed", f"Expected at least 9 columns, found {len(header)}")
             return
@@ -134,7 +135,7 @@ def test_pxe_mapping_file_format(host):
 
 @pytest.mark.sanity
 @pytest.mark.order(5)
-def test_set_pxe_boot_config_exists(host):
+def test_set_pxe_boot_config_exists():
     """TC_PXE_005: Verify set_pxe_boot_config.yml exists."""
     tl = TestLogger("Set PXE Boot Config Exists", "TC_PXE_005")
     test_config = load_test_config()
@@ -148,7 +149,7 @@ def test_set_pxe_boot_config_exists(host):
 
 @pytest.mark.functional
 @pytest.mark.order(6)
-def test_set_pxe_boot_config_validation(host):
+def test_set_pxe_boot_config_validation():
     """TC_PXE_006: Validate set_pxe_boot_config.yml parameters."""
     tl = TestLogger("Set PXE Boot Config Validation", "TC_PXE_006")
     test_config = load_test_config()
@@ -159,7 +160,7 @@ def test_set_pxe_boot_config_validation(host):
         return
 
     try:
-        with open(set_pxe_boot_config_path, 'r') as f:
+        with open(set_pxe_boot_config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
 
         validation_errors = []
@@ -214,7 +215,7 @@ def test_set_pxe_boot_config_validation(host):
 
 @pytest.mark.sanity
 @pytest.mark.order(7)
-def test_bmc_credentials_file_exists(host):
+def test_bmc_credentials_file_exists():
     """TC_PXE_007: Verify omnia_config_credentials.yml exists."""
     tl = TestLogger("BMC Credentials File Exists", "TC_PXE_007")
     test_config = load_test_config()
@@ -228,7 +229,7 @@ def test_bmc_credentials_file_exists(host):
 
 @pytest.mark.functional
 @pytest.mark.order(8)
-def test_bmc_credentials_validation(host):
+def test_bmc_credentials_validation():
     """TC_PXE_008: Validate BMC credentials are available."""
     tl = TestLogger("BMC Credentials Validation", "TC_PXE_008")
     test_config = load_test_config()
@@ -239,7 +240,7 @@ def test_bmc_credentials_validation(host):
         return
 
     try:
-        with open(credentials_file_path, 'r') as f:
+        with open(credentials_file_path, 'r', encoding='utf-8') as f:
             try:
                 config = yaml.safe_load(f)
             except yaml.YAMLError:
@@ -261,14 +262,14 @@ def test_bmc_credentials_validation(host):
 
 @pytest.mark.functional
 @pytest.mark.order(9)
-def test_pxe_boot_skip_when_disabled(host):
+def test_pxe_boot_skip_when_disabled():
     """TC_PXE_009: Verify PXE boot is properly skipped when disabled."""
     tl = TestLogger("PXE Boot Skip When Disabled", "TC_PXE_009")
     test_config = load_test_config()
     orchestrator_config_path = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default") + "/orchestrator_config.yml"
 
     try:
-        with open(orchestrator_config_path, 'r') as f:
+        with open(orchestrator_config_path, 'r', encoding='utf-8') as f:
             orchestrator_config = yaml.safe_load(f)
 
         enable_pxe = orchestrator_config.get("enable_pxe_boot", True)
@@ -283,7 +284,7 @@ def test_pxe_boot_skip_when_disabled(host):
 
 @pytest.mark.functional
 @pytest.mark.order(10)
-def test_failed_nodes_output_exists(host):
+def test_failed_nodes_output_exists():
     """TC_PXE_010: Verify failed_nodes.json output file exists after PXE boot."""
     tl = TestLogger("Failed Nodes Output Exists", "TC_PXE_010")
     test_config = load_test_config()
@@ -298,7 +299,7 @@ def test_failed_nodes_output_exists(host):
 
 @pytest.mark.functional
 @pytest.mark.order(11)
-def test_failed_nodes_output_format(host):
+def test_failed_nodes_output_format():
     """TC_PXE_011: Validate failed_nodes.json format and structure."""
     tl = TestLogger("Failed Nodes Output Format", "TC_PXE_011")
     test_config = load_test_config()
@@ -310,7 +311,7 @@ def test_failed_nodes_output_format(host):
         return
 
     try:
-        with open(failed_nodes_path, 'r') as f:
+        with open(failed_nodes_path, 'r', encoding='utf-8') as f:
             failed_data = json.load(f)
 
         validation_errors = []
@@ -354,7 +355,7 @@ def test_failed_nodes_output_format(host):
 
 @pytest.mark.functional
 @pytest.mark.order(12)
-def test_orchestrator_status_output_exists(host):
+def test_orchestrator_status_output_exists():
     """TC_PXE_012: Verify orchestrator_status.yml output file exists."""
     tl = TestLogger("Orchestrator Status Output Exists", "TC_PXE_012")
     test_config = load_test_config()
@@ -369,7 +370,7 @@ def test_orchestrator_status_output_exists(host):
 
 @pytest.mark.functional
 @pytest.mark.order(13)
-def test_orchestrator_status_output_format(host):
+def test_orchestrator_status_output_format():
     """TC_PXE_013: Validate orchestrator_status.yml format and structure."""
     tl = TestLogger("Orchestrator Status Output Format", "TC_PXE_013")
     test_config = load_test_config()
@@ -381,7 +382,7 @@ def test_orchestrator_status_output_format(host):
         return
 
     try:
-        with open(status_path, 'r') as f:
+        with open(status_path, 'r', encoding='utf-8') as f:
             status_data = yaml.safe_load(f)
 
         validation_errors = []
@@ -425,7 +426,7 @@ def test_orchestrator_status_output_format(host):
 
 @pytest.mark.functional
 @pytest.mark.order(14)
-def test_pxe_boot_playbook_execution(host):
+def test_pxe_boot_playbook_execution():
     """TC_PXE_014: Verify PXE boot playbook can be executed."""
     tl = TestLogger("PXE Boot Playbook Execution", "TC_PXE_014")
     playbook_path = "/root/catalog/omnia/src/orchestrator/playbooks/pxeboot/pxeboot.yml"
@@ -438,7 +439,7 @@ def test_pxe_boot_playbook_execution(host):
 
 @pytest.mark.sanity
 @pytest.mark.order(15)
-def test_idrac_role_exists(host):
+def test_idrac_role_exists():
     """TC_PXE_015: Verify idrac_pxe_boot role exists."""
     tl = TestLogger("iDRAC Role Exists", "TC_PXE_015")
     role_path = Path("/root/catalog/omnia/src/orchestrator/roles/idrac_pxe_boot")
