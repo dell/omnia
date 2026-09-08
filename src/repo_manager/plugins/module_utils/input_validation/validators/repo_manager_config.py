@@ -44,6 +44,7 @@ from ansible.module_utils.repo_manager.registry_utils import (
     get_registry_authority,
 )
 from ansible.module_utils.repo_manager.catalog_resolver import (
+    collect_referenced_repositories,
     load_multiple_catalogs,
     resolve_catalog_context,
     resolve_catalog_groups,
@@ -53,6 +54,7 @@ from ansible.module_utils.repo_manager.repo_settings import (
     DEFAULT_CACHING_POLICY,
     POLICY_CACHING_MAP,
     SUBSCRIPTION_REPOSITORIES,
+    is_repo_enabled,
     iterate_all_repos,
 )
 from ansible.module_utils.repo_manager.security_utils import (
@@ -316,15 +318,19 @@ def _collect_all_repo_names(repos_section):
     """
     Collect all repository names from both flat and nested structures.
     Handles additional_repos and user_repos as nested containers.
+    Respects the 'enabled' field to exclude disabled repositories.
     """
     names = []
     for repo_name in repos_section:
         if repo_name in ("additional_repos", "user_repos"):
             nested = repos_section.get(repo_name, {}) or {}
-            for nested_name in nested:
-                names.append(nested_name)
+            for nested_name, nested_config in nested.items():
+                if is_repo_enabled(nested_config):
+                    names.append(nested_name)
         else:
-            names.append(repo_name)
+            repo_config = repos_section.get(repo_name)
+            if is_repo_enabled(repo_config):
+                names.append(repo_name)
     return names
 
 
@@ -664,6 +670,22 @@ def _validate_catalog_registry_mapping(config_data, logger, _omnia_base_dir,
     if catalog_context is None:
         try:
             catalog_context = resolve_catalog_context(catalogs, logger)
+            # Update referenced repositories to respect enabled/disabled status
+            for execution_context in catalog_context.get("execution_contexts", []):
+                execution_context["referenced_repositories"] = (
+                    collect_referenced_repositories(
+                        catalogs, execution_context, logger, config_data
+                    )
+                )
+            if len(catalog_context.get("execution_contexts", [])) == 1:
+                catalog_context["referenced_repositories"] = catalog_context[
+                    "execution_contexts"
+                ][0]["referenced_repositories"]
+            else:
+                catalog_context["referenced_repositories_by_version"] = {
+                    item["os_version"]: item["referenced_repositories"]
+                    for item in catalog_context["execution_contexts"]
+                }
         except ValueError as exc:
             return [create_error_msg("catalog.functionallayer", "", str(exc))]
 

@@ -337,11 +337,13 @@ def iterate_all_repos(repos_section):
         if repo_name in ("additional_repos", "user_repos"):
             nested = repo_config if isinstance(repo_config, dict) else {}
             for nested_name, nested_config in nested.items():
-                yield nested_name, nested_config
+                if is_repo_enabled(nested_config):
+                    yield nested_name, nested_config
         else:
             # Only yield if repo_config is a dictionary (skip string values)
             if isinstance(repo_config, dict):
-                yield repo_name, repo_config
+                if is_repo_enabled(repo_config):
+                    yield repo_name, repo_config
 
 
 def get_repos_section(config_data, cluster_os_version, arch):
@@ -395,6 +397,23 @@ def get_caching_policy(config_data, repo_config=None):
 
     # Default fallback
     return DEFAULT_CACHING_POLICY
+
+
+def is_repo_enabled(repo_config):
+    """Check if a repository is enabled based on its configuration.
+
+    Args:
+        repo_config (dict, optional): Individual repository configuration
+
+    Returns:
+        bool: True if repository is enabled, False otherwise. Defaults to True.
+    """
+    if repo_config and isinstance(repo_config, dict):
+        enabled = repo_config.get("enabled")
+        if enabled is not None:
+            return enabled
+    # Default to enabled for backward compatibility
+    return True
 
 
 def get_container_sync_policy(config_data):
@@ -472,5 +491,6 @@ __all__ = [
     "get_repos_section",
     "collect_all_repo_names",
     "get_caching_policy",
+    "is_repo_enabled",
     "get_container_sync_policy",
 ]

@@ -89,6 +89,11 @@ TEST_NAMES = {
     "catalog_add_deploy": "Deploy catalog_add playbook",
     "catalog_delete_deploy": "Deploy catalog_delete playbook",
     "catalog_validate_deploy": "Deploy catalog_validate playbook",
+    # Repository Enablement Tests
+    "enabled_field_default": "Repositories without 'enabled' field default to enabled",
+    "disabled_repo_excluded": "Disabled repositories are excluded from processing",
+    "enabled_repo_included": "Enabled repositories are included in processing",
+    "invalid_enabled_field": "Invalid 'enabled' field values are rejected",
 }
 
 TEST_LOG_MSGS = {
@@ -206,6 +211,11 @@ TEST_LOG_MSGS = {
     "catalog_delete_failed": "Catalog delete failed",
     "catalog_validate_ok": "Catalog validate completed",
     "catalog_validate_failed": "Catalog validate failed",
+    # Repository Enablement Tests
+    "no_repos": "No repositories found in config",
+    "config_read_error": "Error reading config file",
+    "no_enabled_repos": "No enabled repositories found",
+    "invalid_enabled_field": "Invalid enabled field found",
 }
 
 TEST_ASSERT_MSGS = {
@@ -270,4 +280,9 @@ TEST_ASSERT_MSGS = {
     "catalog_add_must_succeed": "Catalog add must succeed",
     "catalog_delete_must_succeed": "Catalog delete must succeed",
     "catalog_validate_must_succeed": "Catalog validate must succeed",
+    # Repository Enablement Tests
+    "enabled_field_must_be_boolean": "Repository enabled field must be boolean",
+    "disabled_repo_must_be_excluded": "Disabled repositories must be excluded",
+    "enabled_repo_must_be_included": "Enabled repositories must be included",
+    "at_least_one_repo_must_be_enabled": "At least one repository must be enabled",
 }
