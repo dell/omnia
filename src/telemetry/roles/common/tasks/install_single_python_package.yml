@@ -19,11 +19,12 @@
 # Called in a loop by install_python_dependencies.yml
 #
 # Parameters:
-#   - package_name: Python package name (e.g., kubernetes)
+#   - package_name: Python import name (e.g., kubernetes)
+#   - package_distribution_name: Catalog/Pulp package name (e.g., PyMySQL)
 #   - package_version: Package version (e.g., 33.1.0)
 #   - component_name: Component name for logging (e.g., idrac, powerscale)
 #   - install_mode: 'online' or 'offline' (set by caller)
-#   - pip_index_url: Pulp repo URL for offline mode (set by caller)
+#   - pip_module_url: Pulp pip-module base URL for offline mode (set by caller)
 # =============================================================================
 
 - name: Check if Python module is installed
@@ -42,7 +43,7 @@
     - name: Install Python module in online mode (from PyPI)
       when: install_mode == "online"
       ansible.builtin.command: >
-        python3 -m pip install {{ package_name }}=={{ package_version }}
+        python3 -m pip install {{ package_distribution_name }}=={{ package_version }}
       register: pip_install_online
       changed_when: true
 
@@ -56,15 +57,24 @@
 
     - name: Install Python module in offline mode (from Pulp repo)
       when: install_mode == "offline"
-      ansible.builtin.command: >
-        python3 -m pip install --index-url {{ pip_index_url }}
-        {{ package_name }}=={{ package_version }}
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -m
+          - pip
+          - install
+          - --no-index
+          - --find-links
+          - "{{ pip_module_url }}{{ package_distribution_name }}=={{ package_version }}/"
+          - "{{ package_distribution_name }}=={{ package_version }}"
       register: pip_install_offline
       changed_when: true
 
     - name: Fail if offline installation failed
       ansible.builtin.fail:
-        msg: "Failed to install {{ package_name }}=={{ package_version }} from {{ pip_index_url }}. Check Pulp repo availability."
+        msg: >-
+          Failed to install {{ package_distribution_name }}=={{ package_version }} from
+          {{ pip_module_url }}{{ package_distribution_name }}=={{ package_version }}/. Check Pulp repo availability.
       when:
         - install_mode == "offline"
         - pip_install_offline.rc is defined
