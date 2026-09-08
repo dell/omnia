@@ -44,7 +44,7 @@ default_lease_time: "86400"
 # Enable DNS-based hostname resolution for compute nodes.
 # When true, nodes use coresmd (CoreDNS + OpenCHAMI SMD plugin) instead of /etc/hosts.
 # DNS records are generated automatically from SMD inventory.
-# The cluster domain is read from OIM metadata (domain_name).
+# The cluster domain is read from SYSTEM_DOMAIN_NAME in omnia.env.
 # Default: false
 dns_enabled: false
 
@@ -83,7 +83,7 @@ catalog_file_path: ""
 # Enable PXE boot support via iDRAC (default: true)
 # Set to true for physical (bare-metal) servers with Dell iDRAC.
 # Set to false for virtual machines or environments without iDRAC/BMC.
-# When false, the setpxe flow (--tags setpxe) is skipped with a message.
+# When false, the PXE boot flow (--tags pxeboot) is skipped with a message.
 # Default: true
 enable_pxe_boot: true
 

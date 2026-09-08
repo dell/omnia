@@ -12,27 +12,105 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Delete stale SMD endpoints before re-registration.
+# Delete stale shared OpenCHAMI provisioning data before re-registration.
 # Extracted from configure_ochami/tasks/delete_smd_config.yml.
+#
+# IMPORTANT: All deletions are SCOPED to the target category only.
+# Using --all would wipe registrations from other categories that have
+# already been provisioned (e.g. Kubernetes provision followed by Slurm
+# provision would delete the K8s nodes from SMD, causing K8s nodes to
+# receive random DHCP IPs from the bootloop pool instead of their
+# static ADMIN_IPs during PXE boot).
+#
+# Inputs (set by register_nodes.yml before this file is included):
+#   _category_nodes  — list of node dicts for the target category
+#   target_fg_names  — list of FG names for the target category
 
-- name: Delete all ochami component endpoints
-  ansible.builtin.command: /usr/bin/ochami smd compep delete --no-confirm --all
+- name: Check OpenCHAMI configuration for shared provisioning reset
+  ansible.builtin.stat:
+    path: "{{ openchami_config_vars_path }}"
+  register: _provision_reset_openchami_config
+
+- name: Require OpenCHAMI configuration for shared provisioning reset
+  ansible.builtin.assert:
+    that:
+      - _provision_reset_openchami_config.stat.exists
+      - _provision_reset_openchami_config.stat.isreg
+    fail_msg: >-
+      OpenCHAMI configuration file not found: {{ openchami_config_vars_path }}.
+      Run the deploy stage before provisioning.
+
+- name: Resolve OpenCHAMI API identity for shared provisioning reset
+  ansible.builtin.set_fact:
+    _provision_reset_cluster_name: >-
+      {{ (lookup('file', openchami_config_vars_path) | from_yaml).cluster_name }}
+    _provision_reset_cluster_domain: >-
+      {{ (lookup('file', openchami_config_vars_path) | from_yaml).cluster_domain }}
+
+- name: Validate OpenCHAMI API identity for shared provisioning reset
+  ansible.builtin.assert:
+    that:
+      - _provision_reset_cluster_name | length > 0
+      - _provision_reset_cluster_domain | length > 0
+    fail_msg: >-
+      OpenCHAMI cluster_name and cluster_domain must be present in
+      {{ openchami_config_vars_path }}.
+
+# ── Build scoped deletion targets ──────────────────────────────────────
+
+- name: Build target xnames and MACs for scoped deletion
+  ansible.builtin.set_fact:
+    _target_node_xnames: "{{ _category_nodes | map(attribute='XNAME') | list }}"
+    _target_bmc_xnames: "{{ _category_nodes | map(attribute='XNAME') | map('regex_replace', 'n0$', '') | unique | list }}"
+    _target_all_macs: >-
+      {{ (_category_nodes | map(attribute='ADMIN_MAC') | list
+          + _category_nodes | map(attribute='BMC_MAC') | list)
+         | map('lower') | unique | list }}
+
+- name: Build combined xname list (nodes + BMCs)
+  ansible.builtin.set_fact:
+    _target_all_xnames: "{{ _target_node_xnames + _target_bmc_xnames }}"
+
+# ── SMD component endpoints (scoped to target xnames) ─────────────────
+
+- name: Delete target category component endpoints from SMD
+  ansible.builtin.command: >
+    /usr/bin/ochami smd compep delete --no-confirm
+    {{ _target_all_xnames | join(' ') }}
   changed_when: true
   failed_when: false
+  when: _target_all_xnames | length > 0
 
-- name: Delete all ochami redfish endpoints
-  ansible.builtin.command: /usr/bin/ochami smd rfe delete --no-confirm --all
+# ── SMD redfish endpoints (scoped to target BMC xnames) ───────────────
+
+- name: Delete target category redfish endpoints from SMD
+  ansible.builtin.command: >
+    /usr/bin/ochami smd rfe delete --no-confirm
+    {{ _target_bmc_xnames | join(' ') }}
   changed_when: true
   failed_when: false
+  when: _target_bmc_xnames | length > 0
 
-- name: Delete all ochami interfaces
-  ansible.builtin.command: /usr/bin/ochami smd iface delete --no-confirm --all
+# ── SMD interfaces (scoped to target MACs) ────────────────────────────
+
+- name: Delete target category interfaces from SMD
+  ansible.builtin.command: >
+    /usr/bin/ochami smd iface delete --no-confirm
+    {{ _target_all_macs | join(' ') }}
   changed_when: true
   failed_when: false
+  when: _target_all_macs | length > 0
+
+# ── Boot-service configurations (scoped to target FGs) ────────────────
+# Boot-service deletion is also performed (properly scoped) in
+# provision_common/tasks/main.yml. We scope here to target FG names
+# for defense in depth.
 
 - name: Fetch existing boot configurations
   ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations"
+    url: >-
+      https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+      }}:8443/boot-service/bootconfigurations
     method: GET
     headers:
       Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
@@ -42,22 +120,31 @@
   register: existing_boot_configs
   failed_when: false
 
-- name: Delete existing boot configurations
+- name: Delete boot configurations for target functional groups only
   ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}"
+    url: >-
+      https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+      }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}
     method: DELETE
     headers:
       Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
     status_code: [200, 204, 404]
     validate_certs: false
-  loop: "{{ existing_boot_configs.json | default([]) }}"
+  loop: >-
+    {{ existing_boot_configs.json | default([])
+       | selectattr('metadata.name', 'in', target_fg_names)
+       | list }}
   loop_control:
     label: "{{ item.metadata.name | default(item.metadata.uid) }}"
   when: existing_boot_configs.json | default([]) | length > 0
 
+# ── Metadata-service instanceinfos (scoped to target xnames) ──────────
+
 - name: Fetch existing metadata-service instanceinfos
   ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/instanceinfos"
+    url: >-
+      https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+      }}:8443/metadata-service/instanceinfos
     method: GET
     headers:
       Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
@@ -67,66 +154,105 @@
   register: existing_instanceinfos
   failed_when: false
 
-- name: Delete existing metadata-service instanceinfos
+- name: Delete instanceinfos for target category nodes only
   ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/instanceinfos/{{ item.metadata.uid }}"
+    url: >-
+      https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+      }}:8443/metadata-service/instanceinfos/{{ item.metadata.uid }}
     method: DELETE
     headers:
       Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
     status_code: [200, 204, 404]
     validate_certs: false
-  loop: "{{ existing_instanceinfos.json | default([]) }}"
+  loop: >-
+    {{ existing_instanceinfos.json | default([])
+       | selectattr('spec.instance_id', 'defined')
+       | selectattr('spec.instance_id', 'in', _target_node_xnames)
+       | list }}
   loop_control:
     label: "{{ item.metadata.name | default(item.metadata.uid) }}"
   when: existing_instanceinfos.json | default([]) | length > 0
 
-- name: Fetch existing metadata-service groups
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
-    status_code: [200]
-    validate_certs: false
-    return_content: true
-  register: existing_groups
-  failed_when: false
-  no_log: true
+# ── Metadata-service groups (scoped to target FGs) ────────────────────
+# Per-FG group deletion is also handled in configure_metadata_svc.yml
+# (delete-before-set). We scope here to target FGs for defense in depth.
 
-- name: Delete existing metadata-service groups
+- name: Fetch existing metadata-service groups
+  block:
+    - name: Fetch existing metadata-service groups
+      ansible.builtin.uri:
+        url: >-
+          https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+          }}:8443/metadata-service/groups
+        method: GET
+        headers:
+          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+        status_code: [200]
+        validate_certs: false
+        return_content: true
+      register: existing_groups
+      no_log: true
+  rescue:
+    - name: Fail with metadata-service API error
+      ansible.builtin.fail:
+        msg: "{{ metadata_service_api_fail_msg }}"
+
+- name: Delete metadata-service groups for target functional groups only
   ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups/{{ item.metadata.uid }}"
+    url: >-
+      https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+      }}:8443/metadata-service/groups/{{ item.metadata.uid }}
     method: DELETE
     headers:
       Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
     status_code: [200, 204, 404]
     validate_certs: false
-  loop: "{{ existing_groups.json | default([]) }}"
+  loop: >-
+    {{ existing_groups.json | default([])
+       | selectattr('metadata.name', 'in', target_fg_names)
+       | list }}
   loop_control:
     label: "{{ item.metadata.name | default(item.metadata.uid) }}"
   when: existing_groups.json | default([]) | length > 0
 
-- name: Fetch existing metadata-service clusterdefaults
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/clusterdefaultss"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
-    status_code: [200]
-    validate_certs: false
-    return_content: true
-  register: existing_clusterdefaults
-  failed_when: false
+# ── Metadata-service clusterdefaults ──────────────────────────────────
+# Clusterdefaults is a global singleton shared across all categories.
+# Only delete on the first category run to avoid clearing settings that
+# subsequent categories depend on. The POST in main.yml uses status_code
+# [200, 201, 409] so a 409 (already exists) is acceptable.
 
-- name: Delete existing metadata-service clusterdefaults
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/clusterdefaultss/{{ item.metadata.uid }}"
-    method: DELETE
-    headers:
-      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
-    status_code: [200, 204, 404]
-    validate_certs: false
-  loop: "{{ existing_clusterdefaults.json | default([]) }}"
-  loop_control:
-    label: "{{ item.metadata.name | default(item.metadata.uid) }}"
-  when: existing_clusterdefaults.json | default([]) | length > 0
+- name: Delete and re-create clusterdefaults (first category only)
+  when: _smd_cleanup_done is not defined or not (_smd_cleanup_done | bool)
+  block:
+    - name: Fetch existing metadata-service clusterdefaults
+      ansible.builtin.uri:
+        url: >-
+          https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+          }}:8443/metadata-service/clusterdefaultss
+        method: GET
+        headers:
+          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+        status_code: [200]
+        validate_certs: false
+        return_content: true
+      register: existing_clusterdefaults
+      failed_when: false
+
+    - name: Delete existing metadata-service clusterdefaults
+      ansible.builtin.uri:
+        url: >-
+          https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+          }}:8443/metadata-service/clusterdefaultss/{{ item.metadata.uid }}
+        method: DELETE
+        headers:
+          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+        status_code: [200, 204, 404]
+        validate_certs: false
+      loop: "{{ existing_clusterdefaults.json | default([]) }}"
+      loop_control:
+        label: "{{ item.metadata.name | default(item.metadata.uid) }}"
+      when: existing_clusterdefaults.json | default([]) | length > 0
+
+    - name: Mark clusterdefaults cleanup as done for this run
+      ansible.builtin.set_fact:
+        _smd_cleanup_done: true

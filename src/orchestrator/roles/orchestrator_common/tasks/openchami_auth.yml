@@ -20,21 +20,33 @@
   ansible.builtin.service_facts:
 
 - name: Generate access token
-  ansible.builtin.command: sudo bash -lc 'gen_access_token'
-  register: access_token_result
-  changed_when: false
-  failed_when: false
-  retries: "{{ openchami_auth_retries }}"
-  delay: "{{ openchami_auth_delay }}"
-  until: access_token_result.rc == 0 and access_token_result.stdout not in ["", "null"]
-  no_log: true
+  block:
+    - name: Generate access token
+      ansible.builtin.command: sudo bash -lc 'gen_access_token'
+      register: access_token_result
+      changed_when: false
+      failed_when: false
+      retries: "{{ openchami_auth_retries }}"
+      delay: "{{ openchami_auth_delay }}"
+      until: access_token_result.rc == 0 and access_token_result.stdout not in ["", "null"]
+      no_log: true
+  rescue:
+    - name: Fail with access token generation error
+      ansible.builtin.fail:
+        msg: "{{ access_token_generation_fail_msg }}"
 
 - name: Set ochami_env
-  ansible.builtin.set_fact:
-    ochami_env: "{{ {cluster_env_key: access_token_result.stdout} }}"
-    openchami_access_token: "{{ access_token_result.stdout }}"
-  when: access_token_result.rc == 0
-  no_log: true
+  block:
+    - name: Set ochami_env
+      ansible.builtin.set_fact:
+        ochami_env: "{{ {cluster_env_key: access_token_result.stdout} }}"
+        openchami_access_token: "{{ access_token_result.stdout }}"
+      when: access_token_result.rc == 0
+      no_log: true
+  rescue:
+    - name: Fail with environment variable setting error
+      ansible.builtin.fail:
+        msg: "{{ ochami_env_setting_fail_msg }}"
 
 - name: Check ochami smd status
   ansible.builtin.command: ochami smd service status
