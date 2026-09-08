@@ -48,18 +48,20 @@ catalogs/
 ### Functional Layers by Catalog Type
 
 **Slurm-only catalogs** include:
-- `baseos` - Base OS packages
+- `os` - Base OS packages
 - `slurm_control_node` - Slurm controller (slurmctld, slurmdbd)
 - `slurm_node` - Slurm compute node (slurmd)
 - `login_node` - Login node
 - `login_compiler_node` - Login node with compilers
 
 **service_k8s-only catalogs** include:
-- `baseos` - Base OS packages
+- `os` - Base OS packages
 - `service_kube_control_plane` - service_k8s control plane
 - `service_kube_node` - service_k8s worker node
 
 **Combined catalogs** include all of the above.
+
+**Note**: All functional layers include `ldms_group` for LDMS lightweight distributed metric service.
 
 ### Driver Groups
 
@@ -73,10 +75,10 @@ All Slurm catalogs include these driver groups where applicable:
 ```bash
 # Copy sample catalog to the convention path for testing:
 sudo mkdir -p /opt/omnia/catalog
-sudo cp samples/catalog_rhel_10_2_x86_aarch64.json /opt/omnia/catalog/
+sudo cp samples/catalog_rhel.json /opt/omnia/catalog/
 
 # Or use a specific modular catalog:
-sudo cp samples/catalogs/10.2/slurm_k8s_x86.json /opt/omnia/catalog/catalog_rhel.json
+sudo cp samples/catalogs/10.2/slurm_service_k8s_x86_64.json /opt/omnia/catalog/catalog_rhel.json
 
 # Then configure image_build_config.yml:
 #   catalog_file: "/opt/omnia/catalog/catalog_rhel.json"
@@ -91,7 +93,7 @@ The catalog file follows this hierarchy:
 catalog
 ├── identifier          # e.g., "omnia-services-rhel-10-0"
 ├── functionallayer[]   # Functional groups (by OS + arch)
-│   ├── name            # e.g., "slurm_node_rhel_10_0_x86_64"
+│   ├── name            # e.g., "os_rhel_10_0_x86_64" or "slurm_node_rhel_10_0_x86_64"
 │   └── components[]    # References to groups
 ├── groups              # Named groups of packages
 │   └── {group_name}
