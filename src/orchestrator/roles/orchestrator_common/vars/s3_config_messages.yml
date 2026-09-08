@@ -34,3 +34,17 @@ s3_config_not_available_msg: >-
   Run image_build_manager before orchestrator to generate build_status.yml,
   or set image_build_manager_output_path in orchestrator_config.yml.
   Boot service templates require S3 endpoint URL to construct PXE boot HTTP URLs.
+
+# Repository Configuration Messages
+repo_status_missing_provision_msg: >-
+  repo_manager output not found at '{{ repo_manager_output_path }}'.
+  This is required for {{ hostvars['localhost']['omnia_run_tags'] | default(['default flow']) | join(', ') }}.
+  Run repo_manager before orchestrator to generate repo_status.yml.
+  Or set repo_manager_output_path in orchestrator_config.yml.
+  Repository configuration is needed to configure nodes (SLURM, Kubernetes, etc.)
+
+repo_config_not_available_msg: >-
+  Repository configuration (pulp_cert_path, pulp_port, cluster_os_type) not available
+  for node configuration. Run repo_manager before orchestrator to generate repo_status.yml,
+  or set repo_manager_output_path in orchestrator_config.yml.
+  Node configuration requires repository URLs and Pulp certificate.
