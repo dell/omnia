@@ -30,6 +30,11 @@
     ms_group_common_entries: "{{ ms_group_common_raw.content | b64decode | from_yaml }}"
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
+- name: Initialize metadata-service common group bodies
+  ansible.builtin.set_fact:
+    _ms_group_bodies: []
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
 - name: Build metadata-service group body for each common entry
   ansible.builtin.set_fact:
     _ms_group_bodies: >-
@@ -51,6 +56,40 @@
     loop_var: entry
     label: "{{ entry.name }}"
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Fetch existing metadata-service groups for legacy cleanup
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200]
+    validate_certs: false
+    return_content: true
+  register: configure_ochami_legacy_common_groups
+  no_log: true
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Delete obsolete node-registration metadata-service group
+  ansible.builtin.uri:
+    url: >-
+      https://{{ cluster_name }}.{{ cluster_domain
+      }}:8443/metadata-service/groups/{{ item.metadata.uid }}
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200, 204, 404]
+    validate_certs: false
+  loop: >-
+    {{ configure_ochami_legacy_common_groups.json | default([])
+       | selectattr('metadata.name', 'equalto', 'node_registration')
+       | list }}
+  loop_control:
+    label: "{{ item.metadata.name | default(item.metadata.uid) }}"
+  no_log: true
+  when:
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+    - configure_ochami_legacy_common_groups.json | default([]) | length > 0
 
 - name: Set metadata-service group configuration - common (via metadata-service API)
   ansible.builtin.uri:

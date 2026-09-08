@@ -31,9 +31,9 @@
   when: admin_netmask_bits is not defined
 
 - name: Parse network_spec data
-  ansible.builtin.set_fact:
-    network_data: "{{ network_data | default({}) | combine({item.key: item.value}) }}"
-  with_dict: "{{ Networks }}"
+  ansible.builtin.include_role:
+    name: orchestrator_common
+    tasks_from: normalize_network_spec.yml
   when: admin_netmask_bits is not defined
 
 - name: Set network facts from network_spec
@@ -78,6 +78,16 @@
     path: /tmp/omnia_validate_mapping.csv
     regexp: '\s*#'
     state: absent
+  when:
+    - read_mapping_file is not defined
+    - pxe_mapping_file_path | default('') | length > 0
+
+- name: Normalize Kubernetes primary control-plane membership
+  ansible.builtin.include_role:
+    name: orchestrator_common
+    tasks_from: normalize_pxe_functional_groups.yml
+  vars:
+    normalized_pxe_mapping_path: /tmp/omnia_validate_mapping.csv
   when:
     - read_mapping_file is not defined
     - pxe_mapping_file_path | default('') | length > 0

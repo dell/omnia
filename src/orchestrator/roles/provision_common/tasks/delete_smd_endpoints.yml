@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Delete stale SMD endpoints before re-registration.
+# Delete stale shared OpenCHAMI provisioning data before re-registration.
 # Extracted from configure_ochami/tasks/delete_smd_config.yml.
 #
 # IMPORTANT: All deletions are SCOPED to the target category only.
@@ -25,6 +25,36 @@
 # Inputs (set by register_nodes.yml before this file is included):
 #   _category_nodes  — list of node dicts for the target category
 #   target_fg_names  — list of FG names for the target category
+
+- name: Check OpenCHAMI configuration for shared provisioning reset
+  ansible.builtin.stat:
+    path: "{{ openchami_config_vars_path }}"
+  register: _provision_reset_openchami_config
+
+- name: Require OpenCHAMI configuration for shared provisioning reset
+  ansible.builtin.assert:
+    that:
+      - _provision_reset_openchami_config.stat.exists
+      - _provision_reset_openchami_config.stat.isreg
+    fail_msg: >-
+      OpenCHAMI configuration file not found: {{ openchami_config_vars_path }}.
+      Run the deploy stage before provisioning.
+
+- name: Resolve OpenCHAMI API identity for shared provisioning reset
+  ansible.builtin.set_fact:
+    _provision_reset_cluster_name: >-
+      {{ (lookup('file', openchami_config_vars_path) | from_yaml).cluster_name }}
+    _provision_reset_cluster_domain: >-
+      {{ (lookup('file', openchami_config_vars_path) | from_yaml).cluster_domain }}
+
+- name: Validate OpenCHAMI API identity for shared provisioning reset
+  ansible.builtin.assert:
+    that:
+      - _provision_reset_cluster_name | length > 0
+      - _provision_reset_cluster_domain | length > 0
+    fail_msg: >-
+      OpenCHAMI cluster_name and cluster_domain must be present in
+      {{ openchami_config_vars_path }}.
 
 # ── Build scoped deletion targets ──────────────────────────────────────
 
@@ -78,7 +108,9 @@
 
 - name: Fetch existing boot configurations
   ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations"
+    url: >-
+      https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+      }}:8443/boot-service/bootconfigurations
     method: GET
     headers:
       Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
@@ -90,7 +122,9 @@
 
 - name: Delete boot configurations for target functional groups only
   ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}"
+    url: >-
+      https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+      }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}
     method: DELETE
     headers:
       Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
@@ -108,7 +142,9 @@
 
 - name: Fetch existing metadata-service instanceinfos
   ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/instanceinfos"
+    url: >-
+      https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+      }}:8443/metadata-service/instanceinfos
     method: GET
     headers:
       Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
@@ -120,7 +156,9 @@
 
 - name: Delete instanceinfos for target category nodes only
   ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/instanceinfos/{{ item.metadata.uid }}"
+    url: >-
+      https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+      }}:8443/metadata-service/instanceinfos/{{ item.metadata.uid }}
     method: DELETE
     headers:
       Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
@@ -143,7 +181,9 @@
   block:
     - name: Fetch existing metadata-service groups
       ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
+        url: >-
+          https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+          }}:8443/metadata-service/groups
         method: GET
         headers:
           Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
@@ -151,7 +191,6 @@
         validate_certs: false
         return_content: true
       register: existing_groups
-      failed_when: false
       no_log: true
   rescue:
     - name: Fail with metadata-service API error
@@ -160,7 +199,9 @@
 
 - name: Delete metadata-service groups for target functional groups only
   ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups/{{ item.metadata.uid }}"
+    url: >-
+      https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+      }}:8443/metadata-service/groups/{{ item.metadata.uid }}
     method: DELETE
     headers:
       Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
@@ -185,7 +226,9 @@
   block:
     - name: Fetch existing metadata-service clusterdefaults
       ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/clusterdefaultss"
+        url: >-
+          https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+          }}:8443/metadata-service/clusterdefaultss
         method: GET
         headers:
           Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
@@ -197,7 +240,9 @@
 
     - name: Delete existing metadata-service clusterdefaults
       ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/clusterdefaultss/{{ item.metadata.uid }}"
+        url: >-
+          https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+          }}:8443/metadata-service/clusterdefaultss/{{ item.metadata.uid }}
         method: DELETE
         headers:
           Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"

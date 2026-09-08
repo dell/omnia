@@ -274,8 +274,17 @@
           if [ ! -f "$MARKER" ]; then
             # Join Kubernetes cluster
             echo "Initial boot - initializing and setting up service_kube_node_x86_64"
-            rm -rf /var/lib/kubelet/* /etc/kubernetes/*
-            rm -rf /var/lib/kubelet/.* /etc/kubernetes/.*
+            # Stop and reset any incomplete state left by an earlier PXE attempt.
+            systemctl stop kubelet.service || true
+            kubeadm reset --force --cri-socket=unix:///var/run/crio/crio.sock || true
+            systemctl stop crio.service || true
+            for state_dir in /var/lib/kubelet /etc/kubernetes; do
+              mkdir -p "$state_dir"
+              find "$state_dir" -mindepth 1 -xdev -delete
+            done
+            systemctl start crio.service
+            systemctl start kubelet.service
+
             K8S_CLIENT_MOUNT_PATH="{{ k8s_client_mount_path }}"
             NODE_NAME="{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}"
             KUBE_VIP="{{ kube_vip }}"

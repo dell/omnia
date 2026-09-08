@@ -43,6 +43,11 @@
     ms_fg_group_entries: "{{ ms_fg_group_raw.content | b64decode | from_yaml }}"
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
+- name: Initialize metadata-service bodies for {{ functional_group_name }}
+  ansible.builtin.set_fact:
+    _ms_fg_bodies: []
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
 - name: Build metadata-service group body for FG entries - {{ functional_group_name }}
   ansible.builtin.set_fact:
     _ms_fg_bodies: >-

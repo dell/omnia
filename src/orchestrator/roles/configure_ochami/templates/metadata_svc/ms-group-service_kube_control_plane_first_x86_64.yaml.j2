@@ -223,8 +223,6 @@
                       fieldPath: spec.nodeName
                 - name: vip_interface
                   value: vip_interface
-                - name: vip_cidr
-                  value: "{{ admin_netmask_bits }}"
                 - name: dns_mode
                   value: first
                 - name: cp_enable
@@ -245,11 +243,15 @@
                   value: "3"
                 - name: vip_retryperiod
                   value: "1"
-                - name: vip_address
+                - name: address
                   value: {{ kube_vip }}
+                - name: vip_subnet
+                  value: "{{ admin_netmask_bits }}"
                 - name: prometheus_server
                   value: :2112
-                image: ghcr.io/kube-vip/kube-vip:v0.8.9
+                - name: kubernetes_addr
+                  value: {{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}:6443
+                image: "{{ kube_vip_image }}"
                 imagePullPolicy: IfNotPresent
                 name: kube-vip
                 resources: {}
@@ -314,7 +316,7 @@
           content: |
             #!/bin/bash
             set -e
-            HELM_VERSION="v3.20.1"
+            HELM_VERSION="v{{ helm_version }}"
             ARCH="amd64"
             cp {{ k8s_client_mount_path }}/helm/linux-${ARCH}-helm-$HELM_VERSION/helm /usr/local/bin/helm
             chmod +x /usr/local/bin/helm
@@ -500,10 +502,18 @@
             echo "Initial boot - initializing and setting up service_kube_control_plane_first_x86_64"
             mv /tmp/ipaddress_pool.yaml {{ k8s_client_mount_path }}/metallb/ipaddress_pool.yaml
             mv /tmp/l2advertisement.yaml {{ k8s_client_mount_path }}/metallb/l2advertisement.yaml
-            # Setup Kubernetes cluster
-            rm -rf /var/lib/etcd/*  /var/lib/kubelet/* /etc/kubernetes/*
-            rm -rf /var/lib/etcd/.*  /var/lib/kubelet/.* /etc/kubernetes/.*
-            #!/bin/bash
+            # Stop and reset any incomplete state left by an earlier PXE attempt.
+            systemctl stop kubelet.service || true
+            kubeadm reset --force --cri-socket=unix:///var/run/crio/crio.sock || true
+            systemctl stop crio.service || true
+            for state_dir in /var/lib/etcd /var/lib/kubelet /etc/kubernetes; do
+              mkdir -p "$state_dir"
+              find "$state_dir" -mindepth 1 -xdev -delete
+            done
+            mkdir -p /etc/kubernetes/manifests
+            systemctl start crio.service
+            systemctl start kubelet.service
+
             NODE_IP="{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}"
             # Find the interface with this IP
             VIP_IFACE=$(ip -o addr show | awk -v ip="$NODE_IP" '$4 ~ ip {print $2}')
@@ -512,11 +522,27 @@
             mkdir -p /etc/kubernetes/manifests/
             cp /tmp/kube-vip.yaml /etc/kubernetes/manifests/kube-vip.yaml
 
-            /usr/local/bin/k8s-cluster-setup.sh || true
-            mkdir -p $HOME/.kube
-            cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
-            chown $(id -u):$(id -g) $HOME/.kube/config
-  
+            /usr/local/bin/k8s-cluster-setup.sh
+            mkdir -p /root/.kube
+            cp -f /etc/kubernetes/admin.conf /root/.kube/config
+            chown root:root /root/.kube/config
+
+            echo "Waiting for the Kubernetes API to become ready ..."
+            api_ready=false
+            for attempt in $(seq 1 120); do
+              if kubectl get --raw='/readyz' >/dev/null 2>&1; then
+                api_ready=true
+                echo "Kubernetes API is ready."
+                break
+              fi
+              echo "Kubernetes API is not ready yet (attempt ${attempt}/120), waiting 5s ..."
+              sleep 5
+            done
+            if [ "$api_ready" != "true" ]; then
+              echo "ERROR: Kubernetes API did not become ready within 10 minutes."
+              exit 1
+            fi
+
             echo "Updating strictARP to true in kube-proxy configmap"
             kubectl get configmap kube-proxy -n kube-system -o yaml | \
             sed -e "s/strictARP: false/strictARP: true/" | \
@@ -534,22 +560,39 @@
               echo "IP_AUTODETECTION_METHOD already present in $CALICO_YAML"
             fi
             
-            # To apply the Calico manifest
-            kubectl apply -f "$CALICO_YAML"
+            echo "Applying the Calico manifest ..."
+            calico_applied=false
+            for attempt in $(seq 1 60); do
+              if kubectl apply -f "$CALICO_YAML"; then
+                calico_applied=true
+                echo "Calico manifest applied successfully."
+                break
+              fi
+              echo "Calico manifest apply failed (attempt ${attempt}/60), waiting 5s ..."
+              sleep 5
+            done
+            if [ "$calico_applied" != "true" ]; then
+              echo "ERROR: Calico manifest could not be applied within 5 minutes."
+              exit 1
+            fi
 
             export KUBECONFIG=/etc/kubernetes/admin.conf
             echo "Waiting for one Ready control plane node ..."
-            # Loop until we have at least one control plane node with status Ready
-            while true; do
+            control_plane_ready=false
+            for attempt in $(seq 1 180); do
               control_plane_ready=$(kubectl get nodes -l node-role.kubernetes.io/control-plane="" --no-headers 2>/dev/null | awk '$2=="Ready"' | wc -l)
               if [ "$control_plane_ready" -ge 1 ]; then
                 echo "Found $control_plane_ready Ready control plane node(s)!"
+                control_plane_ready=true
                 break
-              else
-                echo "No Ready control plane node yet, waiting 5s ..."
-                sleep 5
               fi
+              echo "No Ready control plane node yet (attempt ${attempt}/180), waiting 5s ..."
+              sleep 5
             done
+            if [ "$control_plane_ready" != "true" ]; then
+              echo "ERROR: No control plane node became Ready within 15 minutes."
+              exit 1
+            fi
             # Wait for all pods in all namespaces to be ready (status=Running or Completed)
             echo "Waiting for all pods to be Ready (Running/Completed)..."
             while true; do
@@ -700,13 +743,12 @@
             VIP="{{ kube_vip }}"
             KUBE_PORT="6443"
             sed -i "s|server: https://[^:]*:${KUBE_PORT}|server: https://${VIP}:${KUBE_PORT}|" /etc/kubernetes/admin.conf
-            KUBECONFIG="${HOME}/.kube/config"
+            KUBECONFIG="/root/.kube/config"
             if [ -f "$KUBECONFIG" ]; then
               sed -i "s|server: https://[^:]*:${KUBE_PORT}|server: https://${VIP}:${KUBE_PORT}|" "$KUBECONFIG"
             fi
-            cp /etc/kubernetes/admin.conf $HOME/.kube/config
             mkdir -p /root/.kube
-            cp /etc/kubernetes/admin.conf /root/.kube/config
+            cp -f /etc/kubernetes/admin.conf /root/.kube/config
             
             # Update kube-proxy configmap
             kubectl -n kube-system get configmap kube-proxy -o yaml > /tmp/kube-proxy.yaml
@@ -877,10 +919,9 @@
 {% if etcd_on_local_disk | default(false) %}
             /usr/local/bin/etcd-fstab-update.sh
 {% endif %}
-            mkdir -p $HOME/.kube /root/.kube
-            cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
-            chown $(id -u):$(id -g) $HOME/.kube/config
-            yes | cp -i /etc/kubernetes/admin.conf /root/.kube/config
+            mkdir -p /root/.kube
+            cp -f /etc/kubernetes/admin.conf /root/.kube/config
+            chown root:root /root/.kube/config
             kubectl get nodes -o wide || echo "Cluster not yet fully up"
             kubectl get pods --all-namespaces -o wide || echo "Pods may not be ready yet"
 
@@ -909,4 +950,3 @@
             echo "Cloud-Init finished successfully after the reboot."
 
           fi
-

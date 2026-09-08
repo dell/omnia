@@ -62,6 +62,18 @@
       Expected 'success'. Fix image builds before running orchestrator.
   when: (_build_status.overall_status | default('')) != 'success'
 
+- name: Validate S3 configuration in build_status
+  ansible.builtin.assert:
+    that:
+      - _build_status.s3_configurations is defined
+      - _build_status.s3_configurations is mapping
+      - _build_status.s3_configurations.endpoint_url is defined
+      - _build_status.s3_configurations.endpoint_url | length > 0
+    fail_msg: >-
+      image_build_manager build_status.yml does not contain a usable
+      s3_configurations.endpoint_url. Regenerate the build output before
+      running orchestrator.
+
 # -------------------------------------------------------------------
 # Bridge: set s3_configurations fact from build_status.yml
 # -------------------------------------------------------------------
@@ -74,4 +86,6 @@
 
 - name: Display S3 configuration from build_status
   ansible.builtin.debug:
-    msg: "S3 endpoint: {{ s3_configurations.endpoint_url }}, bucket: {{ s3_configurations.bucket }}"
+    msg: >-
+      S3 endpoint: {{ s3_configurations.endpoint_url }},
+      bucket: {{ s3_configurations.bucket }}

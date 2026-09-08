@@ -16,20 +16,13 @@
 # Timing configuration is loaded from input/pxe_config.yml by the playbook
 
 # Status messages
-node_registration_status_ok: "OK Node registered:"
-node_registration_status_wait: "WAIT Still waiting for node registration:"
+verify_node_registration_status_ok: "OK Node boot verified:"
+verify_node_registration_status_failed: "FAILED Node boot verification:"
 
 # Error messages
-node_registration_fail_msg: |
+verify_node_registration_fail_msg: |
   FATAL: Required facts missing for node-registration verification.
-  pxe_start_epoch = {{ pxe_start_epoch | default('UNDEFINED') }}
-  target_node_admin_ips = {{ target_node_admin_ips | default('UNDEFINED') }}
+  pxe_start_epoch = {{ hostvars['localhost']['pxe_start_epoch'] | default('UNDEFINED') }}
+  admin_ip = {{ inventory_hostname | default('UNDEFINED') }}
+  bmc_ip = {{ bmc_ip | default('UNDEFINED') }}
   Ensure facts are set correctly.
-
-node_registration_success_msg: >
-  [Node-Registration] All {{ target_node_admin_ips | length }}
-  nodes completed cloud-init and registered successfully.
-
-node_registration_pause_prompt: >
-  Waiting {{ node_registration_pause_minutes | default(3) }} minutes for nodes to boot and begin
-  cloud-init before starting node-registration polling...

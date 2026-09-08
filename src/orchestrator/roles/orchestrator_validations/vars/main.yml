@@ -46,9 +46,6 @@ file_mode: "0644"
 functional_groups_file_path: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
 
 # Mapping file error messages
-mapping_file_read_fail_msg: "Failed to read mapping file from {{ temp_pxe_file_path }}. Check file path and permissions."
-mapping_file_process_fail_msg: "Failed to process mapping file pattern replacement. Check file format and content."
-mapping_file_write_fail_msg: "Failed to write updated mapping file to {{ temp_pxe_file_path }}. Check disk space and permissions."
 csv_parsing_fail_msg: "Failed to parse mapping file as CSV. Check file format and mapping_file_key configuration."
 
 # Usage: updates_hosts.yml
@@ -56,7 +53,7 @@ hosts_file_path: "{{ hostvars['localhost']['omnia_data_path'] }}/hosts"
 
 # Usage: validate_image.yml
 image_missing_fail_msg: |
-  Error: Image not found for functional group {{ functional_group_name }}.
+  Error: Kernel, initrd, or rootfs image not found for functional group {{ functional_group_name }}.
   Please create the image by running the corresponding build playbook (build_image_x86_64.yml for x86_64 or build_image_aarch64.yml for aarch64)
   and re-run the orchestrator.yml playbook.
 
