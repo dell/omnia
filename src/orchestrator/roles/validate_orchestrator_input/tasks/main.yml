@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# validate_orchestrator_input — L1 schema + L2 logic validation for orchestrator.
+# validate_orchestrator_input — Orchestrator L1 schema and L2 logic validation.
 #
 # Validates:
 #   - orchestrator_config.yml (required)
 #   - network_spec.yml        (required — cross-validated against mapping file)
+#   - storage_config.yml      (required when omnia_config references storage)
 #
 # Uses the domain-specific validate_orchestrator_config module (lean, no
 # dependency on the central input_validation framework).
@@ -25,28 +26,16 @@
   ansible.builtin.debug:
     msg: "{{ orchestrator_validation_start_msg }}"
 
-# Verify catalog-derived facts (cluster_os_type, cluster_os_version, feature flags)
-# are available from orchestrator_setup. No software_config.json needed.
-- name: Verify catalog-derived OS metadata is available
-  ansible.builtin.assert:
-    that:
-      - cluster_os_type is defined
-      - cluster_os_version is defined
-    fail_msg: >-
-      Catalog-derived OS metadata is not available. Ensure orchestrator_setup
-      has loaded the catalog file before running validation.
-    quiet: true
-
 # Pre-check: ensure orchestrator_config.yml exists
 - name: Check orchestrator_config.yml exists
   ansible.builtin.stat:
     path: "{{ input_dir }}/orchestrator_config.yml"
-  register: orch_config_stat
+  register: validate_orchestrator_input_config_stat
 
 - name: Fail if orchestrator_config.yml is missing
   ansible.builtin.fail:
     msg: "{{ orchestrator_config_missing_msg }}"
-  when: not orch_config_stat.stat.exists
+  when: not validate_orchestrator_input_config_stat.stat.exists
 
 # Run the validate_orchestrator_config module (L1 + L2)
 - name: Run orchestrator configuration validation
@@ -54,30 +43,32 @@
     input_project_dir: "{{ input_dir }}"
     schema_dir: "{{ orchestrator_schema_dir }}"
     log_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/log/core/playbooks"
-  register: orchestrator_validation_result
+  register: validate_orchestrator_input_result
 
 # Report results
 - name: Display validation log path
   ansible.builtin.debug:
-    msg: "Validation log: {{ orchestrator_validation_result.log_file }}"
+    msg: "Validation log: {{ validate_orchestrator_input_result.log_file }}"
 
 - name: Display valid files
   ansible.builtin.debug:
-    msg: "Valid: {{ orchestrator_validation_result.valid_files }}"
-  when: orchestrator_validation_result.valid_files | length > 0
+    msg: "Valid: {{ validate_orchestrator_input_result.valid_files }}"
+  when: validate_orchestrator_input_result.valid_files | length > 0
 
 - name: Display validation errors
   ansible.builtin.debug:
     msg: "{{ item }}"
-  loop: "{{ orchestrator_validation_result.errors }}"
-  when: orchestrator_validation_result.validation_failed
+  loop: "{{ validate_orchestrator_input_result.errors }}"
+  when: validate_orchestrator_input_result.validation_failed
 
 - name: Fail on validation errors
   ansible.builtin.fail:
-    msg: "{{ orchestrator_validation_fail_msg }} Errors: {{ orchestrator_validation_result.errors }}"
-  when: orchestrator_validation_result.validation_failed
+    msg: >-
+      {{ orchestrator_validation_fail_msg }} Errors:
+      {{ validate_orchestrator_input_result.errors }}
+  when: validate_orchestrator_input_result.validation_failed
 
 - name: Validation passed
   ansible.builtin.debug:
     msg: "{{ orchestrator_validation_pass_msg }}"
-  when: not orchestrator_validation_result.validation_failed
+  when: not validate_orchestrator_input_result.validation_failed

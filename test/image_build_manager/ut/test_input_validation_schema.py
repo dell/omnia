@@ -209,17 +209,38 @@ def test_package_groups_schema_rejects_blank_package():
     assert errors
 
 
+@pytest.mark.parametrize(
+    "catalog_name",
+    [
+        "catalog_rhel_10_0_x86_aarch64.json",
+        "catalog_rhel_10_2_x86_aarch64.json",
+    ],
+)
+def test_supported_rhel_catalog_samples_pass_schema(catalog_name):
+    catalog_path = REPO_ROOT / "src/main/samples" / catalog_name
+    data = json.loads(catalog_path.read_text(encoding="utf-8"))
+    assert not _validate(data, "catalog.json", catalog_name)
+
+
 @pytest.fixture
 def valid_repo_status():
     return {
         "overall_status": "success",
         "cluster_os_type": "rhel",
         "repo_config": "partial",
+        "execution_contexts": [
+            {
+                "context_id": "rhel_10.0",
+                "os_type": "rhel",
+                "os_version": "10.0",
+                "architectures": ["x86_64", "aarch64"],
+            }
+        ],
+        "overall_status_by_version": {"10.0": "success"},
         "repo_manager": {
             "port": 2225,
             "certificates": {
                 "server_crt": "/opt/omnia/certs/server.crt",
-                "server_key": "/opt/omnia/certs/server.key",
                 "certs_dir": "/opt/omnia/certs",
             },
         },
@@ -255,12 +276,22 @@ def test_repo_status_requires_repo_manager_contract(valid_repo_status):
     assert any("repo_manager" in error for error in errors)
 
 
+@pytest.mark.parametrize(
+    "field", ["execution_contexts", "overall_status_by_version"]
+)
+def test_repo_status_requires_multi_context_contract_fields(
+    valid_repo_status, field
+):
+    del valid_repo_status[field]
+    errors = _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
+    assert any(field in error for error in errors)
+
+
 def test_repo_status_allows_empty_internet_repo_manager_values(valid_repo_status):
     valid_repo_status["repo_manager"] = {
         "port": "",
         "certificates": {
             "server_crt": "",
-            "server_key": "",
             "certs_dir": "",
         },
     }
@@ -272,7 +303,6 @@ def test_repo_status_checks_repo_manager_structure_only(valid_repo_status):
         "port": "",
         "certificates": {
             "server_crt": "/optional/ca.crt",
-            "server_key": "",
             "certs_dir": "",
         },
     }
@@ -280,9 +310,45 @@ def test_repo_status_checks_repo_manager_structure_only(valid_repo_status):
 
 
 def test_repo_status_requires_certificate_structure(valid_repo_status):
-    del valid_repo_status["repo_manager"]["certificates"]["server_key"]
+    del valid_repo_status["repo_manager"]["certificates"]["certs_dir"]
+    errors = _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
+    assert any("certs_dir" in error for error in errors)
+
+
+def test_repo_status_rejects_private_key_path(valid_repo_status):
+    valid_repo_status["repo_manager"]["certificates"]["server_key"] = (
+        "/opt/omnia/certs/server.key"
+    )
     errors = _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
     assert any("server_key" in error for error in errors)
+
+
+def test_repo_status_accepts_sanitized_registry_metadata(valid_repo_status):
+    valid_repo_status["registries"] = {
+        "private_registry": {
+            "base_url": "https://harbor.example.com",
+            "port": 443,
+            "host": "harbor.example.com:443",
+            "tls": {"insecure": False},
+        }
+    }
+    assert not _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
+
+
+def test_repo_status_rejects_registry_credential_paths(valid_repo_status):
+    valid_repo_status["registries"] = {
+        "private_registry": {
+            "base_url": "https://harbor.example.com",
+            "port": 443,
+            "host": "harbor.example.com:443",
+            "tls": {
+                "insecure": False,
+                "client_key_path": "/etc/omnia/registry.key",
+            },
+        }
+    }
+    errors = _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
+    assert any("client_key_path" in error for error in errors)
 
 
 @pytest.mark.parametrize("invalid_port", ["2225", 0, 65536, True, None])
@@ -305,9 +371,38 @@ def test_repo_status_rejects_blank_url(valid_repo_status):
     assert errors
 
 
-def test_repo_status_requires_usable_x86_repository(valid_repo_status):
+def test_repo_status_allows_aarch64_only_repository_output(valid_repo_status):
     valid_repo_status["repositories"]["10.0"]["x86_64"] = {}
+    valid_repo_status["repositories"]["10.0"]["aarch64"] = {
+        "baseos": {
+            "url": "https://192.0.2.10:2225/pulp/content/aarch64/baseos/"
+        }
+    }
+    assert not REPO_VALIDATOR.validate(valid_repo_status, LOGGER)
+
+
+def test_repo_status_requires_at_least_one_usable_repository(valid_repo_status):
+    valid_repo_status["repositories"]["10.0"]["x86_64"] = {}
+    valid_repo_status["repositories"]["10.0"]["aarch64"] = {}
     assert REPO_VALIDATOR.validate(valid_repo_status, LOGGER)
+
+
+def test_repo_status_versions_must_match_contexts(valid_repo_status):
+    valid_repo_status["overall_status_by_version"]["10.2"] = "success"
+    errors = REPO_VALIDATOR.validate(valid_repo_status, LOGGER)
+    assert any("overall_status_by_version keys" in error for error in errors)
+
+
+def test_repo_status_architectures_must_match_context(valid_repo_status):
+    del valid_repo_status["repositories"]["10.0"]["aarch64"]
+    errors = REPO_VALIDATOR.validate(valid_repo_status, LOGGER)
+    assert any("architecture keys" in error for error in errors)
+
+
+def test_repo_status_requires_every_version_to_be_success(valid_repo_status):
+    valid_repo_status["overall_status_by_version"]["10.0"] = "pending"
+    errors = REPO_VALIDATOR.validate(valid_repo_status, LOGGER)
+    assert any("incomplete versions: 10.0" in error for error in errors)
 
 
 def test_repo_status_boolean_priority_fails(valid_repo_status):
@@ -326,6 +421,20 @@ def test_internet_repo_status_sample_passes_contract():
     data = yaml.safe_load(sample_path.read_text(encoding="utf-8"))
     assert not _validate(data, "repo_status.json", "repo_status.yml")
     assert not REPO_VALIDATOR.validate(data, LOGGER)
+
+
+def test_repo_manager_status_sample_matches_new_contract():
+    sample_path = (
+        REPO_ROOT
+        / "src/image_build_manager/samples/repo_manager_output/repo_status.yml"
+    )
+    sample_text = sample_path.read_text(encoding="utf-8").replace(
+        "{{ admin_nic_ip }}", "192.0.2.10"
+    )
+    data = yaml.safe_load(sample_text)
+    assert not _validate(data, "repo_status.json", "repo_status.yml")
+    assert not REPO_VALIDATOR.validate(data, LOGGER)
+    assert list(data["overall_status_by_version"]) == ["10.0", "10.2"]
 
 
 def test_repo_contract_runs_in_build_setup_not_general_validation():
