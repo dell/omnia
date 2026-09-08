@@ -45,12 +45,14 @@ def test_orchestrator_config_exists():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    orchestrator_config_path = input_dir + "//orchestrator_config.yml"
+    orchestrator_config_path = input_dir + "/orchestrator_config.yml"
 
     if Path(orchestrator_config_path).exists():
-        tl.passed("PXE boot configuration validation passed", f"orchestrator_config.yml found at {orchestrator_config_path}")
+        msg = f"orchestrator_config.yml found at {orchestrator_config_path}"
+        tl.passed("PXE boot configuration validation passed", msg)
     else:
-        tl.failed("PXE boot configuration validation failed", f"orchestrator_config.yml not found at {orchestrator_config_path}")
+        msg = f"orchestrator_config.yml not found at {orchestrator_config_path}"
+        tl.failed("PXE boot configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -61,23 +63,27 @@ def test_pxe_boot_flag_validation():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    orchestrator_config_path = input_dir + "//orchestrator_config.yml"
+    orchestrator_config_path = input_dir + "/orchestrator_config.yml"
 
     try:
         with open(orchestrator_config_path, 'r', encoding='utf-8') as f:
             orchestrator_config = yaml.safe_load(f)
 
         if "enable_pxe_boot" not in orchestrator_config:
-            tl.failed("PXE boot configuration validation failed", "enable_pxe_boot flag missing in orchestrator_config.yml")
+            msg = "enable_pxe_boot flag missing in orchestrator_config.yml"
+            tl.failed("PXE boot configuration validation failed", msg)
             return
 
         enable_pxe = orchestrator_config.get("enable_pxe_boot", True)
         if isinstance(enable_pxe, bool):
-            tl.passed("PXE boot configuration validation passed", f"enable_pxe_boot flag is properly set to {enable_pxe}")
+            msg = f"enable_pxe_boot flag is properly set to {enable_pxe}"
+            tl.passed("PXE boot configuration validation passed", msg)
         else:
-            tl.failed("PXE boot configuration validation failed", "enable_pxe_boot must be a boolean value")
+            msg = "enable_pxe_boot must be a boolean value"
+            tl.failed("PXE boot configuration validation failed", msg)
     except Exception as e:
-        tl.failed("PXE boot configuration validation failed", f"Error validating PXE boot flag: {str(e)}")
+        msg = f"Error validating PXE boot flag: {str(e)}"
+        tl.failed("PXE boot configuration validation failed", msg)
 
 
 @pytest.mark.sanity
@@ -88,12 +94,14 @@ def test_pxe_mapping_file_exists():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    pxe_mapping_file_path = input_dir + "//pxe_mapping_file.csv"
+    pxe_mapping_file_path = input_dir + "/pxe_mapping_file.csv"
 
     if Path(pxe_mapping_file_path).exists():
-        tl.passed("PXE boot configuration validation passed", f"pxe_mapping_file.csv found at {pxe_mapping_file_path}")
+        msg = f"pxe_mapping_file.csv found at {pxe_mapping_file_path}"
+        tl.passed("PXE boot configuration validation passed", msg)
     else:
-        tl.passed("PXE boot configuration validation passed", "pxe_mapping_file.csv not found (PXE boot may be disabled)")
+        msg = "pxe_mapping_file.csv not found (PXE boot may be disabled)"
+        tl.passed("PXE boot configuration validation passed", msg)
 
 
 @pytest.mark.functional
@@ -104,10 +112,11 @@ def test_pxe_mapping_file_format():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    pxe_mapping_file_path = input_dir + "//pxe_mapping_file.csv"
+    pxe_mapping_file_path = input_dir + "/pxe_mapping_file.csv"
 
     if not Path(pxe_mapping_file_path).exists():
-        tl.passed("PXE boot configuration validation passed", "pxe_mapping_file.csv not found (PXE boot may be disabled)")
+        msg = "pxe_mapping_file.csv not found (PXE boot may be disabled)"
+        tl.passed("PXE boot configuration validation passed", msg)
         return
 
     try:
@@ -115,14 +124,16 @@ def test_pxe_mapping_file_format():
             lines = f.readlines()
 
         if len(lines) < 2:
-            tl.failed("PXE boot configuration validation failed", "pxe_mapping_file.csv must have header and at least one data row")
+            msg = "pxe_mapping_file.csv must have header and at least one data row"
+            tl.failed("PXE boot configuration validation failed", msg)
             return
 
         # Validate header
         header = lines[0].strip().split(',')
         # FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP
         if len(header) < 9:
-            tl.failed("PXE boot configuration validation failed", f"Expected at least 9 columns, found {len(header)}")
+            msg = f"Expected at least 9 columns, found {len(header)}"
+            tl.failed("PXE boot configuration validation failed", msg)
             return
 
         # Validate data rows
@@ -134,11 +145,14 @@ def test_pxe_mapping_file_format():
                     validation_errors.append(f"Row {i}: Expected at least 9 columns, found {len(columns)}")
 
         if validation_errors:
-            tl.failed("PXE boot configuration validation failed", f"PXE mapping file format errors: {validation_errors}")
+            msg = f"PXE mapping file format errors: {validation_errors}"
+            tl.failed("PXE boot configuration validation failed", msg)
         else:
-            tl.passed("PXE boot configuration validation passed", "pxe_mapping_file.csv format is valid")
+            msg = "pxe_mapping_file.csv format is valid"
+            tl.passed("PXE boot configuration validation passed", msg)
     except Exception as e:
-        tl.failed("PXE boot configuration validation failed", f"Error validating PXE mapping file format: {str(e)}")
+        msg = f"Error validating PXE mapping file format: {str(e)}"
+        tl.failed("PXE boot configuration validation failed", msg)
 
 
 @pytest.mark.sanity
@@ -149,12 +163,14 @@ def test_set_pxe_boot_config_exists():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    set_pxe_boot_config_path = input_dir + "//set_pxe_boot_config.yml"
+    set_pxe_boot_config_path = input_dir + "/set_pxe_boot_config.yml"
 
     if Path(set_pxe_boot_config_path).exists():
-        tl.passed("PXE boot configuration validation passed", f"set_pxe_boot_config.yml found at {set_pxe_boot_config_path}")
+        msg = f"set_pxe_boot_config.yml found at {set_pxe_boot_config_path}"
+        tl.passed("PXE boot configuration validation passed", msg)
     else:
-        tl.passed("PXE boot configuration validation passed", "set_pxe_boot_config.yml not found (using defaults)")
+        msg = "set_pxe_boot_config.yml not found (using defaults)"
+        tl.passed("PXE boot configuration validation passed", msg)
 
 
 @pytest.mark.functional
@@ -165,10 +181,11 @@ def test_set_pxe_boot_config_validation():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    set_pxe_boot_config_path = input_dir + "//set_pxe_boot_config.yml"
+    set_pxe_boot_config_path = input_dir + "/set_pxe_boot_config.yml"
 
     if not Path(set_pxe_boot_config_path).exists():
-        tl.passed("PXE boot configuration validation passed", "set_pxe_boot_config.yml not found (using defaults)")
+        msg = "set_pxe_boot_config.yml not found (using defaults)"
+        tl.passed("PXE boot configuration validation passed", msg)
         return
 
     try:
@@ -218,11 +235,14 @@ def test_set_pxe_boot_config_validation():
                 validation_errors.append("boot_source_override_target must be 'pxe', 'hdd', or 'uefi'")
 
         if validation_errors:
-            tl.failed("PXE boot configuration validation failed", f"Set PXE boot config validation errors: {validation_errors}")
+            msg = f"Set PXE boot config validation errors: {validation_errors}"
+            tl.failed("PXE boot configuration validation failed", msg)
         else:
-            tl.passed("PXE boot configuration validation passed", "set_pxe_boot_config.yml parameters are valid")
+            msg = "set_pxe_boot_config.yml parameters are valid"
+            tl.passed("PXE boot configuration validation passed", msg)
     except Exception as e:
-        tl.failed("PXE boot configuration validation failed", f"Error validating set_pxe_boot_config.yml: {str(e)}")
+        msg = f"Error validating set_pxe_boot_config.yml: {str(e)}"
+        tl.failed("PXE boot configuration validation failed", msg)
 
 
 @pytest.mark.sanity
@@ -233,12 +253,14 @@ def test_bmc_credentials_file_exists():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    credentials_file_path = input_dir + "//omnia_config_credentials.yml"
+    credentials_file_path = input_dir + "/omnia_config_credentials.yml"
 
     if Path(credentials_file_path).exists():
-        tl.passed("PXE boot configuration validation passed", f"omnia_config_credentials.yml found at {credentials_file_path}")
+        msg = f"omnia_config_credentials.yml found at {credentials_file_path}"
+        tl.passed("PXE boot configuration validation passed", msg)
     else:
-        tl.passed("PXE boot configuration validation passed", "omnia_config_credentials.yml not found (credentials may be encrypted)")
+        msg = "omnia_config_credentials.yml not found (credentials may be encrypted)"
+        tl.passed("PXE boot configuration validation passed", msg)
 
 
 @pytest.mark.functional
@@ -249,10 +271,11 @@ def test_bmc_credentials_validation():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    credentials_file_path = input_dir + "//omnia_config_credentials.yml"
+    credentials_file_path = input_dir + "/omnia_config_credentials.yml"
 
     if not Path(credentials_file_path).exists():
-        tl.passed("PXE boot configuration validation passed", "omnia_config_credentials.yml not found (credentials may be encrypted)")
+        msg = "omnia_config_credentials.yml not found (credentials may be encrypted)"
+        tl.passed("PXE boot configuration validation passed", msg)
         return
 
     try:
@@ -260,20 +283,26 @@ def test_bmc_credentials_validation():
             try:
                 config = yaml.safe_load(f)
             except yaml.YAMLError:
-                tl.passed("PXE boot configuration validation passed", "Credentials file is encrypted or invalid (will be decrypted during execution)")
+                msg = "Credentials file is encrypted or invalid (will be decrypted during execution)"
+                tl.passed("PXE boot configuration validation passed", msg)
                 return
 
         if config:
             if "bmc_username" not in config and "username" not in config:
-                tl.failed("PXE boot configuration validation failed", "BMC username not found in credentials file")
+                msg = "BMC username not found in credentials file"
+                tl.failed("PXE boot configuration validation failed", msg)
             elif "bmc_password" not in config and "password" not in config:
-                tl.failed("PXE boot configuration validation failed", "BMC password not found in credentials file")
+                msg = "BMC password not found in credentials file"
+                tl.failed("PXE boot configuration validation failed", msg)
             else:
-                tl.passed("PXE boot configuration validation passed", "BMC credentials are available")
+                msg = "BMC credentials are available"
+                tl.passed("PXE boot configuration validation passed", msg)
         else:
-            tl.passed("PXE boot configuration validation passed", "Credentials file is empty (will be populated during execution)")
+            msg = "Credentials file is empty (will be populated during execution)"
+            tl.passed("PXE boot configuration validation passed", msg)
     except Exception as e:
-        tl.failed("PXE boot configuration validation failed", f"Error validating BMC credentials: {str(e)}")
+        msg = f"Error validating BMC credentials: {str(e)}"
+        tl.failed("PXE boot configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -284,7 +313,7 @@ def test_pxe_boot_skip_when_disabled():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    orchestrator_config_path = input_dir + "//orchestrator_config.yml"
+    orchestrator_config_path = input_dir + "/orchestrator_config.yml"
 
     try:
         with open(orchestrator_config_path, 'r', encoding='utf-8') as f:
@@ -293,11 +322,13 @@ def test_pxe_boot_skip_when_disabled():
         enable_pxe = orchestrator_config.get("enable_pxe_boot", True)
 
         if not enable_pxe:
-            tl.passed("PXE boot configuration validation passed", "PXE boot is disabled (expected for VM environments)")
+            msg = "PXE boot is disabled (expected for VM environments)"
+            tl.passed("PXE boot configuration validation passed", msg)
         else:
             tl.passed("PXE boot configuration validation passed", "PXE boot is enabled")
     except Exception as e:
-        tl.failed("PXE boot configuration validation failed", f"Error checking PXE boot flag: {str(e)}")
+        msg = f"Error checking PXE boot flag: {str(e)}"
+        tl.failed("PXE boot configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -310,9 +341,11 @@ def test_failed_nodes_output_exists():
     failed_nodes_path = Path(orchestrator_output_dir) / "failed_nodes.json"
 
     if failed_nodes_path.exists():
-        tl.passed("PXE boot configuration validation passed", f"failed_nodes.json found at {failed_nodes_path}")
+        msg = f"failed_nodes.json found at {failed_nodes_path}"
+        tl.passed("PXE boot configuration validation passed", msg)
     else:
-        tl.passed("PXE boot configuration validation passed", "failed_nodes.json not found (PXE boot may not have run yet)")
+        msg = "failed_nodes.json not found (PXE boot may not have run yet)"
+        tl.passed("PXE boot configuration validation passed", msg)
 
 
 @pytest.mark.functional
@@ -325,7 +358,8 @@ def test_failed_nodes_output_format():
     failed_nodes_path = Path(orchestrator_output_dir) / "failed_nodes.json"
 
     if not failed_nodes_path.exists():
-        tl.passed("PXE boot configuration validation passed", "failed_nodes.json not found (PXE boot may not have run yet)")
+        msg = "failed_nodes.json not found (PXE boot may not have run yet)"
+        tl.passed("PXE boot configuration validation passed", msg)
         return
 
     try:
@@ -364,11 +398,14 @@ def test_failed_nodes_output_format():
                     validation_errors.append(f"Invalid status: {node['status']}")
 
         if validation_errors:
-            tl.failed("PXE boot configuration validation failed", f"failed_nodes.json validation errors: {validation_errors}")
+            msg = f"failed_nodes.json validation errors: {validation_errors}"
+            tl.failed("PXE boot configuration validation failed", msg)
         else:
-            tl.passed("PXE boot configuration validation passed", "failed_nodes.json format and structure are valid")
+            msg = "failed_nodes.json format and structure are valid"
+            tl.passed("PXE boot configuration validation passed", msg)
     except Exception as e:
-        tl.failed("PXE boot configuration validation failed", f"Error validating failed_nodes.json: {str(e)}")
+        msg = f"Error validating failed_nodes.json: {str(e)}"
+        tl.failed("PXE boot configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -381,9 +418,11 @@ def test_orchestrator_status_output_exists():
     status_path = Path(orchestrator_output_dir) / "orchestrator_status.yml"
 
     if status_path.exists():
-        tl.passed("PXE boot configuration validation passed", f"orchestrator_status.yml found at {status_path}")
+        msg = f"orchestrator_status.yml found at {status_path}"
+        tl.passed("PXE boot configuration validation passed", msg)
     else:
-        tl.passed("PXE boot configuration validation passed", "orchestrator_status.yml not found (orchestrator may not have run yet)")
+        msg = "orchestrator_status.yml not found (orchestrator may not have run yet)"
+        tl.passed("PXE boot configuration validation passed", msg)
 
 
 @pytest.mark.functional
@@ -396,7 +435,8 @@ def test_orchestrator_status_output_format():
     status_path = Path(orchestrator_output_dir) / "orchestrator_status.yml"
 
     if not status_path.exists():
-        tl.passed("PXE boot configuration validation passed", "orchestrator_status.yml not found (orchestrator may not have run yet)")
+        msg = "orchestrator_status.yml not found (orchestrator may not have run yet)"
+        tl.passed("PXE boot configuration validation passed", msg)
         return
 
     try:
@@ -435,11 +475,14 @@ def test_orchestrator_status_output_format():
                     validation_errors.append(f"Invalid node status: {node['status']}")
 
         if validation_errors:
-            tl.failed("PXE boot configuration validation failed", f"orchestrator_status.yml validation errors: {validation_errors}")
+            msg = f"orchestrator_status.yml validation errors: {validation_errors}"
+            tl.failed("PXE boot configuration validation failed", msg)
         else:
-            tl.passed("PXE boot configuration validation passed", "orchestrator_status.yml format and structure are valid")
+            msg = "orchestrator_status.yml format and structure are valid"
+            tl.passed("PXE boot configuration validation passed", msg)
     except Exception as e:
-        tl.failed("PXE boot configuration validation failed", f"Error validating orchestrator_status.yml: {str(e)}")
+        msg = f"Error validating orchestrator_status.yml: {str(e)}"
+        tl.failed("PXE boot configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -450,9 +493,11 @@ def test_pxe_boot_playbook_execution():
     playbook_path = "/root/catalog/omnia/src/orchestrator/playbooks/pxeboot/pxeboot.yml"
 
     if Path(playbook_path).exists():
-        tl.passed("PXE boot configuration validation passed", f"PXE boot playbook found at {playbook_path}")
+        msg = f"PXE boot playbook found at {playbook_path}"
+        tl.passed("PXE boot configuration validation passed", msg)
     else:
-        tl.failed("PXE boot configuration validation failed", f"PXE boot playbook not found at {playbook_path}")
+        msg = f"PXE boot playbook not found at {playbook_path}"
+        tl.failed("PXE boot configuration validation failed", msg)
 
 
 @pytest.mark.sanity
@@ -464,8 +509,11 @@ def test_idrac_role_exists():
 
     if role_path.exists():
         if (role_path / "tasks" / "main.yml").exists() and (role_path / "vars" / "main.yml").exists():
-            tl.passed("PXE boot configuration validation passed", f"idrac_pxe_boot role found at {role_path}")
+            msg = f"idrac_pxe_boot role found at {role_path}"
+            tl.passed("PXE boot configuration validation passed", msg)
         else:
-            tl.failed("PXE boot configuration validation failed", "idrac_pxe_boot role missing required files")
+            msg = "idrac_pxe_boot role missing required files"
+            tl.failed("PXE boot configuration validation failed", msg)
     else:
-        tl.failed("PXE boot configuration validation failed", f"idrac_pxe_boot role not found at {role_path}")
+        msg = f"idrac_pxe_boot role not found at {role_path}"
+        tl.failed("PXE boot configuration validation failed", msg)

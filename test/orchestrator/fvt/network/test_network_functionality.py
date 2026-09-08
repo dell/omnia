@@ -46,12 +46,14 @@ def test_network_spec_exists():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    network_spec_path = input_dir + "//network_spec.yml"
+    network_spec_path = input_dir + "/network_spec.yml"
 
     if Path(network_spec_path).exists():
-        tl.passed("Network configuration validation passed", f"network_spec.yml found at {network_spec_path}")
+        msg = f"network_spec.yml found at {network_spec_path}"
+        tl.passed("Network configuration validation passed", msg)
     else:
-        tl.failed("Network configuration validation failed", f"network_spec.yml not found at {network_spec_path}")
+        msg = f"network_spec.yml not found at {network_spec_path}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -62,18 +64,21 @@ def test_network_spec_valid_yaml():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    network_spec_path = input_dir + "//network_spec.yml"
+    network_spec_path = input_dir + "/network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
             network_spec = yaml.safe_load(f)
 
         if network_spec and "Networks" in network_spec:
-            tl.passed("Network configuration validation passed", "network_spec.yml is valid YAML with Networks key")
+            msg = "network_spec.yml is valid YAML with Networks key"
+            tl.passed("Network configuration validation passed", msg)
         else:
-            tl.failed("Network configuration validation failed", "network_spec.yml is missing Networks key or is empty")
+            msg = "network_spec.yml is missing Networks key or is empty"
+            tl.failed("Network configuration validation failed", msg)
     except Exception as e:
-        tl.failed("Network configuration validation failed", f"network_spec.yml is not valid YAML: {str(e)}")
+        msg = f"network_spec.yml is not valid YAML: {str(e)}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -84,7 +89,7 @@ def test_admin_network_required_fields():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    network_spec_path = input_dir + "//network_spec.yml"
+    network_spec_path = input_dir + "/network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -99,7 +104,8 @@ def test_admin_network_required_fields():
                 break
 
         if admin_net is None:
-            tl.failed("Network configuration validation failed", "admin_network not found in Networks")
+            msg = "admin_network not found in Networks"
+            tl.failed("Network configuration validation failed", msg)
             return
 
         required_fields = [
@@ -111,11 +117,14 @@ def test_admin_network_required_fields():
         missing_fields = [field for field in required_fields if field not in admin_net]
 
         if missing_fields:
-            tl.failed("Network configuration validation failed", f"Missing required fields: {missing_fields}")
+            msg = f"Missing required fields: {missing_fields}"
+            tl.failed("Network configuration validation failed", msg)
         else:
-            tl.passed("Network configuration validation passed", f"All required fields present: {required_fields}")
+            msg = f"All required fields present: {required_fields}"
+            tl.passed("Network configuration validation passed", msg)
     except Exception as e:
-        tl.failed("Network configuration validation failed", f"Error checking admin_network fields: {str(e)}")
+        msg = f"Error checking admin_network fields: {str(e)}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -126,7 +135,7 @@ def test_ip_address_format_validation():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    network_spec_path = input_dir + "//network_spec.yml"
+    network_spec_path = input_dir + "/network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -165,11 +174,13 @@ def test_ip_address_format_validation():
                         validation_errors.append(f"Invalid primary_oim_bmc_ip: {admin['primary_oim_bmc_ip']}")
 
         if validation_errors:
-            tl.failed("Network configuration validation failed", f"IP validation errors: {validation_errors}")
+            msg = f"IP validation errors: {validation_errors}"
+            tl.failed("Network configuration validation failed", msg)
         else:
             tl.passed("Network configuration validation passed", "All IP addresses are valid")
     except Exception as e:
-        tl.failed("Network configuration validation failed", f"Error validating IP addresses: {str(e)}")
+        msg = f"Error validating IP addresses: {str(e)}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -180,7 +191,7 @@ def test_dynamic_range_format_validation():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    network_spec_path = input_dir + "//network_spec.yml"
+    network_spec_path = input_dir + "/network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -207,11 +218,13 @@ def test_dynamic_range_format_validation():
                     validation_errors.append(f"Invalid IP addresses in dynamic range: {dynamic_range}")
 
         if validation_errors:
-            tl.failed("Network configuration validation failed", f"Dynamic range validation errors: {validation_errors}")
+            msg = f"Dynamic range validation errors: {validation_errors}"
+            tl.failed("Network configuration validation failed", msg)
         else:
             tl.passed("Network configuration validation passed", "All dynamic ranges are valid")
     except Exception as e:
-        tl.failed("Network configuration validation failed", f"Error validating dynamic ranges: {str(e)}")
+        msg = f"Error validating dynamic ranges: {str(e)}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -222,7 +235,7 @@ def test_netmask_bits_validation():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    network_spec_path = input_dir + "//network_spec.yml"
+    network_spec_path = input_dir + "/network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -244,11 +257,13 @@ def test_netmask_bits_validation():
                     validation_errors.append(f"Invalid netmask_bits: {netmask_bits}")
 
         if validation_errors:
-            tl.failed("Network configuration validation failed", f"Netmask bits validation errors: {validation_errors}")
+            msg = f"Netmask bits validation errors: {validation_errors}"
+            tl.failed("Network configuration validation failed", msg)
         else:
             tl.passed("Network configuration validation passed", "All netmask_bits are valid")
     except Exception as e:
-        tl.failed("Network configuration validation failed", f"Error validating netmask_bits: {str(e)}")
+        msg = f"Error validating netmask_bits: {str(e)}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -259,7 +274,7 @@ def test_additional_subnets_validation():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    network_spec_path = input_dir + "//network_spec.yml"
+    network_spec_path = input_dir + "/network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -295,11 +310,13 @@ def test_additional_subnets_validation():
                         validation_errors.append(f"Additional subnet {idx}: Dynamic range must be in start-end format")
 
         if validation_errors:
-            tl.failed("Network configuration validation failed", f"Additional subnets validation errors: {validation_errors}")
+            msg = f"Additional subnets validation errors: {validation_errors}"
+            tl.failed("Network configuration validation failed", msg)
         else:
             tl.passed("Network configuration validation passed", "All additional subnets are valid")
     except Exception as e:
-        tl.failed("Network configuration validation failed", f"Error validating additional subnets: {str(e)}")
+        msg = f"Error validating additional subnets: {str(e)}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -310,7 +327,7 @@ def test_dns_configuration_validation():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    network_spec_path = input_dir + "//network_spec.yml"
+    network_spec_path = input_dir + "/network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -332,11 +349,13 @@ def test_dns_configuration_validation():
                         validation_errors.append(f"Invalid DNS server IP: {dns}")
 
         if validation_errors:
-            tl.failed("Network configuration validation failed", f"DNS validation errors: {validation_errors}")
+            msg = f"DNS validation errors: {validation_errors}"
+            tl.failed("Network configuration validation failed", msg)
         else:
             tl.passed("Network configuration validation passed", "All DNS servers are valid")
     except Exception as e:
-        tl.failed("Network configuration validation failed", f"Error validating DNS configuration: {str(e)}")
+        msg = f"Error validating DNS configuration: {str(e)}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -347,7 +366,7 @@ def test_ntp_servers_validation():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    network_spec_path = input_dir + "//network_spec.yml"
+    network_spec_path = input_dir + "/network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -379,11 +398,13 @@ def test_ntp_servers_validation():
                             validation_errors.append("NTP address cannot be empty")
 
         if validation_errors:
-            tl.failed("Network configuration validation failed", f"NTP validation errors: {validation_errors}")
+            msg = f"NTP validation errors: {validation_errors}"
+            tl.failed("Network configuration validation failed", msg)
         else:
             tl.passed("Network configuration validation passed", "All NTP servers are valid")
     except Exception as e:
-        tl.failed("Network configuration validation failed", f"Error validating NTP configuration: {str(e)}")
+        msg = f"Error validating NTP configuration: {str(e)}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -394,7 +415,7 @@ def test_ib_network_validation():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    network_spec_path = input_dir + "//network_spec.yml"
+    network_spec_path = input_dir + "/network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -428,11 +449,14 @@ def test_ib_network_validation():
                     validation_errors.append(f"Invalid IB netmask_bits: {ib['netmask_bits']}")
 
         if validation_errors:
-            tl.failed("Network configuration validation failed", f"IB network validation errors: {validation_errors}")
+            msg = f"IB network validation errors: {validation_errors}"
+            tl.failed("Network configuration validation failed", msg)
         else:
-            tl.passed("Network configuration validation passed", "InfiniBand network configuration is valid")
+            msg = "InfiniBand network configuration is valid"
+            tl.passed("Network configuration validation passed", msg)
     except Exception as e:
-        tl.failed("Network configuration validation failed", f"Error validating IB network: {str(e)}")
+        msg = f"Error validating IB network: {str(e)}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -443,9 +467,11 @@ def test_coredhcp_config_exists():
     coredhcp_config_path = "/etc/openchami/configs/coredhcp.yaml"
 
     if Path(coredhcp_config_path).exists():
-        tl.passed("Network configuration validation passed", f"CoreDHCP config found at {coredhcp_config_path}")
+        msg = f"CoreDHCP config found at {coredhcp_config_path}"
+        tl.passed("Network configuration validation passed", msg)
     else:
-        tl.passed("Network configuration validation passed", "CoreDHCP config not found (may not be deployed yet)")
+        msg = "CoreDHCP config not found (may not be deployed yet)"
+        tl.passed("Network configuration validation passed", msg)
 
 
 @pytest.mark.functional
@@ -456,7 +482,8 @@ def test_coredhcp_multi_subnet_rules():
     coredhcp_config_path = "/etc/openchami/configs/coredhcp.yaml"
 
     if not Path(coredhcp_config_path).exists():
-        tl.passed("Network configuration validation passed", "CoreDHCP config not found (may not be deployed yet)")
+        msg = "CoreDHCP config not found (may not be deployed yet)"
+        tl.passed("Network configuration validation passed", msg)
         return
 
     try:
@@ -472,17 +499,22 @@ def test_coredhcp_multi_subnet_rules():
                     coresmd_config = plugin["coresmd"]
                     # Check for subnet rules in coresmd config
                     if "rule" in coresmd_config or "subnet_pool" in coresmd_config:
-                        tl.passed("Network configuration validation passed", "CoreDHCP multi-subnet rules found")
+                        msg = "CoreDHCP multi-subnet rules found"
+                        tl.passed("Network configuration validation passed", msg)
                     else:
-                        tl.failed("Network configuration validation failed", "CoreDHCP missing subnet rules or pools")
+                        msg = "CoreDHCP missing subnet rules or pools"
+                        tl.failed("Network configuration validation failed", msg)
                     break
 
             if not coresmd_found:
-                tl.failed("Network configuration validation failed", "CoreDHCP coresmd plugin not found")
+                msg = "CoreDHCP coresmd plugin not found"
+                tl.failed("Network configuration validation failed", msg)
         else:
-            tl.failed("Network configuration validation failed", "CoreDHCP server4 configuration not found")
+            msg = "CoreDHCP server4 configuration not found"
+            tl.failed("Network configuration validation failed", msg)
     except Exception as e:
-        tl.failed("Network configuration validation failed", f"Error checking CoreDHCP config: {str(e)}")
+        msg = f"Error checking CoreDHCP config: {str(e)}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -493,7 +525,7 @@ def test_subnet_containment_check():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    network_spec_path = input_dir + "//network_spec.yml"
+    network_spec_path = input_dir + "/network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -558,11 +590,14 @@ def test_subnet_containment_check():
                             validation_errors.append(f"Invalid IP addresses in additional dynamic range: {add_dynamic}")
 
         if validation_errors:
-            tl.failed("Network configuration validation failed", f"Subnet containment errors: {validation_errors}")
+            msg = f"Subnet containment errors: {validation_errors}"
+            tl.failed("Network configuration validation failed", msg)
         else:
-            tl.passed("Network configuration validation passed", "All subnets are properly contained within their CIDR ranges")
+            msg = "All subnets are properly contained within their CIDR ranges"
+            tl.passed("Network configuration validation passed", msg)
     except Exception as e:
-        tl.failed("Network configuration validation failed", f"Error checking subnet containment: {str(e)}")
+        msg = f"Error checking subnet containment: {str(e)}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -573,7 +608,7 @@ def test_static_routes_table_validation(host):
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    network_spec_path = input_dir + "//network_spec.yml"
+    network_spec_path = input_dir + "/network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -605,13 +640,17 @@ def test_static_routes_table_validation(host):
                     validation_errors.append(f"Expected route to {router_ip} not found in routing table")
 
             if validation_errors:
-                tl.passed("Network configuration validation passed", f"Static routes validation skipped (routes may not be configured yet): {validation_errors}")
+                msg = f"Static routes validation skipped (routes may not be configured yet): {validation_errors}"
+                tl.passed("Network configuration validation passed", msg)
             else:
-                tl.passed("Network configuration validation passed", f"All expected static routes found: {expected_routes}")
+                msg = f"All expected static routes found: {expected_routes}"
+                tl.passed("Network configuration validation passed", msg)
         except Exception as route_error:
-            tl.passed("Network configuration validation passed", f"Static routes validation skipped (routing table check failed): {str(route_error)}")
+            msg = f"Static routes validation skipped (routing table check failed): {str(route_error)}"
+            tl.passed("Network configuration validation passed", msg)
     except Exception as e:
-        tl.failed("Network configuration validation failed", f"Error validating static routes: {str(e)}")
+        msg = f"Error validating static routes: {str(e)}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -622,7 +661,8 @@ def test_coredhcp_pool_configuration_validation():
     coredhcp_config_path = "/etc/openchami/configs/coredhcp.yaml"
 
     if not Path(coredhcp_config_path).exists():
-        tl.passed("Network configuration validation passed", "CoreDHCP config not found (may not be deployed yet)")
+        msg = "CoreDHCP config not found (may not be deployed yet)"
+        tl.passed("Network configuration validation passed", msg)
         return
 
     try:
@@ -650,11 +690,14 @@ def test_coredhcp_pool_configuration_validation():
                                         validation_errors.append(f"Invalid pool format: {pool}")
 
         if validation_errors:
-            tl.failed("Network configuration validation failed", f"CoreDHCP pool validation errors: {validation_errors}")
+            msg = f"CoreDHCP pool validation errors: {validation_errors}"
+            tl.failed("Network configuration validation failed", msg)
         else:
-            tl.passed("Network configuration validation passed", "CoreDHCP pool configuration is valid")
+            msg = "CoreDHCP pool configuration is valid"
+            tl.passed("Network configuration validation passed", msg)
     except Exception as e:
-        tl.failed("Network configuration validation failed", f"Error validating CoreDHCP pools: {str(e)}")
+        msg = f"Error validating CoreDHCP pools: {str(e)}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -665,7 +708,7 @@ def test_network_interface_configuration_validation(host):
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    network_spec_path = input_dir + "//network_spec.yml"
+    network_spec_path = input_dir + "/network_spec.yml"
 
     try:
         with open(network_spec_path, 'r', encoding='utf-8') as f:
@@ -691,13 +734,17 @@ def test_network_interface_configuration_validation(host):
                     validation_errors.append(f"Expected interface {interface} not found")
 
             if validation_errors:
-                tl.passed("Network configuration validation passed", f"Network interface validation skipped (interfaces may not be configured yet): {validation_errors}")
+                msg = f"Network interface validation skipped (interfaces may not be configured yet): {validation_errors}"
+                tl.passed("Network configuration validation passed", msg)
             else:
-                tl.passed("Network configuration validation passed", f"All expected network interfaces found: {expected_interfaces}")
+                msg = f"All expected network interfaces found: {expected_interfaces}"
+                tl.passed("Network configuration validation passed", msg)
         except Exception as interface_error:
-            tl.passed("Network configuration validation passed", f"Network interface validation skipped (interface check failed): {str(interface_error)}")
+            msg = f"Network interface validation skipped (interface check failed): {str(interface_error)}"
+            tl.passed("Network configuration validation passed", msg)
     except Exception as e:
-        tl.failed("Network configuration validation failed", f"Error validating network interfaces: {str(e)}")
+        msg = f"Error validating network interfaces: {str(e)}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -708,7 +755,8 @@ def test_dns_forwarder_configuration_validation():
     coredns_config_path = "/etc/openchami/configs/Corefile"
 
     if not Path(coredns_config_path).exists():
-        tl.passed("Network configuration validation passed", "CoreDNS config not found (may not be deployed yet)")
+        msg = "CoreDNS config not found (may not be deployed yet)"
+        tl.passed("Network configuration validation passed", msg)
         return
 
     try:
@@ -726,11 +774,14 @@ def test_dns_forwarder_configuration_validation():
             validation_errors.append("DNS server addresses not found in configuration")
 
         if validation_errors:
-            tl.failed("Network configuration validation failed", f"DNS forwarder validation errors: {validation_errors}")
+            msg = f"DNS forwarder validation errors: {validation_errors}"
+            tl.failed("Network configuration validation failed", msg)
         else:
-            tl.passed("Network configuration validation passed", "DNS forwarder configuration is valid")
+            msg = "DNS forwarder configuration is valid"
+            tl.passed("Network configuration validation passed", msg)
     except Exception as e:
-        tl.failed("Network configuration validation failed", f"Error validating DNS forwarder: {str(e)}")
+        msg = f"Error validating DNS forwarder: {str(e)}"
+        tl.failed("Network configuration validation failed", msg)
 
 
 @pytest.mark.functional
@@ -753,8 +804,11 @@ def test_routing_table_validation(host):
             validation_errors.append("No device routes found in routing table")
 
         if validation_errors:
-            tl.passed("Network configuration validation passed", f"Routing table validation skipped (may not be fully configured): {validation_errors}")
+            msg = f"Routing table validation skipped (may not be fully configured): {validation_errors}"
+            tl.passed("Network configuration validation passed", msg)
         else:
-            tl.passed("Network configuration validation passed", "Routing table contains expected routes")
+            msg = "Routing table contains expected routes"
+            tl.passed("Network configuration validation passed", msg)
     except Exception as e:
-        tl.passed("Network configuration validation passed", f"Routing table validation skipped (check failed): {str(e)}")
+        msg = f"Routing table validation skipped (check failed): {str(e)}"
+        tl.passed("Network configuration validation passed", msg)
