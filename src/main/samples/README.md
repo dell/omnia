@@ -7,18 +7,22 @@ serve as documentation and starting-point examples.
 
 | File | Domain | Description |
 |------|--------|-------------|
-| `catalog_rhel.json` | image_build_manager | Sample RHEL catalog JSON produced by repo_manager. Shows functional layers, groups, and packages structure. |
+| `catalog_rhel.json` | image_build_manager | Compact RHEL 10.0 catalog example. |
+| `catalog_rhel_10_0_x86_64.json` | repo_manager, image_build_manager | RHEL 10.0 x86_64 catalog. |
+| `catalog_rhel_10_0_aarch64.json` | repo_manager, image_build_manager | RHEL 10.0 aarch64 catalog. |
+| `catalog_rhel_10_0_x86_aarch64.json` | repo_manager, image_build_manager | RHEL 10.0 dual-architecture catalog. |
+| `catalog_rhel_10_2_x86_aarch64.json` | repo_manager, image_build_manager | RHEL 10.2 dual-architecture catalog. |
 
 ## Usage
 
 ```bash
 # Copy sample catalog to the convention path for testing:
 sudo mkdir -p /opt/omnia/catalog
-sudo cp samples/catalog_rhel.json /opt/omnia/catalog/
+sudo cp samples/catalog_rhel_10_2_x86_aarch64.json /opt/omnia/catalog/
 
-# Then configure image_build_config.yml:
-#   catalog_file: "/opt/omnia/catalog/catalog_rhel.json"
-#   functional_groups_source: "catalog"
+# Select the catalog and use catalog-backed functional groups:
+export CATALOG_FILE_PATH=/opt/omnia/catalog/catalog_rhel_10_2_x86_aarch64.json
+# Set functional_groups_source: "catalog" in image_build_config.yml.
 ```
 
 ## Catalog JSON Structure

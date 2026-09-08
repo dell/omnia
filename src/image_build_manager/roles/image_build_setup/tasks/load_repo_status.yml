@@ -34,6 +34,7 @@
   ansible.builtin.set_fact:
     cluster_os_type: "{{ _repo_status_result.cluster_os_type }}"
     cluster_os_version: "{{ _repo_status_result.cluster_os_version }}"
+    repo_manager_os_versions: "{{ _repo_status_result.cluster_os_versions }}"
     repo_port: "{{ _repo_status_result.repo_port }}"
     repo_manager_repos_x86_64: "{{ _repo_status_result.repo_manager_repos_x86_64 }}"
     repo_manager_repos_aarch64: "{{ _repo_status_result.repo_manager_repos_aarch64 }}"
