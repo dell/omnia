@@ -4,7 +4,13 @@
 
 ### Description of the Solution
 
-<!-- Required: summarize what this PR does and why in 2-3 sentences. Include an issue reference when applicable. -->
+<!-- Required: summarize what this PR does and why in 2-3 sentences. -->
+
+### Related Issue
+
+<!-- Required: use #123, owner/repository#123, or a full GitHub issue URL. -->
+
+- Closes #
 
 ### Changes
 

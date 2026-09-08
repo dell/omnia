@@ -234,17 +234,17 @@ def check_env_source_validation(host) -> Dict[str, Any]:
     omnia_sh = f"{clone_path}/{OMNIA_SH_PATH}"
     omnia_env = f"{clone_path}/src/main/omnia.env"
 
-    # Create a temp env file with empty SYSTEM_ADMIN_NIC_IPV4,
-    # then source omnia.sh functions and call validate_env_source
+    # Create a temp env file with empty SYSTEM_ADMIN_NIC_IPV4, then source the
+    # guarded omnia.sh and call validate_env_source directly.
     cmd = (
         f"bash -c '"
         f"tmp=$(mktemp); "
+        f"trap \"rm -f \\\"$tmp\\\"\" EXIT; "
         f"sed \"s/^SYSTEM_ADMIN_NIC_IPV4=.*/SYSTEM_ADMIN_NIC_IPV4=/\" "
         f"{omnia_env} > \"$tmp\"; "
-        f"source <(grep -A100 \"^validate_env_source()\" {omnia_sh}"
-        f" | head -30); "
+        f"source {omnia_sh}; set +e; "
         f"validate_env_source \"$tmp\"; "
-        f"rc=$?; rm -f \"$tmp\"; exit $rc"
+        f"rc=$?; exit $rc"
         f"' 2>&1"
     )
     result = run_on_host(host, cmd)
