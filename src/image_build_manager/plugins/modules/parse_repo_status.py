@@ -28,11 +28,12 @@ short_description: Parse repo_status.yml and build per-architecture repo lists
 version_added: "2.3.0"
 description:
   - Reads the C(repo_status.yml) file produced by repo_manager.
-  - Extracts C(cluster_os_type) and derives C(cluster_os_version) from
-    the first key in C(repositories).
+  - Extracts C(cluster_os_type) and derives the ordered OS versions from
+    C(execution_contexts).
   - Builds per-architecture repo lists from
     C(repositories.{version}.{arch}.{repo_name}.url).
-  - Extracts C(repo_port) from the first non-empty repo URL.
+  - Reads C(repo_port) from repository service metadata and falls back to the
+    first non-empty repository URL for the internet-only test fixture.
 options:
   repo_status_file:
     description: Absolute path to repo_status.yml.
@@ -65,14 +66,19 @@ cluster_os_type:
   type: str
 cluster_os_version:
   description:
-    - OS version derived from first key of repositories dict.
-    - Example C(10.0), C(10.1).
+    - Primary OS version from the first execution context.
+    - Example C(10.0), C(10.2).
   returned: always
   type: str
+cluster_os_versions:
+  description: Ordered OS versions published by Repo Manager.
+  returned: always
+  type: list
+  elements: str
 repo_port:
   description:
-    - Port number extracted from first non-empty repo URL.
-    - Defaults to 2225 if no URL contains a port.
+    - Port from C(repo_manager.port), or from the first repository URL for
+      the internet-only test fixture.
   returned: always
   type: int
 repo_manager_repos_x86_64:
@@ -146,7 +152,13 @@ def _extract_port(url: str) -> int:
     """
     try:
         parsed = urlparse(url)
-        return parsed.port or 0
+        if parsed.port:
+            return parsed.port
+        if parsed.scheme == "https":
+            return 443
+        if parsed.scheme == "http":
+            return 80
+        return 0
     except (ValueError, AttributeError):
         return 0
 
@@ -158,7 +170,7 @@ def _find_repo_port(version_repos: dict) -> int:
         version_repos: Dict of {arch: {repo_name: {url: ...}}}.
 
     Returns:
-        Port number or DEFAULT_PORT.
+        Port number or 0 when no usable URL exists.
     """
     for arch in SUPPORTED_ARCHS:
         arch_repos = version_repos.get(arch, {})
@@ -172,7 +184,7 @@ def _find_repo_port(version_repos: dict) -> int:
                 port = _extract_port(repo_data["url"])
                 if port > 0:
                     return port
-    return DEFAULT_PORT
+    return 0
 
 
 def _build_repo_list(arch_repos: dict) -> list:
@@ -204,6 +216,34 @@ def _build_repo_list(arch_repos: dict) -> list:
     return result
 
 
+def _ordered_versions(data: dict) -> list[str]:
+    """Return version keys in the producer's execution order."""
+    context_versions = [
+        str(context["os_version"])
+        for context in data.get("execution_contexts", [])
+        if isinstance(context, dict) and context.get("os_version") is not None
+    ]
+    return context_versions or [
+        str(version) for version in data["repositories"]
+    ]
+
+
+def _repo_manager_metadata(data: dict) -> tuple[int, str]:
+    """Return configured service port and public CA certificate path."""
+    repo_manager = data.get("repo_manager", {})
+    if not isinstance(repo_manager, dict):
+        return 0, ""
+    configured_port = repo_manager.get("port")
+    port = configured_port if isinstance(configured_port, int) else 0
+    certificates = repo_manager.get("certificates", {})
+    cert_path = (
+        certificates.get("server_crt", "")
+        if isinstance(certificates, dict)
+        else ""
+    )
+    return port, cert_path
+
+
 def parse_repo_status(file_path: str) -> dict:
     """Main entry: parse repo_status.yml and build repo lists.
 
@@ -219,15 +259,15 @@ def parse_repo_status(file_path: str) -> dict:
     repositories = data["repositories"]
     os_type = data.get("cluster_os_type", "rhel")
 
-    versions = list(repositories.keys())
+    versions = _ordered_versions(data)
     os_version = versions[0] if versions else "10.0"
 
-    repo_port = DEFAULT_PORT
+    repo_port, repo_cert_path = _repo_manager_metadata(data)
     repos_x86: list = []
     repos_aarch64: list = []
     for ver in versions:
         version_repos = repositories.get(ver, {})
-        if repo_port == DEFAULT_PORT:
+        if not repo_port:
             repo_port = _find_repo_port(version_repos)
 
         ver_prefix = str(ver).replace(".", "_")
@@ -240,13 +280,12 @@ def parse_repo_status(file_path: str) -> dict:
             entry["os_version"] = str(ver)
             repos_aarch64.append(entry)
 
-    repo_mgr = data.get("repo_manager", {})
-    certs = repo_mgr.get("certificates", {}) if isinstance(repo_mgr, dict) else {}
-    repo_cert_path = certs.get("server_crt", "")
+    repo_port = repo_port or DEFAULT_PORT
 
     return {
         "cluster_os_type": os_type,
         "cluster_os_version": str(os_version),
+        "cluster_os_versions": versions,
         "repo_port": repo_port,
         "repo_manager_repos_x86_64": repos_x86,
         "repo_manager_repos_aarch64": repos_aarch64,
