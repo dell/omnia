@@ -13,63 +13,48 @@
 # limitations under the License.
 
 ---
-# Simple Cleanup Engine
-# Basic orchestration with explicit ordering and basic safety
-
-- name: Debug - Cleanup Engine Started
-  ansible.builtin.debug:
-    msg: "Cleanup engine started"
-
-- name: Set role path
-  ansible.builtin.set_fact:
-    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
-
-- name: Debug - Cleanup Components
-  ansible.builtin.debug:
-    msg: "Cleanup components: {{ cleanup_components }}"
-
-- name: Validate cleanup configuration
+# Canonical cleanup engine. Each component is attempted even if an earlier
+# component fails. Failures are aggregated and raised after the final summary.
+- name: Validate canonical cleanup inputs
   ansible.builtin.assert:
     that:
       - cleanup_components is defined
-    fail_msg: "Invalid cleanup configuration: cleanup_components not found"
+      - cleanup_execution_order is defined
+      - cleanup_execution_order | length > 0
+    fail_msg: "Invalid cleanup configuration or empty execution order"
 
-- name: Display available components
-  ansible.builtin.debug:
-    msg: "Available components: {{ cleanup_components.keys() | list | join(', ') }}"
-
-- name: Filter enabled components
+- name: Initialize cleanup results
   ansible.builtin.set_fact:
-    enabled_components: "{{ cleanup_components | dict2items | selectattr('value.enabled', 'equalto', true) | items2dict }}"
-
-- name: Debug - Enabled Components
-  ansible.builtin.debug:
-    msg: "Enabled components: {{ enabled_components.keys() | list | join(', ') }}"
-
-- name: Set explicit execution order (priority-based)
-  ansible.builtin.set_fact:
-    execution_order: "{{ enabled_components | dict2items | sort(attribute='value.priority', reverse=true) | map(attribute='key') | list }}"
-
-- name: Display cleanup plan
-  ansible.builtin.debug:
-    msg: |
-      Cleanup Plan:
-      =============
-      Components: {{ execution_order | join(' -> ') }}
-      Total: {{ execution_order | length }}
+    cleanup_results: {}
+    cleanup_failures: []
 
 - name: Execute cleanup for each component
   ansible.builtin.include_tasks: execute_component_cleanup.yml
-  loop: "{{ execution_order }}"
+  loop: "{{ cleanup_execution_order }}"
   loop_control:
     loop_var: component_name
-  register: component_results
 
 - name: Display cleanup summary
   ansible.builtin.debug:
-    msg: |
+    msg: |-
       Cleanup Summary:
       ================
-      Status: completed
-      Components: {{ execution_order | length }}
-      Errors: 0
+      Status: {{ 'SUCCESS' if cleanup_failures | length == 0 else 'PARTIAL' }}
+      Components selected: {{ cleanup_execution_order | length }}
+      Components passed: {{ cleanup_execution_order | length - cleanup_failures | length }}
+      Components failed: {{ cleanup_failures | length }}
+      {% for result_item in cleanup_results | dict2items %}
+      - {{ result_item.key }}: {{ result_item.value.status | upper }}
+      {% if result_item.value.error | default('') | length > 0 %}
+        Error: {{ result_item.value.error }}
+      {% endif %}
+      {% endfor %}
+
+- name: Fail when cleanup is incomplete
+  ansible.builtin.fail:
+    msg: |-
+      Orchestrator cleanup completed with {{ cleanup_failures | length }} failed component(s):
+      {% for failure in cleanup_failures %}
+      - {{ failure.component }}: {{ failure.error }}
+      {% endfor %}
+  when: cleanup_failures | length > 0

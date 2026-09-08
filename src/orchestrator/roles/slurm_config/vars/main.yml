@@ -71,7 +71,6 @@ bmc_password: "{{ hostvars['localhost']['bmc_password'] }}"
 clear_slurm_files: false
 conf_in_nfs: true
 input_project_dir: "{{ hostvars['localhost']['omnia_project_input_dir'] }}"
-cluster_name: cluster # TODO: direct load vars omnia_config.yml
 slurm_uid: 6001
 slurm_user: slurm
 slurm_user_group: slurm

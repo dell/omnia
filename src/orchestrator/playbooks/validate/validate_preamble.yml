@@ -27,8 +27,8 @@
     - role: orchestrator_setup
       vars:
         openchami_vars_support: true
-        omnia_metadata_support: true
         oim_group: true
+        orchestrator_initialize_state: false
 
 - name: Populate standalone prerequisites on localhost
   hosts: localhost
@@ -42,7 +42,7 @@
   connection: ssh
   gather_facts: false
   tasks:
-    - name: Load OIM-specific preamble
+    - name: Load OIM validation prerequisites
       ansible.builtin.include_role:
         name: validate_preamble
         tasks_from: oim.yml

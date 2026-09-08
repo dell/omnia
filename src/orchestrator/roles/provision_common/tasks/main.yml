@@ -31,11 +31,9 @@
   environment: "{{ hostvars['oim']['ochami_env'] }}"
   when: target_functional_groups | length > 0
   block:
-    - name: Set SELinux context for orchestrator directories
-      ansible.builtin.include_tasks: set_selinux_context.yml
-
-    - name: Register nodes in SMD and create groups
-      ansible.builtin.include_tasks: register_nodes.yml
+    - name: Register nodes before publishing provisioning configuration
+      ansible.builtin.include_tasks: registration.yml
+      when: not (provision_common_registration_complete | default(false) | bool)
 
     - name: Fetch additional images
       ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/fetch_additional_images.yml"

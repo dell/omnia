@@ -23,7 +23,7 @@
 
 - name: Set facts for service_k8s
   ansible.builtin.set_fact:
-    cluster_name: "{{ service_k8s_cluster[0].cluster_name }}"
+    service_k8s_cluster_name: "{{ service_k8s_cluster[0].cluster_name }}"
     k8s_cni: "{{ service_k8s_cluster[0].k8s_cni }}"
     pod_external_ip_range: "{{ service_k8s_cluster[0].pod_external_ip_range }}"
     k8s_service_addresses: "{{ service_k8s_cluster[0].k8s_service_addresses }}"
@@ -41,13 +41,12 @@
     # k8s_server_share_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_share_path }}"
     k8s_nfs_server_path: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).source }}"
 
-# Override packages_base_dir_* at set_fact level so that any stale
-# play-level facts (e.g. from slurm_config include_vars) cannot shadow
-# the k8s_config definitions.
-- name: Set packages_base_dir for k8s
+# Use Kubernetes-specific fact names because set_fact values persist for the
+# remainder of the host play and must not override the Slurm package paths.
+- name: Set Kubernetes package base directories
   ansible.builtin.set_fact:
-    packages_base_dir_x86_64: "{{ k8s_client_mount_path }}/packages/x86_64"
-    packages_base_dir_aarch64: "{{ k8s_client_mount_path }}/packages/aarch64"
+    k8s_packages_base_dir_x86_64: "{{ k8s_client_mount_path }}/packages/x86_64"
+    k8s_packages_base_dir_aarch64: "{{ k8s_client_mount_path }}/packages/aarch64"
 
 - name: Ensure SSH key directory exists on K8s share
   ansible.builtin.file:
@@ -162,28 +161,28 @@
 # additional packages
 - name: Create x86_64 package base directory
   ansible.builtin.file:
-    path: "{{ packages_base_dir_x86_64 }}"
+    path: "{{ k8s_packages_base_dir_x86_64 }}"
     state: directory
-    mode: '{{ common_mode }}'
+    mode: "{{ folder_mode }}"
 
 - name: Create aarch64 package base directory
   ansible.builtin.file:
-    path: "{{ packages_base_dir_aarch64 }}"
+    path: "{{ k8s_packages_base_dir_aarch64 }}"
     state: directory
-    mode: '{{ common_mode }}'
+    mode: "{{ folder_mode }}"
 
 - name: Create x86_64 package layout directories
   ansible.builtin.file:
-    path: "{{ packages_base_dir_x86_64 }}/{{ item }}"
+    path: "{{ k8s_packages_base_dir_x86_64 }}/{{ item }}"
     state: directory
-    mode: '{{ common_mode }}'
+    mode: "{{ folder_mode }}"
   loop: "{{ packages_layout_x86_64 }}"
 
 - name: Create aarch64 package layout directories
   ansible.builtin.file:
-    path: "{{ packages_base_dir_aarch64 }}/{{ item }}"
+    path: "{{ k8s_packages_base_dir_aarch64 }}/{{ item }}"
     state: directory
-    mode: '{{ common_mode }}'
+    mode: "{{ folder_mode }}"
   loop: "{{ packages_layout_aarch64 }}"
 
 - name: Print copy paths for x86_64

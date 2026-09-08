@@ -15,20 +15,6 @@
 ---
 # Simple OpenCHAMI Post-Cleanup
 
-- name: Set role path
-  ansible.builtin.set_fact:
-    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
-
-- name: Set omnia_data_path fact
-  ansible.builtin.set_fact:
-    omnia_data_path: "{{ hostvars['localhost']['omnia_data_path'] | default('/opt/omnia') }}"
-
-- name: Set orchestrator_output_dir fact
-  ansible.builtin.set_fact:
-    orchestrator_output_dir: >-
-      {{ hostvars['localhost']['orchestrator_output_dir'] | default('/opt/omnia/orchestrator/output') }}/
-      {{ hostvars['localhost']['project_name'] | default('project_default') }}
-
 - name: Load OpenCHAMI component configuration
   ansible.builtin.include_vars:
     file: "{{ role_path }}/components/openchami/vars/component_spec.yml"
