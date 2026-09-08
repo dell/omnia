@@ -1,0 +1,124 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ─────────────────────────────────────────────────────────────────────────
+# Task: cloudinit_node_registration.yml
+# Purpose: Wait for all PXE-booted nodes to complete cloud-init
+#          and send node-registration callback to metadata-service.
+# Called from: pxe_buildstream_manager main.yml
+# Condition: Only runs when enable_build_stream is true
+# Non-fatal: Node-registration failures are recorded and reported but do NOT
+#            abort the playbook — BSM post-processing must always run.
+# ─────────────────────────────────────────────────────────────────────────
+
+# Step 1: Assert required facts are available
+- name: "[Node-Registration] Assert required facts are available"
+  ansible.builtin.assert:
+    that:
+      - pxe_start_epoch is defined
+      - pxe_start_epoch | string | length > 0
+      - target_node_admin_ips is defined
+      - target_node_admin_ips | length > 0
+    fail_msg: "{{ node_registration_fail_msg }}"
+    success_msg: "{{ node_registration_success_msg }}"
+
+# Step 2: Pause before polling
+- name: "[Node-Registration] Wait for nodes to begin cloud-init"
+  ansible.builtin.pause:
+    minutes: "{{ node_registration_pause_minutes }}"
+    prompt: "{{ node_registration_pause_prompt }}"
+
+# Step 3: Poll journalctl for node-registration from ALL nodes in single bash loop
+# Uses ignore_errors so that node-registration timeout does NOT abort the playbook.
+# The final stdout is parsed in Step 4 to identify which nodes failed.
+- name: "[Node-Registration] Wait for cloud-init node-registration from all nodes"
+  ansible.builtin.shell: |
+    set -o pipefail
+    MISSING_NODES=0
+    OUTPUT=""
+    FAILED_IPS=""
+
+    # Pull ALL node-registration journal entries ONCE per retry cycle
+    JOURNAL_OUT=$(journalctl -u cloud-init-server \
+      --since "@{{ pxe_start_epoch }}" \
+      --no-pager 2>/dev/null)
+
+    # Check every node IP in the same retry pass
+    for ip in {{ target_node_admin_ips | join(' ') }}; do
+      if echo "$JOURNAL_OUT" | grep -w "{{ node_registration_log_pattern }} $ip" > /dev/null 2>&1; then
+        OUTPUT="${OUTPUT}{{ node_registration_status_ok }} $ip\n"
+      else
+        OUTPUT="${OUTPUT}{{ node_registration_status_wait }} $ip\n"
+        MISSING_NODES=1
+        FAILED_IPS="${FAILED_IPS}${ip} "
+      fi
+    done
+
+    echo -e "$OUTPUT"
+    # Print failed IPs on a dedicated line so Ansible can parse it
+    echo "NODE_REG_FAILED_IPS=${FAILED_IPS}"
+    # Exit 1 if any node is missing — triggers Ansible until retry
+    exit $MISSING_NODES
+  args:
+    executable: /bin/bash
+  register: node_registration_poll_result
+  until: node_registration_poll_result.rc == 0
+  retries: "{{ node_registration_retries }}"
+  delay: "{{ node_registration_delay }}"
+  changed_when: false
+  become: true
+  ignore_errors: true
+
+# Step 4: Print per-node node-registration status from final poll
+- name: "[Node-Registration] Display node-registration status per node"
+  ansible.builtin.debug:
+    msg: "{{ node_registration_poll_result.stdout_lines | default([]) }}"
+
+# Step 5: Extract node-registration failed IPs from the poll output
+- name: "[Node-Registration] Parse failed IPs from poll output"
+  ansible.builtin.set_fact:
+    node_registration_failed_ips: >-
+      {{ (node_registration_poll_result.stdout_lines | default([])
+          | select('match', '^NODE_REG_FAILED_IPS=')
+          | first | default('NODE_REG_FAILED_IPS='))
+          .split('=', 1)[1] | trim | split() | reject('equalto', '') | list }}
+  when: node_registration_poll_result.rc | default(0) != 0
+
+- name: "[Node-Registration] Default node_registration_failed_ips to empty when all succeeded"
+  ansible.builtin.set_fact:
+    node_registration_failed_ips: []
+  when: node_registration_poll_result.rc | default(0) == 0
+
+# Step 6: Cache node-registration results on localhost so Play 9 (BSM) can use them
+- name: "[Node-Registration] Store node-registration failure list on localhost"
+  ansible.builtin.set_fact:
+    node_registration_failed_ips: "{{ node_registration_failed_ips | default([]) }}"
+    node_registration_completed: true
+    cacheable: true
+  delegate_to: localhost
+  delegate_facts: true
+
+# Step 7: Report outcome
+- name: "[Node-Registration] All nodes completed cloud-init successfully"
+  ansible.builtin.debug:
+    msg: "{{ node_registration_final_success_msg }}"
+  when: node_registration_failed_ips | default([]) | length == 0
+
+- name: "[Node-Registration] WARNING — some nodes failed node-registration"
+  ansible.builtin.debug:
+    msg: >-
+      [Node-Registration] WARNING: {{ node_registration_failed_ips | length }} node(s) did NOT register:
+      {{ node_registration_failed_ips | join(', ') }}.
+      These will be marked as FAILED in node_results.json and failed_nodes.json.
+  when: node_registration_failed_ips | default([]) | length > 0

@@ -47,6 +47,7 @@
 #   ansible-playbook repo_manager.yml --tags rollback
 # =============================================================================
 
+# Step 1: Report the reserved rollback operation.
 - name: Rollback Repo Manager
   hosts: localhost
   connection: local

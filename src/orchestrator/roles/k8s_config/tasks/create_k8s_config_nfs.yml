@@ -23,7 +23,7 @@
 
 - name: Set facts for service_k8s
   ansible.builtin.set_fact:
-    cluster_name: "{{ service_k8s_cluster[0].cluster_name }}"
+    service_k8s_cluster_name: "{{ service_k8s_cluster[0].cluster_name }}"
     k8s_cni: "{{ service_k8s_cluster[0].k8s_cni }}"
     pod_external_ip_range: "{{ service_k8s_cluster[0].pod_external_ip_range }}"
     k8s_service_addresses: "{{ service_k8s_cluster[0].k8s_service_addresses }}"
@@ -40,6 +40,13 @@
     k8s_nfs_server_ip: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).source.split(':')[0] }}"
     # k8s_server_share_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_share_path }}"
     k8s_nfs_server_path: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).source }}"
+
+# Use Kubernetes-specific fact names because set_fact values persist for the
+# remainder of the host play and must not override the Slurm package paths.
+- name: Set Kubernetes package base directories
+  ansible.builtin.set_fact:
+    k8s_packages_base_dir_x86_64: "{{ k8s_client_mount_path }}/packages/x86_64"
+    k8s_packages_base_dir_aarch64: "{{ k8s_client_mount_path }}/packages/aarch64"
 
 - name: Ensure SSH key directory exists on K8s share
   ansible.builtin.file:
@@ -154,28 +161,28 @@
 # additional packages
 - name: Create x86_64 package base directory
   ansible.builtin.file:
-    path: "{{ packages_base_dir_x86_64 }}"
+    path: "{{ k8s_packages_base_dir_x86_64 }}"
     state: directory
-    mode: '{{ common_mode }}'
+    mode: "{{ folder_mode }}"
 
 - name: Create aarch64 package base directory
   ansible.builtin.file:
-    path: "{{ packages_base_dir_aarch64 }}"
+    path: "{{ k8s_packages_base_dir_aarch64 }}"
     state: directory
-    mode: '{{ common_mode }}'
+    mode: "{{ folder_mode }}"
 
 - name: Create x86_64 package layout directories
   ansible.builtin.file:
-    path: "{{ packages_base_dir_x86_64 }}/{{ item }}"
+    path: "{{ k8s_packages_base_dir_x86_64 }}/{{ item }}"
     state: directory
-    mode: '{{ common_mode }}'
+    mode: "{{ folder_mode }}"
   loop: "{{ packages_layout_x86_64 }}"
 
 - name: Create aarch64 package layout directories
   ansible.builtin.file:
-    path: "{{ packages_base_dir_aarch64 }}/{{ item }}"
+    path: "{{ k8s_packages_base_dir_aarch64 }}/{{ item }}"
     state: directory
-    mode: '{{ common_mode }}'
+    mode: "{{ folder_mode }}"
   loop: "{{ packages_layout_aarch64 }}"
 
 - name: Print copy paths for x86_64
@@ -224,6 +231,16 @@
     - item.item.source_path | length > 0
     - item.item.dest_path | length > 0
 
+# Propagate repo_manager paths from localhost (where repo_status.yml was loaded)
+- name: Set repo_manager paths from localhost
+  ansible.builtin.set_fact:
+    offline_tarball_path: "{{ hostvars['localhost']['offline_tarball_path'] }}"
+    offline_manifest_path: "{{ hostvars['localhost']['offline_manifest_path'] }}"
+    offline_git_path: "{{ hostvars['localhost']['offline_git_path'] | default('') }}"
+  when:
+    - offline_tarball_path is not defined
+    - hostvars['localhost']['offline_tarball_path'] is defined
+
 - name: Verify repo_status variables are available
   ansible.builtin.assert:
     that:
@@ -235,11 +252,18 @@
       and the file exists, or run repo_manager.yml first.
     quiet: true
 
-- name: Load service_k8s_v<version>.json
+- name: Check if K8s packages JSON exists
+  ansible.builtin.stat:
+    path: "{{ k8s_packages_file }}"
+  register: _k8s_pkg_json_stat
+  delegate_to: localhost
+
+- name: Load service_k8s_v<version>.json (when file exists)
   ansible.builtin.set_fact:
     k8s_packages_json: "{{ lookup('file', k8s_packages_file) | from_json }}"
+  when: _k8s_pkg_json_stat.stat.exists
 
-- name: Extract and set facts for tarball URLs
+- name: Extract and set facts for tarball URLs (from JSON)
   ansible.builtin.set_fact:
     calico_package: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'calico') | map(attribute='package') | join }}" # noqa: yaml[line-length]
     metallb_package: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'metallb-native') | map(attribute='package') | join }}" # noqa: yaml[line-length]
@@ -249,6 +273,59 @@
     whereabouts_pkg: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'git') | selectattr('package', 'search', 'whereabouts') | map(attribute='package') | join }}" # noqa: yaml[line-length]
     kube_vip_package: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'image') | selectattr('package', 'search', 'kube-vip') | map(attribute='package') | join }}" # noqa: yaml[line-length]
     kube_vip_tag: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'image') | selectattr('package', 'search', 'kube-vip') | map(attribute='tag') | join }}" # noqa: yaml[line-length]
+  when: _k8s_pkg_json_stat.stat.exists
+
+- name: Extract K8s package names from catalog (fallback when JSON missing)
+  ansible.builtin.set_fact:
+    calico_package: >-
+      {{ hostvars['localhost']['catalog_data'].catalog.packages.values()
+         | selectattr('packagetype', 'defined')
+         | selectattr('packagetype', 'equalto', 'manifest')
+         | selectattr('name', 'search', '^calico-v')
+         | map(attribute='name') | first | default('calico') }}
+    metallb_package: >-
+      {{ hostvars['localhost']['catalog_data'].catalog.packages.values()
+         | selectattr('packagetype', 'defined')
+         | selectattr('packagetype', 'equalto', 'manifest')
+         | selectattr('name', 'search', '^metallb-native')
+         | map(attribute='name') | first | default('metallb-native') }}
+    nfs_subdir_external_provisioner_pkg: >-
+      {{ hostvars['localhost']['catalog_data'].catalog.packages.values()
+         | selectattr('packagetype', 'defined')
+         | selectattr('packagetype', 'equalto', 'tarball')
+         | selectattr('name', 'search', 'nfs-subdir-external-provisioner')
+         | map(attribute='name') | first | default('nfs-subdir-external-provisioner') }}
+    multus_package: >-
+      {{ hostvars['localhost']['catalog_data'].catalog.packages.values()
+         | selectattr('packagetype', 'defined')
+         | selectattr('packagetype', 'equalto', 'manifest')
+         | selectattr('name', 'search', 'multus-daemonset')
+         | map(attribute='name') | first | default('multus-daemonset-thick') }}
+    helm_package: >-
+      {{ hostvars['localhost']['catalog_data'].catalog.packages.values()
+         | selectattr('packagetype', 'defined')
+         | selectattr('packagetype', 'equalto', 'tarball')
+         | selectattr('name', 'search', '^helm-v')
+         | map(attribute='name') | first | default('helm') }}
+    whereabouts_pkg: >-
+      {{ hostvars['localhost']['catalog_data'].catalog.packages.values()
+         | selectattr('packagetype', 'defined')
+         | selectattr('packagetype', 'equalto', 'git')
+         | selectattr('name', 'search', 'whereabouts')
+         | map(attribute='name') | first | default('whereabouts') }}
+    kube_vip_package: >-
+      {{ hostvars['localhost']['catalog_data'].catalog.packages.values()
+         | selectattr('packagetype', 'defined')
+         | selectattr('packagetype', 'equalto', 'image')
+         | selectattr('name', 'search', 'kube-vip')
+         | map(attribute='name') | first | default('kube-vip') }}
+    kube_vip_tag: >-
+      {{ hostvars['localhost']['catalog_data'].catalog.packages.values()
+         | selectattr('packagetype', 'defined')
+         | selectattr('packagetype', 'equalto', 'image')
+         | selectattr('name', 'search', 'kube-vip')
+         | map(attribute='tag') | first | default('latest') }}
+  when: not _k8s_pkg_json_stat.stat.exists
 
 - name: Compose kube-vip image reference from package and tag
   ansible.builtin.set_fact:

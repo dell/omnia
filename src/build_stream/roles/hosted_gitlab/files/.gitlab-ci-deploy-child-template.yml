@@ -670,12 +670,14 @@ validate:
       echo ""
 
       # Trigger validate stage via API
+      # Omnia 2.3: runs ./run_validation.sh fvt_orchestrator verify --marker buildstream
+      # on the OIM host via the playbook watcher
       echo "  [1/3] Triggering validate stage..."
       VALIDATE_PAYLOAD=$(cat <<EOF
       {
-        "scenario_names": ["provision"],
-        "test_suite": "build_stream",
-        "timeout_minutes": 120
+        "scenario_names": ["validate"],
+        "test_suite": "buildstream",
+        "timeout_minutes": 150
       }
       EOF
       )

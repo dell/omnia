@@ -45,6 +45,7 @@ def _skip_if_slurm_disabled(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(10)
 def test_custom_slurm_conf_structure(host: Host):
     """TC_SL_043: Validate custom slurm_conf module structure."""

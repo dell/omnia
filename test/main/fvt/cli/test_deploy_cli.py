@@ -15,7 +15,7 @@
 """
 Omnia Main CLI — Deploy (placeholder).
 
-TC_CL_001: Verify omnia.sh --help returns usage text.
+MAIN_FVT_CLI_E001: Verify omnia.sh --help returns usage text.
 
 The CLI scenario does not have a traditional "deploy" step.
 This test validates that the help output is complete and
@@ -24,10 +24,11 @@ serves as the @deploy marker entry point for run_validation.sh.
 
 import pytest
 
+from library.vars import TEST_CASES as TC
+
 from library.functions import TestLogger
 from library.functions.omnia_main_func import check_help_output
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
@@ -37,9 +38,11 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_help_output(host):
-    """TC_CL_001: Verify omnia.sh --help returns usage text."""
-    tl = TestLogger(TEST_NAMES["help_output"], "TC_CL_001")
+    """MAIN_FVT_CLI_E001: Verify omnia.sh --help returns usage text."""
+    tc = TC["help_output"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = check_help_output(host)
+    tl.bind_result(result)
 
     if result["success"]:
         tl.passed(LOG["help_ok"])

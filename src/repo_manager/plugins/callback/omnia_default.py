@@ -30,9 +30,12 @@ Usage — add to every ``ansible.cfg``::
 from __future__ import annotations
 
 import json
+import os
 import re
+import stat
 
 from ansible import constants as C  # pylint: disable=no-name-in-module
+from ansible.errors import AnsibleError
 from ansible.plugins.callback.default import CallbackModule as DefaultCallback
 
 DOCUMENTATION = r"""
@@ -58,6 +61,44 @@ _ERROR_CONTEXT_PATTERN = re.compile(
     r"\s+\^\s+column\s+\d+"
 )
 
+_LOG_DIRECTORY_MODE = 0o700
+_LOG_FILE_MODE = 0o600
+
+
+def _secure_log_file(log_filepath):
+    """Create or restrict the controller log without module-utils imports."""
+    log_dir = os.path.dirname(log_filepath) or "."
+    os.makedirs(log_dir, mode=_LOG_DIRECTORY_MODE, exist_ok=True)
+
+    directory_flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        directory_flags |= os.O_DIRECTORY
+    if hasattr(os, "O_NOFOLLOW"):
+        directory_flags |= os.O_NOFOLLOW
+    directory_descriptor = os.open(log_dir, directory_flags)
+    try:
+        if not stat.S_ISDIR(os.fstat(directory_descriptor).st_mode):
+            raise OSError("Ansible log directory path is not a directory")
+        os.fchmod(directory_descriptor, _LOG_DIRECTORY_MODE)
+
+        file_flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NONBLOCK
+        if hasattr(os, "O_NOFOLLOW"):
+            file_flags |= os.O_NOFOLLOW
+        file_descriptor = os.open(
+            os.path.basename(log_filepath),
+            file_flags,
+            _LOG_FILE_MODE,
+            dir_fd=directory_descriptor,
+        )
+        try:
+            if not stat.S_ISREG(os.fstat(file_descriptor).st_mode):
+                raise OSError("Ansible log path is not a regular file")
+            os.fchmod(file_descriptor, _LOG_FILE_MODE)
+        finally:
+            os.close(file_descriptor)
+    finally:
+        os.close(directory_descriptor)
+
 
 class CallbackModule(DefaultCallback):  # pylint: disable=too-many-ancestors
     """
@@ -74,7 +115,21 @@ class CallbackModule(DefaultCallback):  # pylint: disable=too-many-ancestors
 
     def __init__(self):
         super().__init__()
+        self._secure_ansible_log()
         self._patched = False
+
+    @staticmethod
+    def _secure_ansible_log():
+        """Restrict the configured Ansible log before task output is written."""
+        log_path = getattr(C, "DEFAULT_LOG_PATH", "")
+        if not log_path:
+            return
+        try:
+            _secure_log_file(os.path.abspath(log_path))
+        except OSError as error:
+            raise AnsibleError(
+                "Unable to create the Ansible log with restricted permissions."
+            ) from error
 
     def _patch_display(self):
         """Monkey-patch Display.display to drop [ERROR] context blocks."""

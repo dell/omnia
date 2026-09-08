@@ -112,6 +112,7 @@ def pytest_configure(config):
         "idempotency": "Idempotency",
         "security": "Security and permission tests",
         "negative": "Negative test cases for error scenarios",
+        "buildstream": "BuildStream pipeline validation (post-provision sanity)",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")

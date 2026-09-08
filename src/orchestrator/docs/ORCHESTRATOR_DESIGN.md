@@ -30,7 +30,7 @@ src/orchestrator/
 │   ├── orchestrator.yml                # Top-level thin routing wrapper
 │   ├── ansible.cfg                     # Sub-playbook config
 │   │
-│   ├── precheck/                       # Read-only input validation
+│   ├── precheck/                       # Functional-group and input validation
 │   │   ├── ansible.cfg
 │   │   ├── precheck_openchami.yml      # Validate inputs, params, boot images, config vars
 │   │   └── precheck_openldap.yml       # Validate LDAP prerequisites (when enabled)
@@ -61,13 +61,14 @@ src/orchestrator/
 │   │
 │   ├── pxeboot/                        # PXE boot on iDRAC nodes
 │   │   ├── ansible.cfg
-│   │   ├── pxeboot.yml                 # BMC inventory, reboot, phone-home verify
+│   │   ├── pxeboot.yml                 # BMC inventory, reboot, node-registration verify
 │   │   └── README.md
 │   │
 │   ├── cleanup/                        # Component teardown
 │   │   ├── ansible.cfg
-│   │   ├── cleanup_openchami.yml       # Stop services, remove containers/config/artifacts
-│   │   └── cleanup_openldap.yml        # Stop container, remove Quadlet/data
+│   │   ├── cleanup_orchestrator.yml     # Canonical component selector
+│   │   ├── cleanup_openchami.yml       # Compatibility wrapper: OpenCHAMI only
+│   │   └── cleanup_openldap.yml        # Compatibility wrapper: OpenLDAP only
 │   │
 │   ├── upgrade/                        # In-place upgrade
 │   │   ├── ansible.cfg
@@ -133,11 +134,11 @@ src/orchestrator/
 |------|-------|
 | Main playbook | `playbooks/orchestrator.yml` |
 | Input config | `orchestrator_config.yml` |
-| Credential file | `omnia_config_credentials.yml` |
-| Credential key | `.omnia_config_credentials_key` |
-| Input subdir | `input/project_default/orchestrator/` |
-| Output subdir | `output/project_default/orchestrator/` |
-| Log path | `/opt/omnia/log/core/orchestrator/orchestrator.log` |
+| Credential file | `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/omnia_config_credentials.yml` |
+| Credential key | `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/.omnia_config_credentials_key` |
+| Input directory | `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/` |
+| Output directory | `$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/` |
+| Log path | `$OMNIA_DATA_PATH/log/core/orchestrator/orchestrator.log` |
 
 ### Ansible Config (ansible.cfg)
 
@@ -194,7 +195,7 @@ Figure: orchestrator.yml tag-based execution flow
 | `provision` | `provision/provision_preamble.yml` + `provision_*.yml` | — |
 | `validate` | `validate/validate_openchami.yml` | `validate/validate_openldap.yml` + `validate/validate_provisioning.yml` |
 | `pxeboot` | `pxeboot/pxeboot.yml` | — |
-| `cleanup` | `cleanup/cleanup_openchami.yml` | `cleanup/cleanup_openldap.yml` |
+| `cleanup` | `cleanup/cleanup_full.yml` | Canonical cleanup role with component selection and aggregate reporting |
 | `upgrade` | `upgrade/upgrade_openchami.yml` | `upgrade/upgrade_openldap.yml` |
 | `rollback` | `rollback/rollback_openchami.yml` | `rollback/rollback_openldap.yml` |
 
@@ -204,12 +205,12 @@ Figure: orchestrator.yml tag-based execution flow
 
 | Step | Phase | Play | Host | Description |
 |------|-------|------|------|-------------|
-| 0 | setup | Setup orchestrator environment | localhost | `orchestrator_setup` role — upgrade guard, dirs, metadata, OIM group |
-| 0 | setup | Generate functional groups | localhost | `orchestrator_functional_groups` role — generate from pxe_mapping |
+| 0 | setup | Resolve orchestrator context | localhost | `orchestrator_setup` role — validate tags, resolve paths, load existing inputs and metadata, and create the OIM group |
+| 0 | precheck/prepare/execute | Generate functional groups | localhost | Persist functional groups from the current PXE mapping for validation and provisioning consumers |
 | 1 | precheck | Validate input configuration | localhost | `validate_orchestrator_input` role — L1 schema + L2 logic |
 | 2 | precheck | Validate parameters | localhost | `orchestrator_validations` role — mapping, software, images |
 | 3 | precheck | Validate OIM timezone | oim (SSH) | Timezone drift detection |
-| 4 | precheck | Validate boot images | oim (SSH) | S3 image availability per FG |
+| 4 | precheck | Validate boot images | oim (SSH) | Require kernel, initrd, and rootfs paths, then verify each Boot Service URL with HTTP `HEAD` |
 | 5 | precheck | Validate OpenCHAMI config | localhost | Assert domain_name, admin_nic_ip, input files |
 | 6 | precheck | Validate OpenLDAP prereqs | localhost | Assert LDAP credentials, domain (when enabled) |
 | 7 | prepare | Credential management | localhost | `orchestrator_credentials` role — prompt, encrypt, vault |
@@ -248,7 +249,8 @@ All modules, module_utils, callback plugins, and roles are local.
 | `common/vars/common_vars.yml` | `vars/common_vars.yml` | Shared constants |
 | `common/vars/openchami_vars.yml` | `vars/openchami_vars.yml` | OpenCHAMI auth constants |
 | *(new)* | `plugins/modules/validate_orchestrator_config.py` | Domain-specific validation module (L1+L2) |
-| *(new)* | `plugins/module_utils/orchestrator_validation/orchestrator_validation_flow.py` | Orchestrator L2 validation logic |
+| *(new)* | `plugins/module_utils/orchestrator_validation/core/validation_engine.py` | L1/L2 validation dispatch |
+| *(new)* | `plugins/module_utils/orchestrator_validation/validators/` | Per-input L2 validation logic |
 
 ### 5.2 Verification
 
@@ -269,16 +271,20 @@ grep -c 'playbooks/utils' src/orchestrator/**/*.yml            # expect: 0
 
 ```yaml
 overall_status: "success"
+image_build_type: "image-builder"
 s3_configurations:
   endpoint_url: "http://10.20.0.1:9000"
   bucket: "boot-images"
 functional_group_images:
-  x86_64:
-    - functional_group: "slurm_control_node_x86_64"
-      kernel: "boot-images/efi-images/.../vmlinuz"
-      initrd: "boot-images/efi-images/.../initramfs.img"
-      image: "boot-images/slurm_control_node_x86_64/..."
+  - x86_64:
+      - functional_group: "slurm_control_node_x86_64"
+        kernel: "boot-images/efi-images/.../vmlinuz"
+        initrd: "boot-images/efi-images/.../initramfs.img"
+        image: "boot-images/slurm_control_node_x86_64/..."
 ```
+
+The Orchestrator-owned reference copy is
+`src/orchestrator/samples/image_build_manager_output/build_status.yml`.
 
 ### 6.2 pxe_mapping_file.csv (Input from discovery)
 
@@ -287,13 +293,13 @@ functional_group_images:
 
 ### 6.3 Orchestrator Outputs
 
-**Location**: `output/project_default/orchestrator/`
+**Location**: `$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/`
 
-- `functional_groups_config.yml` — Generated functional groups
+- `.data/functional_groups_config.yml` — Generated functional groups
 - `orchestrator_state.yml` — Support flags for standalone runs
 - BSS boot parameter configurations
 - Cloud-init default/group/node configurations
-- `/opt/omnia/hosts` — Ansible inventory
+- `$OMNIA_DATA_PATH/hosts` — Ansible inventory
 
 ---
 
@@ -326,12 +332,11 @@ for all orchestrator services (provision, slurm, openldap, telemetry, etc.).
 
 ### 8.1 Pattern
 
-Follows the `image_build_manager` lean validation pattern:
+Follows the modular `image_build_manager` validation pattern:
 - **Domain-specific module**: `validate_orchestrator_config.py` — single Ansible module
-- **Domain-specific flow**: `orchestrator_validation_flow.py` — L2 cross-field logic
-- **Domain-specific schemas**: Only `orchestrator_config.json`, `network_spec.json`, `credential_rules.json`
-
-No wholesale copy of the central `input_validation/` framework.
+- **Validation engine**: `core/validation_engine.py` — L1 validation and L2 routing
+- **Per-input validators**: `validators/` — domain-specific L2 and cross-file logic
+- **Domain-specific schemas**: Orchestrator-owned input and credential schemas
 
 ### 8.2 L1 — Schema Validation
 
@@ -371,13 +376,13 @@ Return keys: `validation_failed`, `errors`, `valid_files`, `invalid_files`, `log
 | Tag | Type | Description |
 |-----|------|-------------|
 | *(none)* | Default | Full flow: precheck + prepare + deploy + provision |
-| `precheck` | Read-only | Validate inputs, parameters, boot images (no system changes) |
+| `precheck` | Validation | Generate functional groups, then validate inputs, parameters, and boot images |
 | `prepare` | Preparation | Credential management, FG generation, OpenLDAP config prep |
 | `deploy` | Deployment | Deploy OpenCHAMI + OpenLDAP containers, validate readiness gates |
 | `provision` | Provisioning | SSH preamble, provision K8s/Slurm/OS/custom, validate provisioning |
 | `validate` | Validation | Validate OpenCHAMI + OpenLDAP readiness + provisioning state |
 | `pxeboot` | Opt-in | PXE boot on iDRAC nodes (physical servers only) |
-| `cleanup` | Opt-in | Remove OpenCHAMI + OpenLDAP services, containers, artifacts |
+| `cleanup` | Opt-in | Run selected component cleanups, report every result, then fail if any component is incomplete |
 | `upgrade` | Opt-in | In-place upgrade of OpenCHAMI + OpenLDAP |
 | `rollback` | Opt-in | Revert OpenCHAMI + OpenLDAP to previous state from backup |
 
@@ -390,6 +395,16 @@ Return keys: `validation_failed`, `errors`, `valid_files`, `invalid_files`, `log
 ### 9.3 Credential Skipping
 
 Credential prompting is skipped for `precheck`, `cleanup`, and `validate` tags.
+
+The always-run setup role resolves context for every flow. When the runtime
+project input directory is absent, it initializes that project from the source
+input templates, matching the other Omnia domain setup roles. It never
+overwrites an existing project directory. Only `prepare`, `deploy`,
+`provision`, `execute`, `pxeboot`, `upgrade`, and the default lifecycle refresh
+`orchestrator_state.yml`. Precheck creates the output `.data` directory for
+`functional_groups_config.yml` but does not create the state file. Validation,
+credentials, cleanup, deployment-health checks, and credential-only cleanup do
+not create or rewrite those runtime output artifacts.
 
 ### 9.4 Opt-In Tags
 
@@ -405,12 +420,13 @@ accidental execution during the default flow. They must be explicitly requested.
 | Roles | `<domain>_<function>` | `orchestrator_setup`, `orchestrator_credentials` |
 | Validation role | `validate_<domain>_input` | `validate_orchestrator_input` |
 | Validation module | `validate_<domain>_config` | `validate_orchestrator_config` |
-| Validation flow | `<domain>_validation_flow.py` | `orchestrator_validation_flow.py` |
+| Validation engine | `validation_engine.py` | `orchestrator_validation/core/validation_engine.py` |
+| L2 validator | `<input>_validator.py` | `orchestrator_config_validator.py` |
 | Schema dir | `<domain>_validation/schema/` | `orchestrator_validation/schema/` |
 | Credential file | `omnia_config_credentials.yml` | Shared naming |
 | Phase directories | `<phase>/` | `precheck/`, `prepare/`, `deploy/`, `cleanup/` |
 | Component playbooks | `<phase>_<component>.yml` | `precheck_openchami.yml`, `cleanup_openldap.yml` |
-| Log path | `/opt/omnia/log/core/<domain>/` | `/opt/omnia/log/core/orchestrator/` |
+| Log path | `$OMNIA_DATA_PATH/log/core/<domain>/` | `$OMNIA_DATA_PATH/log/core/orchestrator/` |
 
 ---
 

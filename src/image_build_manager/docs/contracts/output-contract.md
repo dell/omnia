@@ -17,6 +17,9 @@ When `IMAGE_BUILD_MANAGER_DATA_PATH` is unset, the root defaults to
 
 **Consumer**: Provisioning workflow (image validation and BSS template rendering)
 
+The producer overwrites the latest file and also writes a timestamped snapshot
+named `build_status_<OMNIA_VERSION>_<YYYYMMDD_HHMM>.yml` in the same directory.
+
 ### Structure
 
 The manifest stores exact endpoint-relative S3 object paths. Each path includes
@@ -25,6 +28,7 @@ filename rather than a directory.
 
 ```yaml
 overall_status: "success"
+image_build_type: "image-thrillhouse"
 
 s3_configurations:
   endpoint_url: "http://10.20.0.1:9000"
@@ -38,7 +42,10 @@ functional_group_images:
       image: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/rootfs.squashfs"
 ```
 
-The object layout depends on `image_build_type`:
+`image_build_type` records the engine that produced this manifest. It is build
+provenance, so consumers must use this value when interpreting artifact paths
+rather than reading the potentially newer value from `image_build_config.yml`.
+The object layout depends on this recorded value:
 
 - `image-builder` publishes versioned kernel and initrd objects beneath the
   `efi-images/` prefix inside `boot-images`, and a versioned rootfs object under
@@ -67,13 +74,28 @@ bucket or S3 scheme.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `overall_status` | string | `"success"` or `"failed"` |
+| `overall_status` | string | Currently always `"success"`; a failed build does not produce a failed-status manifest |
+| `image_build_type` | string | Producing engine: `"image-builder"` or `"image-thrillhouse"` |
 | `s3_configurations.endpoint_url` | string | S3 HTTP(S) endpoint URL, without the artifact path |
 | `s3_configurations.bucket` | string | Artifact bucket; currently `"boot-images"` |
-| `functional_group_images[].functional_group` | string | Group name with arch suffix |
-| `functional_group_images[].kernel` | string | Exact endpoint-relative kernel object path (`vmlinuz*`) |
-| `functional_group_images[].initrd` | string | Exact endpoint-relative initrd object path (`initramfs*`) |
-| `functional_group_images[].image` | string | Exact endpoint-relative rootfs object path (`rhel*` or `rootfs.squashfs`) |
+| `functional_group_images[].<architecture>[].functional_group` | string | Group name with architecture suffix |
+| `functional_group_images[].<architecture>[].kernel` | string | Exact endpoint-relative kernel object path (`vmlinuz*`) |
+| `functional_group_images[].<architecture>[].initrd` | string | Exact endpoint-relative initrd object path (`initramfs*`) |
+| `functional_group_images[].<architecture>[].image` | string | Exact endpoint-relative rootfs object path (`rhel*` or `rootfs.squashfs`) |
+
+### Compatibility and engine changes
+
+Current manifests always include `image_build_type`. Validation of a legacy
+manifest that does not contain the field may infer the engine only when all
+artifact directories consistently contain one recognized suffix: `-imgbld`
+or `-imgth`. Ambiguous or suffix-free legacy manifests must be regenerated.
+
+Changing `image_build_config.yml` does not alter an existing manifest. Tests
+use the manifest engine for path-layout checks and the current input for the
+expected functional-group set. When those engine values differ, test output
+reports the difference while validating the artifacts produced by the recorded
+build. A new build overwrites the latest manifest with the newly selected
+engine.
 
 ### S3 Endpoint
 
@@ -103,7 +125,8 @@ Services deployed on OIM host by the `prepare` tag:
 | Service | `registry.service` (Podman Quadlet) |
 | Port | `5000` (HTTP) |
 
-Both services are added to `omnia.target`.
+Both Quadlets declare `WantedBy=multi-user.target` and are enabled as systemd
+services. The deployment roles do not add them to `omnia.target`.
 
 ---
 
@@ -136,15 +159,25 @@ boot-images/
 ```
 
 `efi-images` above is an object-key prefix inside the `boot-images` bucket, not
-a separate bucket.
+a separate bucket. Local MinIO preparation also creates a bucket named `efi`,
+but the current artifact layouts and manifest paths do not use it.
 
 ---
 
 ## 4. Cleanup
 
 `cleanup_image_build_manager.yml` removes:
-- MinIO + Registry containers and data
-- `build_status.yml`
-- S3 buckets and artifacts
-- `omnia.target` service entries
-- Credentials and s3cmd config
+
+- the local MinIO and Registry services, Quadlets, and storage data;
+- the project output directory, including latest and versioned status files;
+- local work/data directories and logs;
+- image-build credentials and the generated `s3cmd` configuration.
+
+The domain data cleanup removes the shared `output/` and `log/` roots, not only
+the selected project's subdirectories. Treat full cleanup as domain-wide in a
+multi-project installation. It does not edit `omnia.target`.
+
+For a PowerScale provider, full cleanup skips MinIO cleanup and does not erase
+objects from external S3. `cleanup_images` can remove matching objects from the
+`boot-images` bucket when `s3cmd` and `/root/.s3cfg` are already available; it
+also removes matching registry tags while retaining the infrastructure.

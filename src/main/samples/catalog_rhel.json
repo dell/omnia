@@ -11,7 +11,8 @@
           "baseos_group_10.0",
           "slurm_custom_group",
           "openldap_group",
-          "slurm_control_node_group"
+          "slurm_control_node_group",
+          "image_thrillhouse_group"
         ]
       },
       {
@@ -20,7 +21,8 @@
           "baseos_group_10.0",
           "slurm_custom_group",
           "openldap_group",
-          "slurm_node_group"
+          "slurm_node_group",
+          "image_thrillhouse_group"
         ]
       }
     ],
@@ -65,7 +67,16 @@
           "wget",
           "cloud_init",
           "glibc_langpack_en",
-          "gedit"
+          "gedit",
+          "docker_io/dellhpcomniaaisolution/image_build_el10"
+        ]
+      },
+      "image_thrillhouse_group": {
+        "name": "image_thrillhouse_group",
+        "type": "group",
+        "description": "Thrillhouse container for image builds",
+        "components": [
+          "ghcr_io/openchami/image_thrillhouse"
         ]
       },
       "admin_debug_group": {
@@ -1941,6 +1952,36 @@
               "10.0"
             ],
             "url": "https://github.com/openucx/ucx/releases/download/v1.18.0/ucx-1.18.0.tar.gz"
+          }
+        ]
+      },
+      "ghcr_io/openchami/image_thrillhouse": {
+        "name": "ghcr.io/openchami/image-thrillhouse",
+        "packagetype": "image",
+        "tag": "v0.0.24",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "ghcr.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "docker_io/dellhpcomniaaisolution/image_build_el10": {
+        "name": "docker.io/dellhpcomniaaisolution/image-build-el10",
+        "packagetype": "image",
+        "tag": "1.3",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "docker.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
           }
         ]
       }

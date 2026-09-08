@@ -16,7 +16,10 @@
 - name: Get SMD group data - {{ functional_group_name }}
   ansible.builtin.set_fact:
     smd_group_members: >-
-      {{ (existing_smd_groups | selectattr("label", "==", functional_group_name) | first).members.ids }}
+      {{ (existing_smd_groups
+          | selectattr('label', 'equalto', functional_group_name)
+          | first).members.ids | default([], true) }}
+    smd_group_changed: false
 
 - name: Include group vars
   ansible.builtin.slurp:
@@ -27,14 +30,18 @@
   ansible.builtin.set_fact:
     group_parsed_yaml: "{{ group_vars.content | b64decode | from_yaml }}"
 
-- name: Set inventory_group_members as comma-separated string
+- name: Set inventory group members
   ansible.builtin.set_fact:
-    inventory_group_members: "{{ group_parsed_yaml[0].members.ids }}"
+    inventory_group_members: >-
+      {{ group_parsed_yaml[0].members.ids | default([], true) }}
 
 - name: Set changed if contents do not match - {{ functional_group_name }}
   ansible.builtin.set_fact:
     smd_group_changed: true
-  when: smd_group_members | symmetric_difference(inventory_group_members) | length  > 0
+  when: >-
+    (smd_group_members | default([], true))
+    | symmetric_difference(inventory_group_members | default([], true))
+    | length > 0
 
 - name: DELETE group - {{ functional_group_name }}
   ansible.builtin.command: /usr/bin/ochami smd group delete --no-confirm {{ functional_group_name }}

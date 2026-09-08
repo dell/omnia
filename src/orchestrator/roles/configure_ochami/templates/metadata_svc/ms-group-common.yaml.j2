@@ -5,7 +5,6 @@
   file:
     encoding: plain
     content: |
-      ## template: jinja
       #cloud-config
       merge_how:
         - name: list
@@ -14,6 +13,10 @@
           settings: [no_replace, recurse_list]
  
       ssh_pwauth: true
+
+      # OpenCHAMI boots a live overlay root filesystem. Do not ask cloud-init
+      # to resize a block-device-backed root partition that does not exist.
+      resize_rootfs: false
 
       chpasswd:
         expire: false
@@ -65,26 +68,3 @@
         - "systemctl restart chronyd"
         - "chronyc sources"
         - "chronyc -a makestep"
-
-- name: phone_home
-  description: "Phone-home callback when cloud-init completes successfully"
-  file:
-    encoding: plain
-    content: |
-      ## template: jinja
-      #cloud-config
-      merge_how:
-      - name: list
-        settings: [append]
-      - name: dict
-        settings: [no_replace, recurse_list]
-      phone_home:
-        url: "http://{{ hostvars['localhost']['admin_nic_ip'] }}:8081/metadata-service/phone-home/{% raw %}{{"{{"}} v1.instance_id {{"}}"}}{% endraw %}/"
-        post:
-          - pub_key_rsa
-          - pub_key_ecdsa
-          - pub_key_ed25519
-          - instance_id
-          - hostname
-          - fqdn
-        tries: 5

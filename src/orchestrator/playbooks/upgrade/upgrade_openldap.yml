@@ -13,18 +13,18 @@
 # limitations under the License.
 ---
 
-# Upgrade OpenLDAP --- Upgrade auth container from Fedora-based to Wolfi-based
+# Upgrade OpenLDAP --- Upgrade auth container from Wolfi-based 1.1 to 1.2
 # Can be run standalone or imported by orchestrator.yml
 #
 # Logic:
 #   1. Detect active container image
-#   2. If Fedora-based image (tag 1.0) is running:
+#   2. If Wolfi-based image (tag 1.1) is running:
 #      a. Stop container
-#      b. Pull Wolfi-based image (tag 1.1)
+#      b. Pull Wolfi-based image (tag 1.2)
 #      c. Start Wolfi container
 #      d. Reapply configuration
 #      e. Validate functionality
-#   3. If already running Wolfi image (tag 1.1): exit successfully
+#   3. If already running Wolfi image (tag 1.2): exit successfully
 #   4. If not deployed: skip upgrade
 #
 # Idempotent and re-runnable.
@@ -36,8 +36,8 @@
   vars:
     auth_container_name: omnia_auth
     auth_image: "docker.io/dellhpcomniaaisolution/omnia_auth"
-    auth_target_tag: "1.1"
-    auth_previous_tag: "1.0"
+    auth_target_tag: "1.2"
+    auth_previous_tag: "1.1"
   tasks:
     - name: Check if OpenLDAP container exists
       containers.podman.podman_container_info:

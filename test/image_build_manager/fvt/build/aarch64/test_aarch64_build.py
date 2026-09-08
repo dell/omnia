@@ -15,211 +15,193 @@
 """
 Image Build Build — AArch64-specific Verification.
 
-Verifies aarch64 build infrastructure: SSH connectivity, node preparation,
-work directory creation, builder image pull, and regctl installation.
-These tests run on the OIM (localhost) and validate the state of the
-remote aarch64 node after build_image_aarch64.yml completes.
+Verifies passwordless SSH, node architecture and kernel, work directories,
+Podman and the builder image, and the regctl installation on the optional
+AArch64 build node.
 """
 
 import pytest
 
 from library.functions import (
     TestLogger,
-    load_test_config,
+    check_aarch64_architecture,
+    check_aarch64_builder_image,
+    check_aarch64_regctl_installed,
+    check_aarch64_ssh_connectivity,
+    check_aarch64_work_dirs,
+)
+from library.messages import (
+    TEST_ASSERT_MSGS as ASSERT,
+    TEST_LOG_MSGS as LOG,
 )
 from library.vars import TEST_CASES as TC
-from library.vars.common_vars import CMDS, ENV_OMNIA_DATA_PATH
 
 
-# =============================================================================
-# HELPERS
-# =============================================================================
+def _skip_optional_aarch64(result, test_logger):
+    """Skip an AArch64 check when no optional build node is configured."""
+    if result.get("skipped"):
+        message = LOG["aarch64_not_configured"]
+        test_logger.skipped(message)
+        pytest.skip(message)
 
-def _get_data_path(host) -> str:
-    """Read OMNIA_DATA_PATH from the target host environment."""
-    result = host.check_output(f"echo ${ENV_OMNIA_DATA_PATH}").strip()
-    assert result, (
-        f"${ENV_OMNIA_DATA_PATH} is not set on the target host. "
-        "Run omnia.sh --setup-venv first."
-    )
-    return result
-
-
-def _get_aarch64_ip(host):
-    """Read aarch64_inventory_host_ip from image_build_config.yml on target."""
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    data_path = _get_data_path(host)
-    cfg_path = (
-        f"{data_path}/image_build_manager/input/{project}"
-        f"/image_build_config.yml"
-    )
-    result = host.run(CMDS["cat_file"].format(path=cfg_path))
-    if result.rc != 0:
-        return ""
-    for line in result.stdout.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("aarch64_inventory_host_ip:"):
-            val = stripped.split(":", 1)[1].strip().strip('"').strip("'")
-            return val
-    return ""
-
-
-def _skip_if_no_aarch64(host):
-    """Skip test if aarch64 is not configured."""
-    ip = _get_aarch64_ip(host)
-    if not ip:
-        pytest.skip("aarch64_inventory_host_ip not configured — skipping")
-    return ip
-
-
-# =============================================================================
-# TESTS
-# =============================================================================
 
 @pytest.mark.aarch64
 @pytest.mark.sanity
 @pytest.mark.order(10)
 def test_aarch64_ssh_connectivity(host):
-    """Verify passwordless SSH from OIM to aarch64 node works."""
+    """Verify passwordless SSH from the OIM to the AArch64 node."""
     tc = TC["aarch64_ssh_connectivity"]
     tl = TestLogger(tc["title"], tc["id"])
-    ip = _skip_if_no_aarch64(host)
+    result = check_aarch64_ssh_connectivity(host)
+    _skip_optional_aarch64(result, tl)
 
-    result = host.run(
-        f"ssh -o BatchMode=yes -o ConnectTimeout=10 "
-        f"-o StrictHostKeyChecking=no root@{ip} 'echo OK'"
-    )
-
-    if result.rc == 0 and "OK" in result.stdout:
-        tl.passed(f"Passwordless SSH to {ip} works")
+    if result["success"]:
+        tl.passed_fields(
+            LOG["aarch64_ssh_ok"].format(host=result["host"]),
+            {
+                "Source OIM": result["source"],
+                "Destination": result["destination"],
+                "Authentication": result["authentication"],
+            },
+        )
     else:
         tl.failed(
-            f"SSH to {ip} failed (rc={result.rc})",
-            result.stderr,
+            LOG["aarch64_ssh_failed"].format(host=result["host"]),
+            result["error"],
         )
 
-    assert result.rc == 0 and "OK" in result.stdout, (
-        f"Passwordless SSH to aarch64 node {ip} failed. "
-        f"rc={result.rc}, stderr={result.stderr}"
-    )
-
-
-@pytest.mark.aarch64
-@pytest.mark.sanity
-@pytest.mark.order(11)
-def test_aarch64_work_dirs(host):
-    """Verify aarch64 work directories exist on the remote node."""
-    tc = TC["aarch64_work_dirs"]
-    tl = TestLogger(tc["title"], tc["id"])
-    ip = _skip_if_no_aarch64(host)
-
-    # Work dirs on the aarch64 node use a fixed path — the remote node
-    # does not run omnia.sh and has no OMNIA_DATA_PATH env var.
-    work_dir = "/opt/omnia/image_build_manager"
-    dirs = [
-        work_dir,
-        f"{work_dir}/openchami/aarch64",
-        f"{work_dir}/workdir",
-        f"{work_dir}/log",
-    ]
-
-    missing = []
-    for d in dirs:
-        result = host.run(
-            f"ssh -o BatchMode=yes -o ConnectTimeout=10 "
-            f"-o StrictHostKeyChecking=no root@{ip} "
-            f"'test -d {d} && echo exists'"
-        )
-        if "exists" not in result.stdout:
-            missing.append(d)
-
-    if not missing:
-        tl.passed(f"All {len(dirs)} work directories exist on {ip}")
-    else:
-        tl.failed(f"{len(missing)} work directories missing on {ip}")
-
-    assert not missing, (
-        f"Missing aarch64 work directories on {ip}: {missing}"
+    assert result["success"], ASSERT["aarch64_ssh_failed"].format(
+        host=result["host"], error=result["error"],
     )
 
 
 @pytest.mark.aarch64
 @pytest.mark.functional
-@pytest.mark.order(12)
-def test_aarch64_builder_image(host):
-    """Verify builder container image exists on aarch64 node."""
-    tc = TC["aarch64_builder_image"]
+@pytest.mark.order(11)
+def test_aarch64_architecture(host):
+    """Verify the node architecture and report its kernel information."""
+    tc = TC["aarch64_architecture"]
     tl = TestLogger(tc["title"], tc["id"])
-    ip = _skip_if_no_aarch64(host)
+    result = check_aarch64_architecture(host)
+    _skip_optional_aarch64(result, tl)
 
-    result = host.run(
-        f"ssh -o BatchMode=yes -o ConnectTimeout=10 "
-        f"-o StrictHostKeyChecking=no root@{ip} "
-        f"'podman images --format \"{{{{.Repository}}}}:{{{{.Tag}}}}\" "
-        f"| grep -E \"aarch64-image-(builder|thrillhouse)\"'"
-    )
-
-    if result.rc == 0 and result.stdout.strip():
-        images = result.stdout.strip().splitlines()
-        tl.passed(
-            f"Builder image found on {ip}: {images[0]}"
+    if result["success"]:
+        tl.passed_fields(
+            LOG["aarch64_architecture_ok"].format(host=result["host"]),
+            {
+                "AArch64 node": result["host"],
+                "Architecture": result["architecture"],
+                "Kernel": result["kernel"],
+            },
         )
     else:
-        tl.failed(f"No aarch64 builder image on {ip}")
+        tl.failed(
+            LOG["aarch64_architecture_failed"].format(
+                host=result["host"],
+            ),
+            result["error"],
+        )
 
-    assert result.rc == 0 and result.stdout.strip(), (
-        f"aarch64 builder image not found on {ip}. "
-        f"Ensure prepare_aarch64_node pulled the image successfully."
+    assert result["success"], ASSERT["aarch64_architecture_failed"].format(
+        host=result["host"], error=result["error"],
+    )
+
+
+@pytest.mark.aarch64
+@pytest.mark.sanity
+@pytest.mark.order(12)
+def test_aarch64_work_dirs(host):
+    """Verify and list the work directories on the AArch64 node."""
+    tc = TC["aarch64_work_dirs"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = check_aarch64_work_dirs(host)
+    _skip_optional_aarch64(result, tl)
+
+    if result["success"]:
+        fields = [("AArch64 node", result["host"])]
+        fields.extend(
+            (f"Directory {index}", directory)
+            for index, directory in enumerate(result["directories"], 1)
+        )
+        tl.passed_fields(
+            LOG["aarch64_work_dirs_ok"].format(
+                count=len(result["directories"]), host=result["host"],
+            ),
+            fields,
+        )
+    else:
+        tl.failed(
+            LOG["aarch64_work_dirs_failed"].format(
+                count=len(result["missing"]), host=result["host"],
+            ),
+            result["error"],
+        )
+
+    assert result["success"], ASSERT["aarch64_work_dirs_failed"].format(
+        host=result["host"], error=result["error"],
     )
 
 
 @pytest.mark.aarch64
 @pytest.mark.functional
 @pytest.mark.order(13)
-def test_aarch64_regctl_installed(host):
-    """Verify regctl binary is installed and functional on aarch64 node."""
-    tc = TC["aarch64_regctl_installed"]
+def test_aarch64_builder_image(host):
+    """Verify Podman and list builder images on the AArch64 node."""
+    tc = TC["aarch64_builder_image"]
     tl = TestLogger(tc["title"], tc["id"])
-    ip = _skip_if_no_aarch64(host)
+    result = check_aarch64_builder_image(host)
+    _skip_optional_aarch64(result, tl)
 
-    result = host.run(
-        f"ssh -o BatchMode=yes -o ConnectTimeout=10 "
-        f"-o StrictHostKeyChecking=no root@{ip} "
-        f"'/usr/local/bin/regctl version'"
-    )
-
-    if result.rc == 0 and result.stdout.strip():
-        tl.passed(f"regctl on {ip}: {result.stdout.strip()}")
+    if result["success"]:
+        fields = [
+            ("AArch64 node", result["host"]),
+            ("Podman", result["podman_version"]),
+        ]
+        fields.extend(
+            ("Builder image", image) for image in result["images"]
+        )
+        tl.passed_fields(
+            LOG["aarch64_builder_image_ok"].format(host=result["host"]),
+            fields,
+        )
     else:
-        tl.failed(f"regctl not functional on {ip}")
+        tl.failed(
+            LOG["aarch64_builder_image_failed"].format(
+                host=result["host"],
+            ),
+            result["error"],
+        )
 
-    assert result.rc == 0, (
-        f"regctl not installed or not functional on aarch64 node {ip}. "
-        f"rc={result.rc}, stderr={result.stderr}"
+    assert result["success"], ASSERT["aarch64_builder_image_failed"].format(
+        host=result["host"], error=result["error"],
     )
 
 
 @pytest.mark.aarch64
 @pytest.mark.functional
 @pytest.mark.order(14)
-def test_aarch64_architecture(host):
-    """Verify the aarch64 node is actually running ARM architecture."""
-    tc = TC["aarch64_architecture"]
+def test_aarch64_regctl_installed(host):
+    """Verify regctl and report its version and source revision."""
+    tc = TC["aarch64_regctl_installed"]
     tl = TestLogger(tc["title"], tc["id"])
-    ip = _skip_if_no_aarch64(host)
+    result = check_aarch64_regctl_installed(host)
+    _skip_optional_aarch64(result, tl)
 
-    result = host.run(
-        f"ssh -o BatchMode=yes -o ConnectTimeout=10 "
-        f"-o StrictHostKeyChecking=no root@{ip} 'uname -m'"
-    )
-
-    arch = result.stdout.strip()
-    if result.rc == 0 and arch == "aarch64":
-        tl.passed(f"Node {ip} architecture: {arch}")
+    if result["success"]:
+        tl.passed_fields(
+            LOG["aarch64_regctl_ok"].format(host=result["host"]),
+            {
+                "AArch64 node": result["host"],
+                "Version": result["version"],
+                "Revision": result["revision"],
+            },
+        )
     else:
-        tl.failed(f"Node {ip} architecture: {arch} (expected aarch64)")
+        tl.failed(
+            LOG["aarch64_regctl_failed"].format(host=result["host"]),
+            result["error"],
+        )
 
-    assert result.rc == 0 and arch == "aarch64", (
-        f"aarch64 node {ip} reports architecture '{arch}', expected 'aarch64'"
+    assert result["success"], ASSERT["aarch64_regctl_failed"].format(
+        host=result["host"], error=result["error"],
     )

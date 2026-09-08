@@ -4,11 +4,11 @@
 ---
 all:
   children:
-{% if kube_vip %}
+{% if inventory_kube_vip %}
     kube_vip_group:
       hosts:
         kube-vip:
-          ansible_host: {{ kube_vip }}
+          ansible_host: {{ inventory_kube_vip }}
           ansible_user: root
 {% endif %}
 {% for group_name in mapping_nodes_var | map(attribute='value.FUNCTIONAL_GROUP_NAME') | unique | sort %}

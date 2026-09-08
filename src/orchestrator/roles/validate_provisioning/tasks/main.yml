@@ -36,13 +36,23 @@
       Authorization: "Bearer {{ openchami_access_token }}"
   register: smd_components
 
-- name: Build expected node list from functional groups
+# Build expected nodes from the PXE mapping file's XNAME column (not group
+# names).  The previous code used fg_config 'group' attribute which contains
+# GROUP_NAMEs (grp1, grp2) — comparing those against SMD xnames always
+# produced mismatches.
+- name: Build expected node list from mapping file xnames
   ansible.builtin.set_fact:
-    expected_nodes: "{{ fg_config.functional_groups | map(attribute='group') | flatten | unique | list }}"
+    expected_nodes: >-
+      {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
+         | map(attribute='value.XNAME') | unique | list }}
 
 - name: Build registered node list from SMD
   ansible.builtin.set_fact:
-    registered_xnames: "{{ smd_components.json.Components | map(attribute='ID') | list }}"
+    registered_xnames: >-
+      {{ smd_components.json.Components
+         | selectattr('Type', 'defined')
+         | selectattr('Type', 'equalto', 'Node')
+         | map(attribute='ID') | list }}
 
 - name: Identify nodes not registered in SMD
   ansible.builtin.set_fact:
@@ -88,6 +98,13 @@
     msg: "WARNING: {{ fg_missing_bss | length }} functional groups have no BSS boot configuration: {{ fg_missing_bss }}"
   when: fg_missing_bss | length > 0
 
+- name: Fail when functional groups are missing BSS boot parameters
+  ansible.builtin.fail:
+    msg: >-
+      Provisioning is incomplete: {{ fg_missing_bss | length }} functional
+      group(s) have no Boot Service configuration: {{ fg_missing_bss }}
+  when: fg_missing_bss | length > 0
+
 # --- Metadata-service (cloud-init) data verification ---
 - name: Query metadata-service for all group configurations
   ansible.builtin.uri:
@@ -122,7 +139,29 @@
     headers:
       Authorization: "Bearer {{ openchami_access_token }}"
   register: smd_ethernet
-  failed_when: false
+
+- name: Build expected and registered administrative MAC address lists
+  ansible.builtin.set_fact:
+    expected_admin_macs: >-
+      {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
+         | map(attribute='value.ADMIN_MAC') | map('lower') | unique | list }}
+    registered_interface_macs: >-
+      {{ smd_ethernet.json | default([])
+         | selectattr('MACAddress', 'defined')
+         | map(attribute='MACAddress') | map('lower') | unique | list }}
+
+- name: Identify administrative interfaces missing from SMD
+  ansible.builtin.set_fact:
+    missing_smd_interfaces: "{{ expected_admin_macs | difference(registered_interface_macs) }}"
+
+- name: Fail when expected administrative interfaces are missing from SMD
+  ansible.builtin.fail:
+    msg: >-
+      Provisioning is incomplete: {{ missing_smd_interfaces | length }}
+      administrative MAC address(es) are missing from SMD EthernetInterfaces:
+      {{ missing_smd_interfaces }}. CoreDHCP cannot assign their configured
+      node IP addresses.
+  when: missing_smd_interfaces | length > 0
 
 - name: Build list of nodes with hostname assignments
   ansible.builtin.set_fact:
@@ -149,15 +188,25 @@
 - name: Generate provisioning summary
   ansible.builtin.set_fact:
     provisioning_summary:
+      schema_version: "1.0"
+      phase: provisioning
+      run_id: "{{ ansible_date_time.epoch }}"
+      overall_status: "{{ 'success' if missing_nodes | length == 0 else 'failed' }}"
       total_expected_nodes: "{{ expected_nodes | length }}"
       total_registered_nodes: "{{ registered_xnames | length }}"
+      success_count: "{{ (expected_nodes | length) - (missing_nodes | length) }}"
+      failure_count: "{{ missing_nodes | length }}"
       missing_nodes: "{{ missing_nodes }}"
       functional_groups_count: "{{ fg_config.functional_groups | length }}"
       fg_with_boot_config: "{{ bss_configured_groups | intersect(expected_fg_names) | length }}"
       fg_missing_boot_config: "{{ fg_missing_bss }}"
       fg_with_metadata: "{{ ms_configured_groups | intersect(expected_fg_names) | length }}"
       fg_missing_metadata: "{{ fg_missing_metadata }}"
+      expected_admin_interfaces: "{{ expected_admin_macs | length }}"
+      registered_admin_interfaces: "{{ expected_admin_macs | intersect(registered_interface_macs) | length }}"
+      missing_admin_interfaces: "{{ missing_smd_interfaces }}"
       nodes_missing_hostnames: "{{ nodes_missing_hostnames | default([]) }}"
+      inventory_source: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
       timestamp: "{{ ansible_date_time.iso8601 }}"
 
 - name: Display provisioning summary
@@ -172,18 +221,48 @@
     mode: "0644"
   when: ansible_run_tags | default([]) | intersect(['provision']) | length > 0 or ansible_run_tags | length == 0
 
-# Write orchestrator_status.yml — the canonical status contract consumed by
-# external tools. During the provisioning-only path (no PXE boot) the node
-# status is derived from SMD registration.  When PXE boot is enabled the
-# set_pxe_boot.yml playbook overwrites this file with phone-home results.
+- name: Initialize per-node provisioning status
+  ansible.builtin.set_fact:
+    provisioning_nodes_status: []
+
+# Initialize the canonical status contract from SMD registration. A subsequent
+# PXE run retains this phase and adds its own phase-specific result.
 - name: Compute per-node provisioning status from SMD
   ansible.builtin.set_fact:
     provisioning_nodes_status: >-
       {{ provisioning_nodes_status | default([]) +
          [{'xname': item,
-           'status': ('success' if item in registered_xnames else 'failed'),
-           'failure_reason': ('' if item in registered_xnames else 'not registered in SMD')}] }}
+           'admin_ip': _mapping_entry.ADMIN_IP | default(''),
+           'bmc_ip': _mapping_entry.BMC_IP | default(''),
+           'hostname': _mapping_entry.HOSTNAME | default(''),
+           'service_tag': _mapping_entry.SERVICE_TAG | default(''),
+           'status': _node_status,
+           'failure_reason': _failure_reason,
+           'failure_stage': ('provisioning' if _node_status == 'failed' else ''),
+           'verification_state': 'not_requested',
+           'verification_method': 'not_started',
+           'detail': _failure_reason,
+           'cloud_init': {},
+           'provisioning': {
+             'status': _node_status,
+             'failure_reason': _failure_reason
+           },
+           'pxeboot': {
+             'status': 'not_run',
+             'failure_stage': '',
+             'verification_state': 'not_requested',
+             'verification_method': 'not_started',
+             'detail': '',
+             'cloud_init': {}
+           }}] }}
   loop: "{{ expected_nodes }}"
+  vars:
+    _mapping_entry: >-
+      {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
+         | selectattr('value.XNAME', 'equalto', item)
+         | map(attribute='value') | first | default({}) }}
+    _node_status: "{{ 'success' if item in registered_xnames else 'failed' }}"
+    _failure_reason: "{{ '' if _node_status == 'success' else 'not registered in SMD' }}"
 
 # Write orchestrator_status.yml only when called from provision flow (not standalone validate)
 - name: Write orchestrator_status.yml (provisioning path)
@@ -193,10 +272,37 @@
     mode: "0644"
   vars:
     orchestrator_status:
+      schema_version: "1.0"
+      run_id: "{{ ansible_date_time.epoch }}"
       overall_status: "{{ 'success' if missing_nodes | length == 0 else 'failed' }}"
+      last_completed_phase: provisioning
       timestamp: "{{ ansible_date_time.iso8601 }}"
       total_nodes: "{{ expected_nodes | length }}"
       success_count: "{{ registered_xnames | intersect(expected_nodes) | length }}"
       failure_count: "{{ missing_nodes | length }}"
+      verification_enabled: false
+      unverified_count: 0
+      custom_inventory: false
+      inventory_source: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
       nodes: "{{ provisioning_nodes_status | default([]) }}"
+      phases:
+        provisioning:
+          status: "{{ 'success' if missing_nodes | length == 0 else 'failed' }}"
+          total_nodes: "{{ expected_nodes | length }}"
+          success_count: "{{ registered_xnames | intersect(expected_nodes) | length }}"
+          failure_count: "{{ missing_nodes | length }}"
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          report: provisioning_report.yml
+        pxeboot:
+          status: not_run
+          total_nodes: 0
+          success_count: 0
+          failure_count: 0
+          unverified_count: 0
+          timestamp: ""
+          report: pxeboot_status.yml
+      artifacts:
+        provisioning_report: provisioning_report.yml
+        pxeboot_status: pxeboot_status.yml
+        failed_nodes: failed_nodes.json
   when: ansible_run_tags | default([]) | intersect(['provision']) | length > 0 or ansible_run_tags | length == 0

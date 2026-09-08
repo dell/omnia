@@ -20,7 +20,7 @@
 # Usage (run ONE tag at a time — no comma-separated tags):
 #   cd src/orchestrator
 #   ansible-playbook playbooks/orchestrator.yml                        # Default: precheck + prepare + execute
-#   ansible-playbook playbooks/orchestrator.yml --tags precheck        # Validate inputs + prerequisites (read-only)
+#   ansible-playbook playbooks/orchestrator.yml --tags precheck        # Generate FGs, then validate inputs + prerequisites
 #   ansible-playbook playbooks/orchestrator.yml --tags validate        # Validate input files only (schema + logic)
 #   ansible-playbook playbooks/orchestrator.yml --tags credentials     # Prompt for credentials (standalone, idempotent)
 #   ansible-playbook playbooks/orchestrator.yml --tags prepare         # Credentials + deploy + validate-deployment
@@ -29,13 +29,15 @@
 #   ansible-playbook playbooks/orchestrator.yml --tags execute         # Provision + PXE boot (if enabled)
 #   ansible-playbook playbooks/orchestrator.yml --tags validate-deployment # Validate OpenCHAMI + OpenLDAP service health
 #   ansible-playbook playbooks/orchestrator.yml --tags pxeboot         # PXE boot on iDRAC nodes (requires enable_pxe_boot: true)
-#   ansible-playbook playbooks/orchestrator.yml --tags cleanup         # Remove OpenCHAMI + OpenLDAP services + artifacts
+#   ansible-playbook playbooks/orchestrator.yml --tags cleanup         # Cleanup all components (preserve credentials)
+#   ansible-playbook playbooks/orchestrator.yml --tags cleanup_credentials # Cleanup credentials only
+#   ansible-playbook playbooks/orchestrator.yml --tags cleanup,cleanup_credentials # Cleanup all components + credentials
 #   ansible-playbook playbooks/orchestrator.yml --tags upgrade         # In-place upgrade OpenCHAMI + OpenLDAP
-#   ansible-playbook playbooks/orchestrator.yml --tags rollback        # Reserved for future use (not supported in this release)
+#   ansible-playbook playbooks/orchestrator.yml --tags rollback        # Revert OpenCHAMI + OpenLDAP to previous state
 #
 # Tags (mutually exclusive — pick ONE):
 #   (none)       — Default flow: precheck + prepare + execute
-#   precheck     — Validate inputs, parameters, boot images (read-only, no system changes)
+#   precheck     — Generate functional groups, then validate inputs, parameters, and boot images
 #   validate     — Validate input files only (schema + logic, no health checks)
 #   credentials  — Prompt for credentials (standalone, idempotent)
 #   prepare      — Invoke credentials + deploy + validate-deployment tags
@@ -44,14 +46,19 @@
 #   execute      — Invoke provision + pxeboot tags (PXE boot conditional on enable_pxe_boot)
 #   validate-deployment — Validate OpenCHAMI and OpenLDAP service health (read-only)
 #   pxeboot      — PXE boot on iDRAC nodes (controlled by enable_pxe_boot in orchestrator_config.yml)
-#   cleanup      — Remove OpenCHAMI + OpenLDAP services, containers, artifacts (opt-in only)
+#   cleanup      — Cleanup all enabled orchestrator components (opt-in only, preserves credentials)
+#   cleanup_credentials — Cleanup orchestrator credential files (opt-in only)
 #   upgrade      — In-place upgrade of OpenCHAMI + OpenLDAP (opt-in only)
-#   rollback     — Reserved for future use (upgrade from v0.1.7-1 to v0.2.0 is one-way)
+#   rollback     — Revert OpenCHAMI + OpenLDAP to previous state from backup (opt-in only)
+#
+# Component-level cleanup (slurm, k8s, openchami, openldap, storage_mounts,
+# artifacts) is NOT available from this playbook. Run it directly instead:
+#   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags slurm
 #
 # Tag Validation:
 #   - Invalid tags will fail with error message
-#   - Invalid combinations (e.g., prepare + cleanup) will fail
-#   - cleanup, validate, and validate-deployment tags skip credential prompting
+#   - Invalid combinations (e.g., prepare + upgrade) will fail
+#   - cleanup, validate and validate-deployment tags skip credential prompting
 #
 # PXE Boot (physical servers only):
 #   - Controlled by enable_pxe_boot in orchestrator_config.yml (default: true)
@@ -92,12 +99,12 @@
 #   execute   -> provision_preamble.yml + provision_*.yml
 #               + validate_provisioning.yml
 #               + pxeboot/pxeboot.yml (when enable_pxe_boot: true)
-#   cleanup   -> cleanup_openchami.yml   + cleanup_openldap.yml
+#   cleanup   -> cleanup/cleanup_full.yml (all components; credentials opt-in)
 #   upgrade   -> upgrade_openchami.yml   + upgrade_openldap.yml
-#   rollback  -> rollback_openchami.yml  + rollback_openldap.yml  (reserved — not supported)
+#   rollback  -> rollback_openchami.yml  + rollback_openldap.yml
 #
-# Inputs:  /opt/omnia/orchestrator/input/project_default/
-# Outputs: /opt/omnia/orchestrator/output/project_default/
+# Inputs:  $OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/
+# Outputs: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/
 
 # =========================================================================
 # SHARED: Setup orchestrator environment (always runs for any tag)
@@ -113,20 +120,23 @@
     - role: orchestrator_setup
       vars:
         openchami_vars_support: true
-        omnia_metadata_support: true
         oim_group: true
 
-# Shared — generate functional groups from pxe_mapping_file.csv
+# Generate functional groups for lifecycle flows that consume them
 - name: Generate functional groups configuration
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: always
   roles:
     - orchestrator_functional_groups
+  tags:
+    - precheck
+    - prepare
+    - provision
+    - execute
 
 # =========================================================================
-# FLOW: precheck — Validate inputs and prerequisites (read-only)
+# FLOW: precheck — Generate functional groups, then validate prerequisites
 # =========================================================================
 
 # Steps 1–4: Validate input, parameters, timezone, boot images, config vars
@@ -150,7 +160,7 @@
   connection: local
   gather_facts: false
   roles:
-    - validate_input
+    - validate_orchestrator_input
   tags:
     - validate
 
@@ -186,6 +196,13 @@
     - prepare
     - deploy
 
+# Standalone validation needs the persisted cluster and S3 facts before the
+# readiness playbooks run. This play is selected only by validate-deployment.
+- name: Validate preamble (standalone prerequisites)
+  ansible.builtin.import_playbook: validate/validate_preamble.yml
+  tags:
+    - validate-deployment
+
 # Validate deployment health (prepare + deploy + validate-deployment tags)
 - name: Validate OpenCHAMI readiness
   ansible.builtin.import_playbook: validate/validate_openchami.yml
@@ -199,17 +216,6 @@
   tags:
     - prepare
     - deploy
-    - validate-deployment
-
-# =========================================================================
-# FLOW: validate-deployment — Standalone health check (read-only)
-# Loads cluster config from OIM, authenticates, then runs all validations.
-# =========================================================================
-
-# Validate preamble: load cluster config + auth for standalone --tags validate-deployment
-- name: Validate preamble (standalone prerequisites)
-  ansible.builtin.import_playbook: validate/validate_preamble.yml
-  tags:
     - validate-deployment
 
 # =========================================================================
@@ -262,22 +268,17 @@
     - pxeboot
 
 # =========================================================================
-# FLOW: cleanup — Remove OpenCHAMI + OpenLDAP services, containers, artifacts
+# FLOW: cleanup — Remove all orchestrator components (opt-in only)
+# Component-level cleanup (slurm, k8s, openchami, ...) is not exposed here;
+# run playbooks/cleanup/cleanup_orchestrator.yml directly for that.
 # =========================================================================
 
-# Cleanup OpenCHAMI services, containers, config, artifacts, credentials
-- name: Cleanup OpenCHAMI
-  ansible.builtin.import_playbook: cleanup/cleanup_openchami.yml
+- name: Cleanup orchestrator components
+  ansible.builtin.import_playbook: cleanup/cleanup_full.yml
   tags:
     - never
     - cleanup
-
-# Cleanup OpenLDAP container, Quadlet unit, data
-- name: Cleanup OpenLDAP
-  ansible.builtin.import_playbook: cleanup/cleanup_openldap.yml
-  tags:
-    - never
-    - cleanup
+    - cleanup_credentials
 
 # =========================================================================
 # FLOW: upgrade — In-place upgrade of OpenCHAMI + OpenLDAP
@@ -300,19 +301,19 @@
     - upgrade
 
 # =========================================================================
-# FLOW: rollback — Reserved for future use
-# The OpenCHAMI v0.1.7-1 to v0.2.0 upgrade is a one-way migration.
-# Rollback is not supported in this release.
+# FLOW: rollback — Revert OpenCHAMI + OpenLDAP to previous state
+# OpenCHAMI: 0.2.0 -> 0.1.7-1 (restore from backup)
+# OpenLDAP:  Wolfi-based -> Fedora-based container image
 # =========================================================================
 
-# Rollback OpenCHAMI (not supported — fails with informational message)
+# Rollback OpenCHAMI (version detection, backup restore, restart, verify)
 - name: Rollback OpenCHAMI
   ansible.builtin.import_playbook: rollback/rollback_openchami.yml
   tags:
     - never
     - rollback
 
-# Rollback OpenLDAP (not supported — fails with informational message)
+# Rollback OpenLDAP (Wolfi -> Fedora container rollback)
 - name: Rollback OpenLDAP
   ansible.builtin.import_playbook: rollback/rollback_openldap.yml
   tags:

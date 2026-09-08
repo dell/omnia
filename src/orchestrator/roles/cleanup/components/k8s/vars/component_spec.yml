@@ -20,6 +20,7 @@ k8s_config:
   # NFS cleanup configuration
   nfs_cleanup: true
   unmount_mounts: true
+  cleanup_nfs_server: true
   cleanup_node_ips: false
 
   # Default cleanup directories (relative to mount points)

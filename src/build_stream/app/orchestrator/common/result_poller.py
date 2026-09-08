@@ -58,7 +58,7 @@ from core.localrepo.services import PlaybookQueueResultService
 # ``images.image_name``. The CleanUp API reads this column verbatim
 # and passes it directly to ``s3cmd del --recursive --force``.
 DEFAULT_S3_BUCKET_URI = "s3://boot-images"
-DEFAULT_NFS_ARTIFACT_BASE = "/opt/omnia/build_stream_root"
+DEFAULT_NFS_ARTIFACT_BASE = os.path.join(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream_root")
 
 
 def _discover_s3_image_paths(
@@ -987,14 +987,14 @@ class ResultPoller:
             "test_summary": result.test_summary or {"total": 0, "passed": 0, "failed": 0, "skipped": 0, "errors": 0},
             "duration_seconds": result.duration_seconds,
             "artifact_dir": artifact_dir,
-            "log_path": str(Path(artifact_dir) / "molecule_output.log") if artifact_dir else "",
+            "log_path": str(Path(artifact_dir) / "validate_output.log") if artifact_dir else "",
             "report_path": str(Path(artifact_dir) / "test_report.json") if artifact_dir else "",
             "correlation_id": str(result.request_id),
         }
         if outcome == "FAILED":
             detail["error_message"] = (
                 result.error_summary
-                or f"Molecule exited with code {result.exit_code}"
+                or f"Test validation exited with code {result.exit_code}"
             )
         return detail
 

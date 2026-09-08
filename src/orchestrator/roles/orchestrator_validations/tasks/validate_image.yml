@@ -62,6 +62,29 @@
         file: "{{ _build_status_path }}"
         name: _build_status_data
 
+- name: Validate build status for boot image access
+  ansible.builtin.assert:
+    that:
+      - _build_status_data.overall_status | default('') == 'success'
+      - >-
+        _build_status_data.image_build_type | default('') in
+        ['image-builder', 'image-thrillhouse']
+      - _build_status_data.s3_configurations is defined
+      - >-
+        _build_status_data.s3_configurations.endpoint_url
+        | default('') | length > 0
+    fail_msg: >-
+      build_status.yml does not contain a successful, supported image build
+      and a valid S3 endpoint. Run image_build_manager successfully before
+      running Orchestrator.
+    quiet: true
+
+- name: Set boot image endpoint from build status
+  ansible.builtin.set_fact:
+    _orchestrator_validations_boot_image_endpoint: >-
+      {{ _build_status_data.s3_configurations.endpoint_url
+         | regex_replace('/+$', '') }}
+
 - name: Extract FG entries from build_status (nested arch format)
   ansible.builtin.set_fact:
     _all_fg_entries: >-
@@ -99,11 +122,16 @@
     - _all_fg_entries | default([]) | length > 0
     - _fg_image_entry | default({}) | length == 0
 
-- name: Find matching FG entry (_first fallback — strip _first and retry)
+# The "_first" suffix is an orchestrator-internal concept (marks the first
+# control-plane node).  image_build_manager builds a single image for
+# "service_kube_control_plane" — there is no separate "_first" image.
+# Fall back to matching without "_first" so the same image is reused.
+- name: Find matching FG entry (strip _first suffix fallback)
   ansible.builtin.set_fact:
     _fg_image_entry: >-
       {{ _all_fg_entries
-         | selectattr('functional_group', 'search', '^' + (_fg_prefix | regex_replace('_first$', '')) + '_.*' + _fg_arch + '$')
+         | selectattr('functional_group', 'search',
+             '^' + _fg_prefix | regex_replace('_first$', '') + '_.*' + _fg_arch + '$')
          | list | first | default({}) }}
   when:
     - _all_fg_entries | default([]) | length > 0
@@ -132,6 +160,81 @@
         initrd: ""
       when: not _kernel_matches_override | bool
 
+- name: Fail if boot artifact paths are missing from build status
+  ansible.builtin.fail:
+    msg: >-
+      {{ image_missing_fail_msg.splitlines() | join(' ') }}
+      Manifest values: kernel='{{ kernel | default('') }}',
+      initrd='{{ initrd | default('') }}', image='{{ image | default('') }}'.
+  when:
+    - hostvars['localhost']['kernel_version_override'] | default('') | length == 0
+    - kernel | length < 1 or initrd | length < 1 or image | length < 1
+
+- name: Define boot artifacts for endpoint verification
+  ansible.builtin.set_fact:
+    _orchestrator_validations_boot_artifacts:
+      - name: kernel
+        path: "{{ kernel }}"
+      - name: initrd
+        path: "{{ initrd }}"
+      - name: rootfs
+        path: "{{ image }}"
+    _orchestrator_validations_boot_artifact_failures: []
+  when: kernel | length > 0 and initrd | length > 0 and image | length > 0
+
+- name: Verify boot artifacts are accessible from the OIM
+  ansible.builtin.uri:
+    url: >-
+      {{ _orchestrator_validations_boot_image_endpoint }}/{{
+         boot_artifact.path | regex_replace('^/+', '') }}
+    method: HEAD
+    follow_redirects: safe
+    return_content: false
+    timeout: 15
+    validate_certs: false  # NOSONAR - BSS uses rd.noverifyssl for HTTPS S3 boot URLs.
+    status_code: 200
+  loop: "{{ _orchestrator_validations_boot_artifacts }}"
+  loop_control:
+    loop_var: boot_artifact
+    label: "{{ boot_artifact.name }}"
+  register: _orchestrator_validations_boot_artifact_checks
+  failed_when: false
+  when: kernel | length > 0 and initrd | length > 0 and image | length > 0
+
+- name: Collect inaccessible boot artifacts
+  ansible.builtin.set_fact:
+    _orchestrator_validations_boot_artifact_failures: >-
+      {{ _orchestrator_validations_boot_artifact_failures + [{
+           'name': artifact_check.boot_artifact.name,
+           'url': _orchestrator_validations_boot_image_endpoint + '/' +
+                  (artifact_check.boot_artifact.path | regex_replace('^/+', '')),
+           'status': artifact_check.status | default(-1),
+           'message': artifact_check.msg | default('HTTP request failed')
+         }] }}
+  loop: >-
+    {{ _orchestrator_validations_boot_artifact_checks.results | default([]) }}
+  loop_control:
+    loop_var: artifact_check
+    label: "{{ artifact_check.boot_artifact.name }}"
+  when:
+    - kernel | length > 0
+    - initrd | length > 0
+    - image | length > 0
+    - artifact_check.status | default(-1) | int != 200
+
+- name: Fail if boot artifacts are inaccessible
+  ansible.builtin.fail:
+    msg: |-
+      Boot artifacts for '{{ functional_group_name }}' are not accessible from the OIM:
+      {% for failure in _orchestrator_validations_boot_artifact_failures %}
+      - {{ failure.name }}: {{ failure.url }}
+        HTTP status: {{ failure.status }}; error: {{ failure.message }}
+      {% endfor %}
+      Rebuild the functional group or restore the missing S3 objects, then rerun precheck.
+  when: >-
+    _orchestrator_validations_boot_artifact_failures
+    | default([]) | length > 0
+
 - name: Store validated kernel, initrd and image for functional group
   ansible.builtin.set_fact:
     validated_images: >-
@@ -139,7 +242,13 @@
            functional_group_name: {'kernel': kernel, 'initrd': initrd, 'image': image | default('')}
          })
       }}
-  when: kernel | length > 0 and initrd | length > 0
+  when:
+    - kernel | length > 0
+    - initrd | length > 0
+    - image | length > 0
+    - >-
+      _orchestrator_validations_boot_artifact_failures
+      | default([]) | length == 0
 
 - name: Fail if kernel override did not match any image
   ansible.builtin.fail:
@@ -150,8 +259,3 @@
   when:
     - hostvars['localhost']['kernel_version_override'] | default('') | length > 0
     - kernel | length < 1 or initrd | length < 1
-
-- name: Fail if kernel or initrd not found in build_status
-  ansible.builtin.fail:
-    msg: "{{ image_missing_fail_msg.splitlines() | join(' ') }}"
-  when: kernel | length < 1 or initrd | length < 1
