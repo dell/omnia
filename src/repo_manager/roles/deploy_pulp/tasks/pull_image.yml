@@ -52,22 +52,7 @@
   rescue:
     - name: Fail with helpful error message
       ansible.builtin.fail:
-        msg: |
-          Failed to pull Pulp image: {{ pulp_image }}
-
-          Error: {{ pulp_pull_result.stderr | default('Unknown error') }}
-
-          Possible causes:
-          - Network connectivity issues
-          - Docker Hub rate limiting (consider using docker_username/docker_password)
-          - Invalid image name or tag
-          - Registry authentication required
-
-          Troubleshooting:
-          1. Check network connectivity: podman pull {{ pulp_image }}
-          2. If rate limited, configure Docker Hub credentials in repo_manager_config_credentials.yml
-          3. Verify the image exists: https://hub.docker.com/r/pulp/pulp/tags
-
+        msg: "{{ deploy_pulp_fail_with_helpful_error_message_msg }}"
 - name: Verify image is available
   ansible.builtin.command:
     cmd: "podman image exists {{ pulp_image }}"

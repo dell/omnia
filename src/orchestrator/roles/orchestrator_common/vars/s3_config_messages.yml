@@ -1,0 +1,50 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# S3 Configuration Messages
+build_status_missing_required_msg: >-
+  image_build_manager output not found at '{{ _build_status_path }}'.
+  This is required for {{ _s3_run_tags | default(['default flow'], true) | join(', ') }}.
+  Run image_build_manager before orchestrator to generate build_status.yml.
+  Or set image_build_manager_output_path in orchestrator_config.yml.
+
+build_status_missing_optional_msg: >-
+  Skipping S3 configuration - build_status.yml not found and not required
+  for current tags: {{ _s3_run_tags | default(['default flow'], true) | join(', ') }}.
+  S3 configuration will be loaded during execute/provision phases.
+
+build_status_invalid_msg: >-
+  image_build_manager build_status.yml reports overall_status='{{ _build_status.overall_status | default("unknown") }}'.
+  Expected 'success'. Fix image builds before running orchestrator.
+
+s3_config_not_available_msg: >-
+  s3_configurations not available for boot service template generation.
+  Run image_build_manager before orchestrator to generate build_status.yml,
+  or set image_build_manager_output_path in orchestrator_config.yml.
+  Boot service templates require S3 endpoint URL to construct PXE boot HTTP URLs.
+
+# Repository Configuration Messages
+repo_status_missing_provision_msg: >-
+  repo_manager output not found at '{{ repo_manager_output_path }}'.
+  This is required for {{ hostvars['localhost']['omnia_run_tags'] | default(['default flow']) | join(', ') }}.
+  Run repo_manager before orchestrator to generate repo_status.yml.
+  Or set repo_manager_output_path in orchestrator_config.yml.
+  Repository configuration is needed to configure nodes (SLURM, Kubernetes, etc.)
+
+repo_config_not_available_msg: >-
+  Repository configuration (pulp_cert_path, pulp_port, cluster_os_type) not available
+  for node configuration. Run repo_manager before orchestrator to generate repo_status.yml,
+  or set repo_manager_output_path in orchestrator_config.yml.
+  Node configuration requires repository URLs and Pulp certificate.

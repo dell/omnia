@@ -15,15 +15,20 @@
 """
 Omnia Main Setup — Deploy.
 
-TC_SU_001: Deploy omnia.sh --setup-venv --deps-only
+MAIN_FVT_SETUP_E001: Deploy omnia.sh --setup-venv --deps-only
 """
 
 import pytest
 
-from library.functions import TestLogger, load_test_config
-from library.functions.omnia_main_func import run_omnia_cmd
+from library.vars import TEST_CASES as TC
+
+from library.functions import TestLogger
+from library.functions.omnia_main_func import (
+    resolve_runtime_paths,
+    run_omnia_cmd,
+)
+from library.vars import CMDS
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
@@ -33,38 +38,43 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_setup_venv(host):
-    """TC_SU_001: Deploy omnia.sh --setup-venv --deps-only."""
-    config = load_test_config()
-    venv_path = config.get("venv_path", "/opt/omnia/venv")
+    """MAIN_FVT_SETUP_E001: Deploy omnia.sh --setup-venv --deps-only."""
+    venv_path = resolve_runtime_paths(host)["venv_path"]
 
     # Check if venv already exists - skip deploy if it does
-    venv_exists_cmd = f"test -d {venv_path}/bin && echo exists"
+    venv_exists_cmd = CMDS["dir_exists"].format(path=f"{venv_path}/bin")
     venv_check = host.run(venv_exists_cmd)
 
-    tl = TestLogger(
-        TEST_NAMES["deploy_setup_venv"], "TC_SU_001"
-    )
+    tc = TC["deploy_setup_venv"]
+    tl = TestLogger(tc["title"], tc["id"])
 
     if "exists" in venv_check.stdout:
-        tl.passed(LOG["setup_success"].format(
-            duration=0.0
-        ))
+        tl.skipped_fields("Setup execution is not required", {
+            "Virtual environment": venv_path,
+            "Reason": "already exists",
+        })
         pytest.skip(f"Venv already exists at {venv_path} - skipping deploy")
 
     result = run_omnia_cmd(host, "omnia_sh_setup_venv")
+    tl.bind_result(result)
 
     if result["success"]:
-        tl.passed(LOG["setup_success"].format(
+        tl.passed_fields(LOG["setup_success"].format(
             duration=result["duration"]
-        ))
+        ), {
+            "Command": "omnia.sh --setup-venv --deps-only",
+            "Virtual environment": venv_path,
+            "Return code": result["rc"],
+            "Duration": f"{result['duration']:.1f}s",
+        })
     else:
-        tl.failed(
-            LOG["setup_failed"].format(
-                rc=result["rc"],
-                duration=result["duration"],
-            ),
-            result.get("error", "See output above"),
-        )
+        tl.failed_fields(LOG["setup_failed"].format(
+            rc=result["rc"], duration=result["duration"]
+        ), {
+            "Command": "omnia.sh --setup-venv --deps-only",
+            "Return code": result["rc"],
+            "Error": result.get("error", "See command output"),
+        })
 
     assert result["success"], ASSERT["setup_failed"].format(
         rc=result["rc"],

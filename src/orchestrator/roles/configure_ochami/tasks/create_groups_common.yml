@@ -17,19 +17,29 @@
   ansible.builtin.set_fact:
     common_group_name: "{{ item }}"
 
+- name: Resolve functional groups for the shared SMD group
+  ansible.builtin.set_fact:
+    common_group_fg_names: >-
+      {{ registered_fg_names
+         | default(target_fg_names | default([]), true) }}
+
 - name: Load the openchami common group - {{ common_group_name }}
   ansible.builtin.template:
     src: "{{ openchami_groups_common_template }}"
     dest: "{{ nodes_dir }}/groups-common-{{ common_group_name }}.yml"
     mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
   vars:
-    _all_nodes: "{{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}"
-    nodes: >-
-      {{ (_all_nodes
-          | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', registered_fg_names)
-          | list)
-         if (registered_fg_names is defined)
-         else _all_nodes }}
+    # Rebuild common groups with every category registered so far. Replacing a
+    # common group with only target_fg_names would drop nodes from categories
+    # provisioned earlier in the same lifecycle.
+    # Use 'common_group_nodes' to avoid collision with the 'nodes' set_fact
+    # from configure_boot_svc.yml.
+    common_group_nodes: >-
+      {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
+         | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', common_group_fg_names)
+         | list
+         if (common_group_fg_names | length > 0)
+         else hostvars['localhost']['read_mapping_file']['dict'] | dict2items }}
 
 - name: Delete the SMD common group - {{ common_group_name }}
   ansible.builtin.command: /usr/bin/ochami smd group delete --no-confirm {{ common_group_name }}

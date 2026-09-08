@@ -13,13 +13,13 @@
 # limitations under the License.
 
 ---
-- name: Set example catalog paths
+- name: Set catalog paths
   ansible.builtin.set_fact:
-    _gitlab_example_repo_path: "examples/{{ catalog_file_name }}"
-    _gitlab_example_hosted_path: "{{ gitlab_hosted_payload_dir }}/examples/{{ catalog_file_name }}"
-    _gitlab_example_encoded_path: "{{ ('examples/' ~ catalog_file_name) | urlencode | replace('/', '%2F') }}"
+    _gitlab_example_repo_path: "catalog/{{ catalog_file_name }}"
+    _gitlab_example_hosted_path: "{{ gitlab_hosted_payload_dir }}/catalog/{{ catalog_file_name }}"
+    _gitlab_example_encoded_path: "{{ ('catalog/' ~ catalog_file_name) | urlencode | replace('/', '%2F') }}"
 
-- name: Check if example catalog exists in repository
+- name: Check if catalog exists in repository
   ansible.builtin.uri:
     url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_example_encoded_path }}?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
     method: GET
@@ -30,18 +30,18 @@
   register: gitlab_example_catalog_check
   no_log: true
 
-- name: Copy example catalog to GitLab host
+- name: Copy catalog to GitLab host
   ansible.builtin.copy:
     src: "{{ catalog_file_path }}"
     dest: "{{ _gitlab_example_hosted_path }}"
     mode: '0644'
 
-- name: Read example catalog from GitLab host
+- name: Read catalog from GitLab host
   ansible.builtin.slurp:
     src: "{{ _gitlab_example_hosted_path }}"
   register: gitlab_example_catalog_content
 
-- name: Create example catalog in GitLab repository
+- name: Create catalog in GitLab repository
   when: gitlab_example_catalog_check.status == 404
   ansible.builtin.uri:
     url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_example_encoded_path }}"
@@ -53,7 +53,7 @@
       branch: "{{ gitlab_default_branch }}"
       encoding: base64
       content: "{{ gitlab_example_catalog_content.content }}"
-      commit_message: "Add example catalog: {{ catalog_file_name }}"
+      commit_message: "Add catalog: {{ catalog_file_name }}"
     status_code: [200, 201]
     validate_certs: false
   no_log: true

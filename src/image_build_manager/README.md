@@ -23,31 +23,28 @@ images, and writes `build_status.yml` for downstream consumption by the provisio
 ## Quick Start
 
 ```bash
-# 1. Set up environment
-export SYSTEM_ADMIN_NIC_IPV4=<your_admin_ip>
+# From the repository root
+cd src/main
 
-# 2. Ensure repo_manager output exists
-#    (run repo_manager first, or copy sample files)
-mkdir -p $OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME
-cp samples/repo_manager_output/repo_status.yml \
-   $OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/
+# Configure the host, create the shared virtual environment, stage domain
+# inputs, and copy the sample catalog to $OMNIA_DATA_PATH/catalog/.
+vi omnia.env
+sudo ./omnia.sh -s
+source /etc/profile.d/omnia-env.sh
 
-# 2b. For catalog mode: copy catalog JSON
-mkdir -p $OMNIA_DATA_PATH/catalog
-cp samples/repo_manager_output/catalog_rhel.json \
-   $OMNIA_DATA_PATH/catalog/
+# Edit the staged project input. Run repo_manager before the image build.
+vi "$OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME/image_build_config.yml"
+./omnia.sh --run repo_manager --tags execute
 
-# 3. Initialize domain (creates log dir + copies input files)
-vi input/project_default/image_build_config.yml
-sudo ./domain-init.sh
-
-# 4. Run
-cd playbooks
-ansible-playbook image_build_manager.yml --tags validate
-ansible-playbook image_build_manager.yml --tags prepare
-ansible-playbook image_build_manager.yml --tags build
-ansible-playbook image_build_manager.yml --tags cleanup
+# Validate, prepare infrastructure, and build images.
+./omnia.sh --run image_build_manager --tags validate
+./omnia.sh --run image_build_manager --tags prepare
+./omnia.sh --run image_build_manager --tags build
 ```
+
+For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
+`$OMNIA_VENV_PATH/bin/activate`, and run commands from
+`src/image_build_manager/playbooks/`.
 
 ---
 
@@ -57,12 +54,16 @@ ansible-playbook image_build_manager.yml --tags cleanup
 |-----|-------------|-------------|
 | `precheck` | Environment and connectivity check | No |
 | `validate` | Schema + logic config validation | No |
-| `prepare` | Deploy MinIO S3 + OCI container registry | Yes |
+| `credentials` | Collect or update S3 and aarch64 credentials | Yes |
+| `prepare` | Deploy local MinIO when selected, plus the OCI registry | Yes |
 | `build` / `execute` | Build x86_64 + aarch64 OS images | Yes |
 | `cleanup` | Remove services, artifacts, credentials | No |
 | `cleanup_images` | Delete built images from S3 + registry (by pattern or all) | No |
+| `upgrade` / `rollback` | Reserved placeholders; no lifecycle action is implemented | Yes (current flow) |
 
-Sub-tags: `x86_64`, `aarch64` (run specific architecture only).
+Run exactly one supported tag at a time. Although internal imported plays carry
+`x86_64` and `aarch64` tags, the top-level tag validator does not accept them as
+public tags; a `build` or `execute` run builds every configured architecture.
 
 ### Image Cleanup (`cleanup_images`)
 
@@ -91,6 +92,10 @@ ansible-playbook image_build_manager.yml --tags cleanup_images \
 | `cleanup_image_pattern` | `*` | Glob pattern for images to delete |
 | `skip_approval` | `false` | Skip interactive approval prompt (for automation) |
 
+S3 deletion requires `s3cmd` plus `/root/.s3cfg`; registry deletion requires
+`regctl` plus an active service or managed registry storage. Missing tooling is
+reported and that side of cleanup is skipped.
+
 ---
 
 ## Input / Output
@@ -99,17 +104,17 @@ ansible-playbook image_build_manager.yml --tags cleanup_images \
 
 | File | Source | Required |
 |------|--------|----------|
-| `image_build_config.yml` | `input/project_default/` | Yes |
-| `repo_status.yml` | repo_manager output | Yes |
-| `package_groups.yml` | `input/project_default/` | When `functional_groups_source: "config"` |
+| `image_build_config.yml` | Runtime `input/<project>/` | Yes |
+| `repo_status.yml` | `repo_manager_output_path` | Build/execute/default flow |
+| `package_groups.yml` | Runtime `input/<project>/` | When `functional_groups_source: "config"` |
 | `catalog_rhel.json` | `CATALOG_FILE_PATH` env var | When `functional_groups_source: "catalog"` |
-| `image_build_credentials.yml` | Auto-generated (Vault) | Yes (except validate/cleanup) |
+| `image_build_credentials.yml` | Auto-generated and Vault-encrypted | Credentials/prepare/build/default flow |
 
 ### Output
 
 | File | Location | Description |
 |------|----------|-------------|
-| `build_status.yml` | `output/<project>/` | Per-group S3 artifact paths for provisioning |
+| `build_status.yml` | `output/<project>/` | Producing image engine and per-group S3 artifact paths for provisioning |
 
 See `samples/` for example input and output files.
 
@@ -125,7 +130,7 @@ See `samples/` for example input and output files.
 | **Upstream** | `repo_manager_output_path` (path to `repo_status.yml`) |
 | **Builder** | `image_build_type` (image-builder / image-thrillhouse) |
 | **Groups** | `functional_groups_source` (`config` / `catalog`) |
-| **Concurrency** | `build_image.max_parallel`, `job_async`, `job_retry`, `job_delay` |
+| **Build controls** | `build_image.max_parallel`, `build_image.build_timeout`, `build_image.force_rebuild`, `build_image.backup_s3_images`, `build_image.repo_ssl_verify` |
 | **ARM** | `aarch64_inventory_host_ip`, `aarch64_ssh_user` |
 
 ### Environment Variables
@@ -133,8 +138,12 @@ See `samples/` for example input and output files.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SYSTEM_ADMIN_NIC_IPV4` | **required** | Admin NIC IPv4 (S3 + registry endpoint) |
-| `OMNIA_DATA_PATH` | `/opt/omnia` | Root data directory |
+| `SYSTEM_HOSTNAME` | **required** | Short hostname of the OIM host |
+| `SYSTEM_DOMAIN_NAME` | **required** | OIM domain name |
+| `OMNIA_DATA_PATH` | `/opt/omnia` | Root data directory; must be exported for direct playbook runs |
+| `OMNIA_VERSION` | **required** | Version embedded in generated image names |
 | `OMNIA_PROJECT_NAME` | `project_default` | Project name |
+| `IMAGE_BUILD_MANAGER_DATA_PATH` | `${OMNIA_DATA_PATH}/image_build_manager` | Optional controller-side domain data-path override |
 | `CATALOG_FILE_PATH` | `${OMNIA_DATA_PATH}/catalog/catalog_rhel.json` | Catalog JSON path (when `functional_groups_source: "catalog"`) |
 
 ---
@@ -148,16 +157,18 @@ See `samples/` for example input and output files.
 | Architecture | ARM64 (`uname -m` = `aarch64`) |
 | OS | RHEL 10.x / Rocky 10.x |
 | Podman | 5.0+ (for builder container image) |
-| SSH | Passwordless SSH from OIM (`ssh-copy-id` — automated by `setup_ssh.yml`) |
+| SSH | SSH password for initial key installation; passwordless SSH is then configured automatically |
 | Network | IP reachable from OIM admin NIC; port 22 open |
-| Internet | Optional — required only if Pulp registry is unavailable (for direct image pull and regctl download) |
-| Disk | 30 GB free in `/opt/omnia/image_build_manager/` |
+| Internet | Optional only when the builder image is available through Pulp and the ARM `regctl` binary is already staged on OIM; otherwise upstream registry/GitHub access is needed |
+| Disk | 30 GB free in the configured image-build data path |
 
 ### Constraints
 
 - **Single node only**: The `admin_aarch64` inventory group must contain exactly one host.
-- **Work directory is fixed**: `/opt/omnia/image_build_manager/` on the aarch64 node.
-  The remote node does not run `omnia.sh` and does not use `OMNIA_DATA_PATH`.
+- **Work directory follows `OMNIA_DATA_PATH`**: the remote path is constructed
+  as the controller's `OMNIA_DATA_PATH` plus `/image_build_manager`. It defaults
+  to `/opt/omnia/image_build_manager/` and does not follow a separate
+  `IMAGE_BUILD_MANAGER_DATA_PATH` override.
 - **regctl installation**: Binary is pre-downloaded on the OIM to
   `$OMNIA_DATA_PATH/image_build_manager/aarch64/regctl-linux-arm64`,
   then SCP'd to `/usr/local/bin/regctl` on the aarch64 node. If SCP
@@ -180,7 +191,9 @@ See `samples/` for example input and output files.
 **Current Implementation**:
 - x86_64 builds: Run directly on OIM host
 - aarch64 builds: Orchestrate via SSH to dedicated aarch64 node
-- Both architectures use `ghcr.io/openchami/image-thrillhouse:v0.0.24`
+- `image-thrillhouse` uses `ghcr.io/openchami/image-thrillhouse:v0.0.24` on both
+  architectures. `image-builder` uses the architecture-specific Omnia images
+  `image-build-el10:1.3` and `image-build-aarch64:1.3` from Docker Hub.
 - Separate hosts are required for each architecture
 
 ### Configuration
@@ -189,7 +202,7 @@ Set in `image_build_config.yml`:
 
 ```yaml
 aarch64_inventory_host_ip: "10.20.0.2"   # ARM node IP
-aarch64_ssh_user: "root"                  # SSH user (default: root)
+aarch64_ssh_user: "root"                  # SSH user (shipped value: root)
 ```
 
 Set in `image_build_credentials.yml` (auto-encrypted with Ansible Vault):
@@ -209,7 +222,9 @@ Leave `aarch64_inventory_host_ip` empty to skip aarch64 builds entirely.
 Functional groups derived from `package_groups.yml` keys (filtered by architecture suffix).
 OS type and version from `os` / `os_version` fields in `package_groups.yml`.
 
-Available groups in default `package_groups.yml`:
+Groups defined in the shipped `package_groups.yml` are shown below. Config mode
+builds only architecture-matching groups with a non-empty `packages` list;
+the `os_*` and Kubernetes entries are currently skipped because they are empty.
 
 | x86_64 | aarch64 |
 |--------|---------|
@@ -244,7 +259,9 @@ Example groups from a typical catalog:
 
 ## Runtime Paths
 
-### Data Path (`$OMNIA_DATA_PATH/image_build_manager/`)
+### Data Path (`$IMAGE_BUILD_MANAGER_DATA_PATH`)
+
+The domain path defaults to `$OMNIA_DATA_PATH/image_build_manager`:
 
 ```
 /opt/omnia/image_build_manager/
@@ -267,7 +284,10 @@ All Ansible playbook execution logs are flat (no subfolders) under a single dire
 +-- build_image.log           Build sub-playbook log
 +-- cleanup.log               Cleanup sub-playbook log
 +-- credentials.log           Credentials sub-playbook log
++-- precheck.log              Precheck sub-playbook log
 +-- prepare.log               Prepare sub-playbook log
++-- rollback.log              Rollback placeholder log
++-- upgrade.log               Upgrade placeholder log
 +-- validate.log              Validate sub-playbook log
 ```
 

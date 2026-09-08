@@ -13,16 +13,12 @@
 # limitations under the License.
 ---
 
-repo_manager_offline_repo_dir: "{{ repo_manager_runtime_dir }}/offline_repo"
-
-local_repo_access_dest_path: "{{ output_dir }}/repo_status.yml"
-nfs_shared_path: "{{ repo_manager_runtime_dir }}"
-repo_store_path: "{{ repo_manager_runtime_dir }}"
 base_path: "{{ repo_manager_log_dir }}"
-local_repo_config_path: "{{ project_input_path }}/repo_manager_config.yml"
 clean_rpms: true
-rpm_dir_path: "{{ repo_manager_offline_repo_dir }}/cluster/{{ item }}/rhel/{{ cluster_os_version }}/rpm"
-localrepo_completion_msg1: |
+rpm_dir_path: >-
+  {{ pulp_distribution_root_dir ~ '/' ~ item ~ '/' ~ cluster_os_type ~ '/' ~
+     cluster_os_version ~ '/rpm' }}
+repository_download_completion_message: |
   The playbook repo_manager.yml has completed successfully.
 # Resync repos control
 # - null/omit: Skip already synced repos (default)
@@ -30,35 +26,21 @@ localrepo_completion_msg1: |
 # - ["repo1", "repo2"]: Only sync specified repos
 # resync_repos: null
 local_repo_py_module_vars:
-  default_vars: &sw_defaults
+  default_vars:
     timeout: 7200  # Timeout in seconds for each thread
-  amdgpu:
-    <<: *sw_defaults
-  default_packages:
-    timeout: 7200
-  openldap:
-    timeout: 7200
-  nfs:
-    timeout: 7200
-  service_k8s:
-    timeout: 7200
-  slurm_custom:
-    timeout: 7200
-  ucx:
-    timeout: 7200
-  openmpi:
-    timeout: 7200
-  csi_driver_powerscale:
-    timeout: 7200
 
 sw_download_msg: "The specified software packages have already been downloaded."
-# Usage create_metadata.yml
+# Repository metadata state
 meta_dest: "{{ repo_manager_offline_repo_dir }}/.data"
 metadata_file_path: "{{ meta_dest }}/localrepo_metadata.yml"
-metadata_warn_msg: "Warning: Metadata has changed since the last run! execution may fail if there is no internet on OIM."
-metadata_identical_msg: "Metadata is identical. No changes detected."
-file_mode: "0644"
 folder_mode: "0755"
-# Credentials paths for parallel tasks
-omnia_credentials_yaml_path: "{{ project_input_path }}/repo_manager_config_credentials.yml"
-omnia_credentials_vault_path: "{{ project_input_path }}/.repo_manager_config_credentials_key"
+
+# =============================================================================
+# FAILURE AND ASSERTION MESSAGES
+# =============================================================================
+parse_and_download_fail_the_playbook_execution_msg: "Task execution failed: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+parse_and_download_validate_active_package_backend_msg: >-
+  Package backend
+  {{ catalog_context.platform_capabilities.package_backend | default('unknown') }}
+  is not implemented by process_rpm_config.

@@ -16,11 +16,6 @@
 # Meaningful Artifacts Cleanup
 # Cleans what orchestrator deployed, not what it needs as input
 
-- name: Set role path
-  tags: artifacts
-  ansible.builtin.set_fact:
-    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
-
 - name: Load Artifacts component configuration
   tags: artifacts
   ansible.builtin.include_vars:
@@ -34,23 +29,20 @@
 - name: Clean orchestrator deployment outputs
   tags: artifacts
   ansible.builtin.file:
-    path: "/opt/omnia/output/project_default/orchestrator"
+    path: "{{ orchestrator_output_dir }}"
     state: absent
-  failed_when: false
 
 - name: Clean cleanup framework logs
   tags: artifacts
   ansible.builtin.file:
-    path: "/opt/omnia/log/cleanup"
+    path: "{{ omnia_data_path }}/orchestrator/log/cleanup"
     state: absent
-  failed_when: false
 
 - name: Clean cleanup framework state
   tags: artifacts
   ansible.builtin.file:
     path: "/var/lib/omnia/cleanup"
     state: absent
-  failed_when: false
 
 - name: Display Artifacts cleanup completion
   tags: artifacts
@@ -60,5 +52,5 @@
       - Orchestrator deployment outputs: cleaned
       - Cleanup framework logs: cleaned
       - Cleanup framework state: cleaned
-      - Functional groups config: preserved (input to orchestrator, not output)
+      - Functional groups config: cleaned with the Orchestrator output directory
       - Upgrade lock: preserved (coordination file, not deployment output)

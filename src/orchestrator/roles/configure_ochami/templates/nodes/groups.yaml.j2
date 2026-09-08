@@ -1,7 +1,7 @@
 - label: {{ functional_group_name }}
   members:
     ids:
-{% for item in nodes | sort(attribute='value.XNAME') %}
+{% for item in smd_group_nodes | sort(attribute='value.XNAME') %}
 {% if item.value.FUNCTIONAL_GROUP_NAME == functional_group_name %}
       - {{ item.value.XNAME }}
 {% endif %}

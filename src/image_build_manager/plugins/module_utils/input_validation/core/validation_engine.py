@@ -11,23 +11,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-Validation Engine - Core validation orchestration.
+"""Core JSON Schema and business-logic validation entry points."""
 
-This module provides the main entry points for:
-- L1 Validation: JSON Schema validation
-- L2 Validation: Business logic validation (routed to validators/)
+from jsonschema import FormatChecker
+from jsonschema.exceptions import SchemaError
+from jsonschema.validators import validator_for
 
-It orchestrates the validation process and routes to appropriate validators.
-"""
-from ansible.module_utils.input_validation.messages import image_build_messages as msg  # pylint: disable=E0401
+
+def _schema_error_path(file_label, validation_error):
+    """Return a readable dotted path for a jsonschema validation error."""
+    path = ".".join(str(part) for part in validation_error.absolute_path)
+    return f"{file_label}.{path}" if path else file_label
 
 
 def schema(data, schema_def, file_label, errors, logger):
     """
     Validates data against a JSON schema (L1 Validation).
 
-    Uses basic type/required/enum checks without jsonschema dependency.
+    Uses the validator declared by the schema's ``$schema`` field. This is
+    intentionally delegated to jsonschema instead of maintaining a partial
+    implementation: types (including strict booleans), strings, patterns,
+    numeric bounds, arrays, conditionals, and nested constraints must all be
+    enforced consistently.
 
     Args:
         data: Parsed YAML/JSON data to validate.
@@ -36,51 +41,31 @@ def schema(data, schema_def, file_label, errors, logger):
         errors: List to append error messages to.
         logger: Logger instance.
     """
-    if not schema_def or not data:
+    if not schema_def:
         return
 
-    schema_type = schema_def.get("type")
-    if schema_type == "object" and not isinstance(data, dict):
-        err = msg.schema_type_mismatch_msg(file_label, "object", type(data).__name__)
+    try:
+        validator_class = validator_for(schema_def)
+        validator_class.check_schema(schema_def)
+    except SchemaError as exc:
+        err = f"{file_label}: Invalid JSON schema: {exc.message}"
         errors.append(err)
         logger.error(err)
         return
 
-    # Check required properties
-    required = schema_def.get("required", [])
-    properties = schema_def.get("properties", {})
-    for req_key in required:
-        if req_key not in data:
-            err = msg.missing_required_property_msg(file_label, req_key)
-            errors.append(err)
-            logger.error(err)
-
-    # Check enum constraints
-    for prop_name, prop_schema in properties.items():
-        if prop_name not in data:
-            continue
-        value = data[prop_name]
-
-        if "enum" in prop_schema and value not in prop_schema["enum"]:
-            err = msg.invalid_enum_value_msg(
-                file_label, prop_name, value, prop_schema["enum"]
-            )
-            errors.append(err)
-            logger.error(err)
-
-        # Recurse into nested objects
-        if prop_schema.get("type") == "object" and isinstance(value, dict):
-            schema(
-                value, prop_schema, f"{file_label}.{prop_name}", errors, logger
-            )
-
-    # Check additionalProperties constraint
-    if schema_def.get("additionalProperties") is False:
-        extra_keys = set(data.keys()) - set(properties.keys())
-        for extra in extra_keys:
-            err = msg.unexpected_property_msg(file_label, extra)
-            errors.append(err)
-            logger.error(err)
+    validator = validator_class(
+        schema_def,
+        format_checker=FormatChecker(),
+    )
+    validation_errors = sorted(
+        validator.iter_errors(data),
+        key=lambda item: [str(part) for part in item.absolute_path],
+    )
+    for validation_error in validation_errors:
+        path = _schema_error_path(file_label, validation_error)
+        err = f"{path}: {validation_error.message}"
+        errors.append(err)
+        logger.error(err)
 
 
 def logic(config_data, logger=None):
@@ -135,3 +120,11 @@ def logic_credentials(cred_data, config_data, logger=None):
     return image_build_credentials_validator.validate(
         cred_data, config_data, logger
     )
+
+
+def logic_repo_status(repo_status_data, logger=None):
+    """Run semantic checks on the repo_manager output contract."""
+    from ansible.module_utils.input_validation.validators import (  # pylint: disable=E0401,C0415
+        repo_status_validator,
+    )
+    return repo_status_validator.validate(repo_status_data, logger)

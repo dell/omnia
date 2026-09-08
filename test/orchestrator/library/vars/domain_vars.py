@@ -65,6 +65,7 @@ MARKERS: List[str] = [
     "idempotency",
     "security",
     "negative",
+    "buildstream",
 ]
 
 # =====================================================================

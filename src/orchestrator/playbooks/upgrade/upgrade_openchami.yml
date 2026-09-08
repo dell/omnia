@@ -77,7 +77,7 @@
           source_version: "{{ hostvars[groups['oim'][0]]['openchami_current_version'] }}"
           target_version: "{{ hostvars[groups['oim'][0]]['openchami_target_version'] }}"
           component: openchami
-        dest: "/opt/omnia/.data/upgrade_in_progress.lock"
+        dest: "{{ hostvars['localhost']['omnia_data_path'] }}/.data/upgrade_in_progress.lock"
         mode: '0644'
 
 # Backup before upgrade
@@ -86,9 +86,10 @@
   connection: ssh
   gather_facts: true
   vars:
-    upgrade_backup_dir: "/opt/omnia/openchami/backups/pre_upgrade_{{ ansible_date_time.iso8601_basic_short }}"
+    upgrade_backup_dir: >-
+      {{ hostvars['localhost']['omnia_data_path'] }}/openchami/backups/pre_upgrade_{{ ansible_date_time.iso8601_basic_short }}
     openchami_config_dir: /etc/openchami/configs
-    openchami_work_dir: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}/omnia/openchami/workdir"
+    openchami_work_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/openchami/workdir"
   tasks:
     - name: Skip if already at target version
       ansible.builtin.meta: end_play
@@ -341,7 +342,7 @@
   tasks:
     - name: Remove upgrade lock file
       ansible.builtin.file:
-        path: "/opt/omnia/.data/upgrade_in_progress.lock"
+        path: "{{ hostvars['localhost']['omnia_data_path'] }}/.data/upgrade_in_progress.lock"
         state: absent
 
     - name: OpenCHAMI upgrade completed

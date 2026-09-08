@@ -34,6 +34,7 @@ import os
 import csv
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.repo_manager.standard_logger import secure_log_file
 
 DOCUMENTATION = r"""
 ---
@@ -44,19 +45,28 @@ description:
   - It performs comprehensive validation of repo_manager configuration.
 version_added: "1.0.0"
 options:
-    config_path:
-      description: Path to configuration file
+    omnia_base_dir:
+      description: Omnia data directory
       required: true
       type: str
-    schema_path:
-      description: Path to JSON schema file
-      required: false
+    project_name:
+      description: Project input directory name
+      required: true
       type: str
-    strict:
-      description: Enable strict validation mode
+    tag_names:
+      description: Operation tags selecting input contracts
+      required: true
+      type: list
+      elements: str
+    subscription_enabled:
+      description: Shared repository subscription decision
       required: false
       type: bool
-      default: True
+    catalog_execution_contexts:
+      description: Ordered catalog contexts resolved by Repo Manager setup
+      required: false
+      type: list
+      elements: dict
 
 author:
   - Dell Technologies (@dell)
@@ -113,11 +123,11 @@ def validate_csv_structure(csv_file_path, logger=None):
             reader = csv.reader(f)
             try:
                 header = next(reader)
-            except StopIteration:
+            except StopIteration as exc:
                 error_msg = f"CSV ERROR: Empty file - {csv_file_path}"
                 if logger:
                     logger.error(error_msg)
-                raise ValueError(error_msg)
+                raise ValueError(error_msg) from exc
 
             expected_columns = len(header)
             line_num = 2
@@ -145,7 +155,7 @@ def validate_csv_structure(csv_file_path, logger=None):
         error_msg = f"CSV validation error: {str(e)}"
         if logger:
             logger.error(error_msg)
-        raise ValueError(error_msg)
+        raise ValueError(error_msg) from e
 
 
 def createlogger(project_name, log_dir, tag_name=None):
@@ -166,7 +176,7 @@ def createlogger(project_name, log_dir, tag_name=None):
         log_filename = f"validation_omnia_{project_name}.log"
 
     log_file_path = os.path.join(log_dir, log_filename)
-    os.makedirs(log_dir, exist_ok=True)
+    secure_log_file(log_file_path)
     logging.basicConfig(
         filename=log_file_path,
         format="%(asctime)s %(message)s",
@@ -194,6 +204,11 @@ def main():
         "tag_names": {"type": "list", "required": True},
         "module_utils_path": {"type": "str"},
         "csv_file_path": {"type": "str", "required": False},
+        "subscription_enabled": {"type": "bool", "required": False},
+        "catalog_execution_contexts": {
+            "type": "list", "elements": "dict", "required": False,
+            "default": [],
+        },
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
@@ -211,7 +226,6 @@ def main():
     os.environ.setdefault("OMNIA_DATA_PATH", omnia_base_dir)
     if input_project_dir:
         os.environ.setdefault("REPO_MANAGER_INPUT_PROJECT_DIR", input_project_dir)
-
     # Import modules after setting environment variable
     # pylint: disable=no-name-in-module,E0401
     global config, file_utils, validation_engine, msg
@@ -251,7 +265,7 @@ def main():
 
     input_files = file_utils.files_recursively(omnia_base_dir + "/" + project_name, extensions['json'])
     input_files = input_files + file_utils.files_recursively(omnia_base_dir + "/" + project_name, extensions['yml'])
-    
+
     input_file_dict = {file_utils.file_name_from_path(file_path): file_path for file_path in input_files}
 
     if not input_files:

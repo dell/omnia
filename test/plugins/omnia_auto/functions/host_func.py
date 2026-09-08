@@ -28,6 +28,7 @@ Handles:
 import atexit
 import os
 import shutil
+import shlex
 import subprocess
 import tempfile
 from typing import Any, Dict, List, Optional, Tuple
@@ -402,6 +403,56 @@ def run_on_host(host, cmd: str, *args: str):
         Result with stdout, stderr, rc attributes.
     """
     return host.run(cmd, *args)
+
+
+def run_ssh_command(
+    host,
+    target: str,
+    command: str,
+    user: str = "root",
+    connect_timeout: int = 10,
+):
+    """Run a passwordless SSH command from the current target host.
+
+    This supports tests that connect to an execution host through testinfra
+    and must then inspect a secondary node. Values derived from configuration
+    are shell-quoted before the SSH command is passed to testinfra.
+
+    Args:
+        host: Current testinfra host object.
+        target: Secondary host name or IP address.
+        command: Command to execute on the secondary host.
+        user: Secondary-host SSH user.
+        connect_timeout: SSH connection timeout in seconds.
+
+    Returns:
+        Result with stdout, stderr, and rc attributes.
+
+    Raises:
+        ValueError: If a required value is empty or timeout is invalid.
+    """
+    if not isinstance(target, str) or not target.strip():
+        raise ValueError("SSH target must be a non-empty string")
+    if not isinstance(user, str) or not user.strip():
+        raise ValueError("SSH user must be a non-empty string")
+    if not isinstance(command, str) or not command.strip():
+        raise ValueError("SSH command must be a non-empty string")
+    if not isinstance(connect_timeout, int) or connect_timeout <= 0:
+        raise ValueError("SSH connect_timeout must be a positive integer")
+
+    ssh_options = get_setting(
+        "ssh_opts",
+        "-o StrictHostKeyChecking=no "
+        "-o UserKnownHostsFile=/dev/null "
+        "-o LogLevel=ERROR",
+    )
+    ssh_command = (
+        f"ssh {ssh_options} -o BatchMode=yes "
+        f"-o ConnectTimeout={connect_timeout} "
+        f"{shlex.quote(f'{user.strip()}@{target.strip()}')} "
+        f"{shlex.quote(command)}"
+    )
+    return run_on_host(host, ssh_command)
 
 
 # =============================================================================
