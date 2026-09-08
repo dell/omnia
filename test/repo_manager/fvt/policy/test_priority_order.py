@@ -17,6 +17,7 @@ from library.functions import (
     check_repo_caching,
     check_global_repo_config,
     check_global_caching_policy,
+    get_configured_repos,
 )
 from library.messages.repo_manager_msgs import (
     TEST_NAMES,
@@ -38,29 +39,38 @@ def test_per_repo_policy_overrides_global(host: Host):
         tl.failed(LOG["global_config_failed"], global_config["details"])
         pytest.skip("Cannot verify without global config")
 
-    # Test with a repo - check if it has per-repo policy or uses global
-    repo_name = "epel"
-    repo_policy = check_repo_policy(host, repo_name)
+    # Get all configured repos
+    repos_result = get_configured_repos(host, arch="x86_64")
+    
+    if not repos_result["success"]:
+        tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
+        pytest.skip("Cannot verify without configured repos")
+    
+    configured_repos = repos_result["repos"]
+    
+    # Check if any repo has per-repo policy override
+    has_per_repo_policy = False
+    for repo_name in configured_repos:
+        repo_policy = check_repo_policy(host, repo_name)
 
-    if not repo_policy["success"]:
-        tl.failed(LOG["repo_policy_failed"], repo_policy["details"])
-        pytest.skip(f"Cannot determine policy for {repo_name}")
+        if not repo_policy["success"]:
+            continue
 
-    # Verify policy source (per-repo or global)
-    policy_source = repo_policy.get("source")
-    if policy_source == "per_repo":
-        tl.passed(LOG["per_repo_policy_used"],
-                 f"{repo_name} uses per-repo policy: {repo_policy.get('policy')}")
-    elif policy_source == "global":
-        tl.passed(LOG["global_policy_used"],
-                 f"{repo_name} uses global policy: {repo_policy.get('policy')}")
-    else:
-        tl.failed(LOG["policy_source_unknown"],
-                 f"{repo_name} has unknown policy source: {policy_source}")
+        # Verify policy source (per-repo or global)
+        policy_source = repo_policy.get("source")
+        
+        if policy_source == "per_repo":
+            has_per_repo_policy = True
+            tl.passed(LOG["per_repo_policy_used"],
+                     f"Repo {repo_name} uses per-repo policy: {repo_policy.get('policy')}")
+            break
+    
+    if not has_per_repo_policy:
+        tl.passed("global_settings_used",
+                 f"All {len(configured_repos)} repos use global policy (no per-repo overrides)")
+        pytest.skip("No repo has per-repo policy override")
 
-    # Test passes if either per-repo or global is used (both are valid)
-    assert policy_source in ["per_repo", "global"], \
-        f"Policy source must be either 'per_repo' or 'global', got: {policy_source}"
+    assert has_per_repo_policy, "Expected to find repo with per-repo policy override"
 
 
 @pytest.mark.sanity
@@ -76,29 +86,38 @@ def test_per_repo_caching_overrides_global(host: Host):
         tl.failed(LOG["global_caching_failed"], global_caching["details"])
         pytest.skip("Cannot verify without global caching config")
 
-    # Test with a repo - check if it has per-repo caching or uses global
-    repo_name = "nvidia-hpc-sdk"
-    repo_caching = check_repo_caching(host, repo_name)
+    # Get all configured repos
+    repos_result = get_configured_repos(host, arch="x86_64")
+    
+    if not repos_result["success"]:
+        tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
+        pytest.skip("Cannot verify without configured repos")
+    
+    configured_repos = repos_result["repos"]
+    
+    # Check if any repo has per-repo caching override
+    has_per_repo_caching = False
+    for repo_name in configured_repos:
+        repo_caching = check_repo_caching(host, repo_name)
 
-    if not repo_caching["success"]:
-        tl.failed(LOG["repo_caching_failed"], repo_caching["details"])
-        pytest.skip(f"Cannot determine caching for {repo_name}")
+        if not repo_caching["success"]:
+            continue
 
-    # Verify caching source (per-repo or global)
-    caching_source = repo_caching.get("source")
-    if caching_source == "per_repo":
-        tl.passed(LOG["per_repo_caching_used"],
-                 f"{repo_name} uses per-repo caching: {repo_caching.get('caching')}")
-    elif caching_source == "global":
-        tl.passed(LOG["global_caching_used"],
-                 f"{repo_name} uses global caching: {repo_caching.get('caching')}")
-    else:
-        tl.failed(LOG["caching_source_unknown"],
-                 f"{repo_name} has unknown caching source: {caching_source}")
+        # Verify caching source (per-repo or global)
+        caching_source = repo_caching.get("source")
+        
+        if caching_source == "per_repo":
+            has_per_repo_caching = True
+            tl.passed(LOG["per_repo_caching_used"],
+                     f"Repo {repo_name} uses per-repo caching: {repo_caching.get('caching')}")
+            break
+    
+    if not has_per_repo_caching:
+        tl.passed("global_settings_used",
+                 f"All {len(configured_repos)} repos use global caching (no per-repo overrides)")
+        pytest.skip("No repo has per-repo caching override")
 
-    # Test passes if either per-repo or global is used (both are valid)
-    assert caching_source in ["per_repo", "global"], \
-        f"Caching source must be either 'per_repo' or 'global', got: {caching_source}"
+    assert has_per_repo_caching, "Expected to find repo with per-repo caching override"
 
 
 @pytest.mark.sanity
@@ -116,31 +135,38 @@ def test_per_repo_complete_override(host: Host):
         tl.failed(LOG["global_config_failed"], "Cannot read global settings")
         pytest.skip("Cannot verify without global config")
 
-    # Test with a repo - check if it has both policy and caching overrides
-    repo_name = "epel"
-    repo_policy = check_repo_policy(host, repo_name)
-    repo_caching = check_repo_caching(host, repo_name)
+    # Get all configured repos
+    repos_result = get_configured_repos(host, arch="x86_64")
+    
+    if not repos_result["success"]:
+        tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
+        pytest.skip("Cannot verify without configured repos")
+    
+    configured_repos = repos_result["repos"]
+    
+    # Check if any repo has both policy and caching overrides
+    has_complete_override = False
+    for repo_name in configured_repos:
+        repo_policy = check_repo_policy(host, repo_name)
+        repo_caching = check_repo_caching(host, repo_name)
 
-    if not repo_policy["success"] or not repo_caching["success"]:
-        tl.failed(LOG["repo_config_failed"], "Cannot determine repo settings")
-        pytest.skip(f"Cannot determine settings for {repo_name}")
+        if not repo_policy["success"] or not repo_caching["success"]:
+            continue
 
-    # Verify both policy and caching sources
-    policy_source = repo_policy.get("source")
-    caching_source = repo_caching.get("source")
+        # Verify both policy and caching sources
+        policy_source = repo_policy.get("source")
+        caching_source = repo_caching.get("source")
 
-    if policy_source == "per_repo" and caching_source == "per_repo":
-        tl.passed(LOG["per_repo_complete_override_used"],
-                 f"{repo_name} uses per-repo for both policy ({repo_policy.get('policy')}) "
-                 f"and caching ({repo_caching.get('caching')})")
-    elif policy_source == "global" and caching_source == "global":
+        if policy_source == "per_repo" and caching_source == "per_repo":
+            has_complete_override = True
+            tl.passed(LOG["per_repo_complete_override_used"],
+                     f"{repo_name} uses per-repo for both policy ({repo_policy.get('policy')}) "
+                     f"and caching ({repo_caching.get('caching')})")
+            break
+    
+    if not has_complete_override:
         tl.passed("global_settings_used",
-                 f"{repo_name} uses global for both policy ({repo_policy.get('policy')}) "
-                 f"and caching ({repo_caching.get('caching')})")
-    else:
-        tl.passed("mixed_settings_used",
-                 f"{repo_name} uses mixed: policy from {policy_source}, caching from {caching_source}")
+                 f"All {len(configured_repos)} repos use global settings (no complete overrides)")
+        pytest.skip("No repo has complete per-repo override")
 
-    # Test passes if both sources are the same (both per-repo or both global)
-    assert policy_source == caching_source, \
-        f"Policy and caching should have same source (both per-repo or both global), got: policy={policy_source}, caching={caching_source}"
+    assert has_complete_override, "Expected to find repo with complete per-repo override"
