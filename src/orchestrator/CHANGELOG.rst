@@ -16,6 +16,9 @@ inventory generation, and galaxy version alignment.
 Bug Fixes
 ---------
 
+- Removed the invalid generic cloud-init phone-home fragment; Metadata Service reserves that endpoint for optional WireGuard bootstrap peer removal.
+- Updated Boot Service parameters to use ``ds=nocloud`` and disabled unsupported root filesystem resize on the live overlay image.
+- Made the Slurm tracking mount explicit and changed controller-marker waits from unbounded loops to bounded failures.
 - Fixed stale node-registration detection by verifying node boot time via /proc/uptime (#461).
 - Fixed ``failed_nodes.json`` race condition in PXE failure collection (#460).
 - Fixed provisioning report comparing GROUP_NAMEs against xnames (#458).
@@ -26,12 +29,11 @@ Bug Fixes
 Breaking Changes
 ---------------
 
-- Renamed ``phone_home`` to ``node_registration`` throughout PXE provisioning workflow.
+- Renamed ``phone_home`` timing and verification controls to ``node_registration`` throughout PXE provisioning workflow.
   - Role: ``verify_phone_home`` → ``verify_node_registration``
   - Variables: ``enable_phone_home`` → ``enable_node_registration``, etc.
-  - SMD group: ``phone_home`` → ``node_registration``
   - Legacy ``phone_home_*`` variables supported with deprecation warning
-  - Cloud-init standard ``phone_home`` directive and metadata-service endpoint unchanged
+  - Node completion is verified directly through SSH, boot freshness, and cloud-init status
 
 v2.2.0
 ======

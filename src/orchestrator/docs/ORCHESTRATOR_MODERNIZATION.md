@@ -155,7 +155,9 @@ software_config.json ──────┘
 
 5. **Generic provisioning pipeline** — All nodes follow the same path:
    PXE Mapping → Functional Groups → Image Resolution → SMD Registration →
-   BSS/Cloud-Init → Validation.
+   OIM Storage Preparation → Bolt-On Preparation → Node Mount/Swap Assembly →
+   BSS/Metadata-Service Publication → Validation. Publishing is deliberately
+   last so nodes cannot receive incomplete cloud-init data.
 
 6. **Bolt-on services are optional and data-driven** — k8s, slurm, openldap,
    telemetry configuration is gated by support flags, not hardcoded FG checks.
@@ -166,11 +168,11 @@ software_config.json ──────┘
 
 | Phase | OpenCHAMI Playbook | OpenLDAP Playbook | Purpose |
 |-------|-------------------|-------------------|---------|
-| precheck | `precheck_openchami.yml` | `precheck_openldap.yml` | Read-only input validation |
+| precheck | `precheck_openchami.yml` | `precheck_openldap.yml` | Generate functional groups and validate inputs |
 | prepare | `prepare_openchami.yml` | `prepare_openldap.yml` | Credentials + configuration prep |
 | deploy | `deploy_openchami.yml` | `deploy_openldap.yml` | Deploy services on OIM |
 | validate | `validate_openchami.yml` | `validate_openldap.yml` | Readiness gate checks |
-| cleanup | `cleanup_openchami.yml` | `cleanup_openldap.yml` | Service teardown + artifact removal |
+| cleanup | `cleanup_full.yml` | Canonical cleanup role | Component teardown with aggregate results |
 | upgrade | `upgrade_openchami.yml` | `upgrade_openldap.yml` | In-place version upgrade |
 | rollback | `rollback_openchami.yml` | `rollback_openldap.yml` | Revert to previous state |
 
@@ -195,20 +197,21 @@ comments) that imports component playbooks based on tags:
 ---
 # orchestrator.yml — Thin routing wrapper
 
-# SHARED: Always runs — setup + FG generation
+# SHARED: Read-only context resolution always runs
 - name: Setup orchestrator environment
   hosts: localhost
   tags: always
   roles:
     - role: orchestrator_setup
 
+# LIFECYCLE: Generate functional groups for consuming flows
 - name: Generate functional groups configuration
   hosts: localhost
-  tags: always
+  tags: [precheck, prepare, provision, execute]
   roles:
     - orchestrator_functional_groups
 
-# PRECHECK: Read-only validation
+# PRECHECK: Functional-group generation and validation
 - import_playbook: precheck/precheck_openchami.yml    # tags: [precheck]
 - import_playbook: precheck/precheck_openldap.yml     # tags: [precheck]
 
@@ -230,10 +233,9 @@ comments) that imports component playbooks based on tags:
 - import_playbook: provision/provision_custom.yml      # tags: [provision]
 - import_playbook: validate/validate_provisioning.yml  # tags: [provision, validate]
 
-# OPT-IN: PXE boot, cleanup, upgrade, rollback (all use never + explicit tag)
+# OPT-IN: PXE boot, cleanup, upgrade, rollback (all require an explicit tag)
 - import_playbook: pxeboot/pxeboot.yml                # tags: [never, pxeboot]
-- import_playbook: cleanup/cleanup_openchami.yml       # tags: [never, cleanup]
-- import_playbook: cleanup/cleanup_openldap.yml        # tags: [never, cleanup]
+- import_playbook: cleanup/cleanup_full.yml            # tags: [cleanup, cleanup_credentials]
 - import_playbook: upgrade/upgrade_openchami.yml       # tags: [never, upgrade]
 - import_playbook: upgrade/upgrade_openldap.yml        # tags: [never, upgrade]
 - import_playbook: rollback/rollback_openchami.yml     # tags: [never, rollback]
@@ -251,7 +253,7 @@ src/orchestrator/
 │   ├── orchestrator.yml                 # Thin tag-routing wrapper
 │   ├── ansible.cfg                      # Sub-playbook config
 │   │
-│   ├── precheck/                        # Read-only input validation
+│   ├── precheck/                        # Functional-group and input validation
 │   │   ├── ansible.cfg
 │   │   ├── precheck_openchami.yml       # L1/L2 validation, params, images, config vars
 │   │   └── precheck_openldap.yml        # LDAP prerequisites (when enabled)
@@ -285,10 +287,12 @@ src/orchestrator/
 │   │   ├── pxeboot.yml                  # BMC inventory, reboot, node-registration verify
 │   │   └── README.md
 │   │
-│   ├── cleanup/                         # Component teardown
+│   ├── cleanup/                         # Canonical component teardown
 │   │   ├── ansible.cfg
-│   │   ├── cleanup_openchami.yml        # Stop services, remove containers/config
-│   │   └── cleanup_openldap.yml         # Stop container, remove Quadlet/data
+│   │   ├── cleanup_full.yml             # Full entry point imported by orchestrator.yml
+│   │   ├── cleanup_orchestrator.yml     # Direct component-selection entry point
+│   │   ├── cleanup_openchami.yml        # Compatibility wrapper selecting OpenCHAMI
+│   │   └── cleanup_openldap.yml         # Compatibility wrapper selecting OpenLDAP
 │   │
 │   ├── upgrade/                         # In-place upgrade
 │   │   ├── ansible.cfg
@@ -342,11 +346,18 @@ src/orchestrator/
 │   │   └── fetch_telemetry_status.py
 │   ├── module_utils/
 │   │   ├── orchestrator_validation/
-│   │   │   ├── orchestrator_validation_flow.py
-│   │   │   └── schema/
-│   │   │       ├── orchestrator_config.json
-│   │   │       ├── network_spec.json
-│   │   │       └── credential_rules.json
+│   │   │   ├── core/
+│   │   │   │   └── validation_engine.py
+│   │   │   ├── messages/
+│   │   │   │   └── orchestrator_messages.py
+│   │   │   ├── schema/
+│   │   │   │   ├── orchestrator_config.json
+│   │   │   │   ├── network_spec.json
+│   │   │   │   ├── storage_config.json
+│   │   │   │   └── credential_rules.json
+│   │   │   └── validators/
+│   │   │       ├── orchestrator_config_validator.py
+│   │   │       └── network_spec_validator.py
 │   │   └── slurm/
 │   │       └── slurm_conf_utils.py
 │   └── callback/
@@ -398,7 +409,7 @@ src/orchestrator/
 | **`orchestrator_validations` role** | Made credential loading conditional to avoid failures during `precheck` when creds aren't yet available | ✅ Done |
 | **`prepare_orchestrator.yml`** | Split into `prepare_openchami.yml` (credentials) + `prepare_openldap.yml` (dirs, TLS, configs) | ✅ Done |
 | **`validate_orchestrator.yml`** | Distributed to `validate_openchami.yml` + `validate_openldap.yml` with standalone setup plays | ✅ Done |
-| **`cleanup_orchestrator.yml`** | Split into `cleanup_openchami.yml` + `cleanup_openldap.yml` for independent teardown | ✅ Done |
+| **Cleanup workflow** | Consolidated selection, confirmation, execution, aggregation, and reporting in one cleanup role; component playbooks are compatibility wrappers | ✅ Done |
 | **`upgrade_orchestrator.yml`** | Replaced with `upgrade_openchami.yml` (version-specific 0.1.7→0.2.0 migration) + `upgrade_openldap.yml` (Fedora→Wolfi) | ✅ Done |
 | **`rollback_orchestrator.yml`** | Replaced with `rollback_openchami.yml` (backup restore) + `rollback_openldap.yml` (Wolfi→Fedora) | ✅ Done |
 | **`setpxe/` directory** | Renamed to `pxeboot/`, `set_pxe_boot.yml` → `pxeboot.yml`, tags: `setpxe` → `pxeboot` | ✅ Done |
@@ -412,8 +423,8 @@ src/orchestrator/
 | **`precheck_openldap.yml`** | Validate LDAP credentials, domain, container prereqs (when enabled) | ✅ Done |
 | **`prepare_openchami.yml`** | Credential management (prompt, encrypt, vault) — extracted from prepare_orchestrator | ✅ Done |
 | **`prepare_openldap.yml`** | Load LDAP creds, create dirs, TLS certs, template configs — extracted from prepare_orchestrator | ✅ Done |
-| **`cleanup_openchami.yml`** | Stop OpenCHAMI, remove containers/config/artifacts/creds — extracted from cleanup_orchestrator | ✅ Done |
-| **`cleanup_openldap.yml`** | Stop OpenLDAP container, remove Quadlet unit/data (when enabled) | ✅ Done |
+| **`cleanup_openchami.yml`** | Compatibility entry point that selects OpenCHAMI in the canonical cleanup workflow | ✅ Done |
+| **`cleanup_openldap.yml`** | Compatibility entry point that selects OpenLDAP in the canonical cleanup workflow | ✅ Done |
 | **`upgrade_openchami.yml`** | Version detection (package_facts), backup, legacy→fabrica migration, restart, verify | ✅ Done |
 | **`upgrade_openldap.yml`** | Fedora→Wolfi container image migration with data backup/restore | ✅ Done |
 | **`rollback_openchami.yml`** | Version detection (package_facts), backup restore, restart, verify | ✅ Done |
@@ -425,7 +436,7 @@ src/orchestrator/
 |-----------|--------|
 | **`prepare_orchestrator.yml`** | Split into `prepare_openchami.yml` + `prepare_openldap.yml` |
 | **`validate_orchestrator.yml`** | Distributed to `validate_openchami.yml` + `validate_openldap.yml` |
-| **`cleanup_orchestrator.yml`** | Split into `cleanup_openchami.yml` + `cleanup_openldap.yml` |
+| **Previous cleanup execution paths** | Consolidated behind the canonical cleanup role; compatibility entry points remain |
 | **`upgrade_orchestrator.yml`** | Replaced by `upgrade_openchami.yml` + `upgrade_openldap.yml` |
 | **`rollback_orchestrator.yml`** | Replaced by `rollback_openchami.yml` + `rollback_openldap.yml` |
 | **`setpxe/` directory** | Renamed to `pxeboot/` |
@@ -434,19 +445,19 @@ src/orchestrator/
 
 ## 6. Workflow Definitions
 
-### 6.1 Tag: `precheck` — Read-Only Validation
+### 6.1 Tag: `precheck` — Functional-Group and Input Validation
 
 ```
 precheck_openchami.yml:
   Hosts: localhost
   Roles:
-    1. orchestrator_setup (upgrade guard, dirs, vars, OIM group)
+    1. orchestrator_setup (upgrade guard, paths, vars, OIM group)
     2. validate_orchestrator_input (L1 schema + L2 logic)
     3. orchestrator_validations (pre-flight: mapping, software, images)
   Hosts: oim
   Tasks:
     4. validate_oim_timezone
-    5. validate_boot_images (S3 image per FG)
+    5. validate_boot_images (HTTP HEAD for kernel, initrd, and rootfs per FG)
     6. assert OpenCHAMI config vars (domain_name, admin_nic_ip, etc.)
 
 precheck_openldap.yml:
@@ -458,11 +469,21 @@ precheck_openldap.yml:
        - Container prerequisites met
 
 Output:
-  - Validated configuration (read-only, no system changes)
+  - Generated/updated `$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/.data/functional_groups_config.yml`
+  - Validated configuration with no service changes or `orchestrator_state.yml` update
   - Clear error messages on any failure
 ```
 
-**No deployment. No credentials. Pre-flight only.**
+**No deployment. No credentials. Functional-group generation plus pre-flight validation only.**
+
+`domain-init.sh` remains the explicit project-initialization command. For
+consistency with other domain setup roles, runtime setup also initializes a
+missing project input directory from the source templates, without overwriting
+an existing project. The setup role writes `orchestrator_state.yml` only for
+stateful lifecycle tags (`prepare`, `deploy`, `provision`, `execute`,
+`pxeboot`, and `upgrade`) or the default flow. Precheck creates the output
+`.data` directory only to publish the functional-group configuration; other
+lightweight flows do not initialize persistent output state.
 
 ### 6.2 Tag: `prepare` — Credentials + Configuration
 
@@ -548,24 +569,22 @@ pxeboot.yml:
     4. Node-registration verification
 ```
 
-### 6.6 Tag: `cleanup` — Component Teardown (Opt-In)
+### 6.6 Tag: `cleanup` — Canonical Component Teardown (Opt-In)
 
 ```
-cleanup_openchami.yml:
-  Hosts: oim
+cleanup_full.yml / cleanup_orchestrator.yml:
+  Hosts: localhost
   Tasks:
-    1. Stop OpenCHAMI services (systemctl stop openchami.target)
-    2. Remove OpenCHAMI containers and config
-    3. Remove generated artifacts (inventories, FG configs)
-    4. Remove credentials (opt-in)
-    5. Remove orchestrator output directory
+    1. Resolve enabled components and requested tags
+    2. Confirm destructive cleanup, unless dry-run or explicitly bypassed
+    3. Run each selected component through the canonical cleanup role
+    4. Preserve NFS ordering: delete shared data before scoped unmount
+    5. Record each component as SUCCESS or FAILED
+    6. Print accurate passed and failed counts
+    7. Exit non-zero after all components are attempted if any failed
 
-cleanup_openldap.yml:
-  Hosts: oim
-  Tasks:
-    1. Stop OpenLDAP container (when openldap_support)
-    2. Remove Quadlet unit file
-    3. Remove OpenLDAP data and configuration
+cleanup_openchami.yml / cleanup_openldap.yml:
+  Compatibility wrappers that select one component in the same workflow.
 ```
 
 ### 6.7 Tag: `upgrade` — In-Place Upgrade (Opt-In)
@@ -632,7 +651,7 @@ Each playbook can be run independently. Prerequisites:
 
 | To run standalone... | Prerequisites |
 |---------------------|---------------|
-| `precheck_openchami.yml` | None (read-only) |
+| `precheck_openchami.yml` | Functional groups generated from current inputs |
 | `prepare_openchami.yml` | `precheck` should have passed |
 | `deploy_openchami.yml` | `precheck` + `prepare` |
 | `provision_preamble.yml` | `precheck` + `prepare` + `deploy` |
@@ -730,7 +749,7 @@ functional group names. They are triggered by configuration data:
 │                   ORCHESTRATOR WORKFLOWS                        │
 │                                                                 │
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │  SHARED: orchestrator_setup + functional_groups (always)  │   │
+│  │  SHARED: orchestrator_setup (always)                       │   │
 │  └──────────────────────┬───────────────────────────────────┘   │
 │                         │                                        │
 │           ┌─────────────┼─────────────────┐                     │
@@ -791,7 +810,7 @@ functional group names. They are triggered by configuration data:
 | 2.3 | Wire `deploy` tag for `deploy_openchami.yml` + `deploy_openldap.yml` | ✅ Done |
 | 2.4 | Distribute `validate_orchestrator.yml` → `validate_openchami.yml` + `validate_openldap.yml` | ✅ Done |
 | 2.5 | Create `provision_preamble.yml` (SSH + auth, runs once) | ✅ Done |
-| 2.6 | Split `cleanup_orchestrator.yml` → `cleanup_openchami.yml` + `cleanup_openldap.yml` | ✅ Done |
+| 2.6 | Consolidate cleanup entry points behind a canonical cleanup role | ✅ Done |
 | 2.7 | Rewrite `orchestrator.yml` as thin tag-routing wrapper | ✅ Done |
 | 2.8 | Update `supported_tags`, `invalid_tag_combinations`, `skip_credential_tags` | ✅ Done |
 | 2.9 | Remove old `*_orchestrator.yml` files | ✅ Done |
@@ -827,8 +846,8 @@ functional group names. They are triggered by configuration data:
 | 5.2 | Implement `upgrade_openldap.yml` (Fedora→Wolfi migration) | ✅ Done |
 | 5.3 | Implement `rollback_openchami.yml` (version detect via package_facts, restore, verify) | ✅ Done |
 | 5.4 | Implement `rollback_openldap.yml` (Wolfi→Fedora rollback) | ✅ Done |
-| 5.5 | Implement `cleanup_openchami.yml` (stop, remove containers/config/artifacts) | ✅ Done |
-| 5.6 | Implement `cleanup_openldap.yml` (stop, remove Quadlet/data) | ✅ Done |
+| 5.5 | Implement canonical OpenCHAMI cleanup component and compatibility wrapper | ✅ Done |
+| 5.6 | Implement canonical OpenLDAP cleanup component and compatibility wrapper | ✅ Done |
 | 5.7 | Rename `setpxe/` → `pxeboot/`, update tags and routing | ✅ Done |
 | 5.8 | Fix `orchestrator_validations` conditional credential loading | ✅ Done |
 | 5.9 | Fix `orchestrator_setup` upgrade lock bypass for upgrade/rollback tags | ✅ Done |

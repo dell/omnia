@@ -16,11 +16,6 @@
 # OpenLDAP Cleanup Task
 # Performs the actual OpenLDAP cleanup operations
 
-- name: Set role path
-  ansible.builtin.set_fact:
-    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
-  tags: openldap
-
 - name: Load OpenLDAP component configuration
   ansible.builtin.include_vars:
     file: "{{ role_path }}/components/openldap/vars/component_spec.yml"
@@ -31,6 +26,10 @@
     msg: "Starting OpenLDAP cleanup operations"
   tags: openldap
 
+- name: Gather service state for OpenLDAP cleanup
+  ansible.builtin.service_facts:
+  tags: openldap
+
 - name: Stop OpenLDAP service
   tags: openldap
   block:
@@ -39,19 +38,45 @@
         name: "{{ openldap_config.service_name | default('openldap') }}"
         state: stopped
         enabled: false
-      failed_when: false
-      when: "'stop_service' in openldap_config.cleanup_operations"
+      when:
+        - "'stop_service' in openldap_config.cleanup_operations"
+        - >-
+          (openldap_config.service_name | default('openldap')) + '.service'
+          in ansible_facts.services
       tags: openldap
+
+- name: Check whether Podman is available for OpenLDAP cleanup
+  ansible.builtin.command: podman --version
+  register: cleanup_openldap_podman_check
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  tags: openldap
+
+- name: Check whether the OpenLDAP container exists
+  ansible.builtin.command: >-
+    podman container exists
+    {{ openldap_config.container_name | default('omnia_auth') }}
+  register: cleanup_openldap_container_check
+  check_mode: false
+  changed_when: false
+  failed_when: cleanup_openldap_container_check.rc not in [0, 1]
+  when:
+    - "'remove_container' in openldap_config.cleanup_operations"
+    - cleanup_openldap_podman_check.rc == 0
+  tags: openldap
 
 - name: Remove OpenLDAP container
   tags: openldap
   block:
     - name: Remove OpenLDAP container
       ansible.builtin.command: podman rm -f -i {{ openldap_config.container_name | default('omnia_auth') }}
-      register: container_removal
-      changed_when: container_removal.rc == 0
-      failed_when: false
-      when: "'remove_container' in openldap_config.cleanup_operations"
+      register: cleanup_openldap_container_removal
+      changed_when: true
+      when:
+        - "'remove_container' in openldap_config.cleanup_operations"
+        - cleanup_openldap_podman_check.rc == 0
+        - cleanup_openldap_container_check.rc == 0
       tags: openldap
 
 - name: Remove OpenLDAP Quadlet unit
@@ -80,7 +105,6 @@
       ansible.builtin.file:
         path: "{{ openldap_config.base_dir }}"
         state: absent
-      failed_when: false
       when: "'remove_data' in openldap_config.cleanup_operations"
       tags: openldap
 

@@ -17,7 +17,6 @@
 - name: Set omnia_run_tags from ansible_run_tags
   ansible.builtin.set_fact:
     omnia_run_tags: "{{ ansible_run_tags | default([]) | list }}"
-    cacheable: true
 
 - name: Validate tags are supported
   ansible.builtin.fail:
@@ -78,49 +77,66 @@
     omnia_project_input_dir: "{{ omnia_data_path }}/orchestrator/input/{{ project_name }}"
     orchestrator_config_file: "orchestrator_config.yml"
     orchestrator_output_dir: "{{ omnia_data_path }}/orchestrator/output/{{ project_name }}"
+    functional_groups_config_path: "{{ omnia_data_path }}/orchestrator/output/{{ project_name }}/.data/functional_groups_config.yml"
     project_dir_status: true
     cacheable: true
+
+- name: Determine setup lifecycle requirements
+  ansible.builtin.set_fact:
+    _orchestrator_initialization_required: >-
+      {{ orchestrator_initialize_state
+         | default(
+             (omnia_run_tags | difference(['always', 'all']) | length == 0)
+             or (omnia_run_tags | intersect(state_initialization_tags)
+                 | length > 0)
+           )
+         | bool }}
 
 - name: Verify orchestrator input directory exists
   ansible.builtin.stat:
     path: "{{ input_project_dir }}"
   register: orchestrator_input_stat
 
-- name: Auto-copy input files from source if runtime input dir is missing
+- name: Initialize missing project inputs from source templates
   when: not orchestrator_input_stat.stat.exists
   block:
-    - name: Check if source input directory exists
+    - name: Check whether source input templates exist
       ansible.builtin.stat:
         path: "{{ _domain_root_dir }}/input"
-      register: _source_dir_check
+      register: _orchestrator_source_input_stat
 
-    - name: Create runtime input directory
+    - name: Fail when source input templates are unavailable
+      ansible.builtin.fail:
+        msg: >-
+          Orchestrator project input directory '{{ input_project_dir }}' is
+          missing, and source templates were not found at
+          '{{ _domain_root_dir }}/input'.
+      when: not _orchestrator_source_input_stat.stat.exists
+
+    - name: Create project input directory
       ansible.builtin.file:
         path: "{{ input_project_dir }}"
         state: directory
-        mode: '0755'
-      when: _source_dir_check.stat.exists
+        mode: "0755"
+      when: _orchestrator_source_input_stat.stat.exists
 
-    - name: Copy input files from source to runtime directory
+    - name: Copy source input templates into the project
       ansible.builtin.command:
         cmd: "cp -a {{ _domain_root_dir }}/input/. {{ input_project_dir }}/"
-      when: _source_dir_check.stat.exists
       changed_when: true
+      when: _orchestrator_source_input_stat.stat.exists
 
-    - name: Fail if no input files available
-      ansible.builtin.fail:
-        msg: >-
-          Orchestrator input directory '{{ input_project_dir }}' does not exist
-          and no source input files found at '{{ _domain_root_dir }}/input/'.
-          Run domain-init.sh or manually create the directory with orchestrator_config.yml
-          and network_spec.yml.
-      when: not _source_dir_check.stat.exists
+- name: Refresh orchestrator input directory status
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}"
+  register: orchestrator_input_stat
 
 - name: Ensure orchestrator output directory exists
   ansible.builtin.file:
     path: "{{ orchestrator_output_dir }}"
     state: directory
     mode: '0755'
+  when: _orchestrator_initialization_required | bool
 
 # Step 4: Include domain vars
 - name: Include common vars
@@ -130,46 +146,42 @@
   ansible.builtin.include_vars: "{{ role_path }}/../../vars/openchami_vars.yml"
   when: openchami_vars_support | default(false)
 
-# Step 5: Include OIM metadata vars (only if file exists)
-- name: Check if oim metadata file exists
-  ansible.builtin.stat:
-    path: "{{ omnia_metadata_file_path }}"
-  register: _oim_metadata_stat
-  when: omnia_metadata_support | default(false)
-
-- name: Include oim metadata vars
-  ansible.builtin.include_vars: "{{ omnia_metadata_file_path }}"
-  when:
-    - omnia_metadata_support | default(false)
-    - _oim_metadata_stat.stat.exists | default(false)
-
-- name: Warn if oim metadata file is missing
-  ansible.builtin.debug:
-    msg: >-
-      WARNING: OIM metadata file not found at '{{ omnia_metadata_file_path }}'.
-      This is expected on first run. Run omnia.sh --init to generate it.
-  when:
-    - omnia_metadata_support | default(false)
-    - not (_oim_metadata_stat.stat.exists | default(false))
-
-- name: Set oim_node_name fallback from host_name
+# Step 5: Publish OIM identity and shared-data facts from the environment
+- name: Set oim_node_name from host_name
   ansible.builtin.set_fact:
     oim_node_name: "{{ host_name }}"
     cacheable: true
-  when: oim_node_name is not defined or oim_node_name | length == 0
 
-- name: Set oim_shared_path fallback
+- name: Set oim_shared_path from omnia_data_path
   ansible.builtin.set_fact:
     oim_shared_path: "{{ omnia_data_path }}"
     cacheable: true
-  when: oim_shared_path is not defined or oim_shared_path | length == 0
 
 # Step 6: Load orchestrator config for upstream contract paths
+- name: Initialize optional orchestrator configuration
+  ansible.builtin.set_fact:
+    _orch_config: {}
+
+- name: Check whether orchestrator configuration exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}/orchestrator_config.yml"
+  register: _orchestrator_config_stat
+  when: orchestrator_input_stat.stat.exists
+
+- name: Fail when required orchestrator configuration is missing
+  ansible.builtin.fail:
+    msg: >-
+      Required Orchestrator configuration was not found at
+      '{{ input_project_dir }}/orchestrator_config.yml'. Run domain-init.sh or
+      restore the project input before this flow.
+  when:
+    - not (_orchestrator_config_stat.stat.exists | default(false))
+
 - name: Load orchestrator config
   ansible.builtin.include_vars:
     file: "{{ input_project_dir }}/orchestrator_config.yml"
     name: _orch_config
-  failed_when: false
+  when: _orchestrator_config_stat.stat.exists | default(false)
 
 - name: Set image_build_manager_output_path and boot params on localhost
   ansible.builtin.set_fact:
@@ -213,6 +225,27 @@
     msg: "{{ repo_status_missing_fail_msg }}"
   when:
     - _repo_status_required | bool
+    - not _repo_status_stat.stat.exists
+
+- name: Skip repo_status loading for prepare/deploy tags when missing
+  ansible.builtin.debug:
+    msg: >-
+      Skipping repo_status.yml loading - not found and not required
+      for current tags: {{ omnia_run_tags | default(['default flow']) | join(', ') }}.
+      Repository configuration will be loaded during provision/execute phases.
+  when:
+    - not _repo_status_required | bool
+    - not _repo_status_stat.stat.exists
+
+- name: Set default repo_manager facts when not required
+  ansible.builtin.set_fact:
+    cluster_os_type: "rhel"
+    pulp_port: 2225
+    pulp_cert_path: ""
+    repositories: {}
+    cacheable: true
+  when:
+    - not _repo_status_required | bool
     - not _repo_status_stat.stat.exists
 
 - name: Validate required repo_status.yml contract
@@ -273,6 +306,12 @@
     catalog_file_path: "{{ _orch_config.catalog_file_path | default('') | ternary(_orch_config.catalog_file_path | default(''), default_catalog_file_path) }}"
     cacheable: true
 
+- name: Determine whether the catalog is required for this flow
+  ansible.builtin.set_fact:
+    _catalog_required: >-
+      {{ omnia_run_tags | length == 0
+         or (omnia_run_tags | intersect(catalog_required_tags) | length > 0) }}
+
 - name: Check if catalog file exists
   ansible.builtin.stat:
     path: "{{ catalog_file_path }}"
@@ -282,10 +321,49 @@
   ansible.builtin.set_fact:
     catalog_data: "{{ lookup('file', catalog_file_path) | from_json }}"
     cacheable: true
-  when: _catalog_stat.stat.exists
+  when:
+    - _catalog_required | bool
+    - _catalog_stat.stat.exists
+
+- name: Fail when the required catalog is missing
+  ansible.builtin.fail:
+    msg: "{{ catalog_missing_fail_msg }}"
+  when:
+    - _catalog_required | bool
+    - not _catalog_stat.stat.exists
+
+- name: Validate catalog root structure
+  ansible.builtin.assert:
+    that:
+      - catalog_data is mapping
+      - catalog_data.catalog is defined
+      - catalog_data.catalog is mapping
+    fail_msg: "{{ catalog_invalid_fail_msg }}"
+    quiet: true
+  when:
+    - _catalog_required | bool
+    - _catalog_stat.stat.exists
+
+- name: Validate required catalog sections
+  ansible.builtin.assert:
+    that:
+      - catalog_data.catalog.groups is defined
+      - catalog_data.catalog.groups is mapping
+      - catalog_data.catalog.functionallayer is defined
+      - catalog_data.catalog.functionallayer is sequence
+      - catalog_data.catalog.functionallayer is not string
+      - catalog_data.catalog.packages is defined
+      - catalog_data.catalog.packages is mapping
+    fail_msg: "{{ catalog_invalid_fail_msg }}"
+    quiet: true
+  when:
+    - _catalog_required | bool
+    - _catalog_stat.stat.exists
 
 - name: Derive OS metadata and feature flags from catalog
-  when: _catalog_stat.stat.exists
+  when:
+    - _catalog_required | bool
+    - _catalog_stat.stat.exists
   block:
     - name: Extract base OS group from catalog
       ansible.builtin.set_fact:
@@ -294,10 +372,19 @@
              | selectattr('value.type', 'equalto', 'base_os')
              | map(attribute='value') | first | default({}) }}
 
+    - name: Validate catalog base OS metadata
+      ansible.builtin.assert:
+        that:
+          - _base_os_group | length > 0
+          - _base_os_group.os | default('') | length > 0
+          - _base_os_group.os_version | default('') | length > 0
+        fail_msg: "{{ catalog_invalid_fail_msg }}"
+        quiet: true
+
     - name: Set cluster OS metadata from catalog
       ansible.builtin.set_fact:
-        cluster_os_type: "{{ _base_os_group.os | default('rhel') }}"
-        cluster_os_version: "{{ _base_os_group.os_version | default('10.0') }}"
+        cluster_os_type: "{{ _base_os_group.os }}"
+        cluster_os_version: "{{ _base_os_group.os_version }}"
         cacheable: true
 
     - name: Derive feature flags from catalog functionallayers and groups
@@ -317,16 +404,44 @@
         dcgm_support: "{{ _orch_config.dcgm_enabled | default(true) | bool }}"
         cacheable: true
 
+    - name: Resolve Kubernetes package name from catalog
+      ansible.builtin.set_fact:
+        _kubeadm_package_name: >-
+          {{ catalog_data.catalog.packages | dict2items
+             | selectattr('key', 'match', '^kubeadm(?:_|$)')
+             | map(attribute='value.name') | first | default('') }}
+      when: service_k8s_support | bool
+
+    - name: Set Kubernetes version from catalog
+      ansible.builtin.set_fact:
+        service_k8s_version: >-
+          {{ _kubeadm_package_name
+             | regex_search('[0-9]+\.[0-9]+\.[0-9]+')
+             | default('', true) }}
+        cacheable: true
+      when: service_k8s_support | bool
+
+    - name: Validate catalog Kubernetes version
+      ansible.builtin.assert:
+        that:
+          - service_k8s_version | default('') | length > 0
+        fail_msg: >-
+          The catalog enables Kubernetes but does not contain a versioned
+          kubeadm package. Add a kubeadm package such as kubeadm_1_35_1.
+        quiet: true
+      when: service_k8s_support | bool
+
 - name: Warn if catalog file is missing
   ansible.builtin.debug:
     msg: >-
       WARNING: Catalog file not found at '{{ catalog_file_path }}'.
-      Feature flags (k8s, slurm, openldap, etc.) will default to false.
-      Run repo_manager to generate the catalog, or set catalog_file_path
-      in orchestrator_config.yml.
-  when: not _catalog_stat.stat.exists
+      This flow does not consume catalog-derived OS or feature metadata, so
+      execution will continue with feature flags disabled.
+  when:
+    - not (_catalog_required | bool)
+    - not _catalog_stat.stat.exists
 
-- name: Set default feature flags when catalog is missing
+- name: Set default catalog facts for a catalog-independent flow
   ansible.builtin.set_fact:
     service_k8s_support: false
     slurm_support: false
@@ -336,7 +451,7 @@
     openmpi_support: false
     csi_driver_powerscale_support: false
     cacheable: true
-  when: not _catalog_stat.stat.exists
+  when: not (_catalog_required | bool)
 
 # Step 9: Create OIM host group (only when oim_group is explicitly enabled)
 - name: Create OIM host group {{ oim_host_group }}
@@ -367,3 +482,4 @@
       domain_name: "{{ domain_name | default('') }}"
     dest: "{{ orchestrator_output_dir }}/orchestrator_state.yml"
     mode: "0644"
+  when: _orchestrator_initialization_required | bool
