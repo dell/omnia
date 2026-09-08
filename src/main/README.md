@@ -7,7 +7,7 @@ Core entry points for the Omnia Infrastructure Manager (OIM).
 | `omnia.sh` | Setup script — creates venv, installs deps, copies domain input files |
 | `omnia-cli` | Status and diagnostics CLI |
 | `omnia-bash-completion` | Shared Bash completion for `omnia-cli` and `omnia.sh` |
-| `omnia.env` | Environment configuration (single source of truth) |
+| `omnia.env` | Bootstrap template for the installed environment configuration |
 | `samples/` | Reference files (catalog JSON, etc.) for documentation and testing |
 
 ---
@@ -56,6 +56,7 @@ omnia-cli status
 ./omnia.sh -s --skip-catalog       # Setup without catalog copy
 ./omnia.sh -s --skip-omnia-cli     # Setup without omnia-cli install
 ./omnia.sh -s --force-deps         # Force reinstall all deps (bypass cache)
+./omnia.sh -s --force-env          # Explicitly replace /etc config from repo omnia.env
 ./omnia.sh --init                  # Init all domains (stage input files + deps)
 ./omnia.sh -i telemetry            # Init single domain
 ./omnia.sh -i repo_manager,telemetry  # Init specific domains
@@ -72,8 +73,8 @@ omnia-cli status
 
 **What `-s` does:**
 
-1. **Validates env source file** — checks `SYSTEM_ADMIN_NIC_IPV4` is set and valid IPv4 before copying
-2. **Installs env system-wide** — copies `omnia.env` to `/etc/omnia/omnia.env` (auto-updates if source differs), creates `/etc/profile.d/omnia-env.sh`
+1. **Selects the environment config** — installs repository `omnia.env` on the first run; otherwise preserves and uses `/etc/omnia/omnia.env`
+2. **Validates the active env file** — checks `SYSTEM_ADMIN_NIC_IPV4` is set and valid before loading it; `--force-env` explicitly replaces the installed file from the repository
 3. Validates full environment (hostname, domain, admin NIC match)
 4. Creates `$OMNIA_DATA_PATH` and its `.data` directory
 5. Finds Python 3.11+, creates/updates venv at `$OMNIA_VENV_PATH`
@@ -86,6 +87,8 @@ omnia-cli status
 8. Installs `omnia-cli` to `/usr/local/bin/omnia-cli` and shared completion for `omnia-cli` and `omnia.sh` to `/etc/bash_completion.d/omnia-bash-completion` (use `--skip-omnia-cli` to suppress)
 
 After setup, all new login shells automatically have the environment variables.
+The installed `/etc/omnia/omnia.env` is authoritative after the first setup;
+edit it directly for later configuration changes.
 Step 6 ensures each domain's dependencies are installed and Ansible roles read
 input from a stable runtime location (`/opt/omnia/<domain>/input/<project>/`)
 rather than the git checkout. Use `--deps-only` to skip input file staging in this step (e.g., in CI

@@ -242,7 +242,7 @@ _omnia_sh_completions() {
 
     local commands="--setup-venv -s --init -i --prepare-base --run -r \
 --check-deps --cleanup --help -h"
-    local setup_options="--deps-only --force-deps --skip --dry-run \
+    local setup_options="--deps-only --force-deps --force-env --skip --dry-run \
 --skip-catalog --skip-omnia-cli"
     local init_options="--deps-only --force-deps --skip --dry-run"
     local prepare_options="--skip --dry-run"

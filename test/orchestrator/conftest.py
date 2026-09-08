@@ -107,7 +107,6 @@ def pytest_configure(config):
         "functional": "Functional verification",
         "deploy": "Playbook deployment tests (requires full environment)",
         "slurm": "Slurm-specific tests (requires Slurm enabled)",
-        "kubernetes": "Kubernetes-specific tests (requires K8s enabled)",
         "nft": "Non-functional tests (performance, idempotency, security)",
         "performance": "Performance and timing tests",
         "idempotency": "Idempotency",

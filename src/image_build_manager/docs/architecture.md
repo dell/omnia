@@ -246,6 +246,7 @@ boot-images/<functional_group>/<image_name>-imgth/<release>/
 | `image_build_credentials.json` | Credential format validation |
 | `package_groups.json` | Config-mode OS metadata and package groups |
 | `catalog.json` | Catalog JSON structure (when catalog mode) |
+| `repo_status.json` | Consumer-required Repo Manager status fields (build/execute/default flow) |
 
 ### Logic Validation
 
@@ -254,3 +255,4 @@ boot-images/<functional_group>/<image_name>-imgth/<release>/
 | `image_build_config_validator` | S3 provider/endpoint consistency, aarch64 host/user, build timeout |
 | `image_build_credentials_validator` | S3 access keys (powerscale), aarch64 SSH password |
 | `catalog_validator` | Structure: layers have name/components, groups is dict |
+| `repo_status_validator` | Successful status and at least one usable supported-architecture RPM URL |

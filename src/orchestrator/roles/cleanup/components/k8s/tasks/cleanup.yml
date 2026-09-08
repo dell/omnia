@@ -123,6 +123,7 @@
       Removing K8s shared data from '{{ cleanup_k8s_clean_base }}'
       ({{ 'via mount point' if cleanup_k8s_share_mounted | bool else 'local NFS export on this OIM' }}).
   when:
+    - cleanup_k8s_approved | default(true) | bool
     - k8s_config.cleanup_nfs_server | default(false) | bool
     - cleanup_k8s_clean_base | length > 0
   tags: k8s
@@ -134,6 +135,7 @@
       mounted and this host does not export '{{ cleanup_k8s_export_path }}'. Mount the share
       and re-run, or remove the data on the NFS server directly.
   when:
+    - cleanup_k8s_approved | default(true) | bool
     - k8s_config.cleanup_nfs_server | default(false) | bool
     - cleanup_k8s_clean_base | length == 0
   tags: k8s
@@ -146,18 +148,78 @@
       is available. Mount the share and rerun cleanup, or remove its data
       directly on the NFS server.
   when:
+    - cleanup_k8s_approved | default(true) | bool
     - k8s_config.cleanup_nfs_server | default(false) | bool
     - cleanup_k8s_clean_base | length == 0
   tags: k8s
 
-- name: Remove K8s data from the shared filesystem (before unmounting)
-  ansible.builtin.file:
-    path: "{{ cleanup_k8s_clean_base }}/{{ item }}"
-    state: absent
-  loop: "{{ k8s_config.cleanup_directories }}"
+- name: Validate K8s cleanup target is not a protected system path
+  ansible.builtin.assert:
+    that:
+      - cleanup_k8s_clean_base is match('^/')
+      - cleanup_k8s_clean_base not in k8s_config.protected_cleanup_paths
+    fail_msg: >-
+      Refusing to remove Kubernetes data from unsafe path
+      '{{ cleanup_k8s_clean_base }}'. Correct the matching mount_point or NFS
+      export in storage_config.yml.
   when:
+    - cleanup_k8s_approved | default(true) | bool
     - k8s_config.cleanup_nfs_server | default(false) | bool
     - cleanup_k8s_clean_base | length > 0
+  tags: k8s
+
+- name: Discover all K8s shared-data entries
+  ansible.builtin.find:
+    paths: "{{ cleanup_k8s_clean_base }}"
+    file_type: any
+    hidden: true
+    recurse: false
+  register: cleanup_k8s_shared_entries
+  when:
+    - cleanup_k8s_approved | default(true) | bool
+    - k8s_config.cleanup_nfs_server | default(false) | bool
+    - cleanup_k8s_clean_base | length > 0
+  tags: k8s
+
+- name: Remove all K8s data from the shared filesystem before unmounting
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ cleanup_k8s_shared_entries.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when:
+    - cleanup_k8s_approved | default(true) | bool
+    - k8s_config.cleanup_nfs_server | default(false) | bool
+    - cleanup_k8s_clean_base | length > 0
+  tags: k8s
+
+- name: Verify K8s shared-data directory is empty
+  ansible.builtin.find:
+    paths: "{{ cleanup_k8s_clean_base }}"
+    file_type: any
+    hidden: true
+    recurse: false
+  register: cleanup_k8s_remaining_entries
+  when:
+    - cleanup_k8s_approved | default(true) | bool
+    - k8s_config.cleanup_nfs_server | default(false) | bool
+    - cleanup_k8s_clean_base | length > 0
+    - not dry_run | default(false) | bool
+  tags: k8s
+
+- name: Fail when K8s shared data remains
+  ansible.builtin.assert:
+    that:
+      - cleanup_k8s_remaining_entries.matched | int == 0
+    fail_msg: >-
+      Kubernetes shared data remains under '{{ cleanup_k8s_clean_base }}'.
+      The storage will not be unmounted until the directory is empty.
+  when:
+    - cleanup_k8s_approved | default(true) | bool
+    - k8s_config.cleanup_nfs_server | default(false) | bool
+    - cleanup_k8s_clean_base | length > 0
+    - not dry_run | default(false) | bool
   tags: k8s
 
 # storage_mounts is a declared dependency of this component, so it always runs
@@ -168,17 +230,10 @@
     trigger_component: "k8s"
   tags: k8s
 
-# Removes the now-empty local mount point stubs. Has no effect on NFS server
-# data, which was already handled above while the share was still mounted.
-- name: Remove local K8s mount point directories (after unmounting)
-  ansible.builtin.file:
-    path: "{{ cleanup_k8s_mount_point }}/{{ item }}"
-    state: absent
-  loop: "{{ k8s_config.cleanup_directories }}"
-  when: k8s_config.nfs_cleanup | default(false) | bool
-  tags: k8s
-
 - name: Display K8s cleanup completion
   ansible.builtin.debug:
-    msg: "K8s cleanup operations completed (OIM node - NFS data cleaned)"
+    msg: >-
+      K8s cleanup operations completed (shared data
+      {{ 'deleted' if cleanup_k8s_approved | default(true) | bool else 'preserved' }};
+      storage unmounted and fstab entries removed)
   tags: k8s

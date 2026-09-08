@@ -28,8 +28,8 @@ short_description: Parse repo_status.yml and build per-architecture repo lists
 version_added: "2.3.0"
 description:
   - Reads the C(repo_status.yml) file produced by repo_manager.
-  - Extracts C(cluster_os_type) and derives the ordered OS versions from
-    C(execution_contexts).
+  - Extracts C(cluster_os_type) and derives ordered OS versions from
+    C(repositories) key order.
   - Builds per-architecture repo lists from
     C(repositories.{version}.{arch}.{repo_name}.url).
   - Reads C(repo_port) from repository service metadata and falls back to the
@@ -66,12 +66,12 @@ cluster_os_type:
   type: str
 cluster_os_version:
   description:
-    - Primary OS version from the first execution context.
+    - Primary OS version from the first repository key.
     - Example C(10.0), C(10.2).
   returned: always
   type: str
 cluster_os_versions:
-  description: Ordered OS versions published by Repo Manager.
+  description: Ordered OS versions available to Image Build Manager.
   returned: always
   type: list
   elements: str
@@ -217,15 +217,8 @@ def _build_repo_list(arch_repos: dict) -> list:
 
 
 def _ordered_versions(data: dict) -> list[str]:
-    """Return version keys in the producer's execution order."""
-    context_versions = [
-        str(context["os_version"])
-        for context in data.get("execution_contexts", [])
-        if isinstance(context, dict) and context.get("os_version") is not None
-    ]
-    return context_versions or [
-        str(version) for version in data["repositories"]
-    ]
+    """Return repository version keys in their published order."""
+    return [str(version) for version in data["repositories"]]
 
 
 def _repo_manager_metadata(data: dict) -> tuple[int, str]:

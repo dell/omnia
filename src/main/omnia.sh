@@ -19,11 +19,12 @@
 # =============================================================================
 #
 # Prerequisites:
-#   1. Edit src/main/omnia.env with your settings
+#   1. For a first-time install, edit src/main/omnia.env with your settings
 #   2. Run: ./omnia.sh --setup-venv   (one-time Python + Ansible setup)
 #
 # During setup, this script:
-#   - Installs omnia.env to /etc/omnia/omnia.env (system-wide)
+#   - Installs omnia.env to /etc/omnia/omnia.env on the first run
+#   - Preserves /etc/omnia/omnia.env on subsequent runs
 #   - Creates /etc/profile.d/omnia-env.sh so all new shells auto-load vars
 #   - Creates venv, installs deps, copies domain input files
 #
@@ -84,17 +85,51 @@ readonly LIFECYCLE_PHASES=(
     "prepare"       # Deploy infrastructure
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Auto-load installed environment
-# ─────────────────────────────────────────────────────────────────────────────
-if [ -f /etc/profile.d/omnia-env.sh ]; then
-    # shellcheck disable=SC1091
-    . /etc/profile.d/omnia-env.sh
-fi
+# Variables owned by omnia.env. Clear these before loading the selected file so
+# values removed from a config cannot leak in from a previously sourced shell.
+readonly OMNIA_ENV_VARIABLES=(
+    SYSTEM_ADMIN_NIC_IPV4
+    OMNIA_DATA_PATH
+    OMNIA_PROJECT_NAME
+    SYSTEM_HOSTNAME
+    SYSTEM_DOMAIN_NAME
+    OMNIA_VENV_PATH
+    OMNIA_VERSION
+    CATALOG_FILE_PATH
+    IMAGE_BUILD_MANAGER_DATA_PATH
+    REPO_MANAGER_DATA_PATH
+    DISCOVERY_DATA_PATH
+    ORCHESTRATOR_DATA_PATH
+    TELEMETRY_DATA_PATH
+    BUILD_STREAM_DATA_PATH
+)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Environment Loading
 # ─────────────────────────────────────────────────────────────────────────────
+source_omnia_env() {
+    local env_file="$1"
+    local variable
+    local allexport_was_set=false
+
+    if [[ "$-" == *a* ]]; then
+        allexport_was_set=true
+    fi
+
+    for variable in "${OMNIA_ENV_VARIABLES[@]}"; do
+        unset -v "$variable"
+    done
+
+    set -a
+    # shellcheck disable=SC1090
+    . "$env_file"
+    if [ "$allexport_was_set" = false ]; then
+        set +a
+    fi
+
+    ACTIVE_ENV_FILE="$env_file"
+}
+
 load_env() {
     # Apply defaults for optional variables
     OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
@@ -110,6 +145,7 @@ load_env() {
 validate_env() {
     local errors=0
     local warnings=0
+    local env_file="${ACTIVE_ENV_FILE:-/etc/omnia/omnia.env}"
 
     # --- Required env vars ---
     if [ -z "${SYSTEM_ADMIN_NIC_IPV4:-}" ]; then
@@ -131,7 +167,7 @@ validate_env() {
     fi
 
     if [ "$errors" -gt 0 ]; then
-        echo -e "${YELLOW}Set the required variables in src/main/omnia.env and re-run ./omnia.sh --setup-venv${NC}"
+        echo -e "${YELLOW}Set the required variables in ${env_file} and re-run ./omnia.sh --setup-venv${NC}"
         echo -e "${YELLOW}Or export them manually:  export SYSTEM_ADMIN_NIC_IPV4=<ip>${NC}"
         exit 1
     fi
@@ -143,7 +179,7 @@ validate_env() {
     actual_hostname="$(hostname -s 2>/dev/null || hostname 2>/dev/null)"
     if [ -n "$actual_hostname" ] && [ "$actual_hostname" != "$SYSTEM_HOSTNAME" ]; then
         echo -e "${RED}ERROR: SYSTEM_HOSTNAME (${SYSTEM_HOSTNAME}) does not match actual hostname (${actual_hostname})${NC}"
-        echo -e "${YELLOW}  Fix: update SYSTEM_HOSTNAME in omnia.env${NC}"
+        echo -e "${YELLOW}  Fix: update SYSTEM_HOSTNAME in ${env_file}${NC}"
         echo -e "${YELLOW}  Or:  hostnamectl set-hostname ${SYSTEM_HOSTNAME}${NC}"
         errors=$((errors + 1))
     fi
@@ -153,7 +189,7 @@ validate_env() {
     actual_domain="$(hostname -d 2>/dev/null || true)"
     if [ -n "$actual_domain" ] && [ "$actual_domain" != "$SYSTEM_DOMAIN_NAME" ]; then
         echo -e "${YELLOW}WARNING: SYSTEM_DOMAIN_NAME (${SYSTEM_DOMAIN_NAME}) does not match system domain (${actual_domain})${NC}"
-        echo -e "${YELLOW}  Fix: update SYSTEM_DOMAIN_NAME in omnia.env${NC}"
+        echo -e "${YELLOW}  Fix: update SYSTEM_DOMAIN_NAME in ${env_file}${NC}"
         echo -e "${YELLOW}  Or:  hostnamectl set-hostname ${SYSTEM_HOSTNAME}.${SYSTEM_DOMAIN_NAME}${NC}"
         warnings=$((warnings + 1))
     fi
@@ -172,7 +208,7 @@ validate_env() {
         if [ "$ip_found" = false ]; then
             echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 (${SYSTEM_ADMIN_NIC_IPV4}) is not assigned to any local interface${NC}"
             echo -e "${YELLOW}  Available IPs: ${all_ips}${NC}"
-            echo -e "${YELLOW}  Fix: update SYSTEM_ADMIN_NIC_IPV4 in omnia.env${NC}"
+            echo -e "${YELLOW}  Fix: update SYSTEM_ADMIN_NIC_IPV4 in ${env_file}${NC}"
             errors=$((errors + 1))
         fi
     fi
@@ -205,9 +241,21 @@ validate_env_source() {
     local env_file="$1"
     local errors=0
 
-    # Source env file in a subshell to validate without polluting current env
+    if [ ! -r "$env_file" ]; then
+        echo -e "${RED}ERROR: Environment file is not readable: ${env_file}${NC}"
+        return 1
+    fi
+
+    if ! bash -n "$env_file"; then
+        echo -e "${RED}ERROR: Environment file has invalid Bash syntax: ${env_file}${NC}"
+        return 1
+    fi
+
+    # Read from a clean environment so inherited variables cannot hide a
+    # missing value in the file being validated.
     local ip_value
-    ip_value="$(bash -c "set -a; . \"$env_file\"; echo \"\$SYSTEM_ADMIN_NIC_IPV4\"")"
+    ip_value="$(env -i PATH="$PATH" bash --noprofile --norc -c \
+        '. "$1"; printf "%s" "${SYSTEM_ADMIN_NIC_IPV4:-}"' bash "$env_file")"
 
     if [ -z "$ip_value" ]; then
         echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 is not set in ${env_file}${NC}"
@@ -215,79 +263,108 @@ validate_env_source() {
         errors=$((errors + 1))
     fi
 
-    # Validate IP format (basic IPv4 check)
+    # Validate all four IPv4 octets, including their numeric range.
     if [ -n "$ip_value" ]; then
-        if ! echo "$ip_value" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+        local octets
+        local octet
+        IFS='.' read -ra octets <<< "$ip_value"
+        if [ "${#octets[@]}" -ne 4 ]; then
             echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 ('${ip_value}') is not a valid IPv4 address in ${env_file}${NC}"
             echo -e "${YELLOW}  Edit ${env_file} and fix SYSTEM_ADMIN_NIC_IPV4${NC}"
             errors=$((errors + 1))
+        else
+            for octet in "${octets[@]}"; do
+                if [[ ! "$octet" =~ ^[0-9]{1,3}$ ]] || [ "$((10#$octet))" -gt 255 ]; then
+                    echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 ('${ip_value}') is not a valid IPv4 address in ${env_file}${NC}"
+                    echo -e "${YELLOW}  Edit ${env_file} and fix SYSTEM_ADMIN_NIC_IPV4${NC}"
+                    errors=$((errors + 1))
+                    break
+                fi
+            done
         fi
     fi
 
     if [ "$errors" -gt 0 ]; then
         echo -e "${RED}Environment file validation failed. Fix ${env_file} before running setup.${NC}"
-        exit 1
+        return 1
     fi
 }
 
 install_system_env() {
-    local env_file="$SCRIPT_DIR/omnia.env"
+    local source_env_file="${1:-$SCRIPT_DIR/omnia.env}"
+    local system_env_file="${2:-$SYSTEM_ENV_FILE}"
+    local profile_drop_in="${3:-$PROFILE_DROP_IN}"
+    local system_env_dir
+    system_env_dir="$(dirname "$system_env_file")"
+    local env_file
 
-    echo -e "${BLUE}Installing environment to system...${NC}"
+    echo -e "${BLUE}Configuring system environment...${NC}"
 
-    if [ ! -f "$env_file" ]; then
-        echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping env file install${NC}"
-        return 0
-    fi
-
-    # Validate source env file BEFORE installing to system
-    validate_env_source "$env_file"
-
-    mkdir -p "$SYSTEM_ENV_DIR"
-
-    if [ -f "$SYSTEM_ENV_FILE" ]; then
-        # Compare source with installed — update if source has changed
-        if ! diff -q "$env_file" "$SYSTEM_ENV_FILE" >/dev/null 2>&1; then
-            echo -e "  ${YELLOW}Source omnia.env differs from installed copy.${NC}"
-            echo -e "  ${BLUE}Updating: ${SYSTEM_ENV_FILE}${NC}"
-            cp -f "$env_file" "$SYSTEM_ENV_FILE"
-            chmod 0644 "$SYSTEM_ENV_FILE"
-            echo -e "  ${GREEN}Updated: ${SYSTEM_ENV_FILE}${NC}"
-        else
-            echo -e "  ${GREEN}Existing: ${SYSTEM_ENV_FILE} (matches source)${NC}"
+    if [ -f "$system_env_file" ] && [ "${FORCE_ENV:-false}" != true ]; then
+        env_file="$system_env_file"
+        echo -e "  ${GREEN}Using existing: ${system_env_file}${NC}"
+        if [ -f "$source_env_file" ] && ! diff -q "$source_env_file" "$system_env_file" >/dev/null 2>&1; then
+            echo -e "  ${YELLOW}Repository omnia.env differs; preserving the system configuration.${NC}"
+            echo -e "  ${DIM}Use --force-env only when you intend to replace ${system_env_file}.${NC}"
         fi
     else
-        cp -f "$env_file" "$SYSTEM_ENV_FILE"
-        chmod 0644 "$SYSTEM_ENV_FILE"
-        echo -e "  ${GREEN}Installed: ${SYSTEM_ENV_FILE}${NC}"
+        if [ ! -f "$source_env_file" ]; then
+            echo -e "${RED}ERROR: Bootstrap environment file not found: ${source_env_file}${NC}"
+            return 1
+        fi
+
+        validate_env_source "$source_env_file"
+        mkdir -p "$system_env_dir"
+        install -m 0644 "$source_env_file" "$system_env_file"
+        env_file="$system_env_file"
+        if [ "${FORCE_ENV:-false}" = true ]; then
+            echo -e "  ${GREEN}Replaced: ${system_env_file} (--force-env)${NC}"
+        else
+            echo -e "  ${GREEN}Installed: ${system_env_file}${NC}"
+        fi
     fi
 
-    cat > "$PROFILE_DROP_IN" <<'PROFILE_EOF'
+    # Validate the file that setup will actually use before loading it.
+    validate_env_source "$env_file"
+
+    local quoted_system_env_file
+    printf -v quoted_system_env_file '%q' "$system_env_file"
+    mkdir -p "$(dirname "$profile_drop_in")"
+    cat > "$profile_drop_in" <<PROFILE_EOF
 #!/bin/bash
 #
 # Omnia environment variables
 #
 
-if [ -f /etc/omnia/omnia.env ]; then
+if [ -f ${quoted_system_env_file} ]; then
+    unset SYSTEM_ADMIN_NIC_IPV4 OMNIA_DATA_PATH OMNIA_PROJECT_NAME \
+        SYSTEM_HOSTNAME SYSTEM_DOMAIN_NAME OMNIA_VENV_PATH OMNIA_VERSION \
+        CATALOG_FILE_PATH IMAGE_BUILD_MANAGER_DATA_PATH REPO_MANAGER_DATA_PATH \
+        DISCOVERY_DATA_PATH ORCHESTRATOR_DATA_PATH TELEMETRY_DATA_PATH \
+        BUILD_STREAM_DATA_PATH
+    _omnia_allexport_was_set=false
+    if [[ "\$-" == *a* ]]; then
+        _omnia_allexport_was_set=true
+    fi
     set -a
-    . /etc/omnia/omnia.env
-    set +a
+    . ${quoted_system_env_file}
+    if [ "\$_omnia_allexport_was_set" = false ]; then
+        set +a
+    fi
+    unset _omnia_allexport_was_set
 fi
 PROFILE_EOF
 
-    chmod 0644 "$PROFILE_DROP_IN"
+    chmod 0644 "$profile_drop_in"
 
-    echo -e "  ${GREEN}Installed: ${PROFILE_DROP_IN}${NC}"
+    echo -e "  ${GREEN}Installed: ${profile_drop_in}${NC}"
 
     #
     # Load into current script execution
     #
-    set -a
-    # shellcheck disable=SC1090
-    . "$SYSTEM_ENV_FILE"
-    set +a
+    source_omnia_env "$env_file"
 
-    echo -e "${GREEN}Environment installed system-wide.${NC}"
+    echo -e "${GREEN}System environment ready.${NC}"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -392,9 +469,21 @@ setup_venv() {
 #
 
 if [ -f /etc/omnia/omnia.env ]; then
+    unset SYSTEM_ADMIN_NIC_IPV4 OMNIA_DATA_PATH OMNIA_PROJECT_NAME \
+        SYSTEM_HOSTNAME SYSTEM_DOMAIN_NAME OMNIA_VENV_PATH OMNIA_VERSION \
+        CATALOG_FILE_PATH IMAGE_BUILD_MANAGER_DATA_PATH REPO_MANAGER_DATA_PATH \
+        DISCOVERY_DATA_PATH ORCHESTRATOR_DATA_PATH TELEMETRY_DATA_PATH \
+        BUILD_STREAM_DATA_PATH
+    _omnia_allexport_was_set=false
+    if [[ "$-" == *a* ]]; then
+        _omnia_allexport_was_set=true
+    fi
     set -a
     . /etc/omnia/omnia.env
-    set +a
+    if [ "$_omnia_allexport_was_set" = false ]; then
+        set +a
+    fi
+    unset _omnia_allexport_was_set
 fi
 
 if [ -f "${OMNIA_VENV_PATH}/bin/activate" ]; then
@@ -1180,8 +1269,8 @@ show_help() {
 Omnia Infrastructure Manager (OIM) — v${OMNIA_RELEASE}
 
 PREREQUISITE:
-  Edit src/main/omnia.env before running --setup-venv.
-  After setup, vars are installed system-wide at /etc/omnia/omnia.env.
+  Before the first --setup-venv, edit src/main/omnia.env.
+  After the first setup, edit /etc/omnia/omnia.env; setup preserves it.
 
 USAGE:
   $0 <command> [options]
@@ -1262,6 +1351,8 @@ OPTIONS:
                         Cannot be used standalone; requires -s or -i.
   --force-deps          With -s or -i: bypass the dependency cache and force a
                         fresh pip install + Galaxy collection install.
+  --force-env           With -s: replace /etc/omnia/omnia.env with the repository
+                        omnia.env. Existing system configuration is preserved by default.
   --skip <domain,...>   With -s or -i: skip specific domains during init.
                         With --prepare-base: skip only repo_manager,
                         image_build_manager, or orchestrator.
@@ -1302,9 +1393,13 @@ INSTALL omnia-cli TO PATH (automatic during --setup-venv):
   Manual: sudo cp omnia-cli /usr/local/bin/ && sudo chmod +x /usr/local/bin/omnia-cli
 
 SYSTEM ENVIRONMENT:
-  After --setup-venv, omnia.env is installed to:
+  On the first --setup-venv, the repository omnia.env is installed to:
     /etc/omnia/omnia.env           — system-wide env file
     /etc/profile.d/omnia-env.sh    — auto-sourced on login
+
+  On later runs, /etc/omnia/omnia.env is authoritative and is not overwritten.
+  Edit that file for normal changes. Use -s --force-env only to replace it
+  intentionally from the repository copy.
 
   Variables:
     SYSTEM_ADMIN_NIC_IPV4  Admin NIC IPv4 (REQUIRED)
@@ -1318,6 +1413,8 @@ EXAMPLES:
   # First-time setup:
   vi src/main/omnia.env                        # Set SYSTEM_ADMIN_NIC_IPV4 and other vars
   ./omnia.sh -s                                # Installs env + venv + deps + input files + catalog
+  vi /etc/omnia/omnia.env                      # Make environment changes after first setup
+  ./omnia.sh -s --force-env                    # Explicitly replace system env from repository
   ./omnia.sh -s --deps-only                    # Installs env + venv + deps (skips input staging)
   ./omnia.sh -s --skip-catalog                 # Setup without catalog copy
 
@@ -1373,6 +1470,7 @@ EOF
 main() {
     DEPS_ONLY=false    # Global — used by init_domains()
     FORCE_DEPS=false   # Global — passed to domain-init.sh
+    FORCE_ENV=false    # Global — explicitly replace the installed environment
     SKIP_DOMAINS=""    # Global — comma-separated domains to skip during init
     DRY_RUN=false      # Global — preview mode for init
     local CLEANUP_ALL=false
@@ -1405,6 +1503,10 @@ main() {
                 ;;
             --force-deps)
                 FORCE_DEPS=true
+                shift
+                ;;
+            --force-env)
+                FORCE_ENV=true
                 shift
                 ;;
             --skip-catalog)
@@ -1480,6 +1582,12 @@ main() {
         esac
     done
 
+    # Setup selects and validates its environment in install_system_env(). Other
+    # commands load the already-installed configuration before using defaults.
+    if [ "$command" != "setup-venv" ] && [ -f "$SYSTEM_ENV_FILE" ]; then
+        source_omnia_env "$SYSTEM_ENV_FILE"
+    fi
+
     # Validate flag combinations
     if [ "$DEPS_ONLY" = true ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ]; then
         echo -e "${RED}ERROR: --deps-only requires --setup-venv (-s) or --init (-i)${NC}"
@@ -1489,6 +1597,11 @@ main() {
     if [ "$FORCE_DEPS" = true ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ]; then
         echo -e "${RED}ERROR: --force-deps requires --setup-venv (-s) or --init (-i)${NC}"
         echo -e "${YELLOW}Usage: $0 -s --force-deps or $0 -i --force-deps${NC}"
+        exit 1
+    fi
+    if [ "$FORCE_ENV" = true ] && [ "$command" != "setup-venv" ]; then
+        echo -e "${RED}ERROR: --force-env requires --setup-venv (-s)${NC}"
+        echo -e "${YELLOW}Usage: $0 -s --force-env${NC}"
         exit 1
     fi
     if [ -n "$SKIP_DOMAINS" ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ] && [ "$command" != "prepare-base" ]; then
@@ -1571,4 +1684,6 @@ main() {
     esac
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

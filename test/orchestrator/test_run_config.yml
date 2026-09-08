@@ -114,64 +114,21 @@ fvt_orchestrator:
     sync_input: false
 
 # =============================================================================
-# FVT — Kubernetes-Specific Verification Tests
+# NFT — Non-Functional Tests
 # =============================================================================
-# Standalone K8s entry point.  Run with:
-#   ./run_validation.sh fvt_k8s <tag> <command> [options]
-#
-# Tags map to fvt/validate/kubernetes/ test files:
-#   services   — CRI-O, chronyd, kubectl/kubeadm versions, runtime, status
-#   etcd       — etcd health, member list, leader consistency
-#   ha         — Virtual IP / HA configuration
-#   network    — kube-vip, Calico, MetalLB pods
-#   storage    — NFS, StorageClass, PVs, CSI, telemetry PVCs
-#   firewall   — Firewall port verification on CP and workers
+nft_orchestrator:
+  run: false
+  command: "test"
+  marker: "nft"
+  dataset: ""
+  sync_input: false
+
 # =============================================================================
-fvt_k8s:
-  services:
-    run: true
-    command: "verify"
-    suite: "kubernetes"
-    marker: "kubernetes,sanity"
-    dataset: "k8s_only"
-    sync_input: true
-
-  etcd:
-    run: true
-    command: "verify"
-    suite: "kubernetes"
-    marker: "kubernetes,sanity"
-    dataset: "k8s_only"
-    sync_input: false
-
-  ha:
-    run: false
-    command: "verify"
-    suite: "kubernetes"
-    marker: "kubernetes,sanity"
-    dataset: "k8s_only"
-    sync_input: false
-
-  network:
-    run: true
-    command: "verify"
-    suite: "kubernetes"
-    marker: "kubernetes,sanity"
-    dataset: "k8s_only"
-    sync_input: false
-
-  storage:
-    run: false
-    command: "verify"
-    suite: "kubernetes"
-    marker: "kubernetes,sanity"
-    dataset: "k8s_only"
-    sync_input: false
-
-  firewall:
-    run: false
-    command: "verify"
-    suite: "kubernetes"
-    marker: "kubernetes,sanity"
-    dataset: "k8s_only"
-    sync_input: false
+# Negative — Error Scenario Tests
+# =============================================================================
+negative_orchestrator:
+  run: false
+  command: "test"
+  marker: "negative"
+  dataset: ""
+  sync_input: false

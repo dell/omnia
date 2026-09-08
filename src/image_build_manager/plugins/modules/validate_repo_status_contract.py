@@ -35,7 +35,9 @@ short_description: Validate repo_status.yml for image build execution
 version_added: "2.3.0"
 description:
   - Validates the repo_status.yml contract produced by repo_manager.
-  - Applies the complete JSON Schema and image-build semantic checks.
+  - Validates only fields consumed by image_build_manager and ignores
+    producer-owned metadata.
+  - Applies the consumer JSON Schema and image-build semantic checks.
   - Intended for build and execute flows, before repo_status.yml is parsed.
 options:
   repo_status_file:
