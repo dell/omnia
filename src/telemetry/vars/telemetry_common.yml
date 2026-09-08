@@ -16,12 +16,15 @@
 # =============================================================================
 # Common variables shared across all telemetry playbooks and roles
 # =============================================================================
+# This file is the domain-level vars file for telemetry.  Playbooks should
+# reference this instead of traversing into roles/common/vars/main.yml.
+# The role vars/main.yml imports the same definitions for role-internal use.
 
 # Namespace
 telemetry_namespace: "telemetry"
 
 # Deploy directory on NFS share (where manifests are staged)
-telemetry_deploy_dir: "{{ k8s_cluster_mount | default('/opt/omnia/k8s_mount') }}/telemetry"
+telemetry_deploy_dir: "{{ k8s_cluster_mount | default(omnia_data_path | default('/opt/omnia') + '/k8s_mount') }}/telemetry"
 telemetry_deployments_dir: "{{ telemetry_deploy_dir }}/deployments"
 
 # Input files (project directory based — input_project_dir set by telemetry_setup role)
@@ -31,8 +34,6 @@ telemetry_packages_file: "{{ input_project_dir }}/telemetry_packages.yml"
 
 # Cluster inventory file (specified in telemetry_config.yml as cluster_inventory)
 # This file contains both Kubernetes and Slurm inventory from orchestrator
-# User should specify the path in telemetry_config.yml, e.g.:
-#   cluster_inventory: "/opt/omnia/input/project_default/orchestrator_inventory.yml"
 
 # Verification timeouts (shared defaults)
 deploy_timeout: "600s"
@@ -42,9 +43,7 @@ verify_timeout: "300s"
 # Python dependency installation
 # =============================================================================
 # Offline Python packages directory - derived from telemetry_data_path
-# This is a fallback when repo_url is not accessible
-# The primary source is always repo_url from telemetry_packages.yml
-offline_python_packages_dir: "{{ telemetry_data_path | default('/opt/omnia/telemetry') }}/packages/python"
+offline_python_packages_dir: "{{ telemetry_data_path | default(omnia_data_path | default('/opt/omnia') + '/telemetry') }}/packages/python"
 
 # Error message for kubernetes module installation failure
 kubernetes_install_failure_msg: >-

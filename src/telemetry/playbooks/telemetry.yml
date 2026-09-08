@@ -22,13 +22,15 @@
 #   ./omnia.sh -r telemetry --tags <tag>
 #
 # Tags (pick ONE — mutually exclusive):
-#   (none)     — Default flow: validate + deploy
-#   precheck   — Validate environment prerequisites (opt-in only)
-#   validate   — Input validation only (alias: validation)
-#   execute    — Deploy all enabled telemetry (alias: deploy)
-#   cleanup    — Cleanup all telemetry components
-#   upgrade    — Upgrade telemetry components (placeholder)
-#   rollback   — Rollback telemetry components (placeholder)
+#   (none)      — Default flow: validate + deploy
+#   precheck    — Validate environment prerequisites (opt-in only)
+#   validate    — Input validation + collect credentials (alias: validation)
+#   prepare     — Input validation + collect credentials (alias: validate)
+#   credentials — Collect telemetry credentials only (opt-in only)
+#   execute     — Deploy all enabled telemetry (alias: deploy)
+#   cleanup     — Cleanup all telemetry components
+#   upgrade     — Upgrade telemetry components (placeholder)
+#   rollback    — Rollback telemetry components (placeholder)
 #
 # Granular cleanup tags (opt-in — requires explicit --tags):
 #   cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs,
@@ -69,7 +71,7 @@
 # =========================================================================
 - name: "Validation | Validate telemetry input files"
   ansible.builtin.import_playbook: validate/validation.yml
-  tags: [validate, validation]
+  tags: [validate, validation, prepare]
 
 # =========================================================================
 # FLOW: precheck — Environment validation (opt-in only)
@@ -79,6 +81,18 @@
   tags:
     - never
     - precheck
+
+# =========================================================================
+# FLOW: credentials — Collect telemetry credentials (opt-in only)
+# =========================================================================
+- name: "Credentials | Collect telemetry credentials"
+  ansible.builtin.import_playbook: credentials/get_telemetry_credentials.yml
+  tags:
+    - never
+    - credentials
+    - validate
+    - validation
+    - prepare
 
 # =========================================================================
 # Step 2: Deploy — Full telemetry deployment (default flow)
@@ -150,18 +164,9 @@
 - name: "Summary | Display telemetry deployment status location"
   hosts: localhost
   gather_facts: false
-  vars_files:
-    - ../roles/common/vars/main.yml
   tags: [deploy, upgrade, rollback]
   tasks:
-    - name: Display telemetry status file location
-      ansible.builtin.debug:
-        msg:
-          - "╔══════════════════════════════════════════════════════════════════════════╗"
-          - "║              TELEMETRY DEPLOYMENT STATUS                                 ║"
-          - "╚══════════════════════════════════════════════════════════════════════════╝"
-          - ""
-          - "Deployment status:"
-          - "  {{ output_project_dir | default('/opt/omnia/telemetry/output/project_default') }}/telemetry_status.yml"
-          - ""
-          - "╚══════════════════════════════════════════════════════════════════════════╝"
+    - name: Display deployment status summary
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: display_status_summary
