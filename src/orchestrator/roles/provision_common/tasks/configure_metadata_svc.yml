@@ -17,6 +17,22 @@
 # Called in a loop with fg_name set by the caller.
 # Uses delete-then-set for idempotency.
 
+# Validate repo_status configuration is available - needed for node configuration
+- name: Load repository configuration messages
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../orchestrator_common/vars/s3_config_messages.yml"
+  run_once: true
+
+- name: Validate repo_manager configuration is available for node configuration
+  ansible.builtin.assert:
+    that:
+      - pulp_cert_path is defined
+      - pulp_cert_path | length > 0
+      - pulp_port is defined
+      - cluster_os_type is defined
+      - cluster_os_type | length > 0
+    fail_msg: "{{ repo_config_not_available_msg }}"
+
 - name: Include vars from slurm defaults
   ansible.builtin.include_vars: "{{ default_file_path }}"
 

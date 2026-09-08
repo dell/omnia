@@ -57,11 +57,11 @@ skip_credential_tags:
 # Flows that consume repositories, offline content, or the Pulp certificate.
 # Cleanup and input-only/credential-only flows must remain runnable without
 # an existing repo_status.yml.
+# Note: prepare and deploy tags only deploy containers (OpenCHAMI/OpenLDAP),
+# they don't configure nodes, so repo_status.yml is not needed until provision.
 repo_status_required_tags:
   - all
   - precheck
-  - prepare
-  - deploy
   - provision
   - execute
   - pxeboot

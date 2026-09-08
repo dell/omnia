@@ -215,6 +215,27 @@
     - _repo_status_required | bool
     - not _repo_status_stat.stat.exists
 
+- name: Skip repo_status loading for prepare/deploy tags when missing
+  ansible.builtin.debug:
+    msg: >-
+      Skipping repo_status.yml loading - not found and not required
+      for current tags: {{ omnia_run_tags | default(['default flow']) | join(', ') }}.
+      Repository configuration will be loaded during provision/execute phases.
+  when:
+    - not _repo_status_required | bool
+    - not _repo_status_stat.stat.exists
+
+- name: Set default repo_manager facts when not required
+  ansible.builtin.set_fact:
+    cluster_os_type: "rhel"
+    pulp_port: 2225
+    pulp_cert_path: ""
+    repositories: {}
+    cacheable: true
+  when:
+    - not _repo_status_required | bool
+    - not _repo_status_stat.stat.exists
+
 - name: Validate required repo_status.yml contract
   ansible.builtin.assert:
     that:
