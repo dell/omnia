@@ -9,7 +9,7 @@ serve as documentation and starting-point examples.
 
 | File | Description |
 |------|-------------|
-| `catalog_rhel.json` | Default RHEL 10.0 catalog with all Slurm + K8s layers on x86_64 (7 layers, 23 groups, 222 packages) |
+| `catalog_rhel.json` | Default RHEL 10.0 catalog with all Slurm + service_k8s layers on x86_64 (7 layers, 23 groups, 222 packages) |
 
 ### Modular Catalogs (catalogs/ directory)
 
@@ -21,29 +21,29 @@ catalogs/
 │   ├── slurm_x86.json           # All Slurm layers on x86_64
 │   ├── slurm_aarch64.json       # All Slurm layers on aarch64
 │   ├── slurm_x86_aarch64.json   # Mixed: x86_64 control/login, aarch64 node/login-compiler
-│   ├── k8s_x86.json             # K8s only on x86_64
-│   ├── slurm_k8s_x86.json       # All Slurm + K8s on x86_64
-│   └── slurm_k8s_combined.json  # Mixed Slurm + K8s (x86_64 mgmt/K8s, aarch64 compute)
+│   ├── service_k8s_x86_64.json             # service_k8s only on x86_64
+│   ├── slurm_service_k8s_x86_64.json       # All Slurm + service_k8s on x86_64
+│   └── slurm_service_k8s_combined.json  # Mixed Slurm + service_k8s (x86_64 mgmt/service_k8s, aarch64 compute)
 │
 └── 10.2/
-    ├── slurm_x86.json           # All Slurm layers on x86_64
-    ├── slurm_aarch64.json       # All Slurm layers on aarch64
-    ├── slurm_x86_aarch64.json   # Mixed: x86_64 control/login, aarch64 node/login-compiler
-    ├── k8s_x86.json             # K8s only on x86_64
-    ├── slurm_k8s_x86.json       # All Slurm + K8s on x86_64
-    └── slurm_k8s_combined.json  # Mixed Slurm + K8s (x86_64 mgmt/K8s, aarch64 compute)
+    ├── slurm_x86.json                   # All Slurm layers on x86_64
+    ├── slurm_aarch64.json               # All Slurm layers on aarch64
+    ├── slurm_x86_aarch64.json           # Mixed: x86_64 control/login, aarch64 node/login-compiler
+    ├── service_k8s_x86_64.json             # service_k8s only on x86_64
+    ├── slurm_service_k8s_x86_64.json       # All Slurm + service_k8s on x86_64
+    └── slurm_service_k8s_combined.json  # Mixed Slurm + service_k8s (x86_64 mgmt/service_k8s, aarch64 compute)
 ```
 
 ### Catalog Selection Guide
 
 | Use Case | Recommended Catalog |
 |----------|---------------------|
-| Homogeneous x86_64 cluster (Slurm + K8s) | `slurm_k8s_x86.json` |
+| Homogeneous x86_64 cluster (Slurm + service_k8s) | `slurm_service_k8s_x86_64.json` |
 | Homogeneous x86_64 cluster (Slurm only) | `slurm_x86.json` |
-| Homogeneous x86_64 cluster (K8s only) | `k8s_x86.json` |
+| Homogeneous x86_64 cluster (service_k8s only) | `service_k8s_x86_64.json` |
 | Homogeneous aarch64 cluster (Slurm only) | `slurm_aarch64.json` |
 | Heterogeneous cluster (x86_64 mgmt + aarch64 compute) | `slurm_x86_aarch64.json` |
-| Heterogeneous cluster with K8s | `slurm_k8s_combined.json` |
+| Heterogeneous cluster with service_k8s | `slurm_service_k8s_combined.json` |
 
 ### Functional Layers by Catalog Type
 
@@ -54,10 +54,10 @@ catalogs/
 - `login_node` - Login node
 - `login_compiler_node` - Login node with compilers
 
-**K8s-only catalogs** include:
+**service_k8s-only catalogs** include:
 - `baseos` - Base OS packages
-- `service_kube_control_plane` - K8s control plane
-- `service_kube_node` - K8s worker node
+- `service_kube_control_plane` - service_k8s control plane
+- `service_kube_node` - service_k8s worker node
 
 **Combined catalogs** include all of the above.
 
