@@ -23,3 +23,9 @@ dataset: ""
 
 # Sync repo_manager input files from the local source tree (development convenience).
 sync_repo_manager_input: false
+
+# Dynamic paths for environment independence
+omnia_data_path: "/opt/omnia"
+catalog_file_path: "/opt/omnia/catalog/catalog_rhel.json"
+pulp_cert_path: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt"
+repo_manager_log_path: "/opt/omnia/repo_manager/log"

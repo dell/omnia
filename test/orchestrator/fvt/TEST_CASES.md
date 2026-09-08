@@ -115,6 +115,7 @@
 || TC_SL_040 | `test_infiniband_available` | Verify InfiniBand available | slurm |
 || TC_SL_041 | `test_mpi_available` | Verify MPI available | slurm |
 || TC_SL_042 | `test_mpi_job_execution` | Test MPI job execution | slurm |
+||| TC_SL_052 | test_slurm_config_integrity | Validate deployed slurm.conf matches input configuration | slurm, functional |
 
 ---
 
@@ -180,10 +181,11 @@
 
 ## Test Summary
 
-**Total Test Cases: 73**
+**Total Test Cases: 74**
 
 | Category | Count |
 |----------|-------|
+||| SLURM Custom Configuration Tests | 1 |
 | Module Tests | 3 |
 | Playbook Tests | 4 |
 | Role Tests | 4 |
@@ -197,6 +199,6 @@
 | Cleanup Tests | 4 |
 | Rollback Tests | 1 |
 | DCGM Tests | 3 |
-| **Total** | **73** |
+| **Total** | **74** |
 
 **Note**: Some test IDs may be reused across different test files (e.g., TC_SL_001 appears in both status and infrastructure tests). This is intentional as they test different aspects of the same functionality.

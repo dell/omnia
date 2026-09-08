@@ -19,10 +19,22 @@ Validation runner entry point for orchestrator.
 Thin wrapper that loads domain-specific variables from
 ``library/vars/domain_vars`` and delegates to ``ValidationRunner``.
 
+Supports both FVT (Functional Verification Tests) and NFT (Non-Functional Tests).
+
 Usage (via run_validation.sh or run_validation CLI)::
 
+    # FVT examples
     python3 _run.py fvt_orchestrator validate verify --marker sanity
     python3 _run.py fvt_orchestrator prepare test
+    python3 _run.py fvt_orchestrator provision test
+
+    # NFT examples
+    python3 _run.py nft_orchestrator test
+    python3 _run.py nft_orchestrator test --marker performance
+    python3 _run.py nft_orchestrator test --marker idempotency
+    python3 _run.py nft_orchestrator test --marker security
+
+    # Config mode
     python3 _run.py --config
 """
 

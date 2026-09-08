@@ -28,7 +28,7 @@
   gather_facts: true
   any_errors_fatal: true
   vars_files:
-    - ../../../roles/common/vars/main.yml
+    - ../../../vars/telemetry_common.yml
   pre_tasks:
     - name: Load telemetry config (only if not already loaded)
       ansible.builtin.include_role:

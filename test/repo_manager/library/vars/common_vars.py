@@ -31,7 +31,8 @@ def _get_output_path() -> str:
 
 def _get_base_path() -> str:
     """Return the repo_manager base data path."""
-    return "/opt/omnia/repo_manager"
+    config = load_test_config()
+    return config.get("omnia_data_path", "/opt/omnia") + "/repo_manager"
 
 
 # --- Input/Output file names ---
