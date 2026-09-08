@@ -18,13 +18,30 @@
 
 ---
 Networks:
-  - name: "slurm_network"
-    type: "vlan"
-    vlan_id: 100
-    subnet: "192.168.100.0/24"
-    gateway: "192.168.100.1"
-    domain_name: "slurm.local"
+  - admin_network:
+    oim_nic_name: "eno12399"
+    subnet: "172.16.0.0"
+    netmask_bits: "24"
+    primary_oim_admin_ip: "172.16.0.254"
+    primary_oim_bmc_ip: ""
+    router: "172.16.0.254"
+    dynamic_range: "172.16.0.201-172.16.0.250"
+    dns:
+      - "172.16.0.254"
     ntp_servers:
-      - "192.168.100.1"
-    dns_servers:
-      - "192.168.100.1"
+      - "172.16.0.254"
+    additional_subnets: []
+  - ib_network:
+    subnet: "192.168.0.0"
+    netmask_bits: "24"
+    dns:
+      - "192.168.0.254"
+  - slurm_network:
+    subnet: "192.168.0.0"
+    netmask_bits: "24"
+    gateway: "192.168.0.254"
+    domain_name: "slurm.local"
+    dns:
+      - "192.168.0.254"
+    ntp_servers:
+      - "192.168.0.254"

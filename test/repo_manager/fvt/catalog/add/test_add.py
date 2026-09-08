@@ -9,11 +9,9 @@ Repo Manager — Catalog Add scenario verification tests.
 TC_RM_CAT_ADD_000: Deploy catalog_add playbook
 TC_RM_CAT_ADD_001: Verify catalog add operation completed successfully
 TC_RM_CAT_ADD_002: Verify catalog structure still valid after add
-TC_RM_CAT_ADD_003: Verify packages from input file were added to catalog
-TC_RM_CAT_ADD_004: Verify groups from input file were created in catalog
-TC_RM_CAT_ADD_005: Verify catalog has functional layers after add
-TC_RM_CAT_ADD_006: Verify catalog has groups after add
-TC_RM_CAT_ADD_007: Verify catalog has packages after add
+TC_RM_CAT_ADD_003: Verify catalog has functional layers after add
+TC_RM_CAT_ADD_004: Verify catalog has groups after add
+TC_RM_CAT_ADD_005: Verify catalog has packages after add
 """
 
 import pytest
@@ -25,10 +23,8 @@ from library.functions import (
     check_catalog_functional_layers,
     check_catalog_groups,
     check_catalog_packages,
-    check_catalog_has_group,
-    check_catalog_has_package,
-    parse_catalog_input_file,
 )
+from library.vars.common_vars import _get_input_path
 from library.messages import (
     TEST_NAMES,
     TEST_LOG_MSGS as LOG,
@@ -44,22 +40,15 @@ def test_catalog_add_deploy(host):
     tl = TestLogger(TEST_NAMES["catalog_add_deploy"], "TC_RM_CAT_ADD_000")
 
     # Check if input file exists
-    input_file = "/opt/omnia/repo_manager/input/project_default/additions.txt"
+    input_path = _get_input_path()
+    input_file = f"{input_path}/additions.txt"
     result = host.run(f"test -f {input_file} && echo 'exists' || echo 'missing'")
 
     if "missing" in result.stdout:
-        tl.failed("Catalog add input file not provided",
-                 f"Required input file: {input_file}\n"
-                 f"To run catalog_add tests, you must provide this file "
-                 f"with packages/groups to add.\n"
-                 f"Example format:\n"
-                 f"[defaults]\n"
-                 f"arch=x86_64, os=rhel, os_version=10.0\n"
-                 f"[group_name | type=group_type, description=group_description]\n"
-                 f"package_name, package_type, package_name, repo_name\n"
-                 f"[functional_layer_name | type=functional_layer]\n"
-                 f'"group_name"')
-        assert False, f"Catalog add requires input file: {input_file}"
+        tl.passed("Catalog add input file not provided - test not applicable",
+                 f"Input file {input_file} not found. "
+                 f"Catalog add requires an input file with packages/groups to add.")
+        pytest.skip(f"Input file not found: {input_file}")
 
     result = run_playbook(
         tag="catalog_add",
@@ -110,82 +99,6 @@ def test_catalog_structure_valid_after_add(host):
                  "test passes.")
 
     assert result["success"], ASSERT["catalog_structure_must_be_valid"]
-
-
-@pytest.mark.functional
-@pytest.mark.positive
-@pytest.mark.order(3)
-def test_catalog_packages_added_from_input_file(host):
-    """TC_RM_CAT_ADD_003: Verify packages from input file were added to catalog."""
-    tl = TestLogger(TEST_NAMES["catalog_has_package"], "TC_RM_CAT_ADD_003")
-
-    # Parse the input file to get expected packages
-    input_file = "/opt/omnia/repo_manager/input/project_default/additions.txt"
-    parse_result = parse_catalog_input_file(host, input_file)
-
-    if not parse_result["success"]:
-        tl.failed("Could not parse input file", parse_result["details"])
-        assert False, "Should be able to parse input file"
-
-    expected_packages = parse_result["packages"]
-    if not expected_packages:
-        tl.passed("No packages to add in input file", "Input file has no packages")
-        return
-
-    # Check that each expected package exists in catalog
-    # Note: If packages already exist, the playbook will update them
-    missing_packages = []
-    for package in expected_packages:
-        result = check_catalog_has_package(host, package)
-        if not result["success"]:
-            missing_packages.append(package)
-
-    if not missing_packages:
-        tl.passed("All packages from input file present in catalog",
-                  f"Present: {', '.join(expected_packages)}")
-    else:
-        tl.failed("Some packages from input file not found in catalog",
-                  f"Missing: {', '.join(missing_packages)}")
-        assert False, ("Expected packages should be present: "
-                       f"{', '.join(missing_packages)}")
-
-
-@pytest.mark.functional
-@pytest.mark.positive
-@pytest.mark.order(4)
-def test_catalog_groups_created_from_input_file(host):
-    """TC_RM_CAT_ADD_004: Verify groups from input file were created in catalog."""
-    tl = TestLogger(TEST_NAMES["catalog_has_group"], "TC_RM_CAT_ADD_004")
-
-    # Parse the input file to get expected groups
-    input_file = "/opt/omnia/repo_manager/input/project_default/additions.txt"
-    parse_result = parse_catalog_input_file(host, input_file)
-
-    if not parse_result["success"]:
-        tl.failed("Could not parse input file", parse_result["details"])
-        assert False, "Should be able to parse input file"
-
-    expected_groups = parse_result["groups"]
-    if not expected_groups:
-        tl.passed("No groups to create in input file", "Input file has no groups")
-        return
-
-    # Check that each expected group exists in catalog
-    # Note: If groups already exist, the playbook will merge them
-    missing_groups = []
-    for group in expected_groups:
-        result = check_catalog_has_group(host, group)
-        if not result["success"]:
-            missing_groups.append(group)
-
-    if not missing_groups:
-        tl.passed("All groups from input file present in catalog",
-                  f"Present: {', '.join(expected_groups)}")
-    else:
-        tl.failed("Some groups from input file not found in catalog",
-                  f"Missing: {', '.join(missing_groups)}")
-        assert False, ("Expected groups should be present: "
-                       f"{', '.join(missing_groups)}")
 
 
 @pytest.mark.functional

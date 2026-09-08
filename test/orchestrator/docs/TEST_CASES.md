@@ -167,6 +167,53 @@
 
 ---
 
+## Network Functionality Tests (`fvt/network/`)
+
+||| TC ID | Test Function | Description | Marker |
+|||-------|---------------|-------------|--------|
+||| TC_NET_001 | `test_network_spec_exists` | Verify network_spec.yml exists | network, sanity |
+||| TC_NET_002 | `test_network_spec_valid_yaml` | Verify network_spec.yml is valid YAML | network, sanity |
+||| TC_NET_003 | `test_admin_network_required_fields` | Verify admin_network has all required fields | network, functional |
+||| TC_NET_004 | `test_ip_address_format_validation` | Validate IP address formats in network_spec.yml | network, functional |
+||| TC_NET_005 | `test_dynamic_range_format_validation` | Validate dynamic range format (start-end) | network, functional |
+||| TC_NET_006 | `test_netmask_bits_validation` | Validate netmask_bits (1-32) | network, functional |
+||| TC_NET_007 | `test_additional_subnets_validation` | Validate additional_subnets configuration | network, functional |
+||| TC_NET_008 | `test_dns_configuration_validation` | Validate DNS server configuration | network, functional |
+||| TC_NET_009 | `test_ntp_servers_validation` | Validate NTP server configuration | network, functional |
+||| TC_NET_010 | `test_ib_network_validation` | Validate InfiniBand network configuration | network, functional |
+||| TC_NET_011 | `test_coredhcp_config_exists` | Verify CoreDHCP configuration exists | network, functional |
+||| TC_NET_012 | `test_coredhcp_multi_subnet_rules` | Verify CoreDHCP multi-subnet rules are configured | network, functional |
+||| TC_NET_013 | `test_subnet_containment_check` | Verify subnets are properly contained within their CIDR ranges | network, functional |
+||| TC_NET_014 | `test_static_routes_table_validation` | Validate static routes table for multi-subnet | network, functional |
+||| TC_NET_015 | `test_coredhcp_pool_configuration_validation` | Validate CoreDHCP pool configuration for multi-subnet | network, functional |
+||| TC_NET_016 | `test_network_interface_configuration_validation` | Validate network interface configuration | network, functional |
+||| TC_NET_017 | `test_dns_forwarder_configuration_validation` | Validate DNS forwarder configuration | network, functional |
+||| TC_NET_018 | `test_routing_table_validation` | Validate system routing table | network, functional |
+
+---
+
+## PXE Boot Tests (`fvt/pxeboot/`)
+
+||| TC ID | Test Function | Description | Marker |
+|||-------|---------------|-------------|--------|
+||| TC_PXE_001 | `test_orchestrator_config_exists` | Verify orchestrator_config.yml exists | pxeboot, sanity |
+||| TC_PXE_002 | `test_pxe_boot_flag_validation` | Verify enable_pxe_boot flag is properly configured | pxeboot, functional |
+||| TC_PXE_003 | `test_pxe_mapping_file_exists` | Verify pxe_mapping_file.csv exists | pxeboot, sanity |
+||| TC_PXE_004 | `test_pxe_mapping_file_format` | Validate pxe_mapping_file.csv format | pxeboot, functional |
+||| TC_PXE_005 | `test_set_pxe_boot_config_exists` | Verify set_pxe_boot_config.yml exists | pxeboot, sanity |
+||| TC_PXE_006 | `test_set_pxe_boot_config_validation` | Validate set_pxe_boot_config.yml parameters | pxeboot, functional |
+||| TC_PXE_007 | `test_bmc_credentials_file_exists` | Verify omnia_config_credentials.yml exists | pxeboot, sanity |
+||| TC_PXE_008 | `test_bmc_credentials_validation` | Validate BMC credentials are available | pxeboot, functional |
+||| TC_PXE_009 | `test_pxe_boot_skip_when_disabled` | Verify PXE boot is properly skipped when disabled | pxeboot, functional |
+||| TC_PXE_010 | `test_failed_nodes_output_exists` | Verify failed_nodes.json output file exists after PXE boot | pxeboot, functional |
+||| TC_PXE_011 | `test_failed_nodes_output_format` | Validate failed_nodes.json format and structure | pxeboot, functional |
+||| TC_PXE_012 | `test_orchestrator_status_output_exists` | Verify orchestrator_status.yml output file exists | pxeboot, functional |
+||| TC_PXE_013 | `test_orchestrator_status_output_format` | Validate orchestrator_status.yml format and structure | pxeboot, functional |
+||| TC_PXE_014 | `test_pxe_boot_playbook_execution` | Verify PXE boot playbook can be executed | pxeboot, functional |
+||| TC_PXE_015 | `test_idrac_role_exists` | Verify idrac_pxe_boot role exists | pxeboot, sanity |
+
+---
+
 ## Rollback Scenario (`fvt/rollback/`)
 
 > Rollback is **not supported** in this release. The OpenCHAMI upgrade from
@@ -181,7 +228,7 @@
 
 ## Test Summary
 
-**Total Test Cases: 74**
+**Total Test Cases: 107**
 
 | Category | Count |
 |----------|-------|
@@ -199,6 +246,8 @@
 | Cleanup Tests | 4 |
 | Rollback Tests | 1 |
 | DCGM Tests | 3 |
-| **Total** | **74** |
+| Network Functionality Tests | 18 |
+| PXE Boot Tests | 15 |
+| **Total** | **107** |
 
 **Note**: Some test IDs may be reused across different test files (e.g., TC_SL_001 appears in both status and infrastructure tests). This is intentional as they test different aspects of the same functionality.
