@@ -33,7 +33,12 @@ from ..vars.common_vars import (
     CUSTOM_ISO_PATTERN,
     KICKSTART_FILE,
     INSTALL_OS_STATUS_FILE,
+    DOMAIN_NAME,
+    ENV_OMNIA_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
 )
+
+from omnia_auto import read_remote_env
 
 
 def check_target_connectivity(host) -> Dict[str, Any]:
@@ -478,8 +483,10 @@ def validate_bundle_log_files(host, tar_path: str) -> Dict[str, Any]:
             }
 
         # Read collect_pxe.yml to determine which groups have nodes
-        # Use the standard input path
-        input_path = "/opt/omnia/utils/input/project_default"
+        # Use the standard input path from environment variables
+        data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH)
+        project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
+        input_path = f"{data_path}/{DOMAIN_NAME}/input/{project}"
         collect_pxe_file = f"{input_path}/collect_pxe.yml"
         
         read_cmd = f"cat {collect_pxe_file}"
@@ -576,6 +583,8 @@ def validate_bundle_log_files(host, tar_path: str) -> Dict[str, Any]:
             "empty_files": empty_files,
             "missing_files": missing_files,
             "error": "",
+            "has_k8s": has_k8s,
+            "has_slurm": has_slurm,
         }
     except Exception as exc:
         return {
