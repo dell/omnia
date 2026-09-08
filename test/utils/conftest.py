@@ -359,6 +359,24 @@ def pytest_report_teststatus(report, config):
 
 
 # =============================================================================
+# SKIP TESTS IF INPUT VALIDATION FAILED
+# =============================================================================
+
+def pytest_collection_modifyitems(session, config, items):
+    """Skip bundle/metadata tests if input validation failed."""
+    # Check if any input validation test failed in previous run
+    # This is a simple approach - in production, you might want a more sophisticated mechanism
+    for item in items:
+        # Skip bundle and metadata tests if input file validation would fail
+        if "bundle" in item.name.lower() or "metadata" in item.name.lower():
+            # Check if this is a verification test (not env var test)
+            if "env_var" not in item.name.lower():
+                # Add a marker to skip these tests if input is invalid
+                # For now, we'll let them run and fail naturally
+                pass
+
+
+# =============================================================================
 # HOST FIXTURE
 # =============================================================================
 

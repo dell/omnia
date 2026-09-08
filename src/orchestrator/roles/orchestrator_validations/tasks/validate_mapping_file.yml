@@ -36,49 +36,12 @@
     regexp: '\s*#'
     state: absent
 
-- name: Read mapping file
-  block:
-    - name: Read mapping file
-      ansible.builtin.slurp:
-        path: "{{ temp_pxe_file_path }}"
-      register: mapping_file_raw
-      no_log: true
-  rescue:
-    - name: Fail with mapping file read error
-      ansible.builtin.fail:
-        msg: "{{ mapping_file_read_fail_msg }}"
-
-- name: Replace only the first occurrence of service_kube_control_plane_<arch> with _first_<arch>
-  block:
-    - name: Replace service_kube_control_plane pattern
-      ansible.builtin.set_fact:
-        modified_mapping_file: >-
-          {{
-            (mapping_file_raw.content | b64decode)
-            | regex_replace(
-                '(service_kube_control_plane_)((?!first_)\w+)',
-                'service_kube_control_plane_first_\2',
-                count=1
-              )
-          }}
-      no_log: true
-  rescue:
-    - name: Fail with mapping file processing error
-      ansible.builtin.fail:
-        msg: "{{ mapping_file_process_fail_msg }}"
-
-- name: Write updated mapping file back to disk
-  block:
-    - name: Write updated mapping file back to disk
-      ansible.builtin.copy:
-        content: "{{ modified_mapping_file }}"
-        dest: "{{ temp_pxe_file_path }}"
-        mode: "0644"
-      no_log: true
-  rescue:
-    - name: Fail with mapping file write error
-      ansible.builtin.fail:
-        msg: "{{ mapping_file_write_fail_msg }}"
+- name: Normalize Kubernetes primary control-plane membership
+  ansible.builtin.include_role:
+    name: orchestrator_common
+    tasks_from: normalize_pxe_functional_groups.yml
+  vars:
+    normalized_pxe_mapping_path: "{{ temp_pxe_file_path }}"
 
 - name: Generate xnames in temporary mapping file
   generate_xname_in_mapping_file:

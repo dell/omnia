@@ -34,12 +34,11 @@ openchami_groups_common_template: "{{ role_path }}/templates/nodes/groups_common
 common_metadata_svc_groups:
   - ssh
   - chrony
-  - node_registration
 
 # Usage: configure_boot_svc_group.yml, configure_boot_svc_metadata_svc.yml
 boot_svc_template: boot_svc/boot-svc.yaml.j2
 boot_svc_dir: "{{ openchami_work_dir }}/boot"
-boot_svc_params_metadata_svc: 'cloud-init=enabled ds=nocloud-net;s=http://{{ cluster_boot_ip }}:8081/metadata-service/'
+boot_svc_params_metadata_svc: 'cloud-init=enabled ds=nocloud;s=http://{{ cluster_boot_ip }}:8081/metadata-service/'
 boot_svc_params_opts: 'ip=dhcp rd.live.image rd.live.ram rd.neednet=1 rd.driver.blacklist=ccp,edac_core,power_meter,ahci,megaraid_sas modprobe.blacklist=ccp,edac_core,power_meter,ahci,megaraid_sas libata.force=1:disable,2:disable,3:disable,4:disable rd.luks=0 rd.md=0 rd.dm=0 console=tty0 console=ttyS0,115200 selinux=0 apparmor=0 ip6=off cloud-init=enabled' # noqa: yaml[line-length]
 image_missing_fail_msg: "Failed to set kernel or initrd. Create the image using build_image.yml and try again."
 
@@ -66,8 +65,8 @@ additional_metadata_svc_fg_groups_template: "{{ role_path }}/templates/nodes/gro
 # Usage: orchestration_completion.yml
 orchestration_completion_msg: |
   The orchestrator.yml playbook has completed successfully.
-  Next, you can either manually PXE boot the nodes or use the utils/set_pxe_boot.yml playbook
-  by specifying a bmc group in your inventory to initiate the PXE boot process.
+  Next, either boot the nodes manually or run orchestrator.yml with the pxeboot tag.
+  The PXE boot flow reads BMC and admin addresses from pxe_mapping_file.csv.
   Once the nodes have booted, the orchestrator provisioning is complete.
 
 # Usage: ci-group-login_node_x86_64.yaml.j2

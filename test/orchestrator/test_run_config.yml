@@ -52,8 +52,10 @@
 #   Standard: "functional"              — tests with @pytest.mark.functional
 #
 # Available markers:
-#   Quality:       sanity, functional, regression
+#   Quality:       sanity, functional
 #   Execution:     deploy
+#   NFT:           nft, performance, idempotency, security
+#   Negative:       negative
 #
 # -----------------------------------------------------------------------------
 # Available FVT Suites (subfolders under fvt/<tag>/)

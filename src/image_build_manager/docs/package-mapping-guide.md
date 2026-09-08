@@ -2,18 +2,22 @@
 
 ## Overview
 
-`functional_group_packages.yml` defines which RPM packages are installed in each
-OS image variant. It is the **single source of truth** for package resolution.
+In config mode, `package_groups.yml` is the source of OS metadata, base RPMs,
+and functional-group RPMs.
 
-**Location**: Path from `repo_manager.package_list` in `repo_status.yml`
+- Source template: `src/image_build_manager/input/package_groups.yml`
+- Runtime file: `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/package_groups.yml`
+- Enabled by: `functional_groups_source: "config"` in `image_build_config.yml`
 
-**Sample**: `samples/repo_manager_output/functional_group_packages.yml`
-
----
+Catalog mode does not use this mapping. It resolves packages from the JSON file
+named by `CATALOG_FILE_PATH`.
 
 ## Structure
 
 ```yaml
+os: "rhel"
+os_version: "10.0"
+
 base_packages:
   - systemd
   - kernel
@@ -22,16 +26,11 @@ base_packages:
   - NetworkManager
 
 functional_groups:
-  os_x86_64:
-    packages: []
-
   slurm_node_x86_64:
     packages:
       - munge
       - slurm-slurmd
       - slurm-pam_slurm
-      - openldap
-      - sssd
 
   slurm_control_node_x86_64:
     packages:
@@ -41,32 +40,37 @@ functional_groups:
       - mariadb-server
 ```
 
----
+The schema requires `os`, `os_version`, a non-empty unique `base_packages`
+list, and at least one functional-group entry. Every group name must end in
+`_x86_64` or `_aarch64`, and every group must contain a unique `packages` list.
 
-## How It Works
+## Resolution Behavior
 
-1. `image_build_config.yml` lists which functional groups to build
-2. `functional_group_packages.yml` maps each group to RPM packages
-3. `fetch_build_packages` role creates:
-   - `base_image_packages` -- flat list from `base_packages`
-   - `compute_images_dict` -- dict per group with `packages` list
-4. `build_os_images` role builds one base image + one compute image per group
+1. `fetch_build_packages` loads the runtime `package_groups.yml`.
+2. `base_packages` becomes `base_image_packages` for the architecture's base
+   image.
+3. Functional groups are selected directly from mapping keys that match the
+   current architecture. There is no separate group allow-list in
+   `image_build_config.yml`.
+4. Architecture-matching entries with an empty `packages` list are skipped.
+5. Any entry whose name contains `driver_group` is skipped because driver
+   packages are intended for post-boot installation.
+6. Each remaining entry becomes one item in `compute_images_dict` and one
+   compute-image build.
 
+```text
+package_groups.yml
+  base_packages ------------------------> base OS image
+  functional_groups.*_<architecture>
+       | non-empty and not driver_group
+       +--------------------------------> one compute image per group
 ```
-config: functional_groups[]     packages: base_packages + functional_groups
-+-------------------------+     +----------------------------------+
-| - slurm_node_x86_64    | --> | base_image_packages (all images) |
-| - os_x86_64            |     | compute_images_dict (per group)  |
-+-------------------------+     +----------------------------------+
-                                            |
-                                  OpenCHAMI image-builder --> S3
-```
-
----
 
 ## Customization
 
 ### Add packages to a group
+
+Edit the staged runtime file so setup does not overwrite the customization:
 
 ```yaml
 functional_groups:
@@ -74,12 +78,14 @@ functional_groups:
     packages:
       - munge
       - slurm-slurmd
-      - my-custom-package      # add here
+      - my-custom-package
 ```
 
-### Add a new functional group
+### Add a functional group
 
-1. Add to `functional_group_packages.yml`:
+Add the entry to `package_groups.yml`; no change to
+`image_build_config.yml` is needed:
+
 ```yaml
 functional_groups:
   my_custom_group_x86_64:
@@ -88,44 +94,41 @@ functional_groups:
       - package-b
 ```
 
-2. Enable in `image_build_config.yml`:
-```yaml
-functional_groups:
-  - name: "my_custom_group_x86_64"
-```
+Use the target architecture suffix and provide at least one package if the
+group should produce an image.
 
-Group name **must** end with `_x86_64` or `_aarch64`.
-
-### Add base packages (all images)
+### Add packages to every image
 
 ```yaml
 base_packages:
   - systemd
   - kernel
-  - my-base-package            # added to ALL images
+  - my-base-package
 ```
 
----
+## Package Rules
 
-## Package Name Rules
+- Use RPM package names, not installed binary names: for example,
+  `slurm-slurmd`, not `slurmd`.
+- Packages must be available from a repository in the validated
+  `repo_status.yml`.
+- A missing RPM causes the OpenCHAMI build to fail during package resolution.
+- Lists must not contain duplicates.
 
-- Use RPM package names (not binary names): `slurm-slurmd` not `slurmd`
-- Names must exist in Pulp repos defined in `repo_status.yml`
-- Resolved by `dnf` during build -- missing packages fail the build
+## Shipped Functional Groups
 
----
+The source template currently defines:
 
-## Valid Functional Groups
+| x86_64 | aarch64 |
+|--------|---------|
+| `os_x86_64` (empty; skipped) | `os_aarch64` (empty; skipped) |
+| `slurm_node_x86_64` | `slurm_node_aarch64` |
+| `slurm_control_node_x86_64` | `login_node_aarch64` |
+| `login_node_x86_64` | `login_compiler_node_aarch64` |
+| `login_compiler_node_x86_64` | |
+| `service_kube_control_plane_first_x86_64` (empty; skipped) | |
+| `service_kube_control_plane_x86_64` (empty; skipped) | |
+| `service_kube_node_x86_64` (empty; skipped) | |
 
-Supported functional groups:
-
-| x86_64 | Layer | aarch64 | Layer |
-|--------|-------|---------|-------|
-| `os_x86_64` | compute | `os_aarch64` | compute |
-| `slurm_node_x86_64` | compute | `slurm_node_aarch64` | compute |
-| `slurm_control_node_x86_64` | management | `login_node_aarch64` | management |
-| `login_node_x86_64` | management | `login_compiler_node_aarch64` | management |
-| `login_compiler_node_x86_64` | management | | |
-| `service_kube_control_plane_first_x86_64` | management | | |
-| `service_kube_control_plane_x86_64` | management | | |
-| `service_kube_node_x86_64` | management | | |
+These are defaults, not a hard-coded allow-list. Any schema-valid group name
+with a non-empty package list is eligible for its matching architecture.

@@ -35,7 +35,7 @@
 #
 #   4. Run:  ansible-playbook image_build_manager.yml
 #
-# NOTE: CentOS Stream 10 repos are binary-compatible with RHEL 10.0 and
+# NOTE: CentOS Stream 10 repos are suitable for RHEL 10.x build-path testing and
 #       are freely accessible without a subscription.  For production RHEL
 #       deployments, use the subscription-based CDN URLs instead.
 #
@@ -51,11 +51,24 @@ overall_status: "success"
 cluster_os_type: "rhel"
 repo_config: "partial"
 
+execution_contexts:
+  - context_id: "rhel_10.0"
+    os_type: "rhel"
+    os_version: "10.0"
+    architectures: ["x86_64", "aarch64"]
+  - context_id: "rhel_10.2"
+    os_type: "rhel"
+    os_version: "10.2"
+    architectures: ["x86_64", "aarch64"]
+
+overall_status_by_version:
+  "10.0": "success"
+  "10.2": "success"
+
 repo_manager:
   port: ""
   certificates:
     server_crt: ""
-    server_key: ""
     certs_dir: ""
 
 repositories:
@@ -70,14 +83,9 @@ repositories:
       codeready-builder:
         url: "https://mirror.stream.centos.org/10-stream/CRB/x86_64/os/"
         priority: 100
-      # slurm_custom requires a user-provided repo — no public RHEL 10 / CentOS Stream 10
-      # repository ships slurm packages. Configure via user_repo_url_x86_64 in repo_manager_config.yml.
-      slurm_custom: {}
-      ldms: {}
       epel:
         url: "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/"
         priority: 100
-      additional_repos: {}
 
     aarch64:
       baseos:
@@ -89,12 +97,36 @@ repositories:
       codeready-builder:
         url: "https://mirror.stream.centos.org/10-stream/CRB/aarch64/os/"
         priority: 100
-      slurm_custom: {}
-      ldms: {}
       epel:
         url: "https://dl.fedoraproject.org/pub/epel/10/Everything/aarch64/"
         priority: 100
-      additional_repos: {}
+  "10.2":
+    x86_64:
+      baseos:
+        url: "https://mirror.stream.centos.org/10-stream/BaseOS/x86_64/os/"
+        priority: 100
+      appstream:
+        url: "https://mirror.stream.centos.org/10-stream/AppStream/x86_64/os/"
+        priority: 100
+      codeready-builder:
+        url: "https://mirror.stream.centos.org/10-stream/CRB/x86_64/os/"
+        priority: 100
+      epel:
+        url: "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/"
+        priority: 100
+    aarch64:
+      baseos:
+        url: "https://mirror.stream.centos.org/10-stream/BaseOS/aarch64/os/"
+        priority: 100
+      appstream:
+        url: "https://mirror.stream.centos.org/10-stream/AppStream/aarch64/os/"
+        priority: 100
+      codeready-builder:
+        url: "https://mirror.stream.centos.org/10-stream/CRB/aarch64/os/"
+        priority: 100
+      epel:
+        url: "https://dl.fedoraproject.org/pub/epel/10/Everything/aarch64/"
+        priority: 100
 
 registries: {}
 file_repos:

@@ -53,7 +53,6 @@
         name: orchestrator_setup
       vars:
         openchami_vars_support: false
-        omnia_metadata_support: false
       when: input_project_dir is not defined
 
     - name: Check if PXE boot is enabled
@@ -70,12 +69,27 @@
         pxe_boot_skip: "{{ not (enable_pxe_boot | default(true) | bool) }}"
         cacheable: true
 
-    - name: Load PXE boot configuration
+    - name: Check for optional PXE boot configuration
+      ansible.builtin.stat:
+        path: "{{ input_project_dir }}/set_pxe_boot_config.yml"
+      register: _pxe_config_stat
+      when: not (pxe_boot_skip | bool)
+
+    - name: Load PXE boot configuration when present
       ansible.builtin.include_vars:
         file: "{{ input_project_dir }}/set_pxe_boot_config.yml"
-      failed_when: false
-      register: pxe_config_loaded
-      when: not (pxe_boot_skip | bool)
+      when:
+        - not (pxe_boot_skip | bool)
+        - _pxe_config_stat.stat.exists
+
+    - name: Report use of PXE boot defaults
+      ansible.builtin.debug:
+        msg: >-
+          Optional set_pxe_boot_config.yml was not found; using documented
+          PXE boot and node-registration defaults.
+      when:
+        - not (pxe_boot_skip | bool)
+        - not _pxe_config_stat.stat.exists
 
     - name: Set PXE config defaults
       when: not (pxe_boot_skip | bool)
@@ -84,12 +98,49 @@
         node_registration_pause_minutes: "{{ node_registration_pause_minutes | default(phone_home_pause_minutes | default(3)) }}"
         node_registration_retries: "{{ node_registration_retries | default(phone_home_retries | default(120)) }}"
         node_registration_delay: "{{ node_registration_delay | default(phone_home_delay | default(15)) }}"
-        node_registration_log_pattern: "{{ node_registration_log_pattern | default(phone_home_log_pattern | default('phone-home')) }}"
         restart_host: "{{ restart_host | default(true) }}"
         force_restart: "{{ force_restart | default(true) }}"
         boot_source_override_enabled: "{{ boot_source_override_enabled | default('continuous') }}"
         boot_source_override_target: "{{ boot_source_override_target | default('pxe') }}"
         cacheable: true
+
+    - name: Validate PXE boot configuration
+      ansible.builtin.assert:
+        that:
+          - enable_node_registration is boolean or (enable_node_registration is string and enable_node_registration | lower in ['true', 'false'])
+          - (node_registration_pause_minutes | string) is match('^[0-9]+$')
+          - (node_registration_retries | string) is match('^[1-9][0-9]*$')
+          - (node_registration_delay | string) is match('^[1-9][0-9]*$')
+          - restart_host is boolean or (restart_host is string and restart_host | lower in ['true', 'false'])
+          - force_restart is boolean or (force_restart is string and force_restart | lower in ['true', 'false'])
+          - boot_source_override_enabled in ['once', 'continuous', 'disabled']
+          - boot_source_override_target in ['pxe', 'uefi_http', 'hdd', 'cd', 'floppy', 'sd_card', 'utilities', 'bios_setup', 'none']
+        fail_msg: >-
+          Invalid set_pxe_boot_config.yml. Use booleans for enable/restart
+          options, non-negative numeric pause, positive integer retries and
+          delay, and one of the documented boot override values.
+        success_msg: "PXE boot configuration is valid."
+      when: not (pxe_boot_skip | bool)
+
+    - name: Normalize PXE boot configuration types
+      ansible.builtin.set_fact:
+        enable_node_registration: "{{ enable_node_registration | bool }}"
+        node_registration_pause_minutes: "{{ node_registration_pause_minutes | int }}"
+        node_registration_retries: "{{ node_registration_retries | int }}"
+        node_registration_delay: "{{ node_registration_delay | int }}"
+        restart_host: "{{ restart_host | bool }}"
+        force_restart: "{{ force_restart | bool }}"
+      when: not (pxe_boot_skip | bool)
+
+    - name: Warn when persistent PXE boot override is enabled
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: boot_source_override_enabled is continuous. Nodes will
+          continue selecting PXE on later restarts until the iDRAC boot
+          override is changed. Use once for a single PXE boot.
+      when:
+        - not (pxe_boot_skip | bool)
+        - boot_source_override_enabled == 'continuous'
 
     - name: Emit deprecation warning for legacy phone_home_* variables
       ansible.builtin.debug:
@@ -100,7 +151,7 @@
       when:
         - not (pxe_boot_skip | bool)
         - (enable_phone_home is defined or phone_home_pause_minutes is defined or
-           phone_home_retries is defined or phone_home_delay is defined or phone_home_log_pattern is defined)
+           phone_home_retries is defined or phone_home_delay is defined)
 
 # ─────────────────────────────────────────────────────────────────────────
 # Play 2: Load credentials from orchestrator credential store
@@ -138,7 +189,8 @@
 #
 # Supports -e pxeboot_inventory=/path/to/custom.csv for retry/resume
 # with a subset of nodes (e.g. only failed nodes from a previous run).
-# The CSV must have the same column layout as pxe_mapping_file.csv.
+# The CSV must expose the same named columns as pxe_mapping_file.csv. Column
+# order is not significant.
 # ─────────────────────────────────────────────────────────────────────────
 - name: Build BMC inventory from PXE mapping file
   hosts: localhost
@@ -154,49 +206,121 @@
       block:
         - name: Resolve inventory source path
           ansible.builtin.set_fact:
-            pxe_mapping_file_path: "{{ pxeboot_inventory | default(input_project_dir + '/pxe_mapping_file.csv') }}"
-            pxeboot_using_custom_inventory: "{{ pxeboot_inventory is defined }}"
+            pxeboot_inventory_source: >-
+              {{ pxeboot_inventory
+                 | default(pxe_mapping_file_path, true) }}
+            pxeboot_using_custom_inventory: >-
+              {{ pxeboot_inventory | default('', true) | length > 0 }}
             cacheable: true
+
+        - name: Initialize per-run PXE status facts
+          ansible.builtin.set_fact:
+            pxe_boot_failed_bmc_ips: []
+            node_registration_failed_bmc_ips: []
+            node_registration_results_by_bmc: {}
+            failed_nodes_list: []
+            all_nodes_status: []
+            target_node_admin_ips: []
 
         - name: Log custom inventory usage
           ansible.builtin.debug:
-            msg: "Using custom PXE boot inventory: {{ pxe_mapping_file_path }}"
+            msg: >-
+              Using custom PXE boot inventory:
+              {{ pxeboot_inventory_source }}
           when: pxeboot_using_custom_inventory | bool
 
         - name: Verify inventory CSV exists
           ansible.builtin.stat:
-            path: "{{ pxe_mapping_file_path }}"
+            path: "{{ pxeboot_inventory_source }}"
           register: _mapping_file_stat
 
         - name: Fail if inventory CSV is missing
           ansible.builtin.fail:
-            msg: "PXE inventory file not found at {{ pxe_mapping_file_path }}"
+            msg: >-
+              PXE inventory file not found at
+              {{ pxeboot_inventory_source }}
           when: not _mapping_file_stat.stat.exists
 
-        - name: Read inventory CSV
-          ansible.builtin.command:
-            cmd: "cat {{ pxe_mapping_file_path }}"
-          register: _mapping_csv
-          changed_when: false
+        - name: Read inventory CSV by column name
+          community.general.read_csv:
+            path: "{{ pxeboot_inventory_source }}"
+          register: _pxeboot_csv
 
-        - name: Parse CSV and build BMC host group
+        - name: Validate inventory contains node records
+          ansible.builtin.assert:
+            that:
+              - _pxeboot_csv.list | default([]) | length > 0
+            fail_msg: >-
+              PXE inventory {{ pxeboot_inventory_source }} does not contain
+              any node records.
+
+        - name: Validate required inventory columns
+          ansible.builtin.assert:
+            that:
+              - item in (_pxeboot_csv.list[0].keys() | list)
+            fail_msg: >-
+              PXE inventory {{ pxeboot_inventory_source }} is missing the
+              required column {{ item }}.
+          loop:
+            - BMC_IP
+            - ADMIN_IP
+            - HOSTNAME
+            - SERVICE_TAG
+
+        - name: Validate PXE inventory node addresses
+          ansible.builtin.assert:
+            that:
+              - item.BMC_IP | default('') | trim | length > 0
+              - item.ADMIN_IP | default('') | trim | length > 0
+              - "'/' not in (item.BMC_IP | trim)"
+              - "'/' not in (item.ADMIN_IP | trim)"
+              - (item.BMC_IP | trim | ansible.utils.ipv4('address')) is not false
+              - (item.ADMIN_IP | trim | ansible.utils.ipv4('address')) is not false
+            fail_msg: >-
+              Invalid PXE inventory row for {{ item.HOSTNAME | default('unknown host') }}.
+              BMC_IP and ADMIN_IP must contain valid IP addresses.
+          loop: "{{ _pxeboot_csv.list }}"
+          loop_control:
+            label: "{{ item.HOSTNAME | default('unknown host') }}"
+
+        - name: Validate PXE inventory addresses are unique
+          ansible.builtin.assert:
+            that:
+              - (_pxeboot_csv.list | map(attribute='BMC_IP') | map('trim') | list | unique | length) == (_pxeboot_csv.list | length)
+              - (_pxeboot_csv.list | map(attribute='ADMIN_IP') | map('trim') | list | unique | length) == (_pxeboot_csv.list | length)
+            fail_msg: >-
+              PXE inventory {{ pxeboot_inventory_source }} contains duplicate
+              BMC_IP or ADMIN_IP values. Every node must have unique addresses.
+
+        - name: Build BMC host group from named CSV fields
           ansible.builtin.add_host:
-            hostname: "{{ item.split(',')[8] | trim }}"
+            hostname: "{{ item.BMC_IP | trim }}"
             groups: bmc
-            admin_ip: "{{ item.split(',')[6] | trim }}"
-            hostname_node: "{{ item.split(',')[4] | trim }}"
-            service_tag: "{{ item.split(',')[2] | trim }}"
-          loop: "{{ _mapping_csv.stdout_lines[1:] }}"
-          when:
-            - item | trim | length > 0
-            - item.split(',') | length >= 9
-            - item.split(',')[8] | trim | length > 0
+            admin_ip: "{{ item.ADMIN_IP | trim }}"
+            xname: "{{ item.XNAME | default('') | trim }}"
+            hostname_node: "{{ item.HOSTNAME | default('') | trim }}"
+            service_tag: "{{ item.SERVICE_TAG | default('') | trim }}"
+          loop: "{{ _pxeboot_csv.list }}"
+          loop_control:
+            label: "{{ item.BMC_IP | trim }}"
+
+        - name: Build parallel node-registration host group
+          ansible.builtin.add_host:
+            hostname: "{{ item.ADMIN_IP | trim }}"
+            groups: node_registration_targets
+            bmc_ip: "{{ item.BMC_IP | trim }}"
+            xname: "{{ item.XNAME | default('') | trim }}"
+            hostname_node: "{{ item.HOSTNAME | default('') | trim }}"
+            service_tag: "{{ item.SERVICE_TAG | default('') | trim }}"
+          loop: "{{ _pxeboot_csv.list }}"
+          loop_control:
+            label: "{{ item.ADMIN_IP | trim }}"
 
         - name: Validate BMC group has hosts
           ansible.builtin.fail:
             msg: >-
-              No BMC hosts found in {{ pxe_mapping_file_path }}. Ensure BMC_IP column
-              (column 9) is populated.
+              No BMC hosts found in {{ pxeboot_inventory_source }}.
+              Ensure the BMC_IP column is populated.
           when: ('bmc' not in groups) or (groups['bmc'] | length | int == 0)
 
         - name: Capture PXE boot start epoch
@@ -207,7 +331,7 @@
 
         - name: Build target admin IPs for node-registration verification
           ansible.builtin.set_fact:
-            target_node_admin_ips: "{{ groups['bmc'] | map('extract', hostvars, 'admin_ip') | select('defined') | list }}"
+            target_node_admin_ips: "{{ _pxeboot_csv.list | map(attribute='ADMIN_IP') | map('trim') | list }}"
             cacheable: true
           when: enable_node_registration | default(true) | bool
 
@@ -255,7 +379,7 @@
         msg: "{{ reboot_status }}"
       when:
         - reboot_failed
-        - not (enable_node_registration | default(true) | bool)
+        - not (hostvars['localhost']['enable_node_registration'] | default(true) | bool)
 
 # ─────────────────────────────────────────────────────────────────────────
 # Play 6: Filter node-registration target list (exclude failed PXE boots)
@@ -274,23 +398,17 @@
       ansible.builtin.meta: end_play
       when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
   tasks:
+    - name: Collect all PXE-boot-failed BMC IPs from hostvars
+      ansible.builtin.set_fact:
+        pxe_boot_failed_bmc_ips: "{{ pxe_boot_failed_bmc_ips + [item] }}"
+      loop: "{{ groups['bmc'] }}"
+      when:
+        - hostvars[item]['reboot_failed'] is defined
+        - hostvars[item]['reboot_failed'] | bool
+
     - name: Filter node-registration verification block
       when: enable_node_registration | default(true) | bool
       block:
-        - name: Build admin IP to BMC IP mapping
-          ansible.builtin.set_fact:
-            admin_to_bmc_map: "{{ admin_to_bmc_map | default({}) | combine({hostvars[item]['admin_ip']: item}) }}"
-          loop: "{{ groups['bmc'] }}"
-          when: hostvars[item]['admin_ip'] is defined
-
-        - name: Collect all PXE-boot-failed BMC IPs from hostvars (race-free)
-          ansible.builtin.set_fact:
-            pxe_boot_failed_bmc_ips: "{{ pxe_boot_failed_bmc_ips | default([]) + [item] }}"
-          loop: "{{ groups['bmc'] }}"
-          when:
-            - hostvars[item]['reboot_failed'] is defined
-            - hostvars[item]['reboot_failed'] | bool
-
         - name: Filter out failed PXE boots from node-registration target list
           ansible.builtin.set_fact:
             target_node_admin_ips: "{{ target_node_admin_ips | default([]) | difference(failed_admin_ips | default([])) }}"
@@ -309,27 +427,33 @@
             msg: "[Node-Registration] Skipping — no nodes to verify (all PXE boots failed)"
           when: target_node_admin_ips | default([]) | length == 0
 
+        - name: Wait for nodes to begin cloud-init
+          ansible.builtin.pause:
+            minutes: "{{ node_registration_pause_minutes }}"
+            prompt: >-
+              Waiting {{ node_registration_pause_minutes }} minutes for nodes
+              to boot and begin cloud-init before parallel verification...
+          when:
+            - target_node_admin_ips | default([]) | length > 0
+            - node_registration_pause_minutes | int > 0
+
 # ─────────────────────────────────────────────────────────────────────────
-# Play 7: Node-registration verification
+# Play 7: Parallel node-registration verification
 # ─────────────────────────────────────────────────────────────────────────
 - name: Verify cloud-init node-registration
-  hosts: localhost
+  hosts: node_registration_targets
   connection: local
   gather_facts: false
   tags: [pxeboot]
   pre_tasks:
-    - name: Skip if PXE boot disabled
-      ansible.builtin.meta: end_play
-      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
-  tasks:
-    - name: Node-registration verification block
+    - name: Skip node when registration verification is disabled or PXE boot failed
+      ansible.builtin.meta: end_host
       when:
-        - enable_node_registration | default(true) | bool
-        - target_node_admin_ips | default([]) | length > 0
-      block:
-        - name: Run node-registration verification
-          ansible.builtin.include_role:
-            name: verify_node_registration
+        - >-
+          not (hostvars['localhost']['enable_node_registration'] | default(true) | bool)
+          or bmc_ip in (hostvars['localhost']['pxe_boot_failed_bmc_ips'] | default([]))
+  roles:
+    - role: verify_node_registration
 
 # ─────────────────────────────────────────────────────────────────────────
 # Play 8: Final reporting
@@ -352,19 +476,76 @@
             state: directory
             mode: "0755"
 
-        - name: Build reverse map of admin IP to BMC IP for reporting
-          ansible.builtin.set_fact:
-            admin_to_bmc_map: "{{ admin_to_bmc_map | default({}) | combine({hostvars[item]['admin_ip']: item}) }}"
-          loop: "{{ groups['bmc'] }}"
-          when: hostvars[item]['admin_ip'] is defined
+        - name: Check for provisioning phase report
+          ansible.builtin.stat:
+            path: "{{ orchestrator_output_dir }}/provisioning_report.yml"
+          register: pxeboot_provisioning_report_stat
 
-        - name: Map node-registration failed admin IPs back to BMC IPs
+        - name: Load provisioning phase report
+          ansible.builtin.slurp:
+            src: "{{ orchestrator_output_dir }}/provisioning_report.yml"
+          register: pxeboot_provisioning_report_raw
+          when: pxeboot_provisioning_report_stat.stat.exists
+
+        - name: Decode provisioning phase report data
           ansible.builtin.set_fact:
-            node_registration_failed_bmc_ips: "{{ node_registration_failed_bmc_ips | default([]) + [admin_to_bmc_map[item]] }}"
-          loop: "{{ node_registration_failed_ips | default([]) }}"
+            pxeboot_provisioning_report_candidate: >-
+              {{ (pxeboot_provisioning_report_raw.content | b64decode | from_yaml)
+                 if pxeboot_provisioning_report_stat.stat.exists else {} }}
+
+        - name: Retain provisioning report for the active inventory
+          ansible.builtin.set_fact:
+            pxeboot_provisioning_report: >-
+              {{ pxeboot_provisioning_report_candidate
+                 if pxeboot_provisioning_report_candidate | type_debug == 'dict'
+                 and pxeboot_provisioning_report_candidate.inventory_source | default('')
+                     == pxeboot_inventory_source
+                 else {} }}
+
+        - name: Collect structured node-registration results
+          ansible.builtin.set_fact:
+            node_registration_results_by_bmc: >-
+              {{ node_registration_results_by_bmc
+                 | combine({hostvars[item]['bmc_ip']: hostvars[item]['verify_node_registration_result']}) }}
+          loop: "{{ groups['node_registration_targets'] | default([]) }}"
           when:
             - enable_node_registration | default(true) | bool
-            - item in admin_to_bmc_map
+            - hostvars[item]['verify_node_registration_result'] is defined
+
+        - name: Record missing node-registration results as failures
+          ansible.builtin.set_fact:
+            node_registration_results_by_bmc: >-
+              {{ node_registration_results_by_bmc
+                 | combine({item: missing_result}) }}
+          vars:
+            missing_result:
+              admin_ip: "{{ hostvars[item].admin_ip }}"
+              bmc_ip: "{{ item }}"
+              xname: "{{ hostvars[item].xname | default('') }}"
+              hostname: "{{ hostvars[item].hostname_node | default('') }}"
+              service_tag: "{{ hostvars[item].service_tag | default('') }}"
+              status: failed
+              state: verification_result_missing
+              detail: Node-registration verification did not return a result
+              terminal: true
+              attempts: 0
+              verification_method: ssh_cloud_init
+              cloud_init: {}
+          loop: "{{ groups['bmc'] }}"
+          loop_control:
+            label: "{{ item }}"
+          when:
+            - enable_node_registration | default(true) | bool
+            - item not in pxe_boot_failed_bmc_ips
+            - item not in node_registration_results_by_bmc
+
+        - name: Collect node-registration failures
+          ansible.builtin.set_fact:
+            node_registration_failed_bmc_ips: "{{ node_registration_failed_bmc_ips + [item.key] }}"
+          loop: "{{ node_registration_results_by_bmc | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          when: item.value.status != 'success'
 
         - name: Build failed nodes list with details
           ansible.builtin.set_fact:
@@ -374,14 +555,25 @@
             node_detail:
               bmc_ip: "{{ item }}"
               admin_ip: "{{ hostvars[item].admin_ip | default('N/A') }}"
+              xname: "{{ hostvars[item].xname | default('') }}"
               hostname: "{{ hostvars[item].hostname_node | default('N/A') }}"
               service_tag: "{{ hostvars[item].service_tag | default('N/A') }}"
               failure_stage: "{{ 'pxe_boot' if item in (pxe_boot_failed_bmc_ips | default([])) else 'node_registration' }}"
               status: "failed"
+              verification_method: >-
+                {{ 'not_started' if item in (pxe_boot_failed_bmc_ips | default([]))
+                   else node_registration_results_by_bmc[item].get('verification_method', 'ssh_cloud_init') }}
               error: >-
                 {{ hostvars[item].reboot_status
                    if item in (pxe_boot_failed_bmc_ips | default([]))
-                   else 'Node-registration timeout — node did not complete cloud-init within the allowed retries' }}
+                   else node_registration_results_by_bmc[item].detail }}
+              verification_state: >-
+                {{ 'not_started'
+                   if item in (pxe_boot_failed_bmc_ips | default([]))
+                   else node_registration_results_by_bmc[item].state }}
+              cloud_init: >-
+                {{ {} if item in (pxe_boot_failed_bmc_ips | default([]))
+                   else node_registration_results_by_bmc[item].get('cloud_init', {}) }}
 
         - name: Write failed_nodes.json output file
           ansible.builtin.copy:
@@ -390,10 +582,18 @@
             mode: "0644"
           vars:
             failed_nodes_report:
+              schema_version: "1.0"
+              phase: pxeboot
+              run_id: "{{ ansible_date_time.epoch }}"
               timestamp: "{{ ansible_date_time.iso8601 }}"
               total_nodes: "{{ groups['bmc'] | length }}"
               failure_count: "{{ (failed_nodes_list | default([])) | length }}"
               success_count: "{{ groups['bmc'] | length - ((failed_nodes_list | default([])) | length) }}"
+              verification_enabled: "{{ enable_node_registration | bool }}"
+              unverified_count: >-
+                {{ 0 if enable_node_registration | bool
+                   else groups['bmc'] | length - (pxe_boot_failed_bmc_ips | length) }}
+              inventory_source: "{{ pxeboot_inventory_source }}"
               failed_nodes: "{{ failed_nodes_list | default([]) }}"
 
         - name: Report total failures
@@ -403,10 +603,15 @@
               - Total nodes: {{ groups['bmc'] | length }}
               - PXE boot failed: {{ pxe_boot_failed_bmc_ips | default([]) | length }}
               - Node-registration failed: {{ node_registration_failed_bmc_ips | default([]) | length }}
-              - Success: {{
+              - Completed without failure: {{
                   groups['bmc'] | length
                   - (pxe_boot_failed_bmc_ips | default([]) | length)
                   - (node_registration_failed_bmc_ips | default([]) | length)
+                }}
+              - Verification: {{ 'enabled' if enable_node_registration | bool else 'disabled' }}
+              - Unverified: {{
+                  0 if enable_node_registration | bool
+                  else groups['bmc'] | length - (pxe_boot_failed_bmc_ips | length)
                 }}
               - Output: {{ orchestrator_output_dir }}/failed_nodes.json
 
@@ -416,61 +621,170 @@
           loop: "{{ groups['bmc'] }}"
           vars:
             _admin_ip: "{{ hostvars[item].admin_ip | default('N/A') }}"
+            _xname: "{{ hostvars[item].xname | default('') }}"
             _hostname: "{{ hostvars[item].hostname_node | default('N/A') }}"
             _svc_tag: "{{ hostvars[item].service_tag | default('N/A') }}"
-            _is_pxe_fail: "{{ item in (pxe_boot_failed_bmc_ips | default([])) }}"
-            _is_nr_fail: "{{ item in (node_registration_failed_bmc_ips | default([])) }}"
+            _registration_result: "{{ node_registration_results_by_bmc.get(item, {}) }}"
+            _pxe_status: >-
+              {{ 'failed'
+                 if item in (pxe_boot_failed_bmc_ips | default([]))
+                 or item in (node_registration_failed_bmc_ips | default([]))
+                 else ('success' if enable_node_registration | bool
+                       else 'pxe_initiated_unverified') }}
+            _failure_stage: >-
+              {{ 'pxe_boot'
+                 if item in (pxe_boot_failed_bmc_ips | default([]))
+                 else ('node_registration'
+                       if item in (node_registration_failed_bmc_ips | default([]))
+                       else '') }}
+            _verification_state: >-
+              {{ 'not_started'
+                 if item in (pxe_boot_failed_bmc_ips | default([]))
+                 else (_registration_result.get('state', 'not_requested')
+                       if enable_node_registration | bool else 'disabled') }}
+            _detail: >-
+              {{ hostvars[item].reboot_status
+                 if item in (pxe_boot_failed_bmc_ips | default([]))
+                 else (_registration_result.get('detail', '')
+                       if enable_node_registration | bool
+                       else 'PXE boot was initiated; operating-system boot and cloud-init were not verified') }}
             node_entry:
               bmc_ip: "{{ item }}"
               admin_ip: "{{ _admin_ip }}"
+              xname: "{{ _xname }}"
               hostname: "{{ _hostname }}"
               service_tag: "{{ _svc_tag }}"
-              status: >-
-                {{ 'failed' if (_is_pxe_fail | bool or _is_nr_fail | bool) else 'success' }}
-              failure_stage: >-
-                {{ 'pxe_boot' if _is_pxe_fail | bool
-                   else ('node_registration' if _is_nr_fail | bool else '') }}
+              status: "{{ _pxe_status }}"
+              failure_reason: >-
+                {{ 'not registered in SMD'
+                   if pxeboot_provisioning_report | default({}) | length > 0
+                   and _xname | length > 0
+                   and _xname in (pxeboot_provisioning_report.missing_nodes | default([]))
+                   else '' }}
+              failure_stage: "{{ _failure_stage }}"
+              verification_state: "{{ _verification_state }}"
+              verification_method: >-
+                {{ 'not_started'
+                   if item in (pxe_boot_failed_bmc_ips | default([]))
+                   else (_registration_result.get('verification_method', 'ssh_cloud_init')
+                         if enable_node_registration | bool else 'disabled') }}
+              detail: "{{ _detail }}"
+              cloud_init: "{{ _registration_result.get('cloud_init', {}) }}"
+              provisioning:
+                status: >-
+                  {{ 'unknown'
+                     if pxeboot_provisioning_report | default({}) | length == 0
+                     or _xname | length == 0
+                     else ('failed'
+                           if _xname in (pxeboot_provisioning_report.missing_nodes | default([]))
+                           else 'success') }}
+                failure_reason: >-
+                  {{ 'not registered in SMD'
+                     if pxeboot_provisioning_report | default({}) | length > 0
+                     and _xname | length > 0
+                     and _xname in (pxeboot_provisioning_report.missing_nodes | default([]))
+                     else '' }}
+              pxeboot:
+                status: "{{ _pxe_status }}"
+                failure_stage: "{{ _failure_stage }}"
+                verification_state: "{{ _verification_state }}"
+                verification_method: >-
+                  {{ 'not_started'
+                     if item in (pxe_boot_failed_bmc_ips | default([]))
+                     else (_registration_result.get('verification_method', 'ssh_cloud_init')
+                           if enable_node_registration | bool else 'disabled') }}
+                detail: "{{ _detail }}"
+                cloud_init: "{{ _registration_result.get('cloud_init', {}) }}"
 
         - name: Compute overall status
           ansible.builtin.set_fact:
             orchestrator_overall_status: >-
               {{ 'failed' if (failed_nodes_list | default([]) | length > 0) else 'success' }}
 
-        - name: Write orchestrator_status.yml
-          ansible.builtin.copy:
-            content: "{{ orchestrator_status_report | to_nice_yaml }}"
-            dest: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
-            mode: "0644"
-          vars:
-            orchestrator_status_report:
+        - name: Build PXE phase status report
+          ansible.builtin.set_fact:
+            pxeboot_status_report:
+              schema_version: "1.0"
+              phase: pxeboot
+              run_id: "{{ ansible_date_time.epoch }}"
               overall_status: "{{ orchestrator_overall_status }}"
               timestamp: "{{ ansible_date_time.iso8601 }}"
               total_nodes: "{{ groups['bmc'] | length }}"
               success_count: "{{ groups['bmc'] | length | int - (failed_nodes_list | default([]) | length | int) }}"
               failure_count: "{{ (failed_nodes_list | default([])) | length }}"
-              nodes: "{{ all_nodes_status | default([]) }}"
+              verification_enabled: "{{ enable_node_registration | bool }}"
+              unverified_count: >-
+                {{ 0 if enable_node_registration | bool
+                   else groups['bmc'] | length - (pxe_boot_failed_bmc_ips | length) }}
               custom_inventory: "{{ pxeboot_using_custom_inventory | default(false) | bool }}"
-              inventory_source: "{{ pxe_mapping_file_path }}"
+              inventory_source: "{{ pxeboot_inventory_source }}"
+              nodes: "{{ all_nodes_status | default([]) }}"
 
-        # When using a custom inventory (-e pxeboot_inventory=...), also write
-        # pxeboot_status.yml so build_stream and other callers have a dedicated
-        # boot status file that doesn't overwrite the main orchestrator_status.yml
-        # from the provision flow.
-        - name: Write pxeboot_status.yml (custom inventory mode)
+        - name: Write pxeboot_status.yml
           ansible.builtin.copy:
             content: "{{ pxeboot_status_report | to_nice_yaml }}"
             dest: "{{ orchestrator_output_dir }}/pxeboot_status.yml"
             mode: "0644"
-          vars:
-            pxeboot_status_report:
-              overall_status: "{{ orchestrator_overall_status }}"
+
+        - name: Build aggregate orchestrator status report
+          ansible.builtin.set_fact:
+            orchestrator_status_report:
+              schema_version: "1.0"
+              run_id: "{{ ansible_date_time.epoch }}"
+              overall_status: >-
+                {{ 'failed'
+                   if orchestrator_overall_status == 'failed'
+                   or pxeboot_provisioning_report.missing_nodes | default([]) | length > 0
+                   else 'success' }}
+              last_completed_phase: pxeboot
               timestamp: "{{ ansible_date_time.iso8601 }}"
               total_nodes: "{{ groups['bmc'] | length }}"
               success_count: "{{ groups['bmc'] | length | int - (failed_nodes_list | default([]) | length | int) }}"
               failure_count: "{{ (failed_nodes_list | default([])) | length }}"
+              verification_enabled: "{{ enable_node_registration | bool }}"
+              unverified_count: >-
+                {{ 0 if enable_node_registration | bool
+                   else groups['bmc'] | length - (pxe_boot_failed_bmc_ips | length) }}
+              custom_inventory: "{{ pxeboot_using_custom_inventory | default(false) | bool }}"
               nodes: "{{ all_nodes_status | default([]) }}"
-              inventory_source: "{{ pxe_mapping_file_path }}"
-          when: pxeboot_using_custom_inventory | default(false) | bool
+              inventory_source: "{{ pxeboot_inventory_source }}"
+              phases:
+                provisioning:
+                  status: >-
+                    {{ 'not_run'
+                       if pxeboot_provisioning_report | default({}) | length == 0
+                       else ('failed'
+                             if pxeboot_provisioning_report.missing_nodes | default([]) | length > 0
+                             else 'success') }}
+                  total_nodes: >-
+                    {{ pxeboot_provisioning_report.total_expected_nodes | default(0) }}
+                  success_count: >-
+                    {{ (pxeboot_provisioning_report.total_expected_nodes | default(0) | int)
+                       - (pxeboot_provisioning_report.missing_nodes | default([]) | length) }}
+                  failure_count: >-
+                    {{ pxeboot_provisioning_report.missing_nodes | default([]) | length }}
+                  timestamp: "{{ pxeboot_provisioning_report.timestamp | default('') }}"
+                  report: provisioning_report.yml
+                pxeboot:
+                  status: "{{ orchestrator_overall_status }}"
+                  total_nodes: "{{ groups['bmc'] | length }}"
+                  success_count: "{{ groups['bmc'] | length | int - (failed_nodes_list | default([]) | length | int) }}"
+                  failure_count: "{{ (failed_nodes_list | default([])) | length }}"
+                  unverified_count: >-
+                    {{ 0 if enable_node_registration | bool
+                       else groups['bmc'] | length - (pxe_boot_failed_bmc_ips | length) }}
+                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  report: pxeboot_status.yml
+              artifacts:
+                provisioning_report: provisioning_report.yml
+                pxeboot_status: pxeboot_status.yml
+                failed_nodes: failed_nodes.json
+
+        - name: Write aggregate orchestrator_status.yml
+          ansible.builtin.copy:
+            content: "{{ orchestrator_status_report | to_nice_yaml }}"
+            dest: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
+            mode: "0644"
 
         - name: Fail if any nodes failed PXE boot or node-registration
           ansible.builtin.fail:

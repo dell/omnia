@@ -28,7 +28,9 @@
 # This should match with exactly with a entry in storage_config.yml
 
 # vast_storage_name
-# Storage name corresponding to the VAST storage to be used by slurm cluster
+# Optional storage name corresponding to separate VAST storage used by Slurm.
+# When omitted or empty, the nfs_storage_name entry is reused for the Slurm
+# HPC tools and shared-data paths.
 # This should match with exactly with a entry in storage_config.yml
 # The following directories will be mounted on the VAST storage:
 #   - /scratch

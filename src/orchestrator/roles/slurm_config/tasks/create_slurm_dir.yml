@@ -54,7 +54,7 @@
 
 - name: Set facts for slurm
   ansible.builtin.set_fact:
-    cluster_name: "{{ slurm_cluster[0].cluster_name }}"
+    slurm_cluster_name: "{{ slurm_cluster[0].cluster_name }}"
     configs_input: "{{ slurm_cluster[0].config_sources | default({}) | dict2items | rejectattr('value', 'falsy') | list | items2dict }}"
     skip_merge: "{{ slurm_cluster[0].skip_merge | default(false) }}"
     slurm_config_path: "{{ share_path }}/{{ slurm_dir_name }}"

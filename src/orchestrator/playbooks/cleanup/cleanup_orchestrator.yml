@@ -29,9 +29,9 @@
 #   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags artifacts
 #   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags cleanup_credentials
 #
-# AUTO-DEPENDENCIES:
-#   --tags slurm / --tags k8s also run storage_mounts first, so that mounts
-#   are unmounted before the underlying directories are removed.
+# STORAGE ORDERING:
+#   Slurm and K8s remove shared data while its NFS mount is available, then
+#   invoke scoped storage-mount cleanup. This prevents premature unmounting.
 #
 # AVAILABLE COMPONENTS:
 #   openchami      - OpenCHAMI services, containers, configuration, artifacts

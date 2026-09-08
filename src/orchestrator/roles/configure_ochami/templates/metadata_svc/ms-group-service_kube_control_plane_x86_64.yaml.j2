@@ -193,8 +193,6 @@
                           fieldPath: spec.nodeName
                     - name: vip_interface
                       value: vip_interface
-                    - name: vip_cidr
-                      value: "{{ admin_netmask_bits }}"
                     - name: dns_mode
                       value: first
                     - name: cp_enable
@@ -215,11 +213,15 @@
                       value: "3"
                     - name: vip_retryperiod
                       value: "1"
-                    - name: vip_address
+                    - name: address
                       value: {{ kube_vip }}
+                    - name: vip_subnet
+                      value: "{{ admin_netmask_bits }}"
                     - name: prometheus_server
                       value: :2112
-                  image: ghcr.io/kube-vip/kube-vip:v0.8.9
+                    - name: kubernetes_addr
+                      value: {{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}:6443
+                  image: "{{ kube_vip_image }}"
                   imagePullPolicy: IfNotPresent
                   name: kube-vip
                   resources: {}
@@ -248,7 +250,7 @@
           content: |
             #!/bin/bash
             set -e
-            HELM_VERSION="v3.20.1"
+            HELM_VERSION="v{{ helm_version }}"
             ARCH="amd64"
             cp {{ k8s_client_mount_path }}/helm/linux-${ARCH}-helm-$HELM_VERSION/helm /usr/local/bin/helm
             chmod +x /usr/local/bin/helm
@@ -405,8 +407,17 @@
 {% if etcd_on_local_disk | default(false) %}
             /usr/local/bin/etcd-disk-setup.sh
 {% endif %}
-            rm -rf /var/lib/etcd/*  /var/lib/kubelet/* /etc/kubernetes/*
-            rm -rf /var/lib/etcd/.*  /var/lib/kubelet/.* /etc/kubernetes/.*
+            # Stop and reset any incomplete state left by an earlier PXE attempt.
+            systemctl stop kubelet.service || true
+            kubeadm reset --force --cri-socket=unix:///var/run/crio/crio.sock || true
+            systemctl stop crio.service || true
+            for state_dir in /var/lib/etcd /var/lib/kubelet /etc/kubernetes; do
+              mkdir -p "$state_dir"
+              find "$state_dir" -mindepth 1 -xdev -delete
+            done
+            systemctl start crio.service
+            systemctl start kubelet.service
+
             K8S_CLIENT_MOUNT_PATH="{{ k8s_client_mount_path }}"
             NODE_NAME="{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}"
             KUBE_VIP="{{ kube_vip }}"
@@ -565,10 +576,9 @@
 {% if etcd_on_local_disk | default(false) %}
             /usr/local/bin/etcd-fstab-update.sh
 {% endif %}
-            mkdir -p $HOME/.kube /root/.kube
-            cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
-            chown $(id -u):$(id -g) $HOME/.kube/config
-            yes | cp -i /etc/kubernetes/admin.conf /root/.kube/config
+            mkdir -p /root/.kube
+            cp -f /etc/kubernetes/admin.conf /root/.kube/config
+            chown root:root /root/.kube/config
             kubectl get nodes -o wide || echo "Cluster not yet fully up"
             kubectl get pods --all-namespaces -o wide || echo "Pods may not be ready yet"
             echo "Rollout and Restart coredns"

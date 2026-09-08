@@ -226,3 +226,10 @@ if [[ "${SET_DOMAIN_CREDS}" == "true" ]]; then
 fi
 
 log_info "Setup complete!"
+log_info ""
+log_info "IMPORTANT: Before running tests, set environment variables:"
+log_info "  export OMNIA_DATA_PATH=/opt/omnia"
+log_info "  export OMNIA_PROJECT_NAME=project_default"
+log_info ""
+log_info "Or run tests with:"
+log_info "  OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=project_default ./run_validation.sh collect test"
