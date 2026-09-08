@@ -44,14 +44,18 @@
       {{ _orch_config.image_build_manager_output_path
          | default(hostvars['localhost']['image_build_manager_output_path'], true) }}
 
+- name: Normalize lifecycle tags for S3 dependency evaluation
+  ansible.builtin.set_fact:
+    _s3_run_tags: >-
+      {{ hostvars['localhost']['omnia_run_tags'] | default([])
+         | difference(['all', 'always']) | list }}
+
 - name: Determine if build_status.yml is required based on tags
   ansible.builtin.set_fact:
     _build_status_required: >-
       {{
-        ('execute' in (hostvars['localhost']['omnia_run_tags'] | default([]))) or
-        ('provision' in (hostvars['localhost']['omnia_run_tags'] | default([]))) or
-        ('pxeboot' in (hostvars['localhost']['omnia_run_tags'] | default([]))) or
-        (hostvars['localhost']['omnia_run_tags'] | default([]) | length == 0)
+        (_s3_run_tags | length == 0) or
+        (_s3_run_tags | intersect(['execute', 'provision', 'pxeboot']) | length > 0)
       }}
 
 - name: Verify build_status.yml exists
@@ -96,6 +100,19 @@
     - _build_status_stat.stat.exists
     - (_build_status.overall_status | default('')) != 'success'
 
+- name: Validate S3 configuration in build_status
+  ansible.builtin.assert:
+    that:
+      - _build_status.s3_configurations is defined
+      - _build_status.s3_configurations is mapping
+      - _build_status.s3_configurations.endpoint_url is defined
+      - _build_status.s3_configurations.endpoint_url | length > 0
+    fail_msg: >-
+      image_build_manager build_status.yml does not contain a usable
+      s3_configurations.endpoint_url. Regenerate the build output before
+      running orchestrator.
+  when: _build_status_stat.stat.exists
+
 # -------------------------------------------------------------------
 # Bridge: set s3_configurations fact from build_status.yml
 # -------------------------------------------------------------------
@@ -109,5 +126,7 @@
 
 - name: Display S3 configuration from build_status
   ansible.builtin.debug:
-    msg: "S3 endpoint: {{ s3_configurations.endpoint_url }}, bucket: {{ s3_configurations.bucket }}"
+    msg: >-
+      S3 endpoint: {{ s3_configurations.endpoint_url }},
+      bucket: {{ s3_configurations.bucket }}
   when: _build_status_stat.stat.exists

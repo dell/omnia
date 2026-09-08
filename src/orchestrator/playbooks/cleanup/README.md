@@ -2,12 +2,15 @@
 
 ## Overview
 
-Tag-based cleanup for Omnia orchestrator components. There are two entry points:
+Tag-based cleanup for Omnia orchestrator components. Every entry point delegates
+selection, confirmation, execution, and reporting to the same cleanup role.
 
 | Entry point | Purpose | Tags available |
 |-------------|---------|----------------|
 | `playbooks/orchestrator.yml` | Full cleanup of every component | `cleanup`, `cleanup_credentials` |
 | `playbooks/cleanup/cleanup_orchestrator.yml` | Cleanup of individual components | `cleanup`, `cleanup_credentials`, plus one tag per component |
+| `playbooks/cleanup/cleanup_openchami.yml` | Compatibility wrapper selecting OpenCHAMI | No tag required |
+| `playbooks/cleanup/cleanup_openldap.yml` | Compatibility wrapper selecting OpenLDAP | No tag required |
 
 Component-level tags are deliberately **not** accepted by `orchestrator.yml` — run
 `cleanup_orchestrator.yml` directly when you need to clean a single component.
@@ -60,14 +63,25 @@ ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags slurm,k8s
 | `openldap` | component playbook | OpenLDAP service, container, and data |
 | `artifacts` | component playbook | Orchestrator deployment outputs and state files |
 
-`--tags slurm` and `--tags k8s` automatically run `storage_mounts` first, so mounts are
-released before the underlying directories are removed.
+Slurm and Kubernetes cleanup remove their shared data first and then invoke
+scoped `storage_mounts` cleanup. This ordering keeps the share reachable while
+server-side data is deleted. Selecting `storage_mounts` directly cleans all
+Orchestrator-managed mounts.
+
+Component storage is resolved through the same contract used during
+provisioning: `slurm_cluster[].nfs_storage_name`, optional
+`slurm_cluster[].vast_storage_name`, and
+`service_k8s_cluster[].nfs_storage_name` in `omnia_config.yml` must match
+`mounts[].name` entries in `storage_config.yml`. Cleanup never invents a mount
+name or fallback path. A missing, duplicate, or incomplete reference fails
+before shared data is removed.
 
 ## Execution order
 
-Components run in descending priority (OpenCHAMI 100, OpenLDAP 90, Slurm 80, K8s 70,
-storage_mounts 60, artifacts 50, credentials 10), except that `storage_mounts` is always
-reordered to run immediately before Slurm and K8s.
+Components run in descending priority: OpenCHAMI 100, OpenLDAP 90, Slurm 80,
+Kubernetes 70, storage mounts 60, artifacts 50, and credentials 10. Slurm and
+Kubernetes perform their scoped unmount internally after deleting shared data;
+the later storage-mount pass is idempotent.
 
 ## Shared (NFS) data cleanup
 
@@ -82,8 +96,9 @@ Order of operations per component:
 2. Unmount the share and remove its `/etc/fstab` entry
 3. Remove the now-empty local mount point directories
 
-If the share is **not mounted**, step 1 is skipped and a warning is printed — server-side
-data is left untouched. Mount the share and re-run if you need it removed.
+If the share is **not mounted** and the same path is not a local NFS export,
+cleanup fails instead of claiming that requested server-side data was removed.
+Mount or export the share and re-run the cleanup.
 
 To keep shared data, set `cleanup_nfs_server: false` in the relevant component spec:
 
@@ -127,10 +142,28 @@ DRY_RUN=true ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags 
 Runs every component in Ansible check mode, so nothing is modified: services are not
 stopped, containers are not removed, files are not deleted, and shares are not unmounted.
 Tasks are still reported as `changed` to show what *would* happen — that report is the
-point of the dry run.
+point of the dry run. Post-cleanup state assertions are deferred until real execution,
+because check mode intentionally leaves the current services and containers in place.
 
 Applies to all components, including those reached indirectly (for example
 `storage_mounts` when triggered by `slurm`).
+
+## Failure handling
+
+Already-absent services, containers, mounts, and files are treated as a
+successful idempotent cleanup. Permission errors, malformed configuration,
+failed removals, and unreachable shared data requested for deletion are real
+failures.
+
+The runner attempts every selected component and records a result for each.
+Afterward it prints passed and failed component counts with actionable errors.
+If any component failed, the playbook exits non-zero only after the summary has
+been displayed.
+
+OpenCHAMI cleanup explicitly stops the aggregate target and every generated
+service unit, removes each deployed OpenCHAMI container, and verifies both
+conditions before reporting success. It also removes the configured work and
+log directories using the canonical `workdir` and `log_dir` component fields.
 
 ## Configuration
 
@@ -143,8 +176,12 @@ Component behaviour is defined in two places:
 
 ## Troubleshooting
 
-**"storage_config.yml not found"** — ensure `storage_config.yml` exists in the
-orchestrator input directory (`/opt/omnia/orchestrator/input/<project>/`).
+**"storage_config.yml not found"** — ensure `storage_config.yml` exists under
+`$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/`.
+
+**"cannot safely resolve ... storage_name"** — ensure the storage name in
+`omnia_config.yml` matches exactly one complete `mounts` entry in
+`storage_config.yml`.
 
 **"No components selected for cleanup"** — the supplied tag does not match any component.
 Check the tag against the table above; component tags only work with

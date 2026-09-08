@@ -13,68 +13,37 @@
 # limitations under the License.
 
 ---
-# Simple Component Cleanup Execution
+# A component failure is rescued so remaining selected components still run.
+# The canonical engine raises the aggregate failure after every component has
+# been attempted.
+- name: Clean {{ component_name }}
+  block:
+    - name: Execute cleanup for {{ component_name }}
+      ansible.builtin.include_tasks: >-
+        {{ role_path }}/components/{{ component_name }}/tasks/cleanup.yml
 
-- name: Debug - Component name
-  ansible.builtin.debug:
-    msg: "DEBUG: Processing component {{ component_name }}"
-
-- name: Set role path
-  ansible.builtin.set_fact:
-    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
-
-- name: Get component configuration
-  ansible.builtin.set_fact:
-    component_config: "{{ cleanup_components[component_name] }}"
-
-- name: Display component info
-  ansible.builtin.debug:
-    msg: "Cleaning up: {{ component_name }} - {{ component_config.description }}"
-
-- name: Display cleanup warning
-  ansible.builtin.debug:
-    msg: |
-      WARNING: This will cleanup {{ component_name }}
-      Description: {{ component_config.description }}
-      This action is destructive and cannot be undone.
-      Confirmation token: {{ component_config.confirmation_token }}
-
-- name: Debug - About to execute pre-cleanup
-  ansible.builtin.debug:
-    msg: "DEBUG: About to execute pre-cleanup for {{ component_name }}"
-
-- name: Execute pre-cleanup
-  ansible.builtin.include_tasks: "{{ role_path }}/components/{{ component_name }}/tasks/pre_cleanup.yml"
-  register: pre_cleanup_result
-
-- name: Debug - Pre-cleanup completed
-  ansible.builtin.debug:
-    msg: "DEBUG: Pre-cleanup completed for {{ component_name }}"
-
-- name: Debug - About to execute main cleanup
-  ansible.builtin.debug:
-    msg: "DEBUG: About to execute main cleanup for {{ component_name }}"
-
-- name: Execute main cleanup
-  ansible.builtin.include_tasks: "{{ role_path }}/components/{{ component_name }}/tasks/cleanup.yml"
-  register: cleanup_result
-
-- name: Debug - Main cleanup completed
-  ansible.builtin.debug:
-    msg: "DEBUG: Main cleanup completed for {{ component_name }}"
-
-- name: Debug - About to execute post-cleanup
-  ansible.builtin.debug:
-    msg: "DEBUG: About to execute post-cleanup for {{ component_name }}"
-
-- name: Execute post-cleanup
-  ansible.builtin.include_tasks: "{{ role_path }}/components/{{ component_name }}/tasks/post_cleanup.yml"
-  register: post_cleanup_result
-
-- name: Debug - Post-cleanup completed
-  ansible.builtin.debug:
-    msg: "DEBUG: Post-cleanup completed for {{ component_name }}"
-
-- name: Display component completion
-  ansible.builtin.debug:
-    msg: "Component {{ component_name }} cleanup completed"
+    - name: Record successful cleanup for {{ component_name }}
+      ansible.builtin.set_fact:
+        cleanup_results: >-
+          {{ cleanup_results | combine({
+               component_name: {'status': 'success', 'error': ''}
+             }) }}
+  rescue:
+    - name: Record failed cleanup for {{ component_name }}
+      vars:
+        cleanup_error_message: >-
+          {{ (ansible_failed_result | default({})).msg
+             | default('Component cleanup task failed', true) }}
+      ansible.builtin.set_fact:
+        cleanup_results: >-
+          {{ cleanup_results | combine({
+               component_name: {
+                 'status': 'failed',
+                 'error': cleanup_error_message
+               }
+             }) }}
+        cleanup_failures: >-
+          {{ cleanup_failures + [{
+               'component': component_name,
+               'error': cleanup_error_message
+             }] }}

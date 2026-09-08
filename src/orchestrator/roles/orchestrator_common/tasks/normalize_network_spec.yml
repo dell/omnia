@@ -1,0 +1,46 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Validate Networks list structure
+  ansible.builtin.assert:
+    that:
+      - Networks is defined
+      - Networks is sequence
+      - Networks is not mapping
+      - Networks is not string
+      - Networks | length > 0
+    fail_msg: "network_spec.yml must define Networks as a non-empty list."
+    quiet: true
+
+- name: Validate each Networks entry is a mapping
+  ansible.builtin.assert:
+    that:
+      - item is mapping
+    fail_msg: "Every Networks entry must be a mapping."
+    quiet: true
+  loop: "{{ Networks }}"
+  loop_control:
+    label: "{{ item.keys() | list | join(', ') if item is mapping else item }}"
+
+- name: Initialize normalized network data
+  ansible.builtin.set_fact:
+    network_data: {}
+
+- name: Merge network entries into normalized network data
+  ansible.builtin.set_fact:
+    network_data: "{{ network_data | combine(item) }}"
+  loop: "{{ Networks }}"
+  loop_control:
+    label: "{{ item.keys() | list | join(', ') }}"

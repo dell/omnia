@@ -26,6 +26,7 @@
 #   - openchami_auth.yml           — Generate OpenCHAMI access token
 #   - decrypt_include_encrypt.yml  — Decrypt/include/re-encrypt credential files
 #   - check_kube_vip_reachability.yml — Check kube_vip SSH reachability
+#   - normalize_network_spec.yml   — Normalize the Networks list into one mapping
 
 - name: Orchestrator_common is a task library — use tasks_from to include specific tasks
   ansible.builtin.debug:

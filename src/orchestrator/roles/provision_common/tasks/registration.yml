@@ -11,17 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 ---
-# Meaningful Artifacts Component Configuration
+# Registration is intentionally separate from Boot Service and Metadata
+# Service publication. Category bolt-ons use the node and functional-group
+# facts produced here to prepare shared storage and assemble final cloud-init.
 
-# Artifacts-specific configuration
-artifacts_config:
-  description: "Cleans what orchestrator deployed, not what it needs as input"
-  deployment_outputs:
-    - "{{ orchestrator_output_dir }}"
-  cleanup_framework_artifacts:
-    - "{{ omnia_data_path }}/orchestrator/log/cleanup"
-    - "/var/lib/omnia/cleanup"
-  preserve_inputs:
-    - "{{ omnia_data_path }}/.data/upgrade_in_progress.lock"
+- name: Register nodes and initialize provisioning facts
+  environment: "{{ hostvars['oim']['ochami_env'] }}"
+  block:
+    - name: Set SELinux context for orchestrator directories
+      ansible.builtin.include_tasks: set_selinux_context.yml
+
+    - name: Register nodes in SMD and create groups
+      ansible.builtin.include_tasks: register_nodes.yml

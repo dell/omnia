@@ -14,7 +14,6 @@
 ---
 
 # Paths derived after tasks/main.yml resolves the environment configuration.
-omnia_metadata_file_path: "{{ omnia_data_path }}/.data/oim_metadata.yml"
 upgrade_lock_file: "{{ omnia_data_path }}/.data/upgrade_in_progress.lock"
 default_build_status_path: >-
   {{ omnia_data_path }}/image_build_manager/output/{{ project_name }}/build_status.yml
@@ -57,9 +56,35 @@ skip_credential_tags:
 # Flows that consume repositories, offline content, or the Pulp certificate.
 # Cleanup and input-only/credential-only flows must remain runnable without
 # an existing repo_status.yml.
+# Note: prepare and deploy tags only deploy containers (OpenCHAMI/OpenLDAP),
+# they don't configure nodes, so repo_status.yml is not needed until provision.
 repo_status_required_tags:
   - all
   - precheck
+  - provision
+  - execute
+  - pxeboot
+  - upgrade
+
+# Flows that consume catalog-derived OS metadata or feature flags. The
+# catalog_file_path input is optional, but its resolved file must exist for
+# these flows. Input-only validation and operational cleanup/upgrade flows do
+# not consume the catalog contract.
+catalog_required_tags:
+  - all
+  - precheck
+  - credentials
+  - prepare
+  - deploy
+  - provision
+  - execute
+  - validate-deployment
+
+# Flows that produce or consume persistent Orchestrator runtime output. The
+# setup role remains available to every playbook for read-only context
+# resolution, but only these lifecycle flows may initialize the output tree
+# and refresh orchestrator_state.yml.
+state_initialization_tags:
   - prepare
   - deploy
   - provision
@@ -121,3 +146,11 @@ repo_status_invalid_fail_msg: >-
 repo_certificate_missing_fail_msg: >-
   Repo Manager certificate was not found at '{{ pulp_cert_path }}'. Regenerate
   repo_status.yml and the Pulp certificate by running repo_manager.
+catalog_missing_fail_msg: >-
+  Required catalog was not found at '{{ catalog_file_path }}'. Run omnia.sh
+  --init to install the default catalog, set CATALOG_FILE_PATH, or configure
+  catalog_file_path in orchestrator_config.yml.
+catalog_invalid_fail_msg: >-
+  Invalid catalog at '{{ catalog_file_path }}'. The catalog must contain
+  catalog.groups, catalog.functionallayer, catalog.packages, and a base_os
+  group with non-empty os and os_version values.

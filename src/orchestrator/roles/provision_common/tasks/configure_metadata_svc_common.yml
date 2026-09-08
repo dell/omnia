@@ -32,6 +32,11 @@
     ms_group_common_entries: "{{ ms_group_common_raw.content | b64decode | from_yaml }}"
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
+- name: Initialize metadata-service common group bodies
+  ansible.builtin.set_fact:
+    _ms_group_bodies: []
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
 - name: Build metadata-service group body for each common entry
   ansible.builtin.set_fact:
     _ms_group_bodies: >-
@@ -66,7 +71,6 @@
         validate_certs: false
         return_content: true
       register: _existing_common_groups
-      failed_when: false
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
       no_log: true
   rescue:
@@ -84,7 +88,12 @@
     validate_certs: false
   loop: >-
     {{ _existing_common_groups.json | default([])
-       | selectattr('metadata.name', 'in', _ms_group_bodies | default([]) | map(attribute='metadata.name') | list)
+       | selectattr(
+           'metadata.name',
+           'in',
+           (_ms_group_bodies | default([]) | map(attribute='metadata.name') | list)
+           + ['node_registration']
+         )
        | list }}
   loop_control:
     label: "{{ item.metadata.name | default(item.metadata.uid) }}"
