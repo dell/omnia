@@ -3,18 +3,13 @@
     "name": "Omnia Slurm + Kubernetes Catalog - RHEL 10.0 x86_64",
     "version": "1.0",
     "identifier": "omnia-slurm-k8s-rhel-10-0-x86_64",
-    "id": "15",
     "description": "Full Slurm + Kubernetes catalog for RHEL 10.0 x86_64 only (all Slurm layers + K8s control-plane and node)",
     "functionallayer": [
       {
-        "name": "baseos_rhel_10_0_x86_64",
+        "name": "os_rhel_10_0_x86_64",
         "components": [
           "baseos_group",
-          "admin_debug_group",
-          "common_pks",
-          "infiniband_stack_driver_groupv1",
-          "image_builder_x86_64_group",
-          "image_thrillhouse_group"
+          "ldms_group"
         ]
       },
       {
@@ -26,7 +21,8 @@
           "openldap_group",
           "slurm_control_node_group",
           "common_pks",
-          "infiniband_stack_driver_groupv1"
+          "infiniband_stack_driver_groupv1",
+          "ldms_group"
         ]
       },
       {
@@ -58,7 +54,8 @@
           "login_node_group",
           "common_pks",
           "infiniband_stack_driver_groupv1",
-          "vast_stack_driver_groupv1"
+          "vast_stack_driver_groupv1",
+          "ldms_group"
         ]
       },
       {
@@ -74,7 +71,8 @@
           "common_pks",
           "infiniband_stack_driver_groupv1",
           "vast_stack_driver_groupv1",
-          "nvidia_stack_driver_groupv1"
+          "nvidia_stack_driver_groupv1",
+          "ldms_group"
         ]
       },
       {
@@ -88,7 +86,8 @@
           "service_kube_control_plane_group",
           "powerscale_csi_group",
           "common_pks",
-          "infiniband_stack_driver_groupv1"
+          "infiniband_stack_driver_groupv1",
+          "ldms_group"
         ]
       },
       {
@@ -101,7 +100,8 @@
           "service_kube_node_group",
           "powerscale_csi_group",
           "common_pks",
-          "infiniband_stack_driver_groupv1"
+          "infiniband_stack_driver_groupv1",
+          "ldms_group"
         ]
       }
     ],

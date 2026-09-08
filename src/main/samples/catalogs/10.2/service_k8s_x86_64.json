@@ -3,18 +3,13 @@
     "name": "Omnia Kubernetes Catalog - RHEL 10.2 x86_64",
     "version": "1.0",
     "identifier": "omnia-k8s-rhel-10-2-x86_64",
-    "id": "23",
     "description": "Kubernetes catalog for RHEL 10.2 x86_64 with control plane and worker node functional layers",
     "functionallayer": [
       {
-        "name": "baseos_rhel_10_2_x86_64",
+        "name": "os_rhel_10_2_x86_64",
         "components": [
           "baseos_group",
-          "admin_debug_group",
-          "common_pks",
-          "infiniband_stack_driver_groupv1",
-          "image_builder_x86_64_group",
-          "image_thrillhouse_group"
+          "ldms_group"
         ]
       },
       {
@@ -28,7 +23,8 @@
           "service_kube_control_plane_group",
           "powerscale_csi_group",
           "common_pks",
-          "infiniband_stack_driver_groupv1"
+          "infiniband_stack_driver_groupv1",
+          "ldms_group"
         ]
       },
       {
@@ -41,7 +37,8 @@
           "service_kube_node_group",
           "powerscale_csi_group",
           "common_pks",
-          "infiniband_stack_driver_groupv1"
+          "infiniband_stack_driver_groupv1",
+          "ldms_group"
         ]
       }
     ],
