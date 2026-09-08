@@ -28,30 +28,90 @@
   register: cleanup_storage_mounts_config_file
   tags: storage_mounts
 
+- name: Validate storage configuration is available for mount cleanup
+  ansible.builtin.assert:
+    that:
+      - cleanup_storage_mounts_config_file.stat.exists
+    fail_msg: "storage_config.yml not found. Cannot determine mounts to clean."
+  tags: storage_mounts
+
 - name: Load storage configuration from storage_config.yml
   ansible.builtin.include_vars:
     file: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/storage_config.yml"
-  when: cleanup_storage_mounts_config_file.stat.exists
+    name: cleanup_storage_config
   tags: storage_mounts
 
-- name: Categorize mounts by component in single pass
+- name: Load Omnia configuration for component storage references
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/omnia_config.yml"
+    name: cleanup_storage_omnia_config
+  tags: storage_mounts
+
+- name: Collect storage names referenced by each component
   ansible.builtin.set_fact:
-    cleanup_all_orchestrator_mounts: "{{ mounts | map(attribute='mount_point') | list }}"
+    cleanup_slurm_storage_names: >-
+      {{ ((cleanup_storage_omnia_config.slurm_cluster | default([])
+           | map(attribute='nfs_storage_name') | select('defined') | list)
+          + (cleanup_storage_omnia_config.slurm_cluster | default([])
+             | map(attribute='vast_storage_name') | select('defined')
+             | reject('equalto', '') | list)) | unique | list }}
+    cleanup_k8s_storage_names: >-
+      {{ cleanup_storage_omnia_config.service_k8s_cluster | default([])
+         | map(attribute='nfs_storage_name') | select('defined')
+         | reject('equalto', '') | unique | list }}
+  tags: storage_mounts
+
+- name: Select storage references required for this cleanup
+  ansible.builtin.set_fact:
+    cleanup_referenced_storage_names: >-
+      {{ (cleanup_slurm_storage_names
+          if trigger_component | default('direct_call') == 'slurm'
+          else cleanup_k8s_storage_names
+          if trigger_component | default('direct_call') == 'k8s'
+          else cleanup_slurm_storage_names + cleanup_k8s_storage_names)
+         | unique | list }}
+  tags: storage_mounts
+
+- name: Validate component storage references for cleanup
+  ansible.builtin.assert:
+    that:
+      - cleanup_storage_matches | length == 1
+      - cleanup_storage_matches[0].source | default('') | length > 0
+      - cleanup_storage_matches[0].mount_point | default('') | length > 0
+      - cleanup_storage_matches[0].mount_point is match('^/')
+    fail_msg: >-
+      Component cleanup cannot safely resolve omnia_config.yml storage
+      reference '{{ cleanup_storage_name }}' to exactly one complete mount
+      entry with an absolute mount_point in storage_config.yml.
+  loop: "{{ cleanup_referenced_storage_names }}"
+  loop_control:
+    loop_var: cleanup_storage_name
+    label: "{{ cleanup_storage_name }}"
+  vars:
+    cleanup_storage_matches: >-
+      {{ cleanup_storage_config.mounts | default([])
+         | selectattr('name', 'equalto', cleanup_storage_name) | list }}
+  tags: storage_mounts
+
+- name: Categorize mounts by configured component references
+  ansible.builtin.set_fact:
+    cleanup_all_orchestrator_mounts: >-
+      {{ cleanup_storage_config.mounts | default([])
+         | map(attribute='mount_point') | select('defined') | list }}
     cleanup_slurm_mounts: >-
-      {{ mounts | selectattr('functional_group_prefix', 'defined')
-         | selectattr('functional_group_prefix', 'contains', 'slurm')
+      {{ cleanup_storage_config.mounts | default([])
+         | selectattr('name', 'in', cleanup_slurm_storage_names)
          | map(attribute='mount_point') | list }}
     cleanup_k8s_mounts: >-
-      {{ mounts | selectattr('functional_group_prefix', 'defined')
-         | selectattr('functional_group_prefix', 'contains', 'service_kube')
+      {{ cleanup_storage_config.mounts | default([])
+         | selectattr('name', 'in', cleanup_k8s_storage_names)
          | map(attribute='mount_point') | list }}
-  when: mounts is defined
   tags: storage_mounts
 
-- name: Fail if storage config not found
+- name: Fail if storage config has no mounts
   ansible.builtin.fail:
-    msg: "storage_config.yml not found or empty. Cannot determine mounts to clean."
-  when: mounts is not defined
+    msg: "storage_config.yml has no mounts. Cannot determine mounts to clean."
+  when: cleanup_storage_config.mounts | default([]) | length == 0
   tags: storage_mounts
 
 - name: Determine which mounts to clean based on context

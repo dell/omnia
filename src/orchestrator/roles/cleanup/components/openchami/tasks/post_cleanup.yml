@@ -15,10 +15,6 @@
 ---
 # Simple OpenCHAMI Post-Cleanup
 
-- name: Set role path
-  ansible.builtin.set_fact:
-    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
-
 - name: Load OpenCHAMI component configuration
   ansible.builtin.include_vars:
     file: "{{ role_path }}/components/openchami/vars/component_spec.yml"

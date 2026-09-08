@@ -68,6 +68,14 @@ scoped `storage_mounts` cleanup. This ordering keeps the share reachable while
 server-side data is deleted. Selecting `storage_mounts` directly cleans all
 Orchestrator-managed mounts.
 
+Component storage is resolved through the same contract used during
+provisioning: `slurm_cluster[].nfs_storage_name`, optional
+`slurm_cluster[].vast_storage_name`, and
+`service_k8s_cluster[].nfs_storage_name` in `omnia_config.yml` must match
+`mounts[].name` entries in `storage_config.yml`. Cleanup never invents a mount
+name or fallback path. A missing, duplicate, or incomplete reference fails
+before shared data is removed.
+
 ## Execution order
 
 Components run in descending priority: OpenCHAMI 100, OpenLDAP 90, Slurm 80,
@@ -170,6 +178,10 @@ Component behaviour is defined in two places:
 
 **"storage_config.yml not found"** — ensure `storage_config.yml` exists under
 `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/`.
+
+**"cannot safely resolve ... storage_name"** — ensure the storage name in
+`omnia_config.yml` matches exactly one complete `mounts` entry in
+`storage_config.yml`.
 
 **"No components selected for cleanup"** — the supplied tag does not match any component.
 Check the tag against the table above; component tags only work with

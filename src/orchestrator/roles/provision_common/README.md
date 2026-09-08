@@ -18,6 +18,12 @@ Shared OpenCHAMI provisioning data is reset once by
 Slurm, OS-only, and custom nodes, interfaces, groups, and Boot Service
 configurations coexist after a complete provision run.
 
+Kubernetes and Slurm Metadata Service templates resolve NFS and VAST paths only
+from storage names declared in `omnia_config.yml` and matching entries in
+`storage_config.yml`. Provisioning fails before publishing cloud-init when a
+reference is missing, duplicated, or incomplete; no hardcoded mount-path
+fallback is used.
+
 ## Requirements
 
 - OpenCHAMI services must be deployed and healthy.

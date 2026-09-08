@@ -26,28 +26,50 @@
     msg: "Starting Slurm cleanup operations (OIM node - NFS data only)"
   tags: slurm
 
-- name: Check storage configuration for Slurm cleanup
-  ansible.builtin.stat:
-    path: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/storage_config.yml"
-  register: cleanup_slurm_storage_config_file
+- name: Load Omnia configuration for Slurm storage reference
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/omnia_config.yml"
+    name: cleanup_slurm_omnia_config
   tags: slurm
 
-- name: Load storage configuration to get Slurm mount point
+- name: Load storage configuration for Slurm cleanup
   ansible.builtin.include_vars:
     file: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/storage_config.yml"
-  when: cleanup_slurm_storage_config_file.stat.exists
+    name: cleanup_slurm_storage_config
   tags: slurm
 
-- name: Get Slurm mount point from storage config
+- name: Resolve Slurm storage name from Omnia configuration
   ansible.builtin.set_fact:
-    cleanup_slurm_mount_point: "{{ (mounts | selectattr('name', 'equalto', 'nfs_slurm') | first).mount_point | default('/share_omnia', true) }}"
-  when: mounts is defined
+    cleanup_slurm_storage_name: >-
+      {{ (cleanup_slurm_omnia_config.slurm_cluster | default([])
+          | first | default({})).nfs_storage_name | default('') }}
   tags: slurm
 
-- name: Set default Slurm mount point if not found in config
+- name: Select configured Slurm storage entry
   ansible.builtin.set_fact:
-    cleanup_slurm_mount_point: "/share_omnia"
-  when: cleanup_slurm_mount_point is not defined
+    cleanup_slurm_storage_matches: >-
+      {{ cleanup_slurm_storage_config.mounts | default([])
+         | selectattr('name', 'equalto', cleanup_slurm_storage_name) | list }}
+  tags: slurm
+
+- name: Validate Slurm cleanup storage contract
+  ansible.builtin.assert:
+    that:
+      - cleanup_slurm_storage_name | length > 0
+      - cleanup_slurm_storage_matches | length == 1
+      - cleanup_slurm_storage_matches[0].mount_point | default('') | length > 0
+      - cleanup_slurm_storage_matches[0].mount_point is match('^/')
+      - cleanup_slurm_storage_matches[0].source | default('') | length > 0
+    fail_msg: >-
+      Slurm cleanup cannot safely resolve slurm_cluster[0].nfs_storage_name
+      '{{ cleanup_slurm_storage_name }}' to exactly one complete mount entry in
+      storage_config.yml.
+  tags: slurm
+
+- name: Set Slurm cleanup storage paths
+  ansible.builtin.set_fact:
+    cleanup_slurm_mount_point: "{{ cleanup_slurm_storage_matches[0].mount_point }}"
+    cleanup_slurm_nfs_source: "{{ cleanup_slurm_storage_matches[0].source }}"
   tags: slurm
 
 # Shared data is removed wherever the shared filesystem is reachable locally,
@@ -67,13 +89,6 @@
     src: /etc/exports
   register: cleanup_slurm_exports_raw
   when: cleanup_slurm_exports_file.stat.exists
-  tags: slurm
-
-- name: Resolve the Slurm NFS source from storage config
-  ansible.builtin.set_fact:
-    cleanup_slurm_nfs_source: >-
-      {{ mounts | default([]) | selectattr('name', 'equalto', 'nfs_slurm')
-      | map(attribute='source') | list | first | default('', true) }}
   tags: slurm
 
 - name: Determine how the Slurm shared filesystem is reachable
