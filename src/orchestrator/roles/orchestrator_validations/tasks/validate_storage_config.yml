@@ -14,40 +14,104 @@
 ---
 # validate_storage_config.yml — Validate NFS server reachability for storage mounts.
 #
-# Runs only when slurm_support or service_k8s_support is enabled.
-# Resolves nfs_storage_name from omnia_config.yml → looks up the matching
-# mount entry in storage_config.yml → extracts the NFS server IP from
-# the source field → pings the server to verify reachability.
+# Storage requirements are derived from functional groups selected in the PXE
+# mapping, not from catalog capability flags. A configured cluster storage name
+# is therefore validated only when nodes from that cluster are being deployed.
 #
 # Local/non-NFS sources (/dev/*, UUID=*, LABEL=*, //*) are skipped.
 #
 # Prerequisites:
-#   - storage_config.yml and omnia_config.yml already loaded via include_inputs.yml
-#   - slurm_support / service_k8s_support flags set by orchestrator_setup
+#   - functional_groups generated from pxe_mapping_file.csv
+#   - storage_config.yml and omnia_config.yml available in the project input
 
-- name: Load storage_config.yml
-  ansible.builtin.include_vars:
-    file: "{{ storage_config_file }}"
-    name: storage_config
+- name: Determine storage requirements from selected functional groups
+  ansible.builtin.set_fact:
+    service_k8s_storage_required: >-
+      {{ functional_groups | default([])
+         | map(attribute='name')
+         | select('match', '^service_kube_')
+         | list | length > 0 }}
+    slurm_storage_required: >-
+      {{ functional_groups | default([])
+         | map(attribute='name')
+         | select('match', '^(slurm_|login_)')
+         | list | length > 0 }}
 
-- name: Load omnia_config.yml
-  ansible.builtin.include_vars:
-    file: "{{ omnia_config_file }}"
-    name: omnia_config
+- name: Skip storage validation when no selected nodes require cluster storage
+  ansible.builtin.debug:
+    msg: >-
+      PXE mapping contains no Kubernetes, Slurm, or login functional groups.
+      Skipping cluster storage validation.
+  when:
+    - not service_k8s_storage_required | bool
+    - not slurm_storage_required | bool
+
+- name: Initialize selected storage names
+  ansible.builtin.set_fact:
+    nfs_names_to_validate: []
+
+- name: Load storage inputs required by selected functional groups
+  when: service_k8s_storage_required | bool or slurm_storage_required | bool
+  block:
+    - name: Load storage_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ storage_config_file }}"
+        name: storage_config
+
+    - name: Load omnia_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ omnia_config_file }}"
+        name: omnia_config
+
+    - name: Require Kubernetes NFS storage names for selected Kubernetes nodes
+      ansible.builtin.assert:
+        that:
+          - omnia_config.service_k8s_cluster | default([]) | length > 0
+          - >-
+            omnia_config.service_k8s_cluster | default([])
+            | selectattr('nfs_storage_name', 'defined')
+            | map(attribute='nfs_storage_name')
+            | map('trim') | reject('equalto', '') | list | length
+            == (omnia_config.service_k8s_cluster | default([]) | length)
+        fail_msg: "{{ k8s_nfs_name_required_msg }}"
+        quiet: true
+      when: service_k8s_storage_required | bool
+
+    - name: Require Slurm NFS storage names for selected Slurm nodes
+      ansible.builtin.assert:
+        that:
+          - omnia_config.slurm_cluster | default([]) | length > 0
+          - >-
+            omnia_config.slurm_cluster | default([])
+            | selectattr('nfs_storage_name', 'defined')
+            | map(attribute='nfs_storage_name')
+            | map('trim') | reject('equalto', '') | list | length
+            == (omnia_config.slurm_cluster | default([]) | length)
+        fail_msg: "{{ slurm_nfs_name_required_msg }}"
+        quiet: true
+      when: slurm_storage_required | bool
 
 # Build the list of NFS storage names that need validation
 - name: Collect NFS storage names referenced by enabled features
   ansible.builtin.set_fact:
     nfs_names_to_validate: >-
-      {{
-        ((omnia_config.slurm_cluster | default([]) | map(attribute='nfs_storage_name') | select('defined') | list)
-          if (hostvars['localhost']['slurm_support'] | default(false) | bool)
+      {{ (
+        ((omnia_config.slurm_cluster | default([])
+          | map(attribute='nfs_storage_name') | select('defined')
+          | map('trim') | reject('equalto', '') | list)
+          + (omnia_config.slurm_cluster | default([])
+             | map(attribute='vast_storage_name') | select('defined')
+             | map('trim') | reject('equalto', '') | list)
+          if (slurm_storage_required | bool)
           else [])
         +
-        ((omnia_config.service_k8s_cluster | default([]) | map(attribute='nfs_storage_name') | select('defined') | list)
-          if (hostvars['localhost']['service_k8s_support'] | default(false) | bool)
+        ((omnia_config.service_k8s_cluster | default([])
+          | map(attribute='nfs_storage_name') | select('defined')
+          | map('trim') | reject('equalto', '') | list)
+          if (service_k8s_storage_required | bool)
           else [])
-      }}
+      ) | unique | list }}
+  when: service_k8s_storage_required | bool or slurm_storage_required | bool
 
 - name: Skip validation when no NFS storage names are configured
   ansible.builtin.debug:

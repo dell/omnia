@@ -135,7 +135,7 @@
 # FLOW: upgrade — Upgrade flow placeholder (opt-in only)
 # =========================================================================
 - name: Upgrade build_stream
-  ansible.builtin.import_playbook: upgrade_build_stream.yml
+  ansible.builtin.import_playbook: upgrade/upgrade_build_stream.yml
   tags:
     - never
     - upgrade

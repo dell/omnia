@@ -66,21 +66,28 @@ marked required must be present in the staged input.
 ### Supported Format
 
 The build flow validates `repo_status.yml` against `repo_status.json` before it
-parses the file. The accepted public contract is therefore the current
-`repositories.<version>.<architecture>.<repository>.url` format. The parser has
-some legacy-reading compatibility, but legacy-only `rpm_repos`/`user_repos`
-documents do not pass the preceding contract validation.
+parses the file. The consumer contract covers only the fields required by Image
+Build Manager. Other top-level fields, producer metadata, and architectures are
+ignored so Repo Manager can evolve them independently. Repository data uses the
+`repositories.<version>.<architecture>.<repository>.url` format. Legacy-only
+`rpm_repos`/`user_repos` documents do not pass the preceding contract validation.
 
 ### Key Fields Consumed
 
-| Field | Purpose |
-|-------|--------|
-| `overall_status` | Must be `"success"` to proceed |
-| `cluster_os_type` | Build target OS type (e.g. `rhel`) |
-| `repo_config` | Repository-manager mode/config identifier |
-| `repo_manager.port` | Managed repository port, or empty in internet mode |
-| `repo_manager.certificates` | Certificate path structure; values may be empty |
-| `repositories.{version}.{arch}` | RPM repository URL objects |
+| Field | Required | Purpose |
+|-------|----------|---------|
+| `overall_status` | Yes | Must be `"success"` to proceed |
+| `cluster_os_type` | Yes | Build target OS type (e.g. `rhel`) |
+| `repositories.{version}.{arch}` | Yes | RPM repository objects for supported architectures |
+| `repositories.{version}.{arch}.{repository}.url` | Optional per entry | HTTP(S) URL consumed when present; at least one usable x86_64 or aarch64 URL is required |
+| `repositories.{version}.{arch}.{repository}.priority` | No | Repository priority consumed when present |
+| `repo_manager.port` | No | Managed repository port; otherwise derived from a repository URL |
+| `repo_manager.certificates.server_crt` | No | CA certificate path; certificate handling is skipped when absent or empty |
+
+`repo_config`, `execution_contexts`, `overall_status_by_version`, `registries`,
+`file_repos`, unknown architectures, and other producer-owned fields are not
+validated or consumed. Repository key order determines the reported version
+order.
 
 ### Validation Rules
 
@@ -88,6 +95,7 @@ documents do not pass the preceding contract validation.
 |------|-------|
 | File must exist | `repo_status.yml not found` |
 | `overall_status` = `"success"` | `repo_manager did not complete successfully` |
+| At least one supported-architecture repository URL exists | `repositories must contain at least one non-empty x86_64 or aarch64 repository URL` |
 | Certificate file exists (if path set) | `repo manager certificate not found` |
 
 ---
