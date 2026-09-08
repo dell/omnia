@@ -88,10 +88,20 @@ def run_playbook(playbook=None, tag=None, **kwargs):
     Returns:
         dict: {"success": bool, "rc": int, "duration": str, "output": str, "error": str}
     """
+    import os
+    
+    # Ensure environment variables are passed as extra_vars to Ansible
+    extra_vars = kwargs.pop("extra_vars", {})
+    if "OMNIA_DATA_PATH" not in extra_vars:
+        extra_vars["OMNIA_DATA_PATH"] = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia")
+    if "OMNIA_PROJECT_NAME" not in extra_vars:
+        extra_vars["OMNIA_PROJECT_NAME"] = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+    
     return _run_playbook(
         playbook=playbook or PLAYBOOK_COLLECT,
         playbook_workdir=kwargs.pop("playbook_workdir", PLAYBOOK_WORKDIR),
         tag=tag,
+        extra_vars=extra_vars,
         **kwargs,
     )
 
