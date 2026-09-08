@@ -15,7 +15,7 @@
 # Resolve RPM repo URLs for image creation templates.
 # Priority: repo_manager output (repo_status.yml) > direct repo manager CLI query.
 
-- name: Select repo_manager output for {{ build_arch }} and {{ rhel_tag }}
+- name: Select repo_manager output for platform {{ build_arch ~ ' ' ~ rhel_tag }}
   ansible.builtin.set_fact:
     _all_repo_manager_repos: >-
       {{ hostvars['localhost']['repo_manager_repos_' + build_arch] | default([]) }}
@@ -45,7 +45,7 @@
     - _all_repo_manager_repos | length > 0
     - _matching_repo_manager_repos | length == 0
 
-- name: Fallback — fetch Pulp endpoints directly for {{ build_arch }} and {{ rhel_tag }}
+- name: Fallback — fetch Pulp endpoints directly for platform {{ build_arch ~ ' ' ~ rhel_tag }}
   when: _all_repo_manager_repos | length == 0
   block:
     - name: Fetch pulp endpoints for {{ build_arch }}
