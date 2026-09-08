@@ -21,6 +21,7 @@ from library.functions import (
     check_pulp_cli_removed,
     check_pulp_directories_removed,
 )
+from library.vars.common_vars import _get_input_path
 from library.messages import (
     TEST_NAMES,
     TEST_LOG_MSGS as LOG,
@@ -34,7 +35,7 @@ from library.messages import (
 def test_deploy_cleanup(host):
     """TC_RM_CL_000: Deploy repo_manager --tags cleanup."""
     # Check if cleanup input configuration exists
-    input_path = "/opt/omnia/repo_manager/input/project_default"
+    input_path = _get_input_path()
     cleanup_input = f"{input_path}/cleanup_input.yml"
     
     result = host.run(f"test -f {cleanup_input} && echo 'exists' || echo 'missing'")
@@ -58,7 +59,7 @@ def test_deploy_cleanup(host):
 def test_pulp_container_removed(host):
     """TC_RM_CL_001: Verify Pulp container removed."""
     # Skip if cleanup input doesn't exist
-    input_path = "/opt/omnia/repo_manager/input/project_default"
+    input_path = _get_input_path()
     cleanup_input = f"{input_path}/cleanup_input.yml"
     
     result = host.run(f"test -f {cleanup_input} && echo 'exists' || echo 'missing'")
@@ -82,7 +83,7 @@ def test_pulp_container_removed(host):
 def test_pulp_cli_removed(host):
     """TC_RM_CL_002: Verify Pulp CLI removed."""
     # Skip if cleanup input doesn't exist
-    input_path = "/opt/omnia/repo_manager/input/project_default"
+    input_path = _get_input_path()
     cleanup_input = f"{input_path}/cleanup_input.yml"
     
     result = host.run(f"test -f {cleanup_input} && echo 'exists' || echo 'missing'")
@@ -106,7 +107,7 @@ def test_pulp_cli_removed(host):
 def test_pulp_directories_removed(host):
     """TC_RM_CL_003: Verify Pulp directories removed."""
     # Skip if cleanup input doesn't exist
-    input_path = "/opt/omnia/repo_manager/input/project_default"
+    input_path = _get_input_path()
     cleanup_input = f"{input_path}/cleanup_input.yml"
     
     result = host.run(f"test -f {cleanup_input} && echo 'exists' || echo 'missing'")

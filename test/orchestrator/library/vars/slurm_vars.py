@@ -266,4 +266,8 @@ TEST_CASES: dict = {
         "id": "TC_SL_051",
         "title": "Validate custom conf files exist if configured",
     },
+    "slurm_config_integrity": {
+        "id": "TC_SL_052",
+        "title": "Validate deployed slurm.conf matches input configuration",
+    },
 }
