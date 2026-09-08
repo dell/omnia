@@ -20,11 +20,12 @@ import secrets
 import re
 
 
-def secure_random_password(length=32):
+def secure_random_password(value, length=32):
     """
     Generate a cryptographically secure random password.
     
     Args:
+        value: Input value (ignored, required for Jinja2 filter syntax)
         length: Length of password (default 32)
         
     Returns:
