@@ -386,6 +386,17 @@
         "components": [
           "docker_io/dellhpcomniaaisolution/image_build_el10"
         ]
+      },
+      "ldms_group": {
+        "name": "ldms_group",
+        "type": "group",
+        "description": "LDMS lightweight distributed metric service packages",
+        "components": [
+          "python3_devel",
+          "python3_cython",
+          "openssl_libs",
+          "ovis_ldms"
+        ]
       }
     },
     "packages": {
@@ -3058,6 +3069,62 @@
           {
             "architecture": "x86_64",
             "registry": "nvcr.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "python3_devel": {
+        "name": "python3-devel",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "python3_cython": {
+        "name": "python3-cython",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "codeready-builder",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "openssl_libs": {
+        "name": "openssl-libs",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "ovis_ldms": {
+        "name": "ovis-ldms",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "ldms",
             "name": "rhel",
             "version": [
               "10.0"
