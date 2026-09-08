@@ -193,6 +193,25 @@ def pytest_collection_modifyitems(session, config, items):
                 except Exception:
                     # If we can't check, don't auto-skip - let the test run and fail if needed
                     pass
+
+        # Auto-skip Kubernetes tests if K8s is not enabled in config
+        for item in items:
+            if _item_has_marker(item, "kubernetes"):
+                try:
+                    config = load_test_config()
+                    project = config.get("project_name", "project_default")
+                    orchestrator_config_path = f"/opt/omnia/orchestrator/input/{project}/orchestrator_config.yml"
+
+                    if os.path.exists(orchestrator_config_path):
+                        with open(orchestrator_config_path, 'r') as f:
+                            config_content = f.read().lower()
+                        k8s_keywords = ["service_kube_control_plane", "service_kube_node", "kube_control_plane"]
+                        has_k8s = any(keyword in config_content for keyword in k8s_keywords)
+
+                        if not has_k8s:
+                            item.add_marker(pytest.mark.skip("Kubernetes is not enabled in orchestrator config"))
+                except Exception:
+                    pass
     else:
         # When marker is specified, only apply the marker filtering
         filtered = []

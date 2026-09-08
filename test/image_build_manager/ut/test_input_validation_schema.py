@@ -297,6 +297,17 @@ def test_repo_status_ignores_unneeded_producer_fields(valid_repo_status, field):
     assert not REPO_VALIDATOR.validate(valid_repo_status, LOGGER)
 
 
+@pytest.mark.parametrize(
+    "field", ["execution_contexts", "overall_status_by_version"]
+)
+def test_repo_status_requires_multi_context_contract_fields(
+    valid_repo_status, field
+):
+    del valid_repo_status[field]
+    errors = _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
+    assert any(field in error for error in errors)
+
+
 def test_repo_status_allows_empty_internet_repo_manager_values(valid_repo_status):
     valid_repo_status["repo_manager"] = {
         "port": "",
@@ -336,6 +347,34 @@ def test_repo_status_ignores_registry_metadata(valid_repo_status):
         }
     }
     assert not _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
+
+
+def test_repo_status_accepts_sanitized_registry_metadata(valid_repo_status):
+    valid_repo_status["registries"] = {
+        "private_registry": {
+            "base_url": "https://harbor.example.com",
+            "port": 443,
+            "host": "harbor.example.com:443",
+            "tls": {"insecure": False},
+        }
+    }
+    assert not _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
+
+
+def test_repo_status_rejects_registry_credential_paths(valid_repo_status):
+    valid_repo_status["registries"] = {
+        "private_registry": {
+            "base_url": "https://harbor.example.com",
+            "port": 443,
+            "host": "harbor.example.com:443",
+            "tls": {
+                "insecure": False,
+                "client_key_path": "/etc/omnia/registry.key",
+            },
+        }
+    }
+    errors = _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
+    assert any("client_key_path" in error for error in errors)
 
 
 @pytest.mark.parametrize("invalid_port", ["2225", 0, 65536, True, None])
