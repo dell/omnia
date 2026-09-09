@@ -22,14 +22,12 @@ All configuration is read from GitLab CI/CD variables (environment):
     SMTP_SERVER           - SMTP relay host (required)
     SMTP_PORT             - SMTP relay port (default: 25)
     TEST_REPORTS_PATH     - Path to test reports directory (default: /opt/omnia/reports)
-    PIPELINE_STAGE        - Current pipeline stage (optional)
-    PIPELINE_STATUS       - Pipeline status: success/failure (optional)
+    PIPELINE_MODE         - Pipeline mode: cleanup/deploy/default (optional)
+    DOMAINS               - Comma-separated domain list (optional)
 
 GitLab-provided variables used automatically:
     PIPELINE_TRIGGER_TIME - Set by initialization stage
     CI_PIPELINE_URL       - Auto-set by GitLab
-    CI_JOB_NAME           - Current job name
-    CI_JOB_STATUS         - Job status
 """
 import glob
 import json
@@ -59,8 +57,9 @@ TEST_REPORTS_PATH = os.environ.get("TEST_REPORTS_PATH", "/opt/omnia/reports")
 
 trigger_time = os.environ.get("PIPELINE_TRIGGER_TIME", "")
 pipeline_url = os.environ.get("CI_PIPELINE_URL", "")
-pipeline_stage = os.environ.get("PIPELINE_STAGE", os.environ.get("CI_JOB_NAME", "unknown"))
-pipeline_status = os.environ.get("PIPELINE_STATUS", os.environ.get("CI_JOB_STATUS", "unknown"))
+pipeline_mode = os.environ.get("PIPELINE_MODE", "default")
+domains = os.environ.get("DOMAINS", "default")
+test_mode = os.environ.get("TEST_MODE", "false").lower() == "true"
 
 # ---------------------------------------------------------------------------
 missing = []
@@ -144,28 +143,195 @@ else:
     print(f"Test reports directory not found: {TEST_REPORTS_PATH}")
 
 # ---------------------------------------------------------------------------
+# Build stage status table from GitLab API data
+# ---------------------------------------------------------------------------
+
+# Stage ordering per pipeline mode
+STAGE_ORDER_DEFAULT = [
+    "initialization", "setup_environment",
+    "cleanup_repo_manager", "cleanup_image_build_manager",
+    "cleanup_orchestrator", "cleanup_telemetry", "cleanup_omnia",
+    "setup_main", "test_main_installation",
+    "repo_manager", "test_repo_manager",
+    "image_build_manager", "test_image_build_manager",
+    "orchestrator", "test_orchestrator",
+    "telemetry", "test_telemetry",
+    "summary",
+]
+STAGE_ORDER_DEPLOY = [
+    "initialization", "setup_environment",
+    "repo_manager", "test_repo_manager",
+    "image_build_manager", "test_image_build_manager",
+    "orchestrator", "test_orchestrator",
+    "telemetry", "test_telemetry",
+    "summary",
+]
+STAGE_ORDER_CLEANUP = [
+    "initialization", "setup_environment",
+    "cleanup_repo_manager", "cleanup_image_build_manager",
+    "cleanup_orchestrator", "cleanup_telemetry", "cleanup_omnia",
+    "summary",
+]
+
+STATUS_STYLES = {
+    "success":  {"icon": "&#10004;", "color": "#28a745", "label": "PASSED"},
+    "failed":   {"icon": "&#10008;", "color": "#dc3545", "label": "FAILED"},
+    "skipped":  {"icon": "&#8212;",  "color": "#6c757d", "label": "SKIPPED"},
+    "canceled": {"icon": "&#9888;",  "color": "#ffc107", "label": "CANCELED"},
+    "manual":   {"icon": "&#9654;",  "color": "#17a2b8", "label": "MANUAL"},
+    "running":  {"icon": "&#8635;",  "color": "#007bff", "label": "RUNNING"},
+    "pending":  {"icon": "&#8987;",  "color": "#6c757d", "label": "PENDING"},
+    "created":  {"icon": "&#183;",   "color": "#adb5bd", "label": "CREATED"},
+    "unknown":  {"icon": "&#63;",    "color": "#6c757d", "label": "UNKNOWN"},
+}
+
+
+def load_job_statuses():
+    """Load job statuses from the JSON file written by the pipeline."""
+    status_file = "pipeline_reports/job_statuses.json"
+    if not os.path.exists(status_file):
+        return {}
+    try:
+        with open(status_file, "r", encoding="utf-8") as f:
+            jobs = json.load(f)
+        if not isinstance(jobs, list):
+            return {}
+        return {job["name"]: job.get("status", "unknown") for job in jobs if "name" in job}
+    except Exception as e:
+        print(f"Error loading job statuses: {e}")
+        return {}
+
+
+def pick_stage_order(mode, selected_domains, include_tests, job_statuses):
+    """Return stages applicable to the selected mode and domains."""
+    order = {
+        "cleanup": STAGE_ORDER_CLEANUP,
+        "deploy": STAGE_ORDER_DEPLOY,
+    }.get(mode, STAGE_ORDER_DEFAULT)
+    domain_names = {
+        "repo_manager", "image_build_manager", "orchestrator", "telemetry",
+    }
+    selected = domain_names if selected_domains == "default" else {
+        value.strip() for value in selected_domains.split(",") if value.strip()
+    }
+    applicable = []
+    for stage in order:
+        domain = stage.removeprefix("cleanup_").removeprefix("test_")
+        if domain in domain_names and domain not in selected:
+            continue
+        if stage.startswith("test_") and stage != "test_main_installation" and not include_tests:
+            continue
+        if stage == "test_main_installation" and not include_tests:
+            continue
+        if stage == "cleanup_omnia" and selected_domains != "default":
+            continue
+        if stage == "setup_environment" and mode != "default" and stage not in job_statuses:
+            continue
+        applicable.append(stage)
+    return applicable
+
+
+def build_stage_table_html(job_statuses, mode, selected_domains, include_tests):
+    """Build an HTML table showing each applicable stage and its status."""
+    stage_order = pick_stage_order(
+        mode, selected_domains, include_tests, job_statuses
+    )
+    rows = []
+    has_failure = False
+    failed_stage = ""
+
+    for i, stage in enumerate(stage_order):
+        status = job_statuses.get(stage, "unknown")
+        style = STATUS_STYLES.get(status, STATUS_STYLES["unknown"])
+        bg = "#f8f9fa" if i % 2 == 0 else "#ffffff"
+
+        if status == "failed":
+            has_failure = True
+            if not failed_stage:
+                failed_stage = stage
+            bg = "#fff5f5"
+
+        rows.append(
+            f'<tr style="background-color: {bg};">'
+            f'<td style="border: 1px solid #dee2e6; padding: 8px 12px;">'
+            f"{stage}</td>"
+            f'<td style="border: 1px solid #dee2e6; padding: 8px 12px; '
+            f"text-align: center; color: {style['color']}; "
+            f'font-weight: bold;">'
+            f"{style['icon']} {style['label']}</td></tr>"
+        )
+
+    table_html = (
+        '<table style="border-collapse: collapse; width: 100%; '
+        'max-width: 600px; margin: 15px 0;">'
+        '<tr style="background-color: #343a40; color: white;">'
+        '<th style="border: 1px solid #dee2e6; padding: 10px 12px; '
+        'text-align: left;">Stage</th>'
+        '<th style="border: 1px solid #dee2e6; padding: 10px 12px; '
+        'text-align: center; width: 120px;">Status</th></tr>'
+        + "\n".join(rows)
+        + "</table>"
+    )
+    return table_html, has_failure, failed_stage
+
+
+# Load job statuses and build table
+job_statuses = load_job_statuses()
+stage_table_html, has_failure, failed_stage = build_stage_table_html(
+    job_statuses, pipeline_mode, domains, test_mode
+)
+
+if not job_statuses:
+    overall_status = "UNKNOWN"
+    status_color = "#6c757d"
+    status_icon = "&#63;"
+    status_icon_text = "?"
+elif has_failure:
+    overall_status = "FAILED"
+    status_color = "#dc3545"
+    status_icon = "&#10008;"
+    status_icon_text = "X"
+else:
+    overall_status = "SUCCESS"
+    status_color = "#28a745"
+    status_icon = "&#10004;"
+    status_icon_text = "V"
+
+print(f"Overall pipeline status: {overall_status}")
+if failed_stage:
+    print(f"First failed stage: {failed_stage}")
+
+# ---------------------------------------------------------------------------
 msg = MIMEMultipart()
 msg["From"] = SENDER_EMAIL
 msg["To"] = ", ".join(recipients)
 
-# Determine status color and icon
-status_color = "green" if pipeline_status.lower() in ["success", "passed"] else "red"
-status_icon = "✓" if pipeline_status.lower() in ["success", "passed"] else "✗"
-
-msg["Subject"] = f"[{status_icon}] Omnia Pipeline - {pipeline_stage} - {pipeline_status.upper()}"
+subject_detail = f" - {failed_stage}" if failed_stage else ""
+msg["Subject"] = (
+    f"[{status_icon_text}] Omnia Pipeline - {overall_status}"
+    f"{subject_detail} ({pipeline_mode})"
+)
 
 html_body = f"""
 <html>
 <body style="font-family: Arial, sans-serif; margin: 20px;">
     <h2>Omnia Pipeline Execution Report</h2>
-    <div style="background-color: {status_color}; color: white; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-        <h3 style="margin: 0;">Status: {status_icon} {pipeline_status.upper()}</h3>
-        <p style="margin: 5px 0;"><strong>Stage:</strong> {pipeline_stage}</p>
+    <div style="background-color: {status_color}; color: white;
+                padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+        <h3 style="margin: 0;">{status_icon} {overall_status}</h3>
+        <p style="margin: 5px 0 0 0;">
+            <strong>Mode:</strong> {pipeline_mode} &nbsp;|&nbsp;
+            <strong>Domains:</strong> {domains}
+            {'&nbsp;|&nbsp; <strong>Failed at:</strong> ' + failed_stage if failed_stage else ''}
+        </p>
     </div>
     <p><strong>Pipeline Trigger Time:</strong> {trigger_time}</p>
     <p><strong>Pipeline URL:</strong>
         <a href="{pipeline_url}">{pipeline_url}</a></p>
-    <br>
+
+    <h3>Stage Execution Summary</h3>
+    {stage_table_html}
+
     {test_reports_summary}
     <br>
     <p>Please find the detailed test reports attached.</p>
