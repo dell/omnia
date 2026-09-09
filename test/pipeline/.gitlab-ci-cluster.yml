@@ -2081,7 +2081,29 @@ summary:
       EOF
 
     - echo "Pipeline summary report generated"
-    - echo "Sending email notification"
+    
+    # Detect pipeline status by checking if any previous job failed
+    # Use GitLab API to check pipeline status (optional)
+    - |
+      PIPELINE_STATUS="SUCCESS"
+      FAILED_STAGE=""
+      if [ -n "$CI_PIPELINE_ID" ] && [ -n "$CI_JOB_TOKEN" ]; then
+        FAILED_JOBS=$(curl -s --header "PRIVATE-TOKEN: $CI_JOB_TOKEN" \
+          "$CI_API_V4_URL/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/jobs?status=failed" \
+          2>/dev/null || true)
+        if [ -n "$FAILED_JOBS" ]; then
+          FAILED_STAGE=$(echo "$FAILED_JOBS" | grep -o '"name":"[^"]*"' | head -1 | cut -d'"' -f4 || true)
+          if [ -n "$FAILED_STAGE" ]; then
+            PIPELINE_STATUS="FAILED"
+          fi
+        fi
+      fi
+    
+    # Export variables for email script
+    - export PIPELINE_STATUS
+    - export PIPELINE_STAGE="${FAILED_STAGE:-summary}"
+    
+    - echo "Sending email notification (Status=$PIPELINE_STATUS, Stage=$PIPELINE_STAGE)"
     - python3 send_email.py || echo "Email notification failed (non-fatal)"
     - echo "========================================================"
     - echo "  Pipeline summary completed for cluster $CLUSTER"

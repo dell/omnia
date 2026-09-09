@@ -22,10 +22,14 @@ All configuration is read from GitLab CI/CD variables (environment):
     SMTP_SERVER           - SMTP relay host (required)
     SMTP_PORT             - SMTP relay port (default: 25)
     TEST_REPORTS_PATH     - Path to test reports directory (default: /opt/omnia/reports)
+    PIPELINE_STAGE        - Current pipeline stage (optional)
+    PIPELINE_STATUS       - Pipeline status: success/failure (optional)
 
 GitLab-provided variables used automatically:
     PIPELINE_TRIGGER_TIME - Set by initialization stage
     CI_PIPELINE_URL       - Auto-set by GitLab
+    CI_JOB_NAME           - Current job name
+    CI_JOB_STATUS         - Job status
 """
 import glob
 import json
@@ -55,6 +59,8 @@ TEST_REPORTS_PATH = os.environ.get("TEST_REPORTS_PATH", "/opt/omnia/reports")
 
 trigger_time = os.environ.get("PIPELINE_TRIGGER_TIME", "")
 pipeline_url = os.environ.get("CI_PIPELINE_URL", "")
+pipeline_stage = os.environ.get("PIPELINE_STAGE", os.environ.get("CI_JOB_NAME", "unknown"))
+pipeline_status = os.environ.get("PIPELINE_STATUS", os.environ.get("CI_JOB_STATUS", "unknown"))
 
 # ---------------------------------------------------------------------------
 missing = []
@@ -141,19 +147,28 @@ else:
 msg = MIMEMultipart()
 msg["From"] = SENDER_EMAIL
 msg["To"] = ", ".join(recipients)
-msg["Subject"] = f"Omnia Pipeline Execution Report - {trigger_time}"
+
+# Determine status color and icon
+status_color = "green" if pipeline_status.lower() in ["success", "passed"] else "red"
+status_icon = "✓" if pipeline_status.lower() in ["success", "passed"] else "✗"
+
+msg["Subject"] = f"[{status_icon}] Omnia Pipeline - {pipeline_stage} - {pipeline_status.upper()}"
 
 html_body = f"""
 <html>
 <body style="font-family: Arial, sans-serif; margin: 20px;">
     <h2>Omnia Pipeline Execution Report</h2>
+    <div style="background-color: {status_color}; color: white; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+        <h3 style="margin: 0;">Status: {status_icon} {pipeline_status.upper()}</h3>
+        <p style="margin: 5px 0;"><strong>Stage:</strong> {pipeline_stage}</p>
+    </div>
     <p><strong>Pipeline Trigger Time:</strong> {trigger_time}</p>
     <p><strong>Pipeline URL:</strong>
         <a href="{pipeline_url}">{pipeline_url}</a></p>
     <br>
     {test_reports_summary}
     <br>
-    <p>Please find the pipeline execution summary and test reports attached.</p>
+    <p>Please find the detailed test reports attached.</p>
     <br>
     <p style="color: #888; font-size: 12px;">
         This is an automated email from GitLab CI/CD pipeline.</p>
