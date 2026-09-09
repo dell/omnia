@@ -189,11 +189,13 @@
         loop_var: cred_field
       when: openldap_support | default(false) | bool
 
-    - name: Prompt for conditional mandatory orchestrator credentials (PowerScale CSI)
+    - name: Prompt for PowerScale CSI credentials
       ansible.builtin.include_tasks: prompt_credential_field.yml
-      loop: "{{ omnia_credentials.csi_driver_powerscale.conditional_mandatory }}"
+      loop: >-
+        {{ omnia_credentials.csi_driver_powerscale.conditional_mandatory }}
       loop_control:
         loop_var: cred_field
+      when: enable_powerscale_csi | default(false) | bool
 
     # Step 7: Expose credentials as facts for downstream roles
     - name: Reload final credentials

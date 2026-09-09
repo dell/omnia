@@ -1,6 +1,6 @@
 # Orchestrator — Input Contract
 
-> **Last Updated**: Jul 22, 2026 | **Domain**: `orchestrator`
+> **Last Updated**: Sep 9, 2026 | **Domain**: `orchestrator`
 
 This document defines all input files consumed by the `orchestrator` domain.
 
@@ -29,9 +29,12 @@ This document defines all input files consumed by the `orchestrator` domain.
 ### Catalog availability
 
 The `catalog_file_path` field is optional, but its resolved file is required
-for flows that derive OS metadata or feature enablement: full execution,
-`precheck`, `credentials`, `prepare`, `deploy`, `provision`, `execute`, and
-`validate-deployment`.
+for flows that derive OS metadata or catalog-backed feature enablement: full
+execution, `precheck`, `credentials`, `prepare`, `deploy`, `provision`,
+`execute`, and `validate-deployment`.
+
+PowerScale CSI enablement is not derived from the catalog. It is controlled by
+`service_k8s_cluster[].enable_powerscale_csi` in `omnia_config.yml`.
 
 Input-only `validate`, PXE-only, cleanup, upgrade, and rollback flows do not
 consume the catalog contract and can run without the file. Standalone
@@ -263,6 +266,11 @@ flows remain runnable without `repo_status.yml`.
 
 **Vault Key**: `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/.omnia_config_credentials_key`
 
+A full Orchestrator cleanup removes both the encrypted credential file and its
+vault key by default. Pass `-e cleanup_credentials=false` with the `cleanup`
+tag to preserve them. The `cleanup_credentials` tag remains available for
+credential-only cleanup.
+
 | Field | Type | When Required | Description |
 |-------|------|---------------|-------------|
 | `provision_password` | string | Always | Root password for provisioned nodes |
@@ -271,6 +279,8 @@ flows remain runnable without `repo_status.yml`.
 | `slurm_db_password` | string | Slurm enabled | Slurm database password |
 | `openldap_db_username` | string | OpenLDAP enabled | OpenLDAP admin username |
 | `openldap_db_password` | string | OpenLDAP enabled | OpenLDAP admin password |
+| `csi_username` | string | `enable_powerscale_csi: true` | PowerScale API username used by the CSI driver |
+| `csi_password` | string | `enable_powerscale_csi: true` | PowerScale API password used by the CSI driver |
 
 ---
 
@@ -292,6 +302,34 @@ service Kubernetes cluster definition, the file must exist and define a mount
 with every referenced name. When no storage name is referenced, the file may
 be absent. If present, it is always schema validated. Network reachability of
 referenced NFS servers is checked later during precheck.
+
+### PowerScale CSI selection
+
+PowerScale CSI is an explicit option on the Kubernetes cluster selected for
+deployment:
+
+```yaml
+service_k8s_cluster:
+  - cluster_name: service_cluster
+    deployment: true
+    enable_powerscale_csi: true
+    csi_powerscale_driver_secret_file_path: "/path/to/secret.yaml"
+    csi_powerscale_driver_values_file_path: "/path/to/values.yaml"
+```
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `enable_powerscale_csi` | bool | No | `false` | Enable dependency staging and PowerScale CSI deployment for the active Kubernetes cluster |
+| `csi_powerscale_driver_secret_file_path` | string | When CSI is enabled | — | Absolute path to the PowerScale CSI `secret.yaml` |
+| `csi_powerscale_driver_values_file_path` | string | When CSI is enabled | — | Absolute path to the PowerScale CSI `values.yaml` |
+
+When the flag is omitted or `false`, Orchestrator does not request PowerScale
+CSI credentials, stage CSI dependencies, add the CSI deployment script to
+cloud-init, or execute that script. When it is `true`, both input files and the
+CSI credentials are mandatory. Orchestrator resolves the versioned
+`csi-powerscale`, `helm-charts`, and `external-snapshotter` artifacts from
+`repo_status.yml` rather than using a catalog group as the runtime feature
+switch.
 
 ---
 

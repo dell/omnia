@@ -106,7 +106,7 @@ cleanup_components:
     description: "Orchestrator artifacts, state files, and output directories"
 
   credentials:
-    enabled: false
+    enabled: true
     priority: 10
     dependencies: []
     requires_confirmation: false
@@ -116,7 +116,7 @@ cleanup_components:
     cleanup_paths:
       - "{{ input_project_dir }}/omnia_config_credentials.yml"
       - "{{ input_project_dir }}/.omnia_config_credentials_key"
-    description: "Orchestrator credential files (opt-in only - requires --tags cleanup_credentials)"
+    description: "Orchestrator credential files (removed by default during full cleanup)"
 
 # Global cleanup settings
 global_settings:

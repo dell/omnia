@@ -49,14 +49,34 @@ cp_ips: "{{ (cp_first_ip_list + cp_ip_list) | unique }}"
 folder_mode: "0755"
 
 # CSI variables
-powerscale_catalog_fail_msg: >-
-  PowerScale CSI dependencies could not be resolved. Ensure the active catalog
-  defines powerscale_csi_group with exactly one csi-powerscale, helm-charts,
-  and external-snapshotter Git package, and that Repo Manager has generated
-  offline_git_path in repo_status.yml.
+powerscale_csi_deployment_fail_msg: >-
+  PowerScale CSI is enabled, but omnia_config.yml does not contain exactly one
+  service_k8s_cluster entry with deployment set to true. Correct the active
+  Kubernetes deployment selection and rerun Orchestrator.
+powerscale_csi_input_path_fail_msg: >-
+  PowerScale CSI is enabled, but its deployed service_k8s_cluster entry does not
+  define absolute csi_powerscale_driver_secret_file_path and
+  csi_powerscale_driver_values_file_path values in omnia_config.yml.
+powerscale_csi_input_file_fail_msg: >-
+  A configured PowerScale CSI input path does not identify a regular file on
+  the OIM. Verify the secret.yaml and values.yaml paths in the deployed
+  service_k8s_cluster entry, then rerun Orchestrator.
+powerscale_repo_status_structure_fail_msg: >-
+  PowerScale CSI is enabled, but repo_status.yml does not contain a mapping at
+  file_repos.x86_64.git. Ensure Repo Manager publishes the required x86_64
+  PowerScale CSI Git dependencies, then rerun Orchestrator.
+powerscale_repo_status_artifacts_fail_msg: >-
+  PowerScale CSI requires exactly one x86_64 Git artifact in repo_status.yml
+  matching each key pattern: ^csi-powerscale-v, ^helm-charts-[0-9], and
+  ^external-snapshotter-v. Check file_repos.x86_64.git and the Repo Manager
+  source configuration, then rerun Repo Manager.
+powerscale_repo_status_url_fail_msg: >-
+  PowerScale CSI found an invalid published Git URL in
+  repo_status.yml file_repos.x86_64.git. Each matched artifact must have an
+  HTTP(S) distribution URL whose final path is its versioned package directory.
 fail_msg_download: >-
   Failed to stage the PowerScale CSI dependencies from Repo Manager. Verify
-  the powerscale_csi_group catalog packages and Repo Manager Git artifacts.
+  the published URLs under repo_status.yml file_repos.x86_64.git are reachable.
 helm_charts_git: "helm-charts.tar.gz"
 external_snapshotter_git: "external-snapshotter.tar.gz"
 empty_certificate_template_path: "{{ role_path }}/files/empty_certificate_template.yml"

@@ -93,6 +93,37 @@ Run only the UFM source verification:
 ./run_validation.sh fvt_telemetry deploy verify --suite sources --marker ufm
 ```
 
+### Sources: VAST
+
+| TC ID | Test | Marker | Condition |
+|-------|------|--------|-----------|
+| TC_SR_080 | Verify VAST external service and endpoint | sanity + vast | metrics enabled |
+| TC_SR_081 | Verify VAST VMServiceScrape configuration | sanity + vast | metrics enabled |
+| TC_SR_082 | Verify VAST credentials secret | sanity + vast | metrics enabled with basic auth |
+| TC_SR_083 | Verify fresh VAST metrics in VictoriaMetrics | functional + vast | metrics enabled |
+| TC_SR_085 | Configure VAST syslog and send a test event | functional + vast | logs enabled, `victoria_logs` target, and VAST management credentials available |
+| TC_SR_084 | Verify fresh VAST test event in VictoriaLogs | functional + vast | logs enabled and TC_SR_085 completed in the same runner test invocation |
+
+Run only VAST source verification:
+
+```bash
+# The focused marker run assumes the Telemetry stack is already deployed.
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker vast
+```
+
+The metrics case verifies that the VAST scrape target is up, returns samples,
+and produces fresh `source_subsystem="vast"` metrics. It discovers metric
+names dynamically because VAST exporter names differ across releases. For the
+log path, the first verification case reads the deployed VAST and VLAgent settings,
+configures the appliance syslog target through the VAST API, verifies the API
+readback, and sends one test notification. The verification case then polls
+VictoriaLogs for that run's fresh event. Its report lists the event count,
+source hosts, earliest and latest UTC timestamps, and up to five newest safe
+RFC5424 header summaries; raw message bodies and credentials are never shown.
+Both cases run in order under one `verify` command and share one report ID. A
+fresh environment should first run the normal unfiltered `deploy` execution;
+the `vast` marker deliberately does not select the general deployment case.
+
 ### Sources: OME
 
 | TC ID | Test | Marker | Condition |
