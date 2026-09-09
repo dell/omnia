@@ -10,6 +10,7 @@
 || Playbook | `TC_PB_` | Playbook syntax and tag tests |
 || Role | `TC_RO_` | Role structure and metadata tests |
 || SLURM | `TC_SL_` | SLURM verification and job execution tests |
+|| Kubernetes | `TC_K8_` | Kubernetes verification and workload tests |
 || Validate | `TC_VL_` | Input validation tests |
 || Prepare | `TC_PR_` | Prepare/deploy OpenCHAMI tests |
 || Provision | `TC_PV_` | Node provisioning tests |
@@ -119,6 +120,152 @@
 
 ---
 
+## Kubernetes Status Tests (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_001 | `test_k8s_enabled` | Verify K8s is enabled in config | kubernetes, sanity |
+|| TC_K8_005 | `test_kubelet_running` | Verify kubelet running on all nodes | kubernetes, sanity |
+|| TC_K8_006 | `test_containerd_running` | Verify container runtime (CRI-O) running on all nodes | kubernetes, sanity |
+|| TC_K8_008 | `test_k8s_apiserver_responding` | Verify K8s API server responding | kubernetes, sanity |
+|| TC_K8_009 | `test_k8s_directories_exist` | Verify K8s directories exist | kubernetes, sanity |
+|| TC_K8_010 | `test_k8s_config_files_exist` | Verify K8s config files exist | kubernetes, sanity |
+|| TC_K8_011 | `test_k8s_pki_certs_exist` | Verify K8s PKI certificates exist | kubernetes, sanity |
+
+---
+
+## Kubernetes Node Tests (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_002 | `test_k8s_nodes_ready` | Verify all K8s nodes Ready | kubernetes, sanity |
+|| TC_K8_003 | `test_k8s_control_plane_nodes` | Verify control plane nodes Ready | kubernetes, sanity |
+|| TC_K8_004 | `test_k8s_worker_nodes` | Verify worker nodes Ready | kubernetes, sanity |
+
+---
+
+## Kubernetes Pod Tests (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_007 | `test_k8s_system_pods` | Verify kube-system pods Running | kubernetes, sanity |
+|| TC_K8_012 | `test_k8s_etcd_healthy` | Verify etcd cluster healthy | kubernetes, sanity |
+|| TC_K8_013 | `test_k8s_coredns_running` | Verify CoreDNS pods Running | kubernetes, sanity |
+|| TC_K8_014 | `test_k8s_kube_proxy_running` | Verify kube-proxy pods Running | kubernetes, sanity |
+
+---
+
+## Kubernetes SSH Tests (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_016 | `test_ssh_control_plane_to_worker` | SSH from control plane to workers | kubernetes, functional |
+|| TC_K8_017 | `test_ssh_worker_to_control_plane` | SSH from workers to control plane | kubernetes, functional |
+|| TC_K8_018 | `test_ssh_worker_to_worker` | SSH between worker nodes | kubernetes, functional |
+
+---
+
+## Kubernetes Config Tests (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_015 | `test_k8s_nfs_config_exists` | Verify K8s NFS config directory | kubernetes, sanity |
+|| TC_K8_024 | `test_k8s_smd_groups` | Verify K8s groups in SMD | kubernetes, sanity |
+|| TC_K8_025 | `test_k8s_metadata_configured` | Verify K8s metadata-service config | kubernetes, sanity |
+
+---
+
+## Kubernetes Services & Versions (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_031 | `test_k8s_crio_running` | Verify CRI-O service running on all nodes | kubernetes, sanity |
+|| TC_K8_032 | `test_k8s_chronyd_running` | Verify chronyd service on control planes | kubernetes, sanity |
+|| TC_K8_033 | `test_k8s_kubectl_version` | Verify kubectl version matches software config | kubernetes, sanity |
+|| TC_K8_034 | `test_k8s_kubeadm_crio_version_match` | Verify kubeadm version matches CRI-O | kubernetes, sanity |
+|| TC_K8_035 | `test_k8s_container_runtime` | Verify all nodes use expected runtime | kubernetes, sanity |
+|| TC_K8_036 | `test_k8s_component_status` | Verify K8s component status healthy | kubernetes, sanity |
+
+---
+
+## Kubernetes etcd Detailed Tests (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_037 | `test_k8s_etcd_health_detailed` | Verify etcd endpoint health via etcdctl | kubernetes, sanity |
+|| TC_K8_038 | `test_k8s_etcd_member_list` | Verify etcd member count matches CPs | kubernetes, sanity |
+|| TC_K8_039 | `test_k8s_etcd_leader_consistency` | Verify etcd leader and RAFT consistency | kubernetes, sanity |
+
+---
+
+## Kubernetes HA / Virtual IP (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_040 | `test_k8s_virtual_ip` | Verify VIP on exactly one control plane | kubernetes, sanity |
+
+---
+
+## Kubernetes Network Pods (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_041 | `test_k8s_kube_vip_pods` | Verify kube-vip pods running | kubernetes, sanity |
+|| TC_K8_042 | `test_k8s_calico_pods` | Verify Calico network pods running | kubernetes, sanity |
+|| TC_K8_043 | `test_k8s_metallb_pods` | Verify MetalLB system pods running | kubernetes, sanity |
+
+---
+
+## Kubernetes Storage & CSI (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_044 | `test_k8s_nfs_provisioner_pod` | Verify NFS provisioner pod running | kubernetes, sanity |
+|| TC_K8_045 | `test_k8s_snapshot_controller_pods` | Verify snapshot-controller pods (CSI) | kubernetes, sanity |
+|| TC_K8_046 | `test_k8s_isilon_csi_pods` | Verify Isilon CSI driver pods (CSI) | kubernetes, sanity |
+|| TC_K8_047 | `test_k8s_default_storage_class` | Verify default StorageClass set | kubernetes, sanity |
+|| TC_K8_048 | `test_k8s_persistent_volumes` | Verify PVs Bound with correct SC | kubernetes, sanity |
+|| TC_K8_049 | `test_k8s_nfs_storage_class` | Verify NFS StorageClass dynamic | kubernetes, sanity |
+|| TC_K8_050 | `test_k8s_telemetry_pvcs` | Verify telemetry PVCs Bound | kubernetes, sanity |
+|| TC_K8_051 | `test_k8s_busybox_pod` | Deploy and verify BusyBox pod | kubernetes, functional |
+
+---
+
+## Kubernetes Firewall & Systemd Targets (`fvt/validate/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_052 | `test_k8s_firewall_ports_control_plane` | Verify firewall ports on CP nodes | kubernetes, sanity |
+|| TC_K8_053 | `test_k8s_firewall_ports_workers` | Verify firewall ports on workers | kubernetes, sanity |
+|| TC_K8_054 | `test_k8s_nfs_client_target` | Verify nfs-client.target active | kubernetes, sanity |
+
+---
+
+## Kubernetes Comprehensive Tests (`fvt/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_022 | `test_k8s_node_labels` | Verify node labels match roles | kubernetes, sanity |
+|| TC_K8_023 | `test_k8s_node_taints` | Verify control plane taints | kubernetes, sanity |
+|| TC_K8_027 | `test_k8s_apiserver_pod` | Verify kube-apiserver static pod | kubernetes, sanity |
+|| TC_K8_028 | `test_k8s_controller_manager_pod` | Verify kube-controller-manager pod | kubernetes, sanity |
+|| TC_K8_029 | `test_k8s_scheduler_pod` | Verify kube-scheduler pod | kubernetes, sanity |
+|| TC_K8_030 | `test_k8s_cluster_info` | Verify kubectl cluster-info | kubernetes, sanity |
+|| TC_K8_019 | `test_k8s_pod_create` | Test pod creation and scheduling | kubernetes, functional |
+|| TC_K8_020 | `test_k8s_dns_resolution` | Test DNS resolution in pods | kubernetes, functional |
+|| TC_K8_021 | `test_k8s_service_create` | Test Kubernetes service creation | kubernetes, functional |
+|| TC_K8_026 | `test_k8s_ldap_integration` | Test OpenLDAP K8s integration | kubernetes, functional |
+
+---
+
+## Kubernetes Provision (`fvt/provision/kubernetes/`)
+
+|| TC ID | Test Function | Description | Marker |
+||-------|---------------|-------------|--------|
+|| TC_K8_000 | `test_k8s_provision` | Deploy orchestrator.yml --tags provision_kubernetes | deploy, sanity |
+
+---
+
 ## Validate Scenario (`fvt/validate/`)
 
 || TC ID | Test Function | Description | Marker |
@@ -181,6 +328,7 @@
 
 ## Test Summary
 
+**Total Test Cases: 128**
 **Total Test Cases: 74**
 
 | Category | Count |
@@ -193,6 +341,19 @@
 | SLURM Infrastructure Tests | 12 |
 | SLURM Node Tests | 3 |
 | SLURM Job Tests | 14 |
+| K8s Status Tests | 7 |
+| K8s Node Tests | 3 |
+| K8s Pod Tests | 4 |
+| K8s SSH Tests | 3 |
+| K8s Config Tests | 3 |
+| K8s Services & Versions | 6 |
+| K8s etcd Detailed Tests | 3 |
+| K8s HA / Virtual IP | 1 |
+| K8s Network Pods | 3 |
+| K8s Storage & CSI | 8 |
+| K8s Firewall & Targets | 3 |
+| K8s Comprehensive Tests | 10 |
+| K8s Provision Tests | 1 |
 | Validate Tests | 6 |
 | Prepare Tests | 8 |
 | Provision Tests | 2 |

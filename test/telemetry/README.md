@@ -53,6 +53,7 @@ Run from inside the `test/telemetry/` directory:
 |-----|---------------|
 | `performance` | Validate, deploy, and cleanup performance thresholds |
 | `idempotency` | Deploy and cleanup idempotency (second run exits 0) |
+| `resilience` | Pod recovery, PVC persistence, service availability, node reboot, lifecycle |
 
 ### Options
 
@@ -99,7 +100,8 @@ full cleanup test case registry.
 | OR (`,`) | `--marker sink,source` | Tests with EITHER marker |
 
 Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`,
-`ome`, `ldms`, `sfm`, `ufm`, `nft`, `performance`, `idempotency`
+`ome`, `ldms`, `sfm`, `ufm`, `nft`, `performance`, `idempotency`,
+`resilience`
 
 ### Examples
 
@@ -122,6 +124,7 @@ DELETE_VOLUME=true ./run_validation.sh fvt_telemetry cleanup test           # De
 ./run_validation.sh nft_telemetry test                          # All NFT tests
 ./run_validation.sh nft_telemetry test --marker performance     # Performance only
 ./run_validation.sh nft_telemetry test --marker idempotency     # Idempotency only
+./run_validation.sh nft_telemetry test --marker resilience      # Resilience only
 DELETE_VOLUME=true ./run_validation.sh nft_telemetry test --marker idempotency  # Idempotency with PVC deletion
 
 # Config-driven batch
@@ -203,7 +206,7 @@ test/telemetry/
 ├── test_run_config.yml       # Batch execution: scenario order, markers, suites
 │
 ├── library/                  # Reusable automation library
-│   ├── functions/            # telemetry_func, k8s_func, cleanup_func, etc.
+│   ├── functions/            # telemetry_func, k8s_func, cleanup_func, resilience_func, etc.
 │   ├── vars/                 # Constants, component names (common_vars, test_case_vars)
 │   └── messages/             # Test names, log/assert messages
 │
@@ -238,7 +241,8 @@ test/telemetry/
 │
 └── nft/                      # Non-Functional Tests
     ├── test_performance.py   # Performance thresholds (validate, deploy, cleanup)
-    └── test_idempotency.py   # Idempotency tests (deploy, cleanup)
+    ├── test_idempotency.py   # Idempotency tests (deploy, cleanup)
+    └── test_resilience.py    # Resilience tests (pod recovery, reboot, lifecycle)
 ```
 
 ## Test Case Summary
@@ -266,13 +270,14 @@ mode) — so 14 run when `DELETE_VOLUME=true`, 13 run otherwise.
 |------|-----|--------|
 | Performance | 3 | nft + performance |
 | Idempotency | 5* | nft + idempotency |
-| **NFT Total** | **8** | |
+| Resilience | 9 | nft + resilience |
+| **NFT Total** | **17** | |
 
 \* Same PVC skip behavior as FVT cleanup: only one of
 `test_cleanup_idempotency_no_pvcs`'s two PVC assertions runs per
 invocation, based on `DELETE_VOLUME` — 4 run in any single invocation.
 
-### Grand Total: **98 Tests defined** (95–96 active in a single run, depending on `DELETE_VOLUME` — see footnotes above)
+### Grand Total: **107 Tests defined** (104–105 active in a single run, depending on `DELETE_VOLUME` — see footnotes above)
 
 ## Output Format
 
@@ -288,4 +293,5 @@ invocation, based on `DELETE_VOLUME` — 4 run in any single invocation.
     │   ✓ PortXmitDataExtended: 94017600 (2026-08-24 12:59:50)
 ```
 
-See `fvt/README.md` for the complete test case registry.
+See `fvt/README.md` for the FVT test case registry and `nft/README.md`
+for the NFT test case registry (performance, idempotency, resilience).

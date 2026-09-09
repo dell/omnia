@@ -400,7 +400,7 @@
         openldap_support: "{{ _catalog_group_names | select('match', '.*openldap.*') | list | length > 0 }}"
         ucx_support: "{{ _catalog_group_names | select('match', '.*ucx.*') | list | length > 0 }}"
         openmpi_support: "{{ _catalog_group_names | select('match', '.*openmpi.*') | list | length > 0 }}"
-        csi_driver_powerscale_support: "{{ _catalog_group_names | select('match', '.*csi.*powerscale.*') | list | length > 0 }}"
+        csi_driver_powerscale_support: "{{ 'powerscale_csi_group' in _catalog_group_names }}"
         dcgm_support: "{{ _orch_config.dcgm_enabled | default(true) | bool }}"
         cacheable: true
 

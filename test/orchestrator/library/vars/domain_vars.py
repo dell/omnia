@@ -47,6 +47,14 @@ FVT_TAGS: List[str] = [
     "roles",
     "playbooks",
     "slurm",
+    "kubernetes",
+    # Standalone K8s sub-tags (used by fvt_k8s)
+    "services",
+    "etcd",
+    "ha",
+    "network",
+    "storage",
+    "firewall",
     "nft",
     "negative",
 ]
@@ -60,6 +68,7 @@ MARKERS: List[str] = [
     "functional",
     "deploy",
     "slurm",
+    "kubernetes",
     "nft",
     "performance",
     "idempotency",
@@ -73,15 +82,16 @@ MARKERS: List[str] = [
 # =====================================================================
 
 SUITES: Dict[str, List[str]] = {
-    "validate": ["status", "slurm"],
+    "validate": ["status", "slurm", "kubernetes"],
     "prepare": ["openchami"],
-    "provision": ["slurm"],
+    "provision": ["slurm", "kubernetes"],
     "cleanup": ["status"],
     "rollback": [],
     "modules": [],
     "roles": [],
     "playbooks": [],
     "slurm": [],
+    "kubernetes": [],
     "nft": [],
     "negative": [],
 }
