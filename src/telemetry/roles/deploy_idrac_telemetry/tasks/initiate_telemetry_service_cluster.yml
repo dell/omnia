@@ -310,10 +310,9 @@
       insert_idracips_mysqldb:
         telemetry_namespace: "{{ telemetry_namespace }}"
         idrac_podnames_ips: "{{ idrac_podname_idracips.idrac_podname_ips }}"
-        mysqldb_k8s_name: "{{ mysqldb_k8s_name }}"
         mysqldb_container_port: "{{ mysqldb_container_port1 }}"
         mysqldb_name: "{{ mysqldb_name }}"
-        mysql_user: "{{ telemetry_credentials.mysqldb_user }}"
+        mysqldb_user: "{{ telemetry_credentials.mysqldb_user }}"
         mysqldb_password: "{{ telemetry_credentials.mysqldb_password }}"
         bmc_username: "{{ telemetry_credentials.bmc_username }}"
         bmc_password: "{{ telemetry_credentials.bmc_password }}"

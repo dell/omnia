@@ -1,0 +1,141 @@
+---
+name: PR Issue and Network Policy
+
+'on':
+  pull_request:
+    branches:
+      - main
+      - staging
+      - 'release_*'
+      - 'issue-*'
+      - 'pub/**'
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-pr-policy:
+    name: Validate linked issue and IP policy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Validate linked issue and added IP addresses
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+          fi
+
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+
+          with open(
+              os.environ["GITHUB_EVENT_PATH"], encoding="utf-8"
+          ) as event_file:
+              event = json.load(event_file)
+
+          pull_request = event["pull_request"]
+          title = pull_request.get("title") or ""
+          body = pull_request.get("body") or ""
+
+          issue_reference = re.compile(
+              r"(?:"
+              r"https?://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/[1-9][0-9]*"
+              r"|"
+              r"(?<![A-Za-z0-9_.-])(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#[1-9][0-9]*\b"
+              r")",
+              re.IGNORECASE,
+          )
+
+          octet = r"(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])"
+          blocked_ip = re.compile(
+              rf"(?<![0-9.])100\.{octet}\.{octet}\.{octet}(?![0-9.])"
+          )
+
+          errors = []
+          if not issue_reference.search(f"{title}\n{body}"):
+              errors.append(
+                  "The PR title or body must link an issue using #123, "
+                  "owner/repository#123, or a GitHub /issues/123 URL."
+              )
+
+          metadata_matches = sorted(
+              set(blocked_ip.findall(f"{title}\n{body}"))
+          )
+          if metadata_matches:
+              errors.append(
+                  "The PR title or body contains blocked "
+                  "100.x.x.x IPv4 address(es): "
+                  + ", ".join(metadata_matches)
+              )
+
+          diff = subprocess.run(
+              [
+                  "git",
+                  "diff",
+                  "--unified=0",
+                  "--no-color",
+                  f'{os.environ["BASE_SHA"]}...{os.environ["HEAD_SHA"]}',
+                  "--",
+              ],
+              check=True,
+              capture_output=True,
+              text=True,
+          ).stdout
+
+          current_file = "unknown file"
+          diff_matches = []
+          for line in diff.splitlines():
+              if line.startswith("+++ "):
+                  current_file = line[4:]
+                  if current_file.startswith("b/"):
+                      current_file = current_file[2:]
+                  continue
+              if not line.startswith("+"):
+                  continue
+
+              for address in blocked_ip.findall(line[1:]):
+                  diff_matches.append((current_file, address))
+
+          if diff_matches:
+              formatted_matches = ", ".join(
+                  f"{path}: {address}"
+                  for path, address in sorted(set(diff_matches))
+              )
+              errors.append(
+                  "Newly added lines contain blocked "
+                  "100.x.x.x IPv4 address(es): "
+                  + formatted_matches
+              )
+
+          if errors:
+              for message in errors:
+                  escaped = (
+                      message.replace("%", "%25")
+                      .replace("\r", "%0D")
+                      .replace("\n", "%0A")
+                  )
+                  print(f"::error::{escaped}")
+              print(f"PR policy validation failed with {len(errors)} error(s).")
+              sys.exit(1)
+
+          print(
+              "PR policy validation passed: an issue is linked and no "
+              "blocked IP was found."
+          )
+          PY

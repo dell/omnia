@@ -30,13 +30,13 @@ oim_ssh_port: 22
 clone_path: "/root/omnia"
 
 # The dataset name selects the local folder under test/orchestrator/datasets/.
-dataset: "slurm_only"
+dataset: ""
 
 # Only change if the target uses a different project name than the dataset.
 project_name: "project_default"
 
 # Sync orchestrator input files (orchestrator_config.yml, network_spec.yml, etc.)
-sync_orchestrator_input: true
+sync_orchestrator_input: false
 
 # Sync repo_manager output (repo_status.yml) to target
 sync_repo_manager_output: false

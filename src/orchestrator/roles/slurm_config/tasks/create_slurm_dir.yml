@@ -137,7 +137,7 @@
   ansible.builtin.copy:
     src: "{{ pulp_webserver_cert_path }}"
     dest: "{{ slurm_config_path }}/cert"
-    mode: "{{ file_mode }}"
+    mode: "{{ conf_file_mode }}"
   become: true
 
 - name: Set hpc_tools_path

@@ -55,7 +55,7 @@ options:
     description: Name of the MySQL database.
     type: str
     required: true
-  mysql_user:
+  mysqldb_user:
     description: MySQL username for authentication.
     type: str
     required: true
@@ -103,8 +103,8 @@ EXAMPLES = r'''
     idrac_podnames_ips: "{{ idrac_podname_ips }}"
     mysqldb_container_port: 3306
     mysqldb_name: idrac_telemetry_db
-    mysql_user: "{{ mysql_user }}"
-    mysqldb_password: "{{ mysql_password }}"
+    mysqldb_user: "{{ mysqldb_user }}"
+    mysqldb_password: "{{ mysqldb_password }}"
     bmc_username: "{{ bmc_username }}"
     bmc_password: "{{ bmc_password }}"
     telemetry_idrac: "{{ telemetry_idrac }}"
@@ -292,8 +292,8 @@ def main():
         "idrac_podnames_ips": {"type": "dict", "required": True},
         "mysqldb_container_port": {"type": "int", "required": True},
         "mysqldb_name": {"type": "str", "required": True},
-        "mysql_user": {"type": "str", "required": True, "no_log": True},
-        "mysql_password": {"type": "str", "required": True, "no_log": True},
+        "mysqldb_user": {"type": "str", "required": True, "no_log": True},
+        "mysqldb_password": {"type": "str", "required": True, "no_log": True},
         "bmc_username": {"type": "str", "required": True, "no_log": True},
         "bmc_password": {"type": "str", "required": True, "no_log": True},
         "telemetry_idrac": {"type": "list", "elements": "str", "required": True},
@@ -318,8 +318,8 @@ def main():
     idrac_podnames_ips = module.params['idrac_podnames_ips']
     container_port = module.params['mysqldb_container_port']
     db_name = module.params['mysqldb_name']
-    db_user = module.params['mysql_user']
-    db_password = module.params['mysql_password']
+    db_user = module.params['mysqldb_user']
+    db_password = module.params['mysqldb_password']
     bmc_username = module.params['bmc_username']
     bmc_password = module.params['bmc_password']
     telemetry_idrac = module.params['telemetry_idrac']

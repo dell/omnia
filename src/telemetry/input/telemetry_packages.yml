@@ -233,7 +233,7 @@ pip_modules:
   # Required for: MySQL operations via kubernetes module
   idrac:
     kubernetes: "33.1.0"
-    pymysql: "1.1.1"
+    pymysql: "1.1.2"
 
   # PowerScale / CSI volume exporter
   # Required for: K8s API interaction, PowerScale API calls, metrics export

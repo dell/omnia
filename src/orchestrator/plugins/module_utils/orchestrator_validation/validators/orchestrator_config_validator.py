@@ -258,37 +258,85 @@ def _validate_network_spec_cross(
             )
 
 
-def _referenced_storage_names(omnia_config: Any) -> set[str]:
-    """Return storage names referenced by supported cluster definitions."""
+def _requested_storage_sections(input_project_dir: str) -> set[str]:
+    """Return cluster sections selected by PXE functional-group names."""
+    orchestrator_config = _load_yaml_mapping(
+        os.path.join(input_project_dir, "orchestrator_config.yml")
+    )
+    path = _resolve_pxe_mapping_path(orchestrator_config, input_project_dir)
+    if not os.path.isfile(path):
+        return set()
+    try:
+        header, rows = _read_csv_rows(path)
+    except (csv.Error, OSError, UnicodeError):
+        return set()
+    if "FUNCTIONAL_GROUP_NAME" not in header:
+        return set()
+
+    functional_groups = _column_values(
+        rows, header.index("FUNCTIONAL_GROUP_NAME")
+    )
+    requested: set[str] = set()
+    if any(name.startswith("service_kube_") for name in functional_groups):
+        requested.add("service_k8s_cluster")
+    if any(
+        name.startswith(("slurm_", "login_")) for name in functional_groups
+    ):
+        requested.add("slurm_cluster")
+    return requested
+
+
+def _referenced_storage_names(
+    omnia_config: Any, requested_sections: set[str]
+) -> tuple[set[str], list[str]]:
+    """Return storage references and selected sections missing NFS names."""
     references: set[str] = set()
+    missing_nfs_sections: list[str] = []
     if not isinstance(omnia_config, dict):
-        return references
-    for section in ("slurm_cluster", "service_k8s_cluster"):
+        return references, sorted(requested_sections)
+    for section in sorted(requested_sections):
         entries = omnia_config.get(section, [])
-        if not isinstance(entries, list):
+        if not isinstance(entries, list) or not entries:
+            missing_nfs_sections.append(section)
             continue
+        section_missing_nfs = False
         for entry in entries:
             if not isinstance(entry, dict):
+                section_missing_nfs = True
                 continue
-            for field in ("nfs_storage_name", "vast_storage_name"):
+            nfs_name = entry.get("nfs_storage_name")
+            if not isinstance(nfs_name, str) or not nfs_name.strip():
+                section_missing_nfs = True
+            fields = ["nfs_storage_name"]
+            if section == "slurm_cluster":
+                fields.append("vast_storage_name")
+            for field in fields:
                 value = entry.get(field)
                 if isinstance(value, str) and value.strip():
                     references.add(value.strip())
-    return references
+        if section_missing_nfs:
+            missing_nfs_sections.append(section)
+    return references, missing_nfs_sections
+
+
+def _load_yaml_mapping(path: str) -> dict[str, Any]:
+    """Load a YAML mapping, returning an empty mapping when unavailable."""
+    real_path = os.path.realpath(path)
+    if not os.path.isfile(real_path):
+        return {}
+    try:
+        with open(real_path, "r", encoding="utf-8") as yaml_file:
+            data = yaml.safe_load(yaml_file)
+    except (OSError, UnicodeError, yaml.YAMLError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def _load_omnia_config(input_project_dir: str) -> Any:
     """Load project-level Omnia configuration for storage references."""
-    omnia_config_path = os.path.realpath(
+    return _load_yaml_mapping(
         os.path.join(input_project_dir, "omnia_config.yml")
     )
-    if not os.path.isfile(omnia_config_path):
-        return None
-    try:
-        with open(omnia_config_path, "r", encoding="utf-8") as omnia_file:
-            return yaml.safe_load(omnia_file)
-    except (OSError, UnicodeError, yaml.YAMLError):
-        return None
 
 
 def validate_storage_references(
@@ -310,7 +358,16 @@ def validate_storage_references(
     storage_path = os.path.realpath(
         os.path.join(input_project_dir, "storage_config.yml")
     )
-    references = _referenced_storage_names(_load_omnia_config(input_project_dir))
+    requested_sections = _requested_storage_sections(input_project_dir)
+    references, missing_nfs_sections = _referenced_storage_names(
+        _load_omnia_config(input_project_dir), requested_sections
+    )
+    for section in missing_nfs_sections:
+        record_error(
+            errors,
+            logger,
+            msg.cluster_storage_name_required_msg(section),
+        )
     if references and storage_data is None and not os.path.isfile(storage_path):
         record_error(errors, logger, msg.storage_required_msg(sorted(references)))
         return errors

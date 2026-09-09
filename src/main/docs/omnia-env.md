@@ -1,6 +1,8 @@
 # omnia.env — Environment Configuration Documentation
 
-The `omnia.env` file is the **single source of configuration** for Omnia deployments. All domains read their configuration from this file.
+`src/main/omnia.env` bootstraps a new deployment. Once installed,
+`/etc/omnia/omnia.env` is the **single source of configuration** and all domains
+read its exported values.
 
 ## Required Variables
 
@@ -115,9 +117,9 @@ CATALOG_FILE_PATH=${OMNIA_DATA_PATH}/catalog/catalog_rhel.json
 
 When you run `omnia.sh --setup-venv`, the script:
 
-1. **Copies** `src/main/omnia.env` → `/etc/omnia/omnia.env`
+1. **Copies** `src/main/omnia.env` → `/etc/omnia/omnia.env` only when the installed file does not exist
 2. **Creates** `/etc/profile.d/omnia-env.sh` — a drop-in that auto-sources the env on every login
-3. **Sources** the file immediately so the current session has the vars
+3. **Sources** the selected file into the setup process immediately
 
 After setup, all new login shells (and Ansible playbooks run from them) automatically
 have the Omnia environment variables available. No manual sourcing needed.
@@ -137,13 +139,18 @@ To override a variable for a single command without editing the file:
 SYSTEM_ADMIN_NIC_IPV4=10.0.0.1 omnia-cli status
 ```
 
-### Re-install After Editing
+### Change an Existing Installation
 
-If you edit `src/main/omnia.env`, re-run setup to install the updated file:
+Edit the authoritative installed file, then re-run setup:
 
 ```bash
+vi /etc/omnia/omnia.env
 ./omnia.sh -s
 ```
+
+Setup preserves this file even when the repository copy differs. To
+intentionally discard the installed values and replace them from
+`src/main/omnia.env`, use `./omnia.sh -s --force-env`.
 
 ## Validation
 

@@ -28,6 +28,7 @@
 # Top-level categories match the run_validation.sh first argument:
 #
 #   fvt_orchestrator  — Functional Verification Tests (playbook tags)
+#   fvt_k8s           — Standalone Kubernetes Verification Tests
 #
 # FVT scenarios (nested under fvt_orchestrator):
 #   Each scenario maps to an Ansible playbook tag.  Fields:
@@ -51,16 +52,19 @@
 #   Standard: "functional"              — tests with @pytest.mark.functional
 #
 # Available markers:
-#   Quality:       sanity, functional, regression
+#   Quality:       sanity, functional
 #   Execution:     deploy
+#   NFT:           nft, performance, idempotency, security
+#   Negative:       negative
 #
 # -----------------------------------------------------------------------------
 # Available FVT Suites (subfolders under fvt/<tag>/)
 # -----------------------------------------------------------------------------
-#   validate:   status
+#   validate:   status, slurm, kubernetes
 #   prepare:    openchami
-#   provision:  (none)
+#   provision:  slurm, kubernetes
 #   cleanup:    status
+#   kubernetes: (comprehensive K8s tests)
 #
 # =============================================================================
 
@@ -94,11 +98,11 @@ fvt_orchestrator:
     sync_input: true
 
   provision:
-    run: false
-    command: "test"
-    suite: ""
+    run: true
+    command: "exec"
+    suite: "kubernetes"
     marker: ""
-    dataset: ""
+    dataset: "k8s_only"
     sync_input: true
 
   cleanup:
@@ -108,3 +112,23 @@ fvt_orchestrator:
     marker: ""
     dataset: ""
     sync_input: false
+
+# =============================================================================
+# NFT — Non-Functional Tests
+# =============================================================================
+nft_orchestrator:
+  run: false
+  command: "test"
+  marker: "nft"
+  dataset: ""
+  sync_input: false
+
+# =============================================================================
+# Negative — Error Scenario Tests
+# =============================================================================
+negative_orchestrator:
+  run: false
+  command: "test"
+  marker: "negative"
+  dataset: ""
+  sync_input: false

@@ -27,13 +27,13 @@ oim_ssh_port: 22
 # --- Project ---
 # Dataset name (directory under datasets/)
 # Leave empty to use src/utils/input/ directly
-dataset: ""
+dataset: "test_data"
 project_name: "project_default"
 clone_path: "/opt/omnia"
 
 # --- Sync ---
 # Sync input files from dataset or src/ to target
-sync_utils_input: false
+sync_utils_input: true
 
 # --- Report ---
 report_path: "reports"
