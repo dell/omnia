@@ -74,6 +74,7 @@ def skip_if_slurm_disabled(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_slurm_enabled(host):
     """TC_SL_001: Verify Slurm is enabled in catalog."""
@@ -98,6 +99,7 @@ def test_slurm_enabled(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_slurmctld_on_control_nodes(host):
     """TC_SL_029: Verify slurmctld active on all control nodes."""
@@ -130,6 +132,7 @@ def test_slurmctld_on_control_nodes(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_slurmd_on_compute_nodes(host):
     """TC_SL_030: Verify slurmd active on all compute nodes."""
@@ -161,6 +164,7 @@ def test_slurmd_on_compute_nodes(host):
 
 @pytest.mark.slurm
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_munge_on_required_nodes(host):
     """TC_SL_031: Verify munge active on all required nodes."""

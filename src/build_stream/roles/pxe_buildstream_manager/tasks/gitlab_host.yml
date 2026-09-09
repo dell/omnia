@@ -15,14 +15,15 @@
 
 - name: Load GitLab configuration inputs
   ansible.builtin.include_vars:
-    file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
+    file: "{{ omnia_data_path }}/build_stream/input/{{ project_name | default('project_default') }}/build_stream_config.yml"
 
 - name: Register GitLab SSH credentials
   ansible.builtin.add_host:
     name: "{{ gitlab_host }}"
     groups: gitlab_server
+    ansible_connection: ssh
     ansible_host: "{{ gitlab_host }}"
     ansible_user: "{{ gitlab_ansible_user | default('root') }}"
-    ansible_password: "{{ hostvars['localhost']['provision_password'] }}"
+    ansible_ssh_private_key_file: "/root/.ssh/omnia_gitlab"
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
   no_log: true
