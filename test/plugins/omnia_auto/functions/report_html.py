@@ -31,14 +31,15 @@ def _strip_ansi(text: str) -> str:
     return _ANSI_RE.sub("", text)
 
 
-def _escape_html(text: str) -> str:
+def _escape_html(text: Any) -> str:
     """Strip ANSI codes then escape HTML special characters."""
-    text = _strip_ansi(text)
+    text = _strip_ansi(str(text))
     return (
         text.replace("&", "&amp;")
         .replace("<", "&lt;")
         .replace(">", "&gt;")
         .replace('"', "&quot;")
+        .replace("'", "&#x27;")
     )
 
 
@@ -127,7 +128,8 @@ def _scenario_bars(modules: list) -> str:
         return ""
     rows = []
     for m in modules:
-        name = m.get("module", "unknown")
+        name = str(m.get("module", "unknown"))
+        escaped_name = _escape_html(name)
         s = m.get("summary") or {}
         p, f, sk = s.get("passed", 0), s.get("failed", 0), s.get("skipped", 0)
         t = p + f + sk
@@ -140,7 +142,7 @@ def _scenario_bars(modules: list) -> str:
         rows.append(
             f'<div class="bar-row">'
             f'<div class="bar-dot {dot_cls}"></div>'
-            f'<div class="bar-label" title="{name}">{name}</div>'
+            f'<div class="bar-label" title="{escaped_name}">{escaped_name}</div>'
             f'<div class="bar-track">'
             f'<div class="bar-seg bar-pass" style="width:{pw}%"></div>'
             f'<div class="bar-seg bar-fail" style="width:{fw}%"></div>'
@@ -152,7 +154,7 @@ def _scenario_bars(modules: list) -> str:
             f'<span class="c-skip">{sk}</span>'
             f"</div>"
             f'<div class="bar-tip">'
-            f'<div class="tip-head">{name}</div>'
+            f'<div class="tip-head">{escaped_name}</div>'
             f'<div class="tip-body">'
             f'<div class="tip-stats">'
             f'<div class="tip-r"><div class="tip-d" style="background:#3fb950"></div>Passed<b>{p}</b></div>'
@@ -219,7 +221,7 @@ def _marker_folder_breakdown(modules: list) -> str:
             row_cls = "bd-pass" if st["failed"] == 0 else "bd-fail"
             html += (
                 f'<tr class="{row_cls}">'
-                f'<td class="bd-name">{mk}</td>'
+                f'<td class="bd-name">{_escape_html(mk)}</td>'
                 f'<td style="color:var(--green)">{st["passed"]}</td>'
                 f'<td style="color:var(--red)">{st["failed"]}</td>'
                 f'<td style="color:var(--yellow)">{st["skipped"]}</td>'
@@ -234,7 +236,7 @@ def _marker_folder_breakdown(modules: list) -> str:
             row_cls = "bd-pass" if st["failed"] == 0 else "bd-fail"
             html += (
                 f'<tr class="{row_cls}">'
-                f'<td class="bd-name">{fld}</td>'
+                f'<td class="bd-name">{_escape_html(fld)}</td>'
                 f'<td style="color:var(--green)">{st["passed"]}</td>'
                 f'<td style="color:var(--red)">{st["failed"]}</td>'
                 f'<td style="color:var(--yellow)">{st["skipped"]}</td>'
@@ -450,8 +452,10 @@ def get_js() -> str:
 function showSrv(ip){
   document.querySelectorAll('.srv').forEach(e=>e.classList.remove('act'));
   document.querySelectorAll('.panel').forEach(e=>e.classList.remove('act'));
-  document.querySelector(`.srv[onclick="showSrv('${ip}')"]`).classList.add('act');
-  document.getElementById('p-'+ip.replace(/\\./g,'-')).classList.add('act');
+  var nav=document.querySelector('.srv[data-target="'+ip+'"]');
+  var panel=document.getElementById(ip);
+  if(nav) nav.classList.add('act');
+  if(panel) panel.classList.add('act');
 }
 function togRun(id){document.getElementById('r-'+id).classList.toggle('shut')}
 function togMod(id){document.getElementById('m-'+id).classList.toggle('shut')}
@@ -464,13 +468,6 @@ function togT(e,id){
     var out=el.querySelector('.ti-out');
     if(out) out.style.display=el.classList.contains('open')?'block':'none';
   }
-}
-function togLogs(id){
-  var b=document.getElementById('lg-'+id);
-  if(!b) return;
-  var c=b.parentElement;
-  c.classList.toggle('shut');
-  b.style.display=c.classList.contains('shut')?'none':'block';
 }
 function toggleTheme(){
   var h=document.documentElement;
@@ -491,6 +488,7 @@ def generate_html(data: Dict[str, Any]) -> str:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">
 <title>Omnia Test Report</title>
 <style>{get_css()}</style>
 </head>
@@ -531,7 +529,8 @@ def _generate_servers_html(servers: Dict[str, Any]) -> str:
     html = '<div class="lay"><div class="side"><div class="srv-list"><h3>Targets</h3>'
 
     first_server = True
-    for sip, sd in servers.items():
+    for server_index, (sip, sd) in enumerate(servers.items()):
+        server_id = f"omnia-server-{server_index}"
         hostname = sd.get("hostname", "")
         runs = sd.get("runs", [])
         tp = tf = ts = 0
@@ -551,9 +550,10 @@ def _generate_servers_html(servers: Dict[str, Any]) -> str:
         act = "act" if first_server else ""
         dip = sip if sip and sip != "localhost" else "localhost"
         html += (
-            f'<div class="srv {act}" onclick="showSrv(\'{sip}\')">'
-            f'<div class="srv-ip">{dip}</div>'
-            f'<div class="srv-host">{hostname}</div>'
+            f'<div class="srv {act}" data-target="{server_id}" '
+            f'onclick="showSrv(\'{server_id}\')">'
+            f'<div class="srv-ip">{_escape_html(dip)}</div>'
+            f'<div class="srv-host">{_escape_html(hostname)}</div>'
             f'<div class="srv-stats">'
             f'<span class="p">{tp} passed</span>'
             f'<span class="f">{tf} failed</span>'
@@ -565,7 +565,8 @@ def _generate_servers_html(servers: Dict[str, Any]) -> str:
 
     first_server = True
     test_id = 0
-    for sip, sd in servers.items():
+    for server_index, (_sip, sd) in enumerate(servers.items()):
+        server_id = f"omnia-server-{server_index}"
         runs = sd.get("runs", [])
         setup_results_all = []
         for r in runs:
@@ -608,7 +609,7 @@ def _generate_servers_html(servers: Dict[str, Any]) -> str:
         )
 
         html += (
-            f'<div class="panel {act}" id="p-{sip.replace(".","-")}">'
+            f'<div class="panel {act}" id="{server_id}">'
             f'<div class="cards">'
             f'<div class="kpi kt"><div class="n">{ttl}</div><div class="l">Total</div></div>'
             f'<div class="kpi kp"><div class="n">{tp}</div><div class="l">Passed</div></div>'
@@ -624,7 +625,9 @@ def _generate_servers_html(servers: Dict[str, Any]) -> str:
             html += _generate_setup_panel(setup_results_all)
 
         for run_idx, run in enumerate(reversed(runs), 1):
-            html += _generate_run_html(run, run_idx, sip, test_id)
+            html += _generate_run_html(
+                run, run_idx, server_id, test_id,
+            )
             test_id += len(run.get("modules", [{}])[0].get("results", []))
 
         html += "</div>"
@@ -662,13 +665,13 @@ def _generate_setup_panel(setup_results: list) -> str:
     for sr in setup_results:
         st = sr.get("status", "FAILED")
         dot = "dp" if st == "PASSED" else ("ds" if st == "SKIPPED" else "df")
-        name = sr.get("test_name", "unknown").split("::")[-1]
+        name = str(sr.get("test_name", "unknown")).split("::")[-1]
         name = name.replace("test_", "").replace("_", " ").title()
         dur = sr.get("duration_seconds", 0)
         html += (
             f'<div class="setup-check">'
             f'<div class="setup-dot {dot}"></div>'
-            f'<span class="setup-cname">{name}</span>'
+            f'<span class="setup-cname">{_escape_html(name)}</span>'
             f'<span class="setup-cdur">{dur:.1f}s</span></div>'
         )
 
@@ -683,7 +686,12 @@ def _generate_setup_panel(setup_results: list) -> str:
     return html
 
 
-def _generate_run_html(run: dict, run_idx: int, sip: str, test_id_start: int) -> str:
+def _generate_run_html(
+    run: dict,
+    run_idx: int,
+    server_id: str,
+    test_id_start: int,
+) -> str:
     """Generate HTML for a single run."""
     rs = run.get("summary") or {}
     rp, rf, rsk = rs.get("passed", 0), rs.get("failed", 0), rs.get("skipped", 0)
@@ -695,7 +703,7 @@ def _generate_run_html(run: dict, run_idx: int, sip: str, test_id_start: int) ->
         pills += f' <span class="pill ps">{rsk} skipped</span>'
 
     shut = "shut" if run_idx > 1 else ""
-    uid = f"{sip.replace('.', '-')}-{run_idx}"
+    uid = f"{server_id}-run-{run_idx}"
 
     modules = run.get("modules", [])
     if not modules and "results" in run:
@@ -709,7 +717,7 @@ def _generate_run_html(run: dict, run_idx: int, sip: str, test_id_start: int) ->
         ]
 
     tdur = sum(m.get("duration_seconds", 0) for m in modules)
-    rid = run.get("report_id", "")
+    rid = str(run.get("report_id", ""))
     disp_rid = _fmt_run_id(rid)
 
     html = (
@@ -717,8 +725,9 @@ def _generate_run_html(run: dict, run_idx: int, sip: str, test_id_start: int) ->
         f'<div class="run-h" onclick="togRun(\'{uid}\')">'
         f'<span class="arr">&#9660;</span>'
         f'<div class="run-title">'
-        f'<span class="rid">{rid}</span>'
-        f'<span style="color:var(--fg-muted);font-size:.82em">{disp_rid}</span>'
+        f'<span class="rid">{_escape_html(rid)}</span>'
+        f'<span style="color:var(--fg-muted);font-size:.82em">'
+        f'{_escape_html(disp_rid)}</span>'
         f"{pills}"
         f'<span style="color:var(--fg-muted);font-size:.8em;margin-left:8px">'
         f"{len(modules)} scenario(s)</span>"
@@ -761,7 +770,8 @@ def _generate_module_html(mod: dict, mi: int, uid: str, test_id_start: int) -> s
         f'<div class="mod-h" onclick="togMod(\'{mid}\')">'
         f'<span class="mod-arr">&#9660;</span>'
         f'<div class="mod-icon">&#9670;</div>'
-        f'<span class="mod-name">{mod["module"]}</span>'
+        f'<span class="mod-name">'
+        f'{_escape_html(mod.get("module", "unknown"))}</span>'
         f'<span style="margin-left:10px">{mpills}</span>'
         f'<span class="mod-dur">{mod.get("duration_seconds", 0):.1f}s</span>'
         f'</div><div class="mod-b">'
@@ -770,11 +780,18 @@ def _generate_module_html(mod: dict, mi: int, uid: str, test_id_start: int) -> s
     m_suite = mod.get("suite", "all")
     m_marker = mod.get("marker", "")
     m_cmd = mod.get("exec_command", "")
-    meta_tags = f'<span class="meta-tag">suite: {m_suite}</span>'
+    meta_tags = (
+        f'<span class="meta-tag">suite: {_escape_html(m_suite)}</span>'
+    )
     if m_marker:
-        meta_tags += f' <span class="meta-tag">marker: {m_marker}</span>'
+        meta_tags += (
+            f' <span class="meta-tag">marker: '
+            f'{_escape_html(m_marker)}</span>'
+        )
     if m_cmd:
-        meta_tags += f' <span class="meta-tag">cmd: {m_cmd}</span>'
+        meta_tags += (
+            f' <span class="meta-tag">cmd: {_escape_html(m_cmd)}</span>'
+        )
     html += f'<div class="mod-meta">{meta_tags}</div>'
 
     all_results = mod.get("results", [])

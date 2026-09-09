@@ -1,13 +1,14 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=77.0.3", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "omnia-auto"
-version = "1.0.0"
+dynamic = ["version"]
 description = "Reusable test automation utilities for Dell Omnia — formatting, host connectivity, playbook execution, file sync, and reporting."
 readme = {file = "README.md", content-type = "text/markdown"}
 license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [
     {name = "Balaji Kumaran", email = "balajikumaran.cs@dell.com"}
 ]
@@ -19,7 +20,7 @@ keywords = [
     "pytest", "testinfra", "ansible", "infrastructure",
 ]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "Operating System :: POSIX :: Linux",
@@ -36,11 +37,14 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
+    "ansible-core>=2.15.0",
     "pytest>=7.0.0",
     "pytest-testinfra>=9.0.0",
     "PyYAML>=6.0",
-    "paramiko>=3.0.0",
 ]
+
+[project.scripts]
+omnia-auto = "omnia_auto.functions.credential_func:main"
 
 [project.optional-dependencies]
 dev = [
@@ -53,14 +57,16 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/balajikumaran-c-s/omnia-auto"
-Repository = "https://github.com/balajikumaran-c-s/omnia-auto.git"
-Documentation = "https://github.com/balajikumaran-c-s/omnia-auto/blob/main/USAGE.md"
-Issues = "https://github.com/balajikumaran-c-s/omnia-auto/issues"
+Homepage = "https://github.com/dell/omnia"
+Repository = "https://github.com/dell/omnia"
+Issues = "https://github.com/dell/omnia/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["omnia_auto*", "docs*"]
+include = ["omnia_auto*"]
 
 [tool.setuptools.package-data]
 omnia_auto = ["py.typed"]
+
+[tool.setuptools.dynamic]
+version = {attr = "omnia_auto.__version__"}

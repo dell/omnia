@@ -80,8 +80,13 @@ test/repo_manager/
 ├── datasets/                   # Test input datasets
 │   ├── data_set_01/
 │   │   ├── input/              # repo_manager_config, endpoint config
-│   │   └── repo_manager_output/ # repo_status.yml
-│   └── generator/               # Dataset generation tools
+│   │   └── README.md
+│   ├── generator/               # Dataset generation tools
+│   │   ├── generate_dataset.py # Generator script
+│   │   ├── profiles/           # Variable profiles (defaults, rhel10, minimal)
+│   │   ├── templates/          # Jinja2 templates
+│   │   └── README.md
+│   └── README.md               # Dataset usage guide
 │
 ├── library/                    # Reusable automation library
 │   ├── functions/              # Test helper functions
