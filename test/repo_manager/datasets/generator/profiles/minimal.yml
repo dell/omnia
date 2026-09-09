@@ -11,8 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+---
+# =============================================================================
+# minimal.yml — Minimal configuration profile for basic testing
+# =============================================================================
+# Profile for minimal testing scenarios with basic configuration
+# =============================================================================
 
-"""Repo Manager — Test Library Package."""
+# Use partial sync for minimal testing
+repo_config: "partial"
 
-from .functions import repo_manager_func
-from .functions import host_func
+# Disable caching for immediate downloads in testing
+caching_policy: false
+
+# Use alternative port for testing
+pulp_server_port: 2226
