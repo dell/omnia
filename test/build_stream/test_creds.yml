@@ -19,7 +19,7 @@
 # Use setup_env.sh to fill in values — never edit the encrypted form directly.
 #
 # MANAGED BY setup_env.sh:
-#   SSH creds:    bash setup_env.sh --set-password       (remote mode only)
+#   SSH creds:    bash setup_env.sh --set-creds          (remote mode only)
 #   Domain creds: bash setup_env.sh --set-domain-creds   (GitLab/BSM/Postgres)
 #
 # FIELDS:

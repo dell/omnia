@@ -79,7 +79,11 @@ def _build_authenticated_remote_command(
 
 def _image_already_synced(repository_name, tag, logger):
     """
-    Check if a specific tag already exists in the Pulp repository.
+    Check if a specific tag already exists in the Pulp repository AND distribution exists.
+
+    An image is only considered "already synced" if BOTH conditions are met:
+    1. The tag exists in the repository
+    2. The distribution exists (so the image can be pulled)
 
     Args:
         repository_name (str): Name of the Pulp repository.
@@ -87,7 +91,7 @@ def _image_already_synced(repository_name, tag, logger):
         logger: Logger instance.
 
     Returns:
-        bool: True if the specific tag exists, False otherwise.
+        bool: True if the specific tag exists AND distribution exists, False otherwise.
     """
     try:
         repository_name = validate_repository_id(repository_name)
@@ -119,9 +123,20 @@ def _image_already_synced(repository_name, tag, logger):
 
                 # Check if SPECIFIC tag exists
                 if len(results) > 0:
+                    # Tag exists, now check if distribution exists
+                    dist_cmd = pulp_container_commands["show_distribution"] % repository_name
+                    dist_result = execute_command(dist_cmd, logger, type_json=True)
+
+                    if not dist_result or "stdout" not in dist_result:
+                        logger.warning(
+                            f"Tag '{tag}' exists in repository {repository_name} but "
+                            f"distribution is missing. Image cannot be pulled - will re-sync."
+                        )
+                        return False
+
                     logger.info(
-                        f"Tag '{tag}' already exists in repository {repository_name}. "
-                        f"Skipping sync."
+                        f"Tag '{tag}' already exists in repository {repository_name} "
+                        f"and distribution exists. Skipping sync."
                     )
                     return True
 
@@ -510,13 +525,20 @@ def process_image(package, status_file_path, version_variables,
     source_registry = package.get("source_registry", "")
     registry_context = (registry_contexts or {}).get(source_registry)
     if registry_context:
+        # Build full package identifier with tag/digest before try block
+        # so it's available for error reporting if exception occurs
+        package_identifier = package_reference
+        if "tag" in package:
+            package_identifier += f":{package['tag']}"
+        elif "digest" in package:
+            package_identifier += f":{package['digest']}"
+
         try:
             status, package_identifier = _process_configured_registry_image(
                 package, version_variables, registry_context, policy_type, logger
             )
         except Exception:  # pylint: disable=broad-exception-caught
             status = "Failed"
-            package_identifier = package_identifier or package_reference
             logger.error(
                 "Failed to process configured registry image %s",
                 package_identifier,

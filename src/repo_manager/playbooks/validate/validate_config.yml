@@ -74,6 +74,23 @@
         msg: "{{ validate_config_fail_if_repo_manager_config_yml_is_missing_msg }}"
       when: not repo_config_file.stat.exists
 
+    - name: Validate repo_manager_config.yml YAML syntax
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - "import yaml; yaml.safe_load(open('{{ repo_manager_config_file }}'))"
+      changed_when: false
+      register: repo_config_syntax_check
+
+    - name: Fail if repo_manager_config.yml has invalid YAML syntax
+      ansible.builtin.fail:
+        msg: >-
+          repo_manager_config.yml contains invalid YAML syntax.
+          File: {{ repo_manager_config_file }}.
+          Error: {{ repo_config_syntax_check.stderr }}
+      when: repo_config_syntax_check.rc != 0
+
     - name: Load repo_manager_config.yml
       ansible.builtin.include_vars:
         file: "{{ repo_manager_config_file }}"

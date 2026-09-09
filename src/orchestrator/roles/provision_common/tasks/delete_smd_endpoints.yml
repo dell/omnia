@@ -138,6 +138,90 @@
     label: "{{ item.metadata.name | default(item.metadata.uid) }}"
   when: existing_boot_configs.json | default([]) | length > 0
 
+# ── Stale boot-service configurations (MAC overlap from other categories) ──
+# When a node moves between categories (e.g. kubernetes → slurm), boot
+# configs from the previous category may still reference its MAC.
+# Boot-service returns whichever config matches first, so the node may
+# boot the wrong image. Delete any non-target boot config that contains
+# a MAC belonging to the current category's nodes.
+
+- name: Find stale boot configs from other categories referencing current MACs
+  ansible.builtin.set_fact:
+    _stale_boot_configs: >-
+      {% set stale = [] -%}
+      {% set target_macs = _target_all_macs -%}
+      {% for cfg in (existing_boot_configs.json | default([])) -%}
+        {% if cfg.metadata.name not in target_fg_names -%}
+          {% set cfg_macs = cfg.spec.macs | default([]) | map('lower') | list -%}
+          {% for mac in target_macs -%}
+            {% if mac in cfg_macs and cfg not in stale -%}
+              {% set _ = stale.append(cfg) -%}
+            {% endif -%}
+          {% endfor -%}
+        {% endif -%}
+      {% endfor -%}
+      {{ stale }}
+  when: existing_boot_configs.json | default([]) | length > 0
+
+- name: Delete stale boot configs from other categories
+  ansible.builtin.uri:
+    url: >-
+      https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+      }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200, 204, 404]
+    validate_certs: false
+  loop: "{{ _stale_boot_configs | default([]) }}"
+  loop_control:
+    label: "{{ item.metadata.name }} (stale — contains MAC from current category)"
+  failed_when: false
+  when: _stale_boot_configs | default([]) | length > 0
+
+# ── Stale SMD group memberships (xname overlap from other categories) ──
+# Same problem as boot configs: when a node moves between categories, its
+# xname remains in SMD groups from the previous category. Metadata-service
+# merges cloud-init data from ALL groups, so the node receives configs
+# intended for the previous category (e.g. "wait for Kubernetes API" on
+# a slurm node). Remove target xnames from non-target, non-common SMD groups.
+# Common groups (ssh, chrony, phone_home) are shared across all categories
+# and must NOT be modified here.
+
+- name: Find stale SMD group memberships to remove
+  ansible.builtin.shell: |
+    set -o pipefail
+    /usr/bin/ochami smd group get 2>/dev/null | python3 -c "
+    import sys, json
+    target_fgs = set({{ target_fg_names | to_json }})
+    target_xnames = set({{ _target_node_xnames | to_json }})
+    common_groups = {'ssh', 'chrony', 'phone_home'}
+    skip = target_fgs | common_groups
+    for grp in json.load(sys.stdin):
+        label = grp['label']
+        if label in skip:
+            continue
+        for xname in grp.get('members', {}).get('ids', []):
+            if xname in target_xnames:
+                print(f'{label} {xname}')
+    "
+  args:
+    executable: /bin/bash
+  changed_when: false
+  failed_when: false
+  register: _stale_smd_pairs
+  when: _target_node_xnames | length > 0
+
+- name: Remove target node xnames from stale SMD groups
+  ansible.builtin.command: >
+    /usr/bin/ochami smd group member delete --no-confirm {{ item.split()[0] }} {{ item.split()[1] }}
+  changed_when: true
+  failed_when: false
+  loop: "{{ _stale_smd_pairs.stdout_lines | default([]) }}"
+  loop_control:
+    label: "{{ item }} (stale membership)"
+  when: _stale_smd_pairs.stdout_lines | default([]) | length > 0
+
 # ── Metadata-service instanceinfos (scoped to target xnames) ──────────
 
 - name: Fetch existing metadata-service instanceinfos
