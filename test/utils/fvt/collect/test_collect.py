@@ -13,38 +13,175 @@
 # limitations under the License.
 
 """
-Collect Scenario — Log Collector Verification Tests.
+Collect Scenario — Test Automation.
 
-Verifies log collector input files, output files, and bundle contents.
+Tests for log collector playbook deployment and verification.
 """
+
+import time
 
 import pytest
 
 from library.functions import (
     TestLogger,
-    check_file_exists,
     check_dir_exists,
-    validate_yaml_file,
-    validate_collect_pxe_file,
-    find_log_bundle,
-    validate_metadata_file,
-    validate_tar_contents,
-    validate_bundle_log_files,
     check_env_var,
+    check_file_exists,
+    find_log_bundle,
     get_utils_input_path,
     get_utils_output_path,
+    load_test_config,
+    run_playbook,
+    validate_bundle_log_files,
+    validate_collect_pxe_file,
+    validate_metadata_file,
+    validate_tar_contents,
+    validate_yaml_file,
 )
 from library.vars import (
     TEST_CASES as TC,
+    PLAYBOOK_COLLECT,
+    PLAYBOOK_WORKDIR,
     COLLECT_PXE_FILE,
-    METADATA_FILE,
     FUNCTIONAL_GROUPS,
 )
 from library.messages import TEST_LOG_MSGS as LOG, TEST_ASSERT_MSGS as ASSERT
 
+# Record test start time to verify bundles are created during this test run
+TEST_START_TIME = time.time()
+
 
 # =============================================================================
-# INPUT FILE VERIFICATION
+# PLAYBOOK DEPLOYMENT TESTS
+# =============================================================================
+
+@pytest.mark.deploy
+@pytest.mark.sanity
+@pytest.mark.collect
+@pytest.mark.order(0)
+def test_deploy_collect_setup(host):
+    """Deploy collect.yml with setup tag."""
+    tc = TC["deploy_collect_setup"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    result = run_playbook(playbook=PLAYBOOK_COLLECT, tag="setup")
+
+    if result["success"]:
+        tl.passed(LOG["playbook_success"].format(duration=result["duration"]))
+    else:
+        tl.failed(
+            LOG["playbook_failed"].format(rc=result["rc"], duration=result["duration"]),
+            result.get("error", "See playbook output above"),
+        )
+
+    config = load_test_config()
+    assert result["success"], ASSERT["playbook_failed"].format(
+        playbook=PLAYBOOK_COLLECT,
+        tag="setup",
+        rc=result["rc"],
+        duration=result["duration"],
+        input_path=get_utils_input_path(host),
+        workdir=config.get("clone_path", "/root/omnia") + "/" +
+        PLAYBOOK_WORKDIR.replace("playbooks/", ""),
+    )
+
+
+@pytest.mark.deploy
+@pytest.mark.sanity
+@pytest.mark.collect
+@pytest.mark.order(1)
+def test_deploy_collect_prepare(host):
+    """Deploy collect.yml with prepare tag."""
+    tc = TC["deploy_collect_prepare"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    result = run_playbook(playbook=PLAYBOOK_COLLECT, tag="prepare")
+
+    if result["success"]:
+        tl.passed(LOG["playbook_success"].format(duration=result["duration"]))
+    else:
+        tl.failed(
+            LOG["playbook_failed"].format(rc=result["rc"], duration=result["duration"]),
+            result.get("error", "See playbook output above"),
+        )
+
+    config = load_test_config()
+    assert result["success"], ASSERT["playbook_failed"].format(
+        playbook=PLAYBOOK_COLLECT,
+        tag="prepare",
+        rc=result["rc"],
+        duration=result["duration"],
+        input_path=get_utils_input_path(host),
+        workdir=config.get("clone_path", "/root/omnia") + "/" +
+        PLAYBOOK_WORKDIR.replace("playbooks/", ""),
+    )
+
+
+@pytest.mark.deploy
+@pytest.mark.sanity
+@pytest.mark.collect
+@pytest.mark.order(2)
+def test_deploy_collect_bundle(host):
+    """Deploy collect.yml with bundle tag."""
+    tc = TC["deploy_collect_bundle"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    result = run_playbook(playbook=PLAYBOOK_COLLECT, tag="bundle")
+
+    if result["success"]:
+        tl.passed(LOG["playbook_success"].format(duration=result["duration"]))
+    else:
+        tl.failed(
+            LOG["playbook_failed"].format(rc=result["rc"], duration=result["duration"]),
+            result.get("error", "See playbook output above"),
+        )
+
+    config = load_test_config()
+    assert result["success"], ASSERT["playbook_failed"].format(
+        playbook=PLAYBOOK_COLLECT,
+        tag="bundle",
+        rc=result["rc"],
+        duration=result["duration"],
+        input_path=get_utils_input_path(host),
+        workdir=config.get("clone_path", "/root/omnia") + "/" +
+        PLAYBOOK_WORKDIR.replace("playbooks/", ""),
+    )
+
+
+@pytest.mark.deploy
+@pytest.mark.functional
+@pytest.mark.collect
+@pytest.mark.order(3)
+def test_deploy_collect_full(host):
+    """Deploy collect.yml with all tags (full execution)."""
+    tc = TC["deploy_collect_full"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    # Run without tag to execute all plays
+    result = run_playbook(playbook=PLAYBOOK_COLLECT, tag=None)
+
+    if result["success"]:
+        tl.passed(LOG["playbook_success"].format(duration=result["duration"]))
+    else:
+        tl.failed(
+            LOG["playbook_failed"].format(rc=result["rc"], duration=result["duration"]),
+            result.get("error", "See playbook output above"),
+        )
+
+    config = load_test_config()
+    assert result["success"], ASSERT["playbook_failed"].format(
+        playbook=PLAYBOOK_COLLECT,
+        tag="(all)",
+        rc=result["rc"],
+        duration=result["duration"],
+        input_path=get_utils_input_path(host),
+        workdir=config.get("clone_path", "/root/omnia") + "/" +
+        PLAYBOOK_WORKDIR.replace("playbooks/", ""),
+    )
+
+
+# =============================================================================
+# LOG COLLECTOR VERIFICATION TESTS
 # =============================================================================
 
 @pytest.mark.sanity
@@ -325,7 +462,8 @@ def test_collect_bundle_log_files_content(host):
     # Test passes if validation succeeded (bundle structure is correct)
     # In test environment, log files may be empty or missing - this is acceptable
     total_found = len(result["collected_files"]) + len(result["empty_files"])
-    tl.passed(f"Log file verification completed: {total_found} files found, {len(result['missing_files'])} missing")
+    tl.passed(
+        f"Log file verification completed: {total_found} files found, {len(result['missing_files'])} missing")
 
 
 # =============================================================================

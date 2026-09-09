@@ -83,3 +83,31 @@ def test_parse_internet_sample_uses_https_default_port():
     assert result["repo_port"] == 443
     assert result["repo_cert_path"] == ""
     assert result["cluster_os_versions"] == ["10.0", "10.2"]
+
+
+def test_parse_consumer_minimum_without_producer_metadata(tmp_path):
+    """Only the Image Build Manager fields are required for parsing."""
+    repo_status = tmp_path / "repo_status.yml"
+    repo_status.write_text(
+        """---
+overall_status: success
+cluster_os_type: rhel
+repositories:
+  "10.2":
+    x86_64:
+      baseos:
+        url: https://repo.example.com/content/baseos/
+execution_contexts:
+  producer_owned: changed-shape
+""",
+        encoding="utf-8",
+    )
+
+    result = PARSE_REPO_STATUS.parse_repo_status(str(repo_status))
+
+    assert result["cluster_os_versions"] == ["10.2"]
+    assert result["repo_port"] == 443
+    assert result["repo_cert_path"] == ""
+    assert result["repo_manager_repos_x86_64"][0]["base_url"] == (
+        "https://repo.example.com/content/baseos/"
+    )

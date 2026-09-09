@@ -27,6 +27,22 @@
 - name: Load configuration from environment (omnia.env)
   ansible.builtin.include_tasks: load_config.yml
 
+- name: Validate system environment
+  validate_system_environment:
+    required_vars:
+      - OMNIA_DATA_PATH
+    validate_hostname: false
+    validate_domain: false
+    validate_ip: false
+    validate_paths: true
+  register: _env_check
+  ignore_errors: true
+
+- name: Warn if environment validation failed
+  ansible.builtin.debug:
+    msg: "WARNING: System environment validation issues — {{ _env_check.msg | default('unknown') }}"
+  when: _env_check is failed
+
 - name: Create runtime directories
   ansible.builtin.include_tasks: create_directories.yml
 

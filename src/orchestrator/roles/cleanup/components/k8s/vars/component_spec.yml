@@ -23,10 +23,26 @@ k8s_config:
   cleanup_nfs_server: true
   cleanup_node_ips: false
 
-  # Default cleanup directories (relative to mount points)
-  cleanup_directories:
-    - "config"
-    - "manifests"
+  # Never allow a configuration error to turn cleanup into a system-root wipe.
+  protected_cleanup_paths:
+    - "/"
+    - "/bin"
+    - "/boot"
+    - "/dev"
+    - "/etc"
+    - "/home"
+    - "/lib"
+    - "/lib64"
+    - "/opt"
+    - "/proc"
+    - "/root"
+    - "/run"
+    - "/sbin"
+    - "/srv"
+    - "/sys"
+    - "/tmp"
+    - "/usr"
+    - "/var"
 
   # Dependencies - components that must run before this
   dependencies:

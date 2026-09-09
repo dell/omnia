@@ -21,6 +21,7 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 |--------|-------------|
 | `--deps-only` | Install deps only, skip input file staging. Use with `-s` or `-i`. |
 | `--force-deps` | Bypass dependency cache and force reinstall. Use with `-s` or `-i`. |
+| `--force-env` | With `-s`, explicitly replace `/etc/omnia/omnia.env` from the repository copy. |
 | `--skip <domain,...>` | Skip domains with `-s`, `-i`, or `--prepare-base`; only the three base domains are valid with `--prepare-base`. |
 | `--dry-run` | Preview domain initialization with `-s`/`-i`, or base-domain phases with `--prepare-base`; no domains are initialized or prepared. Other `-s` setup steps still run. |
 | `--skip-catalog` | With `-s`: skip the automatic catalog copy. |
@@ -28,7 +29,7 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 
 ## What `--setup-venv` Does
 
-1. **Installs env system-wide** — Copies `omnia.env` → `/etc/omnia/omnia.env`, creates `/etc/profile.d/omnia-env.sh` drop-in, sources vars into current session
+1. **Configures env system-wide** — Copies `omnia.env` on the first run; later runs preserve the authoritative `/etc/omnia/omnia.env` unless `--force-env` is supplied
 2. **Validates environment** — Checks required env vars are set (e.g., `SYSTEM_ADMIN_NIC_IPV4`)
 3. **Creates base directories** — Creates `$OMNIA_DATA_PATH` and its `.data` directory
 4. **Finds Python 3.11+** — Searches for python3.12, python3.11, or python3
@@ -57,6 +58,7 @@ generated `${OMNIA_DATA_PATH:-/opt/omnia}/activate-omnia.sh` helper.
 ./omnia.sh -s --skip-catalog       # Setup without catalog copy
 ./omnia.sh -s --skip-omnia-cli     # Setup without omnia-cli install
 ./omnia.sh -s --force-deps         # Force reinstall all deps (bypass cache)
+./omnia.sh -s --force-env          # Explicitly replace the installed env from the repo
 ./omnia.sh --init                  # Install deps and stage inputs for all domains
 ./omnia.sh -i telemetry            # Init single domain
 ./omnia.sh -i repo_manager,telemetry  # Init specific domains
@@ -187,7 +189,7 @@ ERROR: SYSTEM_ADMIN_NIC_IPV4 is not set
 
 **Solution**: Source `omnia.env` or export the variable:
 ```bash
-set -a; source src/main/omnia.env; set +a
+vi /etc/omnia/omnia.env
 # or
 export SYSTEM_ADMIN_NIC_IPV4=172.16.107.254
 ```
