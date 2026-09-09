@@ -20,7 +20,7 @@ report_path: "/opt/omnia/reports"
 # Dataset name selects the local folder under test/repo_manager/datasets/.
 # Empty dataset uses the target's $OMNIA_DATA_PATH/repo_manager/input/<project>/
 # as the input source. No local dataset is synced.
-dataset: "test_run_validation"
+dataset: ""
 
 # Sync repo_manager input files from the local source tree (development convenience).
 sync_repo_manager_input: false

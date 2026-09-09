@@ -141,6 +141,8 @@ def pytest_sessionstart(session):
     # Apply dataset/sync overrides from env vars (set by --config mode)
     config = _apply_dataset_overrides(config)
 
+    host = get_testinfra_host()
+
     if not is_local_execution():
         sync_result = host_func.sync_project_to_remote()
         if sync_result["success"]:
@@ -149,7 +151,7 @@ def pytest_sessionstart(session):
             log(f"Project sync failed: {sync_result['error']}", "WARN")
 
     if config.get("sync_repo_manager_input", False):
-        sync_result = host_func.sync_repo_manager_input(config)
+        sync_result = host_func.sync_repo_manager_input(host, config)
         if sync_result["success"]:
             log(sync_result["details"], "OK")
         else:

@@ -12,6 +12,7 @@ All verification functions return a dict with keys:
 
 from typing import Any, Dict
 import json
+import os
 import yaml
 
 from omnia_auto import load_test_config, run_on_host, run_playbook as _run_playbook
@@ -39,9 +40,47 @@ def run_playbook(tag=None, **kwargs):
 
 
 def _get_input_path() -> str:
-    """Return the repo_manager input path for the configured project."""
+    """Return the repo_manager input path for the configured project.
+    
+    For local execution with dataset configured, returns the local dataset path.
+    For remote execution or no dataset, returns the standard system path.
+    """
+    from omnia_auto import is_local_execution, get_module_root
+    
     config = load_test_config()
     project = config.get("project_name", "project_default")
+    
+    # Apply environment override for dataset
+    dataset = config.get("dataset", "")
+    if not dataset:
+        dataset = os.environ.get("OMNIA_DATASET_OVERRIDE", "")
+    
+    # If local execution and dataset is configured, use local dataset path
+    if is_local_execution() and dataset:
+        try:
+            datasets_root = os.path.join(get_module_root(), "datasets")
+            dataset_path = os.path.join(datasets_root, dataset, "input")
+            if os.path.exists(dataset_path):
+                return dataset_path
+        except (ValueError, OSError):
+            # Fall back to system path if dataset resolution fails
+            pass
+    
+    # Standard system path
+    return f"/opt/omnia/repo_manager/input/{project}"
+
+
+def _get_credentials_path() -> str:
+    """Return the repo_manager credentials path for the configured project.
+    
+    For local execution with dataset configured, credentials are expected to be in the system path
+    (not in datasets for security reasons).
+    For remote execution or no dataset, returns the standard system path.
+    """
+    config = load_test_config()
+    project = config.get("project_name", "project_default")
+    
+    # Credentials should always be in system path (not in datasets for security)
     return f"/opt/omnia/repo_manager/input/{project}"
 
 
@@ -106,9 +145,12 @@ def check_endpoint_config_exists(host) -> Dict[str, Any]:
 
 
 def check_credentials_present(host) -> Dict[str, Any]:
-    """Verify credentials file is present on target."""
-    input_path = _get_input_path()
-    path = f"{input_path}/{INPUT_FILES['repo_manager_credentials']}"
+    """Verify credentials file is present on target.
+    
+    Credentials should always be in the system path (not in datasets) for security reasons.
+    """
+    credentials_path = _get_credentials_path()
+    path = f"{credentials_path}/{INPUT_FILES['repo_manager_credentials']}"
     result = _cmd_file_exists(host, path)
     if result.rc == 0 and "exists" in result.stdout:
         return {

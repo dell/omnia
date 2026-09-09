@@ -62,6 +62,10 @@ from .repo_manager_func import (
     check_catalog_input_file_exists,
     check_catalog_log_file_exists,
     parse_catalog_input_file,
+    # Path resolution functions
+    _get_input_path,
+    _get_output_path,
+    _get_credentials_path,
 )
 # Host sync functions
 from .host_func import (
