@@ -17,7 +17,6 @@ input_project_dir: "{{ hostvars['localhost']['omnia_project_input_dir'] }}"
 # Versioned JSON file: service_k8s_v<version>.json (e.g., service_k8s_v1.35.1.json)
 k8s_packages_file: "{{ input_project_dir }}/config/x86_64/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/service_k8s_v{{ hostvars['localhost']['service_k8s_version'] }}.json" # noqa: yaml[line-length]
 calico_manifest_yaml_url: "{{ offline_manifest_path | regex_replace('/$', '') }}/{{ calico_package }}/{{ calico_package }}.yml"
-csi_powerscale_packages_file: "{{ input_project_dir }}/config/x86_64/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/csi_driver_powerscale.json" # noqa: yaml[line-length]
 metallb_manifest_yaml_url: "{{ offline_manifest_path | regex_replace('/$', '') }}/{{ metallb_package }}/{{ metallb_package }}.yml"
 multus_manifest_yaml_url: "{{ offline_manifest_path | regex_replace('/$', '') }}/{{ multus_package }}/{{ multus_package }}.yml"
 helm_tarball_url: "{{ offline_tarball_path | regex_replace('/$', '') }}/{{ helm_package }}/{{ helm_package }}.tar.gz"
@@ -49,8 +48,15 @@ k8s_pip_packages: []
 cp_ips: "{{ (cp_first_ip_list + cp_ip_list) | unique }}"
 folder_mode: "0755"
 
-# csi variables
-fail_msg_download: "Failed to get required dependencies. Make sure to verify entries in csi_driver_powerscale.json and run local_repo.yml first."
+# CSI variables
+powerscale_catalog_fail_msg: >-
+  PowerScale CSI dependencies could not be resolved. Ensure the active catalog
+  defines powerscale_csi_group with exactly one csi-powerscale, helm-charts,
+  and external-snapshotter Git package, and that Repo Manager has generated
+  offline_git_path in repo_status.yml.
+fail_msg_download: >-
+  Failed to stage the PowerScale CSI dependencies from Repo Manager. Verify
+  the powerscale_csi_group catalog packages and Repo Manager Git artifacts.
 helm_charts_git: "helm-charts.tar.gz"
 external_snapshotter_git: "external-snapshotter.tar.gz"
 empty_certificate_template_path: "{{ role_path }}/files/empty_certificate_template.yml"
