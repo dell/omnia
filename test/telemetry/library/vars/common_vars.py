@@ -222,24 +222,71 @@ VAST_SVC_NAME = "vast-external"
 VAST_VMSCRAPE_NAME = "vast-storage-metrics"
 # K8s Secret object name, not a credential value
 VAST_SECRET_NAME = "vast-telemetry-credentials"  # noqa: S105
-# Expected VAST metrics based on documentation and screenshot
-# The screenshot shows: vast_cluster_metrics_EStoreMigrateMetrics_physical_size_count
-VAST_EXPECTED_METRICS = [
-    "vast_read_throughput",
-    "vast_write_throughput",
-    "vast_read_iops",
-    "vast_write_iops",
-    "vast_capacity_total_bytes",
-    "vast_capacity_used_bytes",
-    "vast_capacity_avail_bytes",
-    "vast_cluster_metrics_EStoreMigrateMetrics_physical_size_count",
-]
+VAST_METRIC_SELECTOR = (
+    '{source_subsystem="vast",job="vast-storage-metrics",'
+    '__name__=~"vast_.+"}'
+)
+VAST_SCRAPE_HEALTH_QUERY = 'up{job="vast-storage-metrics"}'
+VAST_SCRAPE_SAMPLES_QUERY = (
+    'scrape_samples_scraped{job="vast-storage-metrics"}'
+)
+VAST_METRIC_FRESHNESS_SECONDS = 300
+VAST_MAX_METRICS_SHOWN = 5
+VAST_SYSLOG_PORT_NAME = "syslog"
+VAST_SYSLOG_PROTOCOL = "tcp"
+VAST_SYSLOG_REQUIRED_SETTINGS = {
+    "disable_actions": False,
+    "syslog_vms_audit": True,
+}
+VAST_CREDENTIALS_FILE = "telemetry_credentials.yml"
+VAST_CREDENTIALS_KEY_FILE = ".telemetry_credentials_key"
+VAST_CREDENTIAL_FIELDS = {
+    "username": "vast_username",
+    "password": "vast_password",
+}
+VAST_API_SCHEME = "https"
+VAST_API_PATHS = {
+    "token": "/api/token/",
+    "config_list": "/api/eventdefinitionconfigs/",
+    "config_detail": "/api/eventdefinitionconfigs/{config_id}/",
+    "config_test": "/api/eventdefinitionconfigs/{config_id}/test/",
+}
+VAST_API_TIMEOUT_SECONDS = 30
+VAST_API_LOGIN_STATUS = (200,)
+VAST_API_READ_STATUS = (200,)
+VAST_API_UPDATE_STATUS = (200,)
+VAST_API_TRIGGER_STATUS = (200,)
+VAST_AUTH_MODES = ("basic", "none")
+VAST_TLS_MODES = ("self_signed", "ca_signed")
+VAST_MAX_CREDENTIAL_FILE_BYTES = 64 * 1024
+VAST_MAX_KEY_FILE_BYTES = 4 * 1024
+VAST_MAX_CA_FILE_BYTES = 1024 * 1024
+VAST_MAX_STATE_FILE_BYTES = 4 * 1024
+VAST_LOG_APP_NAME = "vast_event"
+VAST_LOG_QUERY = f'app_name:="{VAST_LOG_APP_NAME}"'
+VAST_LOG_QUERY_LIMIT = 100
+VAST_MAX_LOG_EVENTS_SHOWN = 5
+VAST_LOG_FIELD_PREVIEW_LENGTH = 120
+VAST_LOG_POLL_ATTEMPTS = 18
+VAST_LOG_POLL_INTERVAL_SECONDS = 5
+VAST_LOG_CLOCK_SKEW_SECONDS = 15
+VAST_LOG_MAX_FUTURE_SKEW_SECONDS = 30
+VAST_TRIGGER_STATE_SCHEMA_VERSION = 1
+VAST_TRIGGER_STATE_SUBDIR = os.path.join("reports", "state")
+VAST_TRIGGER_STATE_FILE = "vast_syslog_{report_id}.json"
+VAST_TRIGGER_MAX_AGE_SECONDS = 3600
+VAST_REPORT_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$"
+VAST_QUERY_TIMEOUT_SECONDS = 30
 
 # Telemetry config key paths for VAST
 CFG_KEY_VAST_METRICS_ENABLED = "telemetry_sources.vast.metrics_enabled"
 CFG_KEY_VAST_LOGS_ENABLED = "telemetry_sources.vast.logs_enabled"
+CFG_KEY_VAST_COLLECTION_TARGETS = "telemetry_sources.vast.collection_targets"
 CFG_KEY_VAST_ENDPOINT = "vast_configuration.vast_endpoint"
 CFG_KEY_VAST_PORT = "vast_configuration.vast_metrics_port"
+CFG_KEY_VAST_AUTH_MODE = "vast_configuration.auth_mode"
+CFG_KEY_VAST_TLS_MODE = "vast_configuration.tls_mode"
+CFG_KEY_VAST_CA_CERT_PATH = "vast_configuration.vast_ca_cert_path"
 
 # Telemetry sources list
 TELEMETRY_SOURCES = [
@@ -443,6 +490,10 @@ CMDS = {
         "curl -sk 'https://{vmselect_ip}:{vmselect_port}"
         "/select/0/prometheus/api/v1/query?query={query}'"
     ),
+    "vast_vm_query_instant": (
+        "curl -skf --max-time {timeout} 'https://{vmselect_ip}:{vmselect_port}"
+        "/select/0/prometheus/api/v1/query?query={query}'"
+    ),
     # --- iDRAC VictoriaMetrics data ---
     "vm_query_idrac_service_tag": (
         "curl -s --max-time 15"
@@ -454,6 +505,10 @@ CMDS = {
     "vl_query_logs": (
         "curl -sk 'https://{vlselect_ip}:{vlselect_port}"
         "/select/logsql/query?query={query}&limit={limit}&start=-{range}'"
+    ),
+    "vast_vl_query_logs": (
+        "curl -skf --max-time {timeout} 'https://{vlselect_ip}:{vlselect_port}"
+        "/select/logsql/query?query={query}&limit={limit}&start={start}'"
     ),
 
     # --- Service external IP ---
