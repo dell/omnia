@@ -37,9 +37,9 @@ def collect_build_logs(host, max_lines: int = 100) -> Dict[str, Any]:
     Returns:
         Dict with 'success', 'log_output', 'log_path'.
     """
-    project = _get_project_name()
+    project = _get_project_name(host)
     log_dir = BUILD_LOG_PATH.format(
-        shared_path=_get_shared_path(), project=project,
+        shared_path=_get_shared_path(host), project=project,
     )
 
     # Try to get the latest .log file via ls -t

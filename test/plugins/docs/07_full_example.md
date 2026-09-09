@@ -10,8 +10,8 @@ your-module/
 ├── test/
 │   ├── conftest.py               # <-- this file
 │   ├── test_config.yml           # your config
-│   ├── test_creds.yml            # your credentials (auto-encrypted)
-│   ├── .test_creds.key           # vault key (auto-generated)
+│   ├── test_creds.yml            # encrypted during explicit session setup
+│   ├── .test_creds.key           # vault key created during encryption
 │   ├── datasets/
 │   │   └── data_set_01/
 │   │       └── input/            # input files synced to target
@@ -47,8 +47,11 @@ report_name: "my_test_report"
 ## `test_creds.yml`
 
 ```yaml
-oim_password: "my_ssh_password"
+oim_password: ""
 ```
+
+Populate and encrypt this field through the credential CLI described in
+`08_credentials.md`; do not store a plaintext secret in source control.
 
 ## `library/vars/common_vars.py`
 
@@ -58,6 +61,7 @@ PLAYBOOK_ENTRY_POINT = "image_build_manager.yml"
 PLAYBOOK_WORKDIR = "src/image_build_manager/playbooks"
 DOMAIN_NAME = "image_build_manager"
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
+ENV_IMAGE_BUILD_MANAGER_DATA_PATH = "IMAGE_BUILD_MANAGER_DATA_PATH"
 ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
 ```
 
@@ -83,6 +87,7 @@ TEST_CASES = {
 from omnia_auto import (
     TestLogger,
     log,
+    set_verbose_mode,
     get_testinfra_host,
     load_test_config,
     run_on_host,
@@ -129,6 +134,7 @@ omnia_auto.configure(
     env_file="/etc/omnia/omnia.env",
     default_timeout=3600,
 )
+omnia_auto.set_verbose_mode(True)
 
 # ── 2. Import what you need ─────────────────────────────────────────
 from omnia_auto import (
@@ -153,6 +159,7 @@ from omnia_auto import (
 # ── 3. Your module's constants ──────────────────────────────────────
 from library.vars.common_vars import (
     DOMAIN_NAME,
+    ENV_IMAGE_BUILD_MANAGER_DATA_PATH,
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
 )
@@ -160,7 +167,7 @@ from library.vars.common_vars import (
 
 # ── 4. Session setup ────────────────────────────────────────────────
 def pytest_sessionstart(session):
-    # Encrypt credentials
+    # Ensure plaintext credentials are encrypted before test execution
     encrypt_test_credentials()
 
     config = load_test_config()
@@ -174,7 +181,8 @@ def pytest_sessionstart(session):
         dest=config.get("clone_path", "/root/omnia"),
         ip=conn["ip"],
         user=conn["user"],
-        password=conn["password"],
+        port=conn["port"],
+        auth_secret=conn["auth_secret"],
         ssh_opts=conn["ssh_opts"],
     )
     assert result["success"], result["error"]
@@ -182,7 +190,11 @@ def pytest_sessionstart(session):
 
     # Resolve remote input path from env vars on target
     remote_input = resolve_domain_input_path(
-        host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
+        host,
+        DOMAIN_NAME,
+        ENV_OMNIA_DATA_PATH,
+        ENV_OMNIA_PROJECT_NAME,
+        domain_data_path_var=ENV_IMAGE_BUILD_MANAGER_DATA_PATH,
     )
     ensure_remote_dir(host, remote_input)
 
@@ -196,7 +208,8 @@ def pytest_sessionstart(session):
         dest=remote_input,
         ip=conn["ip"],
         user=conn["user"],
-        password=conn["password"],
+        port=conn["port"],
+        auth_secret=conn["auth_secret"],
         ssh_opts=conn["ssh_opts"],
     )
     assert result["success"], result["error"]

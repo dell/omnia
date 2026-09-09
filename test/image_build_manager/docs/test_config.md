@@ -56,10 +56,11 @@ clone_path: "/omnia"            # MANDATORY — absolute path on target
 | `dataset` | No | Empty selects canonical `src/` files as optional sync sources. A name selects only that generated dataset's `input/` and `repo_manager_output/`. | `""` |
 
 **Empty dataset (`dataset: ""`)**: With sync disabled, the playbook reads the
-files already present under the target's
-`$OMNIA_DATA_PATH/image_build_manager/input/<project>/`. With a sync option
-enabled, the corresponding canonical `src/image_build_manager` example is the
-local source.
+files already present under the target's effective Image Build Manager root at
+`input/<project>/`. The root is a non-empty `IMAGE_BUILD_MANAGER_DATA_PATH`,
+or `$OMNIA_DATA_PATH/image_build_manager` otherwise. With a sync option enabled,
+the corresponding canonical `src/image_build_manager` example is the local
+source.
 
 **Generated dataset (`dataset: "<name>"`)**: Create using the
 [dataset generator](../datasets/generator/README.md), then set the name here:
@@ -87,7 +88,7 @@ sync option below for the scenario being executed.
 When `sync_image_build_input: true`, a non-empty dataset name syncs only
 `datasets/<name>/input/`; an empty name syncs canonical
 `src/image_build_manager/input/`. The destination is
-`<OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/` on the execution
+`<effective Image Build Manager root>/input/<project_name>/` on the execution
 OIM. Credential files, keys, and backups are excluded.
 
 When `sync_output: true`, a non-empty dataset name syncs only
@@ -105,8 +106,10 @@ credential store:
 ./setup_env.sh --set-domain-creds
 ```
 
-Run that command from `test/image_build_manager` directly on the execution OIM
-with its `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` set for the runtime project.
+Run that command from `test/image_build_manager` directly on the execution OIM.
+When non-empty, `IMAGE_BUILD_MANAGER_DATA_PATH` is the domain root; otherwise
+the root is `$OMNIA_DATA_PATH/image_build_manager`. `OMNIA_PROJECT_NAME` is
+required in both cases.
 For remote execution, SSH to the target OIM and run it there. The framework
 never syncs the encrypted credential file, vault key, or backups. Domain values
 are never read from `test_creds.yml` or copied from a dataset. Full cleanup

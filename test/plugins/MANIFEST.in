@@ -1,3 +1,4 @@
+include LICENSE
 include README.md
 include USAGE.md
 recursive-include docs *.md

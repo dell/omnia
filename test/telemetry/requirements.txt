@@ -6,6 +6,7 @@
 #
 # Core test framework
 pytest>=9.0
+pytest-order>=1.1.0
 pytest-testinfra>=10.0
 pytest-html>=4.0
 

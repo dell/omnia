@@ -39,15 +39,16 @@ on every login shell (via `/etc/profile.d/omnia-env.sh`):
 | `SYSTEM_HOSTNAME` | **Yes** | `oim` | Short hostname — must match `hostname -s` output |
 | `SYSTEM_DOMAIN_NAME` | **Yes** | `omnia.cluster` | Domain name — validated against `hostname -d` |
 | `OMNIA_DATA_PATH` | **Yes** | `/opt/omnia` | Root data directory for all Omnia data |
+| `IMAGE_BUILD_MANAGER_DATA_PATH` | No | `$OMNIA_DATA_PATH/image_build_manager` | Optional Image Build Manager data-root override |
 | `OMNIA_PROJECT_NAME` | **Yes** | `project_default` | Project name for input/output paths |
 | `OMNIA_VERSION` | **Yes** | — | Omnia release version |
 
 The test framework reads these from the target at runtime (sourcing
 `/etc/omnia/omnia.env`) to resolve OIM-side input paths and playbook parameters.
-The remote aarch64 builder uses
-`$OMNIA_DATA_PATH/image_build_manager`, where `OMNIA_DATA_PATH` is read from
-the execution OIM. The aarch64 node does not need to run `omnia.sh` or define
-the variable locally.
+The effective Image Build Manager root is `IMAGE_BUILD_MANAGER_DATA_PATH` when
+that variable is non-empty; otherwise it is
+`$OMNIA_DATA_PATH/image_build_manager`. The aarch64 node does not need to run
+`omnia.sh` or define either variable locally.
 
 ---
 
@@ -68,7 +69,7 @@ vi test_config.yml       # See "Execution Modes" below
 
 # Step 4 — Set SSH credentials (optional; for remote mode)
 ./setup_env.sh --set-creds        # Interactive prompt (2x confirmation)
-./setup_env.sh --creds '<password>'  # Non-interactive
+approved-secret-provider | ./setup_env.sh --creds-stdin  # Non-interactive
 
 # Step 4b — On the execution OIM, set domain credentials (S3 + aarch64)
 # For remote mode, run this from test/image_build_manager on the target OIM.
@@ -110,17 +111,19 @@ Two separate credential stores are managed by `setup_env.sh`:
 |------|----------|---------|
 | `test_creds.yml` | Local (this directory) | SSH credentials for remote test execution |
 | `.test_creds.key` | Local (this directory) | Vault key for `test_creds.yml` (auto-created) |
-| `image_build_credentials.yml` | `$OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME/` on the execution OIM | S3 + aarch64 domain credentials |
+| `image_build_credentials.yml` | Effective Image Build Manager root `/input/$OMNIA_PROJECT_NAME/` on the execution OIM | S3 + aarch64 domain credentials |
 | `.image_build_credentials_key` | Same execution-OIM directory as above | Vault key for domain credentials |
 
 The two YAML credential files are encrypted with Ansible Vault. Their private
 vault-key files remain mode `0600`. SSH artifacts stay in this gitignored test
-directory. Domain artifacts stay under `$OMNIA_DATA_PATH` on the execution OIM.
+directory. Domain artifacts stay under the effective Image Build Manager root
+on the execution OIM.
 The framework never copies or syncs the domain credential YAML, its vault key,
 or backups.
 
 From `test/image_build_manager` on the execution OIM, run
-`./setup_env.sh --set-domain-creds` with that OIM's `OMNIA_DATA_PATH` and
+`./setup_env.sh --set-domain-creds` with that OIM's
+`IMAGE_BUILD_MANAGER_DATA_PATH` override or `OMNIA_DATA_PATH` fallback, plus
 `OMNIA_PROJECT_NAME`. In local mode, the execution OIM is the current machine.
 In remote mode, SSH to the target OIM and run the command there.
 
@@ -130,7 +133,7 @@ In remote mode, SSH to the target OIM and run the command there.
 |------|-------------|
 | `--set-creds` | Create SSH password credentials interactively (two entries). If the file exists, asks whether to update it. |
 | `--update-creds` | Update an existing SSH password. Skips the overwrite question but still prompts twice; fails if the file does not exist. |
-| `--creds PWD` | Non-interactively set `oim_password`; other fields are preserved. Prefer `--set-creds` because command-line secrets may be exposed. |
+| `--creds-stdin` | Read `oim_password` from standard input; other fields are preserved. |
 
 SSH password credentials are optional when key-based SSH already works. Set
 `oim_ssh_user` in `test_config.yml`; `setup_env.sh` does not create or configure
@@ -141,6 +144,8 @@ SSH private keys.
 The image build playbook (`image_build_manager.yml`) requires access to S3/MinIO
 for image storage and optionally to a remote aarch64 host. These credentials are
 stored in a separate file (`image_build_credentials.yml`) at
+`$IMAGE_BUILD_MANAGER_DATA_PATH/input/$OMNIA_PROJECT_NAME/` when the override
+is non-empty, otherwise at
 `$OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME/`.
 
 | Field | Required | Description |
@@ -152,13 +157,13 @@ stored in a separate file (`image_build_credentials.yml`) at
 | Flag | Description |
 |------|-------------|
 | `--set-domain-creds` | Interactive prompt for S3 access ID, secret, and aarch64. |
-| `--update-domain-creds` | Force-update domain credentials (no "exists" check). |
-| `--domain-creds JSON` | Non-interactive. Pass a JSON string with `s3_access_id`, `s3_secret_key`, `aarch64_ssh_password`. |
+| `--update-domain-creds` | Update an existing valid domain credential store. |
+| `--domain-creds-stdin` | Read a JSON object with `s3_access_id`, `s3_secret_key`, and `aarch64_ssh_password` from standard input. |
 
 > **Note**: `--set-creds` and `--set-domain-creds` are independent — run each separately:
 > ```bash
 > ./setup_env.sh --set-creds          # SSH creds (saved locally)
-> ./setup_env.sh --set-domain-creds   # Run on execution OIM; saved to $OMNIA_DATA_PATH
+> ./setup_env.sh --set-domain-creds   # Run on execution OIM; saved under its effective domain root
 > ```
 > Existing fields not updated by a given flag are **preserved**.
 
@@ -539,8 +544,10 @@ In remote mode, session startup performs:
    target's absolute `clone_path`; local credentials, vault keys, VCS metadata,
    virtual environments, and caches are excluded
 2. **Input sync** (only when `sync_image_build_input: true`) — reads
-   `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the target's
-   `/etc/omnia/omnia.env` and creates the target directory if needed. A
+   `IMAGE_BUILD_MANAGER_DATA_PATH`, `OMNIA_DATA_PATH`, and
+   `OMNIA_PROJECT_NAME` from the target's `/etc/omnia/omnia.env` and creates
+   the target directory if needed. The component path wins when non-empty;
+   otherwise the root is `$OMNIA_DATA_PATH/image_build_manager`. A
    non-empty `dataset` syncs only `datasets/<name>/input/`; an empty name syncs
    canonical `src/image_build_manager/input/`. Credential files, keys, and
    backups are excluded.
@@ -559,7 +566,7 @@ the execution OIM with `./setup_env.sh --set-domain-creds`.
 When `dataset` is empty, the playbook reads input files from the **target server** at:
 
 ```
-$OMNIA_DATA_PATH/image_build_manager/input/<project_name>/
+${IMAGE_BUILD_MANAGER_DATA_PATH:-$OMNIA_DATA_PATH/image_build_manager}/input/<project_name>/
 ```
 
 With `sync_image_build_input: false`, no input files are synced from the local
@@ -805,7 +812,7 @@ For the full `omnia-auto` API reference, see the package's
 | **Code delivery** | `git clone` on target | Current checkout locally; `rsync` to `clone_path` remotely |
 | **Config source** | `config.yml` in dataset | Environment variables on target (`omnia.env`) |
 | **Env var setup** | N/A | `omnia.sh -s` installs to `/etc/omnia/omnia.env` |
-| **Input sync dest** | `<clone_path>/src/input/<project>/` | `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/` |
+| **Input sync dest** | `<clone_path>/src/input/<project>/` | `<effective Image Build Manager root>/input/<project>/` |
 | **Playbook workdir** | `src/` | `src/image_build_manager/playbooks/` |
 | **Common utilities** | Inline library | `omnia-auto` pip package |
 | **Dir creation** | Manual | Auto-created by framework before sync |

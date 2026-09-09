@@ -21,7 +21,7 @@ from typing import Dict, Any, List
 
 import yaml
 
-from omnia_auto import read_remote_env
+from omnia_auto import read_remote_env, resolve_domain_input_path
 
 from ._config_helpers import (
     _configured_functional_groups_result,
@@ -35,6 +35,7 @@ from .s3_func import (
     check_s3_buckets,
 )
 from ..vars.common_vars import (
+    ENV_IMAGE_BUILD_MANAGER_DATA_PATH,
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
     ENV_CATALOG_FILE_PATH,
@@ -189,12 +190,14 @@ def _get_packages_from_package_groups(
     ``{role}_{os}_{ver}_{arch}`` while config mode uses
     ``{role}_{arch}``).
     """
-    data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH)
-    project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
-    pkg_path = (
-        f"{data_path}/{DOMAIN_NAME}/input/{project}/"
-        f"{PACKAGE_GROUPS_FILENAME}"
+    input_path = resolve_domain_input_path(
+        host,
+        DOMAIN_NAME,
+        ENV_OMNIA_DATA_PATH,
+        ENV_OMNIA_PROJECT_NAME,
+        domain_data_path_var=ENV_IMAGE_BUILD_MANAGER_DATA_PATH,
     )
+    pkg_path = f"{input_path}/{PACKAGE_GROUPS_FILENAME}"
 
     cmd = host.run(CMDS["cat_file"].format(path=pkg_path))
     if cmd.rc != 0 or not cmd.stdout.strip():

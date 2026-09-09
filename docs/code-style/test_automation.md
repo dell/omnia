@@ -1,1100 +1,942 @@
-# Test Automation — Coding Rules
+# Test Automation Standard
 
-> All test automation code under `test/` MUST follow these rules.
-> These rules apply to every domain test module.
+> This is the normative coding and operating standard for every test domain
+> under `test/`.
 
-**Cross-references:**
-- **Co-change rule** (code changes require test updates): see `general.md` §6
-- **AI agent policy** (no AI sign-off): see `general.md` §7
-- **Architecture and patterns**: see `docs/design/test-automation-design.md`
+The architecture in `test/image_build_manager/` is the reference pattern.
+Copy its separation of responsibilities, not defects or legacy exceptions
+found in that implementation. Existing code that conflicts with this standard
+is technical debt, not precedent.
 
----
+The canonical copy is `docs/code-style/test_automation.md`. The Omnia_Spec
+repository mirrors it as `specs/code-styleguides/test_automation.md`.
 
-## 1. Pre-Development Analysis (MANDATORY)
+Change the canonical file first. Update the mirror in the same change set and
+verify the two files are byte-for-byte identical. Do not maintain independent
+versions.
 
-### 1.1 Analyze the Source Code First
+Related references:
 
-Before writing **any** automation code:
-
-1. **Read the playbook source** under `src/<domain_name>/playbooks/` and `src/<domain_name>/roles/`.
-2. **Identify all roles** the playbook calls, what hosts it targets, and what resources it creates (containers, services, files, pods, configs).
-3. **Map each resource to a verification test** — every container the playbook creates should have a test that checks it is running, every service should be checked as active, etc.
-
-```bash
-# Example: analyze a domain
-ls src/<domain_name>/playbooks/       # Main playbook entry points
-ls src/<domain_name>/roles/           # All roles
-cat src/<domain_name>/playbooks/<tag>/<tag>_<domain_name>.yml
-```
-
-### 1.2 Manually Verify on a Working Cluster
-
-If a working cluster is available:
-
-1. **Log into the target server** and manually verify the feature works.
-2. **Check containers, services, ports, files** that the playbook creates.
-3. **Document what you verified manually** — these become your test cases.
-4. **Never automate blind** — if you have not verified it manually at least once, do not write automation for it.
-
-### 1.3 Check `omnia-auto` Core Functions FIRST
-
-Before writing ANY new function:
-
-1. **Install `omnia-auto` from the local wheel**:
-   ```bash
-   pip install ../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl
-   python -c "import omnia_auto; print(omnia_auto.__all__)"
-   ```
-2. **Read the API reference**: `test/plugins/USAGE.md` and `test/plugins/docs/`
-3. **Search for existing functions** — SSH connection, file sync, config loading, host connection, playbook execution, formatting, reporting are all provided by `omnia_auto`.
-4. **Only write a new function if no existing `omnia_auto` function covers it.**
-5. If your new function is generic enough to be reused across domains, propose adding it to `test/plugins/omnia_auto/` and rebuild the wheel.
-
-**Core functions already provided by `omnia_auto`:**
-
-| Instead of | Use |
-|------------|-----|
-| `host.run("ssh ...")` | `run_on_host(host, cmd)` |
-| `host.run("rsync ...")` | `sync_files(mode="ssh", ...)` |
-| `host.run("git clone ...")` | `clone_repo(mode="ssh", ...)` |
-| `subprocess.run(["ansible-playbook", ...])` | `run_playbook(tag=..., timeout=...)` |
-| `open("test_config.yml")` | `load_test_config()` |
-| `open("test_creds.yml")` | `load_test_credentials()` |
-| Inline color codes | `Colors.GREEN`, `Symbols.CHECK` |
-| `print(...)` for test output | `log(msg, level)` or `TestLogger` |
+- `docs/design/test-automation-design.md`
+- `docs/code-style/general.md`
+- `test/plugins/USAGE.md`
+- `test/plugins/docs/`
 
 ---
 
-## 2. Module Structure Rules
+## 1. Core Rules
 
-### 2.1 Directory Structure (MANDATORY)
+1. Tests describe user-visible behavior, not implementation trivia.
+2. Test files orchestrate; reusable functions perform operations.
+3. Variable modules hold data; message modules hold operator-facing text.
+4. Secrets never enter source control, process arguments, environment
+   variables, logs, reports, datasets, or generated templates.
+5. Domain code reuses `omnia_auto` before duplicating infrastructure.
+6. Configuration, tags, suites, markers, and physical directories agree.
+7. Missing or invalid configuration fails closed with an actionable message.
+8. Destructive execution is explicit and excluded from implicit `all` runs.
+9. Static checks run locally in the same scope as affected files.
+10. Runtime checks are proportional to the available environment. A missing
+    lab is reported; it is never replaced with a false success claim.
 
-Every domain test module must follow this structure:
+Terms:
 
+- **development host**: the host where the repository is edited;
+- **execution OIM**: the Omnia Infrastructure Manager running the playbook;
+- **target host**: a node, appliance, cluster, or service under validation;
+- **transport credential**: the credential used to reach the execution OIM;
+- **domain credential**: a credential used by the product domain or target;
+- **FVT**, **NFT**, **UT**: functional, non-functional, and unit tests.
+
+---
+
+## 2. Mandatory Development Sequence
+
+Follow this order for every new domain, feature, or test case.
+
+### 2.1 Establish scope
+
+1. Read the user story, acceptance criteria, and relevant design documents.
+2. Read the product playbook entry points and roles.
+3. Record each supported playbook tag, host group, created resource, input,
+   output, skip path, failure mode, and cleanup effect.
+4. Identify which checks require a live environment and which can run locally.
+5. Identify destructive flows before defining runner defaults.
+
+Source inspection establishes the contract. Tests MUST NOT import product
+internals or duplicate source algorithms merely because source was inspected.
+This is a developer analysis step only: the `test-domain-compliance` skill
+inspects and scores `test/<domain>` and MUST NOT inspect or score `src/`.
+
+### 2.2 Build a capability map
+
+Map each capability end to end:
+
+```text
+source behavior
+  -> FVT tag
+  -> physical tag directory
+  -> suite
+  -> marker
+  -> test case ID
+  -> verification function
+  -> expected report output
 ```
-test/<domain_name>/
-├── conftest.py                    # Session setup, omnia_auto.configure()
-├── test_config.yml                # Non-sensitive settings (IP, paths)
-├── test_creds.yml                 # SSH + domain credentials (auto-encrypted)
-├── requirements.txt               # Dependencies including omnia-auto wheel
-├── run_validation.sh              # CLI runner
-├── setup_env.sh                   # One-time venv + tab-completion setup
-├── datasets/
-│   ├── data_set_01/               # Generated via generator tool
-│   │   └── input/                 # Synced to target
-│   └── generator/                 # Dataset generator (MANDATORY)
-│       ├── generate_dataset.py
-│       ├── profiles/              # Variable profiles (YAML)
-│       └── templates/             # Jinja2 templates
+
+Include success, skipped, disabled, partial-failure, unreachable, idempotency,
+and cleanup behavior where supported.
+
+### 2.3 Reuse shared automation first
+
+Before adding a function:
+
+1. Search `test/plugins/omnia_auto/`.
+2. Read `test/plugins/USAGE.md` and the relevant plugin API document.
+3. Inspect the public exports in `omnia_auto.__all__`.
+4. Reuse a suitable shared function.
+5. Add a domain helper only for genuinely domain-specific behavior.
+6. Propose a plugin change when behavior is generic and useful to two or more
+   domains.
+
+Do not wrap a shared function only to rename it. A wrapper is justified when it
+adds a stable domain contract, domain validation, or result normalization.
+
+### 2.4 Design before tests
+
+1. Put non-sensitive settings in `test_config.yml`.
+2. Put batch-selection settings in `test_run_config.yml`.
+3. Define transport and domain credentials separately.
+4. Define safe interactive and standard-input provisioning.
+5. Define defaults without lab-specific addresses or identities.
+6. Implement metadata, variables, messages, functions, fixtures, then tests.
+7. Add datasets only when the domain consumes input files.
+8. Finish README and configuration references before handoff.
+
+### 2.5 Validate before handoff
+
+1. Run syntax and import checks.
+2. Run applicable repository static checks.
+3. Run isolated UT when available.
+4. Run FVT/NFT only with a suitable environment and authorization.
+5. Record commands, results, skipped runtime checks, and residual risks.
+6. Inspect the final diff for secrets, generated noise, and unrelated files.
+7. Create a human-authored, DCO-signed commit only after validation.
+
+---
+
+## 3. Capability-Aware Directory Structure
+
+Include only supported capabilities. `[required]` means every domain;
+`[when used]` means conditional.
+
+```text
+test/<domain>/
+├── README.md                              [required]
+├── conftest.py                            [required]
+├── _run.py                                [required]
+├── run_validation.sh                      [required]
+├── setup_env.sh                           [required]
+├── requirements.txt                       [required]
+├── test_config.yml                        [required]
+├── test_run_config.yml                    [required]
+├── .gitignore                             [required]
+├── docs/
+│   ├── test_config.md                     [required]
+│   ├── test_run_config.md                 [required]
+│   └── test_creds.md                      [when credentials are used]
 ├── library/
 │   ├── functions/
-│   │   ├── __init__.py            # Public API — imports from omnia_auto + domain
-│   │   ├── <domain_name>_func.py  # Domain-specific verification functions
-│   │   ├── host_func.py           # Sync functions, re-exports from omnia_auto
-│   │   └── validation_func.py     # Config validation
+│   │   ├── __init__.py                    [required]
+│   │   ├── <capability>_func.py           [when domain helpers are needed]
+│   │   ├── _config_helpers.py             [when private helpers are needed]
+│   │   └── <domain>_func.py               [optional compatibility facade]
 │   ├── vars/
-│   │   ├── common_vars.py         # Constants (container names, paths, CMDS dict)
-│   │   └── test_case_vars.py      # TEST_CASES dict (TC IDs + titles)
+│   │   ├── __init__.py                    [required]
+│   │   ├── common_vars.py                 [required]
+│   │   ├── domain_vars.py                 [required]
+│   │   ├── test_case_vars.py              [required]
+│   │   └── ut_test_case_vars.py           [when UT metadata is separate]
 │   └── messages/
-│       └── <domain_name>_msgs.py  # TEST_LOG_MSGS, TEST_ASSERT_MSGS
-├── fvt/                           # Functional Verification Tests
-│   ├── README.md                  # All FVT test cases documented
-│   ├── <scenario>/                # One dir per playbook tag
-│   │   ├── test_playbook.py       # Deploy test
-│   │   └── <suite>/test_<suite>.py
-│   └── <domain_name>/             # Full end-to-end (no tag)
-└── nft/                           # Non-Functional Tests (optional)
-    ├── README.md                  # NFT test cases and thresholds
-    ├── test_performance.py        # Performance threshold tests
-    └── test_idempotency.py        # Idempotency tests
+│       ├── __init__.py                    [required]
+│       └── <domain>_msgs.py                [required]
+├── fvt/
+│   ├── README.md                          [required]
+│   └── <tag>/
+│       ├── test_<tag>.py                  [when the tag itself is verified]
+│       └── <suite>/test_<capability>.py   [when suites divide the tag]
+├── nft/
+│   ├── README.md                          [when NFT is supported]
+│   └── test_<quality>.py                  [when NFT is supported]
+├── ut/
+│   └── test_<unit>.py                     [when UT is supported]
+└── datasets/
+    ├── generator/
+    │   ├── generate_dataset.py            [when inputs are generated]
+    │   ├── profiles/                      [when profiles are used]
+    │   │   └── defaults.yml               [when profiles are used]
+    │   └── templates/                     [when files are rendered]
+    └── <dataset>/input/                   [when fixtures are versioned]
 ```
 
-### 2.2 Dataset and Input File Behavior
+Do not create empty placeholder capabilities. For example, omit `nft/` when
+there is no defined non-functional contract.
 
-#### Dataset Generation (Recommended)
+Generated local files MUST be ignored:
 
-Datasets SHOULD be created using the dataset generator tool. The generator
-ensures consistent structure, required files, and correct field values.
-
-```bash
-cd datasets/generator/
-
-# Generate from a profile
-python generate_dataset.py <dataset_name> <profile>
-
-# Generate with variable overrides
-python generate_dataset.py <dataset_name> <profile> --var key=value
-
-# Copy from src/ (for quick bootstrap)
-python generate_dataset.py <dataset_name> --from-src
-
-# List available profiles
-python generate_dataset.py --list-profiles
+```text
+.venv/
+__pycache__/
+.pytest_cache/
+reports/
+test_creds.yml
+.test_creds.key
 ```
 
-**Rules:**
-- Every domain module MUST include a `datasets/generator/` directory
-- Generator MUST have `defaults.yml` base profile and domain-specific profiles
-- Generator MUST use Jinja2 templates under `templates/` for all config files
-- Generated datasets MUST contain all required input files for the domain
-- The `--from-src` mode copies from `src/<domain_name>/input/` and creates
-  placeholder credentials — use this to bootstrap a new dataset quickly
-
-#### Empty Dataset — Target Server Input (`dataset: ""`)
-
-When `dataset` is empty (or not set), the playbook reads input files directly
-from the **target server** at:
-
-```
-$OMNIA_DATA_PATH/<domain_name>/input/<project_name>/
-```
-
-In this mode, **no input files are synced** from the local machine. The files
-must already exist on the target (e.g., placed there by a previous deployment
-or manually). This is the **production behavior** — `omnia.sh` places config
-files at this path during setup.
-
-When `sync_<domain_name>_input: true` is set AND `dataset` is empty, the
-framework syncs from `src/<domain_name>/input/` to the target path as a
-convenience for development.
-
-### 2.3 Strict Separation Rules
-
-| Content | Location | Never In |
-|---------|----------|----------|
-| Shell commands | `CMDS` dict in `common_vars.py` | Test files, function files |
-| TC IDs and titles | `TEST_CASES` dict in `test_case_vars.py` | Test files (hardcoded) |
-| Log messages | `TEST_LOG_MSGS` in `<domain_name>_msgs.py` | Test files |
-| Assert messages | `TEST_ASSERT_MSGS` in `<domain_name>_msgs.py` | Test files |
-| Constants | `common_vars.py` | Function or test files |
-| Verification logic | `functions/<domain_name>_func.py` | Test files |
-
-### 2.4 `__init__.py` Requirements
-
-Every `__init__.py` MUST:
-1. Include Apache 2.0 license header (current year)
-2. Provide a module docstring
-3. Import and re-export specific items (no `import *`)
-4. Group imports: functions, then vars, then messages
-
-### 2.5 Re-exports with `__all__`
-
-When importing from `omnia_auto` for re-export:
-
-```python
-from omnia_auto import (
-    load_test_config,
-    load_test_credentials,
-    get_testinfra_host,
-    run_on_host,
-)
-
-__all__ = [
-    "load_test_config",
-    "load_test_credentials",
-    "get_testinfra_host",
-    "run_on_host",
-    "my_domain_function",
-]
-```
-
-This is the standard Python way to declare public API — pylint and other tools respect `__all__`.
+Ignore domain credential artifacts if they are ever staged locally. Do not use
+a broad ignore pattern that hides tracked examples or test sources.
 
 ---
 
-## 3. Test Writing Rules
+## 4. First-Use Workflow
 
-### 3.1 Test File Docstring (MANDATORY)
-
-Every test file MUST start with a module docstring listing what it verifies:
-
-```python
-"""
-<Domain> <Phase> — <Category> Verification.
-
-Validates that --tags <tag> created all required <resources>:
-  <resource 1>
-  <resource 2>
-  <resource 3>
-"""
-```
-
-### 3.2 FVT/NFT Test Case ID Registry (`TEST_CASES` dict) — MANDATORY
-
-All FVT/NFT test-case metadata (TC ID, title) MUST be defined in
-`library/vars/test_case_vars.py` and referenced via `TEST_CASES["key"]` in test
-files. **Never hardcode TC IDs or titles.** UT mappings follow section 3.10.
-
-```python
-# In library/vars/test_case_vars.py:
-TEST_CASES = {
-    "deploy_prepare": {
-        "id": "IMGBM_FVT_PREPARE_E001",
-        "title": "Deploy <domain_name> (prepare)",
-    },
-    "verify_resource": {
-        "id": "IMGBM_FVT_PREPARE_V001",
-        "title": "Verify <resource> after prepare",
-    },
-}
-```
-
-**Rules:**
-
-| Rule | Allowed | Forbidden |
-|------|---------|-----------|
-| TC ID source | `TC["key"]["id"]` | Hardcoded `"IMGBM_FVT_PREPARE_V001"` in test code |
-| Title source | `TC["key"]["title"]` | Hardcoded string in test code |
-| TestLogger init | `TestLogger(tc["title"], tc["id"])` | `TestLogger("...", "IMGBM_FVT_PREPARE_V001")` |
-| Docstring | Description only (no TC IDs) | `"""IMGBM_FVT_PREPARE_V001: Verify ...` |
-| Dict keys | Match function name without `test_` prefix | Arbitrary keys |
-
-**Verification** — this grep must return zero results:
-```bash
-grep -Ern "['\"]IMGBM_(FVT|NFT|UT)_[A-Z0-9_]+['\"]" fvt/ nft/ ut/ \
-  --include="*.py"
-```
-
-### 3.3 Test Function Structure (MANDATORY)
-
-```python
-@pytest.mark.sanity
-@pytest.mark.order(1)
-def test_verify_resource(host):
-    """Verify resource exists after deploy."""
-    tc = TC["verify_resource"]
-    tl = TestLogger(tc["title"], tc["id"])
-
-    result = check_resource(host)
-
-    if result.get("skipped"):
-        tl.skipped(LOG["resource_skip_reason"])
-        pytest.skip(LOG["resource_skip_reason"])
-
-    if result["success"]:
-        tl.passed(LOG["resource_ok"], result["details"])
-    else:
-        tl.failed(LOG["resource_not_found"].format(name="..."))
-
-    assert result["success"], ASSERT["resource_not_found"].format(
-        name="...", status=result.get("status", ""),
-    )
-```
-
-**Key rules:**
-- TC ID and title from `TEST_CASES` dict — never hardcode
-- `TestLogger` for structured output — never use `print()`
-- Verification function returns a dict — test file does not contain logic
-- Log and assert messages from centralized message dicts
-
-### 3.4 Test Case ID Convention
-
-| Format | Rule |
-|--------|------|
-| **Pattern** | `<DOMAIN>_FVT_<PHASE>_<TYPE><SEQ>` |
-| **Domain** | Stable uppercase domain code, such as `IMGBM` for Image Build Manager |
-| **Level** | `FVT` identifies a Functional Verification Test |
-| **Phase** | Runner lifecycle phase, such as `PRECHECK`, `VALIDATE`, `PREPARE`, `BUILD`, or `CLEANUP` |
-| **Type** | `E` when the test runs a playbook; `V` when it verifies postconditions |
-| **Sequence** | Three digits appended to the type, starting at `001` |
-
-Examples:
-
-| ID | Meaning |
-|----|---------|
-| `IMGBM_FVT_PREPARE_E001` | Run the Image Build Manager prepare playbook |
-| `IMGBM_FVT_PREPARE_V001` | Verify the first prepare postcondition |
-| `IMGBM_FVT_BUILD_V006` | Verify a stable Image Build Manager build contract |
-
-IDs remain stable when execution order changes, and retired IDs must not be
-reused. Existing modules with legacy IDs may retain them until an atomic
-migration updates the registry, documentation, runtime output, and a complete
-legacy-to-current mapping together.
-
-### 3.5 Deploy Test Pattern
-
-Deploy tests run the playbook and always execute first (`order(0)`):
-
-```python
-@pytest.mark.deploy
-@pytest.mark.sanity
-@pytest.mark.order(0)
-def test_deploy_prepare(host):
-    """Deploy <domain_name> --tags prepare."""
-    tc = TC["deploy_prepare"]
-    tl = TestLogger(tc["title"], tc["id"])
-    result = run_playbook(playbook=PLAYBOOK_ENTRY_POINT, tag="prepare")
-
-    if result["success"]:
-        tl.passed(LOG["playbook_success"].format(duration=result["duration"]))
-    else:
-        tl.failed(
-            LOG["playbook_failed"].format(rc=result["rc"], duration=result["duration"]),
-            result.get("error", "See playbook output above"),
-        )
-
-    assert result["success"], ASSERT["playbook_failed"].format(
-        playbook=PLAYBOOK_ENTRY_POINT, tag="prepare",
-        rc=result["rc"], duration=result["duration"],
-        log_path=BUILD_LOG_PATH.format(shared_path=SHARED_PATH, project=project),
-    )
-```
-
-**run_playbook Rules:**
-- **Always pass `playbook=` explicitly** — use `PLAYBOOK_ENTRY_POINT` constant from `common_vars.py`
-- **TC ID and title** come from `TEST_CASES` dict — never hardcode
-- **Timeout** should be appropriate for the tag (3600s for full, 1800s for single tag)
-
-### 3.6a Precheck Test Pattern
-
-Precheck tests validate the environment before any playbook runs. They verify
-env vars from `omnia.env`, hostname, domain, admin IP, and `omnia.sh` setup:
-
-```python
-@pytest.mark.sanity
-@pytest.mark.order(2)
-def test_env_vars_present(host):
-    """Verify all required omnia.env variables present on target."""
-    tc = TC["env_vars_present"]
-    tl = TestLogger(tc["title"], tc["id"])
-    result = check_env_vars_present(host)
-
-    if result["success"]:
-        tl.passed(LOG["env_vars_ok"], result["details"])
-    else:
-        missing = [r for r in result["results"] if not r["found"]]
-        tl.failed(LOG["env_vars_missing"].format(count=len(missing)), result["details"])
-
-    assert result["success"], ASSERT["env_vars_missing"].format(
-        error=result.get("error", "Env vars missing"),
-    )
-```
-
-**Precheck tests verify:**
-- SSH connectivity (`check_target_connectivity`)
-- All omnia.env vars: `OMNIA_DATA_PATH`, `OMNIA_PROJECT_NAME`,
-  `SYSTEM_ADMIN_NIC_IPV4`, `SYSTEM_HOSTNAME`, `SYSTEM_DOMAIN_NAME`
-- Hostname matches configured `SYSTEM_HOSTNAME`
-- Admin IP assigned to a local interface
-- `omnia.sh --setup-venv` completed (`/etc/omnia/omnia.env` exists)
-
-**Source playbook**: Each domain should have a `precheck/` playbook directory
-with a `precheck_environment` role that validates the same checks via Ansible.
-
-### 3.6 Import Structure for Test Files
-
-```python
-# Third-party
-import pytest
-
-# Local — Functions (ONLY from library, NEVER from omnia_auto directly)
-from library.functions import (
-    TestLogger,
-    run_playbook,
-    check_resource,
-)
-
-# Local — Variables (TEST_CASES, constants)
-from library.vars import TEST_CASES as TC
-from library.vars.common_vars import (
-    PLAYBOOK_ENTRY_POINT,
-    RESOURCE_CONSTANT,
-)
-
-# Local — Messages
-from library.messages import (
-    TEST_LOG_MSGS as LOG,
-    TEST_ASSERT_MSGS as ASSERT,
-)
-```
-
-**Import Rules:**
-- **Never import from `omnia_auto` directly in test files** — use `library.functions`
-- **TEST_CASES** comes from `library.vars`
-- **PLAYBOOK_ENTRY_POINT** must be imported for deploy tests
-- **Messages** aliased as `LOG` and `ASSERT` for readability
-
-### 3.7 Test Output Format
-
-Tests produce structured output via `TestLogger`:
-
-```
-  ▶ Verify resource is running
-  ✔ PASS: Resource is active
-    │ Status: Up 3 hours
-```
-
-**Never use `print()` directly.** Always use `TestLogger` or `log()`.
-
-### 3.10 Unit Test Case IDs
-
-Unit-test IDs use `<DOMAIN>_UT_<SEQ>` (for example, `IMGBM_UT_001`). Keep the
-mapping between each test file/class/method node and its test-case ID in one
-central registry; do not embed numeric IDs independently in test methods.
-Parameterized variants may share the method-level ID. Store IDs explicitly so
-source reordering cannot renumber published cases, and append new mappings
-with the next available ID.
-
-### 3.11 Non-Functional Tests (NFT)
-
-NFT tests live in `nft/` alongside `fvt/` and validate **performance** and **idempotency**.
-
-**NFT Rules:**
-
-1. **Directory**: Place NFT tests in `test/<domain>/nft/`, not in `fvt/`.
-2. **Marker**: All NFT tests MUST use `@pytest.mark.nft`.
-3. **README**: Each `nft/` directory MUST contain a `README.md` documenting test cases, thresholds, and execution instructions.
-4. **TC ID Prefix**: NFT test-case IDs use `<DOMAIN>_NFT_` (for example,
-   `IMGBM_NFT_001`).
-5. **Thresholds**: Performance thresholds MUST be defined as module-level constants, not inline.
-6. **Prerequisites**: NFT tests require a fully deployed environment. Document prerequisites in the `README.md`.
-7. **Execution**: NFT tests are run via `./run_validation.sh nft test`.
-
-```python
-import pytest
-
-PREPARE_THRESHOLD = 300  # 5 minutes
-
-@pytest.mark.nft
-@pytest.mark.order(1)
-def test_prepare_performance(run_playbook):
-    """IMGBM_NFT_001: Prepare completes within threshold."""
-    start = time.time()
-    result = run_playbook(tag="prepare", timeout=PREPARE_THRESHOLD + 60)
-    elapsed = time.time() - start
-    assert result.rc == 0, f"Prepare failed: rc={result.rc}"
-    assert elapsed <= PREPARE_THRESHOLD, f"Exceeded {PREPARE_THRESHOLD}s: {elapsed:.1f}s"
-```
-
----
-
-## 4. Verification Function Rules
-
-### 4.1 Return Dictionary Pattern (MANDATORY)
-
-All verification functions MUST return a dict:
-
-```python
-def check_resource(host, name: str) -> Dict[str, Any]:
-    """Check if a resource exists on the target host.
-
-    Args:
-        host: Testinfra host connection.
-        name: Name of the resource to check.
-
-    Returns:
-        Dict with keys: success (bool), details (str), error (str).
-    """
-    cmd = CMDS["check_resource"].format(name=name)
-    result = run_on_host(host, cmd)
-    if result.rc != 0:
-        return {"success": False, "details": "", "error": f"{name} not found"}
-    return {"success": True, "details": f"{name} is present", "error": ""}
-```
-
-### 4.2 Dynamic Input Rules (CRITICAL)
-
-**NEVER hardcode:**
-- IP addresses or hostnames
-- File paths that vary by environment
-- Credentials or secrets
-- Port numbers (use constants from `common_vars.py`)
-
-**ALWAYS:**
-- Read from `test_config.yml` via `load_test_config()`
-- Use `CMDS` dict for shell commands
-- Use constants from `common_vars.py` for paths and ports
-
-### 4.3 Skip Pattern for Optional Features
-
-```python
-if not items:
-    return {
-        "success": True,
-        "skipped": True,
-        "details": f"No {category} configured — skipping",
-    }
-```
-
-### 4.4 Docstrings (MANDATORY)
-
-Every function must have a docstring explaining:
-
-- **What** it does (one-line summary)
-- **Parameters** (if not obvious from type hints)
-- **Returns** (structure of the return dict/value)
-
----
-
-## 5. Variables Module Rules
-
-### 5.1 No Hardcoded Values — Centralize Everything
-
-**Every constant, path, and shell command MUST live in `library/vars/common_vars.py`.**
-Violating these rules will block code review.
-
-#### 5.1.1 No Hardcoded Paths in Function or Test Files
-
-| Violation | Correct |
-|-----------|---------|
-| `"/tmp/test_image"` inline | `TEMP_IMAGE_PATH` in `common_vars.py` |
-| `"/opt/omnia/<domain>/output"` inline | `OUTPUT_PATH` in `common_vars.py` |
-| `"config_file.yml"` inline | `CONFIG_FILE_NAME` in `common_vars.py` |
-
-**Rule:** If a string literal represents a filesystem path, package name, container
-name, port number, bucket name, or service name — it MUST be a named constant in
-`common_vars.py`, exported from `vars/__init__.py`, and imported where needed.
-
-#### 5.1.2 No Inline Shell Commands in Function or Test Files
-
-All shell commands executed via `host.run()` MUST use the `CMDS` dictionary in
-`common_vars.py`.
-
-| Violation | Correct |
-|-----------|---------|
-| `host.run(f"cat {path} 2>/dev/null")` | `host.run(CMDS["cat_file"].format(path=path))` |
-| `host.run(f"podman ps --format ... --filter ...")` | `host.run(CMDS["podman_ps_check"].format(container=name))` |
-| `host.run(f"systemctl is-active {svc}")` | `host.run(CMDS["systemctl_is_active"].format(service=svc))` |
-
-**Rule:** Never write a raw shell command string inside `host.run()`. Always
-add the command template to `CMDS` with descriptive named placeholders, then
-call `CMDS["key"].format(...)` at the call site.
-
-#### 5.1.3 No Hardcoded Validation Constants
-
-Regex patterns, required field lists, and required file lists used in
-`validation_func.py` MUST be defined in `common_vars.py`:
-
-```python
-# In common_vars.py:
-IPV4_PATTERN = re.compile(r'...')
-REQUIRED_CONFIG_FIELDS = ["project_name", "clone_path", ...]
-REQUIRED_DATASET_FILES = ["input/<domain_name>_config.yml", ...]
-```
-
-### 5.2 Command Dictionary (MANDATORY)
-
-All shell commands MUST be in the `CMDS` dict in `common_vars.py`:
-
-```python
-CMDS: Dict[str, str] = {
-    "podman_ps_check": (
-        "podman ps --format '{{.Names}}'"
-        " --filter name=^{container}$ 2>/dev/null"
-    ),
-    "systemctl_is_active": "systemctl is-active {service} 2>/dev/null",
-    "file_exists": "test -f {path} && echo exists",
-    "cat_file": "cat {path} 2>/dev/null",
-}
-```
-
-### 5.3 CMDS Naming Convention
-
-| Category | Prefix | Example |
-|----------|--------|---------|
-| Podman | `podman_` | `podman_ps_check`, `podman_inspect` |
-| S3/s3cmd | `s3cmd_` | `s3cmd_ls`, `s3cmd_ls_bucket` |
-| Registry | `curl_registry_` | `curl_registry_catalog`, `curl_registry_tags` |
-| File operations | descriptive | `cat_file`, `file_exists`, `dir_exists`, `file_stat` |
-| System | descriptive | `hostname_cmd`, `rpm_check`, `which_cmd` |
-| Systemd | `systemctl_` | `systemctl_is_active` |
-
-### 5.4 Adding a New Command or Constant — Checklist
-
-When you need a new shell command or constant:
-
-1. **Add the constant** to `common_vars.py` with a descriptive comment.
-2. **Add the export** to `vars/__init__.py`.
-3. **Import it** in the function file that uses it.
-4. **Use `.format()` with named placeholders** — never positional `%s` or f-string interpolation inside CMDS values.
-5. **Verify** with `python -c "from library.vars import CMDS; print(CMDS['new_key'])"`.
-
-### 5.5 Domain Constants
-
-```python
-# Domain identity
-DOMAIN_NAME = "<domain_name>"
-
-# Playbook config
-PLAYBOOK_ENTRY_POINT = "<domain_name>.yml"
-PLAYBOOK_WORKDIR = "src/<domain_name>/playbooks"
-
-# Domain-specific resources (examples)
-CONTAINER_NAMES = ["container_a", "container_b"]
-SYSTEMD_SERVICES = ["service_a.service", "service_b.service"]
-FIREWALL_PORTS = ["8080/tcp", "443/tcp"]
-```
-
-### 5.6 TEST_CASES Dictionary (MANDATORY)
-
-All FVT/NFT test-case metadata MUST be centralized in `test_case_vars.py`:
-
-```python
-TEST_CASES: Dict[str, Dict[str, str]] = {
-    "deploy_prepare": {
-        "id": "IMGBM_FVT_PREPARE_E001",
-        "title": "Deploy <domain_name> (prepare)",
-    },
-    "verify_resource": {
-        "id": "IMGBM_FVT_PREPARE_V001",
-        "title": "Verify <resource> after prepare",
-    },
-}
-```
-
-**Rules:**
-- Keys match test function names (without `test_` prefix)
-- Each entry has `id` and `title` only
-- Tests look up TC ID and title from this dict — never hardcode
-- Order and markers are defined via pytest decorators, not in TEST_CASES
-
-### 5.7 Pre-Commit Violation Check
-
-Before committing, run this check to detect inline command violations:
+Every domain README MUST present this order before advanced examples.
 
 ```bash
-python3 -c "
-with open('library/functions/<domain_name>_func.py') as f:
-    lines = f.readlines()
-for i, line in enumerate(lines, 1):
-    s = line.strip()
-    if 'host.run(' in s and 'CMDS[' not in s:
-        ctx = ''.join(lines[max(0,i-2):min(len(lines),i+2)])
-        if 'CMDS[' not in ctx:
-            print(f'VIOLATION L{i}: {s}')
-"
-```
-
-This must print **no output**. Any violation means an inline command exists
-that has not been moved to `CMDS`.
-
----
-
-## 6. Messages Module Rules (MANDATORY)
-
-### 6.1 Required Dictionaries
-
-Every domain module defines message dictionaries in `<domain_name>_msgs.py`:
-
-```python
-# --- Log Messages ---
-TEST_LOG_MSGS: Dict[str, str] = {
-    "playbook_success": "Playbook completed in {duration}",
-    "resource_ok": "Resource '{name}' is present",
-    "resource_not_found": "Resource '{name}' not found",
-}
-
-# --- Assertion Messages ---
-TEST_ASSERT_MSGS: Dict[str, str] = {
-    "playbook_failed": (
-        "Playbook {playbook} --tags {tag} failed (rc={rc})\n"
-        "HOW TO FIX:\n"
-        "  1. Check logs at: {log_path}\n"
-        "  2. Run manually on the target server\n"
-    ),
-    "resource_not_found": (
-        "Expected '{name}' to be present, got '{status}'\n"
-        "HOW TO FIX:\n"
-        "  1. Run --tags <tag> first\n"
-        "  2. Check: <diagnostic command>\n"
-    ),
-}
-```
-
-### 6.2 Rules
-
-- **ALL log messages** go in `TEST_LOG_MSGS` — never inline in function files.
-- **ALL assertion messages** go in `TEST_ASSERT_MSGS` — never inline in test files.
-- Use `.format()` with named placeholders for dynamic content.
-- Keys use `snake_case` matching the test or function name.
-- Assertion messages SHOULD include a "HOW TO FIX" section with actionable steps.
-
----
-
-## 7. Code Quality Standards
-
-### 7.1 Pylint Score
-
-- **Minimum score: 8.8/10** per file (team standard), **8.0** in CI.
-- Run pylint from the module's virtual environment (where `omnia-auto` is installed):
-  ```bash
-  .venv/bin/pylint library/functions/<domain_name>_func.py
-  ```
-- **Do NOT use `# noqa` or `# pylint: disable=...` to suppress warnings.**
-  Fix the actual issue instead:
-  - `unused-import` on re-exports: use `__all__` to declare public API
-  - `import-error`: add the package to `requirements.txt`
-  - `unused-argument`: use `_` prefix (e.g., `_host`) for intentionally unused params
-  - `wrong-import-position`: move all imports to the top of the file
-  - `too-many-branches`: refactor into smaller helper functions
-
-### 7.2 Test Naming Convention
-
-| Type | Convention | Example |
-|------|-----------|---------|
-| Test function | `test_<feature>_<aspect>` | `test_resource_after_prepare` |
-| Test file | `test_<component>.py` | `test_containers.py` |
-| FVT case ID | `<DOMAIN>_FVT_<PHASE>_<TYPE><SEQ>` | `IMGBM_FVT_PREPARE_V001` |
-| NFT case ID | `<DOMAIN>_NFT_<SEQ>` | `IMGBM_NFT_001` |
-| UT case ID | `<DOMAIN>_UT_<SEQ>` | `IMGBM_UT_001` |
-
----
-
-## 8. CI Checks (All Must Pass)
-
-The following CI workflows run on every PR. **All must pass before merge.**
-
-| Check | Tool | Rule |
-|-------|------|------|
-| **DCO** | `dco` | Every commit signed off (`git commit -s`) |
-| **Flake8** | `flake8` | No errors with `--max-line-length=100` |
-| **Pylint** | `pylint` | Score >= 8.0 per file |
-| **Bandit** | `bandit` | No High severity issues (`-ll -ii`) |
-| **Gitleaks** | `gitleaks` | No secrets in committed code |
-| **Ansible Lint** | `ansible-lint` | YAML best practices (`true`/`false` not `yes`/`no`, newline at EOF) |
-| **pip-audit** | `pip-audit` | No vulnerable Python dependencies |
-| **Checkmarx** | SAST | No hardcoded credentials, no insecure file operations |
-
-### 8.1 How to Run Each Check Locally
-
-Run these commands from the module root (e.g., `test/telemetry/`) before every commit.
-
-#### DCO — Developer Certificate of Origin
-
-Every commit MUST include `Signed-off-by:`. Use the `--signoff` flag:
-
-```bash
-git commit --signoff -m "feat(telemetry): description"
-```
-
-Verify existing commits:
-```bash
-git log --format='%H %s' origin/main..HEAD | while read hash msg; do
-  git log --format='%(trailers:key=Signed-off-by)' -1 "$hash" | grep -q 'Signed-off-by' \
-    || echo "MISSING DCO: $hash $msg"
-done
-```
-
-#### Flake8 — Style and Error Linting
-
-```bash
-source .venv/bin/activate
-
-# Lint all module code (exclude venv)
-flake8 library/ fvt/ conftest.py --max-line-length=100 --exclude=.venv --count
-
-# Lint a single file
-flake8 library/functions/telemetry_func.py --max-line-length=100
-```
-
-**Result must be 0 errors.** The only permitted `# noqa` is `E402` in
-`conftest.py` where imports MUST follow `sys.path.insert()` and
-`omnia_auto.configure()`. All other suppressions are prohibited — fix the
-underlying issue instead.
-
-#### Pylint — Code Quality Score
-
-```bash
-source .venv/bin/activate
-pylint library/functions/*.py library/vars/*.py library/messages/*.py
-```
-
-**Minimum score: 8.8/10 locally, 8.0 in CI.**
-
-#### Bandit — Security Scanner
-
-```bash
-source .venv/bin/activate
-
-# Scan all library and test code
-bandit -r library/ fvt/ -ll -ii
-
-# Scan with detailed output
-bandit -r library/ fvt/ -ll -ii -f json -o bandit_report.json
-```
-
-**Result must have zero High/Medium severity findings.** Common false positives:
-- `B603` (subprocess call): acceptable when using `run_on_host()` from `omnia_auto`
-- `B108` (/tmp usage): use constants from `common_vars.py` instead of inline `/tmp`
-
-#### Gitleaks — Secret Detection
-
-```bash
-# Scan staged changes
-grep -rn -iE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' \
-    --include="*.py" --include="*.yml" | \
-    grep -v '127\.0\.0\.1' | grep -v '0\.0\.0\.0'
-
-# Scan for hardcoded passwords/tokens
-grep -rn -iE '(password|secret|token|api.?key)\s*=\s*["'"'"'][^"'"'"']+["'"'"']' \
-    --include="*.py" --include="*.yml" | \
-    grep -v 'CHANGE_ME' | grep -v 'placeholder' | grep -v '""'
-```
-
-**Both must return empty results.**
-
-#### pip-audit — Dependency Vulnerabilities
-
-```bash
-source .venv/bin/activate
-pip-audit
-```
-
-**Zero known-vulnerable packages allowed.**
-
----
-
-## 9. Security Rules
-
-### 9.1 No Hardcoded Secrets
-
-- **Never commit real IPs, passwords, hostnames, or tokens.**
-- `test_config.yml` must ship with `oim_server_ip: ""` — user fills in locally.
-- `test_creds.yml` must ship with `oim_password: ""` — user fills in locally.
-- Credentials file is auto-encrypted with Ansible Vault on first run.
-
-### 9.2 Pre-Push Security Scan
-
-Before every push, run:
-
-```bash
-# Check for hardcoded IPs
-grep -rn -iE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' \
-    --include="*.py" --include="*.yml" | \
-    grep -v '127\.0\.0\.1' | grep -v '0\.0\.0\.0'
-
-# Check for hardcoded passwords/secrets
-grep -rn -iE '(password|secret|token|api.?key)\s*=\s*["'"'"'][^"'"'"']+["'"'"']' \
-    --include="*.py" --include="*.yml" | \
-    grep -v 'CHANGE_ME' | grep -v 'placeholder'
-```
-
-Both must return empty results.
-
----
-
-## 10. Environment Setup and Testing
-
-### 10.1 Setup (One-Time)
-
-```bash
-cd test/<domain_name>/
-
-# Step 1: Run setup script to create venv and install dependencies
+cd test/<domain>
 ./setup_env.sh --venv
-
-# Step 2: Activate the virtual environment
 source .venv/bin/activate
+```
 
-# Step 3: Generate a dataset
-cd datasets/generator/
-python generate_dataset.py my_dataset defaults
-cd ../..
+If password-based SSH is required, create transport credentials locally:
 
-# Step 4: Configure test settings
-vi test_config.yml        # Set oim_server_ip, dataset, paths, options
-
-# Step 5: Set SSH credentials (password-based remote mode only)
+```bash
 ./setup_env.sh --set-creds
+```
 
-# Step 5b: Set domain credentials (no oim_server_ip needed)
+If the domain requires product or appliance credentials, run its prompt on the
+execution OIM, where `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` resolve to the
+real project:
+
+```bash
 ./setup_env.sh --set-domain-creds
 ```
 
-`setup_env.sh` installs all dependencies from `requirements.txt` (including `omnia-auto`
-from `../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl`).
-
-### 10.2 Running Tests — Use `run_validation`, NOT `pytest`
-
-**Always use `run_validation.sh` to run tests.** Never invoke `pytest` directly.
+Review non-sensitive settings and discover the registered surface:
 
 ```bash
-# Verify a specific scenario
-./run_validation.sh <scenario> verify --marker sanity
+${EDITOR:-vi} test_config.yml
+${EDITOR:-vi} test_run_config.yml
+./run_validation.sh --help
+./run_validation.sh fvt_<domain> list
+```
 
-# Deploy + verify
-./run_validation.sh <scenario> test
+Verify prerequisites before mutation:
 
-# Run a specific suite within a scenario
-./run_validation.sh <scenario> verify --suite <suite_name>
+```bash
+./run_validation.sh fvt_<domain> precheck verify
+```
 
-# Full batch from config
+Run one supported tag with one explicit action:
+
+```bash
+./run_validation.sh fvt_<domain> <tag> exec
+./run_validation.sh fvt_<domain> <tag> verify
+./run_validation.sh fvt_<domain> <tag> test
+```
+
+`test` means `exec` followed by `verify`. Execution failure MUST prevent a
+misleading successful verification result.
+
+Run enabled batch entries only after reviewing the file:
+
+```bash
 ./run_validation.sh --config
-
-# List available scenarios
-./run_validation.sh list
 ```
 
-### 10.3 Test Iteration Loop
-
-```
-Write code -> Run tests -> Fix failures -> Re-run tests -> All pass -> Push
-                 ^                              |
-                 +------------------------------+
-```
-
-**Never push with known failures. Never skip a failing test to "fix later".**
-
----
-
-## 11. Feature Testing Workflow
-
-### 11.1 Writing Tests for a New Feature
-
-```
-1. Read the playbook source code (src/<domain_name>/)
-2. Identify what resources the playbook creates
-3. Manually verify on a working cluster
-4. Check omnia_auto for existing verification functions
-5. Write domain-specific verification function in <domain_name>_func.py
-6. Add constants to common_vars.py, commands to CMDS dict
-7. Add TC entry to test_case_vars.py
-8. Write the test in fvt/<scenario>/<suite>/
-9. Add messages to <domain_name>_msgs.py
-10. Add TC ID to fvt/README.md
-11. Run pylint + bandit + tests
-12. Push
-```
-
-### 11.2 Rebuilding the `omnia-auto` Wheel
-
-If you modify the shared plugin code in `test/plugins/omnia_auto/`:
+Optional NFT and UT use:
 
 ```bash
-cd test/plugins/
-
-# 1. Run pylint on the plugin
-pylint omnia_auto/
-
-# 2. Run bandit
-bandit -r omnia_auto/ -ll -ii
-
-# 3. Rebuild the wheel
-rm -rf dist/ build/ *.egg-info
-python -m build --wheel
-
-# 4. Reinstall in the domain venv
-cd ../<domain_name>/
-source .venv/bin/activate
-pip install --force-reinstall ../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl
-
-# 5. Verify the install
-python -c "import omnia_auto; print(omnia_auto.__version__)"
+./run_validation.sh nft_<domain> test
+./run_validation.sh ut_<domain> test
 ```
+
+Replace placeholders with the real domain name in its README and state its
+safe lifecycle order. Identify destructive cleanup explicitly.
 
 ---
 
-## 12. Git Commit Rules (MANDATORY)
+## 5. Credential Contract
 
-### 12.1 Commit Format
+### 5.1 Separate scopes
+
+| Scope | Purpose | Storage | Owner |
+|---|---|---|---|
+| Transport | Reach execution OIM | Local encrypted credential pair | Developer or CI job |
+| Domain | Authenticate product targets | Project input on execution OIM | Project operator |
+
+The local transport pair is `test_creds.yml` and `.test_creds.key`. Both MUST
+have mode `0600`, be encrypted at rest, and be gitignored. Passwordless SSH may
+make transport credentials optional.
+
+Domain credentials MUST be written beneath:
+
+```text
+$OMNIA_DATA_PATH/<domain>/input/$OMNIA_PROJECT_NAME/
+```
+
+Use the filename defined by the domain contract. Never copy domain credentials
+into the repository, a dataset, report directory, or transport credential file.
+
+### 5.2 Interactive provisioning
+
+Interactive secret input uses a hidden prompt and confirmation:
 
 ```bash
-git commit --signoff \
-  --author="Your Name <your.email@dell.com>" \
-  -m "<type>(<scope>): <description>"
+./setup_env.sh --set-creds
+./setup_env.sh --update-creds
+./setup_env.sh --set-domain-creds
+./setup_env.sh --update-domain-creds
 ```
 
-Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
+Visible prompts are allowed only for non-secret fields. Existing credentials
+are preserved unless the user selects an update action.
 
-### 12.2 Commit Message Rules
+Each credential-enabled domain defines one ordered, non-secret field
+specification. A field entry contains a stable key, display label, whether it
+is secret, whether it is optional, and an optional prompt group. The same
+specification drives interactive prompts, standard-input allow-list
+validation, and `docs/test_creds.md`; do not maintain three independent field
+lists. Secret fields use hidden input and confirmation. Use the shared
+`omnia_auto` credential API, such as `prompt-fields`, rather than implementing
+domain-specific password prompting or vault writes.
 
-- **First line**: `<type>(<scope>): <description>` (max 72 chars)
-- **Body** (optional): Blank line, then details in bullet points
-- **Signed-off-by**: Auto-added by `--signoff` flag
-- **No Co-Authored-By tags** — do NOT include `Co-Authored-By: Devin <...>` or any AI agent attribution in commits. Only the human developer's `Signed-off-by` should appear.
+### 5.3 Non-interactive provisioning
 
-### 12.3 Branch Naming
-
-```
-feature/<issue>-<short-description>
-bugfix/<issue>-<short-description>
-```
-
----
-
-## 13. Full Pre-Push Verification Checklist
-
-Run this sequence before every push:
+Automation passes secret payloads through standard input:
 
 ```bash
-source .venv/bin/activate
-
-# 1. Flake8 — zero errors
-flake8 library/ fvt/ conftest.py --max-line-length=100 --exclude=.venv --count
-
-# 2. Pylint — all changed files must score >= 8.8
-pylint library/functions/*.py library/vars/*.py library/messages/*.py
-
-# 3. Bandit — no High severity
-bandit -r library/ fvt/ -ll -ii
-
-# 4. Gitleaks — no secrets
-grep -rn -iE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' \
-    --include="*.py" --include="*.yml" | \
-    grep -v '127\.0\.0\.1' | grep -v '0\.0\.0\.0'
-
-# 5. Run tests — all must pass
-./run_validation.sh <scenario> verify --marker sanity
-
-# 6. Commit with DCO sign-off and push
-git commit --signoff -m "<type>(<scope>): description"
-git push
+credential_provider | ./setup_env.sh --creds-stdin
+domain_credential_provider | ./setup_env.sh --domain-creds-stdin
 ```
+
+The transport payload is one password or a documented JSON object. The domain
+payload is a JSON object with documented fields. One setup invocation accepts
+at most one standard-input credential payload. Provision independent scopes in
+separate invocations.
+
+Standard-input handlers MUST:
+
+1. enforce a bounded input size;
+2. require the expected payload type;
+3. validate field names and value types;
+4. reject unknown fields unless the schema permits them;
+5. never echo the payload;
+6. use temporary files under `umask 077`;
+7. remove temporary plaintext on every exit path;
+8. encrypt and replace the destination atomically;
+9. enforce mode `0600` on keys and credential files.
+
+### 5.4 Forbidden secret transport
+
+These patterns are prohibited:
+
+```text
+./setup_env.sh --creds '<password>'
+./setup_env.sh --password '<password>'
+./setup_env.sh --domain-creds '{...}'
+PASSWORD='<password>' ./setup_env.sh ...
+```
+
+Secrets MUST NOT appear in arguments, process listings, shell history, debug
+traces, environment variables, source, tests, fixtures, comments, URLs,
+inventory strings, pytest parameters, assertion text, logs, reports, datasets,
+or manifests. Redaction is defense in depth, not permission to use an unsafe
+channel. Fake examples MUST be unmistakably synthetic.
 
 ---
 
-## 14. Quality Checklist
+## 6. `setup_env.sh` Contract
 
-Before submitting a PR, verify:
+`setup_env.sh` owns environment preparation and credential provisioning. It
+MUST NOT run a domain playbook or validation suite.
 
-### Module Structure
-- [ ] Follows `functions/`, `vars/`, `messages/` structure
-- [ ] All `__init__.py` files properly export items with `__all__`
-- [ ] `conftest.py` calls `omnia_auto.configure()` before any other `omnia_auto` imports
-- [ ] `library/functions/__init__.py` re-exports `omnia_auto` functions + domain wrappers
-- [ ] License headers in all files (current year)
+Required behavior:
 
-### Dataset
-- [ ] Dataset created using `datasets/generator/generate_dataset.py`
-- [ ] Generator has `defaults.yml` profile and Jinja2 templates
-- [ ] Generated dataset contains all required input files
+- default: install missing requirements into the active or documented user
+  environment;
+- `--venv`: create or reuse `.venv/`;
+- `--force`: reinstall declared requirements;
+- `--venv --force`: recreate or safely refresh `.venv/` and reinstall;
+- `--debug`: increase diagnostics without enabling secret echo;
+- interactive and standard-input credential options from section 5;
+- domain credential options only when the domain needs them;
+- `--help`: document every option and storage effect.
 
-### Functions
-- [ ] Used `omnia_auto` core functions first (check before writing new)
-- [ ] Return dicts with `success`, `details`, `error` keys
-- [ ] Docstrings on every function
-- [ ] No inline shell commands — all in `CMDS`
-- [ ] No hardcoded paths — all in `common_vars.py`
+The script MUST:
 
-### Tests
-- [ ] TC IDs and titles from `TEST_CASES` dict — never hardcoded
-- [ ] Imports only from `library.*`, never from `omnia_auto` directly
-- [ ] All messages from `TEST_LOG_MSGS` / `TEST_ASSERT_MSGS`
-- [ ] `@pytest.mark.order(n)` on every test (deploy = 0, verify >= 1)
-- [ ] `TestLogger` used in every test — no `print()`
+1. use strict shell behavior appropriate to its control flow;
+2. resolve its directory without assuming the current directory;
+3. quote paths and variable expansions;
+4. use a restrictive `umask` before credentials;
+5. reject incompatible options before changing files;
+6. be idempotent without force/update options;
+7. install `requirements.txt`, including the repository wheel path;
+8. print next safe commands without secrets;
+9. return non-zero on installation or credential failure.
 
-### Variables
-- [ ] All constants in `common_vars.py`
-- [ ] All commands in `CMDS` dict with named placeholders
-- [ ] All test case metadata in `test_case_vars.py`
+Do not add tab completion, shell-profile mutation, system-wide configuration,
+or network-side effects merely as setup convenience.
 
-### Messages
-- [ ] Log messages in `TEST_LOG_MSGS`
-- [ ] Assert messages in `TEST_ASSERT_MSGS` with HOW TO FIX sections
-- [ ] `.format()` with named placeholders for dynamic content
+---
 
-### CI
-- [ ] Flake8: zero errors (`--max-line-length=100`)
-- [ ] Pylint >= 8.8 locally, >= 8.0 in CI
-- [ ] Bandit: zero high-severity findings
-- [ ] No hardcoded IPs, passwords, tokens
-- [ ] All commits signed off (`git commit --signoff`)
-- [ ] No `Co-Authored-By` tags in commits (no AI agent attribution)
-- [ ] fvt/README.md updated with new test cases
+## 7. Runner and Configuration
 
-### Co-Change
-- [ ] PR that changes `src/` includes corresponding `test/` updates (or justification in PR description)
-- [ ] New playbook tags have a corresponding FVT scenario
-- [ ] Deleted features have their tests removed
-- [ ] AI agents (Devin, Copilot, etc.) NOT used for sign-off — see `general.md` §7
-- [ ] No `Co-Authored-By` or `Generated with` tags in commit messages
+### 7.1 Entry points
+
+`run_validation.sh` is a small, strict delegator:
+
+```text
+locate domain -> select Python -> invoke _run.py -> preserve exit code
+```
+
+It does not perform setup, prompt for credentials, parse domain configuration,
+or contain test logic.
+
+`_run.py` imports the catalog from `library/vars/domain_vars.py` and delegates
+to the shared `ValidationRunner`. The catalog defines:
+
+```python
+DOMAIN_NAME = "<domain>"
+FVT_TAGS = ["precheck", "validate", "deploy", "cleanup"]
+MARKERS = ["sanity", "functional"]
+SUITES = {
+    "precheck": ["environment"],
+    "deploy": ["services", "data"],
+    "cleanup": ["cleanup"],
+}
+EXCLUDE_TAGS = ["cleanup"]
+```
+
+These values illustrate structure only. Domains use their real catalog.
+
+### 7.2 CLI grammar
+
+```text
+run_validation.sh fvt_<domain> list
+run_validation.sh fvt_<domain> [<tag>] <exec|verify|test> [options]
+run_validation.sh nft_<domain> <test|verify> [options]
+run_validation.sh ut_<domain> <test|verify> [options]
+run_validation.sh --config
+run_validation.sh --help
+```
+
+No-tag FVT behavior, if supported, MUST be shared-runner behavior and be
+documented. Marker expressions are validated before reaching pytest.
+
+### 7.3 Batch configuration
+
+`test_run_config.yml` selects execution and never contains credentials:
+
+```yaml
+fvt_<domain>:
+  <tag>:
+    run: false
+    command: verify
+    suite: ""
+    marker: ""
+    dataset: ""
+    sync_input: false
+    sync_output: false
+
+nft_<domain>:
+  run: false
+  command: test
+
+ut_<domain>:
+  run: false
+  command: test
+```
+
+Only supported fields are allowed. Unknown sections, tags, suites, markers,
+commands, or incompatible options fail before execution.
+
+### 7.4 Fail-closed mapping invariant
+
+For every FVT tag, all of these MUST agree:
+
+1. product playbook tag or documented verification-only capability;
+2. entry in `FVT_TAGS`;
+3. physical `fvt/<tag>/` directory;
+4. `SUITES[<tag>]` entries and physical suite directories;
+5. registered pytest markers used beneath the tag;
+6. `test_run_config.yml` entry;
+7. README command and lifecycle documentation.
+
+`EXCLUDE_TAGS` includes cleanup and every destructive or explicit-only tag.
+Unknown values fail closed; they are not silently ignored.
+
+---
+
+## 8. `conftest.py` Session Lifecycle
+
+`conftest.py` calls `omnia_auto.configure()` before consumers that depend on
+configured paths.
+
+```text
+configure omnia_auto
+  -> load and validate non-secret config
+  -> load encrypted transport credentials when needed
+  -> establish local, execution, and target host objects
+  -> resolve dataset and sync policy
+  -> initialize TestReport and hooks
+  -> execute tests
+  -> collect artifacts and render summary
+  -> close connections and remove temporary plaintext
+```
+
+Rules:
+
+- session fixtures own session resources;
+- function fixtures isolate mutable per-test state;
+- fixtures yield resources and clean up in `finally`;
+- missing credentials fail with the exact safe setup command;
+- optional capabilities skip with a documented reason;
+- connection failures preserve the cause without secrets;
+- hooks record the final pytest result once;
+- no fixture mutates product state outside the declared execution phase.
+
+Do not put verification algorithms, command catalogs, or message dictionaries
+in `conftest.py`.
+
+---
+
+## 9. Functions, Variables, and Messages
+
+### 9.1 Functions
+
+`library/functions/__init__.py` is the domain public test API. Re-export
+approved `omnia_auto` functions and explicit domain helpers. Define `__all__`;
+never use wildcard imports.
+
+Split domain logic into focused capability modules, as Image Build Manager
+does for containers, storage, registries, status, cleanup, and validation.
+Keep private configuration helpers private. A `<domain>_func.py` file may
+remain as a compatibility facade, but it MUST NOT become a monolith.
+
+Domain helpers MUST:
+
+- represent one stable domain operation or verification;
+- validate untrusted input at the boundary;
+- use command templates from `common_vars.py`;
+- execute through approved `omnia_auto` helpers;
+- return structured results;
+- avoid assertions and test metadata;
+- close files, sessions, and connections deterministically.
+
+Verification result contract:
+
+```python
+{
+    "success": True,
+    "details": {"resource": "example", "state": "ready"},
+    "error": "",
+    "skipped": False,
+}
+```
+
+`success`, `details`, and `error` remain stable. Use `skipped` when a disabled
+optional capability is valid.
+
+Use `omnia_auto` for configuration, encrypted credentials, host construction,
+SSH/local execution, synchronization, playbook execution, dataset selection,
+runner dispatch, logging, symbols, timing, and reporting.
+
+Use a domain helper to interpret a domain resource, build a validated domain
+API request, verify domain data shape/freshness, or normalize a domain failure.
+Do not add plugin APIs containing a product name or fixed lab topology.
+
+### 9.2 Variables and commands
+
+`common_vars.py` contains immutable non-sensitive constants, paths, safe
+defaults, resource names, timeouts, retry limits, and a centralized `CMDS`
+mapping. `domain_vars.py` contains only runner registration.
+`test_case_vars.py` contains centralized test metadata.
+
+Never put credentials, mutable fixture state, or executable behavior in a
+variable module.
+
+Commands MUST be centralized in `CMDS` and run without a shell when possible.
+Prefer argument lists. If a remote helper needs a string, choose a fixed
+template, strictly validate identifiers, quote at the final boundary, keep
+secrets out, use a timeout, and check the return code.
+
+Prohibited:
+
+```python
+os.system(user_value)
+subprocess.run(user_value, shell=True)
+eval(user_value)
+exec(user_value)
+yaml.load(untrusted_text)
+```
+
+Use `yaml.safe_load()`. Never deserialize untrusted pickle data.
+
+### 9.3 Messages
+
+`library/messages/<domain>_msgs.py` contains reusable messages:
+
+```python
+TEST_LOG_MSGS = {
+    "wait_for_resource": "Waiting up to {timeout}s for {resource}",
+}
+
+TEST_ASSERT_MSGS = {
+    "resource_not_ready": (
+        "{resource} did not become ready. "
+        "HOW TO FIX: verify service health and rerun the check."
+    ),
+}
+```
+
+Use named placeholders. Failures state what failed, safe diagnostic context,
+and a concrete `HOW TO FIX` action. Never place credentials or raw authenticated
+responses in a message.
+
+---
+
+## 10. Tests, Metadata, and Output
+
+A test function should only obtain fixtures, load metadata, log its start,
+call one reusable operation, render safe details, and assert the structured
+result. Do not build SSH commands, parse large responses, load credentials, or
+encode retry loops in tests.
+
+Stable test-case IDs MUST use a domain-qualified identifier:
+
+| Level | Required format | Example |
+|---|---|---|
+| FVT | `<DOMAIN>_FVT_<TAG>_<TYPE><SEQ>` | `IMGBM_FVT_PREPARE_V001` |
+| NFT | `<DOMAIN>_NFT_<SEQ>` | `IMGBM_NFT_001` |
+| UT | `<DOMAIN>_UT_<SEQ>` | `IMGBM_UT_001` |
+
+- `<DOMAIN>` is the domain's documented, stable uppercase code. Image Build
+  Manager uses `IMGBM`.
+- `<TAG>` is the registered FVT runner tag converted to uppercase. Preserve
+  word boundaries as underscores; for example, `cleanup_images` becomes
+  `CLEANUP_IMAGES`. `FULL` is reserved for a documented untagged full-domain
+  execution.
+- `<TYPE>` is `E` for a case that executes the product operation or playbook
+  and `V` for a read-only verification case.
+- `<SEQ>` is a three-digit sequence beginning at `001`, unique within its
+  complete ID prefix.
+- The runner action `test` has no separate `T` identifier. It runs the
+  applicable `E` case and, only after success, the corresponding `V` cases.
+- NFT and UT IDs do not add FVT tag or E/V segments; this matches the Image
+  Build Manager registry.
+
+IDs and titles are centralized, unique within the domain, and stable when a
+title or execution order changes. Retired IDs MUST NOT be reused. Never
+hardcode IDs in `TestLogger` calls. A legacy-ID migration MUST update the
+central registry, README tables, runtime output, and legacy-to-current mapping
+atomically.
+
+Register every marker before use. Markers represent useful selection axes such
+as architecture, source, sink, feature, or `sanity`, not temporary labs.
+`domain_vars.py`, pytest configuration, README, batch examples, and decorators
+must agree.
+
+Output uses `TestLogger`, shared symbols, and indentation helpers. It includes:
+
+- one start record with ID and title;
+- one final pass, fail, or skip record;
+- concise named details;
+- UTC timestamps when time is material;
+- counts and endpoints without credentials;
+- an actionable failure message.
+
+Use a shared check symbol for each verified item. Do not print entire raw JSON
+records on one line. Select safe keys and truncate samples. Compute earliest
+and latest timestamps independently from returned records. Freshness and range
+checks use timezone-aware UTC values.
+
+Skip only a documented optional or disabled capability. Connection errors,
+malformed config, and missing required resources fail. `xfail` requires an
+issue reference and bounded removal plan.
+
+---
+
+## 11. Datasets and Synchronization
+
+Create `datasets/` only when the domain consumes input files or needs stable
+fixtures. Datasets contain non-secret inputs, never runtime credentials.
+
+A generator SHOULD provide safe defaults, named profiles, Jinja templates with
+`StrictUndefined`, validated overrides, deterministic names, safe YAML,
+staging plus atomic publish, and checksums when reproducibility matters.
+
+The generator rejects credential-like keys and secret-store values.
+`--from-src`, if supported, copies non-sensitive templates only, never live
+input, vault files, keys, passwords, or tokens.
+
+Synchronization is directional:
+
+```text
+dataset/input -> execution OIM project input     sync_input
+execution OIM project output -> local artifacts sync_output
+```
+
+Rules:
+
+1. `exec` may perform explicitly selected input sync.
+2. `verify` is read-only and never overwrites target input.
+3. Output goes to an ignored artifact directory.
+4. Paths remain beneath documented project directories.
+5. Traversal, symlink escape, and broad-root destinations are rejected.
+6. Credentials are excluded in both directions.
+
+---
+
+## 12. FVT, NFT, and UT Boundaries
+
+FVT validates product behavior in a representative environment:
+
+- `exec`: run the selected product operation;
+- `verify`: observe existing state without mutation;
+- `test`: run `exec`, then verify only after successful execution.
+
+Cleanup checks both removed resources and intentionally preserved data.
+Unreachable nodes are reported according to the product contract, never
+silently discarded.
+
+NFT measures a stated quality contract such as duration, idempotency, scale,
+or recovery. Every threshold has a rationale and unit. NFT reuses FVT functions
+where contracts fit and records environment assumptions.
+
+UT exercises isolated parsing, validation, formatting, and decisions. It does
+not require SSH, a cluster, appliance, live API, or real credentials. Mock at
+the I/O boundary, not inside the tested logic.
+
+A UT may read product files only when the domain explicitly declares a
+source-contract capability. That exception does not expand compliance scoring
+to product source or make source inspection mandatory for other domains.
+
+Without a runtime environment, UT, imports, static analysis, and configuration
+validation remain valid evidence. Report FVT/NFT as not run and identify the
+missing prerequisite.
+
+---
+
+## 13. Changing `omnia_auto`
+
+An `omnia_auto` change affects multiple domains. Treat source and wheel as one
+interface even when the declared version is unchanged.
+
+1. Prove no existing public function meets the need.
+2. Confirm behavior is domain-neutral with at least two plausible consumers.
+3. Preserve compatibility unless an approved migration is included.
+4. Update code, explicit exports, types, docstrings, API docs, and focused tests.
+5. Run package syntax, import, static, security, and available unit checks.
+6. Build the wheel from the plugin packaging directory:
+
+   ```bash
+   cd test/plugins
+   python -m build --wheel
+   ```
+
+7. Keep the version unless the release owner requests a bump.
+8. Include the rebuilt tracked same-version wheel when repository policy tracks
+   the artifact.
+9. Force-reinstall that exact wheel in each affected domain environment:
+
+   ```bash
+   python -m pip install --force-reinstall dist/omnia_auto-*.whl
+   ```
+
+10. Verify installed path, version, and public symbols:
+
+    ```bash
+    python -c "import omnia_auto; print(omnia_auto.__file__); print(omnia_auto.__version__)"
+    python -c "import omnia_auto; print(sorted(omnia_auto.__all__))"
+    ```
+
+11. Run focused checks for every affected domain.
+12. Commit plugin source, docs, wheel, and required consumers together.
+
+Do not publish to PyPI, change the version, commit a venv, or push unless the
+maintainer explicitly requests it.
+
+---
+
+## 14. Security and Hardcoding
+
+Validated configuration, inventory, fixtures, or non-secret datasets provide:
+
+- IPs, hostnames, ports, namespaces, and project names;
+- usernames and identities;
+- file, mount, inventory, certificate, and kubeconfig paths;
+- resource, service, container, topic, and metric names;
+- timeouts, retries, sizes, thresholds, and counts;
+- repository URLs and registry endpoints.
+
+Protocol names and schema keys may be literal when part of a stable contract.
+A lab value is never a stable contract.
+
+Required properties:
+
+- no plaintext credentials;
+- no secret-bearing argv or environment variables;
+- no `shell=True`, `os.system`, `eval`, or `exec` with dynamic data;
+- no unsafe YAML loader or untrusted pickle;
+- no disabled TLS verification by default;
+- no blanket `failed_when: false`, `ignore_errors`, or swallowed exception;
+- no broad recursive deletion or synchronization target;
+- no output containing credentials, keys, tokens, or authenticated URLs.
+
+For a suspected scanner false positive, trace source to sink and document why
+attacker-controlled data cannot reach it. Do not weaken code or add a
+suppression only to make a dashboard green.
+
+---
+
+## 15. Repository Check Applicability
+
+Workflow files are authoritative. Re-read `.github/workflows/` before changing
+this table because scope can change.
+
+| Check | Current scope and enforcement |
+|---|---|
+| Pylint | Blocking for changed Python; each checked file must score at least 8.0. Manual runs can cover a full test domain. |
+| Ansible Lint | Blocking production-profile check for changed YAML in its workflow scope. Workflow YAML is excluded. |
+| Bandit | Blocking `-ll -ii` scan for changed Python, subject to workflow test-file exclusions. Reusable test helpers can remain in scope. |
+| ShellCheck | Changed shell files are scanned; findings classified as errors block. Warnings still require review. |
+| HPC compliance | Blocks patterns such as `shell=True`, `os.system`, dynamic `eval`/`exec`, and unsafe YAML. Pickle is advisory but must be justified. |
+| Gitleaks | PR-range redacted secret scan; currently advisory through `continue-on-error`. A real leak still blocks release. |
+| pip-audit | Build Stream requirements only; scanner failure is currently tolerated with `|| true`. It is not a domain dependency gate. |
+| Pytest workflow | Changed `src/build_stream` Python only, with coverage. It does not execute domain FVT/NFT/UT. |
+| Commit hygiene | Author, message, and repository-policy checks. It is distinct from DCO. |
+| DCO | External check requiring a valid human `Signed-off-by` trailer. No local DCO workflow substitutes for it. |
+
+There is no repository Flake8 workflow at this revision. Do not claim a Flake8
+CI gate. Follow PEP 8 and any tool declared by the affected package.
+
+Workflow exclusions are not coding exemptions. Test code remains subject to
+credential and process-safety rules even when a scanner excludes a path.
+
+---
+
+## 16. Local Preflight and DCO
+
+Run CI-parity checks from the repository root. The commands below are broader
+full-domain examples; `.github/workflows/` remains authoritative for the exact
+changed-file filters and thresholds.
+
+```bash
+git diff --check
+python -m compileall -q test/<domain>
+python -m pylint test/<domain>
+find test/<domain> -type f -name '*.sh' -print0 \
+  | xargs -0 --no-run-if-empty shellcheck
+python -m bandit -ll -ii -r test/<domain>
+```
+
+Run Ansible Lint only for valid Ansible YAML within its workflow scope:
+
+```bash
+ansible-lint --config=.config/ansible-lint.yml <changed-ansible-yaml>
+```
+
+The domain-compliance skill is an additional static review, not a replacement
+for repository workflows:
+
+```bash
+python <omnia-spec-root>/.agents/skills/engineering/\
+test-domain-compliance/check_tests.py test/<domain> --tools
+```
+
+When an authorized environment exists, add focused evidence:
+
+```bash
+cd test/<domain>
+./run_validation.sh ut_<domain> test
+./run_validation.sh fvt_<domain> <affected-tag> verify
+```
+
+Run `exec`, `test`, cleanup, or NFT only with required authorization and
+infrastructure. State “not run” when prerequisites are absent.
+
+Before committing:
+
+```bash
+git status --short
+git diff --check
+git diff --name-only
+git diff
+```
+
+Create a human-authored DCO commit:
+
+```bash
+git commit -s -m "test(<domain>): describe the behavior change"
+```
+
+Configured `user.name` and `user.email` identify the human author. Never
+fabricate another person's signoff or add an AI identity trailer.
+
+---
+
+## 17. Review Checklists
+
+### Domain checklist
+
+- [ ] Source behavior and design documents were reviewed.
+- [ ] Capability map covers resources, states, failures, and cleanup.
+- [ ] Directory tree contains only supported capabilities.
+- [ ] README first-use flow is complete and safe.
+- [ ] Domain, tags, suites, markers, directories, and batch config agree.
+- [ ] Destructive tags are excluded from implicit execution.
+- [ ] Transport and domain credentials are separate and encrypted.
+- [ ] Non-interactive secrets use bounded standard input only.
+- [ ] Tests orchestrate; helpers contain reusable logic.
+- [ ] Commands, variables, messages, and metadata are centralized.
+- [ ] IDs and titles are unique and not hardcoded at call sites.
+- [ ] Datasets contain no credentials and sync in the declared direction.
+- [ ] FVT, NFT, and UT boundaries are respected.
+- [ ] Documentation matches commands and defaults.
+
+### `omnia_auto` checklist
+
+- [ ] Shared need and consumers are documented.
+- [ ] Existing APIs were checked first.
+- [ ] Exports, docs, types, and focused tests were updated.
+- [ ] Package static and security checks passed.
+- [ ] Wheel was rebuilt from changed source.
+- [ ] Version was preserved unless a bump was requested.
+- [ ] Exact wheel was force-reinstalled and its API verified.
+- [ ] Plugin, wheel, and consumers remain synchronized.
+- [ ] Nothing was published or pushed without authorization.
+
+### Handoff checklist
+
+- [ ] Diff contains only intended test, plugin, artifact, and docs files.
+- [ ] No secret, key, credential file, report, cache, or venv is tracked.
+- [ ] Applicable workflow-equivalent checks passed.
+- [ ] Runtime tests ran where an authorized environment existed.
+- [ ] Unavailable runtime checks and risks are stated accurately.
+- [ ] Human author and valid DCO signoff are present on each commit.
+- [ ] Canonical guide and specification mirror are identical when changed.
+
+---
+
+## 18. Definition of Done
+
+Test automation is complete when:
+
+1. documented commands match the registered execution surface;
+2. configuration and credential flows fail safely;
+3. tests produce consistent, actionable output;
+4. shared and domain responsibilities are separated;
+5. datasets and synchronization preserve source-of-truth boundaries;
+6. applicable static and security checks pass;
+7. runtime evidence exists, or missing infrastructure is stated;
+8. the diff is secret-free, focused, reviewed, and DCO-ready.
