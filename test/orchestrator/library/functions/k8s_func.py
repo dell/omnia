@@ -27,7 +27,7 @@ import re
 import time
 from typing import Any, Dict, List, Optional
 
-from omnia_auto import load_test_config, read_remote_yaml, run_on_host
+from omnia_auto import load_test_config, run_on_host
 from ..vars.common_vars import CMDS
 from ..vars.k8s_vars import (
     K8S_DIRECTORIES,
@@ -1719,27 +1719,15 @@ def _get_service_k8s_version(host) -> Optional[str]:
     return None
 
 
-def _is_powerscale_csi_enabled(host) -> bool:
-    """Return whether the active Kubernetes cluster enables PowerScale CSI."""
-    omnia_config_path = f"{_get_project_path(host)}/omnia_config.yml"
-    try:
-        omnia_config = read_remote_yaml(host, omnia_config_path)
-    except (RuntimeError, ValueError):
+def _is_powerscale_csi_configured(host) -> bool:
+    """Check if csi_driver_powerscale is in software_config.json."""
+    sw_config = _get_software_config(host)
+    if not sw_config:
         return False
 
-    clusters = omnia_config.get("service_k8s_cluster", [])
-    if not isinstance(clusters, list):
-        return False
-
-    deployed_clusters = [
-        cluster
-        for cluster in clusters
-        if isinstance(cluster, dict) and cluster.get("deployment") is True
-    ]
-    if len(deployed_clusters) != 1:
-        return False
-    return (
-        deployed_clusters[0].get("enable_powerscale_csi") is True
+    return any(
+        isinstance(sw, dict) and sw.get("name") == "csi_driver_powerscale"
+        for sw in sw_config.get("softwares", [])
     )
 
 
@@ -2561,28 +2549,24 @@ def check_k8s_nfs_provisioner_pod(host) -> Dict[str, Any]:
 
 
 def check_k8s_snapshot_controller_pods(host) -> Dict[str, Any]:
-    """Check snapshot-controller pods when PowerScale CSI is enabled."""
-    if not _is_powerscale_csi_enabled(host):
+    """Check if snapshot-controller pods are running (only when PowerScale CSI configured)."""
+    if not _is_powerscale_csi_configured(host):
         return {
             "success": True,
             "skipped": True,
-            "details": (
-                "PowerScale CSI is disabled - snapshot-controller check skipped"
-            ),
+            "details": "PowerScale CSI not configured - snapshot-controller check skipped",
             "error": "",
         }
     return _check_pods_with_prefix(host, "snapshot-controller", "snapshot-controller")
 
 
 def check_k8s_isilon_csi_pods(host) -> Dict[str, Any]:
-    """Check Isilon CSI driver pods when PowerScale CSI is enabled."""
-    if not _is_powerscale_csi_enabled(host):
+    """Check if Isilon CSI driver pods are running (only when PowerScale CSI configured)."""
+    if not _is_powerscale_csi_configured(host):
         return {
             "success": True,
             "skipped": True,
-            "details": (
-                "PowerScale CSI is disabled - Isilon CSI check skipped"
-            ),
+            "details": "PowerScale CSI not configured - Isilon CSI check skipped",
             "error": "",
         }
 
@@ -2634,8 +2618,7 @@ def check_k8s_isilon_csi_pods(host) -> Dict[str, Any]:
 def check_k8s_default_storage_class(host) -> Dict[str, Any]:
     """Check if the default storage class is set correctly.
 
-    If PowerScale CSI is enabled, expects 'ps01'. Otherwise, expects
-    'nfs-client'.
+    If PowerScale CSI is configured, expects 'ps01'. Otherwise, expects 'nfs-client'.
 
     Args:
         host: Testinfra host connection
@@ -2645,7 +2628,7 @@ def check_k8s_default_storage_class(host) -> Dict[str, Any]:
     """
     from ..vars.k8s_vars import K8S_DEFAULT_STORAGE_CLASS_CSI, K8S_DEFAULT_STORAGE_CLASS_NFS
 
-    is_csi = _is_powerscale_csi_enabled(host)
+    is_csi = _is_powerscale_csi_configured(host)
     expected_sc = K8S_DEFAULT_STORAGE_CLASS_CSI if is_csi else K8S_DEFAULT_STORAGE_CLASS_NFS
 
     cp_ip = _get_first_control_plane_ip(host)
@@ -2772,7 +2755,7 @@ def check_k8s_persistent_volumes(host) -> Dict[str, Any]:
 def check_k8s_nfs_storage_class(host) -> Dict[str, Any]:
     """Check if NFS StorageClass is dynamic and properly configured.
 
-    Skipped if PowerScale CSI is enabled.
+    Skipped if PowerScale CSI is configured.
 
     Args:
         host: Testinfra host connection
@@ -2780,13 +2763,11 @@ def check_k8s_nfs_storage_class(host) -> Dict[str, Any]:
     Returns:
         Dict with success, details, error, skipped
     """
-    if _is_powerscale_csi_enabled(host):
+    if _is_powerscale_csi_configured(host):
         return {
             "success": True,
             "skipped": True,
-            "details": (
-                "PowerScale CSI is enabled - NFS StorageClass check skipped"
-            ),
+            "details": "PowerScale CSI configured - NFS StorageClass check skipped",
             "error": "",
         }
 
