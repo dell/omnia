@@ -21,17 +21,14 @@
 #   - Pulp CLI configuration files
 #   - DNF Pulp repository configuration and public repository status
 #   - Log files (optional)
-#   - Credential files (interactive prompt - user decides)
+#   - Credential files (deleted by default, can be preserved)
 # All tasks run on localhost (OIM).
 #
 # Usage:
-#   Interactive mode (will prompt for credential deletion):
+#   Default (delete credentials without prompting):
 #     ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default'
 #
-#   Force delete credentials (no prompt):
-#     ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default' -e 'cleanup_credentials=true'
-#
-#   Preserve credentials (no prompt):
+#   Preserve credentials:
 #     ansible-playbook playbooks/cleanup/cleanup_pulp.yml -e 'project_name=project_default' -e 'cleanup_credentials=false'
 #
 #   Preserve logs:
@@ -127,6 +124,7 @@
       ansible.builtin.set_fact:
         pulp_username: "{{ pulp_username | default('admin') }}"
         pulp_password: "{{ pulp_password | default('') }}"
+      no_log: true
 
     - name: Display credential status
       ansible.builtin.debug:
@@ -293,38 +291,15 @@
         path: "{{ repo_manager_credentials_file }}"
       register: credential_file_exists
 
-    - name: Prompt user to delete credentials
-      ansible.builtin.pause:
-        prompt: |
-
-          ========================================
-          CREDENTIAL CLEANUP CONFIRMATION
-          ========================================
-          Credential file found at:
-            {{ repo_manager_credentials_file }}
-
-          Do you want to delete the credential files? (yes/no)
-
-          - yes: Credentials will be deleted and you'll be prompted during next deployment
-          - no:  Credentials will be preserved and reused in next deployment
-
-          Enter your choice
-      register: delete_credentials_prompt
-      when:
-        - credential_file_exists.stat.exists
-        - cleanup_credentials is not defined or cleanup_credentials == ''
-
-    - name: Set credential cleanup decision based on user input
+    - name: Set credential cleanup decision
       ansible.builtin.set_fact:
-        cleanup_credentials: "{{ delete_credentials_prompt.user_input | lower in ['yes', 'y'] }}"
-      when:
-        - delete_credentials_prompt is defined
-        - delete_credentials_prompt.user_input is defined
-        - not delete_credentials_prompt.skipped | default(false)
-
-    - name: Set default cleanup_credentials if not set
-      ansible.builtin.set_fact:
-        cleanup_credentials: "{{ cleanup_credentials | default(true) }}"
+        cleanup_credentials: >-
+          {{
+            false
+            if cleanup_credentials is defined
+               and cleanup_credentials | string | lower in ['false', 'no', '0']
+            else true
+          }}
 
     - name: Display credential cleanup mode
       ansible.builtin.debug:
