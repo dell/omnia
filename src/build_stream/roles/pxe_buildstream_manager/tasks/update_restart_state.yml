@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Load current restart_state.json (may have manually booted nodes from compute_effective_inventory.yml)
+- name: Load current restart_state.json (may have manually booted nodes from generate_effective_csv.yml)
   ansible.builtin.stat:
     path: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
   register: current_restart_state_stat
