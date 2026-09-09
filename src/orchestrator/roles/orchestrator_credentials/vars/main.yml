@@ -42,7 +42,7 @@ omnia_credentials:
     conditional_mandatory:
       - username: csi_username
         password: csi_password
-        required: "{{ csi_driver_powerscale_support | default(false) | bool }}"
+        required: "{{ enable_powerscale_csi | default(false) | bool }}"
 
 # Error messages
 mandatory_warning_msg: "WARNING: The following are mandatory credentials and cannot be left empty."
