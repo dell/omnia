@@ -174,15 +174,15 @@ STAGE_ORDER_CLEANUP = [
 ]
 
 STATUS_STYLES = {
-    "success":  {"icon": "&#10004;", "color": "#28a745", "label": "PASSED"},
-    "failed":   {"icon": "&#10008;", "color": "#dc3545", "label": "FAILED"},
-    "skipped":  {"icon": "&#8212;",  "color": "#6c757d", "label": "SKIPPED"},
-    "canceled": {"icon": "&#9888;",  "color": "#ffc107", "label": "CANCELED"},
-    "manual":   {"icon": "&#9654;",  "color": "#17a2b8", "label": "MANUAL"},
-    "running":  {"icon": "&#8635;",  "color": "#007bff", "label": "RUNNING"},
-    "pending":  {"icon": "&#8987;",  "color": "#6c757d", "label": "PENDING"},
-    "created":  {"icon": "&#183;",   "color": "#adb5bd", "label": "CREATED"},
-    "unknown":  {"icon": "&#63;",    "color": "#6c757d", "label": "UNKNOWN"},
+    "success": {"color": "#28a745", "label": "PASSED"},
+    "failed": {"color": "#dc3545", "label": "FAILED"},
+    "skipped": {"color": "#6c757d", "label": "SKIPPED"},
+    "canceled": {"color": "#ffc107", "label": "CANCELED"},
+    "manual": {"color": "#17a2b8", "label": "MANUAL"},
+    "running": {"color": "#007bff", "label": "RUNNING"},
+    "pending": {"color": "#6c757d", "label": "PENDING"},
+    "created": {"color": "#adb5bd", "label": "CREATED"},
+    "unknown": {"color": "#6c757d", "label": "UNKNOWN"},
 }
 
 
@@ -258,7 +258,7 @@ def build_stage_table_html(job_statuses, mode, selected_domains, include_tests):
             f'<td style="border: 1px solid #dee2e6; padding: 8px 12px; '
             f"text-align: center; color: {style['color']}; "
             f'font-weight: bold;">'
-            f"{style['icon']} {style['label']}</td></tr>"
+            f"{style['label']}</td></tr>"
         )
 
     table_html = (
@@ -284,18 +284,12 @@ stage_table_html, has_failure, failed_stage = build_stage_table_html(
 if not job_statuses:
     overall_status = "UNKNOWN"
     status_color = "#6c757d"
-    status_icon = "&#63;"
-    status_icon_text = "?"
 elif has_failure:
     overall_status = "FAILED"
     status_color = "#dc3545"
-    status_icon = "&#10008;"
-    status_icon_text = "X"
 else:
     overall_status = "SUCCESS"
     status_color = "#28a745"
-    status_icon = "&#10004;"
-    status_icon_text = "V"
 
 print(f"Overall pipeline status: {overall_status}")
 if failed_stage:
@@ -308,8 +302,7 @@ msg["To"] = ", ".join(recipients)
 
 subject_detail = f" - {failed_stage}" if failed_stage else ""
 msg["Subject"] = (
-    f"[{status_icon_text}] Omnia Pipeline - {overall_status}"
-    f"{subject_detail} ({pipeline_mode})"
+    f"Omnia Pipeline - {overall_status}{subject_detail} ({pipeline_mode})"
 )
 
 html_body = f"""
@@ -318,7 +311,7 @@ html_body = f"""
     <h2>Omnia Pipeline Execution Report</h2>
     <div style="background-color: {status_color}; color: white;
                 padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-        <h3 style="margin: 0;">{status_icon} {overall_status}</h3>
+        <h3 style="margin: 0;">{overall_status}</h3>
         <p style="margin: 5px 0 0 0;">
             <strong>Mode:</strong> {pipeline_mode} &nbsp;|&nbsp;
             <strong>Domains:</strong> {domains}

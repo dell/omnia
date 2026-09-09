@@ -147,8 +147,8 @@ stages:
 # ---------------------------------------------------------------------------
 default:
   after_script:
-    - mkdir -p pipeline_job_status
-    - printf '{"name":"%s","status":"%s"}\n' "$CI_JOB_NAME" "$CI_JOB_STATUS" > "pipeline_job_status/$CI_JOB_NAME.json"
+    - mkdir -p "pipeline_job_status/$CI_PIPELINE_ID"
+    - printf '{"name":"%s","status":"%s"}\n' "$CI_JOB_NAME" "$CI_JOB_STATUS" > "pipeline_job_status/$CI_PIPELINE_ID/$CI_JOB_NAME.json"
   artifacts:
     paths:
       - pipeline_job_status/
@@ -2108,9 +2108,12 @@ summary:
       python3 - <<'PY'
       import glob
       import json
+      import os
 
       jobs = []
-      for path in glob.glob("pipeline_job_status/*.json"):
+      for path in glob.glob(
+          f"pipeline_job_status/{os.environ['CI_PIPELINE_ID']}/*.json"
+      ):
           with open(path, encoding="utf-8") as status_file:
               jobs.append(json.load(status_file))
       jobs.append({"name": "summary", "status": "running"})
@@ -2123,19 +2126,31 @@ summary:
     - |
       echo "Fetching test reports from target..."
       REMOTE_REPORTS_PATH="/opt/omnia/reports"
-      LOCAL_REPORTS_PATH="pipeline_reports/test_reports"
+      LOCAL_REPORTS_PATH="pipeline_reports/test_reports/$CI_JOB_ID"
       mkdir -p "$LOCAL_REPORTS_PATH"
-      REPORT_GLOB="*_${CI_PIPELINE_ID}_*_report"
-      $SSH_CMD $TARGET "ls $REMOTE_REPORTS_PATH/$REPORT_GLOB.json $REMOTE_REPORTS_PATH/$REPORT_GLOB.html 2>/dev/null" && {
-        $SCP_CMD "$TARGET:$REMOTE_REPORTS_PATH/$REPORT_GLOB.json" "$LOCAL_REPORTS_PATH/" 2>/dev/null || true
-        $SCP_CMD "$TARGET:$REMOTE_REPORTS_PATH/$REPORT_GLOB.html" "$LOCAL_REPORTS_PATH/" 2>/dev/null || true
-        echo "  Copied test reports to $LOCAL_REPORTS_PATH/"
-        ls -la "$LOCAL_REPORTS_PATH/" 2>/dev/null
-      } || echo "  No test reports found on target"
+      if [ "$DOMAINS" = "default" ]; then
+        REPORT_DOMAINS="main repo_manager image_build_manager orchestrator telemetry"
+      else
+        REPORT_DOMAINS="main $(echo "$DOMAINS" | tr ',' ' ')"
+      fi
+      for domain in $REPORT_DOMAINS; do
+        REPORT_GLOB="*_${CI_PIPELINE_ID}_${domain}_report.json"
+        LATEST_JSON=$($SSH_CMD $TARGET \
+          "ls -1t $REMOTE_REPORTS_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+        if [ -n "$LATEST_JSON" ]; then
+          $SCP_CMD "$TARGET:$LATEST_JSON" "$LOCAL_REPORTS_PATH/" || true
+          LATEST_HTML="${LATEST_JSON%.json}.html"
+          if $SSH_CMD $TARGET "test -f $LATEST_HTML"; then
+            $SCP_CMD "$TARGET:$LATEST_HTML" "$LOCAL_REPORTS_PATH/" || true
+          fi
+        fi
+      done
+      echo "  Fresh reports copied to $LOCAL_REPORTS_PATH/"
+      ls -la "$LOCAL_REPORTS_PATH/" 2>/dev/null
 
     - export PIPELINE_MODE
     - export DOMAINS
-    - export TEST_REPORTS_PATH="pipeline_reports/test_reports"
+    - export TEST_REPORTS_PATH="pipeline_reports/test_reports/$CI_JOB_ID"
 
     - echo "Sending email notification..."
     - python3 send_email.py || echo "Email notification failed (non-fatal)"
