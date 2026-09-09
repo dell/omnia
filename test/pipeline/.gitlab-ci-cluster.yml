@@ -1153,17 +1153,7 @@ repo_manager:
           if [ -f .venv/bin/activate ]; then
             source .venv/bin/activate 2>/dev/null || true
           fi
-          python3 -c '
-from omnia_auto.functions.report_func import record_playbook_failure
-record_playbook_failure(
-    module_name=\"repo_manager\",
-    report_path=\"/opt/omnia/reports\",
-    report_name=\"repo_manager_fvt\",
-    server_ip=\"localhost\",
-    report_id=\"${CI_PIPELINE_ID:-manual}\",
-    command_type=\"deploy\",
-)
-' 2>/dev/null || echo 'WARNING: Could not record playbook failure in report'
+          python3 -c 'import sys; sys.path.insert(0, \"/opt/omnia/test/plugins\"); from omnia_auto.functions.report_func import record_playbook_failure; record_playbook_failure(module_name=\"repo_manager\", report_path=\"/opt/omnia/reports\", report_name=\"repo_manager_fvt\", server_ip=\"localhost\", report_id=\"${CI_PIPELINE_ID:-manual}\", command_type=\"deploy\")' 2>/dev/null || echo 'WARNING: Could not record playbook failure in report'
         "
         exit 1
       fi
@@ -1401,17 +1391,7 @@ image_build_manager:
           if [ -f .venv/bin/activate ]; then
             source .venv/bin/activate 2>/dev/null || true
           fi
-          python3 -c '
-from omnia_auto.functions.report_func import record_playbook_failure
-record_playbook_failure(
-    module_name=\"image_build_manager\",
-    report_path=\"/opt/omnia/reports\",
-    report_name=\"test_report\",
-    server_ip=\"localhost\",
-    report_id=\"${CI_PIPELINE_ID:-manual}\",
-    command_type=\"deploy\",
-)
-' 2>/dev/null || echo 'WARNING: Could not record playbook failure in report'
+          python3 -c 'import sys; sys.path.insert(0, \"/opt/omnia/test/plugins\"); from omnia_auto.functions.report_func import record_playbook_failure; record_playbook_failure(module_name=\"image_build_manager\", report_path=\"/opt/omnia/reports\", report_name=\"test_report\", server_ip=\"localhost\", report_id=\"${CI_PIPELINE_ID:-manual}\", command_type=\"deploy\")' 2>/dev/null || echo 'WARNING: Could not record playbook failure in report'
         "
         exit 1
       fi
@@ -1647,17 +1627,7 @@ orchestrator:
           if [ -f .venv/bin/activate ]; then
             source .venv/bin/activate 2>/dev/null || true
           fi
-          python3 -c '
-from omnia_auto.functions.report_func import record_playbook_failure
-record_playbook_failure(
-    module_name=\"orchestrator\",
-    report_path=\"/opt/omnia/reports\",
-    report_name=\"orchestrator_test_report\",
-    server_ip=\"localhost\",
-    report_id=\"${CI_PIPELINE_ID:-manual}\",
-    command_type=\"deploy\",
-)
-' 2>/dev/null || echo 'WARNING: Could not record playbook failure in report'
+          python3 -c 'import sys; sys.path.insert(0, \"/opt/omnia/test/plugins\"); from omnia_auto.functions.report_func import record_playbook_failure; record_playbook_failure(module_name=\"orchestrator\", report_path=\"/opt/omnia/reports\", report_name=\"orchestrator_test_report\", server_ip=\"localhost\", report_id=\"${CI_PIPELINE_ID:-manual}\", command_type=\"deploy\")' 2>/dev/null || echo 'WARNING: Could not record playbook failure in report'
         "
         exit 1
       fi
@@ -1893,17 +1863,7 @@ telemetry:
           if [ -f .venv/bin/activate ]; then
             source .venv/bin/activate 2>/dev/null || true
           fi
-          python3 -c '
-from omnia_auto.functions.report_func import record_playbook_failure
-record_playbook_failure(
-    module_name=\"telemetry\",
-    report_path=\"/opt/omnia/reports\",
-    report_name=\"telemetry_test_report\",
-    server_ip=\"localhost\",
-    report_id=\"${CI_PIPELINE_ID:-manual}\",
-    command_type=\"deploy\",
-)
-' 2>/dev/null || echo 'WARNING: Could not record playbook failure in report'
+          python3 -c 'import sys; sys.path.insert(0, \"/opt/omnia/test/plugins\"); from omnia_auto.functions.report_func import record_playbook_failure; record_playbook_failure(module_name=\"telemetry\", report_path=\"/opt/omnia/reports\", report_name=\"telemetry_test_report\", server_ip=\"localhost\", report_id=\"${CI_PIPELINE_ID:-manual}\", command_type=\"deploy\")' 2>/dev/null || echo 'WARNING: Could not record playbook failure in report'
         "
         exit 1
       fi
