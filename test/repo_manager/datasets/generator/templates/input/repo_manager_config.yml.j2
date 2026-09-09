@@ -113,7 +113,7 @@
 # 1. REPO CONFIG (global sync policy)
 # ------------------------------------------------------------
 repo_config: "{{ repo_config }}"  # Options: always | partial
-caching_policy: {{ caching_policy }}    # Options: true (on_demand) | false (immediate)
+caching_policy: {{ 'true' if caching_policy else 'false' }}    # Options: true (on_demand) | false (immediate)
 # Note: Per-repo 'caching' field overrides global caching_policy when set
 
 # ------------------------------------------------------------

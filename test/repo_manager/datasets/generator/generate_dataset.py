@@ -87,10 +87,10 @@ def _error(msg):
 
 def _load_profile(profile_name):
     """Load and merge profile YAML files.
-    
+
     Args:
         profile_name: Name of the profile to load (without .yml extension)
-        
+
     Returns:
         dict: Merged profile variables
     """
@@ -99,33 +99,33 @@ def _load_profile(profile_name):
     if not defaults_path.exists():
         _error(f"Default profile not found: {defaults_path}")
         sys.exit(1)
-    
-    with open(defaults_path) as f:
+
+    with open(defaults_path, encoding="utf-8") as f:
         variables = yaml.safe_load(f) or {}
-    
+
     # Load profile-specific overrides if not defaults
     if profile_name != "defaults":
         profile_path = PROFILES_DIR / f"{profile_name}.yml"
         if not profile_path.exists():
             _error(f"Profile not found: {profile_path}")
             sys.exit(1)
-        
-        with open(profile_path) as f:
+
+        with open(profile_path, encoding="utf-8") as f:
             profile_vars = yaml.safe_load(f) or {}
-        
+
         # Deep merge profile into defaults
         variables = _deep_merge(variables, profile_vars)
-    
+
     return variables
 
 
 def _deep_merge(base, override):
     """Deep merge two dictionaries.
-    
+
     Args:
         base: Base dictionary
         override: Override dictionary
-        
+
     Returns:
         dict: Merged dictionary
     """
@@ -140,7 +140,7 @@ def _deep_merge(base, override):
 
 def _render_templates(variables, dataset_dir):
     """Render all Jinja2 templates to the dataset directory.
-    
+
     Args:
         variables: Template variables
         dataset_dir: Target dataset directory
@@ -150,24 +150,24 @@ def _render_templates(variables, dataset_dir):
         undefined=StrictUndefined,
         autoescape=select_autoescape(['j2']),
     )
-    
+
     # Render all templates in the templates directory
     for template_path in TEMPLATES_DIR.rglob("*.j2"):
         # Calculate relative path from templates dir
         rel_path = template_path.relative_to(TEMPLATES_DIR)
         # Remove .j2 extension
         output_path = dataset_dir / rel_path.with_suffix('')
-        
+
         # Ensure output directory exists
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Get template relative path for Jinja2
         template_rel_path = str(rel_path)
         template = env.get_template(template_rel_path)
-        
+
         try:
             rendered = template.render(**variables)
-            with open(output_path, 'w') as f:
+            with open(output_path, 'w', encoding="utf-8") as f:
                 f.write(rendered)
             _info(f"Rendered: {rel_path.with_suffix('')}")
         except TemplateError as e:
@@ -177,17 +177,17 @@ def _render_templates(variables, dataset_dir):
 
 def _copy_from_src(dataset_dir):
     """Copy input files directly from src/repo_manager/input/.
-    
+
     Args:
         dataset_dir: Target dataset directory
     """
     if not SRC_INPUT_DIR.exists():
         _error(f"Source input directory not found: {SRC_INPUT_DIR}")
         sys.exit(1)
-    
+
     input_dir = dataset_dir / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
-    
+
     for src_file in SRC_INPUT_DIR.glob("*.yml"):
         dest_file = input_dir / src_file.name
         shutil.copy2(src_file, dest_file)
@@ -196,7 +196,7 @@ def _copy_from_src(dataset_dir):
 
 def _generate_readme(dataset_name, profile_name, dataset_dir):
     """Generate a README.md for the dataset.
-    
+
     Args:
         dataset_name: Name of the dataset
         profile_name: Name of the profile used
@@ -231,11 +231,11 @@ cd datasets/generator/
 python generate_dataset.py {dataset_name} {profile_name} --force
 ```
 """
-    
+
     readme_path = dataset_dir / "README.md"
-    with open(readme_path, 'w') as f:
+    with open(readme_path, "w", encoding="utf-8") as f:
         f.write(readme_content)
-    _info(f"Generated: README.md")
+    _info("Generated: README.md")
 
 
 def _list_profiles():
@@ -281,38 +281,38 @@ def main():
         action="store_true",
         help="List available profiles and exit"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Handle --list-profiles
     if args.list_profiles:
         _list_profiles()
         return 0
-    
+
     # Validate required arguments
     if not args.dataset_name:
         parser.error("dataset_name is required (unless using --list-profiles)")
-    
+
     if not args.from_src and not args.profile:
         parser.error("profile is required (unless using --from-src)")
-    
+
     dataset_dir = DATASETS_DIR / args.dataset_name
-    
+
     # Check if dataset already exists
     if dataset_dir.exists() and not args.force:
         _error(f"Dataset already exists: {dataset_dir}")
         _error("Use --force to overwrite")
         return 1
-    
+
     # Remove existing dataset if --force
     if dataset_dir.exists() and args.force:
         _info(f"Removing existing dataset: {args.dataset_name}")
         shutil.rmtree(dataset_dir)
-    
+
     # Create dataset directory
     dataset_dir.mkdir(parents=True, exist_ok=True)
     _info(f"Creating dataset: {args.dataset_name}")
-    
+
     if args.from_src:
         # Copy from source
         _copy_from_src(dataset_dir)
@@ -321,7 +321,7 @@ def main():
         # Load profile variables
         _info(f"Loading profile: {args.profile}")
         variables = _load_profile(args.profile)
-        
+
         # Apply CLI variable overrides
         if args.var:
             _info("Applying variable overrides")
@@ -337,14 +337,14 @@ def main():
                     parsed_value = value
                 variables[key] = parsed_value
                 _info(f"  {key} = {parsed_value}")
-        
+
         # Render templates
         _info("Rendering templates")
         _render_templates(variables, dataset_dir)
-        
+
         # Generate README
         _generate_readme(args.dataset_name, args.profile, dataset_dir)
-    
+
     _ok(f"Dataset generated successfully: {dataset_dir}")
     return 0
 

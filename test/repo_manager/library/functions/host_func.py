@@ -32,7 +32,6 @@ from omnia_auto import (
     connection_params,
     resolve_domain_input_path,
     ensure_remote_dir,
-    log,
 )
 
 
@@ -50,31 +49,31 @@ def _resolve_dataset_subdir(config: Dict[str, Any], subdirectory: str, src_fallb
         # Fall back to source directory
         repo_root = os.path.dirname(os.path.dirname(get_module_root()))
         return os.path.join(repo_root, src_fallback)
-    
+
     # Resolve dataset path with security checks
     datasets_root = os.path.realpath(os.path.join(get_module_root(), "datasets"))
     dataset_path = os.path.join(datasets_root, dataset)
-    
+
     # Security checks
     if os.path.islink(dataset_path):
         raise ValueError(f"Dataset symlinks are not allowed: {dataset}")
-    
+
     resolved_dataset = os.path.realpath(dataset_path)
     if os.path.dirname(resolved_dataset) != datasets_root:
         raise ValueError(f"Dataset escapes datasets directory: {dataset!r}")
-    
+
     subdir_path = os.path.join(resolved_dataset, subdirectory)
     if os.path.islink(subdir_path):
         raise ValueError(
             f"Dataset subdirectory symlinks are not allowed: {dataset}/{subdirectory}"
         )
-    
+
     resolved_subdir = os.path.realpath(subdir_path)
     if os.path.commonpath((resolved_dataset, resolved_subdir)) != resolved_dataset:
         raise ValueError(
             f"Dataset subdirectory escapes its dataset: {dataset}/{subdirectory}"
         )
-    
+
     return resolved_subdir
 
 
@@ -102,10 +101,9 @@ def sync_project_to_remote() -> Dict[str, Any]:
     """
     config = load_test_config()
     clone_path = config.get("clone_path", "/root/omnia")
-    module_root = get_module_root()
-    
+
     conn = connection_params()
-    
+
     # Repo root: test/repo_manager/ -> test/ -> omnia/
     repo_root = os.path.dirname(os.path.dirname(get_module_root()))
 
@@ -144,12 +142,11 @@ def sync_repo_manager_input(host, config: Dict[str, Any] | None = None) -> Dict[
     """
     if config is None:
         config = load_test_config()
-    
-    project = config.get("project_name", "project_default")
+
     conn = connection_params()
-    
+
     local_input = _resolve_input_dir(config)
-    
+
     if is_local_execution():
         # Local execution: use local dataset or source files directly
         return {
@@ -158,7 +155,7 @@ def sync_repo_manager_input(host, config: Dict[str, Any] | None = None) -> Dict[
             "details": f"Local execution: using input from {local_input}",
             "error": "",
         }
-    
+
     # Remote execution: sync to target
     remote_input = resolve_domain_input_path(
         host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
