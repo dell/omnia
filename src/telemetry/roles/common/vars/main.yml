@@ -41,6 +41,11 @@ verify_timeout: "300s"
 # =============================================================================
 # Python dependency installation
 # =============================================================================
+# Internal mapping from Python import names to catalog/Pulp distribution names.
+# This is implementation metadata and is intentionally not user-configurable.
+telemetry_pip_distribution_names:
+  pymysql: "PyMySQL"
+
 # Offline Python packages directory - derived from telemetry_data_path
 # This is a fallback when repo_url is not accessible
 # The primary source is always repo_url from telemetry_packages.yml
