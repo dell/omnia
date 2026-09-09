@@ -25,7 +25,7 @@ from ..vars.common_vars import (
     PULP_CONTAINER_NAME,
     PULP_PORT,
     PULP_CLI_SYMLINK,
-    PULP_CERTS_DIR,
+    _get_pulp_certs_dir,
 )
 
 
@@ -67,7 +67,8 @@ def _get_input_path() -> str:
             pass
     
     # Standard system path
-    return f"/opt/omnia/repo_manager/input/{project}"
+    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
+    return f"{shared_path}/input/{project}"
 
 
 def _get_credentials_path() -> str:
@@ -81,19 +82,23 @@ def _get_credentials_path() -> str:
     project = config.get("project_name", "project_default")
     
     # Credentials should always be in system path (not in datasets for security)
-    return f"/opt/omnia/repo_manager/input/{project}"
+    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
+    return f"{shared_path}/input/{project}"
 
 
 def _get_output_path() -> str:
     """Return the repo_manager output path for the configured project."""
     config = load_test_config()
     project = config.get("project_name", "project_default")
-    return f"/opt/omnia/repo_manager/output/{project}"
+    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
+    return f"{shared_path}/output/{project}"
 
 
 def _get_base_path() -> str:
     """Return the repo_manager base data path."""
-    return "/opt/omnia/repo_manager"
+    config = load_test_config()
+    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
+    return shared_path
 
 
 def _cmd_file_exists(host, path: str) -> str:
@@ -311,14 +316,15 @@ def check_pulp_cli_configured(host) -> Dict[str, Any]:
 
 def check_pulp_certificates_exist(host) -> Dict[str, Any]:
     """Verify Pulp SSL certificates exist for HTTPS."""
-    crt_path = f"{PULP_CERTS_DIR}/pulp_webserver.crt"
-    key_path = f"{PULP_CERTS_DIR}/pulp_webserver.key"
+    pulp_certs_dir = _get_pulp_certs_dir()
+    crt_path = f"{pulp_certs_dir}/pulp_webserver.crt"
+    key_path = f"{pulp_certs_dir}/pulp_webserver.key"
     crt_result = _cmd_file_exists(host, crt_path)
     key_result = _cmd_file_exists(host, key_path)
     if "exists" in crt_result.stdout and "exists" in key_result.stdout:
         return {
             "success": True,
-            "details": f"Pulp certificates found at {PULP_CERTS_DIR}",
+            "details": f"Pulp certificates found at {pulp_certs_dir}",
             "error": "",
         }
     return {
