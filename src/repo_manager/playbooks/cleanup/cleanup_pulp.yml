@@ -127,6 +127,7 @@
       ansible.builtin.set_fact:
         pulp_username: "{{ pulp_username | default('admin') }}"
         pulp_password: "{{ pulp_password | default('') }}"
+      no_log: true
 
     - name: Display credential status
       ansible.builtin.debug:

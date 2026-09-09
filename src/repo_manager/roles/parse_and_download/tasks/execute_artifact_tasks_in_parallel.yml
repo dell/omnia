@@ -75,6 +75,7 @@
         PULP_CLI_CONFIG_PATH: "{{ pulp_system_cli_config_file }}"
         PULP_CLI_EXECUTABLE: "{{ pulp_cli_executable }}"
       register: task_results
+      no_log: true
 
     - name: Set fact for overall status
       ansible.builtin.set_fact:
