@@ -11,8 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+---
+# =============================================================================
+# rhel10.yml — RHEL 10 specific configuration profile
+# =============================================================================
+# Profile for RHEL 10 specific testing scenarios
+# =============================================================================
 
-"""Repo Manager — Test Library Package."""
+# Use partial sync for RHEL 10 testing (more efficient)
+repo_config: "partial"
 
-from .functions import repo_manager_func
-from .functions import host_func
+# Enable caching for on-demand downloads
+caching_policy: true
+
+# Use standard Pulp port
+pulp_server_port: 2225

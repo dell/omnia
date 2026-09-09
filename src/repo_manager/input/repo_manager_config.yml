@@ -160,9 +160,11 @@ registries:
 #       These are provided by RHEL subscription. If subscription is enabled on nodes,
 #       leave these empty – they will be auto-configured from the subscription.
 #       If subscription is NOT registered, you MUST fill in the URLs for these repos.
-#   - USER-REQUIRED REPOS (slurm_custom):
-#       You MUST fill in the URLs here for your custom Slurm repository.
-#       Failure to do so will cause sync errors.
+#   - USER-REQUIRED REPOS (slurm_custom, ldms, vast):
+#       These are pre-populated under user_repos with empty URLs.
+#       Fill in the URL only when your catalog references the repo.
+#       Repos not referenced by the catalog are automatically ignored.
+#       Failure to provide URLs for catalog-referenced repos will cause sync errors.
 #   - OMNIA-REQUIRED REPOS (docker-ce, doca, cuda, nvidia-hpc-sdk):
 #       These are required for Omnia features (container runtime, DOCA drivers,
 #       CUDA, NVIDIA HPC SDK). The URLs below are defaults; update them if you
@@ -176,9 +178,24 @@ repositories:
     x86_64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
       # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      baseos: {}
-      appstream: {}
-      codeready-builder: {}
+      baseos:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      appstream:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      codeready-builder:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
       epel:
         url: "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/"
         gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10"
@@ -241,13 +258,50 @@ repositories:
       #       sslclientkey: ""
       #       sslclientcert: ""
       additional_repos: {}
-      user_repos: {}
+      # USER-REQUIRED REPOS (pre-populated with empty URLs – fill in when catalog references them)
+      user_repos:
+        slurm_custom:
+          url: ""
+          gpgkey: ""
+          sslcacert: ""
+          sslclientkey: ""
+          sslclientcert: ""
+          priority: 10
+        ldms:
+          url: ""
+          gpgkey: ""
+          sslcacert: ""
+          sslclientkey: ""
+          sslclientcert: ""
+          priority: 10
+        vast:
+          url: ""
+          gpgkey: ""
+          sslcacert: ""
+          sslclientkey: ""
+          sslclientcert: ""
+          priority: 10
     aarch64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
       # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      baseos: {}
-      appstream: {}
-      codeready-builder: {}
+      baseos:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      appstream:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      codeready-builder:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
       # USER-REQUIRED REPOS (MUST fill in URLs for your custom repositories)
       # OMNIA-REQUIRED REPOS (edit with caution – required for Omnia features)
       epel:
@@ -292,4 +346,26 @@ repositories:
       #       sslclientkey: ""
       #       sslclientcert: ""
       additional_repos: {}
-      user_repos: {}
+      # USER-REQUIRED REPOS (pre-populated with empty URLs – fill in when catalog references them)
+      user_repos:
+        slurm_custom:
+          url: ""
+          gpgkey: ""
+          sslcacert: ""
+          sslclientkey: ""
+          sslclientcert: ""
+          priority: 10
+        ldms:
+          url: ""
+          gpgkey: ""
+          sslcacert: ""
+          sslclientkey: ""
+          sslclientcert: ""
+          priority: 10
+        vast:
+          url: ""
+          gpgkey: ""
+          sslcacert: ""
+          sslclientkey: ""
+          sslclientcert: ""
+          priority: 10
