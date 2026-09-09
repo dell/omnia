@@ -11,28 +11,4 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
-description: "Only iDRAC source enabled (minimal deployment)"
-patches:
-  telemetry_config:
-    telemetry_sources:
-      ldms:
-        metrics_enabled: false
-      powerscale:
-        metrics_enabled: false
-        logs_enabled: false
-      ufm:
-        metrics_enabled: false
-        logs_enabled: false
-      vast:
-        metrics_enabled: false
-        logs_enabled: false
-      ome:
-        metrics_enabled: false
-        logs_enabled: false
-    telemetry_bridges:
-      vector_ldms:
-        metrics_enabled: false
-      vector_ome:
-        metrics_enabled: false
-        logs_enabled: false
+"""Telemetry dataset generation package."""

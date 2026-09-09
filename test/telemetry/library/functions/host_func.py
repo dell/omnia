@@ -72,8 +72,16 @@ def sync_project_to_remote(_host) -> Dict[str, Any]:
 
 
 def _resolve_input_dir(config):
-    """Resolve local input directory from dataset or src/."""
-    dataset = config.get("dataset", "")
+    """Resolve local input directory from dataset or src/.
+
+    Respects ``OMNIA_DATASET_OVERRIDE`` so that env-var overrides applied
+    in ``conftest._apply_dataset_overrides`` are honoured even when this
+    function re-reads the config from disk.
+    """
+    dataset = (
+        os.environ.get("OMNIA_DATASET_OVERRIDE", "")
+        or config.get("dataset", "")
+    )
     if dataset:
         return os.path.join(
             get_module_root(), "datasets", dataset, "input",
