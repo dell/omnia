@@ -169,6 +169,8 @@ def _render_templates(variables, dataset_dir):
             rendered = template.render(**variables)
             with open(output_path, 'w', encoding="utf-8") as f:
                 f.write(rendered)
+                if not rendered.endswith('\n'):
+                    f.write('\n')
             _info(f"Rendered: {rel_path.with_suffix('')}")
         except TemplateError as e:
             _error(f"Template error in {rel_path}: {e}")
