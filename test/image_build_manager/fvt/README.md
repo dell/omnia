@@ -119,9 +119,10 @@ before artifact verification.
 
 ### AArch64 path and tool contracts
 
-- The ARM work root is `$OMNIA_DATA_PATH/image_build_manager`, using the value
-  read from the execution OIM. The ARM host does not need to define
-  `OMNIA_DATA_PATH` locally.
+- The ARM work root uses a non-empty `IMAGE_BUILD_MANAGER_DATA_PATH` from the
+  execution OIM. When that override is unset or empty, it falls back to
+  `$OMNIA_DATA_PATH/image_build_manager`. The ARM host does not need to define
+  either variable locally.
 - `regctl` is staged on the OIM and copied to the ARM host by
   `prepare_aarch64_node`; direct download is a fallback.
 - The AArch64 cases verify the postconditions of `build_image_aarch64.yml`.

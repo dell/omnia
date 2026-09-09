@@ -58,6 +58,7 @@ DOMAIN_NAME = "image_build_manager"
 
 # Environment variable names on the target host
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
+ENV_IMAGE_BUILD_MANAGER_DATA_PATH = "IMAGE_BUILD_MANAGER_DATA_PATH"
 ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
 
 # =============================================================================
@@ -92,9 +93,13 @@ PLAYBOOK_TAGS = [
 # =============================================================================
 # Derived from OMNIA_DATA_PATH env var when available; falls back for dev boxes.
 
-SHARED_PATH = os.environ.get(
-    ENV_OMNIA_DATA_PATH, "/opt/omnia"
-) + "/image_build_manager"
+SHARED_PATH = (
+    os.environ.get(ENV_IMAGE_BUILD_MANAGER_DATA_PATH)
+    or os.path.join(
+        os.environ.get(ENV_OMNIA_DATA_PATH, "/opt/omnia"),
+        DOMAIN_NAME,
+    )
+).rstrip("/")
 
 # =============================================================================
 # CONTAINER NAMES

@@ -50,6 +50,7 @@ DOMAIN_NAME = "telemetry"
 
 # Environment variable names on the target host
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
+ENV_TELEMETRY_DATA_PATH = "TELEMETRY_DATA_PATH"
 ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
 
 # =============================================================================

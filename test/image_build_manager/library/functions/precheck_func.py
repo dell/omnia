@@ -30,6 +30,7 @@ from ._config_helpers import (
 )
 from ..vars.common_vars import (
     DOMAIN_NAME,
+    ENV_IMAGE_BUILD_MANAGER_DATA_PATH,
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
     REGISTRY_PORT,
@@ -157,6 +158,7 @@ def check_credentials_present(host) -> Dict[str, Any]:
         DOMAIN_NAME,
         ENV_OMNIA_DATA_PATH,
         ENV_OMNIA_PROJECT_NAME,
+        domain_data_path_var=ENV_IMAGE_BUILD_MANAGER_DATA_PATH,
     )
     cred_path = f"{input_dir}/{CREDENTIALS_FILE_NAME}"
 

@@ -27,6 +27,7 @@ from ._config_helpers import (
 )
 from ..vars.common_vars import (
     DOMAIN_NAME,
+    ENV_IMAGE_BUILD_MANAGER_DATA_PATH,
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
     MINIO_CONTAINER,
@@ -119,7 +120,7 @@ def check_s3_artifacts_removed(host) -> Dict[str, Any]:
             "error": None,
         }
 
-    storage_path = os.path.join(_get_shared_path(), "s3", "data")
+    storage_path = os.path.join(_get_shared_path(host), "s3", "data")
     storage_cmd = host.run(CMDS["dir_exists"].format(path=storage_path))
     if storage_cmd.rc not in (0, 1):
         return {
@@ -176,7 +177,7 @@ def check_s3_images_removed(host) -> Dict[str, Any]:
     config_result = host.run(
         CMDS["file_exists"].format(path=S3CMD_CONFIG_PATH)
     )
-    storage_path = os.path.join(_get_shared_path(), "s3", "data")
+    storage_path = os.path.join(_get_shared_path(host), "s3", "data")
     storage_result = host.run(
         CMDS["dir_exists"].format(path=storage_path)
     )
@@ -386,7 +387,11 @@ def check_credentials_removed(host) -> Dict[str, Any]:
         Dict with 'success', 'results', 'details'.
     """
     input_dir = resolve_domain_input_path(
-        host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
+        host,
+        DOMAIN_NAME,
+        ENV_OMNIA_DATA_PATH,
+        ENV_OMNIA_PROJECT_NAME,
+        domain_data_path_var=ENV_IMAGE_BUILD_MANAGER_DATA_PATH,
     )
 
     files_to_check = [
@@ -443,8 +448,8 @@ def check_build_output_removed(host) -> Dict[str, Any]:
     Returns:
         Dict with 'success', 'details'.
     """
-    shared = _get_shared_path()
-    project = _get_project_name()
+    shared = _get_shared_path(host)
+    project = _get_project_name(host)
     status_path = BUILD_STATUS_PATH.format(
         shared_path=shared, project=project
     )
@@ -495,7 +500,9 @@ def check_registry_cleaned(
         CMDS["curl_registry_catalog_http"].format(port=REGISTRY_PORT)
     )
     if cmd.rc != 0 or "repositories" not in cmd.stdout:
-        storage_path = os.path.join(_get_shared_path(), "registry", "data")
+        storage_path = os.path.join(
+            _get_shared_path(host), "registry", "data",
+        )
         storage_result = host.run(
             CMDS["dir_exists"].format(path=storage_path)
         )

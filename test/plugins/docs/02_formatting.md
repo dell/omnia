@@ -1,6 +1,6 @@
 # Formatting & Logging — `Colors`, `Symbols`, `TestLogger`, `log()`, session summary
 
-**Source file:** `src/omnia_auto/functions/formatting_func.py`
+**Source file:** `omnia_auto/functions/formatting_func.py`
 
 ## What is this?
 
@@ -87,7 +87,10 @@ Print a timestamped, color-coded log line.
 
 None — works standalone.
 
-**Note:** `DEBUG` messages are hidden by default.  Call `set_debug_mode(True)` to show them.
+`INFO` and `DEBUG` messages are hidden by default. Call
+`set_verbose_mode(True)` (or set a non-empty `OMNIA_VERBOSE` environment
+variable before import) to show `INFO`; call `set_debug_mode(True)` to show
+`DEBUG`. `WARN`, `ERROR`, and `OK` always display.
 
 ### Output format
 
@@ -101,13 +104,28 @@ None — works standalone.
 ### Example
 
 ```python
-from omnia_auto import log
+from omnia_auto import log, set_verbose_mode
 
+set_verbose_mode(True)
 log("Starting file sync", "INFO")
 log("Sync complete", "OK")
 log("Retrying in 5s", "WARN")
 log("Connection refused", "ERROR")
 log("Variable dump: x=42", "DEBUG")  # hidden unless debug mode is on
+```
+
+---
+
+## `set_verbose_mode(enabled: bool)`
+
+Enable or disable `INFO` output globally. This does not affect `DEBUG`, which
+is controlled independently by `set_debug_mode()`.
+
+```python
+from omnia_auto import log, set_verbose_mode
+
+set_verbose_mode(True)
+log("This INFO message is visible")
 ```
 
 ---
@@ -350,6 +368,7 @@ def pytest_sessionfinish(session, exitstatus):
 | `Colors` | None |
 | `Symbols` | None |
 | `log()` | None |
+| `set_verbose_mode()` | None |
 | `set_debug_mode()` | None |
 | `TestLogger()` | None |
 | `get_test_output()` | A `TestLogger` must exist |

@@ -29,21 +29,71 @@ the configured report_path.
 """
 
 import json
+import math
 import os
 import re
 import socket
+from contextvars import ContextVar
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from ._file_io import advisory_lock, atomic_write_json, atomic_write_text
 from .report_html import generate_html
 
 _ANSI_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+_CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def _single_line_text(value: Any, label: str) -> str:
+    """Return non-empty text without terminal/control characters."""
+    if not isinstance(value, str) or not value or _CONTROL_RE.search(value):
+        raise ValueError(f"{label} must be non-empty single-line text")
+    return value
+
+
+def _duration_seconds(value: Any) -> float:
+    """Return one finite, non-negative duration value."""
+    if isinstance(value, bool):
+        raise ValueError("duration must be a finite non-negative number")
+    try:
+        duration = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "duration must be a finite non-negative number"
+        ) from exc
+    if not math.isfinite(duration) or duration < 0:
+        raise ValueError("duration must be a finite non-negative number")
+    return round(duration, 3)
 
 
 def _resolve_report_dir(report_path: str) -> str:
     """Ensure the report directory exists and return its absolute path."""
-    os.makedirs(report_path, exist_ok=True)
-    return report_path
+    if not isinstance(report_path, (str, os.PathLike)):
+        raise ValueError("report_path must be a non-empty filesystem path")
+    path_value = os.fspath(report_path)
+    if (
+        not isinstance(path_value, str)
+        or not path_value
+        or "\x00" in path_value
+    ):
+        raise ValueError("report_path must be a non-empty filesystem path")
+    resolved = os.path.abspath(path_value)
+    os.makedirs(resolved, exist_ok=True)
+    return resolved
+
+
+def _validate_report_name(report_name: str) -> str:
+    """Require a plain basename so output remains in ``report_path``."""
+    if (
+        not isinstance(report_name, str)
+        or not report_name
+        or "\x00" in report_name
+        or _CONTROL_RE.search(report_name)
+        or os.path.basename(report_name) != report_name
+        or report_name in {".", ".."}
+    ):
+        raise ValueError("report_name must be a plain non-empty filename")
+    return report_name
 
 
 def _load_report(report_dir: str, report_name: str) -> Dict[str, Any]:
@@ -52,17 +102,27 @@ def _load_report(report_dir: str, report_name: str) -> Dict[str, Any]:
     if os.path.exists(report_file):
         try:
             with open(report_file, "r", encoding="utf-8") as fh:
-                return json.load(fh)
-        except (json.JSONDecodeError, IOError):
-            return {"servers": {}}
+                report = json.load(fh)
+        except (json.JSONDecodeError, OSError) as exc:
+            raise ValueError(
+                f"Unable to load report '{report_file}': {exc}"
+            ) from exc
+        if not isinstance(report, dict) or not isinstance(
+            report.get("servers", {}), dict,
+        ):
+            raise ValueError(
+                f"Report '{report_file}' must contain a servers mapping"
+            )
+        return report
     return {"servers": {}}
 
 
-def _save_json(data: Dict[str, Any], report_dir: str, report_name: str):
+def _save_json(
+    data: Dict[str, Any], report_dir: str, report_name: str,
+) -> None:
     """Save report data as JSON."""
     path = os.path.join(report_dir, f"{report_name}.json")
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(data, fh, indent=2, default=str)
+    atomic_write_json(path, data)
 
 
 def _strip_ansi(text: str) -> str:
@@ -102,23 +162,35 @@ class TestReport:
             marker: Marker filter label (informational).
             exec_command: Execution command label (informational).
         """
-        self.module_name = module_name
+        self.module_name = _single_line_text(module_name, "module_name")
+        if isinstance(server_ip, str) and not server_ip.strip():
+            server_ip = "localhost"
+        server_ip = _single_line_text(server_ip, "server_ip")
         self.report_path = _resolve_report_dir(report_path)
-        self.report_name = report_name
-        self.report_id = report_id or datetime.now().strftime("%Y%m%d%H%M%S")
+        self.report_name = _validate_report_name(report_name)
+        self.report_id = _single_line_text(
+            report_id or datetime.now().strftime("%Y%m%d%H%M%S"),
+            "report_id",
+        )
         self.start_time = datetime.now()
         self.results: List[Dict[str, Any]] = []
+        self._saved_result_count = 0
         self.playbook_logs: Optional[str] = None
         self.command_type: Optional[str] = None
         self.playbook_duration: Optional[float] = None
 
         if not server_hostname:
             server_hostname = self._resolve_hostname(server_ip)
+        server_hostname = _single_line_text(
+            server_hostname, "server_hostname",
+        )
 
         self.server_info = {"ip": server_ip, "hostname": server_hostname}
-        self.suite = suite or os.environ.get("OMNIA_SUITE", "all")
-        self.marker = marker or os.environ.get("OMNIA_MARKER", "")
-        self.exec_command = exec_command or os.environ.get("OMNIA_COMMAND_TYPE", "")
+        self.suite = str(suite or os.environ.get("OMNIA_SUITE", "all"))
+        self.marker = str(marker or os.environ.get("OMNIA_MARKER", ""))
+        self.exec_command = str(
+            exec_command or os.environ.get("OMNIA_COMMAND_TYPE", "")
+        )
 
         self._print_header()
 
@@ -184,17 +256,17 @@ class TestReport:
             normalized_status = "PASSED" if passed else "FAILED"
 
         result = {
-            "test_name": test_name,
+            "test_name": str(test_name),
             "status": normalized_status,
             "timestamp": datetime.now().isoformat(),
-            "duration_seconds": round(duration, 3),
+            "duration_seconds": _duration_seconds(duration),
         }
         if tc_id:
             result["tc_id"] = str(tc_id)
         if details:
-            result["details"] = details
+            result["details"] = str(details)
         if error:
-            result["error"] = error
+            result["error"] = str(error)
         self.results.append(result)
 
     def _add_dict_result(self, payload: dict):
@@ -209,15 +281,19 @@ class TestReport:
             duration_seconds = payload.get("duration", 0.0)
 
         result = {
-            "test_name": payload.get("test_name") or payload.get("name") or "<unknown>",
+            "test_name": str(
+                payload.get("test_name") or payload.get("name") or "<unknown>"
+            ),
             "status": normalized_status,
-            "timestamp": payload.get("timestamp") or datetime.now().isoformat(),
-            "duration_seconds": round(float(duration_seconds or 0.0), 3),
+            "timestamp": str(
+                payload.get("timestamp") or datetime.now().isoformat()
+            ),
+            "duration_seconds": _duration_seconds(duration_seconds or 0.0),
         }
         if payload.get("tc_id"):
             result["tc_id"] = str(payload["tc_id"])
         if payload.get("details"):
-            result["details"] = payload.get("details")
+            result["details"] = str(payload.get("details"))
         detail_fields = payload.get("detail_fields")
         if isinstance(detail_fields, list):
             normalized_fields = []
@@ -233,11 +309,19 @@ class TestReport:
             if normalized_fields:
                 result["detail_fields"] = normalized_fields
         if payload.get("error"):
-            result["error"] = payload.get("error")
+            result["error"] = str(payload.get("error"))
         if payload.get("category"):
-            result["category"] = payload.get("category")
-        if payload.get("markers"):
-            result["markers"] = payload.get("markers")
+            result["category"] = str(payload.get("category"))
+        markers = payload.get("markers")
+        if markers:
+            if isinstance(markers, str):
+                result["markers"] = [markers]
+            elif isinstance(markers, (list, tuple, set)) and all(
+                isinstance(item, str) for item in markers
+            ):
+                result["markers"] = list(markers)
+            else:
+                raise ValueError("markers must contain only strings")
         self.results.append(result)
 
     def save(self) -> str:
@@ -270,55 +354,74 @@ class TestReport:
             "exec_command": self.exec_command,
         }
 
-        report = _load_report(self.report_path, self.report_name)
         server_ip = self.server_info["ip"]
-
-        if "servers" not in report:
-            report["servers"] = {}
-
-        if server_ip not in report["servers"]:
-            report["servers"][server_ip] = {"runs": []}
-
-        report["servers"][server_ip]["hostname"] = self.server_info["hostname"]
-
-        runs = report["servers"][server_ip]["runs"]
-        existing_run_idx = next(
-            (i for i, r in enumerate(runs) if r.get("report_id") == self.report_id),
-            None,
-        )
-
-        if existing_run_idx is not None:
-            self._update_existing_run(runs[existing_run_idx], module_data, end_time)
-        else:
-            run_data = {
-                "report_id": self.report_id,
-                "start_time": self.start_time.isoformat(),
-                "end_time": end_time.isoformat(),
-                "summary": {
-                    "total": len(self.results),
-                    "passed": passed,
-                    "failed": failed,
-                    "skipped": skipped,
-                },
-                "modules": [module_data],
-            }
-            runs.append(run_data)
-
-        _save_json(report, self.report_path, self.report_name)
-
-        current_run = next(
-            (r for r in runs if r.get("report_id") == self.report_id),
-            None,
-        )
-        banner_stats = self._get_banner_stats(
-            current_run, passed, failed, skipped, duration
-        )
-
         json_path = os.path.join(self.report_path, f"{self.report_name}.json")
         html_path = os.path.join(self.report_path, f"{self.report_name}.html")
 
-        with open(html_path, "w", encoding="utf-8") as fh:
-            fh.write(generate_html(report))
+        with advisory_lock(json_path):
+            report = _load_report(self.report_path, self.report_name)
+            if "servers" not in report:
+                report["servers"] = {}
+            if server_ip not in report["servers"]:
+                report["servers"][server_ip] = {"runs": []}
+
+            server_data = report["servers"][server_ip]
+            if not isinstance(server_data, dict):
+                raise ValueError(
+                    f"Report server entry '{server_ip}' must be a mapping"
+                )
+            server_data["hostname"] = self.server_info["hostname"]
+            runs = server_data.setdefault("runs", [])
+            if not isinstance(runs, list):
+                raise ValueError(
+                    f"Report server entry '{server_ip}' must contain a runs list"
+                )
+
+            existing_run_idx = next(
+                (
+                    index for index, run in enumerate(runs)
+                    if isinstance(run, dict)
+                    and run.get("report_id") == self.report_id
+                ),
+                None,
+            )
+            pending_results = self.results[self._saved_result_count:]
+            if existing_run_idx is not None:
+                self._update_existing_run(
+                    runs[existing_run_idx], module_data,
+                    pending_results, end_time,
+                )
+            else:
+                run_data = {
+                    "report_id": self.report_id,
+                    "start_time": self.start_time.isoformat(),
+                    "end_time": end_time.isoformat(),
+                    "summary": {
+                        "total": len(self.results),
+                        "passed": passed,
+                        "failed": failed,
+                        "skipped": skipped,
+                    },
+                    "modules": [module_data],
+                }
+                runs.append(run_data)
+
+            rendered_html = generate_html(report)
+            _save_json(report, self.report_path, self.report_name)
+            self._saved_result_count = len(self.results)
+            atomic_write_text(html_path, rendered_html)
+
+            current_run = next(
+                (
+                    run for run in runs
+                    if isinstance(run, dict)
+                    and run.get("report_id") == self.report_id
+                ),
+                None,
+            )
+            banner_stats = self._get_banner_stats(
+                current_run, passed, failed, skipped, duration,
+            )
 
         self._print_footer(
             server_ip,
@@ -332,10 +435,20 @@ class TestReport:
 
         return html_path
 
-    def _update_existing_run(self, run: dict, module_data: dict, end_time: datetime):
+    def _update_existing_run(
+        self,
+        run: dict,
+        module_data: dict,
+        pending_results: List[Dict[str, Any]],
+        end_time: datetime,
+    ) -> None:
         """Update an existing run with new module data."""
         if "modules" not in run:
             run["modules"] = []
+        if not isinstance(run["modules"], list):
+            raise ValueError("Report run modules must be a list")
+        if not all(isinstance(module, dict) for module in run["modules"]):
+            raise ValueError("Report module entries must be mappings")
 
         existing_mod_idx = next(
             (
@@ -348,10 +461,20 @@ class TestReport:
 
         if existing_mod_idx is not None:
             mod = run["modules"][existing_mod_idx]
-            mod["results"].extend(self.results)
+            if not isinstance(mod, dict):
+                raise ValueError("Report module entries must be mappings")
+            stored_results = mod.setdefault("results", [])
+            if not isinstance(stored_results, list):
+                raise ValueError("Report module results must be a list")
+            stored_results.extend(pending_results)
             mod["playbook_logs"] = self.playbook_logs
             mod["command_type"] = self.command_type
-            all_results = mod["results"]
+            mod["end_time"] = end_time.isoformat()
+            mod["duration_seconds"] = module_data["duration_seconds"]
+            mod["suite"] = self.suite
+            mod["marker"] = self.marker
+            mod["exec_command"] = self.exec_command
+            all_results = stored_results
             mod["summary"] = {
                 "total": len(all_results),
                 "passed": sum(1 for r in all_results if r["status"] == "PASSED"),
@@ -362,11 +485,12 @@ class TestReport:
             run["modules"].append(module_data)
 
         run["end_time"] = end_time.isoformat()
-        all_passed = sum(m["summary"]["passed"] for m in run["modules"])
-        all_failed = sum(m["summary"]["failed"] for m in run["modules"])
-        all_skipped = sum(
-            (m.get("summary") or {}).get("skipped", 0) for m in run["modules"]
-        )
+        summaries = [module.get("summary") for module in run["modules"]]
+        if not all(isinstance(summary, dict) for summary in summaries):
+            raise ValueError("Report module summaries must be mappings")
+        all_passed = sum(summary.get("passed", 0) for summary in summaries)
+        all_failed = sum(summary.get("failed", 0) for summary in summaries)
+        all_skipped = sum(summary.get("skipped", 0) for summary in summaries)
         run["summary"] = {
             "total": all_passed + all_failed + all_skipped,
             "passed": all_passed,
@@ -441,8 +565,10 @@ class TestReport:
         print(
             f"\u2502  {'Report ID:':<12}{self.report_id:<{content_width - 12}}  \u2502"
         )
+        duration_display = f"{duration:.2f}s"
         print(
-            f"\u2502  {'Duration:':<12}{duration:.2f}s{'':<{content_width - 12 - len(f'{duration:.2f}s')}}  \u2502"
+            f"\u2502  {'Duration:':<12}{duration_display}"
+            f"{'':<{content_width - 12 - len(duration_display)}}  \u2502"
         )
         # Use colored version but with pre-calculated padding
         result_display = (
@@ -460,15 +586,16 @@ class TestReport:
         print(f"\u2514{line}\u2518\n")
 
 
-_current_report: Optional[TestReport] = None
+_CURRENT_REPORT: ContextVar[Optional[TestReport]] = ContextVar(
+    "omnia_auto_current_report", default=None,
+)
 
 
 def get_current_report() -> Optional[TestReport]:
     """Get the current active test report."""
-    return _current_report
+    return _CURRENT_REPORT.get()
 
 
-def set_current_report(report: TestReport):
+def set_current_report(report: Optional[TestReport]) -> None:
     """Set the current active test report."""
-    global _current_report  # pylint: disable=global-statement
-    _current_report = report
+    _CURRENT_REPORT.set(report)

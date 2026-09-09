@@ -109,7 +109,8 @@ sync_output: false
 # src/image_build_manager/input/. Credential files, keys, and backups are
 # excluded. Domain credentials are never synced; configure them on the
 # execution OIM with ./setup_env.sh --set-domain-creds.
-# Destination: <OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/
+# Destination: <IMAGE_BUILD_MANAGER_DATA_PATH>/input/<project_name>/ when set;
+# otherwise <OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/.
 #
 # This ensures the target server has the selected image_build_config.yml and
 # package_groups.yml before running the playbook.

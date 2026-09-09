@@ -49,6 +49,11 @@ from .process_security import (
     scrubbed_subprocess_environment,
     sshpass_pipe,
 )
+from ._ssh_options import (
+    parse_ssh_options,
+    validate_ssh_destination,
+    validate_ssh_port,
+)
 from ..vars.common_vars import get_setting, get_module_root
 from ..messages.runner_msgs import (
     RUNNER_LOG_MSGS,
@@ -97,29 +102,50 @@ def run_playbook(
     Returns:
         Dict with keys: success, rc, output, duration, error, playbook.
     """
-    config = load_test_config()
-    credentials = load_test_credentials()
-    local_mode = is_local_execution()
-
-    v = verbosity if verbosity is not None else get_setting("default_verbosity", 1)
-    t = timeout if timeout is not None else get_setting("default_timeout", 7200)
-
-    if playbook is None:
+    if not isinstance(playbook, str) or not playbook:
         return _fail(
             "unknown", 0.0,
             "'playbook' argument is required",
         )
-    if not playbook_workdir:
+    if not isinstance(playbook_workdir, str) or not playbook_workdir:
         return _fail(
             playbook, 0.0,
             "'playbook_workdir' argument is required",
         )
 
+    try:
+        config = load_test_config()
+        credentials = load_test_credentials()
+        local_mode = is_local_execution()
+    except (OSError, RuntimeError, ValueError) as exc:
+        return _fail(playbook, 0.0, str(exc))
+
+    v = verbosity if verbosity is not None else get_setting(
+        "default_verbosity", 1,
+    )
+    t = timeout if timeout is not None else get_setting(
+        "default_timeout", 7200,
+    )
+    if not isinstance(v, int) or isinstance(v, bool) or v not in range(5):
+        return _fail(playbook, 0.0, "verbosity must be an integer from 0 to 4")
+    if not isinstance(t, int) or isinstance(t, bool) or t <= 0:
+        return _fail(playbook, 0.0, "timeout must be a positive integer")
+
     if local_mode:
-        # Local: resolve playbook path from source tree (repo root)
-        # module_root = test/<module>/ → repo root is two levels up
-        repo_root = os.path.dirname(os.path.dirname(get_module_root()))
-        workdir = os.path.join(repo_root, playbook_workdir)
+        repository_root = get_setting("repository_root")
+        if not repository_root:
+            repository_root = os.path.dirname(
+                os.path.dirname(get_module_root())
+            )
+        workdir = (
+            playbook_workdir if os.path.isabs(playbook_workdir)
+            else os.path.join(repository_root, playbook_workdir)
+        )
+        if not os.path.isdir(workdir):
+            return _fail(
+                playbook, 0.0,
+                f"Playbook working directory not found: {workdir}",
+            )
     else:
         # Remote: use clone_path on the target server
         clone_path = config.get("clone_path", "")
@@ -142,11 +168,16 @@ def run_playbook(
 
     # venv_path: derived from OMNIA_VENV_PATH in /etc/omnia/omnia.env
     # on the target (or local) host — never from test_config.yml.
-    venv_env_var = "OMNIA_VENV_PATH"
+    env_file = get_setting("env_file", "/etc/omnia/omnia.env")
+    venv_env_var = get_setting("venv_env_var", "OMNIA_VENV_PATH")
 
-    ansible_cmd = _build_ansible_cmd(
-        playbook, workdir, v, extra_vars, tag, limit, venv_env_var,
-    )
+    try:
+        ansible_cmd = _build_ansible_cmd(
+            playbook, workdir, v, extra_vars, tag, limit,
+            env_file, venv_env_var,
+        )
+    except (TypeError, ValueError) as exc:
+        return _fail(playbook, 0.0, str(exc))
 
     if local_mode:
         cmd = ansible_cmd
@@ -198,6 +229,7 @@ def _build_ansible_cmd(
     extra_vars: Optional[Dict[str, str]],
     tag,
     limit: Optional[str],
+    env_file: str = "/etc/omnia/omnia.env",
     venv_env_var: str = "OMNIA_VENV_PATH",
 ) -> str:
     """Build the ``ansible-playbook`` command string.
@@ -206,12 +238,28 @@ def _build_ansible_cmd(
     defined in ``/etc/omnia/omnia.env`` on the target host.  If the
     env var is unset the command falls through without activation.
     """
+    if not isinstance(env_file, str) or not env_file:
+        raise ValueError("env_file must be a non-empty path")
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", venv_env_var):
+        raise ValueError("venv_env_var must be a valid environment name")
+    if tag is not None:
+        tag_values = tag if isinstance(tag, list) else [tag]
+        if not tag_values or not all(
+            isinstance(value, str) and value for value in tag_values
+        ):
+            raise ValueError(
+                "tag must be a string or a non-empty list of strings"
+            )
+    if limit is not None and (not isinstance(limit, str) or not limit):
+        raise ValueError("limit must be a non-empty string")
+    if extra_vars is not None and not isinstance(extra_vars, dict):
+        raise ValueError("extra_vars must be a mapping")
+
     v_flag = f" -{'v' * verbosity}" if verbosity > 0 else ""
-    env_file = "/etc/omnia/omnia.env"
 
     parts = [
         # Source omnia.env and activate venv from env var
-        f"set -a && . {env_file} && set +a &&",
+        f"set -a && . {shlex.quote(env_file)} && set +a &&",
         f'if [ -n "${{{venv_env_var}}}" ]; then'
         f' source "${{{venv_env_var}}}/bin/activate"; fi &&',
         f"cd {shlex.quote(workdir)} &&",
@@ -221,6 +269,12 @@ def _build_ansible_cmd(
 
     if extra_vars:
         for key, val in extra_vars.items():
+            if not isinstance(key, str) or not re.fullmatch(
+                r"[A-Za-z_][A-Za-z0-9_.-]*", key,
+            ):
+                raise ValueError(
+                    f"Invalid Ansible extra variable name: {key!r}"
+                )
             parts.append(
                 f"--extra-vars {shlex.quote(f'{key}={val}')}",
             )
@@ -240,9 +294,11 @@ def _wrap_ssh(
     auth_fd: Optional[int] = None,
 ) -> str:
     """Wrap a command in SSH for remote execution."""
-    host = config["oim_server_ip"]
-    user = config.get("oim_ssh_user", "root")
-    port = str(config.get("oim_ssh_port", 22))
+    host, user = validate_ssh_destination(
+        config["oim_server_ip"],
+        config.get("oim_ssh_user", "root"),
+    )
+    port = str(validate_ssh_port(config.get("oim_ssh_port", 22)))
     oim_auth = credentials.get("oim_password", "")
 
     if oim_auth:
@@ -257,17 +313,17 @@ def _wrap_ssh(
     else:
         parts = ["ssh", "-T"]
 
-    parts.extend(get_setting("ssh_options_list", [
-        "-o", "StrictHostKeyChecking=no",
-        "-o", "UserKnownHostsFile=/dev/null",
+    parts.extend(parse_ssh_options(get_setting("ssh_options_list", [
+        "-o", "StrictHostKeyChecking=accept-new",
         "-o", "LogLevel=ERROR",
-    ]))
+    ])))
     parts.extend([
-        "-p", shlex.quote(port),
-        f"{shlex.quote(user)}@{shlex.quote(host)}",
-        shlex.quote(cmd),
+        "-p", port,
+        "--",
+        f"{user}@{host}",
+        cmd,
     ])
-    return " ".join(parts)
+    return shlex.join(parts)
 
 
 # =====================================================================
@@ -296,6 +352,7 @@ def _stream_cmd(
     start = time.time()
     timed_out = False
     process = None
+    watchdog = None
 
     try:
         process = subprocess.Popen(
@@ -304,7 +361,7 @@ def _stream_cmd(
             stderr=subprocess.STDOUT,
             bufsize=1,
             text=True,
-            preexec_fn=os.setsid,
+            start_new_session=True,
             pass_fds=pass_fds,
             env=scrubbed_subprocess_environment(),
         )
@@ -316,6 +373,7 @@ def _stream_cmd(
             _kill_process_group(process)
 
         watchdog = threading.Timer(timeout, _on_timeout)
+        watchdog.daemon = True
         watchdog.start()
 
         # Read output line-by-line in the calling thread
@@ -398,6 +456,8 @@ def _stream_cmd(
         )
 
     finally:
+        if watchdog is not None:
+            watchdog.cancel()
         _cleanup_process(process)
 
 

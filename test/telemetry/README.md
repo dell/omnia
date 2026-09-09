@@ -13,9 +13,38 @@ bash setup_env.sh
 #    Set SSH credentials:
 bash setup_env.sh --set-creds
 
+#    Set playbook/runtime telemetry credentials separately
+bash setup_env.sh --set-domain-creds
+
 # 3. Run tests
 ./run_validation.sh fvt_telemetry precheck verify
 ```
+
+Interactive secret prompts require two matching entries. For pipeline use,
+pipe the OIM SSH password to `--creds-stdin` or a validated domain-credential
+JSON object to `--domain-creds-stdin`; secret values are not accepted as CLI
+arguments. Domain credentials are written below `TELEMETRY_DATA_PATH` when it
+is non-empty, otherwise below `$OMNIA_DATA_PATH/telemetry`. Both flows require
+`OMNIA_PROJECT_NAME`.
+
+### Environment and credential setup options
+
+| Option | Purpose |
+|--------|---------|
+| *(no option)* | Install into the active virtual environment, or use the default bare-metal installation mode |
+| `--venv` | Create `test/telemetry/.venv` and install there |
+| `--force` | Reinstall dependencies; with `--venv`, recreate the virtual environment |
+| `--set-creds` / `--update-creds` | Interactively create or update OIM SSH and enabled OME/SFM test credentials |
+| `--creds-stdin` | Read only the OIM SSH password from standard input |
+| `--set-domain-creds` / `--update-domain-creds` | Interactively create or update playbook/runtime Telemetry credentials |
+| `--domain-creds-stdin` | Read a validated Telemetry credential JSON object from standard input |
+
+`test_creds.yml` is the local Vault-encrypted test-access store. It may contain
+`oim_password` and the enabled OME/SFM fields. The separate runtime store is
+`telemetry_credentials.yml` with fields for enabled iDRAC, MySQL, PowerScale,
+LDMS, UFM, and VAST components. Never commit either Vault key, plaintext
+credentials, or locally populated credential files. Run
+`bash setup_env.sh --help` for the complete command reference.
 
 ## Running Tests
 
