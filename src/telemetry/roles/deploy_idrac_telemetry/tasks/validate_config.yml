@@ -41,22 +41,25 @@
     fail_msg: "idrac_telemetry_configurations.mysqldb_storage must be set (e.g., '1Gi')"
 
 - name: Validate kubectl is available
-  ansible.builtin.command: kubectl version --client
+  ansible.builtin.command: kubectl version --client --request-timeout=10s
   register: kubectl_check
   changed_when: false
   failed_when: kubectl_check.rc != 0
+  timeout: 15
 
 - name: Verify telemetry namespace exists
-  ansible.builtin.command: kubectl get namespace {{ telemetry_namespace }}
+  ansible.builtin.command: kubectl get namespace {{ telemetry_namespace }} --request-timeout=10s
   register: ns_check
   changed_when: false
   failed_when: false
+  timeout: 15
 
 - name: Verify Kafka is deployed
-  ansible.builtin.command: kubectl get kafka -n {{ telemetry_namespace }}
+  ansible.builtin.command: kubectl get kafka -n {{ telemetry_namespace }} --request-timeout=10s
   register: kafka_check
   changed_when: false
   failed_when: false
+  timeout: 15
 
 - name: Warn if Kafka is not deployed
   ansible.builtin.debug:
@@ -64,10 +67,11 @@
   when: kafka_check.rc != 0
 
 - name: Verify VictoriaMetrics is deployed
-  ansible.builtin.command: kubectl get vmcluster -n {{ telemetry_namespace }}
+  ansible.builtin.command: kubectl get vmcluster -n {{ telemetry_namespace }} --request-timeout=10s
   register: victoria_check
   changed_when: false
   failed_when: false
+  timeout: 15
 
 - name: Warn if VictoriaMetrics is not deployed
   ansible.builtin.debug:
@@ -77,3 +81,4 @@
 - name: Log validation passed
   ansible.builtin.debug:
     msg: "iDRAC telemetry configuration validation passed."
+

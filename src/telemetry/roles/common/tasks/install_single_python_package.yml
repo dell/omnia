@@ -46,6 +46,7 @@
         python3 -m pip install {{ package_distribution_name }}=={{ package_version }}
       register: pip_install_online
       changed_when: true
+      timeout: 300
 
     - name: Fail if online installation failed
       ansible.builtin.fail:
@@ -69,6 +70,7 @@
           - "{{ package_distribution_name }}=={{ package_version }}"
       register: pip_install_offline
       changed_when: true
+      timeout: 300
 
     - name: Fail if offline installation failed
       ansible.builtin.fail:

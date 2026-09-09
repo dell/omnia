@@ -26,6 +26,10 @@
 #   - MySQL database accessible in telemetry namespace
 # =============================================================================
 
+- name: Debug - Starting initiate_telemetry_service_cluster
+  ansible.builtin.debug:
+    msg: "Starting BMC inventory sync with MySQL database..."
+
 - name: Initialize variables
   ansible.builtin.set_fact:
     telemetry_idrac: []
@@ -56,11 +60,18 @@
     - bmc_group_data_filename is defined
     - bmc_group_data_filename | length > 0
 
+- name: Parse BMC CSV content
+  ansible.builtin.set_fact:
+    bmc_group_data_lines: "{{ (_bmc_csv_slurp.content | b64decode).split('\n') }}"
+  when:
+    - _bmc_csv_slurp is defined
+    - _bmc_csv_slurp.content is defined
+
 - name: Parse BMC group data CSV and create parent-to-IP mapping
   ansible.builtin.set_fact:
     bmc_ips_dict: >-
       {%- set result = {'MGMT_node': []} -%}
-      {%- for line in bmc_group_data_lines[1:] if line.strip() -%}
+      {%- for line in (bmc_group_data_lines | default([]))[1:] if line.strip() -%}
         {%- set parts = line.split(',') -%}
         {%- if parts | length >= 3 -%}
           {%- set bmc_ip = parts[0].strip() -%}
@@ -342,6 +353,11 @@
     - telemetry_idrac is defined
     - telemetry_idrac | length > 0
   block:
+    - name: Get current timestamp for restart annotation
+      ansible.builtin.command: date -u +%Y-%m-%dT%H:%M:%SZ
+      register: _restart_timestamp
+      changed_when: false
+
     - name: Restart iDRAC telemetry StatefulSet
       kubernetes.core.k8s:
         state: present
@@ -355,7 +371,7 @@
             template:
               metadata:
                 annotations:
-                  kubectl.kubernetes.io/restartedAt: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+                  kubectl.kubernetes.io/restartedAt: "{{ _restart_timestamp.stdout }}"
       register: restart_statefulset
   rescue:
     - name: StatefulSet restart failed

@@ -66,8 +66,10 @@
       ansible.builtin.set_fact:
         _cluster_inv_path: >-
           {% if telemetry_config.cluster_inventory | default('') | length > 0 -%}
-          {{ telemetry_config.cluster_inventory }}{%- else -%}
-          {{ input_project_dir }}/orchestrator_inventory.yml{%- endif %}
+          {{ telemetry_config.cluster_inventory }}
+          {%- else -%}
+          {{ input_project_dir }}/orchestrator_inventory.yml
+          {%- endif %}
 
     - name: Check if cluster inventory file exists (from telemetry_config)
       ansible.builtin.stat:
