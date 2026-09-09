@@ -472,7 +472,6 @@
         - systemctl enable crio.service
         - sudo systemctl enable --now kubelet
         - mv /tmp/generate-control-plane-join.sh {{ k8s_client_mount_path }}
-        - kubeadm config images pull --kubernetes-version={{ service_k8s_version }}
 {% set role_name = 'service_kube_control_plane_first' %}
 {% include 'pull_additional_images.yaml.j2' %}
         - echo "Installing helm"
@@ -512,6 +511,20 @@
             done
             mkdir -p /etc/kubernetes/manifests
             systemctl start crio.service
+            crio_ready=false
+            for attempt in $(seq 1 60); do
+              if crictl info >/dev/null 2>&1; then
+                crio_ready=true
+                break
+              fi
+              echo "Waiting for CRI-O before pulling images (attempt ${attempt}/60)..."
+              sleep 2
+            done
+            if [ "$crio_ready" != "true" ]; then
+              echo "ERROR: CRI-O did not become ready within 2 minutes."
+              exit 1
+            fi
+            kubeadm config images pull --kubernetes-version={{ service_k8s_version }}
             systemctl start kubelet.service
 
             NODE_IP="{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}"
