@@ -15,6 +15,8 @@
 # pylint: disable=unused-import,line-too-long
 #!/usr/bin/python
 
+"""This module is used to validate credentials."""
+
 DOCUMENTATION = r'''
 ---
 module: validate_credentials
@@ -100,10 +102,7 @@ failed:
     sample: true
 '''
 
-""" This module is used to validate credentials"""
-
 import json
-import os
 import re
 from pathlib import Path
 from typing import Tuple, Dict, Any
@@ -111,10 +110,14 @@ from typing import Tuple, Dict, Any
 from ansible.module_utils.basic import AnsibleModule
 
 try:
-    from ansible_collections.omnia.utils.plugins.module_utils.security_utils import validate_file_path
+    from ansible_collections.omnia.utils.plugins.module_utils.security_utils import (
+        validate_file_path
+    )
 except ImportError:
     # Fallback for development/testing
-    def validate_file_path(file_path: str, allowed_base_dirs=None) -> Tuple[bool, str]:
+    def validate_file_path(
+        file_path: str, _allowed_base_dirs=None
+    ) -> Tuple[bool, str]:
         """Fallback validation if security_utils not available"""
         if not file_path:
             return False, "File path cannot be empty"
@@ -125,13 +128,13 @@ except ImportError:
 
 def load_rules(file_path: str) -> Dict[str, Any]:
     """Loads validation rules from a JSON file.
-    
+
     Args:
         file_path: Path to the JSON rules file
-        
+
     Returns:
         Dictionary containing validation rules
-        
+
     Raises:
         FileNotFoundError: If the rules file doesn't exist
         json.JSONDecodeError: If the JSON is invalid
@@ -139,14 +142,15 @@ def load_rules(file_path: str) -> Dict[str, Any]:
     with open(file_path, 'r', encoding='utf-8') as file:
         return json.load(file)
 
+
 def validate_input(field: str, value: str, rules: Dict[str, Any]) -> Tuple[bool, str]:
     """Validates input against rules.
-    
+
     Args:
         field: The credential field name
         value: The credential value to validate
         rules: Dictionary of validation rules
-        
+
     Returns:
         Tuple of (success_flag, validation_message)
     """
@@ -159,6 +163,7 @@ def validate_input(field: str, value: str, rules: Dict[str, Any]) -> Tuple[bool,
         return (False, f"'{field}' format is invalid. Description: {rule['description']}")
     return (True, f"'{field}' is valid")
 
+
 def main():
     """Main module function."""
     module_args = {
@@ -170,24 +175,27 @@ def main():
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
     params = module.params
     module_utils_base = module.params["module_utils_path"]
-    
+
     # Validate module_utils_path for security (path traversal and command injection)
     path_valid, path_error = validate_file_path(module_utils_base)
     if not path_valid:
         module.fail_json(msg=f"Invalid module_utils_path: {path_error}")
-    
+
     # Construct and validate credentials schema path
     try:
-        credentials_schema = Path(module_utils_base) / 'input_validation' / 'schema' / 'credential_rules.json'
+        credentials_schema = (
+            Path(module_utils_base) / 'input_validation' / 'schema' /
+            'credential_rules.json'
+        )
         credentials_schema = credentials_schema.resolve()
-        
+
         # Validate resolved path for security
         path_valid, path_error = validate_file_path(str(credentials_schema))
         if not path_valid:
             module.fail_json(msg=f"Invalid schema path after resolution: {path_error}")
     except (ValueError, RuntimeError) as e:
         module.fail_json(msg=f"Failed to resolve schema path: {str(e)}")
-    
+
     # Load validation rules
     try:
         rules = load_rules(str(credentials_schema))
@@ -195,8 +203,9 @@ def main():
         module.fail_json(msg=f"Failed to load rules: {e}")
 
     # Validate credential
-    credential_valid, credential_msg = validate_input(params["credential_field"], \
-                                                      params["credential_input"], rules)
+    credential_valid, credential_msg = validate_input(
+        params["credential_field"], params["credential_input"], rules
+    )
 
     if credential_valid:
         module.exit_json(changed=False, msg=f"{credential_msg}")
