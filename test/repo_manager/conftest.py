@@ -96,6 +96,66 @@ from omnia_auto import (
     print_summary_table,
 )
 
+# --- Module-specific functions ---
+from library.functions import host_func
+
+
+# =============================================================================
+# DATASET OVERRIDES
+# =============================================================================
+
+def _apply_dataset_overrides(config):
+    """Apply dataset/sync overrides from environment variables.
+
+    Environment variables (set by run_validation.sh --config mode):
+      OMNIA_DATASET_OVERRIDE      — override config["dataset"]
+      OMNIA_SYNC_INPUT_OVERRIDE   — override config["sync_repo_manager_input"]
+
+    Args:
+        config: Test configuration dict from load_test_config().
+
+    Returns:
+        dict: Updated config dict (mutated in place).
+    """
+    ds_override = os.environ.get("OMNIA_DATASET_OVERRIDE", "")
+    if ds_override:
+        log(f"Dataset override: {config.get('dataset')} -> {ds_override}", "INFO")
+        config["dataset"] = ds_override
+
+    si_override = os.environ.get("OMNIA_SYNC_INPUT_OVERRIDE", "")
+    if si_override:
+        log(f"Sync input override: {config.get('sync_repo_manager_input')} -> {si_override}", "INFO")
+        config["sync_repo_manager_input"] = si_override.lower() == "true"
+
+    return config
+
+
+# =============================================================================
+# SESSION STARTUP — ENCRYPT, CLONE, SYNC
+# =============================================================================
+
+def pytest_sessionstart(session):
+    """Session startup: validate config, encrypt creds, sync files, init report."""
+    config = load_test_config()
+
+    # Apply dataset/sync overrides from env vars (set by --config mode)
+    config = _apply_dataset_overrides(config)
+
+    if not is_local_execution():
+        sync_result = host_func.sync_project_to_remote()
+        if sync_result["success"]:
+            log(sync_result["details"], "OK")
+        else:
+            log(f"Project sync failed: {sync_result['error']}", "WARN")
+
+    if config.get("sync_repo_manager_input", False):
+        sync_result = host_func.sync_repo_manager_input(config)
+        if sync_result["success"]:
+            log(sync_result["details"], "OK")
+        else:
+            log(f"Input sync failed: {sync_result['error']}", "ERROR")
+
+
 # --- Session-scoped test report ---
 @pytest.fixture(scope="session", autouse=True)
 def test_report():
