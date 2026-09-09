@@ -15,23 +15,6 @@
 ---
 # Simple OpenCHAMI Cleanup
 
-- name: Set role path
-  ansible.builtin.set_fact:
-    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
-  tags: openchami
-
-- name: Set omnia_data_path fact
-  ansible.builtin.set_fact:
-    omnia_data_path: "{{ hostvars['localhost']['omnia_data_path'] | default('/opt/omnia') }}"
-  tags: openchami
-
-- name: Set orchestrator_output_dir fact
-  ansible.builtin.set_fact:
-    orchestrator_output_dir: >-
-      {{ hostvars['localhost']['orchestrator_output_dir'] | default('/opt/omnia/orchestrator/output') }}/
-      {{ hostvars['localhost']['project_name'] | default('project_default') }}
-  tags: openchami
-
 - name: Load OpenCHAMI component configuration
   ansible.builtin.include_vars:
     file: "{{ role_path }}/components/openchami/vars/component_spec.yml"
@@ -42,50 +25,142 @@
     msg: "Starting OpenCHAMI cleanup operations"
   tags: openchami
 
-- name: Stop OpenCHAMI services
+- name: Check OpenCHAMI systemd unit load states
   ansible.builtin.systemd:
-    name: "{{ item }}"
-    state: stopped
+    name: "{{ openchami_unit_name }}"
+  register: cleanup_openchami_unit_checks
+  changed_when: false
   failed_when: false
   loop: "{{ openchami_config.services }}"
+  loop_control:
+    loop_var: openchami_unit_name
+  tags: openchami
+
+- name: Stop OpenCHAMI services
+  ansible.builtin.systemd:
+    name: "{{ openchami_unit_check.openchami_unit_name }}"
+    state: stopped
+  loop: "{{ cleanup_openchami_unit_checks.results }}"
+  loop_control:
+    loop_var: openchami_unit_check
+    label: "{{ openchami_unit_check.openchami_unit_name }}"
+  when: openchami_unit_check.status.LoadState | default('not-found') != 'not-found'
   tags: openchami
 
 - name: Disable OpenCHAMI services
   ansible.builtin.systemd:
     name: "{{ item }}"
     enabled: false
-  failed_when: false
-  loop: "{{ openchami_config.services }}"
+  loop: "{{ openchami_config.disable_units }}"
   tags: openchami
 
 - name: Wait for services to stop
   ansible.builtin.pause:
     seconds: 5
+  when: not (dry_run | default(false) | bool)
   tags: openchami
 
-- name: Remove OpenCHAMI containers
-  ansible.builtin.command:
-    cmd: podman rm -f {{ item }}
-  register: container_removal
-  changed_when: container_removal.rc == 0
+- name: Check whether Podman is available for OpenCHAMI cleanup
+  ansible.builtin.command: podman --version
+  register: cleanup_openchami_podman_check
+  check_mode: false
+  changed_when: false
   failed_when: false
+  tags: openchami
+
+- name: Check which OpenCHAMI containers exist
+  ansible.builtin.command:
+    cmd: podman container exists {{ openchami_container_name }}
+  register: cleanup_openchami_container_checks
+  check_mode: false
+  changed_when: false
+  failed_when: cleanup_openchami_container_checks.rc not in [0, 1]
   loop: "{{ openchami_config.containers }}"
+  loop_control:
+    loop_var: openchami_container_name
+  when: cleanup_openchami_podman_check.rc == 0
   tags: openchami
 
-- name: Remove OpenCHAMI pods
+- name: Remove existing OpenCHAMI containers
   ansible.builtin.command:
-    cmd: podman pod rm -f {{ item }}
-  register: pod_removal
-  changed_when: pod_removal.rc == 0
-  failed_when: false
+    cmd: podman rm -f {{ container_check.openchami_container_name }}
+  register: cleanup_openchami_container_removal
+  changed_when: true
+  loop: "{{ cleanup_openchami_container_checks.results | default([]) }}"
+  loop_control:
+    loop_var: container_check
+    label: "{{ container_check.openchami_container_name }}"
+  when: container_check.rc | default(1) == 0
+  tags: openchami
+
+- name: Check which OpenCHAMI pods exist
+  ansible.builtin.command:
+    cmd: podman pod exists {{ openchami_pod_name }}
+  register: cleanup_openchami_pod_checks
+  check_mode: false
+  changed_when: false
+  failed_when: cleanup_openchami_pod_checks.rc not in [0, 1]
   loop: "{{ openchami_config.pods }}"
+  loop_control:
+    loop_var: openchami_pod_name
+  when: cleanup_openchami_podman_check.rc == 0
+  tags: openchami
+
+- name: Remove existing OpenCHAMI pods
+  ansible.builtin.command:
+    cmd: podman pod rm -f {{ pod_check.openchami_pod_name }}
+  register: cleanup_openchami_pod_removal
+  changed_when: true
+  loop: "{{ cleanup_openchami_pod_checks.results | default([]) }}"
+  loop_control:
+    loop_var: pod_check
+    label: "{{ pod_check.openchami_pod_name }}"
+  when: pod_check.rc | default(1) == 0
+  tags: openchami
+
+- name: Verify OpenCHAMI systemd units are inactive
+  ansible.builtin.systemd:
+    name: "{{ openchami_unit_check.openchami_unit_name }}"
+  register: cleanup_openchami_inactive_checks
+  changed_when: false
+  failed_when: >-
+    cleanup_openchami_inactive_checks.status.ActiveState
+    | default('inactive') == 'active'
+  loop: "{{ cleanup_openchami_unit_checks.results }}"
+  loop_control:
+    loop_var: openchami_unit_check
+    label: "{{ openchami_unit_check.openchami_unit_name }}"
+  when:
+    - not (dry_run | default(false) | bool)
+    - openchami_unit_check.status.LoadState | default('not-found') != 'not-found'
+  tags: openchami
+
+- name: Verify OpenCHAMI containers were removed
+  ansible.builtin.command:
+    cmd: podman container exists {{ openchami_container_name }}
+  register: cleanup_openchami_removed_container_checks
+  changed_when: false
+  failed_when: cleanup_openchami_removed_container_checks.rc != 1
+  loop: "{{ openchami_config.containers }}"
+  loop_control:
+    loop_var: openchami_container_name
+  when:
+    - not (dry_run | default(false) | bool)
+    - cleanup_openchami_podman_check.rc == 0
+  tags: openchami
+
+- name: Report deferred OpenCHAMI post-cleanup verification
+  ansible.builtin.debug:
+    msg: >-
+      Dry run: service and container post-state verification is deferred
+      because check mode does not perform the preceding cleanup operations.
+  when: dry_run | default(false) | bool
   tags: openchami
 
 - name: Remove OpenCHAMI config directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  failed_when: false
   loop: "{{ openchami_config.config_dirs }}"
   tags: openchami
 
@@ -93,48 +168,47 @@
   ansible.builtin.file:
     path: "{{ openchami_config.workdir }}"
     state: absent
-  failed_when: false
   tags: openchami
 
 - name: Remove OpenCHAMI log directory
   ansible.builtin.file:
     path: "{{ openchami_config.log_dir }}"
     state: absent
-  failed_when: false
   tags: openchami
 
 - name: Unlock resolv.conf
   ansible.builtin.file:
     path: /etc/resolv.conf
-    attributes: "-i chattr"
+    attributes: "-i"
+  tags: openchami
+
+- name: Check whether NetworkManager CLI is available
+  ansible.builtin.command: nmcli --version
+  register: cleanup_openchami_nmcli_check
+  check_mode: false
+  changed_when: false
   failed_when: false
   tags: openchami
 
 - name: Restore NetworkManager-managed resolv.conf
   ansible.builtin.command:
-    cmd: nmcli dev reload
-  register: nmcli_reload
-  changed_when: nmcli_reload.rc == 0
-  failed_when: false
-  tags: openchami
-
-- name: Bring up NetworkManager connection
-  ansible.builtin.command:
-    cmd: nmcli con up "System eth0"
-  register: nmcli_up
-  changed_when: nmcli_up.rc == 0
-  failed_when: false
+    cmd: nmcli general reload dns-rc
+  register: cleanup_openchami_nmcli_reload
+  changed_when: cleanup_openchami_nmcli_reload.rc == 0
+  when: cleanup_openchami_nmcli_check.rc == 0
   tags: openchami
 
 - name: Remove generated inventories
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  failed_when: false
   loop: "{{ openchami_config.inventory_dirs }}"
   tags: openchami
 
 - name: Display OpenCHAMI cleanup completion
   ansible.builtin.debug:
-    msg: "OpenCHAMI cleanup operations completed"
+    msg: >-
+      OpenCHAMI cleanup completed: target and services stopped, containers
+      removed, and generated configuration, work, log, and inventory paths
+      removed.
   tags: openchami

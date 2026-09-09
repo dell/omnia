@@ -67,6 +67,7 @@ k8s_config_dir: "/etc/kubernetes"
 k8s_manifest_dir: "{{ omnia_shared_path }}/k8s/manifests"
 
 # Orchestrator artifacts
-functional_groups_config: "{{ omnia_shared_path }}/.data/functional_groups_config.yml"
+functional_groups_config: >-
+  {{ orchestrator_output_dir }}/.data/functional_groups_config.yml
 orchestrator_state_file: "{{ orchestrator_output_dir }}/orchestrator_state.yml"
 upgrade_lock_file: "{{ omnia_shared_path }}/.data/upgrade_in_progress.lock"

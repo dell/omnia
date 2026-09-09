@@ -24,5 +24,4 @@ artifacts_config:
     - "{{ omnia_data_path }}/orchestrator/log/cleanup"
     - "/var/lib/omnia/cleanup"
   preserve_inputs:
-    - "{{ omnia_data_path }}/.data/functional_groups_config.yml"
     - "{{ omnia_data_path }}/.data/upgrade_in_progress.lock"

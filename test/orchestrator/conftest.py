@@ -13,11 +13,11 @@
 # limitations under the License.
 
 """
-Pytest configuration for orchestrator FVT.
+Pytest configuration for orchestrator FVT and NFT.
 
 Provides:
 - host fixture (testinfra connection to OIM target)
-- Custom markers: sanity, functional, regression, deploy
+- Custom markers: sanity, functional, deploy, slurm, nft, performance, idempotency, security, negative
 - Marker expression: '+' for AND, ',' for OR
 - Test ordering via @pytest.mark.order(n)
 - Credential auto-encryption
@@ -105,9 +105,13 @@ def pytest_configure(config):
         "order(n)": "Specify test execution order (lower first)",
         "sanity": "Baseline verification (must-pass)",
         "functional": "Functional verification",
-        "regression": "Regression tests",
         "deploy": "Playbook deployment tests (requires full environment)",
         "slurm": "Slurm-specific tests (requires Slurm enabled)",
+        "nft": "Non-functional tests (performance, idempotency, security)",
+        "performance": "Performance and timing tests",
+        "idempotency": "Idempotency",
+        "security": "Security and permission tests",
+        "negative": "Negative test cases for error scenarios",
         "buildstream": "BuildStream pipeline validation (post-provision sanity)",
     }
     for name, desc in markers.items():
@@ -147,6 +151,16 @@ def pytest_collection_modifyitems(session, config, items):
             if _item_has_marker(item, "deploy"):
                 item.add_marker(pytest.mark.skip("Deploy tests require full environment setup - use --marker deploy to enable"))
 
+        # Auto-skip NFT tests (require explicit marker - they modify system state)
+        for item in items:
+            if _item_has_marker(item, "nft"):
+                item.add_marker(pytest.mark.skip("NFT tests require explicit --marker nft to enable (they modify system state)"))
+
+        # Auto-skip negative tests (require explicit marker - they test error conditions)
+        for item in items:
+            if _item_has_marker(item, "negative"):
+                item.add_marker(pytest.mark.skip("Negative tests require explicit --marker negative to enable (they test error conditions)"))
+
         # Auto-skip cleanup status tests (require prior cleanup execution)
         for item in items:
             test_name = item.name
@@ -178,6 +192,25 @@ def pytest_collection_modifyitems(session, config, items):
                             item.add_marker(pytest.mark.skip("SLURM is not enabled in orchestrator config"))
                 except Exception:
                     # If we can't check, don't auto-skip - let the test run and fail if needed
+                    pass
+
+        # Auto-skip Kubernetes tests if K8s is not enabled in config
+        for item in items:
+            if _item_has_marker(item, "kubernetes"):
+                try:
+                    config = load_test_config()
+                    project = config.get("project_name", "project_default")
+                    orchestrator_config_path = f"/opt/omnia/orchestrator/input/{project}/orchestrator_config.yml"
+
+                    if os.path.exists(orchestrator_config_path):
+                        with open(orchestrator_config_path, 'r') as f:
+                            config_content = f.read().lower()
+                        k8s_keywords = ["service_kube_control_plane", "service_kube_node", "kube_control_plane"]
+                        has_k8s = any(keyword in config_content for keyword in k8s_keywords)
+
+                        if not has_k8s:
+                            item.add_marker(pytest.mark.skip("Kubernetes is not enabled in orchestrator config"))
+                except Exception:
                     pass
     else:
         # When marker is specified, only apply the marker filtering
@@ -271,7 +304,7 @@ def pytest_sessionstart(session):
     # Initialize test report
     valid_scenarios = {
         "orchestrator", "validate", "prepare",
-        "provision", "cleanup",
+        "provision", "cleanup", "nft", "negative",
     }
     module_name = "orchestrator"
     test_paths = session.config.args if hasattr(session.config, 'args') else []

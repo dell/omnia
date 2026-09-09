@@ -76,12 +76,11 @@ cleanup_components:
     rollback_supported: false
     preserve: []
     cleanup_paths:
-      - "config"
-      - "manifests"
+      - "all entries under the configured Kubernetes NFS mount"
     cleanup_node_ips: false
     nfs_cleanup: true
     unmount_mounts: true
-    description: "K8s configuration and NFS directories"
+    description: "All Kubernetes shared data, storage mount, and fstab entry"
 
   storage_mounts:
     enabled: true
@@ -103,7 +102,6 @@ cleanup_components:
     rollback_supported: false
     preserve: []
     cleanup_paths:
-      - "{{ omnia_data_path }}/.data/functional_groups_config.yml"
       - "{{ orchestrator_output_dir }}"
     description: "Orchestrator artifacts, state files, and output directories"
 

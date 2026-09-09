@@ -14,12 +14,15 @@ configuration, and conditionally validates/parses `repo_status.yml`.
 4. Loads `image_build_config.yml` except for cleanup and precheck flows.
 5. For build/execute/default flow, requires `repo_status.yml` plus the selected
    package source (`package_groups.yml` or `CATALOG_FILE_PATH`).
-6. Validates current-format `repo_status.yml`, parses it through
+6. Validates the Image Build Manager fields in `repo_status.yml`, ignores
+   producer-owned metadata, parses the file through
    `omnia.image_build.parse_repo_status`, and checks repository URL reachability.
 7. Sets initial OS facts (`cluster_os_type`, `cluster_os_version`, `repo_port`) from `repo_status.yml`
    - **Note**: `cluster_os_type` and `cluster_os_version` may be overridden downstream by
      `fetch_build_packages` from catalog baseos group or `package_groups.yml` OS metadata
-8. Builds per-architecture repo lists (`repo_manager_repos_x86_64`, `repo_manager_repos_aarch64`).
+8. Builds version-tagged, per-architecture repo lists
+   (`repo_manager_repos_x86_64`, `repo_manager_repos_aarch64`). The package
+   fetch role selects only entries matching the catalog-resolved OS version.
 9. Validates the repo manager certificate when a path is supplied and sets S3 endpoint facts.
 
 `repo_status.yml` is not required for `validate`, `credentials`, `prepare`,
@@ -35,7 +38,7 @@ performed by the separate `validate_image_build_input` role.
 
 | Module | Purpose |
 |--------|---------|
-| `validate_repo_status_contract` | Enforces the current `repositories`-based upstream contract |
+| `validate_repo_status_contract` | Enforces the consumer-required subset of the `repositories`-based upstream contract |
 | `parse_repo_status` | Extracts OS version, repo port, certificate path, and per-architecture repository lists |
 
 ## Role Variables

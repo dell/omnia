@@ -93,7 +93,7 @@
   gather_facts: false
   any_errors_fatal: true
   vars_files:
-    - ../../roles/common/vars/main.yml
+    - ../../vars/telemetry_common.yml
   tags: deploy
   tasks:
     - name: Generate root kustomization.yaml
@@ -167,7 +167,7 @@
   hosts: kube_vip_group
   gather_facts: false
   vars_files:
-    - ../../roles/common/vars/main.yml
+    - ../../vars/telemetry_common.yml
   tags: deploy
   tasks:
     # Load config for checking enabled flags
@@ -287,7 +287,7 @@
   connection: local
   gather_facts: false
   vars_files:
-    - ../../roles/common/vars/main.yml
+    - ../../vars/telemetry_common.yml
   tags: deploy
   tasks:
     - name: Resolve kube_vip host
@@ -425,7 +425,7 @@
   connection: local
   gather_facts: true
   vars_files:
-    - ../../roles/common/vars/main.yml
+    - ../../vars/telemetry_common.yml
   tags: deploy
   tasks:
     - name: Write telemetry_status.yml

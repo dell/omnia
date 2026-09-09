@@ -113,8 +113,8 @@ filemode: "0644"
 min_firmware_version_reqd: 1
 waiting_time_30: 30
 
-# BMC group data file path
-bmc_group_data_filename: "{{ telemetry_data_path | default('/opt/omnia/telemetry') }}/bmc_group_data.csv"
+# BMC group data file path - always derived from OMNIA_DATA_PATH
+bmc_group_data_filename: "{{ input_project_dir }}/bmc_group_data.csv"
 
 # Telemetry report
 telemetry_report_path: "{{ telemetry_data_path | default('/opt/omnia/telemetry') }}/idrac_telemetry_report.yml"

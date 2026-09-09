@@ -48,6 +48,10 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${SCRIPT_DIR}/.venv"
 
+# Set default environment variables if not already set
+export OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+export OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'

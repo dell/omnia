@@ -42,12 +42,19 @@
     disabled_telemetry_count: 0
     disabled_telemetry_ips: []
 
+- name: Set BMC group data filename from bmc_group_data_path
+  ansible.builtin.set_fact:
+    bmc_group_data_filename: "{{ hostvars['localhost']['bmc_group_data_path'] }}"
+  when:
+    - hostvars['localhost']['bmc_group_data_path'] is defined
+    - hostvars['localhost']['bmc_group_data_path'] | length > 0
+
 - name: Load BMC inventory from bmc_group_data.csv
   ansible.builtin.set_fact:
-    bmc_group_data_lines: "{{ lookup('file', telemetry_config.idrac_telemetry_configurations.bmc_group_data_path).split('\n') }}"
+    bmc_group_data_lines: "{{ lookup('file', bmc_group_data_filename).split('\n') }}"
   when:
-    - telemetry_config.idrac_telemetry_configurations.bmc_group_data_path is defined
-    - telemetry_config.idrac_telemetry_configurations.bmc_group_data_path | length > 0
+    - bmc_group_data_filename is defined
+    - bmc_group_data_filename | length > 0
 
 - name: Parse BMC group data CSV and create parent-to-IP mapping
   ansible.builtin.set_fact:
@@ -99,7 +106,7 @@
         telemetry_namespace: "{{ telemetry_namespace }}"
         idrac_podnames: "{{ idrac_podname_idracips.idrac_podname_ips.keys() | list }}"
         mysqldb_k8s_name: "{{ mysqldb_k8s_name }}"
-        mysqldb_container_port: "{{ mysqldb_container_port }}"
+        mysqldb_container_port: "{{ mysqldb_container_port1 }}"
         mysqldb_name: "{{ mysqldb_name }}"
         mysqldb_user: "{{ telemetry_credentials.mysqldb_user }}"
         mysqldb_password: "{{ telemetry_credentials.mysqldb_password }}"
@@ -303,10 +310,9 @@
       insert_idracips_mysqldb:
         telemetry_namespace: "{{ telemetry_namespace }}"
         idrac_podnames_ips: "{{ idrac_podname_idracips.idrac_podname_ips }}"
-        mysqldb_k8s_name: "{{ mysqldb_k8s_name }}"
-        mysqldb_container_port: "{{ mysqldb_container_port }}"
+        mysqldb_container_port: "{{ mysqldb_container_port1 }}"
         mysqldb_name: "{{ mysqldb_name }}"
-        mysql_user: "{{ telemetry_credentials.mysqldb_user }}"
+        mysqldb_user: "{{ telemetry_credentials.mysqldb_user }}"
         mysqldb_password: "{{ telemetry_credentials.mysqldb_password }}"
         bmc_username: "{{ telemetry_credentials.bmc_username }}"
         bmc_password: "{{ telemetry_credentials.bmc_password }}"

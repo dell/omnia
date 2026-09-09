@@ -24,6 +24,19 @@ This document defines all input files consumed by the `orchestrator` domain.
 | `kernel_version_override` | string | No | `""` | Specific kernel version for boot images |
 | `additional_cloud_init_config_file` | string | No | `""` | Extra cloud-init config path |
 | `repo_manager_output_path` | string | No | `$OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/repo_status.yml` | Path to `repo_status.yml` from repo_manager |
+| `catalog_file_path` | string | No | `$CATALOG_FILE_PATH`, then `$OMNIA_DATA_PATH/catalog/catalog_rhel.json` | Optional override for the catalog JSON path |
+
+### Catalog availability
+
+The `catalog_file_path` field is optional, but its resolved file is required
+for flows that derive OS metadata or feature enablement: full execution,
+`precheck`, `credentials`, `prepare`, `deploy`, `provision`, `execute`, and
+`validate-deployment`.
+
+Input-only `validate`, PXE-only, cleanup, upgrade, and rollback flows do not
+consume the catalog contract and can run without the file. Standalone
+credential collection requires it because Slurm and OpenLDAP feature flags
+determine which credentials are mandatory.
 
 ---
 
@@ -128,6 +141,8 @@ functional_group_images:
 | `overall_status` must be `"success"` | Fail with "Fix image builds before running orchestrator" |
 | `image_build_type` identifies the producing engine | Interpret artifact paths using `image-builder` or `image-thrillhouse` provenance |
 | `s3_configurations.endpoint_url` must be defined | Fail with assertion error |
+| Every functional group must define kernel, initrd, and image paths | Fail before provisioning |
+| Every rendered artifact URL must answer HTTP `HEAD` with status 200 | Report URL, status, and request error |
 
 ### Facts Set from build_status.yml
 
@@ -136,6 +151,13 @@ functional_group_images:
 | `s3_configurations.endpoint_url` | `s3_configurations.endpoint_url` | S3 endpoint URL for BSS template |
 | `s3_configurations.bucket` | `s3_configurations.bucket` | S3 bucket name (default: `boot-images`) |
 | `build_status` | Full `_build_status` dict | Complete build status for image validation |
+
+During OpenCHAMI precheck and provisioning, Orchestrator validates every
+functional group's `kernel`, `initrd`, and `image` entry. It sends an HTTP
+`HEAD` request from the OIM to the same endpoint-relative URL rendered into
+Boot Service configuration. This behavior is identical for manifests produced
+by `image-builder` and `image-thrillhouse`; inaccessible or missing artifacts
+fail before provisioning begins.
 
 ---
 
@@ -263,6 +285,13 @@ These files are read from `input/project_default/` (project root, not orchestrat
 | `storage_config.yml` | Storage mount configuration |
 | `security_config.yml` | Security settings |
 | `telemetry_config.yml` | Telemetry configuration |
+
+`storage_config.yml` is conditionally required. When `omnia_config.yml`
+contains a non-empty `nfs_storage_name` or `vast_storage_name` in a Slurm or
+service Kubernetes cluster definition, the file must exist and define a mount
+with every referenced name. When no storage name is referenced, the file may
+be absent. If present, it is always schema validated. Network reachability of
+referenced NFS servers is checked later during precheck.
 
 ---
 

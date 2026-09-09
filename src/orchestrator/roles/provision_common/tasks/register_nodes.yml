@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Register nodes in SMD for the target category.
+# Add nodes from the target category to SMD.
 # Extracted from configure_ochami/tasks/orchestration_mapping_nodes.yml.
-# Uses per-category nodes YAML and upsert semantics (no --overwrite).
+# Global stale-data cleanup is performed once by provision_preamble.yml. This
+# file must remain additive so later categories cannot remove earlier ones.
 
 - name: Check if openchami configs_vars.yaml exists
   ansible.builtin.stat:
@@ -32,9 +33,8 @@
 - name: Include openchami vars
   ansible.builtin.include_vars: "{{ openchami_config_vars_path }}"
 
-# Preserve the openchami cluster_name at set_fact level so that stale
-# set_fact values (e.g. from k8s_config setting cluster_name to the K8s
-# cluster name) cannot shadow the openchami cluster identity.
+# Preserve the OpenCHAMI API identity at set_fact level so unrelated role
+# variables cannot shadow the shared service endpoint.
 - name: Pin openchami cluster_name at set_fact level
   ansible.builtin.set_fact:
     cluster_name: "{{ lookup('file', openchami_config_vars_path) | from_yaml | json_query('cluster_name') }}"
@@ -89,6 +89,10 @@
          | sort(attribute='XNAME')
          | list }}
 
+- name: Reset stale OpenCHAMI data for {{ target_category }}
+  ansible.builtin.include_tasks: delete_smd_endpoints.yml
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
 - name: Generate per-category nodes YAML ({{ target_category }})
   ansible.builtin.template:
     src: "{{ openchami_nodes_template }}"
@@ -97,10 +101,6 @@
   vars:
     mapping_nodes: "{{ _category_nodes }}"
   delegate_to: localhost
-
-- name: Delete stale SMD endpoints (for clean re-registration)
-  ansible.builtin.include_tasks: delete_smd_endpoints.yml
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Restart metadata-service to refresh node instance data
   ansible.builtin.systemd:
@@ -213,6 +213,21 @@
   ansible.builtin.set_fact:
     ochami_env: "{{ {(oim_node_name | upper) + '_ACCESS_TOKEN': refreshed_token_result.stdout} }}"
   when: refreshed_token_result.rc == 0
+
+- name: Remove obsolete node-registration SMD group
+  ansible.builtin.uri:
+    url: >-
+      https://{{ cluster_name }}.{{ cluster_domain
+      }}:8443/hsm/v2/groups/node_registration
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200, 404]
+    validate_certs: false
+  no_log: true
+  when:
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+    - refreshed_token_result.rc == 0
 
 - name: Discover nodes in SMD (upsert with --overwrite)
   block:
@@ -343,10 +358,13 @@
 
 - name: Accumulate registered functional group names across categories
   ansible.builtin.set_fact:
-    registered_fg_names: "{{ (registered_fg_names | default([])) + target_fg_names }}"
+    registered_fg_names: >-
+      {{ ((registered_fg_names | default([])) + target_fg_names) | unique | list }}
 
-- name: Create common SMD groups (ssh, chrony, node_registration)
+- name: Create common SMD groups (ssh and chrony)
   ansible.builtin.include_tasks: create_smd_group_common.yml
   loop: "{{ common_metadata_svc_groups }}"
   loop_control:
-    loop_var: common_group_name
+    loop_var: common_group_item
+  vars:
+    common_group_name: "{{ common_group_item }}"

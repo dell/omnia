@@ -5,6 +5,12 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
 ## [2.3.0] - 2026-09-05
 
 ### Fixed
+- Removed the invalid generic cloud-init phone-home fragment; Metadata Service
+  reserves that route for optional WireGuard bootstrap peer removal.
+- Changed Boot Service's NoCloud datasource name from deprecated `nocloud-net`
+  to `nocloud`.
+- Disabled root filesystem resize for the live overlay image and made Slurm
+  tracking mounts and controller-marker waits explicit and bounded.
 - Inventory generation fails with `Recursive loop detected in template` — renamed template var from `kube_vip` to `inventory_kube_vip` to avoid self-reference when fact is not set.
 - validate_preamble OIM tasks fail with undefined `pxe_mapping_file_path` — resolve from localhost hostvars and add defensive `when` guards.
 - validate_preamble playbook uses `roles:` which doesn't resolve OIM hostvars — changed to `tasks:` with `include_role:` for proper variable resolution.
@@ -26,13 +32,12 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
 
 ### Changed
 - Galaxy version set to 2.3.0.
-- Renamed `phone_home` to `node_registration` throughout PXE provisioning workflow to avoid confusion with Dell Phone Home functionality.
+- Renamed `phone_home` timing and verification controls to `node_registration` throughout PXE provisioning workflow to avoid confusion with Dell Phone Home functionality.
   - Role: `verify_phone_home` → `verify_node_registration`
   - Variables: `enable_phone_home` → `enable_node_registration`, `phone_home_pause_minutes` → `node_registration_pause_minutes`, etc.
-  - SMD group: `phone_home` → `node_registration`
   - Playbook references and documentation updated
   - Backward compatibility: legacy `phone_home_*` variables supported with deprecation warning
-  - Note: Cloud-init standard `phone_home` directive and metadata-service `/phone-home/` endpoint remain unchanged
+  - Node completion is verified directly through SSH, boot freshness, and cloud-init status
 
 ## [3.0.0] - 2026-07-31
 
