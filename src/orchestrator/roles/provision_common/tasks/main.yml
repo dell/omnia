@@ -80,6 +80,52 @@
       failed_when: false
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
+    # When a node moves between categories (e.g. from kubernetes to slurm),
+    # stale boot configs from the previous category still reference its MAC.
+    # Boot-service returns whichever config it matches first, so the node
+    # may boot the wrong image. Delete any non-target boot config that
+    # contains a MAC belonging to the current category's nodes.
+    - name: Build MAC list for current category nodes
+      ansible.builtin.set_fact:
+        _category_mac_list: >-
+          {{ _category_nodes | map(attribute='ADMIN_MAC') | map('lower') | list }}
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+    - name: Find stale boot configs from other categories referencing current MACs
+      ansible.builtin.set_fact:
+        _stale_boot_configs: >-
+          {% set stale = [] -%}
+          {% for cfg in (existing_boot_configs_cleanup.json | default([])) -%}
+            {% if cfg.metadata.name not in target_fg_names -%}
+              {% set cfg_macs = cfg.spec.macs | default([]) | map('lower') | list -%}
+              {% for mac in _category_mac_list -%}
+                {% if mac in cfg_macs -%}
+                  {% if cfg not in stale -%}
+                    {% set _ = stale.append(cfg) -%}
+                  {% endif -%}
+                {% endif -%}
+              {% endfor -%}
+            {% endif -%}
+          {% endfor -%}
+          {{ stale }}
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+    - name: Delete stale boot configs from other categories that reference current MACs
+      ansible.builtin.uri:
+        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}"
+        method: DELETE
+        headers:
+          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+        status_code: [200, 404]
+        validate_certs: false
+      loop: "{{ _stale_boot_configs | default([]) }}"
+      loop_control:
+        label: "{{ item.metadata.name }} (stale — contains MAC from current category)"
+      failed_when: false
+      when:
+        - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+        - _stale_boot_configs | default([]) | length > 0
+
     - name: Configure boot-service boot params for each functional group
       ansible.builtin.include_tasks: configure_boot_svc.yml
       loop: "{{ target_functional_groups | map(attribute='name') | list }}"
