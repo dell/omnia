@@ -178,9 +178,24 @@ repositories:
     x86_64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
       # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      baseos: {}
-      appstream: {}
-      codeready-builder: {}
+      baseos:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      appstream:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      codeready-builder:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
       epel:
         url: "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/"
         gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10"
@@ -269,9 +284,24 @@ repositories:
     aarch64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
       # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      baseos: {}
-      appstream: {}
-      codeready-builder: {}
+      baseos:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      appstream:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      codeready-builder:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
       # USER-REQUIRED REPOS (MUST fill in URLs for your custom repositories)
       # OMNIA-REQUIRED REPOS (edit with caution – required for Omnia features)
       epel:
@@ -344,9 +374,24 @@ repositories:
     x86_64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
       # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      baseos: {}
-      appstream: {}
-      codeready-builder: {}
+      baseos:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      appstream:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      codeready-builder:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
       epel:
         url: "https://dl.fedoraproject.org/pub/epel/10.2/Everything/x86_64/"
         gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10"
@@ -435,9 +480,24 @@ repositories:
     aarch64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
       # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
-      baseos: {}
-      appstream: {}
-      codeready-builder: {}
+      baseos:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      appstream:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
+      codeready-builder:
+        url: ""
+        gpgkey: ""
+        sslcacert: ""
+        sslclientkey: ""
+        sslclientcert: ""
       # USER-REQUIRED REPOS (MUST fill in URLs for your custom repositories)
       # OMNIA-REQUIRED REPOS (edit with caution – required for Omnia features)
       epel:
