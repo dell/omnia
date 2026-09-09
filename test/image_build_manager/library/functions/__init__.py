@@ -36,6 +36,8 @@ from omnia_auto import (
     TestReport,
     get_current_report,
     set_current_report,
+    build_report_name,
+    record_playbook_failure,
     run_playbook as _run_playbook,
 )
 from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
@@ -118,6 +120,8 @@ __all__ = [
     "TestReport",
     "get_current_report",
     "set_current_report",
+    "build_report_name",
+    "record_playbook_failure",
     "check_container_running",
     "check_s3_containers",
     "check_aarch64_architecture",

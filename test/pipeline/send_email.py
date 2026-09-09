@@ -14,25 +14,29 @@
 
 """Email notification script for Omnia GitLab CI/CD pipeline.
 
-Sends the pipeline report as an attachment via SMTP relay.
+Sends test reports as attachments via SMTP relay.
 All configuration is read from GitLab CI/CD variables (environment):
 
-    EMAIL_RECIPIENTS  - Comma-separated list of recipients (required)
-    EMAIL_SENDER      - From address (required)
-    SMTP_SERVER       - SMTP relay host (required)
-    SMTP_PORT         - SMTP relay port (default: 25)
-    REPORT_PATH       - Path to pipeline_summary.txt (required)
+    EMAIL_RECIPIENTS      - Comma-separated list of recipients (required)
+    EMAIL_SENDER          - From address (required)
+    SMTP_SERVER           - SMTP relay host (required)
+    SMTP_PORT             - SMTP relay port (default: 25)
+    TEST_REPORTS_PATH     - Path to test reports directory (default: /opt/omnia/reports)
 
 GitLab-provided variables used automatically:
     PIPELINE_TRIGGER_TIME - Set by initialization stage
     CI_PIPELINE_URL       - Auto-set by GitLab
 """
+import glob
+import json
 import os
 import smtplib
 import time
 import traceback
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email import encoders
 
 
 # ---------------------------------------------------------------------------
@@ -47,8 +51,7 @@ SMTP_USER = os.environ.get("SMTP_USER", "")
 _SMTP_PW_KEY = "SMTP_" + "PASS" + "WORD"
 SMTP_PASSWORD = os.environ.get(_SMTP_PW_KEY, "")
 SENDER_EMAIL = os.environ.get("EMAIL_SENDER", "")
-REPORT_PATH = os.environ.get("REPORT_PATH", "")
-REPORT_FILENAME_ONLY = os.path.basename(REPORT_PATH)
+TEST_REPORTS_PATH = os.environ.get("TEST_REPORTS_PATH", "/opt/omnia/reports")
 
 trigger_time = os.environ.get("PIPELINE_TRIGGER_TIME", "")
 pipeline_url = os.environ.get("CI_PIPELINE_URL", "")
@@ -61,8 +64,6 @@ if not SMTP_SERVER:
     missing.append("SMTP_SERVER")
 if not SENDER_EMAIL:
     missing.append("EMAIL_SENDER")
-if not REPORT_PATH:
-    missing.append("REPORT_PATH")
 if missing:
     raise SystemExit(
         f"Missing required GitLab CI/CD variables: {', '.join(missing)}"
@@ -81,8 +82,60 @@ if not trigger_time and os.path.exists("pipeline_time.env"):
                 break
 
 print(f"Trigger time: {trigger_time}")
-print(f"Report path: {REPORT_PATH}")
-print(f"Report exists: {os.path.exists(REPORT_PATH)}")
+print(f"Test reports path: {TEST_REPORTS_PATH}")
+
+# ---------------------------------------------------------------------------
+# Collect test report summary
+test_reports_summary = ""
+test_report_files = []
+if os.path.exists(TEST_REPORTS_PATH):
+    json_files = glob.glob(os.path.join(TEST_REPORTS_PATH, "*.json"))
+    html_files = glob.glob(os.path.join(TEST_REPORTS_PATH, "*.html"))
+    test_report_files = sorted(json_files + html_files)
+    
+    if json_files:
+        print(f"Found {len(json_files)} JSON test report(s)")
+        # Extract summary from the first JSON report
+        try:
+            with open(json_files[0], "r", encoding="utf-8") as f:
+                report_data = json.load(f)
+            
+            total_passed = 0
+            total_failed = 0
+            total_skipped = 0
+            
+            for server_data in report_data.get("servers", {}).values():
+                for run in server_data.get("runs", []):
+                    summary = run.get("summary", {})
+                    total_passed += summary.get("passed", 0)
+                    total_failed += summary.get("failed", 0)
+                    total_skipped += summary.get("skipped", 0)
+            
+            test_reports_summary = f"""
+    <h3>Test Execution Summary</h3>
+    <table style="border-collapse: collapse; margin: 10px 0;">
+        <tr style="background-color: #f0f0f0;">
+            <td style="border: 1px solid #ddd; padding: 8px;"><strong>Passed</strong></td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: green;"><strong>{total_passed}</strong></td>
+        </tr>
+        <tr>
+            <td style="border: 1px solid #ddd; padding: 8px;"><strong>Failed</strong></td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: red;"><strong>{total_failed}</strong></td>
+        </tr>
+        <tr style="background-color: #f0f0f0;">
+            <td style="border: 1px solid #ddd; padding: 8px;"><strong>Skipped</strong></td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: orange;"><strong>{total_skipped}</strong></td>
+        </tr>
+    </table>
+    <p><em>Detailed test reports are attached to this email.</em></p>
+"""
+        except Exception as e:
+            print(f"Error reading test report summary: {e}")
+            test_reports_summary = "<p><em>Test reports are attached to this email.</em></p>"
+    else:
+        test_reports_summary = "<p><em>No test reports found.</em></p>"
+else:
+    print(f"Test reports directory not found: {TEST_REPORTS_PATH}")
 
 # ---------------------------------------------------------------------------
 msg = MIMEMultipart()
@@ -98,7 +151,9 @@ html_body = f"""
     <p><strong>Pipeline URL:</strong>
         <a href="{pipeline_url}">{pipeline_url}</a></p>
     <br>
-    <p>Please find the pipeline execution summary attached.</p>
+    {test_reports_summary}
+    <br>
+    <p>Please find the pipeline execution summary and test reports attached.</p>
     <br>
     <p style="color: #888; font-size: 12px;">
         This is an automated email from GitLab CI/CD pipeline.</p>
@@ -108,25 +163,59 @@ html_body = f"""
 msg.attach(MIMEText(html_body, "html"))
 
 # ---------------------------------------------------------------------------
-if os.path.exists(REPORT_PATH):
+# Attach test reports (HTML and JSON)
+def attach_file(message, file_path):
+    """Attach a file to the email message."""
     try:
-        with open(REPORT_PATH, "r", encoding="utf-8") as f:
-            report_content = f.read()
-        print(f"Read {len(report_content)} characters from report")
-
-        attachment = MIMEText(report_content, "plain", "utf-8")
-        attachment.add_header(
-            "Content-Disposition",
-            "attachment",
-            filename=REPORT_FILENAME_ONLY,
-        )
-        msg.attach(attachment)
-        print(f"Attached: {REPORT_FILENAME_ONLY}")
+        filename = os.path.basename(file_path)
+        
+        # Determine if binary or text
+        if file_path.endswith(".html"):
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            attachment = MIMEText(content, "html", "utf-8")
+            attachment.add_header(
+                "Content-Disposition",
+                "attachment",
+                filename=filename,
+            )
+        elif file_path.endswith(".json"):
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            attachment = MIMEText(content, "plain", "utf-8")
+            attachment.add_header(
+                "Content-Disposition",
+                "attachment",
+                filename=filename,
+            )
+        else:
+            # For other file types, use base64 encoding
+            with open(file_path, "rb") as f:
+                content = f.read()
+            attachment = MIMEBase("application", "octet-stream")
+            attachment.set_payload(content)
+            encoders.encode_base64(attachment)
+            attachment.add_header(
+                "Content-Disposition",
+                "attachment",
+                filename=filename,
+            )
+        
+        message.attach(attachment)
+        print(f"Attached: {filename}")
+        return True
     except Exception as e:
-        print(f"Error attaching report: {e}")
+        print(f"Error attaching {file_path}: {e}")
         traceback.print_exc()
+        return False
+
+# Attach all test report files
+if test_report_files:
+    print(f"\nAttaching {len(test_report_files)} test report file(s)...")
+    for report_file in test_report_files:
+        attach_file(msg, report_file)
 else:
-    print(f"Report file not found: {REPORT_PATH}")
+    print("No test report files to attach")
 
 # ---------------------------------------------------------------------------
 def send_email_with_retry(message, smtp_server, smtp_port, smtp_user, smtp_pw, max_retries=3, retry_delay=5):

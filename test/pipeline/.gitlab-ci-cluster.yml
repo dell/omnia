@@ -1147,6 +1147,24 @@ repo_manager:
     - |
       if [ "$STAGE_RC" -ne 0 ]; then
         echo "ERROR: repo_manager playbook failed (exit code: $STAGE_RC)"
+        echo "Recording playbook failure in test report..."
+        $SSH_CMD $TARGET "
+          cd $OMNIA_INSTALL_PATH/test/repo_manager
+          if [ -f .venv/bin/activate ]; then
+            source .venv/bin/activate 2>/dev/null || true
+          fi
+          python3 -c '
+from omnia_auto.functions.report_func import record_playbook_failure
+record_playbook_failure(
+    module_name=\"repo_manager\",
+    report_path=\"/opt/omnia/reports\",
+    report_name=\"repo_manager_fvt\",
+    server_ip=\"localhost\",
+    report_id=\"${CI_PIPELINE_ID:-manual}\",
+    command_type=\"deploy\",
+)
+' 2>/dev/null || echo 'WARNING: Could not record playbook failure in report'
+        "
         exit 1
       fi
       echo "repo_manager completed successfully for cluster $CLUSTER"
@@ -1377,6 +1395,24 @@ image_build_manager:
     - |
       if [ "$STAGE_RC" -ne 0 ]; then
         echo "ERROR: image_build_manager playbook failed (exit code: $STAGE_RC)"
+        echo "Recording playbook failure in test report..."
+        $SSH_CMD $TARGET "
+          cd $OMNIA_INSTALL_PATH/test/image_build_manager
+          if [ -f .venv/bin/activate ]; then
+            source .venv/bin/activate 2>/dev/null || true
+          fi
+          python3 -c '
+from omnia_auto.functions.report_func import record_playbook_failure
+record_playbook_failure(
+    module_name=\"image_build_manager\",
+    report_path=\"/opt/omnia/reports\",
+    report_name=\"test_report\",
+    server_ip=\"localhost\",
+    report_id=\"${CI_PIPELINE_ID:-manual}\",
+    command_type=\"deploy\",
+)
+' 2>/dev/null || echo 'WARNING: Could not record playbook failure in report'
+        "
         exit 1
       fi
       echo "image_build_manager completed successfully for cluster $CLUSTER"
@@ -1605,6 +1641,24 @@ orchestrator:
     - |
       if [ "$STAGE_RC" -ne 0 ]; then
         echo "ERROR: orchestrator playbook failed (exit code: $STAGE_RC)"
+        echo "Recording playbook failure in test report..."
+        $SSH_CMD $TARGET "
+          cd $OMNIA_INSTALL_PATH/test/orchestrator
+          if [ -f .venv/bin/activate ]; then
+            source .venv/bin/activate 2>/dev/null || true
+          fi
+          python3 -c '
+from omnia_auto.functions.report_func import record_playbook_failure
+record_playbook_failure(
+    module_name=\"orchestrator\",
+    report_path=\"/opt/omnia/reports\",
+    report_name=\"orchestrator_test_report\",
+    server_ip=\"localhost\",
+    report_id=\"${CI_PIPELINE_ID:-manual}\",
+    command_type=\"deploy\",
+)
+' 2>/dev/null || echo 'WARNING: Could not record playbook failure in report'
+        "
         exit 1
       fi
       echo "orchestrator completed successfully for cluster $CLUSTER"
@@ -1833,6 +1887,24 @@ telemetry:
     - |
       if [ "$STAGE_RC" -ne 0 ]; then
         echo "ERROR: telemetry playbook failed (exit code: $STAGE_RC)"
+        echo "Recording playbook failure in test report..."
+        $SSH_CMD $TARGET "
+          cd $OMNIA_INSTALL_PATH/test/telemetry
+          if [ -f .venv/bin/activate ]; then
+            source .venv/bin/activate 2>/dev/null || true
+          fi
+          python3 -c '
+from omnia_auto.functions.report_func import record_playbook_failure
+record_playbook_failure(
+    module_name=\"telemetry\",
+    report_path=\"/opt/omnia/reports\",
+    report_name=\"telemetry_test_report\",
+    server_ip=\"localhost\",
+    report_id=\"${CI_PIPELINE_ID:-manual}\",
+    command_type=\"deploy\",
+)
+' 2>/dev/null || echo 'WARNING: Could not record playbook failure in report'
+        "
         exit 1
       fi
       echo "telemetry completed successfully for cluster $CLUSTER"
@@ -2081,7 +2153,6 @@ summary:
 
     - echo "Pipeline summary report generated"
     - echo "Sending email notification"
-    - export REPORT_PATH="pipeline_reports/pipeline_summary.txt"
     - python3 send_email.py || echo "Email notification failed (non-fatal)"
     - echo "========================================================"
     - echo "  Pipeline summary completed for cluster $CLUSTER"
