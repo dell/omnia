@@ -2102,7 +2102,7 @@ summary:
       EOF
 
     - echo "Pipeline summary report generated"
-    
+
     - |
       echo "Collecting pipeline job statuses..."
       python3 - <<'PY'
@@ -2118,7 +2118,7 @@ summary:
           json.dump(jobs, output)
       print(f"Collected {len(jobs)} job status records")
       PY
-    
+
     # Copy test reports from remote target to CI runner
     - |
       echo "Fetching test reports from target..."
@@ -2132,11 +2132,11 @@ summary:
         echo "  Copied test reports to $LOCAL_REPORTS_PATH/"
         ls -la "$LOCAL_REPORTS_PATH/" 2>/dev/null
       } || echo "  No test reports found on target"
-    
+
     - export PIPELINE_MODE
     - export DOMAINS
     - export TEST_REPORTS_PATH="pipeline_reports/test_reports"
-    
+
     - echo "Sending email notification..."
     - python3 send_email.py || echo "Email notification failed (non-fatal)"
     - echo "========================================================"
