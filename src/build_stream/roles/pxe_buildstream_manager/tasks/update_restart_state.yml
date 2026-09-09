@@ -1,0 +1,142 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Load current restart_state.json (may have manually booted nodes from compute_effective_inventory.yml)
+  ansible.builtin.stat:
+    path: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
+  register: current_restart_state_stat
+
+- name: Read current restart_state.json if exists
+  when: current_restart_state_stat.stat.exists
+  block:
+    - name: Read restart_state.json
+      ansible.builtin.slurp:
+        src: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
+      register: current_restart_state_raw
+
+    - name: Parse current restart_state.json
+      ansible.builtin.set_fact:
+        current_restart_state: "{{ current_restart_state_raw.content | b64decode | from_json }}"
+
+- name: Load existing booted nodes from current restart_state.json
+  ansible.builtin.set_fact:
+    existing_booted_nodes: "{{ (current_restart_state | default({})).get('booted_nodes', []) }}"
+    existing_booted_ips: "{{ (current_restart_state | default({})).get('booted_nodes', []) | map(attribute='bmc_ip') | list }}"
+
+- name: Compute new booted IPs from this run
+  ansible.builtin.set_fact:
+    new_booted_ips: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'success') | map(attribute='bmc_ip') | list }}"
+
+- name: Compute failed IPs from this run
+  ansible.builtin.set_fact:
+    failed_ips_this_run: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'failed') | map(attribute='bmc_ip') | list }}"
+
+- name: Remove failed nodes from existing booted list (but preserve manually booted nodes)
+  ansible.builtin.set_fact:
+    booted_nodes_list: >-
+      {{ existing_booted_nodes | rejectattr('bmc_ip', 'in', failed_ips_this_run) | list
+         + (existing_booted_nodes
+            | selectattr('manually_booted', 'defined')
+            | selectattr('manually_booted', 'equalto', true)
+            | selectattr('bmc_ip', 'in', failed_ips_this_run)
+            | list) }}
+
+- name: Add newly booted nodes to list with metadata
+  ansible.builtin.set_fact:
+    booted_nodes_list: >-
+      {{ booted_nodes_list | default([]) + [{
+        'bmc_ip': item,
+        'hostname': (pxe_csv_node_map[item]['HOSTNAME'] | default(''))
+                    if pxe_csv_node_map is defined and item in pxe_csv_node_map else '',
+        'booted_at': ansible_date_time.iso8601
+      }] }}
+  loop: "{{ new_booted_ips }}"
+  when: item not in existing_booted_ips
+
+- name: Write updated restart_state.json for this job_id
+  ansible.builtin.copy:
+    content: "{{ state_report | to_nice_json }}"
+    dest: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
+    mode: "0644"
+  vars:
+    state_report:
+      updated_at: "{{ ansible_date_time.iso8601 }}"
+      previous_inventory:
+        source: "pxe_mapping_file.csv"
+        nodes: "{{ current_inventory | default([]) | json_query('[].{bmc_ip: BMC_IP, hostname: HOSTNAME, service_tag: SERVICE_TAG}') }}"
+      booted_nodes: "{{ booted_nodes_list | default([]) }}"
+  when: current_inventory is defined
+
+- name: Write current run failed_nodes.json to restart_state
+  ansible.builtin.copy:
+    content: "{{ failed_nodes_report | to_nice_json }}"
+    dest: "{{ restart_state_dir }}/{{ job_id }}/failed_nodes.json"
+    mode: "0644"
+  vars:
+    failed_list: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'failed') | list }}"
+    failed_nodes_report:
+      job_id: "{{ job_id }}"
+      stage_name: "restart"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      total_nodes: "{{ failed_list | length }}"
+      failure_count: "{{ failed_list | length }}"
+      failed_nodes: "{{ failed_list }}"
+
+- name: Update failed_nodes.json to remove manually booted nodes
+  block:
+    - name: Check if failed_nodes.json exists in restart_state
+      ansible.builtin.stat:
+        path: "{{ restart_state_dir }}/{{ job_id }}/failed_nodes.json"
+      register: failed_nodes_stat
+
+    - name: Filter out manually booted nodes from failed_nodes.json
+      when: failed_nodes_stat.stat.exists
+      block:
+        - name: Read failed_nodes.json from restart_state
+          ansible.builtin.slurp:
+            src: "{{ restart_state_dir }}/{{ job_id }}/failed_nodes.json"
+          register: failed_nodes_raw
+
+        - name: Parse failed_nodes.json
+          ansible.builtin.set_fact:
+            failed_nodes_data: "{{ failed_nodes_raw.content | b64decode | from_json }}"
+
+        - name: Filter out manually booted nodes (keep only status=failed)
+          ansible.builtin.set_fact:
+            filtered_failed_nodes: "{{ failed_nodes_data.failed_nodes | selectattr('status', 'equalto', 'failed') | list }}"
+
+        - name: Build updated failed_nodes.json (without manually booted nodes)
+          ansible.builtin.set_fact:
+            updated_failed_nodes:
+              job_id: "{{ failed_nodes_data.job_id }}"
+              stage_name: "{{ failed_nodes_data.stage_name }}"
+              timestamp: "{{ ansible_date_time.iso8601 }}"
+              total_nodes: "{{ filtered_failed_nodes | length }}"
+              failure_count: "{{ filtered_failed_nodes | length }}"
+              failed_nodes: "{{ filtered_failed_nodes }}"
+
+        - name: Write filtered failed_nodes.json back to restart_state (remove manually booted nodes)
+          ansible.builtin.copy:
+            content: "{{ updated_failed_nodes | to_nice_json }}"
+            dest: "{{ restart_state_dir }}/{{ job_id }}/failed_nodes.json"
+            mode: "0644"
+
+        - name: Log manually booted nodes removal
+          ansible.builtin.debug:
+            msg: "[BSM] Removed {{ failed_nodes_data.failed_nodes | length - filtered_failed_nodes | length }} manually booted nodes from failed_nodes.json"
+          when: (failed_nodes_data.failed_nodes | length - filtered_failed_nodes | length) > 0
+
+- name: Report BSM artifact paths
+  ansible.builtin.debug:
+    msg: "{{ bsm_artifact_paths_msg }}"

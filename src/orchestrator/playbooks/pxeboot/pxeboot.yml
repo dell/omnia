@@ -154,6 +154,42 @@
            phone_home_retries is defined or phone_home_delay is defined)
 
 # ─────────────────────────────────────────────────────────────────────────
+# Play 1.5: BuildStream — Compute effective inventory for retry support
+#
+# When BuildStream is enabled (bsm_enabled) and a job_id is provided,
+# this play reads restart_state.json and failed_nodes.json to determine
+# which nodes have already been successfully booted.  It generates a
+# filtered CSV containing only the nodes that still need PXE boot and
+# sets the pxeboot_inventory fact so Play 3 uses the filtered inventory.
+#
+# On first run (no restart_state), all nodes are included.
+# On retry, nodes marked status=success in failed_nodes.json (manually
+# booted by the user in GitLab) are excluded.
+# ─────────────────────────────────────────────────────────────────────────
+- name: BuildStream effective inventory computation
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
+
+    - name: Skip if BuildStream is not enabled
+      ansible.builtin.meta: end_play
+      when: not (enable_build_stream | default(false) | bool)
+
+    - name: Skip if job_id is not provided
+      ansible.builtin.meta: end_play
+      when: job_id is not defined or (job_id | string | length == 0)
+  tasks:
+    - name: Compute effective inventory for BuildStream retry
+      ansible.builtin.include_role:
+        name: pxe_buildstream_manager
+        tasks_from: generate_effective_csv.yml
+
+# ─────────────────────────────────────────────────────────────────────────
 # Play 2: Load credentials from orchestrator credential store
 # ─────────────────────────────────────────────────────────────────────────
 - name: Load orchestrator credentials
@@ -785,6 +821,39 @@
             content: "{{ orchestrator_status_report | to_nice_yaml }}"
             dest: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
             mode: "0644"
+
+        # ── BuildStream post-processing (runs before fail to persist results) ──
+        - name: BuildStream post-processing
+          when:
+            - enable_build_stream | default(false) | bool
+            - job_id is defined
+            - job_id | string | length > 0
+          block:
+            - name: Run BSM write_node_results
+              ansible.builtin.include_role:
+                name: pxe_buildstream_manager
+                tasks_from: write_node_results.yml
+
+            - name: Run BSM update_restart_state
+              ansible.builtin.include_role:
+                name: pxe_buildstream_manager
+                tasks_from: update_restart_state.yml
+
+            - name: Run BSM register GitLab host
+              ansible.builtin.include_role:
+                name: pxe_buildstream_manager
+                tasks_from: gitlab_host.yml
+
+            - name: Run BSM upload failed_nodes.json to GitLab
+              ansible.builtin.include_role:
+                name: pxe_buildstream_manager
+                tasks_from: upload_to_gitlab.yml
+          rescue:
+            - name: Log BSM post-processing failure (non-fatal)
+              ansible.builtin.debug:
+                msg: >-
+                  [BSM] Post-processing failed but PXE boot results are preserved.
+                  Error: {{ ansible_failed_result | default('unknown') }}
 
         - name: Fail if any nodes failed PXE boot or node-registration
           ansible.builtin.fail:
