@@ -36,9 +36,11 @@ __version__ = "1.0.0"
 # --- Central config ---
 from .vars.common_vars import (
     configure,
+    configured,
     get_setting,
     init_module_root,
     get_module_root,
+    reset_configuration,
 )
 
 # --- Formatting ---
@@ -72,6 +74,7 @@ from .functions.host_func import (
     ensure_remote_dir,
     read_remote_yaml,
     read_yaml_key,
+    resolve_domain_data_path,
     resolve_domain_input_path,
     get_inventory_hosts,
     get_inventory_host_var,
@@ -120,9 +123,11 @@ __all__ = [
     "__version__",
     # Config
     "configure",
+    "configured",
     "get_setting",
     "init_module_root",
     "get_module_root",
+    "reset_configuration",
     # Formatting
     "Colors",
     "Symbols",
@@ -150,6 +155,7 @@ __all__ = [
     "ensure_remote_dir",
     "read_remote_yaml",
     "read_yaml_key",
+    "resolve_domain_data_path",
     "resolve_domain_input_path",
     "get_inventory_hosts",
     "get_inventory_host_var",

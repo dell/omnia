@@ -19,20 +19,30 @@ def _get_input_path() -> str:
     """Return the repo_manager input path for the configured project."""
     config = load_test_config()
     project = config.get("project_name", "project_default")
-    return f"/opt/omnia/repo_manager/input/{project}"
+    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
+    return f"{shared_path}/input/{project}"
 
 
 def _get_output_path() -> str:
     """Return the repo_manager output path for the configured project."""
     config = load_test_config()
     project = config.get("project_name", "project_default")
-    return f"/opt/omnia/repo_manager/output/{project}"
+    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
+    return f"{shared_path}/output/{project}"
 
 
 def _get_base_path() -> str:
     """Return the repo_manager base data path."""
     config = load_test_config()
-    return config.get("omnia_data_path", "/opt/omnia") + "/repo_manager"
+    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
+    return shared_path
+
+
+def _get_pulp_certs_dir() -> str:
+    """Return the Pulp certificates directory path."""
+    config = load_test_config()
+    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
+    return f"{shared_path}/pulp_config/settings/certs"
 
 
 # --- Input/Output file names ---
@@ -51,7 +61,7 @@ OUTPUT_FILES = {
 PULP_CONTAINER_NAME = "pulp"
 PULP_PORT = "2225"
 PULP_CLI_SYMLINK = "/usr/local/bin/pulp"
-PULP_CERTS_DIR = "/opt/omnia/repo_manager/pulp_config/settings/certs"
+PULP_CERTS_DIR = None  # Set dynamically using shared_path
 PULP_SYSTEMD_UNIT = "/etc/containers/systemd/pulp.container"
 PULP_YUM_REPO_FILE = "/etc/yum.repos.d/pulp.repo"
 

@@ -80,15 +80,14 @@ omnia_target: "{{ omnia_systemd_target_file }}"
 # =============================================================================
 # Cleanup flags for different components
 # Usage:
-#   Interactive:    ansible-playbook cleanup_pulp.yml  (prompts for credential deletion)
-#   Preserve logs:  ansible-playbook cleanup_pulp.yml -e "cleanup_logs=false"
-#   Force delete:   ansible-playbook cleanup_pulp.yml -e "cleanup_credentials=true"
-#   Force preserve: ansible-playbook cleanup_pulp.yml -e "cleanup_credentials=false"
+#   Delete credentials: ansible-playbook cleanup_pulp.yml
+#   Preserve logs:      ansible-playbook cleanup_pulp.yml -e "cleanup_logs=false"
+#   Preserve credentials: ansible-playbook cleanup_pulp.yml -e "cleanup_credentials=false"
 # =============================================================================
 
 cleanup_logs: true
-# cleanup_credentials is intentionally NOT set here to enable interactive prompting
-# Set it via CLI to override: -e "cleanup_credentials=true" or -e "cleanup_credentials=false"
+# cleanup_credentials defaults to true (delete credentials) when not defined or empty.
+# Set it to false, no, or 0 to preserve credentials: -e "cleanup_credentials=false"
 
 # Cleanup instructions message
 cleanup_pulp_note: |

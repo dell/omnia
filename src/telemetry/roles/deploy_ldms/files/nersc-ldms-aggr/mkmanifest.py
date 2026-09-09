@@ -165,11 +165,11 @@ def harvest_sys_config(sys_conf_path):
     sys_opts = sys_conf.get('sys_opts', {})
     namespace = sys_opts.get('namespace')
     img_pull_sec_opt = sys_opts.get('imagePullSecretsOption')
-    
+
     # Extract LDMS port configuration directly from sys_opts
     agg_port = sys_opts.get('agg_port', 6001)
     store_port = sys_opts.get('store_port', 6001)
-    
+
     mounts = {}
 
     for node_conf in sys_conf.get('node_types',{}).values():
@@ -203,7 +203,7 @@ def harvest_sys_config(sys_conf_path):
     return namespace, img_pull_sec_opt, agg_port, store_port, mounts
 
 def update_manifest(manifest, aggs, store_stateful_replicas, replicas_exporter, net_vars, namespace, img_pull_opts, agg_port, store_port, all_mounts):
-    
+
     charts = safe_get(manifest, ['spec', 'charts'], [])
     for x in charts:
         if x.get('name') == 'nersc-ldms-aggr':
@@ -243,7 +243,7 @@ def update_manifest(manifest, aggs, store_stateful_replicas, replicas_exporter, 
             if namespace is not None:
                 x['namespace'] = namespace
                 x['values']['namespace'] = namespace
-            
+
             # Set store port configuration under store section
             if 'store' not in x['values']:
                 x['values']['store'] = {}
@@ -257,16 +257,16 @@ def update_manifest(manifest, aggs, store_stateful_replicas, replicas_exporter, 
                 for auth_type, auth_vals in all_mounts.items():
                     # We just append these
                     if auth_type == "ovis":
-                        for sec in auth_vals: 
+                        for sec in auth_vals:
                             auth_secret = sec.get("auth_secret")
                             x['values']['authVolMountOption'].append(
                                 {
                                     "mountPath" : f"/{auth_secret}",
                                     "name" : auth_secret
                                 }
-                            )        
+                            )
                             x['values']['authVolOption'].append(
-                                { 
+                                {
                                     "name": auth_secret,
                                     "secret": {
                                         "secretName": auth_secret,
@@ -282,9 +282,9 @@ def update_manifest(manifest, aggs, store_stateful_replicas, replicas_exporter, 
                                     "mountPath" : f"/{auth_secret}",
                                     "name" : auth_secret
                                 }
-                            )        
+                            )
                             x['values']['authVolOption'].append(
-                                { 
+                                {
                                     "name": auth_secret,
                                     "secret": {
                                         "secretName": auth_secret,
@@ -292,7 +292,7 @@ def update_manifest(manifest, aggs, store_stateful_replicas, replicas_exporter, 
                                     }
                                 }
                             )
-                            
+
             # DISABLED: Exporter functionality
             # x['values']['statefulSet']['exporter'] = {'replicas': replicas_exporter}
             x['values']['statefulSet']['store'] = [{'name': k, 'replicas': v} for k, v in store_stateful_replicas.items()]
@@ -308,7 +308,12 @@ def write_yaml_file(path, data, description=None):
         if description:
             logging.info(f"Wrote {description} to {path}")
     except Exception as e:
-        logging.error("Failed to write %s to %s: %s", description or 'YAML', path, e)
+        logging.error(
+            "Failed to write %s to %s: %s",
+            description or 'YAML',
+            path,
+            type(e).__name__,
+        )
         raise FailedManifestCreateException() from e
 
 def main():  # pylint: disable=too-many-locals
@@ -383,6 +388,5 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as e:  # pylint: disable=broad-exception-caught
-        logging.critical("Fatal error: %s", e)
+        logging.critical("Fatal error: %s", type(e).__name__)
         sys.exit(1)
-

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 echo "=========================================="
 echo "Repo Manager Code Validation Script"
