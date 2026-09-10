@@ -16,11 +16,13 @@
 
 from .common_vars import (
     DOMAIN_NAME,
+    PLAYBOOK_UTILS,
     PLAYBOOK_COLLECT,
     PLAYBOOK_INSTALL_OS,
     PLAYBOOK_WORKDIR,
     COLLECT_PLAYBOOK_TAGS,
     INSTALL_OS_TAGS,
+    UTILS_PLAYBOOK_TAGS,
     SHARED_PATH,
     CMDS,
     FUNCTIONAL_GROUPS,
@@ -42,15 +44,17 @@ from .common_vars import (
     SRC_INPUT_DIR,
 )
 
-from .test_case_vars import TEST_CASES
+from .test_case_vars import TEST_CASES, LEGACY_ID_MAP
 
 __all__ = [
     "DOMAIN_NAME",
+    "PLAYBOOK_UTILS",
     "PLAYBOOK_COLLECT",
     "PLAYBOOK_INSTALL_OS",
     "PLAYBOOK_WORKDIR",
     "COLLECT_PLAYBOOK_TAGS",
     "INSTALL_OS_TAGS",
+    "UTILS_PLAYBOOK_TAGS",
     "SHARED_PATH",
     "CMDS",
     "FUNCTIONAL_GROUPS",
@@ -71,4 +75,5 @@ __all__ = [
     "MONOREPO_ROOT",
     "SRC_INPUT_DIR",
     "TEST_CASES",
+    "LEGACY_ID_MAP",
 ]

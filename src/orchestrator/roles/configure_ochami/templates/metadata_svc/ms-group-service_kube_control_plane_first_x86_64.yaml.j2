@@ -45,7 +45,7 @@
           content: |
             {{ lookup('template', 'templates/doca-ofed/configure-ib-network.sh.j2') | indent(12) }}
 
-{% if csi_driver_powerscale_support | lower == 'true' %}
+{% if hostvars['localhost'].get('enable_powerscale_csi', false) | bool %}
         - path: /usr/local/bin/deploy-powerscale-csi.sh
           owner: root:root
           permissions: '{{ file_mode_755 }}'
@@ -901,7 +901,7 @@
             sleep 30
             kubectl wait --for=condition=Ready pod -l k8s-app=kube-dns -n kube-system --timeout=300s
 
-            if [ "{{ csi_driver_powerscale_support | lower }}" == "true" ]; then
+            if [ "{{ hostvars['localhost'].get('enable_powerscale_csi', false) | bool | lower }}" == "true" ]; then
               /usr/local/bin/deploy-powerscale-csi.sh
             fi
 

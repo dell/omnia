@@ -41,6 +41,7 @@ def _skip_if_k8s_disabled(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_k8s_virtual_ip(host):
     """TC_K8_040: Verify VIP is configured on exactly one control plane."""

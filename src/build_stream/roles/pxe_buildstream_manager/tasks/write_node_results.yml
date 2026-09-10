@@ -91,3 +91,16 @@
       success_count: "{{ success_list | length }}"
       failure_count: "{{ failed_list | length }}"
       nodes: "{{ pxe_node_results | default([]) }}"
+
+- name: Check if orchestrator failed_nodes.json exists
+  ansible.builtin.stat:
+    path: "{{ orchestrator_output_dir_bsm }}/failed_nodes.json"
+  register: _orch_failed_nodes_stat
+
+- name: Copy orchestrator failed_nodes.json to BSM artifacts directory
+  ansible.builtin.copy:
+    src: "{{ orchestrator_output_dir_bsm }}/failed_nodes.json"
+    dest: "{{ node_results_dir }}/failed_nodes.json"
+    remote_src: true
+    mode: "0644"
+  when: _orch_failed_nodes_stat.stat.exists

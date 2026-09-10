@@ -15,16 +15,16 @@
 
 # Credential file configurations — orchestrator-scoped only
 credential_files:
-  - credential_type: "Omnia"
+  - credential_type: "Orchestrator"
     template: "{{ role_path }}/templates/orchestrator_credentials.j2"
-    file_path: "{{ input_project_dir }}/omnia_config_credentials.yml"
+    file_path: "{{ input_project_dir }}/orchestrator_credentials.yml"
     file_mode: 600
-    vault_path: "{{ input_project_dir }}/.omnia_config_credentials_key"
+    vault_path: "{{ input_project_dir }}/.orchestrator_credentials_key"
     condition: true
 
 # Credential definitions — orchestrator-scoped only
 # Other domains (discovery, image_build_manager, build_stream) own their own credentials.
-omnia_credentials:
+orchestrator_credentials_definitions:
   provision:
     mandatory:
       - { password: provision_password }
@@ -42,7 +42,7 @@ omnia_credentials:
     conditional_mandatory:
       - username: csi_username
         password: csi_password
-        required: "{{ csi_driver_powerscale_support | default(false) | bool }}"
+        required: "{{ enable_powerscale_csi | default(false) | bool }}"
 
 # Error messages
 mandatory_warning_msg: "WARNING: The following are mandatory credentials and cannot be left empty."

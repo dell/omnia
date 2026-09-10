@@ -51,16 +51,38 @@
     file: "{{ playbook_dir | dirname | dirname }}/roles/cleanup/config/default_cleanup.yml"
 
 # 'cleanup' means "every enabled component". Component names are matched
-# literally, so 'cleanup' is translated to the sentinel 'all' here.
+# literally, so 'cleanup' is translated to the sentinel 'all' and the public
+# 'cleanup_credentials' tag is translated to the credentials component name.
 - name: Set effective tags
   ansible.builtin.set_fact:
     effective_tags: >-
       {{ cleanup_requested_components
          if cleanup_requested_components | default([]) | length > 0
          else ['all']
-         if ('cleanup' in ansible_run_tags and
-             'cleanup_credentials' not in ansible_run_tags)
-         else ansible_run_tags }}
+         if 'cleanup' in ansible_run_tags
+         else (ansible_run_tags
+               | map('regex_replace', '^cleanup_credentials$', 'credentials')
+               | list) }}
+
+- name: Validate credential cleanup selection value
+  ansible.builtin.assert:
+    that:
+      - >-
+        cleanup_credentials is not defined or
+        (cleanup_credentials | string | trim | lower) in ['true', 'false']
+    fail_msg: >-
+      cleanup_credentials accepts only true or false. Omit the value to remove
+      Orchestrator credentials during full cleanup, or set it to false to
+      preserve them.
+
+# An explicit cleanup_credentials tag always means credential cleanup. The
+# extra variable controls only whether credentials join a full cleanup.
+- name: Resolve credential cleanup selection
+  ansible.builtin.set_fact:
+    cleanup_credentials_selected: >-
+      {{ true
+         if 'cleanup_credentials' in ansible_run_tags
+         else cleanup_credentials | default(true) | bool }}
 
 - name: Filter components based on tags
   ansible.builtin.set_fact:
@@ -72,31 +94,14 @@
 
 - name: Use all components when 'all' tag
   ansible.builtin.set_fact:
-    target_components: "{{ cleanup_components }}"
+    target_components: >-
+      {{ cleanup_components | combine(
+           {'credentials': cleanup_components.credentials | combine(
+             {'enabled': cleanup_credentials_selected}, recursive=false)},
+           recursive=false) }}
   when:
     - effective_tags | length == 0 or effective_tags[0] == 'all'
     - cleanup_components is defined
-
-- name: Add credentials component when cleanup_credentials tag is used
-  ansible.builtin.set_fact:
-    target_components: >-
-      {{ target_components | combine({'credentials': cleanup_components.credentials
-      | combine({'enabled': true}, recursive=false)}, recursive=false) }}
-  when:
-    - ansible_run_tags is defined
-    - ansible_run_tags | select('equalto', 'cleanup_credentials') | list | length > 0
-    - target_components is defined
-    - target_components.keys() | list | select('equalto', 'credentials') | list | length == 0
-
-- name: Add all components when both cleanup and cleanup_credentials are present
-  ansible.builtin.set_fact:
-    target_components: >-
-      {{ cleanup_components | combine({'credentials': cleanup_components.credentials
-      | combine({'enabled': true}, recursive=false)}, recursive=false) }}
-  when:
-    - ansible_run_tags is defined
-    - ansible_run_tags | select('equalto', 'cleanup') | list | length > 0
-    - ansible_run_tags | select('equalto', 'cleanup_credentials') | list | length > 0
 
 - name: Validate cleanup configuration
   ansible.builtin.assert:
@@ -109,13 +114,9 @@
     msg: "No components selected for cleanup"
   when: target_components.keys() | list | length == 0
 
-- name: Display selected components
-  ansible.builtin.debug:
-    msg: "Components to cleanup: {{ target_components.keys() | list | join(', ') }}"
-
-# With 'all', honour each component's enabled flag (this is what keeps
-# credentials out of a plain --tags cleanup run). With explicit component
-# tags the user asked for them by name, so run them regardless.
+# With 'all', honour each component's enabled flag and the resolved credential
+# opt-out. With explicit component tags the user asked for them by name, so
+# run them regardless.
 - name: Filter enabled components
   ansible.builtin.set_fact:
     enabled_components: "{{ target_components | dict2items | selectattr('value.enabled', 'equalto', true) | items2dict }}"
@@ -125,6 +126,10 @@
   ansible.builtin.set_fact:
     enabled_components: "{{ target_components }}"
   when: effective_tags | length > 0 and effective_tags[0] != 'all'
+
+- name: Display selected components
+  ansible.builtin.debug:
+    msg: "Components to cleanup: {{ enabled_components.keys() | list | join(', ') }}"
 
 - name: Validate full-cleanup data selection values
   ansible.builtin.assert:
@@ -211,6 +216,10 @@
         Kubernetes: {{ 'delete data, unmount, and remove fstab entries'
         if cleanup_k8s_approved | bool
         else 'preserve data, then unmount and remove fstab entries' }}
+      - >-
+        Credentials: {{ 'remove encrypted credential file and vault key'
+        if cleanup_credentials_selected | bool
+        else 'preserve credential file and vault key' }}
   when: effective_tags | length == 0 or effective_tags[0] == 'all'
 
 - name: Set execution order (priority descending)
@@ -225,19 +234,30 @@
       Components: {{ execution_order | join(' -> ') }}
       Total: {{ execution_order | length }}
 
+- name: Determine whether explicit cleanup needs confirmation
+  ansible.builtin.set_fact:
+    cleanup_confirmation_required: >-
+      {{ enabled_components | dict2items
+         | selectattr('value.requires_confirmation', 'defined')
+         | selectattr('value.requires_confirmation', 'equalto', true)
+         | list | length > 0 }}
+
 # Explicit component cleanup retains its existing all-or-nothing confirmation.
 # Full cleanup instead uses the independent Slurm and Kubernetes decisions
 # above, allowing either data set to be preserved without aborting the rest.
 - name: Confirm explicitly selected component cleanup
   ansible.builtin.pause:
     prompt: |
-      About to permanently delete data for: {{ execution_order | join(', ') }}
-      This includes data on shared NFS storage, which cannot be recovered.
+      About to permanently clean: {{ execution_order | join(', ') }}
+      {% if 'slurm' in execution_order or 'k8s' in execution_order %}
+      Selected storage components may delete shared NFS data, which cannot be recovered.
+      {% endif %}
       Type 'yes' to proceed (anything else aborts)
   register: cleanup_confirmation
   when:
     - effective_tags | length > 0
     - effective_tags[0] != 'all'
+    - cleanup_confirmation_required | bool
     - not skip_approval | bool
     - not dry_run | bool
 
@@ -249,6 +269,7 @@
   when:
     - effective_tags | length > 0
     - effective_tags[0] != 'all'
+    - cleanup_confirmation_required | bool
     - not skip_approval | bool
     - not dry_run | bool
     - cleanup_confirmation.user_input | default('') | trim | lower != 'yes'

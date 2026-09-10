@@ -202,7 +202,7 @@
 ||| TC_PXE_004 | `test_pxe_mapping_file_format` | Validate pxe_mapping_file.csv format | pxeboot, functional |
 ||| TC_PXE_005 | `test_set_pxe_boot_config_exists` | Verify set_pxe_boot_config.yml exists | pxeboot, sanity |
 ||| TC_PXE_006 | `test_set_pxe_boot_config_validation` | Validate set_pxe_boot_config.yml parameters | pxeboot, functional |
-||| TC_PXE_007 | `test_bmc_credentials_file_exists` | Verify omnia_config_credentials.yml exists | pxeboot, sanity |
+||| TC_PXE_007 | `test_bmc_credentials_file_exists` | Verify orchestrator_credentials.yml exists | pxeboot, sanity |
 ||| TC_PXE_008 | `test_bmc_credentials_validation` | Validate BMC credentials are available | pxeboot, functional |
 ||| TC_PXE_009 | `test_pxe_boot_skip_when_disabled` | Verify PXE boot is properly skipped when disabled | pxeboot, functional |
 ||| TC_PXE_010 | `test_failed_nodes_output_exists` | Verify failed_nodes.json output file exists after PXE boot | pxeboot, functional |

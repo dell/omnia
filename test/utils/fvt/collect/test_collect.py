@@ -16,8 +16,14 @@
 Collect Scenario — Test Automation.
 
 Tests for log collector playbook deployment and verification.
+
+Following image_build_manager pattern:
+- Sanity test runs complete deployment based on OMNIA_DEPLOY_TAG environment variable
+- If OMNIA_DEPLOY_TAG is not set, runs full deployment (all tags)
+- All other tests are marked as functional
 """
 
+import os
 import time
 
 import pytest
@@ -51,6 +57,11 @@ from library.messages import TEST_LOG_MSGS as LOG, TEST_ASSERT_MSGS as ASSERT
 TEST_START_TIME = time.time()
 
 
+def _get_deploy_tag():
+    """Get deploy tag from OMNIA_DEPLOY_TAG env var."""
+    return os.environ.get("OMNIA_DEPLOY_TAG", "")
+
+
 # =============================================================================
 # PLAYBOOK DEPLOYMENT TESTS
 # =============================================================================
@@ -58,9 +69,55 @@ TEST_START_TIME = time.time()
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.collect
-@pytest.mark.order(0)
+@pytest.mark.order(15)
+def test_deploy_collect(host):
+    """Deploy collect.yml with the configured tag.
+
+    Following image_build_manager pattern:
+    - If OMNIA_DEPLOY_TAG is set, runs that specific tag (setup, prepare, bundle, full)
+    - If OMNIA_DEPLOY_TAG is not set, runs full deployment (all tags)
+    """
+    tag = _get_deploy_tag()
+    if tag:
+        tc = TC[f"deploy_{tag}"]
+        tl = TestLogger(tc["title"], tc["id"])
+        tl.check(f"Running collect.yml --tags {tag}")
+        result = run_playbook(playbook=PLAYBOOK_COLLECT, tag=tag)
+        tag_label = tag
+    else:
+        # Following image_build_manager: if no tag, run full stack (no tag = all tags)
+        tc = TC["deploy_collect_full"]
+        tl = TestLogger(tc["title"], tc["id"])
+        tl.check("Running collect.yml (full stack - no tag)")
+        result = run_playbook(playbook=PLAYBOOK_COLLECT)
+        tag_label = "(none - full stack)"
+
+    if result["success"]:
+        tl.passed(LOG["playbook_success"].format(duration=result["duration"]))
+    else:
+        tl.failed(
+            LOG["playbook_failed"].format(rc=result["rc"], duration=result["duration"]),
+            result.get("error", "See playbook output above"),
+        )
+
+    config = load_test_config()
+    assert result["success"], ASSERT["playbook_failed"].format(
+        playbook=PLAYBOOK_COLLECT,
+        tag=tag_label,
+        rc=result["rc"],
+        duration=result["duration"],
+        input_path=get_utils_input_path(host),
+        workdir=config.get("clone_path", "/root/omnia") + "/" +
+        PLAYBOOK_WORKDIR.replace("playbooks/", ""),
+    )
+
+
+@pytest.mark.deploy
+@pytest.mark.functional
+@pytest.mark.collect
+@pytest.mark.order(20)
 def test_deploy_collect_setup(host):
-    """Deploy collect.yml with setup tag."""
+    """Deploy collect.yml with setup tag (functional test)."""
     tc = TC["deploy_collect_setup"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -87,11 +144,11 @@ def test_deploy_collect_setup(host):
 
 
 @pytest.mark.deploy
-@pytest.mark.sanity
+@pytest.mark.functional
 @pytest.mark.collect
-@pytest.mark.order(1)
+@pytest.mark.order(21)
 def test_deploy_collect_prepare(host):
-    """Deploy collect.yml with prepare tag."""
+    """Deploy collect.yml with prepare tag (functional test)."""
     tc = TC["deploy_collect_prepare"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -118,9 +175,9 @@ def test_deploy_collect_prepare(host):
 
 
 @pytest.mark.deploy
-@pytest.mark.sanity
+@pytest.mark.functional
 @pytest.mark.collect
-@pytest.mark.order(2)
+@pytest.mark.order(22)
 def test_deploy_collect_bundle(host):
     """Deploy collect.yml with bundle tag."""
     tc = TC["deploy_collect_bundle"]
@@ -151,7 +208,7 @@ def test_deploy_collect_bundle(host):
 @pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.collect
-@pytest.mark.order(3)
+@pytest.mark.order(23)
 def test_deploy_collect_full(host):
     """Deploy collect.yml with all tags (full execution)."""
     tc = TC["deploy_collect_full"]
@@ -261,9 +318,9 @@ def test_collect_functional_groups_valid(host):
 # OUTPUT VERIFICATION
 # =============================================================================
 
-@pytest.mark.sanity
+@pytest.mark.functional
 @pytest.mark.collect
-@pytest.mark.order(20)
+@pytest.mark.order(30)
 def test_collect_output_dir_exists(host):
     """Verify log collection output directory exists."""
     tc = TC["collect_output_dir_exists"]
@@ -282,7 +339,7 @@ def test_collect_output_dir_exists(host):
 
 @pytest.mark.functional
 @pytest.mark.collect
-@pytest.mark.order(21)
+@pytest.mark.order(31)
 def test_collect_bundle_created(host):
     """Verify log bundle tar.gz file was created."""
     tc = TC["collect_bundle_created"]
@@ -301,7 +358,7 @@ def test_collect_bundle_created(host):
 
 @pytest.mark.functional
 @pytest.mark.collect
-@pytest.mark.order(22)
+@pytest.mark.order(32)
 def test_collect_metadata_exists(host):
     """Verify metadata.json file exists."""
     tc = TC["collect_metadata_exists"]
@@ -330,7 +387,7 @@ def test_collect_metadata_exists(host):
 
 @pytest.mark.functional
 @pytest.mark.collect
-@pytest.mark.order(23)
+@pytest.mark.order(33)
 def test_collect_metadata_valid(host):
     """Verify metadata.json has valid structure."""
     tc = TC["collect_metadata_valid"]
@@ -359,7 +416,7 @@ def test_collect_metadata_valid(host):
 
 @pytest.mark.functional
 @pytest.mark.collect
-@pytest.mark.order(24)
+@pytest.mark.order(34)
 def test_collect_metadata_sha256(host):
     """Verify metadata.json contains SHA256 checksum."""
     tc = TC["collect_metadata_sha256"]
@@ -388,7 +445,7 @@ def test_collect_metadata_sha256(host):
 
 @pytest.mark.functional
 @pytest.mark.collect
-@pytest.mark.order(25)
+@pytest.mark.order(35)
 def test_collect_bundle_contents(host):
     """Verify log bundle contains expected directories."""
     tc = TC["collect_bundle_contents"]
@@ -416,7 +473,7 @@ def test_collect_bundle_contents(host):
 
 @pytest.mark.functional
 @pytest.mark.collect
-@pytest.mark.order(26)
+@pytest.mark.order(36)
 def test_collect_bundle_log_files_content(host):
     """Verify log bundle contains log files from log_collector role based on input configuration."""
     tc = TC["collect_bundle_log_files_content"]
@@ -470,7 +527,7 @@ def test_collect_bundle_log_files_content(host):
 # ENVIRONMENT VARIABLE VERIFICATION
 # =============================================================================
 
-@pytest.mark.sanity
+@pytest.mark.functional
 @pytest.mark.collect
 @pytest.mark.order(30)
 def test_collect_env_vars_loaded(host):
@@ -488,7 +545,7 @@ def test_collect_env_vars_loaded(host):
     assert result["success"], ASSERT["env_var_missing"].format(var="OMNIA_DATA_PATH")
 
 
-@pytest.mark.sanity
+@pytest.mark.functional
 @pytest.mark.collect
 @pytest.mark.order(31)
 def test_collect_project_name_loaded(host):

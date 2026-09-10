@@ -11,18 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
 
-- name: Load GitLab configuration inputs
-  ansible.builtin.include_vars:
-    file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
+"""
+Cleanup Install OS Scenario - Test Package.
 
-- name: Register GitLab SSH credentials
-  ansible.builtin.add_host:
-    name: "{{ gitlab_host }}"
-    groups: gitlab_server
-    ansible_host: "{{ gitlab_host }}"
-    ansible_user: "{{ gitlab_ansible_user | default('root') }}"
-    ansible_password: "{{ hostvars['localhost']['provision_password'] }}"
-    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
-  no_log: true
+Tests for utils.yml --tags cleanup_install_os functionality.
+"""

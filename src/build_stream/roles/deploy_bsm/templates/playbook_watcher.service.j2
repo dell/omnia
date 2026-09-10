@@ -35,6 +35,7 @@ EnvironmentFile=-/etc/omnia/omnia.env
 # Environment variables (override omnia.env defaults for watcher-specific settings)
 Environment="PLAYBOOK_QUEUE_BASE={{ build_stream_watcher_playbook_queue_base }}"
 Environment="NFS_SHARE_PATH={{ oim_shared_path }}"
+Environment="NFS_ARTIFACT_BASE={{ build_stream_root_dir }}"
 Environment="POLL_INTERVAL_SECONDS={{ watcher_poll_interval_seconds }}"
 Environment="MAX_CONCURRENT_JOBS={{ watcher_max_concurrent_jobs }}"
 Environment="DEFAULT_TIMEOUT_MINUTES={{ watcher_default_timeout_minutes }}"

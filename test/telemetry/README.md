@@ -129,7 +129,7 @@ full cleanup test case registry.
 | OR (`,`) | `--marker sink,source` | Tests with EITHER marker |
 
 Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`,
-`ome`, `ldms`, `sfm`, `ufm`, `nft`, `performance`, `idempotency`,
+`ome`, `ldms`, `sfm`, `ufm`, `vast`, `nft`, `performance`, `idempotency`,
 `resilience`
 
 ### Examples
@@ -147,6 +147,10 @@ DELETE_VOLUME=true ./run_validation.sh fvt_telemetry cleanup test           # De
 
 # UFM source only (requires UFM metrics enabled in telemetry_config.yml)
 ./run_validation.sh fvt_telemetry deploy verify --suite sources --marker ufm
+
+# VAST source on an existing Telemetry deployment
+# (verify configures syslog, triggers an event, then verifies it)
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker vast
 ./run_validation.sh fvt_telemetry list
 
 # NFT
@@ -282,9 +286,9 @@ test/telemetry/
 |------|-----|--------|
 | Precheck | 7 | sanity |
 | Validate | 6 | sanity |
-| Deploy | 62 | sanity + functional + source + sink |
+| Deploy | 63 | sanity + functional + source + sink |
 | Cleanup | 15* | sanity + functional |
-| **FVT Total** | **90** | |
+| **FVT Total** | **91** | |
 
 \* One of the two final-state PVC tests
 (`test_no_pvcs_after_full_cleanup` / `test_pvcs_preserved_after_cleanup`)
@@ -306,7 +310,8 @@ mode) — so 14 run when `DELETE_VOLUME=true`, 13 run otherwise.
 `test_cleanup_idempotency_no_pvcs`'s two PVC assertions runs per
 invocation, based on `DELETE_VOLUME` — 4 run in any single invocation.
 
-### Grand Total: **107 Tests defined** (104–105 active in a single run, depending on `DELETE_VOLUME` — see footnotes above)
+### Grand Total: **108 Tests defined** (105–106 active in a single run,
+depending on `DELETE_VOLUME` — see footnotes above)
 
 ## Output Format
 

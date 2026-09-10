@@ -45,6 +45,7 @@ def _skip_if_k8s_disabled(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_k8s_etcd_health_detailed(host):
     """TC_K8_037: Verify etcd cluster endpoint health via etcdctl."""
@@ -70,6 +71,7 @@ def test_k8s_etcd_health_detailed(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_k8s_etcd_member_list(host):
     """TC_K8_038: Verify etcd member list matches control plane count."""
@@ -98,6 +100,7 @@ def test_k8s_etcd_member_list(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_k8s_etcd_leader_consistency(host):
     """TC_K8_039: Verify etcd leader identification and RAFT consistency."""

@@ -11,13 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
 
-- name: Write per-node results
-  ansible.builtin.include_tasks: write_node_results.yml
+"""
+Setup Scenario - Test Package.
 
-- name: Update restart state
-  ansible.builtin.include_tasks: update_restart_state.yml
-
-- name: Register GitLab host
-  ansible.builtin.include_tasks: gitlab_host.yml
+Tests for utils.yml --tags setup functionality.
+"""

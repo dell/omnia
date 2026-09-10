@@ -35,7 +35,7 @@ vast_endpoint_empty_msg: >-
 
 vast_credentials_missing_msg: >-
   VAST auth_mode is 'basic' but vast_username or vast_password is not set.
-  Provide VAST credentials in omnia_config_credentials.yml.
+  Provide VAST credentials in telemetry_credentials.yml.
 
 vast_ca_cert_not_found_msg: >-
   VAST tls_mode is 'ca_signed' but the CA certificate file was not found

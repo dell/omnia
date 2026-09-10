@@ -193,15 +193,25 @@
       ansible.builtin.set_fact:
         dns_enabled: "{{ _orch_config_ms.dns_enabled | default(false) | bool }}"
 
+- name: Select deployed service Kubernetes configuration
+  ansible.builtin.set_fact:
+    metadata_service_k8s_cluster: >-
+      {{ service_k8s_cluster | default([])
+         | selectattr('deployment', 'defined')
+         | selectattr('deployment', 'sameas', true)
+         | first
+         | default(service_k8s_cluster | default([]) | first | default({})) }}
+  when: target_category | default('') == 'kubernetes'
+
 - name: Set K8s facts from omnia_config and HA config
   ansible.builtin.set_fact:
     kube_vip: "{{ service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
     service_k8s_version: "{{ hostvars['localhost']['service_k8s_version'] }}"
-    k8s_pod_network_cidr: "{{ service_k8s_cluster[0].k8s_pod_network_cidr }}"
-    k8s_service_addresses: "{{ service_k8s_cluster[0].k8s_service_addresses }}"
-    pod_external_ip_range: "{{ service_k8s_cluster[0].pod_external_ip_range }}"
-    k8s_crio_storage_size: "{{ service_k8s_cluster[0].k8s_crio_storage_size }}"
-    etcd_on_local_disk: "{{ service_k8s_cluster[0].etcd_on_local_disk | default(false) }}"
+    k8s_pod_network_cidr: "{{ metadata_service_k8s_cluster.k8s_pod_network_cidr }}"
+    k8s_service_addresses: "{{ metadata_service_k8s_cluster.k8s_service_addresses }}"
+    pod_external_ip_range: "{{ metadata_service_k8s_cluster.pod_external_ip_range }}"
+    k8s_crio_storage_size: "{{ metadata_service_k8s_cluster.k8s_crio_storage_size }}"
+    etcd_on_local_disk: "{{ metadata_service_k8s_cluster.etcd_on_local_disk | default(false) }}"
     admin_netmask_bits: "{{ hostvars['localhost']['admin_netmask_bits'] }}"
     pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['localhost']['pulp_port'] | default(2225) }}"
     pulp_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
@@ -211,10 +221,10 @@
 
 - name: Select K8s storage entry for metadata configuration
   ansible.builtin.set_fact:
-    metadata_k8s_storage_name: "{{ service_k8s_cluster[0].nfs_storage_name }}"
+    metadata_k8s_storage_name: "{{ metadata_service_k8s_cluster.nfs_storage_name }}"
     metadata_k8s_storage_matches: >-
       {{ mounts | default([])
-         | selectattr('name', 'equalto', service_k8s_cluster[0].nfs_storage_name)
+         | selectattr('name', 'equalto', metadata_service_k8s_cluster.nfs_storage_name)
          | list }}
   when: target_category | default('') == 'kubernetes'
 

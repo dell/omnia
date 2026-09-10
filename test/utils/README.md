@@ -8,6 +8,38 @@ This module provides automated testing for:
 
 - **Log Collector** (`collect.yml`) — Collects logs from cluster nodes
 - **Install OS** (`install_os.yml`) — Generic OS installation via iDRAC virtual media
+- **Precheck** (`precheck`) — Environment validation and connectivity checks
+- **Setup** (`setup`) — Domain setup and configuration
+- **Cleanup** (`cleanup`) — Cleanup of log collection and OS installation artifacts
+
+## Prerequisites
+
+**IMPORTANT: Run setup_env.sh Before Any Test Execution**
+
+Before running any tests, you MUST run the setup script to configure credentials and the test environment:
+
+```bash
+cd /root/sujal/omnia/test/utils
+./setup_env.sh
+```
+
+**What setup_env.sh does:**
+- Creates Python virtual environment (`.venv/`)
+- Installs required dependencies (pytest, testinfra, ansible-core)
+- Installs the `omnia_auto` plugin
+- **Prompts for and configures credentials** (SSH, BMC, OS passwords)
+- Encrypts credentials using Ansible Vault
+- Sets up test configuration files
+
+**Why this is required:**
+- Credentials are needed for remote execution and install_os tests
+- The credentials tag in playbooks requires pre-configured credential files
+- Without setup_env.sh, tests will fail with "Credential file not found" errors
+
+**After running setup_env.sh:**
+- Credentials are stored in `test_creds.yml` (encrypted)
+- Virtual environment is ready at `.venv/`
+- Test configuration is initialized in `test_config.yml`
 
 ## Table of Contents
 
@@ -486,6 +518,91 @@ vi test_config.yml
 |------|---------------|----------|
 | **Dataset** | `dataset: "test_data"`, `sync_utils_input: true` | Automated testing, CI/CD |
 | **Manual** | `dataset: ""`, `sync_utils_input: false` | Manual testing, debugging |
+
+### Using Test Automation with Dataset vs Without Dataset
+
+#### Option 1: With Dataset (Recommended for Testing)
+
+Dataset mode uses pre-configured test data files from the `datasets/` directory for consistent testing.
+
+**Configuration:**
+```yaml
+# test_config.yml
+dataset: "test_data"           # Use datasets/test_data/input/ files
+sync_utils_input: true         # Sync dataset files to target
+```
+
+**Benefits:**
+- Version-controlled test data
+- Consistent test inputs across environments
+- Easy scenario switching
+- Shareable test configurations
+- No need to manually manage input files
+
+**Usage:**
+```bash
+# Run collect scenario with test_data dataset
+./run_validation.sh collect test
+
+# Run install_os scenario with test_data dataset
+./run_validation.sh install_os test
+```
+
+**Dataset Structure:**
+```
+test/utils/datasets/
+└── test_data/
+    ├── README.md           # Dataset documentation
+    └── input/
+        ├── collect_pxe.yml         # Sample collect configuration
+        └── install_os_config.yml   # Sample install_os configuration
+```
+
+**When to use Dataset mode:**
+- CI/CD pipelines
+- Automated regression testing
+- Testing with consistent, version-controlled inputs
+- Sharing test configurations across teams
+- Quick scenario switching
+
+#### Option 2: Without Dataset (Using Runtime Files)
+
+In this mode, tests use the actual input files from the target system's runtime directory. This is useful for testing with production-like configurations.
+
+**Configuration:**
+```yaml
+# test_config.yml
+dataset: ""                  # Empty = use runtime files
+sync_utils_input: false      # Don't sync, use existing files
+```
+
+**Benefits:**
+- Tests actual runtime configuration
+- No test data management overhead
+- Validates production-like environment
+- Useful for debugging with real data
+
+**Usage:**
+```bash
+# Run tests using runtime input files
+./run_validation.sh collect test
+```
+
+**Prerequisites:**
+Ensure input files exist at the target location before running tests:
+- `/opt/omnia/utils/input/project_default/collect_pxe.yml`
+- `/opt/omnia/utils/input/project_default/install_os_config.yml`
+
+**When to use without Dataset mode:**
+- Testing with actual production configuration
+- Debugging with real data
+- Validating runtime environment
+- When test data management is not needed
+
+**Important Note:**
+- Without dataset mode, you must manually ensure input files exist on the target system
+- The test framework will NOT sync files when `sync_utils_input: false`
+- If files are missing, tests will fail with "Input file not found" errors
 
 ---
 

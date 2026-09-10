@@ -21,6 +21,8 @@ Module-specific functions live in separate files:
   - k8s_func.py         — K8s resource verification (all pods, deploys, sts)
   - powerscale_func.py  — PowerScale source verification
   - ufm_func.py         — UFM source verification
+  - vast_func.py        — VAST metrics, syslog, and log verification
+  - vast_api_func.py    — VAST notification API operations
   - ome_func.py         — OME Kafka connectivity verification
   - ome_victoria_func.py — OME VictoriaMetrics/VictoriaLogs verification
   - sfm_func.py         — SFM Prometheus Remote Write integration
@@ -131,12 +133,13 @@ from .sfm_metrics_func import verify_sfm_metrics_in_victoria
 
 # --- VAST verification ---
 from .vast_func import (
-    verify_vast_external_service,
-    verify_vast_vmscrape,
-    verify_vast_credentials_secret,
-    verify_vast_metrics,
-    verify_vast_logs,
+    configure_vast_syslog_and_trigger,
     get_vast_endpoint_from_config,
+    verify_vast_external_service,
+    verify_vast_credentials_secret,
+    verify_fresh_vast_test_event,
+    verify_vast_metrics,
+    verify_vast_vmscrape,
 )
 
 # --- Resilience ---
@@ -251,12 +254,13 @@ __all__ = [
     "verify_sfm_omnia_services",
     "verify_sfm_metrics_in_victoria",
     # vast
-    "verify_vast_external_service",
-    "verify_vast_vmscrape",
-    "verify_vast_credentials_secret",
-    "verify_vast_metrics",
-    "verify_vast_logs",
+    "configure_vast_syslog_and_trigger",
     "get_vast_endpoint_from_config",
+    "verify_vast_external_service",
+    "verify_vast_credentials_secret",
+    "verify_fresh_vast_test_event",
+    "verify_vast_metrics",
+    "verify_vast_vmscrape",
     # resilience
     "delete_pods_by_prefix",
     "wait_pods_ready_by_prefix",
