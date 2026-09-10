@@ -47,6 +47,7 @@ def _skip_if_k8s_disabled(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_k8s_system_pods(host):
     """TC_K8_007: Verify kube-system pods are Running."""
@@ -68,6 +69,7 @@ def test_k8s_system_pods(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_k8s_etcd_healthy(host):
     """TC_K8_012: Verify etcd cluster is healthy."""
@@ -89,6 +91,7 @@ def test_k8s_etcd_healthy(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_k8s_coredns_running(host):
     """TC_K8_013: Verify CoreDNS pods are Running."""
@@ -110,6 +113,7 @@ def test_k8s_coredns_running(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_k8s_kube_proxy_running(host):
     """TC_K8_014: Verify kube-proxy pods are Running."""

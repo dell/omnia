@@ -20,6 +20,8 @@ Functions for syncing project files, input files, and credentials to target.
 
 import base64
 import os
+import shutil
+import tempfile
 from typing import Dict, Any
 
 from omnia_auto import (
@@ -31,6 +33,7 @@ from omnia_auto import (
     resolve_domain_input_path,
     is_local_execution,
     connection_params,
+    log,
 )
 
 from ..vars.common_vars import (
@@ -44,6 +47,93 @@ from ..vars.common_vars import (
     ENV_OMNIA_PROJECT_NAME,
 )
 
+# =============================================================================
+# CREDENTIAL EXCLUSION PATTERNS
+# =============================================================================
+CREDENTIALS_FILE_NAME = "test_creds.yml"
+CREDENTIALS_KEY_NAME = ".test_creds.key"
+
+_DOMAIN_CREDENTIAL_PATTERNS = (
+    CREDENTIALS_FILE_NAME,
+    f"{CREDENTIALS_FILE_NAME}.*",
+    CREDENTIALS_KEY_NAME,
+    f"{CREDENTIALS_KEY_NAME}.*",
+    INSTALL_OS_CREDENTIALS_FILE,
+    f"{INSTALL_OS_CREDENTIALS_FILE}.*",
+)
+_input_sync_ignore = shutil.ignore_patterns(*_DOMAIN_CREDENTIAL_PATTERNS)
+
+
+# =============================================================================
+# SECURITY AND STAGING HELPERS
+# =============================================================================
+
+def _link_or_copy(source: str, destination: str) -> str:
+    """Hard-link staged files when possible, otherwise copy them."""
+    try:
+        os.link(source, destination, follow_symlinks=False)
+        return destination
+    except OSError:
+        return shutil.copy2(source, destination, follow_symlinks=False)
+
+
+def _resolve_dataset_subdir(
+    config: Dict[str, Any], subdirectory: str, fallback: str
+) -> str:
+    """Resolve one dataset subdirectory without allowing path traversal."""
+    dataset = config.get("dataset", "")
+    if not dataset:
+        return fallback
+    if not isinstance(dataset, str):
+        raise ValueError("dataset must be a directory name string")
+    if (
+        dataset in {".", "..", "generator"}
+        or os.path.isabs(dataset)
+        or os.path.basename(dataset) != dataset
+        or "\x00" in dataset
+    ):
+        raise ValueError(f"Unsafe dataset name: {dataset!r}")
+
+    datasets_root = os.path.realpath(os.path.join(MODULE_ROOT, "datasets"))
+    dataset_path = os.path.join(datasets_root, dataset)
+    if os.path.islink(dataset_path):
+        raise ValueError(f"Dataset symlinks are not allowed: {dataset}")
+    resolved_dataset = os.path.realpath(dataset_path)
+    if os.path.dirname(resolved_dataset) != datasets_root:
+        raise ValueError(f"Dataset escapes datasets directory: {dataset!r}")
+
+    subdir_path = os.path.join(resolved_dataset, subdirectory)
+    if os.path.islink(subdir_path):
+        raise ValueError(
+            f"Dataset subdirectory symlinks are not allowed: {dataset}/{subdirectory}"
+        )
+    resolved_subdir = os.path.realpath(subdir_path)
+    if os.path.commonpath((resolved_dataset, resolved_subdir)) != resolved_dataset:
+        raise ValueError(
+            f"Dataset subdirectory escapes its dataset: {dataset}/{subdirectory}"
+        )
+    return resolved_subdir
+
+
+def _reject_symlinks(directory: str) -> None:
+    """Reject nested links before copying an input tree into staging."""
+    for current_dir, directory_names, file_names in os.walk(directory):
+        for entry_name in directory_names + file_names:
+            if os.path.islink(os.path.join(current_dir, entry_name)):
+                raise OSError(
+                    f"Refusing to sync symlink from dataset: "
+                    f"{os.path.join(current_dir, entry_name)}"
+                )
+
+
+def _resolve_input_dir(config: Dict[str, Any]) -> str:
+    """Resolve local input directory from dataset or src/."""
+    return _resolve_dataset_subdir(config, "input", SRC_INPUT_DIR)
+
+
+# =============================================================================
+# PROJECT AND INPUT SYNC
+# =============================================================================
 
 def sync_project_to_remote(host) -> Dict[str, Any]:
     """Sync the entire omnia project to the remote target.
@@ -96,6 +186,12 @@ def sync_utils_input(host) -> Dict[str, Any]:
     Syncs from dataset directory (if set) or src/utils/input/ to target's
     input directory at $OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/.
 
+    Uses secure staging with:
+    - Path traversal protection via _resolve_dataset_subdir()
+    - Symlink rejection via _reject_symlinks()
+    - Credential exclusion via ignore patterns
+    - Temporary staging directory for safe file operations
+
     Args:
         host: Testinfra host object.
 
@@ -103,20 +199,23 @@ def sync_utils_input(host) -> Dict[str, Any]:
         dict: {"success": bool, "details": str, "error": str}
     """
     config = load_test_config()
-    dataset = config.get("dataset", "")
     conn = connection_params()
 
-    # Determine source directory
-    if dataset:
-        src_dir = os.path.join(MODULE_ROOT, "datasets", dataset, "input")
-    else:
-        src_dir = SRC_INPUT_DIR
-
-    if not os.path.isdir(src_dir):
+    # Resolve source directory with security checks
+    try:
+        local_input = _resolve_input_dir(config)
+    except ValueError as exc:
         return {
             "success": False,
             "details": "",
-            "error": f"Source input directory not found: {src_dir}",
+            "error": f"Dataset validation failed: {exc}",
+        }
+
+    if not os.path.isdir(local_input):
+        return {
+            "success": False,
+            "details": "",
+            "error": f"Source input directory not found: {local_input}",
         }
 
     try:
@@ -134,23 +233,42 @@ def sync_utils_input(host) -> Dict[str, Any]:
         # Ensure target directory exists
         ensure_remote_dir(host, dest_path)
 
-        # Sync files
-        result = sync_files(
-            mode=conn["mode"], src=src_dir, dest=dest_path,
-            ip=conn["ip"], user=conn["user"],
-            password=conn["password"], ssh_opts=conn["ssh_opts"],
-        )
+        # Security check: reject symlinks in the source tree
+        _reject_symlinks(local_input)
+
+        # Stage files in a temporary directory (excludes credentials)
+        with tempfile.TemporaryDirectory(
+            prefix="omnia_utils_input_"
+        ) as staging_dir:
+            staged_input = os.path.join(staging_dir, "input")
+            shutil.copytree(
+                local_input,
+                staged_input,
+                ignore=_input_sync_ignore,
+            )
+
+            # Sync staged files to target
+            result = sync_files(
+                mode=conn["mode"],
+                src=staged_input,
+                dest=dest_path,
+                ip=conn["ip"],
+                user=conn["user"],
+                auth_secret=conn.get("auth_secret", conn.get("password", "")),
+                ssh_opts=conn["ssh_opts"],
+            )
 
         if result["success"]:
-            return {
-                "success": True,
-                "details": f"Input files synced to {dest_path}",
-                "error": "",
-            }
+            result["details"] = (
+                f"Input files synced to {dest_path} (credentials excluded)"
+            )
+        return result
+
+    except OSError as exc:
         return {
             "success": False,
             "details": "",
-            "error": result.get("error", "Sync failed"),
+            "error": f"Failed to stage utils input: {exc}",
         }
     except Exception as exc:
         return {

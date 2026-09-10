@@ -160,9 +160,38 @@
 
 ---
 
+## User Registry Tests (`fvt/user_registry/`)
+
+### Validation Tests (`test_user_registry_validation.py`)
+
+| TC ID | Test Function | Description | Marker |
+|-------|---------------|-------------|--------|
+| TC_RM_UR_000 | `test_user_registry_validation_deploy` | Deploy validation playbook (includes registry checks) | deploy, sanity |
+| TC_RM_UR_001 | `test_user_registry_section_exists` | Verify registries section exists in config | sanity, positive |
+| TC_RM_UR_002 | `test_user_registry_structure_valid` | Verify registry entries have valid structure | sanity, positive |
+| TC_RM_UR_003 | `test_user_registry_base_url_valid` | Verify base_url is valid HTTP(S) origin | sanity, positive |
+| TC_RM_UR_004 | `test_user_registry_reachable` | Verify configured registries are reachable | functional, positive |
+| TC_RM_UR_005 | `test_user_registry_tls_cert_paths_valid` | Verify TLS cert paths exist on disk | functional, positive |
+| TC_RM_UR_006 | `test_user_registry_tls_pair_consistent` | Verify client cert and key configured together | sanity, positive |
+| TC_RM_UR_007 | `test_user_registry_auth_type_valid` | Verify auth type is none or basic | sanity, positive |
+| TC_RM_UR_008 | `test_user_registry_credentials_present` | Verify credentials for basic auth registries | functional, positive |
+
+### Negative Tests (`test_user_registry_negative.py`)
+
+| TC ID | Test Function | Description | Marker |
+|-------|---------------|-------------|--------|
+| TC_RM_UR_NEG_001 | `test_registry_validation_fails_missing_config` | Validation fails with missing config | negative |
+| TC_RM_UR_NEG_002 | `test_registry_validation_detects_invalid_base_url` | Detects invalid base_url | negative |
+| TC_RM_UR_NEG_003 | `test_registry_validation_detects_incomplete_tls_pair` | Detects incomplete TLS cert/key pair | negative |
+| TC_RM_UR_NEG_004 | `test_registry_validation_detects_unsupported_auth_type` | Detects unsupported auth type | negative |
+| TC_RM_UR_NEG_005 | `test_registry_validation_detects_missing_cert_paths` | Detects missing cert paths on disk | negative |
+| TC_RM_UR_NEG_006 | `test_registry_validation_detects_missing_vault_path` | Detects missing vault_path for basic auth | negative |
+
+---
+
 ## Test Summary
 
-**Total Test Cases: 68**
+**Total Test Cases: 83**
 
 | Category | Count |
 |----------|-------|
@@ -173,4 +202,5 @@
 | Cleanup Tests | 4 |
 | Policy Tests | 21 |
 | Negative Tests | 10 |
-| **Total** | **68** |
+| User Registry Tests | 15 |
+| **Total** | **83** |

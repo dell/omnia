@@ -53,6 +53,7 @@ vi test_config.yml             # Set oim_server_ip, dataset, etc.
 | `status` | Generate and verify repo_status.yml |
 | `cleanup` | Cleanup Pulp server and verify removal |
 | `policy` | Test repository policy configurations |
+| `user_registry` | Test user registry configuration and validation |
 | `negative` | Test error scenarios |
 
 ## Test Cases
@@ -118,6 +119,9 @@ test/repo_manager/
     │   ├── test_priority_order.py
     │   ├── test_pulp_mode.py
     │   └── test_repo_types.py
+    ├── user_registry/           # User Registry tests
+    │   ├── test_user_registry_validation.py
+    │   └── test_user_registry_negative.py
     └── negative/                # Negative test scenarios
         └── error_scenarios/
             └── test_error_scenarios.py
@@ -129,13 +133,14 @@ The test framework is organized into several categories:
 
 | Category | Description | Test Count |
 |----------|-------------|------------|
-| **Validate Tests** | Verify input files and configurations | 4 |
-| **Prepare Tests** | Deploy Pulp server and verify | 5 |
-| **Execute Tests** | Download and sync repositories | 3 |
+| **Validate Tests** | Verify input files and configurations | 5 |
+| **Prepare Tests** | Deploy Pulp server and verify | 10 |
+| **Execute Tests** | Download and sync repositories | 15 |
 | **Status Tests** | Generate and verify repo_status.yml | 3 |
-| **Cleanup Tests** | Cleanup Pulp server | 3 |
-| **Policy Tests** | Test repository policies | 6 |
-| **Negative Tests** | Test error scenarios | 1 |
+| **Cleanup Tests** | Cleanup Pulp server | 4 |
+| **Policy Tests** | Test repository policies | 21 |
+| **User Registry Tests** | Test user registry configuration and validation | 15 |
+| **Negative Tests** | Test error scenarios | 10 |
 
 ## Test Markers
 

@@ -38,6 +38,7 @@ from library.messages import (
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_openchami_config_files_exist(host):
     """TC_PR_004: Verify OpenCHAMI configuration files exist after deployment."""
@@ -60,6 +61,7 @@ def test_openchami_config_files_exist(host):
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(5)
 def test_tokensmith_config_exists(host):
     """TC_PR_005: Verify tokensmith.json configuration file exists."""
@@ -75,6 +77,7 @@ def test_tokensmith_config_exists(host):
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(6)
 def test_postgres_init_script_exists(host):
     """TC_PR_006: Verify PostgreSQL initialization script exists."""

@@ -90,10 +90,14 @@ from omnia_auto import (
     set_current_report,
     get_current_report,
     get_test_output,
+    get_last_tc_id,
     encrypt_test_credentials,
+    build_report_name,
     log,
     add_session_result,
     print_summary_table,
+    get_last_tc_id,
+    get_last_detail_fields,
 )
 
 # --- Module-specific functions ---
@@ -164,16 +168,101 @@ def test_report():
     """Create a session-wide test report."""
     config = load_test_config()
     report_path = config.get("report_path", "/opt/omnia/reports")
-    oim_ip = config.get("oim_server_ip", "127.0.0.1")
+    oim_ip = config.get("oim_server_ip", "")
+    if not oim_ip:
+        oim_ip = "localhost"
+    report_name = build_report_name(
+        domain_name="repo_manager",
+        base_name="repo_manager_fvt",
+    )
     report = TestReport(
         module_name="repo_manager",
         report_path=report_path,
-        report_name="repo_manager_fvt",
+        report_name=report_name,
         server_ip=oim_ip,
     )
     set_current_report(report)
     yield report
+
+
+# =============================================================================
+# TC ID map for test functions that use TestLogger
+# =============================================================================
+_TC_ID_MAP: dict = {}
+
+
+# =============================================================================
+def pytest_sessionfinish(session, exitstatus):
+    """Save report and print summary table after all tests complete."""
+    report = get_current_report()
+    if report and report.results:
+        os.makedirs(report.report_path, exist_ok=True)
+        report.save()
+
     print_summary_table()
+
+
+# =============================================================================
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Capture test results and output for the HTML report + summary."""
+    outcome = yield
+    result = outcome.get_result()
+
+    if result.when not in {"call", "setup"}:
+        return
+
+    if result.when == "setup" and not result.skipped:
+        return
+
+    status = "PASSED" if result.passed else (
+        "SKIPPED" if result.skipped else "FAILED"
+    )
+
+    output = get_test_output(item.name)
+    details = output if output else ""
+    detail_fields = get_last_detail_fields()
+    skip_reason = ""
+
+    if result.skipped:
+        if hasattr(result, "wasxfail"):
+            status = "SKIPPED"
+        rep_text = str(result.longrepr) if result.longrepr else ""
+        if "Skipped:" in rep_text:
+            skip_reason = rep_text.split("Skipped:", 1)[-1].strip()
+        elif "SKIP" in rep_text:
+            skip_reason = rep_text.split("SKIP", 1)[-1].strip()
+
+    if status == "SKIPPED" and skip_reason:
+        details = (
+            (details + "\n" if details else "")
+            + f"SKIPPED: {skip_reason}"
+        )
+
+    tc_id = _TC_ID_MAP.get(item.name, "") or get_last_tc_id()
+
+    add_session_result(
+        test_name=item.name,
+        status=status,
+        duration=getattr(result, "duration", 0),
+        tc_id=tc_id,
+    )
+
+    report = get_current_report()
+    if report:
+        report_payload = {
+            "tc_id": tc_id,
+            "test_name": item.name,
+            "status": status,
+            "duration": getattr(result, "duration", 0),
+            "details": details,
+            "error": (
+                str(result.longrepr) if result.failed else ""
+            ),
+        }
+        if detail_fields:
+            report_payload["detail_fields"] = detail_fields
+        report.add_result(report_payload)
 
 
 # =============================================================================
@@ -244,6 +333,79 @@ def pytest_collection_modifyitems(config, items):
 
 
 # =============================================================================
+def pytest_sessionfinish(session, exitstatus):
+    """Save report and print summary table after all tests complete."""
+    report = get_current_report()
+    if report and report.results:
+        # Ensure report directory exists (may have been removed by cleanup)
+        os.makedirs(report.report_path, exist_ok=True)
+        report.save()
+
+    print_summary_table()
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Capture test results and output for the HTML report + summary."""
+    outcome = yield
+    result = outcome.get_result()
+
+    if result.when not in {"call", "setup"}:
+        return
+
+    if result.when == "setup" and not result.skipped:
+        return
+
+    status = "PASSED" if result.passed else (
+        "SKIPPED" if result.skipped else "FAILED"
+    )
+
+    output = get_test_output(item.name)
+    details = output if output else ""
+    skip_reason = ""
+
+    if result.skipped:
+        if hasattr(result, "wasxfail"):
+            status = "SKIPPED"
+        rep_text = str(result.longrepr) if result.longrepr else ""
+        if "Skipped:" in rep_text:
+            skip_reason = rep_text.split("Skipped:", 1)[-1].strip()
+        elif "SKIP" in rep_text:
+            skip_reason = rep_text.split("SKIP", 1)[-1].strip()
+
+    if status == "SKIPPED" and skip_reason:
+        details = (
+            (details + "\n" if details else "")
+            + f"SKIPPED: {skip_reason}"
+        )
+
+    tc_id = get_last_tc_id()
+    if not tc_id:
+        doc = getattr(item.obj, "__doc__", "") or ""
+        if doc.strip().startswith("TC_"):
+            tc_id = doc.strip().split(":", 1)[0].strip()
+
+    add_session_result(
+        test_name=item.name,
+        status=status,
+        duration=getattr(result, "duration", 0),
+        tc_id=tc_id,
+    )
+
+    report = get_current_report()
+    if report:
+        report.add_result({
+            "tc_id": tc_id,
+            "test_name": item.name,
+            "status": status,
+            "duration": getattr(result, "duration", 0),
+            "details": details,
+            "error": (
+                str(result.longrepr) if result.failed else ""
+            ),
+        })
+
+
 @pytest.fixture(scope="session")
 def host():
     """Return a testinfra host connection to the target."""

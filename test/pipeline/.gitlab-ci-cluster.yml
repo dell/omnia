@@ -146,6 +146,13 @@ stages:
 # with before_script: [].
 # ---------------------------------------------------------------------------
 default:
+  after_script:
+    - mkdir -p "pipeline_job_status/$CI_PIPELINE_ID"
+    - printf '{"name":"%s","status":"%s"}\n' "$CI_JOB_NAME" "$CI_JOB_STATUS" > "pipeline_job_status/$CI_PIPELINE_ID/$CI_JOB_NAME.json"
+  artifacts:
+    paths:
+      - pipeline_job_status/
+    when: always
   before_script:
     - |
       if [ -f target.env ]; then
@@ -378,6 +385,7 @@ initialization:
     paths:
       - target.env
       - pipeline_time.env
+      - pipeline_job_status/
     when: always
 
 # ========================  SETUP ENVIRONMENT  ==============================
@@ -803,10 +811,9 @@ cleanup_omnia:
 # In default mode, cleanup_omnia destroys the venv. This stage re-runs
 # omnia.sh -s to rebuild it before the deploy stages start.
 # Also re-copies omnia.env and catalog files to the target.
-# Only runs when cleanup_omnia actually ran (DOMAINS == "default"),
-# because that's when the venv gets destroyed and needs rebuilding.
-# When specific domains are selected, cleanup_omnia is skipped and the
-# venv remains intact — no rebuild needed.
+# Runs after cleanup in default mode. Full cleanup removes the venv, while
+# domain cleanup can remove project runtime directories required by the main
+# installation tests. Re-running setup restores both before validation.
 # ---------------------------------------------------------------------------
 setup_main:
   stage: setup_main
@@ -815,7 +822,7 @@ setup_main:
   rules:
     - if: '$SKIP_STAGES =~ /setup_main/'
       when: never
-    - if: '$PIPELINE_MODE == "default" && $DOMAINS == "default"'
+    - if: '$PIPELINE_MODE == "default"'
       when: on_success
   needs:
     - job: initialization
@@ -1007,6 +1014,8 @@ test_main_installation:
         echo "DRY_RUN: Would execute $TEST_MAIN_CMD on $TARGET"
       else
         $SSH_CMD $TARGET "
+          export CI_PIPELINE_ID=$CI_PIPELINE_ID
+          export REPORT_ID=$CI_PIPELINE_ID
           cd $OMNIA_INSTALL_PATH/test/main
           source .venv/bin/activate
           $TEST_MAIN_CMD
@@ -1227,6 +1236,8 @@ test_repo_manager:
         echo "DRY_RUN: Would execute $TEST_REPO_MANAGER_CMD on $TARGET"
       else
         $SSH_CMD $TARGET "
+          export CI_PIPELINE_ID=$CI_PIPELINE_ID
+          export REPORT_ID=$CI_PIPELINE_ID
           cd $OMNIA_INSTALL_PATH/test/repo_manager
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
@@ -1457,6 +1468,8 @@ test_image_build_manager:
         echo "DRY_RUN: Would execute $TEST_IMAGE_BUILD_MANAGER_CMD on $TARGET"
       else
         $SSH_CMD $TARGET "
+          export CI_PIPELINE_ID=$CI_PIPELINE_ID
+          export REPORT_ID=$CI_PIPELINE_ID
           cd $OMNIA_INSTALL_PATH/test/image_build_manager
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
@@ -1605,6 +1618,7 @@ orchestrator:
     - |
       if [ "$STAGE_RC" -ne 0 ]; then
         echo "ERROR: orchestrator playbook failed (exit code: $STAGE_RC)"
+        echo "Recording playbook failure in test report..."
         exit 1
       fi
       echo "orchestrator completed successfully for cluster $CLUSTER"
@@ -1685,6 +1699,8 @@ test_orchestrator:
         echo "DRY_RUN: Would execute $TEST_ORCHESTRATOR_CMD on $TARGET"
       else
         $SSH_CMD $TARGET "
+          export CI_PIPELINE_ID=$CI_PIPELINE_ID
+          export REPORT_ID=$CI_PIPELINE_ID
           cd $OMNIA_INSTALL_PATH/test/orchestrator
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
@@ -1913,6 +1929,8 @@ test_telemetry:
         echo "DRY_RUN: Would execute $TEST_TELEMETRY_CMD on $TARGET"
       else
         $SSH_CMD $TARGET "
+          export CI_PIPELINE_ID=$CI_PIPELINE_ID
+          export REPORT_ID=$CI_PIPELINE_ID
           cd $OMNIA_INSTALL_PATH/test/telemetry
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
@@ -1991,7 +2009,7 @@ summary:
     - job: test_image_build_manager
       artifacts: true
       optional: true
-    - job: test_orchestrators
+    - job: test_orchestrator
       artifacts: true
       optional: true
     - job: test_telemetry
@@ -2005,6 +2023,10 @@ summary:
     - echo "========================================================"
     - source target.env
     - source pipeline_time.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
     - mkdir -p pipeline_reports
 
     # Generate summary report based on PIPELINE_MODE
@@ -2080,8 +2102,57 @@ summary:
       EOF
 
     - echo "Pipeline summary report generated"
-    - echo "Sending email notification"
-    - export REPORT_PATH="pipeline_reports/pipeline_summary.txt"
+
+    - |
+      echo "Collecting pipeline job statuses..."
+      python3 - <<'PY'
+      import glob
+      import json
+      import os
+
+      jobs = []
+      for path in glob.glob(
+          f"pipeline_job_status/{os.environ['CI_PIPELINE_ID']}/*.json"
+      ):
+          with open(path, encoding="utf-8") as status_file:
+              jobs.append(json.load(status_file))
+      jobs.append({"name": "summary", "status": "running"})
+      with open("pipeline_reports/job_statuses.json", "w", encoding="utf-8") as output:
+          json.dump(jobs, output)
+      print(f"Collected {len(jobs)} job status records")
+      PY
+
+    # Copy test reports from remote target to CI runner
+    - |
+      echo "Fetching test reports from target..."
+      REMOTE_REPORTS_PATH="/opt/omnia/reports"
+      LOCAL_REPORTS_PATH="pipeline_reports/test_reports/$CI_JOB_ID"
+      mkdir -p "$LOCAL_REPORTS_PATH"
+      if [ "$DOMAINS" = "default" ]; then
+        REPORT_DOMAINS="main repo_manager image_build_manager orchestrator telemetry"
+      else
+        REPORT_DOMAINS="main $(echo "$DOMAINS" | tr ',' ' ')"
+      fi
+      for domain in $REPORT_DOMAINS; do
+        REPORT_GLOB="*_${CI_PIPELINE_ID}_${domain}_report.json"
+        LATEST_JSON=$($SSH_CMD $TARGET \
+          "ls -1t $REMOTE_REPORTS_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+        if [ -n "$LATEST_JSON" ]; then
+          $SCP_CMD "$TARGET:$LATEST_JSON" "$LOCAL_REPORTS_PATH/" || true
+          LATEST_HTML="${LATEST_JSON%.json}.html"
+          if $SSH_CMD $TARGET "test -f $LATEST_HTML"; then
+            $SCP_CMD "$TARGET:$LATEST_HTML" "$LOCAL_REPORTS_PATH/" || true
+          fi
+        fi
+      done
+      echo "  Fresh reports copied to $LOCAL_REPORTS_PATH/"
+      ls -la "$LOCAL_REPORTS_PATH/" 2>/dev/null
+
+    - export PIPELINE_MODE
+    - export DOMAINS
+    - export TEST_REPORTS_PATH="pipeline_reports/test_reports/$CI_JOB_ID"
+
+    - echo "Sending email notification..."
     - python3 send_email.py || echo "Email notification failed (non-fatal)"
     - echo "========================================================"
     - echo "  Pipeline summary completed for cluster $CLUSTER"
@@ -2089,4 +2160,5 @@ summary:
   artifacts:
     paths:
       - pipeline_reports/
+      - pipeline_job_status/
     when: always

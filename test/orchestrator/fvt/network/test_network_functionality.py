@@ -39,6 +39,7 @@ from library.functions import (
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_network_spec_exists():
     """TC_NET_001: Verify network_spec.yml exists."""

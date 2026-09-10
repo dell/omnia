@@ -30,6 +30,7 @@ from library.messages import (
 
 @pytest.mark.deploy
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(0)
 def test_slurm_provision(host):
     """TC_SL_000: Deploy orchestrator.yml --tags provision_slurm."""
