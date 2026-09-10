@@ -303,8 +303,9 @@
             state: stopped
             enabled: false
           when: >-
-            (pulp_container_name | default('pulp')) ~ '.service'
-            in ansible_facts.services
+            ansible_facts.services.get(
+              (pulp_container_name | default('pulp')) ~ '.service', {}
+            ).get('status', 'not-found') != 'not-found'
           register: pulp_service_result
 
         - name: Remove Pulp Quadlet file
