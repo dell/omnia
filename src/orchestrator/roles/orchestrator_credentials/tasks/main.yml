@@ -19,7 +19,7 @@
 # Naming Convention:
 #   Role:     collect_orchestrator_credentials  (verb — what the role does: collects)
 #   Playbook: get_orchestrator_credentials.yml  (verb — what the user gets)
-#   Data:     omnia_config_credentials.yml (noun — the artifact)
+#   Data:     orchestrator_credentials.yml (noun — the artifact)
 
 - name: Skip credential flow if already loaded
   ansible.builtin.debug:
@@ -163,28 +163,28 @@
     # Step 5: Prompt for mandatory credentials (only if value is empty)
     - name: Prompt for mandatory orchestrator credentials
       ansible.builtin.include_tasks: prompt_credential_field.yml
-      loop: "{{ omnia_credentials.provision.mandatory }}"
+      loop: "{{ orchestrator_credentials_definitions.provision.mandatory }}"
       loop_control:
         loop_var: cred_field
 
     # Step 6: Prompt for conditional mandatory credentials (only if value is empty)
     - name: Prompt for conditional mandatory orchestrator credentials
       ansible.builtin.include_tasks: prompt_credential_field.yml
-      loop: "{{ omnia_credentials.slurm.mandatory }}"
+      loop: "{{ orchestrator_credentials_definitions.slurm.mandatory }}"
       loop_control:
         loop_var: cred_field
       when: slurm_support | default(false) | bool
 
     - name: Prompt for conditional mandatory orchestrator credentials (slurm_custom)
       ansible.builtin.include_tasks: prompt_credential_field.yml
-      loop: "{{ omnia_credentials.slurm_custom.mandatory }}"
+      loop: "{{ orchestrator_credentials_definitions.slurm_custom.mandatory }}"
       loop_control:
         loop_var: cred_field
       when: slurm_custom_support | default(false) | bool
 
     - name: Prompt for conditional mandatory orchestrator credentials (openldap)
       ansible.builtin.include_tasks: prompt_credential_field.yml
-      loop: "{{ omnia_credentials.openldap.mandatory }}"
+      loop: "{{ orchestrator_credentials_definitions.openldap.mandatory }}"
       loop_control:
         loop_var: cred_field
       when: openldap_support | default(false) | bool
@@ -192,7 +192,7 @@
     - name: Prompt for PowerScale CSI credentials
       ansible.builtin.include_tasks: prompt_credential_field.yml
       loop: >-
-        {{ omnia_credentials.csi_driver_powerscale.conditional_mandatory }}
+        {{ orchestrator_credentials_definitions.csi_driver_powerscale.conditional_mandatory }}
       loop_control:
         loop_var: cred_field
       when: enable_powerscale_csi | default(false) | bool

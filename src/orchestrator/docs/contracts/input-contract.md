@@ -256,15 +256,15 @@ flows remain runnable without `repo_status.yml`.
 
 ---
 
-## 6. omnia_config_credentials.yml
+## 6. orchestrator_credentials.yml
 
 **Purpose**: Vault-encrypted credentials for provisioning and services.
 
-**Location**: `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/omnia_config_credentials.yml`
+**Location**: `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/orchestrator_credentials.yml`
 
 **Owner**: `orchestrator_credentials` role (auto-generated on first run via interactive prompts)
 
-**Vault Key**: `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/.omnia_config_credentials_key`
+**Vault Key**: `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/.orchestrator_credentials_key`
 
 A full Orchestrator cleanup removes both the encrypted credential file and its
 vault key by default. Pass `-e cleanup_credentials=false` with the `cleanup`
@@ -343,7 +343,7 @@ switch.
                              │ produces
                              ▼
                     ┌─────────────────────────┐
-                    │ omnia_config_credentials │
+                    │ orchestrator_credentials │
                     │        .yml              │
                     └────────┬────────────────┘
                              │
