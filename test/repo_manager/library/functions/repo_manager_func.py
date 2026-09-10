@@ -25,12 +25,9 @@ from ..vars.common_vars import (
     PULP_CONTAINER_NAME,
     PULP_PORT,
     PULP_CLI_SYMLINK,
-<<<<<<< Updated upstream
     _get_pulp_certs_dir,
-=======
     PULP_CERTS_DIR,
     USER_REGISTRY_TIMEOUT,
->>>>>>> Stashed changes
 )
 
 
