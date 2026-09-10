@@ -65,6 +65,9 @@ PULP_CERTS_DIR = None  # Set dynamically using shared_path
 PULP_SYSTEMD_UNIT = "/etc/containers/systemd/pulp.container"
 PULP_YUM_REPO_FILE = "/etc/yum.repos.d/pulp.repo"
 
+# --- User registry configuration ---
+USER_REGISTRY_TIMEOUT = 5  # Socket timeout in seconds for registry reachability checks
+
 # --- Commands ---
 CMDS = {
     "file_exists": "test -f {path} && echo 'exists' || echo 'missing'",
