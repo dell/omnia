@@ -158,10 +158,6 @@
     cacheable: true
 
 # Step 6: Load orchestrator and Omnia configuration
-- name: Initialize optional Orchestrator configurations
-  ansible.builtin.set_fact:
-    _orch_config: {}
-    _omnia_config: {}
 
 - name: Check whether orchestrator configuration exists
   ansible.builtin.stat:
@@ -181,7 +177,12 @@
 - name: Load orchestrator config
   ansible.builtin.include_vars:
     file: "{{ input_project_dir }}/orchestrator_config.yml"
-    name: _orch_config
+    name: _loaded_orchestrator_config
+  when: _orchestrator_config_stat.stat.exists | default(false)
+
+- name: Publish orchestrator configuration
+  ansible.builtin.set_fact:
+    _orch_config: "{{ _loaded_orchestrator_config }}"
   when: _orchestrator_config_stat.stat.exists | default(false)
 
 - name: Check whether Omnia configuration exists
@@ -193,8 +194,15 @@
 - name: Load Omnia configuration
   ansible.builtin.include_vars:
     file: "{{ input_project_dir }}/omnia_config.yml"
-    name: _omnia_config
+    name: _loaded_omnia_config
   when: _omnia_config_stat.stat.exists | default(false)
+
+- name: Publish Omnia configuration
+  ansible.builtin.set_fact:
+    _omnia_config: >-
+      {{ _loaded_omnia_config
+         if (_omnia_config_stat.stat.exists | default(false))
+         else {} }}
 
 - name: Identify deployed service Kubernetes clusters
   ansible.builtin.set_fact:
