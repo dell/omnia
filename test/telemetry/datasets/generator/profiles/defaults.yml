@@ -12,5 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-description: "All sources and sinks enabled (production-like baseline)"
+description: "Canonical source defaults (iDRAC, LDMS, PowerScale, and OME enabled)"
 patches: {}

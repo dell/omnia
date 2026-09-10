@@ -124,10 +124,6 @@ _LEGACY_VAR_PATHS: dict[str, tuple[str, tuple[str, ...]]] = {
         "telemetry_config",
         ("telemetry_sources", "ome", "metrics_enabled"),
     ),
-    "sfm_metrics_enabled": (
-        "telemetry_config",
-        ("telemetry_sources", "sfm", "metrics_enabled"),
-    ),
     "victoria_metrics_enabled": (
         "telemetry_config",
         ("telemetry_sinks", "victoria_metrics", "persistence_size"),
@@ -316,7 +312,7 @@ def _list_profiles() -> None:
         print(f"  {display_name} {description}")
     print()
     recommended = "defaults"
-    print(f"  Recommended: {recommended} (all sources and sinks enabled)")
+    print(f"  Recommended: {recommended} (canonical source defaults)")
     print(f"  Inspect:     ./generate_dataset.py profiles {recommended}")
     print(
         "  Create:      ./generate_dataset.py create my_dataset "

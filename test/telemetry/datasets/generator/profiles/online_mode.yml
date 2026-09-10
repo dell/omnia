@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-description: "All sources and sinks with online install mode (production deployment)"
+description: "Canonical source defaults with online install mode"
 patches:
   telemetry_packages:
     install_mode: "online"

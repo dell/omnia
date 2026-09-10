@@ -12,7 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-description: "Canonical source defaults with offline install mode. NOTE: Configure repo_url in the generated telemetry_packages.yml."
+description: "iDRAC, PowerScale, and VAST sources enabled"
 patches:
-  telemetry_packages:
-    install_mode: "offline"
+  telemetry_config:
+    telemetry_sources:
+      idrac:
+        metrics_enabled: true
+      ldms:
+        metrics_enabled: false
+      powerscale:
+        metrics_enabled: true
+        logs_enabled: true
+      ufm:
+        metrics_enabled: false
+        logs_enabled: false
+      vast:
+        metrics_enabled: true
+        logs_enabled: true
+      ome:
+        metrics_enabled: false
+        logs_enabled: false
+    telemetry_bridges:
+      vector_ldms:
+        metrics_enabled: false
+      vector_ome:
+        metrics_enabled: false
+        logs_enabled: false

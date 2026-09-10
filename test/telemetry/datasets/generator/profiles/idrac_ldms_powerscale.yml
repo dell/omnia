@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-description: "Only iDRAC source enabled (minimal deployment)"
+description: "iDRAC, LDMS, and PowerScale sources enabled"
 patches:
   telemetry_config:
     telemetry_sources:
       idrac:
         metrics_enabled: true
       ldms:
-        metrics_enabled: false
+        metrics_enabled: true
       powerscale:
-        metrics_enabled: false
-        logs_enabled: false
+        metrics_enabled: true
+        logs_enabled: true
       ufm:
         metrics_enabled: false
         logs_enabled: false
@@ -34,7 +34,7 @@ patches:
         logs_enabled: false
     telemetry_bridges:
       vector_ldms:
-        metrics_enabled: false
+        metrics_enabled: true
       vector_ome:
         metrics_enabled: false
         logs_enabled: false

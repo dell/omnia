@@ -47,10 +47,10 @@ def create_parser() -> argparse.ArgumentParser:
         epilog="""
 Examples:
   ./generate_dataset.py profiles
-  ./generate_dataset.py profiles idrac_only
+  ./generate_dataset.py profiles idrac_powerscale
   ./generate_dataset.py create my_dataset --profile defaults
-  ./generate_dataset.py create idrac_test --profile idrac_only
-  ./generate_dataset.py create minimal_test --profile minimal
+  ./generate_dataset.py create storage_test --profile idrac_powerscale
+  ./generate_dataset.py create compute_test --profile ldms_only
   ./generate_dataset.py create custom \\
       --profile defaults \\
       --set telemetry_config:telemetry_sources.idrac.metrics_enabled=false
@@ -60,7 +60,7 @@ Examples:
 
 Legacy syntax remains supported:
   ./generate_dataset.py my_dataset defaults
-  ./generate_dataset.py my_dataset idrac_only --var kube_vip=10.0.0.200
+  ./generate_dataset.py my_dataset idrac_powerscale --var kube_vip=10.0.0.200
 """,
     )
     parser.add_argument("dataset_name", nargs="?", help="Dataset directory name")

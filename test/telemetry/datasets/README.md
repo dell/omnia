@@ -30,16 +30,23 @@ cd datasets/generator/
 ./generate_dataset.py create my_ds --profile defaults
 ```
 
-The six canonical profiles select different source/sink combinations and deployment modes:
+The ten canonical profiles select supported source combinations and deployment modes:
 
 | Profile | Use Case |
 |---------|----------|
-| `defaults` | All sources and sinks enabled (production-like baseline) |
-| `idrac_only` | iDRAC only (minimal deployment, BMC-only) |
+| `idrac_powerscale` | iDRAC + PowerScale |
+| `idrac_ldms_powerscale` | iDRAC + LDMS + PowerScale |
 | `idrac_ldms` | iDRAC + LDMS (HPC cluster baseline) |
-| `ldms_only` | LDMS only (compute node metrics) |
-| `online_mode` | All sources with online install mode (internet-connected) |
-| `offline_mode` | All sources with offline install mode (air-gapped) |
+| `idrac_ome_ufm_sfm` | iDRAC + OME + UFM with external SFM integration |
+| `idrac_powerscale_vast` | iDRAC + PowerScale + VAST |
+| `ldms_only` | LDMS only (compute-node metrics) |
+| `powerscale_only` | PowerScale metrics and logs only |
+| `defaults` | Canonical source defaults (iDRAC, LDMS, PowerScale, and OME) |
+| `online_mode` | Canonical source defaults with online installation |
+| `offline_mode` | Canonical source defaults with offline installation |
+
+SFM is not configured under `telemetry_sources`. It connects externally to the
+VictoriaMetrics remote-write endpoint exposed by the telemetry deployment.
 
 **Important: Offline mode requires repo_url configuration**
 
@@ -65,10 +72,10 @@ The `repo_url` is used to construct all offline package URLs:
 
 Leave `repo_url: ""` for `online_mode` (not needed).
 
-For a quick iDRAC-only dataset:
+For a quick PowerScale-only dataset:
 
 ```bash
-./generate_dataset.py create my_idrac --profile idrac_only
+./generate_dataset.py create my_powerscale --profile powerscale_only
 ```
 
 See [`generator/README.md`](generator/README.md) for full usage.

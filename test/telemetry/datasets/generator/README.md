@@ -11,7 +11,7 @@ cd test/telemetry/datasets/generator/
 
 # See available profiles, then inspect one
 ./generate_dataset.py profiles
-./generate_dataset.py profiles idrac_only
+./generate_dataset.py profiles idrac_powerscale
 
 # Preview without publishing
 ./generate_dataset.py create my_dataset --profile defaults --dry-run
@@ -28,24 +28,37 @@ to the execution target. Selecting a name alone does not modify the target.
 
 | Profile | Description | Use Case |
 |---------|-------------|----------|
-| `defaults` | All sources and sinks enabled | Production-like baseline |
-| `idrac_only` | Only iDRAC source enabled | Minimal deployment (BMC-only) |
-| `idrac_ldms` | iDRAC + LDMS sources enabled | HPC cluster baseline |
-| `ldms_only` | Only LDMS source enabled | Compute node metrics only |
-| `online_mode` | All sources with online install mode | Production deployment (internet-connected) |
-| `offline_mode` | All sources with offline install mode | Air-gapped deployment (no internet) |
+| `idrac_powerscale` | iDRAC and PowerScale enabled | Server and PowerScale storage telemetry |
+| `idrac_ldms_powerscale` | iDRAC, LDMS, and PowerScale enabled | HPC compute, server, and PowerScale telemetry |
+| `idrac_ldms` | iDRAC and LDMS enabled | HPC cluster baseline |
+| `idrac_ome_ufm_sfm` | iDRAC, OME, and UFM enabled; SFM connects externally | Server, management, and fabric telemetry |
+| `idrac_powerscale_vast` | iDRAC, PowerScale, and VAST enabled | Server and multi-storage telemetry |
+| `ldms_only` | Only LDMS enabled | Compute-node metrics |
+| `powerscale_only` | Only PowerScale metrics and logs enabled | PowerScale storage telemetry |
+| `defaults` | Canonical source defaults | Source-aligned baseline |
+| `online_mode` | Canonical source defaults with online installation | Internet-connected deployment |
+| `offline_mode` | Canonical source defaults with offline installation | Air-gapped deployment |
 
 The `defaults` profile is the recommended starting point. It uses the
-canonical `src/telemetry/input/` files with no patches, matching a real
-production deployment configuration.
+canonical `src/telemetry/input/` files with no patches. Currently this enables
+iDRAC, LDMS, PowerScale, and OME while leaving UFM and VAST disabled.
+
+SFM is not a `telemetry_sources` configuration entry. In the
+`idrac_ome_ufm_sfm` scenario, SFM sends metrics directly to the deployed
+VictoriaMetrics remote-write endpoint using the connection details produced by
+`external_victoria_connect`.
 
 **Profile selection guide:**
-- **`defaults`** — Start here for full telemetry stack testing
-- **`idrac_only`** — Test BMC-only telemetry (no compute nodes)
-- **`idrac_ldms`** — Test HPC clusters with both BMC and compute metrics
-- **`ldms_only`** — Test compute node metrics without BMC data
-- **`online_mode`** — Test production deployment with internet access
-- **`offline_mode`** — Test air-gapped deployment (no external repos)
+- **`idrac_powerscale`** — Test server and PowerScale storage telemetry
+- **`idrac_ldms_powerscale`** — Test the HPC baseline with PowerScale storage
+- **`idrac_ldms`** — Test BMC and compute-node telemetry
+- **`idrac_ome_ufm_sfm`** — Test iDRAC, OME, UFM, and external SFM integration
+- **`idrac_powerscale_vast`** — Test iDRAC with PowerScale and VAST storage
+- **`ldms_only`** — Test compute-node metrics without other sources
+- **`powerscale_only`** — Test PowerScale metrics and logs in isolation
+- **`defaults`** — Use the canonical source configuration unchanged
+- **`online_mode`** — Use canonical source defaults with internet access
+- **`offline_mode`** — Use canonical source defaults in an air-gapped deployment
 
 **Important: Offline mode requires repo_url configuration**
 
@@ -91,7 +104,7 @@ ruamel.yaml round-trip loading.
 
 ```bash
 ./generate_dataset.py profiles
-./generate_dataset.py profiles idrac_only
+./generate_dataset.py profiles idrac_powerscale
 ```
 
 ### Preview, publish, replace, and check
@@ -134,8 +147,9 @@ The `--var` compatibility aliases remain for common flat values:
 
 The supported aliases are `idrac_metrics_enabled`, `ldms_metrics_enabled`,
 `powerscale_metrics_enabled`, `ufm_metrics_enabled`, `vast_metrics_enabled`,
-`ome_metrics_enabled`, `sfm_metrics_enabled`, and `install_mode`.
-Prefer `--set` for new automation.
+`ome_metrics_enabled`, and `install_mode`. SFM has no source enablement alias
+because it is an external VictoriaMetrics integration. Prefer `--set` for new
+automation.
 
 ### Source snapshot without a profile
 
