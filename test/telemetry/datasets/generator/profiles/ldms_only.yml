@@ -12,13 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-description: "No sources, only sinks (sink infrastructure testing)"
+description: "Only LDMS source enabled (compute node metrics only)"
 patches:
   telemetry_config:
     telemetry_sources:
       idrac:
-        metrics_enabled: false
-      ldms:
         metrics_enabled: false
       powerscale:
         metrics_enabled: false
@@ -33,8 +31,6 @@ patches:
         metrics_enabled: false
         logs_enabled: false
     telemetry_bridges:
-      vector_ldms:
-        metrics_enabled: false
       vector_ome:
         metrics_enabled: false
         logs_enabled: false

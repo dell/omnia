@@ -30,14 +30,40 @@ cd datasets/generator/
 ./generate_dataset.py create my_ds --profile defaults
 ```
 
-The four canonical profiles select different source/sink combinations:
+The six canonical profiles select different source/sink combinations and deployment modes:
 
 | Profile | Use Case |
 |---------|----------|
-| `defaults` | All sources and sinks enabled |
-| `idrac_only` | iDRAC only (minimal deployment) |
-| `sinks_only` | No sources; sink infrastructure testing |
-| `minimal` | Everything disabled; validation-only |
+| `defaults` | All sources and sinks enabled (production-like baseline) |
+| `idrac_only` | iDRAC only (minimal deployment, BMC-only) |
+| `idrac_ldms` | iDRAC + LDMS (HPC cluster baseline) |
+| `ldms_only` | LDMS only (compute node metrics) |
+| `online_mode` | All sources with online install mode (internet-connected) |
+| `offline_mode` | All sources with offline install mode (air-gapped) |
+
+**Important: Offline mode requires repo_url configuration**
+
+When using the `offline_mode` profile, you **must** configure `repo_url` in the generated `telemetry_packages.yml`:
+
+```bash
+# Generate the dataset
+cd datasets/generator/
+./generate_dataset.py create my_offline --profile offline_mode
+
+# Edit the generated telemetry_packages.yml
+nano ../my_offline/input/telemetry_packages.yml
+
+Set repo_url to your Pulp repository base URL
+
+# Example Format: https://<ip_or_hostname>:<port>/pulp/content/opt/omnia/offline_repo/cluster/<arch>/<os>/<version>
+```
+
+The `repo_url` is used to construct all offline package URLs:
+- Helm charts: `<repo_url>/tarball/<package>/<filename>`
+- Git repos: `<repo_url>/git/<package>/<filename>`
+- Pip modules: `<repo_url>/pip_module/<package>==<version>/`
+
+Leave `repo_url: ""` for `online_mode` (not needed).
 
 For a quick iDRAC-only dataset:
 

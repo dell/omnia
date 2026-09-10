@@ -26,16 +26,49 @@ to the execution target. Selecting a name alone does not modify the target.
 
 ## Profiles
 
-| Profile | Description |
-|---------|-------------|
-| `defaults` | All sources and sinks enabled (production-like baseline) |
-| `idrac_only` | Only iDRAC source enabled (minimal deployment) |
-| `sinks_only` | No sources, only sinks (sink infrastructure testing) |
-| `minimal` | Everything disabled (validation-only, fastest dry run) |
+| Profile | Description | Use Case |
+|---------|-------------|----------|
+| `defaults` | All sources and sinks enabled | Production-like baseline |
+| `idrac_only` | Only iDRAC source enabled | Minimal deployment (BMC-only) |
+| `idrac_ldms` | iDRAC + LDMS sources enabled | HPC cluster baseline |
+| `ldms_only` | Only LDMS source enabled | Compute node metrics only |
+| `online_mode` | All sources with online install mode | Production deployment (internet-connected) |
+| `offline_mode` | All sources with offline install mode | Air-gapped deployment (no internet) |
 
 The `defaults` profile is the recommended starting point. It uses the
 canonical `src/telemetry/input/` files with no patches, matching a real
 production deployment configuration.
+
+**Profile selection guide:**
+- **`defaults`** — Start here for full telemetry stack testing
+- **`idrac_only`** — Test BMC-only telemetry (no compute nodes)
+- **`idrac_ldms`** — Test HPC clusters with both BMC and compute metrics
+- **`ldms_only`** — Test compute node metrics without BMC data
+- **`online_mode`** — Test production deployment with internet access
+- **`offline_mode`** — Test air-gapped deployment (no external repos)
+
+**Important: Offline mode requires repo_url configuration**
+
+When using the `offline_mode` profile, you **must** configure `repo_url` in the generated `telemetry_packages.yml`:
+
+```bash
+# Generate the dataset
+./generate_dataset.py create my_offline --profile offline_mode
+
+# Edit the generated telemetry_packages.yml
+nano ../my_offline/input/telemetry_packages.yml
+
+Set repo_url to your Pulp repository base URL
+
+# Example Format: https://<ip_or_hostname>:<port>/pulp/content/opt/omnia/offline_repo/cluster/<arch>/<os>/<version>
+```
+
+The `repo_url` is used to construct all offline package URLs:
+- Helm charts: `<repo_url>/tarball/<package>/<filename>`
+- Git repos: `<repo_url>/git/<package>/<filename>`
+- Pip modules: `<repo_url>/pip_module/<package>==<version>/`
+
+Leave `repo_url: ""` for `online_mode` (not needed).
 
 ## Source-first architecture
 
