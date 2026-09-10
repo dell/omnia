@@ -89,6 +89,16 @@ TEST_NAMES = {
     "catalog_add_deploy": "Deploy catalog_add playbook",
     "catalog_delete_deploy": "Deploy catalog_delete playbook",
     "catalog_validate_deploy": "Deploy catalog_validate playbook",
+    # User Registry Tests
+    "user_registry_validation_deploy": "Deploy validation playbook for user registry checks",
+    "user_registry_section_exists": "Verify registries section exists in config",
+    "user_registry_structure_valid": "Verify registry entries have valid structure",
+    "user_registry_base_url_valid": "Verify registry base_url is a valid HTTP(S) origin",
+    "user_registry_reachable": "Verify configured registries are reachable",
+    "user_registry_tls_cert_paths_valid": "Verify TLS certificate paths are valid",
+    "user_registry_tls_pair_consistent": "Verify client cert and key are configured together",
+    "user_registry_auth_type_valid": "Verify registry auth type is valid",
+    "user_registry_credentials_present": "Verify registry credentials are configured",
 }
 
 TEST_LOG_MSGS = {
@@ -206,6 +216,26 @@ TEST_LOG_MSGS = {
     "catalog_delete_failed": "Catalog delete failed",
     "catalog_validate_ok": "Catalog validate completed",
     "catalog_validate_failed": "Catalog validate failed",
+    # User Registry Tests
+    "user_registry_validation_ok": "User registry validation playbook completed",
+    "user_registry_validation_failed": "User registry validation playbook failed",
+    "user_registry_section_ok": "Registries section found in config",
+    "user_registry_section_missing": "Registries section missing or empty in config",
+    "user_registry_structure_ok": "All registry entries have valid structure",
+    "user_registry_structure_invalid": "Registry entry structure is invalid",
+    "user_registry_base_url_ok": "Registry base_url is a valid HTTP(S) origin",
+    "user_registry_base_url_invalid": "Registry base_url is invalid",
+    "user_registry_reachable_ok": "All configured registries are reachable",
+    "user_registry_unreachable": "Some configured registries are unreachable",
+    "user_registry_no_registries": "No registries configured; skipping reachability",
+    "user_registry_tls_ok": "All TLS certificate paths are valid",
+    "user_registry_tls_invalid": "Some TLS certificate paths are invalid",
+    "user_registry_tls_pair_ok": "Client cert and key configured together",
+    "user_registry_tls_pair_invalid": "Client cert/key pair is incomplete",
+    "user_registry_auth_type_ok": "Auth type is valid",
+    "user_registry_auth_type_invalid": "Auth type is unsupported",
+    "user_registry_credentials_ok": "Registry credentials are present",
+    "user_registry_credentials_missing": "Registry credentials are missing",
 }
 
 TEST_ASSERT_MSGS = {
@@ -270,4 +300,16 @@ TEST_ASSERT_MSGS = {
     "catalog_add_must_succeed": "Catalog add must succeed",
     "catalog_delete_must_succeed": "Catalog delete must succeed",
     "catalog_validate_must_succeed": "Catalog validate must succeed",
+    # User Registry Tests
+    "user_registry_validation_must_pass": "User registry validation playbook must succeed",
+    "user_registry_section_must_exist": (
+        "Registries section must exist in config when registries are defined"
+    ),
+    "user_registry_structure_must_be_valid": "All registry entries must have valid structure",
+    "user_registry_base_url_must_be_valid": "Registry base_url must be a valid HTTP(S) origin",
+    "user_registry_must_be_reachable": "All configured registries must be reachable",
+    "user_registry_tls_must_be_valid": "All TLS certificate paths must exist on disk",
+    "user_registry_tls_pair_must_be_consistent": "Client cert and key must be configured together",
+    "user_registry_auth_type_must_be_valid": "Registry auth type must be none or basic",
+    "user_registry_credentials_must_exist": "Registry credentials must be present for basic auth",
 }

@@ -66,6 +66,15 @@ from .repo_manager_func import (
     _get_input_path,
     _get_output_path,
     _get_credentials_path,
+    # User Registry verification functions
+    check_user_registry_section_exists,
+    check_user_registry_structure,
+    check_user_registry_base_url_valid,
+    check_user_registry_reachability,
+    check_user_registry_tls_cert_paths,
+    check_user_registry_tls_pair_consistent,
+    check_user_registry_auth_type,
+    check_user_registry_credentials,
 )
 # Host sync functions
 from .host_func import (
