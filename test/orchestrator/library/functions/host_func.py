@@ -25,6 +25,7 @@ from omnia_auto import (
     load_test_config,
     get_module_root,
     sync_files,
+    connection_params,
 )
 from ..vars.common_vars import (
     DOMAIN_NAME,
@@ -44,28 +45,22 @@ def sync_project_to_remote(_host) -> Dict[str, Any]:
     Dest:   <clone_path>/ on the target server
     """
     config = load_test_config()
-    oim_server_ip = config.get("oim_server_ip", "")
+    conn = connection_params()
     clone_path = config.get("clone_path", "/root/omnia")
 
     # Repo root: test/orchestrator/ -> test/ -> omnia/
     repo_root = os.path.dirname(os.path.dirname(get_module_root()))
 
     try:
-        if oim_server_ip:
-            result = sync_files(
-                mode="remote",
-                src=repo_root,
-                dest=clone_path,
-                ip=oim_server_ip,
-                user=config.get("oim_ssh_user", "root"),
-                password=None,
-            )
-        else:
-            result = sync_files(
-                mode="local",
-                src=repo_root,
-                dest=clone_path,
-            )
+        result = sync_files(
+            mode=conn["mode"],
+            src=repo_root,
+            dest=clone_path,
+            ip=conn.get("ip"),
+            user=conn.get("user", "root"),
+            auth_secret=conn.get("auth_secret"),
+            ssh_opts=conn.get("ssh_opts", ""),
+        )
         return result
     except Exception as exc:  # pylint: disable=broad-except
         return {
@@ -85,30 +80,24 @@ def sync_orchestrator_input(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     config = load_test_config()
+    conn = connection_params()
     dataset = config.get("dataset", "data_set_01")
     project = config.get("project_name", "project_default")
     module_root = get_module_root()
-    oim_server_ip = config.get("oim_server_ip", "")
 
     local_input = f"{module_root}/datasets/{dataset}/input"
     remote_input = INPUT_PATH_TEMPLATE.format(project=project)
 
     try:
-        if oim_server_ip:
-            result = sync_files(
-                mode="remote",
-                src=local_input,
-                dest=remote_input,
-                ip=oim_server_ip,
-                user=config.get("oim_ssh_user", "root"),
-                password=None,
-            )
-        else:
-            result = sync_files(
-                mode="local",
-                src=local_input,
-                dest=remote_input,
-            )
+        result = sync_files(
+            mode=conn["mode"],
+            src=local_input,
+            dest=remote_input,
+            ip=conn.get("ip"),
+            user=conn.get("user", "root"),
+            auth_secret=conn.get("auth_secret"),
+            ssh_opts=conn.get("ssh_opts", ""),
+        )
         return result
     except Exception as exc:  # pylint: disable=broad-except
         return {
@@ -128,37 +117,68 @@ def sync_repo_manager_output(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     config = load_test_config()
+    conn = connection_params()
     dataset = config.get("dataset", "data_set_01")
     project = config.get("project_name", "project_default")
     module_root = get_module_root()
-    oim_server_ip = config.get("oim_server_ip", "")
 
     local_output = f"{module_root}/datasets/{dataset}/repo_manager_output"
     remote_path = REPO_MANAGER_OUTPUT_TEMPLATE.format(project=project)
     # Sync directory containing repo_status.yml
-    import os
     remote_dir = os.path.dirname(remote_path)
 
     try:
-        if oim_server_ip:
-            result = sync_files(
-                mode="remote",
-                src=local_output,
-                dest=remote_dir,
-                ip=oim_server_ip,
-                user=config.get("oim_ssh_user", "root"),
-                password=None,
-            )
-        else:
-            result = sync_files(
-                mode="local",
-                src=local_output,
-                dest=remote_dir,
-            )
+        result = sync_files(
+            mode=conn["mode"],
+            src=local_output,
+            dest=remote_dir,
+            ip=conn.get("ip"),
+            user=conn.get("user", "root"),
+            auth_secret=conn.get("auth_secret"),
+            ssh_opts=conn.get("ssh_opts", ""),
+        )
         return result
     except Exception as exc:  # pylint: disable=broad-except
         return {
             "success": False,
             "details": "",
             "error": f"Output sync failed: {exc}",
+        }
+
+
+def sync_image_build_manager_output(host) -> Dict[str, Any]:
+    """Sync image_build_manager output (build_status.yml) to target.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success (bool), details (str), error (str).
+    """
+    config = load_test_config()
+    conn = connection_params()
+    dataset = config.get("dataset", "data_set_01")
+    project = config.get("project_name", "project_default")
+    module_root = get_module_root()
+
+    local_output = f"{module_root}/datasets/{dataset}/image_build_manager_output"
+    # Sync to /opt/omnia/image_build_manager/output/<project>/
+    remote_dir = f"/opt/omnia/image_build_manager/output/{project}"
+
+    try:
+        result = sync_files(
+            mode=conn["mode"],
+            src=local_output,
+            dest=remote_dir,
+            ip=conn.get("ip"),
+            user=conn.get("user", "root"),
+            auth_secret=conn.get("auth_secret"),
+            ssh_opts=conn.get("ssh_opts", ""),
+        )
+        return result
+    except Exception as exc:  # pylint: disable=broad-except
+        return {
+            "success": False,
+            "details": "",
+            "error": f"Image build output sync failed: {exc}",
         }

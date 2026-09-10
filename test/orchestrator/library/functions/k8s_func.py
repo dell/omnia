@@ -193,18 +193,27 @@ def check_k8s_enabled(host) -> Dict[str, Any]:
     ]
     has_k8s = any(keyword in result.stdout.lower() for keyword in k8s_keywords)
 
+    # If not found in orchestrator_config.yml, check the PXE mapping file
+    if not has_k8s:
+        pxe_mapping_path = f"{project_path}/pxe_mapping_file.csv"
+        pxe_cmd = f"test -f {pxe_mapping_path} && cat {pxe_mapping_path}"
+        pxe_result = run_on_host(host, pxe_cmd)
+        
+        if pxe_result.rc == 0:
+            has_k8s = any(keyword in pxe_result.stdout.lower() for keyword in k8s_keywords)
+
     if has_k8s:
         return {
             "success": True,
             "skipped": False,
-            "details": "Kubernetes functional groups found in orchestrator config",
+            "details": "Kubernetes functional groups found in orchestrator config or PXE mapping",
             "error": "",
         }
 
     return {
         "success": False,
         "skipped": True,
-        "details": "Kubernetes functional groups not found in orchestrator config",
+        "details": "Kubernetes functional groups not found in orchestrator config or PXE mapping",
         "error": "Kubernetes is not enabled in the catalog",
     }
 
