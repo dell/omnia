@@ -274,7 +274,7 @@ Figure: build_stream.yml orchestration flow
 
 | Credential | Before (utils) | After (build_stream) |
 |------------|---------------|----------------------|
-| `gitlab_root_password` | `orchestrator_credentials.yml` | `build_stream_credentials.yml` only |
+| `gitlab_root_password` | `omnia_config_credentials.yml` | `build_stream_credentials.yml` only |
 | `gitlab_ssh_password` | `provision_password` (shared) | `gitlab_ssh_password` (domain-specific) |
 | `postgres_user` | N/A | `build_stream_credentials.yml` |
 | `postgres_password` | N/A | `build_stream_credentials.yml` |
