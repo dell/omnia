@@ -103,8 +103,8 @@ selected through the component cleanup playbook.
 
 Full cleanup removes only the two Orchestrator-owned credential artifacts:
 
-- `omnia_config_credentials.yml`
-- `.omnia_config_credentials_key`
+- `orchestrator_credentials.yml`
+- `.orchestrator_credentials_key`
 
 Both are under
 `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/`. User-provided

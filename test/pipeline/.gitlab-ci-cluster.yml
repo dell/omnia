@@ -1473,7 +1473,7 @@ test_image_build_manager:
 
 # ============================  ORCHESTRATOR  ================================
 # Copies orchestrator input files from the pipeline to the target,
-# encrypts omnia_config_credentials.yml, and runs orchestrator.yml.
+# encrypts orchestrator_credentials.yml, and runs orchestrator.yml.
 # ---------------------------------------------------------------------------
 orchestrator:
   stage: orchestrator
@@ -1559,17 +1559,17 @@ orchestrator:
         echo "ERROR: Failed to fetch orchestrator credentials from OpenBao"
         exit 1
       fi
-      $SCP_CMD "$CRED_FILE" $TARGET:$INPUT_DIR/omnia_config_credentials.yml 2>/dev/null
+      $SCP_CMD "$CRED_FILE" $TARGET:$INPUT_DIR/orchestrator_credentials.yml 2>/dev/null
       rm -f "$CRED_FILE"
       echo "  Credential file copied to target"
 
-    # Step 4: Encrypt omnia_config_credentials.yml with ansible-vault
-    - echo "Step 4 - Encrypting omnia_config_credentials.yml"
+    # Step 4: Encrypt orchestrator_credentials.yml with ansible-vault
+    - echo "Step 4 - Encrypting orchestrator_credentials.yml"
     - |
       $SSH_CMD $TARGET "
         source $OMNIA_DATA_PATH/activate-omnia.sh
-        VAULT_KEY='$INPUT_DIR/.omnia_config_credentials_key'
-        CRED_FILE='$INPUT_DIR/omnia_config_credentials.yml'
+        VAULT_KEY='$INPUT_DIR/.orchestrator_credentials_key'
+        CRED_FILE='$INPUT_DIR/orchestrator_credentials.yml'
         if [ -f \"\$CRED_FILE\" ]; then
           if head -n1 \"\$CRED_FILE\" | grep -q '\$ANSIBLE_VAULT;'; then
             echo 'Credential file is already encrypted'
@@ -1583,7 +1583,7 @@ orchestrator:
             echo 'Credential file encrypted successfully'
           fi
         else
-          echo 'WARNING: omnia_config_credentials.yml not found — skipping encryption'
+          echo 'WARNING: orchestrator_credentials.yml not found — skipping encryption'
         fi
       "
 

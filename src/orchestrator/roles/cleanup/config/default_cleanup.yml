@@ -114,8 +114,8 @@ cleanup_components:
     rollback_supported: false
     preserve: []
     cleanup_paths:
-      - "{{ input_project_dir }}/omnia_config_credentials.yml"
-      - "{{ input_project_dir }}/.omnia_config_credentials_key"
+      - "{{ input_project_dir }}/orchestrator_credentials.yml"
+      - "{{ input_project_dir }}/.orchestrator_credentials_key"
     description: "Orchestrator credential files (removed by default during full cleanup)"
 
 # Global cleanup settings
