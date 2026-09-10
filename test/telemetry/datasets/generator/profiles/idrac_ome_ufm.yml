@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-description: "iDRAC, OME, and UFM enabled with external SFM integration"
+description: "iDRAC, OME, and UFM sources enabled"
 patches:
   telemetry_config:
     telemetry_sources:

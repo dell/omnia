@@ -37,7 +37,7 @@ The ten canonical profiles select supported source combinations and deployment m
 | `idrac_powerscale` | iDRAC + PowerScale |
 | `idrac_ldms_powerscale` | iDRAC + LDMS + PowerScale |
 | `idrac_ldms` | iDRAC + LDMS (HPC cluster baseline) |
-| `idrac_ome_ufm_sfm` | iDRAC + OME + UFM with external SFM integration |
+| `idrac_ome_ufm` | iDRAC + OME + UFM |
 | `idrac_powerscale_vast` | iDRAC + PowerScale + VAST |
 | `ldms_only` | LDMS only (compute-node metrics) |
 | `powerscale_only` | PowerScale metrics and logs only |

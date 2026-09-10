@@ -31,7 +31,7 @@ to the execution target. Selecting a name alone does not modify the target.
 | `idrac_powerscale` | iDRAC and PowerScale enabled | Server and PowerScale storage telemetry |
 | `idrac_ldms_powerscale` | iDRAC, LDMS, and PowerScale enabled | HPC compute, server, and PowerScale telemetry |
 | `idrac_ldms` | iDRAC and LDMS enabled | HPC cluster baseline |
-| `idrac_ome_ufm_sfm` | iDRAC, OME, and UFM enabled; SFM connects externally | Server, management, and fabric telemetry |
+| `idrac_ome_ufm` | iDRAC, OME, and UFM enabled | Server, management, and fabric telemetry |
 | `idrac_powerscale_vast` | iDRAC, PowerScale, and VAST enabled | Server and multi-storage telemetry |
 | `ldms_only` | Only LDMS enabled | Compute-node metrics |
 | `powerscale_only` | Only PowerScale metrics and logs enabled | PowerScale storage telemetry |
@@ -43,16 +43,15 @@ The `defaults` profile is the recommended starting point. It uses the
 canonical `src/telemetry/input/` files with no patches. Currently this enables
 iDRAC, LDMS, PowerScale, and OME while leaving UFM and VAST disabled.
 
-SFM is not a `telemetry_sources` configuration entry. In the
-`idrac_ome_ufm_sfm` scenario, SFM sends metrics directly to the deployed
-VictoriaMetrics remote-write endpoint using the connection details produced by
-`external_victoria_connect`.
+SFM is not a `telemetry_sources` configuration entry. It can be integrated
+separately with a deployed VictoriaMetrics remote-write endpoint using the
+connection details produced by `external_victoria_connect`.
 
 **Profile selection guide:**
 - **`idrac_powerscale`** — Test server and PowerScale storage telemetry
 - **`idrac_ldms_powerscale`** — Test the HPC baseline with PowerScale storage
 - **`idrac_ldms`** — Test BMC and compute-node telemetry
-- **`idrac_ome_ufm_sfm`** — Test iDRAC, OME, UFM, and external SFM integration
+- **`idrac_ome_ufm`** — Test iDRAC, OME, and UFM telemetry
 - **`idrac_powerscale_vast`** — Test iDRAC with PowerScale and VAST storage
 - **`ldms_only`** — Test compute-node metrics without other sources
 - **`powerscale_only`** — Test PowerScale metrics and logs in isolation
