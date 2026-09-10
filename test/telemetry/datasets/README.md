@@ -64,26 +64,47 @@ VAST) are stored in `test_creds.yml` and auto-encrypted with Ansible Vault.
 
 ## Switching Datasets
 
-### Edit `test_config.yml`
+### Method 1: Edit `test_config.yml` (persistent)
 ```yaml
 dataset: "my_custom_ds"    # Use custom dataset
 dataset: ""                # Use src/ only as an optional sync source
+sync_telemetry_input: true # Enable sync to push files to target
 ```
 
-### Environment variable (one-off)
+Then run normally:
 ```bash
+./run_validation.sh fvt_telemetry deploy verify
+```
+
+### Method 2: Environment variables (one-off)
+Override dataset and/or sync settings without editing the config file:
+
+```bash
+# Override dataset only (sync respects test_config.yml setting)
 OMNIA_DATASET_OVERRIDE=my_custom_ds \
+  ./run_validation.sh fvt_telemetry deploy verify
+
+# Override both dataset and sync
+OMNIA_DATASET_OVERRIDE=my_custom_ds \
+OMNIA_SYNC_INPUT_OVERRIDE=true \
+  ./run_validation.sh fvt_telemetry deploy verify
+
+# Override sync only (dataset from test_config.yml)
+OMNIA_SYNC_INPUT_OVERRIDE=true \
   ./run_validation.sh fvt_telemetry deploy verify
 ```
 
-`OMNIA_DATASET_OVERRIDE` takes priority over the `test_config.yml` default.
+**Priority:**
+- `OMNIA_DATASET_OVERRIDE` takes priority over `test_config.yml` dataset
+- `OMNIA_SYNC_INPUT_OVERRIDE` takes priority over `test_config.yml` sync_telemetry_input
 
 ## Sync Behavior
 
 | Setting | What gets synced |
 |---------|------------------|
-| `sync_telemetry_input: true`, named dataset | `datasets/<name>/input/` -> target input path |
-| `sync_telemetry_input: true`, empty dataset | `src/telemetry/input/` -> target input path |
+| `sync_telemetry_input: true`, named dataset | `datasets/<name>/input/` → target input path |
+| `sync_telemetry_input: true`, empty dataset | `src/telemetry/input/` → target input path |
+| `sync_telemetry_input: false` | Nothing is synced; target keeps existing files |
 
 The framework reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the
 target server to resolve sync destinations.
