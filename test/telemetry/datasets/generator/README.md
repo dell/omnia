@@ -57,11 +57,11 @@ When using the `offline_mode` profile, you **must** configure `repo_url` in the 
 
 # Edit the generated telemetry_packages.yml
 nano ../my_offline/input/telemetry_packages.yml
+```
 
 Set repo_url to your Pulp repository base URL
 
 # Example Format: https://<ip_or_hostname>:<port>/pulp/content/opt/omnia/offline_repo/cluster/<arch>/<os>/<version>
-```
 
 The `repo_url` is used to construct all offline package URLs:
 - Helm charts: `<repo_url>/tarball/<package>/<filename>`
