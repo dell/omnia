@@ -32,6 +32,7 @@
 # | gpgkey         | No        | GPG key URL for package verification                     |
 # | policy         | No        | Sync policy: always | partial (default: from repo_config) |
 # | caching        | No        | Local caching: true | false (default: true)               |
+# | enabled        | No        | Repository enablement: true | false (default: true)            |
 # | sslcacert      | No        | Path to SSL CA certificate                               |
 # | sslclientkey   | No        | Path to SSL client key (mTLS)                            |
 # | sslclientcert  | No        | Path to SSL client certificate (mTLS)                    |
@@ -98,6 +99,9 @@
 #    Optional per-entry fields:
 #      policy      : Sync policy – allowed values: always, partial (default: from repo_config)
 #      caching     : Local caching – allowed values: true, false (default: true)
+#      enabled     : Repository enablement – allowed values: true, false (default: true)
+#                    When false, the repository is excluded from catalog resolution,
+#                    package indexing, and Pulp sync operations.
 #      sslcacert   : Path to SSL CA certificate
 #      sslclientkey: Path to SSL client key
 #      sslclientcert: Path to SSL client certificate
@@ -204,6 +208,7 @@ repositories:
         sslclientcert: ""
         policy: "partial"
         caching: true
+        enabled: true
         priority: 99
       kubernetes-v1-35:
         url: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/"

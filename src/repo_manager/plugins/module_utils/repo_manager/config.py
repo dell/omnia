@@ -97,6 +97,7 @@ from ansible.module_utils.repo_manager.repo_settings import (
     iterate_all_repos,
     get_repos_section,
     collect_all_repo_names,
+    is_repo_enabled,
 )
 from ansible.module_utils.repo_manager.dnf_package_manager import (
     DNF_COMMANDS,
@@ -183,6 +184,7 @@ __all__ = (
         "iterate_all_repos",
         "get_repos_section",
         "collect_all_repo_names",
+        "is_repo_enabled",
     ]
     + [
         "DNF_COMMANDS",

@@ -11,8 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# pylint:
-# disable=import-error,line-too-long,no-name-in-module,too-many-branches,too-many-statements,too-many-locals,too-many-nested-blocks
+# pylint: disable=import-error,line-too-long,no-name-in-module,too-many-branches,too-many-statements,too-many-locals,too-many-nested-blocks,too-many-arguments,too-many-positional-arguments,too-many-lines
 
 """
 Multi-catalog resolver for repo_manager.
@@ -32,6 +31,7 @@ import json
 import hashlib
 import copy
 from collections import OrderedDict
+import yaml
 
 from ansible.module_utils.repo_manager.config import DEFAULT_OS_TYPE
 from ansible.module_utils.repo_manager.catalog_execution_context_resolver import (
@@ -50,6 +50,10 @@ from ansible.module_utils.repo_manager.security_utils import (
     parse_python_requirement,
     validate_artifact_url,
     validate_repository_url,
+)
+from ansible.module_utils.repo_manager.repo_settings import (
+    get_repos_section,
+    is_repo_enabled,
 )
 
 
@@ -430,12 +434,21 @@ def select_package_source(package, arch, os_version=None):
     return None
 
 
-def collect_referenced_repositories(catalogs, catalog_context, logger):
+def collect_referenced_repositories(catalogs, catalog_context, logger, repo_config_data=None):
     """Return catalog-referenced RPM repository names per architecture.
 
     Only packages selected by the resolved functional layers participate. The
     result is deterministic and can be shared by validation and subscription
     setup so both phases require exactly the same repositories.
+
+    Args:
+        catalogs: Catalog data (dict or list of dicts)
+        catalog_context: Catalog execution context with architectures and OS version
+        logger: Logger instance
+        repo_config_data: Optional repository configuration data to filter disabled repos
+
+    Returns:
+        dict: Architecture -> list of referenced repository names
     """
     if isinstance(catalogs, dict):
         catalogs = [catalogs]
@@ -464,6 +477,30 @@ def collect_referenced_repositories(catalogs, catalog_context, logger):
                     )
                     repo_name = (source or {}).get("reponame", "")
                     if repo_name and repo_name not in seen[architecture]:
+                        # Check if repository is enabled if config data is provided
+                        if repo_config_data:
+                            repos_section = get_repos_section(
+                                repo_config_data, os_version, architecture
+                            )
+                            # Check both flat and nested repo structures
+                            repo_config = None
+                            if repo_name in repos_section:
+                                repo_config = repos_section[repo_name]
+                            else:
+                                # Check nested structures
+                                for nested_key in ["additional_repos", "user_repos"]:
+                                    nested = repos_section.get(nested_key, {})
+                                    if isinstance(nested, dict) and repo_name in nested:
+                                        repo_config = nested[repo_name]
+                                        break
+
+                            if repo_config and not is_repo_enabled(repo_config):
+                                logger.info(
+                                    "Skipping disabled repository: %s for arch %s",
+                                    repo_name, architecture
+                                )
+                                continue
+
                         referenced[architecture].append(repo_name)
                         seen[architecture].add(repo_name)
 
@@ -923,7 +960,6 @@ def load_repo_manager_config(config_path, logger):
             config_data (dict): Parsed YAML data.
             is_catalog_based (bool): Always True (catalog-based is the only mode).
     """
-    import yaml
     with open(config_path, 'r', encoding='utf-8') as fh:
         config_data = yaml.safe_load(fh) or {}
 

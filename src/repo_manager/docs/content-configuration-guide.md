@@ -148,8 +148,29 @@ repositories:
         gpgkey: "https://download.example.com/keys/RPM-GPG-KEY-EPEL-10"
         policy: partial
         caching: true
+        enabled: true
         priority: 99
 ```
+
+### Repository Enablement
+
+Repositories can be individually enabled or disabled using the `enabled` field:
+
+```yaml
+repositories:
+  "10.0":
+    x86_64:
+      epel:
+        url: "https://download.example.com/epel/10/Everything/x86_64/"
+        enabled: false  # Disable this repository
+      cuda:
+        url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/"
+        enabled: true   # Explicitly enable (or omit for default)
+```
+
+- **Default**: `true` (repositories are enabled by default for backward compatibility)
+- **Effect**: Disabled repositories are excluded from catalog resolution, package indexing, and Pulp sync operations
+- **Use cases**: Reduce storage/bandwidth by disabling unused repositories, security control, deployment customization
 
 ### Subscription and Explicit Repository Sources
 

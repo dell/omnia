@@ -143,6 +143,11 @@
           "type": "boolean",
           "description": "Enable local caching (default: true)"
         },
+        "enabled": {
+          "type": "boolean",
+          "description": "Repository enablement (default: true). When false, the repository is excluded from catalog resolution, package indexing, and Pulp sync operations.",
+          "default": true
+        },
         "sslcacert": {
           "type": ["string", "null"],
           "description": "Path to SSL CA certificate"
