@@ -158,8 +158,10 @@
         name: "{{ pulp_container_name }}.service"
         state: stopped
         enabled: false
-      when:
-        - (pulp_container_name ~ '.service') in ansible_facts['services']
+      when: >-
+        ansible_facts.services.get(
+          pulp_container_name ~ '.service', {}
+        ).get('status', 'not-found') != 'not-found'
 
     - name: Remove Pulp systemd unit files
       ansible.builtin.file:
