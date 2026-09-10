@@ -302,7 +302,9 @@ TEST_ASSERT_MSGS = {
     "catalog_validate_must_succeed": "Catalog validate must succeed",
     # User Registry Tests
     "user_registry_validation_must_pass": "User registry validation playbook must succeed",
-    "user_registry_section_must_exist": "Registries section must exist in config when registries are defined",
+    "user_registry_section_must_exist": (
+        "Registries section must exist in config when registries are defined"
+    ),
     "user_registry_structure_must_be_valid": "All registry entries must have valid structure",
     "user_registry_base_url_must_be_valid": "Registry base_url must be a valid HTTP(S) origin",
     "user_registry_must_be_reachable": "All configured registries must be reachable",
