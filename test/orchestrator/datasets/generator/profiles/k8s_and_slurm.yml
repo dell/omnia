@@ -8,22 +8,22 @@
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
 ---
 # =============================================================================
-# slurm_only.yml — SLURM-specific profile for orchestrator dataset generation
+# k8s_and_slurm.yml — Combined Kubernetes + Slurm profile for orchestrator dataset generation
 # =============================================================================
-# Extends defaults.yml with SLURM-specific configuration values
-# =============================================================================
-
-# =============================================================================
-# SLURM-Specific Configuration
+# Extends defaults.yml with combined Kubernetes and Slurm configuration values
 # =============================================================================
 
-# DCGM enabled for SLURM GPU monitoring
+# =============================================================================
+# Combined K8s + Slurm Configuration
+# =============================================================================
+
+# DCGM enabled for combined deployments (SLURM GPU monitoring)
 dcgm_enabled: true
 
 # =============================================================================

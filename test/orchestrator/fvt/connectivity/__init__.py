@@ -11,20 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# =============================================================================
-# Orchestrator — Network Specification (Generated from Template)
-# =============================================================================
-
----
-Networks:
-  - name: "slurm_network"
-    type: "vlan"
-    vlan_id: 100
-    subnet: "192.168.100.0/24"
-    gateway: "192.168.100.1"
-    domain_name: "slurm.local"
-    ntp_servers:
-      - "192.168.100.1"
-    dns_servers:
-      - "192.168.100.1"
