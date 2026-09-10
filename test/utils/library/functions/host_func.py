@@ -321,19 +321,14 @@ def sync_project_to_remote(host) -> Dict[str, Any]:
 def sync_utils_input(host, config: Dict[str, Any] | None = None) -> Dict[str, Any]:
     """Push utils input files from local source to target.
 
-<<<<<<< HEAD
     Uses secure staging with:
     - Path traversal protection via _resolve_dataset_subdir()
     - Symlink rejection via _reject_symlinks()
     - Credential exclusion via ignore patterns
     - Temporary staging directory for safe file operations
 
-    Args:
-        host: Testinfra host object.
-=======
     Reads ``OMNIA_DATA_PATH`` and ``OMNIA_PROJECT_NAME`` from the target
     server's environment to resolve the correct destination::
->>>>>>> 03fa5d12b (feat(utils): implement complete test automation for all scenarios)
 
         <OMNIA_DATA_PATH>/utils/input/<OMNIA_PROJECT_NAME>/
 
@@ -341,28 +336,10 @@ def sync_utils_input(host, config: Dict[str, Any] | None = None) -> Dict[str, An
             datasets/<dataset>/input/ (when dataset is set).
 
     Any credential artifacts are deliberately excluded.
+
+    Args:
+        host: Testinfra host object.
     """
-<<<<<<< HEAD
-    config = load_test_config()
-    conn = connection_params()
-
-    # Resolve source directory with security checks
-    try:
-        local_input = _resolve_input_dir(config)
-    except ValueError as exc:
-        return {
-            "success": False,
-            "details": "",
-            "error": f"Dataset validation failed: {exc}",
-        }
-
-    if not os.path.isdir(local_input):
-        return {
-            "success": False,
-            "details": "",
-            "error": f"Source input directory not found: {local_input}",
-        }
-=======
     if config is None:
         config = load_test_config()
     conn = connection_params()
@@ -372,28 +349,9 @@ def sync_utils_input(host, config: Dict[str, Any] | None = None) -> Dict[str, An
         host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
     )
     ensure_remote_dir(host, remote_input)
->>>>>>> 03fa5d12b (feat(utils): implement complete test automation for all scenarios)
 
     try:
         _reject_symlinks(local_input)
-        with tempfile.TemporaryDirectory(
-            prefix="omnia_utils_input_"
-        ) as staging_dir:
-            staged_input = os.path.join(staging_dir, "input")
-            shutil.copytree(
-                local_input,
-                staged_input,
-                ignore=_input_sync_ignore,
-            )
-
-<<<<<<< HEAD
-        # Ensure target directory exists
-        ensure_remote_dir(host, dest_path)
-
-        # Security check: reject symlinks in the source tree
-        _reject_symlinks(local_input)
-
-        # Stage files in a temporary directory (excludes credentials)
         with tempfile.TemporaryDirectory(
             prefix="omnia_utils_input_"
         ) as staging_dir:
@@ -408,7 +366,7 @@ def sync_utils_input(host, config: Dict[str, Any] | None = None) -> Dict[str, An
             result = sync_files(
                 mode=conn["mode"],
                 src=staged_input,
-                dest=dest_path,
+                dest=remote_input,
                 ip=conn["ip"],
                 user=conn["user"],
                 auth_secret=conn.get("auth_secret", conn.get("password", "")),
@@ -417,36 +375,21 @@ def sync_utils_input(host, config: Dict[str, Any] | None = None) -> Dict[str, An
 
         if result["success"]:
             result["details"] = (
-                f"Input files synced to {dest_path} (credentials excluded)"
+                f"Input files synced to {remote_input} (credentials excluded)"
             )
         return result
-
-=======
-            result = sync_files(
-                mode=conn["mode"], src=staged_input, dest=remote_input,
-                ip=conn["ip"], user=conn["user"],
-                auth_secret=conn["auth_secret"], ssh_opts=conn["ssh_opts"],
-            )
->>>>>>> 03fa5d12b (feat(utils): implement complete test automation for all scenarios)
     except OSError as exc:
         return {
             "success": False,
             "details": "",
             "error": f"Failed to stage utils input: {exc}",
-<<<<<<< HEAD
         }
     except Exception as exc:
         return {
             "success": False,
             "details": "",
             "error": str(exc),
-=======
->>>>>>> 03fa5d12b (feat(utils): implement complete test automation for all scenarios)
         }
-
-    if result["success"]:
-        result["details"] = f"Input files synced to {remote_input} (credentials excluded)"
-    return result
 
 
 # =============================================================================

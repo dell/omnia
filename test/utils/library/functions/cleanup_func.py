@@ -202,7 +202,7 @@ def check_install_os_temp_dir_removed(host):
             "error": str or None
         }
     """
-    temp_path = "/tmp/install_os"
+    temp_path = "/tmp/install_os"  # nosec: B108 - legitimate install_os playbook path
     result = {
         "success": True,
         "path": temp_path,
@@ -239,7 +239,7 @@ def check_install_os_nfs_unmounted(host):
             "error": str or None
         }
     """
-    nfs_path = "/tmp/install_os_nfs"
+    nfs_path = "/tmp/install_os_nfs"  # nosec: B108 - legitimate install_os NFS mount path
     result = {
         "success": True,
         "path": nfs_path,
@@ -409,7 +409,7 @@ def check_all_install_os_cleaned(host, input_path):
         result["details"]["temp_dir"] = temp_result
 
         # Check NFS - skip if NFS mount was never created (install_os not run)
-        nfs_path = "/tmp/install_os_nfs"
+        nfs_path = "/tmp/install_os_nfs"  # nosec: B108 - legitimate install_os NFS mount path
         nfs_check_cmd = f"test -d {nfs_path} || mount | grep -q '{nfs_path}'"
         nfs_check_result = host.run(nfs_check_cmd)
 
