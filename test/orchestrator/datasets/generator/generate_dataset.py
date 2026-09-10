@@ -14,23 +14,21 @@
 # limitations under the License.
 
 """
-Dataset Generator — Renders Jinja2 templates into test dataset directories.
+Dataset Generator — Copies dataset files from src/orchestrator directory.
 
-Replaces duplicated YAML files across datasets with a single set of Jinja2
-templates and YAML variable profiles. Only the values that change between
-datasets are stored in profile files; everything else comes from defaults.yml.
+Instead of using Jinja2 templates, this generator directly copies the actual
+input files from /src/orchestrator/input and sample directories. Profile-based
+filtering determines which files to include in the dataset.
 
 Usage:
     python generate_dataset.py <dataset_name> <profile>
     python generate_dataset.py <dataset_name> <profile> [--var KEY=VALUE ...]
-    python generate_dataset.py <dataset_name> --from-src
     python generate_dataset.py --list-profiles
     python generate_dataset.py --help
 
 Examples:
-    python generate_dataset.py my_ds defaults
+    python generate_dataset.py my_ds k8s_only
     python generate_dataset.py my_custom defaults --var pxe_mapping_file_path=/path/to/mapping.csv
-    python generate_dataset.py my_ds --from-src
 """
 
 import argparse
@@ -40,13 +38,6 @@ import tempfile
 from pathlib import Path
 
 import yaml
-from jinja2 import (
-    Environment,
-    FileSystemLoader,
-    StrictUndefined,
-    TemplateError,
-    select_autoescape,
-)
 
 
 # ---------------------------------------------------------------------------
@@ -54,7 +45,6 @@ from jinja2 import (
 # ---------------------------------------------------------------------------
 GENERATOR_DIR = Path(__file__).resolve().parent
 PROFILES_DIR = GENERATOR_DIR / "profiles"
-TEMPLATES_DIR = GENERATOR_DIR / "templates"
 DATASETS_DIR = GENERATOR_DIR.parent
 # src/ paths (4 levels up from generator/ → test/orchestrator/datasets/generator → repo root)
 REPO_ROOT = GENERATOR_DIR.parents[3]
@@ -102,21 +92,6 @@ def _load_yaml(path):
     """Load a YAML file and return as dict."""
     with open(path, encoding="utf-8") as fh:
         return yaml.safe_load(fh) or {}
-
-
-def _merge_dicts(base, override):
-    """Deep-merge *override* into *base*. Override wins on conflicts."""
-    result = base.copy()
-    for key, value in override.items():
-        if (
-            key in result
-            and isinstance(result[key], dict)
-            and isinstance(value, dict)
-        ):
-            result[key] = _merge_dicts(result[key], value)
-        else:
-            result[key] = value
-    return result
 
 
 def _directory_changes(staging_path: Path, output_dir: Path) -> list[str]:
@@ -174,10 +149,13 @@ def _list_profiles():
     """Print available profiles to stdout."""
     print("\nAvailable profiles:")
     print("-" * 50)
-    print(f"  {_CYAN}{'defaults':20s}{_NC} (base profile — used when no override needed)")
+    print(f"  {_CYAN}{'defaults':20s}{_NC} (base profile — no file filtering)")
     for name, data in _available_profiles():
         dcgm = data.get("dcgm_enabled", "—")
-        print(f"  {_CYAN}{name:20s}{_NC} dcgm_enabled={dcgm}")
+        include_files = data.get("include_files", {})
+        input_count = len(include_files.get("input", []))
+        sample_count = len(include_files.get("samples", []))
+        print(f"  {_CYAN}{name:20s}{_NC} dcgm_enabled={dcgm}, input_files={input_count}, sample_dirs={sample_count}")
     print()
 
 
@@ -200,7 +178,7 @@ def _resolve_variables(profile_name, cli_vars):
                 f"Profile '{profile_name}' not found. "
                 f"Available: defaults, {available}"
             )
-        variables = _merge_dicts(variables, _load_yaml(profile_path))
+        variables.update(_load_yaml(profile_path))
 
     for var_str in cli_vars:
         key, value = _parse_cli_var(var_str)
@@ -211,46 +189,8 @@ def _resolve_variables(profile_name, cli_vars):
 
 
 # ---------------------------------------------------------------------------
-# Render
+# Copy from src
 # ---------------------------------------------------------------------------
-def _render_templates(variables, output_dir):
-    """Render all Jinja2 templates into *output_dir*. Returns file list."""
-    env = Environment(
-        loader=FileSystemLoader(str(TEMPLATES_DIR)),
-        undefined=StrictUndefined,
-        autoescape=select_autoescape(default_for_string=False, default=False),
-        keep_trailing_newline=True,
-        trim_blocks=False,
-        lstrip_blocks=False,
-    )
-
-    rendered = []
-    for tpl_path in sorted(TEMPLATES_DIR.rglob("*.j2")):
-        rel = tpl_path.relative_to(TEMPLATES_DIR)
-        out_name = str(rel).removesuffix(".j2")
-
-        template = env.get_template(str(rel))
-        try:
-            content = template.render(**variables)
-        except TemplateError as exc:
-            _fail(f"Template render error in {rel}: {exc}")
-
-        out_path = output_dir / out_name
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(content, encoding="utf-8")
-
-        rendered.append(out_name)
-        _ok(f"Generated: {out_name}")
-
-    # Create repo_manager_output directory if it doesn't exist
-    repo_output_dir = output_dir / "repo_manager_output"
-    repo_output_dir.mkdir(parents=True, exist_ok=True)
-    rendered.append("repo_manager_output/")
-    _ok("Created: repo_manager_output/")
-
-    return rendered
-
-
 def _copy_from_src(output_dir, profile_data=None):
     """Copy dataset files directly from src/orchestrator/ directory."""
     if not SRC_INPUT_DIR.exists():
@@ -321,8 +261,8 @@ def _copy_from_src(output_dir, profile_data=None):
             image_build_output_dir = output_dir / "image_build_manager_output"
             if image_build_output_dir.exists():
                 shutil.rmtree(image_build_output_dir)
-            shutil.copytree(SRC_IMAGE_BUILD_OUTPUT_DIR, image_build_output_dir)
-            _ok(f"Copied: image_build_manager_output/")
+                shutil.copytree(SRC_IMAGE_BUILD_OUTPUT_DIR, image_build_output_dir)
+                _ok(f"Copied: image_build_manager_output/")
         else:
             _warn(f"image_build_manager_output not found: {SRC_IMAGE_BUILD_OUTPUT_DIR}")
 
@@ -331,7 +271,7 @@ def _copy_from_src(output_dir, profile_data=None):
 
 
 def _generate_readme(dataset_name, profile_name, variables, rendered, output_dir):
-    """Write a README.md summarising the generated dataset."""
+    """Write a README.md summarizing the generated dataset."""
     lines = [
         f"# Dataset: {dataset_name}",
         "",
@@ -345,9 +285,6 @@ def _generate_readme(dataset_name, profile_name, variables, rendered, output_dir
         "| Parameter | Value |",
         "|-----------|-------|",
         f"| Profile | `{profile_name}` |",
-        f"| pxe_mapping_file_path | `{variables.get('pxe_mapping_file_path', '')}` |",
-        f"| language | `{variables.get('language', '')}` |",
-        f"| dns_enabled | `{variables.get('dns_enabled', '')}` |",
         f"| dcgm_enabled | `{variables.get('dcgm_enabled', '')}` |",
         "",
         "## Generated Files",
@@ -380,15 +317,15 @@ def _generate_readme(dataset_name, profile_name, variables, rendered, output_dir
 def main():
     """Entry point for the dataset generator CLI."""
     parser = argparse.ArgumentParser(
-        description="Generate test dataset from Jinja2 templates and profiles.",
+        description="Generate test dataset by copying files from src/orchestrator directory.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s my_k8s_dataset k8s_only --from-src
-  %(prog)s my_slurm_dataset slurm_only --from-src
-  %(prog)s my_combined_dataset k8s_and_slurm --from-src
+  %(prog)s my_k8s_dataset k8s_only
+  %(prog)s my_slurm_dataset slurm_only
+  %(prog)s my_combined_dataset k8s_and_slurm
   %(prog)s my_k8s_dataset k8s_only --check
-  %(prog)s my_slurm_dataset slurm_only --dry-run
+  %(prog)s my_k8s_dataset k8s_only --dry-run
   %(prog)s my_dataset defaults --var pxe_mapping_file_path=/path/to/mapping.csv
   %(prog)s --list-profiles
 """,
@@ -408,7 +345,7 @@ Examples:
         action="append",
         default=[],
         metavar="KEY=VALUE",
-        help="Override a template variable (repeatable)",
+        help="Override a profile variable (repeatable)",
     )
     parser.add_argument(
         "--list-profiles",
@@ -419,11 +356,6 @@ Examples:
         "--force",
         action="store_true",
         help="Overwrite existing dataset directory",
-    )
-    parser.add_argument(
-        "--from-src",
-        action="store_true",
-        help="Copy files directly from src/ instead of rendering templates",
     )
     parser.add_argument(
         "--check",
@@ -446,11 +378,11 @@ Examples:
         parser.print_help()
         sys.exit(1)
 
-    if not args.from_src and not args.profile:
-        parser.error("profile is required unless --from-src is used")
+    if not args.profile:
+        parser.error("profile is required")
 
     dataset_name = args.dataset_name
-    profile_name = args.profile or "defaults"
+    profile_name = args.profile
     output_dir = DATASETS_DIR / dataset_name
 
     print()
@@ -472,21 +404,17 @@ Examples:
     try:
         staging_path.chmod(0o755)
 
-        if args.from_src:
-            _info("Copying from src/orchestrator/")
-            # Use profile for filtering if provided and not defaults
-            if profile_name and profile_name != "defaults":
-                profile_data = _load_yaml(PROFILES_DIR / f"{profile_name}.yml")
-                _info(f"Using profile filter: {profile_name}")
-            else:
-                profile_data = None
-                _info("No profile filter - copying all files")
-            rendered = _copy_from_src(staging_path, profile_data)
-            variables = {}
+        # Load profile for filtering
+        if profile_name and profile_name != "defaults":
+            profile_data = _load_yaml(PROFILES_DIR / f"{profile_name}.yml")
+            _info(f"Using profile filter: {profile_name}")
         else:
-            variables = _resolve_variables(profile_name, args.var)
-            _ok(f"Profile: {profile_name}")
-            rendered = _render_templates(variables, staging_path)
+            profile_data = None
+            _info("No profile filter - copying all files")
+
+        variables = _resolve_variables(profile_name, args.var)
+        _ok(f"Profile: {profile_name}")
+        rendered = _copy_from_src(staging_path, profile_data)
 
         _generate_readme(dataset_name, profile_name, variables, rendered, staging_path)
 
