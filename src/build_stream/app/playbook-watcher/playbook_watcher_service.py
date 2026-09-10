@@ -140,11 +140,7 @@ HOST_LOG_BASE_DIR = Path(f"{OMNIA_DATA_PATH}/build_stream/logs")
 PLAYBOOK_LOG_BASE_DIR = Path("/var/log/omnia")
 
 # Build Stream artifacts directory
-NFS_SHARE_PATH = Path(os.getenv("NFS_SHARE_PATH", ""))
-BUILD_STREAM_ROOT = Path(os.getenv(
-    "NFS_ARTIFACT_BASE",
-    str(NFS_SHARE_PATH / "build_stream_root"),
-))
+BUILD_STREAM_ROOT = Path(OMNIA_DATA_PATH) / "build_stream_root"
 ARTIFACTS_DIR = BUILD_STREAM_ROOT / "artifacts"
 
 POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "2"))

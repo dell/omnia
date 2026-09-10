@@ -17,6 +17,21 @@
   ansible.builtin.include_vars:
     file: "{{ omnia_data_path }}/build_stream/input/{{ project_name | default('project_default') }}/build_stream_config.yml"
 
+- name: Load BuildStream credentials
+  ansible.builtin.include_role:
+    name: orchestrator_common
+    tasks_from: decrypt_include_encrypt.yml
+  vars:
+    credential_file_path: "{{ omnia_data_path }}/build_stream/input/{{ project_name | default('project_default') }}/build_stream_credentials.yml"
+    vault_password_file: "{{ omnia_data_path }}/build_stream/input/{{ project_name | default('project_default') }}/.build_stream_credentials_key"
+
+- name: Validate GitLab SSH password
+  ansible.builtin.assert:
+    that:
+      - hostvars['localhost']['gitlab_ssh_password'] | default('') | length > 0
+    fail_msg: "GitLab SSH password not found. Run the BuildStream credential utility to populate gitlab_ssh_password."
+  no_log: true
+
 - name: Register GitLab SSH credentials
   ansible.builtin.add_host:
     name: "{{ gitlab_host }}"
@@ -24,6 +39,6 @@
     ansible_connection: ssh
     ansible_host: "{{ gitlab_host }}"
     ansible_user: "{{ gitlab_ansible_user | default('root') }}"
-    ansible_ssh_private_key_file: "/root/.ssh/omnia_gitlab"
+    ansible_password: "{{ hostvars['localhost']['gitlab_ssh_password'] }}"
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
   no_log: true
