@@ -73,10 +73,9 @@
 #   ansible-playbook repo_manager.yml --tags status
 #
 #   # Remove the complete Pulp deployment, including its container, image,
-#   # runtime data and CLI configuration. Credential deletion is interactive
-#   # unless cleanup_credentials is explicitly set.
+#   # runtime data and CLI configuration. Credential files are deleted by default.
+#   # Set cleanup_credentials=false to preserve them.
 #   ansible-playbook repo_manager.yml --tags cleanup_pulp
-#   ansible-playbook repo_manager.yml --tags cleanup_pulp -e "cleanup_credentials=true"
 #   ansible-playbook repo_manager.yml --tags cleanup_pulp -e "cleanup_logs=false"
 #   ansible-playbook repo_manager.yml --tags cleanup_pulp -e "cleanup_logs=false" -e "cleanup_credentials=false"
 #
@@ -160,7 +159,7 @@
       ansible.builtin.debug:
         msg: >-
           Run with --tags to specify operation (credentials, prepare, precheck,
-          download, status, cleanup_pulp, cleanup_repos)
+          download, status, cleanup, cleanup_pulp, cleanup_repos)
   tags: always
 
 # -------------------------------------------------------------------------

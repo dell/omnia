@@ -54,11 +54,12 @@
         - name: Create vault key file
           ansible.builtin.lineinfile:
             path: "{{ install_os_credential_file.vault_path }}"
-            line: "{{ lookup('password', '/dev/null chars=ascii_letters length=32') }}"
+            line: "{{ '' | secure_random_password(32) }}"
             mode: "0600"
             owner: root
             create: true
           when: not _install_os_vault_key_stat.stat.exists
+          no_log: true
 
         - name: Encrypt newly created credential file
           ansible.builtin.command: >-
@@ -70,13 +71,14 @@
     - name: Ensure vault key exists for existing credential file
       ansible.builtin.lineinfile:
         path: "{{ install_os_credential_file.vault_path }}"
-        line: "{{ lookup('password', '/dev/null chars=ascii_letters length=32') }}"
+        line: "{{ '' | secure_random_password(32) }}"
         mode: "0600"
         owner: root
         create: true
       when:
         - _install_os_cred_file_stat.stat.exists
         - not _install_os_vault_key_stat.stat.exists
+      no_log: true
 
     # Re-check vault key after potential creation
     - name: Re-check vault key exists

@@ -4,6 +4,11 @@ All notable changes to the `omnia.discovery` collection will be documented in th
 
 ## [2.3.0] - 2026-09-05
 
+### Added
+- Implemented Discovery project-output cleanup with default credential cleanup
+  and a `cleanup_credentials=false` preservation option.
+- Added the `discovery_cleanup` role.
+
 ### Changed
 - Galaxy version set to 2.3.0.
 

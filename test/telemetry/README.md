@@ -13,9 +13,38 @@ bash setup_env.sh
 #    Set SSH credentials:
 bash setup_env.sh --set-creds
 
+#    Set playbook/runtime telemetry credentials separately
+bash setup_env.sh --set-domain-creds
+
 # 3. Run tests
 ./run_validation.sh fvt_telemetry precheck verify
 ```
+
+Interactive secret prompts require two matching entries. For pipeline use,
+pipe the OIM SSH password to `--creds-stdin` or a validated domain-credential
+JSON object to `--domain-creds-stdin`; secret values are not accepted as CLI
+arguments. Domain credentials are written below `TELEMETRY_DATA_PATH` when it
+is non-empty, otherwise below `$OMNIA_DATA_PATH/telemetry`. Both flows require
+`OMNIA_PROJECT_NAME`.
+
+### Environment and credential setup options
+
+| Option | Purpose |
+|--------|---------|
+| *(no option)* | Install into the active virtual environment, or use the default bare-metal installation mode |
+| `--venv` | Create `test/telemetry/.venv` and install there |
+| `--force` | Reinstall dependencies; with `--venv`, recreate the virtual environment |
+| `--set-creds` / `--update-creds` | Interactively create or update OIM SSH and enabled OME/SFM test credentials |
+| `--creds-stdin` | Read only the OIM SSH password from standard input |
+| `--set-domain-creds` / `--update-domain-creds` | Interactively create or update playbook/runtime Telemetry credentials |
+| `--domain-creds-stdin` | Read a validated Telemetry credential JSON object from standard input |
+
+`test_creds.yml` is the local Vault-encrypted test-access store. It may contain
+`oim_password` and the enabled OME/SFM fields. The separate runtime store is
+`telemetry_credentials.yml` with fields for enabled iDRAC, MySQL, PowerScale,
+LDMS, UFM, and VAST components. Never commit either Vault key, plaintext
+credentials, or locally populated credential files. Run
+`bash setup_env.sh --help` for the complete command reference.
 
 ## Running Tests
 
@@ -100,7 +129,7 @@ full cleanup test case registry.
 | OR (`,`) | `--marker sink,source` | Tests with EITHER marker |
 
 Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`,
-`ome`, `ldms`, `sfm`, `ufm`, `nft`, `performance`, `idempotency`,
+`ome`, `ldms`, `sfm`, `ufm`, `vast`, `nft`, `performance`, `idempotency`,
 `resilience`
 
 ### Examples
@@ -118,6 +147,10 @@ DELETE_VOLUME=true ./run_validation.sh fvt_telemetry cleanup test           # De
 
 # UFM source only (requires UFM metrics enabled in telemetry_config.yml)
 ./run_validation.sh fvt_telemetry deploy verify --suite sources --marker ufm
+
+# VAST source on an existing Telemetry deployment
+# (verify configures syslog, triggers an event, then verifies it)
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker vast
 ./run_validation.sh fvt_telemetry list
 
 # NFT
@@ -253,9 +286,9 @@ test/telemetry/
 |------|-----|--------|
 | Precheck | 7 | sanity |
 | Validate | 6 | sanity |
-| Deploy | 62 | sanity + functional + source + sink |
+| Deploy | 63 | sanity + functional + source + sink |
 | Cleanup | 15* | sanity + functional |
-| **FVT Total** | **90** | |
+| **FVT Total** | **91** | |
 
 \* One of the two final-state PVC tests
 (`test_no_pvcs_after_full_cleanup` / `test_pvcs_preserved_after_cleanup`)
@@ -277,7 +310,8 @@ mode) — so 14 run when `DELETE_VOLUME=true`, 13 run otherwise.
 `test_cleanup_idempotency_no_pvcs`'s two PVC assertions runs per
 invocation, based on `DELETE_VOLUME` — 4 run in any single invocation.
 
-### Grand Total: **107 Tests defined** (104–105 active in a single run, depending on `DELETE_VOLUME` — see footnotes above)
+### Grand Total: **108 Tests defined** (105–106 active in a single run,
+depending on `DELETE_VOLUME` — see footnotes above)
 
 ## Output Format
 

@@ -498,7 +498,7 @@ ufm_configuration:
 
   # Authentication mode for UFM Prometheus endpoint
   # Accepted values: "basic", "none"
-  # - basic: Use ufm_username/ufm_password from omnia_config_credentials.yml
+  # - basic: Use ufm_username/ufm_password from telemetry_credentials.yml
   # - none: No authentication (UFM endpoint is open)
   # Default: "basic"
   auth_mode: "basic"
@@ -553,7 +553,7 @@ vast_configuration:
 
   # Authentication mode for VAST Prometheus endpoint
   # Accepted values: "basic", "none"
-  # - basic: Use vast_username/vast_password from omnia_config_credentials.yml
+  # - basic: Use vast_username/vast_password from telemetry_credentials.yml
   # - none: No authentication (VAST endpoint is open)
   # Default: "basic"
   auth_mode: "basic"

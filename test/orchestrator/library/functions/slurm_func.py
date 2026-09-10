@@ -41,7 +41,7 @@ from ..vars.slurm_vars import (
 # =============================================================================
 
 def check_slurm_enabled(host) -> Dict[str, Any]:
-    """Check if SLURM is enabled in the catalog.
+    """Check whether SLURM roles were assigned in the PXE mapping.
 
     Args:
         host: Testinfra host connection
@@ -52,21 +52,22 @@ def check_slurm_enabled(host) -> Dict[str, Any]:
     config = load_test_config()
     project = config.get("project_name", "project_default")
 
-    # Check if SLURM functional groups exist in orchestrator_config.yml
-    orchestrator_config_path = f"/opt/omnia/orchestrator/input/{project}/orchestrator_config.yml"
+    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
 
-    cmd = f"test -f {orchestrator_config_path} && cat {orchestrator_config_path}"
+    cmd = (
+        f"test -f {pxe_mapping_path} && "
+        f"tail -n +2 {pxe_mapping_path} | cut -d',' -f1"
+    )
     result = run_on_host(host, cmd)
 
     if result.rc != 0:
         return {
             "success": False,
             "skipped": False,
-            "details": "Orchestrator config file not found",
-            "error": f"Cannot check SLURM status - config file missing: {orchestrator_config_path}"
+            "details": "PXE mapping file not found",
+            "error": f"Cannot check SLURM status - mapping file missing: {pxe_mapping_path}"
         }
 
-    # Check for SLURM functional groups in the config
     slurm_keywords = ["slurm_control", "slurm_node", "slurm_login"]
     has_slurm = any(keyword in result.stdout.lower() for keyword in slurm_keywords)
 
@@ -74,15 +75,15 @@ def check_slurm_enabled(host) -> Dict[str, Any]:
         return {
             "success": True,
             "skipped": False,
-            "details": "SLURM functional groups found in orchestrator config",
+            "details": "SLURM functional groups found in PXE mapping",
             "error": ""
         }
     else:
         return {
             "success": False,
             "skipped": True,
-            "details": "SLURM functional groups not found in orchestrator config",
-            "error": "SLURM is not enabled in the catalog"
+            "details": "SLURM functional groups not found in PXE mapping",
+            "error": "SLURM roles were not assigned to provisioned nodes"
         }
 
 
@@ -1769,5 +1770,4 @@ int main(int argc, char** argv) {
         "error": "",
         "job_id": None
     }
-
 

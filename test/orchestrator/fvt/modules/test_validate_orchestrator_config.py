@@ -39,6 +39,7 @@ from library.messages import (
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_module_structure():
     """TC_MO_001: Test validate_orchestrator_config module structure."""
@@ -67,6 +68,7 @@ def test_module_structure():
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_module_dependencies():
     """TC_MO_002: Test validate_orchestrator_config module dependencies."""

@@ -40,9 +40,11 @@ FVT_TAGS: List[str] = [
     "execute",
     "status",
     "cleanup",
+    "cleanup_repos",
     "policy",
     "negative",
     "catalog",
+    "user_registry",
 ]
 
 # =====================================================================
@@ -54,6 +56,7 @@ MARKERS: List[str] = [
     "functional",
     "positive",
     "negative",
+    "destructive",
     "deploy",
     "x86_64",
     "aarch64",
@@ -64,14 +67,34 @@ MARKERS: List[str] = [
 # =====================================================================
 
 SUITES: Dict[str, List[str]] = {
-    "precheck": ["status"],
-    "prepare": ["status"],
-    "execute": ["status"],
-    "status": ["status"],
-    "cleanup": ["status"],
+    "precheck": [],
+    "prepare": [],
+    "execute": [],
+    "status": [],
+    "cleanup": [],
+    "cleanup_repos": [],
     "policy": [],
     "negative": ["error_scenarios"],
-    "catalog": ["catalog"],
+    "catalog": ["add", "delete", "generate", "negative", "validate"],
+    "user_registry": [],
+}
+
+# Ordered deploy stages used by an untagged ``test`` or ``exec`` command.
+ALL_EXEC_TAGS: List[str] = [
+    "precheck",
+    "prepare",
+    "execute",
+    "status",
+]
+ALL_EXEC_MARKER: str = "sanity"
+ALL_VERIFY_EXCLUDE_MARKERS: List[str] = ["negative", "destructive"]
+
+# Catalog is an umbrella for distinct public operations. Lifecycle execution
+# must select exactly one operation; negative catalog checks are verify-only.
+REQUIRED_SUITE_TAGS: List[str] = ["catalog"]
+VERIFY_ONLY_TAGS: List[str] = ["policy", "negative"]
+VERIFY_ONLY_SUITES: Dict[str, List[str]] = {
+    "catalog": ["negative"],
 }
 
 # =====================================================================
@@ -80,5 +103,7 @@ SUITES: Dict[str, List[str]] = {
 
 EXCLUDE_TAGS: List[str] = [
     "cleanup",
+    "cleanup_repos",
     "negative",
+    "catalog",
 ]

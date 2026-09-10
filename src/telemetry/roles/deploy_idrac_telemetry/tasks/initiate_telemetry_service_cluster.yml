@@ -225,6 +225,7 @@
 
     - name: Validate BMC reachability from control plane
       update_bmc_group_entry:
+        csv_path: "{{ bmc_group_data_filename }}"
         nodes: "{{ filtered_bmc_ip_dict_list }}"
         bmc_username: "{{ telemetry_credentials.bmc_username }}"
         bmc_password: "{{ telemetry_credentials.bmc_password }}"

@@ -36,6 +36,7 @@ from library.messages import (
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_openchami_containers_running(host):
     """TC_PR_001: Verify all OpenCHAMI containers are running."""
@@ -64,6 +65,7 @@ def test_openchami_containers_running(host):
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_openchami_services_active(host):
     """TC_PR_002: Verify OpenCHAMI systemd services are active."""

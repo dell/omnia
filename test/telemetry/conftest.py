@@ -57,6 +57,7 @@ from omnia_auto import (  # noqa: E402
     get_test_output,
     get_last_tc_id,
     encrypt_test_credentials,
+    build_report_name,
     log,
     set_verbose_mode,
     add_session_result,
@@ -161,9 +162,10 @@ def pytest_configure(config):
         "regression": "Regression tests",
         "deploy": "Playbook deployment tests",
         "sink": "Sink (VictoriaMetrics/VictoriaLogs/Kafka) tests",
-        "source": "Source (iDRAC/LDMS/OME/SFM/UFM) tests",
+        "source": "Source (iDRAC/LDMS/OME/SFM/UFM/VAST) tests",
         "ome": "OME (OpenManage Enterprise) specific tests",
         "ldms": "LDMS (Lightweight Distributed Metric Service) specific tests",
+        "vast": "VAST Data storage telemetry specific tests",
         "sfm": "SFM (SmartFabric Manager) specific tests",
         "ufm": "UFM (Unified Fabric Manager) specific tests",
         "nft": "Non-functional tests (performance, idempotency, resilience)",
@@ -318,10 +320,15 @@ def pytest_sessionstart(session):
                 break
 
     report_id = os.environ.get("REPORT_ID")
+    base_name = str(config.get("report_name", "telemetry_test_report"))
+    report_name = build_report_name(
+        domain_name="telemetry",
+        base_name=base_name,
+    )
     report = TestReport(
         module_name=module_name,
         report_path=str(config.get("report_path", "/opt/omnia/reports")),
-        report_name=str(config.get("report_name", "telemetry_test_report")),
+        report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
         report_id=report_id,
     )

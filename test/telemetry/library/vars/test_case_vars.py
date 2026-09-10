@@ -344,9 +344,13 @@ TEST_CASES = {
         "id": "TC_SR_083",
         "title": "Verify VAST storage metrics in VictoriaMetrics",
     },
-    "vast_logs_in_vl": {
+    "vast_test_event_in_victoria_logs": {
         "id": "TC_SR_084",
-        "title": "Verify VAST logs in VictoriaLogs",
+        "title": "Verify fresh VAST test event in VictoriaLogs",
+    },
+    "vast_syslog_configuration": {
+        "id": "TC_SR_085",
+        "title": "Configure VAST syslog and send a test event",
     },
 
     # -- Sources: OME -------------------------------------------------------

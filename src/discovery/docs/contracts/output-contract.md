@@ -1,6 +1,6 @@
 # Discovery — Output Contract
 
-> **Last Updated**: Jul 22, 2026 | **Domain**: `discovery`
+> **Last Updated**: Sep 9, 2026 | **Domain**: `discovery`
 
 This document defines all output artifacts produced by the `discovery` domain.
 
@@ -10,7 +10,7 @@ This document defines all output artifacts produced by the `discovery` domain.
 
 **Purpose**: Maps discovered servers to PXE boot parameters for orchestrator consumption.
 
-**Location**: `/opt/omnia/output/<project_name>/discovery/bmc_pxe_mapping_file_<timestamp>.csv`
+**Location**: `$OMNIA_DATA_PATH/discovery/output/<project_name>/bmc_pxe_mapping_file_<timestamp>.csv`
 
 **Producer**: `ome_discovery` role → `generate_pxe_mapping` module
 
@@ -43,7 +43,7 @@ A symlink `bmc_pxe_mapping_file.csv` always points to the latest timestamped fil
 
 **Purpose**: NIC link status report for operator review. Not consumed programmatically.
 
-**Location**: `/opt/omnia/output/<project_name>/discovery/bmc_discovery_report_<timestamp>.csv`
+**Location**: `$OMNIA_DATA_PATH/discovery/output/<project_name>/bmc_discovery_report_<timestamp>.csv`
 
 **Producer**: `ome_discovery` role → `generate_discovery_report` module
 
@@ -56,13 +56,26 @@ A symlink `bmc_pxe_mapping_file.csv` always points to the latest timestamped fil
 
 ---
 
-## 3. Data Flow to Orchestrator
+## 3. discovery_status.yml
+
+**Purpose**: Records the latest Discovery execution outcome, mechanism, output
+mapping path, discovered-server count, and failure details when applicable.
+
+**Location**: `$OMNIA_DATA_PATH/discovery/output/<project_name>/discovery_status.yml`
+
+**Producer**: `ome_discovery` role
+
+**Consumer**: Operator and automation reporting
+
+---
+
+## 4. Data Flow to Orchestrator
 
 ```
 Discovery Output                              Orchestrator Input
 ──────────────────                             ──────────────────
 bmc_pxe_mapping_file_<ts>.csv ──(manual copy)──► pxe_mapping_file.csv
-                                                 /opt/omnia/input/<project>/orchestrator/
+                                                 $OMNIA_DATA_PATH/orchestrator/input/<project>/
 ```
 
 The mapping file must be **manually reviewed and copied** to the orchestrator
@@ -72,11 +85,34 @@ provisioning.
 
 ---
 
-## 4. Cleanup
+## 5. Cleanup
 
-Discovery outputs are timestamped and accumulate. To clean up:
+The supported cleanup does not remove or create the current-project output
+directory. When the directory exists, cleanup removes every entry inside it,
+including timestamped mappings, the latest symlink, reports, hidden
+directories, and status files, and leaves the empty directory in place:
 
 ```bash
-rm -f /opt/omnia/output/<project>/discovery/bmc_pxe_mapping_file*.csv
-rm -f /opt/omnia/output/<project>/discovery/bmc_discovery_report*.csv
+ansible-playbook playbooks/discovery.yml --tags cleanup
 ```
+
+The same command removes `discovery_credentials.yml` and its vault key by
+default. Preserve those two input artifacts while still removing all outputs:
+
+```bash
+ansible-playbook playbooks/discovery.yml --tags cleanup \
+  -e cleanup_credentials=false
+```
+
+All other Discovery input files are preserved in both cases.
+Use `--tags cleanup_credentials` to remove only the credential file and vault
+key without changing the Discovery output contents.
+An explicit `cleanup_credentials` tag takes precedence over
+`cleanup_credentials=false`.
+
+Cleanup affects only the project selected by `OMNIA_PROJECT_NAME`. Discovery
+log files and all non-credential input files are preserved.
+
+Copy any mapping required by Orchestrator to its input project directory before
+running full Discovery cleanup. Cleanup removes both timestamped mappings and
+the canonical latest-mapping symlink from the Discovery output directory.

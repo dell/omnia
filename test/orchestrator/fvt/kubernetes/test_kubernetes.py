@@ -66,6 +66,7 @@ def skip_if_k8s_disabled(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_k8s_enabled(host):
     """TC_K8_001: Verify Kubernetes is enabled in catalog."""
@@ -90,6 +91,7 @@ def test_k8s_enabled(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_k8s_node_labels(host):
     """TC_K8_022: Verify node labels match functional group roles."""
@@ -116,6 +118,7 @@ def test_k8s_node_labels(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_k8s_node_taints(host):
     """TC_K8_023: Verify control plane nodes have correct taints."""
@@ -142,6 +145,7 @@ def test_k8s_node_taints(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_k8s_apiserver_pod(host):
     """TC_K8_027: Verify kube-apiserver static pod is running."""
@@ -176,6 +180,7 @@ def test_k8s_apiserver_pod(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(5)
 def test_k8s_controller_manager_pod(host):
     """TC_K8_028: Verify kube-controller-manager static pod is running."""
@@ -210,6 +215,7 @@ def test_k8s_controller_manager_pod(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(6)
 def test_k8s_scheduler_pod(host):
     """TC_K8_029: Verify kube-scheduler static pod is running."""
@@ -244,6 +250,7 @@ def test_k8s_scheduler_pod(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(7)
 def test_k8s_cluster_info(host):
     """TC_K8_030: Verify kubectl cluster-info returns valid data."""

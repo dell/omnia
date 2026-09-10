@@ -23,8 +23,12 @@ non-cleanup tag such as `--tags execute`, performs no cleanup at all.
 Run from the `src/orchestrator` directory:
 
 ```bash
-# All enabled components. Credential files are preserved.
+# All enabled components, including Orchestrator credential files.
 ansible-playbook playbooks/orchestrator.yml --tags cleanup
+
+# Preserve the credential file and vault key while cleaning other components.
+ansible-playbook playbooks/orchestrator.yml --tags cleanup \
+  -e cleanup_credentials=false
 
 # Non-interactive selection: clean Kubernetes and preserve Slurm storage.
 ansible-playbook playbooks/orchestrator.yml --tags cleanup \
@@ -33,7 +37,7 @@ ansible-playbook playbooks/orchestrator.yml --tags cleanup \
 # Credential files only.
 ansible-playbook playbooks/orchestrator.yml --tags cleanup_credentials
 
-# All enabled components AND credential files.
+# Explicit full cleanup with credentials (equivalent to the default).
 ansible-playbook playbooks/orchestrator.yml --tags cleanup,cleanup_credentials
 ```
 
@@ -44,8 +48,12 @@ with a tag-validation error.
 ## Component cleanup (via cleanup_orchestrator.yml)
 
 ```bash
-# No tags: all enabled components, credentials preserved.
+# No tags: all enabled components, including credentials.
 ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml
+
+# No tags: preserve credentials while cleaning the other enabled components.
+ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml \
+  -e cleanup_credentials=false
 
 # A single component.
 ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags slurm
@@ -58,8 +66,8 @@ ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags slurm,k8s
 
 | Tag | Scope | Description |
 |-----|-------|-------------|
-| `cleanup` | both | All enabled components; credential files preserved |
-| `cleanup_credentials` | both | Orchestrator credential files only (opt-in) |
+| `cleanup` | both | All enabled components, including Orchestrator credentials by default |
+| `cleanup_credentials` | both | Orchestrator credential files only |
 | `slurm` | component playbook | Slurm NFS data and configuration |
 | `k8s` | component playbook | K8s NFS data and configuration |
 | `storage_mounts` | component playbook | Unmount orchestrator-deployed NFS mounts, clean fstab |
@@ -90,6 +98,29 @@ Kubernetes 70, storage mounts 60, artifacts 50, and credentials 10. Slurm and
 Kubernetes perform their scoped unmount internally after deleting shared data.
 The independent storage-mount component is available only when explicitly
 selected through the component cleanup playbook.
+
+## Credential cleanup selection
+
+Full cleanup removes only the two Orchestrator-owned credential artifacts:
+
+- `orchestrator_credentials.yml`
+- `.orchestrator_credentials_key`
+
+Both are under
+`$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/`. User-provided
+PowerScale CSI secret and values files and credentials owned by other domains
+are not removed.
+
+| `cleanup_credentials` value | Full-cleanup behaviour |
+|-----------------------------|------------------------|
+| `true` | Remove the encrypted credential file and vault key without an additional prompt |
+| `false` | Preserve both files while cleaning the other selected components |
+| omitted | Remove both files (default) |
+
+The extra variable accepts only `true` or `false`. The explicit
+`--tags cleanup_credentials` command remains a credential-only operation and
+takes precedence over the full-cleanup opt-out variable. A later `credentials`
+or `prepare` run recreates the files and prompts for required values.
 
 ## Shared (NFS) data cleanup
 
@@ -164,7 +195,9 @@ SKIP_APPROVAL=true ansible-playbook playbooks/orchestrator.yml --tags cleanup
 Confirmation is skipped automatically when `DRY_RUN=true`, since nothing is modified.
 
 Explicit component runs through `cleanup_orchestrator.yml` retain one
-all-or-nothing confirmation for the selected component list.
+all-or-nothing confirmation when a selected component requires it.
+Credential-only cleanup does not require an additional confirmation because
+the explicit `cleanup_credentials` tag is the user's request to remove it.
 
 ## Dry run mode
 

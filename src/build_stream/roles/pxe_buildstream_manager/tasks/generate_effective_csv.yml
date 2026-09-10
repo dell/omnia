@@ -1,0 +1,212 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Generate a filtered pxe_mapping CSV containing only nodes that have NOT
+# already been successfully booted.  The output CSV is written to a
+# job-specific restart_state directory so the orchestrator pxeboot flow
+# can consume it via the pxeboot_inventory extra-var.
+#
+# Required variables (provided by the caller):
+#   - job_id            BuildStream job identifier
+#   - input_dir         Path to input project directory containing pxe_mapping_file.csv
+#   - restart_state_dir Base restart state directory (without job_id suffix)
+---
+
+- name: Ensure job-specific restart_state directory exists
+  ansible.builtin.file:
+    path: "{{ restart_state_dir }}/{{ job_id }}"
+    state: directory
+    mode: "0755"
+
+# --- Step 1: Read current inventory from pxe_mapping_file.csv ---
+- name: Read PXE mapping file
+  community.general.read_csv:
+    path: "{{ input_dir }}/pxe_mapping_file.csv"
+  register: bsm_pxe_csv_data
+
+- name: Set current inventory BMC IPs
+  ansible.builtin.set_fact:
+    bsm_current_bmc_ips: "{{ bsm_pxe_csv_data.list | map(attribute='BMC_IP') | list }}"
+
+- name: Log current CSV inventory
+  ansible.builtin.debug:
+    msg: "[BSM] Current CSV inventory: {{ bsm_current_bmc_ips | length }} nodes"
+
+# --- Step 2: Read booted nodes from restart_state.json ---
+- name: Check if restart_state.json exists
+  ansible.builtin.stat:
+    path: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
+  register: bsm_state_file_stat
+
+- name: Load booted nodes from restart_state.json
+  when: bsm_state_file_stat.stat.exists
+  block:
+    - name: Read restart_state.json
+      ansible.builtin.slurp:
+        src: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
+      register: bsm_state_raw
+
+    - name: Parse restart_state.json
+      ansible.builtin.set_fact:
+        bsm_restart_state: "{{ bsm_state_raw.content | b64decode | from_json }}"
+
+    - name: Extract booted IPs from restart_state
+      ansible.builtin.set_fact:
+        bsm_booted_ips: "{{ bsm_restart_state.booted_nodes | default([]) | map(attribute='bmc_ip') | list }}"
+
+- name: Default booted IPs to empty if no restart_state.json
+  when: not bsm_state_file_stat.stat.exists
+  ansible.builtin.set_fact:
+    bsm_booted_ips: []
+    bsm_restart_state: {}
+
+- name: Log booted nodes from restart_state
+  ansible.builtin.debug:
+    msg: "[BSM] Booted nodes from restart_state.json: {{ bsm_booted_ips | length }}"
+
+# --- Step 3: Read failed_nodes.json and move status=success to booted ---
+- name: Check if failed_nodes.json exists in restart_state
+  ansible.builtin.stat:
+    path: "{{ restart_state_dir }}/{{ job_id }}/failed_nodes.json"
+  register: bsm_failed_nodes_stat
+
+- name: Process failed_nodes.json for manually booted nodes
+  when: bsm_failed_nodes_stat.stat.exists
+  block:
+    - name: Read failed_nodes.json
+      ansible.builtin.slurp:
+        src: "{{ restart_state_dir }}/{{ job_id }}/failed_nodes.json"
+      register: bsm_failed_raw
+
+    - name: Parse failed_nodes.json
+      ansible.builtin.set_fact:
+        bsm_failed_nodes_data: "{{ (bsm_failed_raw.content | b64decode | from_json).failed_nodes | default([]) }}"
+
+    - name: Extract manually booted IPs (status=success in failed_nodes.json)
+      ansible.builtin.set_fact:
+        bsm_manually_booted_ips: "{{ bsm_failed_nodes_data | selectattr('status', 'equalto', 'success') | map(attribute='bmc_ip') | list }}"
+
+    - name: Log manually booted nodes
+      ansible.builtin.debug:
+        msg: "[BSM] Manually booted (status=success in failed_nodes.json): {{ bsm_manually_booted_ips }}"
+      when: bsm_manually_booted_ips | length > 0
+
+    - name: Merge manually booted IPs with existing booted IPs
+      ansible.builtin.set_fact:
+        bsm_booted_ips: "{{ (bsm_booted_ips + bsm_manually_booted_ips) | unique }}"
+
+    - name: Add manually booted nodes to restart_state.json
+      when: bsm_manually_booted_ips | length > 0
+      block:
+        - name: Build new booted entries for manually booted
+          ansible.builtin.set_fact:
+            bsm_new_booted_entries: >-
+              {{ bsm_new_booted_entries | default([]) + [{
+                'bmc_ip': item.bmc_ip,
+                'hostname': item.hostname | default(''),
+                'booted_at': ansible_date_time.iso8601,
+                'manually_booted': true
+              }] }}
+          loop: "{{ bsm_failed_nodes_data | selectattr('status', 'equalto', 'success') | list }}"
+          when: item.bmc_ip not in (bsm_restart_state.booted_nodes | default([]) | map(attribute='bmc_ip') | list)
+
+        - name: Write updated restart_state.json with manually booted nodes
+          ansible.builtin.copy:
+            content: "{{ bsm_updated_state | to_nice_json }}"
+            dest: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
+            mode: "0644"
+          vars:
+            bsm_existing_booted: "{{ bsm_restart_state.booted_nodes | default([]) | list }}"
+            bsm_new_entries: "{{ bsm_new_booted_entries | default([]) | list }}"
+            bsm_updated_state:
+              updated_at: "{{ ansible_date_time.iso8601 }}"
+              previous_inventory: "{{ bsm_restart_state.previous_inventory | default({'source': 'pxe_mapping_file.csv', 'nodes': []}) }}"
+              booted_nodes: "{{ bsm_existing_booted + bsm_new_entries }}"
+          when: bsm_new_booted_entries | default([]) | length > 0
+
+- name: Default manually booted to empty if no failed_nodes.json
+  when: not bsm_failed_nodes_stat.stat.exists
+  ansible.builtin.set_fact:
+    bsm_manually_booted_ips: []
+
+# --- Step 4: Compute effective inventory = current - booted ---
+- name: Compute effective BMC IPs
+  ansible.builtin.set_fact:
+    bsm_effective_bmc_ips: "{{ bsm_current_bmc_ips | difference(bsm_booted_ips) }}"
+
+- name: Report effective inventory
+  ansible.builtin.debug:
+    msg: >-
+      [BSM] Effective inventory: {{ bsm_current_bmc_ips | length }} in CSV,
+      {{ bsm_booted_ips | length }} booted (excluded),
+      {{ bsm_manually_booted_ips | default([]) | length }} manually booted,
+      {{ bsm_effective_bmc_ips | length }} effective targets
+
+# --- Step 5: Generate filtered CSV ---
+- name: Build effective CSV rows
+  ansible.builtin.set_fact:
+    bsm_effective_rows: "{{ bsm_pxe_csv_data.list | selectattr('BMC_IP', 'in', bsm_effective_bmc_ips) | list }}"
+
+- name: Generate effective inventory CSV
+  when: bsm_effective_rows | length > 0
+  block:
+    - name: Set effective CSV path
+      ansible.builtin.set_fact:
+        bsm_effective_csv_path: "{{ restart_state_dir }}/{{ job_id }}/effective_inventory.csv"
+
+    - name: Build CSV content
+      ansible.builtin.set_fact:
+        _csv_cols: "{{ bsm_pxe_csv_data.list[0].keys() | list }}"
+        _csv_lines: []
+
+    - name: Build CSV data lines
+      ansible.builtin.set_fact:
+        _csv_lines: "{{ _csv_lines + [_csv_cols | map('extract', item) | join(',')] }}"
+      loop: "{{ bsm_effective_rows }}"
+      loop_control:
+        label: "{{ item.BMC_IP | default('unknown') }}"
+
+    - name: Write effective inventory CSV
+      ansible.builtin.copy:
+        content: "{{ (_csv_cols | join(',')) + '\n' + (_csv_lines | join('\n')) + '\n' }}"
+        dest: "{{ bsm_effective_csv_path }}"
+        mode: "0644"
+
+    - name: Set pxeboot_inventory to effective CSV for Play 3
+      ansible.builtin.set_fact:
+        pxeboot_inventory: "{{ bsm_effective_csv_path }}"
+        cacheable: true
+
+    - name: Log effective inventory path
+      ansible.builtin.debug:
+        msg: "[BSM] Generated effective inventory CSV at {{ bsm_effective_csv_path }} ({{ bsm_effective_rows | length }} nodes)"
+
+- name: Handle empty effective inventory
+  when: bsm_effective_bmc_ips | length == 0
+  block:
+    - name: Log empty effective inventory
+      ansible.builtin.debug:
+        msg: "[BSM] All nodes already booted. No nodes need PXE boot."
+
+    - name: Set BSM skip flag for empty inventory
+      ansible.builtin.set_fact:
+        pxe_boot_skip: true
+        bsm_skip_pxe: true
+        cacheable: true
+
+- name: Store CSV node metadata for BSM post-processing
+  ansible.builtin.set_fact:
+    pxe_csv_node_map: "{{ dict(bsm_pxe_csv_data.list | map(attribute='BMC_IP') | zip(bsm_pxe_csv_data.list)) }}"
+    current_inventory: "{{ bsm_pxe_csv_data.list }}"
+    cacheable: true

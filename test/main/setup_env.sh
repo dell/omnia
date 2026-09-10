@@ -28,7 +28,7 @@
 #     --set-creds          — Prompt for SSH password (asks twice for confirmation).
 #                            If credentials exist, asks whether to update them.
 #     --update-creds       — Force-update existing SSH password (prompt twice).
-#     --creds <pass>       — Set SSH password directly (non-interactive).
+#     --creds-stdin        — Read SSH password from standard input.
 #
 #   Credentials are written atomically by omnia_auto to test_creds.yml and
 #   encrypted with Ansible Vault. They may be prepared before selecting a
@@ -41,7 +41,7 @@
 #   ./setup_env.sh --venv --force          # Recreate .venv/ and install
 #   ./setup_env.sh --set-creds             # Prompt for SSH password
 #   ./setup_env.sh --update-creds          # Update existing SSH password
-#   ./setup_env.sh --creds "placeholder"   # Non-interactive setup
+#   approved-secret-provider | ./setup_env.sh --creds-stdin
 #   ./setup_env.sh --debug                 # Verbose pip output
 #   ./setup_env.sh --help                  # Show this help
 # =============================================================================
@@ -49,11 +49,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 VENV_DIR="${SCRIPT_DIR}/.venv"
 REQUIREMENTS="${SCRIPT_DIR}/requirements.txt"
+WHEEL_PATH="${SCRIPT_DIR}/../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl"
 CREDS_FILE="${SCRIPT_DIR}/test_creds.yml"
 CREDS_KEY="${SCRIPT_DIR}/.test_creds.key"
-CRED_CLI="python3 -m omnia_auto"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Colors & helpers
@@ -75,26 +76,25 @@ fail()  { echo -e "  ${RED}[FAIL]${NC} $1"; exit 1; }
 # ─────────────────────────────────────────────────────────────────────────────
 USE_VENV=false
 FORCE=false
-DEBUG=false
 PIP_QUIET="--quiet"
 SET_CREDS=false
 UPDATE_CREDS=false
-CREDS_VALUE=""
+CREDS_FROM_STDIN=false
 TEST_CONFIG="${SCRIPT_DIR}/test_config.yml"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --venv)        USE_VENV=true; shift ;;
-        --force)        FORCE=true; shift ;;
-        --debug)        DEBUG=true; PIP_QUIET=""; shift ;;
-        --set-creds|--set-password)       SET_CREDS=true; shift ;;
-        --update-creds|--update-password) UPDATE_CREDS=true; shift ;;
-        --creds|--password)
-            if [[ $# -lt 2 ]]; then
-                fail "--creds requires a value. Usage: --creds <PASSWORD>"
-            fi
-            CREDS_VALUE="$2"
-            shift 2
+        --force|-f)     FORCE=true; shift ;;
+        --debug)        PIP_QUIET=""; shift ;;
+        --set-creds)     SET_CREDS=true; shift ;;
+        --update-creds)  UPDATE_CREDS=true; shift ;;
+        --creds-stdin)   CREDS_FROM_STDIN=true; shift ;;
+        --set-password|--update-password|--password-stdin)
+            fail "Compatibility credential aliases were removed. Use --set-creds, --update-creds, or --creds-stdin."
+            ;;
+        --creds|--creds=*|--password|--password=*)
+            fail "Secret-valued command-line flags are no longer supported. Pipe the password to --creds-stdin."
             ;;
         --help|-h)
             echo ""
@@ -106,7 +106,7 @@ while [[ $# -gt 0 ]]; do
             echo "─────────────────────────────────────────────────────────────────"
             echo "  (no flag)       Baremetal mode (pip install --user)."
             echo "  --venv          Create .venv/ and install there."
-            echo "  --force         Force-reinstall all requirements."
+            echo "  --force, -f     Force-reinstall all requirements."
             echo "                  With --venv, recreate .venv/ first."
             echo ""
             echo "CREDENTIAL MANAGEMENT"
@@ -121,9 +121,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --update-creds"
             echo "                  Force-update the existing SSH password."
             echo ""
-            echo "  --creds PWD     Non-interactive SSH password set."
-            echo ""
-            echo "  Legacy aliases: --set-password, --update-password, --password"
+            echo "  --creds-stdin   Read SSH password from standard input."
             echo ""
             echo "OTHER"
             echo "─────────────────────────────────────────────────────────────────"
@@ -133,12 +131,22 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         *)
-            echo "Unknown option: $1"
-            echo "Usage: ./setup_env.sh [--venv] [--force] [--debug] [--set-creds] [--help]"
+            echo "Unknown option. Use --help for supported arguments."
+            echo "Usage: ./setup_env.sh [OPTIONS]"
             exit 1
             ;;
     esac
 done
+
+credential_action_count=0
+for selected in "$SET_CREDS" "$UPDATE_CREDS" "$CREDS_FROM_STDIN"; do
+    if [ "$selected" = true ]; then
+        credential_action_count=$((credential_action_count + 1))
+    fi
+done
+if [ "$credential_action_count" -gt 1 ]; then
+    fail "Use only one SSH credential action per invocation."
+fi
 
 echo ""
 echo "================================================================="
@@ -149,24 +157,22 @@ echo ""
 # -----------------------------------------------
 # Step 1: Check Python 3.12+
 # -----------------------------------------------
+_python_is_supported() {
+    "$1" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)' \
+        </dev/null 2>/dev/null
+}
+
 PYTHON_CMD=""
 for cmd in python3.12 python3 python; do
-    if command -v "$cmd" &>/dev/null; then
-        version=$("$cmd" --version 2>&1 | grep -oP '\d+\.\d+')
-        major=$(echo "$version" | cut -d. -f1)
-        minor=$(echo "$version" | cut -d. -f2)
-        if [ "$major" -ge 3 ] && [ "$minor" -ge 12 ]; then
-            PYTHON_CMD="$cmd"
-            break
-        fi
+    if command -v "$cmd" >/dev/null 2>&1 && _python_is_supported "$cmd"; then
+        PYTHON_CMD="$cmd"
+        break
     fi
 done
 
 if [ -z "$PYTHON_CMD" ]; then
     fail "Python 3.12+ is required but not found. Install: dnf install python3.12 python3.12-pip"
 fi
-
-ok "Python: $($PYTHON_CMD --version)"
 
 # -----------------------------------------------
 # Step 2: Determine install mode
@@ -187,29 +193,43 @@ if [ "$USE_VENV" = true ]; then
         ok "Virtual environment already exists: .venv/"
     else
         info "Creating virtual environment: .venv/"
-        "$PYTHON_CMD" -m venv "$VENV_DIR"
+        "$PYTHON_CMD" -m venv "$VENV_DIR" </dev/null
         ok "Virtual environment created"
     fi
 
     # shellcheck disable=SC1091
-    source "${VENV_DIR}/bin/activate"
+    source "${VENV_DIR}/bin/activate" </dev/null
+    PYTHON_CMD="${VENV_DIR}/bin/python"
     ok "Activated .venv/"
 elif [ -n "${VIRTUAL_ENV:-}" ]; then
     INSTALL_MODE="active-venv"
     PIP_USER_FLAG=""
+    PYTHON_CMD="${VIRTUAL_ENV}/bin/python"
     ok "Detected active virtual environment: ${VIRTUAL_ENV}"
 else
     ok "Install mode: baremetal (system Python)"
 fi
 
+if ! _python_is_supported "$PYTHON_CMD"; then
+    fail "The selected Python interpreter must be version 3.12 or newer: ${PYTHON_CMD}"
+fi
+
+ok "Python: $($PYTHON_CMD --version </dev/null 2>&1)"
 echo -e "  ${CYAN}Mode:${NC} ${INSTALL_MODE}"
 
 # -----------------------------------------------
 # Step 3: Install dependencies
 # -----------------------------------------------
+_pip_install() {
+    PIP_NO_INPUT=1 "$PYTHON_CMD" -m pip install --no-input "$@" </dev/null
+}
+
 info "Upgrading pip"
-pip install --upgrade pip $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
-    pip install --upgrade pip $PIP_QUIET
+_pip_install --upgrade pip $PIP_QUIET $PIP_USER_FLAG
+
+if [ ! -f "$WHEEL_PATH" ]; then
+    fail "omnia-auto wheel not found: ${WHEEL_PATH}"
+fi
 
 info "Installing dependencies from requirements.txt"
 PIP_FORCE_ARGS=()
@@ -218,15 +238,68 @@ if [ "$FORCE" = true ]; then
     info "Force-reinstalling all requirements (--force)"
 fi
 
-pip install "${PIP_FORCE_ARGS[@]}" -r "$REQUIREMENTS" \
-    $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
-    pip install "${PIP_FORCE_ARGS[@]}" -r "$REQUIREMENTS" $PIP_QUIET
+_pip_install "${PIP_FORCE_ARGS[@]}" -r "$REQUIREMENTS" \
+    $PIP_QUIET $PIP_USER_FLAG
 
-# pytest-order for test ordering
-if ! pip show pytest-order &>/dev/null; then
-    info "Installing pytest-order"
-    pip install pytest-order $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
-        pip install pytest-order $PIP_QUIET
+_omnia_auto_has_required_features() {
+    "$PYTHON_CMD" -c '
+import inspect
+import omnia_auto
+params = inspect.signature(omnia_auto.sync_files).parameters
+if not {"auth_secret", "port"}.issubset(params) or not callable(omnia_auto.connection_params):
+    raise SystemExit(1)
+' </dev/null 2>/dev/null \
+        && "$PYTHON_CMD" -m omnia_auto write-field --help \
+            </dev/null 2>/dev/null \
+            | grep -q -- "--value-stdin" \
+        && "$PYTHON_CMD" -m omnia_auto write-fields --help \
+            </dev/null 2>/dev/null \
+            | grep -q -- "--fields-stdin"
+}
+
+_omnia_auto_matches_local_wheel() {
+    "$PYTHON_CMD" - "$WHEEL_PATH" 2>/dev/null <<'PY'
+import importlib.util
+from pathlib import Path, PurePosixPath
+import sys
+import zipfile
+
+wheel_path = Path(sys.argv[1])
+spec = importlib.util.find_spec("omnia_auto")
+if spec is None or not spec.submodule_search_locations:
+    raise SystemExit(1)
+package_root = Path(next(iter(spec.submodule_search_locations))).resolve()
+with zipfile.ZipFile(wheel_path) as archive:
+    members = [
+        name for name in archive.namelist()
+        if name.startswith("omnia_auto/") and not name.endswith("/")
+    ]
+    if not members:
+        raise SystemExit(1)
+    for name in members:
+        relative_path = PurePosixPath(name).relative_to("omnia_auto")
+        if ".." in relative_path.parts:
+            raise SystemExit(1)
+        installed_path = package_root.joinpath(*relative_path.parts)
+        if (
+            not installed_path.is_file()
+            or installed_path.read_bytes() != archive.read(name)
+        ):
+            raise SystemExit(1)
+PY
+}
+
+
+if ! _omnia_auto_has_required_features \
+    || ! _omnia_auto_matches_local_wheel; then
+    info "Refreshing the same-version local omnia-auto wheel"
+    _pip_install --force-reinstall --no-deps \
+        "$WHEEL_PATH" $PIP_QUIET $PIP_USER_FLAG
+fi
+
+if ! _omnia_auto_has_required_features \
+    || ! _omnia_auto_matches_local_wheel; then
+    fail "Installed omnia-auto does not match the required local wheel API"
 fi
 
 ok "All dependencies installed"
@@ -234,6 +307,10 @@ ok "All dependencies installed"
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 4: Credential setup (delegated to omnia_auto)
 # ─────────────────────────────────────────────────────────────────────────────
+
+_credential_cli() {
+    "$PYTHON_CMD" -m omnia_auto "$@"
+}
 
 # Display the configured target without requiring one during credential setup.
 _show_oim_server_ip() {
@@ -250,19 +327,37 @@ _show_oim_server_ip() {
     fi
 }
 
-_write_ssh_creds() {
-    local _pass="$1"
-    $CRED_CLI write-fields \
+_prompt_and_write_ssh_creds() {
+    _credential_cli prompt-and-confirm --message "SSH Password" </dev/tty \
+        | _credential_cli write-field \
         --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
-        --fields "{\"oim_password\":\"${_pass}\"}" >/dev/null 2>&1
+        --field oim_password --value-stdin >/dev/null
     ok "SSH credentials saved: test_creds.yml (encrypted)"
+}
+
+_write_ssh_creds_stdin() {
+    _credential_cli write-field \
+        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+        --field oim_password --value-stdin >/dev/null
+    ok "SSH credentials saved: test_creds.yml (encrypted)"
+}
+
+_ssh_credentials_are_set() {
+    if ! _credential_cli is-encrypted \
+        --creds-path "$CREDS_FILE" </dev/null >/dev/null 2>&1; then
+        return 1
+    fi
+    _credential_cli read-field \
+        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+        --field oim_password 2>/dev/null \
+        | grep -q '[^[:space:]]'
 }
 
 # Ask yes/no with strict validation (loops until valid answer)
 _ask_yes_no() {
     local prompt="$1"
     while true; do
-        read -r -p "$prompt (yes/no): " answer
+        read -r -p "$prompt (yes/no): " answer </dev/tty
         case "$answer" in
             yes|YES|Yes|y|Y) return 0 ;;
             no|NO|No|n|N)   return 1 ;;
@@ -272,140 +367,49 @@ _ask_yes_no() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SSH credential dispatch (--set-creds / --update-creds / --creds)
+# SSH credential dispatch
 # ─────────────────────────────────────────────────────────────────────────────
-if [ -n "$CREDS_VALUE" ]; then
+if [ "$CREDS_FROM_STDIN" = true ]; then
     _show_oim_server_ip
-    info "Setting SSH password from --creds flag"
-    _write_ssh_creds "$CREDS_VALUE"
+    info "Reading SSH password from standard input"
+    _write_ssh_creds_stdin
 
 elif [ "$UPDATE_CREDS" = true ]; then
     _show_oim_server_ip
-    if [ ! -f "$CREDS_FILE" ]; then
-        fail "No credentials file found. Use --set-creds to create one first."
+    if ! _ssh_credentials_are_set; then
+        fail "No valid SSH credentials found. Use --set-creds first."
     fi
     echo -e "\n  ${CYAN}Update SSH password for the target OIM server.${NC}\n"
-    _cred_input=$($CRED_CLI prompt-and-confirm --message "SSH Password")
-    _write_ssh_creds "$_cred_input"
+    _prompt_and_write_ssh_creds
 
 elif [ "$SET_CREDS" = true ]; then
     _show_oim_server_ip
 
-    if [ -f "$CREDS_FILE" ]; then
-        warn "SSH password is already set (test_creds.yml exists)."
+    if _ssh_credentials_are_set; then
+        warn "SSH password is already set."
         if _ask_yes_no "  Do you want to update the SSH password?"; then
             echo -e "\n  ${CYAN}Enter new SSH password for the target OIM server.${NC}\n"
-            _cred_input=$($CRED_CLI prompt-and-confirm --message "SSH Password")
-            _write_ssh_creds "$_cred_input"
+            _prompt_and_write_ssh_creds
         else
             ok "SSH password update skipped."
         fi
     else
         echo -e "\n  ${CYAN}Enter SSH password for the target OIM server.${NC}\n"
-        _cred_input=$($CRED_CLI prompt-and-confirm --message "SSH Password")
-        _write_ssh_creds "$_cred_input"
+        _prompt_and_write_ssh_creds
     fi
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # No credential flags — status report
 # ─────────────────────────────────────────────────────────────────────────────
-if [ -z "$CREDS_VALUE" ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = false ]; then
-    if [ -f "$CREDS_FILE" ]; then
-        ok "Credentials file exists: test_creds.yml"
+if [ "$CREDS_FROM_STDIN" = false ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = false ]; then
+    if _ssh_credentials_are_set; then
+        ok "SSH credentials: test_creds.yml (encrypted)"
         ok "SSH: re-run with --set-creds or --update-creds to change"
     else
-        warn "No credentials file found (test_creds.yml)"
+        warn "No valid SSH credentials found (test_creds.yml)"
         warn "SSH creds: ./setup_env.sh --set-creds"
     fi
-fi
-
-# =============================================================================
-# REGISTER run_validation FUNCTION AND TAB COMPLETION IN .venv/bin/activate
-# =============================================================================
-
-if [ "$INSTALL_MODE" = "venv" ]; then
-    ACTIVATE_SCRIPT="${VENV_DIR}/bin/activate"
-    MARKER="# >>> omnia-main-test >>>"
-    MARKER_END="# <<< omnia-main-test <<<"
-
-# Remove any previous block (idempotent)
-if grep -q "${MARKER}" "${ACTIVATE_SCRIPT}" 2>/dev/null; then
-    sed -i "/${MARKER}/,/${MARKER_END}/d" "${ACTIVATE_SCRIPT}"
-fi
-
-cat >> "${ACTIVATE_SCRIPT}" << 'MAIN_ACTIVATE_EOF'
-
-# >>> omnia-main-test >>>
-# Added by setup_env.sh — shell function and tab-completion
-
-# Shell function so run_validation works without ./
-run_validation() {
-    "${VIRTUAL_ENV%/.venv}/run_validation.sh" "$@"
-}
-
-# Tab-completion for run_validation
-_run_validation_completions() {
-    local cur prev
-    cur="${COMP_WORDS[COMP_CWORD]}"
-    prev="${COMP_WORDS[COMP_CWORD-1]}"
-    local fvt_dir="${VIRTUAL_ENV%/.venv}/fvt"
-    local scenarios=""
-    if [ -d "${fvt_dir}" ]; then
-        for d in "${fvt_dir}"/*/; do
-            [ -d "$d" ] || continue
-            local name
-            name="$(basename "$d")"
-            [ "$name" = "__pycache__" ] && continue
-            scenarios="${scenarios} ${name}"
-        done
-    fi
-    local commands="exec verify test"
-    local categories="fvt_main nft_main"
-    local special="help --config --help"
-    local options="--suite --marker -v --verbose --debug"
-    local markers="sanity functional regression deploy"
-    case "$COMP_CWORD" in
-        1) COMPREPLY=( $(compgen -W "${categories} ${special}" -- "$cur") ) ;;
-        2)
-            case "$prev" in
-                fvt_main) COMPREPLY=( $(compgen -W "${scenarios} ${commands} list" -- "$cur") ) ;;
-                nft_main) COMPREPLY=( $(compgen -W "test verify list" -- "$cur") ) ;;
-                *) COMPREPLY=() ;;
-            esac ;;
-        3)
-            if [ "${COMP_WORDS[1]}" = "fvt_main" ] && \
-               [[ " ${scenarios} " == *" ${COMP_WORDS[2]} "* ]]; then
-                COMPREPLY=( $(compgen -W "${commands}" -- "$cur") )
-            else
-                COMPREPLY=( $(compgen -W "${options}" -- "$cur") )
-            fi ;;
-        *)
-            case "$prev" in
-                --suite)
-                    local scenario="${COMP_WORDS[2]}"
-                    local suites=""
-                    if [ -d "${fvt_dir}/${scenario}" ]; then
-                        for d in "${fvt_dir}/${scenario}"/*/; do
-                            [ -d "$d" ] || continue
-                            local name
-                            name="$(basename "$d")"
-                            [ "$name" = "__pycache__" ] && continue
-                            suites="${suites} ${name}"
-                        done
-                    fi
-                    COMPREPLY=( $(compgen -W "${suites}" -- "$cur") ) ;;
-                --marker) COMPREPLY=( $(compgen -W "${markers}" -- "$cur") ) ;;
-                *) COMPREPLY=( $(compgen -W "${options}" -- "$cur") ) ;;
-            esac ;;
-    esac
-}
-complete -F _run_validation_completions run_validation
-
-# <<< omnia-main-test <<<
-MAIN_ACTIVATE_EOF
-
-    ok "Registered run_validation and tab-completion in venv activate"
 fi
 
 echo ""
