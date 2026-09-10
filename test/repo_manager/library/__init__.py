@@ -16,3 +16,23 @@
 
 from .functions import repo_manager_func
 from .functions import host_func
+from .functions.repo_manager_func import (
+    check_repo_policy,
+    check_repo_caching,
+    check_pulp_mode,
+    verify_repo_status_pulp_mode,
+    check_global_repo_config,
+    check_global_caching_policy,
+    check_pulp_remote_policy,
+    check_pulp_repository_exists,
+    verify_policy_resolution,
+    # User Registry
+    check_user_registry_section_exists,
+    check_user_registry_structure,
+    check_user_registry_base_url_valid,
+    check_user_registry_reachability,
+    check_user_registry_tls_cert_paths,
+    check_user_registry_tls_pair_consistent,
+    check_user_registry_auth_type,
+    check_user_registry_credentials,
+)
