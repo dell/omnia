@@ -29,7 +29,6 @@ Examples:
 """
 
 import argparse
-import os
 import shutil
 import sys
 from pathlib import Path
@@ -54,19 +53,19 @@ def validate_source_path(source_path: Path) -> None:
     """
     if not source_path.exists():
         raise ValueError(f"Source path does not exist: {source_path}")
-    
+
     if not source_path.is_dir():
         raise ValueError(f"Source path is not a directory: {source_path}")
-    
+
     # Check for required input directory
     input_dir = source_path / "input"
     if not input_dir.exists():
         raise ValueError(f"Source dataset must contain an 'input' directory: {source_path}")
-    
+
     # Check for at least one required file
     required_files = ["collect_pxe.yml", "install_os_config.yml"]
     found_files = [f for f in required_files if (input_dir / f).exists()]
-    
+
     if not found_files:
         raise ValueError(
             f"Source dataset input directory must contain at least one of: {required_files}"
@@ -89,34 +88,34 @@ def import_dataset(source_path: Path, dataset_name: str, force: bool = False) ->
     """
     # Validate source
     validate_source_path(source_path)
-    
+
     # Validate dataset name
     if not dataset_name or dataset_name in {".", "..", "generator"}:
         raise ValueError(f"Invalid dataset name: {dataset_name}")
-    
+
     if "/" in dataset_name or "\\" in dataset_name:
         raise ValueError(f"Dataset name cannot contain path separators: {dataset_name}")
-    
+
     # Check if dataset already exists
     target_dir = DATASETS_DIR / dataset_name
     if target_dir.exists():
         if not force:
             raise ValueError(
                 f"Dataset already exists: {dataset_name}. "
-                f"Use --force to overwrite."
+                "Use --force to overwrite."
             )
         print(f"Removing existing dataset: {target_dir}")
         shutil.rmtree(target_dir)
-    
+
     # Create target directory
     print(f"Importing dataset: {dataset_name}")
     print(f"Source: {source_path}")
     print(f"Target: {target_dir}")
-    
+
     # Copy the entire dataset
     shutil.copytree(source_path, target_dir)
-    
-    print(f"✓ Dataset imported successfully")
+
+    print("✓ Dataset imported successfully")
     return target_dir
 
 
@@ -128,19 +127,19 @@ def update_test_config(dataset_name: str) -> None:
     """
     if not TEST_CONFIG_FILE.exists():
         raise ValueError(f"Test config file not found: {TEST_CONFIG_FILE}")
-    
+
     # Read current config
-    with open(TEST_CONFIG_FILE, "r") as f:
+    with open(TEST_CONFIG_FILE, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f) or {}
-    
+
     # Update dataset field
     old_dataset = config.get("dataset", "")
     config["dataset"] = dataset_name
-    
+
     # Write updated config
-    with open(TEST_CONFIG_FILE, "w") as f:
+    with open(TEST_CONFIG_FILE, "w", encoding="utf-8") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-    
+
     if old_dataset:
         print(f"✓ Updated test_config.yml: {old_dataset} → {dataset_name}")
     else:
@@ -169,15 +168,16 @@ This dataset was imported from an external location using the dataset importer.
     for file_path in sorted(target_dir.rglob("*")):
         if file_path.is_file() and file_path.name != "README.md":
             readme_content += f"- {file_path.relative_to(target_dir)}\n"
-    
+
     readme_path = target_dir / "README.md"
-    with open(readme_path, "w") as f:
+    with open(readme_path, "w", encoding="utf-8") as f:
         f.write(readme_content)
-    
+
     print(f"✓ Created: {readme_path.relative_to(DATASETS_DIR)}")
 
 
-def main():
+def main() -> None:
+    """Import external test datasets into the datasets directory."""
     parser = argparse.ArgumentParser(
         description="Import external test datasets into the datasets directory."
     )
@@ -209,22 +209,22 @@ def main():
     try:
         # Import the dataset
         target_dir = import_dataset(source_path, dataset_name, args.force)
-        
+
         # Generate README
         generate_import_readme(target_dir, source_path, dataset_name)
-        
+
         # Update test config unless skipped
         if not args.no_config_update:
             update_test_config(dataset_name)
-        
+
         print(f"\n✅ Import complete: {dataset_name}")
         print(f"   Location: {target_dir}")
-        print(f"   Ready to use in tests")
-        
+        print("   Ready to use in tests")
+
     except ValueError as e:
         print(f"❌ Error: {e}", file=sys.stderr)
         sys.exit(1)
-    except Exception as e:
+    except (OSError, yaml.YAMLError) as e:
         print(f"❌ Unexpected error: {e}", file=sys.stderr)
         sys.exit(1)
 
