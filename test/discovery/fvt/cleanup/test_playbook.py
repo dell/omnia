@@ -26,6 +26,7 @@ from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
+from library.vars.test_case_vars import TEST_CASES as TC
 
 
 @pytest.mark.deploy
@@ -33,8 +34,9 @@ from library.messages import (
 @pytest.mark.order(0)
 def test_deploy_cleanup(host):
     """TC_CL_000: Deploy discovery.yml --tags cleanup."""
+    tc = TC["deploy_cleanup"]
     tl = TestLogger(
-        TEST_NAMES["deploy_cleanup"], "TC_CL_000"
+        TEST_NAMES["deploy_cleanup"], tc["id"]
     )
     result = run_playbook(tag="cleanup")
 

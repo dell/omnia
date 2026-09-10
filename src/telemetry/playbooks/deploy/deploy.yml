@@ -31,8 +31,30 @@
 
 # ── Phase 1: Sink infrastructure ─────────────────────────────────────────────
 # Deploy Kafka, VictoriaMetrics, VictoriaLogs based on config-derived flags.
+- name: "Phase 1 | Build sinks list from derived flags"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Build sinks list from derived support flags
+      ansible.builtin.set_fact:
+        sinks_list: >-
+          {{
+            (['kafka'] if (kafka_support | default(false) | bool) else []) +
+            (['victoria_metrics'] if (victoria_metrics_support | default(false) | bool) else []) +
+            (['victoria_logs'] if (victoria_logs_support | default(false) | bool) else [])
+          }}
+        cacheable: true
+
+    - name: Display sinks to be deployed
+      ansible.builtin.debug:
+        msg: "Sinks to deploy: {{ sinks_list }}"
+  tags: deploy
+
 - name: "Phase 1 | Deploy telemetry sinks"
   ansible.builtin.import_playbook: sinks/deploy_sinks.yml
+  vars:
+    sinks: "{{ hostvars['localhost']['sinks_list'] }}"
   tags: deploy
 
 # ── Phase 1.5: Transfer credentials to kube_vip for source deployments ───────
@@ -87,8 +109,8 @@
     hostvars['localhost']['telemetry_config'].telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool or
     hostvars['localhost']['telemetry_config'].telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
 
-# ── Phase 3: Reconciliation — root kustomization + full-stack apply ───────────
-- name: "Reconcile full-stack deployment via kustomization"
+# ── Phase 3: Verification — check pod status and detect errors ───────────────
+- name: "Verify telemetry deployment"
   hosts: kube_vip_group
   gather_facts: false
   any_errors_fatal: true
@@ -96,46 +118,6 @@
     - ../../vars/telemetry_common.yml
   tags: deploy
   tasks:
-    - name: Generate root kustomization.yaml
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: generate_root_kustomization
-
-    - name: Apply full-stack kustomization
-      ansible.builtin.command: >
-        kubectl apply -k {{ telemetry_deployments_dir }}/
-      register: fullstack_kustomize_result
-      changed_when: >
-        'created' in fullstack_kustomize_result.stdout
-        or 'configured' in fullstack_kustomize_result.stdout
-
-    - name: Log full-stack apply result
-      ansible.builtin.debug:
-        msg: "Full-stack kustomize apply result: {{ fullstack_kustomize_result.stdout_lines | default([]) }}"
-
-    - name: Wait for newly created pods to be scheduled
-      ansible.builtin.pause:
-        seconds: 15
-
-    - name: Wait for all telemetry pods to reach Ready state
-      ansible.builtin.shell:
-        cmd: |
-          set -o pipefail
-          kubectl get pods -n {{ telemetry_namespace }} --no-headers \
-            --field-selector=status.phase!=Succeeded \
-            -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' \
-            | xargs -I {} kubectl wait pod/{} -n {{ telemetry_namespace }} \
-              --for=condition=Ready --timeout=300s 2>&1 || true
-        executable: /bin/bash
-      register: pod_wait_result
-      changed_when: false
-      failed_when: false
-
-    - name: Display pod stabilization result
-      ansible.builtin.debug:
-        msg: "All telemetry pods have been checked for Ready state"
-        verbosity: 1
-
     - name: Collect pod status in telemetry namespace
       ansible.builtin.command: >
         kubectl get pods -n {{ telemetry_namespace }} --no-headers
@@ -182,6 +164,7 @@
       register: _kafka_pods
       changed_when: false
       failed_when: false
+      when: hostvars['localhost']['kafka_support'] | default(false) | bool
 
     - name: Check VictoriaMetrics pods
       ansible.builtin.command: >
@@ -189,6 +172,7 @@
       register: _vm_pods
       changed_when: false
       failed_when: false
+      when: hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
 
     - name: Check VictoriaLogs pods
       ansible.builtin.command: >
@@ -196,6 +180,7 @@
       register: _vl_pods
       changed_when: false
       failed_when: false
+      when: hostvars['localhost']['victoria_logs_support'] | default(false) | bool
 
     # -- Source checks --------------------------------------------------------
     - name: Check iDRAC pods
@@ -315,19 +300,28 @@
     # -- Sinks ----------------------------------------------------------------
     - name: Set sink results
       vars:
+        _kafka_requested: "{{ hostvars['localhost']['kafka_support'] | default(false) | bool }}"
         _kafka_running: >-
           {{ (_kv['_kafka_pods'].stdout_lines | default([])
              | select('search', 'Running') | list | length) > 0 }}
+        _vm_requested: "{{ hostvars['localhost']['victoria_metrics_support'] | default(false) | bool }}"
         _vm_running: >-
           {{ (_kv['_vm_pods'].stdout_lines | default([])
              | select('search', 'Running') | list | length) > 0 }}
+        _vl_requested: "{{ hostvars['localhost']['victoria_logs_support'] | default(false) | bool }}"
         _vl_running: >-
           {{ (_kv['_vl_pods'].stdout_lines | default([])
              | select('search', 'Running') | list | length) > 0 }}
       ansible.builtin.set_fact:
-        _deploy_result_kafka: "{{ 'deployed' if (_kafka_running | bool) else 'failed' }}"
-        _deploy_result_victoria_metrics: "{{ 'deployed' if (_vm_running | bool) else 'failed' }}"
-        _deploy_result_victoria_logs: "{{ 'deployed' if (_vl_running | bool) else 'failed' }}"
+        _deploy_result_kafka: >-
+          {{ 'skipped' if not (_kafka_requested | bool)
+             else ('deployed' if (_kafka_running | bool) else 'failed') }}
+        _deploy_result_victoria_metrics: >-
+          {{ 'skipped' if not (_vm_requested | bool)
+             else ('deployed' if (_vm_running | bool) else 'failed') }}
+        _deploy_result_victoria_logs: >-
+          {{ 'skipped' if not (_vl_requested | bool)
+             else ('deployed' if (_vl_running | bool) else 'failed') }}
 
     # -- Sources (metrics only) -----------------------------------------------
     - name: Set source metrics-only results

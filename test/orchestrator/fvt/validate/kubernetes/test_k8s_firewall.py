@@ -27,7 +27,10 @@ from library.functions.k8s_func import (
     check_k8s_nfs_client_target,
 )
 from library.vars.k8s_vars import TEST_CASES
-from library.messages.k8s_msgs import TEST_LOG_MSGS as LOG, TEST_ASSERT_MSGS as ASSERT
+from library.messages import (
+    K8S_TEST_LOG_MSGS as LOG,
+    K8S_TEST_ASSERT_MSGS as ASSERT,
+)
 
 from omnia_auto import log, get_last_tc_id
 

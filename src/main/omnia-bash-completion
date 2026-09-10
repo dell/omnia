@@ -100,7 +100,7 @@ _omnia_tags_for_domain() {
             printf '%s' "precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos upgrade rollback catalog_generate catalog_add catalog_delete catalog_validate"
             ;;
         telemetry)
-            printf '%s' "precheck validate validation execute deploy cleanup cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria"
+            printf '%s' "precheck validate validation credentials execute deploy cleanup cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria"
             ;;
         utils)
             printf '%s' "precheck setup collect install_os cleanup cleanup_logs cleanup_install_os upgrade rollback"

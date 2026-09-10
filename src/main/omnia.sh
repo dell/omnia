@@ -179,7 +179,12 @@ validate_env() {
     actual_hostname="$(hostname -s 2>/dev/null || hostname 2>/dev/null)"
     if [ -n "$actual_hostname" ] && [ "$actual_hostname" != "$SYSTEM_HOSTNAME" ]; then
         echo -e "${RED}ERROR: SYSTEM_HOSTNAME (${SYSTEM_HOSTNAME}) does not match actual hostname (${actual_hostname})${NC}"
-        echo -e "${YELLOW}  Fix: update SYSTEM_HOSTNAME in ${env_file}${NC}"
+        echo -e "${YELLOW}  Fix the installed configuration: update SYSTEM_HOSTNAME in ${env_file}, then re-run ./omnia.sh -s${NC}"
+        if [ "$env_file" = "$SYSTEM_ENV_FILE" ]; then
+            echo -e "${YELLOW}  If you corrected ${SCRIPT_DIR}/omnia.env instead, apply it with:${NC}"
+            echo -e "${YELLOW}    ./omnia.sh -s --force-env${NC}"
+            echo -e "${YELLOW}  Note: --force-env replaces all values in ${SYSTEM_ENV_FILE} with the repository file.${NC}"
+        fi
         echo -e "${YELLOW}  Or:  hostnamectl set-hostname ${SYSTEM_HOSTNAME}${NC}"
         errors=$((errors + 1))
     fi
@@ -305,7 +310,9 @@ install_system_env() {
         echo -e "  ${GREEN}Using existing: ${system_env_file}${NC}"
         if [ -f "$source_env_file" ] && ! diff -q "$source_env_file" "$system_env_file" >/dev/null 2>&1; then
             echo -e "  ${YELLOW}Repository omnia.env differs; preserving the system configuration.${NC}"
-            echo -e "  ${DIM}Use --force-env only when you intend to replace ${system_env_file}.${NC}"
+            echo -e "  ${YELLOW}To apply changes made in ${source_env_file}, run:${NC}"
+            echo -e "    ${YELLOW}./omnia.sh -s --force-env${NC}"
+            echo -e "  ${DIM}This replaces all values in ${system_env_file} with the repository file.${NC}"
         fi
     else
         if [ ! -f "$source_env_file" ]; then
@@ -1100,6 +1107,9 @@ copy_catalog() {
     local catalog_source="${SCRIPT_DIR}/samples/catalog_rhel.json"
     local catalog_target_dir="${OMNIA_DATA_PATH}/catalog"
     local catalog_target_file="${catalog_target_dir}/catalog_rhel.json"
+    local configured_catalog_file="${CATALOG_FILE_PATH:-$catalog_target_file}"
+    local configured_catalog_dir
+    configured_catalog_dir="$(dirname "$configured_catalog_file")"
 
     echo -e "${BLUE}================================================================================${NC}"
     echo -e "${BLUE}               Catalog Copy${NC}"
@@ -1133,7 +1143,32 @@ copy_catalog() {
 
     echo ""
     echo -e "${GREEN}Catalog files copied to: ${catalog_target_dir}/${NC}"
-    echo -e "${GREEN}  CATALOG_FILE_PATH=${catalog_target_file}${NC}"
+    echo -e "${GREEN}Configured catalog file:${NC}"
+    echo -e "  ${GREEN}CATALOG_FILE_PATH=${configured_catalog_file}${NC}"
+    echo -e "  ${DIM}The default catalog contains packages for both Slurm and service_k8s deployments.${NC}"
+    if [ "$configured_catalog_file" != "$catalog_target_file" ]; then
+        echo -e "  ${YELLOW}The configured path differs from the copied default (${catalog_target_file}).${NC}"
+        echo -e "  ${YELLOW}Copy the catalog you want to ${configured_catalog_file} before running catalog-based workflows.${NC}"
+    fi
+    echo ""
+    echo -e "${YELLOW}To use a different catalog:${NC}"
+    echo -e "  ${YELLOW}1. Keep the current path and replace its contents:${NC}"
+    echo -e "     mkdir -p \"${configured_catalog_dir}\""
+    echo -e "     cp /path/to/catalog.json \"${configured_catalog_file}\""
+    echo ""
+    echo -e "  ${YELLOW}2. Or keep a separate filename and update the catalog path:${NC}"
+    echo -e "     cp /path/to/catalog.json \"${configured_catalog_dir}/custom_catalog.json\""
+    echo -e "     vi ${ACTIVE_ENV_FILE:-$SYSTEM_ENV_FILE}"
+    echo -e "     Set: CATALOG_FILE_PATH=${configured_catalog_dir}/custom_catalog.json"
+    echo -e "     source ${PROFILE_DROP_IN}"
+    echo ""
+    echo -e "  ${YELLOW}Example (RHEL 10.0, service_k8s only):${NC}"
+    printf '     cp "%s" \\\n' "${SCRIPT_DIR}/samples/catalogs/10.0/service_k8s_x86_64.json"
+    echo -e "       \"${configured_catalog_dir}/service_k8s_x86_64.json\""
+    echo -e "     Set CATALOG_FILE_PATH=${configured_catalog_dir}/service_k8s_x86_64.json in ${ACTIVE_ENV_FILE:-$SYSTEM_ENV_FILE}"
+    echo ""
+    echo -e "  ${DIM}If you edit ${SCRIPT_DIR}/omnia.env instead of ${ACTIVE_ENV_FILE:-$SYSTEM_ENV_FILE},${NC}"
+    echo -e "  ${DIM}apply it with ./omnia.sh -s --force-env (this replaces the installed env file).${NC}"
     echo ""
 }
 

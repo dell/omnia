@@ -213,6 +213,73 @@
   delegate_to: localhost
   run_once: true  # noqa
 
+# --- Network reachability validation for all Slurm nodes ---
+- name: Check network reachability for all Slurm nodes
+  # HPC: run_once: true prevents loop fan-out
+  ansible.builtin.shell:
+    cmd: "timeout 5 nc -zv {{ item }} 22 2>&1 || echo 'UNREACHABLE'"
+  delegate_to: localhost
+  loop: "{{ all_slurm_node_ips }}"
+  loop_control:
+    label: "{{ item }}"
+  register: node_reachability_check
+  changed_when: false
+  failed_when: false
+  run_once: true
+
+- name: Collect unreachable Slurm nodes
+  # HPC: run_once: true prevents loop fan-out
+  ansible.builtin.set_fact:
+    unreachable_nodes: >-
+      {{
+        node_reachability_check.results |
+        selectattr('stdout', 'search', 'UNREACHABLE') |
+        map(attribute='item') |
+        list
+      }}
+  delegate_to: localhost
+  run_once: true  # noqa
+
+- name: Fail if any Slurm nodes are unreachable
+  # HPC: run_once: true prevents loop fan-out
+  ansible.builtin.fail:
+    msg: |
+      ════════════════════════════════════════════════════════════════════════
+      LDMS VALIDATION FAILED: Slurm nodes unreachable
+      ════════════════════════════════════════════════════════════════════════
+      The following Slurm nodes are not reachable via SSH (port 22):
+      {% for node in unreachable_nodes %}
+        - {{ node }}
+      {% endfor %}
+
+      LDMS requires all Slurm nodes to be reachable for service validation
+      and deployment. Cannot proceed with telemetry deployment until
+      all nodes are accessible.
+
+      Action required for each unreachable node:
+      1. Verify the node is powered on
+      2. Check network connectivity from the Ansible controller
+      3. Ensure SSH service is running on the node
+      4. Verify firewall rules allow SSH (port 22) access
+      5. Test connectivity: ping <node-ip> and ssh root@<node-ip>
+      ════════════════════════════════════════════════════════════════════════
+  when: unreachable_nodes | length > 0
+  delegate_to: localhost
+  run_once: true  # noqa
+
+- name: Display node reachability check — PASSED
+  # HPC: run_once: true prevents loop fan-out
+  ansible.builtin.debug:
+    msg:
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "[PRECHECK] Slurm Node Reachability — PASSED"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "  All {{ all_slurm_node_ips | length }} Slurm node(s) are reachable via SSH  ✓"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  when: unreachable_nodes | length == 0
+  delegate_to: localhost
+  run_once: true  # noqa
+
 # --- Service validation on Slurm control nodes ---
 - name: Check slurmctld service status on Slurm control nodes
   ansible.builtin.systemd:
@@ -289,5 +356,8 @@
   vars:
     control_count: "{{ slurm_control_hosts | length }}"
     compute_count: "{{ slurm_compute_hosts | length }}"
+    login_count: "{{ slurm_login_hosts | length }}"
+    login_compiler_count: "{{ slurm_login_compiler_hosts | length }}"
+    total_count: "{{ all_slurm_node_ips | length }}"
   delegate_to: localhost
   run_once: true  # noqa

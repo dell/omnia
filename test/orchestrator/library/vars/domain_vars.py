@@ -18,9 +18,6 @@ Orchestrator — Domain-specific validation variables.
 Defines FVT tags, pytest markers, suite directories, and cleanup
 exclusions used by ``ValidationRunner`` for this domain.
 
-Includes support for both FVT (Functional Verification Tests) and
-NFT (Non-Functional Tests) for comprehensive testing coverage.
-
 To register a new domain, create a similar file in that domain's
 ``library/vars/`` folder and import it in ``_run.py``.
 """
@@ -38,29 +35,16 @@ DOMAIN_NAME: str = "orchestrator"
 # =====================================================================
 
 FVT_TAGS: List[str] = [
+    "precheck",
     "validate",
     "prepare",
-    "provision",
+    "deploy",
     "cleanup",
-    "rollback",
-    "modules",
-    "roles",
-    "playbooks",
-    "slurm",
-    "kubernetes",
-    # Standalone K8s sub-tags (used by fvt_k8s)
-    "services",
-    "etcd",
-    "ha",
-    "network",
-    "storage",
-    "firewall",
-    "nft",
-    "negative",
 ]
 
 # =====================================================================
 # Pytest markers supported by this domain
+# Aligned with Official Test Automation Design Document v2.0
 # =====================================================================
 
 MARKERS: List[str] = [
@@ -69,12 +53,6 @@ MARKERS: List[str] = [
     "deploy",
     "slurm",
     "kubernetes",
-    "nft",
-    "performance",
-    "idempotency",
-    "security",
-    "negative",
-    "buildstream",
 ]
 
 # =====================================================================
@@ -82,18 +60,11 @@ MARKERS: List[str] = [
 # =====================================================================
 
 SUITES: Dict[str, List[str]] = {
-    "validate": ["status", "slurm", "kubernetes"],
-    "prepare": ["openchami"],
-    "provision": ["slurm", "kubernetes"],
-    "cleanup": ["status"],
-    "rollback": [],
-    "modules": [],
-    "roles": [],
-    "playbooks": [],
-    "slurm": [],
-    "kubernetes": [],
-    "nft": [],
-    "negative": [],
+    "precheck": ["connectivity"],
+    "validate": ["kubernetes", "slurm"],
+    "prepare": ["orchestrator"],
+    "deploy": ["kubernetes", "slurm"],
+    "cleanup": ["cleanup"],
 }
 
 # =====================================================================
@@ -102,7 +73,4 @@ SUITES: Dict[str, List[str]] = {
 
 EXCLUDE_TAGS: List[str] = [
     "cleanup",
-    "rollback",
-    "nft",
-    "negative",
 ]
