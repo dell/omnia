@@ -346,3 +346,35 @@ vast_resources:
   - { type: "service", name: "vast-external" }
   - { type: "vmservicescrape", name: "vast-storage-metrics" }
 vast_pod_label: "app=vast-external"
+
+# =============================================================================
+# Credential cleanup — component-to-credential-field mapping
+# =============================================================================
+# Maps each source component to its credential fields in telemetry_credentials.yml.
+# Used by cleanup_credentials.yml to blank component-specific fields during
+# individual cleanup, or to delete the entire file during complete cleanup.
+#
+# Components without credential fields (ome, kafka, victoria_metrics,
+# victoria_logs) are intentionally absent — they have no stored credentials.
+
+cleanup_credential_file_path: "{{ input_project_dir }}/telemetry_credentials.yml"
+cleanup_credential_vault_key_path: "{{ input_project_dir }}/.telemetry_credentials_key"
+
+cleanup_credential_fields:
+  idrac:
+    - bmc_username
+    - bmc_password
+    - mysqldb_user
+    - mysqldb_password
+    - mysqldb_root_password
+  ldms:
+    - ldms_sampler_password
+  powerscale:
+    - csi_username
+    - csi_password
+  ufm:
+    - ufm_username
+    - ufm_password
+  vast:
+    - vast_username
+    - vast_password
