@@ -53,7 +53,6 @@ from omnia_auto import (
     get_test_output,
     get_last_tc_id,
     encrypt_test_credentials,
-    build_report_name,
     log,
     add_session_result,
     print_summary_table,
@@ -141,39 +140,41 @@ def _item_has_marker(item, marker_name):
 
 
 def pytest_collection_modifyitems(session, config, items):
-    """Filter by --marker expression and sort by order marker."""
+    """Filter by --marker expression and sort by order marker.
+
+    Tests that don't match the marker expression are DESELECTED (not run at all),
+    not skipped. This ensures only relevant tests appear in the report.
+
+    After filtering, tests are sorted by their @pytest.mark.order(n) value.
+    Tests without an order marker default to 999 (run last).
+    """
     marker_expr = config.getoption("--marker", default="")
     mode, markers = _parse_marker_expression(marker_expr)
 
+    # Step 1: Filter by marker expression
     if mode != "none" and markers:
-        filtered = []
+        selected = []
+        deselected = []
         for item in items:
+            matches = False
             if mode == "and":
-                if all(_item_has_marker(item, m) for m in markers):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=f"Missing marker(s) for AND expression: {'+'.join(markers)}"
-                    ))
-                    filtered.append(item)
+                matches = all(_item_has_marker(item, m) for m in markers)
             elif mode == "or":
-                if any(_item_has_marker(item, m) for m in markers):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=f"No matching marker for OR expression: {','.join(markers)}"
-                    ))
-                    filtered.append(item)
+                matches = any(_item_has_marker(item, m) for m in markers)
             elif mode == "single":
-                if _item_has_marker(item, markers[0]):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=f"Missing marker: {markers[0]}"
-                    ))
-                    filtered.append(item)
-        items[:] = filtered
+                matches = _item_has_marker(item, markers[0])
 
+            if matches:
+                selected.append(item)
+            else:
+                deselected.append(item)
+
+        # Report deselected items to pytest
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
+        items[:] = selected
+
+    # Step 2: Sort by order marker (always applied, even without filtering)
     def _get_order(item):
         marker = item.get_closest_marker("order")
         if marker and marker.args:
@@ -268,10 +269,7 @@ def pytest_sessionstart(session):
 
     report_id = os.environ.get("REPORT_ID")
     base_name = str(config.get("report_name", "test_report"))
-    report_name = build_report_name(
-        domain_name="utils",
-        base_name=base_name,
-    )
+    report_name = f"utils_{base_name}"
     report = TestReport(
         module_name=module_name,
         report_path=str(config.get("report_path", "/opt/omnia/reports")),
@@ -362,24 +360,6 @@ def pytest_report_teststatus(report, config):
             return "failed", "", ""
     if report.skipped:
         return "skipped", "", ""
-
-
-# =============================================================================
-# SKIP TESTS IF INPUT VALIDATION FAILED
-# =============================================================================
-
-def pytest_collection_modifyitems(session, config, items):
-    """Skip bundle/metadata tests if input validation failed."""
-    # Check if any input validation test failed in previous run
-    # This is a simple approach - in production, you might want a more sophisticated mechanism
-    for item in items:
-        # Skip bundle and metadata tests if input file validation would fail
-        if "bundle" in item.name.lower() or "metadata" in item.name.lower():
-            # Check if this is a verification test (not env var test)
-            if "env_var" not in item.name.lower():
-                # Add a marker to skip these tests if input is invalid
-                # For now, we'll let them run and fail naturally
-                pass
 
 
 # =============================================================================

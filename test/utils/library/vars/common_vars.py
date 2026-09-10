@@ -72,6 +72,7 @@ INSTALL_OS_CREDENTIALS_FILE = "install_os_credentials.yml"
 #============================================================================
 
 # Playbook entry points (relative to workdir)
+PLAYBOOK_UTILS = "playbooks/utils.yml"
 PLAYBOOK_COLLECT = "playbooks/collect.yml"
 PLAYBOOK_INSTALL_OS = "playbooks/install_os.yml"
 PLAYBOOK_WORKDIR = "src/utils"
@@ -91,6 +92,17 @@ INSTALL_OS_TAGS = [
     "build_iso",
     "deploy",
     "generate_ks",
+]
+
+# Valid playbook tags for utils.yml (main entry point)
+UTILS_PLAYBOOK_TAGS = [
+    "precheck",
+    "setup",
+    "collect",
+    "install_os",
+    "cleanup",
+    "cleanup_logs",
+    "cleanup_install_os",
 ]
 
 # =============================================================================
@@ -137,8 +149,8 @@ IPV4_PATTERN = re.compile(
 )
 
 # Required fields in test_config.yml
+# Note: data_path and project_name are optional - they fall back to env vars
 REQUIRED_CONFIG_FIELDS = [
-    "project_name",
     "clone_path",
     "report_path",
     "report_name",

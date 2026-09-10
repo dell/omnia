@@ -225,11 +225,33 @@ if [[ "${SET_DOMAIN_CREDS}" == "true" ]]; then
     fi
 fi
 
+# Source omnia.env if available (system-wide or local)
+if [[ -f /etc/profile.d/omnia-env.sh ]]; then
+    source /etc/profile.d/omnia-env.sh
+    log_info "Loaded environment from /etc/profile.d/omnia-env.sh"
+elif [[ -f /etc/omnia/omnia.env ]]; then
+    set -a
+    source /etc/omnia/omnia.env
+    set +a
+    log_info "Loaded environment from /etc/omnia/omnia.env"
+fi
+
 log_info "Setup complete!"
 log_info ""
-log_info "IMPORTANT: Before running tests, set environment variables:"
-log_info "  export OMNIA_DATA_PATH=/opt/omnia"
-log_info "  export OMNIA_PROJECT_NAME=project_default"
-log_info ""
-log_info "Or run tests with:"
-log_info "  OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=project_default ./run_validation.sh collect test"
+
+# Check if environment variables are set
+if [[ -n "${OMNIA_DATA_PATH:-}" ]] && [[ -n "${OMNIA_PROJECT_NAME:-}" ]]; then
+    log_info "Environment variables loaded:"
+    log_info "  OMNIA_DATA_PATH=${OMNIA_DATA_PATH}"
+    log_info "  OMNIA_PROJECT_NAME=${OMNIA_PROJECT_NAME}"
+    log_info ""
+    log_info "Ready to run tests:"
+    log_info "  ./run_validation.sh collect test"
+else
+    log_warn "Environment variables not set. Before running tests:"
+    log_info "  export OMNIA_DATA_PATH=/opt/omnia"
+    log_info "  export OMNIA_PROJECT_NAME=project_default"
+    log_info ""
+    log_info "Or run tests with:"
+    log_info "  OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=project_default ./run_validation.sh collect test"
+fi

@@ -11,30 +11,102 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
+
 # =============================================================================
 # Utils Domain — Test Configuration
 # =============================================================================
-# This file contains non-sensitive test settings.
-# Sensitive credentials go in test_creds.yml (auto-encrypted).
+# Non-sensitive settings for FVT (Functional Verification Testing).
+#
+# Usage:
+#   - Set oim_server_ip to the target server where utils playbook runs.
+#   - Leave oim_server_ip empty to run tests locally on the same machine.
+#   - Configure sync options to push input files to the target server.
+#   - Sensitive credentials (SSH password) go in test_creds.yml
+#     (auto-encrypted with Ansible Vault on first run).
+# =============================================================================
 
-# --- Target Server ---
-# Leave empty for local mode (tests run on the same machine)
+---
+
+# =============================================================================
+# TARGET SERVER CONNECTION
+# =============================================================================
+# IP address of the server where utils playbook runs.
+# Leave empty for local mode (running directly on the target server).
+# Set to a remote IP to run all verification commands over SSH.
+#
+# When a remote IP is set, the framework will:
+#   1. Sync the local project code to clone_path on the target (rsync)
+#   2. Sync utils input only when sync_utils_input is true
+#   3. Run all verification tests via SSH/Testinfra
+# Domain credentials are never synced by the framework.
 oim_server_ip: ""
-oim_ssh_user: "root"
+
+# SSH username for remote server (only needed for remote mode).
+oim_ssh_user: root
+
+# SSH port for remote server (only needed for remote mode).
 oim_ssh_port: 22
 
-# --- Project ---
-# Dataset name (directory under datasets/)
-# Leave empty to use src/utils/input/ directly
-dataset: "test_data"
-project_name: "project_default"
+# =============================================================================
+# PROJECT SYNC SETTINGS (remote execution)
+# =============================================================================
+# The local omnia monorepo is synced (rsync) to clone_path on the target.
+# Playbook runs from <clone_path>/src/utils/playbooks/
+#
+# clone_path:   Absolute path on the TARGET SERVER where the project code is
+#               synced.
+#               Only used in remote mode. In local mode, the playbook path is
+#               resolved automatically from the source tree.
 clone_path: "/opt/omnia"
 
-# --- Sync ---
-# Sync input files from dataset or src/ to target
+# =============================================================================
+# DATASET CONFIGURATION
+# =============================================================================
+# Controls where input files are loaded from for test execution.
+#
+# Default (empty):
+#   Leaves the target runtime files unchanged when sync is disabled.
+#   If input sync is enabled, src/utils/input/ is its source.
+#
+# Custom dataset:
+#   Set to a folder name under test/utils/datasets/<name>/.
+#   Setting dataset selects the local sync source; enable sync_utils_input
+#   to copy it to the execution target.
+#   Each dataset folder must contain:
+#     input/collect_pxe.yml
+#     input/install_os_config.yml (optional)
+dataset: ""
+
+# =============================================================================
+# SYNC — UTILS INPUT
+# =============================================================================
+# When true, pushes input files from the selected local source to the target.
+# A non-empty dataset uses datasets/<dataset>/input/; an empty name uses
+# src/utils/input/. Credential files and backups are excluded.
+# Destination: <OMNIA_DATA_PATH>/utils/input/<OMNIA_PROJECT_NAME>/
+#
+# This ensures the target server has the selected collect_pxe.yml and
+# install_os_config.yml before running the playbook.
 sync_utils_input: true
 
-# --- Report ---
+# =============================================================================
+# REPORT CONFIGURATION
+# =============================================================================
+# Directory where test reports (JSON + HTML) are saved.
+# Can be:
+#   - A folder name (relative to the current working directory): reports
+#   - An absolute path: /var/reports/utils
+# No spaces allowed in the path.
 report_path: "reports"
+
+# Base name for report files (without extension).
+# Generates: utils_test_report.json, utils_test_report.html
+# No spaces allowed. Only letters, numbers, underscores, hyphens.
 report_name: "utils_test_report"
+
+# Custom report ID (optional).
+# When set, reports use this ID instead of a timestamp (YYYYMMDDHHmmSS).
+# This groups multiple scenario runs under the same report entry.
+# Leave empty to auto-generate from timestamp.
+# No spaces allowed. Only letters, numbers, underscores, hyphens.
+report_id: ""

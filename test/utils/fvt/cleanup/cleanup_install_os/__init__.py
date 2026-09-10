@@ -13,14 +13,7 @@
 # limitations under the License.
 
 """
-Utils domain FVT package.
+Cleanup Install OS Scenario - Test Package.
 
-Test scenarios:
-- precheck: Environment validation tests
-- setup: Domain setup tests
-- collect: Log collection tests
-- install_os: OS installation tests
-- cleanup_logs: Log cleanup tests
-- cleanup_install_os: Install OS cleanup tests
-- cleanup: Combined cleanup tests
+Tests for utils.yml --tags cleanup_install_os functionality.
 """

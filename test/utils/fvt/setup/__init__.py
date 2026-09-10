@@ -11,24 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
-# Kubernetes control plane nodes (x86_64)
-service_kube_control_plane_x86_64:
 
-# Kubernetes worker nodes (x86_64)
-service_kube_node_x86_64:
+"""
+Setup Scenario - Test Package.
 
-# Slurm controller nodes (x86_64)
-slurm_control_node_x86_64:
-
-# Slurm compute nodes (x86_64)
-slurm_node_x86_64:
-
-# Slurm compute nodes (aarch64)
-slurm_node_aarch64:
-
-# Login nodes (x86_64)
-login_node_x86_64:
-
-# Login compiler nodes (aarch64)
-login_compiler_node_aarch64:
+Tests for utils.yml --tags setup functionality.
+"""
