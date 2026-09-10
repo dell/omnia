@@ -164,15 +164,12 @@
             kafka_infra_only: >-
               {{ hostvars['localhost']['kafka_infra_only'] | default(true) | bool }}
 
-        - name: "Kafka | Record deployment result"
-          ansible.builtin.set_fact:
-            sink_kafka_result: "{{ 'DEPLOYED' if (kafka_deployed | default(false) | bool) else 'PENDING' }}"
-            cacheable: true
-
-    - name: Skip Kafka deployment (not requested)
-      ansible.builtin.debug:
-        msg: "Kafka deployment skipped (not in requested sinks list)"
-      when: not deploy_kafka
+    - name: "Kafka | Set deployment result based on pod status"
+      ansible.builtin.set_fact:
+        sink_kafka_result: >-
+          {{ 'DEPLOYED' if (deploy_kafka and (kafka_deployed | default(false) | bool))
+             else ('FAILED' if deploy_kafka else 'SKIPPED') }}
+        cacheable: true
 
     # ===========================================================================
     # Phase 2: Deploy VictoriaMetrics (VM operator + VMCluster)
@@ -185,15 +182,12 @@
             name: deploy_victoria
             tasks_from: metrics/tasks/main
 
-        - name: "VictoriaMetrics | Record deployment result"
-          ansible.builtin.set_fact:
-            sink_victoria_metrics_result: "{{ 'DEPLOYED' if (victoria_metrics_deployed | default(false) | bool) else 'PENDING' }}"
-            cacheable: true
-
-    - name: Skip VictoriaMetrics deployment (not requested)
-      ansible.builtin.debug:
-        msg: "VictoriaMetrics deployment skipped (not in requested sinks list)"
-      when: not deploy_victoria_metrics
+    - name: "VictoriaMetrics | Set deployment result based on pod status"
+      ansible.builtin.set_fact:
+        sink_victoria_metrics_result: >-
+          {{ 'DEPLOYED' if (deploy_victoria_metrics and (victoria_metrics_deployed | default(false) | bool))
+             else ('FAILED' if deploy_victoria_metrics else 'SKIPPED') }}
+        cacheable: true
 
     # ===========================================================================
     # Phase 3: Deploy VictoriaLogs (VLCluster + VLAgent)
@@ -206,15 +200,12 @@
             name: deploy_victoria
             tasks_from: logs/tasks/main
 
-        - name: "VictoriaLogs | Record deployment result"
-          ansible.builtin.set_fact:
-            sink_victoria_logs_result: "{{ 'DEPLOYED' if (victoria_logs_deployed | default(false) | bool) else 'PENDING' }}"
-            cacheable: true
-
-    - name: Skip VictoriaLogs deployment (not requested)
-      ansible.builtin.debug:
-        msg: "VictoriaLogs deployment skipped (not in requested sinks list)"
-      when: not deploy_victoria_logs
+    - name: "VictoriaLogs | Set deployment result based on pod status"
+      ansible.builtin.set_fact:
+        sink_victoria_logs_result: >-
+          {{ 'DEPLOYED' if (deploy_victoria_logs and (victoria_logs_deployed | default(false) | bool))
+             else ('FAILED' if deploy_victoria_logs else 'SKIPPED') }}
+        cacheable: true
 
 # ---------------------------------------------------------------------------
 # Play 3: Deployment Summary
@@ -236,6 +227,11 @@
         msg: "{{ sink_deployment_summary_lines.split('\n') }}"
 
     - name: Set individual sink deployment status flags
+      vars:
+        kube_vip_host: "{{ kube_vip }}"
+        kafka_status: "{{ hostvars[kube_vip_host]['sink_kafka_result'] | default('SKIPPED') }}"
+        victoria_metrics_status: "{{ hostvars[kube_vip_host]['sink_victoria_metrics_result'] | default('SKIPPED') }}"
+        victoria_logs_status: "{{ hostvars[kube_vip_host]['sink_victoria_logs_result'] | default('SKIPPED') }}"
       ansible.builtin.set_fact:
         kafka_deployed: "{{ kafka_status == 'DEPLOYED' }}"
         victoria_metrics_deployed: "{{ victoria_metrics_status == 'DEPLOYED' }}"
