@@ -234,15 +234,27 @@ def pytest_collection_modifyitems(session, config, items):
 # =============================================================================
 
 def _apply_dataset_overrides(config):
-    """Apply dataset/sync overrides from environment variables."""
+    """Apply dataset/sync overrides from environment variables.
+
+    When OMNIA_DATASET_OVERRIDE is set, automatically enable sync_telemetry_input
+    unless explicitly disabled via OMNIA_SYNC_INPUT_OVERRIDE=false.
+    """
     ds_override = os.environ.get("OMNIA_DATASET_OVERRIDE", "")
     if ds_override:
         log(f"Dataset override: {config.get('dataset')} -> {ds_override}", "INFO")
         config["dataset"] = ds_override
-
-    si_override = os.environ.get("OMNIA_SYNC_INPUT_OVERRIDE", "")
-    if si_override:
-        config["sync_telemetry_input"] = si_override.lower() == "true"
+        # Auto-enable sync when dataset is overridden (unless explicitly disabled)
+        si_override = os.environ.get("OMNIA_SYNC_INPUT_OVERRIDE", "")
+        if si_override:
+            config["sync_telemetry_input"] = si_override.lower() == "true"
+        else:
+            config["sync_telemetry_input"] = True
+            log("Dataset override detected; auto-enabling sync_telemetry_input", "INFO")
+    else:
+        # No dataset override; respect explicit sync override if provided
+        si_override = os.environ.get("OMNIA_SYNC_INPUT_OVERRIDE", "")
+        if si_override:
+            config["sync_telemetry_input"] = si_override.lower() == "true"
 
     return config
 
