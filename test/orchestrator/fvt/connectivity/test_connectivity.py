@@ -24,10 +24,6 @@ Validates target host environment is ready for orchestrator deployment:
 import pytest
 
 from library.functions import TestLogger
-from library.messages import (
-    TEST_LOG_MSGS as LOG,
-    TEST_ASSERT_MSGS as ASSERT,
-)
 
 
 @pytest.mark.sanity
@@ -36,14 +32,10 @@ def test_target_connectivity(host):
     """Verify target host is reachable via SSH."""
     tc = {"title": "Target SSH Connectivity", "id": "TC_PC_001"}
     tl = TestLogger(tc["title"], tc["id"])
-    
+
     # Check if host is reachable
-    try:
-        host.run("echo 'SSH connectivity OK'")
-        tl.passed("SSH connectivity verified", "Target host is reachable via SSH")
-    except Exception as exc:
-        tl.failed("SSH connectivity failed", str(exc))
-        assert False, f"SSH connectivity failed: {exc}"
+    host.run("echo 'SSH connectivity OK'")
+    tl.passed("SSH connectivity verified", "Target host is reachable via SSH")
 
 
 @pytest.mark.sanity
@@ -52,18 +44,18 @@ def test_orchestrator_directories_exist(host):
     """Verify required orchestrator directories exist on target."""
     tc = {"title": "Orchestrator Directories", "id": "TC_PC_002"}
     tl = TestLogger(tc["title"], tc["id"])
-    
+
     required_dirs = [
         "/opt/omnia",
         "/opt/omnia/orchestrator",
     ]
-    
+
     missing_dirs = []
     for dir_path in required_dirs:
         result = host.run(f"test -d {dir_path} && echo 'EXISTS' || echo 'MISSING'")
         if "MISSING" in result.stdout:
             missing_dirs.append(dir_path)
-    
+
     if not missing_dirs:
         tl.passed("All required directories exist", f"Found {len(required_dirs)} directories")
     else:
@@ -77,11 +69,11 @@ def test_input_directory_structure(host):
     """Verify orchestrator input directory structure exists."""
     tc = {"title": "Input Directory Structure", "id": "TC_PC_003"}
     tl = TestLogger(tc["title"], tc["id"])
-    
+
     # Check if input directory exists for the project
     project = "project_default"
     input_path = f"/opt/omnia/orchestrator/input/{project}"
-    
+
     result = host.run(f"test -d {input_path} && echo 'EXISTS' || echo 'MISSING'")
     if "EXISTS" in result.stdout:
         tl.passed("Input directory structure exists", f"Found input directory at {input_path}")
