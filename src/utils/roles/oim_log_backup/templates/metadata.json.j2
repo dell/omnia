@@ -1,0 +1,13 @@
+{
+  "backup_name": "{{ backup_name }}",
+  "backup_generated_at_utc": "{{ backup_generated_at_utc }}",
+  "backup_generated_at_local": "{{ backup_generated_at_local }}",
+  "trigger_user": "{{ trigger_user }}",
+  "oim_host_os": "{{ oim_host_os }}",
+  "domains_included": {{ domains_included | to_json }},
+  "domains_skipped": {{ domains_skipped | to_json }},
+  "archive_sha256": "{{ archive_sha256 }}",
+  "backup_location": "{{ backup_location }}",
+  "exclusions_applied": {{ exclusions_applied | to_json }},
+  "warnings": {{ warnings | to_json }}
+}

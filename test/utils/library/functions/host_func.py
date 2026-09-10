@@ -52,6 +52,7 @@ from ..vars.common_vars import (
     SRC_INPUT_DIR,
     COLLECT_PXE_FILE,
     INSTALL_OS_CREDENTIALS_FILE,
+    BACKUP_OIM_LOGS_CONFIG_FILE,
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
 )
@@ -551,5 +552,42 @@ def get_utils_output_path(host) -> str:
         project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
         # Output is directly in the collect directory
         return f"{data_path}/{DOMAIN_NAME}/output/{project}/collect"
+    except Exception:
+        return ""
+
+
+def get_backup_oim_logs_output_path(host) -> str:
+    """Get the default OIM log backup output path on target.
+
+    Reads OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from the target's
+    environment to resolve the default backup_oim_logs workspace
+    (used when OMNIA_BACKUP_PATH is not set).
+
+    Args:
+        host: Testinfra host object.
+
+    Returns:
+        str: The default backup workspace path or empty string on failure.
+    """
+    try:
+        data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH)
+        project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
+        return f"{data_path}/{DOMAIN_NAME}/output/{project}/backup_oim_logs"
+    except Exception:
+        return ""
+
+
+def get_backup_oim_logs_config_path(host) -> str:
+    """Get the backup_oim_logs_config.yml path on target.
+
+    Args:
+        host: Testinfra host object.
+
+    Returns:
+        str: The config file path or empty string on failure.
+    """
+    try:
+        input_path = get_utils_input_path(host)
+        return f"{input_path}/{BACKUP_OIM_LOGS_CONFIG_FILE}"
     except Exception:
         return ""

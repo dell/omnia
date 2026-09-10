@@ -113,6 +113,8 @@ def pytest_configure(config):
         "collect": "Log collector tests",
         "pxe": "PXE boot tests",
         "install_os": "OS installation tests",
+        "backup_oim_logs": "OIM log backup tests",
+        "cleanup_backup_oim_logs": "OIM log backup cleanup tests",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
