@@ -29,14 +29,15 @@
 # Top-level categories match the run_validation.sh first argument:
 #
 #   fvt_repo_manager  -- Functional Verification Tests (playbook tags)
+#   ut_repo_manager   -- Deterministic unit and source-contract tests
 #
 # FVT scenarios (nested under fvt_repo_manager):
 #   Each scenario maps to an FVT subdirectory.  Fields:
 #     run:          true/false    - Whether to execute this scenario
-#     command:      <string>      - deploy, verify, or test (default: test)
-#                                   deploy = Run the playbook / trigger only
+#     command:      <string>      - exec, verify, or test (default: test)
+#                                   exec   = Run the playbook / trigger only
 #                                   verify = Run verification tests only
-#                                   test   = Deploy + Verify (full flow)
+#                                   test   = Exec + Verify (full flow)
 #     suite:        <folder>      - FVT subfolder filter (empty = all)
 #     marker:       <expression>  - Marker filter expression (empty = all)
 #
@@ -49,19 +50,18 @@
 #
 # Available markers:
 #   Quality:       sanity, functional, positive, negative
-#   Execution:     deploy
+#   Execution:     deploy, destructive
 #   Architecture:  x86_64, aarch64
 #
 # -----------------------------------------------------------------------------
 # Available FVT Suites (subfolders under fvt/<tag>/)
 # -----------------------------------------------------------------------------
-#   validate:      validate
-#   deploy:        deploy
-#   download:      download
-#   status:        status
-#   cleanup:       cleanup
-#   policy:        policy
-#   catalog:       catalog
+#   catalog:       add, delete, generate, negative, validate
+#   negative:      error_scenarios
+#
+#   precheck, prepare, execute, status, cleanup, cleanup_repos, policy,
+#   and user_registry keep their tests directly under the tag directory;
+#   leave suite empty for those scenarios.
 #
 # =============================================================================
 
@@ -74,17 +74,17 @@ skip_on_failure: false
 # FVT -- Functional Verification Tests
 # =============================================================================
 fvt_repo_manager:
-  validate:
+  precheck:
     run: false
     command: "test"
     suite: ""
     marker: "sanity"
-  deploy:
+  prepare:
     run: false
     command: "test"
     suite: ""
     marker: "sanity"
-  download:
+  execute:
     run: false
     command: "test"
     suite: ""
@@ -98,14 +98,37 @@ fvt_repo_manager:
     run: false
     command: "test"
     suite: ""
-    marker: "sanity"
-  policy:
+    marker: "destructive"
+  cleanup_repos:
     run: false
     command: "test"
+    suite: ""
+    marker: "destructive"
+  policy:
+    run: false
+    command: "verify"
     suite: ""
     marker: "sanity"
   catalog:
     run: false
     command: "test"
+    suite: "validate"
+    marker: "sanity"
+  negative:
+    run: false
+    command: "verify"
+    suite: ""
+    marker: "negative"
+  user_registry:
+    run: false
+    command: "verify"
     suite: ""
     marker: "sanity"
+
+# =============================================================================
+# UT -- Deterministic Unit and Source-Contract Tests
+# =============================================================================
+ut_repo_manager:
+  run: false
+  command: "test"
+  marker: ""
