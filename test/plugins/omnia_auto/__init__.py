@@ -85,6 +85,8 @@ from .functions.report_func import (
     TestReport,
     get_current_report,
     set_current_report,
+    build_report_name,
+    record_playbook_failure,
 )
 
 # --- Runner ---
@@ -161,6 +163,8 @@ __all__ = [
     "TestReport",
     "get_current_report",
     "set_current_report",
+    "build_report_name",
+    "record_playbook_failure",
     # Runner
     "run_playbook",
     # Sync
