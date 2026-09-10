@@ -21,3 +21,6 @@
 
 - name: Register GitLab host
   ansible.builtin.include_tasks: gitlab_host.yml
+
+- name: Upload failed_nodes.json to GitLab
+  ansible.builtin.include_tasks: upload_to_gitlab.yml

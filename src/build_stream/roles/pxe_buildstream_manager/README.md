@@ -54,8 +54,7 @@ None.
 ## Tasks
 
 - `main.yml` - Main orchestration
-- `compute_effective_inventory.yml` - Calculate nodes needing restart
-- `cloudinit_node_registration.yml` - Handle post-boot node-registration verification
+- `generate_effective_csv.yml` - Calculate nodes needing restart and generate the retry inventory
 - `upload_to_gitlab.yml` - Upload results to GitLab server
 - `update_restart_state.yml` - Update restart state tracking
 - `write_node_results.yml` - Write node provisioning results

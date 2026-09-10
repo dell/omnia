@@ -30,6 +30,7 @@ from library.messages import (
 
 @pytest.mark.deploy
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(0)
 def test_deploy_provision(host):
     """TC_PV_000: Deploy orchestrator.yml (full provisioning)."""

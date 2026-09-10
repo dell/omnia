@@ -38,6 +38,7 @@ from library.functions import (
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_orchestrator_config_exists():
     """TC_PXE_001: Verify orchestrator_config.yml exists."""
@@ -87,6 +88,7 @@ def test_pxe_boot_flag_validation():
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_pxe_mapping_file_exists():
     """TC_PXE_003: Verify pxe_mapping_file.csv exists."""
@@ -156,6 +158,7 @@ def test_pxe_mapping_file_format():
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(5)
 def test_set_pxe_boot_config_exists():
     """TC_PXE_005: Verify set_pxe_boot_config.yml exists."""
@@ -246,6 +249,7 @@ def test_set_pxe_boot_config_validation():
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(7)
 def test_bmc_credentials_file_exists():
     """TC_PXE_007: Verify omnia_config_credentials.yml exists."""
@@ -501,6 +505,7 @@ def test_pxe_boot_playbook_execution():
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(15)
 def test_idrac_role_exists():
     """TC_PXE_015: Verify idrac_pxe_boot role exists."""
