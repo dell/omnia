@@ -17,11 +17,19 @@
 #
 # USAGE (via orchestrator.yml):
 #   ansible-playbook playbooks/orchestrator.yml --tags cleanup
-#       Cleans every enabled component. Credentials are preserved.
+#       Cleans every enabled component. Prompts independently before deleting
+#       Slurm and Kubernetes shared data. Credentials are removed by default.
+#   ansible-playbook playbooks/orchestrator.yml --tags cleanup \
+#       -e cleanup_credentials=false
+#       Cleans every other enabled component and preserves credential files.
+#   ansible-playbook playbooks/orchestrator.yml --tags cleanup \
+#       -e cleanup_slurm=true -e cleanup_k8s=false
+#       Deletes Slurm shared data without prompting, preserves Kubernetes
+#       shared data, and unmounts both selected storage domains.
 #   ansible-playbook playbooks/orchestrator.yml --tags cleanup_credentials
 #       Cleans orchestrator credential files only.
 #   ansible-playbook playbooks/orchestrator.yml --tags cleanup,cleanup_credentials
-#       Cleans every enabled component AND credential files.
+#       Explicitly cleans every enabled component and credential files.
 #
 # This playbook intentionally exposes ONLY the 'cleanup' and
 # 'cleanup_credentials' tags. Component-level cleanup (slurm, k8s,

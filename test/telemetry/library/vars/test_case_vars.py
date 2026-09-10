@@ -344,9 +344,13 @@ TEST_CASES = {
         "id": "TC_SR_083",
         "title": "Verify VAST storage metrics in VictoriaMetrics",
     },
-    "vast_logs_in_vl": {
+    "vast_test_event_in_victoria_logs": {
         "id": "TC_SR_084",
-        "title": "Verify VAST logs in VictoriaLogs",
+        "title": "Verify fresh VAST test event in VictoriaLogs",
+    },
+    "vast_syslog_configuration": {
+        "id": "TC_SR_085",
+        "title": "Configure VAST syslog and send a test event",
     },
 
     # -- Sources: OME -------------------------------------------------------
@@ -531,5 +535,43 @@ TEST_CASES = {
     "nft_cleanup_idempotent": {
         "id": "NFT_TL_005",
         "title": "Cleanup playbook idempotency (second run exits 0)",
+    },
+
+    # -- NFT: Resilience -----------------------------------------------------
+    "nft_sink_pod_recovery": {
+        "id": "NFT_TL_006",
+        "title": "Sink pod deletion & recovery (Kafka broker)",
+    },
+    "nft_source_pod_recovery": {
+        "id": "NFT_TL_007",
+        "title": "Source pod deletion & recovery (enabled sources)",
+    },
+    "nft_sts_pod_recovery": {
+        "id": "NFT_TL_008",
+        "title": "StatefulSet storage pod recovery (vmstorage/vlstorage)",
+    },
+    "nft_pvc_persistence": {
+        "id": "NFT_TL_009",
+        "title": "PVC persistence after pod deletion",
+    },
+    "nft_service_endpoints": {
+        "id": "NFT_TL_010",
+        "title": "Service endpoint availability after pod restart",
+    },
+    "nft_data_after_restart": {
+        "id": "NFT_TL_011",
+        "title": "Data ingestion after sink restart",
+    },
+    "nft_node_reboot": {
+        "id": "NFT_TL_012",
+        "title": "Node reboot recovery (all pods Running)",
+    },
+    "nft_full_lifecycle": {
+        "id": "NFT_TL_013",
+        "title": "Full lifecycle (cleanup -> redeploy -> verify)",
+    },
+    "nft_operator_recovery": {
+        "id": "NFT_TL_014",
+        "title": "Operator pod recovery (VM/Strimzi operators)",
     },
 }

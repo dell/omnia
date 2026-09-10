@@ -140,8 +140,7 @@ HOST_LOG_BASE_DIR = Path(f"{OMNIA_DATA_PATH}/build_stream/logs")
 PLAYBOOK_LOG_BASE_DIR = Path("/var/log/omnia")
 
 # Build Stream artifacts directory
-NFS_SHARE_PATH = Path(os.getenv("NFS_SHARE_PATH", ""))
-BUILD_STREAM_ROOT = NFS_SHARE_PATH / "omnia" / "build_stream_root"
+BUILD_STREAM_ROOT = Path(OMNIA_DATA_PATH) / "build_stream_root"
 ARTIFACTS_DIR = BUILD_STREAM_ROOT / "artifacts"
 
 POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "2"))
@@ -1089,10 +1088,10 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     #   2. Create venv if it doesn't exist (idempotent)
     #   3. Activate venv
     #   4. Install deps only if requirements.txt is newer than venv marker
-    #   5. Run: python3 _run.py fvt_orchestrator verify --marker buildstream
-    # Test directory: uses OMNIA_CLONE_PATH (set by build_stream setup) or
-    # falls back to /root/omnia (default clone_path in test_config.yml)
-    clone_path = os.environ.get("OMNIA_CLONE_PATH", "/root/omnia")
+    #   5. Run: ./run_validation.sh fvt_orchestrator verify --marker buildstream
+    # Resolve from the same OMNIA_SRC_PATH used for normal playbooks.
+    # OMNIA_SRC_PATH points to <clone_path>/src.
+    clone_path = str(Path(_get_omnia_src_path()).resolve().parent)
     test_dir = os.path.join(clone_path, "test", "orchestrator")
     setup_and_run = (
         f'set -eo pipefail && '
@@ -1106,12 +1105,12 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         f'if [ ! -f .venv/.deps_installed ] || '
         f'   [ requirements.txt -nt .venv/.deps_installed ]; then '
         f'  echo "Installing test dependencies..." && '
-        f'  pip install --upgrade pip -q && '
-        f'  pip install -r requirements.txt -q && '
+        f'  pip install --disable-pip-version-check --no-input --upgrade pip -q && '
+        f'  pip install --disable-pip-version-check --no-input -r requirements.txt -q && '
         f'  touch .venv/.deps_installed; '
         f'fi && '
-        # Run the validation (exec replaces the shell with python3)
-        f'exec python3 _run.py fvt_orchestrator verify --marker buildstream'
+        # Run the validation through its supported non-interactive entry point.
+        f'exec ./run_validation.sh fvt_orchestrator verify --marker buildstream'
     )
     cmd = ["bash", "-c", setup_and_run]
     
@@ -1315,6 +1314,31 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                             with open(dest_path, 'w') as f:
                                 json.dump(filtered_report, f, indent=2)
                             log_secure_info('info', f"Extracted report {report_id} to artifact directory", job_id)
+
+                            # Keep a cumulative report at the validate stage level while
+                            # preserving the isolated report in every attempt directory.
+                            # Rebuild it from the shared report so retries cannot duplicate
+                            # an attempt or overwrite the result from an earlier attempt.
+                            job_report = {"servers": {}}
+                            report_id_prefix = f"{job_id}_attempt_"
+                            for source_server, source_data in full_report["servers"].items():
+                                job_runs = [
+                                    run for run in source_data.get("runs", [])
+                                    if str(run.get("report_id", "")).startswith(report_id_prefix)
+                                ]
+                                if job_runs:
+                                    job_report["servers"][source_server] = {
+                                        "runs": job_runs,
+                                        "hostname": source_data.get("hostname", ""),
+                                    }
+
+                            job_report_path = os.path.join(
+                                str(ARTIFACTS_DIR / job_id / "validate"),
+                                "test_report.json",
+                            )
+                            with open(job_report_path, 'w') as f:
+                                json.dump(job_report, f, indent=2)
+                            log_secure_info('info', "Updated cumulative validate report", job_id)
             except (OSError, json.JSONDecodeError) as e:
                 log_secure_info('warning', f"Failed to extract report: {e}", job_id)
 

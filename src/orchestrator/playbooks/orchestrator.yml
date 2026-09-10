@@ -29,9 +29,10 @@
 #   ansible-playbook playbooks/orchestrator.yml --tags execute         # Provision + PXE boot (if enabled)
 #   ansible-playbook playbooks/orchestrator.yml --tags validate-deployment # Validate OpenCHAMI + OpenLDAP service health
 #   ansible-playbook playbooks/orchestrator.yml --tags pxeboot         # PXE boot on iDRAC nodes (requires enable_pxe_boot: true)
-#   ansible-playbook playbooks/orchestrator.yml --tags cleanup         # Cleanup all components (preserve credentials)
+#   ansible-playbook playbooks/orchestrator.yml --tags cleanup         # Cleanup all components, including credentials
+#   ansible-playbook playbooks/orchestrator.yml --tags cleanup -e cleanup_credentials=false # Preserve credentials
 #   ansible-playbook playbooks/orchestrator.yml --tags cleanup_credentials # Cleanup credentials only
-#   ansible-playbook playbooks/orchestrator.yml --tags cleanup,cleanup_credentials # Cleanup all components + credentials
+#   ansible-playbook playbooks/orchestrator.yml --tags cleanup,cleanup_credentials # Explicit full cleanup + credentials
 #   ansible-playbook playbooks/orchestrator.yml --tags upgrade         # In-place upgrade OpenCHAMI + OpenLDAP
 #   ansible-playbook playbooks/orchestrator.yml --tags rollback        # Revert OpenCHAMI + OpenLDAP to previous state
 #
@@ -46,8 +47,8 @@
 #   execute      — Invoke provision + pxeboot tags (PXE boot conditional on enable_pxe_boot)
 #   validate-deployment — Validate OpenCHAMI and OpenLDAP service health (read-only)
 #   pxeboot      — PXE boot on iDRAC nodes (controlled by enable_pxe_boot in orchestrator_config.yml)
-#   cleanup      — Cleanup all enabled orchestrator components (opt-in only, preserves credentials)
-#   cleanup_credentials — Cleanup orchestrator credential files (opt-in only)
+#   cleanup      — Cleanup all enabled components and credentials; use -e cleanup_credentials=false to preserve credentials
+#   cleanup_credentials — Cleanup only the Orchestrator credential files
 #   upgrade      — In-place upgrade of OpenCHAMI + OpenLDAP (opt-in only)
 #   rollback     — Revert OpenCHAMI + OpenLDAP to previous state from backup (opt-in only)
 #
@@ -99,7 +100,7 @@
 #   execute   -> provision_preamble.yml + provision_*.yml
 #               + validate_provisioning.yml
 #               + pxeboot/pxeboot.yml (when enable_pxe_boot: true)
-#   cleanup   -> cleanup/cleanup_full.yml (all components; credentials opt-in)
+#   cleanup   -> cleanup/cleanup_full.yml (all components; credentials included by default)
 #   upgrade   -> upgrade_openchami.yml   + upgrade_openldap.yml
 #   rollback  -> rollback_openchami.yml  + rollback_openldap.yml
 #

@@ -82,7 +82,12 @@ local encrypted credential file with:
 ```bash
 ./setup_env.sh --set-creds
 ./setup_env.sh --update-creds
+approved-secret-provider | ./setup_env.sh --creds-stdin
 ```
+
+Interactive entry asks for the password twice. For automation, pass it through
+standard input as shown above; secret-valued command-line arguments are not
+supported.
 
 The generated `test_creds.yml` and `.test_creds.key` remain local and are
 gitignored.

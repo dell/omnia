@@ -15,20 +15,109 @@
 
 ---
 
-- name: Get CSI dependencies from local repo
-  when: hostvars['localhost']['csi_driver_powerscale_support']
+- name: Resolve PowerScale CSI artifacts from Repo Manager status
+  when: hostvars['localhost'].get('enable_powerscale_csi', false) | bool
   block:
-    - name: Load csi_driver_powerscale.json and extract versioned package names
-      ansible.builtin.set_fact:
-        csi_powerscale_packages_json: "{{ lookup('file', csi_powerscale_packages_file) | from_json }}"
-      delegate_to: localhost
+    - name: Validate Repo Manager file repository data
+      ansible.builtin.assert:
+        that:
+          - hostvars['localhost']['file_repos'] is defined
+          - hostvars['localhost']['file_repos'] is mapping
+        fail_msg: "{{ powerscale_repo_status_structure_fail_msg }}"
+        quiet: true
 
-    - name: Extract versioned directory names from JSON (these are used as-is for directories)
+    - name: Read x86_64 file repositories
       ansible.builtin.set_fact:
-        csi_powerscale_dir: "{{ csi_powerscale_packages_json['csi_driver_powerscale']['cluster'] | selectattr('type', 'equalto', 'git') | selectattr('package', 'search', 'csi-powerscale') | map(attribute='package') | first }}" # noqa: yaml[line-length]
-        helm_charts_dir: "{{ csi_powerscale_packages_json['csi_driver_powerscale']['cluster'] | selectattr('type', 'equalto', 'git') | selectattr('package', 'search', 'helm-charts') | map(attribute='package') | first }}" # noqa: yaml[line-length]
-        external_snapshotter_dir: "{{ csi_powerscale_packages_json['csi_driver_powerscale']['cluster'] | selectattr('type', 'equalto', 'git') | selectattr('package', 'search', 'external-snapshotter') | map(attribute='package') | first }}" # noqa: yaml[line-length]
-      delegate_to: localhost
+        powerscale_x86_64_file_repos: >-
+          {{ hostvars['localhost']['file_repos'].get('x86_64', none) }}
+
+    - name: Validate x86_64 file repository data
+      ansible.builtin.assert:
+        that:
+          - powerscale_x86_64_file_repos is mapping
+        fail_msg: "{{ powerscale_repo_status_structure_fail_msg }}"
+        quiet: true
+
+    - name: Read x86_64 Git repositories
+      ansible.builtin.set_fact:
+        powerscale_git_repos: >-
+          {{ powerscale_x86_64_file_repos.get('git', none) }}
+
+    - name: Validate x86_64 Git repository data
+      ansible.builtin.assert:
+        that:
+          - powerscale_git_repos is mapping
+        fail_msg: "{{ powerscale_repo_status_structure_fail_msg }}"
+        quiet: true
+
+    - name: Select required PowerScale Git artifacts
+      ansible.builtin.set_fact:
+        csi_powerscale_package_matches: >-
+          {{ powerscale_git_repos | dict2items
+             | selectattr('key', 'match', '^csi-powerscale-v') | list }}
+        helm_charts_package_matches: >-
+          {{ powerscale_git_repos | dict2items
+             | selectattr('key', 'match', '^helm-charts-[0-9]') | list }}
+        external_snapshotter_package_matches: >-
+          {{ powerscale_git_repos | dict2items
+             | selectattr('key', 'match', '^external-snapshotter-v') | list }}
+
+    - name: Validate required PowerScale Git artifact matches
+      ansible.builtin.assert:
+        that:
+          - csi_powerscale_package_matches | length == 1
+          - helm_charts_package_matches | length == 1
+          - external_snapshotter_package_matches | length == 1
+        fail_msg: "{{ powerscale_repo_status_artifacts_fail_msg }}"
+        quiet: true
+
+    - name: Read published PowerScale Git repository URLs
+      ansible.builtin.set_fact:
+        csi_powerscale_repo_url: >-
+          {{ (csi_powerscale_package_matches | first).value }}
+        helm_charts_repo_url: >-
+          {{ (helm_charts_package_matches | first).value }}
+        external_snapshotter_repo_url: >-
+          {{ (external_snapshotter_package_matches | first).value }}
+
+    - name: Validate published PowerScale Git repository URLs
+      ansible.builtin.assert:
+        that:
+          - csi_powerscale_repo_url is string
+          - csi_powerscale_repo_url is match('^https?://')
+          - helm_charts_repo_url is string
+          - helm_charts_repo_url is match('^https?://')
+          - external_snapshotter_repo_url is string
+          - external_snapshotter_repo_url is match('^https?://')
+        fail_msg: "{{ powerscale_repo_status_url_fail_msg }}"
+        quiet: true
+
+    - name: Derive PowerScale package directories from published URLs
+      ansible.builtin.set_fact:
+        csi_powerscale_dir: >-
+          {{ csi_powerscale_repo_url | urlsplit('path')
+             | regex_replace('/+$', '') | basename }}
+        helm_charts_dir: >-
+          {{ helm_charts_repo_url | urlsplit('path')
+             | regex_replace('/+$', '') | basename }}
+        external_snapshotter_dir: >-
+          {{ external_snapshotter_repo_url | urlsplit('path')
+             | regex_replace('/+$', '') | basename }}
+
+    - name: Validate PowerScale package directories
+      ansible.builtin.assert:
+        that:
+          - csi_powerscale_dir is match('^csi-powerscale-v')
+          - helm_charts_dir is match('^helm-charts-[0-9]')
+          - external_snapshotter_dir is match('^external-snapshotter-v')
+        fail_msg: "{{ powerscale_repo_status_url_fail_msg }}"
+        quiet: true
+
+    - name: Set PowerScale Git archive basenames
+      ansible.builtin.set_fact:
+        csi_powerscale_archive: "{{ csi_powerscale_dir }}.tar.gz"
+        helm_charts_archive: "{{ helm_charts_dir }}.tar.gz"
+        external_snapshotter_archive: "{{ external_snapshotter_dir }}.tar.gz"
 
     - name: Display extracted PowerScale versioned directory names
       ansible.builtin.debug:
@@ -37,6 +126,9 @@
           - "helm_charts_dir: {{ helm_charts_dir }}"
           - "external_snapshotter_dir: {{ external_snapshotter_dir }}"
 
+- name: Stage PowerScale CSI dependencies from Repo Manager
+  when: hostvars['localhost'].get('enable_powerscale_csi', false) | bool
+  block:
     - name: Base64 encode username and password
       ansible.builtin.set_fact:
         csi_username_b64: "{{ hostvars['localhost']['csi_username'] | b64encode }}"
@@ -126,25 +218,31 @@
 
     - name: Get csi-powerscale git tar
       ansible.builtin.get_url:
-        url: "{{ offline_git_path }}/{{ csi_powerscale_dir }}/{{ csi_powerscale_dir }}.tar.gz"
-        dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}.tar.gz"
+        url: >-
+          {{ csi_powerscale_repo_url | regex_replace('/+$', '') }}/{{
+          csi_powerscale_archive }}
+        dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_archive }}"
         mode: "{{ permission_644 }}"
 
     - name: Extract csi-powerscale tar file
       ansible.builtin.unarchive:
-        src: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}.tar.gz"
+        src: "{{ k8s_client_mount_path }}/{{ csi_powerscale_archive }}"
         dest: "{{ k8s_client_mount_path }}/"
         remote_src: true
 
     - name: Get dell/helm-charts git tar
       ansible.builtin.get_url:
-        url: "{{ offline_git_path }}/{{ helm_charts_dir }}/{{ helm_charts_dir }}.tar.gz"
+        url: >-
+          {{ helm_charts_repo_url | regex_replace('/+$', '') }}/{{
+          helm_charts_archive }}
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ helm_charts_git }}"
         mode: "{{ permission_644 }}"
 
     - name: Get external-snapshotter git tar
       ansible.builtin.get_url:
-        url: "{{ offline_git_path }}/{{ external_snapshotter_dir }}/{{ external_snapshotter_dir }}.tar.gz"
+        url: >-
+          {{ external_snapshotter_repo_url | regex_replace('/+$', '') }}/{{
+          external_snapshotter_archive }}
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ external_snapshotter_git }}"
         mode: "{{ permission_644 }}"
 

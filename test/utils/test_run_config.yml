@@ -39,7 +39,7 @@ scenarios:
     suite: ""
     marker: "sanity"
     dataset: ""
-    sync_input: true
+    sync_input: false
 
   install_os:
     order: 3

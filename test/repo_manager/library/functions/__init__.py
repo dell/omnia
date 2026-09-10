@@ -18,6 +18,7 @@ from .repo_manager_func import (
     check_endpoint_config_exists,
     check_credentials_present,
     check_repo_configured,
+    get_configured_repos,
     check_pulp_container_running,
     check_pulp_status_healthy,
     check_pulp_endpoint_reachable,
@@ -61,4 +62,22 @@ from .repo_manager_func import (
     check_catalog_input_file_exists,
     check_catalog_log_file_exists,
     parse_catalog_input_file,
+    # Path resolution functions
+    _get_input_path,
+    _get_output_path,
+    _get_credentials_path,
+    # User Registry verification functions
+    check_user_registry_section_exists,
+    check_user_registry_structure,
+    check_user_registry_base_url_valid,
+    check_user_registry_reachability,
+    check_user_registry_tls_cert_paths,
+    check_user_registry_tls_pair_consistent,
+    check_user_registry_auth_type,
+    check_user_registry_credentials,
+)
+# Host sync functions
+from .host_func import (
+    sync_project_to_remote,
+    sync_repo_manager_input,
 )

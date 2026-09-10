@@ -17,9 +17,19 @@ project_name: "project_default"
 # Report output path.
 report_path: "/opt/omnia/reports"
 
+# Dataset name selects the local folder under test/repo_manager/datasets/.
 # Empty dataset uses the target's $OMNIA_DATA_PATH/repo_manager/input/<project>/
 # as the input source. No local dataset is synced.
 dataset: ""
 
 # Sync repo_manager input files from the local source tree (development convenience).
 sync_repo_manager_input: false
+
+# Shared path for repo_manager (convention: /opt/omnia/repo_manager)
+shared_path: "/opt/omnia/repo_manager"
+
+# Dynamic paths for environment independence
+omnia_data_path: "/opt/omnia"
+catalog_file_path: "/opt/omnia/catalog/catalog_rhel.json"
+pulp_cert_path: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt"
+repo_manager_log_path: "/opt/omnia/repo_manager/log"

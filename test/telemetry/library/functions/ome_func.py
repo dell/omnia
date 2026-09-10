@@ -694,7 +694,12 @@ def verify_external_kafka_connection_details(host):
         dict containing the exported and live endpoints plus any mismatches.
     """
     details_path = f"{_get_cert_dir(host)}/{OME_KAFKA_DETAILS_FILE}"
-    details = read_remote_yaml(host, details_path)
+    details_error = ""
+    try:
+        details = read_remote_yaml(host, details_path)
+    except (RuntimeError, ValueError) as exc:
+        details = {}
+        details_error = str(exc)
     kafka_details = details.get("kafka", {}) if isinstance(details, dict) else {}
     if not isinstance(kafka_details, dict):
         kafka_details = {}
@@ -720,7 +725,9 @@ def verify_external_kafka_connection_details(host):
     )
 
     mismatches = []
-    if not details:
+    if details_error:
+        mismatches.append(details_error)
+    elif not details:
         mismatches.append(f"Connection details file is missing: {details_path}")
     if not expected_bootstrap:
         mismatches.append("Native Kafka bootstrap service is unavailable")

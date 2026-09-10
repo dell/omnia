@@ -16,6 +16,34 @@
 # Build custom ISO with embedded kickstart file
 # Creates a self-contained ISO with kickstart embedded
 
+- name: Validate source ISO path
+  ansible.builtin.assert:
+    that:
+      - source_iso_path is defined
+      - source_iso_path | length > 0
+      - "'..' not in source_iso_path"
+      - "';' not in source_iso_path"
+      - "'&' not in source_iso_path"
+      - "'|' not in source_iso_path"
+      - "'`' not in source_iso_path"
+      - "'$(' not in source_iso_path"
+    fail_msg: "Source ISO path contains invalid characters"
+    quiet: true
+
+- name: Validate output ISO path
+  ansible.builtin.assert:
+    that:
+      - _local_iso_path is defined
+      - _local_iso_path | length > 0
+      - "'..' not in _local_iso_path"
+      - "';' not in _local_iso_path"
+      - "'&' not in _local_iso_path"
+      - "'|' not in _local_iso_path"
+      - "'`' not in _local_iso_path"
+      - "'$(' not in _local_iso_path"
+    fail_msg: "Output ISO path contains invalid characters"
+    quiet: true
+
 - name: Render GRUB2 configuration with embedded kickstart reference
   ansible.builtin.template:
     src: grub_embedded.cfg.j2
@@ -29,12 +57,22 @@
   when: rebuild_iso | bool
 
 - name: Build custom ISO using xorriso (embed grub.cfg and kickstart)
-  ansible.builtin.command: >-
-    xorriso -indev {{ source_iso_path }}
-            -outdev {{ _local_iso_path }}
-            -map {{ temp_grub_cfg }} /EFI/BOOT/grub.cfg
-            -map {{ _local_ks_path }} /{{ nfs_kickstart_filename }}
-            -boot_image any replay
+  ansible.builtin.command:
+    argv:
+      - xorriso
+      - -indev
+      - "{{ source_iso_path }}"
+      - -outdev
+      - "{{ _local_iso_path }}"
+      - -map
+      - "{{ temp_grub_cfg }}"
+      - /EFI/BOOT/grub.cfg
+      - -map
+      - "{{ _local_ks_path }}"
+      - "/{{ nfs_kickstart_filename }}"
+      - -boot_image
+      - any
+      - replay
   changed_when: true
   register: _iso_build_result
 
@@ -44,7 +82,10 @@
     state: absent
 
 - name: Implant MD5 checksum into custom ISO
-  ansible.builtin.command: "implantisomd5 {{ _local_iso_path }}"
+  ansible.builtin.command:
+    argv:
+      - implantisomd5
+      - "{{ _local_iso_path }}"
   changed_when: true
   failed_when: false
 

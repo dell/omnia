@@ -19,6 +19,7 @@ from library.functions import (
     run_playbook,
     check_catalog_structure,
 )
+from library.vars.common_vars import _get_base_path
 from library.messages import (
     TEST_NAMES,
     TEST_LOG_MSGS as LOG,
@@ -65,7 +66,8 @@ def test_catalog_validation_log_exists(host):
     tl = TestLogger(TEST_NAMES["catalog_log_file_exists"], "TC_RM_CAT_VAL_002")
 
     # Check the log file exists and has recent entries
-    log_path = "/opt/omnia/repo_manager/log/catalog/catalog_manager.log"
+    base_path = _get_base_path()
+    log_path = f"{base_path}/log/catalog/catalog_manager.log"
     result = host.run(f"test -f {log_path} && echo 'exists' || echo 'missing'")
 
     if "exists" in result.stdout:

@@ -231,6 +231,15 @@ def storage_required_msg(references: list[str]) -> str:
     )
 
 
+def cluster_storage_name_required_msg(section: str) -> str:
+    """Return the missing required cluster-storage reference message."""
+    return (
+        f"omnia_config.yml: '{section}' must define a non-empty "
+        "nfs_storage_name because matching functional groups are selected "
+        "in pxe_mapping_file.csv."
+    )
+
+
 def duplicate_storage_names_msg(names: list[str]) -> str:
     """Return the duplicate storage mount-name error message."""
     return f"storage_config.yml contains duplicate mount names: {', '.join(names)}"

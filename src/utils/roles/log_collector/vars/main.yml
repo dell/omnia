@@ -15,6 +15,15 @@
 # OMNIA_DATA_PATH with fallback
 omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
 
+# Project name with fallback
+project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+
+# Input file paths
+collect_pxe_file: "{{ omnia_data_path }}/{{ domain_name }}/input/{{ project_name }}/collect_pxe.yml"
+
+# Output paths
+log_root: "{{ omnia_data_path }}/{{ domain_name }}/output/{{ project_name }}/collect"
+
 # Error messages
 error_msg_inventory_file_missing: "Node inventory file not found: {{ collect_pxe_file }}. Create this file with IP addresses under each functional group."
 

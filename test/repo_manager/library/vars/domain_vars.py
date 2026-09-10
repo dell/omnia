@@ -43,6 +43,7 @@ FVT_TAGS: List[str] = [
     "policy",
     "negative",
     "catalog",
+    "user_registry",
 ]
 
 # =====================================================================
@@ -72,6 +73,7 @@ SUITES: Dict[str, List[str]] = {
     "policy": [],
     "negative": ["error_scenarios"],
     "catalog": ["catalog"],
+    "user_registry": [],
 }
 
 # =====================================================================

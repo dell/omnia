@@ -40,8 +40,6 @@
 
 - name: Validate NFS storage configuration
   ansible.builtin.include_tasks: validate_storage_config.yml
-  when: (hostvars['localhost']['slurm_support'] | default(false) | bool) or
-        (hostvars['localhost']['service_k8s_support'] | default(false) | bool)
 
 - name: Update hosts file
   ansible.builtin.include_tasks: update_hosts.yml

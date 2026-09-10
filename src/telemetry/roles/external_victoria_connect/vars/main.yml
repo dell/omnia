@@ -38,7 +38,7 @@ vl_vlagent_syslog_port: 514
 
 # TLS secret names (used when TLS is enabled)
 victoria_tls_secret: "victoria-tls-certs"
-victoria_cert_dir_remote: "/opt/omnia/telemetry/certs/victoria"
+victoria_cert_dir_remote: "{{ telemetry_data_path | default(omnia_data_path | default('/opt/omnia') + '/telemetry') }}/certs/victoria"
 
 # Output paths
 victoria_output_dir: >-

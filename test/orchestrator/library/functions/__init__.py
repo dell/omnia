@@ -36,6 +36,8 @@ from omnia_auto import (
     TestReport,
     get_current_report,
     set_current_report,
+    build_report_name,
+    record_playbook_failure,
     run_playbook as _run_playbook,
 )
 from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
@@ -72,6 +74,7 @@ from .slurm_func import (
     check_slurm_services_running,
     check_slurm_directories_exist,
     check_slurm_config_files_exist,
+    check_slurm_config_integrity,
     check_slurm_nodes_registered,
     check_slurm_partitions_exist,
     check_munge_service_running,
@@ -102,6 +105,52 @@ from .slurm_func import (
     check_infiniband_available,
     check_mpi_available,
     check_mpi_job_execution,
+)
+
+# --- Kubernetes verification ---
+from .k8s_func import (
+    # Node discovery
+    get_k8s_nodes_from_pxe,
+    get_k8s_control_plane_nodes,
+    get_k8s_worker_nodes,
+    get_k8s_all_nodes,
+    get_node_ip_from_pxe,
+    # K8s enabled check
+    check_k8s_enabled,
+    # Node status checks
+    check_k8s_nodes_ready,
+    check_k8s_control_plane_nodes,
+    check_k8s_worker_nodes,
+    # Service checks
+    check_kubelet_running,
+    check_containerd_running,
+    # Pod and component checks
+    check_k8s_system_pods,
+    check_k8s_apiserver_responding,
+    check_k8s_etcd_healthy,
+    check_k8s_coredns_running,
+    check_k8s_kube_proxy_running,
+    check_k8s_static_pod,
+    check_k8s_cluster_info,
+    # Directory/file checks
+    check_k8s_directories_exist,
+    check_k8s_config_files_exist,
+    check_k8s_pki_certs_exist,
+    check_k8s_nfs_config_exists,
+    # SSH checks
+    check_k8s_ssh,
+    # Workload tests
+    check_k8s_pod_create,
+    check_k8s_dns_resolution,
+    check_k8s_service_create,
+    # Node metadata
+    check_k8s_node_labels,
+    check_k8s_node_taints,
+    # SMD/Metadata checks
+    check_k8s_smd_groups,
+    check_k8s_metadata_configured,
+    # LDAP integration
+    check_k8s_ldap_integration,
 )
 
 # --- OpenCHAMI configuration verification ---

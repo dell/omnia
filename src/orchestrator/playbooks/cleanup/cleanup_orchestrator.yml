@@ -20,7 +20,10 @@
 #
 # USAGE:
 #   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml
-#       No tags: cleans every enabled component (credentials preserved).
+#       No tags: cleans every enabled component, including credentials.
+#   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml \
+#       -e cleanup_credentials=false
+#       No tags: cleans every other enabled component and preserves credentials.
 #   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags slurm
 #   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags k8s
 #   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags openchami
@@ -40,7 +43,7 @@
 #   k8s            - K8s configuration and NFS directories
 #   storage_mounts - NFS storage mount unmounting and fstab cleanup
 #   artifacts      - Orchestrator artifacts and state files
-#   credentials    - Credential files (opt-in, requires --tags cleanup_credentials)
+#   credentials    - Credential files (default in full cleanup; directly selectable)
 #
 # ENVIRONMENT:
 #   DRY_RUN=true        Report intended actions without changing anything

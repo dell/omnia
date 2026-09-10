@@ -48,7 +48,7 @@ vi test_config.yml             # Set oim_server_ip, dataset, etc.
 | `validate` | Verify input files (orchestrator_config.yml, network_spec.yml, etc.) |
 | `prepare` | Deploy OpenCHAMI + verify containers and API |
 | `provision` | Full provisioning (K8s, Slurm, OS nodes) |
-| `cleanup` | Cleanup + verify container/service removal |
+| `cleanup` | Cleanup + verify container/service removal; credentials are removed by default |
 
 ## Test Cases
 

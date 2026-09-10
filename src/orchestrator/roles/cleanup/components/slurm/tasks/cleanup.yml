@@ -123,6 +123,7 @@
       Removing Slurm shared data from '{{ cleanup_slurm_clean_base }}'
       ({{ 'via mount point' if cleanup_slurm_share_mounted | bool else 'local NFS export on this OIM' }}).
   when:
+    - cleanup_slurm_approved | default(true) | bool
     - slurm_config.cleanup_nfs_server | default(false) | bool
     - cleanup_slurm_clean_base | length > 0
   tags: slurm
@@ -134,6 +135,7 @@
       mounted and this host does not export '{{ cleanup_slurm_export_path }}'. Mount the share
       and re-run, or remove the data on the NFS server directly.
   when:
+    - cleanup_slurm_approved | default(true) | bool
     - slurm_config.cleanup_nfs_server | default(false) | bool
     - cleanup_slurm_clean_base | length == 0
   tags: slurm
@@ -146,6 +148,7 @@
       is available. Mount the share and rerun cleanup, or remove its data
       directly on the NFS server.
   when:
+    - cleanup_slurm_approved | default(true) | bool
     - slurm_config.cleanup_nfs_server | default(false) | bool
     - cleanup_slurm_clean_base | length == 0
   tags: slurm
@@ -156,6 +159,7 @@
     state: absent
   loop: "{{ slurm_config.cleanup_directories | difference(slurm_config.preserve_directories) }}"
   when:
+    - cleanup_slurm_approved | default(true) | bool
     - slurm_config.cleanup_nfs_server | default(false) | bool
     - cleanup_slurm_clean_base | length > 0
   tags: slurm
@@ -175,9 +179,13 @@
     path: "{{ cleanup_slurm_mount_point }}/{{ item }}"
     state: absent
   loop: "{{ slurm_config.cleanup_directories | difference(slurm_config.preserve_directories) }}"
+  when: cleanup_slurm_approved | default(true) | bool
   tags: slurm
 
 - name: Display Slurm cleanup completion
   ansible.builtin.debug:
-    msg: "Slurm cleanup operations completed (OIM node - NFS data cleaned)"
+    msg: >-
+      Slurm cleanup operations completed (shared data
+      {{ 'deleted' if cleanup_slurm_approved | default(true) | bool else 'preserved' }};
+      storage unmounted and fstab entries removed)
   tags: slurm

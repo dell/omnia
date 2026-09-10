@@ -55,6 +55,7 @@ from omnia_auto import (  # noqa: E402 - configure omnia_auto before consumers
     get_last_tc_id,
     get_last_detail_fields,
     encrypt_test_credentials,
+    build_report_name,
     log,
     add_session_result,
     print_summary_table,
@@ -415,6 +416,11 @@ def pytest_sessionstart(session):
                 break
 
     report_id = os.environ.get("REPORT_ID")
+    base_name = str(config.get("report_name", "test_report"))
+    report_name = build_report_name(
+        domain_name="image_build_manager",
+        base_name=base_name,
+    )
     report = TestReport(
         module_name=module_name,
         report_path=str(
@@ -423,7 +429,7 @@ def pytest_sessionstart(session):
                 os.environ.get("OMNIA_DATA_PATH", "/opt/omnia") + "/reports",
             )
         ),
-        report_name=str(config.get("report_name", "test_report")),
+        report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
         report_id=report_id,
     )

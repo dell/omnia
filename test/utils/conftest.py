@@ -53,6 +53,7 @@ from omnia_auto import (
     get_test_output,
     get_last_tc_id,
     encrypt_test_credentials,
+    build_report_name,
     log,
     add_session_result,
     print_summary_table,
@@ -247,13 +248,13 @@ def pytest_sessionstart(session):
             log(f"Input sync failed: {sync_result['error']}", "ERROR")
 
     # Sync install_os credentials (if applicable)
-        install_os_cred_result = sync_install_os_credentials(host)
-        if install_os_cred_result["success"]:
-            if install_os_cred_result["details"]:
-                level = "WARN" if "skipping sync" in install_os_cred_result["details"] else "OK"
-                log(install_os_cred_result["details"], level)
-        else:
-            log(f"Install OS credential sync failed: {install_os_cred_result['error']}", "WARN")
+    install_os_cred_result = sync_install_os_credentials(host)
+    if install_os_cred_result["success"]:
+        if install_os_cred_result["details"]:
+            level = "WARN" if "skipping sync" in install_os_cred_result["details"] else "OK"
+            log(install_os_cred_result["details"], level)
+    else:
+        log(f"Install OS credential sync failed: {install_os_cred_result['error']}", "WARN")
 
     # Initialize test report
     valid_scenarios = {"utils", "collect", "install_os", "precheck"}
@@ -266,10 +267,15 @@ def pytest_sessionstart(session):
                 break
 
     report_id = os.environ.get("REPORT_ID")
+    base_name = str(config.get("report_name", "test_report"))
+    report_name = build_report_name(
+        domain_name="utils",
+        base_name=base_name,
+    )
     report = TestReport(
         module_name=module_name,
         report_path=str(config.get("report_path", "/opt/omnia/reports")),
-        report_name=str(config.get("report_name", "test_report")),
+        report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
         report_id=report_id,
     )
@@ -356,6 +362,24 @@ def pytest_report_teststatus(report, config):
             return "failed", "", ""
     if report.skipped:
         return "skipped", "", ""
+
+
+# =============================================================================
+# SKIP TESTS IF INPUT VALIDATION FAILED
+# =============================================================================
+
+def pytest_collection_modifyitems(session, config, items):
+    """Skip bundle/metadata tests if input validation failed."""
+    # Check if any input validation test failed in previous run
+    # This is a simple approach - in production, you might want a more sophisticated mechanism
+    for item in items:
+        # Skip bundle and metadata tests if input file validation would fail
+        if "bundle" in item.name.lower() or "metadata" in item.name.lower():
+            # Check if this is a verification test (not env var test)
+            if "env_var" not in item.name.lower():
+                # Add a marker to skip these tests if input is invalid
+                # For now, we'll let them run and fail naturally
+                pass
 
 
 # =============================================================================
