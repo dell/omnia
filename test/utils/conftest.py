@@ -248,13 +248,13 @@ def pytest_sessionstart(session):
             log(f"Input sync failed: {sync_result['error']}", "ERROR")
 
     # Sync install_os credentials (if applicable)
-        install_os_cred_result = sync_install_os_credentials(host)
-        if install_os_cred_result["success"]:
-            if install_os_cred_result["details"]:
-                level = "WARN" if "skipping sync" in install_os_cred_result["details"] else "OK"
-                log(install_os_cred_result["details"], level)
-        else:
-            log(f"Install OS credential sync failed: {install_os_cred_result['error']}", "WARN")
+    install_os_cred_result = sync_install_os_credentials(host)
+    if install_os_cred_result["success"]:
+        if install_os_cred_result["details"]:
+            level = "WARN" if "skipping sync" in install_os_cred_result["details"] else "OK"
+            log(install_os_cred_result["details"], level)
+    else:
+        log(f"Install OS credential sync failed: {install_os_cred_result['error']}", "WARN")
 
     # Initialize test report
     valid_scenarios = {"utils", "collect", "install_os", "precheck"}
