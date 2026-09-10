@@ -212,12 +212,16 @@ The orchestrator deploys the following on OIM and compute nodes:
 
 ## 7. Cleanup
 
-Running `cleanup_orchestrator.yml` removes:
+Running full Orchestrator cleanup removes:
+
 - OpenCHAMI containers and systemd units
 - BSS/cloud-init configurations
 - Generated functional groups
 - Ansible inventory
-- Credentials (opt-in with `--tags credentials`)
+- Orchestrator credentials and their vault key by default
+
+Pass `-e cleanup_credentials=false` to preserve credentials during full
+cleanup. Use `--tags cleanup_credentials` for credential-only cleanup.
 
 ---
 

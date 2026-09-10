@@ -11,16 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 ---
-# Credentials Component Configuration
-# Used by full cleanup and by the standalone cleanup_credentials tag.
 
-credentials_config:
-  # Credential files to clean
-  credential_files:
-    - "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml"
-    - "{{ hostvars['localhost']['input_project_dir'] }}/.omnia_config_credentials_key"
-
-  # Dependencies - components that must run before this
-  dependencies: []
+# Full Discovery cleanup removes the encrypted credential file and vault key.
+# Set this to false only when those credentials must survive cleanup.
+cleanup_credentials: true

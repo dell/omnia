@@ -213,7 +213,7 @@ Figure: orchestrator.yml tag-based execution flow
 | 4 | precheck | Validate boot images | oim (SSH) | Require kernel, initrd, and rootfs paths, then verify each Boot Service URL with HTTP `HEAD` |
 | 5 | precheck | Validate OpenCHAMI config | localhost | Assert domain_name, admin_nic_ip, input files |
 | 6 | precheck | Validate OpenLDAP prereqs | localhost | Assert LDAP credentials, domain (when enabled) |
-| 7 | prepare | Credential management | localhost | `orchestrator_credentials` role — prompt, encrypt, vault |
+| 7 | prepare | Credential management | localhost | `orchestrator_credentials` role — prompt, encrypt, vault; PowerScale CSI credentials are requested only when explicitly enabled |
 | 8 | prepare | Prepare OpenLDAP | oim (SSH) | Load creds, create dirs, TLS certs, template configs |
 | 9 | deploy | Configure S3 + Deploy OpenCHAMI | oim (SSH) | `deploy_openchami` role — OpenCHAMI containers |
 | 10 | deploy | Deploy OpenLDAP | oim (SSH) | `deploy_openldap` role — OpenLDAP container (when enabled) |
@@ -323,8 +323,22 @@ for all orchestrator services (provision, slurm, openldap, telemetry, etc.).
 2. Prompt fills:     Interactive prompts for empty mandatory fields
 3. Vault encrypts:   ansible-vault encrypt with .omnia_config_credentials_key
 4. Runtime reads:    Ansible decrypts at playbook execution time
-5. Cleanup removes:  cleanup role deletes cred + key files (opt-in)
+5. Cleanup removes:  cleanup role deletes cred + key files by default;
+                     cleanup_credentials=false preserves them
 ```
+
+### 7.4 PowerScale CSI Feature Gate
+
+`service_k8s_cluster[].enable_powerscale_csi` is the only Orchestrator runtime
+switch for PowerScale CSI. The deployed Kubernetes entry is the entry with
+`deployment: true`; its CSI secret and values paths are used when the switch is
+enabled. The default is `false`.
+
+When enabled, credential collection requires `csi_username` and
+`csi_password`, the Kubernetes configuration role stages the three CSI Git
+artifacts published in `repo_status.yml`, and the first control-plane
+cloud-init configuration installs the driver. When disabled, each of those
+steps is skipped. Catalog group membership does not activate CSI.
 
 ---
 
