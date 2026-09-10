@@ -13,9 +13,18 @@
 # limitations under the License.
 
 """
-Utils Domain — Host Sync Functions.
+Utils Domain — Module-specific host utilities (monorepo).
 
-Functions for syncing project files, input files, and credentials to target.
+Reads module config and passes ALL params to omnia_auto's
+``sync_files()``.  No logic in the package — only in this consumer.
+
+Monorepo changes vs multi-repo:
+- Input path resolved from target env vars (OMNIA_DATA_PATH, OMNIA_PROJECT_NAME)
+- sync_project_to_remote() copies local project code to target clone_path
+- No separate config.yml sync (env vars replace it)
+
+Common functions are re-exported from omnia_auto so existing
+callers keep working.
 """
 
 import base64
@@ -135,56 +144,182 @@ def _resolve_input_dir(config: Dict[str, Any]) -> str:
 # PROJECT AND INPUT SYNC
 # =============================================================================
 
+# =============================================================================
+# CREDENTIAL FILE PATTERNS TO EXCLUDE FROM SYNC
+# =============================================================================
+
+_CREDENTIAL_PATTERNS = (
+    "install_os_credentials.yml",
+    "install_os_credentials.yml.*",
+    ".install_os_credentials.key",
+    ".install_os_credentials.key.*",
+)
+_input_sync_ignore = shutil.ignore_patterns(*_CREDENTIAL_PATTERNS)
+_project_sync_ignore = shutil.ignore_patterns(
+    ".git",
+    ".agents",
+    ".codex",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "__pycache__",
+    "*.pyc",
+    ".venv",
+    "venv",
+    "active-venv",
+    "test_creds.yml",
+    "test_creds.yml.*",
+    ".test_creds.key",
+    ".test_creds.key.*",
+    *_CREDENTIAL_PATTERNS,
+)
+
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+
+def _link_or_copy(source: str, destination: str) -> str:
+    """Hard-link staged project files when possible, otherwise copy them."""
+    try:
+        os.link(source, destination, follow_symlinks=False)
+        return destination
+    except OSError:
+        return shutil.copy2(
+            source, destination, follow_symlinks=False
+        )
+
+
+def _resolve_dataset_subdir(
+    config: Dict[str, Any], subdirectory: str, fallback: str
+) -> str:
+    """Resolve one dataset subdirectory without allowing path traversal."""
+    dataset = config.get("dataset", "")
+    if not dataset:
+        return fallback
+    if not isinstance(dataset, str):
+        raise ValueError("dataset must be a directory name string")
+    if (
+        dataset in {".", "..", "generator"}
+        or os.path.isabs(dataset)
+        or os.path.basename(dataset) != dataset
+        or "\x00" in dataset
+    ):
+        raise ValueError(f"Unsafe dataset name: {dataset!r}")
+
+    datasets_root = os.path.realpath(os.path.join(MODULE_ROOT, "datasets"))
+    dataset_path = os.path.join(datasets_root, dataset)
+    if os.path.islink(dataset_path):
+        raise ValueError(f"Dataset symlinks are not allowed: {dataset}")
+    resolved_dataset = os.path.realpath(dataset_path)
+    if os.path.dirname(resolved_dataset) != datasets_root:
+        raise ValueError(f"Dataset escapes datasets directory: {dataset!r}")
+
+    subdir_path = os.path.join(resolved_dataset, subdirectory)
+    if os.path.islink(subdir_path):
+        raise ValueError(
+            f"Dataset subdirectory symlinks are not allowed: {dataset}/{subdirectory}"
+        )
+    resolved_subdir = os.path.realpath(subdir_path)
+    if os.path.commonpath((resolved_dataset, resolved_subdir)) != resolved_dataset:
+        raise ValueError(
+            f"Dataset subdirectory escapes its dataset: {dataset}/{subdirectory}"
+        )
+    return resolved_subdir
+
+
+def _reject_symlinks(directory: str) -> None:
+    """Reject nested links before copying an input tree into staging."""
+    for current_dir, directory_names, file_names in os.walk(directory):
+        for entry_name in directory_names + file_names:
+            if os.path.islink(os.path.join(current_dir, entry_name)):
+                raise OSError(
+                    f"Refusing to sync symlink from dataset: "
+                    f"{os.path.join(current_dir, entry_name)}"
+                )
+
+
+def _resolve_remote_clone_path(config: Dict[str, Any]) -> str:
+    """Return the validated, normalized remote project destination."""
+    raw_clone_path = config.get("clone_path")
+    if not isinstance(raw_clone_path, str) or not raw_clone_path.strip():
+        raise ValueError(
+            "clone_path must be set in test_config.yml for remote execution"
+        )
+    clone_path = raw_clone_path.strip()
+    if not os.path.isabs(clone_path):
+        raise ValueError(
+            f"clone_path must be absolute for remote execution: {clone_path}"
+        )
+    return os.path.normpath(clone_path)
+
+
+def _resolve_input_dir(config):
+    """Resolve local input directory from dataset or src/."""
+    return _resolve_dataset_subdir(config, "input", SRC_INPUT_DIR)
+
+
+# =============================================================================
+# PROJECT SYNC
+# =============================================================================
+
 def sync_project_to_remote(host) -> Dict[str, Any]:
-    """Sync the entire omnia project to the remote target.
+    """Sync the local omnia project tree to clone_path on target.
 
-    Args:
-        host: Testinfra host object.
+    Copies a filtered working tree from the local monorepo to the remote
+    ``clone_path``, using the same rsync/SSH checks as other sync functions.
+    Local credential files, vault keys, VCS metadata, virtual environments,
+    and caches are excluded.
 
-    Returns:
-        dict: {"success": bool, "details": str, "error": str}
+    Source: ``<repo_root>/`` (the omnia monorepo root)
+    Dest:   ``<clone_path>/`` on the target server
     """
     config = load_test_config()
-    clone_path = config.get("clone_path", "/root/omnia")
+    conn = connection_params()
+    clone_path = _resolve_remote_clone_path(config)
 
     try:
-        result = sync_files(
-            host=host,
-            src=MONOREPO_ROOT,
-            dest=clone_path,
-            exclude=[
-                ".git",
-                "__pycache__",
-                "*.pyc",
-                ".venv",
-                "reports",
-                "test/*/datasets/data_set_*",
-            ],
+        with tempfile.TemporaryDirectory(
+            prefix="omnia_utils_project_"
+        ) as staging_dir:
+            staged_project = os.path.join(staging_dir, "omnia")
+            shutil.copytree(
+                MONOREPO_ROOT,
+                staged_project,
+                symlinks=True,
+                ignore=_project_sync_ignore,
+                copy_function=_link_or_copy,
+            )
+            result = sync_files(
+                mode=conn["mode"],
+                src=staged_project,
+                dest=clone_path,
+                ip=conn["ip"],
+                user=conn["user"],
+                auth_secret=conn["auth_secret"],
+                ssh_opts=conn["ssh_opts"],
+            )
+    except OSError as exc:
+        return {
+            "success": False,
+            "details": "",
+            "error": f"Failed to stage project for sync: {exc}",
+        }
+
+    if result["success"]:
+        result["details"] = (
+            f"Synced filtered project {MONOREPO_ROOT} -> {clone_path} "
+            "(local credentials and caches excluded)"
         )
-        if result["success"]:
-            return {
-                "success": True,
-                "details": f"Project synced to {clone_path}",
-                "error": "",
-            }
-        return {
-            "success": False,
-            "details": "",
-            "error": result.get("error", "Sync failed"),
-        }
-    except Exception as exc:
-        return {
-            "success": False,
-            "details": "",
-            "error": str(exc),
-        }
+    return result
 
 
-def sync_utils_input(host) -> Dict[str, Any]:
-    """Sync utils input files to target.
+# =============================================================================
+# INPUT SYNC
+# =============================================================================
 
-    Syncs from dataset directory (if set) or src/utils/input/ to target's
-    input directory at $OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/.
+def sync_utils_input(host, config: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    """Push utils input files from local source to target.
 
     Uses secure staging with:
     - Path traversal protection via _resolve_dataset_subdir()
@@ -192,51 +327,31 @@ def sync_utils_input(host) -> Dict[str, Any]:
     - Credential exclusion via ignore patterns
     - Temporary staging directory for safe file operations
 
+    Reads ``OMNIA_DATA_PATH`` and ``OMNIA_PROJECT_NAME`` from the target
+    server's environment to resolve the correct destination::
+
+        <OMNIA_DATA_PATH>/utils/input/<OMNIA_PROJECT_NAME>/
+
+    Source: src/utils/input/ (default) or
+            datasets/<dataset>/input/ (when dataset is set).
+
+    Any credential artifacts are deliberately excluded.
+
     Args:
         host: Testinfra host object.
-
-    Returns:
-        dict: {"success": bool, "details": str, "error": str}
     """
-    config = load_test_config()
+    if config is None:
+        config = load_test_config()
     conn = connection_params()
 
-    # Resolve source directory with security checks
-    try:
-        local_input = _resolve_input_dir(config)
-    except ValueError as exc:
-        return {
-            "success": False,
-            "details": "",
-            "error": f"Dataset validation failed: {exc}",
-        }
-
-    if not os.path.isdir(local_input):
-        return {
-            "success": False,
-            "details": "",
-            "error": f"Source input directory not found: {local_input}",
-        }
+    local_input = _resolve_input_dir(config)
+    remote_input = resolve_domain_input_path(
+        host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
+    )
+    ensure_remote_dir(host, remote_input)
 
     try:
-        # Resolve target path from environment
-        dest_path = resolve_domain_input_path(
-            host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME
-        )
-        if not dest_path:
-            return {
-                "success": False,
-                "details": "",
-                "error": "Failed to resolve target input path",
-            }
-
-        # Ensure target directory exists
-        ensure_remote_dir(host, dest_path)
-
-        # Security check: reject symlinks in the source tree
         _reject_symlinks(local_input)
-
-        # Stage files in a temporary directory (excludes credentials)
         with tempfile.TemporaryDirectory(
             prefix="omnia_utils_input_"
         ) as staging_dir:
@@ -251,7 +366,7 @@ def sync_utils_input(host) -> Dict[str, Any]:
             result = sync_files(
                 mode=conn["mode"],
                 src=staged_input,
-                dest=dest_path,
+                dest=remote_input,
                 ip=conn["ip"],
                 user=conn["user"],
                 auth_secret=conn.get("auth_secret", conn.get("password", "")),
@@ -260,10 +375,9 @@ def sync_utils_input(host) -> Dict[str, Any]:
 
         if result["success"]:
             result["details"] = (
-                f"Input files synced to {dest_path} (credentials excluded)"
+                f"Input files synced to {remote_input} (credentials excluded)"
             )
         return result
-
     except OSError as exc:
         return {
             "success": False,
@@ -276,6 +390,11 @@ def sync_utils_input(host) -> Dict[str, Any]:
             "details": "",
             "error": str(exc),
         }
+
+
+# =============================================================================
+# CREDENTIAL SYNC
+# =============================================================================
 
 def sync_install_os_credentials(host) -> Dict[str, Any]:
     """Sync install_os credentials from test_creds.yml to target.
@@ -327,7 +446,7 @@ def sync_install_os_credentials(host) -> Dict[str, Any]:
             "error": "",
         }
 
-    # Resolve target input path
+    # Use resolve_domain_input_path to get target path from env vars
     dest_path = resolve_domain_input_path(
         host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME
     )
@@ -391,8 +510,15 @@ os_root_password: "{os_root_password}"
     }
 
 
+# =============================================================================
+# PATH RESOLUTION (uses target env vars)
+# =============================================================================
+
 def get_utils_input_path(host) -> str:
     """Get the utils input path on target.
+
+    Reads OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from the target's
+    environment to resolve the input path.
 
     Args:
         host: Testinfra host object.
@@ -400,13 +526,19 @@ def get_utils_input_path(host) -> str:
     Returns:
         str: The input path or empty string on failure.
     """
-    return resolve_domain_input_path(
-        host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME
-    )
+    try:
+        return resolve_domain_input_path(
+            host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME
+        )
+    except Exception:
+        return ""
 
 
 def get_utils_output_path(host) -> str:
     """Get the utils output path on target.
+
+    Reads OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from the target's
+    environment to resolve the output path.
 
     Args:
         host: Testinfra host object.
@@ -417,7 +549,7 @@ def get_utils_output_path(host) -> str:
     try:
         data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH)
         project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
-        # Output is directly in the collect directory (timestamped subdirectories are handled separately)
+        # Output is directly in the collect directory
         return f"{data_path}/{DOMAIN_NAME}/output/{project}/collect"
     except Exception:
         return ""

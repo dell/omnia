@@ -12,15 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
----
-# Credentials Component Configuration
-# Used by full cleanup and by the standalone cleanup_credentials tag.
+"""
+Cleanup Scenario - Test Package.
 
-credentials_config:
-  # Credential files to clean
-  credential_files:
-    - "{{ hostvars['localhost']['input_project_dir'] }}/orchestrator_credentials.yml"
-    - "{{ hostvars['localhost']['input_project_dir'] }}/.orchestrator_credentials_key"
-
-  # Dependencies - components that must run before this
-  dependencies: []
+Tests for utils.yml cleanup functionality:
+- cleanup_logs: Clean log collection artifacts
+- cleanup_install_os: Clean OS installation artifacts
+- cleanup: Combined cleanup of all artifacts
+"""

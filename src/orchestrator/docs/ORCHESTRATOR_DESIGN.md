@@ -134,8 +134,8 @@ src/orchestrator/
 |------|-------|
 | Main playbook | `playbooks/orchestrator.yml` |
 | Input config | `orchestrator_config.yml` |
-| Credential file | `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/omnia_config_credentials.yml` |
-| Credential key | `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/.omnia_config_credentials_key` |
+| Credential file | `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/orchestrator_credentials.yml` |
+| Credential key | `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/.orchestrator_credentials_key` |
 | Input directory | `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/` |
 | Output directory | `$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/` |
 | Log path | `$OMNIA_DATA_PATH/log/core/orchestrator/orchestrator.log` |
@@ -308,20 +308,21 @@ The Orchestrator-owned reference copy is
 ### 7.1 Architecture
 
 The `orchestrator_credentials` role manages vault-encrypted credential files
-for all orchestrator services (provision, slurm, openldap, telemetry, etc.).
+for Orchestrator services such as provisioning, Slurm, OpenLDAP, and
+PowerScale CSI.
 
 ### 7.2 Credential Files
 
 | File | Vault Key | Description |
 |------|-----------|-------------|
-| `omnia_config_credentials.yml` | `.omnia_config_credentials_key` | Provision, BMC, Slurm, LDAP, telemetry credentials |
+| `orchestrator_credentials.yml` | `.orchestrator_credentials_key` | Provision, BMC, Slurm, LDAP, and CSI credentials |
 
 ### 7.3 Credential Lifecycle
 
 ```
-1. Template creates: omnia_config_credentials.yml (plaintext with defaults)
+1. Template creates: orchestrator_credentials.yml (plaintext with defaults)
 2. Prompt fills:     Interactive prompts for empty mandatory fields
-3. Vault encrypts:   ansible-vault encrypt with .omnia_config_credentials_key
+3. Vault encrypts:   ansible-vault encrypt with .orchestrator_credentials_key
 4. Runtime reads:    Ansible decrypts at playbook execution time
 5. Cleanup removes:  cleanup role deletes cred + key files by default;
                      cleanup_credentials=false preserves them
@@ -437,7 +438,7 @@ accidental execution during the default flow. They must be explicitly requested.
 | Validation engine | `validation_engine.py` | `orchestrator_validation/core/validation_engine.py` |
 | L2 validator | `<input>_validator.py` | `orchestrator_config_validator.py` |
 | Schema dir | `<domain>_validation/schema/` | `orchestrator_validation/schema/` |
-| Credential file | `omnia_config_credentials.yml` | Shared naming |
+| Credential file | `<domain>_credentials.yml` | `orchestrator_credentials.yml` |
 | Phase directories | `<phase>/` | `precheck/`, `prepare/`, `deploy/`, `cleanup/` |
 | Component playbooks | `<phase>_<component>.yml` | `precheck_openchami.yml`, `cleanup_openldap.yml` |
 | Log path | `$OMNIA_DATA_PATH/log/core/<domain>/` | `$OMNIA_DATA_PATH/log/core/orchestrator/` |

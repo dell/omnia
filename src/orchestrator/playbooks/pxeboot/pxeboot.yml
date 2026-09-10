@@ -209,8 +209,8 @@
             name: orchestrator_common
             tasks_from: decrypt_include_encrypt.yml
           vars:
-            credential_file_path: "{{ input_project_dir }}/omnia_config_credentials.yml"
-            vault_password_file: "{{ input_project_dir }}/.omnia_config_credentials_key"
+            credential_file_path: "{{ input_project_dir }}/orchestrator_credentials.yml"
+            vault_password_file: "{{ input_project_dir }}/.orchestrator_credentials_key"
 
         - name: Validate BMC credentials are available
           ansible.builtin.fail:

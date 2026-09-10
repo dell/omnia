@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Set_fact for omnia_config_credentials.yml variables
+- name: Set facts for orchestrator_credentials.yml variables
   ansible.builtin.set_fact:
     provision_password: "{{ hostvars['localhost']['provision_password'] }}"
     bmc_username: "{{ hostvars['localhost']['bmc_username'] }}"
