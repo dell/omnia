@@ -47,6 +47,14 @@
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_idrac'] | bool
 
+- name: Cleanup iDRAC credentials
+  ansible.builtin.include_tasks: cleanup_credentials.yml
+  vars:
+    _cleanup_credential_component: idrac
+  when: >-
+    not (hostvars['localhost']['_cleanup_all'] | bool)
+    and hostvars['localhost']['_cleanup_idrac'] | bool
+
 - name: Mark LDMS cleanup as attempted
   ansible.builtin.set_fact:
     _cleanup_active_component: ldms
@@ -80,6 +88,14 @@
   when: >-
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_ldms'] | bool
+
+- name: Cleanup LDMS credentials
+  ansible.builtin.include_tasks: cleanup_credentials.yml
+  vars:
+    _cleanup_credential_component: ldms
+  when: >-
+    not (hostvars['localhost']['_cleanup_all'] | bool)
+    and hostvars['localhost']['_cleanup_ldms'] | bool
 
 - name: Mark OME cleanup as attempted
   ansible.builtin.set_fact:
@@ -149,6 +165,14 @@
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_powerscale'] | bool
 
+- name: Cleanup PowerScale credentials
+  ansible.builtin.include_tasks: cleanup_credentials.yml
+  vars:
+    _cleanup_credential_component: powerscale
+  when: >-
+    not (hostvars['localhost']['_cleanup_all'] | bool)
+    and hostvars['localhost']['_cleanup_powerscale'] | bool
+
 - name: Mark UFM cleanup as attempted
   ansible.builtin.set_fact:
     _cleanup_active_component: ufm
@@ -183,6 +207,14 @@
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_ufm'] | bool
 
+- name: Cleanup UFM credentials
+  ansible.builtin.include_tasks: cleanup_credentials.yml
+  vars:
+    _cleanup_credential_component: ufm
+  when: >-
+    not (hostvars['localhost']['_cleanup_all'] | bool)
+    and hostvars['localhost']['_cleanup_ufm'] | bool
+
 - name: Mark VAST cleanup as attempted
   ansible.builtin.set_fact:
     _cleanup_active_component: vast
@@ -216,3 +248,11 @@
   when: >-
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_vast'] | bool
+
+- name: Cleanup VAST credentials
+  ansible.builtin.include_tasks: cleanup_credentials.yml
+  vars:
+    _cleanup_credential_component: vast
+  when: >-
+    not (hostvars['localhost']['_cleanup_all'] | bool)
+    and hostvars['localhost']['_cleanup_vast'] | bool

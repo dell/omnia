@@ -43,8 +43,9 @@ from library.messages import (
 @pytest.mark.order(0)
 def test_user_registry_validation_deploy(host):
     """TC_RM_UR_000: Deploy validation playbook (includes user registry checks)."""
+    assert host is not None
     tl = TestLogger(TEST_NAMES["user_registry_validation_deploy"], "TC_RM_UR_000")
-    result = run_playbook(tag="precheck", verbose=True)
+    result = run_playbook(tag="precheck", verbosity=1)
 
     if result["success"]:
         tl.passed(LOG["user_registry_validation_ok"], result.get("details", ""))

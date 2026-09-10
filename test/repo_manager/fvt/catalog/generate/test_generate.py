@@ -15,10 +15,13 @@ TC_RM_CAT_GEN_006: Verify catalog has packages
 TC_RM_CAT_GEN_007: Verify catalog log file exists
 """
 
+import os
+
 import pytest
 
 from library.functions import (
     TestLogger,
+    run_playbook,
     check_catalog_input_file_exists,
     check_catalog_file_exists,
     check_catalog_structure,
@@ -28,12 +31,38 @@ from library.functions import (
     check_catalog_log_file_exists,
 )
 from library.vars.common_vars import _get_input_path
-import os
 from library.messages import (
     TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
+
+
+@pytest.mark.deploy
+@pytest.mark.sanity
+@pytest.mark.order(0)
+def test_catalog_generate_deploy(host):
+    """TC_RM_CAT_GEN_000: Deploy the catalog_generate operation."""
+    input_file = f"{_get_input_path()}/packages.txt"
+    if not host.file(input_file).exists:
+        pytest.skip(f"Catalog generate input file not found: {input_file}")
+
+    test_log = TestLogger(
+        TEST_NAMES["catalog_generate_deploy"], "TC_RM_CAT_GEN_000"
+    )
+    result = run_playbook(
+        tag="catalog_generate",
+        extra_vars={"input_file": input_file},
+    )
+    if result["success"]:
+        test_log.passed(
+            LOG["catalog_generate_ok"], result.get("details", "")
+        )
+    else:
+        test_log.failed(
+            LOG["catalog_generate_failed"], result.get("error", "")
+        )
+    assert result["success"], ASSERT["catalog_generate_must_succeed"]
 
 
 @pytest.mark.sanity
@@ -58,7 +87,7 @@ def test_catalog_input_dir_exists(host):
 def test_catalog_file_exists(host):
     """TC_RM_CAT_GEN_002: Verify catalog file exists after generate."""
     tl = TestLogger(TEST_NAMES["catalog_file_exists"], "TC_RM_CAT_GEN_002")
-    
+
     # This test only makes sense if catalog_generate succeeded
     # If catalog file doesn't exist, it means generate didn't run
     result = check_catalog_file_exists(host)
@@ -66,11 +95,15 @@ def test_catalog_file_exists(host):
     if result["success"]:
         tl.passed(LOG["catalog_file_ok"], result["details"])
     else:
-        catalog_path = os.environ.get("CATALOG_FILE_PATH", "/opt/omnia/catalog/catalog_rhel.json")
-        tl.failed(LOG["catalog_file_missing"], 
-                 f"Catalog file not found at {catalog_path}\n"
-                 f"This test requires catalog_generate to complete successfully first.\n"
-                 f"Ensure the input file is provided and catalog_generate test passes.")
+        catalog_path = os.environ.get(
+            "CATALOG_FILE_PATH", "/opt/omnia/catalog/catalog_rhel.json"
+        )
+        tl.failed(
+            LOG["catalog_file_missing"],
+            f"Catalog file not found at {catalog_path}\n"
+            "This test requires catalog_generate to complete successfully "
+            "first.\nEnsure its input exists and the generate test passes.",
+        )
 
     assert result["success"], ASSERT["catalog_file_must_exist"]
 

@@ -342,4 +342,4 @@
     # -------------------------------------------------------------------------
     - name: Display Pulp post-cleanup notes
       ansible.builtin.debug:
-        msg: "{{ cleanup_pulp_note }}"
+        msg: "{{ cleanup_pulp_note.split('\n') | select | list }}"
