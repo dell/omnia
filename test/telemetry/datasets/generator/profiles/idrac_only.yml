@@ -16,6 +16,8 @@ description: "Only iDRAC source enabled (minimal deployment)"
 patches:
   telemetry_config:
     telemetry_sources:
+      idrac:
+        metrics_enabled: true
       ldms:
         metrics_enabled: false
       powerscale:
