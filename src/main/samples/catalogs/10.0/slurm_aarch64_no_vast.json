@@ -6,13 +6,6 @@
     "description": "Slurm HPC catalog for RHEL 10.0 aarch64 with all Slurm functional layers (control, node, login, login-compiler) without VAST Data NFS client.",
     "functionallayer": [
       {
-        "name": "os_rhel_10_0_aarch64",
-        "components": [
-          "baseos_group",
-          "ldms_group"
-        ]
-      },
-      {
         "name": "slurm_control_node_rhel_10_0_aarch64",
         "components": [
           "baseos_group",
@@ -53,22 +46,6 @@
           "login_node_group",
           "common_pks",
           "infiniband_stack_driver_groupv1",
-          "ldms_group"
-        ]
-      },
-      {
-        "name": "login_compiler_node_rhel_10_0_aarch64",
-        "components": [
-          "baseos_group",
-          "admin_debug_group",
-          "slurm_custom_group",
-          "openldap_group",
-          "openmpi_group",
-          "ucx_group",
-          "login_compiler_node_group",
-          "common_pks",
-          "infiniband_stack_driver_groupv1",
-          "nvidia_stack_driver_groupv1",
           "ldms_group"
         ]
       }
@@ -208,7 +185,6 @@
           "pmix",
           "nvcr.io/nvidia/hpc-benchmarks",
           "apptainer",
-          "doca_ofed",
           "iscsi_initiator_utils",
           "device_mapper_multipath",
           "sg3_utils",

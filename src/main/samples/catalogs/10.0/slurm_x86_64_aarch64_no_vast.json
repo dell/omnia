@@ -215,7 +215,6 @@
           "pmix",
           "nvcr.io/nvidia/hpc-benchmarks",
           "apptainer",
-          "doca_ofed",
           "iscsi_initiator_utils",
           "device_mapper_multipath",
           "sg3_utils",
