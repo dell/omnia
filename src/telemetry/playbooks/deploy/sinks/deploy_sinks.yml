@@ -234,3 +234,10 @@
         victoria_logs_status: "{{ hostvars[kube_vip_host]['sink_victoria_logs_result'] | default('SKIPPED') }}"
       ansible.builtin.debug:
         msg: "{{ sink_deployment_summary_lines.split('\n') }}"
+
+    - name: Set individual sink deployment status flags
+      ansible.builtin.set_fact:
+        kafka_deployed: "{{ kafka_status == 'DEPLOYED' }}"
+        victoria_metrics_deployed: "{{ victoria_metrics_status == 'DEPLOYED' }}"
+        victoria_logs_deployed: "{{ victoria_logs_status == 'DEPLOYED' }}"
+        cacheable: true

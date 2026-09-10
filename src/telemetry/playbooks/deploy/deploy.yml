@@ -31,8 +31,30 @@
 
 # ── Phase 1: Sink infrastructure ─────────────────────────────────────────────
 # Deploy Kafka, VictoriaMetrics, VictoriaLogs based on config-derived flags.
+- name: "Phase 1 | Build sinks list from derived flags"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Build sinks list from derived support flags
+      ansible.builtin.set_fact:
+        sinks_list: >-
+          {{
+            (['kafka'] if (kafka_support | default(false) | bool) else []) +
+            (['victoria_metrics'] if (victoria_metrics_support | default(false) | bool) else []) +
+            (['victoria_logs'] if (victoria_logs_support | default(false) | bool) else [])
+          }}
+        cacheable: true
+
+    - name: Display sinks to be deployed
+      ansible.builtin.debug:
+        msg: "Sinks to deploy: {{ sinks_list }}"
+  tags: deploy
+
 - name: "Phase 1 | Deploy telemetry sinks"
   ansible.builtin.import_playbook: sinks/deploy_sinks.yml
+  vars:
+    sinks: "{{ hostvars['localhost']['sinks_list'] }}"
   tags: deploy
 
 # ── Phase 1.5: Transfer credentials to kube_vip for source deployments ───────
