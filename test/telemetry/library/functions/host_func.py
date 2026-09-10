@@ -74,14 +74,10 @@ def sync_project_to_remote(_host) -> Dict[str, Any]:
 def _resolve_input_dir(config):
     """Resolve local input directory from dataset or src/.
 
-    Respects ``OMNIA_DATASET_OVERRIDE`` so that env-var overrides applied
-    in ``conftest._apply_dataset_overrides`` are honoured even when this
-    function re-reads the config from disk.
+    The config parameter should already have OMNIA_DATASET_OVERRIDE applied
+    by conftest._apply_dataset_overrides before being passed here.
     """
-    dataset = (
-        os.environ.get("OMNIA_DATASET_OVERRIDE", "")
-        or config.get("dataset", "")
-    )
+    dataset = config.get("dataset", "")
     if dataset:
         return os.path.join(
             get_module_root(), "datasets", dataset, "input",
@@ -89,7 +85,7 @@ def _resolve_input_dir(config):
     return SRC_INPUT_DIR
 
 
-def sync_telemetry_input(host) -> Dict[str, Any]:
+def sync_telemetry_input(host, config: Dict[str, Any] | None = None) -> Dict[str, Any]:
     """Push telemetry input files from local source to target.
 
     Reads ``OMNIA_DATA_PATH`` and ``OMNIA_PROJECT_NAME`` from the target
@@ -99,8 +95,15 @@ def sync_telemetry_input(host) -> Dict[str, Any]:
 
     Source: src/telemetry/input/ (default) or
             datasets/<dataset>/input/ (when dataset is set).
+
+    Args:
+        host: Testinfra host connection to the OIM.
+        config: Optional test config dict. If not provided, loads from disk.
+                When provided, respects OMNIA_DATASET_OVERRIDE env var that
+                was already applied to this config in conftest.
     """
-    config = load_test_config()
+    if config is None:
+        config = load_test_config()
     conn = connection_params()
 
     local_input = _resolve_input_dir(config)

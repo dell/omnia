@@ -288,7 +288,7 @@ def pytest_sessionstart(session):
             log(f"Project sync failed: {sync_result['error']}", "WARN")
 
     if config.get("sync_telemetry_input", False):
-        sync_result = sync_telemetry_input(host)
+        sync_result = sync_telemetry_input(host, config)
         if sync_result["success"]:
             log(sync_result["details"], "OK")
         else:
