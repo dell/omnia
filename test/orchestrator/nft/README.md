@@ -124,7 +124,7 @@ Non-Functional Tests validate **performance**, **idempotency**, and **security**
 
 ```
 1. NFT_OR_008: Credential file permissions
-   └─ Assert: omnia_config_credentials.yml has 0640 or stricter
+   └─ Assert: orchestrator_credentials.yml has 0640 or stricter
 
 2. NFT_OR_009: SSH key permissions
    └─ Assert: SSH private keys have 0600 permissions

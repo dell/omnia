@@ -86,8 +86,8 @@ REPO_MANAGER_OUTPUT_TEMPLATE = (
 )
 
 # Credentials
-CREDENTIALS_FILE_NAME = "omnia_config_credentials.yml"
-CREDENTIALS_KEY_NAME = ".omnia_config_credentials_key"
+CREDENTIALS_FILE_NAME = "orchestrator_credentials.yml"
+CREDENTIALS_KEY_NAME = ".orchestrator_credentials_key"
 
 # =============================================================================
 # OpenCHAMI containers (fabrica-based architecture via Quadlet)

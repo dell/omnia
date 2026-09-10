@@ -42,6 +42,7 @@ from omnia_auto import log, get_last_tc_id
 @pytest.mark.order(52)
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 def test_k8s_firewall_ports_control_plane(host):
     """TC_K8_052: Verify firewall ports on control plane nodes match cloud-init."""
     tc = TEST_CASES["k8s_firewall_ports_control_plane"]
@@ -71,6 +72,7 @@ def test_k8s_firewall_ports_control_plane(host):
 @pytest.mark.order(53)
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 def test_k8s_firewall_ports_workers(host):
     """TC_K8_053: Verify firewall ports on worker nodes match cloud-init."""
     tc = TEST_CASES["k8s_firewall_ports_workers"]
@@ -104,6 +106,7 @@ def test_k8s_firewall_ports_workers(host):
 @pytest.mark.order(54)
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 def test_k8s_nfs_client_target(host):
     """TC_K8_054: Verify nfs-client.target is active on all K8s nodes."""
     tc = TEST_CASES["k8s_nfs_client_target"]

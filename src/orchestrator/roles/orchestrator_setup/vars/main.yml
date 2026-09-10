@@ -146,6 +146,12 @@ repo_status_invalid_fail_msg: >-
 repo_certificate_missing_fail_msg: >-
   Repo Manager certificate was not found at '{{ pulp_cert_path }}'. Regenerate
   repo_status.yml and the Pulp certificate by running repo_manager.
+service_k8s_deployment_selection_fail_msg: >-
+  Multiple service_k8s_cluster entries have deployment set to true. Exactly
+  one deployed cluster may define enable_powerscale_csi.
+powerscale_csi_enablement_type_fail_msg: >-
+  enable_powerscale_csi for the service_k8s_cluster entry with deployment set
+  to true must be a native YAML boolean (true or false).
 catalog_missing_fail_msg: >-
   Required catalog was not found at '{{ catalog_file_path }}'. Run omnia.sh
   --init to install the default catalog, set CATALOG_FILE_PATH, or configure

@@ -1,6 +1,6 @@
 # Discovery — Input Contract
 
-> **Last Updated**: Jul 22, 2026 | **Domain**: `discovery`
+> **Last Updated**: Sep 9, 2026 | **Domain**: `discovery`
 
 This document defines all input files consumed by the `discovery` domain.
 
@@ -10,7 +10,7 @@ This document defines all input files consumed by the `discovery` domain.
 
 **Purpose**: Configures the discovery mechanism and OME connection.
 
-**Location**: `/opt/omnia/input/<project_name>/discovery/discovery_config.yml`
+**Location**: `$OMNIA_DATA_PATH/discovery/input/<project_name>/discovery_config.yml`
 
 **Owner**: User (manually created)
 
@@ -34,7 +34,7 @@ This document defines all input files consumed by the `discovery` domain.
 
 **Purpose**: Defines network topology for IP derivation in PXE mapping.
 
-**Location**: `/opt/omnia/input/<project_name>/discovery/network_spec.yml`
+**Location**: `$OMNIA_DATA_PATH/discovery/input/<project_name>/network_spec.yml`
 
 **Owner**: User (manually created)
 
@@ -58,7 +58,7 @@ This document defines all input files consumed by the `discovery` domain.
 
 **Purpose**: Stores OME credentials (vault-encrypted).
 
-**Location**: `/opt/omnia/input/<project_name>/discovery_credentials.yml`
+**Location**: `$OMNIA_DATA_PATH/discovery/input/<project_name>/discovery_credentials.yml`
 
 **Owner**: `discovery_credentials` role (auto-created, user-prompted)
 
@@ -71,7 +71,7 @@ This document defines all input files consumed by the `discovery` domain.
 
 ### Vault Key
 
-- **Key file**: `/opt/omnia/input/<project_name>/.discovery_credentials_key`
+- **Key file**: `$OMNIA_DATA_PATH/discovery/input/<project_name>/.discovery_credentials_key`
 - Auto-generated if missing (32-char random ASCII)
 
 ### Validation Rules
@@ -88,6 +88,7 @@ This document defines all input files consumed by the `discovery` domain.
 |----------|------|----------|-------------|
 | `discovery_mechanism` | string | Yes | Discovery backend: `ome` or `magellan` |
 | `project_name` | string | No | Project name (default: `project_default`) |
+| `cleanup_credentials` | bool | No | Remove credentials during `cleanup` (default: `true`) |
 
 ### Usage
 
@@ -95,7 +96,15 @@ This document defines all input files consumed by the `discovery` domain.
 cd src/discovery/playbooks
 ansible-playbook discovery.yml -e "discovery_mechanism=ome"
 ansible-playbook discovery.yml -e "discovery_mechanism=ome" -e "project_name=my_project"
+ansible-playbook discovery.yml --tags cleanup -e cleanup_credentials=false
+ansible-playbook discovery.yml --tags cleanup_credentials
 ```
+
+`cleanup_credentials=false` preserves only `discovery_credentials.yml` and
+`.discovery_credentials_key`. Cleanup does not remove or create the current
+project's Discovery output directory. When it exists, cleanup empties it and
+leaves the directory in place. All other input files are preserved.
+The `cleanup_credentials` tag removes only the credential file and vault key.
 
 ---
 

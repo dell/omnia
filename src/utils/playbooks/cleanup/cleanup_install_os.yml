@@ -88,7 +88,7 @@
       register: delete_credentials_prompt
       when:
         - credentials_stat.stat.exists
-        - cleanup_credentials is not defined
+        - cleanup_credentials is not defined or cleanup_credentials == ''
 
     - name: Set credential cleanup decision based on user input
       ansible.builtin.set_fact:
@@ -100,7 +100,11 @@
 
     - name: Set default cleanup_credentials if not set
       ansible.builtin.set_fact:
-        cleanup_credentials: "{{ cleanup_credentials | default(false) }}"
+        cleanup_credentials: "{{ cleanup_credentials | default(true) }}"
+
+    - name: Display credential cleanup mode
+      ansible.builtin.debug:
+        msg: "Credential cleanup: {{ 'Enabled - removing credential files' if (cleanup_credentials | bool) else 'Disabled - preserving credentials' }}"
 
     - name: Remove install_os credential file
       ansible.builtin.file:

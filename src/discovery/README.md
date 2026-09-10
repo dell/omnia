@@ -25,6 +25,7 @@ ansible-galaxy collection install omnia.discovery
 | `omnia.discovery.discovery_credentials` | Credential prompting, encryption, vault |
 | `omnia.discovery.discovery_common` | Shared task library (vault helpers) |
 | `omnia.discovery.ome_discovery` | OME-specific discovery, inventory, PXE mapping |
+| `omnia.discovery.discovery_cleanup` | Project output and credential cleanup |
 
 ### Modules
 
@@ -51,6 +52,37 @@ ansible-galaxy collection install omnia.discovery
   roles:
     - omnia.discovery.discovery_setup
 ```
+
+### Cleanup
+
+Full cleanup does not remove or create the current project's Discovery output
+directory. When the directory exists, cleanup removes every entry inside it
+and leaves the empty directory in place. It also removes the encrypted
+credential file and vault key:
+
+```bash
+ansible-playbook playbooks/discovery.yml --tags cleanup
+```
+
+Preserve the credential file and vault key while still removing all generated
+output contents:
+
+```bash
+ansible-playbook playbooks/discovery.yml --tags cleanup \
+  -e cleanup_credentials=false
+```
+
+Other files under the Discovery input project directory are never removed.
+To remove only the encrypted credential file and vault key, use:
+
+```bash
+ansible-playbook playbooks/discovery.yml --tags cleanup_credentials
+```
+
+The explicit `cleanup_credentials` tag always removes the credential artifacts,
+even when it is combined with `cleanup` and
+`-e cleanup_credentials=false`. Cleanup is limited to the project selected by
+`OMNIA_PROJECT_NAME`; Discovery log files are preserved.
 
 ## License
 

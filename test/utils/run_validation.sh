@@ -68,9 +68,13 @@ usage() {
     echo "Usage: $0 <scenario> <command> [options]"
     echo ""
     echo "Scenarios:"
-    echo "  precheck      Environment and connectivity checks"
-    echo "  collect       Log collector tests"
-    echo "  install_os    OS installation tests"
+    echo "  precheck           Environment and connectivity checks"
+    echo "  setup              Domain setup tests"
+    echo "  collect            Log collector tests"
+    echo "  install_os         OS installation tests"
+    echo "  cleanup            Combined cleanup tests"
+    echo "  cleanup_logs       Log cleanup tests"
+    echo "  cleanup_install_os Install OS cleanup tests"
     echo ""
     echo "Commands:"
     echo "  deploy        Run playbook deployment tests only"
@@ -86,6 +90,8 @@ usage() {
     echo "  $0 collect test"
     echo "  $0 collect test --marker sanity"
     echo "  $0 precheck verify"
+    echo "  $0 setup test"
+    echo "  $0 cleanup test"
     echo "  $0 --config"
     exit 1
 }
@@ -202,7 +208,7 @@ if [[ -z "${SCENARIO}" ]] || [[ -z "${COMMAND}" ]]; then
 fi
 
 # Validate scenario
-VALID_SCENARIOS=("precheck" "collect" "install_os")
+VALID_SCENARIOS=("precheck" "setup" "collect" "install_os" "cleanup" "cleanup_logs" "cleanup_install_os")
 if [[ ! " ${VALID_SCENARIOS[*]} " =~ " ${SCENARIO} " ]]; then
     log_error "Invalid scenario: ${SCENARIO}"
     log_error "Valid scenarios: ${VALID_SCENARIOS[*]}"
@@ -220,9 +226,13 @@ fi
 # Build pytest command
 PYTEST_ARGS=("-v")
 
-# Add test path
+# Add test path - handle nested cleanup scenarios
 if [[ -n "${SUITE}" ]]; then
     TEST_PATH="fvt/${SCENARIO}/${SUITE}/"
+elif [[ "${SCENARIO}" == "cleanup_logs" ]]; then
+    TEST_PATH="fvt/cleanup/cleanup_logs/"
+elif [[ "${SCENARIO}" == "cleanup_install_os" ]]; then
+    TEST_PATH="fvt/cleanup/cleanup_install_os/"
 else
     TEST_PATH="fvt/${SCENARIO}/"
 fi

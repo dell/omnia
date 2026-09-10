@@ -43,7 +43,7 @@ from library.messages import TEST_LOG_MSGS as LOG, TEST_ASSERT_MSGS as ASSERT
 
 
 # =============================================================================
-# INPUT FILE VERIFICATION
+# INPUT FILE VERIFICATION (order 10-19)
 # =============================================================================
 
 @pytest.mark.sanity
@@ -113,13 +113,16 @@ def test_install_os_credentials_file_exists(host):
 
 
 # =============================================================================
-# OUTPUT VERIFICATION
+# OUTPUT VERIFICATION (order 50-59) - runs AFTER deploy tests (order 20-49)
+# These tests require deploy to have run first. They are marked with 'deploy'
+# marker so they only execute when deploy tests are included.
 # =============================================================================
 
+@pytest.mark.deploy
 @pytest.mark.functional
-@pytest.mark.order(20)
+@pytest.mark.order(50)
 def test_install_os_output_dir_exists(host):
-    """Verify install_os output directory exists."""
+    """Verify install_os output directory exists after deploy."""
     tc = TC["install_os_output_dir_exists"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -134,10 +137,11 @@ def test_install_os_output_dir_exists(host):
     assert result["success"], f"Output directory not found: {output_path}"
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
-@pytest.mark.order(21)
+@pytest.mark.order(51)
 def test_install_os_status_file_exists(host):
-    """Verify install_os_status.yml output file created."""
+    """Verify install_os_status.yml output file created after deploy."""
     tc = TC["install_os_status_file_exists"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -153,10 +157,11 @@ def test_install_os_status_file_exists(host):
         pytest.skip("install_os_status.yml not found")
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
-@pytest.mark.order(22)
+@pytest.mark.order(52)
 def test_install_os_status_valid(host):
-    """Verify install_os_status.yml has valid structure."""
+    """Verify install_os_status.yml has valid structure after deploy."""
     tc = TC["install_os_status_valid"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -185,8 +190,9 @@ def test_install_os_status_valid(host):
     assert not missing, f"Missing keys in install_os_status.yml: {missing}"
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
-@pytest.mark.order(30)
+@pytest.mark.order(53)
 def test_install_os_custom_iso_created(host):
     """Verify custom ISO created after build_iso execution.
 
@@ -227,10 +233,11 @@ def test_install_os_custom_iso_created(host):
     pytest.skip("Custom ISO not found")
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
-@pytest.mark.order(31)
+@pytest.mark.order(54)
 def test_install_os_kickstart_generated(host):
-    """Verify kickstart.ks generated (optional)."""
+    """Verify kickstart.ks generated after deploy (optional)."""
     tc = TC["install_os_kickstart_generated"]
     tl = TestLogger(tc["title"], tc["id"])
 

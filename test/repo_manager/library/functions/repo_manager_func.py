@@ -26,15 +26,18 @@ from ..vars.common_vars import (
     PULP_PORT,
     PULP_CLI_SYMLINK,
     _get_pulp_certs_dir,
+    PULP_CERTS_DIR,
+    USER_REGISTRY_TIMEOUT,
 )
 
 
-def run_playbook(tag=None, **kwargs):
+def run_playbook(tag=None, verbose=False, **kwargs):
     """Wrapper around omnia_auto.run_playbook with repo_manager defaults."""
     return _run_playbook(
         playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),
         playbook_workdir=kwargs.pop("playbook_workdir", PLAYBOOK_WORKDIR),
         tag=tag,
+        verbose=verbose,
         **kwargs,
     )
 
@@ -1616,3 +1619,384 @@ def parse_catalog_input_file(host, input_file: str) -> Dict[str, Any]:
         "groups": groups,
         "packages": packages
     }
+
+
+# =========================================================================
+# User Registry verification functions
+# =========================================================================
+
+def _read_registries_section(host) -> Dict[str, Any]:
+    """Read the registries section from repo_manager_config.yml on target."""
+    input_path = _get_input_path()
+    config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
+    cmd = (
+        "python3 -c \""
+        "import yaml, json; "
+        "config = yaml.safe_load(open('" + config_path + "')); "
+        "registries = config.get('registries') or {}; "
+        "print(json.dumps(registries))"
+        "\""
+    )
+    result = run_on_host(host, cmd)
+    if result.rc != 0:
+        return {"success": False, "details": f"Could not read {config_path}", "error": result.stderr}
+    try:
+        data = json.loads(result.stdout.strip())
+        return {"success": True, "details": data, "error": ""}
+    except json.JSONDecodeError as exc:
+        return {"success": False, "details": result.stdout[:200], "error": str(exc)}
+
+
+def check_user_registry_section_exists(host) -> Dict[str, Any]:
+    """Verify that the registries section exists in repo_manager_config.yml."""
+    input_path = _get_input_path()
+    config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
+
+    result = _cmd_file_exists(host, config_path)
+    if result.rc != 0 or "exists" not in result.stdout:
+        return {
+            "success": False,
+            "details": f"Config file not found at {config_path}",
+            "error": f"{INPUT_FILES['repo_manager_config']} not found",
+        }
+
+    read_result = _read_registries_section(host)
+    if not read_result["success"]:
+        return read_result
+
+    registries = read_result["details"]
+    if isinstance(registries, dict):
+        return {
+            "success": True,
+            "details": f"Registries section found with {len(registries)} entries",
+            "error": "",
+            "registries": registries,
+        }
+    return {
+        "success": False,
+        "details": f"Registries section is not a mapping: {type(registries).__name__}",
+        "error": "Registries must be a YAML mapping",
+    }
+
+
+def check_user_registry_structure(host) -> Dict[str, Any]:
+    """Validate that each registry entry has valid structure (base_url, port)."""
+    read_result = _read_registries_section(host)
+    if not read_result["success"]:
+        return read_result
+
+    registries = read_result["details"]
+    if not registries:
+        return {
+            "success": True,
+            "details": "No registries configured; structure validation not applicable",
+            "error": "",
+            "skipped": True,
+        }
+
+    invalid = []
+    for name, config in registries.items():
+        if not isinstance(config, dict):
+            invalid.append(f"{name}: entry is not a mapping")
+            continue
+        base_url = config.get("base_url", "")
+        if not isinstance(base_url, str) or not base_url.strip():
+            invalid.append(f"{name}: missing or empty base_url")
+
+    if invalid:
+        return {
+            "success": False,
+            "details": "; ".join(invalid),
+            "error": "Registry structure validation failed",
+        }
+    return {
+        "success": True,
+        "details": f"All {len(registries)} registry entries have valid structure",
+        "error": "",
+    }
+
+
+def check_user_registry_base_url_valid(host) -> Dict[str, Any]:
+    """Validate that each registry base_url is a valid HTTP(S) origin."""
+    read_result = _read_registries_section(host)
+    if not read_result["success"]:
+        return read_result
+
+    registries = read_result["details"]
+    if not registries:
+        return {
+            "success": True,
+            "details": "No registries configured; base_url validation not applicable",
+            "error": "",
+            "skipped": True,
+        }
+
+    # Validate each base_url by running a check on the target
+    input_path = _get_input_path()
+    config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
+    cmd = (
+        "python3 -c \""
+        "import yaml, json; "
+        "from urllib.parse import urlsplit; "
+        "config = yaml.safe_load(open('" + config_path + "')); "
+        "registries = config.get('registries') or {}; "
+        "errors = []; "
+        "[errors.append(n + ': ' + str(e)) "
+        " for n, c in registries.items() "
+        " for e in ["
+        "   'not a mapping' if not isinstance(c, dict) else "
+        "   'empty base_url' if not (c.get('base_url') or '').strip() else "
+        "   'invalid scheme' if urlsplit(c['base_url']).scheme not in ('http','https') else "
+        "   'missing hostname' if not urlsplit(c['base_url']).hostname else None"
+        " ] if e is not None]; "
+        "print(json.dumps(errors))"
+        "\""
+    )
+    result = run_on_host(host, cmd)
+    if result.rc != 0:
+        return {"success": False, "details": result.stderr, "error": "base_url validation command failed"}
+
+    try:
+        errors = json.loads(result.stdout.strip())
+    except json.JSONDecodeError:
+        return {"success": False, "details": result.stdout[:200], "error": "Could not parse validation output"}
+
+    if errors:
+        return {
+            "success": False,
+            "details": "; ".join(errors),
+            "error": "Some registry base_url values are invalid",
+        }
+    return {
+        "success": True,
+        "details": f"All {len(registries)} registry base_url values are valid HTTP(S) origins",
+        "error": "",
+    }
+
+
+def check_user_registry_reachability(host) -> Dict[str, Any]:
+    """Check TCP reachability of configured registries."""
+    read_result = _read_registries_section(host)
+    if not read_result["success"]:
+        return read_result
+
+    registries = read_result["details"]
+    if not registries:
+        return {
+            "success": True,
+            "details": "No registries configured; reachability check not applicable",
+            "error": "",
+            "skipped": True,
+        }
+
+    from urllib.parse import urlsplit
+    import socket
+
+    timeout = USER_REGISTRY_TIMEOUT
+    reachable = []
+    unreachable = []
+
+    for name, cfg in registries.items():
+        if not isinstance(cfg, dict):
+            continue
+        base_url = cfg.get("base_url", "")
+        parsed = urlsplit(base_url)
+        hostname = parsed.hostname
+        port = parsed.port or cfg.get("port", 443)
+        if not hostname:
+            unreachable.append(f"{name}: no hostname in base_url")
+            continue
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(timeout)
+            s.connect((hostname, int(port)))
+            s.close()
+            reachable.append(name)
+        except Exception as exc:
+            unreachable.append(f"{name} ({hostname}:{port}): {exc}")
+
+    if unreachable:
+        return {
+            "success": False,
+            "details": f"Unreachable registries: {', '.join(unreachable)}",
+            "error": "Some configured registries are unreachable",
+        }
+    return {
+        "success": True,
+        "details": f"All {len(reachable)} configured registries are reachable",
+        "error": "",
+    }
+
+
+def check_user_registry_tls_cert_paths(host) -> Dict[str, Any]:
+    """Validate that configured TLS certificate paths exist on disk."""
+    read_result = _read_registries_section(host)
+    if not read_result["success"]:
+        return read_result
+
+    registries = read_result["details"]
+    if not registries:
+        return {
+            "success": True,
+            "details": "No registries configured; TLS cert path check not applicable",
+            "error": "",
+            "skipped": True,
+        }
+
+    invalid = []
+    for name, config in registries.items():
+        if not isinstance(config, dict):
+            continue
+        tls = config.get("tls") or {}
+        if not isinstance(tls, dict):
+            continue
+        for key in ("ca_path", "client_cert_path", "client_key_path"):
+            path = tls.get(key, "")
+            if path:
+                result = _cmd_file_exists(host, path)
+                if result.rc != 0 or "exists" not in result.stdout:
+                    invalid.append(f"{name}: {key} path does not exist ({path})")
+
+    if invalid:
+        return {
+            "success": False,
+            "details": "; ".join(invalid),
+            "error": "Some TLS certificate paths are missing",
+        }
+    return {
+        "success": True,
+        "details": f"All TLS certificate paths for {len(registries)} registries are valid",
+        "error": "",
+    }
+
+
+def check_user_registry_tls_pair_consistent(host) -> Dict[str, Any]:
+    """Verify client_cert_path and client_key_path are configured together."""
+    read_result = _read_registries_section(host)
+    if not read_result["success"]:
+        return read_result
+
+    registries = read_result["details"]
+    if not registries:
+        return {
+            "success": True,
+            "details": "No registries configured; TLS pair check not applicable",
+            "error": "",
+            "skipped": True,
+        }
+
+    invalid = []
+    for name, config in registries.items():
+        if not isinstance(config, dict):
+            continue
+        tls = config.get("tls") or {}
+        if not isinstance(tls, dict):
+            continue
+        client_cert = tls.get("client_cert_path") or ""
+        client_key = tls.get("client_key_path") or ""
+        if bool(client_cert) != bool(client_key):
+            invalid.append(
+                f"{name}: client_cert_path and client_key_path must be provided together"
+            )
+
+    if invalid:
+        return {
+            "success": False,
+            "details": "; ".join(invalid),
+            "error": "Client cert/key pair is incomplete",
+        }
+    return {
+        "success": True,
+        "details": f"TLS client cert/key pairs are consistent for {len(registries)} registries",
+        "error": "",
+    }
+
+
+def check_user_registry_auth_type(host) -> Dict[str, Any]:
+    """Verify each registry auth type is valid (none or basic)."""
+    read_result = _read_registries_section(host)
+    if not read_result["success"]:
+        return read_result
+
+    registries = read_result["details"]
+    if not registries:
+        return {
+            "success": True,
+            "details": "No registries configured; auth type check not applicable",
+            "error": "",
+            "skipped": True,
+        }
+
+    invalid = []
+    for name, config in registries.items():
+        if not isinstance(config, dict):
+            continue
+        auth = config.get("auth") or {}
+        if not isinstance(auth, dict):
+            invalid.append(f"{name}: auth must be a mapping")
+            continue
+        auth_type = auth.get("type", "none")
+        if auth_type not in ("none", "basic"):
+            invalid.append(f"{name}: unsupported auth type '{auth_type}'")
+
+    if invalid:
+        return {
+            "success": False,
+            "details": "; ".join(invalid),
+            "error": "Some registries have unsupported auth types",
+        }
+    return {
+        "success": True,
+        "details": f"All {len(registries)} registries have valid auth type",
+        "error": "",
+    }
+
+
+def check_user_registry_credentials(host) -> Dict[str, Any]:
+    """Verify credentials are configured for registries with basic auth."""
+    read_result = _read_registries_section(host)
+    if not read_result["success"]:
+        return read_result
+
+    registries = read_result["details"]
+    if not registries:
+        return {
+            "success": True,
+            "details": "No registries configured; credential check not applicable",
+            "error": "",
+            "skipped": True,
+        }
+
+    basic_auth_registries = []
+    for name, config in registries.items():
+        if not isinstance(config, dict):
+            continue
+        auth = config.get("auth") or {}
+        if isinstance(auth, dict) and auth.get("type") == "basic":
+            credentials = auth.get("credentials") or {}
+            vault_path = credentials.get("vault_path", "")
+            basic_auth_registries.append(
+                {"name": name, "vault_path": vault_path}
+            )
+
+    if not basic_auth_registries:
+        return {
+            "success": True,
+            "details": "No registries require basic auth credentials",
+            "error": "",
+        }
+
+    # Check that vault_path is configured for basic auth registries
+    missing = [r["name"] for r in basic_auth_registries if not r["vault_path"]]
+    if missing:
+        return {
+            "success": False,
+            "details": f"Registries missing vault_path for basic auth: {', '.join(missing)}",
+            "error": "Credential vault_path not configured",
+        }
+    return {
+        "success": True,
+        "details": f"All {len(basic_auth_registries)} basic auth registries have vault_path configured",
+        "error": "",
+    }
+

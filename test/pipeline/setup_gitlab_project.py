@@ -81,7 +81,6 @@ Usage:
 """
 
 import argparse
-import getpass
 import json
 import os
 import re
@@ -109,7 +108,10 @@ import urllib3
 _VALID_HOSTNAME_RE = re.compile(r'^[a-zA-Z0-9]([a-zA-Z0-9._-]{0,253}[a-zA-Z0-9])?$')
 _VALID_TOKEN_RE = re.compile(r'^[a-zA-Z0-9._-]+$')
 _VALID_IP_RE = re.compile(r'^\d{1,3}(\.\d{1,3}){3}$')
-_VALID_PROJECT_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9._-]*$')
+_VALID_PROJECT_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9._-]{0,254}$')
+_VALID_NAMESPACE_RE = re.compile(
+    r'^[a-zA-Z0-9][a-zA-Z0-9._-]{0,254}(?:/[a-zA-Z0-9][a-zA-Z0-9._-]{0,254})*$'
+)
 _VALID_CLUSTER_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]{0,63}$')
 
 
@@ -121,8 +123,14 @@ def _validate_url(url):
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
     parsed = urlparse(url)
-    if not parsed.hostname or not _VALID_HOSTNAME_RE.match(parsed.hostname):
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError("GitLab URL must use HTTP or HTTPS")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise ValueError("GitLab URL must not contain credentials, a query, or a fragment")
+    if not parsed.hostname or not _VALID_HOSTNAME_RE.fullmatch(parsed.hostname):
         raise ValueError(f"Invalid hostname in URL: {url}")
+    if parsed.port is not None and not (1 <= parsed.port <= 65535):
+        raise ValueError("GitLab URL contains an invalid port")
     return url.rstrip("/")
 
 
@@ -144,6 +152,27 @@ def _validate_project_name(name):
     if not _VALID_PROJECT_RE.match(name):
         raise ValueError(f"Invalid project name: {name}")
     return name
+
+
+def _validate_namespace(namespace):
+    """Validate a GitLab namespace or nested group path."""
+    namespace = namespace.strip()
+    if not namespace or not _VALID_NAMESPACE_RE.fullmatch(namespace):
+        raise ValueError(f"Invalid namespace: {namespace!r}")
+    return namespace
+
+
+def _validate_commit_message(message):
+    """Validate a user-provided Git commit message."""
+    if message is None:
+        return None
+    if not message.strip():
+        raise ValueError("Commit message cannot be empty")
+    if len(message) > 1000:
+        raise ValueError("Commit message exceeds maximum length of 1000")
+    if re.search(r'[\x00\x08\x0b\x0c\x0e-\x1f\x7f]', message):
+        raise ValueError("Commit message contains invalid control characters")
+    return message
 
 
 def _validate_cluster_name(name):
@@ -211,28 +240,6 @@ def _sanitize_log_output(text, max_length=300):
     return cleaned
 
 
-def _sanitize_input(value, pattern, field_name, max_length=256):
-    """Validate and sanitize interactive user input against a regex pattern.
-
-    Raises ValueError if the value does not match the expected pattern.
-    This prevents command injection through interactive prompts.
-    """
-    if not value:
-        return value
-    # Strip leading/trailing whitespace
-    value = value.strip()
-    # Reject control characters
-    if re.search(r'[\x00-\x1f\x7f]', value):
-        raise ValueError(f"{field_name} contains invalid control characters")
-    # Enforce maximum length
-    if len(value) > max_length:
-        raise ValueError(f"{field_name} exceeds maximum length of {max_length}")
-    # Validate against expected pattern
-    if not re.match(pattern, value):
-        raise ValueError(f"Invalid {field_name}: '{value}'")
-    return value
-
-
 # ---------------------------------------------------------------------------
 # Pipeline config file parser
 # ---------------------------------------------------------------------------
@@ -241,20 +248,16 @@ def load_pipeline_config(config_path):
     """Load and parse pipeline_config.yml into a flat CI/CD variable map.
 
     Returns:
-        (cluster_names, variables, cluster_ips) where:
+        (cluster_names, variables) where:
             cluster_names: list of cluster names from the config
             variables: dict of {VAR_NAME: value} ready for GitLab CI/CD
-            cluster_ips: dict of {cluster_name: target_ip} for password prompts
-                         (passwords are collected by the caller, not here,
-                          to prevent Checkmarx taint-tracking from linking
-                          file data to credentials)
     """
     if yaml is None:
         print("ERROR: 'pyyaml' library is required for --config. Install with: pip install pyyaml")
         sys.exit(1)
 
-    with open(config_path, "r") as f:
-        cfg = yaml.safe_load(f)
+    config_content = Path(config_path).read_text(encoding="utf-8")
+    cfg = yaml.safe_load(config_content)
 
     if not cfg:
         print(f"ERROR: Config file is empty: {config_path}")
@@ -297,11 +300,6 @@ def load_pipeline_config(config_path):
     if email_cfg.get("smtp_port"):
         variables["SMTP_PORT"] = email_cfg["smtp_port"]
 
-    # Cluster IPs — extracted from config, used by caller to prompt for passwords.
-    # Passwords are collected OUTSIDE this function to prevent taint-tracking
-    # from linking file data to credentials (CWE-522).
-    cluster_ips = {}
-
     for cluster in cluster_names:
         cluster_cfg = cfg.get(cluster)
         if not cluster_cfg:
@@ -314,7 +312,6 @@ def load_pipeline_config(config_path):
         conn = cluster_cfg.get("connection", {}) or {}
         if conn.get("target_ip"):
             variables[f"{prefix}_TARGET_IP"] = conn["target_ip"]
-            cluster_ips[cluster] = conn["target_ip"]
         if conn.get("target_user"):
             variables[f"{prefix}_TARGET_USER"] = conn["target_user"]
 
@@ -371,7 +368,7 @@ def load_pipeline_config(config_path):
             if val and os.path.isfile(val):
                 variables[f"{prefix}_{var_suffix}"] = val
 
-    return cluster_names, variables, cluster_ips
+    return cluster_names, variables
 
 
 # Credential variable suffixes — these use File type in GitLab
@@ -381,13 +378,11 @@ _FILE_TYPE_VARS = {
 }
 
 
-def apply_config_variables(client, project_id, variables, secrets=None):
+def apply_config_variables(client, project_id, variables):
     """Apply CI/CD variables from the parsed config to a GitLab project.
 
     File-type credential variables are uploaded with their file content.
     All other variables are set as regular env_var type.
-    Secrets (passwords collected interactively) are applied separately with
-    masking enabled, keeping them isolated from file-sourced data.
     """
     print("\nApplying CI/CD variables from config...")
     for var_name, value in sorted(variables.items()):
@@ -404,15 +399,6 @@ def apply_config_variables(client, project_id, variables, secrets=None):
         else:
             status = client.set_variable(project_id, var_name, value)
             print(f"  {status}: {var_name} = {value}")
-
-    # Apply secrets (interactively collected passwords) — kept separate
-    # from file-sourced variables to satisfy CWE-522 taint separation.
-    if secrets:
-        for var_name, secret_val in sorted(secrets.items()):
-            status = client.set_variable(
-                project_id, var_name, secret_val, masked=True
-            )
-            print(f"  {status}: {var_name} (masked)")
 
 
 # ---------------------------------------------------------------------------
@@ -895,66 +881,6 @@ def generate_cluster_env(cluster_name, target_ip="", target_user="root"):
 
 
 # ---------------------------------------------------------------------------
-# Interactive prompts
-# ---------------------------------------------------------------------------
-
-def prompt_cluster_details(cluster_names):
-    """Prompt for target IP and user for each cluster.
-
-    Returns dict: {cluster_name: {"ip": ..., "user": ...}}
-    """
-    # Pattern for valid IPv4 address or hostname
-    _IP_HOSTNAME_RE = r'^[a-zA-Z0-9][a-zA-Z0-9._-]{0,253}[a-zA-Z0-9]$|^\d{1,3}(\.\d{1,3}){3}$'
-    # Pattern for valid unix username
-    _USERNAME_RE = r'^[a-zA-Z_][a-zA-Z0-9_.-]{0,31}$'
-
-    details = {}
-    for name in cluster_names:
-        print(f"\n  Cluster: {name}")
-        raw_ip = input(f"    Target IP [{name}]: ").strip()
-        ip = _sanitize_input(raw_ip, _IP_HOSTNAME_RE, "Target IP") if raw_ip else ""
-        raw_user = input(f"    Target User [root]: ").strip() or "root"
-        user = _sanitize_input(raw_user, _USERNAME_RE, "Target User")
-        details[name] = {"ip": ip, "user": user}
-    return details
-
-
-def prompt_credentials(cluster_names, domains):
-    """Prompt for test credential file paths per cluster.
-
-    Returns dict: {var_name: file_path}
-    Domain credentials are managed by OpenBao — only test_creds is prompted here.
-    """
-    _YES_NO_RE = r'^(yes|no|y|n)$'
-    _FILE_PATH_RE = r'^[a-zA-Z0-9_./ -]+$'
-
-    print("\n  NOTE: Domain credentials are managed by OpenBao (VAULT_SERVER_URL).")
-    raw_answer = input("\nConfigure test credential files now? (yes/no) [no]: ").strip().lower()
-    answer = _sanitize_input(raw_answer, _YES_NO_RE, "yes/no response") if raw_answer else "no"
-    if answer not in ("yes", "y"):
-        print("  Skipping. Set TEST_CREDS later in GitLab UI: Settings > CI/CD > Variables")
-        return {}
-
-    creds = {}
-    for cluster in cluster_names:
-        prefix = cluster.upper()
-        var_name = f"{prefix}_TEST_CREDS"
-        raw_path = input(f"  Path to test credentials file [{var_name}]: ").strip()
-        if raw_path:
-            path = _sanitize_input(raw_path, _FILE_PATH_RE, "file path")
-            if '..' in path:
-                raise ValueError("Path traversal detected in credential file path")
-            if os.path.isfile(path):
-                creds[var_name] = path
-            else:
-                print(f"    WARNING: File not found: {_sanitize_log_output(path)} — skipping")
-        else:
-            print(f"    Skipping {var_name}")
-
-    return creds
-
-
-# ---------------------------------------------------------------------------
 # Main commands
 # ---------------------------------------------------------------------------
 
@@ -975,20 +901,10 @@ def cmd_create(args, client):
 
     # Parse clusters — from config file or --clusters arg
     config_vars = {}
-    config_cluster_ips = {}
-    config_secrets = {}
     if args.config:
-        config_cluster_names, config_vars, config_cluster_ips = load_pipeline_config(args.config)
+        config_cluster_names, config_vars = load_pipeline_config(args.config)
         print(f"Loaded config: {args.config}")
         cluster_names = config_cluster_names
-        # Collect passwords interactively (NOT from file) to prevent taint-tracking
-        # from linking file data to credentials (CWE-522).
-        for cluster in cluster_names:
-            prefix = cluster.upper()
-            target_ip = config_cluster_ips.get(cluster, cluster)
-            password = getpass.getpass(f"  Enter SSH password for {cluster} ({target_ip}): ")
-            if password:
-                config_secrets[f"{prefix}_TARGET_PASS"] = password
     else:
         try:
             cluster_names = [_validate_cluster_name(c) for c in args.clusters.split(",") if c.strip()]
@@ -1088,7 +1004,7 @@ def cmd_create(args, client):
 
     if config_vars:
         # ---- Config-file mode: apply all variables from pipeline_config.yml
-        apply_config_variables(client, project_id, config_vars, config_secrets)
+        apply_config_variables(client, project_id, config_vars)
 
         # Also set global defaults that aren't in the config file
         global_keys = [
@@ -1099,11 +1015,28 @@ def cmd_create(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
+            ("VAULT_SERVER_URL", ""),
+            ("VAULT_AUTH_ROLE", ""),
+            ("VAULT_SECRET_PATH", ""),
         ]
         for key, default_val in global_keys:
             if key not in config_vars:
                 status = client.set_variable(project_id, key, default_val)
                 print(f"  {status}: {key} = {default_val}")
+        for cluster in cluster_names:
+            prefix = cluster.upper()
+            connection_defaults = {
+                f"{prefix}_TARGET_IP": "",
+                f"{prefix}_TARGET_USER": "root",
+                f"{prefix}_TARGET_PASS": "",
+            }
+            for key, default_val in connection_defaults.items():
+                if key not in config_vars:
+                    status = client.set_variable(
+                        project_id, key, default_val,
+                        protected=key.endswith("_TARGET_PASS"),
+                    )
+                    print(f"  {status}: {key} = {default_val}")
 
     else:
 
@@ -1131,6 +1064,9 @@ def cmd_create(args, client):
 
         # Cluster-level configuration variables
         per_cluster_keys = [
+            ("TARGET_IP", ""),
+            ("TARGET_USER", "root"),
+            ("TARGET_PASS", ""),
             ("PIPELINE_MODE", "default"),
             ("DOMAINS", "default"),
             ("ENABLE_SETUP", "false"),
@@ -1152,7 +1088,10 @@ def cmd_create(args, client):
             prefix = cluster.upper()
             for key, default_val in per_cluster_keys:
                 var_name = f"{prefix}_{key}"
-                status = client.set_variable(project_id, var_name, default_val)
+                status = client.set_variable(
+                    project_id, var_name, default_val,
+                    protected=key == "TARGET_PASS",
+                )
                 print(f"  {status}: {var_name} = {default_val}")
 
     # Summary
@@ -1264,9 +1203,9 @@ def cmd_update(args, client):
 
     # Apply CI/CD variables from config file or --update-vars
     if args.config:
-        config_cluster_names, config_vars, config_cluster_ips = load_pipeline_config(args.config)
+        _, config_vars = load_pipeline_config(args.config)
         print(f"\nApplying variables from config: {args.config}")
-        apply_config_variables(client, project_id, config_vars, secrets=None)
+        apply_config_variables(client, project_id, config_vars)
         print(f"  {len(config_vars)} variables applied")
     elif args.update_vars:
         print("\nUpdating CI/CD variables (defaults)...")
@@ -1290,6 +1229,9 @@ def cmd_update(args, client):
 
         # Cluster-level configuration variables
         per_cluster_keys = [
+            ("TARGET_IP", ""),
+            ("TARGET_USER", "root"),
+            ("TARGET_PASS", ""),
             ("PIPELINE_MODE", "default"),
             ("DOMAINS", "default"),
             ("ENABLE_SETUP", "false"),
@@ -1311,7 +1253,10 @@ def cmd_update(args, client):
             prefix = cluster.upper()
             for key, default_val in per_cluster_keys:
                 var_name = f"{prefix}_{key}"
-                status = client.set_variable(project_id, var_name, default_val)
+                status = client.set_variable(
+                    project_id, var_name, default_val,
+                    protected=key == "TARGET_PASS",
+                )
                 print(f"  {status}: {var_name} = {default_val}")
 
     print("\nUpdate complete.")
@@ -1686,15 +1631,10 @@ def cmd_delete(args, client):
     project_id = project["id"]
     project_url = project.get("web_url", project_path)
 
-    # Confirmation prompt
     print(f"\nProject to delete: {project_url}")
     print(f"Project ID: {project_id}")
-    print("\nWARNING: This action cannot be undone!")
-    raw_confirmation = input("Type 'DELETE' to confirm deletion: ").strip()
-    confirmation = _sanitize_input(raw_confirmation, r'^[A-Z]{0,10}$', "confirmation keyword", max_length=10) if raw_confirmation else ""
-
-    if confirmation != "DELETE":
-        print("Deletion cancelled.")
+    if not args.confirm_delete:
+        print("ERROR: --confirm-delete is required with --delete")
         return False
 
     # Delete the project
@@ -1751,9 +1691,8 @@ def main():
     # Connection
     parser.add_argument("--gitlab-url", required=True,
                         help="GitLab instance URL (e.g. https://gitlab.example.com)")
-    parser.add_argument("--token",
-                        help="GitLab Personal Access Token with 'api' scope "
-                             "(prompted if not provided)")
+    parser.add_argument("--token", required=True,
+                        help="GitLab Personal Access Token with 'api' scope")
 
     # Project
     parser.add_argument("--project-name", required=True,
@@ -1769,8 +1708,7 @@ def main():
 
     # Config file
     parser.add_argument("--config",
-                        help="Path to pipeline_config.yml — sets CI/CD variables from the file "
-                             "instead of prompting interactively")
+                        help="Path to pipeline_config.yml used to set CI/CD variables")
 
     # Update options
     parser.add_argument("--update-vars", action="store_true",
@@ -1785,6 +1723,8 @@ def main():
                         help="Destination path in the GitLab repo (default: same as filename/dirname)")
     parser.add_argument("--commit-message",
                         help="Custom commit message (default: auto-generated)")
+    parser.add_argument("--confirm-delete", action="store_true",
+                        help="Confirm project deletion without an interactive prompt")
 
     # SSL
     parser.add_argument("--no-verify-ssl", action="store_true",
@@ -1792,20 +1732,24 @@ def main():
 
     args = parser.parse_args()
 
-    # Get token
-    if args.token:
-        print("WARNING: Passing tokens via --token is visible in process listings. "
-              "Consider omitting --token to use the secure interactive prompt.")
-    else:
-        args.token = getpass.getpass("GitLab Personal Access Token: ")
-        if not args.token:
-            print("ERROR: Token is required")
-            sys.exit(1)
+    print("WARNING: Passing tokens via --token is visible in process listings.")
 
     # Validate inputs
     try:
         gitlab_url = _validate_url(args.gitlab_url)
         token = _validate_token(args.token)
+        args.project_name = _validate_project_name(args.project_name)
+        args.namespace = _validate_namespace(args.namespace)
+        args.clusters = ",".join(
+            _validate_cluster_name(cluster)
+            for cluster in args.clusters.split(",")
+            if cluster.strip()
+        )
+        if not args.clusters:
+            raise ValueError("At least one cluster name is required")
+        args.commit_message = _validate_commit_message(args.commit_message)
+        if args.repo_path:
+            args.repo_path = _validate_repo_path(args.repo_path)
     except ValueError as e:
         print(f"ERROR: {e}")
         sys.exit(1)
