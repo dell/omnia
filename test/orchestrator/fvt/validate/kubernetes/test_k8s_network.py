@@ -45,6 +45,7 @@ def _skip_if_k8s_disabled(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_k8s_kube_vip_pods(host):
     """TC_K8_041: Verify kube-vip pods are running."""
@@ -70,6 +71,7 @@ def test_k8s_kube_vip_pods(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_k8s_calico_pods(host):
     """TC_K8_042: Verify Calico network pods are running."""
@@ -95,6 +97,7 @@ def test_k8s_calico_pods(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_k8s_metallb_pods(host):
     """TC_K8_043: Verify MetalLB system pods are running."""

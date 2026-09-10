@@ -17,7 +17,6 @@ input_project_dir: "{{ hostvars['localhost']['omnia_project_input_dir'] }}"
 # Versioned JSON file: service_k8s_v<version>.json (e.g., service_k8s_v1.35.1.json)
 k8s_packages_file: "{{ input_project_dir }}/config/x86_64/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/service_k8s_v{{ hostvars['localhost']['service_k8s_version'] }}.json" # noqa: yaml[line-length]
 calico_manifest_yaml_url: "{{ offline_manifest_path | regex_replace('/$', '') }}/{{ calico_package }}/{{ calico_package }}.yml"
-csi_powerscale_packages_file: "{{ input_project_dir }}/config/x86_64/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/csi_driver_powerscale.json" # noqa: yaml[line-length]
 metallb_manifest_yaml_url: "{{ offline_manifest_path | regex_replace('/$', '') }}/{{ metallb_package }}/{{ metallb_package }}.yml"
 multus_manifest_yaml_url: "{{ offline_manifest_path | regex_replace('/$', '') }}/{{ multus_package }}/{{ multus_package }}.yml"
 helm_tarball_url: "{{ offline_tarball_path | regex_replace('/$', '') }}/{{ helm_package }}/{{ helm_package }}.tar.gz"
@@ -49,8 +48,35 @@ k8s_pip_packages: []
 cp_ips: "{{ (cp_first_ip_list + cp_ip_list) | unique }}"
 folder_mode: "0755"
 
-# csi variables
-fail_msg_download: "Failed to get required dependencies. Make sure to verify entries in csi_driver_powerscale.json and run local_repo.yml first."
+# CSI variables
+powerscale_csi_deployment_fail_msg: >-
+  PowerScale CSI is enabled, but omnia_config.yml does not contain exactly one
+  service_k8s_cluster entry with deployment set to true. Correct the active
+  Kubernetes deployment selection and rerun Orchestrator.
+powerscale_csi_input_path_fail_msg: >-
+  PowerScale CSI is enabled, but its deployed service_k8s_cluster entry does not
+  define absolute csi_powerscale_driver_secret_file_path and
+  csi_powerscale_driver_values_file_path values in omnia_config.yml.
+powerscale_csi_input_file_fail_msg: >-
+  A configured PowerScale CSI input path does not identify a regular file on
+  the OIM. Verify the secret.yaml and values.yaml paths in the deployed
+  service_k8s_cluster entry, then rerun Orchestrator.
+powerscale_repo_status_structure_fail_msg: >-
+  PowerScale CSI is enabled, but repo_status.yml does not contain a mapping at
+  file_repos.x86_64.git. Ensure Repo Manager publishes the required x86_64
+  PowerScale CSI Git dependencies, then rerun Orchestrator.
+powerscale_repo_status_artifacts_fail_msg: >-
+  PowerScale CSI requires exactly one x86_64 Git artifact in repo_status.yml
+  matching each key pattern: ^csi-powerscale-v, ^helm-charts-[0-9], and
+  ^external-snapshotter-v. Check file_repos.x86_64.git and the Repo Manager
+  source configuration, then rerun Repo Manager.
+powerscale_repo_status_url_fail_msg: >-
+  PowerScale CSI found an invalid published Git URL in
+  repo_status.yml file_repos.x86_64.git. Each matched artifact must have an
+  HTTP(S) distribution URL whose final path is its versioned package directory.
+fail_msg_download: >-
+  Failed to stage the PowerScale CSI dependencies from Repo Manager. Verify
+  the published URLs under repo_status.yml file_repos.x86_64.git are reachable.
 helm_charts_git: "helm-charts.tar.gz"
 external_snapshotter_git: "external-snapshotter.tar.gz"
 empty_certificate_template_path: "{{ role_path }}/files/empty_certificate_template.yml"

@@ -51,6 +51,7 @@
     OMNIA_DATA_PATH: "{{ omnia_data_path }}"
     REPO_MANAGER_DATA_PATH: "{{ repo_manager_runtime_dir }}"
   register: vault_result
+  no_log: true
 
 - name: Execute tasks for each architecture
   ansible.builtin.include_tasks: process_architecture_components.yml

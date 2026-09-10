@@ -130,8 +130,8 @@ def check_build_status_file(host) -> Dict[str, Any]:
     Returns:
         Dict with 'success', 'status', 'details', 'error'.
     """
-    shared = _get_shared_path()
-    project = _get_project_name()
+    shared = _get_shared_path(host)
+    project = _get_project_name(host)
     status_path = (
         f"{shared}/output/{project}/build_status.yml"
     )

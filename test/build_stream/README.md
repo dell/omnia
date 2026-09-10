@@ -10,7 +10,7 @@ build pipeline execution, and end-to-end verification.
 test/build_stream/
 ├── conftest.py                     # Session setup, omnia_auto.configure()
 ├── test_config.yml                 # Non-sensitive settings (IP, catalog, paths)
-├── test_creds.yml                  # SSH credentials (auto-encrypted)
+├── test_creds.yml                  # SSH/domain credentials (Vault-encrypted)
 ├── requirements.txt                # Dependencies
 ├── run_validation.sh               # CLI runner
 ├── setup_env.sh                    # One-time venv setup + credential utility
@@ -52,8 +52,8 @@ test/build_stream/
 ```bash
 cd /root/test/omnia/test/build_stream
 
-# Create virtual environment and install dependencies
-bash setup_env.sh
+# Create .venv and install dependencies
+bash setup_env.sh --venv
 
 # Activate virtual environment
 source .venv/bin/activate
@@ -68,6 +68,9 @@ vi test_config.yml
 # Required settings:
 #   oim_server_ip: ""                    # Leave empty for local mode
 #   catalog_name: "catalog_rhel.json"    # For build_pipeline tests
+
+# Required only for password-based remote OIM access
+bash setup_env.sh --set-creds
 ```
 
 ### 3. Set Domain Credentials (First-time only)
@@ -76,15 +79,9 @@ vi test_config.yml
 # Interactive credential setup
 bash setup_env.sh --set-domain-creds
 
-# Or provide credentials via JSON
-bash setup_env.sh --domain-creds '{
-  "gitlab_root_password": "your_password",
-  "gitlab_ssh_password": "your_password",
-  "build_stream_auth_username": "admin",
-  "build_stream_auth_password": "your_password",
-  "postgres_user": "postgres",
-  "postgres_password": "your_password"
-}'
+# Or pass a JSON object from a secret manager through standard input
+printf '%s' "$BUILD_STREAM_CREDENTIALS_JSON" | \
+  bash setup_env.sh --domain-creds-stdin
 ```
 
 ## Test Scenarios
@@ -227,13 +224,21 @@ report_path: /opt/omnia/reports            # Test report directory
 
 ### test_creds.yml (auto-generated)
 
-Encrypted credentials (created by `setup_env.sh --set-domain-creds`):
+Credentials are managed by `setup_env.sh` and encrypted in place. Never edit
+the encrypted form directly or commit the generated `.test_creds.key`:
 
 ```yaml
-oim_ssh_password: !vault |
-  $ANSIBLE_VAULT;1.1;AES256
-  ...
+oim_password: ""                 # Remote OIM SSH; optional for local/key auth
+gitlab_root_password: ""         # Required Build Stream domain credential
+gitlab_ssh_password: ""          # Required Build Stream domain credential
+build_stream_auth_username: ""   # Conditional when BuildStream is enabled
+build_stream_auth_password: ""
+postgres_user: ""
+postgres_password: ""
 ```
+
+Use `--set-creds`, `--update-creds`, or `--creds-stdin` for the OIM SSH
+password. Use the corresponding `*-domain-creds` options for domain fields.
 
 ## Reports
 
@@ -267,8 +272,12 @@ oim_ssh_port: 22
 Then set SSH password:
 
 ```bash
-bash setup_env.sh --set-ssh-creds
+bash setup_env.sh --set-creds
 ```
+
+When project synchronization is enabled, the staging copy excludes Vault
+keys, credential YAML files, VCS metadata, virtual environments, caches, and
+generated reports. Runtime credentials must be created through `setup_env.sh`.
 
 ### Custom Catalog
 
@@ -293,4 +302,5 @@ All dependencies are installed automatically by `setup_env.sh`.
 For issues or questions:
 - Check `fvt/README.md` for detailed test case documentation
 - Review test logs in `/opt/omnia/reports/`
-- Verify credentials with `bash setup_env.sh --set-domain-creds`
+- Check credential status by running `bash setup_env.sh` without a credential
+  action; update values with `--update-creds` or `--update-domain-creds`.

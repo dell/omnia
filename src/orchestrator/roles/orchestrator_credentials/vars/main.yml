@@ -38,6 +38,11 @@ omnia_credentials:
   openldap:
     mandatory:
       - { username: openldap_db_username, password: openldap_db_password }
+  csi_driver_powerscale:
+    conditional_mandatory:
+      - username: csi_username
+        password: csi_password
+        required: "{{ enable_powerscale_csi | default(false) | bool }}"
 
 # Error messages
 mandatory_warning_msg: "WARNING: The following are mandatory credentials and cannot be left empty."

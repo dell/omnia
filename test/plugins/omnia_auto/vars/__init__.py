@@ -16,9 +16,11 @@
 
 from .common_vars import (  # noqa: F401
     configure,
+    configured,
     get_setting,
     init_module_root,
     get_module_root,
+    reset_configuration,
 )
 
 from .validation_vars import COMMANDS  # noqa: F401

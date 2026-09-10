@@ -1,6 +1,6 @@
 # Discovery Domain — Design Document
 
-> **Last Updated**: Sep 2, 2026 | **Domain**: `discovery`
+> **Last Updated**: Sep 9, 2026 | **Domain**: `discovery`
 
 ---
 
@@ -50,7 +50,7 @@ src/discovery/
 │   ├── execute/
 │   │   └── execute_discovery.yml    # OME discovery execution
 │   ├── cleanup/
-│   │   └── cleanup_discovery.yml    # Cleanup flow (placeholder)
+│   │   └── cleanup_discovery.yml    # Output and credential cleanup flow
 │   ├── upgrade/
 │   │   └── upgrade_discovery.yml    # Upgrade flow (placeholder)
 │   └── rollback/
@@ -78,6 +78,7 @@ src/discovery/
 │   ├── discovery_setup/             # Path init, config loading, tag validation
 │   ├── validate_discovery_input/    # L1/L2 input validation
 │   ├── discovery_credentials/       # Credential management (decrypt/prompt/encrypt)
+│   ├── discovery_cleanup/           # Output and credential cleanup
 │   ├── discovery_common/            # Shared task library (decrypt_include_encrypt)
 │   └── ome_discovery/               # OME-specific discovery logic
 ├── domain-init.sh
@@ -134,14 +135,18 @@ Each tag routes to a dedicated sub-playbook under `playbooks/<tag>/`:
 discovery.yml --tags <tag>
 │
 ├─ [always]  discovery_setup          (runs for ALL tags)
-├─ [always]  validate_discovery.yml   (skipped for precheck)
-├─ [always]  discovery_credentials.yml (skipped for precheck/validate/cleanup)
+├─ [always]  validate_discovery.yml   (skipped for precheck/cleanup*)
+├─ [always]  discovery_credentials.yml (skipped for precheck/validate/cleanup*)
 │
 ├─ [precheck]   precheck/precheck_discovery.yml    (placeholder)
 ├─ [prepare]    prepare/prepare_discovery.yml      (placeholder)
 ├─ [execute]    execute/execute_discovery.yml       (OME discovery)
 ├─ [discovery]  execute/execute_discovery.yml       (alias for execute)
-├─ [cleanup]    cleanup/cleanup_discovery.yml       (placeholder)
+├─ [cleanup]    cleanup/cleanup_discovery.yml
+│   ├── Empty the project output directory but keep the directory
+│   └── Remove credentials by default (optional preservation)
+├─ [cleanup_credentials] cleanup/cleanup_discovery.yml
+│   └── Remove only the credential file and vault key
 ├─ [upgrade]    upgrade/upgrade_discovery.yml       (placeholder)
 └─ [rollback]   rollback/rollback_discovery.yml    (placeholder)
 ```
@@ -171,6 +176,11 @@ work both as an import from `discovery.yml` and as a standalone entry point.
 | Set flags | `enable_bmc_discovery` based on mechanism |
 | Mark done | `discovery_setup_done=true` (prevents re-run in imported sub-playbooks) |
 
+For `cleanup` and `cleanup_credentials`, setup resolves tag and environment
+state but does not copy missing inputs, create the output directory, or load
+Discovery configuration. Cleanup therefore remains independent of the files
+it removes. In the flow above, `cleanup*` means either cleanup tag.
+
 ### 5.2 validate_discovery_input
 
 **Absorbs**: `../playbooks/input_validation/validate_config.yml`
@@ -194,6 +204,22 @@ Task-library role providing shared utilities:
 OME-specific discovery logic — unchanged except credential loading now
 uses the local `discovery_common` role.
 
+### 5.6 discovery_cleanup
+
+Owns the Discovery cleanup boundary:
+
+- does not remove or create
+  `$OMNIA_DATA_PATH/discovery/output/$OMNIA_PROJECT_NAME`; when the directory
+  exists, it removes every entry, including hidden entries, and leaves the
+  empty directory in place;
+- removes `discovery_credentials.yml` and `.discovery_credentials_key` by
+  default;
+- preserves those two credential artifacts when
+  `cleanup_credentials=false`;
+- preserves every other Discovery input file;
+- validates the resolved data root, project name, derived paths, and Boolean
+  cleanup option before deleting anything.
+
 ---
 
 ## 6. Eliminated Dependencies
@@ -214,17 +240,18 @@ uses the local `discovery_common` role.
 
 | File | Owner | Location |
 |------|-------|----------|
-| `discovery_config.yml` | User | `/opt/omnia/input/<project>/discovery/` |
-| `network_spec.yml` | User | `/opt/omnia/input/<project>/discovery/` |
-| `discovery_credentials.yml` | Credential utility | `/opt/omnia/input/<project>/discovery/` |
+| `discovery_config.yml` | User | `$OMNIA_DATA_PATH/discovery/input/<project>/` |
+| `network_spec.yml` | User | `$OMNIA_DATA_PATH/discovery/input/<project>/` |
+| `discovery_credentials.yml` | Credential utility | `$OMNIA_DATA_PATH/discovery/input/<project>/` |
 
 ### Output Contract
 
 | File | Consumer | Location |
 |------|----------|----------|
-| `bmc_pxe_mapping_file_<timestamp>.csv` | Operator → Orchestrator | `/opt/omnia/output/<project>/discovery/` |
-| `bmc_pxe_mapping_file.csv` (symlink) | Operator → Orchestrator | `/opt/omnia/output/<project>/discovery/` |
-| `bmc_discovery_report_<timestamp>.csv` | Operator (informational) | `/opt/omnia/output/<project>/discovery/` |
+| `bmc_pxe_mapping_file_<timestamp>.csv` | Operator → Orchestrator | `$OMNIA_DATA_PATH/discovery/output/<project>/` |
+| `bmc_pxe_mapping_file.csv` (symlink) | Operator → Orchestrator | `$OMNIA_DATA_PATH/discovery/output/<project>/` |
+| `bmc_discovery_report_<timestamp>.csv` | Operator (informational) | `$OMNIA_DATA_PATH/discovery/output/<project>/` |
+| `discovery_status.yml` | Operator | `$OMNIA_DATA_PATH/discovery/output/<project>/` |
 
 ---
 
@@ -255,8 +282,9 @@ Return keys: `validation_failed`, `errors`, `valid_files`, `invalid_files`, `log
 
 ## 9. Tag Support
 
-Tags are **mutually exclusive** — use ONE tag at a time (or none for the default
-flow). Running without tags executes: setup → validate → credentials → execute.
+Tags are mutually exclusive except that `cleanup` and `cleanup_credentials`
+may be combined to make credential deletion explicit. Running without tags
+executes: setup → validate → credentials → execute.
 
 | Tag | Status | Sub-Playbook | Description |
 |-----|--------|--------------|-------------|
@@ -267,7 +295,8 @@ flow). Running without tags executes: setup → validate → credentials → exe
 | `prepare` | Placeholder | `prepare/prepare_discovery.yml` | Prepare discovery environment |
 | `execute` | ✅ Active | `execute/execute_discovery.yml` | Run BMC discovery via OME |
 | `discovery` | ✅ Active | `execute/execute_discovery.yml` | Alias for execute (backward compat) |
-| `cleanup` | Placeholder | `cleanup/cleanup_discovery.yml` | Cleanup discovery artifacts |
+| `cleanup` | ✅ Active | `cleanup/cleanup_discovery.yml` | Cleanup project outputs and credentials |
+| `cleanup_credentials` | ✅ Active | `cleanup/cleanup_discovery.yml` | Cleanup credentials only |
 | `upgrade` | Placeholder | `upgrade/upgrade_discovery.yml` | Upgrade flow |
 | `rollback` | Placeholder | `rollback/rollback_discovery.yml` | Rollback flow |
 
@@ -285,6 +314,9 @@ ansible-playbook playbooks/discovery.yml --tags validate
 ansible-playbook playbooks/discovery.yml --tags credentials
 ansible-playbook playbooks/discovery.yml --tags execute
 ansible-playbook playbooks/discovery.yml --tags cleanup
+ansible-playbook playbooks/discovery.yml --tags cleanup \
+  -e cleanup_credentials=false
+ansible-playbook playbooks/discovery.yml --tags cleanup_credentials
 ```
 
 ### Credential Skipping
@@ -293,12 +325,18 @@ Credential prompting is automatically skipped for these tags:
 - `precheck` — no OME interaction needed
 - `validate` — config validation only
 - `cleanup` — teardown only
+- `cleanup_credentials` — credential teardown only
+
+The cleanup tag removes credentials by default. The
+`cleanup_credentials=false` extra variable preserves the encrypted Discovery
+credential file and its vault key without preserving generated outputs.
 
 ### Invalid Combinations
 
-All tags are mutually exclusive. Any combination of two tags (e.g.,
-`execute+cleanup`, `precheck+validate`) will fail with an error message
-listing the conflict. The full list of invalid combinations is defined in
+Unsupported tag combinations (for example, `execute+cleanup`) fail with an
+error listing the conflict. `cleanup+cleanup_credentials` is intentionally
+allowed; the explicit credential tag takes precedence even if
+`cleanup_credentials=false` is supplied. The full list is defined in
 `discovery_setup/vars/main.yml`.
 
 ---
@@ -307,7 +345,7 @@ listing the conflict. The full list of invalid combinations is defined in
 
 | Item | Convention | Example |
 |------|------------|--------|
-| Roles | `<domain>_<function>` | `discovery_setup`, `discovery_credentials` |
+| Roles | `<domain>_<function>` | `discovery_setup`, `discovery_cleanup` |
 | Validation role | `validate_<domain>_input` | `validate_discovery_input` |
 | Validation module | `validate_<domain>_config` | `validate_discovery_config` |
 | Validation flow | `<domain>_validation_flow.py` | `discovery_validation_flow.py` |

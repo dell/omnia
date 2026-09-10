@@ -34,20 +34,22 @@ Usage from bash (CLI mode)::
     python -m omnia_auto.functions.credential_func ensure-key \\
         --key-path /opt/omnia/telemetry/input/project_default/.telemetry_credentials_key
 
-    python -m omnia_auto.functions.credential_func write-fields \\
+    printf '%s' '{"bmc_username":"admin","bmc_password":"value"}' | \\
+      python -m omnia_auto.functions.credential_func write-fields \\
+        --fields-stdin \\
         --creds-path /opt/omnia/telemetry/input/project_default/telemetry_credentials.yml \\
-        --key-path /opt/omnia/telemetry/input/project_default/.telemetry_credentials_key \\
-        --fields '{"bmc_username": "admin", "bmc_password": "<value>"}'
+        --key-path /opt/omnia/telemetry/input/project_default/.telemetry_credentials_key
 """
 
 import argparse
 import getpass
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import yaml
 
@@ -61,6 +63,7 @@ from ..messages.credential_msgs import (
     CREDENTIAL_LOG_MSGS as LOG,
     CREDENTIAL_ERROR_MSGS as ERR,
 )
+from ._file_io import advisory_lock
 from .process_security import (
     atomic_sensitive_output,
     exclusive_sensitive_text,
@@ -71,6 +74,20 @@ from .process_security import (
     sensitive_file_descriptor,
     temporary_sensitive_descriptor,
 )
+
+
+_MAX_STDIN_BYTES = 64 * 1024
+_FIELD_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,127}$")
+
+
+def _require_path(path: Any, label: str) -> str:
+    """Return a non-empty filesystem path or raise ``ValueError``."""
+    if not isinstance(path, (str, os.PathLike)):
+        raise ValueError(f"{label} must be a filesystem path")
+    resolved = os.fspath(path)
+    if not isinstance(resolved, str) or not resolved or "\x00" in resolved:
+        raise ValueError(f"{label} must be a non-empty filesystem path")
+    return resolved
 
 
 def _run_vault_encrypt(
@@ -99,22 +116,24 @@ def ensure_vault_key(key_path: str) -> Dict[str, Any]:
     Returns:
         Dict with keys: created (bool), message (str).
     """
-    if os.path.lexists(key_path):
-        _protect_sensitive_file(key_path)
+    key_path = _require_path(key_path, "key_path")
+    with advisory_lock(key_path):
+        if os.path.lexists(key_path):
+            _protect_sensitive_file(key_path)
+            return {
+                "created": False,
+                "message": LOG["vault_key_exists"].format(key_path=key_path),
+            }
+        token = secrets.token_urlsafe(VAULT_KEY_LENGTH)[:VAULT_KEY_LENGTH]
+        parent = os.path.dirname(key_path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        with exclusive_sensitive_text(key_path, VAULT_FILE_MODE) as key_fh:
+            key_fh.write(token)
         return {
-            "created": False,
-            "message": LOG["vault_key_exists"].format(key_path=key_path),
+            "created": True,
+            "message": LOG["vault_key_created"].format(key_path=key_path),
         }
-    token = secrets.token_urlsafe(VAULT_KEY_LENGTH)[:VAULT_KEY_LENGTH]
-    parent = os.path.dirname(key_path)
-    if parent:
-        os.makedirs(parent, exist_ok=True)
-    with exclusive_sensitive_text(key_path, VAULT_FILE_MODE) as key_fh:
-        key_fh.write(token)
-    return {
-        "created": True,
-        "message": LOG["vault_key_created"].format(key_path=key_path),
-    }
 
 
 # =====================================================================
@@ -130,6 +149,7 @@ def is_vault_encrypted(creds_path: str) -> bool:
     Returns:
         True if the first line starts with ``$ANSIBLE_VAULT``.
     """
+    creds_path = _require_path(creds_path, "creds_path")
     if not os.path.lexists(creds_path):
         return False
     with open_sensitive_text(
@@ -150,23 +170,26 @@ def vault_encrypt(creds_path: str, key_path: str) -> Dict[str, Any]:
         Dict with keys: success (bool), message (str), error (str).
     """
     try:
-        if is_vault_encrypted(creds_path):
-            return {
-                "success": True,
-                "message": LOG["creds_already_encrypted"].format(
-                    creds_path=creds_path,
-                ),
-                "error": "",
-            }
+        creds_path = _require_path(creds_path, "creds_path")
+        key_path = _require_path(key_path, "key_path")
+        with advisory_lock(creds_path):
+            if is_vault_encrypted(creds_path):
+                return {
+                    "success": True,
+                    "message": LOG["creds_already_encrypted"].format(
+                        creds_path=creds_path,
+                    ),
+                    "error": "",
+                }
 
-        with sensitive_file_descriptor(
-            creds_path, VAULT_FILE_MODE,
-        ) as creds_fd, sensitive_file_descriptor(
-            key_path, VAULT_FILE_MODE,
-        ) as key_fd, atomic_sensitive_output(
-            creds_path, VAULT_FILE_MODE,
-        ) as encrypted_fd:
-            _run_vault_encrypt(creds_fd, key_fd, encrypted_fd)
+            with sensitive_file_descriptor(
+                creds_path, VAULT_FILE_MODE,
+            ) as creds_fd, sensitive_file_descriptor(
+                key_path, VAULT_FILE_MODE,
+            ) as key_fd, atomic_sensitive_output(
+                creds_path, VAULT_FILE_MODE,
+            ) as encrypted_fd:
+                _run_vault_encrypt(creds_fd, key_fd, encrypted_fd)
 
         return {
             "success": True,
@@ -216,6 +239,11 @@ def vault_decrypt_to_dict(
     Returns:
         Dict with keys: success (bool), data (dict), error (str).
     """
+    try:
+        creds_path = _require_path(creds_path, "creds_path")
+        key_path = _require_path(key_path, "key_path")
+    except ValueError as exc:
+        return {"success": False, "data": {}, "error": str(exc)}
     if not os.path.lexists(creds_path):
         return {
             "success": False,
@@ -243,7 +271,9 @@ def vault_decrypt_to_dict(
                 key_fd,
                 timeout=VAULT_TIMEOUT,
             )
-        data = yaml.safe_load(plaintext) or {}
+        data = _validate_credential_fields(
+            yaml.safe_load(plaintext) or {}, allow_empty=True,
+        )
         return {"success": True, "data": data, "error": ""}
     except FileNotFoundError:
         return {
@@ -254,6 +284,7 @@ def vault_decrypt_to_dict(
     except (
         OSError,
         ValueError,
+        yaml.YAMLError,
         subprocess.CalledProcessError,
         subprocess.TimeoutExpired,
     ) as exc:
@@ -288,6 +319,14 @@ def read_credential_field(
     Returns:
         Dict with keys: success (bool), value (str or None), error (str).
     """
+    try:
+        creds_path = _require_path(creds_path, "creds_path")
+        key_path = _require_path(key_path, "key_path")
+        if not isinstance(field, str) or not _FIELD_NAME_RE.fullmatch(field):
+            raise ValueError("Credential field name must be a safe identifier")
+    except ValueError as exc:
+        return {"success": False, "value": None, "error": str(exc)}
+
     if not os.path.exists(creds_path):
         return {
             "success": False,
@@ -297,7 +336,12 @@ def read_credential_field(
             ),
         }
 
-    if is_vault_encrypted(creds_path):
+    try:
+        encrypted = is_vault_encrypted(creds_path)
+    except (OSError, ValueError) as exc:
+        return {"success": False, "value": None, "error": str(exc)}
+
+    if encrypted:
         result = vault_decrypt_to_dict(creds_path, key_path)
         if not result["success"]:
             return {
@@ -307,10 +351,19 @@ def read_credential_field(
             }
         data = result["data"]
     else:
-        with open_sensitive_text(
-            creds_path, VAULT_FILE_MODE,
-        ) as creds_fh:
-            data = yaml.safe_load(creds_fh) or {}
+        try:
+            with open_sensitive_text(
+                creds_path, VAULT_FILE_MODE,
+            ) as creds_fh:
+                data = _validate_credential_fields(
+                    yaml.safe_load(creds_fh) or {}, allow_empty=True,
+                )
+        except (OSError, ValueError, yaml.YAMLError) as exc:
+            return {
+                "success": False,
+                "value": None,
+                "error": str(exc),
+            }
 
     value = data.get(field)
     if value is not None:
@@ -324,13 +377,13 @@ def read_credential_field(
     }
 
 
-def write_credential_fields(
+def _write_credential_fields_unlocked(
     creds_path: str,
     key_path: str,
     fields: Dict[str, str],
     header_comment: str = "",
 ) -> Dict[str, Any]:
-    """Write / update fields in a credentials file and encrypt it.
+    """Implement a credential update while the caller holds its lock.
 
     Existing fields not in *fields* are preserved.  New fields are
     merged.  The file is encrypted after writing.
@@ -344,7 +397,16 @@ def write_credential_fields(
     Returns:
         Dict with keys: success (bool), message (str), error (str).
     """
-    existing: Dict = {}
+    try:
+        fields = _validate_credential_fields(fields)
+    except ValueError as exc:
+        return {
+            "success": False,
+            "message": "",
+            "error": str(exc),
+        }
+
+    existing: Dict[str, str] = {}
     if os.path.exists(creds_path):
         if is_vault_encrypted(creds_path):
             result = vault_decrypt_to_dict(creds_path, key_path)
@@ -356,10 +418,19 @@ def write_credential_fields(
                 }
             existing = result["data"]
         else:
-            with open_sensitive_text(
-                creds_path, VAULT_FILE_MODE,
-            ) as creds_fh:
-                existing = yaml.safe_load(creds_fh) or {}
+            try:
+                with open_sensitive_text(
+                    creds_path, VAULT_FILE_MODE,
+                ) as creds_fh:
+                    existing = _validate_credential_fields(
+                        yaml.safe_load(creds_fh) or {}, allow_empty=True,
+                    )
+            except (OSError, ValueError, yaml.YAMLError) as exc:
+                return {
+                    "success": False,
+                    "message": "",
+                    "error": str(exc),
+                }
 
     existing.update(fields)
 
@@ -422,6 +493,156 @@ def write_credential_fields(
     }
 
 
+def write_credential_fields(
+    creds_path: str,
+    key_path: str,
+    fields: Dict[str, str],
+    header_comment: str = "",
+) -> Dict[str, Any]:
+    """Merge credential fields and atomically store an encrypted Vault file.
+
+    Updates are serialized per credential file so concurrent setup processes
+    cannot silently discard one another's fields.
+    """
+    try:
+        creds_path = _require_path(creds_path, "creds_path")
+        key_path = _require_path(key_path, "key_path")
+        if not isinstance(header_comment, str):
+            raise ValueError("header_comment must be text")
+        with advisory_lock(creds_path):
+            return _write_credential_fields_unlocked(
+                creds_path, key_path, fields, header_comment,
+            )
+    except (OSError, ValueError) as exc:
+        return {"success": False, "message": "", "error": str(exc)}
+
+
+def _validate_credential_fields(
+    fields: Any, *, allow_empty: bool = False,
+) -> Dict[str, str]:
+    """Validate a credential mapping without exposing its values."""
+    if not isinstance(fields, dict):
+        raise ValueError("Credential fields must be a JSON object")
+    if not fields and not allow_empty:
+        raise ValueError("Credential fields must not be empty")
+
+    validated: Dict[str, str] = {}
+    for field_name, value in fields.items():
+        if not isinstance(field_name, str) or not _FIELD_NAME_RE.fullmatch(
+            field_name
+        ):
+            raise ValueError("Credential field names must be safe identifiers")
+        if not isinstance(value, str):
+            raise ValueError(
+                f"Credential field '{field_name}' must contain a string"
+            )
+        validated[field_name] = value
+    return validated
+
+
+def _validate_fields_against_spec(
+    fields: Dict[str, str],
+    field_spec: Any,
+    *,
+    existing: Optional[Dict[str, str]] = None,
+    require_complete: bool = False,
+) -> Dict[str, str]:
+    """Validate credential names and completeness against a prompt spec."""
+    if not isinstance(field_spec, list):
+        raise ValueError("Credential field specification must be a list")
+
+    specs: Dict[str, Dict[str, Any]] = {}
+    for spec in field_spec:
+        if not isinstance(spec, dict):
+            raise ValueError(
+                "Each credential field specification must be a mapping"
+            )
+        field_name = spec.get("field")
+        if not isinstance(field_name, str) or not _FIELD_NAME_RE.fullmatch(
+            field_name
+        ):
+            raise ValueError(
+                "Credential specification field names must be safe identifiers"
+            )
+        if field_name in specs:
+            raise ValueError(
+                f"Duplicate credential field specification: {field_name}"
+            )
+        optional = spec.get("optional", False)
+        min_length = spec.get("min_length", 1)
+        if not isinstance(optional, bool):
+            raise ValueError(
+                f"Credential field '{field_name}' optional flag must be boolean"
+            )
+        if not isinstance(min_length, int) or min_length < 0:
+            raise ValueError(
+                f"Credential field '{field_name}' min_length must be non-negative"
+            )
+        specs[field_name] = {
+            "optional": optional,
+            "min_length": min_length,
+        }
+
+    unknown = sorted(set(fields).difference(specs))
+    if unknown:
+        raise ValueError(
+            "Unknown credential fields: " + ", ".join(unknown)
+        )
+
+    combined = dict(existing or {})
+    combined.update(fields)
+    for field_name, rules in specs.items():
+        value = combined.get(field_name, "")
+        if not isinstance(value, str):
+            raise ValueError(
+                f"Credential field '{field_name}' must contain a string"
+            )
+        if require_complete and not rules["optional"] and not value:
+            raise ValueError(
+                f"Required credential field is missing: {field_name}"
+            )
+        if value and len(value) < rules["min_length"]:
+            raise ValueError(
+                f"Credential field '{field_name}' does not meet its minimum length"
+            )
+    return fields
+
+
+def _read_stdin_json_object() -> Dict[str, str]:
+    """Read one bounded UTF-8 credential object from standard input."""
+    payload = sys.stdin.buffer.read(_MAX_STDIN_BYTES + 1)
+    if len(payload) > _MAX_STDIN_BYTES:
+        raise ValueError(
+            f"Credential input exceeds {_MAX_STDIN_BYTES} bytes"
+        )
+    try:
+        decoded = payload.decode("utf-8")
+        parsed = json.loads(decoded)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Credential input must be valid UTF-8 JSON") from exc
+    return _validate_credential_fields(parsed)
+
+
+def _read_stdin_text() -> str:
+    """Read one bounded UTF-8 value from standard input."""
+    payload = sys.stdin.buffer.read(_MAX_STDIN_BYTES + 1)
+    if len(payload) > _MAX_STDIN_BYTES:
+        raise ValueError(
+            f"Credential input exceeds {_MAX_STDIN_BYTES} bytes"
+        )
+    try:
+        decoded = payload.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("Credential input must be valid UTF-8 text") from exc
+    if decoded.endswith("\n"):
+        decoded = decoded[:-1]
+        if decoded.endswith("\r"):
+            decoded = decoded[:-1]
+    if not decoded:
+        raise ValueError("Credential input must not be empty")
+    return decoded
+
+
 def prompt_credential(
     message: str = "Enter secret",  # noqa: S107 — prompt label, not a credential
 ) -> str:
@@ -481,6 +702,8 @@ def _read_visible_input(prompt_text: str) -> str:
 def prompt_fields_interactive(
     field_spec: list,
     existing: Dict[str, str] = None,
+    *,
+    require_complete: bool = False,
 ) -> Dict[str, str]:
     """Prompt interactively for multiple credential fields.
 
@@ -520,14 +743,28 @@ def prompt_fields_interactive(
         if not isinstance(spec, dict):
             raise ValueError("Each credential field specification must be a mapping")
         field_name = spec.get("field")
-        if not isinstance(field_name, str) or not field_name:
-            continue
+        if not isinstance(field_name, str) or not _FIELD_NAME_RE.fullmatch(
+            field_name
+        ):
+            raise ValueError(
+                "Credential specification field names must be safe identifiers"
+            )
 
         label = spec.get("label", field_name)
         group = spec.get("group")
         is_secret = spec.get("secret", True)
         is_optional = spec.get("optional", False)
         needs_confirm = spec.get("confirm", False) and is_secret
+        if not isinstance(label, str) or not label:
+            raise ValueError("Credential specification labels must be strings")
+        if group is not None and not isinstance(group, str):
+            raise ValueError("Credential specification groups must be strings")
+        if not all(isinstance(flag, bool) for flag in (
+            is_secret, is_optional, spec.get("confirm", False),
+        )):
+            raise ValueError(
+                "Credential specification flags must be booleans"
+            )
 
         # Print group header if changed
         if group and group != current_group:
@@ -537,32 +774,44 @@ def prompt_fields_interactive(
         # Get existing value
         existing_val = existing.get(field_name, "")
 
-        if is_secret:
-            if existing_val:
-                prompt_text = f"  {label} [set]: "
-            else:
-                prompt_text = f"  {label}: "
-            entered = getpass.getpass(prompt=prompt_text)
+        while True:
+            if is_secret:
+                if existing_val:
+                    prompt_text = f"  {label} [set]: "
+                else:
+                    prompt_text = f"  {label}: "
+                entered = getpass.getpass(prompt=prompt_text)
 
-            # Confirm if requested and value was entered
-            if needs_confirm and entered:
-                confirm_text = f"  Confirm {label}: "
-                confirmed = getpass.getpass(prompt=confirm_text)
-                if entered != confirmed:
-                    print(
-                        f"  \033[0;31m[ERROR]\033[0m {label} entries do not match!",
-                        file=sys.stderr, flush=True,
-                    )
-                    raise ValueError(f"{label} confirmation failed")
-        else:
-            if existing_val:
-                prompt_text = f"  {label} [{existing_val}]: "
+                # Confirm if requested and value was entered
+                if needs_confirm and entered:
+                    confirm_text = f"  Confirm {label}: "
+                    confirmed = getpass.getpass(prompt=confirm_text)
+                    if entered != confirmed:
+                        print(
+                            f"  \033[0;31m[ERROR]\033[0m "
+                            f"{label} entries do not match! Try again.",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                        continue
             else:
-                prompt_text = f"  {label}: "
-            entered = _read_visible_input(prompt_text)
+                if existing_val:
+                    prompt_text = f"  {label} [{existing_val}]: "
+                else:
+                    prompt_text = f"  {label}: "
+                entered = _read_visible_input(prompt_text)
 
-        # Use entered value or fall back to existing
-        final_value = entered if entered else existing_val
+            # Use entered value or fall back to existing
+            final_value = entered if entered else existing_val
+            if require_complete and not is_optional and not final_value:
+                print(
+                    f"  \033[0;31m[ERROR]\033[0m "
+                    f"{label} cannot be empty. Try again.",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                continue
+            break
 
         # Store if non-empty (or always store if optional allows empty)
         if final_value or is_optional:
@@ -584,19 +833,31 @@ def read_all_fields(
     Returns:
         Dict with keys: success (bool), data (dict), error (str).
     """
+    try:
+        creds_path = _require_path(creds_path, "creds_path")
+        key_path = _require_path(key_path, "key_path")
+    except ValueError as exc:
+        return {"success": False, "data": {}, "error": str(exc)}
+
     if not os.path.exists(creds_path):
         return {"success": True, "data": {}, "error": ""}
 
-    if is_vault_encrypted(creds_path):
+    try:
+        encrypted = is_vault_encrypted(creds_path)
+    except (OSError, ValueError) as exc:
+        return {"success": False, "data": {}, "error": str(exc)}
+    if encrypted:
         return vault_decrypt_to_dict(creds_path, key_path)
 
     try:
         with open_sensitive_text(
             creds_path, VAULT_FILE_MODE,
         ) as creds_fh:
-            data = yaml.safe_load(creds_fh) or {}
+            data = _validate_credential_fields(
+                yaml.safe_load(creds_fh) or {}, allow_empty=True,
+            )
         return {"success": True, "data": data, "error": ""}
-    except Exception as exc:
+    except (OSError, ValueError, yaml.YAMLError) as exc:
         return {"success": False, "data": {}, "error": str(exc)}
 
 
@@ -604,17 +865,23 @@ def read_all_fields(
 # CLI ENTRY POINT
 # =====================================================================
 
-_CLI_COMMANDS = frozenset({
-    "ensure-key", "encrypt", "read-field", "read-all",
-    "write-fields", "prompt", "prompt-and-confirm",
-    "prompt-fields", "is-encrypted",
-})
+class _SafeArgumentParser(argparse.ArgumentParser):
+    """Argument parser whose failures never echo possibly secret values."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Build a parser that accepts only complete option names."""
+        kwargs["allow_abbrev"] = False
+        super().__init__(*args, **kwargs)
+
+    def error(self, _message: str) -> None:
+        self.print_usage(sys.stderr)
+        self.exit(2, f"{self.prog}: error: invalid arguments\n")
 
 
 def _build_parser() -> argparse.ArgumentParser:
     """Build the argparse parser for the credential CLI."""
-    parser = argparse.ArgumentParser(
-        prog="python -m omnia_auto.functions.credential_func",
+    parser = _SafeArgumentParser(
+        prog="omnia-auto",
         description="Credential management for omnia test automation.",
     )
     sub = parser.add_subparsers(dest="command")
@@ -649,10 +916,32 @@ def _build_parser() -> argparse.ArgumentParser:
     wf.add_argument("--creds-path", required=True)
     wf.add_argument("--key-path", required=True)
     wf.add_argument(
-        "--fields", required=True,
-        help='JSON string: {"field": "value", ...}',
+        "--fields-stdin", action="store_true", required=True,
+        help="Read a JSON object from standard input.",
+    )
+    wf.add_argument(
+        "--spec", default="",
+        help="Optional JSON field specification used as an allowlist.",
+    )
+    wf.add_argument(
+        "--require-complete", action="store_true",
+        help="Require every non-optional spec field after merging.",
     )
     wf.add_argument("--header", default="")
+
+    # write-field
+    wof = sub.add_parser(
+        "write-field",
+        help="Read one value from stdin, merge it, and encrypt.",
+    )
+    wof.add_argument("--creds-path", required=True)
+    wof.add_argument("--key-path", required=True)
+    wof.add_argument("--field", required=True)
+    wof.add_argument(
+        "--value-stdin", action="store_true", required=True,
+        help="Read the field value from standard input.",
+    )
+    wof.add_argument("--header", default="")
 
     # prompt
     pr = sub.add_parser(
@@ -698,6 +987,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "--spec", required=True,
         help='JSON array: [{"field":"x","label":"X","group":"G","secret":true}]',
     )
+    pf.add_argument(
+        "--require-complete", action="store_true",
+        help="Require every non-optional field before saving.",
+    )
 
     return parser
 
@@ -719,12 +1012,20 @@ def main(argv=None) -> int:
         return 1
 
     if args.command == "ensure-key":
-        result = ensure_vault_key(args.key_path)
+        try:
+            result = ensure_vault_key(args.key_path)
+        except (OSError, ValueError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr, flush=True)
+            return 2
         status = "CREATED" if result["created"] else "EXISTS"
         print(status, flush=True)
 
     elif args.command == "encrypt":
-        ensure_vault_key(args.key_path)
+        try:
+            ensure_vault_key(args.key_path)
+        except (OSError, ValueError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr, flush=True)
+            return 2
         result = vault_encrypt(args.creds_path, args.key_path)
         if not result["success"]:
             print(
@@ -748,7 +1049,26 @@ def main(argv=None) -> int:
             return 1
 
     elif args.command == "write-fields":
-        fields = json.loads(args.fields)
+        try:
+            fields = _read_stdin_json_object()
+            if args.require_complete and not args.spec:
+                raise ValueError("--require-complete requires --spec")
+            if args.spec:
+                field_spec = json.loads(args.spec)
+                existing_result = read_all_fields(
+                    args.creds_path, args.key_path,
+                )
+                if not existing_result["success"]:
+                    raise ValueError(existing_result["error"])
+                fields = _validate_fields_against_spec(
+                    fields,
+                    field_spec,
+                    existing=existing_result["data"],
+                    require_complete=args.require_complete,
+                )
+        except (json.JSONDecodeError, ValueError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr, flush=True)
+            return 2
         result = write_credential_fields(
             args.creds_path, args.key_path,
             fields, header_comment=args.header,
@@ -762,6 +1082,30 @@ def main(argv=None) -> int:
             )
             return 2
 
+    elif args.command == "write-field":
+        try:
+            fields = _validate_credential_fields({
+                args.field: _read_stdin_text(),
+            })
+        except ValueError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr, flush=True)
+            return 2
+        result = write_credential_fields(
+            args.creds_path,
+            args.key_path,
+            fields,
+            header_comment=args.header,
+        )
+        if result["success"]:
+            print("OK", flush=True)
+        else:
+            print(
+                f"ERROR: {result['error']}",
+                file=sys.stderr,
+                flush=True,
+            )
+            return 2
+
     elif args.command == "prompt":
         secret = prompt_credential(args.message)
         print(secret, flush=True)
@@ -771,7 +1115,12 @@ def main(argv=None) -> int:
         print(secret, flush=True)
 
     elif args.command == "is-encrypted":
-        if is_vault_encrypted(args.creds_path):
+        try:
+            encrypted = is_vault_encrypted(args.creds_path)
+        except (OSError, ValueError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr, flush=True)
+            return 2
+        if encrypted:
             print("YES", flush=True)
             return 0
         print("NO", flush=True)
@@ -789,15 +1138,27 @@ def main(argv=None) -> int:
             return 1
 
     elif args.command == "prompt-fields":
-        # Parse field spec
-        field_spec = json.loads(args.spec)
-
-        # Read existing values
-        existing_result = read_all_fields(args.creds_path, args.key_path)
-        existing = existing_result.get("data", {})
-
-        # Prompt for fields
-        entered = prompt_fields_interactive(field_spec, existing)
+        try:
+            field_spec = json.loads(args.spec)
+            existing_result = read_all_fields(
+                args.creds_path, args.key_path,
+            )
+            if not existing_result["success"]:
+                raise ValueError(existing_result["error"])
+            entered = prompt_fields_interactive(
+                field_spec,
+                existing_result["data"],
+                require_complete=args.require_complete,
+            )
+            entered = _validate_fields_against_spec(
+                entered,
+                field_spec,
+                existing=existing_result["data"],
+                require_complete=args.require_complete,
+            )
+        except (json.JSONDecodeError, ValueError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr, flush=True)
+            return 2
 
         # Write to file
         if entered:

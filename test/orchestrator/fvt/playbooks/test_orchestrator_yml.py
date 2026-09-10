@@ -38,6 +38,7 @@ from library.messages import (
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_playbook_exists():
     """TC_PB_001: Test orchestrator.yml playbook exists."""
@@ -61,6 +62,7 @@ def test_playbook_exists():
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_playbook_syntax():
     """TC_PB_002: Test orchestrator.yml playbook syntax."""
