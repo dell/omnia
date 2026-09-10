@@ -53,7 +53,6 @@ from omnia_auto import (
     get_test_output,
     get_last_tc_id,
     encrypt_test_credentials,
-    build_report_name,
     log,
     add_session_result,
     print_summary_table,
@@ -270,10 +269,7 @@ def pytest_sessionstart(session):
 
     report_id = os.environ.get("REPORT_ID")
     base_name = str(config.get("report_name", "test_report"))
-    report_name = build_report_name(
-        domain_name="utils",
-        base_name=base_name,
-    )
+    report_name = f"utils_{base_name}"
     report = TestReport(
         module_name=module_name,
         report_path=str(config.get("report_path", "/opt/omnia/reports")),

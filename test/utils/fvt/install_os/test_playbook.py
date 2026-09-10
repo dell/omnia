@@ -34,6 +34,7 @@ from library.functions import (
     run_playbook,
     load_test_config,
     get_utils_input_path,
+    validate_install_os_config,
 )
 from library.vars import TEST_CASES as TC, PLAYBOOK_INSTALL_OS, PLAYBOOK_WORKDIR
 from library.messages import TEST_LOG_MSGS as LOG, TEST_ASSERT_MSGS as ASSERT
@@ -54,7 +55,25 @@ def test_deploy_install_os(host):
     - If OMNIA_DEPLOY_TAG is set, runs that specific tag (credentials, build_iso, generate_ks, deploy, full)
     - If OMNIA_DEPLOY_TAG is not set, runs full stack (no tag = all tags)
     """
+    # Pre-verification: Check config has required parameters
+    input_path = get_utils_input_path(host)
+    config_path = f"{input_path}/install_os_config.yml"
+
+    config_result = validate_install_os_config(host, config_path)
+    if not config_result["success"]:
+        pytest.fail(f"Config validation failed: {config_result['error']}")
+
+    config = config_result.get("config", {})
+
+    # Check if running full stack (no tag) - requires all parameters
     tag = _get_deploy_tag()
+    if not tag:
+        # Full stack requires all parameters
+        required_params = ["custom_iso_path", "source_iso_path", "target_bmc_ip"]
+        missing_params = [p for p in required_params if not config.get(p)]
+        if missing_params:
+            pytest.fail(f"Input file configuration missing required parameters: {', '.join(missing_params)}. Please configure install_os_config.yml with valid values before running install_os deployment.")
+
     if tag:
         tc = TC[f"deploy_{tag}"]
         tl = TestLogger(tc["title"], tc["id"])
@@ -63,7 +82,8 @@ def test_deploy_install_os(host):
         tag_label = tag
     else:
         # Following image_build_manager: if no tag, run full stack (no tag = all tags)
-        tc = TC["deploy_install_os_full"]
+        # Use E000 (deploy_install_os) as the sanity full deployment test
+        tc = TC["deploy_install_os"]
         tl = TestLogger(tc["title"], tc["id"])
         tl.check("Running install_os.yml (full stack - no tag)")
         result = run_playbook(playbook=PLAYBOOK_INSTALL_OS)
@@ -80,6 +100,8 @@ def test_deploy_install_os(host):
     assert result["success"], ASSERT["playbook_failed"].format(
         playbook="install_os.yml", tag=tag_label,
         rc=result["rc"], duration=result["duration"],
+        input_path=input_path,
+        workdir=PLAYBOOK_WORKDIR,
     )
 
 

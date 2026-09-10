@@ -75,7 +75,7 @@ clone_path: "/opt/omnia"
 #   Each dataset folder must contain:
 #     input/collect_pxe.yml
 #     input/install_os_config.yml (optional)
-dataset: "test_data"
+dataset: ""
 
 # =============================================================================
 # SYNC — UTILS INPUT

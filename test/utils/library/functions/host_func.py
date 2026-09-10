@@ -207,7 +207,7 @@ def _resolve_dataset_subdir(
     ):
         raise ValueError(f"Unsafe dataset name: {dataset!r}")
 
-    datasets_root = os.path.realpath(os.path.join(get_module_root(), "datasets"))
+    datasets_root = os.path.realpath(os.path.join(MODULE_ROOT, "datasets"))
     dataset_path = os.path.join(datasets_root, dataset)
     if os.path.islink(dataset_path):
         raise ValueError(f"Dataset symlinks are not allowed: {dataset}")
