@@ -36,7 +36,7 @@
 #   collect           - Log collection utility
 #   install_os        - OS installation via iDRAC
 #   backup_oim_logs   - Archive all domain log directories on the OIM
-#   cleanup           - Cleanup all utilities (log collection + OS installation)
+#   cleanup           - Cleanup all utilities, backups, and stored install-OS credentials
 #   cleanup_logs      - Cleanup log collection artifacts only
 #   cleanup_install_os - Cleanup OS installation artifacts only
 #   cleanup_backup_oim_logs - Cleanup OIM log backup artifacts only
@@ -123,6 +123,7 @@
   ansible.builtin.import_playbook: backup_oim_logs/cleanup_backup_oim_logs.yml
   tags:
     - never
+    - cleanup
     - cleanup_backup_oim_logs
 
 # =========================================================================

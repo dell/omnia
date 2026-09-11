@@ -90,10 +90,28 @@ ansible-playbook playbooks/telemetry.yml
 | `cleanup_powerscale` | PowerScale telemetry |
 | `cleanup_ufm` | UFM InfiniBand telemetry |
 | `cleanup_vast` | VAST storage telemetry |
-| `cleanup_sfm` | SFM network telemetry |
 
 **Tag safety**: `cleanup`, `precheck`, `upgrade`, `rollback` use Ansible's `never`
 tag — they NEVER execute unless explicitly requested with `--tags`.
+
+### Credential and Global Cleanup
+
+Full `cleanup` deletes `telemetry_credentials.yml` and its vault key. A granular
+source cleanup blanks only that source's stored credential fields and preserves
+credentials for components that remain deployed. Run the full domain cleanup
+before an Omnia-wide reset:
+
+```bash
+cd src/main
+sudo ./omnia.sh --run telemetry --tags cleanup
+sudo ./omnia.sh --cleanup --all
+```
+
+`src/telemetry/domain-init.sh --cleanup` is non-interactive and removes only
+initializer-owned staged input and domain log paths; it does not remove
+Kubernetes resources or persistent volumes. Both global cleanup modes prompt
+for `yes`; trusted automation can add `--skip-approval`. Persistent volumes are
+preserved unless the telemetry cleanup is run with `-e Delete_volume=true`.
 
 ## Telemetry Components
 

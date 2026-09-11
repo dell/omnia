@@ -67,9 +67,17 @@ omnia-cli status
 ./omnia.sh -i --dry-run --skip telemetry  # Preview with skip filter
 ./omnia.sh --check-deps            # Audit dependency version mismatches
 ./omnia.sh --cleanup               # Remove environment + CLI integration; preserve runtime data
-./omnia.sh --cleanup --all         # Full reset (remove everything including data)
+./omnia.sh --cleanup --all         # Guarded full reset; blocks on uncleared domain state
+./omnia.sh --cleanup --skip-approval       # Standard cleanup for trusted automation
+./omnia.sh --cleanup --all --skip-approval # Full cleanup for trusted automation
 ./omnia.sh -h                      # Help
 ```
+
+Both `--cleanup` and `--cleanup --all` display their removal scope and require
+the operator to type `yes`. Add `--skip-approval` only for trusted unattended
+automation. The `--all` safety preflight still runs when confirmation is
+skipped and stops before deletion if a domain contains anything other than its
+initializer-owned `input/` directory.
 
 **What `-s` does:**
 
@@ -117,7 +125,15 @@ bash src/image_build_manager/domain-init.sh --force-deps
 
 # Run with --force (overwrite without prompting)
 bash src/image_build_manager/domain-init.sh --force
+
+# Non-interactively remove only this initializer's staged input and log paths
+bash src/image_build_manager/domain-init.sh --cleanup
 ```
+
+`domain-init.sh --cleanup` deliberately has no confirmation prompt because it
+is an internal, narrowly scoped helper. It removes the domain's staged `input/`,
+runtime `log/`, and `/var/log/omnia/<domain>/` paths; it does not remove domain
+outputs, deployed services, or persistent application data.
 
 ### Domain Skip (`--skip`)
 
@@ -288,12 +304,12 @@ completion and accepted by the top-level playbooks:
 | Domain | Supported tags |
 |--------|----------------|
 | `build_stream` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `build`, `cleanup`, `upgrade`, `rollback` |
-| `discovery` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `discovery`, `cleanup`, `upgrade`, `rollback` |
+| `discovery` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `discovery`, `cleanup`, `cleanup_credentials`, `upgrade`, `rollback` |
 | `image_build_manager` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `build`, `cleanup`, `cleanup_images`, `upgrade`, `rollback` |
 | `orchestrator` | `precheck`, `validate`, `credentials`, `prepare`, `deploy`, `provision`, `execute`, `validate-deployment`, `pxeboot`, `cleanup`, `cleanup_credentials`, `upgrade`, `rollback` |
 | `repo_manager` | `precheck`, `credentials`, `prepare`, `deploy`, `execute`, `download`, `status`, `cleanup`, `cleanup_pulp`, `cleanup_repos`, `upgrade`, `rollback`, `catalog_generate`, `catalog_add`, `catalog_delete`, `catalog_validate` |
-| `telemetry` | `precheck`, `validate`, `validation`, `execute`, `deploy`, `cleanup`, `cleanup_idrac`, `cleanup_ldms`, `cleanup_ome`, `cleanup_powerscale`, `cleanup_ufm`, `cleanup_vast`, `upgrade`, `rollback`, `external_kafka`, `external_victoria` |
-| `utils` | `precheck`, `setup`, `collect`, `install_os`, `cleanup`, `cleanup_logs`, `cleanup_install_os`, `upgrade`, `rollback` |
+| `telemetry` | `precheck`, `validate`, `validation`, `prepare`, `credentials`, `execute`, `deploy`, `cleanup`, `cleanup_kafka`, `cleanup_victoria_metrics`, `cleanup_victoria_logs`, `cleanup_idrac`, `cleanup_ldms`, `cleanup_ome`, `cleanup_powerscale`, `cleanup_ufm`, `cleanup_vast`, `upgrade`, `rollback`, `external_kafka`, `external_victoria` |
+| `utils` | `precheck`, `setup`, `collect`, `install_os`, `backup_oim_logs`, `cleanup`, `cleanup_logs`, `cleanup_install_os`, `cleanup_backup_oim_logs`, `upgrade`, `rollback` |
 
 Without `--tags`, a playbook runs its full default flow. Some tag combinations
 are intentionally rejected; follow the selected domain's validation message.

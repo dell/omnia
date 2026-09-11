@@ -980,8 +980,78 @@ prepare_base_domains() {
 # ─────────────────────────────────────────────────────────────────────────────
 # Cleanup
 # ─────────────────────────────────────────────────────────────────────────────
+validate_full_cleanup_state() {
+    local data_root
+    local logical_data_root
+    local configured_data_path="${OMNIA_DATA_PATH%/}"
+    local domain domain_dir entry entry_name
+    local blockers=()
+
+    if ! data_root="$(realpath -m -- "$OMNIA_DATA_PATH")"; then
+        echo -e "${RED}ERROR: Cannot resolve OMNIA_DATA_PATH: ${OMNIA_DATA_PATH}${NC}" >&2
+        return 1
+    fi
+    logical_data_root="$(realpath -ms -- "$OMNIA_DATA_PATH")"
+    if [[ "$data_root" != /* ]] || [[ "$data_root" =~ ^(/|/boot|/dev|/etc|/home|/media|/mnt|/opt|/proc|/root|/run|/srv|/sys|/tmp|/usr|/var)$ ]]; then
+        echo -e "${RED}ERROR: Refusing full cleanup for unsafe OMNIA_DATA_PATH: ${OMNIA_DATA_PATH}${NC}" >&2
+        return 1
+    fi
+    if [ -L "$configured_data_path" ] || [ "$data_root" != "$logical_data_root" ]; then
+        echo -e "${RED}ERROR: Refusing full cleanup because OMNIA_DATA_PATH contains a symbolic link: ${OMNIA_DATA_PATH}${NC}" >&2
+        return 1
+    fi
+
+    for domain in "${DOMAINS[@]}"; do
+        domain_dir="${data_root}/${domain}"
+        [ -e "$domain_dir" ] || [ -L "$domain_dir" ] || continue
+
+        if [ -L "$domain_dir" ] || [ ! -d "$domain_dir" ]; then
+            blockers+=("${domain_dir} (not a regular directory)")
+            continue
+        fi
+        if [ ! -r "$domain_dir" ] || [ ! -x "$domain_dir" ]; then
+            blockers+=("${domain_dir} (cannot be fully inspected)")
+            continue
+        fi
+
+        while IFS= read -r -d '' entry; do
+            entry_name="$(basename "$entry")"
+            case "$entry_name" in
+                input) ;;
+                *) blockers+=("$entry") ;;
+            esac
+        done < <(find -P "$domain_dir" -mindepth 1 -maxdepth 1 -print0)
+    done
+
+    if [ "${#blockers[@]}" -gt 0 ]; then
+        echo -e "${RED}ERROR: --cleanup --all cannot continue because domain cleanup is incomplete.${NC}"
+        echo -e "${RED}The following paths contain deployed, generated, or unrecognized state:${NC}"
+        printf '  - %s\n' "${blockers[@]}"
+        echo ""
+        echo -e "${YELLOW}No files were removed. Run the matching domain cleanup first, for example:${NC}"
+        echo "  ./omnia.sh --run <domain> --tags cleanup"
+        echo -e "${YELLOW}Then remove any intentionally retained paths reported above and retry.${NC}"
+        return 1
+    fi
+}
+
+cleanup_domain_initializer_artifacts() {
+    local domain init_script
+
+    for domain in "${DOMAINS[@]}"; do
+        init_script="${SRC_DIR}/${domain}/domain-init.sh"
+        if [ ! -x "$init_script" ]; then
+            echo -e "${RED}ERROR: Domain cleanup helper is missing or not executable: ${init_script}${NC}" >&2
+            return 1
+        fi
+        DOMAIN_INIT_LOG_ROOT="/var/log/omnia" "$init_script" --cleanup
+    done
+}
+
 cleanup_omnia() {
     local cleanup_all="${1:-false}"
+    local skip_approval="${2:-false}"
+    local confirm=""
     load_env
 
     echo -e "${BLUE}================================================================================${NC}"
@@ -990,6 +1060,9 @@ cleanup_omnia() {
     echo ""
 
     if [ "$cleanup_all" = true ]; then
+        # Refuse before prompting or deleting if lifecycle cleanup is pending.
+        validate_full_cleanup_state || return 1
+
         echo -e "${RED}WARNING: This will remove ALL Omnia data including:${NC}"
         echo -e "  - Python venv:          ${OMNIA_VENV_PATH}"
         echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
@@ -997,7 +1070,8 @@ cleanup_omnia() {
         echo -e "  - omnia-cli:            /usr/local/bin/omnia-cli"
         echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-bash-completion"
         echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
-        echo -e "  - ALL data:             ${OMNIA_DATA_PATH}/ (input, output, logs, everything)"
+        echo -e "  - Initializer input data: ${OMNIA_DATA_PATH}/<domain>/input"
+        echo -e "  - Remaining Omnia data:      ${OMNIA_DATA_PATH}/"
     else
         echo -e "${YELLOW}This will remove the Omnia venv, system environment files, omnia-cli, and dependency cache:${NC}"
         echo -e "  - Python venv:          ${OMNIA_VENV_PATH}"
@@ -1009,17 +1083,38 @@ cleanup_omnia() {
         echo -e "  - Dependency cache:     ${OMNIA_DATA_PATH}/.data/deps-cache/"
         echo ""
         echo -e "${GREEN}Runtime data at ${OMNIA_DATA_PATH}/ (input, output, logs) will be preserved.${NC}"
-        echo -e "${YELLOW}Use --cleanup --all to remove everything.${NC}"
+        echo -e "${YELLOW}Use --cleanup --all for a guarded full reset.${NC}"
     fi
 
     echo ""
-    read -rp "Are you sure? (yes/no): " confirm
-    if [ "$confirm" != "yes" ]; then
-        echo -e "${YELLOW}Cleanup cancelled.${NC}"
-        return 0
+    if [ "$skip_approval" = true ]; then
+        echo -e "${YELLOW}Confirmation skipped by --skip-approval. Cleanup will start immediately.${NC}"
+    else
+        if [ "$cleanup_all" = true ]; then
+            if ! read -r -p "Type 'yes' to permanently remove the Omnia environment and all remaining data: " confirm; then
+                echo -e "${RED}ERROR: Confirmation input was not available. No files were removed.${NC}" >&2
+                echo -e "${YELLOW}Run interactively, or use --skip-approval only in trusted automation.${NC}" >&2
+                return 1
+            fi
+        elif ! read -r -p "Type 'yes' to remove the Omnia environment while preserving runtime data: " confirm; then
+            echo -e "${RED}ERROR: Confirmation input was not available. No files were removed.${NC}" >&2
+            echo -e "${YELLOW}Run interactively, or use --skip-approval only in trusted automation.${NC}" >&2
+            return 1
+        fi
+        if [ "$confirm" != "yes" ]; then
+            echo -e "${YELLOW}Cleanup cancelled. No files were removed.${NC}"
+            return 0
+        fi
     fi
 
     echo ""
+
+    if [ "$cleanup_all" = true ]; then
+        echo -e "${BLUE}Removing domain initializer input and log artifacts${NC}"
+        cleanup_domain_initializer_artifacts
+        # Close the preflight-to-delete race before global cleanup starts.
+        validate_full_cleanup_state || return 1
+    fi
 
     # Remove venv
     if [ -d "$OMNIA_VENV_PATH" ]; then
@@ -1077,7 +1172,8 @@ cleanup_omnia() {
         echo -e "  ${GREEN}Removed.${NC}"
     fi
 
-    # If --all, remove entire data path
+    # The full-cleanup preflight proved that no deployed domain state existed
+    # before deletion began.
     if [ "$cleanup_all" = true ]; then
         if [ -d "$OMNIA_DATA_PATH" ]; then
             echo -e "${BLUE}Removing all data: ${OMNIA_DATA_PATH}${NC}"
@@ -1356,12 +1452,12 @@ RECOMMENDED EXECUTION ORDER:
 
   Public tags by domain (use --tags <tag> to select a stage):
     build_stream:        precheck validate credentials prepare execute build cleanup upgrade rollback
-    discovery:           precheck validate credentials prepare execute discovery cleanup upgrade rollback
+    discovery:           precheck validate credentials prepare execute discovery cleanup cleanup_credentials upgrade rollback
     image_build_manager: precheck validate credentials prepare execute build cleanup cleanup_images upgrade rollback
     orchestrator:        precheck validate credentials prepare deploy provision execute validate-deployment pxeboot cleanup cleanup_credentials upgrade rollback
     repo_manager:        precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos upgrade rollback catalog_generate catalog_add catalog_delete catalog_validate
-    telemetry:           precheck validate validation execute deploy cleanup cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria
-    utils:               precheck setup collect install_os cleanup cleanup_logs cleanup_install_os upgrade rollback
+    telemetry:           precheck validate validation prepare credentials execute deploy cleanup cleanup_kafka cleanup_victoria_metrics cleanup_victoria_logs cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria
+    utils:               precheck setup collect install_os backup_oim_logs cleanup cleanup_logs cleanup_install_os cleanup_backup_oim_logs upgrade rollback
 
   Without --tags, each playbook runs its full default flow. Tags marked with
   Ansible's "never" tag run only when explicitly selected. Domain playbooks
@@ -1378,8 +1474,11 @@ CLEANUP COMMANDS:
                         completion, activation script, and dependency cache.
                         Runtime data at \$OMNIA_DATA_PATH/ (input, output, logs)
                         is preserved.
-  --cleanup --all       Remove EVERYTHING: venv, system env, cache, AND all data at
-                        \$OMNIA_DATA_PATH/ (full reset). Prompts for confirmation.
+  --cleanup --all       Guarded full reset. Refuses to start when a domain has
+                        anything except its initializer-owned input directory;
+                        run that domain's cleanup (or remove the path manually)
+                        first. Then removes domain input/log paths, the venv,
+                        system env, cache, and remaining \$OMNIA_DATA_PATH data.
 
 OPTIONS:
   --deps-only           With -s or -i: install pip/Galaxy deps but skip input file staging.
@@ -1403,6 +1502,8 @@ OPTIONS:
   --skip-catalog        With -s: skip the automatic catalog copy.
   --skip-omnia-cli      With -s: skip installing omnia-cli and shared bash completion
                         to /usr/local/bin/ and /etc/bash_completion.d/.
+  --skip-approval       With --cleanup: skip the confirmation prompt. Intended
+                        only for trusted, unattended automation.
   --help, -h            Show this help message.
 
 DOMAINS:
@@ -1490,8 +1591,12 @@ EXAMPLES:
   # Cleanup (remove environment + CLI integration, preserve runtime data):
   ./omnia.sh --cleanup
 
-  # Full cleanup (remove EVERYTHING including data):
+  # Guarded full cleanup (requires domain lifecycle state to be cleaned first):
   ./omnia.sh --cleanup --all
+
+  # Unattended cleanup (no confirmation prompt):
+  ./omnia.sh --cleanup --skip-approval
+  ./omnia.sh --cleanup --all --skip-approval
 
   # Diagnostics:
   omnia-cli status               # All domains
@@ -1509,6 +1614,7 @@ main() {
     SKIP_DOMAINS=""    # Global — comma-separated domains to skip during init
     DRY_RUN=false      # Global — preview mode for init
     local CLEANUP_ALL=false
+    local CLEANUP_SKIP_APPROVAL=false
     local SKIP_CATALOG=false
     local SKIP_OMNIA_CLI=false
     local command=""
@@ -1587,6 +1693,10 @@ main() {
                 CLEANUP_ALL=true
                 shift
                 ;;
+            --skip-approval)
+                CLEANUP_SKIP_APPROVAL=true
+                shift
+                ;;
             --run|-r)
                 command="run"
                 if [ $# -lt 2 ]; then
@@ -1655,6 +1765,16 @@ main() {
         echo -e "${YELLOW}Usage: $0 -i --dry-run or $0 --prepare-base --dry-run${NC}"
         exit 1
     fi
+    if [ "$CLEANUP_ALL" = true ] && [ "$command" != "cleanup" ]; then
+        echo -e "${RED}ERROR: --all is only valid with --cleanup${NC}"
+        echo -e "${YELLOW}Usage: $0 --cleanup --all${NC}"
+        exit 1
+    fi
+    if [ "$CLEANUP_SKIP_APPROVAL" = true ] && [ "$command" != "cleanup" ]; then
+        echo -e "${RED}ERROR: --skip-approval is only valid with --cleanup${NC}"
+        echo -e "${YELLOW}Usage: $0 --cleanup [--all] --skip-approval${NC}"
+        exit 1
+    fi
 
     case "$command" in
         setup-venv)
@@ -1708,7 +1828,7 @@ main() {
             check_deps
             ;;
         cleanup)
-            cleanup_omnia "$CLEANUP_ALL"
+            cleanup_omnia "$CLEANUP_ALL" "$CLEANUP_SKIP_APPROVAL"
             ;;
         run)
             run_domain "$run_domain_name" "${run_extra_args[@]}"

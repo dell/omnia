@@ -24,7 +24,7 @@
 #   ansible-playbook build_stream.yml --tags prepare         # Deploy Postgres + BSM + watcher only
 #   ansible-playbook build_stream.yml --tags execute         # Deploy GitLab + CI/CD only
 #   ansible-playbook build_stream.yml --tags build           # prepare + execute
-#   ansible-playbook build_stream.yml --tags cleanup         # Full cleanup (no credentials)
+#   ansible-playbook build_stream.yml --tags cleanup         # Full cleanup, including credentials
 #   ansible-playbook build_stream.yml --tags upgrade         # Upgrade flow (placeholder)
 #   ansible-playbook build_stream.yml --tags rollback        # Rollback flow (placeholder)
 #
@@ -36,13 +36,13 @@
 #   prepare      — Deploy Postgres + BSM container + watcher service (with credentials)
 #   execute      — Deploy GitLab CE + CI/CD configuration (with credentials)
 #   build        — Alias: runs prepare + execute (full deploy, with credentials)
-#   cleanup      — Full domain cleanup: GitLab + BSM + Postgres (skips credentials)
+#   cleanup      — Full domain cleanup: GitLab + BSM + Postgres + credentials
 #   upgrade      — Upgrade flow (placeholder — future release)
 #   rollback     — Rollback flow (placeholder — future release)
 #
 # Internal steps (always):
 #   Step 0: Setup — upgrade guard, load project config, input/output dirs, OIM metadata
-#   Step 1: Input validation (build_stream_config.yml schema + logic) — skipped for precheck
+#   Step 1: Input validation (build_stream_config.yml schema + logic) — skipped for precheck/cleanup
 #   Step 2: Credential collection (skipped for precheck/cleanup/validate tags)
 
 # =========================================================================
@@ -57,11 +57,13 @@
     - build_stream_setup
 
 # =========================================================================
-# Step 1: Input validation (schema + logic) — skipped for precheck
+# Step 1: Input validation (schema + logic) — skipped for precheck/cleanup
 # =========================================================================
 - name: Validate build_stream configuration
   ansible.builtin.import_playbook: validate/validate_build_stream_config.yml
-  when: "'precheck' not in (hostvars['localhost']['provided_tags'] | default([]))"
+  when: >-
+    (hostvars['localhost']['provided_tags'] | default([])
+     | intersect(['precheck', 'cleanup']) | length) == 0
   tags:
     - always
     - validate
