@@ -303,10 +303,10 @@ with every referenced name. When no storage name is referenced, the file may
 be absent. If present, it is always schema validated. Network reachability of
 referenced NFS servers is checked later during precheck.
 
-A dedicated optional Slurm VAST mount uses `storage_role: slurm_vast`. It is
-included only when the active `slurm_cluster` entry has a non-empty
-`vast_storage_name` referencing that mount. Other VAST-backed NFS mounts are
-independent and must not use this role marker.
+The standard optional Slurm VAST mount uses the existing `vast_storage` name.
+It is included only when the active `slurm_cluster` entry has a non-empty
+`vast_storage_name` referencing it; no additional storage role field is
+required.
 
 ### PowerScale CSI selection
 
