@@ -37,7 +37,7 @@ Common issues and solutions for the Omnia CI/CD pipeline.
 
 **Solutions:**
 
-1. Verify `VAULT_SERVER_URL` is correct:
+1. Verify `BAO_SERVER_URL` is correct:
    - Should be in format: `https://<OPENBAO_IP>:8200`
    - Check in **Settings > CI/CD > Variables**
 
@@ -119,9 +119,9 @@ Common issues and solutions for the Omnia CI/CD pipeline.
    # Should include: path "secret/data/omnia/*"
    ```
 
-3. Verify `VAULT_SECRET_PATH` is set to `secret/data/omnia`:
+3. Verify `BAO_DATA_PATH` is set to `secret/data/omnia`:
    - Go to **Settings > CI/CD > Variables**
-   - Check `VAULT_SECRET_PATH` value
+   - Check `BAO_DATA_PATH` value
 
 4. Verify the domain name matches the secret path:
    - For repo_manager: `secret/omnia/repo_manager`
