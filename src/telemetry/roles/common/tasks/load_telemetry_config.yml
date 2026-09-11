@@ -52,8 +52,6 @@
           {% if omnia_data_path | length > 0 -%}
           {{ omnia_data_path | regex_replace('/$', '') }}/telemetry/input/{{ project_name }}{%- else -%}
           {{ input_project_dir | default('/opt/omnia/telemetry/input/' + project_name) }}{%- endif %}
-<<<<<<< HEAD
-=======
         output_project_dir: >-
           {% if omnia_data_path | length > 0 -%}
           {{ omnia_data_path | regex_replace('/$', '') }}/telemetry/output/{{ project_name }}{%- else -%}
@@ -62,7 +60,6 @@
           {% if omnia_data_path | length > 0 -%}
           {{ omnia_data_path | regex_replace('/$', '') }}/telemetry{%- else -%}
           {{ telemetry_data_path | default('/opt/omnia/telemetry') }}{%- endif %}
->>>>>>> 0099061b6 (omnia_project deafult path reading from omnia env file changes)
 
     - name: Load telemetry configuration
       ansible.builtin.include_vars:
