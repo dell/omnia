@@ -31,14 +31,14 @@ from omnia_auto import load_test_config
 @pytest.mark.functional
 @pytest.mark.order(1)
 def test_orchestrator_config_exists(host) -> None:
-    """TC_VL_001: Verify orchestrator_config.yml exists on target.
+    """ORCH_FVT_VALIDATE_V001: Verify orchestrator_config.yml exists on target.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify orchestrator_config.yml exists on target",
-        "TC_VL_001"
+        "ORCH_FVT_VALIDATE_V001"
     )
 
     config = load_test_config()
@@ -66,14 +66,14 @@ def test_orchestrator_config_exists(host) -> None:
 @pytest.mark.functional
 @pytest.mark.order(2)
 def test_pxe_mapping_file_exists(host) -> None:
-    """TC_VL_002: Verify pxe_mapping_file.csv exists on target.
+    """ORCH_FVT_VALIDATE_V002: Verify pxe_mapping_file.csv exists on target.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify pxe_mapping_file.csv exists on target",
-        "TC_VL_002"
+        "ORCH_FVT_VALIDATE_V002"
     )
 
     config = load_test_config()
@@ -101,14 +101,14 @@ def test_pxe_mapping_file_exists(host) -> None:
 @pytest.mark.functional
 @pytest.mark.order(3)
 def test_orchestrator_config_valid_yaml(host) -> None:
-    """TC_VL_003: Verify orchestrator_config.yml is valid YAML.
+    """ORCH_FVT_VALIDATE_V003: Verify orchestrator_config.yml is valid YAML.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify orchestrator_config.yml is valid YAML",
-        "TC_VL_003"
+        "ORCH_FVT_VALIDATE_V003"
     )
 
     config = load_test_config()

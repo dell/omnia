@@ -32,10 +32,13 @@ from omnia_auto import (
     load_test_credentials,
     get_module_root,
     run_on_host,
+    run_ssh_command,
     is_local_execution,
     TestReport,
     get_current_report,
     set_current_report,
+    build_report_name,
+    record_playbook_failure,
     run_playbook as _run_playbook,
 )
 from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
@@ -191,8 +194,27 @@ from .orchestrator_playbook_tester import (
 )
 
 
+_NONINTERACTIVE_PXE_TAGS = {"execute", "pxeboot"}
+
+
 def run_playbook(tag=None, **kwargs):
-    """Wrapper that injects module-specific playbook and workdir."""
+    """Inject Orchestrator defaults and disable its TTY-only PXE delay.
+
+    Automated pytest execution streams Ansible through pipes, so the timed
+    ``ansible.builtin.pause`` cannot safely access a controlling terminal.
+    Starting the existing bounded node-registration polling immediately keeps
+    the same verification contract without requiring interactive input.
+    """
+    tag_values = set(tag) if isinstance(tag, list) else {tag}
+    extra_vars = kwargs.pop("extra_vars", None)
+    if tag_values & _NONINTERACTIVE_PXE_TAGS and (
+        extra_vars is None or isinstance(extra_vars, dict)
+    ):
+        resolved_extra_vars = dict(extra_vars or {})
+        resolved_extra_vars["node_registration_pause_minutes"] = 0
+        kwargs["extra_vars"] = resolved_extra_vars
+    elif extra_vars is not None:
+        kwargs["extra_vars"] = extra_vars
     return _run_playbook(
         playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),
         playbook_workdir=kwargs.pop("playbook_workdir", PLAYBOOK_WORKDIR),

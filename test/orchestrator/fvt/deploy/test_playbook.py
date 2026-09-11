@@ -15,7 +15,7 @@
 """
 Orchestrator Deploy — Playbook Execution.
 
-TC_DP_000: Deploy orchestrator.yml --tags deploy
+ORCH_FVT_DEPLOY_E001: Deploy orchestrator.yml --tags deploy
 """
 
 import pytest
@@ -27,10 +27,10 @@ from library.functions import TestLogger, run_playbook
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_orchestrator(host):
-    """TC_DP_000: Deploy orchestrator.yml --tags deploy."""
+    """ORCH_FVT_DEPLOY_E001: Deploy orchestrator.yml --tags deploy."""
     tl = TestLogger(
         "Deploy Playbook (deploy)",
-        "TC_DP_000"
+        "ORCH_FVT_DEPLOY_E001"
     )
     result = run_playbook(tag="deploy")
 

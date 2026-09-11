@@ -270,7 +270,8 @@ class ValidationRunner:
             ``all_exec_tags`` (ordered list), ``all_exec_marker`` (string),
             ``all_verify_exclude_markers`` (list),
             ``required_suite_tags`` (list), ``verify_only_tags`` (list),
-            ``verify_only_suites`` (mapping), and ``enable_ut`` (bool).
+            ``verify_only_suites`` (mapping), ``suite_exec_owners``
+            (mapping), and ``enable_ut`` (bool).
             When omitted, tags are auto-discovered from
             ``fvt/`` subdirectories.
     """
@@ -325,6 +326,13 @@ class ValidationRunner:
         )
         self._verify_only_suites: Dict = cfg.get(
             "verify_only_suites", {},
+        )
+        # Some domains keep the lifecycle deployment trigger inside a suite
+        # (for example provision/kubernetes and provision/slurm). For those
+        # explicitly declared suites, execute only the suite tree. Other
+        # suites retain the historical root-plus-suite behaviour.
+        self._suite_exec_owners: Dict = cfg.get(
+            "suite_exec_owners", {},
         )
 
     # -----------------------------------------------------------------
@@ -617,13 +625,16 @@ class ValidationRunner:
         )
         if tag and suite:
             tag_dir = Path(self.fvt_dir, tag)
-            root_tests = sorted(
-                str(path) for path in tag_dir.glob("test_*.py")
-                if path.is_file() and not path.is_symlink()
-            )
-            exec_path = root_tests + [
-                str(Path(tag_dir, suite).resolve(strict=True))
-            ]
+            suite_path = str(Path(tag_dir, suite).resolve(strict=True))
+            suite_owners = set(self._suite_exec_owners.get(tag, []))
+            if suite in suite_owners:
+                exec_path = suite_path
+            else:
+                root_tests = sorted(
+                    str(path) for path in tag_dir.glob("test_*.py")
+                    if path.is_file() and not path.is_symlink()
+                )
+                exec_path = root_tests + [suite_path]
         marker_args = "-m deploy"
         if marker:
             marker_args += f" --marker {marker}"
@@ -852,6 +863,7 @@ class ValidationRunner:
         g_dataset = cfg.get("dataset_override", "")
         g_sync_in = cfg.get("sync_input_override", "")
         g_sync_out = cfg.get("sync_output_override", "")
+        g_sync_image_out = cfg.get("sync_image_output_override", "")
         skip_on_failure = cfg.get("skip_on_failure", False)
         configured_categories = [self.cat_fvt, self.cat_nft]
         if self._enable_ut:
@@ -860,6 +872,9 @@ class ValidationRunner:
             _validate_config_value(g_dataset, "dataset override")
             _validate_optional_boolean(g_sync_in, "sync_input_override")
             _validate_optional_boolean(g_sync_out, "sync_output_override")
+            _validate_optional_boolean(
+                g_sync_image_out, "sync_image_output_override"
+            )
             if not isinstance(skip_on_failure, bool):
                 raise ValueError(
                     "skip_on_failure must be true or false (without quotes)"
@@ -933,7 +948,11 @@ class ValidationRunner:
                         scenario_name, self._get_fvt_tags(), "scenario",
                     )
                     env = self._build_config_env(
-                        sc, g_dataset, g_sync_in, g_sync_out,
+                        sc,
+                        g_dataset,
+                        g_sync_in,
+                        g_sync_out,
+                        g_sync_image_out,
                     )
                     extra = self._build_config_extra(
                         sc, scenario_name,
@@ -1036,7 +1055,7 @@ class ValidationRunner:
     @staticmethod
     def _build_config_env(
         sc: dict, g_dataset: str,
-        g_sync_in: str, g_sync_out: str,
+        g_sync_in: str, g_sync_out: str, g_sync_image_out: str = "",
     ) -> dict:
         """Build validated environment overrides for a config scenario."""
         env = {}
@@ -1054,12 +1073,20 @@ class ValidationRunner:
             g_sync_out if g_sync_out != "" else sc.get("sync_output", ""),
             "sync_output",
         )
+        sio = _validate_optional_boolean(
+            g_sync_image_out
+            if g_sync_image_out != ""
+            else sc.get("sync_image_output", ""),
+            "sync_image_output",
+        )
         if ds:
             env["OMNIA_DATASET_OVERRIDE"] = ds
         if si is not None:
             env["OMNIA_SYNC_INPUT_OVERRIDE"] = str(si).lower()
         if so is not None:
             env["OMNIA_SYNC_OUTPUT_OVERRIDE"] = str(so).lower()
+        if sio is not None:
+            env["OMNIA_SYNC_IMAGE_OUTPUT_OVERRIDE"] = str(sio).lower()
         return env
 
     def _build_config_extra(

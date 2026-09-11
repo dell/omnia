@@ -38,6 +38,7 @@
     auth_image: "docker.io/dellhpcomniaaisolution/omnia_auth"
     auth_target_tag: "1.2"
     auth_previous_tag: "1.1"
+    auth_quadlet_file: "/etc/containers/systemd/omnia_auth.container"
   tasks:
     - name: Check if OpenLDAP container exists
       containers.podman.podman_container_info:
@@ -76,6 +77,13 @@
               until: auth_pull_result.rc == 0
               changed_when: "'Pulling' in auth_pull_result.stdout or 'Copying' in auth_pull_result.stderr"
 
+            - name: Update OpenLDAP Quadlet to the target image
+              ansible.builtin.lineinfile:
+                path: "{{ auth_quadlet_file }}"
+                regexp: '^Image='
+                line: "Image={{ auth_image }}:{{ auth_target_tag }}"
+                backup: true
+
             - name: Restart OpenLDAP service with new image
               ansible.builtin.systemd:
                 name: omnia_auth
@@ -90,7 +98,20 @@
               delay: 5
               until: >-
                 (auth_upgrade_health.containers | default([]) | length > 0) and
-                (auth_upgrade_health.containers[0].State.Status == 'running')
+                (auth_upgrade_health.containers[0].State.Status == 'running') and
+                (auth_target_tag in
+                 (auth_upgrade_health.containers[0].ImageName | default('')))
+
+            - name: Verify OpenLDAP target image is running
+              ansible.builtin.assert:
+                that:
+                  - auth_upgrade_health.containers | default([]) | length > 0
+                  - auth_upgrade_health.containers[0].State.Status == 'running'
+                  - auth_target_tag in (auth_upgrade_health.containers[0].ImageName | default(''))
+                fail_msg: >-
+                  OpenLDAP did not restart on the requested target image
+                  {{ auth_image }}:{{ auth_target_tag }}.
+                quiet: true
 
             - name: Verify LDAP service responds
               ansible.builtin.command: >
@@ -101,6 +122,15 @@
               until: ldap_verify.rc == 0
               changed_when: false
               failed_when: false
+
+            - name: Fail when upgraded LDAP endpoint is not ready
+              ansible.builtin.assert:
+                that:
+                  - ldap_verify.rc == 0
+                fail_msg: >-
+                  OpenLDAP target image is running but its LDAP endpoint did
+                  not become ready after the upgrade.
+                quiet: true
 
             - name: OpenLDAP upgrade completed
               ansible.builtin.debug:

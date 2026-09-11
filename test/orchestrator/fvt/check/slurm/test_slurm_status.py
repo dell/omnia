@@ -15,15 +15,15 @@
 """
 Orchestrator Validate — Slurm Service Status.
 
-TC_SL_001: Verify Slurm is enabled in catalog
-TC_SL_003: Verify Slurm controller daemon (slurmctld) is running
-TC_SL_004: Verify Slurm compute daemon (slurmd) is running
-TC_SL_005: Verify Slurm database daemon (slurmdbd) is running
-TC_SL_006: Verify Munge authentication service is running
-TC_SL_007: Verify all Slurm services are running
-TC_SL_008: Verify Slurm directories exist on NFS
-TC_SL_009: Verify Slurm configuration files exist
-TC_SL_012: Verify Slurm controller is responding
+ORCH_FVT_SLURM_V001: Verify Slurm is enabled in catalog
+ORCH_FVT_SLURM_V002: Verify Slurm controller daemon (slurmctld) is running
+ORCH_FVT_SLURM_V003: Verify Slurm compute daemon (slurmd) is running
+ORCH_FVT_SLURM_V004: Verify Slurm database daemon (slurmdbd) is running
+ORCH_FVT_SLURM_V005: Verify Munge authentication service is running
+ORCH_FVT_SLURM_V006: Verify all Slurm services are running
+ORCH_FVT_SLURM_V007: Verify Slurm directories exist on NFS
+ORCH_FVT_SLURM_V008: Verify Slurm configuration files exist
+ORCH_FVT_SLURM_V011: Verify Slurm controller is responding
 """
 
 import pytest
@@ -57,7 +57,7 @@ def _skip_if_slurm_disabled(host):
 @pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_slurm_enabled(host):
-    """TC_SL_001: Verify Slurm is enabled in catalog."""
+    """ORCH_FVT_SLURM_V001: Verify Slurm is enabled in catalog."""
     tc = TC["slurm_enabled"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -81,7 +81,7 @@ def test_slurm_enabled(host):
 @pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_slurmctld_running(host):
-    """TC_SL_003: Verify Slurm controller daemon (slurmctld) is running."""
+    """ORCH_FVT_SLURM_V002: Verify Slurm controller daemon (slurmctld) is running."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["slurmctld_running"]
@@ -103,7 +103,7 @@ def test_slurmctld_running(host):
 @pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_slurmd_running(host):
-    """TC_SL_004: Verify Slurm compute daemon (slurmd) is running."""
+    """ORCH_FVT_SLURM_V003: Verify Slurm compute daemon (slurmd) is running."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["slurmd_running"]
@@ -125,7 +125,7 @@ def test_slurmd_running(host):
 @pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_slurmdbd_running(host):
-    """TC_SL_005: Verify Slurm database daemon (slurmdbd) is running."""
+    """ORCH_FVT_SLURM_V004: Verify Slurm database daemon (slurmdbd) is running."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["slurmdbd_running"]
@@ -147,7 +147,7 @@ def test_slurmdbd_running(host):
 @pytest.mark.buildstream
 @pytest.mark.order(5)
 def test_munge_running(host):
-    """TC_SL_006: Verify Munge authentication service is running."""
+    """ORCH_FVT_SLURM_V005: Verify Munge authentication service is running."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["munge_running"]
@@ -169,7 +169,7 @@ def test_munge_running(host):
 @pytest.mark.buildstream
 @pytest.mark.order(6)
 def test_slurm_services_running(host):
-    """TC_SL_007: Verify all Slurm services are running."""
+    """ORCH_FVT_SLURM_V006: Verify all Slurm services are running."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["slurm_services_running"]
@@ -191,7 +191,7 @@ def test_slurm_services_running(host):
 @pytest.mark.buildstream
 @pytest.mark.order(7)
 def test_slurm_directories_exist(host):
-    """TC_SL_008: Verify Slurm directories exist on NFS."""
+    """ORCH_FVT_SLURM_V007: Verify Slurm directories exist on NFS."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["slurm_directories_exist"]
@@ -213,7 +213,7 @@ def test_slurm_directories_exist(host):
 @pytest.mark.buildstream
 @pytest.mark.order(8)
 def test_slurm_config_files_exist(host):
-    """TC_SL_009: Verify Slurm configuration files exist."""
+    """ORCH_FVT_SLURM_V008: Verify Slurm configuration files exist."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["slurm_config_files_exist"]
@@ -235,7 +235,7 @@ def test_slurm_config_files_exist(host):
 @pytest.mark.buildstream
 @pytest.mark.order(9)
 def test_slurmctld_responding(host):
-    """TC_SL_012: Verify Slurm controller is responding."""
+    """ORCH_FVT_SLURM_V011: Verify Slurm controller is responding."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["slurmctld_responding"]

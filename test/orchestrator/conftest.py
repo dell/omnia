@@ -26,6 +26,7 @@ Provides:
 
 import sys
 import os
+import re
 
 import pytest
 
@@ -53,6 +54,7 @@ from omnia_auto import (  # noqa: E402
     get_test_output,
     get_last_tc_id,
     encrypt_test_credentials,
+    build_report_name,
     log,
     set_verbose_mode,
     add_session_result,
@@ -70,33 +72,6 @@ from library.functions.validation_func import (  # noqa: E402
     validate_all,
     ConfigValidationError,
 )
-
-# =============================================================================
-# FVT SCENARIO AND SUITE ORDERING
-# Aligned with orchestrator playbook lifecycle phases
-# =============================================================================
-
-_FVT_SCENARIO_ORDER = {
-    "precheck": 0,
-    "validate": 1,
-    "prepare": 2,
-    "deploy": 3,
-    "provision": 4,
-    "pxeboot": 5,
-    "check": 6,
-    "cleanup": 7,
-}
-
-_FVT_SUITE_ORDER = {
-    "precheck": {"": 0},
-    "validate": {"": 0},
-    "prepare": {"": 0, "openchami": 1},
-    "deploy": {"": 0},
-    "provision": {"": 0, "kubernetes": 1, "slurm": 2},
-    "pxeboot": {"": 0},
-    "check": {"": 0, "kubernetes": 1, "slurm": 2, "status": 3},
-    "cleanup": {"": 0, "status": 1},
-}
 
 
 # =============================================================================
@@ -142,6 +117,17 @@ def pytest_configure(config):
         "security": "Security and permission tests",
         "negative": "Negative test cases for error scenarios",
         "buildstream": "BuildStream pipeline validation (post-provision sanity)",
+        "destructive": "Explicit opt-in state-changing or cleanup tests",
+        "additional_cloud_init": "Additional cloud-init feature tests",
+        "hpc_benchmarks": "HPC benchmark staging and execution tests",
+        "apptainer": "Apptainer installation and workload tests",
+        "gpu": "GPU, CUDA, GRES, and DCGM tests",
+        "openldap": "OpenLDAP service, endpoint, TLS, and data tests",
+        "storage": "Shared storage configuration and runtime tests",
+        "vast": "VAST NFS, client, and RDMA tests",
+        "powervault": "PowerVault iSCSI and multipath tests",
+        "recovery": "Retry, recovery, and interrupted-run tests",
+        "unit": "Deterministic unit and source-contract tests",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
@@ -169,104 +155,42 @@ def _item_has_marker(item, marker_name):
 
 
 def pytest_collection_modifyitems(session, config, items):
-    """Filter by --marker expression, apply smart skips only when no marker specified, and sort by order marker."""
+    """Filter markers, apply safe defaults, and sort by order marker."""
     marker_expr = config.getoption("--marker", default="")
     mode, markers = _parse_marker_expression(marker_expr)
-    
-    # Check if pytest's built-in -m option was used
-    pytest_m_option = config.getoption("-m", default="")
+    command_type = os.environ.get("OMNIA_COMMAND_TYPE", "")
+    selected_tag = os.environ.get("OMNIA_DEPLOY_TAG", "")
 
-    # Only apply auto-skips if no marker expression is provided AND no -m option
-    if mode == "none" and not pytest_m_option:
-        # Auto-skip deploy tests (require full environment setup)
+    # Only apply auto-skips if no marker expression is provided
+    if mode == "none":
         for item in items:
-            if _item_has_marker(item, "deploy"):
-                item.add_marker(pytest.mark.skip("Deploy tests require full environment setup - use --marker deploy to enable"))
-
-        # Auto-skip NFT tests (require explicit marker - they modify system state)
-        for item in items:
-            if _item_has_marker(item, "nft"):
-                item.add_marker(pytest.mark.skip("NFT tests require explicit --marker nft to enable (they modify system state)"))
-
-        # Auto-skip negative tests (require explicit marker - they test error conditions)
-        for item in items:
-            if _item_has_marker(item, "negative"):
-                item.add_marker(pytest.mark.skip("Negative tests require explicit --marker negative to enable (they test error conditions)"))
-
-        # Auto-skip cleanup status tests (require prior cleanup execution)
-        for item in items:
-            test_name = item.name
-            if "test_containers_removed" in test_name or "test_services_removed" in test_name or "test_firewall_ports_closed" in test_name:
-                item.add_marker(pytest.mark.skip("Cleanup status tests require prior cleanup playbook execution"))
-
-        # Auto-skip API test (requires fully operational OpenCHAMI services)
-        for item in items:
-            if "test_openchami_api_reachable" in item.name:
-                item.add_marker(pytest.mark.skip("API test requires fully operational OpenCHAMI services"))
-                
-        # Auto-skip SLURM tests if SLURM is not enabled in config
-        for item in items:
-            if _item_has_marker(item, "slurm"):
-                # Check if SLURM is enabled in the config
-                try:
-                    config = load_test_config()
-                    project = config.get("project_name", "project_default")
-                    orchestrator_config_path = f"/opt/omnia/orchestrator/input/{project}/orchestrator_config.yml"
-                    
-                    # Read config file to check for SLURM
-                    if os.path.exists(orchestrator_config_path):
-                        with open(orchestrator_config_path, 'r') as f:
-                            config_content = f.read().lower()
-                        slurm_keywords = ["slurm_control", "slurm_node", "slurm_login"]
-                        has_slurm = any(keyword in config_content for keyword in slurm_keywords)
-                        
-                        if not has_slurm:
-                            item.add_marker(pytest.mark.skip("SLURM is not enabled in orchestrator config"))
-                except Exception:
-                    # If we can't check, don't auto-skip - let the test run and fail if needed
-                    pass
-
-        # Auto-skip Kubernetes tests if K8s is not enabled in config
-        for item in items:
-            if _item_has_marker(item, "kubernetes"):
-                try:
-                    config = load_test_config()
-                    project = config.get("project_name", "project_default")
-                    orchestrator_config_path = f"/opt/omnia/orchestrator/input/{project}/orchestrator_config.yml"
-                    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
-
-                    has_k8s = False
-                    
-                    # Check orchestrator_config.yml
-                    if os.path.exists(orchestrator_config_path):
-                        with open(orchestrator_config_path, 'r') as f:
-                            config_content = f.read().lower()
-                        k8s_keywords = ["service_kube_control_plane", "service_kube_node", "kube_control_plane"]
-                        has_k8s = any(keyword in config_content for keyword in k8s_keywords)
-
-                    # If not found, check PXE mapping file
-                    if not has_k8s and os.path.exists(pxe_mapping_path):
-                        with open(pxe_mapping_path, 'r') as f:
-                            pxe_content = f.read().lower()
-                        k8s_keywords = ["service_kube_control_plane", "service_kube_node", "kube_control_plane"]
-                        has_k8s = any(keyword in pxe_content for keyword in k8s_keywords)
-
-                    if not has_k8s:
-                        item.add_marker(pytest.mark.skip("Kubernetes is not enabled in orchestrator config"))
-                except Exception:
-                    pass
+            if _item_has_marker(item, "deploy") and command_type != "exec":
+                item.add_marker(pytest.mark.skip(
+                    "Deploy tests run only during the runner exec phase"
+                ))
+            if _item_has_marker(item, "nft") and command_type != "nft":
+                item.add_marker(pytest.mark.skip(
+                    "NFT tests run only through nft_orchestrator"
+                ))
+            if _item_has_marker(item, "negative") and selected_tag != "negative":
+                item.add_marker(pytest.mark.skip(
+                    "Negative tests require the explicit negative tag"
+                ))
     else:
         # When marker is specified, only apply the marker filtering
         filtered = []
         for item in items:
-            if mode == "and":
+            # The runner already scopes execution to ``-m deploy``.  A feature
+            # marker belongs to the verification cases and must not silently
+            # skip the lifecycle trigger that creates the state under test.
+            if command_type == "exec" and _item_has_marker(item, "deploy"):
+                match = True
+            elif mode == "and":
                 match = all(_item_has_marker(item, m) for m in markers)
             elif mode == "or":
                 match = any(_item_has_marker(item, m) for m in markers)
-            elif mode == "single" and markers:
-                match = _item_has_marker(item, markers[0])
             else:
-                match = True  # No filtering if mode is invalid or markers is empty
+                match = _item_has_marker(item, markers[0])
 
             if not match:
                 reason = (
@@ -277,30 +201,21 @@ def pytest_collection_modifyitems(session, config, items):
             filtered.append(item)
         items[:] = filtered
 
+    # Destructive tests always require an explicit opt-in, even when another
+    # marker (for example ``nft`` or ``sanity``) was selected.  This prevents
+    # broad marker runs from tearing down an installed environment.
+    if "destructive" not in markers:
+        for item in items:
+            if _item_has_marker(item, "destructive"):
+                item.add_marker(pytest.mark.skip(
+                    "Destructive tests require --marker destructive"
+                ))
+
     def _get_order(item):
-        """Return (scenario_order, suite_order, local_order) for sorting."""
         marker = item.get_closest_marker("order")
-        local_order = marker.args[0] if marker and marker.args else 999
-
-        # Extract scenario and suite from nodeid (e.g., fvt/validate/kubernetes/test_k8s.py)
-        node_parts = item.nodeid.replace("\\", "/").split("/")
-        scenario = ""
-        suite = ""
-        if "fvt" in node_parts:
-            fvt_index = node_parts.index("fvt")
-            if len(node_parts) > fvt_index + 1:
-                scenario = node_parts[fvt_index + 1]
-            if len(node_parts) > fvt_index + 2:
-                candidate = node_parts[fvt_index + 2]
-                if not candidate.startswith("test_"):
-                    suite = candidate
-
-        suite_order = _FVT_SUITE_ORDER.get(scenario, {}).get(suite, 999)
-        return (
-            _FVT_SCENARIO_ORDER.get(scenario, 999),
-            suite_order,
-            local_order,
-        )
+        if marker and marker.args:
+            return marker.args[0]
+        return 999
 
     items.sort(key=_get_order)
 
@@ -319,6 +234,16 @@ def _apply_dataset_overrides(config):
     si_override = os.environ.get("OMNIA_SYNC_INPUT_OVERRIDE", "")
     if si_override:
         config["sync_orchestrator_input"] = si_override.lower() == "true"
+
+    so_override = os.environ.get("OMNIA_SYNC_OUTPUT_OVERRIDE", "")
+    if so_override:
+        config["sync_repo_manager_output"] = so_override.lower() == "true"
+
+    sio_override = os.environ.get("OMNIA_SYNC_IMAGE_OUTPUT_OVERRIDE", "")
+    if sio_override:
+        config["sync_image_build_manager_output"] = (
+            sio_override.lower() == "true"
+        )
 
     return config
 
@@ -344,38 +269,50 @@ def pytest_sessionstart(session):
 
     host = get_testinfra_host()
 
-    if not is_local_execution():
+    if not is_local_execution() and os.environ.get("OMNIA_COMMAND_TYPE") == "exec":
         sync_result = sync_project_to_remote(host)
         if sync_result["success"]:
             log(sync_result["details"], "OK")
         else:
-            log(f"Project sync failed: {sync_result['error']}", "WARN")
+            pytest.exit(
+                f"Project sync failed: {sync_result['error']}", returncode=1
+            )
 
     if config.get("sync_orchestrator_input", False):
-        sync_result = sync_orchestrator_input(host)
+        sync_result = sync_orchestrator_input(host, config)
         if sync_result["success"]:
             log(sync_result["details"], "OK")
         else:
-            log(f"Input sync failed: {sync_result['error']}", "ERROR")
+            pytest.exit(
+                f"Input sync failed: {sync_result['error']}", returncode=1
+            )
 
     if config.get("sync_repo_manager_output", False):
-        out_result = sync_repo_manager_output(host)
+        out_result = sync_repo_manager_output(host, config)
         if out_result["success"]:
             log(out_result["details"], "OK")
         else:
-            log(f"Output sync failed: {out_result['error']}", "WARN")
+            pytest.exit(
+                f"Output sync failed: {out_result['error']}", returncode=1
+            )
 
     if config.get("sync_image_build_manager_output", False):
-        img_result = sync_image_build_manager_output(host)
-        if img_result["success"]:
-            log(img_result["details"], "OK")
+        image_result = sync_image_build_manager_output(host, config)
+        if image_result["success"]:
+            log(image_result["details"], "OK")
         else:
-            log(f"Image build output sync failed: {img_result['error']}", "WARN")
+            pytest.exit(
+                "Image build output sync failed: "
+                f"{image_result['error']}",
+                returncode=1,
+            )
 
     # Initialize test report
     valid_scenarios = {
-        "orchestrator", "validate", "prepare",
-        "provision", "cleanup", "nft", "negative",
+        "orchestrator", "precheck", "validate", "prepare", "deploy",
+        "provision", "execute", "pxeboot", "check", "cleanup",
+        "rollback", "nft", "negative", "playbooks", "slurm",
+        "kubernetes",
     }
     module_name = "orchestrator"
     test_paths = session.config.args if hasattr(session.config, 'args') else []
@@ -386,10 +323,20 @@ def pytest_sessionstart(session):
                 break
 
     report_id = os.environ.get("REPORT_ID")
-    report_name = str(config.get("report_name", "orchestrator_test_report"))
+    base_name = str(config.get("report_name", "orchestrator_test_report"))
+    report_name = build_report_name(
+        domain_name="orchestrator",
+        base_name=base_name,
+    )
+    report_path = str(config.get("report_path", "/opt/omnia/reports"))
+    if (
+        os.environ.get("OMNIA_COMMAND_TYPE") == "ut"
+        or is_local_execution()
+    ):
+        report_path = os.path.join(_TEST_DIR, "reports")
     report = TestReport(
         module_name=module_name,
-        report_path=str(config.get("report_path", "/opt/omnia/reports")),
+        report_path=report_path,
         report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
         report_id=report_id,
@@ -445,11 +392,17 @@ def pytest_runtest_makereport(item, call):
             + f"SKIPPED: {skip_reason}"
         )
 
-    tc_id = get_last_tc_id()
+    doc = getattr(item.obj, "__doc__", "") or ""
+    tc_id = ""
+    doc_id = re.match(
+        r"(ORCH_(?:FVT_[A-Z0-9_]+_[EV]\d{3}|NFT_\d{3}|UT_\d{3})"
+        r"|TC_K8_\d{3})\s*:",
+        doc.strip(),
+    )
+    if doc_id:
+        tc_id = doc_id.group(1)
     if not tc_id:
-        doc = getattr(item.obj, "__doc__", "") or ""
-        if doc.strip().startswith("TC_"):
-            tc_id = doc.strip().split(":", 1)[0].strip()
+        tc_id = get_last_tc_id()
 
     add_session_result(
         test_name=item.name,
@@ -461,6 +414,7 @@ def pytest_runtest_makereport(item, call):
     report = get_current_report()
     if report:
         report.add_result({
+            "tc_id": tc_id,
             "test_name": item.name,
             "status": status,
             "duration": getattr(result, "duration", 0),

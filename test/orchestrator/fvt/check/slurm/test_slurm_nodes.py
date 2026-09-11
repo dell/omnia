@@ -15,9 +15,9 @@
 """
 Orchestrator Validate — Slurm Node and Partition Validation.
 
-TC_SL_010: Verify Slurm nodes are registered in cluster
-TC_SL_011: Verify Slurm partitions are configured
-TC_SL_013: Verify basic Slurm job submission works
+ORCH_FVT_SLURM_V009: Verify Slurm nodes are registered in cluster
+ORCH_FVT_SLURM_V010: Verify Slurm partitions are configured
+ORCH_FVT_SLURM_V012: Verify basic Slurm job submission works
 """
 
 import pytest
@@ -48,7 +48,7 @@ def _skip_if_slurm_disabled(host):
 @pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_slurm_nodes_registered(host):
-    """TC_SL_010: Verify Slurm nodes are registered in cluster."""
+    """ORCH_FVT_SLURM_V009: Verify Slurm nodes are registered in cluster."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["slurm_nodes_registered"]
@@ -70,7 +70,7 @@ def test_slurm_nodes_registered(host):
 @pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_slurm_partitions_exist(host):
-    """TC_SL_011: Verify Slurm partitions are configured."""
+    """ORCH_FVT_SLURM_V010: Verify Slurm partitions are configured."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["slurm_partitions_exist"]
@@ -91,7 +91,7 @@ def test_slurm_partitions_exist(host):
 @pytest.mark.functional
 @pytest.mark.order(3)
 def test_slurm_job_submission(host):
-    """TC_SL_013: Verify basic Slurm job submission works."""
+    """ORCH_FVT_SLURM_V012: Verify basic Slurm job submission works."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["slurm_job_submission"]

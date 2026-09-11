@@ -15,7 +15,7 @@
 """
 Orchestrator Validate — Slurm SSH Connectivity Validation.
 
-TC_SL_017-TC_SL_028: Passwordless SSH between all node type pairs
+ORCH_FVT_SLURM_V016-ORCH_FVT_SLURM_V027: Passwordless SSH between all node type pairs
 """
 
 import pytest
@@ -43,7 +43,7 @@ def _skip_if_slurm_disabled(host):
 @pytest.mark.functional
 @pytest.mark.order(1)
 def test_ssh_control_to_compute(host):
-    """TC_SL_017: Passwordless SSH from control to compute nodes."""
+    """ORCH_FVT_SLURM_V016: Passwordless SSH from control to compute nodes."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["ssh_control_to_compute"]
@@ -64,7 +64,7 @@ def test_ssh_control_to_compute(host):
 @pytest.mark.functional
 @pytest.mark.order(2)
 def test_ssh_control_to_login(host):
-    """TC_SL_018: Passwordless SSH from control to login nodes."""
+    """ORCH_FVT_SLURM_V017: Passwordless SSH from control to login nodes."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["ssh_control_to_login"]
@@ -85,7 +85,7 @@ def test_ssh_control_to_login(host):
 @pytest.mark.functional
 @pytest.mark.order(3)
 def test_ssh_control_to_login_compiler(host):
-    """TC_SL_019: Passwordless SSH from control to login compiler nodes."""
+    """ORCH_FVT_SLURM_V018: Passwordless SSH from control to login compiler nodes."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["ssh_control_to_login_compiler"]
@@ -106,7 +106,7 @@ def test_ssh_control_to_login_compiler(host):
 @pytest.mark.functional
 @pytest.mark.order(4)
 def test_ssh_compute_to_control(host):
-    """TC_SL_020: Passwordless SSH from compute to control nodes."""
+    """ORCH_FVT_SLURM_V019: Passwordless SSH from compute to control nodes."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["ssh_compute_to_control"]
@@ -127,7 +127,7 @@ def test_ssh_compute_to_control(host):
 @pytest.mark.functional
 @pytest.mark.order(5)
 def test_ssh_compute_to_login(host):
-    """TC_SL_021: Passwordless SSH from compute to login nodes."""
+    """ORCH_FVT_SLURM_V020: Passwordless SSH from compute to login nodes."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["ssh_compute_to_login"]
@@ -148,7 +148,7 @@ def test_ssh_compute_to_login(host):
 @pytest.mark.functional
 @pytest.mark.order(6)
 def test_ssh_compute_to_login_compiler(host):
-    """TC_SL_022: Passwordless SSH from compute to login compiler nodes."""
+    """ORCH_FVT_SLURM_V021: Passwordless SSH from compute to login compiler nodes."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["ssh_compute_to_login_compiler"]
@@ -169,7 +169,7 @@ def test_ssh_compute_to_login_compiler(host):
 @pytest.mark.functional
 @pytest.mark.order(7)
 def test_ssh_login_to_control(host):
-    """TC_SL_023: Passwordless SSH from login to control nodes."""
+    """ORCH_FVT_SLURM_V022: Passwordless SSH from login to control nodes."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["ssh_login_to_control"]
@@ -190,7 +190,7 @@ def test_ssh_login_to_control(host):
 @pytest.mark.functional
 @pytest.mark.order(8)
 def test_ssh_login_to_compute(host):
-    """TC_SL_024: Passwordless SSH from login to compute nodes."""
+    """ORCH_FVT_SLURM_V023: Passwordless SSH from login to compute nodes."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["ssh_login_to_compute"]
@@ -211,7 +211,7 @@ def test_ssh_login_to_compute(host):
 @pytest.mark.functional
 @pytest.mark.order(9)
 def test_ssh_login_to_login_compiler(host):
-    """TC_SL_025: Passwordless SSH from login to login compiler nodes."""
+    """ORCH_FVT_SLURM_V024: Passwordless SSH from login to login compiler nodes."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["ssh_login_to_login_compiler"]
@@ -232,7 +232,7 @@ def test_ssh_login_to_login_compiler(host):
 @pytest.mark.functional
 @pytest.mark.order(10)
 def test_ssh_login_compiler_to_control(host):
-    """TC_SL_026: Passwordless SSH from login compiler to control nodes."""
+    """ORCH_FVT_SLURM_V025: Passwordless SSH from login compiler to control nodes."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["ssh_login_compiler_to_control"]
@@ -253,7 +253,7 @@ def test_ssh_login_compiler_to_control(host):
 @pytest.mark.functional
 @pytest.mark.order(11)
 def test_ssh_login_compiler_to_compute(host):
-    """TC_SL_027: Passwordless SSH from login compiler to compute nodes."""
+    """ORCH_FVT_SLURM_V026: Passwordless SSH from login compiler to compute nodes."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["ssh_login_compiler_to_compute"]
@@ -274,7 +274,7 @@ def test_ssh_login_compiler_to_compute(host):
 @pytest.mark.functional
 @pytest.mark.order(12)
 def test_ssh_login_compiler_to_login(host):
-    """TC_SL_028: Passwordless SSH from login compiler to login nodes."""
+    """ORCH_FVT_SLURM_V027: Passwordless SSH from login compiler to login nodes."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["ssh_login_compiler_to_login"]

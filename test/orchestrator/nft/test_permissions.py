@@ -22,10 +22,10 @@ Verifies that sensitive files have correct permissions and encryption:
   - Ansible vault encryption is properly configured
 
 Test cases:
-    NFT_OR_008: Credential file permissions (0640 or stricter)
-    NFT_OR_009: SSH key permissions (0600)
-    NFT_OR_010: Sensitive log file permissions
-    NFT_OR_011: Ansible vault encryption verification
+    ORCH_NFT_008: Credential file permissions (0640 or stricter)
+    ORCH_NFT_009: SSH key permissions (0600)
+    ORCH_NFT_010: Sensitive log file permissions
+    ORCH_NFT_011: Ansible vault encryption verification
 """
 
 import pytest
@@ -49,12 +49,12 @@ def _get_input_path() -> str:
 @pytest.mark.security
 @pytest.mark.order(1)
 def test_credential_file_permissions(host):
-    """NFT_OR_008: Verify credential files have restricted permissions (0640 or stricter).
+    """ORCH_NFT_008: Verify credential files have restricted permissions (0640 or stricter).
 
-    Checks that orchestrator_credentials.yml has permissions that prevent
+    Checks that omnia_config_credentials.yml has permissions that prevent
     world-readable access (should be 0640 or stricter like 0600).
     """
-    tl = TestLogger("NFT: Credential file permissions", "NFT_OR_008")
+    tl = TestLogger("NFT: Credential file permissions", "ORCH_NFT_008")
 
     input_path = _get_input_path()
     cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
@@ -99,12 +99,12 @@ def test_credential_file_permissions(host):
 @pytest.mark.security
 @pytest.mark.order(2)
 def test_ssh_key_permissions(host):
-    """NFT_OR_009: Verify SSH keys have proper permissions (0600).
+    """ORCH_NFT_009: Verify SSH keys have proper permissions (0600).
 
     Checks that SSH private keys in the orchestrator input directory
     have permissions that prevent unauthorized access (should be 0600).
     """
-    tl = TestLogger("NFT: SSH key permissions", "NFT_OR_009")
+    tl = TestLogger("NFT: SSH key permissions", "ORCH_NFT_009")
 
     input_path = _get_input_path()
 
@@ -161,12 +161,12 @@ def test_ssh_key_permissions(host):
 @pytest.mark.security
 @pytest.mark.order(3)
 def test_sensitive_log_permissions(host):
-    """NFT_OR_010: Verify sensitive log files have restricted permissions.
+    """ORCH_NFT_010: Verify sensitive log files have restricted permissions.
 
     Checks that orchestrator log files don't have world-readable permissions
     that could expose sensitive information.
     """
-    tl = TestLogger("NFT: Sensitive log file permissions", "NFT_OR_010")
+    tl = TestLogger("NFT: Sensitive log file permissions", "ORCH_NFT_010")
 
     config = load_test_config()
     log_path = config.get("log_path", "/var/log/omnia")
@@ -232,12 +232,12 @@ def test_sensitive_log_permissions(host):
 @pytest.mark.security
 @pytest.mark.order(4)
 def test_vault_encryption_verification(host):
-    """NFT_OR_011: Verify Ansible vault encryption is properly configured.
+    """ORCH_NFT_011: Verify Ansible vault encryption is properly configured.
 
     Checks that vault-encrypted files have the proper vault header
     and that vault key files have restricted permissions.
     """
-    tl = TestLogger("NFT: Ansible vault encryption verification", "NFT_OR_011")
+    tl = TestLogger("NFT: Ansible vault encryption verification", "ORCH_NFT_011")
 
     input_path = _get_input_path()
     cred_file = f"{input_path}/{CREDENTIALS_FILE_NAME}"

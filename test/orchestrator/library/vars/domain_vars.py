@@ -18,6 +18,9 @@ Orchestrator — Domain-specific validation variables.
 Defines FVT tags, pytest markers, suite directories, and cleanup
 exclusions used by ``ValidationRunner`` for this domain.
 
+Includes support for both FVT (Functional Verification Tests) and
+NFT (Non-Functional Tests) for comprehensive testing coverage.
+
 To register a new domain, create a similar file in that domain's
 ``library/vars/`` folder and import it in ``_run.py``.
 """
@@ -31,24 +34,26 @@ from typing import Dict, List
 DOMAIN_NAME: str = "orchestrator"
 
 # =====================================================================
-# FVT tags — aligned with src/orchestrator/playbooks/ structure
-# Order matches orchestrator lifecycle phases
+# FVT tags — each maps to a subdirectory under fvt/
 # =====================================================================
 
 FVT_TAGS: List[str] = [
-    "precheck",       # Pre-deployment checks (connectivity)
-    "validate",       # Input file validation (OpenCHAMI, OpenLDAP, provisioning config)
-    "prepare",        # Preparation tasks (OpenCHAMI setup)
-    "deploy",         # Deployment phase
-    "provision",      # Node provisioning (K8s, Slurm)
-    "pxeboot",        # PXE boot configuration
-    "check",          # Post-deployment verification (K8s, Slurm cluster health)
-    "cleanup",        # Cleanup and teardown
+    "precheck",
+    "validate",
+    "prepare",
+    "deploy",
+    "provision",
+    "execute",
+    "pxeboot",
+    "check",
+    "cleanup",
+    "rollback",
+    "playbooks",
+    "negative",
 ]
 
 # =====================================================================
 # Pytest markers supported by this domain
-# Aligned with Official Test Automation Design Document v2.0
 # =====================================================================
 
 MARKERS: List[str] = [
@@ -57,22 +62,66 @@ MARKERS: List[str] = [
     "deploy",
     "slurm",
     "kubernetes",
+    "nft",
+    "performance",
+    "idempotency",
+    "security",
+    "negative",
+    "buildstream",
+    "destructive",
+    "additional_cloud_init",
+    "hpc_benchmarks",
+    "apptainer",
+    "gpu",
+    "openldap",
+    "storage",
+    "vast",
+    "powervault",
+    "recovery",
+    "unit",
 ]
 
 # =====================================================================
 # Suite directories per FVT tag
-# Maps each tag to its subdirectories containing test suites
 # =====================================================================
 
 SUITES: Dict[str, List[str]] = {
-    "precheck": ["connectivity"],
-    "validate": ["kubernetes", "slurm", "openchami"],
-    "prepare": ["openchami"],
-    "deploy": ["kubernetes", "slurm"],
-    "provision": ["kubernetes", "slurm"],
+    "precheck": [],
+    "validate": [],
+    "prepare": ["openchami", "openldap"],
+    "deploy": [],
+    "provision": ["slurm", "kubernetes"],
+    "execute": [],
     "pxeboot": [],
-    "check": ["kubernetes", "slurm", "status"],
+    "check": ["slurm", "kubernetes", "status"],
     "cleanup": ["status"],
+    "rollback": [],
+    "playbooks": [],
+    "negative": [],
+}
+
+# Ordered non-destructive lifecycle used by an untagged ``test`` or ``exec``.
+# The execute playbook includes provisioning and conditional PXE boot exactly as
+# the public orchestrator lifecycle defines it.
+ALL_EXEC_TAGS: List[str] = ["precheck", "prepare", "execute"]
+ALL_EXEC_MARKER: str = "sanity"
+ALL_VERIFY_EXCLUDE_MARKERS: List[str] = ["negative", "destructive"]
+
+# These areas validate already-produced state or source contracts. They do not
+# own an Ansible lifecycle operation and must never be presented as deployable.
+VERIFY_ONLY_TAGS: List[str] = [
+    "check",
+    "playbooks",
+    "negative",
+]
+
+REQUIRED_SUITE_TAGS: List[str] = []
+VERIFY_ONLY_SUITES: Dict[str, List[str]] = {}
+
+# Kubernetes and Slurm follow the same provision-suite convention: the
+# selected suite contains the one deployment owner for that platform.
+SUITE_EXEC_OWNERS: Dict[str, List[str]] = {
+    "provision": ["kubernetes", "slurm"],
 }
 
 # =====================================================================
@@ -81,4 +130,7 @@ SUITES: Dict[str, List[str]] = {
 
 EXCLUDE_TAGS: List[str] = [
     "cleanup",
+    "rollback",
+    "negative",
+    "pxeboot",
 ]

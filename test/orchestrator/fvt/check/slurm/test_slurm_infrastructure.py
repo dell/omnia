@@ -15,9 +15,9 @@
 """
 Orchestrator Validate — Slurm Infrastructure Validation.
 
-TC_SL_014: All nodes from PXE mapping are joined to Slurm cluster
-TC_SL_015: All slurm compute nodes in idle state (sinfo)
-TC_SL_016: All login and login compiler nodes in idle state (scontrol)
+ORCH_FVT_SLURM_V013: All nodes from PXE mapping are joined to Slurm cluster
+ORCH_FVT_SLURM_V014: All slurm compute nodes in idle state (sinfo)
+ORCH_FVT_SLURM_V015: All login and login compiler nodes in idle state (scontrol)
 """
 
 import pytest
@@ -47,7 +47,7 @@ def _skip_if_slurm_disabled(host):
 @pytest.mark.functional
 @pytest.mark.order(1)
 def test_all_pxe_nodes_in_slurm_cluster(host):
-    """TC_SL_014: All nodes from PXE mapping are joined to Slurm cluster."""
+    """ORCH_FVT_SLURM_V013: All nodes from PXE mapping are joined to Slurm cluster."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["all_pxe_nodes_in_slurm_cluster"]
@@ -68,7 +68,7 @@ def test_all_pxe_nodes_in_slurm_cluster(host):
 @pytest.mark.functional
 @pytest.mark.order(2)
 def test_slurm_nodes_idle(host):
-    """TC_SL_015: All slurm compute nodes in idle state (sinfo)."""
+    """ORCH_FVT_SLURM_V014: All slurm compute nodes in idle state (sinfo)."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["slurm_nodes_idle"]
@@ -89,7 +89,7 @@ def test_slurm_nodes_idle(host):
 @pytest.mark.functional
 @pytest.mark.order(3)
 def test_login_nodes_idle(host):
-    """TC_SL_016: All login and login compiler nodes in idle state (scontrol)."""
+    """ORCH_FVT_SLURM_V015: All login and login compiler nodes in idle state (scontrol)."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["login_nodes_idle"]

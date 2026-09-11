@@ -7,16 +7,16 @@
 Test Category: Custom SLURM Configuration Tests
 Tests for custom SLURM configuration validation, merging, and rendering.
 
-TC_SL_043: Validate custom slurm_conf module structure
-TC_SL_044: Validate custom partition configuration in slurm.conf
-TC_SL_045: Validate custom GRES (GPU) configuration in slurm.conf
-TC_SL_046: Validate custom node configuration in slurm.conf
-TC_SL_047: Validate extra_confs handling in slurm_config.yml
-TC_SL_048: Validate slurm_conf merge functionality
-TC_SL_049: Validate custom scheduling parameters in slurm.conf
-TC_SL_050: Validate slurm.conf syntax is valid
-TC_SL_051: Validate custom conf files exist if configured
-TC_SL_052: Validate deployed slurm.conf matches input configuration
+ORCH_FVT_SLURM_V042: Validate custom slurm_conf module structure
+ORCH_FVT_SLURM_V043: Validate custom partition configuration in slurm.conf
+ORCH_FVT_SLURM_V044: Validate custom GRES (GPU) configuration in slurm.conf
+ORCH_FVT_SLURM_V045: Validate custom node configuration in slurm.conf
+ORCH_FVT_SLURM_V046: Validate extra_confs handling in slurm_config.yml
+ORCH_FVT_SLURM_V047: Validate slurm_conf merge functionality
+ORCH_FVT_SLURM_V048: Validate custom scheduling parameters in slurm.conf
+ORCH_FVT_SLURM_V049: Validate slurm.conf syntax is valid
+ORCH_FVT_SLURM_V050: Validate custom conf files exist if configured
+ORCH_FVT_SLURM_V051: Validate deployed slurm.conf matches input configuration
 """
 
 import pytest
@@ -48,7 +48,7 @@ def _skip_if_slurm_disabled(host):
 @pytest.mark.buildstream
 @pytest.mark.order(10)
 def test_custom_slurm_conf_structure(host: Host):
-    """TC_SL_043: Validate custom slurm_conf module structure."""
+    """ORCH_FVT_SLURM_V042: Validate custom slurm_conf module structure."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["custom_slurm_conf_structure"]
@@ -76,7 +76,7 @@ def test_custom_slurm_conf_structure(host: Host):
 @pytest.mark.functional
 @pytest.mark.order(11)
 def test_extra_confs_handling(host: Host):
-    """TC_SL_047: Validate extra_confs handling in slurm_config.yml."""
+    """ORCH_FVT_SLURM_V046: Validate extra_confs handling in slurm_config.yml."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["extra_confs_handling"]
@@ -116,7 +116,7 @@ def test_extra_confs_handling(host: Host):
 @pytest.mark.functional
 @pytest.mark.order(12)
 def test_custom_conf_files_exist(host: Host):
-    """TC_SL_051: Validate custom conf files exist if configured."""
+    """ORCH_FVT_SLURM_V050: Validate custom conf files exist if configured."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["custom_conf_files_exist"]
@@ -165,7 +165,7 @@ def test_custom_conf_files_exist(host: Host):
 @pytest.mark.functional
 @pytest.mark.order(13)
 def test_custom_partition_config(host: Host):
-    """TC_SL_044: Validate custom partition configuration in slurm.conf."""
+    """ORCH_FVT_SLURM_V043: Validate custom partition configuration in slurm.conf."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["custom_partition_config"]
@@ -212,7 +212,7 @@ def test_custom_partition_config(host: Host):
 @pytest.mark.functional
 @pytest.mark.order(14)
 def test_custom_gres_config(host: Host):
-    """TC_SL_045: Validate custom GRES (GPU) configuration in slurm.conf."""
+    """ORCH_FVT_SLURM_V044: Validate custom GRES (GPU) configuration in slurm.conf."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["custom_gres_config"]
@@ -259,7 +259,7 @@ def test_custom_gres_config(host: Host):
 @pytest.mark.functional
 @pytest.mark.order(15)
 def test_custom_node_config(host: Host):
-    """TC_SL_046: Validate custom node configuration in slurm.conf."""
+    """ORCH_FVT_SLURM_V045: Validate custom node configuration in slurm.conf."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["custom_node_config"]
@@ -304,7 +304,7 @@ def test_custom_node_config(host: Host):
 @pytest.mark.functional
 @pytest.mark.order(16)
 def test_slurm_conf_merge_functionality(host: Host):
-    """TC_SL_048: Validate slurm_conf merge functionality."""
+    """ORCH_FVT_SLURM_V047: Validate slurm_conf merge functionality."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["slurm_conf_merge"]
@@ -331,7 +331,7 @@ def test_slurm_conf_merge_functionality(host: Host):
 @pytest.mark.functional
 @pytest.mark.order(17)
 def test_custom_scheduling_params(host: Host):
-    """TC_SL_049: Validate custom scheduling parameters in slurm.conf."""
+    """ORCH_FVT_SLURM_V048: Validate custom scheduling parameters in slurm.conf."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["custom_scheduling_params"]
@@ -383,7 +383,7 @@ def test_custom_scheduling_params(host: Host):
 @pytest.mark.functional
 @pytest.mark.order(18)
 def test_slurm_conf_syntax_valid(host: Host):
-    """TC_SL_050: Validate slurm.conf syntax is valid."""
+    """ORCH_FVT_SLURM_V049: Validate slurm.conf syntax is valid."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["slurm_conf_syntax_valid"]
@@ -426,7 +426,7 @@ def test_slurm_conf_syntax_valid(host: Host):
 @pytest.mark.functional
 @pytest.mark.order(19)
 def test_slurm_config_integrity(host: Host):
-    """TC_SL_052: Validate deployed slurm.conf matches input configuration."""
+    """ORCH_FVT_SLURM_V051: Validate deployed slurm.conf matches input configuration."""
     _skip_if_slurm_disabled(host)
 
     tc = TC["slurm_config_integrity"]

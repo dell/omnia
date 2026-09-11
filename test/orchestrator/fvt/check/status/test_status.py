@@ -15,11 +15,11 @@
 """
 Orchestrator Validate — Input Verification Tests.
 
-TC_VL_001: Verify orchestrator_config.yml exists on target
-TC_VL_002: Verify omnia_config.yml exists on target
-TC_VL_003: Verify network_spec.yml exists on target
-TC_VL_004: Verify credentials file present on target
-TC_VL_005: Verify repo_status.yml exists on target
+ORCH_FVT_CHECK_V001: Verify orchestrator_config.yml exists on target
+ORCH_FVT_CHECK_V002: Verify omnia_config.yml exists on target
+ORCH_FVT_CHECK_V003: Verify network_spec.yml exists on target
+ORCH_FVT_CHECK_V004: Verify credentials file present on target
+ORCH_FVT_CHECK_V005: Verify repo_status.yml exists on target
 """
 
 import pytest
@@ -43,8 +43,8 @@ from library.messages import (
 @pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_input_config_exists(host):
-    """TC_VL_001: Verify orchestrator_config.yml exists on target."""
-    tl = TestLogger(TEST_NAMES["input_config_exists"], "TC_VL_001")
+    """ORCH_FVT_CHECK_V001: Verify orchestrator_config.yml exists on target."""
+    tl = TestLogger(TEST_NAMES["input_config_exists"], "ORCH_FVT_CHECK_V001")
     result = check_input_config_exists(host)
 
     if result["success"]:
@@ -59,8 +59,8 @@ def test_input_config_exists(host):
 @pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_omnia_config_exists(host):
-    """TC_VL_002: Verify omnia_config.yml exists on target."""
-    tl = TestLogger(TEST_NAMES["omnia_config_exists"], "TC_VL_002")
+    """ORCH_FVT_CHECK_V002: Verify omnia_config.yml exists on target."""
+    tl = TestLogger(TEST_NAMES["omnia_config_exists"], "ORCH_FVT_CHECK_V002")
     result = check_omnia_config_exists(host)
 
     if result["success"]:
@@ -75,8 +75,8 @@ def test_omnia_config_exists(host):
 @pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_network_spec_exists(host):
-    """TC_VL_003: Verify network_spec.yml exists on target."""
-    tl = TestLogger(TEST_NAMES["network_spec_exists"], "TC_VL_003")
+    """ORCH_FVT_CHECK_V003: Verify network_spec.yml exists on target."""
+    tl = TestLogger(TEST_NAMES["network_spec_exists"], "ORCH_FVT_CHECK_V003")
     result = check_network_spec_exists(host)
 
     if result["success"]:
@@ -91,8 +91,8 @@ def test_network_spec_exists(host):
 @pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_credentials_present(host):
-    """TC_VL_004: Verify credentials file present on target."""
-    tl = TestLogger(TEST_NAMES["credentials_present"], "TC_VL_004")
+    """ORCH_FVT_CHECK_V004: Verify credentials file present on target."""
+    tl = TestLogger(TEST_NAMES["credentials_present"], "ORCH_FVT_CHECK_V004")
     result = check_credentials_present(host)
 
     if result["success"]:
@@ -107,8 +107,8 @@ def test_credentials_present(host):
 @pytest.mark.buildstream
 @pytest.mark.order(5)
 def test_repo_status_exists(host):
-    """TC_VL_005: Verify repo_status.yml exists on target."""
-    tl = TestLogger(TEST_NAMES["repo_status_exists"], "TC_VL_005")
+    """ORCH_FVT_CHECK_V005: Verify repo_status.yml exists on target."""
+    tl = TestLogger(TEST_NAMES["repo_status_exists"], "ORCH_FVT_CHECK_V005")
     result = check_repo_status_exists(host)
 
     if result["success"]:

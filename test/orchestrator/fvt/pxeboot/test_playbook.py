@@ -15,7 +15,7 @@
 """
 Orchestrator PXE Boot — Playbook Execution.
 
-TC_PXE_000: Deploy orchestrator.yml --tags pxeboot
+ORCH_FVT_PXEBOOT_E001: Deploy orchestrator.yml --tags pxeboot
 """
 
 import pytest
@@ -23,14 +23,17 @@ import pytest
 from library.functions import TestLogger, run_playbook
 
 
+pytestmark = pytest.mark.destructive
+
+
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_pxeboot(host):
-    """Deploy orchestrator.yml --tags pxeboot."""
+    """ORCH_FVT_PXEBOOT_E001: Deploy orchestrator.yml --tags pxeboot."""
     tl = TestLogger(
         "Deploy Playbook (pxeboot)",
-        "TC_PXE_000"
+        "ORCH_FVT_PXEBOOT_E001"
     )
     result = run_playbook(tag="pxeboot")
 

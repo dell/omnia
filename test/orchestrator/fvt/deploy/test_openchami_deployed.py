@@ -28,14 +28,14 @@ from library.functions import TestLogger
 @pytest.mark.functional
 @pytest.mark.order(1)
 def test_openchami_deployed(host) -> None:
-    """TC_DP_001: Verify OpenCHAMI containers are running after deployment.
+    """ORCH_FVT_DEPLOY_V001: Verify OpenCHAMI containers are running after deployment.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify OpenCHAMI containers running after deployment",
-        "TC_DP_001"
+        "ORCH_FVT_DEPLOY_V001"
     )
 
     # Check if podman is available
@@ -78,14 +78,14 @@ def test_openchami_deployed(host) -> None:
 @pytest.mark.functional
 @pytest.mark.order(2)
 def test_openchami_services_active(host) -> None:
-    """TC_DP_002: Verify OpenCHAMI systemd services are active after deployment.
+    """ORCH_FVT_DEPLOY_V002: Verify OpenCHAMI systemd services are active after deployment.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify OpenCHAMI services active after deployment",
-        "TC_DP_002"
+        "ORCH_FVT_DEPLOY_V002"
     )
 
     # Check for OpenCHAMI services

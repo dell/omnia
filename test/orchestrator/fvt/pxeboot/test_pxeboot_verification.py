@@ -27,6 +27,9 @@ from library.functions import TestLogger, load_test_config
 from library.vars.common_vars import INPUT_PATH_TEMPLATE, OUTPUT_PATH_TEMPLATE
 
 
+pytestmark = pytest.mark.destructive
+
+
 def _get_k8s_control_plane_ips() -> List[str]:
     """Extract Kubernetes control plane IPs from PXE mapping file.
 
@@ -121,14 +124,14 @@ def _run_ssh_command(host, ip: str, command: str) -> dict:
 @pytest.mark.functional
 @pytest.mark.order(1)
 def test_kubernetes_nodes_provisioned(host) -> None:
-    """TC_PXE_016: Verify Kubernetes nodes are provisioned via PXE boot.
+    """ORCH_FVT_PXEBOOT_V016: Verify Kubernetes nodes are provisioned via PXE boot.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify Kubernetes nodes provisioned via PXE boot",
-        "TC_PXE_016"
+        "ORCH_FVT_PXEBOOT_V016"
     )
 
     control_plane_ips = _get_k8s_control_plane_ips()
@@ -160,14 +163,14 @@ def test_kubernetes_nodes_provisioned(host) -> None:
 @pytest.mark.functional
 @pytest.mark.order(2)
 def test_kubernetes_nodes_ready(host) -> None:
-    """TC_PXE_017: Verify Kubernetes nodes are in Ready state.
+    """ORCH_FVT_PXEBOOT_V017: Verify Kubernetes nodes are in Ready state.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify Kubernetes nodes are in Ready state",
-        "TC_PXE_017"
+        "ORCH_FVT_PXEBOOT_V017"
     )
 
     control_plane_ips = _get_k8s_control_plane_ips()
@@ -203,14 +206,14 @@ def test_kubernetes_nodes_ready(host) -> None:
 @pytest.mark.functional
 @pytest.mark.order(3)
 def test_slurm_nodes_provisioned(host) -> None:
-    """TC_PXE_018: Verify Slurm nodes are provisioned via PXE boot.
+    """ORCH_FVT_PXEBOOT_V018: Verify Slurm nodes are provisioned via PXE boot.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify Slurm nodes provisioned via PXE boot",
-        "TC_PXE_018"
+        "ORCH_FVT_PXEBOOT_V018"
     )
 
     slurm_ips = _get_slurm_control_ips()
@@ -242,14 +245,14 @@ def test_slurm_nodes_provisioned(host) -> None:
 @pytest.mark.functional
 @pytest.mark.order(4)
 def test_slurm_nodes_idle(host) -> None:
-    """TC_PXE_019: Verify Slurm nodes are in Idle state.
+    """ORCH_FVT_PXEBOOT_V019: Verify Slurm nodes are in Idle state.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify Slurm nodes are in Idle state",
-        "TC_PXE_019"
+        "ORCH_FVT_PXEBOOT_V019"
     )
 
     slurm_ips = _get_slurm_control_ips()
@@ -285,14 +288,14 @@ def test_slurm_nodes_idle(host) -> None:
 @pytest.mark.functional
 @pytest.mark.order(5)
 def test_pxe_boot_status_file(host) -> None:
-    """TC_PXE_020: Verify PXE boot status file exists.
+    """ORCH_FVT_PXEBOOT_V020: Verify PXE boot status file exists.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify PXE boot status file exists",
-        "TC_PXE_020"
+        "ORCH_FVT_PXEBOOT_V020"
     )
 
     config = load_test_config()
@@ -314,14 +317,14 @@ def test_pxe_boot_status_file(host) -> None:
 @pytest.mark.functional
 @pytest.mark.order(6)
 def test_failed_nodes_file(host) -> None:
-    """TC_PXE_021: Verify failed nodes file exists if any nodes failed.
+    """ORCH_FVT_PXEBOOT_V021: Verify failed nodes file exists if any nodes failed.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify failed nodes file exists",
-        "TC_PXE_021"
+        "ORCH_FVT_PXEBOOT_V021"
     )
 
     config = load_test_config()
@@ -343,14 +346,14 @@ def test_failed_nodes_file(host) -> None:
 @pytest.mark.functional
 @pytest.mark.order(7)
 def test_coredhcp_service_running(host) -> None:
-    """TC_PXE_022: Verify CoreDHCP service is running for PXE boot.
+    """ORCH_FVT_PXEBOOT_V022: Verify CoreDHCP service is running for PXE boot.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify CoreDHCP service running for PXE boot",
-        "TC_PXE_022"
+        "ORCH_FVT_PXEBOOT_V022"
     )
 
     result = host.run("podman ps --filter name=coredhcp --format '{{.Names}}'")
@@ -375,14 +378,14 @@ def test_coredhcp_service_running(host) -> None:
 @pytest.mark.functional
 @pytest.mark.order(8)
 def test_tftp_service_running(host) -> None:
-    """TC_PXE_023: Verify TFTP service is running for PXE boot.
+    """ORCH_FVT_PXEBOOT_V023: Verify TFTP service is running for PXE boot.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify TFTP service running for PXE boot",
-        "TC_PXE_023"
+        "ORCH_FVT_PXEBOOT_V023"
     )
 
     result = host.run("systemctl is-active tftp.socket")

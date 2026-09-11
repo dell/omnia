@@ -15,9 +15,9 @@
 """
 Orchestrator Prepare — OpenCHAMI Verification Tests.
 
-TC_PR_001: Verify all OpenCHAMI containers are running
-TC_PR_002: Verify OpenCHAMI systemd services are active
-TC_PR_003: Verify OpenCHAMI API is reachable
+ORCH_FVT_PREPARE_V001: Verify all OpenCHAMI containers are running
+ORCH_FVT_PREPARE_V002: Verify OpenCHAMI systemd services are active
+ORCH_FVT_PREPARE_V003: Verify OpenCHAMI API is reachable
 """
 
 import pytest
@@ -39,12 +39,12 @@ from library.messages import (
 @pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_openchami_containers_running(host):
-    """TC_PR_001: Verify all OpenCHAMI containers are running."""
+    """ORCH_FVT_PREPARE_V001: Verify all OpenCHAMI containers are running."""
     tl = TestLogger(
         TEST_NAMES["openchami_container_running"].format(
             container="all"
         ),
-        "TC_PR_001",
+        "ORCH_FVT_PREPARE_V001",
     )
     result = check_openchami_containers(host)
 
@@ -68,8 +68,8 @@ def test_openchami_containers_running(host):
 @pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_openchami_services_active(host):
-    """TC_PR_002: Verify OpenCHAMI systemd services are active."""
-    tl = TestLogger(TEST_NAMES["openchami_services_active"], "TC_PR_002")
+    """ORCH_FVT_PREPARE_V002: Verify OpenCHAMI systemd services are active."""
+    tl = TestLogger(TEST_NAMES["openchami_services_active"], "ORCH_FVT_PREPARE_V002")
     result = check_services_active(host)
 
     if result["success"]:
@@ -86,8 +86,8 @@ def test_openchami_services_active(host):
 @pytest.mark.functional
 @pytest.mark.order(3)
 def test_openchami_api_reachable(host):
-    """TC_PR_003: Verify OpenCHAMI API is reachable."""
-    tl = TestLogger(TEST_NAMES["openchami_api_reachable"], "TC_PR_003")
+    """ORCH_FVT_PREPARE_V003: Verify OpenCHAMI API is reachable."""
+    tl = TestLogger(TEST_NAMES["openchami_api_reachable"], "ORCH_FVT_PREPARE_V003")
     result = check_openchami_api_reachable(host)
 
     if result["success"]:

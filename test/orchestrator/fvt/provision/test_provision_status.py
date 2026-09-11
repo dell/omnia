@@ -33,14 +33,14 @@ from omnia_auto import load_test_config
 @pytest.mark.functional
 @pytest.mark.order(1)
 def test_pxe_mapping_processed(host) -> None:
-    """TC_PV_001: Verify PXE mapping file was processed during provision preamble.
+    """ORCH_FVT_PROVISION_V001: Verify PXE mapping file was processed during provision preamble.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify PXE mapping file processed",
-        "TC_PV_001"
+        "ORCH_FVT_PROVISION_V001"
     )
 
     config = load_test_config()
@@ -69,14 +69,14 @@ def test_pxe_mapping_processed(host) -> None:
 @pytest.mark.functional
 @pytest.mark.order(2)
 def test_functional_groups_config_exists(host) -> None:
-    """TC_PV_002: Verify functional groups configuration exists.
+    """ORCH_FVT_PROVISION_V002: Verify functional groups configuration exists.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify functional groups configuration exists",
-        "TC_PV_002"
+        "ORCH_FVT_PROVISION_V002"
     )
 
     config = load_test_config()
@@ -115,14 +115,14 @@ def test_functional_groups_config_exists(host) -> None:
 @pytest.mark.functional
 @pytest.mark.order(3)
 def test_bss_metadata_configured(host) -> None:
-    """TC_PV_003: Verify BSS/metadata-service configuration was updated.
+    """ORCH_FVT_PROVISION_V003: Verify BSS/metadata-service configuration was updated.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify BSS/metadata-service configured for provisioning",
-        "TC_PV_003"
+        "ORCH_FVT_PROVISION_V003"
     )
 
     # Check if BSS container is running (provision playbook configures BSS)
@@ -150,14 +150,14 @@ def test_bss_metadata_configured(host) -> None:
 @pytest.mark.functional
 @pytest.mark.order(4)
 def test_ssh_keys_distributed(host) -> None:
-    """TC_PV_004: Verify SSH keys were set up for provisioning.
+    """ORCH_FVT_PROVISION_V004: Verify SSH keys were set up for provisioning.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify SSH keys configured for provisioning",
-        "TC_PV_004"
+        "ORCH_FVT_PROVISION_V004"
     )
 
     # Check if SSH key exists (provision_preamble.yml distributes SSH keys)
@@ -179,14 +179,14 @@ def test_ssh_keys_distributed(host) -> None:
 @pytest.mark.functional
 @pytest.mark.order(5)
 def test_orchestrator_state_updated(host) -> None:
-    """TC_PV_005: Verify orchestrator state was updated with provision info.
+    """ORCH_FVT_PROVISION_V005: Verify orchestrator state was updated with provision info.
 
     Args:
         host: Test host fixture from testinfra
     """
     tl = TestLogger(
         "Verify orchestrator state updated",
-        "TC_PV_005"
+        "ORCH_FVT_PROVISION_V005"
     )
 
     config = load_test_config()

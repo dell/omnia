@@ -12,46 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Orchestrator Provision — Slurm Provisioning.
-
-TC_SL_000: Deploy orchestrator.yml --tags provision_slurm
-"""
-
-import pytest
-
-from library.functions import TestLogger, run_playbook
-from library.messages import (
-    TEST_NAMES,
-    TEST_LOG_MSGS as LOG,
-    TEST_ASSERT_MSGS as ASSERT,
-)
-
-
-@pytest.mark.deploy
-@pytest.mark.sanity
-@pytest.mark.buildstream
-@pytest.mark.order(0)
-def test_slurm_provision(host):
-    """TC_SL_000: Deploy orchestrator.yml --tags provision_slurm."""
-    tl = TestLogger(
-        TEST_NAMES["deploy_playbook"].format(tag="provision_slurm"), "TC_SL_000"
-    )
-    result = run_playbook(tag="provision_slurm")
-
-    if result["success"]:
-        tl.passed(LOG["playbook_success"].format(
-            duration=result["duration"]
-        ))
-    else:
-        tl.failed(
-            LOG["playbook_failed"].format(
-                rc=result["rc"], duration=result["duration"],
-            ),
-            result.get("error", "See playbook output above"),
-        )
-
-    assert result["success"], ASSERT["playbook_failed"].format(
-        playbook="orchestrator.yml", tag="provision_slurm",
-        rc=result["rc"], duration=result["duration"],
-    )
+"""Slurm-specific verification for the public provision lifecycle."""

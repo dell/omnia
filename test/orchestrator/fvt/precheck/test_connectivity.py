@@ -29,8 +29,8 @@ from library.functions import TestLogger
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_target_connectivity(host):
-    """Verify target host is reachable via SSH."""
-    tc = {"title": "Target SSH Connectivity", "id": "TC_PC_001"}
+    """ORCH_FVT_PRECHECK_V001: Verify target host is reachable via SSH."""
+    tc = {"title": "Target SSH Connectivity", "id": "ORCH_FVT_PRECHECK_V001"}
     tl = TestLogger(tc["title"], tc["id"])
 
     # Check if host is reachable
@@ -41,8 +41,8 @@ def test_target_connectivity(host):
 @pytest.mark.sanity
 @pytest.mark.order(2)
 def test_orchestrator_directories_exist(host):
-    """Verify required orchestrator directories exist on target."""
-    tc = {"title": "Orchestrator Directories", "id": "TC_PC_002"}
+    """ORCH_FVT_PRECHECK_V002: Verify required Orchestrator directories exist."""
+    tc = {"title": "Orchestrator Directories", "id": "ORCH_FVT_PRECHECK_V002"}
     tl = TestLogger(tc["title"], tc["id"])
 
     required_dirs = [
@@ -66,8 +66,8 @@ def test_orchestrator_directories_exist(host):
 @pytest.mark.sanity
 @pytest.mark.order(3)
 def test_input_directory_structure(host):
-    """Verify orchestrator input directory structure exists."""
-    tc = {"title": "Input Directory Structure", "id": "TC_PC_003"}
+    """ORCH_FVT_PRECHECK_V003: Verify the project input directory exists."""
+    tc = {"title": "Input Directory Structure", "id": "ORCH_FVT_PRECHECK_V003"}
     tl = TestLogger(tc["title"], tc["id"])
 
     # Check if input directory exists for the project

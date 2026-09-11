@@ -15,7 +15,7 @@
 """
 Orchestrator Rollback -- Deploy (reserved placeholder).
 
-TC_RB_000: Verify orchestrator.yml --tags rollback fails with
+ORCH_FVT_ROLLBACK_E001: Verify orchestrator.yml --tags rollback fails with
            'not supported' message (rollback is reserved for future use).
 """
 
@@ -28,14 +28,17 @@ from library.messages import (
 )
 
 
+pytestmark = pytest.mark.destructive
+
+
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.buildstream
 @pytest.mark.order(0)
 def test_deploy_rollback_not_supported(host):
-    """TC_RB_000: Verify rollback tag fails with 'not supported' message."""
+    """ORCH_FVT_ROLLBACK_E001: Verify rollback tag fails with 'not supported' message."""
     tl = TestLogger(
-        TEST_NAMES["deploy_rollback"], "TC_RB_000"
+        TEST_NAMES["deploy_rollback"], "ORCH_FVT_ROLLBACK_E001"
     )
     result = run_playbook(tag="rollback")
 
