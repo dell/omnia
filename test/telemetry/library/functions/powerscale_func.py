@@ -1159,6 +1159,44 @@ def verify_otel_service_patch(host):
     }
 
 
+def check_powerscale_privileges_via_ssh(host, ps_user, ps_password, ps_host):
+    """Check PowerScale user privileges via SSH.
+
+    Args:
+        host: Testinfra host connection.
+        ps_user: PowerScale username.
+        ps_password: PowerScale password.
+        ps_host: PowerScale hostname/IP.
+
+    Returns:
+        dict with keys: success, privileges, error.
+    """
+    from omnia_auto import run_on_host
+
+    priv_cmd = f"sshpass -p '{ps_password}' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no {ps_user}@{ps_host} 'isi auth privileges'"
+    result = run_on_host(host, priv_cmd)
+
+    if result.rc != 0:
+        return {
+            "success": False,
+            "privileges": [],
+            "error": f"SSH failed (rc={result.rc}, stderr: {result.stderr.strip()})",
+        }
+
+    # Parse available privileges
+    available_privileges = []
+    for line in result.stdout.split('\n'):
+        if 'ISI_PRIV_' in line:
+            priv_name = line.split()[0]
+            available_privileges.append(priv_name)
+
+    return {
+        "success": True,
+        "privileges": available_privileges,
+        "error": "",
+    }
+
+
 def verify_cert_manager_tls_certs(host):
     """Verify cert-manager TLS certificate generation.
 

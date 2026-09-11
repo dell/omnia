@@ -486,7 +486,7 @@ def verify_pods_after_reboot(host, timeout=600, poll_interval=15,
 # Operator Recovery
 # -------------------------------------------------------------------------
 
-def verify_operator_recovery(host, operator_prefix, cr_check_cmd,
+def verify_operator_recovery(host, operator_prefix, cr_type, cr_name, jsonpath,
                              timeout=300, namespace=None,
                              cr_healthy_values=None):
     """Delete an operator pod and verify its CRs are still reconciled.
@@ -494,7 +494,9 @@ def verify_operator_recovery(host, operator_prefix, cr_check_cmd,
     Args:
         host: Testinfra host (OIM).
         operator_prefix: Pod prefix for the operator (e.g. 'victoria-metrics-operator').
-        cr_check_cmd: Command to check if CRs are healthy after recovery.
+        cr_type: Custom resource type (e.g., vmcluster, kafka).
+        cr_name: Custom resource name.
+        jsonpath: JSONPath expression to extract status.
         timeout: Max seconds to wait for operator recovery.
         namespace: K8s namespace (default: telemetry).
         cr_healthy_values: List of acceptable CR status values
@@ -504,6 +506,8 @@ def verify_operator_recovery(host, operator_prefix, cr_check_cmd,
     Returns:
         dict with keys: success, deleted, recovery, cr_healthy, details.
     """
+    from .k8s_func import get_cr_status
+
     # Delete operator pod
     delete_result = delete_pods_by_prefix(host, operator_prefix, namespace)
     if not delete_result["success"]:
@@ -534,9 +538,9 @@ def verify_operator_recovery(host, operator_prefix, cr_check_cmd,
     # Give operator time to reconcile
     time.sleep(15)
 
-    # Check if CRs are healthy
-    cr_result = run_on_kube_vip(host, cr_check_cmd)
-    cr_output = cr_result.stdout.strip() if cr_result.rc == 0 else ""
+    # Check if CRs are healthy using library function
+    cr_result = get_cr_status(host, cr_type, cr_name, jsonpath, namespace)
+    cr_output = cr_result["value"] if cr_result["success"] else ""
 
     if cr_healthy_values:
         cr_healthy = cr_output in cr_healthy_values

@@ -116,6 +116,6 @@ def test_cleanup_topics_removed(host, delete_volume):
     assert topic_count == 0, (
         f"{topic_count} Kafka topic(s) still present after cleanup\n"
         "HOW TO FIX:\n"
-        "  1. kubectl get kafkatopic -n telemetry\n"
+        "  1. Check Kafka topics: kubectl get kafkatopic -n telemetry\n"
         "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
     )

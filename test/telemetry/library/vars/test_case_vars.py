@@ -45,6 +45,10 @@ TEST_CASES = {
         "id": "TC_VL_001",
         "title": "Deploy telemetry (--tags validate)",
     },
+    "telemetry_config_parseable": {
+        "id": "TC_VL_002",
+        "title": "Verify telemetry config parseable",
+    },
     "deploy_cleanup": {
         "id": "TC_CL_001",
         "title": "Deploy telemetry (--tags cleanup)",
@@ -311,71 +315,71 @@ TEST_CASES = {
 
     # -- Sources: UFM --------------------------------------------------------
     "ufm_external_svc": {
-        "id": "TC_SR_060",
+        "id": "TC_SR_082",
         "title": "Verify UFM external service exists with correct endpoint",
     },
     "ufm_vmscrape": {
-        "id": "TC_SR_061",
+        "id": "TC_SR_083",
         "title": "Verify UFM VMServiceScrape CR exists",
     },
     "ufm_credentials_secret": {
-        "id": "TC_SR_062",
+        "id": "TC_SR_084",
         "title": "Verify UFM credentials K8s secret exists",
     },
     "ufm_metrics_in_vm": {
-        "id": "TC_SR_063",
+        "id": "TC_SR_085",
         "title": "Verify UFM InfiniBand metrics in VictoriaMetrics",
     },
 
     # -- Sources: VAST -------------------------------------------------------
     "vast_external_svc": {
-        "id": "TC_SR_080",
+        "id": "TC_SR_088",
         "title": "Verify VAST external service exists with correct endpoint",
     },
     "vast_vmscrape": {
-        "id": "TC_SR_081",
+        "id": "TC_SR_089",
         "title": "Verify VAST VMServiceScrape CR exists",
     },
     "vast_credentials_secret": {
-        "id": "TC_SR_082",
+        "id": "TC_SR_090",
         "title": "Verify VAST credentials K8s secret exists",
     },
     "vast_metrics_in_vm": {
-        "id": "TC_SR_083",
+        "id": "TC_SR_091",
         "title": "Verify VAST storage metrics in VictoriaMetrics",
     },
     "vast_test_event_in_victoria_logs": {
-        "id": "TC_SR_084",
+        "id": "TC_SR_092",
         "title": "Verify fresh VAST test event in VictoriaLogs",
     },
     "vast_syslog_configuration": {
-        "id": "TC_SR_085",
+        "id": "TC_SR_093",
         "title": "Configure VAST syslog and send a test event",
     },
 
     # -- Sources: OME -------------------------------------------------------
     "ome_vector_bridge": {
-        "id": "TC_SR_070",
+        "id": "TC_SR_074",
         "title": "Verify Vector-OME bridge deployment ready",
     },
     "ome_kafka_user": {
-        "id": "TC_SR_071",
+        "id": "TC_SR_075",
         "title": "Verify OME KafkaUser CR exists",
     },
     "ome_external_kafka_certs": {
-        "id": "TC_SR_072",
+        "id": "TC_SR_078",
         "title": "Verify external Kafka connection artifacts",
     },
     "ome_pfx_conversion": {
-        "id": "TC_SR_073",
+        "id": "TC_SR_079",
         "title": "Verify user.pfx certificate created for OME mTLS",
     },
     "ome_upload_certs": {
-        "id": "TC_SR_074",
+        "id": "TC_SR_076",
         "title": "Verify TLS certificates uploaded to OME",
     },
     "ome_kafka_connectivity": {
-        "id": "TC_SR_075",
+        "id": "TC_SR_077",
         "title": "Verify OME Kafka forwarder connectivity status",
     },
     "ome_cert_verify": {
@@ -395,15 +399,15 @@ TEST_CASES = {
         "title": "Verify OME inventory data in Kafka (ome.inventory)",
     },
     "ome_alerts_data": {
-        "id": "TC_SR_060",
+        "id": "TC_SR_069",
         "title": "Verify OME alerts data in Kafka (ome.alerts)",
     },
     "ome_health_data": {
-        "id": "TC_SR_061",
+        "id": "TC_SR_086",
         "title": "Verify OME health data in Kafka (ome.health)",
     },
     "ome_auditlogs_data": {
-        "id": "TC_SR_062",
+        "id": "TC_SR_087",
         "title": "Verify OME audit logs data in Kafka (ome.auditlogs)",
     },
     "ome_telemetry_metrics_in_vm": {
@@ -429,23 +433,23 @@ TEST_CASES = {
 
     # -- Sources: SFM -------------------------------------------------------
     "sfm_omnia_pods": {
-        "id": "TC_SR_090",
+        "id": "TC_SR_094",
         "title": "Verify required Omnia workloads and pods for SFM",
     },
     "sfm_omnia_services": {
-        "id": "TC_SR_091",
+        "id": "TC_SR_095",
         "title": "Verify required Omnia services for SFM",
     },
     "sfm_switch_configuration": {
-        "id": "TC_SR_092",
+        "id": "TC_SR_096",
         "title": "Configure and verify the SFM switch data path",
     },
     "sfm_observability_configuration": {
-        "id": "TC_SR_093",
+        "id": "TC_SR_097",
         "title": "Configure and verify SFM observability Remote Write",
     },
     "sfm_metrics_in_victoria": {
-        "id": "TC_SR_094",
+        "id": "TC_SR_098",
         "title": "Verify three SFM metrics and timestamps in VictoriaMetrics",
     },
 
@@ -461,11 +465,11 @@ TEST_CASES = {
 
     # -- Cleanup: Sinks -----------------------------------------------------
     "cleanup_kafka": {
-        "id": "TC_CL_002",
+        "id": "TC_CL_014",
         "title": "Verify Kafka pods removed after cleanup",
     },
     "cleanup_victoria_metrics": {
-        "id": "TC_CL_003",
+        "id": "TC_CL_015",
         "title": "Verify VictoriaMetrics pods removed after cleanup",
     },
     "cleanup_victoria_logs": {
@@ -515,63 +519,63 @@ TEST_CASES = {
 
     # -- NFT: Performance ---------------------------------------------------
     "nft_validate_perf": {
-        "id": "NFT_TL_001",
+        "id": "NFT_001",
         "title": "Validate playbook performance (< 30s)",
     },
     "nft_deploy_perf": {
-        "id": "NFT_TL_002",
+        "id": "NFT_002",
         "title": "Deploy playbook performance (< 600s)",
     },
     "nft_cleanup_perf": {
-        "id": "NFT_TL_003",
+        "id": "NFT_003",
         "title": "Cleanup playbook performance (< 300s)",
     },
 
     # -- NFT: Idempotency ---------------------------------------------------
     "nft_deploy_idempotent": {
-        "id": "NFT_TL_004",
+        "id": "NFT_004",
         "title": "Deploy playbook idempotency (second run exits 0)",
     },
     "nft_cleanup_idempotent": {
-        "id": "NFT_TL_005",
+        "id": "NFT_005",
         "title": "Cleanup playbook idempotency (second run exits 0)",
     },
 
     # -- NFT: Resilience -----------------------------------------------------
     "nft_sink_pod_recovery": {
-        "id": "NFT_TL_006",
+        "id": "NFT_006",
         "title": "Sink pod deletion & recovery (Kafka broker)",
     },
     "nft_source_pod_recovery": {
-        "id": "NFT_TL_007",
+        "id": "NFT_007",
         "title": "Source pod deletion & recovery (enabled sources)",
     },
     "nft_sts_pod_recovery": {
-        "id": "NFT_TL_008",
+        "id": "NFT_008",
         "title": "StatefulSet storage pod recovery (vmstorage/vlstorage)",
     },
     "nft_pvc_persistence": {
-        "id": "NFT_TL_009",
+        "id": "NFT_009",
         "title": "PVC persistence after pod deletion",
     },
     "nft_service_endpoints": {
-        "id": "NFT_TL_010",
+        "id": "NFT_010",
         "title": "Service endpoint availability after pod restart",
     },
     "nft_data_after_restart": {
-        "id": "NFT_TL_011",
+        "id": "NFT_011",
         "title": "Data ingestion after sink restart",
     },
     "nft_node_reboot": {
-        "id": "NFT_TL_012",
+        "id": "NFT_012",
         "title": "Node reboot recovery (all pods Running)",
     },
     "nft_full_lifecycle": {
-        "id": "NFT_TL_013",
+        "id": "NFT_013",
         "title": "Full lifecycle (cleanup -> redeploy -> verify)",
     },
     "nft_operator_recovery": {
-        "id": "NFT_TL_014",
+        "id": "NFT_014",
         "title": "Operator pod recovery (VM/Strimzi operators)",
     },
 }
