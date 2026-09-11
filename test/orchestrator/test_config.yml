@@ -86,7 +86,7 @@ clone_path: "/omnia"
 #     input/ (9 input files: orchestrator_config.yml, network_spec.yml, etc.)
 #     repo_manager_output/ (repo_status.yml)
 #     image_build_manager_output/ (build_status.yml)
-dataset: "test_profile"
+dataset: ""
 
 # =============================================================================
 # ORCHESTRATOR-SPECIFIC SETTINGS
@@ -96,13 +96,13 @@ dataset: "test_profile"
 project_name: "project_default"
 
 # Sync orchestrator input files (orchestrator_config.yml, network_spec.yml, etc.)
-sync_orchestrator_input: true
+sync_orchestrator_input: false
 
 # Sync repo_manager output (repo_status.yml) to target
-sync_repo_manager_output: true
+sync_repo_manager_output: false
 
 # Sync image_build_manager output (build_status.yml) to target
-sync_image_build_manager_output: true
+sync_image_build_manager_output: false
 
 # Shared path for orchestrator-specific data on the target server.
 # Convention: /opt/omnia/orchestrator

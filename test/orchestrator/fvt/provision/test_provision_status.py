@@ -20,8 +20,9 @@ The provision playbook registers functional groups in OpenCHAMI and configures
 the provisioning infrastructure - it does NOT boot nodes or deploy services.
 """
 
+from typing import Dict, Any
+
 import pytest
-import os
 import yaml
 
 from library.functions import TestLogger
@@ -30,27 +31,33 @@ from omnia_auto import load_test_config
 
 @pytest.mark.functional
 @pytest.mark.order(1)
-def test_pxe_mapping_processed(host):
-    """TC_PV_001: Verify PXE mapping file was processed during provision preamble."""
+def test_pxe_mapping_processed(host) -> None:
+    """TC_PV_001: Verify PXE mapping file was processed during provision preamble.
+
+    Args:
+        host: Test host fixture from testinfra
+    """
     tl = TestLogger(
         "Verify PXE mapping file processed",
         "TC_PV_001"
     )
-    
+
     config = load_test_config()
     project = config.get("project_name", "project_default")
-    
+
     # Check if temp mapping file was created (provision_preamble.yml creates this)
     temp_mapping = "/tmp/omnia_provision_mapping.csv"
-    result = host.file(temp_mapping).exists
-    
+    temp_exists = host.file(temp_mapping).exists
+
     # Also check the original mapping file
     mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
     original_exists = host.file(mapping_path).exists
-    
-    if result or original_exists:
-        tl.passed("PXE mapping file processed",
-                 f"Found mapping file (temp={result}, original={original_exists})")
+
+    if temp_exists or original_exists:
+        tl.passed(
+            "PXE mapping file processed",
+            f"Found mapping file (temp={temp_exists}, original={original_exists})"
+        )
     else:
         tl.passed("PXE mapping file not found",
                  "Provisioning may not have been executed yet")
@@ -58,32 +65,40 @@ def test_pxe_mapping_processed(host):
 
 @pytest.mark.functional
 @pytest.mark.order(2)
-def test_functional_groups_config_exists(host):
-    """TC_PV_002: Verify functional groups configuration exists."""
+def test_functional_groups_config_exists(host) -> None:
+    """TC_PV_002: Verify functional groups configuration exists.
+
+    Args:
+        host: Test host fixture from testinfra
+    """
     tl = TestLogger(
         "Verify functional groups configuration exists",
         "TC_PV_002"
     )
-    
+
     config = load_test_config()
     project = config.get("project_name", "project_default")
-    
+
     # Check for functional_groups.yml (created during provision)
     fg_config_path = f"/opt/omnia/orchestrator/output/{project}/functional_groups.yml"
-    result = host.file(fg_config_path).exists
-    
-    if result:
+    fg_exists = host.file(fg_config_path).exists
+
+    if fg_exists:
         # Try to read and validate the file
         cmd = host.run(f"cat {fg_config_path}")
         if cmd.rc == 0:
             try:
-                fg_data = yaml.safe_load(cmd.stdout)
+                fg_data: Dict[str, Any] = yaml.safe_load(cmd.stdout)
                 fg_count = len(fg_data.get('functional_groups', []))
-                tl.passed(f"Functional groups configuration exists",
-                         f"Found {fg_count} functional groups in {fg_config_path}")
-            except Exception as e:
-                tl.passed("Functional groups configuration exists but could not parse",
-                         f"File exists at {fg_config_path}")
+                tl.passed(
+                    "Functional groups configuration exists",
+                    f"Found {fg_count} functional groups in {fg_config_path}"
+                )
+            except Exception:
+                tl.passed(
+                    "Functional groups configuration exists but could not parse",
+                    f"File exists at {fg_config_path}"
+                )
         else:
             tl.passed("Functional groups configuration exists",
                      f"Found at {fg_config_path}")
@@ -94,21 +109,31 @@ def test_functional_groups_config_exists(host):
 
 @pytest.mark.functional
 @pytest.mark.order(3)
-def test_bss_metadata_configured(host):
-    """TC_PV_003: Verify BSS/metadata-service configuration was updated."""
+def test_bss_metadata_configured(host) -> None:
+    """TC_PV_003: Verify BSS/metadata-service configuration was updated.
+
+    Args:
+        host: Test host fixture from testinfra
+    """
     tl = TestLogger(
         "Verify BSS/metadata-service configured for provisioning",
         "TC_PV_003"
     )
-    
+
     # Check if BSS container is running (provision playbook configures BSS)
     result = host.run("podman ps --filter name=bss --format '{{.Names}}'")
-    
+
     if result.rc == 0 and result.stdout.strip():
-        bss_containers = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
+        bss_containers = [
+            line.strip()
+            for line in result.stdout.strip().split('\n')
+            if line.strip()
+        ]
         if bss_containers:
-            tl.passed(f"BSS service running and ready for provisioning",
-                     f"Found BSS containers: {', '.join(bss_containers)}")
+            tl.passed(
+                "BSS service running and ready for provisioning",
+                f"Found BSS containers: {', '.join(bss_containers)}"
+            )
         else:
             tl.passed("BSS service not found",
                      "OpenCHAMI may not be configured for this deployment")
@@ -119,22 +144,28 @@ def test_bss_metadata_configured(host):
 
 @pytest.mark.functional
 @pytest.mark.order(4)
-def test_ssh_keys_distributed(host):
-    """TC_PV_004: Verify SSH keys were set up for provisioning."""
+def test_ssh_keys_distributed(host) -> None:
+    """TC_PV_004: Verify SSH keys were set up for provisioning.
+
+    Args:
+        host: Test host fixture from testinfra
+    """
     tl = TestLogger(
         "Verify SSH keys configured for provisioning",
         "TC_PV_004"
     )
-    
+
     # Check if SSH key exists (provision_preamble.yml distributes SSH keys)
     ssh_key_path = "/root/.ssh/id_rsa"
-    result = host.file(ssh_key_path).exists
-    
-    if result:
+    ssh_key_exists = host.file(ssh_key_path).exists
+
+    if ssh_key_exists:
         # Check if authorized_keys also exists
-        auth_keys = host.file("/root/.ssh/authorized_keys").exists
-        tl.passed("SSH keys configured for provisioning",
-                 f"SSH key exists at {ssh_key_path}, authorized_keys={auth_keys}")
+        auth_keys_exists = host.file("/root/.ssh/authorized_keys").exists
+        tl.passed(
+            "SSH keys configured for provisioning",
+            f"SSH key exists at {ssh_key_path}, authorized_keys={auth_keys_exists}"
+        )
     else:
         tl.passed("SSH keys not found",
                  "SSH key distribution may not have completed yet")
@@ -142,38 +173,49 @@ def test_ssh_keys_distributed(host):
 
 @pytest.mark.functional
 @pytest.mark.order(5)
-def test_orchestrator_state_updated(host):
-    """TC_PV_005: Verify orchestrator state was updated with provision info."""
+def test_orchestrator_state_updated(host) -> None:
+    """TC_PV_005: Verify orchestrator state was updated with provision info.
+
+    Args:
+        host: Test host fixture from testinfra
+    """
     tl = TestLogger(
         "Verify orchestrator state updated",
         "TC_PV_005"
     )
-    
+
     config = load_test_config()
     project = config.get("project_name", "project_default")
-    
+
     # Check orchestrator_state.yml (updated during provision)
     state_path = f"/opt/omnia/orchestrator/output/{project}/orchestrator_state.yml"
-    result = host.file(state_path).exists
-    
-    if result:
+    state_exists = host.file(state_path).exists
+
+    if state_exists:
         cmd = host.run(f"cat {state_path}")
         if cmd.rc == 0:
             try:
-                state_data = yaml.safe_load(cmd.stdout)
+                state_data: Dict[str, Any] = yaml.safe_load(cmd.stdout)
                 # Check for provision-related keys
-                has_provision_info = any(key in state_data for key in 
-                    ['functional_groups_config_path', 'pxe_mapping_file_path'])
-                
+                provision_keys = [
+                    'functional_groups_config_path',
+                    'pxe_mapping_file_path'
+                ]
+                has_provision_info = any(key in state_data for key in provision_keys)
+
                 if has_provision_info:
-                    tl.passed("Orchestrator state updated with provision info",
-                             f"State file contains provision configuration")
+                    tl.passed(
+                        "Orchestrator state updated with provision info",
+                        "State file contains provision configuration"
+                    )
                 else:
                     tl.passed("Orchestrator state exists",
                              f"Found at {state_path}")
-            except Exception as e:
-                tl.passed("Orchestrator state exists but could not parse",
-                         f"File exists at {state_path}")
+            except Exception:
+                tl.passed(
+                    "Orchestrator state exists but could not parse",
+                    f"File exists at {state_path}"
+                )
         else:
             tl.passed("Orchestrator state exists",
                      f"Found at {state_path}")
