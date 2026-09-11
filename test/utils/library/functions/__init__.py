@@ -62,6 +62,8 @@ from .host_func import (
     sync_install_os_credentials,
     get_utils_input_path,
     get_utils_output_path,
+    get_backup_oim_logs_output_path,
+    get_backup_oim_logs_config_path,
 )
 
 from .validation_func import (
@@ -82,10 +84,17 @@ from .cleanup_func import (
     check_setup_input_dir_exists,
 )
 
+from .backup_func import (
+    validate_backup_config,
+    validate_backup_metadata_file,
+    check_backup_workspace_removed,
+)
+
 # --- Domain-specific vars ---
 from ..vars.common_vars import (
     PLAYBOOK_COLLECT,
     PLAYBOOK_INSTALL_OS,
+    PLAYBOOK_BACKUP_OIM_LOGS,
     PLAYBOOK_WORKDIR,
 )
 
@@ -149,6 +158,8 @@ __all__ = [
     "sync_install_os_credentials",
     "get_utils_input_path",
     "get_utils_output_path",
+    "get_backup_oim_logs_output_path",
+    "get_backup_oim_logs_config_path",
     "validate_all",
     "ConfigValidationError",
     # Cleanup functions
@@ -162,4 +173,8 @@ __all__ = [
     "check_all_install_os_cleaned",
     "check_setup_output_dir_exists",
     "check_setup_input_dir_exists",
+    # OIM log backup functions
+    "validate_backup_config",
+    "validate_backup_metadata_file",
+    "check_backup_workspace_removed",
 ]

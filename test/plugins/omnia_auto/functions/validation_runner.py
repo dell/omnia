@@ -268,7 +268,9 @@ class ValidationRunner:
             ``tags`` (list), ``markers`` (list),
             ``suites`` (dict), ``exclude_tags`` (list),
             ``all_exec_tags`` (ordered list), ``all_exec_marker`` (string),
-            and ``enable_ut`` (bool).
+            ``all_verify_exclude_markers`` (list),
+            ``required_suite_tags`` (list), ``verify_only_tags`` (list),
+            ``verify_only_suites`` (mapping), and ``enable_ut`` (bool).
             When omitted, tags are auto-discovered from
             ``fvt/`` subdirectories.
     """
@@ -311,6 +313,18 @@ class ValidationRunner:
         )
         self._all_exec_marker: str = cfg.get(
             "all_exec_marker", "",
+        )
+        self._all_verify_exclude_markers: List[str] = cfg.get(
+            "all_verify_exclude_markers", [],
+        )
+        self._required_suite_tags: frozenset = frozenset(
+            cfg.get("required_suite_tags", []),
+        )
+        self._verify_only_tags: frozenset = frozenset(
+            cfg.get("verify_only_tags", []),
+        )
+        self._verify_only_suites: Dict = cfg.get(
+            "verify_only_suites", {},
         )
 
     # -----------------------------------------------------------------
@@ -406,6 +420,34 @@ class ValidationRunner:
             except ValueError as exc:
                 _err(str(exc))
                 return 2
+        if (
+            tag in self._required_suite_tags
+            and command in {"exec", "test"}
+            and not opts["suite"]
+        ):
+            _err(
+                f"FVT tag '{tag}' requires --suite for {command}; "
+                "refusing an ambiguous lifecycle execution"
+            )
+            return 2
+        verify_only_suites = set(
+            self._verify_only_suites.get(tag, [])
+        )
+        if command in {"exec", "test"} and (
+            tag in self._verify_only_tags
+            or opts["suite"] in verify_only_suites
+        ):
+            target = (
+                f"{tag}/{opts['suite']}" if opts["suite"] else tag
+            )
+            suggestion = f"{self.cat_fvt} {tag} verify"
+            if opts["suite"]:
+                suggestion += f" --suite {opts['suite']}"
+            _err(
+                f"FVT target '{target}' supports verify only; "
+                f"use: {suggestion}"
+            )
+            return 2
         if opts["marker"]:
             try:
                 opts["marker"] = self._canonical_marker(opts["marker"])
@@ -522,7 +564,7 @@ class ValidationRunner:
         )
 
         if command == "exec":
-            return self._run_exec(tag, marker, verbose)
+            return self._run_exec(tag, suite, marker, verbose)
         if command == "verify":
             return self._run_verify(
                 tag, suite, marker, verbose,
@@ -532,7 +574,7 @@ class ValidationRunner:
         )
 
     def _run_exec(
-        self, tag: str, marker: str, verbose: str,
+        self, tag: str, suite: str, marker: str, verbose: str,
     ) -> int:
         """Run playbook execution only."""
         if not tag and self._all_exec_tags:
@@ -569,19 +611,29 @@ class ValidationRunner:
             return rc
 
         os.environ["OMNIA_COMMAND_TYPE"] = "exec"
-        exec_dir = (
+        exec_path = (
             os.path.join(self.fvt_dir, tag) if tag
             else os.path.join(self.fvt_dir, "build")
         )
+        if tag and suite:
+            tag_dir = Path(self.fvt_dir, tag)
+            root_tests = sorted(
+                str(path) for path in tag_dir.glob("test_*.py")
+                if path.is_file() and not path.is_symlink()
+            )
+            exec_path = root_tests + [
+                str(Path(tag_dir, suite).resolve(strict=True))
+            ]
         marker_args = "-m deploy"
         if marker:
             marker_args += f" --marker {marker}"
 
         _info(
-            f"Executing playbook (tag={tag or 'none'})...",
+            f"Executing playbook (tag={tag or 'none'}, "
+            f"suite={suite or 'all'})...",
         )
         rc = self._invoke_pytest_with_summary(
-            exec_dir, marker_args, verbose,
+            exec_path, marker_args, verbose,
         )
         if rc == 0:
             _ok("Playbook execution completed.")
@@ -599,11 +651,27 @@ class ValidationRunner:
         if not test_paths:
             _err("No eligible FVT directories were found; refusing broad pytest discovery")
             return 2
-        marker_args = "-m 'not deploy'"
+        marker_expression = "not deploy"
+        if not tag:
+            try:
+                excluded_markers = [
+                    _canonical_choice(
+                        str(name), self._domain_markers,
+                        "aggregate excluded marker",
+                    )
+                    for name in self._all_verify_exclude_markers
+                ]
+            except ValueError as exc:
+                _err(str(exc))
+                return 2
+            marker_expression += "".join(
+                f" and not {name}" for name in excluded_markers
+            )
+        marker_args = f"-m '{marker_expression}'"
         if marker:
             marker_args += f" --marker {marker}"
 
-        label = tag or "all except cleanup"
+        label = tag or "all non-excluded scenarios"
         _info(
             f"Running verification tests ({label})...",
         )
@@ -630,7 +698,7 @@ class ValidationRunner:
         os.environ["OMNIA_RESULTS_FILE"] = results_file
 
         _banner_step("Step 1/2: Execute Playbook")
-        rc = self._run_exec(tag, marker, verbose)
+        rc = self._run_exec(tag, suite, marker, verbose)
         if rc != 0:
             failed = 1
 
@@ -1100,7 +1168,7 @@ class ValidationRunner:
             except OSError as exc:
                 _err(f"Unable to run pytest or write its log: {exc}")
                 return 1
-        return subprocess.run(
+        return subprocess.run(  # nosec B603
             parts,
             cwd=self.script_dir,
             check=False,
@@ -1448,8 +1516,9 @@ class ValidationRunner:
         print(f"  ./run_validation.sh {cat_name} list")
         print()
         _yellow("COMMANDS")
-        print("  test       Run playbook + tests (full flow)")
-        print("  verify     Run tests only (no playbook)")
+        print("  test       Run the complete category suite")
+        print("  verify     Alias for the complete category suite")
+        print("  exec       Alias for the complete category suite")
         print()
         _yellow("OPTIONS")
         print("  --marker <expr>   Filter by marker")

@@ -159,7 +159,7 @@
       ansible.builtin.debug:
         msg: >-
           Run with --tags to specify operation (credentials, prepare, precheck,
-          download, status, cleanup_pulp, cleanup_repos)
+          download, status, cleanup, cleanup_pulp, cleanup_repos)
   tags: always
 
 # -------------------------------------------------------------------------

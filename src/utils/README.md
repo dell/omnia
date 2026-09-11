@@ -1,161 +1,254 @@
-# Omnia Utils Collection
+# Utils
 
-The `omnia.utils` collection provides utility roles and modules for Omnia HPC cluster management, including OS installation, log collection, PXE boot management, and Slurm configuration utilities.
+**Collection**: `omnia.utils` v2.3.0
 
-## Features
+Provides OIM utilities for collecting cluster logs, installing an operating
+system through iDRAC virtual media, and backing up logs from all Omnia domains.
+The top-level playbook also provides targeted cleanup operations and writes a
+project-scoped `utils_status.yml` status file.
 
-- **OS Installation**: Bare-metal OS provisioning via ISO creation and delivery
-- **Log Collection**: Centralized log gathering from cluster nodes for troubleshooting
-- **Slurm Utilities**: Configuration backup, rollback, and cleanup operations
-- **ARM Support**: ARM64/aarch64 architecture-specific provisioning
-- **Credential Validation**: Custom modules for secure credential handling
-- **Telemetry Integration**: Telemetry status monitoring and configuration
+---
 
-## Requirements
+## Prerequisites
 
-- Ansible 2.19+
-- Python 3.12+
-- RHEL 10.x or compatible
-- Network access to target nodes
-- Sufficient disk space for ISO and log operations
+| Requirement | Minimum | Notes |
+|-------------|---------|-------|
+| OS | RHEL 10.x or compatible | Utilities run from the OIM |
+| Python | 3.12+ | Shared Omnia virtual environment |
+| Ansible | ansible-core 2.20+ | Declared in `requirements.txt` |
+| Disk | 50 GB free | Recommended for ISO and log operations |
+| SSH | Passwordless access | Required from OIM to nodes selected for log collection |
+| iDRAC | Reachable with virtual media support | Required only for OS deployment |
+| NFS | Reachable export | Required for OS artifacts and optional for OIM log backups |
 
-## Installation
-
-Install from Ansible Galaxy:
-
-```bash
-ansible-galaxy collection install omnia.utils
-```
-
-Or install from source:
-
-```bash
-git clone https://github.com/dell/omnia.git
-cd omnia/src/utils
-ansible-galaxy collection install . --force
-```
+---
 
 ## Quick Start
 
-### 1. Initialize Domain Environment
+```bash
+# From the repository root
+cd src/main
+
+# Configure the OIM, create the shared virtual environment, install domain
+# dependencies, and stage Utils inputs.
+vi omnia.env
+sudo ./omnia.sh -s
+source /etc/profile.d/omnia-env.sh
+
+# Edit the staged input files.
+vi "$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/collect_pxe.yml"
+vi "$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/install_os_config.yml"
+vi "$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/backup_oim_logs_config.yml"
+
+# Run one public utility tag at a time.
+cd ../utils
+ansible-playbook playbooks/utils.yml --tags precheck
+ansible-playbook playbooks/utils.yml --tags collect
+ansible-playbook playbooks/utils.yml --tags install_os
+ansible-playbook playbooks/utils.yml --tags backup_oim_logs
+```
+
+For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
+`$OMNIA_VENV_PATH/bin/activate`, and run commands from `src/utils` so the domain
+`ansible.cfg` is loaded.
+
+---
+
+## Public Tags
+
+| Tag | Description | Input required |
+|-----|-------------|----------------|
+| `precheck` | Validate the OIM hostname, domain, admin IP, data path, and setup state | Environment variables |
+| `setup` | Run the common Utils setup only | None |
+| `collect` | Collect configured Kubernetes, Slurm, and login-node logs | `collect_pxe.yml` |
+| `install_os` | Run the OS installation playbook | `install_os_config.yml`; credentials are collected as needed |
+| `backup_oim_logs` | Archive OIM log directories for selected Omnia domains | Optional `backup_oim_logs_config.yml` |
+| `cleanup` | Clean log-collection and OS-installation artifacts | None |
+| `cleanup_logs` | Apply retention cleanup to collected log bundles | None |
+| `cleanup_install_os` | Remove temporary OS-installation artifacts and optionally credentials | None |
+| `cleanup_backup_oim_logs` | Remove all OIM log-backup run directories | Optional backup-path override |
+| `upgrade` / `rollback` | Reserved placeholders; no lifecycle action is implemented | None |
+
+Run exactly one public tag at a time. With no tag, `utils.yml` runs the common
+setup and status writer only; utility flows are opt-in.
+
+### Direct Utility Tags
+
+The imported playbooks expose additional stage tags when run directly:
+
+| Playbook | Tags |
+|----------|------|
+| `playbooks/collect.yml` | `setup`, `prepare`, `k8s`, `slurm`, `bundle`; no tag runs the complete flow |
+| `playbooks/install_os.yml` | `credentials`, `build_iso`, `deploy`, `generate_ks`; no tag runs end to end |
+| `playbooks/backup_oim_logs/backup_oim_logs.yml` | `setup`, `bundle`; no tag runs both stages |
+
+---
+
+## Utilities
+
+### Cluster Log Collection
+
+`collect.yml` reads functional-group node addresses from `collect_pxe.yml`,
+builds dynamic inventory groups, collects predefined logs over SSH, and writes
+a timestamped archive plus metadata. Unreachable nodes and missing sources are
+recorded as warnings instead of stopping collection for the remaining nodes.
 
 ```bash
-./domain-init.sh
-./copy-input.sh
+ansible-playbook playbooks/utils.yml --tags collect
+
+# Direct stage execution or curated support filtering
+ansible-playbook playbooks/collect.yml --tags k8s
+ansible-playbook playbooks/collect.yml --tags slurm
 ```
 
-### 2. Run Setup Role
+### OS Installation
 
-```yaml
-- hosts: localhost
-  connection: local
-  gather_facts: true
-  roles:
-    - role: omnia.utils.utils_setup
-      vars:
-        validate_prerequisites: true
-        validate_config_files: true
-```
-
-### 3. Execute Utility Playbooks
+`install_os.yml` creates or reuses an NFS-hosted custom ISO, renders a Kickstart
+file, mounts the ISO through Dell iDRAC virtual media, and optionally verifies
+SSH connectivity after installation. Both x86_64 and aarch64 targets are
+accepted; cross-architecture image building is not performed.
 
 ```bash
-ansible-playbook playbooks/collect.yml
-ansible-playbook playbooks/install_os.yml
-ansible-playbook playbooks/slurm_config_util.yml
+ansible-playbook playbooks/utils.yml --tags install_os
+
+# Direct modes
+ansible-playbook playbooks/install_os.yml --tags credentials
+ansible-playbook playbooks/install_os.yml --tags build_iso
+ansible-playbook playbooks/install_os.yml --tags deploy
+ansible-playbook playbooks/install_os.yml --tags generate_ks
 ```
+
+### OIM Domain Log Backup
+
+`backup_oim_logs` archives the `log/` directory of each selected Omnia domain
+directly into a compressed bundle. It writes `metadata.json` beside the archive
+with included/skipped domains, warnings, exclusions, host context, and SHA256.
+The destination may be a local absolute path or a raw NFS export.
+
+Backup-path precedence, highest to lowest:
+
+1. `-e backup_path=<path>`
+2. `backup_path` in `backup_oim_logs_config.yml`
+3. `OMNIA_BACKUP_PATH`
+4. `$OMNIA_DATA_PATH/utils/output/$OMNIA_PROJECT_NAME/backup_oim_logs`
+
+```bash
+ansible-playbook playbooks/utils.yml --tags backup_oim_logs
+ansible-playbook playbooks/utils.yml --tags backup_oim_logs \
+  -e 'backup_path=172.96.20.223:/mnt/backup_dir'
+ansible-playbook playbooks/utils.yml --tags cleanup_backup_oim_logs
+```
+
+---
+
+## Input / Output
+
+### Input
+
+| File | Runtime location | Required |
+|------|------------------|----------|
+| `collect_pxe.yml` | `utils/input/<project>/` | Log collection |
+| `install_os_config.yml` | `utils/input/<project>/` | OS installation except credentials-only mode |
+| `install_os_credentials.yml` | `utils/input/<project>/` | Generated and Vault-encrypted when credentials are collected |
+| `.install_os_vault_key` | `utils/input/<project>/` | Generated with restrictive permissions |
+| `backup_oim_logs_config.yml` | `utils/input/<project>/` | No; selects domains and optionally the destination |
+
+### Output
+
+| Output | Default location | Description |
+|--------|------------------|-------------|
+| Collected log run | `utils/output/<project>/collect/omnia_logs_<timestamp>/` | `omnia_logs_<timestamp>.tar.gz` and `metadata.json` |
+| Install status | `utils/output/<project>/install_os_status.yml` | Target, ISO, architecture, and verification result |
+| OIM log backup | `utils/output/<project>/backup_oim_logs/omnia_oim_logs_<timestamp>/` | Archive and `metadata.json` |
+| Domain status | `utils/output/<project>/utils_status.yml` | Latest Utils execution status |
+| Runtime logs | `utils/log/<project>/` | Project-scoped domain logs |
+| Ansible log | `/var/log/omnia/utils/utils.log` | Top-level playbook execution log |
+
+See `docs/contracts/` for field-level contracts.
+
+---
 
 ## Roles
 
+### Active Playbook Roles
+
 | Role | Purpose |
 |------|---------|
-| `utils_setup` | Environment validation and initialization |
-| `iso_creation` | Create custom OS installation ISOs |
-| `iso_delivery` | Deliver ISOs via iDRAC virtual media |
-| `pxe_buildstream_manager` | Manage PXE boot with BuildStream |
-| `fetch_iso` | Download and validate OS ISOs |
-| `log_collector` | Collect logs from cluster nodes |
-| `create_container_group` | Create container groups for infrastructure |
-| `fetch_arm_params` | Fetch ARM-specific parameters |
+| `utils_setup` | Optional prerequisite/config/disk checks and shared guard facts |
+| `precheck_environment` | Validate the OIM environment against exported settings |
+| `log_collector` | Prepare inventory, collect node logs, and create support bundles |
+| `validate_install_os_config` | Load and mode-conditionally validate OS-install input |
+| `collect_install_os_credentials` | Collect and Vault-encrypt BMC and OS credentials |
+| `fetch_iso` | Validate the source ISO and install required tooling |
+| `iso_creation` | Render Kickstart and build embedded or NFS-delivered custom ISOs |
+| `iso_delivery` | Attach virtual media through iDRAC and verify installation |
+| `oim_log_backup` | Archive Omnia domain log directories with metadata |
+| `utils_status_writer` | Write and validate `utils_status.yml` |
+
+### Reusable Roles Not Exposed by `utils.yml`
+
+| Role | Purpose |
+|------|---------|
+| `create_container_group` | Build container inventory groups |
+| `fetch_arm_params` | Load ARM-oriented configuration parameters |
 | `validate_arm_config` | Validate ARM configuration |
-| `slurm_cleanup` | Clean up Slurm configuration |
-| `slurm_config_backup` | Backup Slurm configuration |
-| `slurm_config_rollback` | Rollback Slurm configuration |
+| `slurm_cleanup` | Remove Slurm configuration artifacts |
+| `slurm_config_backup` | Back up Slurm configuration files |
+| `slurm_config_rollback` | Restore a Slurm configuration backup |
 
-## Modules
+---
 
-| Module | Purpose |
-|--------|---------|
-| `fetch_credential_rule` | Fetch credential validation rules |
-| `fetch_telemetry_status` | Get enabled telemetry sources |
-| `validate_credentials` | Validate credential inputs |
+## Modules and Plugins
 
-## Configuration
+| Component | Purpose |
+|-----------|---------|
+| `validate_system_environment` | Validate hostname, domain, admin IP, and data path |
+| `fetch_credential_rule` | Read credential validation rules |
+| `validate_credentials` | Validate credential values using shared security rules |
+| `fetch_telemetry_status` | Read enabled telemetry-source status |
+| `security_filters` | Credential and input security filters |
+| `omnia_default` | Domain stdout callback |
 
-Configuration files are located in `/opt/omnia/input/project_default/`:
+---
 
-- `iso_config.yml` — ISO creation and delivery settings
-- `telemetry_config.yml` — Telemetry source configuration
-- `omnia_config.yml` — Main Omnia configuration
-- `arm_config.yml` — ARM-specific settings (optional)
-- `bmc_inventory.csv` — BMC inventory for iDRAC operations
+## Runtime Paths
 
-## Playbooks
+The domain root defaults to `$OMNIA_DATA_PATH/utils`:
 
-### collect.yml
-Collects logs from all cluster nodes for troubleshooting.
-
-```bash
-ansible-playbook playbooks/collect.yml
+```text
+$OMNIA_DATA_PATH/utils/
++-- input/<project>/
+|   +-- collect_pxe.yml
+|   +-- install_os_config.yml
+|   +-- install_os_credentials.yml
+|   +-- backup_oim_logs_config.yml
++-- output/<project>/
+|   +-- collect/
+|   +-- backup_oim_logs/
+|   +-- install_os_status.yml
+|   +-- utils_status.yml
++-- log/<project>/
 ```
 
-### install_os.yml
-Performs bare-metal OS installation on x86_64 nodes.
+`domain-init.sh` installs dependencies with checksum caching, creates runtime
+and Ansible log directories, and stages the flat `input/` templates into the
+active project directory. Use `--force` to overwrite staged inputs,
+`--deps-only` to skip input staging, or `--force-deps` to bypass dependency
+caches.
 
-```bash
-ansible-playbook playbooks/install_os.yml
-```
-
-### install_os_arm_node.yml
-Performs OS installation on ARM64/aarch64 nodes.
-
-```bash
-ansible-playbook playbooks/install_os_arm_node.yml
-```
-
-### slurm_config_util.yml
-Manages Slurm configuration backup and rollback.
-
-```bash
-ansible-playbook playbooks/slurm_config_util.yml
-```
-
-## Domain Integration
-
-This collection integrates with the Omnia orchestration framework via:
-
-- `domain-init.sh` — Initialize domain directories and permissions
-- `copy-input.sh` — Stage input files for playbook execution
-- `ansible.cfg` — Domain-specific Ansible configuration
-- `meta/runtime.yml` — Ansible version requirements and action groups
+---
 
 ## Documentation
 
-- [Design Documentation](docs/design/) — Architecture and design decisions
-- [Code Style Guide](docs/code-style/) — Python and Ansible coding standards
-- [Role Documentation](roles/) — Individual role READMEs
+| Document | Description |
+|----------|-------------|
+| `docs/architecture.md` | Execution flow, tags, role dependencies, and cleanup behavior |
+| `docs/contracts/input-contract.md` | Input files and environment-variable contracts |
+| `docs/contracts/output-contract.md` | Archives, metadata, status files, and runtime paths |
+| `roles/*/README.md` | Individual role documentation |
 
-## Support
-
-For issues, questions, or contributions:
-
-- GitHub Issues: https://github.com/dell/omnia/issues
-- Documentation: https://dell.github.io/omnia
+---
 
 ## License
 
-Apache License 2.0 — See LICENSE file for details
-
-## Author
-
-Dell Technologies Omnia Team
+Apache License, Version 2.0

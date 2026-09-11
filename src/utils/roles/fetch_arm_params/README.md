@@ -1,53 +1,36 @@
 # fetch_arm_params
 
-Fetches ARM-specific parameters for ARM64/aarch64 node provisioning.
+Legacy reusable role that derives aarch64 OS-install facts from a PXE mapping,
+ISO configuration, OIM SSH key, and provisioning password.
 
-## Description
+This role is not imported by the current `playbooks/utils.yml` or
+`playbooks/install_os.yml` flows. Current OS installation obtains equivalent
+values from `install_os_config.yml` through `validate_install_os_config`.
 
-This role retrieves and validates ARM-specific parameters required for ARM64/aarch64 compute node provisioning. It handles architecture-specific configuration, boot parameters, and hardware compatibility checks.
+## Behavior
 
-## Requirements
+- Read `pxe_mapping_file_path` and select the first `os_aarch64` entry.
+- Read the OIM SSH public key.
+- Require `provision_password`.
+- Validate or auto-detect an NFS share.
+- Publish ISO, Kickstart, network, iDRAC, and execution-control facts.
 
-- ARM64/aarch64 target hardware
-- ARM-specific OS images and boot files
-- Network access to ARM repositories
+## Required Caller Variables
 
-## Role Variables
+| Variable | Description |
+|----------|-------------|
+| `pxe_mapping_file_path` | CSV containing `FUNCTIONAL_GROUP_NAME`, `HOSTNAME`, `BMC_IP`, and `ADMIN_IP` fields |
+| `oim_ssh_key_path` | OIM public-key path |
+| `provision_password` | Password used by the legacy installation flow |
+| `iso_config` | Mapping containing ISO, Kickstart, network, and execution settings |
 
-Available variables are listed below, along with default values (see `vars/main.yml`):
-
-```yaml
-# ARM architecture settings
-target_architecture: "aarch64"
-arm_boot_params: {}
-arm_kernel_params: ""
-
-# Hardware compatibility
-validate_arm_hardware: true
-arm_cpu_vendor: ""
-```
+`iso_config.nfs_share_path`, when set, must use `server:/path` syntax. Otherwise
+the role checks whether `OMNIA_DATA_PATH` is itself backed by NFS.
 
 ## Dependencies
 
-None.
-
-## Example Playbook
-
-```yaml
-- hosts: localhost
-  connection: local
-  gather_facts: true
-  roles:
-    - role: fetch_arm_params
-      vars:
-        target_architecture: "aarch64"
-        validate_arm_hardware: true
-```
+None, but callers must provide the variables above and gathered mount facts.
 
 ## License
 
-Apache 2.0
-
-## Author Information
-
-Dell Technologies Omnia Team
+Apache License, Version 2.0
