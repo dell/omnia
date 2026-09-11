@@ -8,16 +8,42 @@
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
 # =============================================================================
 # Orchestrator — Test Configuration
 # =============================================================================
+# Non-sensitive settings for FVT (Functional Verification Testing).
+#
+# Usage:
+#   - Set oim_server_ip to the target server where orchestrator runs.
+#   - Leave oim_server_ip empty to run tests locally on the same machine.
+#   - Configure sync options to push input files and repo_manager output
+#     to the target server before running tests.
+#   - Sensitive credentials (SSH password) go in test_creds.yml
+#     (auto-encrypted with Ansible Vault on first run).
+#   - Domain credentials (provision, Slurm, OpenLDAP, CSI) use a separate
+#     encrypted store created on the execution OIM with
+#     ./setup_env.sh --set-domain-creds.
+# =============================================================================
+
 ---
 
-# Target OIM server IP (leave empty for local execution)
+# =============================================================================
+# TARGET SERVER CONNECTION
+# =============================================================================
+# IP address of the server where orchestrator playbook runs.
+# Leave empty for local mode (running directly on the target server).
+# Set to a remote IP to run all verification commands over SSH.
+#
+# When a remote IP is set, the framework will:
+#   1. Sync the local project code to clone_path on the target (rsync)
+#   2. Sync orchestrator input only when sync_orchestrator_input is true
+#   3. Sync repo_manager output only when sync_repo_manager_output is true
+#   4. Run all verification tests via SSH/Testinfra
+# Domain credentials are never synced by the framework.
 oim_server_ip: ""
 
 # SSH username for remote server (only needed for remote mode).
@@ -26,12 +52,46 @@ oim_ssh_user: root
 # SSH port for remote server (only needed for remote mode).
 oim_ssh_port: 22
 
-# Absolute path on the target where the project code is synced.
-clone_path: "/root/omnia"
+# =============================================================================
+# PROJECT SYNC SETTINGS (remote execution)
+# =============================================================================
+# The local omnia monorepo is synced (rsync) to clone_path on the target.
+# Playbook runs from <clone_path>/src/orchestrator/playbooks/
+#
+# clone_path:   Absolute path on the TARGET SERVER where the project code is
+#               synced.
+#               Only used in remote mode. In local mode, the playbook path is
+#               resolved automatically from the source tree.
+clone_path: "/omnia"
 
-# The dataset name selects the local folder under test/orchestrator/datasets/.
+# =============================================================================
+# DATASET CONFIGURATION
+# =============================================================================
+# Controls where input files are loaded from for test execution.
+#
+# Default (empty):
+#   Leaves the target runtime files unchanged when both sync flags are false.
+#   If input sync is enabled, src/orchestrator/input/ is its source.
+#   If output sync is enabled, its source is
+#   src/orchestrator/samples/repo_manager_output/.
+#
+# Custom dataset:
+#   Set to a folder name under test/orchestrator/datasets/<name>/.
+#   Generate one with:
+#     cd datasets/generator
+#     ./generate_dataset.py my_dataset k8s_only --from-src
+#   Setting dataset selects the local sync source; enable a sync option below
+#   to copy it to the execution target.
+#   Each dataset folder must contain:
+#     input/ (9 input files: orchestrator_config.yml, network_spec.yml, etc.)
+#     repo_manager_output/ (repo_status.yml)
+#     image_build_manager_output/ (build_status.yml)
 dataset: ""
 
+# =============================================================================
+# ORCHESTRATOR-SPECIFIC SETTINGS
+# =============================================================================
+# Project name used by orchestrator playbooks.
 # Only change if the target uses a different project name than the dataset.
 project_name: "project_default"
 
@@ -41,18 +101,34 @@ sync_orchestrator_input: false
 # Sync repo_manager output (repo_status.yml) to target
 sync_repo_manager_output: false
 
+# Sync image_build_manager output (build_status.yml) to target
+sync_image_build_manager_output: false
+
+# Shared path for orchestrator-specific data on the target server.
 # Convention: /opt/omnia/orchestrator
 shared_path: "/opt/omnia/orchestrator"
 
-# Report output path (no spaces allowed)
-report_path: /opt/omnia/reports
-
-# Report file name (no spaces, only letters/numbers/underscores/hyphens)
-report_name: orchestrator_test_report
-
-# Report ID (auto-generated if empty)
-report_id: ""
-
-# Catalog file path for feature detection (optional)
+# Catalog file path for feature detection (optional).
 # Example: /root/omnia/src/build_stream/examples/catalog/catalog_rhel_x86_64_with_slurm_only.json
 catalog_path: ""
+# =============================================================================
+# REPORT CONFIGURATION
+# =============================================================================
+# Directory where test reports (JSON + HTML) are saved.
+# Can be:
+#   - A folder name (relative to the current working directory): reports
+#   - An absolute path: /var/reports/orchestrator
+# No spaces allowed in the path.
+report_path: /opt/omnia/reports
+
+# Base name for report files (without extension).
+# Generates: orchestrator_test_report.json, orchestrator_test_report.html
+# No spaces allowed. Only letters, numbers, underscores, hyphens.
+report_name: orchestrator_test_report
+
+# Custom report ID (optional).
+# When set, reports use this ID instead of a timestamp (YYYYMMDDHHmmSS).
+# This groups multiple scenario runs under the same report entry.
+# Leave empty to auto-generate from timestamp.
+# No spaces allowed. Only letters, numbers, underscores, hyphens.
+report_id: ""

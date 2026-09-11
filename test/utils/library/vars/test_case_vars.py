@@ -22,7 +22,8 @@ test-case identifier and display name.
 ID Format: UTILS_FVT_<PHASE>_<TYPE><SEQ>
 - UTILS: Domain code
 - FVT: Functional Verification Test
-- PHASE: PRECHECK, SETUP, COLLECT, INSTALL_OS, CLEANUP_LOGS, CLEANUP_INSTALL_OS, CLEANUP
+- PHASE: PRECHECK, SETUP, COLLECT, INSTALL_OS, BACKUP_OIM_LOGS, CLEANUP_LOGS,
+  CLEANUP_INSTALL_OS, CLEANUP_BACKUP_OIM_LOGS, CLEANUP
 - TYPE: E (execution/deploy), V (verification)
 - SEQ: Three-digit sequence number
 
@@ -281,6 +282,106 @@ TEST_CASES = {
     "cleanup_all_install_os_cleaned": {
         "id": "UTILS_FVT_CLEANUP_V002",
         "title": "Verify all install_os artifacts cleaned",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # BACKUP_OIM_LOGS SCENARIO - Deploy Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "deploy_backup_oim_logs": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_E000",
+        "title": "Deploy backup_oim_logs.yml (full stack based on OMNIA_DEPLOY_TAG)",
+    },
+    "deploy_backup_oim_logs_setup": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_E001",
+        "title": "Deploy backup_oim_logs.yml (setup stage)",
+    },
+    "deploy_backup_oim_logs_bundle": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_E002",
+        "title": "Deploy backup_oim_logs.yml (bundle stage)",
+    },
+    "deploy_backup_oim_logs_full": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_E003",
+        "title": "Deploy backup_oim_logs.yml (full execution)",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # BACKUP_OIM_LOGS SCENARIO - Verification Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "backup_oim_logs_config_file_valid": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V001",
+        "title": "Verify backup_oim_logs_config.yml has valid YAML structure (when present)",
+    },
+    "backup_oim_logs_config_domains_valid": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V002",
+        "title": "Verify backup_oim_logs_config.yml domains are valid",
+    },
+    "backup_oim_logs_env_vars_loaded": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V003",
+        "title": "Verify OMNIA_DATA_PATH loaded from environment",
+    },
+    "backup_oim_logs_project_name_loaded": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V004",
+        "title": "Verify OMNIA_PROJECT_NAME loaded from environment",
+    },
+    "backup_oim_logs_output_dir_exists": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V005",
+        "title": "Verify OIM log backup output directory exists",
+    },
+    "backup_oim_logs_archive_created": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V006",
+        "title": "Verify OIM log backup archive (tar.gz) was created",
+    },
+    "backup_oim_logs_metadata_exists": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V007",
+        "title": "Verify metadata.json file exists",
+    },
+    "backup_oim_logs_metadata_valid": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V008",
+        "title": "Verify metadata.json has valid structure",
+    },
+    "backup_oim_logs_metadata_sha256": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V009",
+        "title": "Verify metadata.json contains archive SHA256 checksum",
+    },
+    "backup_oim_logs_archive_contents": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V010",
+        "title": "Verify archive contains expected domain log directories",
+    },
+    "backup_oim_logs_config_file_domains": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V011",
+        "title": "Verify domain selection from backup_oim_logs_config.yml is honored",
+    },
+    "backup_oim_logs_env_var_backup_path": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V012",
+        "title": "Verify OMNIA_BACKUP_PATH override is honored",
+    },
+    "backup_oim_logs_cli_backup_path": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V013",
+        "title": "Verify -e backup_path CLI override is honored",
+    },
+    "backup_oim_logs_nfs_export_mounted": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V014",
+        "title": "Verify a raw NFS export backup_path is detected and mounted",
+    },
+    "backup_oim_logs_missing_domain_dir_warns": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V015",
+        "title": "Verify a missing domain log directory is skipped with a warning",
+    },
+    "backup_oim_logs_custom_project_name": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V016",
+        "title": "Verify a custom OMNIA_PROJECT_NAME is honored",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CLEANUP_BACKUP_OIM_LOGS SCENARIO
+    # ══════════════════════════════════════════════════════════════════════════
+    "deploy_cleanup_backup_oim_logs": {
+        "id": "UTILS_FVT_CLEANUP_BACKUP_OIM_LOGS_E001",
+        "title": "Deploy utils.yml (cleanup_backup_oim_logs)",
+    },
+    "cleanup_backup_oim_logs_workspace_removed": {
+        "id": "UTILS_FVT_CLEANUP_BACKUP_OIM_LOGS_V001",
+        "title": "Verify OIM log backup workspace run directories are removed",
     },
 
     # ══════════════════════════════════════════════════════════════════════════

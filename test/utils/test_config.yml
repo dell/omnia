@@ -110,3 +110,11 @@ report_name: "utils_test_report"
 # Leave empty to auto-generate from timestamp.
 # No spaces allowed. Only letters, numbers, underscores, hyphens.
 report_id: ""
+
+# =============================================================================
+# BACKUP_OIM_LOGS — OPTIONAL NFS EXPORT TEST
+# =============================================================================
+# Raw NFS export ("<server>:/<path>") used only by
+# test_backup_oim_logs_nfs_export_mounted. Leave empty to skip that test in
+# environments without a reachable NFS share.
+backup_nfs_export: ""

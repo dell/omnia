@@ -25,3 +25,25 @@
 
 # DCGM enabled for SLURM GPU monitoring
 dcgm_enabled: true
+
+# =============================================================================
+# File Filter Configuration
+# =============================================================================
+# Controls which files are included when using --from-src
+# =============================================================================
+
+# Files to include (relative to src/orchestrator/)
+include_files:
+  input:
+    - additional_cloud_init.yml
+    - high_availability_config.yml
+    - network_spec.yml
+    - omnia_config.yml
+    - orchestrator_config.yml
+    - pxe_mapping_file.csv
+    - security_config.yml
+    - set_pxe_boot_config.yml
+    - storage_config.yml
+  samples:
+    - repo_manager_output
+    - image_build_manager_output
