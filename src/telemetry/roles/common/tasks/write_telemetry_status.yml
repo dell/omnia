@@ -24,7 +24,7 @@
 
 - name: Set output paths
   ansible.builtin.set_fact:
-    _output_base: "{{ output_project_dir | default('/opt/omnia/telemetry/output/' + (project_name | default('project_default'))) }}"
+    _output_base: "{{ output_project_dir | default((telemetry_data_path | default(omnia_data_path | default('/opt/omnia') + '/telemetry')) + '/output/' + (project_name | default(lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true)))) }}"
 
 - name: Ensure output directory exists
   ansible.builtin.file:
@@ -140,7 +140,7 @@
       Review the status summary above and check
       {{ _status_path }}/telemetry_status.yml for details.
   vars:
-    _default_base: "{{ telemetry_data_path | default('/opt/omnia/telemetry') }}"
-    _output_dir: "{{ _default_base + '/output/' + (project_name | default('project_default')) }}"
+    _default_base: "{{ telemetry_data_path | default(omnia_data_path | default('/opt/omnia') + '/telemetry') }}"
+    _output_dir: "{{ _default_base + '/output/' + (project_name | default(lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true))) }}"
     _status_path: "{{ output_project_dir | default(_output_dir) }}"
   when: _deployment_status | trim == 'failed'

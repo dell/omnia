@@ -16,7 +16,7 @@
 # Paths — derived from telemetry_setup role (Step 0, tags: always)
 # input_project_dir, output_project_dir, and telemetry_data_path are set by telemetry_setup.
 # telemetry_config_file and telemetry_storage_config_file are defined in common/vars/main.yml.
-telemetry_output_dir: "{{ output_project_dir | default('/opt/omnia/telemetry/output/project_default') }}"
+telemetry_output_dir: "{{ output_project_dir | default((telemetry_data_path | default(omnia_data_path | default('/opt/omnia') + '/telemetry')) + '/output/' + (project_name | default(lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true)))) }}"
 telemetry_status_file: "{{ telemetry_output_dir }}/telemetry_status.yml"
 
 # Namespace
