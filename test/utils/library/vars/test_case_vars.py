@@ -187,10 +187,6 @@ TEST_CASES = {
         "id": "UTILS_FVT_INSTALL_OS_E004",
         "title": "Deploy install_os.yml (generate_ks tag)",
     },
-    "deploy_install_os_full": {
-        "id": "UTILS_FVT_INSTALL_OS_E005",
-        "title": "Deploy install_os.yml (full execution)",
-    },
 
     # ══════════════════════════════════════════════════════════════════════════
     # INSTALL_OS SCENARIO - Verification Tests
