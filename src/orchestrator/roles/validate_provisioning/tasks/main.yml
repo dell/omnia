@@ -219,7 +219,7 @@
     content: "{{ provisioning_summary | to_nice_yaml }}"
     dest: "{{ orchestrator_output_dir }}/provisioning_report.yml"
     mode: "0644"
-  when: ansible_run_tags | default([]) | intersect(['provision']) | length > 0 or ansible_run_tags | length == 0
+  when: ansible_run_tags | default([]) | intersect(['execute', 'provision']) | length > 0 or ansible_run_tags | length == 0
 
 - name: Initialize per-node provisioning status
   ansible.builtin.set_fact:
@@ -305,4 +305,4 @@
         provisioning_report: provisioning_report.yml
         pxeboot_status: pxeboot_status.yml
         failed_nodes: failed_nodes.json
-  when: ansible_run_tags | default([]) | intersect(['provision']) | length > 0 or ansible_run_tags | length == 0
+  when: ansible_run_tags | default([]) | intersect(['execute', 'provision']) | length > 0 or ansible_run_tags | length == 0

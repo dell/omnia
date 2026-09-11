@@ -22,10 +22,10 @@ Verifies that key orchestrator operations complete within expected timeframes:
   - Cleanup playbook completes within threshold (< 180s / 3 min)
 
 Test cases:
-    NFT_OR_001: Validate performance (< 30s)
-    NFT_OR_002: Prepare performance (< 300s)
-    NFT_OR_003: Provision performance (< 1800s)
-    NFT_OR_004: Cleanup performance (< 180s)
+    ORCH_NFT_001: Validate performance (< 30s)
+    ORCH_NFT_002: Prepare performance (< 300s)
+    ORCH_NFT_003: Provision performance (< 1800s)
+    ORCH_NFT_004: Cleanup performance (< 180s)
 """
 
 import pytest
@@ -44,12 +44,12 @@ CLEANUP_THRESHOLD = 180     # 3 minutes - container/service removal
 @pytest.mark.performance
 @pytest.mark.order(1)
 def test_validate_performance(host):
-    """NFT_OR_001: Verify validate completes within 30s threshold.
+    """ORCH_NFT_001: Verify validate completes within 30s threshold.
 
     Runs ``ansible-playbook orchestrator.yml --tags validate`` and asserts
     that configuration validation completes in under 30 seconds.
     """
-    tl = TestLogger("NFT: Validate performance", "NFT_OR_001")
+    tl = TestLogger("NFT: Validate performance", "ORCH_NFT_001")
 
     tl.check(f"Running validate playbook (threshold: {VALIDATE_THRESHOLD}s)")
     result = run_playbook(
@@ -90,14 +90,15 @@ def test_validate_performance(host):
 
 @pytest.mark.nft
 @pytest.mark.performance
+@pytest.mark.destructive
 @pytest.mark.order(2)
 def test_prepare_performance(host):
-    """NFT_OR_002: Verify prepare completes within 300s (5 min) threshold.
+    """ORCH_NFT_002: Verify prepare completes within 300s (5 min) threshold.
 
     Runs ``ansible-playbook orchestrator.yml --tags prepare`` and asserts
     that OpenCHAMI deployment completes in under 5 minutes.
     """
-    tl = TestLogger("NFT: Prepare performance", "NFT_OR_002")
+    tl = TestLogger("NFT: Prepare performance", "ORCH_NFT_002")
 
     tl.check(f"Running prepare playbook (threshold: {PREPARE_THRESHOLD}s)")
     result = run_playbook(
@@ -138,15 +139,16 @@ def test_prepare_performance(host):
 
 @pytest.mark.nft
 @pytest.mark.performance
+@pytest.mark.destructive
 @pytest.mark.order(3)
 def test_provision_performance(host):
-    """NFT_OR_003: Verify provision completes within 1800s (30 min) threshold.
+    """ORCH_NFT_003: Verify provision completes within 1800s (30 min) threshold.
 
     Runs ``ansible-playbook orchestrator.yml --tags provision`` and asserts
     that full node provisioning completes in under 30 minutes.
     Note: This test requires a fully configured environment with provisioned nodes.
     """
-    tl = TestLogger("NFT: Provision performance", "NFT_OR_003")
+    tl = TestLogger("NFT: Provision performance", "ORCH_NFT_003")
 
     config = load_test_config()
     # Skip if provision is not enabled in config
@@ -193,14 +195,15 @@ def test_provision_performance(host):
 
 @pytest.mark.nft
 @pytest.mark.performance
+@pytest.mark.destructive
 @pytest.mark.order(4)
 def test_cleanup_performance(host):
-    """NFT_OR_004: Verify cleanup completes within 180s (3 min) threshold.
+    """ORCH_NFT_004: Verify cleanup completes within 180s (3 min) threshold.
 
     Runs ``ansible-playbook orchestrator.yml --tags cleanup`` and asserts
     that container/service cleanup completes in under 3 minutes.
     """
-    tl = TestLogger("NFT: Cleanup performance", "NFT_OR_004")
+    tl = TestLogger("NFT: Cleanup performance", "ORCH_NFT_004")
 
     tl.check(f"Running cleanup playbook (threshold: {CLEANUP_THRESHOLD}s)")
     result = run_playbook(

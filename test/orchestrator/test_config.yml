@@ -79,7 +79,7 @@ clone_path: "/omnia"
 #   Set to a folder name under test/orchestrator/datasets/<name>/.
 #   Generate one with:
 #     cd datasets/generator
-#     ./generate_dataset.py my_dataset k8s_only --from-src
+#     ./generate_dataset.py my_dataset slurm_only
 #   Setting dataset selects the local sync source; enable a sync option below
 #   to copy it to the execution target.
 #   Each dataset folder must contain:

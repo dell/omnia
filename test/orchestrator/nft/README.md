@@ -18,10 +18,10 @@ Non-Functional Tests validate **performance**, **idempotency**, and **security**
 
 | TC ID | Test | Threshold | Marker |
 |-------|------|-----------|--------|
-| NFT_OR_001 | Validate performance | < 30s | nft, performance |
-| NFT_OR_002 | Prepare performance | < 300s (5 min) | nft, performance |
-| NFT_OR_003 | Provision performance | < 1800s (30 min) | nft, performance |
-| NFT_OR_004 | Cleanup performance | < 180s (3 min) | nft, performance |
+| ORCH_NFT_001 | Validate performance | < 30s | nft, performance |
+| ORCH_NFT_002 | Prepare performance | < 300s (5 min) | nft, performance |
+| ORCH_NFT_003 | Provision performance | < 1800s (30 min) | nft, performance |
+| ORCH_NFT_004 | Cleanup performance | < 180s (3 min) | nft, performance |
 
 **Performance thresholds** ensure that orchestrator operations complete in reasonable timeframes:
 - **Validate**: Configuration validation should be fast (< 30 seconds)
@@ -33,9 +33,9 @@ Non-Functional Tests validate **performance**, **idempotency**, and **security**
 
 | TC ID | Test | Marker |
 |-------|------|--------|
-| NFT_OR_005 | Prepare idempotency (OpenCHAMI containers stable) | nft, idempotency |
-| NFT_OR_006 | Validate idempotency (config validation safe to re-run) | nft, idempotency |
-| NFT_OR_007 | Cleanup idempotency (safe to cleanup twice) | nft, idempotency |
+| ORCH_NFT_005 | Prepare idempotency (OpenCHAMI containers stable) | nft, idempotency |
+| ORCH_NFT_006 | Validate idempotency (config validation safe to re-run) | nft, idempotency |
+| ORCH_NFT_007 | Cleanup idempotency (safe to cleanup twice) | nft, idempotency |
 
 **Idempotency tests** verify that playbooks can be run multiple times without errors:
 - **Prepare idempotency**: Running prepare twice should succeed and keep OpenCHAMI containers stable
@@ -46,10 +46,10 @@ Non-Functional Tests validate **performance**, **idempotency**, and **security**
 
 | TC ID | Test | Marker |
 |-------|------|--------|
-| NFT_OR_008 | Credential file permissions (0640 or stricter) | nft, security |
-| NFT_OR_009 | SSH key permissions (0600) | nft, security |
-| NFT_OR_010 | Sensitive log file permissions | nft, security |
-| NFT_OR_011 | Ansible vault encryption verification | nft, security |
+| ORCH_NFT_008 | Credential file permissions (0640 or stricter) | nft, security |
+| ORCH_NFT_009 | SSH key permissions (0600) | nft, security |
+| ORCH_NFT_010 | Sensitive log file permissions | nft, security |
+| ORCH_NFT_011 | Ansible vault encryption verification | nft, security |
 
 **Security tests** verify that sensitive files have proper access controls:
 - **Credential permissions**: Ensure credential files are not world-readable
@@ -84,19 +84,19 @@ Non-Functional Tests validate **performance**, **idempotency**, and **security**
 ### Performance Test Flow
 
 ```
-1. NFT_OR_001: Run validate playbook, measure duration
+1. ORCH_NFT_001: Run validate playbook, measure duration
    ├─ Assert: rc=0 (playbook succeeded)
    └─ Assert: duration < 30s
 
-2. NFT_OR_002: Run prepare playbook, measure duration
+2. ORCH_NFT_002: Run prepare playbook, measure duration
    ├─ Assert: rc=0 (playbook succeeded)
    └─ Assert: duration < 300s
 
-3. NFT_OR_003: Run provision playbook, measure duration
+3. ORCH_NFT_003: Run provision playbook, measure duration
    ├─ Assert: rc=0 (playbook succeeded)
    └─ Assert: duration < 1800s
 
-4. NFT_OR_004: Run cleanup playbook, measure duration
+4. ORCH_NFT_004: Run cleanup playbook, measure duration
    ├─ Assert: rc=0 (playbook succeeded)
    └─ Assert: duration < 180s
 ```
@@ -104,17 +104,17 @@ Non-Functional Tests validate **performance**, **idempotency**, and **security**
 ### Idempotency Test Flow
 
 ```
-1. NFT_OR_005: Prepare idempotency
+1. ORCH_NFT_005: Prepare idempotency
    ├─ Run 1: Prepare playbook (initial deployment)
    ├─ Run 2: Prepare playbook (idempotent re-run)
    └─ Assert: Both runs exit 0, containers stable
 
-2. NFT_OR_006: Validate idempotency
+2. ORCH_NFT_006: Validate idempotency
    ├─ Run 1: Validate playbook (initial validation)
    ├─ Run 2: Validate playbook (idempotent re-run)
    └─ Assert: Both runs exit 0
 
-3. NFT_OR_007: Cleanup idempotency
+3. ORCH_NFT_007: Cleanup idempotency
    ├─ Run 1: Cleanup playbook (initial cleanup)
    ├─ Run 2: Cleanup playbook (idempotent re-run)
    └─ Assert: Both runs exit 0, resources remain cleaned
@@ -123,16 +123,16 @@ Non-Functional Tests validate **performance**, **idempotency**, and **security**
 ### Security Test Flow
 
 ```
-1. NFT_OR_008: Credential file permissions
-   └─ Assert: orchestrator_credentials.yml has 0640 or stricter
+1. ORCH_NFT_008: Credential file permissions
+   └─ Assert: omnia_config_credentials.yml has 0640 or stricter
 
-2. NFT_OR_009: SSH key permissions
+2. ORCH_NFT_009: SSH key permissions
    └─ Assert: SSH private keys have 0600 permissions
 
-3. NFT_OR_010: Sensitive log file permissions
+3. ORCH_NFT_010: Sensitive log file permissions
    └─ Assert: Log files are not world-readable
 
-4. NFT_OR_011: Vault encryption verification
+4. ORCH_NFT_011: Vault encryption verification
    └─ Assert: Vault header present, key file has 0600
 ```
 
@@ -161,17 +161,17 @@ Non-Functional Tests validate **performance**, **idempotency**, and **security**
 All NFT tests should **PASS** on a healthy orchestrator deployment:
 
 ```
-NFT_OR_001: ✔ PASS  (validate: 12.3s < 30s)
-NFT_OR_002: ✔ PASS  (prepare: 245.7s < 300s)
-NFT_OR_003: ✔ PASS  (provision: 1542.1s < 1800s)
-NFT_OR_004: ✔ PASS  (cleanup: 125.4s < 180s)
-NFT_OR_005: ✔ PASS  (prepare idempotent: run1=245.7s, run2=3.2s)
-NFT_OR_006: ✔ PASS  (validate idempotent: run1=12.3s, run2=11.8s)
-NFT_OR_007: ✔ PASS  (cleanup idempotent: run1=125.4s, run2=2.1s)
-NFT_OR_008: ✔ PASS  (credential file permissions: 0640)
-NFT_OR_009: ✔ PASS  (SSH key permissions: 0600)
-NFT_OR_010: ✔ PASS  (log file permissions: no world-readable)
-NFT_OR_011: ✔ PASS  (vault encryption: header present, key 0600)
+ORCH_NFT_001: ✔ PASS  (validate: 12.3s < 30s)
+ORCH_NFT_002: ✔ PASS  (prepare: 245.7s < 300s)
+ORCH_NFT_003: ✔ PASS  (provision: 1542.1s < 1800s)
+ORCH_NFT_004: ✔ PASS  (cleanup: 125.4s < 180s)
+ORCH_NFT_005: ✔ PASS  (prepare idempotent: run1=245.7s, run2=3.2s)
+ORCH_NFT_006: ✔ PASS  (validate idempotent: run1=12.3s, run2=11.8s)
+ORCH_NFT_007: ✔ PASS  (cleanup idempotent: run1=125.4s, run2=2.1s)
+ORCH_NFT_008: ✔ PASS  (credential file permissions: 0640)
+ORCH_NFT_009: ✔ PASS  (SSH key permissions: 0600)
+ORCH_NFT_010: ✔ PASS  (log file permissions: no world-readable)
+ORCH_NFT_011: ✔ PASS  (vault encryption: header present, key 0600)
 ```
 
 ## Troubleshooting
