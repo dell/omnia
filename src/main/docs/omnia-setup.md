@@ -46,10 +46,12 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 10. **Displays summary** — Shows venv path, Python version, installed Ansible and collections
 
 After copying the default combined Slurm + service_k8s catalog, setup displays
-the active `CATALOG_FILE_PATH` and commands for either replacing the catalog at
-that path or copying a different catalog and updating the path. For example,
-the service_k8s-only sample is
-`samples/catalogs/10.0/service_k8s_x86_64.json`.
+the active `CATALOG_FILE_PATH`, the location and dimensions of every shipped
+catalog variant, and commands for either replacing the active catalog or
+keeping a separate filename. For a small x86_64 Slurm-only test without VAST,
+use `samples/catalogs/10.0/slurm_x86_64_no_vast.json` or the matching `10.2`
+variant for the RHEL version being built. Replacing the file at the active
+`CATALOG_FILE_PATH` does not require an environment-file change.
 
 Use `--deps-only` to skip input file staging in step 7 (e.g., in CI or if you manage input files externally). Dependencies are still installed.
 
