@@ -32,6 +32,7 @@ GitLab-provided variables used automatically:
 import glob
 import json
 import os
+import re
 import smtplib
 import time
 import traceback
@@ -100,36 +101,78 @@ if os.path.exists(TEST_REPORTS_PATH):
     
     if json_files:
         print(f"Found {len(json_files)} JSON test report(s)")
-        # Extract summary from the first JSON report
+        # Aggregate summary across all JSON reports with per-domain breakdown
         try:
-            with open(json_files[0], "r", encoding="utf-8") as f:
-                report_data = json.load(f)
-            
+            domain_order = ["main", "repo_manager", "image_build_manager", "orchestrator", "telemetry"]
+            domain_summaries = {}
             total_passed = 0
             total_failed = 0
             total_skipped = 0
             
-            for server_data in report_data.get("servers", {}).values():
-                for run in server_data.get("runs", []):
-                    summary = run.get("summary", {})
-                    total_passed += summary.get("passed", 0)
-                    total_failed += summary.get("failed", 0)
-                    total_skipped += summary.get("skipped", 0)
+            for json_file in json_files:
+                with open(json_file, "r", encoding="utf-8") as f:
+                    report_data = json.load(f)
+
+                # Extract domain from filename
+                filename = os.path.basename(json_file)
+                domain = None
+                for d in domain_order:
+                    if f"_{d}_report" in filename:
+                        domain = d
+                        break
+                if not domain:
+                    domain = "unknown"
+
+                passed = 0
+                failed = 0
+                skipped = 0
+
+                for server_data in report_data.get("servers", {}).values():
+                    for run in server_data.get("runs", []):
+                        summary = run.get("summary", {})
+                        passed += summary.get("passed", 0)
+                        failed += summary.get("failed", 0)
+                        skipped += summary.get("skipped", 0)
+
+                if domain not in domain_summaries:
+                    domain_summaries[domain] = {"passed": 0, "failed": 0, "skipped": 0}
+                domain_summaries[domain]["passed"] += passed
+                domain_summaries[domain]["failed"] += failed
+                domain_summaries[domain]["skipped"] += skipped
+
+                total_passed += passed
+                total_failed += failed
+                total_skipped += skipped
             
+            # Build per-domain table
+            domain_rows = ""
+            for domain in domain_order:
+                if domain in domain_summaries:
+                    ds = domain_summaries[domain]
+                    bg = "#f8f9fa" if domain_order.index(domain) % 2 == 0 else "#ffffff"
+                    domain_rows += f"""\
+        <tr style="background-color: {bg};">
+            <td style="border: 1px solid #ddd; padding: 8px;">{domain}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: green;">{ds['passed']}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: red;">{ds['failed']}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: orange;">{ds['skipped']}</td>
+        </tr>"""
+
             test_reports_summary = f"""
     <h3>Test Execution Summary</h3>
     <table style="border-collapse: collapse; margin: 10px 0;">
-        <tr style="background-color: #f0f0f0;">
-            <td style="border: 1px solid #ddd; padding: 8px;"><strong>Passed</strong></td>
-            <td style="border: 1px solid #ddd; padding: 8px; color: green;"><strong>{total_passed}</strong></td>
+        <tr style="background-color: #343a40; color: white;">
+            <th style="border: 1px solid #dee2e6; padding: 8px 12px; text-align: left;">Domain</th>
+            <th style="border: 1px solid #dee2e6; padding: 8px 12px; text-align: center;">Passed</th>
+            <th style="border: 1px solid #dee2e6; padding: 8px 12px; text-align: center;">Failed</th>
+            <th style="border: 1px solid #dee2e6; padding: 8px 12px; text-align: center;">Skipped</th>
         </tr>
-        <tr>
-            <td style="border: 1px solid #ddd; padding: 8px;"><strong>Failed</strong></td>
-            <td style="border: 1px solid #ddd; padding: 8px; color: red;"><strong>{total_failed}</strong></td>
-        </tr>
-        <tr style="background-color: #f0f0f0;">
-            <td style="border: 1px solid #ddd; padding: 8px;"><strong>Skipped</strong></td>
-            <td style="border: 1px solid #ddd; padding: 8px; color: orange;"><strong>{total_skipped}</strong></td>
+{domain_rows}
+        <tr style="background-color: #e9ecef; font-weight: bold;">
+            <td style="border: 1px solid #ddd; padding: 8px;">Total</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: green;">{total_passed}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: red;">{total_failed}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: orange;">{total_skipped}</td>
         </tr>
     </table>
     <p><em>Detailed test reports are attached to this email.</em></p>
@@ -212,7 +255,7 @@ def pick_stage_order(mode, selected_domains, include_tests, job_statuses):
         "repo_manager", "image_build_manager", "orchestrator", "telemetry",
     }
     selected = domain_names if selected_domains == "default" else {
-        value.strip() for value in selected_domains.split(",") if value.strip()
+        value.strip() for value in re.split(r"[,|]", selected_domains) if value.strip()
     }
     applicable = []
     for stage in order:

@@ -334,3 +334,256 @@ def check_clone_status(host) -> Dict[str, Any]:
         "details": f"Checked: {clone_path}",
         "error": f"Repository not found at {clone_path}",
     }
+
+
+def check_output_dir_removed(host) -> Dict[str, Any]:
+    """Verify discovery output directory is empty after cleanup.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success (bool), details (str), error (str).
+    """
+    output_path = _get_output_path()
+    cmd = CMDS["dir_exists"].format(path=output_path)
+    result = run_on_host(host, cmd)
+    
+    # Directory should not exist or should be empty
+    if result.rc != 0 or "exists" not in result.stdout:
+        return {
+            "success": True,
+            "details": f"Output directory removed: {output_path}",
+            "error": "",
+        }
+    
+    # If directory exists, check if it's empty
+    cmd = CMDS["ls_files"].format(path=output_path)
+    result = run_on_host(host, cmd)
+    files = [f for f in result.stdout.strip().split("\n") if f.strip()]
+    
+    if not files:
+        return {
+            "success": True,
+            "details": f"Output directory exists but is empty: {output_path}",
+            "error": "",
+        }
+    
+    return {
+        "success": False,
+        "details": f"Found {len(files)} remaining files/directories",
+        "error": f"Output directory not empty: {output_path}",
+    }
+
+
+def check_credentials_removed(host) -> Dict[str, Any]:
+    """Verify discovery credentials file is removed after cleanup.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success (bool), details (str), error (str).
+    """
+    input_path = _get_input_path()
+    cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
+    cmd = CMDS["file_exists"].format(path=cred_path)
+    result = run_on_host(host, cmd)
+    
+    # Credentials file should not exist after cleanup
+    if result.rc != 0 or "exists" not in result.stdout:
+        return {
+            "success": True,
+            "details": f"Credentials file removed: {cred_path}",
+            "error": "",
+        }
+    
+    return {
+        "success": False,
+        "details": f"Credentials file still exists: {cred_path}",
+        "error": "Credentials file not removed during cleanup",
+    }
+
+
+def check_pxe_mapping_files_removed(host) -> Dict[str, Any]:
+    """Verify PXE mapping CSV files are removed after cleanup.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success (bool), details (str), error (str).
+    """
+    output_path = _get_output_path()
+    cmd = CMDS["find_csv"].format(
+        path=output_path, pattern=PXE_MAPPING_PATTERN
+    )
+    result = run_on_host(host, cmd)
+    files = [f for f in result.stdout.strip().split("\n") if f.strip()]
+    
+    if not files:
+        return {
+            "success": True,
+            "details": f"No PXE mapping files found (cleanup successful)",
+            "error": "",
+        }
+    
+    return {
+        "success": False,
+        "details": f"Found {len(files)} remaining PXE mapping file(s)",
+        "error": "PXE mapping files not removed during cleanup",
+    }
+
+
+def check_discovery_report_files_removed(host) -> Dict[str, Any]:
+    """Verify discovery report CSV files are removed after cleanup.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success (bool), details (str), error (str).
+    """
+    output_path = _get_output_path()
+    cmd = CMDS["find_csv"].format(
+        path=output_path, pattern=DISCOVERY_REPORT_PATTERN
+    )
+    result = run_on_host(host, cmd)
+    files = [f for f in result.stdout.strip().split("\n") if f.strip()]
+    
+    if not files:
+        return {
+            "success": True,
+            "details": f"No discovery report files found (cleanup successful)",
+            "error": "",
+        }
+    
+    return {
+        "success": False,
+        "details": f"Found {len(files)} remaining discovery report file(s)",
+        "error": "Discovery report files not removed during cleanup",
+    }
+
+
+def check_status_files_removed(host) -> Dict[str, Any]:
+    """Verify discovery status files are removed after cleanup.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success (bool), details (str), error (str).
+    """
+    output_path = _get_output_path()
+    cmd = CMDS["find_csv"].format(
+        path=output_path, pattern="discovery_status.yml"
+    )
+    result = run_on_host(host, cmd)
+    files = [f for f in result.stdout.strip().split("\n") if f.strip()]
+    
+    if not files:
+        return {
+            "success": True,
+            "details": f"No discovery status files found (cleanup successful)",
+            "error": "",
+        }
+    
+    return {
+        "success": False,
+        "details": f"Found {len(files)} remaining discovery status file(s)",
+        "error": "Discovery status files not removed during cleanup",
+    }
+
+
+def check_credentials_preserved(host) -> Dict[str, Any]:
+    """Verify discovery credentials file is preserved when cleanup_credentials=false.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success (bool), details (str), error (str).
+    """
+    input_path = _get_input_path()
+    cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
+    cmd = CMDS["file_exists"].format(path=cred_path)
+    result = run_on_host(host, cmd)
+    
+    # Credentials file should exist when preserved
+    if result.rc == 0 and "exists" in result.stdout:
+        return {
+            "success": True,
+            "details": f"Credentials file preserved: {cred_path}",
+            "error": "",
+        }
+    
+    return {
+        "success": False,
+        "details": f"Credentials file not found: {cred_path}",
+        "error": "Credentials file was removed when it should have been preserved",
+    }
+
+
+def check_log_files_removed(host) -> Dict[str, Any]:
+    """Verify discovery log files are removed after cleanup.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success (bool), details (str), error (str).
+    """
+    config = load_test_config()
+    project = config.get("project_name", "project_default")
+    log_dir = f"/var/log/omnia/discovery"
+    
+    # Check for log files
+    cmd = f"find {log_dir} -name '*.log' -type f 2>/dev/null"
+    result = run_on_host(host, cmd)
+    files = [f for f in result.stdout.strip().split("\n") if f.strip()]
+    
+    if not files:
+        return {
+            "success": True,
+            "details": f"No log files found in {log_dir} (cleanup successful)",
+            "error": "",
+        }
+    
+    return {
+        "success": False,
+        "details": f"Found {len(files)} remaining log file(s) in {log_dir}",
+        "error": "Log files not removed during cleanup",
+    }
+
+
+def check_log_files_preserved(host) -> Dict[str, Any]:
+    """Verify discovery log files are preserved when cleanup_logs=false.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success (bool), details (str), error (str).
+    """
+    config = load_test_config()
+    project = config.get("project_name", "project_default")
+    log_dir = f"/var/log/omnia/discovery"
+    
+    # Check for log files
+    cmd = f"find {log_dir} -name '*.log' -type f 2>/dev/null"
+    result = run_on_host(host, cmd)
+    files = [f for f in result.stdout.strip().split("\n") if f.strip()]
+    
+    # Log files should exist when preserved
+    if files:
+        return {
+            "success": True,
+            "details": f"Log files preserved: {len(files)} file(s) in {log_dir}",
+            "error": "",
+        }
+    
+    return {
+        "success": False,
+        "details": f"No log files found in {log_dir}",
+        "error": "Log files were removed when they should have been preserved",
+    }

@@ -29,7 +29,8 @@ first by lifecycle phase, then by suite, and finally by
 ## Effective execution order
 
 An untagged `verify` run excludes deploy and cleanup tests and executes the
-verification suites in this order:
+verification suites in this order. Cleanup verification must be run explicitly
+using the cleanup tag:
 
 | Phase | Suite order |
 |-------|-------------|
@@ -38,6 +39,7 @@ verification suites in this order:
 | credentials | (root) |
 | execute | `output` |
 | discovery | `output` |
+| cleanup | `status` |
 
 ## Precheck test cases
 
@@ -100,6 +102,10 @@ These cases verify the cleanup of discovery artifacts and resources.
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
 | 0 | DISCOVERY_FVT_CLEANUP_E001 | `test_deploy_cleanup` | deploy, sanity | Runs `discovery.yml --tags cleanup`. | Cleanup playbook exits successfully. |
+| 1 | DISCOVERY_FVT_CLEANUP_V001 | `test_output_dir_removed` | sanity | Checks the discovery output directory after cleanup. | Output directory is removed or empty. |
+| 2 | DISCOVERY_FVT_CLEANUP_V002 | `test_credentials_removed` | sanity | Verifies credentials file removal after cleanup. | Credentials file is removed from input directory. |
+| 3 | DISCOVERY_FVT_CLEANUP_V003 | `test_pxe_mapping_files_removed` | functional | Verifies PXE mapping CSV files removal after cleanup. | No PXE mapping files remain in output directory. |
+| 4 | DISCOVERY_FVT_CLEANUP_V004 | `test_discovery_report_files_removed` | functional | Verifies discovery report CSV files removal after cleanup. | No discovery report files remain in output directory. |
 
 ## Registry summary
 
@@ -110,8 +116,8 @@ These cases verify the cleanup of discovery artifacts and resources.
 | Credentials | `DISCOVERY_FVT_CREDENTIALS_E001` | — | 1 | Credential setup. |
 | Execute | `DISCOVERY_FVT_EXECUTE_E001` | `DISCOVERY_FVT_EXECUTE_V001`–`006` | 7 | OME discovery execution and output verification. |
 | Discovery (Full) | `DISCOVERY_FVT_DISCOVERY_E001` | — | 1 | Complete discovery workflow. |
-| Cleanup | `DISCOVERY_FVT_CLEANUP_E001` | — | 1 | Artifact cleanup. |
-| **Total** | | | **15** | All FVT test cases. |
+| Cleanup | `DISCOVERY_FVT_CLEANUP_E001` | `DISCOVERY_FVT_CLEANUP_V001`–`004` | 5 | Artifact cleanup. |
+| **Total** | | | **19** | All FVT test cases. |
 
 ## Running the tests
 
@@ -132,6 +138,12 @@ These cases verify the cleanup of discovery artifacts and resources.
 
 # Run cleanup tests
 ./run_validation.sh discovery cleanup test
+
+# Run cleanup verification only
+./run_validation.sh discovery cleanup verify
+
+# Run cleanup verification with specific suite
+./run_validation.sh discovery cleanup verify --suite status
 ```
 
 ### Run verification only (no deploy)
@@ -142,6 +154,12 @@ These cases verify the cleanup of discovery artifacts and resources.
 
 # Verify specific suite
 ./run_validation.sh discovery execute verify --suite output
+
+# Verify cleanup outputs only
+./run_validation.sh discovery cleanup verify
+
+# Verify cleanup specific suite
+./run_validation.sh discovery cleanup verify --suite status
 ```
 
 ### Run with specific markers

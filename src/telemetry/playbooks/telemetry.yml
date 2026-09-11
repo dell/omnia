@@ -28,7 +28,7 @@
 #   prepare     — Input validation + collect credentials (alias: validate)
 #   credentials — Collect telemetry credentials only (opt-in only)
 #   execute     — Deploy all enabled telemetry (alias: deploy)
-#   cleanup     — Cleanup all telemetry components
+#   cleanup     — Cleanup all telemetry components and stored credentials
 #   upgrade     — Upgrade telemetry components (placeholder)
 #   rollback    — Rollback telemetry components (placeholder)
 #
@@ -120,6 +120,9 @@
     - cleanup_powerscale
     - cleanup_ufm
     - cleanup_vast
+    - cleanup_kafka
+    - cleanup_victoria_metrics
+    - cleanup_victoria_logs
 
 
 # =========================================================================

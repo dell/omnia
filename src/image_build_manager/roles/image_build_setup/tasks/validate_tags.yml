@@ -18,10 +18,12 @@
 - name: Get provided tags (excluding 'always' and 'all')
   ansible.builtin.set_fact:
     provided_tags: "{{ ansible_run_tags | difference(['always', 'all']) }}"
+    effective_supported_tags: >-
+      {{ (supported_tags + (additional_supported_tags | default([]))) | unique }}
 
 - name: Identify invalid tags
   ansible.builtin.set_fact:
-    invalid_tags: "{{ provided_tags | difference(supported_tags) }}"
+    invalid_tags: "{{ provided_tags | difference(effective_supported_tags) }}"
   when: provided_tags | length > 0
 
 - name: Fail if invalid tags are provided

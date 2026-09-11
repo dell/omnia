@@ -283,11 +283,11 @@ def load_pipeline_config(config_path):
     # -- Global OpenBao / Vault configuration
     vault_cfg = global_cfg.get("vault", {}) or {}
     if vault_cfg.get("server_url"):
-        variables["VAULT_SERVER_URL"] = vault_cfg["server_url"]
+        variables["BAO_SERVER_URL"] = vault_cfg["server_url"]
     if vault_cfg.get("auth_role"):
-        variables["VAULT_AUTH_ROLE"] = vault_cfg["auth_role"]
+        variables["BAO_AUTH_ROLE"] = vault_cfg["auth_role"]
     if vault_cfg.get("secret_path"):
-        variables["VAULT_SECRET_PATH"] = vault_cfg["secret_path"]
+        variables["BAO_DATA_PATH"] = vault_cfg["secret_path"]
 
     # -- Global email configuration
     email_cfg = global_cfg.get("email", {}) or {}
@@ -1015,9 +1015,9 @@ def cmd_create(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
-            ("VAULT_SERVER_URL", ""),
-            ("VAULT_AUTH_ROLE", ""),
-            ("VAULT_SECRET_PATH", ""),
+            ("BAO_SERVER_URL", ""),
+            ("BAO_AUTH_ROLE", ""),
+            ("BAO_DATA_PATH", ""),
         ]
         for key, default_val in global_keys:
             if key not in config_vars:
@@ -1054,9 +1054,9 @@ def cmd_create(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
-            ("VAULT_SERVER_URL", ""),
-            ("VAULT_AUTH_ROLE", ""),
-            ("VAULT_SECRET_PATH", ""),
+            ("BAO_SERVER_URL", ""),
+            ("BAO_AUTH_ROLE", ""),
+            ("BAO_DATA_PATH", ""),
         ]
         for key, default_val in global_keys:
             status = client.set_variable(project_id, key, default_val)
@@ -1109,8 +1109,8 @@ def cmd_create(args, client):
     if not config_vars:
         print(f"  1. Update cluster passwords in GitLab UI: Settings > CI/CD > Variables")
         print(f"     Variables: {', '.join(c.upper() + '_TARGET_PASS' for c in cluster_names)}")
-        print(f"  2. Set VAULT_SERVER_URL in GitLab CI/CD variables (required for domain credentials)")
-        print(f"     Domain credentials are fetched from OpenBao at VAULT_SECRET_PATH/<domain>")
+        print(f"  2. Set BAO_SERVER_URL in GitLab CI/CD variables (required for domain credentials)")
+        print(f"     Domain credentials are fetched from OpenBao at BAO_DATA_PATH/<domain>")
     print(f"  {'3' if not config_vars else '1'}. Edit cluster-specific input files in the GitLab repo (clusters/<name>/inputs/)")
     print(f"  {'4' if not config_vars else '2'}. Trigger pipeline: CI/CD > Pipelines > Run pipeline")
     return True
@@ -1219,9 +1219,9 @@ def cmd_update(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
-            ("VAULT_SERVER_URL", ""),
-            ("VAULT_AUTH_ROLE", ""),
-            ("VAULT_SECRET_PATH", ""),
+            ("BAO_SERVER_URL", ""),
+            ("BAO_AUTH_ROLE", ""),
+            ("BAO_DATA_PATH", ""),
         ]
         for key, default_val in global_keys:
             status = client.set_variable(project_id, key, default_val)

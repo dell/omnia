@@ -67,6 +67,7 @@
     path: "{{ output_project_dir }}"
     state: directory
     mode: "0755"
+  when: not (build_stream_cleanup_context | default(false) | bool)
 
 # =====================================================================
 # Step 3: Create oim inventory group (local connection)

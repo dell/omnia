@@ -55,6 +55,11 @@ catalogs/
 | Heterogeneous cluster (x86_64 mgmt + aarch64 compute) | `slurm_x86_64_aarch64.json` | `slurm_x86_64_aarch64_no_vast.json` |
 | Heterogeneous cluster with service_k8s | `slurm_service_k8s_combined.json` | `slurm_service_k8s_combined_no_vast.json` |
 
+For a small x86_64 Slurm-only test, start with
+`slurm_x86_64_no_vast.json` from the directory matching the target RHEL
+version. It avoids service_k8s, aarch64, and VAST content. Use a different row
+from the table only when the deployment requires those capabilities.
+
 ### Functional Layers by Catalog Type
 
 **Slurm-only catalogs** include:
