@@ -26,7 +26,7 @@ from library.functions import TestLogger, run_playbook
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
-def test_deploy_orchestrator_pxeboot(host):
+def test_deploy_pxeboot(host):
     """Deploy orchestrator.yml --tags pxeboot."""
     tl = TestLogger(
         "Deploy Playbook (pxeboot)",
