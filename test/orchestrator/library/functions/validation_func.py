@@ -40,7 +40,8 @@ def validate_test_config() -> Dict[str, Any]:
 
     # A dataset is needed only when test input/output is being synced. Verify
     # mode validates the inputs already deployed under the project directory.
-    required_fields = ["clone_path", "project_name"]
+    # project_name is read from OMNIA_PROJECT_NAME env var, not from config
+    required_fields = ["clone_path"]
     if config.get("sync_orchestrator_input") or config.get("sync_repo_manager_output"):
         required_fields.append("dataset")
 

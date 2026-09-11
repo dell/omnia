@@ -64,6 +64,14 @@ from .validation_func import (
     ConfigValidationError,
 )
 
+# --- Kernel override verification ---
+from .kernel_override_func import (
+    get_kernel_version_override,
+    validate_kernel_version_override_format,
+    verify_all_nodes_kernel_version,
+    verify_kernel_consistency,
+)
+
 # --- Slurm verification ---
 from .slurm_func import (
     # Basic SLURM functions (for old tests)

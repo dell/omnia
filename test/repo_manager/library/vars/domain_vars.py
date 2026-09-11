@@ -79,24 +79,6 @@ SUITES: Dict[str, List[str]] = {
     "user_registry": [],
 }
 
-# Ordered deploy stages used by an untagged ``test`` or ``exec`` command.
-ALL_EXEC_TAGS: List[str] = [
-    "precheck",
-    "prepare",
-    "execute",
-    "status",
-]
-ALL_EXEC_MARKER: str = "sanity"
-ALL_VERIFY_EXCLUDE_MARKERS: List[str] = ["negative", "destructive"]
-
-# Catalog is an umbrella for distinct public operations. Lifecycle execution
-# must select exactly one operation; negative catalog checks are verify-only.
-REQUIRED_SUITE_TAGS: List[str] = ["catalog"]
-VERIFY_ONLY_TAGS: List[str] = ["policy", "negative"]
-VERIFY_ONLY_SUITES: Dict[str, List[str]] = {
-    "catalog": ["negative"],
-}
-
 # =====================================================================
 # Tags excluded from "all" verify (run only when explicit)
 # =====================================================================
@@ -104,6 +86,4 @@ VERIFY_ONLY_SUITES: Dict[str, List[str]] = {
 EXCLUDE_TAGS: List[str] = [
     "cleanup",
     "cleanup_repos",
-    "negative",
-    "catalog",
 ]

@@ -186,10 +186,12 @@ def test_report():
     oim_ip = config.get("oim_server_ip", "")
     if not oim_ip:
         oim_ip = "localhost"
-    report_name = build_report_name(
-        domain_name="repo_manager",
-        base_name="repo_manager_fvt",
-    )
+    report_name = config.get("report_name", None)
+    if not report_name:
+        report_name = build_report_name(
+            domain_name="repo_manager",
+            base_name="repo_manager_fvt",
+        )
     report = TestReport(
         module_name="repo_manager",
         report_path=report_path,
