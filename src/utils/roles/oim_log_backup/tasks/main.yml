@@ -12,15 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# =============================================================================
-# Discovery — Test Credentials
-# =============================================================================
-# This file is auto-encrypted with Ansible Vault on first test run.
-# Fill in values below, then run tests — the file will be encrypted in-place.
-#
-# oim_password: SSH password for the remote target server (oim_server_ip).
-#               Leave empty if using passwordless SSH (key-based auth).
-# =============================================================================
-
 ---
-oim_password: ""
+
+- name: Load role variables
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/vars/main.yml"
+  run_once: true
+
+- name: Resolve backup path and prepare workspace
+  ansible.builtin.include_tasks: setup.yml
+  # "bundle" also runs setup itself so that --tags bundle works standalone
+  # (path/NFS resolution has runtime side effects and cannot be a plain var).
+  when: stage in ['setup', 'bundle']
+
+- name: Archive domain logs and publish summary
+  ansible.builtin.include_tasks: bundle.yml
+  when: stage == 'bundle'
