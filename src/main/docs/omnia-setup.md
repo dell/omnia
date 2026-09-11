@@ -12,7 +12,7 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 | `--prepare-base` | Prepare Repo Manager, Image Build Manager, and Orchestrator in dependency order |
 | `--check-deps` | Audit all domains for pip/Galaxy version mismatches |
 | `--cleanup` | Remove the venv, system env, omnia-cli, shared Bash completion, activation script, and dependency cache. Runtime data is preserved. |
-| `--cleanup --all` | Guarded full reset. Refuses to start while a domain contains uncleared state. Empty `log`/`output` directories and known Build Stream initializer files are allowed, then initializer input/log paths and all remaining Omnia data are removed. |
+| `--cleanup --all` | Guarded full reset. Refuses to start while a domain contains uncleared state. `log`/`output` trees containing only empty directories and known Build Stream initializer files are allowed, then initializer input/log paths and all remaining Omnia data are removed. |
 | `--help, -h` | Show help message |
 
 ## Options
@@ -103,14 +103,14 @@ Removes the Omnia environment without touching runtime data:
 4. **Removes activation script and dependency cache** — `activate-omnia.sh` and `$OMNIA_DATA_PATH/.data/deps-cache/`
 5. **Preserves runtime data** — input, output, and logs under `$OMNIA_DATA_PATH/` are not removed
 
-With `--all`, cleanup first checks every domain directory. Non-empty `output`
-or `log` directories, service storage, and unrecognized paths stop cleanup
-before anything is deleted. Empty `output` and `log` roots are allowed. Build
-Stream's initializer-staged application files are also allowed because they are
-installation content rather than deployed lifecycle state. Once only safe
-initializer content remains, each `domain-init.sh --cleanup` removes the domain
-input/runtime-log paths and `/var/log/omnia/<domain>`, and the full reset
-continues.
+With `--all`, cleanup first checks every domain directory. Files or symbolic
+links under `output` or `log`, service storage, and unrecognized paths stop
+cleanup before anything is deleted. `output` and `log` trees containing only
+empty project directories are allowed. Build Stream's initializer-staged
+application files are also allowed because they are installation content rather
+than deployed lifecycle state. Once only safe initializer content remains, each
+`domain-init.sh --cleanup` removes the domain input/runtime-log paths and
+`/var/log/omnia/<domain>`, and the full reset continues.
 
 ```bash
 ./omnia.sh --cleanup               # Remove environment + CLI integration; preserve runtime data

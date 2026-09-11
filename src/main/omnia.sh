@@ -984,7 +984,7 @@ validate_full_cleanup_state() {
     local data_root
     local logical_data_root
     local configured_data_path="${OMNIA_DATA_PATH%/}"
-    local domain domain_dir entry entry_name source_entry
+    local domain domain_dir entry entry_name source_entry runtime_content
     local blockers=()
 
     if ! data_root="$(realpath -m -- "$OMNIA_DATA_PATH")"; then
@@ -1020,11 +1020,13 @@ validate_full_cleanup_state() {
                 input) ;;
                 log|output)
                     if [ -L "$entry" ] || [ ! -d "$entry" ]; then
-                        blockers+=("${entry} (must be an empty regular directory)")
+                        blockers+=("${entry} (must be a regular directory containing no files or links)")
                     elif [ ! -r "$entry" ] || [ ! -x "$entry" ]; then
                         blockers+=("${entry} (cannot be fully inspected)")
-                    elif [ -n "$(find -P "$entry" -mindepth 1 -print -quit 2>/dev/null)" ]; then
-                        blockers+=("${entry} (not empty)")
+                    elif ! runtime_content="$(find -P "$entry" -mindepth 1 ! -type d -print -quit 2>/dev/null)"; then
+                        blockers+=("${entry} (cannot be fully inspected)")
+                    elif [ -n "$runtime_content" ]; then
+                        blockers+=("${entry} (contains a file or symbolic link: ${runtime_content})")
                     fi
                     ;;
                 *)
@@ -1061,7 +1063,7 @@ validate_full_cleanup_state() {
         echo ""
         echo -e "${YELLOW}No files were removed. Run the matching domain cleanup first, for example:${NC}"
         echo "  ./omnia.sh --run <domain> --tags cleanup"
-        echo -e "${YELLOW}Empty log/output directories and Build Stream initializer files are allowed.${NC}"
+        echo -e "${YELLOW}Log/output trees containing only empty directories and Build Stream initializer files are allowed.${NC}"
         echo -e "${YELLOW}Remove any intentionally retained paths reported above and retry.${NC}"
         return 1
     fi
@@ -1507,11 +1509,12 @@ CLEANUP COMMANDS:
                         Runtime data at \$OMNIA_DATA_PATH/ (input, output, logs)
                         is preserved.
   --cleanup --all       Guarded full reset. Refuses to start when a domain has
-                        uncleared state; empty log/output directories and known
-                        Build Stream initializer files are allowed. Run the
-                        matching domain cleanup (or remove reported paths)
-                        first. Then removes domain input/log paths, the venv,
-                        system env, cache, and remaining \$OMNIA_DATA_PATH data.
+                        uncleared state; log/output trees containing only empty
+                        directories and known Build Stream initializer files are
+                        allowed. Run the matching domain cleanup (or remove
+                        reported paths) first. Then removes domain input/log
+                        paths, the venv, system env, cache, and remaining
+                        \$OMNIA_DATA_PATH data.
 
 OPTIONS:
   --deps-only           With -s or -i: install pip/Galaxy deps but skip input file staging.
