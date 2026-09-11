@@ -984,7 +984,7 @@ validate_full_cleanup_state() {
     local data_root
     local logical_data_root
     local configured_data_path="${OMNIA_DATA_PATH%/}"
-    local domain domain_dir entry entry_name
+    local domain domain_dir entry entry_name source_entry
     local blockers=()
 
     if ! data_root="$(realpath -m -- "$OMNIA_DATA_PATH")"; then
@@ -1018,19 +1018,51 @@ validate_full_cleanup_state() {
             entry_name="$(basename "$entry")"
             case "$entry_name" in
                 input) ;;
-                *) blockers+=("$entry") ;;
+                log|output)
+                    if [ -L "$entry" ] || [ ! -d "$entry" ]; then
+                        blockers+=("${entry} (must be an empty regular directory)")
+                    elif [ ! -r "$entry" ] || [ ! -x "$entry" ]; then
+                        blockers+=("${entry} (cannot be fully inspected)")
+                    elif [ -n "$(find -P "$entry" -mindepth 1 -print -quit 2>/dev/null)" ]; then
+                        blockers+=("${entry} (not empty)")
+                    fi
+                    ;;
+                *)
+                    # Build Stream stages its application beside input/output/log.
+                    # Accept only entries that match the current app payload type,
+                    # plus the legacy initializer-owned examples/config names.
+                    if [ "$domain" = "build_stream" ]; then
+                        source_entry="${SRC_DIR}/build_stream/app/${entry_name}"
+                        if [ -L "$entry" ]; then
+                            blockers+=("${entry} (symbolic links are not allowed)")
+                        elif [ -d "$source_entry" ] && [ -d "$entry" ]; then
+                            continue
+                        elif [ -f "$source_entry" ] && [ -f "$entry" ]; then
+                            continue
+                        elif [ "$entry_name" = "examples" ] && [ -d "$entry" ]; then
+                            continue
+                        elif [ "$entry_name" = "playbook_paths.yml" ] && [ -f "$entry" ]; then
+                            continue
+                        else
+                            blockers+=("${entry} (not recognized as Build Stream initializer content)")
+                        fi
+                    else
+                        blockers+=("$entry")
+                    fi
+                    ;;
             esac
         done < <(find -P "$domain_dir" -mindepth 1 -maxdepth 1 -print0)
     done
 
     if [ "${#blockers[@]}" -gt 0 ]; then
         echo -e "${RED}ERROR: --cleanup --all cannot continue because domain cleanup is incomplete.${NC}"
-        echo -e "${RED}The following paths contain deployed, generated, or unrecognized state:${NC}"
+        echo -e "${RED}The following paths contain deployed, generated, non-empty, or unrecognized state:${NC}"
         printf '  - %s\n' "${blockers[@]}"
         echo ""
         echo -e "${YELLOW}No files were removed. Run the matching domain cleanup first, for example:${NC}"
         echo "  ./omnia.sh --run <domain> --tags cleanup"
-        echo -e "${YELLOW}Then remove any intentionally retained paths reported above and retry.${NC}"
+        echo -e "${YELLOW}Empty log/output directories and Build Stream initializer files are allowed.${NC}"
+        echo -e "${YELLOW}Remove any intentionally retained paths reported above and retry.${NC}"
         return 1
     fi
 }
@@ -1475,8 +1507,9 @@ CLEANUP COMMANDS:
                         Runtime data at \$OMNIA_DATA_PATH/ (input, output, logs)
                         is preserved.
   --cleanup --all       Guarded full reset. Refuses to start when a domain has
-                        anything except its initializer-owned input directory;
-                        run that domain's cleanup (or remove the path manually)
+                        uncleared state; empty log/output directories and known
+                        Build Stream initializer files are allowed. Run the
+                        matching domain cleanup (or remove reported paths)
                         first. Then removes domain input/log paths, the venv,
                         system env, cache, and remaining \$OMNIA_DATA_PATH data.
 

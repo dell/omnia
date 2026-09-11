@@ -76,8 +76,9 @@ omnia-cli status
 Both `--cleanup` and `--cleanup --all` display their removal scope and require
 the operator to type `yes`. Add `--skip-approval` only for trusted unattended
 automation. The `--all` safety preflight still runs when confirmation is
-skipped and stops before deletion if a domain contains anything other than its
-initializer-owned `input/` directory.
+skipped and stops before deletion if a domain contains uncleared state. Empty
+`log/` and `output/` directories are safe, as are the application files staged
+by the Build Stream initializer; non-empty runtime directories still block.
 
 **What `-s` does:**
 

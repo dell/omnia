@@ -173,9 +173,10 @@ but the current artifact layouts and manifest paths do not use it.
 - local work/data directories and logs;
 - image-build credentials and the generated `s3cmd` configuration.
 
-The domain data cleanup removes the shared `output/` and `log/` roots, not only
-the selected project's subdirectories. Treat full cleanup as domain-wide in a
-multi-project installation. It does not edit `omnia.target`.
+The domain data cleanup empties the shared `output/` and `log/` roots, not only
+the selected project's subdirectories, and preserves both roots as empty
+directories. Treat full cleanup as domain-wide in a multi-project installation.
+It does not edit `omnia.target`.
 
 For a PowerScale provider, full cleanup skips MinIO cleanup and does not erase
 objects from external S3. `cleanup_images` can remove matching objects from the

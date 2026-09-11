@@ -68,8 +68,9 @@ public tags; a `build` or `execute` run builds every configured architecture.
 ### Full Domain Cleanup (`cleanup`)
 
 The public cleanup removes MinIO, the OCI registry, build outputs, runtime data,
-logs, `image_build_credentials.yml`, and its vault key. It does not prompt for a
-second credential decision:
+logs, `image_build_credentials.yml`, and its vault key. The shared `output/` and
+`log/` roots are preserved as empty directories. It does not prompt for a second
+credential decision:
 
 ```bash
 cd src/main
