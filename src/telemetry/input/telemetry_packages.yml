@@ -56,7 +56,7 @@ install_mode: "offline"
 # Single entry point for all offline packages. Set this ONCE and every
 # Helm chart, git repo, and pip module URL is auto-derived.
 #
-# Format: https://<ip_or_hostname>:<port>/pulp/content/opt/omnia/offline_repo/cluster/<arch>/<os>/<version>
+# Format: https://<ip_or_hostname>:<port>/pulp/content/offline_repo/cluster/<arch>/<os>/<version>
 #
 # The hostname/IP can be an FQDN (e.g., oim.lab.example.com) or IP address.
 # Leave empty when install_mode is "online".
