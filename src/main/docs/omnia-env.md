@@ -19,7 +19,7 @@ read its exported values.
 | `SYSTEM_HOSTNAME` | Short hostname of the OIM host (NOT FQDN) | `oim` |
 | `SYSTEM_DOMAIN_NAME` | Domain name of the OIM host | `omnia.cluster` |
 | `OMNIA_VENV_PATH` | Path to the shared Python virtual environment | `/opt/omnia/venv` |
-| `CATALOG_FILE_PATH` | Convention path for catalog JSON (reference only — actual path is set in `image_build_config.yml`) | `${OMNIA_DATA_PATH}/catalog/catalog_rhel.json` |
+| `CATALOG_FILE_PATH` | Active catalog JSON used by Repo Manager and catalog-mode image builds | `${OMNIA_DATA_PATH}/catalog/catalog_rhel.json` |
 
 ## Component Override Variables
 
@@ -93,10 +93,7 @@ OMNIA_VERSION=2.3
 # │ CATALOG — Repo Manager catalog for image build package resolution        │
 # └───────────────────────────────────────────────────────────────────────────┘
 
-# Default catalog JSON location (convention path).
-# The actual catalog_file path is set in image_build_config.yml (Section 5).
-# This env var documents the convention; image_build_manager reads
-# the catalog path from its domain config, not from this env var.
+# Catalog JSON used by Repo Manager and catalog-mode image builds.
 CATALOG_FILE_PATH=${OMNIA_DATA_PATH}/catalog/catalog_rhel.json
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
@@ -151,6 +148,31 @@ vi /etc/omnia/omnia.env
 Setup preserves this file even when the repository copy differs. To
 intentionally discard the installed values and replace them from
 `src/main/omnia.env`, use `./omnia.sh -s --force-env`.
+
+## Choose a Different Catalog
+
+Setup copies the default `samples/catalog_rhel.json`, which contains packages
+for both Slurm and service_k8s deployments, to `$OMNIA_DATA_PATH/catalog/`.
+To use another catalog while keeping the configured path, replace that file:
+
+```bash
+cp samples/catalogs/10.0/service_k8s_x86_64.json "$CATALOG_FILE_PATH"
+```
+
+To retain a separate filename, copy the catalog and update the authoritative
+environment file:
+
+```bash
+cp samples/catalogs/10.0/service_k8s_x86_64.json \
+  "${OMNIA_DATA_PATH}/catalog/service_k8s_x86_64.json"
+vi /etc/omnia/omnia.env
+# Set CATALOG_FILE_PATH=${OMNIA_DATA_PATH}/catalog/service_k8s_x86_64.json
+source /etc/profile.d/omnia-env.sh
+```
+
+If you update `src/main/omnia.env` instead, apply the repository file with
+`./omnia.sh -s --force-env`. This replaces the complete installed environment
+file, not only `CATALOG_FILE_PATH`.
 
 ## Validation
 

@@ -26,6 +26,7 @@ from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
+from library.vars.test_case_vars import TEST_CASES as TC
 
 
 @pytest.mark.deploy
@@ -33,8 +34,9 @@ from library.messages import (
 @pytest.mark.order(0)
 def test_deploy_validate(host):
     """TC_VL_000: Deploy discovery.yml (validate inputs)."""
+    tc = TC["deploy_validate"]
     tl = TestLogger(
-        TEST_NAMES["deploy_validate"], "TC_VL_000"
+        TEST_NAMES["deploy_validate"], tc["id"]
     )
     result = run_playbook(
         extra_vars={"discovery_mechanism": "ome"},

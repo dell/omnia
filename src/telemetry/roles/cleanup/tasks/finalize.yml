@@ -61,6 +61,10 @@
       }}
   when: _cleanup_verification_attempted | default(false) | bool
 
+- name: Cleanup credentials for complete cleanup
+  ansible.builtin.include_tasks: cleanup_credentials.yml
+  when: _cleanup_all | bool
+
 - name: Write telemetry_status.yml with cleanup status
   ansible.builtin.include_role:
     name: common

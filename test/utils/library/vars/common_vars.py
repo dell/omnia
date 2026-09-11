@@ -67,13 +67,18 @@ COLLECT_PXE_FILE = "collect_pxe.yml"
 INSTALL_OS_CONFIG_FILE = "install_os_config.yml"
 INSTALL_OS_CREDENTIALS_FILE = "install_os_credentials.yml"
 
+# OIM log backup input file (optional)
+BACKUP_OIM_LOGS_CONFIG_FILE = "backup_oim_logs_config.yml"
+
 # =============================================================================
 # PLAYBOOK CONFIGURATION (module-specific)
 #============================================================================
 
 # Playbook entry points (relative to workdir)
+PLAYBOOK_UTILS = "playbooks/utils.yml"
 PLAYBOOK_COLLECT = "playbooks/collect.yml"
 PLAYBOOK_INSTALL_OS = "playbooks/install_os.yml"
+PLAYBOOK_BACKUP_OIM_LOGS = "playbooks/backup_oim_logs/backup_oim_logs.yml"
 PLAYBOOK_WORKDIR = "src/utils"
 
 # Valid playbook tags for collect.yml
@@ -92,6 +97,39 @@ INSTALL_OS_TAGS = [
     "deploy",
     "generate_ks",
 ]
+
+# Valid playbook tags for backup_oim_logs.yml
+BACKUP_OIM_LOGS_TAGS = [
+    "setup",
+    "bundle",
+]
+
+# Valid playbook tags for utils.yml (main entry point)
+UTILS_PLAYBOOK_TAGS = [
+    "precheck",
+    "setup",
+    "collect",
+    "install_os",
+    "backup_oim_logs",
+    "cleanup",
+    "cleanup_logs",
+    "cleanup_install_os",
+    "cleanup_backup_oim_logs",
+]
+
+# Domains backed up by backup_oim_logs.yml when no config file selection is supplied
+BACKUP_ALL_DOMAINS = [
+    "repo_manager",
+    "image_build_manager",
+    "orchestrator",
+    "discovery",
+    "telemetry",
+    "build_stream",
+    "utils",
+]
+
+# OIM log backup bundle naming pattern
+BACKUP_BUNDLE_PATTERN = r"omnia_oim_logs_\d{8}-\d{6}\.tar\.gz"
 
 # =============================================================================
 # SHARED PATH DEFAULTS (runtime output on target host)
@@ -137,8 +175,8 @@ IPV4_PATTERN = re.compile(
 )
 
 # Required fields in test_config.yml
+# Note: data_path and project_name are optional - they fall back to env vars
 REQUIRED_CONFIG_FIELDS = [
-    "project_name",
     "clone_path",
     "report_path",
     "report_name",

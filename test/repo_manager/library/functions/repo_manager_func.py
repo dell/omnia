@@ -13,6 +13,7 @@ All verification functions return a dict with keys:
 from typing import Any, Dict
 import json
 import os
+import shlex
 import yaml
 
 from omnia_auto import load_test_config, run_on_host, run_playbook as _run_playbook
@@ -31,13 +32,13 @@ from ..vars.common_vars import (
 )
 
 
-def run_playbook(tag=None, verbose=False, **kwargs):
+def run_playbook(tag=None, verbosity=None, **kwargs):
     """Wrapper around omnia_auto.run_playbook with repo_manager defaults."""
     return _run_playbook(
         playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),
         playbook_workdir=kwargs.pop("playbook_workdir", PLAYBOOK_WORKDIR),
         tag=tag,
-        verbose=verbose,
+        verbosity=verbosity,
         **kwargs,
     )
 
@@ -239,6 +240,86 @@ def get_configured_repos(host, arch: str = "x86_64", os_version: str = "10.0") -
         "details": "No repositories configured",
         "error": "",
         "repos": []
+    }
+
+
+def get_deployed_repos(host, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+    """Get repositories selected by the catalog and emitted to repo_status.yml."""
+    repo_status = _read_repo_status(host)
+    if not repo_status["success"]:
+        return {
+            "success": False,
+            "details": "Could not read deployed repositories from repo_status.yml",
+            "error": repo_status["error"],
+            "repos": [],
+        }
+
+    repositories = repo_status["details"].get("repositories", {})
+    version_repositories = repositories.get(str(os_version), {})
+    deployed_repositories = version_repositories.get(arch, {})
+    if not isinstance(deployed_repositories, dict):
+        return {
+            "success": False,
+            "details": f"Invalid repositories.{os_version}.{arch} in repo_status.yml",
+            "error": "Deployed repository data is not a mapping",
+            "repos": [],
+        }
+
+    repo_names = list(deployed_repositories)
+    return {
+        "success": True,
+        "details": (
+            f"Found {len(repo_names)} deployed repos for "
+            f"{os_version}/{arch}: {', '.join(repo_names)}"
+        ),
+        "error": "",
+        "repos": repo_names,
+    }
+
+
+def check_repo_source_type(
+        host, repo_name: str, arch: str = "x86_64",
+        os_version: str = "10.0") -> Dict[str, Any]:
+    """Classify a configured repository as subscription-backed or URL-backed."""
+    input_path = _get_input_path()
+    config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
+    result = _cmd_file_exists(host, config_path)
+    if result.rc != 0 or "exists" not in result.stdout:
+        return {
+            "success": False,
+            "details": f"Config file not found at {config_path}",
+            "error": f"{INPUT_FILES['repo_manager_config']} not found",
+        }
+
+    script = (
+        "import sys,yaml; config=yaml.safe_load(open(sys.argv[1])); "
+        "repos=config.get('repositories',{}).get(sys.argv[2],{}).get(sys.argv[3],{}); "
+        "repo=repos.get(sys.argv[4]) or "
+        "repos.get('additional_repos',{}).get(sys.argv[4]) or "
+        "repos.get('user_repos',{}).get(sys.argv[4]); "
+        "print('missing' if repo is None else "
+        "('url' if str(repo.get('url','')).strip() else 'subscription'))"
+    )
+    command = "python3 -c {} {} {} {} {}".format(
+        shlex.quote(script),
+        shlex.quote(config_path),
+        shlex.quote(str(os_version)),
+        shlex.quote(arch),
+        shlex.quote(repo_name),
+    )
+    result = run_on_host(host, command)
+    source_type = result.stdout.strip()
+    if result.rc == 0 and source_type in ("subscription", "url"):
+        return {
+            "success": True,
+            "details": f"Repository '{repo_name}' is {source_type}-backed",
+            "error": "",
+            "source_type": source_type,
+        }
+    return {
+        "success": False,
+        "details": f"Could not classify repository '{repo_name}'",
+        "error": f"Repository '{repo_name}' is not configured",
     }
 
 
@@ -472,6 +553,30 @@ def check_pulp_cli_removed(host) -> Dict[str, Any]:
     }
 
 
+def check_pulp_cli_preserved(host) -> Dict[str, Any]:
+    """Verify full cleanup preserves a working managed Pulp CLI launcher."""
+    exists = _cmd_file_exists(host, PULP_CLI_SYMLINK)
+    if "exists" not in exists.stdout:
+        return {
+            "success": False,
+            "details": f"Pulp CLI launcher is missing: {PULP_CLI_SYMLINK}",
+            "error": "Pulp CLI launcher was removed",
+        }
+
+    version = run_on_host(host, f"{PULP_CLI_SYMLINK} --version")
+    if version.rc == 0:
+        return {
+            "success": True,
+            "details": f"Pulp CLI launcher preserved: {version.stdout.strip()}",
+            "error": "",
+        }
+    return {
+        "success": False,
+        "details": version.stderr.strip(),
+        "error": "Preserved Pulp CLI launcher is not executable",
+    }
+
+
 def check_pulp_directories_removed(host) -> Dict[str, Any]:
     """Verify Pulp config directories are removed."""
     base_path = _get_base_path()
@@ -501,7 +606,21 @@ def check_pulp_cli_repository_list(host) -> Dict[str, Any]:
     cmd = f"PULP_CA_BUNDLE={pulp_cert_path} pulp rpm repository list"
     result = run_on_host(host, cmd)
     if result.rc == 0:
-        repo_count = result.stdout.count("Name:")
+        try:
+            repositories = json.loads(result.stdout)
+        except json.JSONDecodeError as exc:
+            return {
+                "success": False,
+                "details": f"Could not parse Pulp repository list: {result.stdout[:200]}",
+                "error": f"JSON decode error: {str(exc)}",
+            }
+        if not isinstance(repositories, list):
+            return {
+                "success": False,
+                "details": f"Unexpected Pulp repository list type: {type(repositories).__name__}",
+                "error": "Pulp CLI repository list did not return a JSON list",
+            }
+        repo_count = len(repositories)
         return {
             "success": True,
             "details": f"Pulp CLI listed {repo_count} RPM repositories",
@@ -1047,7 +1166,7 @@ def check_repo_caching(host, repo_name: str, arch: str = "x86_64", os_version: s
             }
         else:
             # Check global caching
-            cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); print(str(config.get('CACHING_POLICY', False)).lower())\""
+            cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); print(str(config.get('caching_policy', True)).lower())\""
             result = run_on_host(host, cmd)
             if result.rc == 0:
                 global_caching = result.stdout.strip()
@@ -1163,7 +1282,7 @@ def check_global_repo_config(host) -> Dict[str, Any]:
 
 
 def check_global_caching_policy(host) -> Dict[str, Any]:
-    """Check the global CACHING_POLICY setting."""
+    """Check the global caching_policy setting."""
     input_path = _get_input_path()
     config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
     
@@ -1175,21 +1294,21 @@ def check_global_caching_policy(host) -> Dict[str, Any]:
             "error": f"{INPUT_FILES['repo_manager_config']} not found",
         }
     
-    cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); print(str(config.get('CACHING_POLICY', False)).lower())\""
+    cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); print(str(config.get('caching_policy', True)).lower())\""
     result = run_on_host(host, cmd)
     
     if result.rc == 0:
         caching_policy = result.stdout.strip()
         return {
             "success": True,
-            "details": f"Global CACHING_POLICY: {caching_policy}",
+            "details": f"Global caching_policy: {caching_policy}",
             "error": "",
             "caching_policy": caching_policy == "true"
         }
     
     return {
         "success": False,
-        "details": "Could not read global CACHING_POLICY",
+        "details": "Could not read global caching_policy",
         "error": "Global config read failed",
     }
 
@@ -1999,4 +2118,3 @@ def check_user_registry_credentials(host) -> Dict[str, Any]:
         "details": f"All {len(basic_auth_registries)} basic auth registries have vault_path configured",
         "error": "",
     }
-

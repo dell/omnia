@@ -23,8 +23,12 @@ Usage (via run_validation.sh or run_validation CLI)::
 
     python3 _run.py fvt_repo_manager precheck verify --marker sanity
     python3 _run.py fvt_repo_manager prepare test
+    python3 _run.py ut_repo_manager test
     python3 _run.py --config
 """
+
+# Imports are intentionally delayed until the domain path is on ``sys.path``.
+# pylint: disable=import-outside-toplevel
 
 import os
 import sys
@@ -41,6 +45,12 @@ def main():
         MARKERS,
         SUITES,
         EXCLUDE_TAGS,
+        ALL_EXEC_TAGS,
+        ALL_EXEC_MARKER,
+        ALL_VERIFY_EXCLUDE_MARKERS,
+        REQUIRED_SUITE_TAGS,
+        VERIFY_ONLY_TAGS,
+        VERIFY_ONLY_SUITES,
     )
     from omnia_auto.functions.validation_runner import ValidationRunner
 
@@ -52,6 +62,12 @@ def main():
             "markers": MARKERS,
             "suites": SUITES,
             "exclude_tags": EXCLUDE_TAGS,
+            "all_exec_tags": ALL_EXEC_TAGS,
+            "all_exec_marker": ALL_EXEC_MARKER,
+            "all_verify_exclude_markers": ALL_VERIFY_EXCLUDE_MARKERS,
+            "required_suite_tags": REQUIRED_SUITE_TAGS,
+            "verify_only_tags": VERIFY_ONLY_TAGS,
+            "verify_only_suites": VERIFY_ONLY_SUITES,
         },
     )
     sys.exit(runner.main(sys.argv[1:]))
