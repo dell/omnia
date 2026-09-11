@@ -99,6 +99,50 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     # ── Cleanup ────────────────────────────────────────────────────────────
     "deploy_cleanup": {
         "id": "DISCOVERY_FVT_CLEANUP_E001",
-        "title": "Deploy discovery.yml --tags cleanup",
+        "title": "Deploy discovery.yml --tags cleanup (full cleanup)",
+    },
+    "deploy_cleanup_preserve_credentials": {
+        "id": "DISCOVERY_FVT_CLEANUP_E002",
+        "title": "Deploy discovery.yml --tags cleanup -e cleanup_credentials=false",
+    },
+    "deploy_cleanup_preserve_logs": {
+        "id": "DISCOVERY_FVT_CLEANUP_E003",
+        "title": "Deploy discovery.yml --tags cleanup -e cleanup_logs=false (preserve logs)",
+    },
+    "deploy_cleanup_idempotent": {
+        "id": "DISCOVERY_FVT_CLEANUP_E004",
+        "title": "Deploy discovery.yml --tags cleanup (idempotency test)",
+    },
+    "output_dir_removed": {
+        "id": "DISCOVERY_FVT_CLEANUP_V001",
+        "title": "Verify output directory is empty after cleanup",
+    },
+    "credentials_removed": {
+        "id": "DISCOVERY_FVT_CLEANUP_V002",
+        "title": "Verify credentials file is removed after cleanup",
+    },
+    "credentials_preserved": {
+        "id": "DISCOVERY_FVT_CLEANUP_V003",
+        "title": "Verify credentials file is preserved when cleanup_credentials=false",
+    },
+    "pxe_mapping_files_removed": {
+        "id": "DISCOVERY_FVT_CLEANUP_V004",
+        "title": "Verify PXE mapping files are removed after cleanup",
+    },
+    "discovery_report_files_removed": {
+        "id": "DISCOVERY_FVT_CLEANUP_V005",
+        "title": "Verify discovery report files are removed after cleanup",
+    },
+    "status_files_removed": {
+        "id": "DISCOVERY_FVT_CLEANUP_V006",
+        "title": "Verify discovery status files are removed after cleanup",
+    },
+    "log_files_removed": {
+        "id": "DISCOVERY_FVT_CLEANUP_V007",
+        "title": "Verify log files are removed after cleanup",
+    },
+    "log_files_preserved": {
+        "id": "DISCOVERY_FVT_CLEANUP_V008",
+        "title": "Verify log files are preserved when cleanup_logs=false",
     },
 }
