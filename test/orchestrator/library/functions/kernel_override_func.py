@@ -28,7 +28,7 @@ from omnia_auto import run_on_host
 ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
 
-KERNEL_VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+-.+$")
+KERNEL_VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+\.[0-9]+\.[0-9]+\.el[0-9]+_[0-9]+$")
 _ARCH_SUFFIXES = (".x86_64", ".aarch64", ".ppc64le", ".s390x")
 
 
@@ -64,7 +64,7 @@ def validate_kernel_version_override_format(host) -> Dict[str, Any]:
     result = get_kernel_version_override(host)
     value = result["kernel_version_override"]
     return {**result, "is_empty": not value,
-            "is_valid_format": bool(KERNEL_VERSION_PATTERN.fullmatch(value)) if value else True}
+            "is_valid_format": bool(KERNEL_VERSION_PATTERN.fullmatch(value)) if value else False}
 
 
 def _nodes(host) -> List[Dict[str, str]]:
