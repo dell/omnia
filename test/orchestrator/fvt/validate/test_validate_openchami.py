@@ -24,6 +24,7 @@ import pytest
 import yaml
 
 from library.functions import TestLogger
+from library.vars.common_vars import INPUT_PATH_TEMPLATE
 from omnia_auto import load_test_config
 
 
@@ -42,7 +43,9 @@ def test_orchestrator_config_exists(host) -> None:
 
     config = load_test_config()
     project = config.get("project_name", "project_default")
-    config_path = f"/opt/omnia/orchestrator/input/{project}/orchestrator_config.yml"
+    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
+    config_path = INPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+    config_path = f"{config_path}/orchestrator_config.yml"
 
     config_exists = host.file(config_path).exists
 
@@ -75,7 +78,9 @@ def test_pxe_mapping_file_exists(host) -> None:
 
     config = load_test_config()
     project = config.get("project_name", "project_default")
-    pxe_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
+    pxe_path = INPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+    pxe_path = f"{pxe_path}/pxe_mapping_file.csv"
 
     pxe_exists = host.file(pxe_path).exists
 
@@ -108,7 +113,9 @@ def test_orchestrator_config_valid_yaml(host) -> None:
 
     config = load_test_config()
     project = config.get("project_name", "project_default")
-    config_path = f"/opt/omnia/orchestrator/input/{project}/orchestrator_config.yml"
+    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
+    config_path = INPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+    config_path = f"{config_path}/orchestrator_config.yml"
 
     try:
         content = host.file(config_path).content_string

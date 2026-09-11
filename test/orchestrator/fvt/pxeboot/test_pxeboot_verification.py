@@ -15,14 +15,107 @@
 """
 Orchestrator PXE Boot — Verification Tests.
 
-Tests that verify nodes have been provisioned via PXE boot.
+Tests that verify nodes have been provisioned via PXE boot by connecting
+to remote control plane nodes and checking Kubernetes/Slurm status.
 """
 
-from typing import List
+from typing import List, Optional
 
 import pytest
 
-from library.functions import TestLogger
+from library.functions import TestLogger, load_test_config
+from library.vars.common_vars import INPUT_PATH_TEMPLATE, OUTPUT_PATH_TEMPLATE
+
+
+def _get_k8s_control_plane_ips() -> List[str]:
+    """Extract Kubernetes control plane IPs from PXE mapping file.
+
+    Returns:
+        List of control plane node IP addresses
+    """
+    config = load_test_config()
+    project = config.get("project_name", "project_default")
+    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
+    input_path = INPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+    mapping_path = f"{input_path}/pxe_mapping_file.csv"
+
+    try:
+        with open(mapping_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+
+        control_plane_ips: List[str] = []
+        for line in lines[1:]:  # Skip header
+            if line.strip() and not line.startswith('#'):
+                parts = line.strip().split(',')
+                if len(parts) >= 6:
+                    fg_name = parts[0].strip()
+                    admin_ip = parts[5].strip()
+                    # Check if this is a Kubernetes control plane node
+                    if 'kube_control_plane' in fg_name.lower() and admin_ip:
+                        control_plane_ips.append(admin_ip)
+
+        return control_plane_ips
+    except Exception:
+        return []
+
+
+def _get_slurm_control_ips() -> List[str]:
+    """Extract Slurm control/login node IPs from PXE mapping file.
+
+    Returns:
+        List of Slurm control/login node IP addresses
+    """
+    config = load_test_config()
+    project = config.get("project_name", "project_default")
+    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
+    input_path = INPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+    mapping_path = f"{input_path}/pxe_mapping_file.csv"
+
+    try:
+        with open(mapping_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+
+        slurm_ips: List[str] = []
+        for line in lines[1:]:  # Skip header
+            if line.strip() and not line.startswith('#'):
+                parts = line.strip().split(',')
+                if len(parts) >= 6:
+                    fg_name = parts[0].strip()
+                    admin_ip = parts[5].strip()
+                    # Check if this is a Slurm control or login node
+                    if any(keyword in fg_name.lower() for keyword in
+                           ['slurm_control', 'slurm_login']) and admin_ip:
+                        slurm_ips.append(admin_ip)
+
+        return slurm_ips
+    except Exception:
+        return []
+
+
+def _run_ssh_command(host, ip: str, command: str) -> dict:
+    """Run a command on a remote node via SSH.
+
+    Args:
+        host: Test host fixture
+        ip: Target IP address
+        command: Command to run
+
+    Returns:
+        Dictionary with rc, stdout, stderr
+    """
+    try:
+        result = host.run(f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 root@{ip} '{command}'")
+        return {
+            "rc": result.rc,
+            "stdout": result.stdout,
+            "stderr": result.stderr
+        }
+    except Exception as e:
+        return {
+            "rc": -1,
+            "stdout": "",
+            "stderr": str(e)
+        }
 
 
 @pytest.mark.functional
@@ -38,23 +131,30 @@ def test_kubernetes_nodes_provisioned(host) -> None:
         "TC_PXE_016"
     )
 
-    # Check if kubectl is available
-    kubectl_check = host.run("which kubectl")
-    if kubectl_check.rc != 0:
-        tl.passed("kubectl not found - Kubernetes not provisioned",
+    control_plane_ips = _get_k8s_control_plane_ips()
+
+    if not control_plane_ips:
+        tl.passed("No Kubernetes control plane IPs found in PXE mapping",
                  "Kubernetes may not be configured for this deployment")
-        pytest.skip("kubectl not available")
+        pytest.skip("No Kubernetes control plane IPs found")
 
-    # Check for Kubernetes nodes
-    result = host.run("kubectl get nodes --no-headers 2>/dev/null")
+    # Try to connect to first control plane and check kubectl
+    control_ip = control_plane_ips[0]
+    result = _run_ssh_command(host, control_ip, "which kubectl")
 
-    if result.rc == 0 and result.stdout.strip():
-        nodes = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
-        tl.passed(f"Kubernetes nodes provisioned via PXE boot",
-                 f"Found {len(nodes)} Kubernetes nodes")
+    if result["rc"] == 0:
+        # kubectl found, check nodes
+        node_result = _run_ssh_command(host, control_ip, "kubectl get nodes --no-headers 2>/dev/null")
+        if node_result["rc"] == 0 and node_result["stdout"].strip():
+            nodes = [line.strip() for line in node_result["stdout"].strip().split('\n') if line.strip()]
+            tl.passed(f"Kubernetes nodes provisioned via PXE boot",
+                     f"Found {len(nodes)} Kubernetes nodes on {control_ip}")
+        else:
+            tl.passed("kubectl found but no nodes returned",
+                     "Kubernetes may not have completed provisioning yet")
     else:
-        tl.passed("No Kubernetes nodes found",
-                 "Kubernetes provisioning may not have completed yet")
+        tl.passed(f"kubectl not found on control plane {control_ip}",
+                 "Kubernetes may not have been installed yet")
 
 
 @pytest.mark.functional
@@ -70,29 +170,34 @@ def test_kubernetes_nodes_ready(host) -> None:
         "TC_PXE_017"
     )
 
-    # Check if kubectl is available
-    kubectl_check = host.run("which kubectl")
-    if kubectl_check.rc != 0:
-        tl.passed("kubectl not found - Kubernetes not provisioned",
+    control_plane_ips = _get_k8s_control_plane_ips()
+
+    if not control_plane_ips:
+        tl.passed("No Kubernetes control plane IPs found in PXE mapping",
                  "Kubernetes may not be configured for this deployment")
-        pytest.skip("kubectl not available")
+        pytest.skip("No Kubernetes control plane IPs found")
 
-    # Check for Ready nodes
-    result = host.run("kubectl get nodes --no-headers 2>/dev/null")
+    control_ip = control_plane_ips[0]
+    result = _run_ssh_command(host, control_ip, "which kubectl")
 
-    if result.rc == 0 and result.stdout.strip():
-        nodes = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
-        ready_nodes = [n for n in nodes if 'Ready' in n]
+    if result["rc"] == 0:
+        node_result = _run_ssh_command(host, control_ip, "kubectl get nodes --no-headers 2>/dev/null")
+        if node_result["rc"] == 0 and node_result["stdout"].strip():
+            nodes = [line.strip() for line in node_result["stdout"].strip().split('\n') if line.strip()]
+            ready_nodes = [n for n in nodes if 'Ready' in n]
 
-        if ready_nodes:
-            tl.passed(f"Kubernetes nodes in Ready state",
-                     f"Found {len(ready_nodes)} Ready nodes out of {len(nodes)}")
+            if ready_nodes:
+                tl.passed(f"Kubernetes nodes in Ready state",
+                         f"Found {len(ready_nodes)} Ready nodes out of {len(nodes)} on {control_ip}")
+            else:
+                tl.passed("No Kubernetes nodes in Ready state",
+                         "Nodes may still be provisioning")
         else:
-            tl.passed("No Kubernetes nodes in Ready state",
-                     "Nodes may still be provisioning")
+            tl.passed("kubectl found but no nodes returned",
+                     "Kubernetes may not have completed provisioning yet")
     else:
-        tl.passed("No Kubernetes nodes found",
-                 "Kubernetes provisioning may not have completed yet")
+        tl.passed(f"kubectl not found on control plane {control_ip}",
+                 "Kubernetes may not have been installed yet")
 
 
 @pytest.mark.functional
@@ -108,23 +213,30 @@ def test_slurm_nodes_provisioned(host) -> None:
         "TC_PXE_018"
     )
 
-    # Check if sinfo is available
-    sinfo_check = host.run("which sinfo")
-    if sinfo_check.rc != 0:
-        tl.passed("sinfo not found - Slurm not provisioned",
+    slurm_ips = _get_slurm_control_ips()
+
+    if not slurm_ips:
+        tl.passed("No Slurm control/login IPs found in PXE mapping",
                  "Slurm may not be configured for this deployment")
-        pytest.skip("sinfo not available")
+        pytest.skip("No Slurm control/login IPs found")
 
-    # Check for Slurm nodes
-    result = host.run("sinfo --no-headers 2>/dev/null")
+    # Try to connect to first Slurm node and check sinfo
+    slurm_ip = slurm_ips[0]
+    result = _run_ssh_command(host, slurm_ip, "which sinfo")
 
-    if result.rc == 0 and result.stdout.strip():
-        partitions = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
-        tl.passed(f"Slurm nodes provisioned via PXE boot",
-                 f"Found {len(partitions)} Slurm partitions")
+    if result["rc"] == 0:
+        # sinfo found, check nodes
+        node_result = _run_ssh_command(host, slurm_ip, "sinfo --no-headers 2>/dev/null")
+        if node_result["rc"] == 0 and node_result["stdout"].strip():
+            partitions = [line.strip() for line in node_result["stdout"].strip().split('\n') if line.strip()]
+            tl.passed(f"Slurm nodes provisioned via PXE boot",
+                     f"Found {len(partitions)} Slurm partitions on {slurm_ip}")
+        else:
+            tl.passed("sinfo found but no partitions returned",
+                     "Slurm may not have completed provisioning yet")
     else:
-        tl.passed("No Slurm nodes found",
-                 "Slurm provisioning may not have completed yet")
+        tl.passed(f"sinfo not found on Slurm node {slurm_ip}",
+                 "Slurm may not have been installed yet")
 
 
 @pytest.mark.functional
@@ -140,29 +252,34 @@ def test_slurm_nodes_idle(host) -> None:
         "TC_PXE_019"
     )
 
-    # Check if sinfo is available
-    sinfo_check = host.run("which sinfo")
-    if sinfo_check.rc != 0:
-        tl.passed("sinfo not found - Slurm not provisioned",
+    slurm_ips = _get_slurm_control_ips()
+
+    if not slurm_ips:
+        tl.passed("No Slurm control/login IPs found in PXE mapping",
                  "Slurm may not be configured for this deployment")
-        pytest.skip("sinfo not available")
+        pytest.skip("No Slurm control/login IPs found")
 
-    # Check for Idle nodes
-    result = host.run("sinfo --no-headers -N -o State 2>/dev/null")
+    slurm_ip = slurm_ips[0]
+    result = _run_ssh_command(host, slurm_ip, "which sinfo")
 
-    if result.rc == 0 and result.stdout.strip():
-        states = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
-        idle_nodes = [s for s in states if 'idle' in s.lower()]
+    if result["rc"] == 0:
+        node_result = _run_ssh_command(host, slurm_ip, "sinfo --no-headers -N -o State 2>/dev/null")
+        if node_result["rc"] == 0 and node_result["stdout"].strip():
+            states = [line.strip() for line in node_result["stdout"].strip().split('\n') if line.strip()]
+            idle_nodes = [s for s in states if 'idle' in s.lower()]
 
-        if idle_nodes:
-            tl.passed(f"Slurm nodes in Idle state",
-                     f"Found {len(idle_nodes)} Idle nodes out of {len(states)}")
+            if idle_nodes:
+                tl.passed(f"Slurm nodes in Idle state",
+                         f"Found {len(idle_nodes)} Idle nodes out of {len(states)} on {slurm_ip}")
+            else:
+                tl.passed("No Slurm nodes in Idle state",
+                         "Nodes may still be provisioning")
         else:
-            tl.passed("No Slurm nodes in Idle state",
-                     "Nodes may still be provisioning")
+            tl.passed("sinfo found but no states returned",
+                     "Slurm may not have completed provisioning yet")
     else:
-        tl.passed("No Slurm nodes found",
-                 "Slurm provisioning may not have completed yet")
+        tl.passed(f"sinfo not found on Slurm node {slurm_ip}",
+                 "Slurm may not have been installed yet")
 
 
 @pytest.mark.functional
@@ -178,8 +295,12 @@ def test_pxe_boot_status_file(host) -> None:
         "TC_PXE_020"
     )
 
-    # Check for PXE boot status file
-    status_path = "/opt/omnia/orchestrator/output/project_default/pxe_boot_status.yml"
+    config = load_test_config()
+    project = config.get("project_name", "project_default")
+    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
+    output_path = OUTPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+
+    status_path = f"{output_path}/pxe_boot_status.yml"
     status_exists = host.file(status_path).exists
 
     if status_exists:
@@ -203,8 +324,12 @@ def test_failed_nodes_file(host) -> None:
         "TC_PXE_021"
     )
 
-    # Check for failed nodes file
-    failed_nodes_path = "/opt/omnia/orchestrator/output/project_default/failed_nodes.yml"
+    config = load_test_config()
+    project = config.get("project_name", "project_default")
+    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
+    output_path = OUTPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+
+    failed_nodes_path = f"{output_path}/failed_nodes.yml"
     failed_exists = host.file(failed_nodes_path).exists
 
     if failed_exists:
@@ -228,7 +353,6 @@ def test_coredhcp_service_running(host) -> None:
         "TC_PXE_022"
     )
 
-    # Check if CoreDHCP container is running
     result = host.run("podman ps --filter name=coredhcp --format '{{.Names}}'")
 
     if result.rc == 0 and result.stdout.strip():
@@ -261,7 +385,6 @@ def test_tftp_service_running(host) -> None:
         "TC_PXE_023"
     )
 
-    # Check if TFTP service is running
     result = host.run("systemctl is-active tftp.socket")
 
     if result.rc == 0 and result.stdout.strip() == "active":

@@ -26,6 +26,7 @@ import pytest
 import yaml
 
 from library.functions import TestLogger
+from library.vars.common_vars import INPUT_PATH_TEMPLATE, OUTPUT_PATH_TEMPLATE
 from omnia_auto import load_test_config
 
 
@@ -44,13 +45,15 @@ def test_pxe_mapping_processed(host) -> None:
 
     config = load_test_config()
     project = config.get("project_name", "project_default")
+    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
 
     # Check if temp mapping file was created (provision_preamble.yml creates this)
     temp_mapping = "/tmp/omnia_provision_mapping.csv"
     temp_exists = host.file(temp_mapping).exists
 
     # Also check the original mapping file
-    mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = INPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+    mapping_path = f"{input_path}/pxe_mapping_file.csv"
     original_exists = host.file(mapping_path).exists
 
     if temp_exists or original_exists:
@@ -78,9 +81,11 @@ def test_functional_groups_config_exists(host) -> None:
 
     config = load_test_config()
     project = config.get("project_name", "project_default")
+    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
 
     # Check for functional_groups.yml (created during provision)
-    fg_config_path = f"/opt/omnia/orchestrator/output/{project}/functional_groups.yml"
+    output_path = OUTPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+    fg_config_path = f"{output_path}/functional_groups.yml"
     fg_exists = host.file(fg_config_path).exists
 
     if fg_exists:
@@ -186,9 +191,11 @@ def test_orchestrator_state_updated(host) -> None:
 
     config = load_test_config()
     project = config.get("project_name", "project_default")
+    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
 
     # Check orchestrator_state.yml (updated during provision)
-    state_path = f"/opt/omnia/orchestrator/output/{project}/orchestrator_state.yml"
+    output_path = OUTPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+    state_path = f"{output_path}/orchestrator_state.yml"
     state_exists = host.file(state_path).exists
 
     if state_exists:

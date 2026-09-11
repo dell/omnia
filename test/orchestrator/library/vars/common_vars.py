@@ -46,6 +46,7 @@ DOMAIN_NAME = "orchestrator"
 
 # Environment variable names on the target host
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
+ENV_ORCHESTRATOR_DATA_PATH = "ORCHESTRATOR_DATA_PATH"
 ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
 
 # Domain config files (inside the domain input directory)
@@ -78,9 +79,17 @@ PLAYBOOK_TAGS: List[str] = [
 # =============================================================================
 # Domain-specific paths
 # =============================================================================
-SHARED_PATH = "/opt/omnia/orchestrator"
-INPUT_PATH_TEMPLATE = "/opt/omnia/orchestrator/input/{project}"
-OUTPUT_PATH_TEMPLATE = "/opt/omnia/orchestrator/output/{project}"
+# Derived from ORCHESTRATOR_DATA_PATH env var when available; falls back for dev boxes.
+SHARED_PATH = (
+    os.environ.get(ENV_ORCHESTRATOR_DATA_PATH)
+    or os.path.join(
+        os.environ.get(ENV_OMNIA_DATA_PATH, "/opt/omnia"),
+        DOMAIN_NAME,
+    )
+).rstrip("/")
+
+INPUT_PATH_TEMPLATE = "{shared_path}/input/{project}"
+OUTPUT_PATH_TEMPLATE = "{shared_path}/output/{project}"
 REPO_MANAGER_OUTPUT_TEMPLATE = (
     "/opt/omnia/repo_manager/output/{project}/repo_status.yml"
 )

@@ -65,10 +65,10 @@ MARKERS: List[str] = [
 # =====================================================================
 
 SUITES: Dict[str, List[str]] = {
-    "precheck": [],
-    "validate": [],
+    "precheck": ["connectivity"],
+    "validate": ["kubernetes", "slurm", "openchami"],
     "prepare": ["openchami"],
-    "deploy": [],
+    "deploy": ["kubernetes", "slurm"],
     "provision": ["kubernetes", "slurm"],
     "pxeboot": [],
     "check": ["kubernetes", "slurm", "status"],
