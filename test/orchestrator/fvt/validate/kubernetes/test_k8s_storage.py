@@ -40,8 +40,8 @@ from library.functions.k8s_func import (
     check_k8s_busybox_pod,
 )
 from library.messages import (
-    TEST_LOG_MSGS as LOG,
-    TEST_ASSERT_MSGS as ASSERT,
+    K8S_TEST_LOG_MSGS as LOG,
+    K8S_TEST_ASSERT_MSGS as ASSERT,
 )
 from library.vars.k8s_vars import TEST_CASES as TC
 
@@ -55,6 +55,7 @@ def _skip_if_k8s_disabled(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_k8s_nfs_provisioner_pod(host):
     """TC_K8_044: Verify NFS client provisioner pod is running."""
@@ -80,6 +81,7 @@ def test_k8s_nfs_provisioner_pod(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_k8s_snapshot_controller_pods(host):
     """TC_K8_045: Verify snapshot-controller pods are running."""
@@ -105,6 +107,7 @@ def test_k8s_snapshot_controller_pods(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_k8s_isilon_csi_pods(host):
     """TC_K8_046: Verify Isilon CSI driver pods are running."""
@@ -130,6 +133,7 @@ def test_k8s_isilon_csi_pods(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_k8s_default_storage_class(host):
     """TC_K8_047: Verify default storage class is set correctly."""
@@ -158,6 +162,7 @@ def test_k8s_default_storage_class(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(5)
 def test_k8s_persistent_volumes(host):
     """TC_K8_048: Verify Persistent Volumes are Bound with correct storage class."""
@@ -183,6 +188,7 @@ def test_k8s_persistent_volumes(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(6)
 def test_k8s_nfs_storage_class(host):
     """TC_K8_049: Verify NFS StorageClass is dynamic and properly configured."""
@@ -208,6 +214,7 @@ def test_k8s_nfs_storage_class(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(7)
 def test_k8s_telemetry_pvcs(host):
     """TC_K8_050: Verify telemetry PVCs are Bound with correct PV and size."""

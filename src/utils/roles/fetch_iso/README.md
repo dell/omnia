@@ -1,60 +1,42 @@
 # fetch_iso
 
-Downloads and validates OS ISO images for bare-metal provisioning.
+Validates a local source ISO and prepares the tooling and destination directory
+required by the OS-install image-build flow.
 
-## Description
+This role does not download ISOs. `source_iso_path` must reference an existing
+local file.
 
-This role handles downloading OS ISO images from various sources (HTTP, FTP, local filesystem), validates checksums, and prepares ISO files for use in bare-metal provisioning workflows. It supports multiple architectures and OS distributions.
+## Behavior
 
-## Requirements
+1. Verify that `source_iso_path` exists.
+2. Compute and compare SHA256 when `source_iso_checksum` is set.
+3. Install `xorriso` and `isomd5sum` when their commands are missing.
+4. Create `iso_target_directory`.
 
-- Network access to ISO download sources (if downloading)
-- Sufficient disk space for ISO storage
-- Tools for checksum validation (`sha256sum`, etc.)
+## Variables
 
-## Role Variables
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `iso_source_path` | Value of `source_iso_path` | Local source ISO |
+| `iso_source_checksum` | Value of `source_iso_checksum` | Optional SHA256 checksum |
+| `iso_target_directory` | Resolved local NFS directory or `/tmp/install_os` | Build destination |
+| `required_iso_tools` | `xorriso`, `implantisomd5` | Commands and packages required for repacking |
 
-Available variables are listed below, along with default values (see `vars/main.yml`):
+These values are normally set by `validate_install_os_config` before this role
+runs.
 
-```yaml
-# ISO source configuration
-iso_download_url: ""
-iso_local_path: ""
-iso_target_path: "/opt/isos/"
+## Usage
 
-# Validation settings
-validate_checksum: true
-expected_checksum: ""
-checksum_algorithm: "sha256"
-
-# Download options
-download_timeout: 3600
-resume_download: true
+```bash
+cd src/utils
+ansible-playbook playbooks/install_os.yml --tags build_iso
 ```
 
 ## Dependencies
 
-None.
-
-## Example Playbook
-
-```yaml
-- hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - role: fetch_iso
-      vars:
-        iso_download_url: "https://example.com/rhel-10.0-x86_64-dvd.iso"
-        iso_target_path: "/opt/isos/rhel-10.0-x86_64-dvd.iso"
-        expected_checksum: "abc123def456..."
-        validate_checksum: true
-```
+None. Package installation requires suitable configured repositories and
+privilege escalation.
 
 ## License
 
-Apache 2.0
-
-## Author Information
-
-Dell Technologies Omnia Team
+Apache License, Version 2.0

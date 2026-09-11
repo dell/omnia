@@ -36,6 +36,8 @@ from omnia_auto import (
     TestReport,
     get_current_report,
     set_current_report,
+    build_report_name,
+    record_playbook_failure,
     run_playbook as _run_playbook,
 )
 from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
@@ -52,6 +54,14 @@ from .discovery_func import (
     check_discovery_report_created,
     check_pxe_mapping_symlink,
     check_clone_status,
+    check_output_dir_removed,
+    check_credentials_removed,
+    check_credentials_preserved,
+    check_pxe_mapping_files_removed,
+    check_discovery_report_files_removed,
+    check_status_files_removed,
+    check_log_files_removed,
+    check_log_files_preserved,
 )
 
 # --- Validation ---

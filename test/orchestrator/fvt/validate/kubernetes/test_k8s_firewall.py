@@ -27,7 +27,10 @@ from library.functions.k8s_func import (
     check_k8s_nfs_client_target,
 )
 from library.vars.k8s_vars import TEST_CASES
-from library.messages.k8s_msgs import TEST_LOG_MSGS as LOG, TEST_ASSERT_MSGS as ASSERT
+from library.messages import (
+    K8S_TEST_LOG_MSGS as LOG,
+    K8S_TEST_ASSERT_MSGS as ASSERT,
+)
 
 from omnia_auto import log, get_last_tc_id
 
@@ -39,6 +42,7 @@ from omnia_auto import log, get_last_tc_id
 @pytest.mark.order(52)
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 def test_k8s_firewall_ports_control_plane(host):
     """TC_K8_052: Verify firewall ports on control plane nodes match cloud-init."""
     tc = TEST_CASES["k8s_firewall_ports_control_plane"]
@@ -68,6 +72,7 @@ def test_k8s_firewall_ports_control_plane(host):
 @pytest.mark.order(53)
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 def test_k8s_firewall_ports_workers(host):
     """TC_K8_053: Verify firewall ports on worker nodes match cloud-init."""
     tc = TEST_CASES["k8s_firewall_ports_workers"]
@@ -101,6 +106,7 @@ def test_k8s_firewall_ports_workers(host):
 @pytest.mark.order(54)
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 def test_k8s_nfs_client_target(host):
     """TC_K8_054: Verify nfs-client.target is active on all K8s nodes."""
     tc = TEST_CASES["k8s_nfs_client_target"]

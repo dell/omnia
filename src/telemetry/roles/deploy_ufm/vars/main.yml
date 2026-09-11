@@ -35,7 +35,7 @@ ufm_endpoint_empty_msg: >-
 
 ufm_credentials_missing_msg: >-
   UFM auth_mode is 'basic' but ufm_username or ufm_password is not set.
-  Provide UFM credentials in omnia_config_credentials.yml.
+  Provide UFM credentials in telemetry_credentials.yml.
 
 ufm_ca_cert_not_found_msg: >-
   UFM tls_mode is 'ca_signed' but the CA certificate file was not found

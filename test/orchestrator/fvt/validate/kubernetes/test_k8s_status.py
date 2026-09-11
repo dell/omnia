@@ -37,8 +37,8 @@ from library.functions.k8s_func import (
     check_k8s_pki_certs_exist,
 )
 from library.messages import (
-    TEST_LOG_MSGS as LOG,
-    TEST_ASSERT_MSGS as ASSERT,
+    K8S_TEST_LOG_MSGS as LOG,
+    K8S_TEST_ASSERT_MSGS as ASSERT,
 )
 from library.vars.k8s_vars import TEST_CASES as TC
 
@@ -52,6 +52,7 @@ def _skip_if_k8s_disabled(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_k8s_enabled(host):
     """TC_K8_001: Verify Kubernetes is enabled in catalog."""
@@ -75,6 +76,7 @@ def test_k8s_enabled(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_kubelet_running(host):
     """TC_K8_005: Verify kubelet service is running on all nodes."""
@@ -96,6 +98,7 @@ def test_kubelet_running(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_containerd_running(host):
     """TC_K8_006: Verify container runtime (CRI-O) is running on all nodes."""
@@ -117,6 +120,7 @@ def test_containerd_running(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_k8s_apiserver_responding(host):
     """TC_K8_008: Verify Kubernetes API server is responding."""
@@ -138,6 +142,7 @@ def test_k8s_apiserver_responding(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(5)
 def test_k8s_directories_exist(host):
     """TC_K8_009: Verify Kubernetes directories exist on nodes."""
@@ -159,6 +164,7 @@ def test_k8s_directories_exist(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(6)
 def test_k8s_config_files_exist(host):
     """TC_K8_010: Verify Kubernetes configuration files exist."""
@@ -180,6 +186,7 @@ def test_k8s_config_files_exist(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(7)
 def test_k8s_pki_certs_exist(host):
     """TC_K8_011: Verify Kubernetes PKI certificates exist."""

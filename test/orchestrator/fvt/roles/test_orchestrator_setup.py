@@ -38,6 +38,7 @@ from library.messages import (
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_role_structure():
     """TC_RO_001: Test orchestrator_setup role structure."""
@@ -65,6 +66,7 @@ def test_role_structure():
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_role_tasks():
     """TC_RO_002: Test orchestrator_setup role tasks."""

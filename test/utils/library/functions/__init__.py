@@ -62,6 +62,8 @@ from .host_func import (
     sync_install_os_credentials,
     get_utils_input_path,
     get_utils_output_path,
+    get_backup_oim_logs_output_path,
+    get_backup_oim_logs_config_path,
 )
 
 from .validation_func import (
@@ -69,16 +71,39 @@ from .validation_func import (
     ConfigValidationError,
 )
 
+from .cleanup_func import (
+    check_old_log_bundles_removed,
+    check_empty_log_dirs_removed,
+    check_temp_log_dirs_cleaned,
+    check_install_os_temp_dir_removed,
+    check_install_os_nfs_unmounted,
+    check_install_os_credentials_removed,
+    check_all_logs_cleaned,
+    check_all_install_os_cleaned,
+    check_setup_output_dir_exists,
+    check_setup_input_dir_exists,
+)
+
+from .backup_func import (
+    validate_backup_config,
+    validate_backup_metadata_file,
+    check_backup_workspace_removed,
+)
+
 # --- Domain-specific vars ---
 from ..vars.common_vars import (
     PLAYBOOK_COLLECT,
     PLAYBOOK_INSTALL_OS,
+    PLAYBOOK_BACKUP_OIM_LOGS,
     PLAYBOOK_WORKDIR,
 )
 
 
 def run_playbook(playbook=None, tag=None, **kwargs):
     """Run an Ansible playbook with domain-specific defaults.
+
+    The playbook uses OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from the
+    target's environment (sourced from /etc/omnia/omnia.env).
 
     Args:
         playbook: Playbook filename (default: collect.yml).
@@ -88,20 +113,10 @@ def run_playbook(playbook=None, tag=None, **kwargs):
     Returns:
         dict: {"success": bool, "rc": int, "duration": str, "output": str, "error": str}
     """
-    import os
-    
-    # Ensure environment variables are passed as extra_vars to Ansible
-    extra_vars = kwargs.pop("extra_vars", {})
-    if "OMNIA_DATA_PATH" not in extra_vars:
-        extra_vars["OMNIA_DATA_PATH"] = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia")
-    if "OMNIA_PROJECT_NAME" not in extra_vars:
-        extra_vars["OMNIA_PROJECT_NAME"] = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
-    
     return _run_playbook(
         playbook=playbook or PLAYBOOK_COLLECT,
         playbook_workdir=kwargs.pop("playbook_workdir", PLAYBOOK_WORKDIR),
         tag=tag,
-        extra_vars=extra_vars,
         **kwargs,
     )
 
@@ -143,6 +158,23 @@ __all__ = [
     "sync_install_os_credentials",
     "get_utils_input_path",
     "get_utils_output_path",
+    "get_backup_oim_logs_output_path",
+    "get_backup_oim_logs_config_path",
     "validate_all",
     "ConfigValidationError",
+    # Cleanup functions
+    "check_old_log_bundles_removed",
+    "check_empty_log_dirs_removed",
+    "check_temp_log_dirs_cleaned",
+    "check_install_os_temp_dir_removed",
+    "check_install_os_nfs_unmounted",
+    "check_install_os_credentials_removed",
+    "check_all_logs_cleaned",
+    "check_all_install_os_cleaned",
+    "check_setup_output_dir_exists",
+    "check_setup_input_dir_exists",
+    # OIM log backup functions
+    "validate_backup_config",
+    "validate_backup_metadata_file",
+    "check_backup_workspace_removed",
 ]

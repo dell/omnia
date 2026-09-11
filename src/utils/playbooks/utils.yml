@@ -21,9 +21,11 @@
 #   ansible-playbook playbooks/utils.yml --tags setup           # Setup only
 #   ansible-playbook playbooks/utils.yml --tags collect         # Collect logs
 #   ansible-playbook playbooks/utils.yml --tags install_os      # OS installation
+#   ansible-playbook playbooks/utils.yml --tags backup_oim_logs # Backup OIM domain logs
 #   ansible-playbook playbooks/utils.yml --tags cleanup         # Cleanup all utilities
 #   ansible-playbook playbooks/utils.yml --tags cleanup_logs    # Cleanup log collection only
 #   ansible-playbook playbooks/utils.yml --tags cleanup_install_os  # Cleanup OS installation only
+#   ansible-playbook playbooks/utils.yml --tags cleanup_backup_oim_logs  # Cleanup OIM log backups only
 #   ansible-playbook playbooks/utils.yml --tags upgrade         # Upgrade flow (placeholder)
 #   ansible-playbook playbooks/utils.yml --tags rollback        # Rollback flow (placeholder)
 #
@@ -33,9 +35,11 @@
 #   setup             - Setup and configuration
 #   collect           - Log collection utility
 #   install_os        - OS installation via iDRAC
-#   cleanup           - Cleanup all utilities (log collection + OS installation)
+#   backup_oim_logs   - Archive all domain log directories on the OIM
+#   cleanup           - Cleanup all utilities, backups, and stored install-OS credentials
 #   cleanup_logs      - Cleanup log collection artifacts only
 #   cleanup_install_os - Cleanup OS installation artifacts only
+#   cleanup_backup_oim_logs - Cleanup OIM log backup artifacts only
 #   upgrade           - Upgrade flow (placeholder)
 #   rollback          - Rollback flow (placeholder)
 #
@@ -90,6 +94,15 @@
     - install_os
 
 # =========================================================================
+# FLOW: backup_oim_logs - Archive all domain log directories on the OIM
+# =========================================================================
+- name: Backup OIM logs
+  ansible.builtin.import_playbook: backup_oim_logs/backup_oim_logs.yml
+  tags:
+    - never
+    - backup_oim_logs
+
+# =========================================================================
 # FLOW: cleanup - Cleanup utils artifacts (standalone cleanup playbooks)
 # =========================================================================
 - name: Cleanup log collection
@@ -105,6 +118,13 @@
     - never
     - cleanup
     - cleanup_install_os
+
+- name: Cleanup OIM log backups
+  ansible.builtin.import_playbook: backup_oim_logs/cleanup_backup_oim_logs.yml
+  tags:
+    - never
+    - cleanup
+    - cleanup_backup_oim_logs
 
 # =========================================================================
 # FLOW: upgrade - Upgrade flow placeholder (opt-in only)

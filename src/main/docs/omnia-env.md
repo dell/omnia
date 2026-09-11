@@ -19,7 +19,7 @@ read its exported values.
 | `SYSTEM_HOSTNAME` | Short hostname of the OIM host (NOT FQDN) | `oim` |
 | `SYSTEM_DOMAIN_NAME` | Domain name of the OIM host | `omnia.cluster` |
 | `OMNIA_VENV_PATH` | Path to the shared Python virtual environment | `/opt/omnia/venv` |
-| `CATALOG_FILE_PATH` | Convention path for catalog JSON (reference only — actual path is set in `image_build_config.yml`) | `${OMNIA_DATA_PATH}/catalog/catalog_rhel.json` |
+| `CATALOG_FILE_PATH` | Active catalog JSON used by Repo Manager and catalog-mode image builds | `${OMNIA_DATA_PATH}/catalog/catalog_rhel.json` |
 
 ## Component Override Variables
 
@@ -93,10 +93,7 @@ OMNIA_VERSION=2.3
 # │ CATALOG — Repo Manager catalog for image build package resolution        │
 # └───────────────────────────────────────────────────────────────────────────┘
 
-# Default catalog JSON location (convention path).
-# The actual catalog_file path is set in image_build_config.yml (Section 5).
-# This env var documents the convention; image_build_manager reads
-# the catalog path from its domain config, not from this env var.
+# Catalog JSON used by Repo Manager and catalog-mode image builds.
 CATALOG_FILE_PATH=${OMNIA_DATA_PATH}/catalog/catalog_rhel.json
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
@@ -151,6 +148,44 @@ vi /etc/omnia/omnia.env
 Setup preserves this file even when the repository copy differs. To
 intentionally discard the installed values and replace them from
 `src/main/omnia.env`, use `./omnia.sh -s --force-env`.
+
+## Choose a Different Catalog
+
+Setup copies the default `samples/catalog_rhel.json`, which contains packages
+for both Slurm and service_k8s deployments, to `$OMNIA_DATA_PATH/catalog/`.
+Additional catalogs are available under `samples/catalogs/10.0/` and
+`samples/catalogs/10.2/`, with Slurm-only, service_k8s-only, combined,
+x86_64/aarch64, and `_no_vast` variants. See `samples/README.md` for the full
+selection table.
+
+For a small x86_64 Slurm-only test without VAST, use the catalog matching the
+RHEL version being built while keeping the configured path:
+
+```bash
+# RHEL 10.0
+cp samples/catalogs/10.0/slurm_x86_64_no_vast.json "$CATALOG_FILE_PATH"
+
+# RHEL 10.2
+cp samples/catalogs/10.2/slurm_x86_64_no_vast.json "$CATALOG_FILE_PATH"
+```
+
+Run only the command matching the target RHEL version. Replacing the active
+catalog this way does not require an environment-file update.
+
+To retain a separate filename, copy the catalog and update the authoritative
+environment file:
+
+```bash
+cp samples/catalogs/10.0/slurm_x86_64_no_vast.json \
+  "${OMNIA_DATA_PATH}/catalog/slurm_x86_64_no_vast.json"
+vi /etc/omnia/omnia.env
+# Set CATALOG_FILE_PATH=${OMNIA_DATA_PATH}/catalog/slurm_x86_64_no_vast.json
+source /etc/profile.d/omnia-env.sh
+```
+
+If you update `src/main/omnia.env` instead, apply the repository file with
+`./omnia.sh -s --force-env`. This replaces the complete installed environment
+file, not only `CATALOG_FILE_PATH`.
 
 ## Validation
 

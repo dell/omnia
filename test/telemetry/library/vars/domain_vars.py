@@ -54,6 +54,7 @@ MARKERS: List[str] = [
     "deploy",
     "ome",
     "ldms",
+    "vast",
     "sfm",
     "ufm",
     "nft",

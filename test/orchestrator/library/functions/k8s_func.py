@@ -163,7 +163,7 @@ def _ssh_cmd(ip: str, remote_cmd: str) -> str:
 # =============================================================================
 
 def check_k8s_enabled(host) -> Dict[str, Any]:
-    """Check if Kubernetes is enabled in the catalog.
+    """Check whether Kubernetes roles were assigned in the PXE mapping.
 
     Args:
         host: Testinfra host connection
@@ -172,20 +172,23 @@ def check_k8s_enabled(host) -> Dict[str, Any]:
         Dict with success, details, error, skipped
     """
     project_path = _get_project_path(host)
-    orchestrator_config_path = f"{project_path}/orchestrator_config.yml"
+    pxe_mapping_path = f"{project_path}/pxe_mapping_file.csv"
 
-    cmd = f"test -f {orchestrator_config_path} && cat {orchestrator_config_path}"
+    cmd = (
+        f"test -f {pxe_mapping_path} && "
+        f"tail -n +2 {pxe_mapping_path} | cut -d',' -f1"
+    )
     result = run_on_host(host, cmd)
 
     if result.rc != 0:
         return {
             "success": False,
             "skipped": False,
-            "details": "Orchestrator config file not found",
-            "error": f"Cannot check K8s status - config file missing: {orchestrator_config_path}",
+            "details": "PXE mapping file not found",
+            "error": f"Cannot check K8s status - mapping file missing: {pxe_mapping_path}",
         }
 
-    # Check for K8s functional groups in the config
+    # Check for K8s functional groups assigned to provisioned nodes.
     k8s_keywords = [
         "service_kube_control_plane",
         "service_kube_node",
@@ -193,19 +196,28 @@ def check_k8s_enabled(host) -> Dict[str, Any]:
     ]
     has_k8s = any(keyword in result.stdout.lower() for keyword in k8s_keywords)
 
+    # If not found in orchestrator_config.yml, check the PXE mapping file
+    if not has_k8s:
+        pxe_mapping_path = f"{project_path}/pxe_mapping_file.csv"
+        pxe_cmd = f"test -f {pxe_mapping_path} && cat {pxe_mapping_path}"
+        pxe_result = run_on_host(host, pxe_cmd)
+        
+        if pxe_result.rc == 0:
+            has_k8s = any(keyword in pxe_result.stdout.lower() for keyword in k8s_keywords)
+
     if has_k8s:
         return {
             "success": True,
             "skipped": False,
-            "details": "Kubernetes functional groups found in orchestrator config",
+            "details": "Kubernetes functional groups found in PXE mapping",
             "error": "",
         }
 
     return {
         "success": False,
         "skipped": True,
-        "details": "Kubernetes functional groups not found in orchestrator config",
-        "error": "Kubernetes is not enabled in the catalog",
+        "details": "Kubernetes functional groups not found in PXE mapping",
+        "error": "Kubernetes roles were not assigned to provisioned nodes",
     }
 
 

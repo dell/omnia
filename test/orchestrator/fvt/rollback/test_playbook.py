@@ -30,6 +30,7 @@ from library.messages import (
 
 @pytest.mark.deploy
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(0)
 def test_deploy_rollback_not_supported(host):
     """TC_RB_000: Verify rollback tag fails with 'not supported' message."""

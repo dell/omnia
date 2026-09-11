@@ -30,8 +30,8 @@ from library.functions.k8s_func import (
     check_k8s_metadata_configured,
 )
 from library.messages import (
-    TEST_LOG_MSGS as LOG,
-    TEST_ASSERT_MSGS as ASSERT,
+    K8S_TEST_LOG_MSGS as LOG,
+    K8S_TEST_ASSERT_MSGS as ASSERT,
 )
 from library.vars.k8s_vars import TEST_CASES as TC
 
@@ -45,6 +45,7 @@ def _skip_if_k8s_disabled(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_k8s_nfs_config_exists(host):
     """TC_K8_015: Verify K8s NFS configuration directory exists."""
@@ -66,6 +67,7 @@ def test_k8s_nfs_config_exists(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_k8s_smd_groups(host):
     """TC_K8_024: Verify K8s functional groups registered in SMD."""
@@ -87,6 +89,7 @@ def test_k8s_smd_groups(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_k8s_metadata_configured(host):
     """TC_K8_025: Verify K8s metadata-service configuration exists."""

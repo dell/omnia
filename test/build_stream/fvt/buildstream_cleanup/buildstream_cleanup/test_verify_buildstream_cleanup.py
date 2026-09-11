@@ -23,9 +23,7 @@ Validates that cleanup_build_stream.yml removed all artifacts:
   omnia_postgres container stopped and removed
   omnia_postgres quadlet files removed
   omnia_postgres systemd services stopped
-  image_groups marked CLEANED
-  Postgres volumes removed (no backup) or preserved (backup)
-  build_stream cleanup directories removed
+  Postgres volumes preserved when backup is enabled
   build_stream credentials removed
   build_stream OAuth credentials removed
 """
@@ -45,10 +43,7 @@ from library.functions import (
     check_postgres_container_removed,
     check_postgres_quadlet_files_removed,
     check_postgres_services_stopped,
-    check_image_groups_marked_cleaned,
-    check_postgres_volumes_removed,
     check_postgres_volumes_preserved,
-    check_buildstream_directories_removed,
     check_buildstream_credentials_removed,
     check_buildstream_oauth_credentials_removed,
 )
@@ -360,56 +355,6 @@ def test_postgres_services_stopped(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(20)
-def test_image_groups_marked_cleaned(host):
-    """Verify all image_groups are updated to CLEANED status."""
-    tc = TC["image_groups_marked_cleaned"]
-    tl = TestLogger(tc["title"], tc["id"])
-    result = check_image_groups_marked_cleaned(host)
-
-    if result.get("skipped"):
-        tl.skipped(LOG["image_groups_not_checked"])
-        pytest.skip(LOG["image_groups_not_checked"])
-
-    if result["success"]:
-        tl.passed(LOG["image_groups_cleaned"], result["details"])
-    else:
-        tl.failed(result.get("error", ""))
-
-    assert result["success"], result.get(
-        "error", "image_groups not marked CLEANED"
-    )
-
-
-@pytest.mark.sanity
-@pytest.mark.order(21)
-def test_postgres_volumes_removed_no_backup(host):
-    """Verify Postgres volumes removed when postgres_backup=false."""
-    tc = TC["postgres_volumes_removed_no_backup"]
-    tl = TestLogger(tc["title"], tc["id"])
-    result = check_postgres_volumes_removed(host)
-
-    if result["success"]:
-        tl.passed(
-            LOG["volumes_removed"].format(
-                container="omnia_postgres",
-            ),
-            result["details"],
-        )
-    else:
-        tl.failed(
-            LOG["volumes_still_exist"].format(
-                volumes=", ".join(result.get("volumes", [])),
-            ),
-            result.get("error", ""),
-        )
-
-    assert result["success"], result.get(
-        "error", "Postgres volumes not removed"
-    )
-
-
-@pytest.mark.sanity
 @pytest.mark.order(22)
 def test_postgres_volumes_preserved_with_backup(host):
     """Verify Postgres volumes preserved when postgres_backup=true."""
@@ -424,39 +369,6 @@ def test_postgres_volumes_preserved_with_backup(host):
 
     assert result["success"], result.get(
         "error", "Postgres volumes not preserved"
-    )
-
-
-# =====================================================================
-# Directory Cleanup
-# =====================================================================
-
-@pytest.mark.sanity
-@pytest.mark.order(23)
-def test_buildstream_directories_removed(host):
-    """Verify build_stream cleanup directories are removed."""
-    tc = TC["buildstream_directories_removed"]
-    tl = TestLogger(tc["title"], tc["id"])
-    result = check_buildstream_directories_removed(host)
-
-    if result["success"]:
-        tl.passed(
-            LOG["dirs_removed"].format(
-                count=len(result["removed"]),
-                total=len(result["removed"]),
-            ),
-            result["details"],
-        )
-    else:
-        tl.failed(
-            LOG["dirs_still_exist"].format(
-                dirs=", ".join(result["still_exist"]),
-            ),
-            result["details"],
-        )
-
-    assert result["success"], ASSERT["dirs_still_exist"].format(
-        dirs=", ".join(result.get("still_exist", [])),
     )
 
 

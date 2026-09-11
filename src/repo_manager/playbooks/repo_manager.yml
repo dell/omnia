@@ -159,7 +159,7 @@
       ansible.builtin.debug:
         msg: >-
           Run with --tags to specify operation (credentials, prepare, precheck,
-          download, status, cleanup_pulp, cleanup_repos)
+          download, status, cleanup, cleanup_pulp, cleanup_repos)
   tags: always
 
 # -------------------------------------------------------------------------
@@ -193,9 +193,9 @@
   roles:
     - role: precheck_environment
       when: >-
-        not ('credentials' in (ansible_run_tags | default([])) and
-             ((ansible_run_tags | default([]) |
-               difference(['credentials'])) | length == 0))
+        ((ansible_run_tags | default([]))
+         | intersect(['credentials', 'cleanup', 'cleanup_pulp', 'cleanup_repos'])
+         | length) == 0
   tags:
     - precheck
     - always

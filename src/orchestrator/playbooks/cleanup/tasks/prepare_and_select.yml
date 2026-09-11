@@ -126,6 +126,29 @@
     enabled_components: "{{ target_components }}"
   when: effective_tags | length > 0 and effective_tags[0] != 'all'
 
+- name: Load Omnia configuration for full cleanup selection
+  ansible.builtin.include_vars:
+    file: "{{ omnia_project_input_dir }}/omnia_config.yml"
+    name: cleanup_selection_omnia_config
+  when: effective_tags | length == 0 or effective_tags[0] == 'all'
+
+- name: Detect whether Kubernetes is configured
+  ansible.builtin.set_fact:
+    cleanup_k8s_configured: >-
+      {{ (cleanup_selection_omnia_config.service_k8s_cluster
+          | default([], true) | length) > 0 }}
+  when: effective_tags | length == 0 or effective_tags[0] == 'all'
+
+- name: Exclude unconfigured Kubernetes from full cleanup
+  ansible.builtin.set_fact:
+    enabled_components: >-
+      {{ enabled_components | dict2items
+         | rejectattr('key', 'equalto', 'k8s') | items2dict }}
+  when:
+    - effective_tags | length == 0 or effective_tags[0] == 'all'
+    - enabled_components.k8s is defined
+    - not cleanup_k8s_configured | bool
+
 - name: Validate full-cleanup data selection values
   ansible.builtin.assert:
     that:
@@ -208,7 +231,9 @@
         if cleanup_slurm_approved | bool
         else 'preserve data, then unmount and remove fstab entries' }}
       - >-
-        Kubernetes: {{ 'delete data, unmount, and remove fstab entries'
+        Kubernetes: {{ 'not configured; skipped'
+        if not cleanup_k8s_configured | bool
+        else 'delete data, unmount, and remove fstab entries'
         if cleanup_k8s_approved | bool
         else 'preserve data, then unmount and remove fstab entries' }}
   when: effective_tags | length == 0 or effective_tags[0] == 'all'

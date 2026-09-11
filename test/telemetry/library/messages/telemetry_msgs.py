@@ -235,9 +235,17 @@ TEST_LOG_MSGS = {
     "vast_metrics_found": (
         "{count} VAST metric(s) found in VictoriaMetrics"
     ),
-    "vast_metrics_missing": "Missing VAST metrics in VictoriaMetrics: {missing}",
-    "vast_logs_found": "{count} VAST log entries found in VictoriaLogs",
-    "vast_logs_missing": "No VAST logs found in VictoriaLogs",
+    "vast_metrics_missing": "VAST metrics pipeline verification failed",
+    "vast_syslog_configured": (
+        "VAST syslog configured and test event accepted"
+    ),
+    "vast_syslog_configuration_failed": (
+        "VAST syslog configuration or test event failed"
+    ),
+    "vast_logs_found": (
+        "{count} fresh VAST test event(s) found in VictoriaLogs"
+    ),
+    "vast_logs_missing": "Fresh VAST test event not found in VictoriaLogs",
 
     # Online/Offline Mode
     "config_value_correct": "Configuration value correct: {key}={value}",
@@ -701,19 +709,30 @@ TEST_ASSERT_MSGS = {
         "  2. Re-run telemetry deploy with VAST credentials\n"
     ),
     "vast_metrics_missing": (
-        "VAST metrics not found in VictoriaMetrics: {missing}\n"
+        "VAST metrics pipeline verification failed: {error}\n"
         "HOW TO FIX:\n"
         "  1. Check vmagent scrape targets for VAST\n"
         "  2. Verify VAST endpoint is reachable: "
         "curl -sk https://<vast-ip>:443/api/prometheusmetrics/all\n"
         "  3. Check vmagent logs: kubectl logs -n telemetry <vmagent-pod>\n"
     ),
-    "vast_logs_missing": (
-        "No VAST logs found in VictoriaLogs\n"
+    "vast_syslog_configuration_failed": (
+        "VAST syslog configuration failed: {error}\n"
         "HOW TO FIX:\n"
-        "  1. Check VAST syslog config in VAST UI: Settings > Notifications > Syslog Setup\n"
-        "  2. Verify VLAgent is listening: kubectl get svc vlagent-vlagent -n telemetry\n"
-        "  3. Check VLAgent logs: kubectl logs vlagent-vlagent-0 -n telemetry\n"
+        "  1. Confirm vast_endpoint and TLS settings in telemetry_config.yml\n"
+        "  2. Run ./setup_env.sh --set-domain-creds on the execution OIM\n"
+        "  3. Confirm VAST default notification actions and VMS syslog audit "
+        "are enabled\n"
+        "  4. Verify the vlagent-vlagent LoadBalancer service is available\n"
+    ),
+    "vast_logs_missing": (
+        "VAST logs verification failed: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Verify the preceding VAST syslog configuration case passed\n"
+        "  2. Check VAST Settings > Notifications > Syslog Setup\n"
+        "  3. Verify VLAgent: kubectl get svc vlagent-vlagent -n telemetry\n"
+        "  4. Check VLAgent logs: kubectl logs vlagent-vlagent-0 "
+        "-n telemetry\n"
     ),
 
     # Online/Offline Mode

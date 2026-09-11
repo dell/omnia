@@ -15,7 +15,9 @@ from library.functions import (
     TestLogger,
     check_repo_policy,
     check_repo_caching,
-    get_configured_repos,
+    check_repo_source_type,
+    get_deployed_repos,
+    verify_policy_resolution,
 )
 from library.messages.repo_manager_msgs import (
     TEST_NAMES,
@@ -30,8 +32,7 @@ def test_subscription_repo_per_repo_override(host: Host):
     """TC_RM_PO_011: Subscription repos should support per-repo overrides."""
     tl = TestLogger(TEST_NAMES["subscription_repo_per_repo_override"], "TC_RM_PO_011")
 
-    # Get all configured repos
-    repos_result = get_configured_repos(host, arch="x86_64")
+    repos_result = get_deployed_repos(host, arch="x86_64")
 
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
@@ -42,6 +43,9 @@ def test_subscription_repo_per_repo_override(host: Host):
     # Find a subscription repo (typically baseos, appstream, codeready-builder)
     found_repo = None
     for repo_name in configured_repos:
+        source = check_repo_source_type(host, repo_name)
+        if not source["success"] or source.get("source_type") != "subscription":
+            continue
         repo_policy = check_repo_policy(host, repo_name)
         repo_caching = check_repo_caching(host, repo_name)
 
@@ -49,7 +53,6 @@ def test_subscription_repo_per_repo_override(host: Host):
             policy_source = repo_policy.get("source")
             caching_source = repo_caching.get("source")
 
-            # Check if this is a subscription repo (has per-repo override)
             if policy_source == "per_repo" or caching_source == "per_repo":
                 found_repo = repo_name
                 break
@@ -78,8 +81,7 @@ def test_url_repo_per_repo_override(host: Host):
     """TC_RM_PO_012: URL repos should support per-repo overrides."""
     tl = TestLogger(TEST_NAMES["url_repo_per_repo_override"], "TC_RM_PO_012")
 
-    # Get all configured repos
-    repos_result = get_configured_repos(host, arch="x86_64")
+    repos_result = get_deployed_repos(host, arch="x86_64")
 
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
@@ -90,6 +92,9 @@ def test_url_repo_per_repo_override(host: Host):
     # Find a URL repo (typically epel, docker-ce, etc.)
     found_repo = None
     for repo_name in configured_repos:
+        source = check_repo_source_type(host, repo_name)
+        if not source["success"] or source.get("source_type") != "url":
+            continue
         repo_policy = check_repo_policy(host, repo_name)
         repo_caching = check_repo_caching(host, repo_name)
 
@@ -97,7 +102,6 @@ def test_url_repo_per_repo_override(host: Host):
             policy_source = repo_policy.get("source")
             caching_source = repo_caching.get("source")
 
-            # Check if this is a URL repo (has per-repo override)
             if policy_source == "per_repo" or caching_source == "per_repo":
                 found_repo = repo_name
                 break
@@ -126,8 +130,7 @@ def test_subscription_and_url_identical_behavior(host: Host):
     """TC_RM_PO_013: Subscription and URL repos should behave identically."""
     tl = TestLogger(TEST_NAMES["subscription_and_url_identical_behavior"], "TC_RM_PO_013")
 
-    # Get all configured repos
-    repos_result = get_configured_repos(host, arch="x86_64")
+    repos_result = get_deployed_repos(host, arch="x86_64")
 
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
@@ -135,29 +138,32 @@ def test_subscription_and_url_identical_behavior(host: Host):
 
     configured_repos = repos_result["repos"]
 
-    # Check if repos use global settings (both subscription and URL behave identically)
-    repos_with_global = 0
+    representatives = {}
     for repo_name in configured_repos:
-        repo_policy = check_repo_policy(host, repo_name)
-        repo_caching = check_repo_caching(host, repo_name)
+        source = check_repo_source_type(host, repo_name)
+        if source["success"]:
+            representatives.setdefault(source.get("source_type"), repo_name)
 
-        if repo_policy["success"] and repo_caching["success"]:
-            policy_source = repo_policy.get("source")
-            caching_source = repo_caching.get("source")
-
-            if policy_source == "global" and caching_source == "global":
-                repos_with_global += 1
-
-    if repos_with_global > 0:
-        tl.passed(
-            "global_settings_used",
-            f"{repos_with_global} repos use global settings (identical behavior)"
+    missing_types = {"subscription", "url"} - representatives.keys()
+    if missing_types:
+        pytest.skip(
+            "Deployment does not contain both repository source types: "
+            f"missing {', '.join(sorted(missing_types))}"
         )
+
+    failures = []
+    details = []
+    for source_type in ("subscription", "url"):
+        repo_name = representatives[source_type]
+        resolution = verify_policy_resolution(host, repo_name)
+        if not resolution["success"] or not resolution.get("match"):
+            failures.append(f"{source_type} repo {repo_name}: {resolution['details']}")
+        else:
+            details.append(f"{source_type} repo {repo_name}: {resolution['details']}")
+
+    if failures:
+        tl.failed("repository_type_policy_mismatch", "; ".join(failures))
     else:
-        tl.passed(
-            "other_configuration",
-            "Repos use per-repo overrides (still identical behavior)"
-        )
+        tl.passed("repository_types_resolve_identically", "; ".join(details))
 
-    # Test passes - both types support the same features
-    assert True, "Subscription and URL repos behave identically"
+    assert not failures, "; ".join(failures)

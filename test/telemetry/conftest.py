@@ -57,6 +57,7 @@ from omnia_auto import (  # noqa: E402
     get_test_output,
     get_last_tc_id,
     encrypt_test_credentials,
+    build_report_name,
     log,
     set_verbose_mode,
     add_session_result,
@@ -161,9 +162,10 @@ def pytest_configure(config):
         "regression": "Regression tests",
         "deploy": "Playbook deployment tests",
         "sink": "Sink (VictoriaMetrics/VictoriaLogs/Kafka) tests",
-        "source": "Source (iDRAC/LDMS/OME/SFM/UFM) tests",
+        "source": "Source (iDRAC/LDMS/OME/SFM/UFM/VAST) tests",
         "ome": "OME (OpenManage Enterprise) specific tests",
         "ldms": "LDMS (Lightweight Distributed Metric Service) specific tests",
+        "vast": "VAST Data storage telemetry specific tests",
         "sfm": "SFM (SmartFabric Manager) specific tests",
         "ufm": "UFM (Unified Fabric Manager) specific tests",
         "nft": "Non-functional tests (performance, idempotency, resilience)",
@@ -234,10 +236,21 @@ def pytest_collection_modifyitems(session, config, items):
 # =============================================================================
 
 def _apply_dataset_overrides(config):
-    """Apply dataset/sync overrides from environment variables."""
+    """Apply dataset/sync overrides from environment variables.
+
+    Environment variables (set by run_validation.sh --config mode):
+      OMNIA_DATASET_OVERRIDE      — override config["dataset"]
+      OMNIA_SYNC_INPUT_OVERRIDE   — override config["sync_telemetry_input"]
+
+    Args:
+        config: Test configuration dict from load_test_config().
+
+    Returns:
+        dict: Updated config dict (mutated in place).
+    """
     ds_override = os.environ.get("OMNIA_DATASET_OVERRIDE", "")
     if ds_override:
-        log(f"Dataset override: {config.get('dataset')} -> {ds_override}", "INFO")
+        log(f"Dataset override: {config.get('dataset')} → {ds_override}", "INFO")
         config["dataset"] = ds_override
 
     si_override = os.environ.get("OMNIA_SYNC_INPUT_OVERRIDE", "")
@@ -288,7 +301,7 @@ def pytest_sessionstart(session):
             log(f"Project sync failed: {sync_result['error']}", "WARN")
 
     if config.get("sync_telemetry_input", False):
-        sync_result = sync_telemetry_input(host)
+        sync_result = sync_telemetry_input(host, config)
         if sync_result["success"]:
             log(sync_result["details"], "OK")
         else:
@@ -307,10 +320,15 @@ def pytest_sessionstart(session):
                 break
 
     report_id = os.environ.get("REPORT_ID")
+    base_name = str(config.get("report_name", "telemetry_test_report"))
+    report_name = build_report_name(
+        domain_name="telemetry",
+        base_name=base_name,
+    )
     report = TestReport(
         module_name=module_name,
         report_path=str(config.get("report_path", "/opt/omnia/reports")),
-        report_name=str(config.get("report_name", "telemetry_test_report")),
+        report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
         report_id=report_id,
     )

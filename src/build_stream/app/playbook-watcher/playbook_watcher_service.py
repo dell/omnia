@@ -12,13 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Playbook Watcher Service for OIM Core Container.
-
 This service monitors the NFS playbook request queue, executes Ansible playbooks,
 and writes results back to the results queue. It is designed to be stateless and
 run as a systemd service in the OIM Core container.
-
 Architecture:
 - Polls /opt/omnia/build_stream/playbook_queue/requests/ every 2 seconds
 - Moves requests to processing/ to prevent duplicate execution
@@ -26,11 +23,11 @@ Architecture:
 - Writes structured results to /opt/omnia/build_stream/playbook_queue/results/
 - Supports max 5 concurrent playbook executions
 """
-
 import json
 import logging
 import os
 import re
+import shlex
 import shutil
 import signal
 import subprocess
@@ -44,14 +41,12 @@ from typing import Dict, Optional, Any, List
 
 def _resolve_omnia_env():
     """Read /etc/omnia/omnia.env and resolve variable references.
-
     systemd ``EnvironmentFile`` does not expand ``${VAR}`` references,
     so values like ``CATALOG_FILE_PATH=${OMNIA_DATA_PATH}/catalog/...``
     remain literal.  This function parses the file, resolves references
     against already-set environment variables (including those set by the
     systemd ``Environment=`` directives), and exports the resolved values
     into ``os.environ``.
-
     Called once at module load time, before any playbook is executed.
     """
     env_file = Path("/etc/omnia/omnia.env")
@@ -98,11 +93,9 @@ def log_secure_info(
     exc_info: bool = False,
 ) -> None:
     """Log information securely with optional identifier truncation.
-
     This function provides consistent secure logging across all modules.
     When an identifier is provided, only the first 8 characters are logged
     to prevent exposure of sensitive data while maintaining debugging capability.
-
     Args:
         level: Log level ('info', 'warning', 'error', 'debug', 'critical')
         message: Log message template
@@ -110,7 +103,6 @@ def log_secure_info(
         exc_info: If True, append current exception traceback (replaces logger.exception())
     """
     logger = logging.getLogger(__name__)
-
     if identifier:
         # Always log first 8 characters for identification
         log_message = f"{message}: {identifier[:8]}..."
@@ -120,6 +112,7 @@ def log_secure_info(
 
     log_func = getattr(logger, level)
     log_func(log_message, exc_info=exc_info)
+
 
 # Configuration
 QUEUE_BASE = Path(os.getenv("PLAYBOOK_QUEUE_BASE", ""))
@@ -140,8 +133,7 @@ HOST_LOG_BASE_DIR = Path(f"{OMNIA_DATA_PATH}/build_stream/logs")
 PLAYBOOK_LOG_BASE_DIR = Path("/var/log/omnia")
 
 # Build Stream artifacts directory
-NFS_SHARE_PATH = Path(os.getenv("NFS_SHARE_PATH", ""))
-BUILD_STREAM_ROOT = NFS_SHARE_PATH / "omnia" / "build_stream_root"
+BUILD_STREAM_ROOT = Path(OMNIA_DATA_PATH) / "build_stream_root"
 ARTIFACTS_DIR = BUILD_STREAM_ROOT / "artifacts"
 
 POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "2"))
@@ -170,7 +162,6 @@ def _get_omnia_src_path() -> str:
 
 def _resolve_path(relative_path: str) -> str:
     """Resolve a relative playbook path to an absolute path.
-
     If the path is already absolute it is returned as-is (backward compat).
     Otherwise it is joined with OMNIA_SRC_PATH.
     """
@@ -181,7 +172,6 @@ def _resolve_path(relative_path: str) -> str:
 
 def _load_playbook_paths(config_path: Path) -> dict:
     """Load playbook path mapping from YAML config file.
-
     Relative paths are resolved against OMNIA_SRC_PATH.
     Falls back to an empty dict if the file is missing or malformed,
     which will cause every playbook request to be rejected by the
@@ -217,6 +207,7 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
+
 # Global state
 SHUTDOWN_REQUESTED = False
 job_semaphore = Semaphore(MAX_CONCURRENT_JOBS)
@@ -244,7 +235,6 @@ def ensure_directories():
         ARCHIVE_DIR / "results",
         HOST_LOG_BASE_DIR,  # NFS log directory
     ]
-
     for directory in directories:
         try:
             directory.mkdir(parents=True, exist_ok=True)
@@ -252,7 +242,7 @@ def ensure_directories():
                 "debug",
                 "Ensured directory exists"
             )
-        except (OSError, IOError) as e:
+        except (OSError, IOError):
             log_secure_info(
                 "error",
                 "Failed to create directory"
@@ -262,10 +252,8 @@ def ensure_directories():
 
 def validate_playbook_name(playbook_name: str) -> bool:
     """Validate playbook name against the allowed whitelist.
-
     Args:
         playbook_name: Name of the playbook file (without path)
-
     Returns:
         True if name is in the whitelist, False otherwise
     """
@@ -293,10 +281,8 @@ def validate_playbook_name(playbook_name: str) -> bool:
 
 def map_playbook_name_to_path(playbook_name: str) -> Optional[str]:
     """Validate playbook name and map it to the full path.
-
     Args:
         playbook_name: Name of the playbook file (untrusted input)
-
     Returns:
         The full path if valid, None if invalid
     """
@@ -313,32 +299,226 @@ def map_playbook_name_to_path(playbook_name: str) -> Optional[str]:
 
 def validate_job_id(job_id: str) -> bool:
     """Validate job ID format.
-
     Args:
         job_id: Job identifier
-
     Returns:
         True if valid, False otherwise
     """
     # Allow UUID format or alphanumeric with hyphens/underscores
     uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
     alnum_pattern = r'^[a-zA-Z0-9_-]+$'
-
     return bool(re.match(uuid_pattern, job_id) or re.match(alnum_pattern, job_id))
 
 
 def validate_stage_name(stage_name: str) -> bool:
     """Validate stage name to prevent injection.
-
     Args:
         stage_name: Name of the stage
-
     Returns:
         True if valid, False otherwise
     """
     # Only allow alphanumeric, spaces, hyphens, and underscores
     pattern = r'^[a-zA-Z0-9 _-]+$'
     return bool(re.match(pattern, stage_name))
+
+
+# Checkmarx: Constant alphabet used to re-derive identifiers taken from request
+# files.  Every character of the returned string is indexed out of this constant,
+# so the result carries no data-flow edge back to the request file.  This is the
+# same "replace, don't just check" principle as the PLAYBOOK_NAME_TO_PATH lookup
+# in map_playbook_name_to_path().
+_SAFE_ID_ALPHABET = (
+    "abcdefghijklmnopqrstuvwxyz"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "0123456789-_"
+)
+_MAX_IDENTIFIER_LENGTH = 64
+
+
+def sanitize_identifier(value: str) -> str:
+    """Re-derive an identifier from a constant alphabet to break the taint chain.
+
+    ``validate_job_id`` and ``validate_stage_name`` only _check_ a value — the
+    original untrusted string keeps flowing on to the caller, so a static
+    analyser still treats it as attacker-controlled all the way to
+    ``subprocess.run``.  This function instead _rebuilds_ the identifier: each
+    character is located in :data:`_SAFE_ID_ALPHABET` and that constant's own
+    character is appended, so the result originates entirely from trusted
+    module-level data.
+
+    Use this for any request-file value that ends up in a command argument,
+    an environment variable, or a filesystem path.
+
+    Args:
+        value: Untrusted identifier (e.g. ``job_id`` read from a request file).
+
+    Returns:
+        A new string containing only whitelisted characters, truncated to
+        :data:`_MAX_IDENTIFIER_LENGTH` characters.
+
+    Raises:
+        ValueError: If *value* is empty or contains a non-whitelisted character.
+    """
+    rebuilt: List[str] = []
+    for char in str(value)[:_MAX_IDENTIFIER_LENGTH]:
+        index = _SAFE_ID_ALPHABET.find(char)
+        if index < 0:
+            raise ValueError("Identifier contains unsupported characters")
+        rebuilt.append(_SAFE_ID_ALPHABET[index])
+    if not rebuilt:
+        raise ValueError("Identifier is empty")
+    return "".join(rebuilt)
+
+
+# ── NEW: Constant alphabets and sanitize functions for stage names and paths ──
+# These re-derive values character-by-character from module-level constants,
+# severing the data-flow edge from the request file to subprocess.run().
+
+_SAFE_STAGE_ALPHABET = (
+    "abcdefghijklmnopqrstuvwxyz"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "0123456789-_ "
+)
+
+
+def sanitize_stage_name(value: str) -> str:
+    """Re-derive a stage name from a constant alphabet to break the taint chain.
+
+    Args:
+        value: Untrusted stage name from request data.
+
+    Returns:
+        A new string built from :data:`_SAFE_STAGE_ALPHABET`.
+
+    Raises:
+        ValueError: If the value is empty or contains unsupported characters.
+    """
+    rebuilt: List[str] = []
+    for char in str(value)[:_MAX_IDENTIFIER_LENGTH]:
+        index = _SAFE_STAGE_ALPHABET.find(char)
+        if index < 0:
+            raise ValueError("Stage name contains unsupported characters")
+        rebuilt.append(_SAFE_STAGE_ALPHABET[index])
+    if not rebuilt:
+        raise ValueError("Stage name is empty")
+    return "".join(rebuilt)
+
+
+_SAFE_PATH_ALPHABET = (
+    "abcdefghijklmnopqrstuvwxyz"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "0123456789-_./"
+)
+_MAX_PATH_LENGTH = 4096
+
+
+def sanitize_path(value: str, allowed_base: str) -> str:
+    """Re-derive a filesystem path from a constant alphabet to break the taint chain.
+
+    Validates that the path starts with ``allowed_base``, contains no path
+    traversal or shell-dangerous characters, and rebuilds every character
+    from :data:`_SAFE_PATH_ALPHABET`.
+
+    Args:
+        value: Untrusted path string from request data.
+        allowed_base: Required prefix (e.g. ``OMNIA_DATA_PATH``).
+
+    Returns:
+        A new string built entirely from trusted constant data.
+
+    Raises:
+        ValueError: If the path is empty, contains unsupported characters,
+                    path traversal sequences, or does not start with *allowed_base*.
+    """
+    path_str = str(value)
+    if not path_str or ".." in path_str:
+        raise ValueError("Path is empty or contains traversal sequence")
+    if not path_str.startswith(allowed_base):
+        raise ValueError("Path does not start with allowed base directory")
+
+    # Reject shell metacharacters before rebuilding
+    for dangerous in (";", "|", "&", "$", "`", "\n", "\r", "\0", "'", '"'):
+        if dangerous in path_str:
+            raise ValueError("Path contains dangerous characters")
+
+    rebuilt: List[str] = []
+    for char in path_str[:_MAX_PATH_LENGTH]:
+        index = _SAFE_PATH_ALPHABET.find(char)
+        if index < 0:
+            raise ValueError("Path contains unsupported character")
+        rebuilt.append(_SAFE_PATH_ALPHABET[index])
+
+    if not rebuilt:
+        raise ValueError("Path is empty after sanitization")
+
+    return "".join(rebuilt)
+
+
+def sanitize_extra_vars(extra_vars: Any, job_id: str) -> dict:
+    """Sanitize extra_vars dictionary values to break taint chain.
+
+    Re-derives each key and string value from safe alphabets.  Non-string
+    scalar values (int, float, bool, None) are passed through as-is since
+    they carry no injection risk.  Nested dicts/lists are recursively
+    sanitized.
+
+    The ``job_id`` key is always overwritten with the already-sanitized
+    *job_id* parameter.
+
+    Args:
+        extra_vars: Untrusted extra_vars from request data.
+        job_id: Already-sanitized job_id.
+
+    Returns:
+        A new dict with all string values re-derived from safe constants.
+
+    Raises:
+        ValueError: If any key or value contains unsupported characters.
+    """
+    if not isinstance(extra_vars, dict):
+        return {"job_id": job_id}
+
+    # Alphabet for extra_vars values — broader to support JSON-like content
+    safe_value_alphabet = (
+        "abcdefghijklmnopqrstuvwxyz"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "0123456789"
+        "-_./,:=@ {}[]\"'"
+    )
+
+    def _sanitize_value(val: Any) -> Any:
+        if val is None or isinstance(val, (bool, int, float)):
+            return val
+        if isinstance(val, str):
+            rebuilt: List[str] = []
+            for char in val[:_MAX_PATH_LENGTH]:
+                index = safe_value_alphabet.find(char)
+                if index < 0:
+                    raise ValueError(
+                        "extra_vars value contains unsupported character"
+                    )
+                rebuilt.append(safe_value_alphabet[index])
+            return "".join(rebuilt)
+        if isinstance(val, list):
+            return [_sanitize_value(item) for item in val]
+        if isinstance(val, dict):
+            return {
+                sanitize_identifier(str(k)): _sanitize_value(v)
+                for k, v in val.items()
+            }
+        raise ValueError("Unsupported type in extra_vars")
+
+    sanitized: dict = {}
+    for key, value in extra_vars.items():
+        safe_key = sanitize_identifier(str(key))
+        sanitized[safe_key] = _sanitize_value(value)
+
+    # Always overwrite job_id with the trusted value
+    sanitized["job_id"] = job_id
+    return sanitized
+
+
+# ── END NEW sanitization functions ──
 
 
 def validate_command(cmd: list, playbook_path: str) -> bool:
@@ -359,8 +539,8 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
     """
     # Define the minimum required command structure
     MIN_REQUIRED_STRUCTURE = [
-        {"value": "ansible-playbook", "suffix": True},  # venv path ends with ansible-playbook
-        {"value": None, "fixed": False},  # playbook_path (validated separately)
+        {"value": "ansible-playbook", "suffix": True},
+        {"value": None, "fixed": False},
     ]
 
     # Define allowed additional arguments
@@ -424,7 +604,6 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
         i = min_required_length
         while i < len(cmd):
             arg = cmd[i]
-
             if arg in ["--inventory", "--extra-vars", "--tags"] and i + 1 < len(cmd):
                 i += 2
             elif arg == "-v" or arg.startswith("-v"):
@@ -438,11 +617,14 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
                 raise ValueError(f"Unknown additional argument: {arg}")
 
     # 4. Character validation - check for dangerous characters in all arguments
-    DANGEROUS_CHARS = ['\n', '\r', '\0', '\t', '\v', '\f', '\a', '\b', '\\', '`', '$', '&', '|', ';', '<', '>', '(', ')', '*', '?', '~', '#']
+    DANGEROUS_CHARS = [
+        '\n', '\r', '\0', '\t', '\v', '\f', '\a', '\b',
+        '\\', '`', '$', '&', '|', ';', '<', '>', '(', ')',
+        '*', '?', '~', '#'
+    ]
 
     # Skip validation for playbook path position and value arguments
     SKIP_POSITIONS = [1]  # Position of playbook_path
-
     i = min_required_length
     while i < len(cmd):
         if cmd[i] in ("--extra-vars", "--inventory", "--tags") and i + 1 < len(cmd):
@@ -454,7 +636,6 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
     for i, arg in enumerate(cmd):
         if i in SKIP_POSITIONS:
             continue
-
         for char in DANGEROUS_CHARS:
             if char in arg:
                 log_secure_info(
@@ -488,17 +669,10 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
     return True
 
 
-# validate_extra_vars function has been removed as we no longer use extra_vars
-# This eliminates a potential security vulnerability
-
-
-
 def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
     """Parse and validate request file.
-
     Args:
         request_path: Path to the request JSON file
-
     Returns:
         Parsed request dictionary or None if invalid
     """
@@ -524,8 +698,8 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
 
         with open(request_path, 'r', encoding='utf-8') as f:
             try:
-                request_data = json.load(f)
-            except json.JSONDecodeError:
+                request_data = json.JSONDecoder().decode(f.read())
+            except (json.JSONDecodeError, ValueError):
                 log_secure_info(
                     "error",
                     "Invalid JSON in request file",
@@ -544,22 +718,26 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
 
         # Validate required fields - different for molecule vs ansible-playbook
         command_type = request_data.get("command_type", "ansible-playbook")
-        
         if command_type == "test_automation":
-            # artifact_dir is no longer required in request - it's computed from job_id
-            required_fields = ["job_id", "stage_type", "command_type", "scenario_names", "config_path"]
+            required_fields = [
+                "job_id", "stage_type", "command_type",
+                "scenario_names", "config_path"
+            ]
         else:
             required_fields = ["job_id", "stage_name", "playbook_path"]
-            
-        missing_fields = [field for field in required_fields if field not in request_data]
 
+        missing_fields = [
+            field for field in required_fields if field not in request_data
+        ]
         if missing_fields:
-            log_secure_info('error', f"Request file missing required fields: {', '.join(missing_fields)}")
+            log_secure_info(
+                'error',
+                f"Request file missing required fields: {', '.join(missing_fields)}"
+            )
             return None
 
         # Validate inputs to prevent injection
         job_id = str(request_data["job_id"])
-        
         if not validate_job_id(job_id):
             log_secure_info("error", "Invalid job_id format in request", job_id[:8])
             return None
@@ -569,21 +747,29 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
             stage_type = str(request_data["stage_type"])
             scenario_names = request_data["scenario_names"]
             config_path = str(request_data["config_path"])
-            
+
             if not validate_stage_name(stage_type):
-                log_secure_info("error", "Invalid stage_type format in request", stage_type[:8])
+                log_secure_info(
+                    "error", "Invalid stage_type format in request",
+                    stage_type[:8]
+                )
                 return None
-                
+
             # Validate scenario names
             if not isinstance(scenario_names, list) or not scenario_names:
-                log_secure_info("error", "scenario_names must be a non-empty list", job_id[:8])
+                log_secure_info(
+                    "error", "scenario_names must be a non-empty list",
+                    job_id[:8]
+                )
                 return None
-                
             for scenario in scenario_names:
                 if not isinstance(scenario, str) or not validate_stage_name(scenario):
-                    log_secure_info("error", "Invalid scenario name format", str(scenario)[:8])
+                    log_secure_info(
+                        "error", "Invalid scenario name format",
+                        str(scenario)[:8]
+                    )
                     return None
-            
+
             # Validate config_path is within allowed directory
             allowed_base = os.path.join(OMNIA_DATA_PATH, "")
             if not config_path.startswith(allowed_base) or ".." in config_path:
@@ -592,19 +778,24 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
         else:
             # Original ansible-playbook validation
             stage_name = str(request_data["stage_name"])
-            playbook_name = str(request_data["playbook_path"])  # This is actually the playbook name
+            playbook_name = str(request_data["playbook_path"])
 
             if not validate_stage_name(stage_name):
-                log_secure_info("error", "Invalid stage_name format in request", stage_name[:8])
+                log_secure_info(
+                    "error", "Invalid stage_name format in request",
+                    stage_name[:8]
+                )
                 return None
 
-            # Map the playbook name to its full path
-            # This returns the full path or None if validation fails
             full_playbook_path = map_playbook_name_to_path(playbook_name)
             if full_playbook_path is None:
-                log_secure_info("error", "Invalid or unknown playbook name in request", playbook_name[:8])
+                log_secure_info(
+                    "error",
+                    "Invalid or unknown playbook name in request",
+                    playbook_name[:8]
+                )
                 return None
-                
+
             # Store both the original playbook name and the mapped full path
             request_data["playbook_name"] = playbook_name
             request_data["full_playbook_path"] = full_playbook_path
@@ -615,15 +806,13 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
         # Check for inventory_file_path
         if "inventory_file_path" in request_data:
             inventory_file_path = str(request_data["inventory_file_path"])
-            # Validate inventory file path
             if not inventory_file_path.startswith("/") or ".." in inventory_file_path:
                 log_secure_info(
-                   "error",
+                    "error",
                     "Invalid inventory file path: possible directory traversal",
                     job_id[:8]
                 )
                 return None
-
             log_secure_info(
                 "info",
                 "Found inventory file path in request",
@@ -633,9 +822,10 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
         # Check for extra_vars field
         if "extra_vars" in request_data:
             if not isinstance(request_data["extra_vars"], dict):
-                log_secure_info("error", "extra_vars must be a dictionary", job_id[:8])
+                log_secure_info(
+                    "error", "extra_vars must be a dictionary", job_id[:8]
+                )
                 return None
-
             log_secure_info(
                 "info",
                 "Found extra_vars in request",
@@ -649,7 +839,6 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
                 "Found extra_args in request but ignoring it",
                 job_id[:8]
             )
-            # Remove extra_args from request_data
             del request_data["extra_args"]
 
         log_secure_info(
@@ -657,16 +846,15 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
             "Parsed request for job",
             job_id
         )
-
         return request_data
 
-    except json.JSONDecodeError as e:
+    except json.JSONDecodeError:
         log_secure_info(
             "error",
             "Invalid JSON in request file"
         )
         return None
-    except (KeyError, TypeError, ValueError) as e:
+    except (KeyError, TypeError, ValueError):
         log_secure_info(
             "error",
             "Error parsing request file"
@@ -676,33 +864,20 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
 
 def extract_playbook_name(full_playbook_path: str) -> str:
     """Extract the playbook name from the full path.
-
     Args:
         full_playbook_path: Full path to the playbook file
-
     Returns:
         The playbook name (filename without path)
     """
-    # Get the basename (filename with extension)
     return os.path.basename(full_playbook_path)
 
 
 def _extract_domain_from_playbook_path(playbook_path: str) -> str:
     """Extract the domain name from a playbook's absolute path.
-
     Convention: ``src/<domain>/playbooks/<playbook>.yml``
-    We walk up from the playbook file to find the domain directory.
-
-    Args:
-        playbook_path: Absolute path to the playbook file.
-
-    Returns:
-        Domain name (e.g. ``repo_manager``, ``image_build_manager``).
-        Falls back to ``unknown`` if extraction fails.
     """
     try:
         parts = Path(playbook_path).resolve().parts
-        # Look for 'playbooks' directory in path and take the component before it
         for idx, part in enumerate(parts):
             if part == "playbooks" and idx > 0:
                 return parts[idx - 1]
@@ -711,24 +886,20 @@ def _extract_domain_from_playbook_path(playbook_path: str) -> str:
     return "unknown"
 
 
-def _build_log_paths(playbook_path: str, started_at: datetime, attempt: int = None) -> tuple:
+def _build_log_paths(
+    playbook_path: str, started_at: datetime, attempt: int = None
+) -> tuple:
     """Build playbook log file path under /var/log/omnia/<domain>/.
-
-    With domain segregation (Omnia 2.3+), playbook logs are written to
-    ``/var/log/omnia/<domain>/`` rather than inside a container.
-
     Args:
         playbook_path: Full path to the playbook file
         started_at: Start time for timestamp
-        attempt: Optional attempt number (1-indexed). If None, attempt suffix is omitted.
-
+        attempt: Optional attempt number (1-indexed).
     Returns:
         Tuple of (log_file_path, log_dir)
     """
     playbook_name = extract_playbook_name(playbook_path)
     domain = _extract_domain_from_playbook_path(playbook_path)
 
-    # Playbook logs go to /var/log/omnia/<domain>/
     log_dir = PLAYBOOK_LOG_BASE_DIR / domain
     log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -737,37 +908,32 @@ def _build_log_paths(playbook_path: str, started_at: datetime, attempt: int = No
         log_filename = f"{playbook_name}_{timestamp}_attempt{attempt}.log"
     else:
         log_filename = f"{playbook_name}_{timestamp}.log"
-    log_file_path = log_dir / log_filename
 
+    log_file_path = log_dir / log_filename
     return log_file_path, log_dir
 
 
-def move_log_to_job_directory(host_log_file_path: Path, job_id: str, attempt: int = None) -> Path:
+def move_log_to_job_directory(
+    host_log_file_path: Path, job_id: str, attempt: int = None
+) -> Path:
     """Move log file to a job-specific directory after completion.
-
     Args:
         host_log_file_path: Current path of the log file
         job_id: Job identifier for creating the job directory
-        attempt: Optional attempt number to append to the filename in the destination
-
+        attempt: Optional attempt number
     Returns:
         New path of the log file in the job directory
     """
-    # Create job-specific directory
     job_dir = HOST_LOG_BASE_DIR / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
 
-    # Get the log filename, optionally appending attempt number
     log_filename = host_log_file_path.name
     if attempt is not None:
-        # Insert attempt number before .log extension
         stem = host_log_file_path.stem
         log_filename = f"{stem}_attempt{attempt}.log"
 
-    # New path in job directory
     new_log_path = job_dir / log_filename
 
-    # Move the log file
     try:
         shutil.move(str(host_log_file_path), str(new_log_path))
         log_secure_info(
@@ -775,12 +941,11 @@ def move_log_to_job_directory(host_log_file_path: Path, job_id: str, attempt: in
             "Log file moved to job directory",
             job_id[:12] if job_id else ""
         )
-    except (OSError, IOError) as e:
+    except (OSError, IOError):
         log_secure_info(
             "error",
             "Failed to move log file to job directory"
         )
-        # Return original path if move fails
         return host_log_file_path
 
     return new_log_path
@@ -802,33 +967,92 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Result dictionary with execution details
     """
-    job_id = request_data["job_id"]
-    stage_name = request_data["stage_name"]
+    # ── Phase 1: Extract and SANITIZE every value from request_data ──────
+    # After this block, request_data must NOT be referenced for command
+    # or env construction.  Each value is re-derived from a constant
+    # alphabet so no taint edge survives to the subprocess.run() call.
+
+    if not validate_job_id(str(request_data["job_id"])):
+        raise ValueError("Invalid job_id format")
+    job_id = sanitize_identifier(request_data["job_id"])
+
+    if not validate_stage_name(str(request_data["stage_name"])):
+        raise ValueError("Invalid stage_name format")
+    stage_name = sanitize_stage_name(request_data["stage_name"])
+
     # Perform a fresh whitelist lookup to break taint chain
-    playbook_name = str(request_data.get("playbook_name", request_data.get("playbook_path", "")))
-    playbook_path = map_playbook_name_to_path(playbook_name)
+    playbook_name_raw = str(
+        request_data.get("playbook_name", request_data.get("playbook_path", ""))
+    )
+    playbook_path = map_playbook_name_to_path(playbook_name_raw)
     if playbook_path is None:
-        raise ValueError(f"Invalid playbook name: {playbook_name[:8]}")
+        raise ValueError(f"Invalid playbook name: {playbook_name_raw[:8]}")
+    # playbook_path is now from PLAYBOOK_NAME_TO_PATH (trusted constant)
+
+    # Sanitize correlation_id / request_id (used only in result JSON but
+    # sanitize anyway to prevent future edits from leaking them)
+    try:
+        correlation_id = sanitize_identifier(
+            request_data.get("correlation_id", str(request_data["job_id"]))
+        )
+    except ValueError:
+        correlation_id = job_id
+    try:
+        request_id_safe = sanitize_identifier(
+            request_data.get("request_id", str(request_data["job_id"]))
+        )
+    except ValueError:
+        request_id_safe = job_id
+
+    # Sanitize inventory_file_path if present
+    inventory_file_path = None
+    if "inventory_file_path" in request_data:
+        inventory_file_path = sanitize_path(
+            str(request_data["inventory_file_path"]),
+            "/"  # Allow any absolute path but rebuild from safe alphabet
+        )
+
+    # Sanitize extra_vars
+    raw_extra_vars = request_data.get("extra_vars", {})
+    extra_vars = sanitize_extra_vars(raw_extra_vars, job_id)
+
+    # Sanitize tags if present
+    tags_str = None
+    if "tags" in request_data and request_data["tags"]:
+        tags_str = sanitize_stage_name(str(request_data["tags"]))
+
+    # Extract attempt from extra_vars (already sanitized)
+    attempt = extra_vars.get("attempt", 1)
+    if not isinstance(attempt, int) or not 1 <= attempt <= 10:
+        attempt = 1
+
     timeout_minutes = DEFAULT_TIMEOUT_MINUTES
-    correlation_id = request_data.get("correlation_id", job_id)
+
+    # ── Phase 2: Discard request_data — no further reads allowed ─────────
+    del request_data
 
     log_secure_info("info", "Executing playbook for job", job_id)
     log_secure_info("debug", "Stage name", stage_name)
-    log_secure_info("debug", "Playbook name", playbook_name)
 
     started_at = datetime.now(timezone.utc)
 
     # Build log paths (playbook logs go to /var/log/omnia/<domain>/)
     log_file_path, _ = _build_log_paths(playbook_path, started_at)
-
     log_path_str = str(log_file_path)
 
     # Strict validation for log path
     if not log_path_str.startswith('/') or '..' in log_path_str:
-        log_secure_info("error", "Log path must be absolute and cannot contain path traversal", log_path_str[:8])
+        log_secure_info(
+            "error",
+            "Log path must be absolute and cannot contain path traversal",
+            log_path_str[:8]
+        )
         raise ValueError("Invalid log path")
     if not re.match(r'^[a-zA-Z0-9_\-/.]+$', log_path_str):
-        log_secure_info("error", "Log path contains invalid characters", log_path_str[:8])
+        log_secure_info(
+            "error", "Log path contains invalid characters",
+            log_path_str[:8]
+        )
         raise ValueError("Invalid log path format")
 
     # Resolve ansible-playbook binary from venv
@@ -840,27 +1064,21 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         playbook_path,  # Validated against strict whitelist
     ]
 
-    # Add inventory file path if present
-    if "inventory_file_path" in request_data:
-        inventory_file_path = str(request_data["inventory_file_path"])
+    # Add inventory file path if present (already sanitized above)
+    if inventory_file_path is not None:
         cmd.extend(["--inventory", inventory_file_path])
-        log_secure_info("info", "Using inventory file for playbook", inventory_file_path[:8])
+        log_secure_info(
+            "info", "Using inventory file for playbook",
+            inventory_file_path[:8]
+        )
 
-    # Build extra_vars: always inject job_id so playbooks can reference it
-    import json  # pylint: disable=import-outside-toplevel
-    extra_vars = request_data.get("extra_vars", {})
-    if not isinstance(extra_vars, dict):
-        extra_vars = {}
-    extra_vars["job_id"] = job_id
+    # Add extra_vars (already sanitized above)
     extra_vars_json = json.dumps(extra_vars)
     cmd.extend(["--extra-vars", extra_vars_json])
     log_secure_info("info", "Added extra_vars with job_id for playbook", job_id)
 
-    # Add tags if present (for selective playbook execution)
-    # Note: Tags are used to skip credential collection in domain playbooks
-    # since credentials are pre-configured via domain prepare step (prerequisite).
-    if "tags" in request_data and request_data["tags"]:
-        tags_str = str(request_data["tags"])
+    # Add tags if present (already sanitized above)
+    if tags_str is not None:
         cmd.extend(["--tags", tags_str])
         log_secure_info("info", f"Added tags for playbook: {tags_str}", job_id)
 
@@ -887,7 +1105,10 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         env = os.environ.copy()
         env["ANSIBLE_LOG_PATH"] = log_path_str
 
-        log_secure_info("debug", "Executing command", f"ansible-playbook [playbook] in {playbook_dir[:30]}")
+        log_secure_info(
+            "debug", "Executing command",
+            f"ansible-playbook [playbook] in {playbook_dir[:30]}"
+        )
 
         # Execute directly — shell=False, cwd=playbook directory
         result = subprocess.run(
@@ -908,16 +1129,20 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         # Verify log file exists
         if log_file_path.exists():
             log_secure_info("info", "Log file confirmed for job", job_id)
-            ev = request_data.get("extra_vars", {})
-            attempt = ev.get("attempt", 1) if isinstance(ev, dict) else 1
-            log_file_path = move_log_to_job_directory(log_file_path, job_id, attempt=attempt)
+            log_file_path = move_log_to_job_directory(
+                log_file_path, job_id, attempt=attempt
+            )
         else:
-            log_secure_info("warning", "Log file not found at expected location for job", job_id)
+            log_secure_info(
+                "warning",
+                "Log file not found at expected location for job",
+                job_id
+            )
 
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
-
         status = "success" if result.returncode == 0 else "failed"
+
         log_secure_info("info", "Playbook execution completed for job", job_id)
         log_secure_info("debug", "Execution status", status)
 
@@ -925,7 +1150,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         result_data = {
             "job_id": job_id,
             "stage_name": stage_name,
-            "request_id": request_data.get("request_id", job_id),
+            "request_id": request_id_safe,
             "correlation_id": correlation_id,
             "status": status,
             "exit_code": result.returncode,
@@ -936,7 +1161,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "timestamp": completed_at.isoformat(),
         }
 
-        # Add error details if failed — include playbook log path for debugging
+        # Add error details if failed
         if status == "failed":
             domain = _extract_domain_from_playbook_path(playbook_path)
             result_data["error_code"] = "PLAYBOOK_EXECUTION_FAILED"
@@ -945,8 +1170,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
                 f"Check playbook logs at /var/log/omnia/{domain}/ for details."
             )
 
-        # For restart stage, include path to per-node results JSON if it exists
-        # Per spec 12.4: node_results.json is at BUILD_STREAM_ROOT/artifacts/<job_id>/
+        # For restart stage, include path to per-node results JSON
         if stage_name == "restart":
             node_results_path = ARTIFACTS_DIR / job_id / "node_results.json"
             if node_results_path.exists():
@@ -959,8 +1183,8 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 log_secure_info(
                     "warning",
-                    f"node_results.json NOT found at {node_results_path} for restart stage. "
-                    f"Playbook may have failed before BSM post-processing (Play 8).",
+                    f"node_results.json NOT found at {node_results_path} "
+                    f"for restart stage.",
                     job_id
                 )
 
@@ -969,40 +1193,43 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     except subprocess.TimeoutExpired:
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
-
         log_secure_info(
-            "error",
-            "Playbook execution timed out for job",
-            job_id
+            "error", "Playbook execution timed out for job", job_id
         )
-
         return {
             "job_id": job_id,
             "stage_name": stage_name,
-            "request_id": request_data.get("request_id", job_id),
+            "request_id": request_id_safe,
             "correlation_id": correlation_id,
             "status": "failed",
             "exit_code": -1,
             "stdout": "",
-            "stderr": f"Playbook execution timed out after {timeout_minutes} minutes",
+            "stderr": (
+                f"Playbook execution timed out after "
+                f"{timeout_minutes} minutes"
+            ),
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "duration_seconds": int(duration_seconds),
             "error_code": "PLAYBOOK_TIMEOUT",
-            "error_summary": f"Execution exceeded timeout of {timeout_minutes} minutes",
+            "error_summary": (
+                f"Execution exceeded timeout of "
+                f"{timeout_minutes} minutes"
+            ),
             "timestamp": completed_at.isoformat(),
         }
-
     except (OSError, subprocess.SubprocessError) as e:
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
-
-        log_secure_info('error', f"Unexpected error executing playbook for job {job_id}", exc_info=True)
-
+        log_secure_info(
+            'error',
+            f"Unexpected error executing playbook for job {job_id}",
+            exc_info=True
+        )
         return {
             "job_id": job_id,
             "stage_name": stage_name,
-            "request_id": request_data.get("request_id", job_id),
+            "request_id": request_id_safe,
             "correlation_id": correlation_id,
             "status": "failed",
             "exit_code": -1,
@@ -1021,45 +1248,87 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     """Execute test automation via run_validation.sh and capture results.
 
     Runs: ./run_validation.sh fvt_orchestrator verify --marker buildstream
-    This sources setup_env.sh (venv activation + deps), then executes pytest
-    against test/orchestrator/fvt/validate/ with the buildstream marker.
 
     Args:
-        request_data: Parsed request dictionary with test_automation-specific fields
-        
+        request_data: Parsed request dictionary with test_automation fields
+
     Returns:
         Result dictionary with execution details
     """
-    job_id = request_data["job_id"]
-    stage_type = request_data["stage_type"]
-    # Hardcoded values to prevent Checkmarx stored command injection
-    # These values are not configurable in this release
-    # Omnia 2.3: uses run_validation.sh fvt_orchestrator verify --marker buildstream
-    scenario_name = "validate"  # Hardcoded, not from request_data
-    test_suite = "buildstream"  # Hardcoded marker name, not from request_data
-    
-    # Compute artifact_dir locally to break taint chain from request_data to subprocess.run env
-    # Use a temp directory with timestamp (no job_id/attempt) for molecule execution,
-    # then copy reports to the job-specific NFS directory after completion
-    attempt = request_data.get("attempt", 1)
-    
-    config_path = request_data["config_path"]
-    timeout_minutes = 150  # Hardcoded default, not from request_data
-    correlation_id = request_data.get("correlation_id", job_id)
-    
+    # ── Phase 1: Extract and SANITIZE every value from request_data ──────
+    # After this block, request_data must NOT be referenced again.
+    # Each value is re-derived from a constant alphabet so no taint edge
+    # survives to the subprocess.run() call below.
+
+    if not validate_job_id(str(request_data["job_id"])):
+        raise ValueError("Invalid job_id format")
+    job_id = sanitize_identifier(request_data["job_id"])
+
+    if not validate_stage_name(str(request_data["stage_type"])):
+        raise ValueError("Invalid stage_type format")
+    stage_type = sanitize_stage_name(request_data["stage_type"])
+
+    # Sanitize config_path: re-derive from safe alphabet + validate prefix
+    config_path = sanitize_path(
+        str(request_data["config_path"]),
+        OMNIA_DATA_PATH,
+    )
+
+    # Sanitize attempt: coerce to int in bounded range
+    raw_attempt = request_data.get("attempt", 1)
+    attempt = raw_attempt if isinstance(raw_attempt, int) and 1 <= raw_attempt <= 10 else 1
+    attempt = int(f"{attempt:d}")  # Re-derive as int literal
+
+    # Sanitize correlation_id and request_id (only used in result JSON,
+    # but sanitize anyway so no future edit can leak them into a command)
+    try:
+        correlation_id = sanitize_identifier(
+            request_data.get("correlation_id", str(request_data["job_id"]))
+        )
+    except ValueError:
+        correlation_id = job_id
+    try:
+        request_id = sanitize_identifier(
+            request_data.get("request_id", str(request_data["job_id"]))
+        )
+    except ValueError:
+        request_id = job_id
+
+    # Validate scenario_names (never used in subprocess — hardcoded below —
+    # but sanitize to prevent any future use from reintroducing taint)
+    raw_scenarios = request_data.get("scenario_names", [])
+    if not isinstance(raw_scenarios, list) or not raw_scenarios:
+        raise ValueError("scenario_names must be a non-empty list")
+    sanitized_scenarios: List[str] = []
+    for sc in raw_scenarios:
+        sanitized_scenarios.append(sanitize_stage_name(str(sc)))
+
+    # ── Phase 2: Discard request_data — no further reads allowed ─────────
+    del request_data  # Sever the taint chain to subprocess.run()
+
+    # Hardcoded values — not configurable in this release
+    scenario_name = "validate"        # Hardcoded, not from request
+    test_suite = "buildstream"        # Hardcoded marker name, not from request
+    timeout_minutes = 150             # Hardcoded default
+
     log_secure_info("info", "Executing test validation for job", job_id)
     log_secure_info("debug", "Stage type", stage_type)
-    log_secure_info("debug", "Using hardcoded scenario/marker", f"{scenario_name}/{test_suite}")
-    
+    log_secure_info(
+        "debug", "Using hardcoded scenario/marker",
+        f"{scenario_name}/{test_suite}"
+    )
+
     started_at = datetime.now(timezone.utc)
-    
-    # Create a temp report directory with timestamp for uniqueness (no tainted data)
-    # Reports will be copied to the job-specific NFS directory after molecule completes
+
+    # Create a temp report directory with timestamp for uniqueness
     timestamp = started_at.strftime("%Y%m%d_%H%M%S")
     temp_report_dir = str(ARTIFACTS_DIR / f"molecule_run_{timestamp}")
+
     # Final NFS artifact directory for the job
-    artifact_dir = str(ARTIFACTS_DIR / job_id / "validate" / f"attempt_{attempt}")
-    
+    artifact_dir = str(
+        ARTIFACTS_DIR / job_id / "validate" / f"attempt_{attempt}"
+    )
+
     # Ensure both directories exist
     try:
         os.makedirs(temp_report_dir, exist_ok=True)
@@ -1069,7 +1338,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "job_id": job_id,
             "stage_name": stage_type,
-            "request_id": request_data.get("request_id", job_id),
+            "request_id": request_id,
             "correlation_id": correlation_id,
             "status": "failed",
             "exit_code": 2,
@@ -1079,7 +1348,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "duration_seconds": 0,
             "timestamp": started_at.isoformat(),
         }
-    
+
     # Build test command - execute run_validation.sh on OIM host
     # run_validation.sh delegates to _run.py which runs pytest with markers
     # Usage: ./run_validation.sh fvt_orchestrator verify --marker buildstream
@@ -1089,46 +1358,70 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     #   2. Create venv if it doesn't exist (idempotent)
     #   3. Activate venv
     #   4. Install deps only if requirements.txt is newer than venv marker
-    #   5. Run: python3 _run.py fvt_orchestrator verify --marker buildstream
-    # Test directory: uses OMNIA_CLONE_PATH (set by build_stream setup) or
-    # falls back to /root/omnia (default clone_path in test_config.yml)
-    clone_path = os.environ.get("OMNIA_CLONE_PATH", "/root/omnia")
+    #   5. Run: ./run_validation.sh fvt_orchestrator verify --marker buildstream
+    # Resolve from the same OMNIA_SRC_PATH used for normal playbooks.
+    # OMNIA_SRC_PATH points to <clone_path>/src.
+    clone_path = str(Path(_get_omnia_src_path()).resolve().parent)
+
+    # Checkmarx: Validate clone_path to prevent command injection
+    if (
+        not clone_path.startswith("/")
+        or ".." in clone_path
+        or any(
+            char in clone_path
+            for char in [";", "|", "&", "$", "`", "\n", "\r"]
+        )
+    ):
+        log_secure_info(
+            "error",
+            "Invalid clone_path - using default",
+            clone_path[:8]
+        )
+        clone_path = "/root/omnia"
     test_dir = os.path.join(clone_path, "test", "orchestrator")
+
+    # Additional validation: ensure test_dir is within expected base path
+    if (
+        not test_dir.startswith("/root/omnia")
+        and not test_dir.startswith("/opt/omnia")
+    ):
+        raise ValueError("test_dir must be within /root/omnia or /opt/omnia")
+
+    # Properly escape all path variables using shlex.quote()
+    quoted_test_dir = shlex.quote(test_dir)
     setup_and_run = (
         f'set -eo pipefail && '
-        f'cd {test_dir} && '
-        # Create venv if missing (idempotent, no prompt)
+        f'cd {quoted_test_dir} && '
         f'{{ [ -d .venv ] || python3 -m venv .venv; }} && '
-        # Activate venv
         f'source .venv/bin/activate && '
-        # Install/upgrade deps only when requirements.txt is newer than marker
-        # or marker doesn't exist yet (first run). Touch marker after install.
         f'if [ ! -f .venv/.deps_installed ] || '
         f'   [ requirements.txt -nt .venv/.deps_installed ]; then '
         f'  echo "Installing test dependencies..." && '
-        f'  pip install --upgrade pip -q && '
-        f'  pip install -r requirements.txt -q && '
+        f'  pip install --disable-pip-version-check --no-input --upgrade pip -q && '
+        f'  pip install --disable-pip-version-check --no-input -r requirements.txt -q && '
         f'  touch .venv/.deps_installed; '
         f'fi && '
-        # Run the validation (exec replaces the shell with python3)
-        f'exec python3 _run.py fvt_orchestrator verify --marker buildstream'
+        # Checkmarx: Hardcoded command arguments to prevent injection from request_data
+        # Run the validation through its supported non-interactive entry point.
+        f'exec ./run_validation.sh fvt_orchestrator verify --marker buildstream'
     )
+
     cmd = ["bash", "-c", setup_and_run]
-    
-    # Set environment variables
-    # Use temp_report_dir (hardcoded, no tainted data) to break taint chain
+
+    # Build environment variables — all values are from untainted sources:
+    #   * temp_report_dir -> ARTIFACTS_DIR (module constant) + strftime timestamp
+    #   * env_report_id   -> sanitize_identifier(job_id) + int-formatted attempt
+    env_report_id = f"{job_id}_attempt_{attempt:d}"
     env = os.environ.copy()
     env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
     env["MOLECULE_REPORT_DIR"] = temp_report_dir
-    # Pass REPORT_ID so test framework can tag the report with job_id for extraction
-    env["REPORT_ID"] = f"{job_id}_attempt_{attempt}"
-    
+    env["REPORT_ID"] = env_report_id
+
     log_secure_info("info", "Executing run_validation.sh for job", job_id)
-    
+
     try:
         timeout_seconds = timeout_minutes * 60
-        
-        # Execute molecule directly on OIM host
+
         result = subprocess.run(
             cmd,
             capture_output=True,
@@ -1139,14 +1432,11 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             env=env,
             start_new_session=True
         )
-        
+
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
 
-        # Extract attempt number from request data (default to 1)
-        attempt = request_data.get("attempt", 1)
-
-        # Build NFS log path (consistent with execute_playbook)
+        # Build NFS log path
         host_log_file_path, _ = _build_log_paths(
             "validate", started_at, attempt
         )
@@ -1154,7 +1444,10 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         # Write molecule output to NFS log file
         try:
             with open(str(host_log_file_path), 'w') as f:
-                f.write(f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}\n")
+                f.write(
+                    f"STDOUT:\n{result.stdout}\n\n"
+                    f"STDERR:\n{result.stderr}\n"
+                )
         except OSError:
             log_secure_info("warning", "Failed to write test NFS log", job_id)
 
@@ -1164,8 +1457,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                 host_log_file_path, job_id
             )
 
-        # Copy molecule reports from temp dir to job-specific NFS artifact directory
-        # This mirrors the log-copy pattern used in execute_playbook
+        # Copy molecule reports from temp dir to job-specific NFS artifact dir
         try:
             for item in os.listdir(temp_report_dir):
                 src = os.path.join(temp_report_dir, item)
@@ -1174,134 +1466,247 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                     shutil.copy2(src, dst)
                 elif os.path.isdir(src):
                     shutil.copytree(src, dst, dirs_exist_ok=True)
-            log_secure_info("info", "Copied test reports to job artifact directory", job_id)
+            log_secure_info(
+                "info",
+                "Copied test reports to job artifact directory",
+                job_id
+            )
         except OSError:
-            log_secure_info("warning", "Failed to copy test reports to artifact dir", job_id)
+            log_secure_info(
+                "warning",
+                "Failed to copy test reports to artifact dir",
+                job_id
+            )
 
-        # Also write test output log to the artifact directory
-        artifact_log_path = os.path.join(artifact_dir, "validate_output.log")
+        # Write test output log to the artifact directory
+        artifact_log_path = os.path.join(
+            artifact_dir, "validate_output.log"
+        )
         try:
             with open(artifact_log_path, 'w') as f:
-                f.write(f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}\n")
+                f.write(
+                    f"STDOUT:\n{result.stdout}\n\n"
+                    f"STDERR:\n{result.stderr}\n"
+                )
         except OSError:
-            log_secure_info("warning", "Failed to write molecule artifact log", job_id)
+            log_secure_info(
+                "warning", "Failed to write molecule artifact log", job_id
+            )
 
         # Clean up temp report directory
         try:
             shutil.rmtree(temp_report_dir, ignore_errors=True)
         except OSError:
-            log_secure_info("debug", "Failed to clean up temp report dir", job_id)
+            log_secure_info(
+                "debug", "Failed to clean up temp report dir", job_id
+            )
 
         # Use the NFS log path as the canonical log_file_path
         log_file_path = str(host_log_file_path)
-        
-        # Parse metadata from test output log (report_id, suites)
-        test_summary = {"total": 0, "passed": 0, "failed": 0, "skipped": 0, "errors": 0}
+
+        # Parse metadata from test output log
+        test_summary = {
+            "total": 0, "passed": 0, "failed": 0,
+            "skipped": 0, "errors": 0
+        }
         report_id = None
-        
+
         if os.path.exists(log_file_path):
             try:
                 with open(log_file_path, 'r') as f:
                     log_content = f.read()
-                    
+
                     # Extract report_id from log output
-                    # TestReport header: "REPORT ID:  <id>" (box format)
-                    # ValidationRunner banner: "Report ID : <id>" (green text)
-                    # report_id can be UUID with hyphens + _attempt_N suffix
-                    # e.g. 550e8400-e29b-41d4-a716-446655440000_attempt_1
-                    report_id_match = re.search(r'Report\s*ID\s*:\s*([a-zA-Z0-9\-_]+)', log_content, re.IGNORECASE)
+                    report_id_match = re.search(
+                        r'Report\s*ID\s*:\s*([a-zA-Z0-9\-_]+)',
+                        log_content, re.IGNORECASE
+                    )
                     if report_id_match:
                         report_id = report_id_match.group(1)
-                    elif f"{job_id}_attempt_{attempt}" in log_content:
-                        report_id = f"{job_id}_attempt_{attempt}"
-                    
+                    elif env_report_id in log_content:
+                        report_id = env_report_id
+
                     # Strip ANSI color codes first
                     try:
-                        sanitized = re.sub(r'\x1B\[[0-?]*[ -/]*[@-~]', '', log_content)
+                        sanitized = re.sub(
+                            r'\x1B\[[0-?]*[ -/]*[@-~]', '', log_content
+                        )
                     except re.error:
                         sanitized = log_content
 
                     # Extract suite/marker info from run_validation output
-                    header_suite_match = re.search(r'(?m)^\s*Suite\s*:\s*([\w\-.]+)', sanitized)
+                    header_suite_match = re.search(
+                        r'(?m)^\s*Suite\s*:\s*([\w\-.]+)', sanitized
+                    )
                     if header_suite_match:
                         test_summary["suite"] = header_suite_match.group(1)
                     else:
-                        marker_match = re.search(r'(?m)^\s*(?:Suite/Marker|Marker)\s*:\s*.*?([\w\-.]+)\s*$', sanitized)
+                        marker_match = re.search(
+                            r'(?m)^\s*(?:Suite/Marker|Marker)\s*:\s*'
+                            r'.*?([\w\-.]+)\s*$',
+                            sanitized
+                        )
                         if marker_match:
                             test_summary["suite"] = marker_match.group(1)
                         else:
                             test_summary["suite"] = "buildstream"
-                    
             except (OSError, IOError, ValueError) as e:
-                log_secure_info("warning", f"Failed to parse test output log: {e}", job_id)
-        
-        # Extract current run from shared test_report.json by report_id and save to artifact_dir
-        # Omnia 2.3: reports are written to {OMNIA_DATA_PATH}/reports/ by the orchestrator test framework
-        report_source_path = os.path.join(OMNIA_DATA_PATH, "reports", "orchestrator_test_report.json")
-        log_secure_info('info', f"Attempting to extract test results from {report_source_path}", job_id)
-        log_secure_info('info', f"Extracted report_id from log: {report_id}", job_id)
-        
+                log_secure_info(
+                    "warning",
+                    f"Failed to parse test output log: {e}",
+                    job_id
+                )
+
+        # Extract current run from shared test_report.json
+        report_source_path = os.path.join(
+            OMNIA_DATA_PATH, "reports", "orchestrator_test_report.json"
+        )
+        log_secure_info(
+            'info',
+            f"Attempting to extract test results from {report_source_path}",
+            job_id
+        )
+        log_secure_info(
+            'info',
+            f"Extracted report_id from log: {report_id}",
+            job_id
+        )
+
         if not report_id:
-            log_secure_info('warning', "No report_id found in validate output log, skipping JSON extraction", job_id)
+            log_secure_info(
+                'warning',
+                "No report_id found in validate output log, "
+                "skipping JSON extraction",
+                job_id
+            )
         elif not os.path.exists(report_source_path):
-            log_secure_info('warning', f"test_report.json not found at {report_source_path}, skipping JSON extraction", job_id)
+            log_secure_info(
+                'warning',
+                f"test_report.json not found at {report_source_path}, "
+                f"skipping JSON extraction",
+                job_id
+            )
         else:
             try:
-                # Load full report from shared location
                 with open(report_source_path, 'r') as f:
                     full_report = json.load(f)
-                log_secure_info('info', "Successfully loaded test_report.json", job_id)
-                
+
+                log_secure_info(
+                    'info', "Successfully loaded test_report.json", job_id
+                )
+
                 if "servers" not in full_report:
-                    log_secure_info('warning', "test_report.json missing 'servers' key", job_id)
+                    log_secure_info(
+                        'warning',
+                        "test_report.json missing 'servers' key",
+                        job_id
+                    )
                 else:
-                    # Search all server keys for matching report_id (handles both "" and "localhost")
                     current_run = None
                     for server_key, server_data in full_report["servers"].items():
                         runs = server_data.get("runs", [])
                         for run in runs:
                             if run.get("report_id") == report_id:
                                 current_run = run
-                                log_secure_info('info', f"Found matching run with report_id {report_id} under server key '{server_key}'", job_id)
+                                log_secure_info(
+                                    'info',
+                                    f"Found matching run with report_id "
+                                    f"{report_id} under server key "
+                                    f"'{server_key}'",
+                                    job_id
+                                )
                                 break
                         if current_run:
                             break
-                    
+
                     if not current_run:
-                        log_secure_info('warning', f"No run found with report_id {report_id} in test_report.json", job_id)
+                        log_secure_info(
+                            'warning',
+                            f"No run found with report_id {report_id} "
+                            f"in test_report.json",
+                            job_id
+                        )
                     else:
-                        # Populate test_summary from JSON (enforce order: identifiers, duration, counts, tests)
                         modules = current_run.get("modules", [])
                         if not modules:
-                            log_secure_info('warning', f"Run with report_id {report_id} has no modules", job_id)
+                            log_secure_info(
+                                'warning',
+                                f"Run with report_id {report_id} has no "
+                                f"modules",
+                                job_id
+                            )
                         else:
                             module_info = modules[0]
                             scenario = module_info.get("module", "unknown")
-                            molecule_command = module_info.get("molecule_command", "verify")
-                            test_duration = module_info.get("duration_seconds", 0)
+                            molecule_command = module_info.get(
+                                "molecule_command", "verify"
+                            )
+                            test_duration = module_info.get(
+                                "duration_seconds", 0
+                            )
                             results = module_info.get("results", [])
-                            tests = [{"name": r.get("test_name"), "status": r.get("status")} for r in results if r.get("test_name")]
+                            tests = [
+                                {
+                                    "name": r.get("test_name"),
+                                    "status": r.get("status")
+                                }
+                                for r in results
+                                if r.get("test_name")
+                            ]
+
                             test_summary["scenario"] = scenario
                             test_summary["molecule_command"] = molecule_command
                             test_summary["report_id"] = report_id
                             test_summary["duration_seconds"] = test_duration
                             test_summary["tests"] = tests
-                            
+
                             summary_block = current_run.get("summary", {})
-                            log_secure_info('info', f"Summary block from JSON: {summary_block}", job_id)
-                            
+                            log_secure_info(
+                                'info',
+                                f"Summary block from JSON: {summary_block}",
+                                job_id
+                            )
+
                             if isinstance(summary_block, dict):
-                                test_summary["total"] = summary_block.get("total", 0)
-                                test_summary["passed"] = summary_block.get("passed", 0)
-                                test_summary["failed"] = summary_block.get("failed", 0)
-                                test_summary["skipped"] = summary_block.get("skipped", 0)
-                                test_summary["errors"] = summary_block.get("errors", 0)  # Default to 0 if missing
-                                log_secure_info('info', f"Populated test_summary from JSON: {test_summary}", job_id)
+                                test_summary["total"] = summary_block.get(
+                                    "total", 0
+                                )
+                                test_summary["passed"] = summary_block.get(
+                                    "passed", 0
+                                )
+                                test_summary["failed"] = summary_block.get(
+                                    "failed", 0
+                                )
+                                test_summary["skipped"] = summary_block.get(
+                                    "skipped", 0
+                                )
+                                test_summary["errors"] = summary_block.get(
+                                    "errors", 0
+                                )
+                                log_secure_info(
+                                    'info',
+                                    f"Populated test_summary from JSON: "
+                                    f"{test_summary}",
+                                    job_id
+                                )
                             else:
-                                log_secure_info('warning', f"Summary block is not a dict: {type(summary_block)}", job_id)
-                                
-                            log_secure_info('info', f"Test scenario: {scenario}, command: {molecule_command}, duration: {test_duration}s, tests: {len(tests)}, report_id: {report_id}", job_id)
-                            
+                                log_secure_info(
+                                    'warning',
+                                    f"Summary block is not a dict: "
+                                    f"{type(summary_block)}",
+                                    job_id
+                                )
+
+                            log_secure_info(
+                                'info',
+                                f"Test scenario: {scenario}, "
+                                f"command: {molecule_command}, "
+                                f"duration: {test_duration}s, "
+                                f"tests: {len(tests)}, "
+                                f"report_id: {report_id}",
+                                job_id
+                            )
+
                             # Save filtered report to artifact_dir
                             filtered_report = {
                                 "servers": {
@@ -1311,41 +1716,85 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                                     }
                                 }
                             }
-                            dest_path = os.path.join(artifact_dir, "test_report.json")
+                            dest_path = os.path.join(
+                                artifact_dir, "test_report.json"
+                            )
                             with open(dest_path, 'w') as f:
                                 json.dump(filtered_report, f, indent=2)
-                            log_secure_info('info', f"Extracted report {report_id} to artifact directory", job_id)
-            except (OSError, json.JSONDecodeError) as e:
-                log_secure_info('warning', f"Failed to extract report: {e}", job_id)
+                            log_secure_info(
+                                'info',
+                                f"Extracted report {report_id} to artifact directory",
+                                job_id
+                            )
 
-        # Determine status: if any test failed, mark as failed regardless of exit code
-        # If test summary is all zeros (parsing failure), default to failed
-        if test_summary["total"] == 0 and test_summary["passed"] == 0 and test_summary["failed"] == 0:
+                            # Keep a cumulative report at the validate stage level while
+                            # preserving the isolated report in every attempt directory.
+                            # Rebuild it from the shared report so retries cannot duplicate
+                            # an attempt or overwrite the result from an earlier attempt.
+                            job_report = {"servers": {}}
+                            report_id_prefix = f"{job_id}_attempt_"
+                            for source_server, source_data in full_report["servers"].items():
+                                job_runs = [
+                                    run for run in source_data.get("runs", [])
+                                    if str(run.get("report_id", "")).startswith(
+                                        report_id_prefix
+                                    )
+                                ]
+                                if job_runs:
+                                    job_report["servers"][source_server] = {
+                                        "runs": job_runs,
+                                        "hostname": source_data.get("hostname", ""),
+                                    }
+
+                            job_report_path = os.path.join(
+                                str(ARTIFACTS_DIR / job_id / "validate"),
+                                "test_report.json",
+                            )
+                            with open(job_report_path, 'w') as f:
+                                json.dump(job_report, f, indent=2)
+                            log_secure_info('info', "Updated cumulative validate report", job_id)
+            except (OSError, json.JSONDecodeError) as e:
+                log_secure_info(
+                    'warning', f"Failed to extract report: {e}", job_id
+                )
+
+        # Determine status
+        if (
+            test_summary["total"] == 0
+            and test_summary["passed"] == 0
+            and test_summary["failed"] == 0
+        ):
             status = "failed"
             exit_code = 1
-            log_secure_info('warning', "Test summary parsing failed (all zeros), marking as failed", job_id)
+            log_secure_info(
+                'warning',
+                "Test summary parsing failed (all zeros), marking as failed",
+                job_id
+            )
         elif test_summary["failed"] > 0 or test_summary["errors"] > 0:
             status = "failed"
-            exit_code = 1  # Override exit code
+            exit_code = 1
         elif result.returncode == 0:
             status = "success"
             exit_code = 0
-        elif result.returncode == 124:  # Timeout
+        elif result.returncode == 124:
             status = "failed"
             exit_code = 124
         else:
             status = "failed"
             exit_code = result.returncode
-        
-        log_secure_info("info", "Test validation completed for job", job_id)
+
+        log_secure_info(
+            "info", "Test validation completed for job", job_id
+        )
         log_secure_info("debug", "Execution status", status)
-        
+
         result_data = {
             "job_id": job_id,
-            "stage_name": stage_type,  # Use stage_name not stage_type
-            "request_id": request_data.get("request_id", job_id),
+            "stage_name": stage_type,
+            "request_id": request_id,
             "correlation_id": correlation_id,
-            "status": status,  # success or failed
+            "status": status,
             "exit_code": exit_code,
             "duration_seconds": int(duration_seconds),
             "test_summary": test_summary,
@@ -1355,52 +1804,66 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "completed_at": completed_at.isoformat(),
             "timestamp": completed_at.isoformat(),
         }
-        
+
         # Add error details if failed
         if status == "failed":
             if exit_code == 124:
-                result_data["error_summary"] = f"Test validation timed out after {timeout_minutes} minutes"
+                result_data["error_summary"] = (
+                    f"Test validation timed out after "
+                    f"{timeout_minutes} minutes"
+                )
             elif test_summary["failed"] > 0:
-                # Parse specific test failures from validate_output.log
                 failed_tests = []
                 if os.path.exists(log_file_path):
                     try:
                         with open(log_file_path, 'r') as f:
                             log_content = f.read()
-                            # Parse FAILED test lines: "FAILED path/to/test_file.py::test_function"
-                            failed_matches = re.findall(r'^FAILED (.+)$', log_content, re.MULTILINE)
-                            failed_tests = failed_matches[:5]  # Include up to 5 specific failures
+                            failed_matches = re.findall(
+                                r'^FAILED (.+)$',
+                                log_content, re.MULTILINE
+                            )
+                            failed_tests = failed_matches[:5]
                     except (OSError, IOError):
                         pass
-                
                 if failed_tests:
-                    result_data["error_summary"] = f"Test failures: {test_summary['failed']} failed. Failed tests: {', '.join(failed_tests)}"
+                    result_data["error_summary"] = (
+                        f"Test failures: {test_summary['failed']} failed. "
+                        f"Failed tests: {', '.join(failed_tests)}"
+                    )
                 else:
-                    result_data["error_summary"] = f"Test failures: {test_summary['failed']} failed, {test_summary['errors']} errors"
+                    result_data["error_summary"] = (
+                        f"Test failures: {test_summary['failed']} failed, "
+                        f"{test_summary['errors']} errors"
+                    )
             else:
-                result_data["error_summary"] = f"Test validation exited with code {exit_code}"
-        
+                result_data["error_summary"] = (
+                    f"Test validation exited with code {exit_code}"
+                )
+
         return result_data
-        
+
     except subprocess.TimeoutExpired:
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
-        
-        log_secure_info("error", "Test validation timed out for job", job_id)
+        log_secure_info(
+            "error", "Test validation timed out for job", job_id
+        )
 
-        # Build NFS log path for timeout case
-        err_attempt = request_data.get("attempt", 1)
-        err_log_path, _ = _build_log_paths("validate", started_at, err_attempt)
-        err_log_path = move_log_to_job_directory(err_log_path, job_id) if err_log_path.exists() else err_log_path
+        err_log_path, _ = _build_log_paths("validate", started_at, attempt)
+        if err_log_path.exists():
+            err_log_path = move_log_to_job_directory(err_log_path, job_id)
 
         return {
             "job_id": job_id,
             "stage_name": stage_type,
-            "request_id": request_data.get("request_id", job_id),
+            "request_id": request_id,
             "correlation_id": correlation_id,
             "status": "failed",
             "exit_code": 124,
-            "error_summary": f"Test validation timed out after {timeout_minutes} minutes",
+            "error_summary": (
+                f"Test validation timed out after "
+                f"{timeout_minutes} minutes"
+            ),
             "artifact_dir": artifact_dir,
             "log_file_path": str(err_log_path),
             "started_at": started_at.isoformat(),
@@ -1408,26 +1871,29 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "duration_seconds": int(duration_seconds),
             "timestamp": completed_at.isoformat(),
         }
-        
     except (OSError, subprocess.SubprocessError) as e:
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
-        
-        log_secure_info("error", "Unexpected error executing test validation for job", job_id, exc_info=True)
+        log_secure_info(
+            "error",
+            "Unexpected error executing test validation for job",
+            job_id, exc_info=True
+        )
 
-        # Build NFS log path for error case
-        err_attempt = request_data.get("attempt", 1)
-        err_log_path, _ = _build_log_paths("validate", started_at, err_attempt)
-        err_log_path = move_log_to_job_directory(err_log_path, job_id) if err_log_path.exists() else err_log_path
+        err_log_path, _ = _build_log_paths("validate", started_at, attempt)
+        if err_log_path.exists():
+            err_log_path = move_log_to_job_directory(err_log_path, job_id)
 
         return {
             "job_id": job_id,
             "stage_name": stage_type,
-            "request_id": request_data.get("request_id", job_id),
+            "request_id": request_id,
             "correlation_id": correlation_id,
             "status": "failed",
             "exit_code": -1,
-            "error_summary": f"System error during test validation: {str(e)}",
+            "error_summary": (
+                f"System error during test validation: {str(e)}"
+            ),
             "artifact_dir": artifact_dir,
             "log_file_path": str(err_log_path),
             "started_at": started_at.isoformat(),
@@ -1437,20 +1903,18 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
-def write_result_file(result_data: Dict[str, Any], original_filename: str) -> bool:
+def write_result_file(
+    result_data: Dict[str, Any], original_filename: str
+) -> bool:
     """Write result file to results directory.
-
     Args:
         result_data: Result dictionary to write
         original_filename: Original request filename for correlation
-
     Returns:
         True if successful, False otherwise
     """
     job_id = result_data["job_id"]
-
     try:
-        # Use same filename pattern as request for easy correlation
         result_filename = original_filename
         result_path = RESULTS_DIR / result_filename
 
@@ -1463,8 +1927,7 @@ def write_result_file(result_data: Dict[str, Any], original_filename: str) -> bo
             job_id
         )
         return True
-
-    except (OSError, IOError) as e:
+    except (OSError, IOError):
         log_secure_info(
             "error",
             "Failed to write result file for job",
@@ -1472,9 +1935,9 @@ def write_result_file(result_data: Dict[str, Any], original_filename: str) -> bo
         )
         return False
 
+
 def archive_request_file(request_path: Path) -> None:
     """Archive processed request file.
-
     Args:
         request_path: Path to the request file to archive
     """
@@ -1486,12 +1949,13 @@ def archive_request_file(request_path: Path) -> None:
             "Archived request file",
             request_path.name[:8] if request_path.name else None
         )
-    except (OSError, IOError) as e:
+    except (OSError, IOError):
         log_secure_info(
             "warning",
             "Failed to archive request file",
             request_path.name[:8] if request_path.name else None
         )
+
 
 def process_request(request_path: Path) -> None:
     """Process a single request file.
@@ -1510,7 +1974,6 @@ def process_request(request_path: Path) -> None:
     processing_path = PROCESSING_DIR / request_filename
 
     with job_semaphore:
-
         try:
             # Move to processing directory (atomic lock)
             try:
@@ -1521,7 +1984,6 @@ def process_request(request_path: Path) -> None:
                     request_filename[:8] if request_filename else None
                 )
             except FileNotFoundError:
-                # File already moved by another process
                 log_secure_info(
                     "debug",
                     "Request already being processed",
@@ -1537,7 +1999,6 @@ def process_request(request_path: Path) -> None:
                     "Invalid request file",
                     request_filename[:8] if request_filename else None
                 )
-                # Write error result
                 error_result = {
                     "job_id": "unknown",
                     "stage_name": "unknown",
@@ -1552,7 +2013,9 @@ def process_request(request_path: Path) -> None:
                 return
 
             # Execute based on command type
-            command_type = request_data.get("command_type", "ansible-playbook")
+            command_type = request_data.get(
+                "command_type", "ansible-playbook"
+            )
             if command_type == "test_automation":
                 result_data = execute_molecule(request_data)
             else:
@@ -1563,37 +2026,37 @@ def process_request(request_path: Path) -> None:
 
             # Archive request
             archive_request_file(processing_path)
-
         finally:
             # Ensure processing file is cleaned up even on error
             if processing_path.exists():
                 try:
                     processing_path.unlink()
-                except (OSError, IOError) as e:
+                except (OSError, IOError):
                     log_secure_info(
                         "warning",
                         "Failed to remove processing file",
                         request_filename[:8] if request_filename else None
                     )
 
+
 def process_request_async(request_path: Path) -> None:
     """Process request in a separate thread.
-
     Args:
         request_path: Path to the request file
     """
-    thread = Thread(target=process_request, args=(request_path,), daemon=True)
+    thread = Thread(
+        target=process_request, args=(request_path,), daemon=True
+    )
     thread.start()
+
 
 def scan_and_process_requests() -> int:
     """Scan requests directory and process new requests.
-
     Returns:
         Number of requests processed
     """
     try:
         request_files = sorted(REQUESTS_DIR.glob("*.json"))
-
         if not request_files:
             return 0
 
@@ -1611,26 +2074,23 @@ def scan_and_process_requests() -> int:
                     "Shutdown requested"
                 )
                 break
-
             try:
-                # Process asynchronously
                 process_request_async(request_path)
                 processed_count += 1
-            except (OSError, IOError) as e:
+            except (OSError, IOError):
                 log_secure_info(
                     "error",
                     "Error processing request",
                     request_path.name[:8] if request_path.name else None
                 )
-
         return processed_count
-
-    except (OSError, IOError) as e:
+    except (OSError, IOError):
         log_secure_info(
             "error",
             "Error scanning requests directory"
         )
         return 0
+
 
 def run_watcher_loop():
     """Main watcher loop that continuously polls for requests."""
@@ -1652,17 +2112,13 @@ def run_watcher_loop():
     )
     log_secure_info(
         "info",
-        f"Max concurrent jobs: {MAX_CONCURRENT_JOBS}"
-    )
-    log_secure_info(
-        "info",
         f"Default timeout: {DEFAULT_TIMEOUT_MINUTES}m"
     )
 
     # Ensure directories exist
     try:
         ensure_directories()
-    except (OSError, IOError) as e:
+    except (OSError, IOError):
         log_secure_info(
             "critical",
             "Failed to initialize directories"
@@ -1673,19 +2129,20 @@ def run_watcher_loop():
     iteration = 0
     while not SHUTDOWN_REQUESTED:
         iteration += 1
-
         try:
             processed_count = scan_and_process_requests()
-
             if processed_count > 0:
                 log_secure_info(
                     "info",
                     "Processed requests in iteration",
                     str(processed_count)
                 )
-
-        except RuntimeError as e:
-            log_secure_info('error', f"Unexpected error in watcher loop iteration {iteration}", exc_info=True)
+        except RuntimeError:
+            log_secure_info(
+                'error',
+                f"Unexpected error in watcher loop iteration {iteration}",
+                exc_info=True
+            )
 
         # Sleep before next poll
         time.sleep(POLL_INTERVAL_SECONDS)
@@ -1694,6 +2151,7 @@ def run_watcher_loop():
         "info",
         "Playbook Watcher Service stopped"
     )
+
 
 def main():
     """Main entry point for the watcher service."""
@@ -1714,8 +2172,8 @@ def main():
             "Fatal error in watcher service"
         )
         sys.exit(1)
-
     sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

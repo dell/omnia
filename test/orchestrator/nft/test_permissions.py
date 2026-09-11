@@ -51,7 +51,7 @@ def _get_input_path() -> str:
 def test_credential_file_permissions(host):
     """NFT_OR_008: Verify credential files have restricted permissions (0640 or stricter).
 
-    Checks that omnia_config_credentials.yml has permissions that prevent
+    Checks that orchestrator_credentials.yml has permissions that prevent
     world-readable access (should be 0640 or stricter like 0600).
     """
     tl = TestLogger("NFT: Credential file permissions", "NFT_OR_008")

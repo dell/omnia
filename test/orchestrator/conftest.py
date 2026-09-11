@@ -64,6 +64,7 @@ from library.functions.host_func import (  # noqa: E402
     sync_project_to_remote,
     sync_orchestrator_input,
     sync_repo_manager_output,
+    sync_image_build_manager_output,
 )
 from library.functions.validation_func import (  # noqa: E402
     validate_all,
@@ -107,6 +108,7 @@ def pytest_configure(config):
         "functional": "Functional verification",
         "deploy": "Playbook deployment tests (requires full environment)",
         "slurm": "Slurm-specific tests (requires Slurm enabled)",
+        "kubernetes": "Kubernetes-specific tests (requires Kubernetes enabled)",
         "nft": "Non-functional tests (performance, idempotency, security)",
         "performance": "Performance and timing tests",
         "idempotency": "Idempotency",
@@ -201,15 +203,26 @@ def pytest_collection_modifyitems(session, config, items):
                     config = load_test_config()
                     project = config.get("project_name", "project_default")
                     orchestrator_config_path = f"/opt/omnia/orchestrator/input/{project}/orchestrator_config.yml"
+                    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
 
+                    has_k8s = False
+                    
+                    # Check orchestrator_config.yml
                     if os.path.exists(orchestrator_config_path):
                         with open(orchestrator_config_path, 'r') as f:
                             config_content = f.read().lower()
                         k8s_keywords = ["service_kube_control_plane", "service_kube_node", "kube_control_plane"]
                         has_k8s = any(keyword in config_content for keyword in k8s_keywords)
 
-                        if not has_k8s:
-                            item.add_marker(pytest.mark.skip("Kubernetes is not enabled in orchestrator config"))
+                    # If not found, check PXE mapping file
+                    if not has_k8s and os.path.exists(pxe_mapping_path):
+                        with open(pxe_mapping_path, 'r') as f:
+                            pxe_content = f.read().lower()
+                        k8s_keywords = ["service_kube_control_plane", "service_kube_node", "kube_control_plane"]
+                        has_k8s = any(keyword in pxe_content for keyword in k8s_keywords)
+
+                    if not has_k8s:
+                        item.add_marker(pytest.mark.skip("Kubernetes is not enabled in orchestrator config"))
                 except Exception:
                     pass
     else:
@@ -301,6 +314,13 @@ def pytest_sessionstart(session):
         else:
             log(f"Output sync failed: {out_result['error']}", "WARN")
 
+    if config.get("sync_image_build_manager_output", False):
+        img_result = sync_image_build_manager_output(host)
+        if img_result["success"]:
+            log(img_result["details"], "OK")
+        else:
+            log(f"Image build output sync failed: {img_result['error']}", "WARN")
+
     # Initialize test report
     valid_scenarios = {
         "orchestrator", "validate", "prepare",
@@ -315,10 +335,11 @@ def pytest_sessionstart(session):
                 break
 
     report_id = os.environ.get("REPORT_ID")
+    report_name = str(config.get("report_name", "orchestrator_test_report"))
     report = TestReport(
         module_name=module_name,
         report_path=str(config.get("report_path", "/opt/omnia/reports")),
-        report_name=str(config.get("report_name", "orchestrator_test_report")),
+        report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
         report_id=report_id,
     )

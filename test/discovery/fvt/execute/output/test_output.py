@@ -39,13 +39,15 @@ from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
+from library.vars.test_case_vars import TEST_CASES as TC
 
 
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_output_dir_exists(host):
     """TC_DS_001: Verify output directory exists."""
-    tl = TestLogger(TEST_NAMES["output_dir_exists"], "TC_DS_001")
+    tc = TC["output_dir_exists"]
+    tl = TestLogger(TEST_NAMES["output_dir_exists"], tc["id"])
     result = check_output_dir_exists(host)
 
     if result["success"]:
@@ -60,7 +62,8 @@ def test_output_dir_exists(host):
 @pytest.mark.order(2)
 def test_pxe_mapping_created(host):
     """TC_DS_002: Verify PXE mapping CSV created."""
-    tl = TestLogger(TEST_NAMES["pxe_mapping_created"], "TC_DS_002")
+    tc = TC["pxe_mapping_created"]
+    tl = TestLogger(TEST_NAMES["pxe_mapping_created"], tc["id"])
     result = check_pxe_mapping_created(host)
 
     if result["success"]:
@@ -75,7 +78,8 @@ def test_pxe_mapping_created(host):
 @pytest.mark.order(3)
 def test_pxe_mapping_columns(host):
     """TC_DS_003: Verify PXE mapping CSV has required columns."""
-    tl = TestLogger(TEST_NAMES["pxe_mapping_columns"], "TC_DS_003")
+    tc = TC["pxe_mapping_columns"]
+    tl = TestLogger(TEST_NAMES["pxe_mapping_columns"], tc["id"])
     result = check_pxe_mapping_columns(host)
 
     if result["success"]:
@@ -95,7 +99,8 @@ def test_pxe_mapping_columns(host):
 @pytest.mark.order(4)
 def test_pxe_mapping_has_rows(host):
     """TC_DS_004: Verify PXE mapping CSV has data rows."""
-    tl = TestLogger(TEST_NAMES["pxe_mapping_has_rows"], "TC_DS_004")
+    tc = TC["pxe_mapping_has_rows"]
+    tl = TestLogger(TEST_NAMES["pxe_mapping_has_rows"], tc["id"])
     result = check_pxe_mapping_has_rows(host)
 
     if result["success"]:
@@ -112,7 +117,8 @@ def test_pxe_mapping_has_rows(host):
 @pytest.mark.order(5)
 def test_pxe_mapping_symlink(host):
     """TC_DS_005: Verify PXE mapping symlink points to latest."""
-    tl = TestLogger(TEST_NAMES["pxe_mapping_symlink"], "TC_DS_005")
+    tc = TC["pxe_mapping_symlink"]
+    tl = TestLogger(TEST_NAMES["pxe_mapping_symlink"], tc["id"])
     result = check_pxe_mapping_symlink(host)
 
     if result["success"]:
@@ -127,7 +133,8 @@ def test_pxe_mapping_symlink(host):
 @pytest.mark.order(6)
 def test_discovery_report_created(host):
     """TC_DS_006: Verify discovery report CSV created."""
-    tl = TestLogger(TEST_NAMES["discovery_report_created"], "TC_DS_006")
+    tc = TC["discovery_report_created"]
+    tl = TestLogger(TEST_NAMES["discovery_report_created"], tc["id"])
     result = check_discovery_report_created(host)
 
     if result["success"]:

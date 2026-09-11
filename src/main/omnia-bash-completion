@@ -88,7 +88,7 @@ _omnia_tags_for_domain() {
             printf '%s' "precheck validate credentials prepare execute build cleanup upgrade rollback"
             ;;
         discovery)
-            printf '%s' "precheck validate credentials prepare execute discovery cleanup upgrade rollback"
+            printf '%s' "precheck validate credentials prepare execute discovery cleanup cleanup_credentials upgrade rollback"
             ;;
         image_build_manager)
             printf '%s' "precheck validate credentials prepare execute build cleanup cleanup_images upgrade rollback"
@@ -100,10 +100,10 @@ _omnia_tags_for_domain() {
             printf '%s' "precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos upgrade rollback catalog_generate catalog_add catalog_delete catalog_validate"
             ;;
         telemetry)
-            printf '%s' "precheck validate validation execute deploy cleanup cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria"
+            printf '%s' "precheck validate validation prepare credentials execute deploy cleanup cleanup_kafka cleanup_victoria_metrics cleanup_victoria_logs cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria"
             ;;
         utils)
-            printf '%s' "precheck setup collect install_os cleanup cleanup_logs cleanup_install_os upgrade rollback"
+            printf '%s' "precheck setup collect install_os backup_oim_logs cleanup cleanup_logs cleanup_install_os cleanup_backup_oim_logs upgrade rollback"
             ;;
     esac
 }
@@ -340,7 +340,7 @@ _omnia_sh_completions() {
             fi
             ;;
         cleanup)
-            _omnia_complete_words "--all" "$cur"
+            _omnia_complete_words "--all --skip-approval" "$cur"
             ;;
         check|help)
             COMPREPLY=()

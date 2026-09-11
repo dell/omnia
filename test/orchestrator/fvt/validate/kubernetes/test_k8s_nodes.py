@@ -30,8 +30,8 @@ from library.functions.k8s_func import (
     check_k8s_worker_nodes,
 )
 from library.messages import (
-    TEST_LOG_MSGS as LOG,
-    TEST_ASSERT_MSGS as ASSERT,
+    K8S_TEST_LOG_MSGS as LOG,
+    K8S_TEST_ASSERT_MSGS as ASSERT,
 )
 from library.vars.k8s_vars import TEST_CASES as TC
 
@@ -45,6 +45,7 @@ def _skip_if_k8s_disabled(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_k8s_nodes_ready(host):
     """TC_K8_002: Verify Kubernetes nodes are in Ready state."""
@@ -66,6 +67,7 @@ def test_k8s_nodes_ready(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_k8s_control_plane_nodes(host):
     """TC_K8_003: Verify Kubernetes control plane nodes are Ready."""
@@ -87,6 +89,7 @@ def test_k8s_control_plane_nodes(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_k8s_worker_nodes(host):
     """TC_K8_004: Verify Kubernetes worker nodes are Ready."""

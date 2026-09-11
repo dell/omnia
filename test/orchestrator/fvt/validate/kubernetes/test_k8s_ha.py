@@ -26,8 +26,8 @@ from library.functions.k8s_func import (
     check_k8s_virtual_ip,
 )
 from library.messages import (
-    TEST_LOG_MSGS as LOG,
-    TEST_ASSERT_MSGS as ASSERT,
+    K8S_TEST_LOG_MSGS as LOG,
+    K8S_TEST_ASSERT_MSGS as ASSERT,
 )
 from library.vars.k8s_vars import TEST_CASES as TC
 
@@ -41,6 +41,7 @@ def _skip_if_k8s_disabled(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_k8s_virtual_ip(host):
     """TC_K8_040: Verify VIP is configured on exactly one control plane."""

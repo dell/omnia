@@ -38,19 +38,24 @@ def validate_test_config() -> Dict[str, Any]:
     errors: List[str] = []
     warnings: List[str] = []
 
-    # Required string fields
-    for field in ("clone_path", "dataset", "project_name"):
+    # A dataset is needed only when test input/output is being synced. Verify
+    # mode validates the inputs already deployed under the project directory.
+    required_fields = ["clone_path", "project_name"]
+    if config.get("sync_orchestrator_input") or config.get("sync_repo_manager_output"):
+        required_fields.append("dataset")
+
+    for field in required_fields:
         val = config.get(field, "")
         if not val or not str(val).strip():
             errors.append(f"'{field}' is required and cannot be empty")
 
     # Dataset directory must exist locally (make this a warning, not error)
     module_root = get_module_root()
-    dataset = config.get("dataset", "data_set_01")
+    dataset = str(config.get("dataset", "")).strip()
     dataset_dir = os.path.join(module_root, "datasets", dataset)
-    if not os.path.isdir(dataset_dir):
+    if dataset and not os.path.isdir(dataset_dir):
         warnings.append(
-            f"Dataset directory not found: {dataset_dir} (using default)"
+            f"Dataset directory not found: {dataset_dir}"
         )
 
     # Optional: oim_server_ip

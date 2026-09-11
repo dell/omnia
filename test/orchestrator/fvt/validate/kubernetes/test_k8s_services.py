@@ -36,8 +36,8 @@ from library.functions.k8s_func import (
     check_k8s_component_status,
 )
 from library.messages import (
-    TEST_LOG_MSGS as LOG,
-    TEST_ASSERT_MSGS as ASSERT,
+    K8S_TEST_LOG_MSGS as LOG,
+    K8S_TEST_ASSERT_MSGS as ASSERT,
 )
 from library.vars.k8s_vars import TEST_CASES as TC
 
@@ -51,6 +51,7 @@ def _skip_if_k8s_disabled(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_k8s_crio_running(host):
     """TC_K8_031: Verify CRI-O service is running on all nodes."""
@@ -76,6 +77,7 @@ def test_k8s_crio_running(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_k8s_chronyd_running(host):
     """TC_K8_032: Verify chronyd service is active on control plane nodes."""
@@ -101,6 +103,7 @@ def test_k8s_chronyd_running(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_k8s_kubectl_version(host):
     """TC_K8_033: Verify kubectl version matches software config."""
@@ -129,6 +132,7 @@ def test_k8s_kubectl_version(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_k8s_kubeadm_crio_version_match(host):
     """TC_K8_034: Verify kubeadm version matches CRI-O version."""
@@ -154,6 +158,7 @@ def test_k8s_kubeadm_crio_version_match(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(5)
 def test_k8s_container_runtime(host):
     """TC_K8_035: Verify all nodes use expected container runtime."""
@@ -179,6 +184,7 @@ def test_k8s_container_runtime(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(6)
 def test_k8s_component_status(host):
     """TC_K8_036: Verify K8s component status (controller, scheduler, etcd)."""
