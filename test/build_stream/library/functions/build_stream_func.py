@@ -22,7 +22,10 @@ playbook paths, venv, TLS certs, and watcher service.
 import json
 from typing import Any, Dict
 
-from omnia_auto import load_test_config, run_on_host
+from omnia_auto import read_remote_yaml, run_on_host
+
+from ._config_helpers import resolve_build_stream_input_path
+from .host_func import resolve_target_source_root
 
 from library.vars.common_vars import (
     BSM_HEALTH_PATH,
@@ -41,15 +44,9 @@ from library.vars.common_vars import (
 )
 
 
-def _get_bsm_config_path() -> str:
+def _get_bsm_config_path(host) -> str:
     """Return the resolved path to build_stream_config.yml on the target host."""
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    data_path = config.get("shared_path", "/opt/omnia/build_stream")
-    return (
-        f"{data_path}/input/{project}/"
-        f"{BUILD_STREAM_CONFIG_FILE}"
-    )
+    return f"{resolve_build_stream_input_path(host)}/{BUILD_STREAM_CONFIG_FILE}"
 
 
 def _get_bsm_config_value(host, key: str) -> str:
@@ -62,15 +59,13 @@ def _get_bsm_config_value(host, key: str) -> str:
     Returns:
         Value string, or empty string if not found.
     """
-    config_path = _get_bsm_config_path()
-    cmd = CMDS["cat_file"].format(path=config_path)
-    result = run_on_host(host, cmd)
-    if result.rc != 0 or not result.stdout.strip():
+    config_path = _get_bsm_config_path(host)
+    try:
+        config = read_remote_yaml(host, config_path)
+    except (OSError, RuntimeError, ValueError):
         return ""
-    for line in result.stdout.strip().split("\n"):
-        if key in line and ":" in line:
-            return line.split(":", 1)[1].strip().strip('"').strip("'")
-    return ""
+    value = config.get(key, "")
+    return str(value) if value is not None else ""
 
 
 def check_build_stream_enabled(host) -> Dict[str, Any]:
@@ -82,7 +77,7 @@ def check_build_stream_enabled(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, details, error.
     """
-    config_path = _get_bsm_config_path()
+    config_path = _get_bsm_config_path(host)
     value = _get_bsm_config_value(host, "enable_build_stream")
     if not value:
         return {
@@ -130,7 +125,7 @@ def check_build_stream_health(host) -> Dict[str, Any]:
         "error": "",
     }
 
-    config_path = _get_bsm_config_path()
+    config_path = _get_bsm_config_path(host)
     host_ip = _get_bsm_config_value(host, BSM_HOST_IP_KEY)
     port = _get_bsm_config_value(host, BSM_PORT_KEY)
 
@@ -251,9 +246,8 @@ def check_playbook_paths_yml(host) -> Dict[str, Any]:
         "error": "",
     }
 
-    config = load_test_config()
-    clone_path = config.get("clone_path", "/root/omnia")
-    full_path = f"{clone_path}/{PLAYBOOK_PATHS_YML}"
+    source_root = resolve_target_source_root()
+    full_path = f"{source_root}/{PLAYBOOK_PATHS_YML}"
 
     cat_cmd = CMDS["cat_file"].format(path=full_path)
     cat_result = run_on_host(host, cat_cmd)
@@ -293,9 +287,8 @@ def check_playbook_paths_resolvable(host) -> Dict[str, Any]:
         "error": "",
     }
 
-    config = load_test_config()
-    clone_path = config.get("clone_path", "/root/omnia")
-    full_path = f"{clone_path}/{PLAYBOOK_PATHS_YML}"
+    source_root = resolve_target_source_root()
+    full_path = f"{source_root}/{PLAYBOOK_PATHS_YML}"
 
     cmd = (
         f"python3 -c \""
