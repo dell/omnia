@@ -1,0 +1,125 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# =============================================================================
+# bundle.yml - Check domain log directories and archive them directly
+# =============================================================================
+
+- name: Stat each domain log directory
+  ansible.builtin.stat:
+    path: "{{ omnia_data_path }}/{{ item }}/log"
+  loop: "{{ backup_domains }}"
+  loop_control:
+    label: "{{ item }}"
+  register: _backup_domain_stats
+
+- name: Split domains into present and missing
+  ansible.builtin.set_fact:
+    backup_domains_present: >-
+      {{ _backup_domain_stats.results | selectattr('stat.exists', 'true') | map(attribute='item') | list }}
+    backup_domains_missing: >-
+      {{ _backup_domain_stats.results | rejectattr('stat.exists', 'true') | map(attribute='item') | list }}
+
+- name: Record warnings for missing domain log directories
+  ansible.builtin.set_fact:
+    backup_warnings: >-
+      {{
+        backup_domains_missing
+        | map('regex_replace', '(.+)', 'Domain \1 has no log directory under OMNIA_DATA_PATH; skipped.')
+        | list
+      }}
+
+- name: Gather OIM host context for metadata
+  ansible.builtin.shell: |
+    set -o pipefail
+    printf '%s|%s' \
+      "$(whoami)" \
+      "$(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-unknown}")"
+  register: _backup_host_context
+  changed_when: false
+
+- name: Set bundle name and metadata context variables
+  ansible.builtin.set_fact:
+    backup_bundle_dir_name: "omnia_oim_logs_{{ backup_ts }}"
+    backup_bundle_name: "omnia_oim_logs_{{ backup_ts }}.tar.gz"
+    backup_meta_user: "{{ _backup_host_context.stdout.split('|')[0] }}"
+    backup_meta_os: "{{ _backup_host_context.stdout.split('|')[1] }}"
+
+- name: Ensure per-run backup directory exists
+  ansible.builtin.file:
+    path: "{{ backup_workspace }}/{{ backup_bundle_dir_name }}"
+    state: directory
+    mode: "0755"
+
+- name: Build tar argument vector for present domains
+  ansible.builtin.set_fact:
+    backup_tar_argv: >-
+      {{
+        ['tar', 'czf', backup_workspace + '/' + backup_bundle_dir_name + '/' + backup_bundle_name,
+         '-C', omnia_data_path]
+        + (backup_exclude_patterns | map('regex_replace', '(.+)', '--exclude=\1') | list)
+        + (backup_domains_present | map('regex_replace', '(.+)', '\1/log') | list)
+      }}
+  when: backup_domains_present | length > 0
+
+- name: Create tar.gz archive directly from domain log directories
+  ansible.builtin.command:
+    argv: "{{ backup_tar_argv }}"
+  changed_when: true
+  when: backup_domains_present | length > 0
+
+- name: Fail when no domain log directories were available to back up
+  ansible.builtin.fail:
+    msg: >-
+      None of the requested domains ({{ backup_domains | join(', ') }}) have a
+      log directory under {{ omnia_data_path }}. Nothing to back up.
+  when: backup_domains_present | length == 0
+
+- name: Compute SHA256 checksum of the archive
+  ansible.builtin.stat:
+    path: "{{ backup_workspace }}/{{ backup_bundle_dir_name }}/{{ backup_bundle_name }}"
+    checksum_algorithm: sha256
+  register: _backup_archive_stat
+
+- name: Write metadata.json for current backup run
+  ansible.builtin.template:
+    src: metadata.json.j2
+    dest: "{{ backup_workspace }}/{{ backup_bundle_dir_name }}/metadata.json"
+    mode: "0644"
+  vars:
+    backup_name: "{{ backup_bundle_name }}"
+    backup_generated_at_utc: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+    backup_generated_at_local: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+    trigger_user: "{{ backup_meta_user }}"
+    oim_host_os: "{{ backup_meta_os }}"
+    domains_included: "{{ backup_domains_present }}"
+    domains_skipped: "{{ backup_domains_missing }}"
+    archive_sha256: "{{ _backup_archive_stat.stat.checksum | default('') }}"
+    backup_location: "{{ backup_workspace }}/{{ backup_bundle_dir_name }}"
+    exclusions_applied: "{{ backup_exclude_patterns }}"
+    warnings: "{{ backup_warnings }}"
+
+- name: Completion summary
+  ansible.builtin.debug:
+    msg:
+      - "=========================================================="
+      - "OMNIA OIM LOG BACKUP COMPLETE"
+      - "=========================================================="
+      - "Backup Location : {{ backup_workspace }}/{{ backup_bundle_dir_name }}"
+      - "Archive         : {{ backup_bundle_name }}"
+      - "SHA256          : {{ _backup_archive_stat.stat.checksum | default('n/a') }}"
+      - "Domains Included: {{ backup_domains_present | join(', ') }}"
+      - "Domains Skipped : {{ backup_domains_missing | join(', ') if backup_domains_missing else 'none' }}"
+      - "=========================================================="

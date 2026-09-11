@@ -22,9 +22,11 @@
 #   ./run_validation.sh <scenario> <command> [options]
 #
 # Scenarios:
-#   precheck      - Environment and connectivity checks
-#   collect       - Log collector tests
-#   install_os    - OS installation tests
+#   precheck            - Environment and connectivity checks
+#   collect             - Log collector tests
+#   install_os          - OS installation tests
+#   backup_oim_logs     - OIM log backup tests
+#   cleanup_backup_oim_logs - OIM log backup cleanup tests
 #
 # Commands:
 #   deploy        - Run playbook deployment tests only
@@ -72,9 +74,11 @@ usage() {
     echo "  setup              Domain setup tests"
     echo "  collect            Log collector tests"
     echo "  install_os         OS installation tests"
+    echo "  backup_oim_logs    OIM log backup tests"
     echo "  cleanup            Combined cleanup tests"
     echo "  cleanup_logs       Log cleanup tests"
     echo "  cleanup_install_os Install OS cleanup tests"
+    echo "  cleanup_backup_oim_logs OIM log backup cleanup tests"
     echo ""
     echo "Commands:"
     echo "  deploy        Run playbook deployment tests only"
@@ -208,7 +212,10 @@ if [[ -z "${SCENARIO}" ]] || [[ -z "${COMMAND}" ]]; then
 fi
 
 # Validate scenario
-VALID_SCENARIOS=("precheck" "setup" "collect" "install_os" "cleanup" "cleanup_logs" "cleanup_install_os")
+VALID_SCENARIOS=(
+    "precheck" "setup" "collect" "install_os" "backup_oim_logs"
+    "cleanup" "cleanup_logs" "cleanup_install_os" "cleanup_backup_oim_logs"
+)
 if [[ ! " ${VALID_SCENARIOS[*]} " =~ " ${SCENARIO} " ]]; then
     log_error "Invalid scenario: ${SCENARIO}"
     log_error "Valid scenarios: ${VALID_SCENARIOS[*]}"
@@ -233,6 +240,8 @@ elif [[ "${SCENARIO}" == "cleanup_logs" ]]; then
     TEST_PATH="fvt/cleanup/cleanup_logs/"
 elif [[ "${SCENARIO}" == "cleanup_install_os" ]]; then
     TEST_PATH="fvt/cleanup/cleanup_install_os/"
+elif [[ "${SCENARIO}" == "cleanup_backup_oim_logs" ]]; then
+    TEST_PATH="fvt/cleanup/cleanup_backup_oim_logs/"
 else
     TEST_PATH="fvt/${SCENARIO}/"
 fi
