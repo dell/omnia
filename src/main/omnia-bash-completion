@@ -29,8 +29,16 @@
 _omnia_domains="build_stream discovery image_build_manager orchestrator \
 repo_manager telemetry utils"
 _omnia_prepare_domains="repo_manager image_build_manager orchestrator"
-_omnia_cli_domains="repo-manager image-build orchestrator discovery telemetry \
-build-stream utils"
+_omnia_cli_domains="repo_manager image_build_manager orchestrator discovery telemetry \
+build_stream utils"
+
+_omnia_cli_internal_domain() {
+    case "$1" in
+        repo_manager|image_build_manager|orchestrator|discovery|telemetry|build_stream|utils)
+            echo "$1"
+            ;;
+    esac
+}
 
 _omnia_init_completion() {
     if declare -F _init_completion > /dev/null; then
@@ -88,7 +96,7 @@ _omnia_tags_for_domain() {
             printf '%s' "precheck validate credentials prepare execute build cleanup upgrade rollback"
             ;;
         discovery)
-            printf '%s' "precheck validate credentials prepare execute discovery cleanup upgrade rollback"
+            printf '%s' "precheck validate credentials prepare execute discovery cleanup cleanup_credentials upgrade rollback"
             ;;
         image_build_manager)
             printf '%s' "precheck validate credentials prepare execute build cleanup cleanup_images upgrade rollback"
@@ -100,10 +108,10 @@ _omnia_tags_for_domain() {
             printf '%s' "precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos upgrade rollback catalog_generate catalog_add catalog_delete catalog_validate"
             ;;
         telemetry)
-            printf '%s' "precheck validate validation credentials execute deploy cleanup cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria"
+            printf '%s' "precheck validate validation prepare credentials execute deploy cleanup cleanup_kafka cleanup_victoria_metrics cleanup_victoria_logs cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria"
             ;;
         utils)
-            printf '%s' "precheck setup collect install_os cleanup cleanup_logs cleanup_install_os upgrade rollback"
+            printf '%s' "precheck setup collect install_os backup_oim_logs cleanup cleanup_logs cleanup_install_os cleanup_backup_oim_logs upgrade rollback"
             ;;
     esac
 }
@@ -122,8 +130,8 @@ _omnia_cli_completions() {
     _omnia_init_completion || return
 
     # All top-level commands
-    local commands="status check edit logs repo-manager image-build \
-orchestrator discovery telemetry build-stream utils version help"
+    local commands="status check edit logs repo_manager image_build_manager \
+orchestrator discovery telemetry build_stream utils version help"
 
     # Determine which command was typed (skip flags and their values)
     local command=""
@@ -191,6 +199,7 @@ orchestrator discovery telemetry build-stream utils version help"
         edit|logs|log|help)
             # These commands take a domain as the next positional arg
             local has_domain=0
+            local cli_domain=""
             for ((i = 1; i < cword; i++)); do
                 case "${words[i]}" in
                     --project|-p|--limit|-l)
@@ -203,6 +212,9 @@ orchestrator discovery telemetry build-stream utils version help"
                     *)
                         if [ "${words[i]}" != "$command" ]; then
                             has_domain=1
+                            if [ -z "$cli_domain" ]; then
+                                cli_domain="${words[i]}"
+                            fi
                         fi
                         ;;
                 esac
@@ -219,12 +231,38 @@ orchestrator discovery telemetry build-stream utils version help"
                             _omnia_complete_words "--project -p --limit -l" "$cur"
                             ;;
                     esac
+                elif [ "$command" = "edit" ]; then
+                    local internal_domain
+                    internal_domain=$(_omnia_cli_internal_domain "$cli_domain")
+                    local project_name="${OMNIA_PROJECT_NAME:-project_default}"
+                    for ((i = 1; i < cword; i++)); do
+                        if [ "${words[i]}" = "--project" ] || [ "${words[i]}" = "-p" ]; then
+                            if ((i + 1 < cword)); then
+                                project_name="${words[i + 1]}"
+                            fi
+                            break
+                        fi
+                    done
+
+                    local input_dir="${OMNIA_DATA_PATH:-/opt/omnia}/${internal_domain}/input/${project_name}"
+                    COMPREPLY=()
+                    if [ -n "$internal_domain" ] && [ -d "$input_dir" ]; then
+                        local input_file relative_file lower_file
+                        while IFS= read -r -d '' input_file; do
+                            relative_file="${input_file#"$input_dir/"}"
+                            lower_file="${relative_file,,}"
+                            case "$lower_file" in
+                                *.yml|*.yaml|*.json|*.csv|*.cfg|*.conf|*.ini|*.toml|*.log|*.txt)
+                                    [[ "$relative_file" == "$cur"* ]] && COMPREPLY+=("$relative_file")
+                                    ;;
+                            esac
+                        done < <(find "$input_dir" \( -type f -o -type l \) -print0 2>/dev/null)
+                    fi
                 fi
             fi
             ;;
-        status|check|repo-manager|repo_manager|image-build|image_build| \
-        image-build-manager|image_build_manager|orchestrator|discovery| \
-        telemetry|build-stream|build_stream|utils)
+        status|check|repo_manager|image_build_manager|orchestrator|discovery| \
+        telemetry|build_stream|utils)
             # These commands only take --project
             if [[ "$cur" == -* ]]; then
                 _omnia_complete_words "--project -p" "$cur"
@@ -340,7 +378,7 @@ _omnia_sh_completions() {
             fi
             ;;
         cleanup)
-            _omnia_complete_words "--all" "$cur"
+            _omnia_complete_words "--all --skip-approval" "$cur"
             ;;
         check|help)
             COMPREPLY=()

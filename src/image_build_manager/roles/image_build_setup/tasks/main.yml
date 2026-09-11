@@ -33,6 +33,7 @@
 - name: Include prerequisite file validation
   ansible.builtin.include_tasks: validate_prereqs.yml
   when:
+    - not (image_build_cleanup_mode | default(false) | bool)
     - "'cleanup' not in (provided_tags | default([]))"
     - "'cleanup_images' not in (provided_tags | default([]))"
     - "'precheck' not in (provided_tags | default([]))"
@@ -40,6 +41,7 @@
 - name: Include repo_status loading and repo list building
   ansible.builtin.include_tasks: load_repo_status.yml
   when:
+    - not (image_build_cleanup_mode | default(false) | bool)
     - "'cleanup' not in (provided_tags | default([]))"
     - "'cleanup_images' not in (provided_tags | default([]))"
     - "'precheck' not in (provided_tags | default([]))"

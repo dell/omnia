@@ -11,5 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""GitLab Cleanup — FVT scenario."""
+---
+description: "Canonical source defaults with online install mode"
+patches:
+  telemetry_packages:
+    install_mode: "online"

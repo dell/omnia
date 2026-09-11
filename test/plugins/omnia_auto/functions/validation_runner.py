@@ -601,22 +601,22 @@ class ValidationRunner:
                 _err(str(exc))
                 return 2
             os.environ["OMNIA_COMMAND_TYPE"] = "exec"
-            exec_dirs = [
-                os.path.join(self.fvt_dir, exec_tag)
-                for exec_tag in selected_tags
-            ]
             marker_args = "-m deploy"
             if selected_marker:
                 marker_args += f" --marker {selected_marker}"
             _info("Executing the configured lifecycle scenarios...")
-            rc = self._invoke_pytest_with_summary(
-                exec_dirs, marker_args, verbose,
-            )
-            if rc == 0:
-                _ok("Lifecycle execution completed.")
-            else:
-                _fail("Lifecycle execution failed.")
-            return rc
+            for exec_tag in selected_tags:
+                _info(f"Lifecycle execute: {exec_tag}")
+                rc = self._invoke_pytest_with_summary(
+                    os.path.join(self.fvt_dir, exec_tag),
+                    marker_args,
+                    verbose,
+                )
+                if rc != 0:
+                    _fail(f"Lifecycle execution failed at {exec_tag}.")
+                    return rc
+            _ok("Lifecycle execution completed.")
+            return 0
 
         os.environ["OMNIA_COMMAND_TYPE"] = "exec"
         exec_path = (
@@ -658,6 +658,30 @@ class ValidationRunner:
     ) -> int:
         """Run verification tests only."""
         os.environ["OMNIA_COMMAND_TYPE"] = "verify"
+        if not tag and self._all_exec_tags:
+            selected_marker = marker or self._all_exec_marker
+            try:
+                available_tags = self._get_fvt_tags()
+                selected_tags = [
+                    _canonical_choice(
+                        str(verify_tag), available_tags, "all-verify tag",
+                    )
+                    for verify_tag in self._all_exec_tags
+                ]
+            except ValueError as exc:
+                _err(str(exc))
+                return 2
+            _info("Running verification in lifecycle order...")
+            for verify_tag in selected_tags:
+                rc = self._run_verify(
+                    verify_tag, "", selected_marker, verbose,
+                )
+                if rc != 0:
+                    _fail(f"Lifecycle verification failed at {verify_tag}.")
+                    return rc
+            _ok("Lifecycle verification completed.")
+            return 0
+
         test_paths = self._build_verify_paths(tag, suite)
         if not test_paths:
             _err("No eligible FVT directories were found; refusing broad pytest discovery")
@@ -682,7 +706,7 @@ class ValidationRunner:
         if marker:
             marker_args += f" --marker {marker}"
 
-        label = tag or "all non-excluded scenarios"
+        label = tag or "ordered lifecycle"
         _info(
             f"Running verification tests ({label})...",
         )
@@ -695,7 +719,7 @@ class ValidationRunner:
             _fail("Verification failed.")
         return rc
 
-    def _run_test(
+    def _run_test(  # pylint: disable=too-many-locals,too-many-branches
         self, tag: str, suite: str,
         marker: str, verbose: str,
     ) -> int:
@@ -708,20 +732,61 @@ class ValidationRunner:
         os.environ["OMNIA_SUPPRESS_SUMMARY"] = "true"
         os.environ["OMNIA_RESULTS_FILE"] = results_file
 
-        _banner_step("Step 1/2: Execute Playbook")
-        rc = self._run_exec(tag, suite, marker, verbose)
-        if rc != 0:
-            failed = 1
+        lifecycle_tags = [tag] if tag else self._all_exec_tags
+        lifecycle_marker = marker
+        if not tag and lifecycle_tags and not lifecycle_marker:
+            lifecycle_marker = self._all_exec_marker
+        lifecycle_suite = suite if tag else ""
 
-        if failed == 0:
-            _banner_step("Step 2/2: Verify")
-            rc = self._run_verify(
-                tag, suite, marker, verbose,
-            )
+        if lifecycle_tags:
+            total_steps = len(lifecycle_tags) * 2
+            step = 0
+            for lifecycle_tag in lifecycle_tags:
+                step += 1
+                _banner_step(
+                    f"Step {step}/{total_steps}: Execute {lifecycle_tag}"
+                )
+                rc = self._run_exec(
+                    lifecycle_tag, lifecycle_suite,
+                    lifecycle_marker, verbose,
+                )
+                if rc != 0:
+                    failed = 1
+                    _warn(
+                        "Stopping lifecycle — "
+                        f"{lifecycle_tag} execution failed"
+                    )
+                    break
+
+                step += 1
+                _banner_step(
+                    f"Step {step}/{total_steps}: Verify {lifecycle_tag}"
+                )
+                rc = self._run_verify(
+                    lifecycle_tag, suite, lifecycle_marker, verbose,
+                )
+                if rc != 0:
+                    failed = 1
+                    _warn(
+                        "Stopping lifecycle — "
+                        f"{lifecycle_tag} verification failed"
+                    )
+                    break
+        else:
+            _banner_step("Step 1/2: Execute Playbook")
+            rc = self._run_exec(tag, suite, marker, verbose)
             if rc != 0:
                 failed = 1
-        else:
-            _warn("Skipping verification — playbook failed")
+
+            if failed == 0:
+                _banner_step("Step 2/2: Verify")
+                rc = self._run_verify(
+                    tag, suite, marker, verbose,
+                )
+                if rc != 0:
+                    failed = 1
+            else:
+                _warn("Skipping verification — playbook failed")
 
         self._print_combined_summary(results_file)
 
@@ -802,13 +867,31 @@ class ValidationRunner:
         print()
 
         if category == "fvt":
+            if self._all_exec_tags:
+                _yellow("Default lifecycle (untagged exec/verify/test):")
+                _green(f"  {' -> '.join(self._all_exec_tags)}")
+                explicit_tags = [
+                    tag for tag in self._configured_tags
+                    if tag not in self._all_exec_tags
+                ]
+                if explicit_tags:
+                    _yellow(
+                        "  Explicit-only tags: "
+                        f"{', '.join(explicit_tags)}"
+                    )
+                print()
             _yellow("FVT Tags:")
             for tag in self._get_fvt_tags():
                 tag_dir = os.path.join(self.fvt_dir, tag)
                 count = _count_test_files(tag_dir)
                 suites = _list_subdirs(tag_dir)
+                scope = (
+                    " [default lifecycle]"
+                    if tag in self._all_exec_tags
+                    else " [explicit only]"
+                )
                 _green(f"  {tag}", end="")
-                print(f"  ({count} test files)")
+                print(f"  ({count} test files){scope}")
                 if suites:
                     _yellow(
                         f"    suites: {' '.join(suites)}"
@@ -1426,6 +1509,19 @@ class ValidationRunner:
         for tag in self._get_fvt_tags():
             print(f"  {tag}")
         print()
+        if self._all_exec_tags:
+            _yellow("DEFAULT FVT LIFECYCLE")
+            print(f"  {' -> '.join(self._all_exec_tags)}")
+            explicit_tags = [
+                tag for tag in self._configured_tags
+                if tag not in self._all_exec_tags
+            ]
+            if explicit_tags:
+                print(
+                    "  Explicit only: "
+                    f"{', '.join(explicit_tags)}"
+                )
+            print()
         _yellow("OPTIONS")
         print("  --suite <name>    Filter by subfolder")
         print("  --marker <expr>   Filter by marker")
@@ -1493,6 +1589,19 @@ class ValidationRunner:
                 f"({count} test files){suite_str}"
             )
         print()
+        if self._all_exec_tags:
+            _yellow("DEFAULT LIFECYCLE (NO TAG)")
+            print(f"  {' -> '.join(self._all_exec_tags)}")
+            explicit_tags = [
+                tag for tag in self._configured_tags
+                if tag not in self._all_exec_tags
+            ]
+            if explicit_tags:
+                print(
+                    "  Explicit only: "
+                    f"{', '.join(explicit_tags)}"
+                )
+            print()
         _yellow("OPTIONS")
         print("  --suite <name>    Filter by subfolder")
         print("  --marker <expr>   Filter by marker")

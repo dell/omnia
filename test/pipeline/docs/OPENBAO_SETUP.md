@@ -267,9 +267,9 @@ Go to your GitLab project > **Settings** > **CI/CD** > **Variables** and add:
 
 | Variable | Value | Type |
 |---|---|---|
-| `VAULT_SERVER_URL` | `https://<OPENBAO_IP>:8200` | Variable |
-| `VAULT_AUTH_ROLE` | `gitlab-role` | Variable |
-| `VAULT_SECRET_PATH` | `secret/data/omnia` | Variable |
+| `BAO_SERVER_URL` | `https://<OPENBAO_IP>:8200` | Variable |
+| `BAO_AUTH_ROLE` | `gitlab-role` | Variable |
+| `BAO_DATA_PATH` | `secret/data/omnia` | Variable |
 
 These are also set automatically when using `pipeline_config.yml` with the setup script.
 

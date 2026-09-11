@@ -51,3 +51,8 @@
   when:
     - provided_tags | length > 0
     - (provided_tags | intersect(skip_credential_tags)) | length > 0
+
+- name: Resolve Build Stream cleanup context
+  ansible.builtin.set_fact:
+    build_stream_cleanup_context: "{{ 'cleanup' in (provided_tags | default([])) }}"
+    cacheable: true
