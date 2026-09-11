@@ -7,7 +7,7 @@
 Repo Manager — Test constants, paths and commands.
 """
 
-from omnia_auto import load_test_config
+import os
 
 
 # --- Playbook paths ---
@@ -15,34 +15,46 @@ PLAYBOOK_ENTRY_POINT = "repo_manager.yml"
 PLAYBOOK_WORKDIR = "src/repo_manager/playbooks"
 
 
+def _get_project_name() -> str:
+    """Return the project name from the Omnia environment."""
+    return os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+
+
+def _get_base_path() -> str:
+    """Return the effective Repo Manager data root."""
+    domain_path = os.environ.get("REPO_MANAGER_DATA_PATH", "")
+    if domain_path:
+        return domain_path.rstrip("/")
+    data_path = os.environ.get("OMNIA_DATA_PATH", "")
+    if data_path:
+        return f"{data_path.rstrip('/')}/repo_manager"
+    return "/opt/omnia/repo_manager"
+
+
 def _get_input_path() -> str:
     """Return the repo_manager input path for the configured project."""
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
-    return f"{shared_path}/input/{project}"
+    return f"{_get_base_path()}/input/{_get_project_name()}"
 
 
 def _get_output_path() -> str:
     """Return the repo_manager output path for the configured project."""
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
-    return f"{shared_path}/output/{project}"
-
-
-def _get_base_path() -> str:
-    """Return the repo_manager base data path."""
-    config = load_test_config()
-    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
-    return shared_path
+    return f"{_get_base_path()}/output/{_get_project_name()}"
 
 
 def _get_pulp_certs_dir() -> str:
     """Return the Pulp certificates directory path."""
-    config = load_test_config()
-    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
-    return f"{shared_path}/pulp_config/settings/certs"
+    return f"{_get_base_path()}/pulp_config/settings/certs"
+
+
+def _get_log_path() -> str:
+    """Return the repo_manager log path."""
+    return f"{_get_base_path()}/log"
+
+
+def _get_catalog_path() -> str:
+    """Return the catalog file path."""
+    data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia")
+    return f"{data_path.rstrip('/')}/catalog/catalog_rhel.json"
 
 
 # --- Input/Output file names ---

@@ -29,8 +29,8 @@ from library.messages.repo_manager_msgs import (
 @pytest.mark.positive
 @pytest.mark.order(11)
 def test_subscription_repo_per_repo_override(host: Host):
-    """TC_RM_PO_011: Subscription repos should support per-repo overrides."""
-    tl = TestLogger(TEST_NAMES["subscription_repo_per_repo_override"], "TC_RM_PO_011")
+    """RM_FVT_POLICY_V011: Subscription repos should support per-repo overrides."""
+    tl = TestLogger(TEST_NAMES["subscription_repo_per_repo_override"], "RM_FVT_POLICY_V011")
 
     repos_result = get_deployed_repos(host, arch="x86_64")
 
@@ -78,8 +78,8 @@ def test_subscription_repo_per_repo_override(host: Host):
 @pytest.mark.positive
 @pytest.mark.order(12)
 def test_url_repo_per_repo_override(host: Host):
-    """TC_RM_PO_012: URL repos should support per-repo overrides."""
-    tl = TestLogger(TEST_NAMES["url_repo_per_repo_override"], "TC_RM_PO_012")
+    """RM_FVT_POLICY_V012: URL repos should support per-repo overrides."""
+    tl = TestLogger(TEST_NAMES["url_repo_per_repo_override"], "RM_FVT_POLICY_V012")
 
     repos_result = get_deployed_repos(host, arch="x86_64")
 
@@ -127,8 +127,8 @@ def test_url_repo_per_repo_override(host: Host):
 @pytest.mark.positive
 @pytest.mark.order(13)
 def test_subscription_and_url_identical_behavior(host: Host):
-    """TC_RM_PO_013: Subscription and URL repos should behave identically."""
-    tl = TestLogger(TEST_NAMES["subscription_and_url_identical_behavior"], "TC_RM_PO_013")
+    """RM_FVT_POLICY_V013: Subscription and URL repos should behave identically."""
+    tl = TestLogger(TEST_NAMES["subscription_and_url_identical_behavior"], "RM_FVT_POLICY_V013")
 
     repos_result = get_deployed_repos(host, arch="x86_64")
 

@@ -41,6 +41,8 @@ FVT_TAGS: List[str] = [
     "precheck",
     "validate",
     "prepare",
+    "provision",
+    "kernel_override",
     "deploy",
     "provision",
     "execute",
@@ -79,6 +81,7 @@ MARKERS: List[str] = [
     "powervault",
     "recovery",
     "unit",
+    "kernel_override",
 ]
 
 # =====================================================================
@@ -90,7 +93,7 @@ SUITES: Dict[str, List[str]] = {
     "validate": [],
     "prepare": ["openchami", "openldap"],
     "deploy": [],
-    "provision": ["slurm", "kubernetes"],
+    "provision": ["slurm", "kubernetes", "kernel_override"],
     "execute": [],
     "pxeboot": [],
     "check": ["slurm", "kubernetes", "status"],
@@ -98,6 +101,7 @@ SUITES: Dict[str, List[str]] = {
     "rollback": [],
     "playbooks": [],
     "negative": [],
+    "kernel_override": ["kernel_override"],
 }
 
 # Ordered non-destructive lifecycle used by an untagged ``test`` or ``exec``.
