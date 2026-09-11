@@ -44,11 +44,18 @@ def test_kernel_override_config(host):
     logger = _logger("ORCH_FVT_KERNEL_OVERRIDE_V001", "Verify kernel override configuration")
     logger.check("Reading kernel_version_override from orchestrator_config.yml")
     result = get_kernel_version_override(host)
-    details = f"Configured value: {result.get('kernel_version_override', '') or '<empty>'}"
-    (logger.passed if result["success"] else logger.failed)(
-        "Kernel override configuration read successfully" if result["success"] else "Unable to read kernel override configuration",
-        details if result["success"] else result["error"],
-    )
+    if not result["success"]:
+        (logger.failed)(
+            "Unable to read kernel override configuration",
+            result["error"],
+        )
+        assert False, result["error"]
+    if not result["is_configured"]:
+        details = f"Configured value: {result.get('kernel_version_override', '') or '<empty>'}"
+        logger.skipped("kernel_version_override is empty (auto-select mode)", details)
+        pytest.skip("kernel_version_override is empty (auto-select mode)")
+    details = f"Configured value: {result.get('kernel_version_override', '')}"
+    logger.passed("Kernel override configuration read successfully", details)
     assert result["success"], result["error"]
 
 
@@ -61,7 +68,8 @@ def test_kernel_override_format(host):
     logger.check("Validating kernel_version_override format")
     result = validate_kernel_version_override_format(host)
     if result.get("is_empty"):
-        pytest.skip("kernel_version_override is empty")
+        logger.skipped("kernel_version_override is empty (auto-select mode)", "Skipping format validation")
+        pytest.skip("kernel_version_override is empty (auto-select mode)")
     success = result["success"] and result["is_valid_format"]
     details = f"Value: {result['kernel_version_override']}"
     (logger.passed if success else logger.failed)("Kernel version format is valid" if success else "Kernel version format is invalid", details)
@@ -92,6 +100,9 @@ def test_kernel_consistency_across_nodes(host):
     result = verify_kernel_consistency(host)
     if not result["nodes"]:
         pytest.skip("No provisioned nodes found")
+    if not result.get("is_configured"):
+        logger.skipped("kernel_version_override is empty (auto-select mode)", "Skipping kernel consistency check")
+        pytest.skip("kernel_version_override is empty (auto-select mode)")
     (logger.passed if result["success"] else logger.failed)("Node kernels are consistent" if result["success"] else "Node kernels are inconsistent", result["details"])
     assert result["success"], result["details"]
 
