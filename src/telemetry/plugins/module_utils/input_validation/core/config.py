@@ -17,7 +17,12 @@ Telemetry-specific validation configuration.
 Standalone config.py scoped to the three telemetry input files only.
 """
 
-INPUT_VALIDATOR_LOG_PATH = "/var/log/omnia/telemetry"
+import os
+
+INPUT_VALIDATOR_LOG_PATH = os.path.join(
+    os.environ.get("OMNIA_DATA_PATH") or "/opt/omnia",
+    "telemetry", "log"
+)
 
 files = {
     "telemetry_config": "telemetry_config.yml",

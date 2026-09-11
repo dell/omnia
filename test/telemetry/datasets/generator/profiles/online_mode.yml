@@ -12,5 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-description: "Canonical source defaults (iDRAC, LDMS, PowerScale, and OME enabled)"
-patches: {}
+description: "Canonical source defaults with online install mode"
+patches:
+  telemetry_packages:
+    install_mode: "online"
