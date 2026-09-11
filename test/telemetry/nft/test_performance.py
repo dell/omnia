@@ -49,7 +49,7 @@ CLEANUP_THRESHOLD = 300    # 5 minutes
 def test_validate_performance(host):
     """NFT_001: Verify validate completes within 30s threshold.
 
-    Runs ``ansible-playbook telemetry.yml --tags validate`` and asserts
+    Runs telemetry validate playbook and asserts
     that execution completes in under 30 seconds.
     """
     tc = TC["nft_validate_perf"]
@@ -98,7 +98,7 @@ def test_validate_performance(host):
 def test_deploy_performance(host):
     """NFT_002: Verify deploy completes within 600s (10 min) threshold.
 
-    Runs ``ansible-playbook telemetry.yml --tags execute`` and asserts
+    Runs telemetry deploy playbook and asserts
     that full deployment completes in under 10 minutes.
     """
     tc = TC["nft_deploy_perf"]
@@ -147,7 +147,7 @@ def test_deploy_performance(host):
 def test_cleanup_performance(host, delete_volume):
     """NFT_003: Verify cleanup completes within 300s (5 min) threshold.
 
-    Runs ``ansible-playbook telemetry.yml --tags cleanup`` and asserts
+    Runs telemetry cleanup playbook and asserts
     that full cleanup completes in under 5 minutes.
 
     The ``delete_volume`` fixture controls whether ``Delete_volume=true``

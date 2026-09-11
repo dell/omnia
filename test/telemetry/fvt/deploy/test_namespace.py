@@ -19,7 +19,7 @@ Tests that verify the overall health of the telemetry namespace,
 running before any source/sink-specific tests.
 
 Matches the omnia-containers-2.2 format:
-  - Shows ``kubectl get pods -o wide`` output
+  - Shows pod output using library functions
   - Lists every pod with ✓/✗ status
   - Retries if pods are not yet ready
 
