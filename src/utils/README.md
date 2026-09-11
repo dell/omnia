@@ -63,9 +63,9 @@ For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
 | `collect` | Collect configured Kubernetes, Slurm, and login-node logs | `collect_pxe.yml` |
 | `install_os` | Run the OS installation playbook | `install_os_config.yml`; credentials are collected as needed |
 | `backup_oim_logs` | Archive OIM log directories for selected Omnia domains | Optional `backup_oim_logs_config.yml` |
-| `cleanup` | Clean log-collection and OS-installation artifacts | None |
+| `cleanup` | Clean all utility artifacts and remove OS-install credentials by default | None |
 | `cleanup_logs` | Apply retention cleanup to collected log bundles | None |
-| `cleanup_install_os` | Remove temporary OS-installation artifacts and optionally credentials | None |
+| `cleanup_install_os` | Remove temporary OS-installation artifacts and credentials by default | None |
 | `cleanup_backup_oim_logs` | Remove all OIM log-backup run directories | Optional backup-path override |
 | `upgrade` / `rollback` | Reserved placeholders; no lifecycle action is implemented | None |
 
@@ -81,6 +81,26 @@ The imported playbooks expose additional stage tags when run directly:
 | `playbooks/collect.yml` | `setup`, `prepare`, `k8s`, `slurm`, `bundle`; no tag runs the complete flow |
 | `playbooks/install_os.yml` | `credentials`, `build_iso`, `deploy`, `generate_ks`; no tag runs end to end |
 | `playbooks/backup_oim_logs/backup_oim_logs.yml` | `setup`, `bundle`; no tag runs both stages |
+
+### Cleanup and Reset
+
+The public `cleanup` tag removes log-collection artifacts, OS-installation
+temporary files, OIM log backups, and stored OS-install credentials and their
+vault key by default. Use `-e cleanup_credentials=false` only when the
+OS-install credentials must be retained:
+
+```bash
+cd src/main
+sudo ./omnia.sh --run utils --tags cleanup
+sudo ./omnia.sh --run utils --tags cleanup \
+  -e cleanup_credentials=false
+```
+
+`src/utils/domain-init.sh --cleanup` is non-interactive and removes only
+initializer-owned staged input and domain log paths; it does not replace the
+Ansible cleanup tag. After domain cleanup, use
+`sudo ./omnia.sh --cleanup --all` for the guarded global reset. Both global
+cleanup modes prompt for `yes`; trusted automation can add `--skip-approval`.
 
 ---
 
@@ -150,7 +170,7 @@ ansible-playbook playbooks/utils.yml --tags cleanup_backup_oim_logs
 | `collect_pxe.yml` | `utils/input/<project>/` | Log collection |
 | `install_os_config.yml` | `utils/input/<project>/` | OS installation except credentials-only mode |
 | `install_os_credentials.yml` | `utils/input/<project>/` | Generated and Vault-encrypted when credentials are collected |
-| `.install_os_vault_key` | `utils/input/<project>/` | Generated with restrictive permissions |
+| `.install_os_credentials_key` | `utils/input/<project>/` | Generated with restrictive permissions |
 | `backup_oim_logs_config.yml` | `utils/input/<project>/` | No; selects domains and optionally the destination |
 
 ### Output

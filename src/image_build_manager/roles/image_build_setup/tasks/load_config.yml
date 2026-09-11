@@ -36,14 +36,20 @@
     domain_name: "{{ lookup('env', 'SYSTEM_DOMAIN_NAME') | default('omnia.cluster', true) }}"
     cacheable: true
 
+- name: Resolve cleanup-only setup mode
+  ansible.builtin.set_fact:
+    image_build_cleanup_context: >-
+      {{ image_build_cleanup_mode | default(false) | bool or
+         'cleanup' in (provided_tags | default([])) }}
+    cacheable: true
+
 # --- Validate required variables via module (single source of truth) ---
 - name: Validate system environment
   validate_system_environment:
-    required_vars:
-      - SYSTEM_ADMIN_NIC_IPV4
-      - SYSTEM_HOSTNAME
-      - SYSTEM_DOMAIN_NAME
-      - OMNIA_DATA_PATH
+    required_vars: >-
+      {{ ['OMNIA_DATA_PATH'] if image_build_cleanup_context | bool else
+         ['SYSTEM_ADMIN_NIC_IPV4', 'SYSTEM_HOSTNAME',
+          'SYSTEM_DOMAIN_NAME', 'OMNIA_DATA_PATH'] }}
     validate_hostname: false
     validate_domain: false
     validate_ip: false
@@ -56,7 +62,9 @@
       OMNIA_VERSION is not set. Export it before running:
         export OMNIA_VERSION=2.2.0.0
       This version string is embedded in image names (e.g., rhel-<group>_omnia_2.2.0.0).
-  when: omnia_version | length == 0
+  when:
+    - not (image_build_cleanup_context | bool)
+    - omnia_version | length == 0
 
 - name: Validate configured environment
   ansible.builtin.debug:
@@ -87,9 +95,12 @@
   ansible.builtin.stat:
     path: "{{ input_project_dir }}"
   register: _project_dir_check
+  when: not (image_build_cleanup_context | bool)
 
 - name: Auto-copy input files from source if runtime input dir is missing
-  when: not _project_dir_check.stat.exists
+  when:
+    - not (image_build_cleanup_context | bool)
+    - not _project_dir_check.stat.exists
   block:
     - name: Check if source input directory exists
       ansible.builtin.stat:
@@ -117,41 +128,44 @@
         msg: "{{ project_dir_not_exist_fail_msg }}"
       when: not _source_dir_check.stat.exists
 
-# --- Create runtime directories ---
-- name: Ensure base OMNIA_DATA_PATH directory exists
-  ansible.builtin.file:
-    path: "{{ omnia_data_path }}"
-    state: directory
-    mode: '0755'
-  become: true
+# --- Create runtime directories (never recreate state during cleanup) ---
+- name: Initialize image_build_manager runtime directories
+  when: not (image_build_cleanup_context | bool)
+  block:
+    - name: Ensure base OMNIA_DATA_PATH directory exists
+      ansible.builtin.file:
+        path: "{{ omnia_data_path }}"
+        state: directory
+        mode: '0755'
+      become: true
 
-- name: Ensure domain-specific directories exist
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
-    mode: '0755'
-  loop:
-    - "{{ shared_path }}"
-    - "{{ output_project_dir }}"
-    - "{{ log_dir }}"
-    - "{{ shared_path }}/s3"
-    - "{{ shared_path }}/registry"
-    - "{{ shared_path }}/oci"
-    - "{{ shared_path }}/workdir"
-  become: true
+    - name: Ensure domain-specific directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ shared_path }}"
+        - "{{ output_project_dir }}"
+        - "{{ log_dir }}"
+        - "{{ shared_path }}/s3"
+        - "{{ shared_path }}/registry"
+        - "{{ shared_path }}/oci"
+        - "{{ shared_path }}/workdir"
+      become: true
 
-- name: Validate domain directories were created
-  ansible.builtin.stat:
-    path: "{{ item }}"
-  loop:
-    - "{{ omnia_data_path }}"
-    - "{{ shared_path }}"
-    - "{{ output_project_dir }}"
-    - "{{ log_dir }}"
-  register: _dir_checks
+    - name: Validate domain directories were created
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ omnia_data_path }}"
+        - "{{ shared_path }}"
+        - "{{ output_project_dir }}"
+        - "{{ log_dir }}"
+      register: _dir_checks
 
-- name: Fail if any required directory is missing
-  ansible.builtin.fail:
-    msg: "Required directory does not exist: {{ item.item }}"
-  when: not item.stat.exists
-  loop: "{{ _dir_checks.results }}"
+    - name: Fail if any required directory is missing
+      ansible.builtin.fail:
+        msg: "Required directory does not exist: {{ item.item }}"
+      when: not item.stat.exists
+      loop: "{{ _dir_checks.results }}"

@@ -42,6 +42,17 @@
     omnia_venv_path: "{{ lookup('env', 'OMNIA_VENV_PATH') | default('/opt/omnia/venv', true) }}"
     cacheable: true
 
+- name: Resolve telemetry cleanup context
+  ansible.builtin.set_fact:
+    telemetry_cleanup_context: >-
+      {{ (ansible_run_tags | default([])
+          | intersect(['cleanup', 'cleanup_idrac', 'cleanup_ldms',
+                       'cleanup_ome', 'cleanup_powerscale', 'cleanup_ufm',
+                       'cleanup_vast', 'cleanup_kafka',
+                       'cleanup_victoria_metrics', 'cleanup_victoria_logs'])
+          | length) > 0 }}
+    cacheable: true
+
 - name: Display resolved environment
   ansible.builtin.debug:
     msg:
@@ -73,9 +84,12 @@
   ansible.builtin.stat:
     path: "{{ input_project_dir }}"
   register: _project_dir_check
+  when: not (telemetry_cleanup_context | bool)
 
 - name: Auto-copy input files from source if runtime input dir is missing
-  when: not _project_dir_check.stat.exists
+  when:
+    - not (telemetry_cleanup_context | bool)
+    - not _project_dir_check.stat.exists
   block:
     - name: Check if source input directory exists
       ansible.builtin.stat:
@@ -112,10 +126,13 @@
   ansible.builtin.stat:
     path: "{{ input_project_dir }}/telemetry_config.yml"
   register: telemetry_config_stat
+  when: not (telemetry_cleanup_context | bool)
 
 - name: Fail if telemetry_config.yml is missing
   ansible.builtin.fail:
     msg: >-
       telemetry_config.yml not found at {{ input_project_dir }}/telemetry_config.yml.
       Run domain-init.sh or copy input files to {{ input_project_dir }}/ before executing.
-  when: not telemetry_config_stat.stat.exists
+  when:
+    - not (telemetry_cleanup_context | bool)
+    - not telemetry_config_stat.stat.exists
