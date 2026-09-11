@@ -15,6 +15,51 @@
 - name: Include storage_config.yml file
   ansible.builtin.include_vars: "{{ storage_config_vars }}"
 
+- name: Include omnia_config.yml file
+  ansible.builtin.include_vars:
+    file: "{{ omnia_config_vars }}"
+    name: omnia_config
+
+- name: Resolve active Slurm cluster configuration
+  ansible.builtin.set_fact:
+    active_slurm_cluster: >-
+      {{ omnia_config.slurm_cluster | default([], true)
+         | first | default({}, true) }}
+
+- name: Resolve configured VAST storage name
+  ansible.builtin.set_fact:
+    configured_vast_storage_name: >-
+      {{ active_slurm_cluster.vast_storage_name | default('', true) | trim }}
+
+- name: Identify VAST-managed storage entries
+  ansible.builtin.set_fact:
+    managed_vast_storage_names: >-
+      {{ ((mounts | default([])
+           | selectattr('storage_role', 'defined')
+           | selectattr('storage_role', 'equalto', 'slurm_vast')
+           | map(attribute='name') | list)
+          + (mounts | default([])
+             | selectattr('name', 'equalto', 'vast_storage')
+             | selectattr('mount_params', 'defined')
+             | selectattr('mount_params', 'in', ['vast_rdma', 'vast_tcp'])
+             | map(attribute='name') | list))
+         | unique | list }}
+
+- name: Set VAST storage enablement
+  ansible.builtin.set_fact:
+    vast_enabled: "{{ configured_vast_storage_name | length > 0 }}"
+    disabled_vast_storage_names: >-
+      {{ managed_vast_storage_names
+         | reject('equalto', configured_vast_storage_name)
+         | list }}
+
+- name: Select mounts enabled by Omnia configuration
+  ansible.builtin.set_fact:
+    effective_mounts: >-
+      {{ mounts | default([])
+         | rejectattr('name', 'in', disabled_vast_storage_names)
+         | list }}
+
 - name: Validate mount configuration execution mode
   ansible.builtin.assert:
     that:

@@ -101,6 +101,11 @@
         "mount_on_oim": {
           "type": "boolean"
         },
+        "storage_role": {
+          "type": "string",
+          "enum": ["slurm_vast"],
+          "description": "Marks the dedicated Slurm VAST mount controlled by omnia_config.yml vast_storage_name."
+        },
         "node_key": {
           "enum": ["local_hostname", "local_ipv4", "instance_id"]
         },

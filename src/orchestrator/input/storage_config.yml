@@ -47,6 +47,11 @@
 #                   If specified, takes PRIORITY over mount_params profile
 #   - mount_on_oim: Mount this filesystem on the OIM node as well. Optional. Default: false
 #                   Ensure storage is network-accessible from OIM before enabling
+#   - storage_role: Marks the dedicated optional Slurm VAST mount. Optional.
+#                   Set to "slurm_vast" only for the mount referenced by
+#                   slurm_cluster.vast_storage_name in omnia_config.yml.
+#                   Do not set it on unrelated VAST-backed NFS mounts.
+#                   Omnia skips it when the reference is absent or empty.
 #
 # Node-specific bind mounts (node_key and node_mount_point are paired):
 #   - node_key:         Per-node subdirectory isolation variable. Optional
@@ -139,6 +144,7 @@ mounts:
     source: "172.16.107.77:/share/vast"
     mount_point: "/mnt/vast"
     mount_params: "vast_rdma"
+    storage_role: "slurm_vast"
     mount_on_oim: true
     functional_group_prefix: ["slurm_node", "login"]
 

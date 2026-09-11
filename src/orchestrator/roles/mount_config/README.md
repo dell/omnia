@@ -50,6 +50,17 @@ mounts:
 
 When a PXE mapping file is provided, this mount will be added to the `host_mount_map` for all hosts in the specified groups. Node-specific identifiers are resolved on the node with `cloud-init query`.
 
+### VAST enablement
+
+Set `storage_role: slurm_vast` on the dedicated Slurm VAST mount. The mount is
+processed only when a non-empty `vast_storage_name` in `omnia_config.yml`
+references that entry. If the setting is absent, commented, or empty, Omnia
+reuses the Slurm NFS storage for shared paths and does not mount the dedicated
+VAST backend on the OIM or provisioned nodes. Existing configurations using
+the legacy canonical `vast_storage` mount with its VAST mount profile are
+recognized without the new marker. Custom dedicated Slurm VAST entries must
+set `storage_role: slurm_vast`; unrelated VAST-backed mounts must not set it.
+
 ## Configuration
 
 ### Input Files

@@ -146,11 +146,13 @@
 {% endif %}
 {% endif %}
 
+{% if vast_enabled | default(false) | bool %}
         - path: /usr/local/bin/configure_vast_installation.sh
           owner: root:root
           permissions: '{{ file_mode_755 }}'
           content: |
             {{ lookup('template', 'templates/vast/configure_vast_installation.sh.j2') | indent(12) }}
+{% endif %}
 
         - path: /usr/local/bin/configure_dirs_and_mounts.sh
           permissions: '{{ file_mode_755 }}'
@@ -418,7 +420,9 @@
           printf 'search {{ domain_name }}\nnameserver {{ admin_nic_ip }}\noptions timeout:1 attempts:2\n' > /etc/resolv.conf
           chattr +i /etc/resolv.conf || true
 {% endif %}
+{% if vast_enabled | default(false) | bool %}
         - /usr/local/bin/configure_vast_installation.sh
+{% endif %}
         # DOCA prerequisites - moved early to ensure RDMA is ready before vendor_data mounts
         - /usr/local/bin/configure_dirs_and_mounts.sh
         - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
