@@ -1,9 +1,13 @@
 .venv/
 __pycache__/
 *.pyc
-.test_creds.key
-.run_validation_rc
-*.egg-info/
 .pytest_cache/
 reports/
+test_creds.yml
+test_creds.yml.bak
+.test_creds.key
+.test_creds.key.bak
+.build_stream_credentials_key
+.run_validation_rc
+*.egg-info/
 datasets/*/output/

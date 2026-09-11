@@ -37,10 +37,13 @@ def main():
 
     from library.vars.domain_vars import (
         DOMAIN_NAME,
+        ENABLE_UT,
         FVT_TAGS,
         MARKERS,
         SUITES,
         EXCLUDE_TAGS,
+        ALL_EXEC_TAGS,
+        ALL_EXEC_MARKER,
     )
     from omnia_auto.functions.validation_runner import ValidationRunner
 
@@ -52,6 +55,9 @@ def main():
             "markers": MARKERS,
             "suites": SUITES,
             "exclude_tags": EXCLUDE_TAGS,
+            "all_exec_tags": ALL_EXEC_TAGS,
+            "all_exec_marker": ALL_EXEC_MARKER,
+            "enable_ut": ENABLE_UT,
         },
     )
     sys.exit(runner.main(sys.argv[1:]))
