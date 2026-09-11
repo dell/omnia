@@ -71,6 +71,33 @@ from library.functions.validation_func import (  # noqa: E402
     ConfigValidationError,
 )
 
+# =============================================================================
+# FVT SCENARIO AND SUITE ORDERING
+# Aligned with orchestrator playbook lifecycle phases
+# =============================================================================
+
+_FVT_SCENARIO_ORDER = {
+    "precheck": 0,
+    "validate": 1,
+    "prepare": 2,
+    "deploy": 3,
+    "provision": 4,
+    "pxeboot": 5,
+    "check": 6,
+    "cleanup": 7,
+}
+
+_FVT_SUITE_ORDER = {
+    "precheck": {"": 0},
+    "validate": {"": 0},
+    "prepare": {"": 0, "openchami": 1},
+    "deploy": {"": 0},
+    "provision": {"": 0, "kubernetes": 1, "slurm": 2},
+    "pxeboot": {"": 0},
+    "check": {"": 0, "kubernetes": 1, "slurm": 2, "status": 3},
+    "cleanup": {"": 0, "status": 1},
+}
+
 
 # =============================================================================
 # CUSTOM CLI OPTIONS
@@ -145,9 +172,12 @@ def pytest_collection_modifyitems(session, config, items):
     """Filter by --marker expression, apply smart skips only when no marker specified, and sort by order marker."""
     marker_expr = config.getoption("--marker", default="")
     mode, markers = _parse_marker_expression(marker_expr)
+    
+    # Check if pytest's built-in -m option was used
+    pytest_m_option = config.getoption("-m", default="")
 
-    # Only apply auto-skips if no marker expression is provided
-    if mode == "none":
+    # Only apply auto-skips if no marker expression is provided AND no -m option
+    if mode == "none" and not pytest_m_option:
         # Auto-skip deploy tests (require full environment setup)
         for item in items:
             if _item_has_marker(item, "deploy"):
@@ -233,8 +263,10 @@ def pytest_collection_modifyitems(session, config, items):
                 match = all(_item_has_marker(item, m) for m in markers)
             elif mode == "or":
                 match = any(_item_has_marker(item, m) for m in markers)
-            else:
+            elif mode == "single" and markers:
                 match = _item_has_marker(item, markers[0])
+            else:
+                match = True  # No filtering if mode is invalid or markers is empty
 
             if not match:
                 reason = (
@@ -246,10 +278,29 @@ def pytest_collection_modifyitems(session, config, items):
         items[:] = filtered
 
     def _get_order(item):
+        """Return (scenario_order, suite_order, local_order) for sorting."""
         marker = item.get_closest_marker("order")
-        if marker and marker.args:
-            return marker.args[0]
-        return 999
+        local_order = marker.args[0] if marker and marker.args else 999
+
+        # Extract scenario and suite from nodeid (e.g., fvt/validate/kubernetes/test_k8s.py)
+        node_parts = item.nodeid.replace("\\", "/").split("/")
+        scenario = ""
+        suite = ""
+        if "fvt" in node_parts:
+            fvt_index = node_parts.index("fvt")
+            if len(node_parts) > fvt_index + 1:
+                scenario = node_parts[fvt_index + 1]
+            if len(node_parts) > fvt_index + 2:
+                candidate = node_parts[fvt_index + 2]
+                if not candidate.startswith("test_"):
+                    suite = candidate
+
+        suite_order = _FVT_SUITE_ORDER.get(scenario, {}).get(suite, 999)
+        return (
+            _FVT_SCENARIO_ORDER.get(scenario, 999),
+            suite_order,
+            local_order,
+        )
 
     items.sort(key=_get_order)
 

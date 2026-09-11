@@ -13,13 +13,12 @@
 # limitations under the License.
 
 """
-Orchestrator Kubernetes — Verification Tests.
+Orchestrator Check — Kubernetes Advanced Functional Tests.
 
-Kubernetes tests for orchestrator test automation.
-Tests cover node readiness, service checks, pod verification,
-control plane components, workload tests, and integration.
+Advanced Kubernetes tests for orchestrator test automation.
+Tests cover node labels, taints, static pods, cluster info,
+pod creation, DNS, services, and LDAP integration.
 
-TC_K8_001: Verify Kubernetes is enabled in catalog
 TC_K8_022: Verify node labels match functional group roles
 TC_K8_023: Verify control plane nodes have correct taints
 TC_K8_027: Verify kube-apiserver static pod is running
@@ -36,7 +35,6 @@ import pytest
 
 from library.functions import TestLogger
 from library.functions.k8s_func import (
-    check_k8s_enabled,
     check_k8s_node_labels,
     check_k8s_node_taints,
     check_k8s_static_pod,
@@ -58,6 +56,7 @@ ASSERT = K8S_TEST_ASSERT_MSGS
 
 def skip_if_k8s_disabled(host):
     """Helper to skip test if Kubernetes is not enabled."""
+    from library.functions.k8s_func import check_k8s_enabled
     result = check_k8s_enabled(host)
     if result.get("skipped"):
         pytest.skip(result["details"])
@@ -65,34 +64,8 @@ def skip_if_k8s_disabled(host):
 
 
 @pytest.mark.kubernetes
-@pytest.mark.sanity
-@pytest.mark.buildstream
-@pytest.mark.order(1)
-def test_k8s_enabled(host):
-    """TC_K8_001: Verify Kubernetes is enabled in catalog."""
-    tl = TestLogger(
-        TEST_CASES["k8s_enabled"]["title"],
-        TEST_CASES["k8s_enabled"]["id"]
-    )
-
-    result = check_k8s_enabled(host)
-
-    if result.get("skipped"):
-        tl.skipped(result["details"], "")
-        pytest.skip(result["details"])
-
-    if result["success"]:
-        tl.passed(LOG["k8s_enabled_ok"], result["details"])
-    else:
-        tl.failed(LOG["k8s_enabled_failed"], result["error"])
-
-    assert result["success"], ASSERT["k8s_enabled_required"]
-
-
-@pytest.mark.kubernetes
-@pytest.mark.sanity
-@pytest.mark.buildstream
-@pytest.mark.order(2)
+@pytest.mark.functional
+@pytest.mark.order(20)
 def test_k8s_node_labels(host):
     """TC_K8_022: Verify node labels match functional group roles."""
     skip_if_k8s_disabled(host)
@@ -117,9 +90,8 @@ def test_k8s_node_labels(host):
 
 
 @pytest.mark.kubernetes
-@pytest.mark.sanity
-@pytest.mark.buildstream
-@pytest.mark.order(3)
+@pytest.mark.functional
+@pytest.mark.order(21)
 def test_k8s_node_taints(host):
     """TC_K8_023: Verify control plane nodes have correct taints."""
     skip_if_k8s_disabled(host)
@@ -144,9 +116,8 @@ def test_k8s_node_taints(host):
 
 
 @pytest.mark.kubernetes
-@pytest.mark.sanity
-@pytest.mark.buildstream
-@pytest.mark.order(4)
+@pytest.mark.functional
+@pytest.mark.order(22)
 def test_k8s_apiserver_pod(host):
     """TC_K8_027: Verify kube-apiserver static pod is running."""
     skip_if_k8s_disabled(host)
@@ -179,9 +150,8 @@ def test_k8s_apiserver_pod(host):
 
 
 @pytest.mark.kubernetes
-@pytest.mark.sanity
-@pytest.mark.buildstream
-@pytest.mark.order(5)
+@pytest.mark.functional
+@pytest.mark.order(23)
 def test_k8s_controller_manager_pod(host):
     """TC_K8_028: Verify kube-controller-manager static pod is running."""
     skip_if_k8s_disabled(host)
@@ -214,9 +184,8 @@ def test_k8s_controller_manager_pod(host):
 
 
 @pytest.mark.kubernetes
-@pytest.mark.sanity
-@pytest.mark.buildstream
-@pytest.mark.order(6)
+@pytest.mark.functional
+@pytest.mark.order(24)
 def test_k8s_scheduler_pod(host):
     """TC_K8_029: Verify kube-scheduler static pod is running."""
     skip_if_k8s_disabled(host)
@@ -249,9 +218,8 @@ def test_k8s_scheduler_pod(host):
 
 
 @pytest.mark.kubernetes
-@pytest.mark.sanity
-@pytest.mark.buildstream
-@pytest.mark.order(7)
+@pytest.mark.functional
+@pytest.mark.order(25)
 def test_k8s_cluster_info(host):
     """TC_K8_030: Verify kubectl cluster-info returns valid data."""
     skip_if_k8s_disabled(host)
@@ -277,7 +245,7 @@ def test_k8s_cluster_info(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
-@pytest.mark.order(8)
+@pytest.mark.order(26)
 def test_k8s_pod_create(host):
     """TC_K8_019: Verify pod creation and scheduling works."""
     skip_if_k8s_disabled(host)
@@ -305,7 +273,7 @@ def test_k8s_pod_create(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
-@pytest.mark.order(9)
+@pytest.mark.order(27)
 def test_k8s_dns_resolution(host):
     """TC_K8_020: Verify DNS resolution works inside pods."""
     skip_if_k8s_disabled(host)
@@ -333,7 +301,7 @@ def test_k8s_dns_resolution(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
-@pytest.mark.order(10)
+@pytest.mark.order(28)
 def test_k8s_service_create(host):
     """TC_K8_021: Verify Kubernetes service creation works."""
     skip_if_k8s_disabled(host)
@@ -361,7 +329,7 @@ def test_k8s_service_create(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
-@pytest.mark.order(11)
+@pytest.mark.order(29)
 def test_k8s_ldap_integration(host):
     """TC_K8_026: Verify OpenLDAP integration with Kubernetes."""
     skip_if_k8s_disabled(host)

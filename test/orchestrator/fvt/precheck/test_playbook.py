@@ -13,45 +13,33 @@
 # limitations under the License.
 
 """
-Orchestrator Provision — Deploy.
+Orchestrator Precheck — Deploy.
 
-TC_PV_000: Deploy orchestrator.yml (full provisioning)
+TC_PC_000: Deploy orchestrator.yml --tags precheck
 """
 
 import pytest
 
 from library.functions import TestLogger, run_playbook
-from library.messages import (
-    TEST_NAMES,
-    TEST_LOG_MSGS as LOG,
-    TEST_ASSERT_MSGS as ASSERT,
-)
 
 
 @pytest.mark.deploy
 @pytest.mark.sanity
-@pytest.mark.buildstream
 @pytest.mark.order(0)
-def test_deploy_provision(host):
-    """TC_PV_000: Deploy orchestrator.yml --tags provision."""
+def test_deploy_precheck(host):
+    """TC_PC_000: Deploy orchestrator.yml --tags precheck."""
     tl = TestLogger(
-        TEST_NAMES["deploy_playbook_full"], "TC_PV_000"
+        "Deploy Playbook (precheck)",
+        "TC_PC_000"
     )
-    result = run_playbook(tag="provision", timeout=7200)
+    result = run_playbook(tag="precheck")
 
     if result["success"]:
-        tl.passed(LOG["playbook_success"].format(
-            duration=result["duration"]
-        ))
+        tl.passed(f"Playbook execution succeeded in {result['duration']}s")
     else:
         tl.failed(
-            LOG["playbook_failed"].format(
-                rc=result["rc"], duration=result["duration"],
-            ),
+            f"Playbook execution failed with RC {result['rc']}",
             result.get("error", "See playbook output above"),
         )
 
-    assert result["success"], ASSERT["playbook_failed"].format(
-        playbook="orchestrator.yml", tag="provision",
-        rc=result["rc"], duration=result["duration"],
-    )
+    assert result["success"], f"Playbook execution failed: RC {result['rc']}"

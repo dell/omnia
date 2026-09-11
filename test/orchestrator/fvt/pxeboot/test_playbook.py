@@ -13,9 +13,9 @@
 # limitations under the License.
 
 """
-Orchestrator Precheck — Deploy.
+Orchestrator PXE Boot — Playbook Execution.
 
-TC_PC_000: Deploy orchestrator.yml --tags precheck
+TC_PXE_000: Deploy orchestrator.yml --tags pxeboot
 """
 
 import pytest
@@ -26,13 +26,13 @@ from library.functions import TestLogger, run_playbook
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
-def test_deploy_precheck(_host):
-    """TC_PC_000: Deploy orchestrator.yml --tags precheck."""
+def test_deploy_pxeboot(host):
+    """TC_PXE_000: Deploy orchestrator.yml --tags pxeboot."""
     tl = TestLogger(
-        "Deploy Playbook (precheck)",
-        "TC_PC_000"
+        "Deploy Playbook (pxeboot)",
+        "TC_PXE_000"
     )
-    result = run_playbook(tag="precheck")
+    result = run_playbook(tag="pxeboot")
 
     if result["success"]:
         tl.passed(f"Playbook execution succeeded in {result['duration']}s")

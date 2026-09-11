@@ -12,22 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# =============================================================================
-# Orchestrator — Sample repo_status.yml (from repo_manager)
-# =============================================================================
+"""
+Orchestrator — Post-Deployment Verification Tests (Check)
 
----
-overall_status: "success"
-cluster_os_type: "rhel"
-repo_config: "partial"
+This module contains tests that verify deployed infrastructure:
+- Kubernetes cluster health and configuration
+- Slurm cluster health and configuration
+- Overall deployment status
 
-repo_manager:
-  port: 2225
-  certificates:
-    server_crt: "/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.crt"
-    server_key: "/opt/omnia/pulp_config/pulp/settings/certs/pulp_webserver.key"
-    certs_dir: "/opt/omnia/pulp_config/pulp/settings/certs"
-
-repositories: {}
-registries: {}
-file_repos: {}
+These tests run AFTER deployment to verify that everything is working correctly.
+"""

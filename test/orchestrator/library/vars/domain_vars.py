@@ -31,15 +31,19 @@ from typing import Dict, List
 DOMAIN_NAME: str = "orchestrator"
 
 # =====================================================================
-# FVT tags — each maps to a subdirectory under fvt/
+# FVT tags — aligned with src/orchestrator/playbooks/ structure
+# Order matches orchestrator lifecycle phases
 # =====================================================================
 
 FVT_TAGS: List[str] = [
-    "precheck",
-    "validate",
-    "prepare",
-    "deploy",
-    "cleanup",
+    "precheck",       # Pre-deployment checks (connectivity)
+    "validate",       # Input file validation (OpenCHAMI, OpenLDAP, provisioning config)
+    "prepare",        # Preparation tasks (OpenCHAMI setup)
+    "deploy",         # Deployment phase
+    "provision",      # Node provisioning (K8s, Slurm)
+    "pxeboot",        # PXE boot configuration
+    "check",          # Post-deployment verification (K8s, Slurm cluster health)
+    "cleanup",        # Cleanup and teardown
 ]
 
 # =====================================================================
@@ -57,14 +61,18 @@ MARKERS: List[str] = [
 
 # =====================================================================
 # Suite directories per FVT tag
+# Maps each tag to its subdirectories containing test suites
 # =====================================================================
 
 SUITES: Dict[str, List[str]] = {
-    "precheck": ["connectivity"],
-    "validate": ["kubernetes", "slurm"],
-    "prepare": ["orchestrator"],
-    "deploy": ["kubernetes", "slurm"],
-    "cleanup": ["cleanup"],
+    "precheck": [],
+    "validate": [],
+    "prepare": ["openchami"],
+    "deploy": [],
+    "provision": ["kubernetes", "slurm"],
+    "pxeboot": [],
+    "check": ["kubernetes", "slurm", "status"],
+    "cleanup": ["status"],
 }
 
 # =====================================================================
