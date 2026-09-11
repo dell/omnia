@@ -92,26 +92,20 @@ def test_powerscale_privileges(host):
         "ISI_PRIV_AUDIT",
     ]
 
-    # SSH to PowerScale and check privileges
-    from omnia_auto import run_on_host
-    priv_cmd = f"sshpass -p '{ps_password}' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no {ps_user}@{ps_host} 'isi auth privileges'"
-    result = run_on_host(host, priv_cmd)
-    
-    if result.rc != 0:
+    # SSH to PowerScale and check privileges using library function
+    from library.functions.powerscale_func import check_powerscale_privileges_via_ssh
+    result = check_powerscale_privileges_via_ssh(host, ps_user, ps_password, ps_host)
+
+    if not result["success"]:
         tl.info(
-            f"SSH to PowerScale failed for privilege check (rc={result.rc}, stderr: {result.stderr.strip()}). Privileges will be validated during deployment via PowerScale API."
+            f"SSH to PowerScale failed for privilege check ({result['error']}). Privileges will be validated during deployment via PowerScale API."
         )
         # Don't fail the test - this is expected if SSH is not available
         # Privileges will be validated during deployment via the PowerScale API
         tl.info("Privilege check skipped - will be validated during deployment")
         pytest.skip("SSH not available from test host - privileges validated during deployment")
 
-    # Parse available privileges
-    available_privileges = []
-    for line in result.stdout.split('\n'):
-        if 'ISI_PRIV_' in line:
-            priv_name = line.split()[0]
-            available_privileges.append(priv_name)
+    available_privileges = result["privileges"]
 
     # Check metrics privileges
     missing_metrics = []

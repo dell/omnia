@@ -22,8 +22,8 @@ Note: Sinks are shared infrastructure and are ONLY cleaned when
 ``--tags cleanup`` (full cleanup) is used, never individually.
 
 Test cases:
-    TC_CL_002: Verify cleanup_kafka removes Kafka resources
-    TC_CL_003: Verify cleanup_victoria_metrics removes VM resources
+    TC_CL_014: Verify cleanup_kafka removes Kafka resources
+    TC_CL_015: Verify cleanup_victoria_metrics removes VM resources
     TC_CL_004: Verify cleanup_victoria_logs removes VL resources
 """
 
@@ -47,7 +47,7 @@ from library.functions.cleanup_func import (
 @pytest.mark.sink
 @pytest.mark.order(58)
 def test_cleanup_kafka(host):
-    """TC_CL_002: Verify Kafka resources removed after full cleanup.
+    """TC_CL_014: Verify Kafka resources removed after full cleanup.
 
     Checks that Kafka brokers, controllers, bridge, and Strimzi operator
     pods have been removed from the telemetry namespace.
@@ -69,7 +69,7 @@ def test_cleanup_kafka(host):
 @pytest.mark.sink
 @pytest.mark.order(59)
 def test_cleanup_victoria_metrics(host):
-    """TC_CL_003: Verify VictoriaMetrics resources removed after full cleanup.
+    """TC_CL_015: Verify VictoriaMetrics resources removed after full cleanup.
 
     Checks that vmstorage, vminsert, vmselect, vmagent, and the
     victoria-metrics-operator pods have been removed.

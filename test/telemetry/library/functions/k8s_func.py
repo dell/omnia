@@ -586,3 +586,33 @@ def verify_services_detail(host, service_names, namespace=None):
         "services": services,
     }
 
+
+def get_cr_status(host, cr_type, cr_name, jsonpath, namespace=None):
+    """Get custom resource status using kubectl.
+
+    Args:
+        host: Testinfra host (OIM).
+        cr_type: Custom resource type (e.g., vmcluster, kafka).
+        cr_name: Custom resource name.
+        jsonpath: JSONPath expression to extract status.
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        dict with keys: success, value, error.
+    """
+    ns = namespace or TELEMETRY_NAMESPACE
+    cmd = f"kubectl get {cr_type} {cr_name} -n {ns} -o jsonpath='{jsonpath}' 2>/dev/null"
+    result = run_on_kube_vip(host, cmd)
+
+    if result.rc != 0:
+        return {
+            "success": False,
+            "value": "",
+            "error": f"Failed to get {cr_type} status (rc={result.rc})",
+        }
+
+    return {
+        "success": True,
+        "value": result.stdout.strip(),
+        "error": "",
+    }

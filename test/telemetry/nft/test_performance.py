@@ -21,9 +21,9 @@ Verifies that key operations complete within expected timeframes:
   - Cleanup playbook completes within threshold (< 300s / 5 minutes)
 
 Test cases:
-    NFT_TL_001: Validate performance (< 30s)
-    NFT_TL_002: Deploy performance (< 600s)
-    NFT_TL_003: Cleanup performance (< 300s)
+    NFT_001: Validate performance (< 30s)
+    NFT_002: Deploy performance (< 600s)
+    NFT_003: Cleanup performance (< 300s)
 """
 
 import pytest
@@ -47,7 +47,7 @@ CLEANUP_THRESHOLD = 300    # 5 minutes
 @pytest.mark.performance
 @pytest.mark.order(100)
 def test_validate_performance(host):
-    """NFT_TL_001: Verify validate completes within 30s threshold.
+    """NFT_001: Verify validate completes within 30s threshold.
 
     Runs ``ansible-playbook telemetry.yml --tags validate`` and asserts
     that execution completes in under 30 seconds.
@@ -96,7 +96,7 @@ def test_validate_performance(host):
 @pytest.mark.performance
 @pytest.mark.order(101)
 def test_deploy_performance(host):
-    """NFT_TL_002: Verify deploy completes within 600s (10 min) threshold.
+    """NFT_002: Verify deploy completes within 600s (10 min) threshold.
 
     Runs ``ansible-playbook telemetry.yml --tags execute`` and asserts
     that full deployment completes in under 10 minutes.
@@ -145,7 +145,7 @@ def test_deploy_performance(host):
 @pytest.mark.performance
 @pytest.mark.order(102)
 def test_cleanup_performance(host, delete_volume):
-    """NFT_TL_003: Verify cleanup completes within 300s (5 min) threshold.
+    """NFT_003: Verify cleanup completes within 300s (5 min) threshold.
 
     Runs ``ansible-playbook telemetry.yml --tags cleanup`` and asserts
     that full cleanup completes in under 5 minutes.

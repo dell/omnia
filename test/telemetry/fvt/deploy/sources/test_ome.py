@@ -187,7 +187,7 @@ def _get_ome_config(host=None):
 
 
 # =========================================================================
-# TC_SR_070: Verify Vector-OME bridge deployment ready
+# TC_SR_074: Verify Vector-OME bridge deployment ready
 #   Runs when either Vector-OME bridge channel is enabled
 # =========================================================================
 
@@ -233,7 +233,7 @@ def test_ome_vector_bridge(host):
 
 
 # =========================================================================
-# TC_SR_071: Verify OME KafkaUser CR exists
+# TC_SR_075: Verify OME KafkaUser CR exists
 #   Runs when either Vector-OME bridge channel is enabled
 # =========================================================================
 
@@ -270,7 +270,7 @@ def test_ome_kafka_user(host):
 
 
 # =========================================================================
-# TC_SR_072: Verify external Kafka connection artifacts
+# TC_SR_078: Verify external Kafka connection artifacts
 #   Only runs when configure_ome=true
 #   Runs external_kafka playbook first, then checks certs and endpoints
 # =========================================================================
@@ -371,7 +371,7 @@ def test_ome_external_kafka_certs(host):
 
 
 # =========================================================================
-# TC_SR_073: Verify user.pfx certificate created for OME mTLS
+# TC_SR_079: Verify user.pfx certificate created for OME mTLS
 #   Only runs when configure_ome=true, after certs are verified
 # =========================================================================
 
@@ -412,7 +412,7 @@ def test_ome_pfx_conversion(host):
 
 
 # =========================================================================
-# TC_SR_074: Verify TLS certificates uploaded to OME
+# TC_SR_076: Verify TLS certificates uploaded to OME
 #   Only runs when configure_ome=true and ome_ip is set
 #   Uploads both server cert (CA) and client cert (PFX)
 # =========================================================================
@@ -530,7 +530,7 @@ def test_ome_upload_certs(host):
 
 
 # =========================================================================
-# TC_SR_075: Verify OME Kafka forwarder connectivity status
+# TC_SR_077: Verify OME Kafka forwarder connectivity status
 #   Only runs when configure_ome=true and ome_ip is set
 #   If not connected, attempts to configure and test the connection
 # =========================================================================
@@ -869,7 +869,7 @@ def test_ome_kafka_topics(host):
 
 
 # =========================================================================
-# TC_SR_058 - TC_SR_062: Verify OME data per Kafka topic
+# TC_SR_058 - TC_SR_079: Verify OME data per Kafka topic
 #   One test case per OME topic so a single stalled data stream is
 #   reported independently of the others.
 # =========================================================================

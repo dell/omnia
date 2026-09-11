@@ -82,10 +82,10 @@ ensure syslog is configured before verifying log ingestion.
 
 | TC ID | Test | Marker |
 |-------|------|--------|
-| TC_SR_060 | Verify UFM external service exists with correct endpoint | sanity + ufm |
-| TC_SR_061 | Verify UFM VMServiceScrape CR exists | sanity + ufm |
-| TC_SR_062 | Verify UFM credentials K8s secret exists | sanity + ufm |
-| TC_SR_063 | Verify UFM InfiniBand metrics in VictoriaMetrics | functional + ufm |
+| TC_SR_082 | Verify UFM external service exists with correct endpoint | sanity + ufm |
+| TC_SR_083 | Verify UFM VMServiceScrape CR exists | sanity + ufm |
+| TC_SR_084 | Verify UFM credentials K8s secret exists | sanity + ufm |
+| TC_SR_085 | Verify UFM InfiniBand metrics in VictoriaMetrics | functional + ufm |
 
 Run only the UFM source verification:
 
@@ -97,12 +97,12 @@ Run only the UFM source verification:
 
 | TC ID | Test | Marker | Condition |
 |-------|------|--------|-----------|
-| TC_SR_080 | Verify VAST external service and endpoint | sanity + vast | metrics enabled |
-| TC_SR_081 | Verify VAST VMServiceScrape configuration | sanity + vast | metrics enabled |
-| TC_SR_082 | Verify VAST credentials secret | sanity + vast | metrics enabled with basic auth |
-| TC_SR_083 | Verify fresh VAST metrics in VictoriaMetrics | functional + vast | metrics enabled |
-| TC_SR_085 | Configure VAST syslog and send a test event | functional + vast | logs enabled, `victoria_logs` target, and VAST management credentials available |
-| TC_SR_084 | Verify fresh VAST test event in VictoriaLogs | functional + vast | logs enabled and TC_SR_085 completed in the same runner test invocation |
+| TC_SR_088 | Verify VAST external service and endpoint | sanity + vast | metrics enabled |
+| TC_SR_089 | Verify VAST VMServiceScrape configuration | sanity + vast | metrics enabled |
+| TC_SR_090 | Verify VAST credentials secret | sanity + vast | metrics enabled with basic auth |
+| TC_SR_091 | Verify fresh VAST metrics in VictoriaMetrics | functional + vast | metrics enabled |
+| TC_SR_092 | Configure VAST syslog and send a test event | functional + vast | logs enabled, `victoria_logs` target, and VAST management credentials available |
+| TC_SR_093 | Verify fresh VAST test event in VictoriaLogs | functional + vast | logs enabled and TC_SR_092 completed in the same runner test invocation |
 
 Run only VAST source verification:
 
@@ -128,26 +128,26 @@ the `vast` marker deliberately does not select the general deployment case.
 
 | TC ID | Test | Marker | Condition |
 |-------|------|--------|-----------|
-| TC_SR_070 | Verify Vector-OME bridge deployment ready | sanity | metrics or logs bridge enabled |
-| TC_SR_071 | Verify OME KafkaUser CR exists | sanity | metrics or logs bridge enabled |
-| TC_SR_072 | Verify external Kafka connection artifacts | functional | configure_ome=true, metrics or logs source enabled |
-| TC_SR_073 | Verify user.pfx certificate created for OME mTLS | functional | configure_ome=true, metrics or logs source enabled |
-| TC_SR_074 | Verify TLS certificates uploaded to OME | functional | configure_ome=true, metrics or logs source enabled |
-| TC_SR_075 | Verify OME Kafka forwarder connectivity status | functional | configure_ome=true, metrics or logs source enabled |
+| TC_SR_074 | Verify Vector-OME bridge deployment ready | sanity | metrics or logs bridge enabled |
+| TC_SR_075 | Verify OME KafkaUser CR exists | sanity | metrics or logs bridge enabled |
+| TC_SR_078 | Verify external Kafka connection artifacts | functional | configure_ome=true, metrics or logs source enabled |
+| TC_SR_079 | Verify user.pfx certificate created for OME mTLS | functional | configure_ome=true, metrics or logs source enabled |
+| TC_SR_076 | Verify TLS certificates uploaded to OME | functional | configure_ome=true, metrics or logs source enabled |
+| TC_SR_077 | Verify OME Kafka forwarder connectivity status | functional | configure_ome=true, metrics or logs source enabled |
 | TC_SR_056 | Verify uploaded certificate matches generated certificate | functional | configure_ome=true, metrics or logs source enabled |
 | TC_SR_057 | Verify enabled OME Kafka topics exist | functional | configure_ome=true, metrics or logs source enabled |
 | TC_SR_058 | Verify OME telemetry data in Kafka | functional | configure_ome=true, metrics source enabled |
 | TC_SR_059 | Verify OME inventory data in Kafka | functional | configure_ome=true, metrics source enabled |
-| TC_SR_060 | Verify OME alerts data in Kafka | functional | configure_ome=true, logs source enabled |
-| TC_SR_061 | Verify OME health data in Kafka | functional | configure_ome=true, metrics source enabled |
-| TC_SR_062 | Verify OME audit logs data in Kafka | functional | configure_ome=true, logs source enabled |
+| TC_SR_069 | Verify OME alerts data in Kafka | functional | configure_ome=true, logs source enabled |
+| TC_SR_086 | Verify OME health data in Kafka | functional | configure_ome=true, metrics source enabled |
+| TC_SR_087 | Verify OME audit logs data in Kafka | functional | configure_ome=true, logs source enabled |
 | TC_SR_064 | Verify OME telemetry metrics in VictoriaMetrics | functional | configure_ome=true, metrics source and bridge enabled |
 | TC_SR_065 | Verify OME inventory metrics in VictoriaMetrics | functional | configure_ome=true, metrics source and bridge enabled |
 | TC_SR_066 | Verify OME health metrics in VictoriaMetrics | functional | configure_ome=true, metrics source and bridge enabled |
 | TC_SR_067 | Verify OME alerts in VictoriaLogs | functional | configure_ome=true, logs source and bridge enabled |
 | TC_SR_068 | Verify OME audit logs in VictoriaLogs | functional | configure_ome=true, logs source and bridge enabled |
 
-When `configure_ome: false` in test_config.yml, only TC_SR_070 and TC_SR_071
+When `configure_ome: false` in test_config.yml, only TC_SR_074 and TC_SR_075
 run when at least one Vector-OME bridge channel is enabled. Set
 `configure_ome: true` to run the applicable OME integration tests including
 TLS cert extraction and connectivity verification. Metrics-only configuration
@@ -168,11 +168,11 @@ Kafka topics created by the supported forwarding workflow.
 
 | TC ID | Test | Marker | Condition |
 |-------|------|--------|-----------|
-| TC_SR_090 | Verify required Omnia workloads and pods for SFM | sanity | configure_sfm=true |
-| TC_SR_091 | Verify required Omnia services for SFM | sanity | configure_sfm=true |
-| TC_SR_092 | Configure and verify the SFM switch data path | functional | configure_sfm=true |
-| TC_SR_093 | Configure and verify SFM observability Remote Write | functional | configure_sfm=true |
-| TC_SR_094 | Verify three SFM metrics and timestamps in VictoriaMetrics | functional | configure_sfm=true |
+| TC_SR_094 | Verify required Omnia workloads and pods for SFM | sanity | configure_sfm=true |
+| TC_SR_095 | Verify required Omnia services for SFM | sanity | configure_sfm=true |
+| TC_SR_096 | Configure and verify the SFM switch data path | functional | configure_sfm=true |
+| TC_SR_097 | Configure and verify SFM observability Remote Write | functional | configure_sfm=true |
+| TC_SR_098 | Verify three SFM metrics and timestamps in VictoriaMetrics | functional | configure_sfm=true |
 
 SFM integration is opt-in. Set `configure_sfm: true`, `sfm_api_ip`, and
 `sfm_ssh_ip` in `test_config.yml`, then run `bash setup_env.sh --set-creds` to

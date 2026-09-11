@@ -25,8 +25,8 @@ This is critical because:
   - Cleanup tasks must handle missing resources gracefully
 
 Test cases:
-    NFT_TL_004: Deploy idempotency (second run exits 0)
-    NFT_TL_005: Cleanup idempotency (second run exits 0)
+    NFT_004: Deploy idempotency (second run exits 0)
+    NFT_005: Cleanup idempotency (second run exits 0)
 """
 
 import pytest
@@ -50,7 +50,7 @@ from library.functions.cleanup_func import (
 @pytest.mark.idempotency
 @pytest.mark.order(110)
 def test_deploy_idempotency(host):
-    """NFT_TL_004: Deploy idempotency — second run exits 0.
+    """NFT_004: Deploy idempotency — second run exits 0.
 
     Runs the full deploy playbook twice in sequence:
       1. First run: deploys telemetry infrastructure (sinks + sources).
@@ -119,7 +119,7 @@ def test_deploy_idempotency(host):
 @pytest.mark.idempotency
 @pytest.mark.order(111)
 def test_cleanup_idempotency(host, delete_volume):
-    """NFT_TL_005: Cleanup idempotency — second run exits 0.
+    """NFT_005: Cleanup idempotency — second run exits 0.
 
     Runs the full cleanup playbook twice in sequence:
       1. First run: cleans up telemetry resources (may or may not find any).
