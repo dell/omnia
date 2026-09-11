@@ -27,8 +27,8 @@ from library.messages.repo_manager_msgs import (
 @pytest.mark.positive
 @pytest.mark.order(7)
 def test_policy_always_caching_false(host: Host):
-    """TC_RM_PO_007: policy: always + caching: false = immediate."""
-    tl = TestLogger(TEST_NAMES["policy_always_caching_false"], "TC_RM_PO_007")
+    """RM_FVT_POLICY_V007: policy: always + caching: false = immediate."""
+    tl = TestLogger(TEST_NAMES["policy_always_caching_false"], "RM_FVT_POLICY_V007")
 
     # Get all configured repos
     repos_result = get_configured_repos(host, arch="x86_64")
@@ -74,8 +74,8 @@ def test_policy_always_caching_false(host: Host):
 @pytest.mark.positive
 @pytest.mark.order(8)
 def test_policy_always_caching_true(host: Host):
-    """TC_RM_PO_008: policy: always + caching: true = on_demand."""
-    tl = TestLogger(TEST_NAMES["policy_always_caching_true"], "TC_RM_PO_008")
+    """RM_FVT_POLICY_V008: policy: always + caching: true = on_demand."""
+    tl = TestLogger(TEST_NAMES["policy_always_caching_true"], "RM_FVT_POLICY_V008")
 
     # Get all configured repos
     repos_result = get_configured_repos(host, arch="x86_64")
@@ -121,8 +121,8 @@ def test_policy_always_caching_true(host: Host):
 @pytest.mark.positive
 @pytest.mark.order(9)
 def test_policy_partial_caching_false(host: Host):
-    """TC_RM_PO_009: policy: partial + caching: false = streamed."""
-    tl = TestLogger(TEST_NAMES["policy_partial_caching_false"], "TC_RM_PO_009")
+    """RM_FVT_POLICY_V009: policy: partial + caching: false = streamed."""
+    tl = TestLogger(TEST_NAMES["policy_partial_caching_false"], "RM_FVT_POLICY_V009")
 
     # Get all configured repos
     repos_result = get_configured_repos(host, arch="x86_64")
@@ -168,8 +168,8 @@ def test_policy_partial_caching_false(host: Host):
 @pytest.mark.positive
 @pytest.mark.order(10)
 def test_policy_partial_caching_true(host: Host):
-    """TC_RM_PO_010: policy: partial + caching: true = on_demand."""
-    tl = TestLogger(TEST_NAMES["policy_partial_caching_true"], "TC_RM_PO_010")
+    """RM_FVT_POLICY_V010: policy: partial + caching: true = on_demand."""
+    tl = TestLogger(TEST_NAMES["policy_partial_caching_true"], "RM_FVT_POLICY_V010")
 
     # Get all configured repos
     repos_result = get_configured_repos(host, arch="x86_64")

@@ -38,6 +38,8 @@ FVT_TAGS: List[str] = [
     "precheck",
     "validate",
     "prepare",
+    "provision",
+    "kernel_override",
     "deploy",
     "cleanup",
 ]
@@ -53,6 +55,7 @@ MARKERS: List[str] = [
     "deploy",
     "slurm",
     "kubernetes",
+    "kernel_override",
 ]
 
 # =====================================================================
@@ -63,6 +66,8 @@ SUITES: Dict[str, List[str]] = {
     "precheck": ["connectivity"],
     "validate": ["kubernetes", "slurm"],
     "prepare": ["orchestrator"],
+    "provision": ["provision", "kernel_override"],
+    "kernel_override": ["kernel_override"],
     "deploy": ["kubernetes", "slurm"],
     "cleanup": ["cleanup"],
 }

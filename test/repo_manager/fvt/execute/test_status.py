@@ -6,21 +6,21 @@
 """
 Repo Manager — Execute scenario verification tests.
 
-TC_RM_EX_000: Deploy repo_manager --tags execute
-TC_RM_EX_001: Verify repo_status.yml generated
-TC_RM_EX_002: Verify overall_status is success
-TC_RM_EX_003: Verify slurm_custom repo present
-TC_RM_EX_004: Verify epel repo present
-TC_RM_EX_005: Verify x86_64 repositories present
-TC_RM_EX_006: Verify file repos present
-TC_RM_EX_007: Verify software.csv download status per architecture
-TC_RM_EX_008: Verify per-software status.csv for individual package download results
-TC_RM_EX_009: Verify all RPM repositories have latest_version_href (sync indicator)
-TC_RM_EX_010: Verify all RPM distributions are published with repository attachment
-TC_RM_EX_011: Verify all container image repositories are synced
-TC_RM_EX_012: Verify all file repositories (tarball, git, etc.) are synced
-TC_RM_EX_013: Verify RPM content is reachable via HTTPS (repomd.xml check)
-TC_RM_EX_014: Verify all RPM packages from software_config.json are present in Pulp
+RM_FVT_EXECUTE_E001: Deploy repo_manager --tags execute
+RM_FVT_EXECUTE_V001: Verify repo_status.yml generated
+RM_FVT_EXECUTE_V002: Verify overall_status is success
+RM_FVT_EXECUTE_V003: Verify slurm_custom repo present
+RM_FVT_EXECUTE_V004: Verify epel repo present
+RM_FVT_EXECUTE_V005: Verify x86_64 repositories present
+RM_FVT_EXECUTE_V006: Verify file repos present
+RM_FVT_EXECUTE_V007: Verify software.csv download status per architecture
+RM_FVT_EXECUTE_V008: Verify per-software status.csv for individual package download results
+RM_FVT_EXECUTE_V009: Verify all RPM repositories have latest_version_href (sync indicator)
+RM_FVT_EXECUTE_V010: Verify all RPM distributions are published with repository attachment
+RM_FVT_EXECUTE_V011: Verify all container image repositories are synced
+RM_FVT_EXECUTE_V012: Verify all file repositories (tarball, git, etc.) are synced
+RM_FVT_EXECUTE_V013: Verify RPM content is reachable via HTTPS (repomd.xml check)
+RM_FVT_EXECUTE_V014: Verify all RPM packages from software_config.json are present in Pulp
 """
 
 import pytest
@@ -54,8 +54,8 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_execute_download(host):
-    """TC_RM_EX_000: Deploy repo_manager --tags execute."""
-    tl = TestLogger(TEST_NAMES["repo_status_exists"], "TC_RM_EX_000")
+    """RM_FVT_EXECUTE_E001: Deploy repo_manager --tags execute."""
+    tl = TestLogger(TEST_NAMES["repo_status_exists"], "RM_FVT_EXECUTE_E001")
     result = run_playbook(tag="execute")
 
     if result["success"]:
@@ -70,8 +70,8 @@ def test_execute_download(host):
 @pytest.mark.positive
 @pytest.mark.order(1)
 def test_repo_status_exists(host):
-    """TC_RM_EX_001: Verify repo_status.yml generated."""
-    tl = TestLogger(TEST_NAMES["repo_status_exists"], "TC_RM_EX_001")
+    """RM_FVT_EXECUTE_V001: Verify repo_status.yml generated."""
+    tl = TestLogger(TEST_NAMES["repo_status_exists"], "RM_FVT_EXECUTE_V001")
     result = check_repo_status_exists(host)
 
     if result["success"]:
@@ -86,8 +86,8 @@ def test_repo_status_exists(host):
 @pytest.mark.positive
 @pytest.mark.order(2)
 def test_repo_status_success(host):
-    """TC_RM_EX_002: Verify overall_status is success."""
-    tl = TestLogger(TEST_NAMES["repo_status_success"], "TC_RM_EX_002")
+    """RM_FVT_EXECUTE_V002: Verify overall_status is success."""
+    tl = TestLogger(TEST_NAMES["repo_status_success"], "RM_FVT_EXECUTE_V002")
     result = check_repo_status_success(host)
 
     if result["success"]:
@@ -102,16 +102,16 @@ def test_repo_status_success(host):
 @pytest.mark.positive
 @pytest.mark.order(3)
 def test_slurm_custom_repo_present(host):
-    """TC_RM_EX_003: Verify slurm_custom repo present (if configured)."""
+    """RM_FVT_EXECUTE_V003: Verify slurm_custom repo present (if configured)."""
     # Check if slurm_custom is configured in repo_manager_config.yml
     config_result = check_repo_configured(host, "slurm_custom", arch="x86_64")
-    
+
     if not config_result["success"]:
         # Skip test if slurm_custom is not configured
         pytest.skip("slurm_custom not configured in repo_manager_config.yml")
-    
+
     # Only test if slurm_custom is configured
-    tl = TestLogger(TEST_NAMES["slurm_custom_repo_present"], "TC_RM_EX_003")
+    tl = TestLogger(TEST_NAMES["slurm_custom_repo_present"], "RM_FVT_EXECUTE_V003")
     result = check_repo_status_has_repo(host, "slurm_custom", arch="x86_64")
 
     if result["success"]:
@@ -126,16 +126,16 @@ def test_slurm_custom_repo_present(host):
 @pytest.mark.positive
 @pytest.mark.order(4)
 def test_epel_repo_present(host):
-    """TC_RM_EX_004: Verify epel repo present (if configured)."""
+    """RM_FVT_EXECUTE_V004: Verify epel repo present (if configured)."""
     # Check if epel is configured in repo_manager_config.yml
     config_result = check_repo_configured(host, "epel", arch="x86_64")
-    
+
     if not config_result["success"]:
         # Skip test if epel is not configured
         pytest.skip("epel not configured in repo_manager_config.yml")
-    
+
     # Only test if epel is configured
-    tl = TestLogger(TEST_NAMES["epel_repo_present"], "TC_RM_EX_004")
+    tl = TestLogger(TEST_NAMES["epel_repo_present"], "RM_FVT_EXECUTE_V004")
     result = check_repo_status_has_repo(host, "epel", arch="x86_64")
 
     if result["success"]:
@@ -150,22 +150,22 @@ def test_epel_repo_present(host):
 @pytest.mark.positive
 @pytest.mark.order(5)
 def test_x86_64_repos_present(host):
-    """TC_RM_EX_005: Verify x86_64 baseos and appstream present (if configured)."""
+    """RM_FVT_EXECUTE_V005: Verify x86_64 baseos and appstream present (if configured)."""
     # Check if base repos are configured in repo_manager_config.yml
     base_repos = ["baseos", "appstream", "codeready-builder"]
     configured_repos = []
-    
+
     for repo in base_repos:
         config_result = check_repo_configured(host, repo, arch="x86_64")
         if config_result["success"]:
             configured_repos.append(repo)
-    
+
     if not configured_repos:
         # Skip test if no base repos are configured
         pytest.skip("No base repos (baseos, appstream, codeready-builder) configured in repo_manager_config.yml")
-    
+
     # Only test configured repos
-    tl = TestLogger(TEST_NAMES["x86_64_repos_present"], "TC_RM_EX_005")
+    tl = TestLogger(TEST_NAMES["x86_64_repos_present"], "RM_FVT_EXECUTE_V005")
     for repo in configured_repos:
         result = check_repo_status_has_repo(host, repo, arch="x86_64")
         if not result["success"]:
@@ -179,16 +179,16 @@ def test_x86_64_repos_present(host):
 @pytest.mark.positive
 @pytest.mark.order(6)
 def test_file_repos_present(host):
-    """TC_RM_EX_006: Verify file repos (tarball) present (if configured)."""
+    """RM_FVT_EXECUTE_V006: Verify file repos (tarball) present (if configured)."""
     # Check if imb is configured in repo_manager_config.yml
     config_result = check_repo_configured(host, "imb", arch="x86_64")
-    
+
     if not config_result["success"]:
         # Skip test if imb is not configured
         pytest.skip("imb file repo not configured in repo_manager_config.yml")
-    
+
     # Only test if imb is configured
-    tl = TestLogger(TEST_NAMES["file_repos_present"], "TC_RM_EX_006")
+    tl = TestLogger(TEST_NAMES["file_repos_present"], "RM_FVT_EXECUTE_V006")
     result = check_repo_status_has_file_repo(host, "imb", arch="x86_64")
 
     if result["success"]:
@@ -203,8 +203,8 @@ def test_file_repos_present(host):
 @pytest.mark.positive
 @pytest.mark.order(7)
 def test_software_download_status(host):
-    """TC_RM_EX_007: Verify software.csv download status per architecture."""
-    tl = TestLogger(TEST_NAMES["software_download_status"], "TC_RM_EX_007")
+    """RM_FVT_EXECUTE_V007: Verify software.csv download status per architecture."""
+    tl = TestLogger(TEST_NAMES["software_download_status"], "RM_FVT_EXECUTE_V007")
     result = check_software_download_status(host)
 
     if result["success"]:
@@ -219,8 +219,8 @@ def test_software_download_status(host):
 @pytest.mark.positive
 @pytest.mark.order(8)
 def test_per_software_package_status(host):
-    """TC_RM_EX_008: Verify per-software status.csv for individual package download results."""
-    tl = TestLogger(TEST_NAMES["per_software_package_status"], "TC_RM_EX_008")
+    """RM_FVT_EXECUTE_V008: Verify per-software status.csv for individual package download results."""
+    tl = TestLogger(TEST_NAMES["per_software_package_status"], "RM_FVT_EXECUTE_V008")
     result = check_per_software_package_status(host)
 
     if result["success"]:
@@ -235,8 +235,8 @@ def test_per_software_package_status(host):
 @pytest.mark.positive
 @pytest.mark.order(9)
 def test_pulp_repositories_synced(host):
-    """TC_RM_EX_009: Verify all RPM repositories have latest_version_href (sync indicator)."""
-    tl = TestLogger(TEST_NAMES["pulp_repositories_synced"], "TC_RM_EX_009")
+    """RM_FVT_EXECUTE_V009: Verify all RPM repositories have latest_version_href (sync indicator)."""
+    tl = TestLogger(TEST_NAMES["pulp_repositories_synced"], "RM_FVT_EXECUTE_V009")
     result = check_pulp_repositories_synced(host)
 
     if result["success"]:
@@ -251,8 +251,8 @@ def test_pulp_repositories_synced(host):
 @pytest.mark.positive
 @pytest.mark.order(10)
 def test_pulp_distributions_published(host):
-    """TC_RM_EX_010: Verify all RPM distributions are published with repository attachment."""
-    tl = TestLogger(TEST_NAMES["pulp_distributions_published"], "TC_RM_EX_010")
+    """RM_FVT_EXECUTE_V010: Verify all RPM distributions are published with repository attachment."""
+    tl = TestLogger(TEST_NAMES["pulp_distributions_published"], "RM_FVT_EXECUTE_V010")
     result = check_pulp_distributions_published(host)
 
     if result["success"]:
@@ -267,8 +267,8 @@ def test_pulp_distributions_published(host):
 @pytest.mark.positive
 @pytest.mark.order(11)
 def test_container_repos_synced(host):
-    """TC_RM_EX_011: Verify all container image repositories are synced."""
-    tl = TestLogger(TEST_NAMES["container_repos_synced"], "TC_RM_EX_011")
+    """RM_FVT_EXECUTE_V011: Verify all container image repositories are synced."""
+    tl = TestLogger(TEST_NAMES["container_repos_synced"], "RM_FVT_EXECUTE_V011")
     result = check_container_repos_synced(host)
 
     if result["success"]:
@@ -283,8 +283,8 @@ def test_container_repos_synced(host):
 @pytest.mark.positive
 @pytest.mark.order(12)
 def test_file_repos_synced(host):
-    """TC_RM_EX_012: Verify all file repositories (tarball, git, etc.) are synced."""
-    tl = TestLogger(TEST_NAMES["file_repos_synced"], "TC_RM_EX_012")
+    """RM_FVT_EXECUTE_V012: Verify all file repositories (tarball, git, etc.) are synced."""
+    tl = TestLogger(TEST_NAMES["file_repos_synced"], "RM_FVT_EXECUTE_V012")
     result = check_file_repos_synced(host)
 
     if result["success"]:
@@ -299,8 +299,8 @@ def test_file_repos_synced(host):
 @pytest.mark.positive
 @pytest.mark.order(13)
 def test_pulp_content_accessible(host):
-    """TC_RM_EX_013: Verify RPM content is reachable via HTTPS (repomd.xml check)."""
-    tl = TestLogger(TEST_NAMES["pulp_content_accessible"], "TC_RM_EX_013")
+    """RM_FVT_EXECUTE_V013: Verify RPM content is reachable via HTTPS (repomd.xml check)."""
+    tl = TestLogger(TEST_NAMES["pulp_content_accessible"], "RM_FVT_EXECUTE_V013")
     result = check_pulp_content_accessible(host)
 
     if result["success"]:
@@ -315,8 +315,8 @@ def test_pulp_content_accessible(host):
 @pytest.mark.positive
 @pytest.mark.order(14)
 def test_software_packages_in_pulp(host):
-    """TC_RM_EX_014: Verify all RPM packages from software_config.json are present in Pulp."""
-    tl = TestLogger(TEST_NAMES["software_packages_in_pulp"], "TC_RM_EX_014")
+    """RM_FVT_EXECUTE_V014: Verify all RPM packages from software_config.json are present in Pulp."""
+    tl = TestLogger(TEST_NAMES["software_packages_in_pulp"], "RM_FVT_EXECUTE_V014")
     result = check_software_packages_in_pulp(host)
 
     if result["success"]:

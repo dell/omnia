@@ -6,12 +6,12 @@
 """
 Repo Manager — Catalog Add scenario verification tests.
 
-TC_RM_CAT_ADD_000: Deploy catalog_add playbook
-TC_RM_CAT_ADD_001: Verify catalog add operation completed successfully
-TC_RM_CAT_ADD_002: Verify catalog structure still valid after add
-TC_RM_CAT_ADD_003: Verify catalog has functional layers after add
-TC_RM_CAT_ADD_004: Verify catalog has groups after add
-TC_RM_CAT_ADD_005: Verify catalog has packages after add
+RM_FVT_CATALOG_ADD_E001: Deploy catalog_add playbook
+RM_FVT_CATALOG_ADD_V001: Verify catalog add operation completed successfully
+RM_FVT_CATALOG_ADD_V002: Verify catalog structure still valid after add
+RM_FVT_CATALOG_ADD_V003: Verify catalog has functional layers after add
+RM_FVT_CATALOG_ADD_V004: Verify catalog has groups after add
+RM_FVT_CATALOG_ADD_V005: Verify catalog has packages after add
 """
 
 import pytest
@@ -36,8 +36,8 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_catalog_add_deploy(host):
-    """TC_RM_CAT_ADD_000: Deploy catalog_add playbook."""
-    tl = TestLogger(TEST_NAMES["catalog_add_deploy"], "TC_RM_CAT_ADD_000")
+    """RM_FVT_CATALOG_ADD_E001: Deploy catalog_add playbook."""
+    tl = TestLogger(TEST_NAMES["catalog_add_deploy"], "RM_FVT_CATALOG_ADD_E001")
 
     # Check if input file exists
     input_path = _get_input_path()
@@ -69,8 +69,8 @@ def test_catalog_add_deploy(host):
 @pytest.mark.positive
 @pytest.mark.order(1)
 def test_catalog_add_operation_completed():
-    """TC_RM_CAT_ADD_001: Verify catalog add operation completed successfully."""
-    tl = TestLogger(TEST_NAMES["catalog_add_deploy"], "TC_RM_CAT_ADD_001")
+    """RM_FVT_CATALOG_ADD_V001: Verify catalog add operation completed successfully."""
+    tl = TestLogger(TEST_NAMES["catalog_add_deploy"], "RM_FVT_CATALOG_ADD_V001")
 
     # This test only makes sense if catalog_add succeeded
     # The playbook result from test_catalog_add_deploy already verified this
@@ -82,8 +82,8 @@ def test_catalog_add_operation_completed():
 @pytest.mark.positive
 @pytest.mark.order(2)
 def test_catalog_structure_valid_after_add(host):
-    """TC_RM_CAT_ADD_002: Verify catalog structure still valid after add."""
-    tl = TestLogger(TEST_NAMES["catalog_structure_valid"], "TC_RM_CAT_ADD_002")
+    """RM_FVT_CATALOG_ADD_V002: Verify catalog structure still valid after add."""
+    tl = TestLogger(TEST_NAMES["catalog_structure_valid"], "RM_FVT_CATALOG_ADD_V002")
 
     # This test requires catalog_generate to have run first
     result = check_catalog_structure(host)
@@ -105,8 +105,8 @@ def test_catalog_structure_valid_after_add(host):
 @pytest.mark.positive
 @pytest.mark.order(3)
 def test_catalog_has_functional_layers_after_add(host):
-    """TC_RM_CAT_ADD_003: Verify catalog has functional layers after add."""
-    tl = TestLogger(TEST_NAMES["catalog_functional_layers"], "TC_RM_CAT_ADD_003")
+    """RM_FVT_CATALOG_ADD_V003: Verify catalog has functional layers after add."""
+    tl = TestLogger(TEST_NAMES["catalog_functional_layers"], "RM_FVT_CATALOG_ADD_V003")
     result = check_catalog_functional_layers(host)
 
     if result["success"]:
@@ -121,8 +121,8 @@ def test_catalog_has_functional_layers_after_add(host):
 @pytest.mark.positive
 @pytest.mark.order(4)
 def test_catalog_has_groups_after_add(host):
-    """TC_RM_CAT_ADD_004: Verify catalog has groups after add."""
-    tl = TestLogger(TEST_NAMES["catalog_groups"], "TC_RM_CAT_ADD_004")
+    """RM_FVT_CATALOG_ADD_V004: Verify catalog has groups after add."""
+    tl = TestLogger(TEST_NAMES["catalog_groups"], "RM_FVT_CATALOG_ADD_V004")
     result = check_catalog_groups(host)
 
     if result["success"]:
@@ -137,8 +137,8 @@ def test_catalog_has_groups_after_add(host):
 @pytest.mark.positive
 @pytest.mark.order(5)
 def test_catalog_has_packages_after_add(host):
-    """TC_RM_CAT_ADD_005: Verify catalog has packages after add."""
-    tl = TestLogger(TEST_NAMES["catalog_packages"], "TC_RM_CAT_ADD_005")
+    """RM_FVT_CATALOG_ADD_V005: Verify catalog has packages after add."""
+    tl = TestLogger(TEST_NAMES["catalog_packages"], "RM_FVT_CATALOG_ADD_V005")
     result = check_catalog_packages(host)
 
     if result["success"]:

@@ -25,9 +25,9 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_precheck_environment(host):
-    """TC_RM_PC_000: Deploy repo_manager --tags precheck."""
+    """RM_FVT_PRECHECK_E001: Deploy repo_manager --tags precheck."""
     assert host is not None
-    test_log = TestLogger(TEST_NAMES["input_config_exists"], "TC_RM_PC_000")
+    test_log = TestLogger(TEST_NAMES["input_config_exists"], "RM_FVT_PRECHECK_E001")
     result = run_playbook(tag="precheck")
 
     if result["success"]:
@@ -48,8 +48,8 @@ def test_precheck_environment(host):
 @pytest.mark.positive
 @pytest.mark.order(1)
 def test_input_config_exists(host):
-    """TC_RM_PC_001: Verify repo_manager_config.yml exists."""
-    test_log = TestLogger(TEST_NAMES["input_config_exists"], "TC_RM_PC_001")
+    """RM_FVT_PRECHECK_V001: Verify repo_manager_config.yml exists."""
+    test_log = TestLogger(TEST_NAMES["input_config_exists"], "RM_FVT_PRECHECK_V001")
     result = check_input_config_exists(host)
 
     if result["success"]:
@@ -64,8 +64,8 @@ def test_input_config_exists(host):
 @pytest.mark.positive
 @pytest.mark.order(2)
 def test_endpoint_config_exists(host):
-    """TC_RM_PC_002: Verify repo_manager_endpoint_config.yml exists."""
-    test_log = TestLogger(TEST_NAMES["endpoint_config_exists"], "TC_RM_PC_002")
+    """RM_FVT_PRECHECK_V002: Verify repo_manager_endpoint_config.yml exists."""
+    test_log = TestLogger(TEST_NAMES["endpoint_config_exists"], "RM_FVT_PRECHECK_V002")
     result = check_endpoint_config_exists(host)
 
     if result["success"]:
@@ -80,8 +80,8 @@ def test_endpoint_config_exists(host):
 @pytest.mark.positive
 @pytest.mark.order(3)
 def test_credentials_present(host):
-    """TC_RM_PC_003: Verify credentials file is present."""
-    test_log = TestLogger(TEST_NAMES["credentials_present"], "TC_RM_PC_003")
+    """RM_FVT_PRECHECK_V003: Verify credentials file is present."""
+    test_log = TestLogger(TEST_NAMES["credentials_present"], "RM_FVT_PRECHECK_V003")
     result = check_credentials_present(host)
 
     if result["success"]:
@@ -96,8 +96,8 @@ def test_credentials_present(host):
 @pytest.mark.positive
 @pytest.mark.order(4)
 def test_precheck_environment_no_credentials(host):
-    """TC_RM_PC_004: Validate input without prompting for credentials."""
-    test_log = TestLogger(TEST_NAMES["input_config_exists"], "TC_RM_PC_004")
+    """RM_FVT_PRECHECK_V004: Validate input without prompting for credentials."""
+    test_log = TestLogger(TEST_NAMES["input_config_exists"], "RM_FVT_PRECHECK_V004")
     result = check_input_config_exists(host)
 
     if result["success"]:

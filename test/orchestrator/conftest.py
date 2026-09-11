@@ -115,6 +115,7 @@ def pytest_configure(config):
         "security": "Security and permission tests",
         "negative": "Negative test cases for error scenarios",
         "buildstream": "BuildStream pipeline validation (post-provision sanity)",
+        "kernel_override": "Kernel-version override validation",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
@@ -146,87 +147,7 @@ def pytest_collection_modifyitems(session, config, items):
     marker_expr = config.getoption("--marker", default="")
     mode, markers = _parse_marker_expression(marker_expr)
 
-    # Only apply auto-skips if no marker expression is provided
-    if mode == "none":
-        # Auto-skip deploy tests (require full environment setup)
-        for item in items:
-            if _item_has_marker(item, "deploy"):
-                item.add_marker(pytest.mark.skip("Deploy tests require full environment setup - use --marker deploy to enable"))
-
-        # Auto-skip NFT tests (require explicit marker - they modify system state)
-        for item in items:
-            if _item_has_marker(item, "nft"):
-                item.add_marker(pytest.mark.skip("NFT tests require explicit --marker nft to enable (they modify system state)"))
-
-        # Auto-skip negative tests (require explicit marker - they test error conditions)
-        for item in items:
-            if _item_has_marker(item, "negative"):
-                item.add_marker(pytest.mark.skip("Negative tests require explicit --marker negative to enable (they test error conditions)"))
-
-        # Auto-skip cleanup status tests (require prior cleanup execution)
-        for item in items:
-            test_name = item.name
-            if "test_containers_removed" in test_name or "test_services_removed" in test_name or "test_firewall_ports_closed" in test_name:
-                item.add_marker(pytest.mark.skip("Cleanup status tests require prior cleanup playbook execution"))
-
-        # Auto-skip API test (requires fully operational OpenCHAMI services)
-        for item in items:
-            if "test_openchami_api_reachable" in item.name:
-                item.add_marker(pytest.mark.skip("API test requires fully operational OpenCHAMI services"))
-                
-        # Auto-skip SLURM tests if SLURM is not enabled in config
-        for item in items:
-            if _item_has_marker(item, "slurm"):
-                # Check if SLURM is enabled in the config
-                try:
-                    config = load_test_config()
-                    project = config.get("project_name", "project_default")
-                    orchestrator_config_path = f"/opt/omnia/orchestrator/input/{project}/orchestrator_config.yml"
-                    
-                    # Read config file to check for SLURM
-                    if os.path.exists(orchestrator_config_path):
-                        with open(orchestrator_config_path, 'r') as f:
-                            config_content = f.read().lower()
-                        slurm_keywords = ["slurm_control", "slurm_node", "slurm_login"]
-                        has_slurm = any(keyword in config_content for keyword in slurm_keywords)
-                        
-                        if not has_slurm:
-                            item.add_marker(pytest.mark.skip("SLURM is not enabled in orchestrator config"))
-                except Exception:
-                    # If we can't check, don't auto-skip - let the test run and fail if needed
-                    pass
-
-        # Auto-skip Kubernetes tests if K8s is not enabled in config
-        for item in items:
-            if _item_has_marker(item, "kubernetes"):
-                try:
-                    config = load_test_config()
-                    project = config.get("project_name", "project_default")
-                    orchestrator_config_path = f"/opt/omnia/orchestrator/input/{project}/orchestrator_config.yml"
-                    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
-
-                    has_k8s = False
-                    
-                    # Check orchestrator_config.yml
-                    if os.path.exists(orchestrator_config_path):
-                        with open(orchestrator_config_path, 'r') as f:
-                            config_content = f.read().lower()
-                        k8s_keywords = ["service_kube_control_plane", "service_kube_node", "kube_control_plane"]
-                        has_k8s = any(keyword in config_content for keyword in k8s_keywords)
-
-                    # If not found, check PXE mapping file
-                    if not has_k8s and os.path.exists(pxe_mapping_path):
-                        with open(pxe_mapping_path, 'r') as f:
-                            pxe_content = f.read().lower()
-                        k8s_keywords = ["service_kube_control_plane", "service_kube_node", "kube_control_plane"]
-                        has_k8s = any(keyword in pxe_content for keyword in k8s_keywords)
-
-                    if not has_k8s:
-                        item.add_marker(pytest.mark.skip("Kubernetes is not enabled in orchestrator config"))
-                except Exception:
-                    pass
-    else:
-        # When marker is specified, only apply the marker filtering
+    if mode != "none" and markers:
         filtered = []
         for item in items:
             if mode == "and":

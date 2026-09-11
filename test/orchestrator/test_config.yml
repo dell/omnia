@@ -88,13 +88,6 @@ clone_path: "/omnia"
 #     image_build_manager_output/ (build_status.yml)
 dataset: ""
 
-# =============================================================================
-# ORCHESTRATOR-SPECIFIC SETTINGS
-# =============================================================================
-# Project name used by orchestrator playbooks.
-# Only change if the target uses a different project name than the dataset.
-project_name: "project_default"
-
 # Sync orchestrator input files (orchestrator_config.yml, network_spec.yml, etc.)
 sync_orchestrator_input: false
 
@@ -104,9 +97,6 @@ sync_repo_manager_output: false
 # Sync image_build_manager output (build_status.yml) to target
 sync_image_build_manager_output: false
 
-# Shared path for orchestrator-specific data on the target server.
-# Convention: /opt/omnia/orchestrator
-shared_path: "/opt/omnia/orchestrator"
 
 # Catalog file path for feature detection (optional).
 # Example: /root/omnia/src/build_stream/examples/catalog/catalog_rhel_x86_64_with_slurm_only.json
