@@ -196,25 +196,25 @@
         - systemctl start firewalld
 
         # Open required ports for kube node
-        - firewall-cmd --permanent --add-port=22/tcp
-        - firewall-cmd --permanent --add-port=10250/tcp
-        - firewall-cmd --permanent --add-port=30000-32767/tcp
-        - firewall-cmd --permanent --add-port=179/tcp
-        - firewall-cmd --permanent --add-port=4789/udp
-        - firewall-cmd --permanent --add-port=5473/tcp
-        - firewall-cmd --permanent --add-port=51820/udp
-        - firewall-cmd --permanent --add-port=51821/udp
-        - firewall-cmd --permanent --add-port=9100/tcp
-        - firewall-cmd --permanent --add-port=7472/tcp
-        - firewall-cmd --permanent --add-port=7472/udp
-        - firewall-cmd --permanent --add-port=7946/tcp
-        - firewall-cmd --permanent --add-port=7946/udp
-        - firewall-cmd --permanent --add-port=9090/tcp
-        - firewall-cmd --permanent --add-port=8080/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=22/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=10250/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=30000-32767/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=179/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=4789/udp
+        - firewall-cmd --permanent --zone=trusted --add-port=5473/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=51820/udp
+        - firewall-cmd --permanent --zone=trusted --add-port=51821/udp
+        - firewall-cmd --permanent --zone=trusted --add-port=9100/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=7472/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=7472/udp
+        - firewall-cmd --permanent --zone=trusted --add-port=7946/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=7946/udp
+        - firewall-cmd --permanent --zone=trusted --add-port=9090/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=8080/tcp
 
         # Enable services
-        - firewall-cmd --permanent --add-service=http
-        - firewall-cmd --permanent --add-service=https
+        - firewall-cmd --permanent --zone=trusted --add-service=http
+        - firewall-cmd --permanent --zone=trusted --add-service=https
 
         # Add Kubernetes pod/service CIDRs (replace with your actual values)
         - firewall-cmd --permanent --zone=trusted --add-source={{ k8s_service_addresses }}
