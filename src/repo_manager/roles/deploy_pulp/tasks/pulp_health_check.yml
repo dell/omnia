@@ -51,6 +51,47 @@
       content apps are online.
 
     quiet: true
+
+- name: Validate Pulp public content origin
+  ansible.builtin.assert:
+    that:
+      - >-
+        (_pulp_api_health.json | default({})).get(
+          'content_settings', {}
+        ).get('content_origin', '') == pulp_base_url
+    fail_msg: "{{ deploy_pulp_validate_public_content_origin_msg }}"
+    quiet: true
+
+- name: Check Pulp OCI registry endpoint
+  ansible.builtin.uri:
+    url: "{{ pulp_registry_url }}"
+    method: GET
+    validate_certs: true
+    ca_path: "{{ pulp_server_crt }}"
+    timeout: 30
+    status_code: [401]
+    return_content: false
+  register: _pulp_registry_health
+  changed_when: false
+  failed_when: false
+  retries: 6
+  delay: 10
+  until: _pulp_registry_health.status | default(-1) == 401
+  no_log: true
+
+- name: Require a healthy Pulp OCI registry endpoint
+  ansible.builtin.assert:
+    that:
+      - _pulp_registry_health.status | default(-1) == 401
+      - >-
+        _pulp_registry_health.docker_distribution_api_version |
+        default('') == 'registry/2.0'
+      - >-
+        (_pulp_registry_health.www_authenticate |
+         default('')).startswith('Basic ')
+    fail_msg: "{{ deploy_pulp_validate_container_registry_health_msg }}"
+    quiet: true
+
 - name: Verify authenticated Pulp CLI access
   ansible.builtin.command:
     argv: "{{ [pulp_cli_executable] + pulp_cli_commands.common.status }}"

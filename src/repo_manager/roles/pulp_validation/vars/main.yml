@@ -29,6 +29,8 @@
 pulp_status_url: >-
   {{ pulp_protocol }}://{{ pulp_server_ip }}:{{ pulp_server_port
   }}/pulp/api/v3/status/
+pulp_registry_url: >-
+  {{ pulp_protocol }}://{{ pulp_server_ip }}:{{ pulp_server_port }}/v2/
 
 # Endpoint verification settings
 validation_endpoint_retries: 3
@@ -40,6 +42,12 @@ validation_endpoint_timeout: 60
 # -----------------------------------------------------------------------------
 pulp_status_fail_msg: >-
   Pulp endpoint is not up. Status code: {{ result.status }}
+pulp_content_origin_fail_msg: >-
+  Pulp status does not publish the configured HTTPS content origin
+  {{ pulp_protocol }}://{{ pulp_server_ip }}:{{ pulp_server_port }}.
+pulp_registry_status_fail_msg: >-
+  Pulp API is reachable, but its OCI registry endpoint /v2/ is not healthy.
+  Run the Pulp deployment playbook and inspect the Pulp container logs.
 pulp_container_success_msg: >-
   The {{ pulp_container_name }} container is up and running.
 pulp_container_fail_msg: >-

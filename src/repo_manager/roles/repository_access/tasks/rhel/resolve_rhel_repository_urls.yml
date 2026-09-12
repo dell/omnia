@@ -379,8 +379,70 @@
   loop: "{{ resolved_repository_validation_targets | default([]) }}"
   loop_control:
     label: "{{ item.architecture }} / {{ item.name }}"
+  register: repository_metadata_validation_results
+  changed_when: false
+  failed_when: false
   when: subscription_status_flag
   no_log: true
+
+- name: Initialize repository metadata validation failures
+  ansible.builtin.set_fact:
+    repository_metadata_failures: []
+    repository_metadata_failure_message: ""
+  when: subscription_status_flag
+
+- name: Build sanitized repository metadata validation failures
+  ansible.builtin.set_fact:
+    repository_metadata_failures: >-
+      {{
+        repository_metadata_failures + [{
+          'architecture': repository_metadata_result.item.architecture,
+          'repository': repository_metadata_result.item.name,
+          'metadata': 'repodata/repomd.xml',
+          'status': repository_metadata_status | int,
+          'reason': repository_metadata_failure_reason
+        }]
+      }}
+  vars:
+    repository_metadata_status: >-
+      {{ repository_metadata_result.status | default(-1, true) | int }}
+    repository_metadata_failure_reason: >-
+      {{
+        'Metadata file was not found (HTTP 404).'
+        if (repository_metadata_status | int) == 404
+        else 'Repository metadata access was denied.'
+        if (repository_metadata_status | int) in [401, 403]
+        else 'Repository metadata request timed out.'
+        if (repository_metadata_status | int) in [408, 504]
+        else 'Metadata endpoint could not be reached or TLS validation failed.'
+        if (repository_metadata_status | int) <= 0
+        else 'Metadata endpoint returned HTTP ' ~
+          (repository_metadata_status | int | string) ~ '.'
+      }}
+  loop: "{{ repository_metadata_validation_results.results | default([]) }}"
+  loop_control:
+    loop_var: repository_metadata_result
+    label: "protected repository metadata result"
+  when:
+    - subscription_status_flag
+    - (repository_metadata_result.status | default(-1, true) | int) != 200
+  no_log: true
+
+- name: Preserve sanitized repository metadata failure message
+  ansible.builtin.set_fact:
+    repository_metadata_failure_message: >-
+      {{ repository_access_repository_metadata_validation_failed_msg }}
+  when:
+    - subscription_status_flag
+    - repository_metadata_failures | length > 0
+  no_log: true
+
+- name: Fail when repository metadata validation fails
+  ansible.builtin.fail:
+    msg: "{{ repository_metadata_failure_message }}"
+  when:
+    - subscription_status_flag
+    - repository_metadata_failures | length > 0
 
 - name: Publish repositories supplied by the RHEL subscription
   ansible.builtin.set_fact:
