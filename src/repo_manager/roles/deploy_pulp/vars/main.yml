@@ -16,7 +16,11 @@ pulp_dir_permissions: "0755"
 pulp_public_dir_permissions: "0755"
 logs_dir_permission: "0755"
 pulp_pgsql_dir_permissions: "0700"
-pulp_settings_permissions: "0600"
+# The pinned Pulp image runs application processes with GID 700. Keep the
+# secret-bearing settings root-owned while granting that service group read-only
+# access.
+pulp_settings_group: "700"
+pulp_settings_permissions: "0640"
 pulp_secret_permissions: "0600"
 pulp_cli_permissions: "0600"
 pulp_certificate_permissions: "0644"
@@ -28,6 +32,7 @@ pulp_container_https_port: "{{ pulp_deployment_defaults.https.container_port }}"
 pulp_publish_port: "{{ pulp_server_port }}:{{ pulp_container_https_port }}"
 pulp_base_url: "https://{{ pulp_server_ip }}:{{ pulp_server_port }}"
 pulp_status_url: "{{ pulp_base_url }}/pulp/api/v3/status/"
+pulp_registry_url: "{{ pulp_base_url }}/v2/"
 
 pull_image_retries: 5
 pull_image_delay: 10
@@ -205,6 +210,15 @@ deploy_pulp_require_a_running_pulp_container_msg: >-
 deploy_pulp_validate_pulp_internal_service_health_msg: >-
   Pulp HTTPS is reachable, but its database, workers, or content apps are
   unhealthy. Inspect podman logs {{ pulp_container_name }}.
+
+deploy_pulp_validate_public_content_origin_msg: >-
+  Pulp is running, but its published content origin does not match the
+  configured HTTPS endpoint {{ pulp_base_url }}. Inspect the effective Pulp
+  settings and restart {{ pulp_container_name }}.service.
+
+deploy_pulp_validate_container_registry_health_msg: >-
+  Pulp HTTPS is reachable, but its OCI registry endpoint /v2/ is not healthy.
+  Inspect podman logs {{ pulp_container_name }} before provisioning nodes.
 
 deploy_pulp_validate_configured_omnia_virtual_environment_path_msg: >-
   OMNIA_VENV_PATH must be an absolute path when it is configured.

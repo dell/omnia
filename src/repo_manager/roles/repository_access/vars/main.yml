@@ -69,3 +69,21 @@ repository_access_fail_when_subscription_cannot_provide_a_referenced_repository_
   RHEL subscription and explicit configuration do not provide these
   repositories for RHEL {{ cluster_os_version }}:
   {{ unresolved_subscription_repo_summary | join('; ') }}.
+
+repository_access_repository_metadata_validation_failed_msg: |-
+  Repository metadata validation failed.
+
+  {% for failure in repository_metadata_failures %}
+  - Architecture: {{ failure.architecture }}
+    Repository: {{ failure.repository }}
+    Metadata: {{ failure.metadata }}
+    Reason: {{ failure.reason }}
+  {% endfor %}
+
+  {% if repository_metadata_failures |
+        selectattr('status', 'equalto', 404) | list | length > 0 %}
+  The configured URL is not a valid RPM repository base URL.
+  {% else %}
+  Check repository availability, network connectivity, access permissions,
+  and TLS configuration.
+  {% endif %}

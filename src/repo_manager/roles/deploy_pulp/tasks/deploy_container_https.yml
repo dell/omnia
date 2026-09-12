@@ -38,6 +38,8 @@
   ansible.builtin.template:
     src: settings_template.j2
     dest: "{{ settings_py_path }}"
+    owner: root
+    group: "{{ pulp_settings_group }}"
     mode: "{{ pulp_settings_permissions }}"
   register: _pulp_settings_render
   no_log: true
