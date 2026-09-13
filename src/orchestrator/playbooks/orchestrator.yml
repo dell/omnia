@@ -161,7 +161,8 @@
   connection: local
   gather_facts: false
   roles:
-    - validate_orchestrator_input
+    - role: validate_orchestrator_input
+      when: not _orchestrator_input_validated | default(false) | bool
   tags:
     - validate
 

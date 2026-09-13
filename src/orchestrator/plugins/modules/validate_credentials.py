@@ -75,8 +75,14 @@ def validate_input(field, value, rules):
         return (False, f"Validation rules not found for '{field}'")
     rule = rules[field]
     if not rule["minLength"] <= len(value) <= rule["maxLength"]:
-        return (False, f"'{field}' length must be between {rule['minLength']} and {rule['maxLength']} characters")
-    if "pattern" in rule and not re.match(rule["pattern"], value):
+        message = (
+            f"'{field}' length must be between {rule['minLength']} and "
+            f"{rule['maxLength']} characters"
+        )
+        return (False, message)
+    if "\n" in value or "\r" in value:
+        return (False, f"'{field}' format is invalid. Credentials must be one line")
+    if "pattern" in rule and not re.fullmatch(rule["pattern"], value):
         return (False, f"'{field}' format is invalid. Description: {rule['description']}")
     return (True, f"'{field}' is valid")
 
@@ -84,8 +90,12 @@ def main():
     """Main module function."""
     module_args = {
         "credential_field": {"type": "str", "required": True},
-        "credential_input": {"type": "str", "required": True},
-        "module_utils_path": {"type": "str", "required": False, "default": None}
+        "credential_input": {
+            "type": "str",
+            "required": True,
+            "no_log": True,
+        },
+        "module_utils_path": {"type": "str", "required": True}
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
@@ -96,7 +106,7 @@ def main():
     # Load validation rules
     try:
         rules = load_rules(credentials_schema)
-    except ValueError as e:
+    except (OSError, TypeError, ValueError) as e:
         module.fail_json(msg=f"Failed to load rules: {e}")
 
     # Validate credential

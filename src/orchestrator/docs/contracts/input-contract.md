@@ -57,7 +57,7 @@ determine which credentials are mandatory.
 |--------|------|----------|-------------|
 | `FUNCTIONAL_GROUP_NAME` | string | Yes | Node role (e.g., `slurm_node_aarch64`) |
 | `GROUP_NAME` | string | Yes | Scalable Unit / logical group |
-| `SERVICE_TAG` | string | Yes | Dell server service tag |
+| `SERVICE_TAG` | string | No | Dell server service tag; validated when supplied |
 | `PARENT_SERVICE_TAG` | string | No | Parent node service tag |
 | `HOSTNAME` | string | Yes | Assigned hostname |
 | `ADMIN_MAC` | string | Yes | Admin NIC MAC address |

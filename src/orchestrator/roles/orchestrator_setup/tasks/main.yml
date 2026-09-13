@@ -165,6 +165,18 @@
     oim_shared_path: "{{ omnia_data_path }}"
     cacheable: true
 
+# Validate before this role parses and dereferences project configuration.
+# Lightweight operational flows retain their existing setup behavior.
+- name: Validate project inputs before setup consumes them
+  ansible.builtin.include_role:
+    name: validate_orchestrator_input
+  when:
+    - not _orchestrator_input_validated | default(false) | bool
+    - >-
+      'all' in omnia_run_tags
+      or omnia_run_tags | intersect(input_validation_tags) | length > 0
+      or omnia_run_tags | length == 0
+
 # Step 6: Load orchestrator and Omnia configuration
 
 - name: Check whether orchestrator configuration exists
@@ -251,11 +263,13 @@
          | default(false) }}
     cacheable: true
 
-- name: Set image_build_manager_output_path and boot params on localhost
+- name: Resolve image build, boot, and cloud-init settings
   ansible.builtin.set_fact:
     image_build_manager_output_path: >-
       {{ _orch_config.image_build_manager_output_path | default(default_build_status_path, true) }}
     boot_kernel_params: "{{ _orch_config.boot_kernel_params | default('') }}"
+    additional_cloud_init_config_file: >-
+      {{ _orch_config.additional_cloud_init_config_file | default('') }}
     pxe_mapping_file_path: >-
       {{ (_orch_config.pxe_mapping_file_path | default('')) | ternary(
           _orch_config.pxe_mapping_file_path | default(''),

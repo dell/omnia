@@ -37,7 +37,7 @@
     - name: Run input validation
       ansible.builtin.include_role:
         name: validate_orchestrator_input
-      when: not config_file_status | default(false) | bool
+      when: not _orchestrator_input_validated | default(false) | bool
 
 # Step 2: Validate orchestrator parameters (mapping, software config, hosts)
 - name: Validate orchestrator parameters

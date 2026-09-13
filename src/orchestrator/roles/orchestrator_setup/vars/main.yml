@@ -92,6 +92,18 @@ state_initialization_tags:
   - pxeboot
   - upgrade
 
+# Lifecycle flows that validate local project inputs before setup dereferences
+# them. Credential-only and operational recovery flows remain lightweight.
+input_validation_tags:
+  - precheck
+  - validate
+  - prepare
+  - deploy
+  - provision
+  - execute
+  - validate-deployment
+  - pxeboot
+
 invalid_tag_combinations:
   - [precheck, cleanup]
   - [validate, cleanup]
