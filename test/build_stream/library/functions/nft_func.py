@@ -18,6 +18,7 @@ import json
 import shlex
 import time
 import uuid
+from pathlib import PurePosixPath
 from typing import Any, Dict, Optional
 
 from omnia_auto import run_on_host
@@ -206,13 +207,32 @@ def upload_inline_file(
 def upload_oversized_file(host, job_id: str, token: str) -> Dict[str, Any]:
     """Upload a 5 MiB + 1 byte file and remove the temporary source afterward."""
     context = get_bsm_context(host)
-    temp_path = f"/tmp/bsm_nft_oversized_{uuid.uuid4().hex}.yml"
-    create_result = run_on_host(
-        host, f"head -c 5242881 /dev/zero > {shlex.quote(temp_path)}"
+    temp_result = run_on_host(host, "mktemp -t bsm_nft_oversized_XXXXXXXX.yml")
+    temp_path = (temp_result.stdout or "").strip()
+    valid_path = (
+        temp_result.rc == 0
+        and bool(temp_path)
+        and "\n" not in temp_path
+        and PurePosixPath(temp_path).name.startswith("bsm_nft_oversized_")
     )
-    if create_result.rc != 0:
-        return {"success": False, "status": 0, "body": "", "error": "Cannot create test payload"}
+    if not valid_path:
+        return {
+            "success": False,
+            "status": 0,
+            "body": "",
+            "error": "Cannot create temporary test file",
+        }
     try:
+        create_result = run_on_host(
+            host, f"head -c 5242881 /dev/zero > {shlex.quote(temp_path)}"
+        )
+        if create_result.rc != 0:
+            return {
+                "success": False,
+                "status": 0,
+                "body": "",
+                "error": "Cannot create test payload",
+            }
         parts = [
             "curl", "-sk", "--max-time", "60", "-X", "PUT",
             "-H", f"Authorization: Bearer {token}",

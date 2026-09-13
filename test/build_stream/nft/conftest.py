@@ -20,8 +20,6 @@ from pathlib import Path
 
 import pytest
 
-from library.functions import cancel_pipeline
-
 # Add build_stream source to path for imports
 # Use dynamic path resolution for both local and CI environments
 _CURRENT_DIR = Path(__file__).parent.resolve()
@@ -42,6 +40,29 @@ if os.environ.get("OMNIA_COMMAND_TYPE") == "nft":
     # The shared validation runner selects only registered NFT cases. Retained
     # source-level tests are not part of this category.
     collect_ignore = ["unit", "others"]
+
+    @pytest.fixture(scope="session")
+    def nft_state():
+        """Share only test-created pipeline and job identifiers across NFT cases."""
+        return {
+            "cancelled_pipeline_id": 0,
+            "cancelled_job_id": "",
+            "active_pipeline_id": 0,
+            "active_job_id": "",
+            "security_job_id": "",
+        }
+
+
+    @pytest.fixture(scope="session", autouse=True)
+    def cleanup_test_pipeline(host, request):
+        """Cancel a still-running pipeline created by this NFT session."""
+        session_state = request.getfixturevalue("nft_state")
+        yield
+        pipeline_id = int(session_state.get("active_pipeline_id", 0) or 0)
+        if pipeline_id:
+            from library.functions import cancel_pipeline  # pylint: disable=import-outside-toplevel
+
+            cancel_pipeline(host, pipeline_id)
 else:
     # Compatibility shim for developers running the retained source tests
     # directly with their full development dependencies installed.
@@ -50,25 +71,3 @@ else:
 
     if not hasattr(sqlite_base, "JSONB"):
         sqlite_base.JSONB = JSON
-
-
-@pytest.fixture(scope="session")
-def nft_state():
-    """Share only test-created pipeline and job identifiers across NFT cases."""
-    return {
-        "cancelled_pipeline_id": 0,
-        "cancelled_job_id": "",
-        "active_pipeline_id": 0,
-        "active_job_id": "",
-        "security_job_id": "",
-    }
-
-
-@pytest.fixture(scope="session", autouse=True)
-def cleanup_test_pipeline(host, request):
-    """Cancel a still-running pipeline created by this NFT session."""
-    session_state = request.getfixturevalue("nft_state")
-    yield
-    pipeline_id = int(session_state.get("active_pipeline_id", 0) or 0)
-    if pipeline_id:
-        cancel_pipeline(host, pipeline_id)

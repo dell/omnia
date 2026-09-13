@@ -36,7 +36,13 @@ from io import StringIO
 from pathlib import Path
 from typing import Any
 
-from jinja2 import Environment, FileSystemLoader, StrictUndefined, TemplateError
+from jinja2 import (
+    Environment,
+    FileSystemLoader,
+    StrictUndefined,
+    TemplateError,
+    select_autoescape,
+)
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
@@ -268,9 +274,12 @@ def _guidance(document: dict[str, Any]) -> list[str]:
 
 
 def _render(plan: dict[str, Any], staging: Path) -> list[str]:
-    environment = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)),
-                              undefined=StrictUndefined, autoescape=False,
-                              keep_trailing_newline=True)
+    environment = Environment(
+        loader=FileSystemLoader(str(TEMPLATES_DIR)),
+        undefined=StrictUndefined,
+        autoescape=select_autoescape(["html", "xml"]),
+        keep_trailing_newline=True,
+    )
     environment.filters["to_yaml"] = _dump
     try:
         content = environment.get_template("document.yml.j2").render(
