@@ -75,20 +75,25 @@
         {
           'cluster_name': cluster_item.cluster_name,
           'nfs_storage': cluster_item.nfs_storage_name,
-          'vast_storage': cluster_item.vast_storage_name | default(cluster_item.nfs_storage_name),
+          'vast_storage': cleanup_effective_vast_storage_name,
           'nfs_mount_point': (mounts | selectattr('name', 'equalto', cluster_item.nfs_storage_name)
                               | first | default({})).mount_point,
           'vast_mount_point': (mounts | selectattr('name', 'equalto',
-                               cluster_item.vast_storage_name | default(cluster_item.nfs_storage_name))
+                               cleanup_effective_vast_storage_name)
                                | first | default({})).mount_point,
-          'has_separate_vast': cluster_item.vast_storage_name is defined
-                               and cluster_item.vast_storage_name
-                               and cluster_item.vast_storage_name != cluster_item.nfs_storage_name
+          'has_separate_vast': cleanup_configured_vast_storage_name | length > 0
+                               and cleanup_configured_vast_storage_name != cluster_item.nfs_storage_name
         }
       ] }}
   loop: "{{ slurm_cluster }}"
   loop_control:
     loop_var: cluster_item
+  vars:
+    cleanup_configured_vast_storage_name: >-
+      {{ cluster_item.vast_storage_name | default('', true) | trim }}
+    cleanup_effective_vast_storage_name: >-
+      {{ cleanup_configured_vast_storage_name
+         | default(cluster_item.nfs_storage_name, true) }}
   when: slurm_configured | bool
 
 - name: Build unique storage mount entries for cleanup

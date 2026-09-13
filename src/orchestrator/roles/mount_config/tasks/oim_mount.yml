@@ -23,12 +23,7 @@
     slurm_support: "{{ hostvars['localhost']['slurm_support'] | default(false) }}"
     service_k8s_support: "{{ hostvars['localhost']['service_k8s_support'] | default(false) }}"
 
-- name: Include omnia_config
-  ansible.builtin.include_vars:
-    file: "{{ omnia_config_vars }}"
-    name: omnia_config
-
-- name: Set Slurm NFS names
+- name: Set Slurm storage names
   ansible.builtin.set_fact:
     filter_slurm_nfs: "{{ omnia_config.slurm_cluster | map(attribute='nfs_storage_name') | list }}"
   when: "'slurm_cluster' in omnia_config"
@@ -42,21 +37,21 @@
   ansible.builtin.set_fact:
     storage_to_be_mounted: >-
       {{ storage_to_be_mounted
-         + (mounts | selectattr('name', 'in', filter_slurm_nfs) | list) }}
+         + (effective_mounts | selectattr('name', 'in', filter_slurm_nfs) | list) }}
   when: ('slurm' in omnia_run_tags) and (slurm_support)
 
 - name: Select Kubernetes NFS storage for the OIM
   ansible.builtin.set_fact:
     storage_to_be_mounted: >-
       {{ storage_to_be_mounted
-         + (mounts | selectattr('name', 'in', filter_service_k8s_nfs) | list) }}
+         + (effective_mounts | selectattr('name', 'in', filter_service_k8s_nfs) | list) }}
   when: ('service_k8s' in omnia_run_tags) and (service_k8s_support)
 
 - name: Add storage explicitly configured for OIM mounting
   ansible.builtin.set_fact:
     storage_to_be_mounted: >-
       {{ (storage_to_be_mounted
-          + (mounts
+          + (effective_mounts
              | selectattr('mount_on_oim', 'defined')
              | selectattr('mount_on_oim', 'equalto', true)
              | list))

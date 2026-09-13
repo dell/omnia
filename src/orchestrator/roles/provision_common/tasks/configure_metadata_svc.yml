@@ -83,9 +83,10 @@
       {{ (slurm_cluster | default([]) | first | default({})).nfs_storage_name
          | default('') }}
     metadata_slurm_vast_storage_name: >-
-      {{ (slurm_cluster | default([]) | first | default({})).vast_storage_name
+      {{ ((slurm_cluster | default([]) | first | default({})).vast_storage_name
+          | default('', true) | trim)
          | default((slurm_cluster | default([]) | first | default({})).nfs_storage_name
-                   | default(''), true) }}
+                   | default('') | trim, true) }}
   when: target_category | default('') == 'slurm'
 
 - name: Select Slurm storage entries for metadata configuration
