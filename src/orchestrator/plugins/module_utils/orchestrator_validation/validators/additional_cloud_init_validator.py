@@ -270,6 +270,9 @@ def _validate_document(
     logger: Logger | None,
 ) -> None:
     """Validate the parsed additional cloud-init document."""
+    if cloud_init_data is None:
+        return
+
     if not isinstance(cloud_init_data, dict):
         _record_error(
             errors,

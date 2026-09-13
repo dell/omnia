@@ -318,6 +318,15 @@ def pxe_mapping_invalid_functional_group_msg(value: str, row: int) -> str:
     )
 
 
+def pxe_mapping_unsupported_functional_group_msg(value: str, row: int) -> str:
+    """Return an unsupported PXE functional-group error message."""
+    return (
+        f"orchestrator_config: FUNCTIONAL_GROUP_NAME '{value}' at mapping "
+        f"row {row} uses the unsupported baseos_* prefix; use the "
+        "corresponding os_* functional group instead."
+    )
+
+
 def pxe_mapping_functional_group_architecture_msg(
     value: str, row: int
 ) -> str:

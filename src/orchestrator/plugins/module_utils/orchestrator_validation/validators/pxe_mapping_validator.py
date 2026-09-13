@@ -76,7 +76,6 @@ CATALOG_MANAGED_PREFIXES = (
     "login_node_",
     "login_compiler_node_",
     "os_",
-    "baseos_",
 )
 
 
@@ -265,6 +264,14 @@ def _validate_names(
                 functional_group, row_number
             ),
         )
+    elif functional_group.lower().startswith("baseos_"):
+        record_error(
+            errors,
+            logger,
+            msg.pxe_mapping_unsupported_functional_group_msg(
+                functional_group, row_number
+            ),
+        )
     elif functional_group and not ARCHITECTURE_PATTERN.search(functional_group):
         record_error(
             errors,
@@ -332,8 +339,6 @@ def _functional_group_identity(
     if os_version_match:
         os_version = os_version_match.group(0).removeprefix("_")
         role = role[: os_version_match.start()]
-    if role == "baseos":
-        role = "os"
     return role, os_version, architecture
 
 
