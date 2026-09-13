@@ -140,3 +140,21 @@ job_id: ""
 
 # Deploy pipeline always resolves the image group and prior GitLab pipeline
 # from job_id. It never falls back to the latest image.
+
+# =============================================================================
+# NON-FUNCTIONAL TEST SAFETY CONTROLS
+# =============================================================================
+# Disruptive NFTs are disabled by default and operate only on the pipeline/job
+# created by the NFT session. Enable only the specific operation being tested.
+nft_allow_pipeline_cancel: false
+nft_allow_service_restart: false
+nft_allow_active_stage_restart: false
+nft_allow_watcher_restart: false
+nft_allow_security_mutation: false
+
+# Maximum time to wait for a restarted service or cancellation transition.
+nft_recovery_timeout_seconds: 120
+
+# GitLab may need additional time to release a runner after cancellation before
+# the replacement pipeline can initialize and create its BSM job.
+nft_pipeline_timeout_seconds: 300
