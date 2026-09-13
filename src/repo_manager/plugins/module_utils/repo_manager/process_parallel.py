@@ -65,25 +65,26 @@ def normalize_docker_credentials(credential_data):
         raise RuntimeError("Docker credential document must be a mapping.")
 
     username_value = credential_data.get("docker_username")
-    password_value = credential_data.get("docker_password")
+    secret_value = credential_data.get("docker_password")
     username = "" if username_value is None else str(username_value).strip()
-    password = "" if password_value is None else str(password_value)
+    docker_secret = None if secret_value is None else str(secret_value)
 
     if username == "None":
         username = ""
-    if not password.strip() or password.strip() == "None":
-        password = ""
+    if docker_secret is not None and (
+            not docker_secret.strip() or docker_secret.strip() == "None"):
+        docker_secret = None
 
     # A password without a username is an orphaned optional secret. Treat the
     # pair as anonymous access. A username without a password is actionable and
     # must not silently fall back to anonymous Docker Hub pulls.
     if not username:
         return "", ""
-    if not password:
+    if docker_secret is None:
         raise RuntimeError(
             "Docker Hub password is required when docker_username is set."
         )
-    return username, password
+    return username, docker_secret
 
 
 def load_docker_credentials(vault_yml_path, vault_password_file):
