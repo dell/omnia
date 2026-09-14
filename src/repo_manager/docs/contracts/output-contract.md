@@ -22,11 +22,19 @@ overall_status: "success"
 cluster_os_type: "rhel"
 repo_config: "partial"
 
+execution_contexts:
+  - context_id: "rhel_10.0"
+    os_type: "rhel"
+    os_version: "10.0"
+    architectures: ["x86_64", "aarch64"]
+
+overall_status_by_version:
+  "10.0": "success"
+
 repo_manager:
   port: 2225
   certificates:
     server_crt: "<REPO_MANAGER_DATA_PATH>/pulp_config/settings/certs/pulp_webserver.crt"
-    server_key: "<REPO_MANAGER_DATA_PATH>/pulp_config/settings/certs/pulp_webserver.key"
     certs_dir: "<REPO_MANAGER_DATA_PATH>/pulp_config/settings/certs"
 
 repositories:
@@ -38,6 +46,14 @@ repositories:
         url: "https://192.0.2.10:2225/pulp/content/.../slurm_custom/"
         priority: 100
     aarch64: {}
+
+registries:
+  private_registry:
+    base_url: "https://harbor.example.com"
+    port: 443
+    host: "harbor.example.com:443"
+    tls:
+      insecure: false
 
 file_repos:
   x86_64:
@@ -55,19 +71,35 @@ offline_pip_module_path: "https://192.0.2.10:2225/pypi/.../pip_module/"
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `overall_status` | string | Generation result, normally `success` |
+| `overall_status` | string | Aggregate repository readiness across the selected catalog contexts |
 | `cluster_os_type` | string | Catalog OS type, normally `rhel` |
+| `execution_contexts` | list | Ordered catalog OS-version and architecture contexts |
+| `overall_status_by_version` | object | Per-version state: `pending`, `success`, or `failed` |
 | `repo_config` | string | Repository policy reported by the generator |
 | `repo_manager.port` | integer | Pulp HTTPS host port |
-| `repo_manager.certificates.*` | string | Pulp certificate and certificate-directory paths |
+| `repo_manager.certificates.server_crt` | string | Public Pulp server certificate path |
+| `repo_manager.certificates.certs_dir` | string | Pulp public certificate directory |
 | `repositories.<version>.<arch>.<repo>.url` | string | RPM distribution URL |
 | `repositories.<version>.<arch>.<repo>.priority` | integer | Optional DNF priority copied from the repository input (1-100; lower values have higher precedence) |
+| `registries.<name>.base_url` | string | Configured private-registry URL without credentials |
+| `registries.<name>.port` | integer | Configured private-registry port |
+| `registries.<name>.host` | string | Canonical OCI `host[:port]` authority |
+| `registries.<name>.tls` | object | Non-secret TLS settings used by downstream consumers |
 | `file_repos.<arch>.<type>.<artifact>` | string | File or Python distribution URL |
 | `*_base_url` | string | Base URL for a content type when available |
 | `offline_*_path` | string | Backward-compatible type URL |
 
+During a multi-version download, `overall_status` is `in_progress` while later
+contexts remain pending. It becomes `success` only after every selected context
+completes, or `failed` as soon as a context fails.
+
 Repository URLs are generated from actual Pulp distributions. Empty architecture
-maps are valid when the catalog did not select content for that architecture.
+maps are valid only when the catalog did not reference an RPM repository for
+that architecture. If required repositories are missing, the affected version
+and aggregate status are `failed`; the generating Ansible module returns the
+missing names to the calling playbook for its failure report.
+Registry authentication references, usernames, passwords and tokens are never
+written to `repo_status.yml`.
 
 ### Generation Rules
 
@@ -75,13 +107,16 @@ maps are valid when the catalog did not select content for that architecture.
 |------|----------|
 | Pulp unavailable | Status generation fails |
 | Distribution exists | URL is included |
+| Catalog-required distribution is missing | Status is `failed`; standalone status generation reports an error after writing diagnostic output |
 | Repository has explicit `priority` | Priority is included; otherwise consumers retain their default of 99 |
 | `additional_repos` | One aggregate priority is emitted; conflicting effective priorities fail validation |
 | No distribution for an architecture/type | Corresponding map is empty |
+| Catalog selection changes | Sections for versions outside the active catalog are removed |
 | Custom `OMNIA_DATA_PATH` | Certificate and output paths use the custom root |
-| Selective cleanup completed | Run `--tags status` again to refresh this file |
+| Selective cleanup completed | The stale file is removed; run `--tags status` to regenerate it |
 
 `repo_status.yml` is not automatically regenerated during selective cleanup.
+It is invalidated so downstream consumers cannot use URLs for deleted content.
 
 ---
 
@@ -96,6 +131,7 @@ Services created by the `prepare` tag:
 | HTTPS endpoint | `https://<pulp_server_ip>:<pulp_server_port>` | API, content and OCI registry endpoint |
 | CA certificate | `<REPO_MANAGER_DATA_PATH>/pulp_config/settings/certs/pulp_webserver.crt` | Client trust certificate |
 | Pulp CLI launcher | `/usr/local/bin/pulp` | CLI configured for HTTPS access |
+| Pulp CLI backend | `/usr/local/libexec/omnia-pulp-cli` | Entry point regenerated for the system runtime, or the venv selected by `OMNIA_VENV_PATH` |
 | Host trust anchor | `/etc/pki/ca-trust/source/anchors/omnia-pulp.crt` | System CA trust |
 
 Content stored in Pulp is the authoritative downloadable output. Local files
@@ -115,6 +151,11 @@ under `offline_repo` are staging content, not the downstream contract.
 | `mirror_status/global_package_index.json` | Catalog package identities and ownership |
 | `mirror_status/pulp_mirror_index.json` | Mirrored, failed and pending Pulp identities |
 | `standard.log` | Download execution and progress heartbeat |
+
+The OS-level file `<REPO_MANAGER_DATA_PATH>/log/<os>/catalog_execution_summary.yml`
+records the ordered contexts, completed results, remaining contexts and
+aggregate run status. A failure stops later versions and is persisted before
+the playbook returns the failure.
 
 ### status.csv Fields
 
@@ -140,9 +181,14 @@ Selective cleanup writes:
 | Detailed cleanup log | `<REPO_MANAGER_DATA_PATH>/log/<os>/<version>/cleanup/standard.log` |
 | Result table | `<REPO_MANAGER_DATA_PATH>/log/<os>/<version>/cleanup/cleanup_status.csv` |
 
+A target confined to one OS version uses that version directory. Cleanup that
+spans versions, including shared containers or `all`, writes the aggregate log
+and result table under `<REPO_MANAGER_DATA_PATH>/log/<os>/cleanup/`.
+
 `cleanup_status.csv` contains one result per requested Pulp object with its type,
 status and message. Successful cleanup also removes matching package rows from
-download state and marks affected groups partial.
+download state, marks affected groups partial, and invalidates
+`output/<project>/repo_status.yml`.
 
 Full Pulp cleanup removes `<REPO_MANAGER_DATA_PATH>/log` by default. Set
 `cleanup_logs=false` to preserve existing runtime logs.

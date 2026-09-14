@@ -1,0 +1,57 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Read PXE mapping for functional-group normalization
+  block:
+    - name: Read PXE mapping content
+      ansible.builtin.slurp:
+        path: "{{ normalized_pxe_mapping_path }}"
+      register: _pxe_mapping_normalization_raw
+      no_log: true
+  rescue:
+    - name: Report PXE mapping read failure
+      ansible.builtin.fail:
+        msg: "{{ mapping_file_read_fail_msg }}"
+
+- name: Promote the first Kubernetes control-plane node to the primary group
+  block:
+    - name: Build normalized PXE mapping content
+      ansible.builtin.set_fact:
+        _normalized_pxe_mapping_content: >-
+          {{
+            (_pxe_mapping_normalization_raw.content | b64decode)
+            | regex_replace(
+                '(service_kube_control_plane_)((?!first_)\w+)',
+                'service_kube_control_plane_first_\2',
+                count=1
+              )
+          }}
+      no_log: true
+  rescue:
+    - name: Report PXE mapping processing failure
+      ansible.builtin.fail:
+        msg: "{{ mapping_file_process_fail_msg }}"
+
+- name: Write normalized PXE mapping
+  block:
+    - name: Save normalized PXE mapping content
+      ansible.builtin.copy:
+        content: "{{ _normalized_pxe_mapping_content }}"
+        dest: "{{ normalized_pxe_mapping_path }}"
+        mode: "0644"
+      no_log: true
+  rescue:
+    - name: Report PXE mapping write failure
+      ansible.builtin.fail:
+        msg: "{{ mapping_file_write_fail_msg }}"

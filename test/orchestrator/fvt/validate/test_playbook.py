@@ -15,7 +15,7 @@
 """
 Orchestrator Validate — Deploy.
 
-TC_VL_000: Deploy orchestrator.yml (validate)
+ORCH_FVT_VALIDATE_E001: Deploy orchestrator.yml (validate)
 """
 
 import pytest
@@ -30,11 +30,12 @@ from library.messages import (
 
 @pytest.mark.deploy
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(0)
 def test_deploy_validate(host):
-    """TC_VL_000: Deploy orchestrator.yml (validate)."""
+    """ORCH_FVT_VALIDATE_E001: Deploy orchestrator.yml (validate)."""
     tl = TestLogger(
-        TEST_NAMES["deploy_validate"], "TC_VL_000"
+        TEST_NAMES["deploy_validate"], "ORCH_FVT_VALIDATE_E001"
     )
     result = run_playbook(tag="validate")
 

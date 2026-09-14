@@ -156,6 +156,16 @@ CATALOG_FILE_NOT_FOUND_MSG = (
     "CATALOG_FILE_PATH environment variable."
 )
 
+CATALOG_PATH_REQUIRED_MSG = (
+    "image_build_config: CATALOG_FILE_PATH must be set to a non-empty catalog "
+    "JSON path when functional_groups_source is 'catalog'."
+)
+
+PACKAGE_GROUPS_REQUIRED_MSG = (
+    "image_build_config: package_groups.yml is required when "
+    "functional_groups_source is 'config'."
+)
+
 CATALOG_MISSING_ROOT_KEY_MSG = (
     "catalog: JSON file is missing the required 'catalog' root key."
 )

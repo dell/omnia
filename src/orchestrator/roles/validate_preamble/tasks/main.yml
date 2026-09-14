@@ -31,9 +31,9 @@
   when: admin_netmask_bits is not defined
 
 - name: Parse network_spec data
-  ansible.builtin.set_fact:
-    network_data: "{{ network_data | default({}) | combine({item.key: item.value}) }}"
-  with_dict: "{{ Networks }}"
+  ansible.builtin.include_role:
+    name: orchestrator_common
+    tasks_from: normalize_network_spec.yml
   when: admin_netmask_bits is not defined
 
 - name: Set network facts from network_spec
@@ -59,36 +59,59 @@
 # =========================================================================
 # Step 3: Process PXE mapping file (for validate_provisioning)
 # =========================================================================
+- name: Resolve pxe_mapping_file_path from localhost if not set locally
+  ansible.builtin.set_fact:
+    pxe_mapping_file_path: "{{ hostvars['localhost']['pxe_mapping_file_path'] | default('') }}"
+  when: pxe_mapping_file_path is not defined or pxe_mapping_file_path | length == 0
+
 - name: Create temp mapping file from source
   ansible.builtin.shell: |
     set -o pipefail
     sed 's/^[[:space:]]*//g' "{{ pxe_mapping_file_path }}" | sed 's/[[:space:]]*$//g' > /tmp/omnia_validate_mapping.csv
   changed_when: false
-  when: read_mapping_file is not defined
+  when:
+    - read_mapping_file is not defined
+    - pxe_mapping_file_path | default('') | length > 0
 
 - name: Remove comment lines from temp mapping file
   ansible.builtin.lineinfile:
     path: /tmp/omnia_validate_mapping.csv
     regexp: '\s*#'
     state: absent
-  when: read_mapping_file is not defined
+  when:
+    - read_mapping_file is not defined
+    - pxe_mapping_file_path | default('') | length > 0
+
+- name: Normalize Kubernetes primary control-plane membership
+  ansible.builtin.include_role:
+    name: orchestrator_common
+    tasks_from: normalize_pxe_functional_groups.yml
+  vars:
+    normalized_pxe_mapping_path: /tmp/omnia_validate_mapping.csv
+  when:
+    - read_mapping_file is not defined
+    - pxe_mapping_file_path | default('') | length > 0
 
 - name: Generate xnames in temp mapping file
   generate_xname_in_mapping_file:
     mapping_file_path: /tmp/omnia_validate_mapping.csv
-  when: read_mapping_file is not defined
+  when:
+    - read_mapping_file is not defined
+    - pxe_mapping_file_path | default('') | length > 0
 
 - name: Read PXE mapping CSV into temp var
   community.general.read_csv:
     path: /tmp/omnia_validate_mapping.csv
     key: ADMIN_MAC
   register: _validate_csv_result
-  when: read_mapping_file is not defined
+  when:
+    - read_mapping_file is not defined
+    - pxe_mapping_file_path | default('') | length > 0
 
 - name: Promote CSV result to read_mapping_file fact
   ansible.builtin.set_fact:
     read_mapping_file: "{{ _validate_csv_result }}"
-  when: read_mapping_file is not defined and _validate_csv_result is not skipped
+  when: read_mapping_file is not defined and _validate_csv_result is defined and _validate_csv_result is not skipped
 
 - name: Clean up temp mapping file
   ansible.builtin.file:
@@ -103,34 +126,3 @@
   ansible.builtin.include_vars:
     file: "{{ functional_groups_config_path }}"
   when: functional_groups is not defined
-
-# =========================================================================
-# Step 5: Load cluster config from OIM and authenticate (OIM host only)
-# =========================================================================
-- name: Set oim_node_name on OIM host
-  ansible.builtin.set_fact:
-    oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
-  when:
-    - inventory_hostname == 'oim'
-    - oim_node_name is not defined
-
-- name: Load OpenCHAMI configs_vars.yaml from OIM
-  ansible.builtin.include_vars:
-    file: /opt/omnia/openchami/configs_vars.yaml
-  when:
-    - inventory_hostname == 'oim'
-    - cluster_name is not defined
-
-- name: OpenCHAMI cluster authentication
-  ansible.builtin.include_role:
-    name: orchestrator_common
-    tasks_from: openchami_auth.yml
-  when: inventory_hostname == 'oim'
-
-- name: Configure S3 access for boot images
-  ansible.builtin.include_role:
-    name: orchestrator_common
-    tasks_from: configure_s3_access.yml
-  when:
-    - inventory_hostname == 'oim'
-    - s3_configurations is not defined

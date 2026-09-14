@@ -21,6 +21,13 @@
   ansible.builtin.set_fact:
     functional_groups_config_path: "{{ functional_groups_config_path }}"
 
+- name: Ensure functional groups output directory exists
+  ansible.builtin.file:
+    path: "{{ functional_groups_config_path | dirname }}"
+    state: directory
+    mode: "0755"
+  when: not ansible_check_mode
+
 - name: Generate functional groups from mapping.csv
   generate_functional_groups:
     mapping_file_path: "{{ pxe_mapping_file_path }}"
@@ -28,12 +35,15 @@
     omnia_config_path: "{{ omnia_config_dir }}/{{ omnia_config_file }}"
     classification_file_path: "{{ role_path }}/../../vars/functional_group_classification.yml"
 
-- name: Check the functional_groups_config.yml file is created in /opt/omnia/.data
+- name: Check whether the generated functional groups configuration exists
   ansible.builtin.stat:
     path: "{{ functional_groups_config_path }}"
   register: functional_groups_file
+  when: not ansible_check_mode
 
 - name: Fail if functional groups file is not created
   ansible.builtin.fail:
     msg: "Failed to create functional groups file at {{ functional_groups_config_path }}"
-  when: not functional_groups_file.stat.exists
+  when:
+    - not ansible_check_mode
+    - not functional_groups_file.stat.exists

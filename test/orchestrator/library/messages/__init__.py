@@ -28,6 +28,10 @@ from .slurm_msgs import (
     TEST_LOG_MSGS as SLURM_TEST_LOG_MSGS,
     TEST_ASSERT_MSGS as SLURM_TEST_ASSERT_MSGS,
 )
+from .k8s_msgs import (
+    TEST_LOG_MSGS as K8S_TEST_LOG_MSGS,
+    TEST_ASSERT_MSGS as K8S_TEST_ASSERT_MSGS,
+)
 
 __all__ = [
     "TEST_NAMES",
@@ -38,4 +42,6 @@ __all__ = [
     "TEST_FRAMEWORK_ASSERT_MSGS",
     "SLURM_TEST_LOG_MSGS",
     "SLURM_TEST_ASSERT_MSGS",
+    "K8S_TEST_LOG_MSGS",
+    "K8S_TEST_ASSERT_MSGS",
 ]

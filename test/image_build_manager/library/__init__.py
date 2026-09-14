@@ -36,6 +36,8 @@ from .functions import (
     run_playbook,
     set_current_report,
     get_current_report,
+    build_report_name,
+    record_playbook_failure,
     get_test_output,
     validate_all,
     ConfigValidationError,

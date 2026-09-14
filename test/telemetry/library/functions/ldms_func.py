@@ -108,7 +108,14 @@ def get_ldms_sampler_config(host) -> Dict[str, Any]:
     """
     input_path = _get_input_path(host)
     config_path = f"{input_path}/{TELEMETRY_CONFIG_FILE}"
-    config = read_remote_yaml(host, config_path)
+    try:
+        config = read_remote_yaml(host, config_path)
+    except (RuntimeError, ValueError) as exc:
+        return {
+            "success": False,
+            "plugins": [],
+            "error": f"Could not read {config_path}: {exc}",
+        }
 
     if not config:
         return {

@@ -27,11 +27,16 @@ from typing import Any, Dict, List
 
 import yaml
 
-from omnia_auto import read_remote_env, resolve_domain_input_path
+from omnia_auto import (
+    read_remote_env,
+    resolve_domain_data_path,
+    resolve_domain_input_path,
+)
 
 from ..vars.common_vars import (
     DOMAIN_NAME,
     ENV_CATALOG_FILE_PATH,
+    ENV_IMAGE_BUILD_MANAGER_DATA_PATH,
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
     IBM_CONFIG_FILE,
@@ -74,37 +79,52 @@ def _retry_run(host, cmd_str, retries: int = 2, delay: float = 3.0):
 # LOAD CONFIG FROM TARGET
 # =============================================================================
 
-def _get_shared_path() -> str:
-    """Get shared_path from OMNIA_DATA_PATH env var.
+def _get_shared_path(host=None) -> str:
+    """Get the effective Image Build Manager data root.
 
-    Constructs ``<OMNIA_DATA_PATH>/image_build_manager`` from the
-    local environment (sourced from /etc/omnia/omnia.env).
-    Falls back to the SHARED_PATH constant.
+    When *host* is supplied, reads the target environment. Otherwise, uses
+    the equivalent local environment rule and falls back to ``SHARED_PATH``.
     """
+    if host is not None:
+        return resolve_domain_data_path(
+            host,
+        DOMAIN_NAME,
+        ENV_OMNIA_DATA_PATH,
+        domain_data_path_var=ENV_IMAGE_BUILD_MANAGER_DATA_PATH,
+        )
+    domain_path = os.environ.get(ENV_IMAGE_BUILD_MANAGER_DATA_PATH, "")
+    if domain_path:
+        return domain_path.rstrip("/")
     data_path = os.environ.get(ENV_OMNIA_DATA_PATH, "")
     if data_path:
-        return f"{data_path}/{DOMAIN_NAME}"
+        return f"{data_path.rstrip('/')}/{DOMAIN_NAME}"
     return SHARED_PATH
 
 
-def _get_project_name() -> str:
+def _get_project_name(host=None) -> str:
     """Get project_name from OMNIA_PROJECT_NAME env var.
 
-    Reads from the local environment (sourced from /etc/omnia/omnia.env).
-    Falls back to 'project_default' if not set.
+    Reads from the target when *host* is supplied. Otherwise, reads from the
+    local environment and falls back to ``project_default``.
     """
+    if host is not None:
+        return read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
     return os.environ.get(ENV_OMNIA_PROJECT_NAME, "project_default")
 
 
 def _get_remote_ibm_config_path(host) -> str:
     """Get the deployed image_build_config.yml path on target.
 
-    Uses env vars to resolve::
+    Uses the component override or base-path fallback to resolve::
 
-        <OMNIA_DATA_PATH>/image_build_manager/input/<project>/image_build_config.yml
+        <effective-domain-data-path>/input/<project>/image_build_config.yml
     """
     input_dir = resolve_domain_input_path(
-        host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
+        host,
+        DOMAIN_NAME,
+        ENV_OMNIA_DATA_PATH,
+        ENV_OMNIA_PROJECT_NAME,
+        domain_data_path_var=ENV_IMAGE_BUILD_MANAGER_DATA_PATH,
     )
     return f"{input_dir}/{IBM_CONFIG_FILE}"
 

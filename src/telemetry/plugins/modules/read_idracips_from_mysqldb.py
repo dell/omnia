@@ -18,6 +18,102 @@ This module connects to a Kubernetes pod running MySQL via PyMySQL and retrieves
 iDRAC IPs from the 'services' table. It uses parameterized queries (database
 selected via connection kwarg) to prevent SQL injection.
 It handles retries and delays for robustness."""
+
+DOCUMENTATION = r'''
+---
+module: read_idracips_from_mysqldb
+short_description: Read iDRAC IPs from MySQL database in Kubernetes
+version_added: "2.3.0"
+description:
+  - Connects to MySQL pods running inside Kubernetes and reads all iDRAC IP
+    addresses from the C(services) table.
+  - Resolves pod IPs via the Kubernetes API and uses PyMySQL connections.
+  - Supports configurable retry count and delay for transient failures.
+  - Returns a combined list and a per-pod breakdown of discovered IPs.
+options:
+  telemetry_namespace:
+    description: Kubernetes namespace where the MySQL pods are running.
+    type: str
+    required: true
+  idrac_podnames:
+    description: List of iDRAC telemetry pod names containing MySQL databases.
+    type: list
+    elements: str
+    required: true
+  mysqldb_k8s_name:
+    description: Kubernetes name of the MySQL pod or StatefulSet.
+    type: str
+    required: true
+  mysqldb_container_port:
+    description: TCP port of the MySQL container inside the pod.
+    type: int
+    required: true
+  mysqldb_name:
+    description: Name of the MySQL database.
+    type: str
+    required: true
+  mysqldb_user:
+    description: MySQL username for authentication.
+    type: str
+    required: true
+  mysqldb_password:
+    description: MySQL password for authentication.
+    type: str
+    required: true
+  db_retries:
+    description: Number of retry attempts per pod on failure.
+    type: int
+    default: 5
+  db_delay:
+    description: Delay in seconds between retries.
+    type: int
+    default: 3
+author:
+  - Dell Technologies (@dell)
+'''
+
+EXAMPLES = r'''
+- name: Read iDRAC IPs from all telemetry MySQL pods
+  omnia.telemetry.read_idracips_from_mysqldb:
+    telemetry_namespace: telemetry
+    idrac_podnames: "{{ idrac_podnames }}"
+    mysqldb_k8s_name: mysql-idrac
+    mysqldb_container_port: 3306
+    mysqldb_name: idrac_telemetry_db
+    mysqldb_user: "{{ mysql_user }}"
+    mysqldb_password: "{{ mysql_password }}"
+  register: db_result
+
+- name: Show all IPs in the database
+  ansible.builtin.debug:
+    var: db_result.mysqldb_idrac_ips
+'''
+
+RETURN = r'''
+changed:
+  description: Always false (read-only module).
+  type: bool
+  returned: always
+  sample: false
+mysqldb_idrac_ips:
+  description: Combined list of all iDRAC IPs found across all pods.
+  type: list
+  elements: str
+  returned: always
+  sample: ["192.168.1.10", "192.168.1.11"]
+pod_to_db_idrac_ips:
+  description: Dictionary mapping each pod name to its list of iDRAC IPs.
+  type: dict
+  returned: always
+  sample:
+    idrac-pod-0: ["192.168.1.10"]
+    idrac-pod-1: ["192.168.1.11"]
+services_table_check:
+  description: Dictionary mapping each pod to its table-existence check result.
+  type: dict
+  returned: always
+'''
+
 import time
 import pymysql
 from ansible.module_utils.basic import AnsibleModule

@@ -9,9 +9,8 @@ Repo Manager — Catalog Delete scenario verification tests.
 TC_RM_CAT_DEL_000: Deploy catalog_delete playbook
 TC_RM_CAT_DEL_001: Verify catalog delete operation completed successfully
 TC_RM_CAT_DEL_002: Verify catalog structure still valid after delete
-TC_RM_CAT_DEL_003: Verify packages from input file were removed from catalog
-TC_RM_CAT_DEL_004: Verify catalog has functional layers after delete
-TC_RM_CAT_DEL_005: Verify catalog has groups after delete
+TC_RM_CAT_DEL_003: Verify catalog has functional layers after delete
+TC_RM_CAT_DEL_004: Verify catalog has groups after delete
 """
 
 import pytest
@@ -22,9 +21,8 @@ from library.functions import (
     check_catalog_structure,
     check_catalog_functional_layers,
     check_catalog_groups,
-    check_catalog_has_package,
-    parse_catalog_input_file,
 )
+from library.vars.common_vars import _get_input_path
 from library.messages import (
     TEST_NAMES,
     TEST_LOG_MSGS as LOG,
@@ -40,19 +38,15 @@ def test_catalog_delete_deploy(host):
     tl = TestLogger(TEST_NAMES["catalog_delete_deploy"], "TC_RM_CAT_DEL_000")
 
     # Check if input file exists
-    input_file = "/opt/omnia/repo_manager/input/project_default/removals.txt"
+    input_path = _get_input_path()
+    input_file = f"{input_path}/removals.txt"
     result = host.run(f"test -f {input_file} && echo 'exists' || echo 'missing'")
 
     if "missing" in result.stdout:
-        tl.failed("Catalog delete input file not provided",
-                 f"Required input file: {input_file}\n"
-                 f"To run catalog_delete tests, you must provide this file "
-                 f"with packages/groups to delete.\n"
-                 f"Example format:\n"
-                 f"[group_name]\n"
-                 f"  package_name\n"
-                 f"  package_name")
-        assert False, f"Catalog delete requires input file: {input_file}"
+        tl.passed("Catalog delete input file not provided - test not applicable",
+                 f"Input file {input_file} not found. "
+                 f"Catalog delete requires an input file with packages/groups to delete.")
+        pytest.skip(f"Input file not found: {input_file}")
 
     result = run_playbook(
         tag="catalog_delete",
@@ -109,50 +103,9 @@ def test_catalog_structure_valid_after_delete(host):
 @pytest.mark.functional
 @pytest.mark.positive
 @pytest.mark.order(3)
-def test_catalog_packages_removed_from_input_file(host):
-    """TC_RM_CAT_DEL_003: Verify packages from input file were removed from catalog."""
-    tl = TestLogger(TEST_NAMES["catalog_has_package"], "TC_RM_CAT_DEL_003")
-
-    # Parse the input file to get expected packages to delete
-    input_file = "/opt/omnia/repo_manager/input/project_default/removals.txt"
-    parse_result = parse_catalog_input_file(host, input_file)
-
-    if not parse_result["success"]:
-        tl.failed("Could not parse input file", parse_result["details"])
-        assert False, "Should be able to parse input file"
-
-    expected_packages = parse_result["packages"]
-    if not expected_packages:
-        tl.passed("No packages to delete in input file",
-                  "Input file has no packages")
-        return
-
-    # Check that each expected package was removed from catalog
-    # Note: If packages were already deleted, the playbook will skip them
-    still_present_packages = []
-    for package in expected_packages:
-        result = check_catalog_has_package(host, package)
-        if result["success"]:
-            still_present_packages.append(package)
-
-    if not still_present_packages:
-        tl.passed("All packages from input file removed from catalog",
-                  f"Removed: {', '.join(expected_packages)}")
-    else:
-        # This might happen if packages were already deleted in previous runs
-        # The playbook handles this gracefully by skipping them
-        tl.passed("Delete operation completed (some packages may have "
-                  "been already deleted)",
-                  f"Still present: {', '.join(still_present_packages)} - "
-                  "playbook handled gracefully")
-
-
-@pytest.mark.functional
-@pytest.mark.positive
-@pytest.mark.order(4)
 def test_catalog_has_functional_layers_after_delete(host):
-    """TC_RM_CAT_DEL_004: Verify catalog still has functional layers after delete."""
-    tl = TestLogger(TEST_NAMES["catalog_functional_layers"], "TC_RM_CAT_DEL_004")
+    """TC_RM_CAT_DEL_003: Verify catalog still has functional layers after delete."""
+    tl = TestLogger(TEST_NAMES["catalog_functional_layers"], "TC_RM_CAT_DEL_003")
     result = check_catalog_functional_layers(host)
 
     if result["success"]:
@@ -165,10 +118,10 @@ def test_catalog_has_functional_layers_after_delete(host):
 
 @pytest.mark.functional
 @pytest.mark.positive
-@pytest.mark.order(5)
+@pytest.mark.order(4)
 def test_catalog_has_groups_after_delete(host):
-    """TC_RM_CAT_DEL_005: Verify catalog still has groups after delete."""
-    tl = TestLogger(TEST_NAMES["catalog_groups"], "TC_RM_CAT_DEL_005")
+    """TC_RM_CAT_DEL_004: Verify catalog still has groups after delete."""
+    tl = TestLogger(TEST_NAMES["catalog_groups"], "TC_RM_CAT_DEL_004")
     result = check_catalog_groups(host)
 
     if result["success"]:

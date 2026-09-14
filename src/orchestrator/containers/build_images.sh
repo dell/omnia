@@ -27,7 +27,7 @@
 #   ./build_images.sh registry=myregistry.io/myrepo           # Custom registry
 #
 # Parameters:
-#   auth_tag=<tag>             Image tag (default: 1.1)
+#   auth_tag=<tag>             Image tag (default: 1.2)
 #   build_tool=<tool>          podman | docker (default: podman)
 #   build_action=<action>      load | push (default: load)
 #   registry=<url>             Registry URL (default: docker.io/dellhpcomniaaisolution)
@@ -56,7 +56,7 @@ show_help() {
     echo "  ./build_images.sh [parameters]"
     echo ""
     echo -e "${BLUE}PARAMETERS (key=value format):${NC}"
-    echo "  auth_tag=<tag>             Image tag (default: 1.1)"
+    echo "  auth_tag=<tag>             Image tag (default: 1.2)"
     echo "  build_tool=<tool>          podman | docker (default: podman)"
     echo "  build_action=<action>      load | push (default: load)"
     echo "  registry=<url>             Registry URL (default: docker.io/dellhpcomniaaisolution)"
@@ -81,7 +81,7 @@ show_help() {
 BUILD_TOOL="podman"
 BUILD_ACTION="load"
 OMNIA_DOCKER_REGISTERY="docker.io/dellhpcomniaaisolution"
-AUTH_TAG="1.1"
+AUTH_TAG="1.2"
 
 # =============================================================================
 # Parse command-line parameters (key=value format)

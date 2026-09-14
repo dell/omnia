@@ -1,0 +1,171 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
+# SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+# ***********************************************************************
+# NOTE: This config uses the catalog-based approach (Omnia 2.2+).
+#       Package resolution is driven by the catalog.
+#       Registry and repository configurations are defined below and
+#       linked to catalog package sources via registry and reponame fields.
+#
+# ================================
+# REPOSITORY FIELD REFERENCE TABLE
+# ================================
+# The following table shows all possible fields for repository entries:
+#
+# +----------------+-----------+----------------------------------------------------------+
+# | Field          | Required  | Description / Allowed Values                            |
+# +----------------+-----------+----------------------------------------------------------+
+# | url            | No        | Repository URL (leave empty for RHEL subscription repos)  |
+# | gpgkey         | No        | GPG key URL for package verification                     |
+# | policy         | No        | Sync policy: always | partial (default: from repo_config) |
+# | caching        | No        | Local caching: true | false (default: true)               |
+# | sslcacert      | No        | Path to SSL CA certificate                               |
+# | sslclientkey   | No        | Path to SSL client key (mTLS)                            |
+# | sslclientcert  | No        | Path to SSL client certificate (mTLS)                    |
+# +----------------+-----------+----------------------------------------------------------+
+# Note: For RHEL subscription repos (baseos, appstream, crb), SSL certs are
+#       auto-populated from the subscription; do not set them here.
+#
+# ================================
+# VARIABLE DETAILS
+# ================================
+#
+# 1. repo_config
+# --------------------------
+#    Global repository sync policy.
+#    Allowed values:
+#      always  : Sync all packages from all repositories (full mirror)
+#      partial : Sync only packages declared in the catalog (selective sync)
+#    This can be overridden per-repository using the 'policy' field.
+#
+# 2. caching_policy
+# --------------------------
+#    Global caching policy that controls Pulp download behavior.
+#    Allowed values:
+#      true    : Use on_demand policy (metadata only, download on request)
+#      false   : Use immediate policy when repo_config=always (download all)
+#    This can be overridden per-repository using the 'caching' field.
+#    Default: true (on_demand for backward compatibility)
+#    Catalog entries with packagetype "rpm_repo" require retained Pulp content.
+#    Their mapped repository must not resolve to the streamed policy; keep
+#    caching enabled globally or override that repository with caching: true.
+#
+# 3. registries
+# --------------------------
+#    Container registry configurations.
+#    Format: registry_name → { base_url, port, auth, tls }
+#
+#    LINK TO CATALOG:
+#      Each catalog package source with a "registry" field is resolved by looking
+#      up that name here. If the registry is not found, image syncing will fail.
+#
+#    Fields per registry entry:
+#      base_url : Full base URL of the registry (required)
+#      port     : HTTPS/HTTP port (required)
+#      auth     : Authentication block
+#        type        : none | basic
+#        credentials : Credential lookup block
+#          vault_path: Key under registry_credentials in the encrypted credential file
+#      tls      : TLS settings
+#        ca_path         : Path to CA certificate (leave empty for public CAs)
+#        client_cert_path: Path to client certificate (mTLS)
+#        client_key_path : Path to client key (mTLS)
+#        insecure        : true to skip TLS verification (not recommended)
+#
+# 3. repositories
+# --------------------------
+#    RPM repository configurations.
+#    Format: version → architecture → repo_name → { url, gpgkey, sslcacert, sslclientkey, sslclientcert }
+#
+#    LINK TO CATALOG:
+#      Each catalog package source with a "reponame" field is resolved by looking
+#      up that name here (for the matching version and architecture). If the repo
+#      is not found, RPM syncing will fail.
+#
+#    Optional per-entry fields:
+#      policy      : Sync policy – allowed values: always, partial (default: from repo_config)
+#      caching     : Local caching – allowed values: true, false (default: true)
+#      sslcacert   : Path to SSL CA certificate
+#      sslclientkey: Path to SSL client key
+#      sslclientcert: Path to SSL client certificate
+#    Note: For RHEL subscription repos (baseos, appstream, crb), SSL certs are
+#          auto-populated from the subscription; do not set them here.
+
+# ================================
+# VARIABLES
+# ================================
+
+# ------------------------------------------------------------
+# 1. REPO CONFIG (global sync policy)
+# ------------------------------------------------------------
+repo_config: "{{ repo_config }}"  # Options: always | partial
+caching_policy: {{ 'true' if caching_policy else 'false' }}    # Options: true (on_demand) | false (immediate)
+# Note: Per-repo 'caching' field overrides global caching_policy when set
+
+# ------------------------------------------------------------
+# 2. REGISTRIES
+#    Container registry configurations.
+#    Format: registry_name → { base_url, port, auth, tls }
+#
+#    LINK TO CATALOG:
+#      Each catalog package source with a "registry" field (e.g. "registry": "docker.io")
+#      is resolved by looking up that name here. If the registry is not found,
+#      image syncing will fail.
+#
+#    Add custom/on-prem registries here. Known public registries (docker.io, ghcr.io,
+#    quay.io, registry.k8s.io, and others listed by Repo Manager) are handled
+#    directly and do not require an entry unless custom auth/TLS is needed.
+# ------------------------------------------------------------
+# Example:
+#   registries:
+#     my-reg.example.com:
+#       base_url: "https://my-reg.example.com"
+#       port: 443
+#       auth:
+#         type: basic
+#         credentials:
+#           vault_path: "registries/my-reg.example.com"
+#       tls:
+#         ca_path: ""
+#         client_cert_path: ""
+#         client_key_path: ""
+#         insecure: false
+registries:
+
+# ------------------------------------------------------------
+# 4. REPOSITORIES
+#    RPM repository configurations.
+#    Format: version → architecture → repo_name → { url, gpgkey, sslcacert, sslclientkey, sslclientcert }
+#
+#    LINK TO CATALOG:
+#      Each catalog package source with a "reponame" field is resolved by looking
+#      up that name here (for the matching version and architecture). If the repo
+#      is not found, RPM syncing will fail.
+#
+#    Add custom RPM repositories here. RHEL subscription repos (baseos, appstream, crb)
+#    are handled automatically and do not require entries unless custom URLs are needed.
+# ------------------------------------------------------------
+# Example:
+#   repositories:
+#     "10.0":
+#       x86_64:
+#         my-custom-repo:
+#           url: "https://example.com/repo"
+#           gpgkey: "https://example.com/gpgkey"
+#           policy: "always"
+#           caching: true
+repositories:

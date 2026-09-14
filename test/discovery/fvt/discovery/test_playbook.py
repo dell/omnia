@@ -26,6 +26,7 @@ from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
+from library.vars.test_case_vars import TEST_CASES as TC
 
 
 @pytest.mark.deploy
@@ -33,9 +34,10 @@ from library.messages import (
 @pytest.mark.order(0)
 def test_deploy_discovery(host):
     """TC_DS_000: Deploy discovery.yml (full run)."""
+    tc = TC["deploy_discovery"]
     tl = TestLogger(
         TEST_NAMES["deploy_playbook"].format(mechanism="ome"),
-        "TC_DS_000",
+        tc["id"],
     )
     result = run_playbook(
         extra_vars={"discovery_mechanism": "ome"},

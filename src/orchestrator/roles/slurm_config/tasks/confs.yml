@@ -261,8 +261,15 @@
 # All the updates to the confs follow after this point before merge
 - name: Prepend ClusterName and SlurmctldHost to slurm conf sources
   ansible.builtin.set_fact: # TODO: Change order if needed
-    conf_merge_dict: "{{ conf_merge_dict
-     | combine({'slurm': [{'ClusterName': cluster_name, 'AccountingStorageHost': dbd_list[0], 'SlurmctldHost': ctld_list}] + conf_merge_dict['slurm']}) }}"
+    conf_merge_dict: >-
+      {{ conf_merge_dict
+         | combine({
+             'slurm': [{
+               'ClusterName': slurm_cluster_name,
+               'AccountingStorageHost': dbd_list[0],
+               'SlurmctldHost': ctld_list
+             }] + conf_merge_dict['slurm']
+           }) }}
   when: "'slurm' in conf_merge_dict"
   no_log: "{{ _no_log }}"
 

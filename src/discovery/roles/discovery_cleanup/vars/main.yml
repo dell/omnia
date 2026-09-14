@@ -1,0 +1,64 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+discovery_cleanup_data_path: >-
+  {{ hostvars['localhost']['omnia_data_path'] | ansible.builtin.normpath }}
+discovery_cleanup_project_name: "{{ hostvars['localhost']['discovery_project_name'] }}"
+discovery_cleanup_selected_tags: >-
+  {{ hostvars['localhost']['provided_tags'] | default([]) }}
+discovery_cleanup_input_dir: >-
+  {{ hostvars['localhost']['discovery_input_dir'] | ansible.builtin.normpath }}
+discovery_cleanup_output_dir: >-
+  {{ hostvars['localhost']['discovery_output_dir'] | ansible.builtin.normpath }}
+
+discovery_cleanup_expected_input_dir: >-
+  {{ discovery_cleanup_data_path }}/discovery/input/{{ discovery_cleanup_project_name }}
+discovery_cleanup_expected_output_dir: >-
+  {{ discovery_cleanup_data_path }}/discovery/output/{{ discovery_cleanup_project_name }}
+
+discovery_cleanup_credential_paths:
+  - "{{ discovery_cleanup_input_dir }}/discovery_credentials.yml"
+  - "{{ discovery_cleanup_input_dir }}/.discovery_credentials_key"
+
+discovery_cleanup_invalid_configuration_msg: >-
+  Invalid Discovery cleanup configuration. OMNIA_DATA_PATH must be a safe
+  absolute data root, OMNIA_PROJECT_NAME must be one path segment, and
+  cleanup_credentials accepts only true or false.
+discovery_cleanup_invalid_output_type_msg: >-
+  Refusing Discovery cleanup because the resolved output path exists but is
+  not a regular directory: {{ discovery_cleanup_output_dir }}
+discovery_cleanup_output_scan_failed_msg: >-
+  Discovery cleanup could not inspect every entry in the project output
+  directory: {{ discovery_cleanup_output_dir }}
+discovery_cleanup_output_not_empty_msg: >-
+  Discovery cleanup could not preserve and empty the project output directory:
+  {{ discovery_cleanup_output_dir }}
+
+discovery_cleanup_started_msg: "Starting Discovery cleanup..."
+discovery_cleanup_summary_header: >-
+  {{ '[Discovery Cleanup Plan]' if ansible_check_mode
+     else '[Discovery Cleanup Complete]' }}
+discovery_cleanup_output_preserved_msg: "preserved (credential-only cleanup)"
+discovery_cleanup_output_absent_msg: >-
+  output directory already absent; nothing was created
+discovery_cleanup_output_check_mode_msg: >-
+  would be removed from {{ discovery_cleanup_output_dir }}; directory would be preserved
+discovery_cleanup_output_removed_msg: >-
+  removed from {{ discovery_cleanup_output_dir }}; directory preserved
+discovery_cleanup_credentials_check_mode_msg: "would be removed"
+discovery_cleanup_credentials_removed_msg: "removed"
+discovery_cleanup_credentials_preserved_msg: >-
+  preserved (cleanup_credentials=false)
+discovery_cleanup_other_inputs_msg: "Other Discovery input files: preserved"

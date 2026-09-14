@@ -22,6 +22,7 @@
 #
 # Usage:
 #   ./run_validation.sh fvt_repo_manager <tag> <command> [options]
+#   ./run_validation.sh ut_repo_manager test [options]
 #   ./run_validation.sh fvt_repo_manager list
 #   ./run_validation.sh --config
 #   ./run_validation.sh --help

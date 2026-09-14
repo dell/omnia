@@ -1,0 +1,44 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Require CATALOG_FILE_PATH for catalog-consuming operations
+  ansible.builtin.assert:
+    that:
+      - catalog_file | default('') | length > 0
+    fail_msg: >-
+      {{ repo_manager_setup_fail_if_catalog_file_path_env_var_is_not_set_msg }}
+    quiet: true
+
+- name: Validate the configured catalog path
+  ansible.builtin.assert:
+    that:
+      - catalog_file is match('^/')
+      - catalog_file is match('^/.*\\.json$')
+    fail_msg: "{{ repo_manager_setup_validate_catalog_file_path_msg }}"
+    quiet: true
+
+- name: Inspect the configured catalog file
+  ansible.builtin.stat:
+    path: "{{ catalog_file }}"
+    follow: true
+  register: repo_manager_setup_catalog_check
+
+- name: Require a regular catalog file
+  ansible.builtin.assert:
+    that:
+      - repo_manager_setup_catalog_check.stat.exists
+      - repo_manager_setup_catalog_check.stat.isreg
+    fail_msg: >-
+      {{ repo_manager_setup_validate_catalog_file_is_a_regular_file_msg }}
+    quiet: true

@@ -26,6 +26,7 @@ from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
+from library.vars.test_case_vars import TEST_CASES as TC
 
 
 @pytest.mark.deploy
@@ -33,8 +34,9 @@ from library.messages import (
 @pytest.mark.order(0)
 def test_deploy_credentials(host):
     """TC_CR_000: Deploy discovery.yml --tags credentials."""
+    tc = TC["deploy_credentials"]
     tl = TestLogger(
-        TEST_NAMES["deploy_credentials"], "TC_CR_000"
+        TEST_NAMES["deploy_credentials"], tc["id"]
     )
     result = run_playbook(tag="credentials")
 

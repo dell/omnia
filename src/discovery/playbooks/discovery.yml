@@ -31,30 +31,34 @@
 #   ansible-playbook discovery.yml --tags credentials              # Collect/update OME credentials only
 #   ansible-playbook discovery.yml --tags prepare                  # Prepare discovery environment (placeholder)
 #   ansible-playbook discovery.yml --tags execute                  # Run OME discovery
-#   ansible-playbook discovery.yml --tags cleanup                  # Cleanup discovery artifacts (placeholder)
+#   ansible-playbook discovery.yml --tags cleanup                  # Cleanup outputs and credentials
+#   ansible-playbook discovery.yml --tags cleanup \
+#     -e cleanup_credentials=false                                 # Preserve credentials
+#   ansible-playbook discovery.yml --tags cleanup_credentials      # Cleanup credentials only
 #   ansible-playbook discovery.yml --tags upgrade                  # Upgrade flow (placeholder)
 #   ansible-playbook discovery.yml --tags rollback                 # Rollback flow (placeholder)
 #
-# Tags (mutually exclusive -- pick ONE):
+# Tags (pick one; cleanup + cleanup_credentials is the only supported pair):
 #   (none)       -- Default flow: always + validate + credentials + execute (OME)
 #   precheck     -- Environment precheck (placeholder -- future release)
 #   validate     -- Validate discovery_config.yml input (skips credentials)
 #   credentials  -- Collect/update OME credentials only (no discovery)
 #   prepare      -- Prepare discovery environment (placeholder -- future release)
 #   execute      -- Run BMC discovery via OME (with credentials)
-#   cleanup      -- Cleanup discovery artifacts (placeholder -- future release)
+#   cleanup      -- Cleanup discovery outputs and credentials
+#   cleanup_credentials -- Cleanup Discovery credentials only
 #   upgrade      -- Upgrade flow (placeholder -- future release)
 #   rollback     -- Rollback flow (placeholder -- future release)
 #
 # Tag Validation:
 #   - Invalid tags will fail with error message
 #   - Invalid combinations (e.g., execute + cleanup) will fail
-#   - precheck, cleanup, and validate tags skip credential prompting
+#   - precheck, cleanup, cleanup_credentials, and validate skip credential prompting
 #
 # Internal steps (always):
 #   Step 0: Setup -- load env vars (omnia.env), validate host, check prereqs
 #   Step 1: Input validation (schema + logic)
-#   Step 2: Credential collection (skipped for precheck/cleanup/validate tags)
+#   Step 2: Credential collection (skipped for precheck/cleanup/cleanup_credentials/validate tags)
 
 # =========================================================================
 # Step 0: Setup -- load config, validate host, check prereqs
@@ -68,11 +72,14 @@
     - discovery_setup
 
 # =========================================================================
-# Step 1: Input validation (schema + logic) -- skipped for precheck
+# Step 1: Input validation (schema + logic) -- skipped for precheck/cleanup
 # =========================================================================
 - name: Validate discovery input configuration
   ansible.builtin.import_playbook: validate/validate_discovery.yml
-  when: "'precheck' not in (hostvars['localhost']['provided_tags'] | default([]))"
+  when: >-
+    (hostvars['localhost']['provided_tags'] | default([])
+    | intersect(['precheck', 'cleanup', 'cleanup_credentials'])
+    | length) == 0
   tags:
     - always
     - validate
@@ -120,13 +127,14 @@
     - discovery
 
 # =========================================================================
-# FLOW: cleanup -- Remove discovery artifacts (opt-in only)
+# FLOW: cleanup -- Remove discovery outputs and credentials (opt-in only)
 # =========================================================================
 - name: Cleanup discovery
   ansible.builtin.import_playbook: cleanup/cleanup_discovery.yml
   tags:
     - never
     - cleanup
+    - cleanup_credentials
 
 # =========================================================================
 # FLOW: upgrade -- Upgrade flow placeholder (opt-in only)

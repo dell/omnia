@@ -26,6 +26,7 @@ from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
+from library.vars.test_case_vars import TEST_CASES as TC
 
 
 @pytest.mark.deploy
@@ -33,8 +34,9 @@ from library.messages import (
 @pytest.mark.order(0)
 def test_deploy_execute(host):
     """TC_EX_000: Deploy discovery.yml --tags execute (OME discovery)."""
+    tc = TC["deploy_execute"]
     tl = TestLogger(
-        TEST_NAMES["deploy_execute"], "TC_EX_000"
+        TEST_NAMES["deploy_execute"], tc["id"]
     )
     result = run_playbook(tag="execute", timeout=3600)
 

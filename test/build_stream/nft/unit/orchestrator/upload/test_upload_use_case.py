@@ -1041,6 +1041,29 @@ class TestDomainFileRouting:
         finally:
             upload_files.DEFAULT_PLAYBOOK_INPUT_DIR = original
 
+    def test_failed_nodes_only_refreshes_restart_state(self, tmp_path):
+        """Retry state must not overwrite the playbook-owned artifact copy."""
+        from orchestrator.upload.use_cases import upload_files
+
+        original = upload_files.RESTART_STATE_DIR
+        try:
+            upload_files.RESTART_STATE_DIR = str(tmp_path / "restart_state")
+            job = self._create_job()
+            use_case = self._create_use_case(job, tmp_path)
+
+            command = _create_upload_command(
+                job_id=job.id,
+                files=[("failed_nodes.json", b'{"status":"success"}')],
+            )
+            use_case.execute(command)
+
+            restart_file = tmp_path / "restart_state" / str(job.id) / "failed_nodes.json"
+            artifact_file = tmp_path / "artifacts" / str(job.id) / "failed_nodes.json"
+            assert restart_file.read_bytes() == b'{"status":"success"}'
+            assert not artifact_file.exists()
+        finally:
+            upload_files.RESTART_STATE_DIR = original
+
     def test_domain_routing_covers_all_new_files(self):
         """All new domain files should be in the whitelist and routing map."""
         from orchestrator.upload.use_cases import upload_files
@@ -1103,5 +1126,4 @@ class TestDomainFileRouting:
                 paths=Mock(build_stream_base_path=str(tmp_path / "buildstream")),
             ),
         )
-
 

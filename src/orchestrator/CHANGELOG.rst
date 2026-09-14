@@ -4,6 +4,37 @@ Omnia Orchestrator Release Notes
 
 .. contents:: Topics
 
+v2.3.0
+======
+
+Release Summary
+---------------
+
+Bug fixes for PXE boot, node-registration verification, provisioning report,
+inventory generation, and galaxy version alignment.
+
+Bug Fixes
+---------
+
+- Removed the invalid generic cloud-init phone-home fragment; Metadata Service reserves that endpoint for optional WireGuard bootstrap peer removal.
+- Updated Boot Service parameters to use ``ds=nocloud`` and disabled unsupported root filesystem resize on the live overlay image.
+- Made the Slurm tracking mount explicit and changed controller-marker waits from unbounded loops to bounded failures.
+- Fixed stale node-registration detection by verifying node boot time via /proc/uptime (#461).
+- Fixed ``failed_nodes.json`` race condition in PXE failure collection (#460).
+- Fixed provisioning report comparing GROUP_NAMEs against xnames (#458).
+- Added pre-check for missing ``configs_vars.yaml`` with clear error (#450).
+- Added custom inventory support for ``pxeboot.yml`` (#432).
+- Galaxy version set to 2.3.0 across all domains (#449).
+
+Breaking Changes
+---------------
+
+- Renamed ``phone_home`` timing and verification controls to ``node_registration`` throughout PXE provisioning workflow.
+  - Role: ``verify_phone_home`` → ``verify_node_registration``
+  - Variables: ``enable_phone_home`` → ``enable_node_registration``, etc.
+  - Legacy ``phone_home_*`` variables supported with deprecation warning
+  - Node completion is verified directly through SSH, boot freshness, and cloud-init status
+
 v2.2.0
 ======
 

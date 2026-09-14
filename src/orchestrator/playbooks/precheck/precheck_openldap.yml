@@ -61,13 +61,13 @@
 
         - name: Check if credential file exists
           ansible.builtin.stat:
-            path: "{{ input_project_dir }}/omnia_config_credentials.yml"
+            path: "{{ input_project_dir }}/orchestrator_credentials.yml"
           register: _cred_file_check
 
         - name: Warn if credential file is missing (will be prompted during prepare)
           ansible.builtin.debug:
             msg: >-
-              Credential file not found at {{ input_project_dir }}/omnia_config_credentials.yml.
+              Credential file not found at {{ input_project_dir }}/orchestrator_credentials.yml.
               OpenLDAP credentials (openldap_db_username, openldap_db_password) will be
               prompted during the prepare phase.
           when: not _cred_file_check.stat.exists

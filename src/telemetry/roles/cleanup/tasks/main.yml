@@ -30,6 +30,7 @@
 #     tasks_from: powerscale       # Cleanup PowerScale
 #     tasks_from: ufm              # Cleanup UFM
 #     tasks_from: vast             # Cleanup VAST
+#     tasks_from: cleanup_credentials  # Cleanup credentials (auto-invoked)
 
 #
 # Calling main.yml directly is a no-op (this file).

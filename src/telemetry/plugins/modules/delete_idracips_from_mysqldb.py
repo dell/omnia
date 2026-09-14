@@ -18,6 +18,99 @@ This module connects to a Kubernetes pod running MySQL via PyMySQL and deletes
 iDRAC IPs that are not present in bmc_data.csv. It uses parameterized queries
 to prevent SQL injection. It handles retries and delays for robustness."""
 
+DOCUMENTATION = r'''
+---
+module: delete_idracips_from_mysqldb
+short_description: Delete iDRAC IPs from MySQL database in Kubernetes
+version_added: "2.3.0"
+description:
+  - Connects to MySQL pods running inside Kubernetes and deletes iDRAC IP
+    entries from the C(services) table.
+  - Resolves pod IPs via the Kubernetes API and uses PyMySQL with
+    parameterized queries to prevent SQL injection.
+  - Iterates over each pod and deletes only IPs assigned to that pod
+    (intersection of C(ips_to_delete) and C(pod_to_db_idrac_ips[pod])).
+options:
+  telemetry_namespace:
+    description: Kubernetes namespace where the MySQL pods are running.
+    type: str
+    required: true
+  idrac_podnames:
+    description: List of iDRAC telemetry pod names containing MySQL databases.
+    type: list
+    elements: str
+    required: true
+  mysqldb_container_port:
+    description: TCP port of the MySQL container inside the pod.
+    type: int
+    required: true
+  mysqldb_name:
+    description: Name of the MySQL database.
+    type: str
+    required: true
+  mysql_user:
+    description: MySQL username for authentication.
+    type: str
+    required: true
+  mysql_password:
+    description: MySQL password for authentication.
+    type: str
+    required: true
+  ips_to_delete:
+    description: List of iDRAC IP addresses to delete.
+    type: list
+    elements: str
+    required: true
+  pod_to_db_idrac_ips:
+    description: >
+      Mapping of pod names to their currently stored iDRAC IPs.
+      Only IPs in the intersection of this list and C(ips_to_delete) are removed.
+    type: dict
+    required: true
+author:
+  - Dell Technologies (@dell)
+'''
+
+EXAMPLES = r'''
+- name: Delete stale iDRAC IPs from all telemetry MySQL pods
+  omnia.telemetry.delete_idracips_from_mysqldb:
+    telemetry_namespace: telemetry
+    idrac_podnames: "{{ idrac_podnames }}"
+    mysqldb_container_port: 3306
+    mysqldb_name: idrac_telemetry_db
+    mysql_user: "{{ mysql_user }}"
+    mysql_password: "{{ mysql_password }}"
+    ips_to_delete: "{{ stale_ips }}"
+    pod_to_db_idrac_ips: "{{ pod_to_db_idrac_ips }}"
+'''
+
+RETURN = r'''
+changed:
+  description: Whether any IPs were deleted.
+  type: bool
+  returned: always
+deleted_ips:
+  description: List of iDRAC IPs that were successfully deleted.
+  type: list
+  elements: str
+  returned: always
+  sample: ["192.168.1.10", "192.168.1.11"]
+failed_ips:
+  description: List of dicts describing IPs that could not be deleted.
+  type: list
+  elements: dict
+  returned: always
+  sample:
+    - pod: idrac-pod-0
+      ip: "192.168.1.12"
+      msg: "Connection refused"
+msg:
+  description: Summary message.
+  type: str
+  returned: always
+  sample: "Deleted 2 iDRAC IPs from MySQL database."
+'''
+
 import pymysql
 from ansible.module_utils.basic import AnsibleModule
 from kubernetes import client, config

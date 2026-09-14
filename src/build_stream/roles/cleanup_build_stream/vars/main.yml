@@ -26,6 +26,8 @@ omnia_target: "/etc/systemd/system/omnia.target"
 playbook_watcher_service_file: "/etc/systemd/system/playbook_watcher.service"
 
 # ── NFS cleanup directories ────────────────────────────────────────
+# NOTE: Do NOT delete the input directory - it contains user configuration
+# that must persist across cleanup/redeploy cycles (similar to image_build_manager).
 omnia_nfs_share: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}"
 build_stream_cleanup_directory:
   - "{{ omnia_nfs_share }}/build_stream/log"
@@ -34,7 +36,6 @@ build_stream_cleanup_directory:
   - "{{ omnia_nfs_share }}/build_stream_root"
   - "{{ omnia_nfs_share }}/build_stream_inv"
   - "{{ omnia_nfs_share }}/build_stream_enabled"
-  - "{{ omnia_nfs_share }}/build_stream"
 
 # ── Postgres cleanup ───────────────────────────────────────────────
 postgres_cleanup_directory:

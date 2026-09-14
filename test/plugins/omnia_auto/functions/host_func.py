@@ -27,6 +27,7 @@ Handles:
 
 import atexit
 import os
+import re
 import shutil
 import shlex
 import subprocess
@@ -37,20 +38,35 @@ import yaml
 import testinfra
 
 from ..vars.common_vars import get_module_root, get_setting
-from ..vars.credential_vars import VAULT_FILE_MODE, VAULT_HEADER
+from ..vars.credential_vars import VAULT_FILE_MODE
+from .credential_func import (
+    ensure_vault_key,
+    is_vault_encrypted,
+    read_all_fields,
+    vault_encrypt,
+)
 from .formatting_func import log
 from .process_security import (
-    atomic_sensitive_output,
     exclusive_sensitive_text,
-    open_sensitive_text,
-    protect_sensitive_file as _protect_sensitive_file,
-    run_vault_decrypt,
-    run_vault_encrypt,
-    sensitive_file_descriptor,
+)
+from ._ssh_options import (
+    parse_ssh_options,
+    validate_ssh_destination,
+    validate_ssh_port,
 )
 
 
 _TESTINFRA_INVENTORY_DIRS: List[str] = []
+_ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _require_yaml_mapping(value: Any, source: str) -> Dict[str, Any]:
+    """Return a YAML mapping, rejecting ambiguous document roots."""
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"{source} must contain a YAML mapping")
+    return value
 
 
 @atexit.register
@@ -150,95 +166,10 @@ def load_test_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     path = _resolve_config_path(config_path)
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as cfg_fh:
-            return yaml.safe_load(cfg_fh) or {}
+            return _require_yaml_mapping(
+                yaml.safe_load(cfg_fh), path,
+            )
     return {}
-
-
-# =============================================================================
-# VAULT ENCRYPTION
-# =============================================================================
-
-def _is_vault_encrypted(file_path: str) -> bool:
-    """Check if file is ansible-vault encrypted."""
-    if not os.path.lexists(file_path):
-        return False
-    with open_sensitive_text(
-        file_path, VAULT_FILE_MODE,
-    ) as file_stream:
-        first_line = file_stream.readline().strip()
-    return first_line.startswith(VAULT_HEADER)
-
-
-def _create_vault_key(key_path: str) -> None:
-    """Create a new vault key file with a random 32-char token."""
-    import secrets
-    key = secrets.token_urlsafe(32)[:32]
-    with exclusive_sensitive_text(key_path, VAULT_FILE_MODE) as f:
-        f.write(key)
-
-
-def _decrypt_vault_file(config_path: str, key_path: str) -> Dict:
-    """Decrypt ansible-vault encrypted file and return as dict."""
-    try:
-        with sensitive_file_descriptor(
-            config_path, VAULT_FILE_MODE,
-        ) as config_fd, sensitive_file_descriptor(
-            key_path, VAULT_FILE_MODE,
-        ) as key_fd:
-            plaintext = run_vault_decrypt(
-                config_fd,
-                key_fd,
-                timeout=30,
-            )
-        return yaml.safe_load(plaintext) or {}
-    except subprocess.CalledProcessError as exc:
-        raise ValueError(
-            f"Failed to decrypt {config_path}: {exc.stderr}"
-        ) from exc
-    except FileNotFoundError:
-        raise ValueError(
-            "ansible-vault not found. Install ansible."
-        ) from None
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        raise ValueError(
-            f"Failed to decrypt {config_path}: {exc}"
-        ) from exc
-
-
-def _encrypt_vault_file(config_path: str, key_path: str) -> bool:
-    """Encrypt file with ansible-vault."""
-    try:
-        with sensitive_file_descriptor(
-            config_path, VAULT_FILE_MODE,
-        ) as config_fd, sensitive_file_descriptor(
-            key_path, VAULT_FILE_MODE,
-        ) as key_fd, atomic_sensitive_output(
-            config_path, VAULT_FILE_MODE,
-        ) as encrypted_fd:
-            run_vault_encrypt(
-                config_fd,
-                key_fd,
-                encrypted_fd,
-                timeout=30,
-                vault_header=VAULT_HEADER,
-            )
-    except subprocess.CalledProcessError as exc:
-        raise ValueError(
-            f"Failed to encrypt {config_path}: {exc.stderr}"
-        ) from exc
-    except FileNotFoundError:
-        raise ValueError(
-            "ansible-vault not found. Install ansible."
-        ) from None
-    except subprocess.TimeoutExpired as exc:
-        raise ValueError(
-            f"Timed out while encrypting {config_path}"
-        ) from exc
-    except OSError as exc:
-        raise ValueError(
-            f"Failed to encrypt {config_path}: {exc}"
-        ) from exc
-    return True
 
 
 def load_test_credentials(
@@ -262,23 +193,17 @@ def load_test_credentials(
     if not os.path.lexists(creds_path):
         return {}
 
-    if _is_vault_encrypted(creds_path):
-        if os.path.lexists(key_path):
-            return _decrypt_vault_file(creds_path, key_path)
-        raise ValueError(
-            f"Credentials encrypted but key not found: {key_path}"
-        )
+    result = read_all_fields(creds_path, key_path)
+    if not result["success"]:
+        raise ValueError(result["error"])
+    credentials = _require_yaml_mapping(result["data"], creds_path)
 
-    with open_sensitive_text(
-        creds_path, VAULT_FILE_MODE,
-    ) as creds_fh:
-        creds = yaml.safe_load(creds_fh) or {}
-
-    if not os.path.lexists(key_path):
-        _create_vault_key(key_path)
-
-    _encrypt_vault_file(creds_path, key_path)
-    return creds
+    if not is_vault_encrypted(creds_path):
+        ensure_vault_key(key_path)
+        encryption = vault_encrypt(creds_path, key_path)
+        if not encryption["success"]:
+            raise ValueError(encryption["error"])
+    return credentials
 
 
 def encrypt_test_credentials(
@@ -295,14 +220,16 @@ def encrypt_test_credentials(
 
     if not os.path.lexists(creds_path):
         return False
-    if _is_vault_encrypted(creds_path):
-        if os.path.lexists(key_path):
-            _protect_sensitive_file(key_path)
+    if is_vault_encrypted(creds_path):
+        if not os.path.lexists(key_path):
+            raise ValueError(
+                f"Credentials encrypted but key not found: {key_path}"
+            )
         return True
-    if not os.path.lexists(key_path):
-        _create_vault_key(key_path)
-
-    _encrypt_vault_file(creds_path, key_path)
+    ensure_vault_key(key_path)
+    result = vault_encrypt(creds_path, key_path)
+    if not result["success"]:
+        raise ValueError(result["error"])
     return True
 
 
@@ -360,16 +287,18 @@ def get_testinfra_host():
         return testinfra.get_host("local://")
 
     # Remote — SSH
-    ssh_user = config["oim_ssh_user"]
-    ssh_port = config.get("oim_ssh_port", 22)
+    oim_ip, ssh_user = validate_ssh_destination(
+        oim_ip, config["oim_ssh_user"],
+    )
+    ssh_port = validate_ssh_port(config.get("oim_ssh_port", 22))
     ssh_auth = credentials.get("oim_password", "")
 
     ssh_args = get_setting(
         "ssh_opts",
-        "-o StrictHostKeyChecking=no "
-        "-o UserKnownHostsFile=/dev/null "
+        "-o StrictHostKeyChecking=accept-new "
         "-o LogLevel=ERROR",
     )
+    ssh_args = shlex.join(parse_ssh_options(ssh_args))
 
     inventory_path = _write_testinfra_inventory({
         "all": {
@@ -431,28 +360,35 @@ def run_ssh_command(
     Raises:
         ValueError: If a required value is empty or timeout is invalid.
     """
-    if not isinstance(target, str) or not target.strip():
-        raise ValueError("SSH target must be a non-empty string")
-    if not isinstance(user, str) or not user.strip():
-        raise ValueError("SSH user must be a non-empty string")
+    target, user = validate_ssh_destination(target, user)
     if not isinstance(command, str) or not command.strip():
         raise ValueError("SSH command must be a non-empty string")
-    if not isinstance(connect_timeout, int) or connect_timeout <= 0:
+    if (
+        not isinstance(connect_timeout, int)
+        or isinstance(connect_timeout, bool)
+        or connect_timeout <= 0
+    ):
         raise ValueError("SSH connect_timeout must be a positive integer")
 
     ssh_options = get_setting(
         "ssh_opts",
-        "-o StrictHostKeyChecking=no "
-        "-o UserKnownHostsFile=/dev/null "
+        "-o StrictHostKeyChecking=accept-new "
         "-o LogLevel=ERROR",
     )
-    ssh_command = (
-        f"ssh {ssh_options} -o BatchMode=yes "
-        f"-o ConnectTimeout={connect_timeout} "
-        f"{shlex.quote(f'{user.strip()}@{target.strip()}')} "
-        f"{shlex.quote(command)}"
-    )
-    return run_on_host(host, ssh_command)
+    option_parts = parse_ssh_options(ssh_options)
+    command_parts = [
+        "ssh",
+        *option_parts,
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        f"ConnectTimeout={connect_timeout}",
+        "--",
+        f"{user}@{target}",
+        command,
+    ]
+    command_template = " ".join("%s" for _ in command_parts)
+    return run_on_host(host, command_template, *command_parts)
 
 
 # =============================================================================
@@ -463,7 +399,7 @@ _DEFAULT_ENV_FILE = "/etc/omnia/omnia.env"
 
 
 def connection_params() -> dict:
-    """Build mode / ip / user / auth_secret / ssh_opts from test config.
+    """Build mode / ip / user / port / auth_secret / ssh_opts from config.
 
     Returns a dict ready to unpack into ``sync_files()`` or other
     functions that need SSH connection details::
@@ -472,7 +408,7 @@ def connection_params() -> dict:
         sync_files(mode=conn["mode"], ip=conn["ip"], ...)
 
     Returns:
-        Dict with keys: mode, ip, user, auth_secret, ssh_opts.
+        Dict with keys: mode, ip, user, port, auth_secret, ssh_opts.
 
     Raises:
         ValueError: If required config keys are missing for remote mode.
@@ -482,13 +418,13 @@ def connection_params() -> dict:
     local = is_local_execution()
 
     if not local:
-        oim_ip = config.get("oim_server_ip", "").strip()
+        oim_ip = config.get("oim_server_ip", "")
         if not oim_ip:
             raise ValueError(
                 "oim_server_ip is required in test_config.yml "
                 "for remote (SSH) execution"
             )
-        oim_user = config.get("oim_ssh_user", "").strip()
+        oim_user = config.get("oim_ssh_user", "")
         if not oim_user:
             raise ValueError(
                 "oim_ssh_user is required in test_config.yml "
@@ -498,23 +434,32 @@ def connection_params() -> dict:
         oim_ip = None
         oim_user = config.get("oim_ssh_user", "root")
 
+    if not local:
+        oim_ip, oim_user = validate_ssh_destination(oim_ip, oim_user)
+        oim_port = validate_ssh_port(config.get("oim_ssh_port", 22))
+    else:
+        oim_port = 22
+
     oim_auth = creds.get("oim_password") or None
     return {
         "mode": "local" if local else "ssh",
         "ip": oim_ip,
         "user": oim_user,
+        "port": oim_port,
         "auth_secret": oim_auth,
         "ssh_opts": get_setting(
             "ssh_opts",
-            "-o StrictHostKeyChecking=no "
-            "-o UserKnownHostsFile=/dev/null "
+            "-o StrictHostKeyChecking=accept-new "
             "-o LogLevel=ERROR",
         ),
     }
 
 
 def read_remote_env(
-    host, var_name: str, env_file: str = None
+    host,
+    var_name: str,
+    env_file: str = None,
+    required: bool = True,
 ) -> str:
     """Read an environment variable from the target host.
 
@@ -527,21 +472,32 @@ def read_remote_env(
         env_file: Path to the env file on the target host.
             Defaults to ``configure(env_file=...)`` or
             ``/etc/omnia/omnia.env``.
+        required: Raise ``ValueError`` when the variable is unset or empty.
+            Set to ``False`` only for optional environment variables.
 
     Returns:
         The variable value, stripped.
 
     Raises:
-        ValueError: If the variable is not set or empty on the target.
+        ValueError: If input is invalid, or a required variable is unset.
     """
+    if not isinstance(var_name, str) or not _ENV_NAME_RE.fullmatch(var_name):
+        raise ValueError(
+            "Environment variable name must contain only letters, digits, "
+            "and underscores and must not begin with a digit"
+        )
+    if not isinstance(required, bool):
+        raise ValueError("required must be a boolean")
     ef = env_file or get_setting("env_file", _DEFAULT_ENV_FILE)
+    if not isinstance(ef, str) or not ef:
+        raise ValueError("env_file must be a non-empty path")
     cmd = (
-        f"test -f {ef} && set -a && . {ef} && set +a; "
-        f"echo ${{{var_name}}}"
+        "test -f %s && set -a && . %s && set +a && "
+        f"printenv {var_name}"
     )
-    result = host.run(cmd)
+    result = host.run(cmd, ef, ef)
     value = result.stdout.strip() if result.rc == 0 else ""
-    if not value:
+    if not value and required:
         raise ValueError(
             f"Environment variable '{var_name}' is not set on the "
             f"target host.  Ensure the environment has been set up "
@@ -561,9 +517,9 @@ def ensure_remote_dir(host, path: str) -> None:
         ValueError: If *path* is empty.
         RuntimeError: If ``mkdir -p`` fails.
     """
-    if not path:
-        raise ValueError("path is required for ensure_remote_dir")
-    result = host.run(f"mkdir -p {path}")
+    if not isinstance(path, str) or not path or "\x00" in path:
+        raise ValueError("path must be a non-empty filesystem path")
+    result = host.run("mkdir -p -- %s", path)
     if result.rc != 0:
         raise RuntimeError(
             f"Failed to create remote directory '{path}': "
@@ -580,15 +536,30 @@ def read_remote_yaml(host, file_path: str) -> Dict[str, Any]:
         file_path: Absolute path to the YAML file on the target.
 
     Returns:
-        Parsed dict, or empty dict on failure.
+        Parsed mapping. An empty YAML document returns an empty mapping.
+
+    Raises:
+        ValueError: If the path is empty or YAML is malformed/non-mapping.
+        RuntimeError: If the remote file cannot be read.
     """
-    result = host.run(f"cat {file_path} 2>/dev/null")
-    if result.rc != 0 or not result.stdout.strip():
+    if not isinstance(file_path, str) or not file_path:
+        raise ValueError("file_path must be a non-empty path")
+    result = host.run("cat -- %s", file_path)
+    if result.rc != 0:
+        error = result.stderr.strip() or "remote command failed"
+        raise RuntimeError(
+            f"Unable to read remote YAML file '{file_path}': {error}"
+        )
+    if not result.stdout.strip():
         return {}
     try:
-        return yaml.safe_load(result.stdout) or {}
-    except yaml.YAMLError:
-        return {}
+        return _require_yaml_mapping(
+            yaml.safe_load(result.stdout), file_path,
+        )
+    except yaml.YAMLError as exc:
+        raise ValueError(
+            f"Invalid YAML in remote file '{file_path}': {exc}"
+        ) from exc
 
 
 def read_yaml_key(data: Dict[str, Any], key_path: str, default=None):
@@ -610,6 +581,10 @@ def read_yaml_key(data: Dict[str, Any], key_path: str, default=None):
         read_yaml_key(cfg, "telemetry_sinks.victoria_metrics")
         read_yaml_key(cfg, "isilonClusters.0.endpoint")
     """
+    if not isinstance(data, dict):
+        raise ValueError("data must be a mapping")
+    if not isinstance(key_path, str) or not key_path:
+        raise ValueError("key_path must be a non-empty string")
     current = data
     for part in key_path.split("."):
         if current is None:
@@ -626,13 +601,66 @@ def read_yaml_key(data: Dict[str, Any], key_path: str, default=None):
     return current if current is not None else default
 
 
+def resolve_domain_data_path(
+    host,
+    domain: str,
+    data_path_var: str,
+    domain_data_path_var: str = None,
+) -> str:
+    """Resolve the remote data root for a domain.
+
+    A non-empty domain-specific environment variable takes precedence. When
+    it is unset or empty, the path is derived as ``<data_path>/<domain>``.
+
+    Args:
+        host: Testinfra host object.
+        domain: Safe domain name (for example ``telemetry``).
+        data_path_var: Name of the base data-path environment variable.
+        domain_data_path_var: Optional name of a domain-specific data-path
+            environment variable.
+
+    Returns:
+        The resolved domain data root without a trailing slash.
+
+    Raises:
+        ValueError: If input is invalid or no usable data path is available.
+    """
+    if not isinstance(domain, str) or not re.fullmatch(
+        r"[A-Za-z][A-Za-z0-9_-]*", domain,
+    ):
+        raise ValueError("domain must be a safe non-empty identifier")
+
+    domain_data_path = ""
+    if domain_data_path_var is not None:
+        domain_data_path = read_remote_env(
+            host, domain_data_path_var, required=False,
+        )
+
+    if domain_data_path:
+        resolved_path = domain_data_path.rstrip("/")
+    else:
+        data_path = read_remote_env(host, data_path_var).rstrip("/")
+        resolved_path = f"{data_path}/{domain}"
+
+    if not resolved_path.startswith("/"):
+        raise ValueError("Resolved domain data path must be absolute")
+    if resolved_path == "/":
+        raise ValueError("Resolved domain data path must not be filesystem root")
+    log(f"Resolved remote domain data path: {resolved_path}", "INFO")
+    return resolved_path
+
+
 def resolve_domain_input_path(
-    host, domain: str, data_path_var: str, project_var: str
+    host,
+    domain: str,
+    data_path_var: str,
+    project_var: str,
+    domain_data_path_var: str = None,
 ) -> str:
     """Build the remote input directory for a domain.
 
-    Reads the given environment variables from the target and
-    assembles ``<data_path>/<domain>/input/<project>/``.
+    Uses the optional domain-specific path when it is non-empty. Otherwise,
+    assembles ``<data_path>/<domain>/input/<project>``.
 
     Args:
         host: Testinfra host object.
@@ -641,18 +669,23 @@ def resolve_domain_input_path(
             (e.g. ``OMNIA_DATA_PATH``).
         project_var: Name of the env var holding the project name
             (e.g. ``OMNIA_PROJECT_NAME``).
+        domain_data_path_var: Optional name of the env var holding the
+            complete domain data root (e.g. ``TELEMETRY_DATA_PATH``).
 
     Returns:
         Absolute path string on the target.
 
     Raises:
-        ValueError: If *domain* is empty or either env var is unset.
+        ValueError: If input is invalid or a required env var is unset.
     """
-    if not domain:
-        raise ValueError("domain is required for resolve_domain_input_path")
-    data_path = read_remote_env(host, data_path_var)
+    domain_data_path = resolve_domain_data_path(
+        host,
+        domain,
+        data_path_var,
+        domain_data_path_var,
+    )
     project = read_remote_env(host, project_var)
-    remote_input = f"{data_path}/{domain}/input/{project}"
+    remote_input = f"{domain_data_path}/input/{project}"
     log(f"Resolved remote input path: {remote_input}", "INFO")
     return remote_input
 

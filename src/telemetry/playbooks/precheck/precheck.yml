@@ -32,18 +32,20 @@
 #     4. kube_vip SSH (port 22) is reachable
 #   [kube_vip]
 #     5. kubectl is available and K8s API server is accessible
-#     6. All control plane nodes are in Ready state (fail if any are not Ready)
-#     7. Worker node minimum readiness threshold met:
+#     6. All K8s nodes are reachable via SSH (port 22)
+#     7. All control plane nodes are in Ready state (fail if any are not Ready)
+#     8. Worker node minimum readiness threshold met:
 #          1 worker  → 1 Ready required
 #          2 workers → 2 Ready required
 #          3+ workers → at least 2 Ready required
-#     8. All pods (outside telemetry namespace) are Running or Succeeded
-#     9. [Conditional] isilon namespace exists and all its pods are Running
+#     9. All pods (outside telemetry namespace) are Running or Succeeded
+#    10. [Conditional] isilon namespace exists and all its pods are Running
 #          — only when powerscale.metrics_enabled or powerscale.logs_enabled = true
-#    10. [Conditional] PowerScale user has required privileges
+#    11. [Conditional] PowerScale user has required privileges
 #          — only when powerscale.metrics_enabled or powerscale.logs_enabled = true
-#    11. [Conditional] LDMS Slurm cluster validation:
+#    12. [Conditional] LDMS Slurm cluster validation:
 #          - At least 1 slurm_control_node and 1 slurm_node in cluster inventory
+#          - All Slurm nodes (control, compute, login, login_compiler) are reachable via SSH
 #          - slurmctld running on all slurm_control_node hosts
 #          - slurmd running on all slurm_node hosts
 #          — only when ldms.metrics_enabled = true
@@ -87,6 +89,11 @@
   gather_facts: false
   any_errors_fatal: true
   tasks:
+    - name: Check K8s node reachability
+      ansible.builtin.include_role:
+        name: precheck
+        tasks_from: check_k8s_node_reachability
+
     - name: Check K8s control plane nodes are all Ready
       ansible.builtin.include_role:
         name: precheck

@@ -15,8 +15,91 @@
 # pylint: disable=import-error,no-name-in-module,line-too-long
 
 #!/usr/bin/python
+"""Ansible module to validate BMC group data from CSV."""
 
-"""Ansible module to check telemetry service cluster node details."""
+DOCUMENTATION = r'''
+---
+module: validate_bmc_group_data
+short_description: Validate BMC group data CSV structure and content
+version_added: "2.3.0"
+description:
+  - Validates BMC group data entries parsed from a CSV file.
+  - Checks that headers match the expected columns (C(BMC_IP),
+    C(GROUP_NAME), C(PARENT)), all IP addresses are well-formed,
+    and external IPs (not in omniadb) do not have PARENT or GROUP_NAME set.
+  - Returns a structured dictionary mapping parent service tags to
+    their child BMC IPs, plus a C(MGMT_node) key for standalone entries.
+options:
+  nodes_bmc_ips:
+    description: List of known BMC IPs from the Omnia database.
+    type: list
+    elements: str
+    required: true
+  bmc_group_data:
+    description: >
+      Raw CSV lines (including header) from the BMC group data file.
+    type: list
+    elements: str
+    required: true
+  bmc_group_data_headers:
+    description: Expected header columns as a list of strings.
+    type: list
+    elements: str
+    required: true
+  bmc_group_data_file:
+    description: Path to the BMC group data file (used in error messages).
+    type: str
+    required: false
+author:
+  - Dell Technologies (@dell)
+'''
+
+EXAMPLES = r'''
+- name: Validate BMC group data
+  omnia.telemetry.validate_bmc_group_data:
+    nodes_bmc_ips: "{{ nodes_bmc_ips }}"
+    bmc_group_data: "{{ bmc_csv_lines }}"
+    bmc_group_data_headers:
+      - BMC_IP
+      - GROUP_NAME
+      - PARENT
+    bmc_group_data_file: "{{ bmc_group_data_path }}"
+  register: validation_result
+
+- name: Display validated BMC IP mapping
+  ansible.builtin.debug:
+    var: validation_result.bmc_ips
+'''
+
+RETURN = r'''
+changed:
+  description: Always false (validation-only module).
+  type: bool
+  returned: always
+  sample: false
+bmc_dict_list:
+  description: List of parsed BMC entries as dictionaries.
+  type: list
+  elements: dict
+  returned: success
+  sample:
+    - BMC_IP: "192.168.1.10"
+      GROUP_NAME: "group1"
+      PARENT: "SVC-TAG-001"
+bmc_ips:
+  description: >
+    Dictionary mapping parent service tags to lists of child BMC IPs,
+    plus a C(MGMT_node) key for entries without a parent.
+  type: dict
+  returned: success
+  sample:
+    SVC-TAG-001: ["192.168.1.10"]
+    MGMT_node: ["192.168.1.20"]
+msg:
+  description: Validation status message.
+  type: str
+  returned: always
+'''
 
 import re
 from ansible.module_utils.basic import AnsibleModule

@@ -11,13 +11,14 @@ All workflows run on pull requests targeting `main`, `staging`, `release_*`, `is
 | 3 | **Commit Hygiene** | `commit-hygiene.yml` | 3 | Blocking (Job 1) | Validates commit authors, messages, copyright headers, and test co-changes |
 | 4 | **HPC Compliance Scanner** | `hpc-compliance.yml` | 1 | Mixed | HPC anti-patterns + Checkmarx pre-scan (see below) |
 | 5 | **PR Hygiene** | `pr-hygiene.yml` | 1 | Blocking | Validates PR title format, branch naming, and spec/code separation |
-| 6 | **Secret Leak Scan** | `gitleaks.yml` | 1 | Blocking | Scans for secrets and credentials using `gitleaks` with custom `.gitleaks.toml` |
-| 7 | **Dependency Vulnerability Scan** | `pip-audit.yml` | 1 | Blocking | `pip-audit` scans Python dependencies for known CVEs |
-| 8 | **Pylint** | `pylint.yml` | 1 | Blocking | Lint Python code -- minimum score >= 8.0 per file |
-| 9 | **Unit Tests & Coverage** | `pytest.yml` | 1 | Blocking | Runs `pytest` with coverage reporting |
-| 10 | **ShellCheck** | `shellcheck.yml` | 1 | Blocking | Static analysis of shell scripts |
+| 6 | **PR Issue and Network Policy** | `pr-policy.yml` | 1 | Blocking | Requires a linked issue and rejects added `100.x.x.x` IPv4 addresses |
+| 7 | **Secret Leak Scan** | `gitleaks.yml` | 1 | Blocking | Scans for secrets and credentials using `gitleaks` with custom `.gitleaks.toml` |
+| 8 | **Dependency Vulnerability Scan** | `pip-audit.yml` | 1 | Blocking | `pip-audit` scans Python dependencies for known CVEs |
+| 9 | **Pylint** | `pylint.yml` | 1 | Blocking | Lint Python code -- minimum score >= 8.0 per file |
+| 10 | **Unit Tests & Coverage** | `pytest.yml` | 1 | Blocking | Runs `pytest` with coverage reporting |
+| 11 | **ShellCheck** | `shellcheck.yml` | 1 | Blocking | Static analysis of shell scripts |
 
-**Total: 10 workflows, 12 jobs**
+**Total: 11 workflows, 13 jobs**
 
 > **Note:** YAML linting is handled by `ansible-lint` (production profile). A separate `yamllint` workflow is not required.
 
@@ -67,6 +68,7 @@ The `hpc-compliance.yml` workflow enforces Omnia-specific HPC rules that `ansibl
 | Pylint | `pylint` | Score >= 8.0 per file | `python.md` §7.1 |
 | ShellCheck | `shellcheck` | Zero errors | `ansible.md` §14 |
 | PR Hygiene | `pr-hygiene.yml` | Valid PR title format, branch naming, spec/code separation | `general.md` §11 |
+| PR Policy | `pr-policy.yml` | Linked issue and no added `100.x.x.x` IPv4 addresses | Repository policy |
 
 ### Security
 
@@ -127,6 +129,10 @@ The `pr-hygiene.yml` workflow enforces PR-level validation rules:
 |----------|----------------|
 | **Commit Hygiene** | Commit author validation, message format, copyright headers, test co-changes |
 | **PR Hygiene** | PR title format, branch naming (`pub/*`), spec/code separation |
+| **PR Issue and Network Policy** | Required issue reference and blocked `100.x.x.x` IPv4 addresses in PR metadata or added lines |
+
+Configure **Validate linked issue and IP policy** as a required status check in the
+repository branch ruleset so a failing result prevents merge.
 
 ---
 

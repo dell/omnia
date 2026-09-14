@@ -25,8 +25,12 @@ Contains:
 import os
 import sys
 from collections.abc import Mapping
+from contextvars import ContextVar
 from datetime import datetime
-from typing import Any, Iterable, Tuple, Union
+import json
+from typing import Any, Dict, Iterable, List, Tuple, Union
+
+from ._file_io import advisory_lock, atomic_write_json
 
 
 FieldItems = Union[Mapping[Any, Any], Iterable[Tuple[Any, Any]]]
@@ -92,24 +96,27 @@ class Symbols:
 # LOGGING
 # =============================================================================
 
-_debug_mode = False
-_verbose_mode = bool(os.environ.get("OMNIA_VERBOSE", ""))
+_DEBUG_MODE: ContextVar[bool] = ContextVar(
+    "omnia_auto_debug_mode", default=False,
+)
+_VERBOSE_MODE: ContextVar[bool] = ContextVar(
+    "omnia_auto_verbose_mode",
+    default=bool(os.environ.get("OMNIA_VERBOSE", "")),
+)
 
 
 def set_debug_mode(enabled: bool) -> None:
-    """Enable or disable debug mode globally."""
-    global _debug_mode
-    _debug_mode = enabled
+    """Enable or disable debug mode in the current execution context."""
+    _DEBUG_MODE.set(bool(enabled))
 
 
 def set_verbose_mode(enabled: bool) -> None:
-    """Enable or disable verbose mode globally.
+    """Enable or disable verbose mode in the current execution context.
 
     When verbose is off, INFO-level log messages are suppressed.
     WARN, ERROR, and OK messages always display.
     """
-    global _verbose_mode
-    _verbose_mode = enabled
+    _VERBOSE_MODE.set(bool(enabled))
 
 
 def log(message: str, level: str = "INFO") -> None:
@@ -119,9 +126,9 @@ def log(message: str, level: str = "INFO") -> None:
     (set via ``set_verbose_mode(True)`` or ``OMNIA_VERBOSE`` env var).
     DEBUG messages require debug mode.  WARN, ERROR, and OK always print.
     """
-    if level == "DEBUG" and not _debug_mode:
+    if level == "DEBUG" and not _DEBUG_MODE.get():
         return
-    if level == "INFO" and not _verbose_mode:
+    if level == "INFO" and not _VERBOSE_MODE.get():
         return
 
     timestamp = datetime.now().strftime("%H:%M:%S")
@@ -140,16 +147,22 @@ def log(message: str, level: str = "INFO") -> None:
 # TEST LOGGER
 # =============================================================================
 
-_last_output = ""
-_last_tc_id = ""
-_last_detail_fields = []
+_LAST_OUTPUT: ContextVar[str] = ContextVar(
+    "omnia_auto_last_output", default="",
+)
+_LAST_TC_ID: ContextVar[str] = ContextVar(
+    "omnia_auto_last_tc_id", default="",
+)
+_LAST_DETAIL_FIELDS: ContextVar[Tuple[Dict[str, str], ...]] = ContextVar(
+    "omnia_auto_last_detail_fields", default=(),
+)
 
 MAX_LINE_WIDTH = 100
 
 
 def get_test_output(test_name: str = None) -> str:  # pylint: disable=unused-argument
     """Get captured output for the last test."""
-    return _last_output
+    return _LAST_OUTPUT.get()
 
 
 def get_last_tc_id() -> str:
@@ -161,12 +174,12 @@ def get_last_tc_id() -> str:
     Returns:
         str: Test case ID (e.g., "IMGBM_FVT_BUILD_V001") or empty string.
     """
-    return _last_tc_id
+    return _LAST_TC_ID.get()
 
 
 def get_last_detail_fields() -> list:
     """Return structured fields set by the most recent TestLogger result."""
-    return [field.copy() for field in _last_detail_fields]
+    return [field.copy() for field in _LAST_DETAIL_FIELDS.get()]
 
 
 class TestLogger:
@@ -180,11 +193,10 @@ class TestLogger:
     """
 
     def __init__(self, test_name: str, tc_id: str = ""):
-        global _last_tc_id  # pylint: disable=global-variable-not-assigned
         self.test_name = test_name
         self.tc_id = tc_id
-        _last_tc_id = tc_id
-        _last_detail_fields.clear()
+        _LAST_TC_ID.set(tc_id)
+        _LAST_DETAIL_FIELDS.set(())
         self._output_lines = []
         self._add_line("")
         id_part = f" [{tc_id}]" if tc_id else ""
@@ -196,10 +208,9 @@ class TestLogger:
 
     def _add_line(self, line: str):
         """Add line to output and print."""
-        global _last_output
         self._output_lines.append(line)
         print(line, flush=True)
-        _last_output = "\n".join(self._output_lines)
+        _LAST_OUTPUT.set("\n".join(self._output_lines))
 
     def check(self, message: str):
         """Log check being performed."""
@@ -278,8 +289,9 @@ class TestLogger:
     def _add_fields(self, fields: FieldItems) -> None:
         """Capture structured fields and render their colored CLI lines."""
         normalized = self._normalize_fields(fields)
-        _last_detail_fields.clear()
-        _last_detail_fields.extend(field.copy() for field in normalized)
+        _LAST_DETAIL_FIELDS.set(tuple(
+            field.copy() for field in normalized
+        ))
         for field in normalized:
             self._add_line(
                 f"    {Colors.GRAY}{Symbols.PIPE}{Colors.RESET} "
@@ -314,7 +326,12 @@ class TestLogger:
 # SESSION RESULTS — shared summary table for all consumer modules
 # =============================================================================
 
-_SESSION_RESULTS = []
+_SESSION_RESULTS: ContextVar[Tuple[Dict[str, Any], ...]] = ContextVar(
+    "omnia_auto_session_results", default=(),
+)
+_RESULT_EXPORT_COUNTS: ContextVar[Tuple[Tuple[str, int], ...]] = ContextVar(
+    "omnia_auto_result_export_counts", default=(),
+)
 
 
 def add_session_result(
@@ -331,22 +348,24 @@ def add_session_result(
         duration: Duration in seconds.
         tc_id: Test case ID (e.g. ``IMGBM_FVT_PREPARE_E001``).
     """
-    _SESSION_RESULTS.append({
+    result = {
         "test_name": test_name,
         "tc_id": tc_id,
         "status": status,
         "duration": duration,
-    })
+    }
+    _SESSION_RESULTS.set((*_SESSION_RESULTS.get(), result))
 
 
-def get_session_results():
+def get_session_results() -> List[Dict[str, Any]]:
     """Return the accumulated session results list."""
-    return _SESSION_RESULTS
+    return [result.copy() for result in _SESSION_RESULTS.get()]
 
 
-def clear_session_results():
+def clear_session_results() -> None:
     """Clear accumulated session results."""
-    _SESSION_RESULTS.clear()
+    _SESSION_RESULTS.set(())
+    _RESULT_EXPORT_COUNTS.set(())
 
 
 def print_summary_table() -> None:
@@ -356,28 +375,39 @@ def print_summary_table() -> None:
     - ``OMNIA_RESULTS_FILE`` — export results to JSON for aggregation
     - ``OMNIA_SUPPRESS_SUMMARY`` — skip printing (shell wrapper prints combined)
     """
-    import json as _json
-
-    if not _SESSION_RESULTS:
+    session_results = get_session_results()
+    if not session_results:
         return
 
     results_file = os.environ.get("OMNIA_RESULTS_FILE", "")
     if results_file:
-        existing = []
-        if os.path.isfile(results_file):
-            try:
-                with open(results_file, "r", encoding="utf-8") as fh:
-                    existing = _json.load(fh)
-            except (_json.JSONDecodeError, OSError):
-                existing = []
-        existing.extend(_SESSION_RESULTS)
-        with open(results_file, "w", encoding="utf-8") as fh:
-            _json.dump(existing, fh)
+        export_counts = dict(_RESULT_EXPORT_COUNTS.get())
+        exported_count = export_counts.get(results_file, 0)
+        pending_results = session_results[exported_count:]
+        with advisory_lock(results_file):
+            existing = []
+            if os.path.isfile(results_file) and os.path.getsize(results_file):
+                try:
+                    with open(results_file, "r", encoding="utf-8") as fh:
+                        existing = json.load(fh)
+                except (json.JSONDecodeError, OSError) as exc:
+                    raise ValueError(
+                        f"Unable to load results file '{results_file}': {exc}"
+                    ) from exc
+                if not isinstance(existing, list):
+                    raise ValueError(
+                        f"Results file '{results_file}' must contain a JSON list"
+                    )
+            if pending_results:
+                existing.extend(pending_results)
+                atomic_write_json(results_file, existing)
+        export_counts[results_file] = len(session_results)
+        _RESULT_EXPORT_COUNTS.set(tuple(export_counts.items()))
 
     if os.environ.get("OMNIA_SUPPRESS_SUMMARY", ""):
         return
 
-    _render_summary(_SESSION_RESULTS)
+    _render_summary(session_results)
 
 
 def _render_summary(results) -> None:

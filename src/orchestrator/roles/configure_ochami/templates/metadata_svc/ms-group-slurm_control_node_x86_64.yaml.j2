@@ -262,22 +262,26 @@
           content: |
             #!/bin/bash
             MARKER="/var/log/track/slurm_controller_track"
+            WAIT_TIMEOUT_SECONDS=1800
+            WAIT_INTERVAL_SECONDS=5
             if [ -f "$MARKER" ]; then
               echo "Slurm controller track file already exists. Skipping."
               exit 0
             fi
 
             echo "Waiting for slurmctld to become active..."
-            while true; do
+            deadline=$((SECONDS + WAIT_TIMEOUT_SECONDS))
+            while ((SECONDS < deadline)); do
               if systemctl is-active --quiet slurmctld; then
                 echo "Slurm controller is active."
                 touch "$MARKER"
                 exit 0
-              else
-                echo "slurmctld is not active yet. Retrying in 5 seconds."
               fi
-              sleep 5
+              echo "slurmctld is not active yet. Retrying in ${WAIT_INTERVAL_SECONDS} seconds."
+              sleep "$WAIT_INTERVAL_SECONDS"
             done
+            echo "ERROR: slurmctld did not become active within ${WAIT_TIMEOUT_SECONDS} seconds." >&2
+            exit 1
 
         - path: /tmp/apptainer_mirror.conf
           permissions: '0644'

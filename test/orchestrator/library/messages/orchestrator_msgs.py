@@ -51,6 +51,22 @@ TEST_NAMES: Dict[str, str] = {
         "Verify repo_status.yml exists on target"
     ),
 
+    # Network Functionality
+    "network_spec_ok": (
+        "Network configuration validation passed"
+    ),
+    "network_spec_failed": (
+        "Network configuration validation failed"
+    ),
+
+    # PXE Boot
+    "pxe_boot_ok": (
+        "PXE boot configuration validation passed"
+    ),
+    "pxe_boot_failed": (
+        "PXE boot configuration validation failed"
+    ),
+
     # Prepare — OpenCHAMI
     "openchami_container_running": (
         "Verify OpenCHAMI container {container} is running"

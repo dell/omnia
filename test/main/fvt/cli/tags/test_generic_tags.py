@@ -15,12 +15,14 @@
 """
 Omnia Main CLI — Generic Tags Verification.
 
-TC_CL_013: Verify omnia.sh help shows 5 generic tags per domain
+MAIN_FVT_CLI_V033: Verify omnia.sh help shows 5 generic tags per domain
            (precheck, validate, prepare, execute, cleanup)
-TC_CL_014: Verify omnia.sh help shows execution order
+MAIN_FVT_CLI_V034: Verify omnia.sh help shows execution order
 """
 
 import pytest
+
+from library.vars import TEST_CASES as TC
 
 from library.functions import TestLogger
 from library.functions.omnia_main_func import (
@@ -28,19 +30,18 @@ from library.functions.omnia_main_func import (
 )
 from library.vars.common_vars import OMNIA_SH_GENERIC_TAGS
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
 )
 
 
 @pytest.mark.sanity
-@pytest.mark.order(12)
+@pytest.mark.order(33)
 def test_generic_tags_in_help(host):
-    """TC_CL_013: Verify omnia.sh help shows all 5 generic tags per domain."""
-    tl = TestLogger(
-        TEST_NAMES["sh_generic_tags_in_help"], "TC_CL_013"
-    )
+    """MAIN_FVT_CLI_V033: Verify omnia.sh help shows all 5 generic tags per domain."""
+    tc = TC["generic_tags_in_help"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(host, "omnia_sh_help")
+    tl.bind_result(result)
     output = result.get("output", "")
 
     missing = [
@@ -62,14 +63,13 @@ def test_generic_tags_in_help(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(13)
+@pytest.mark.order(34)
 def test_execution_order_in_help(host):
-    """TC_CL_014: Verify omnia.sh help shows execution order line."""
-    tl = TestLogger(
-        "Verify execution order in help",
-        "TC_CL_014",
-    )
+    """MAIN_FVT_CLI_V034: Verify omnia.sh help shows execution order line."""
+    tc = TC["execution_order_in_help"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(host, "omnia_sh_help")
+    tl.bind_result(result)
     output = result.get("output", "")
 
     # The help should contain the execution order line

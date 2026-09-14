@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,76 +12,100 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Validate the complete Orchestrator input contract."""
 
-# pylint: disable=import-error,no-name-in-module
-#!/usr/bin/python
-
-"""
-Ansible module for orchestrator-specific input validation.
-
-Performs L1 (JSON schema) and L2 (cross-field logic) validation on:
-  - orchestrator_config.yml (required)
-  - network_spec.yml        (optional — cross-validated against mapping file)
-
-Usage in a playbook:
-  - name: Validate orchestrator configuration
-    validate_orchestrator_config:
-      input_project_dir: "{{ input_project_dir }}"
-      schema_dir: "{{ role_path }}/../../../plugins/module_utils/orchestrator_validation/schema"
-"""
+from __future__ import annotations
 
 import json
 import logging
 import os
+from dataclasses import dataclass, field
+from typing import Any
 
 import yaml
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.orchestrator_validation.orchestrator_validation_flow import (
-    validate_orchestrator_config_l2,
-    validate_network_spec,
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic as validate_orchestrator_config_l2,
+    logic_network as validate_network_spec,
+    logic_storage as validate_storage_references,
+    schema as validate_against_schema,
+)
+from ansible.module_utils.orchestrator_validation.messages import (
+    orchestrator_messages as msg,
 )
 
 
 DOCUMENTATION = r'''
 ---
 module: validate_orchestrator_config
-short_description: Validate orchestrator configuration files
+short_description: Validate Orchestrator configuration files
+version_added: "2.3.0"
 description:
-  - Performs L1 (JSON schema) and L2 (cross-field logic) validation on orchestrator_config.yml and network_spec.yml.
+  - Performs complete JSON Schema and cross-field validation.
+  - Validates orchestrator_config.yml and network_spec.yml.
+  - Validates storage_config.yml when present and requires it when referenced.
 options:
   input_project_dir:
-    description: Path to the input project directory containing configuration files.
+    description: Project input directory containing configuration files.
     required: true
     type: str
   schema_dir:
-    description: Path to the directory containing JSON schema files.
+    description: Directory containing the Orchestrator JSON schemas.
     required: true
     type: str
+  log_dir:
+    description: Directory where the validation log is written.
+    required: false
+    type: str
+    default: ""
+author:
+  - Dell Omnia Team
 '''
 
 EXAMPLES = r'''
-- name: Validate orchestrator configuration files
-  validate_orchestrator_config:
-    input_project_dir: /opt/omnia/input/project_default
-    schema_dir: "{{ role_path }}/../../plugins/module_utils/input_validation/schema"
+- name: Validate Orchestrator configuration files
+  omnia.orchestrator.validate_orchestrator_config:
+    input_project_dir: >-
+      {{ omnia_data_path }}/orchestrator/input/{{ project_name }}
+    schema_dir: >-
+      {{ role_path }}/../../plugins/module_utils/orchestrator_validation/schema
+    log_dir: "{{ omnia_data_path }}/log/core/playbooks"
   register: validation_result
 '''
 
 RETURN = r'''
-msg:
-  description: Validation summary message.
-  type: str
+validation_failed:
+  description: Whether any validation error was found.
   returned: always
-validation_errors:
-  description: List of validation errors found, if any.
+  type: bool
+errors:
+  description: Validation error messages.
+  returned: always
   type: list
-  returned: failure
+  elements: str
+valid_files:
+  description: Files that passed schema and semantic validation.
+  returned: always
+  type: list
+  elements: str
+invalid_files:
+  description: Files that failed schema or semantic validation.
+  returned: always
+  type: list
+  elements: str
+log_file:
+  description: Absolute path to the validation log.
+  returned: always
+  type: str
+error_msg:
+  description: Human-readable validation summary lines.
+  returned: always
+  type: list
+  elements: str
 '''
 
-VALIDATION_LOG_PATH = "/opt/omnia/log/core/playbooks/"
 
-# Files to validate and their corresponding schema names
-VALIDATION_FILES = [
+VALIDATION_FILES = (
     {
         "config_file": "orchestrator_config.yml",
         "schema_file": "orchestrator_config.json",
@@ -91,205 +116,238 @@ VALIDATION_FILES = [
         "schema_file": "network_spec.json",
         "required": True,
     },
-]
+    {
+        "config_file": "storage_config.yml",
+        "schema_file": "storage_config.json",
+        "required": False,
+    },
+)
+VAULT_HEADER = "$ANSIBLE_VAULT"
 
 
-def create_logger(project_name):
-    """Create a logger for orchestrator validation."""
-    log_file = os.path.join(
-        VALIDATION_LOG_PATH, f"orchestrator_validation_{project_name}.log"
-    )
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+@dataclass
+class _ValidationState:
+    """Track validation data and structured result collections."""
+
+    errors: list[str] = field(default_factory=list)
+    valid_files: list[str] = field(default_factory=list)
+    invalid_files: list[str] = field(default_factory=list)
+    loaded_data: dict[str, Any] = field(default_factory=dict)
+
+    def mark_file(self, path: str, is_valid: bool) -> None:
+        """Record a path once in the appropriate result collection."""
+        target = self.valid_files if is_valid else self.invalid_files
+        other = self.invalid_files if is_valid else self.valid_files
+        if path in other:
+            other.remove(path)
+        if path not in target:
+            target.append(path)
+
+
+def create_logger(project_name: str, log_dir: str) -> tuple[logging.Logger, str]:
+    """Create a project-specific validation logger.
+
+    Args:
+        project_name: Current Omnia project name.
+        log_dir: Normalized directory for validation logs.
+
+    Returns:
+        Configured logger and absolute log-file path.
+    """
+    os.makedirs(log_dir, mode=0o750, exist_ok=True)
+    log_file = os.path.join(log_dir, f"orchestrator_validation_{project_name}.log")
     logging.basicConfig(
         filename=log_file,
         format="%(asctime)s %(levelname)s %(message)s",
         filemode="w",
+        force=True,
     )
+    os.chmod(log_file, 0o640)
     logger = logging.getLogger("orchestrator_validation")
     logger.setLevel(logging.DEBUG)
     return logger, log_file
 
 
-VAULT_HEADER = "$ANSIBLE_VAULT"
-
-
-def is_vault_encrypted(path):
-    """Check if a file is Ansible Vault encrypted."""
+def is_vault_encrypted(path: str) -> bool:
+    """Return whether a regular file starts with an Ansible Vault header."""
     if not os.path.isfile(path):
         return False
-    with open(path, "r", encoding="utf-8") as f:
-        first_line = f.readline().strip()
-    return first_line.startswith(VAULT_HEADER)
+    try:
+        with open(path, "r", encoding="utf-8") as input_file:
+            return input_file.readline().strip().startswith(VAULT_HEADER)
+    except (OSError, UnicodeError):
+        return False
 
 
-def load_yaml(path):
-    """Load a YAML file, returning None on failure."""
+def load_yaml(path: str) -> Any:
+    """Load a YAML file, returning None when it cannot be parsed safely."""
     if not os.path.isfile(path):
         return None
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    try:
+        with open(path, "r", encoding="utf-8") as yaml_file:
+            return yaml.safe_load(yaml_file)
+    except (OSError, UnicodeError, yaml.YAMLError):
+        return None
 
 
-def load_json(path):
-    """Load a JSON file, returning None on failure."""
+def load_json(path: str) -> dict[str, Any] | None:
+    """Load a JSON object, returning None when parsing fails."""
     if not os.path.isfile(path):
         return None
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(path, "r", encoding="utf-8") as json_file:
+            data = json.load(json_file)
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
 
 
-def validate_against_schema(data, schema, file_label, errors, logger):
-    """
-    Validate data against a JSON schema (L1).
-    Uses basic type/required/enum checks without jsonschema dependency.
-    """
-    if not schema or not data:
-        return
-
-    schema_type = schema.get("type")
-    if schema_type == "object" and not isinstance(data, dict):
-        msg = f"{file_label}: Expected object at top level, got {type(data).__name__}"
-        errors.append(msg)
-        logger.error(msg)
-        return
-
-    required = schema.get("required", [])
-    properties = schema.get("properties", {})
-    for req_key in required:
-        if req_key not in data:
-            msg = f"{file_label}: Missing required property '{req_key}'"
-            errors.append(msg)
-            logger.error(msg)
-
-    for prop_name, prop_schema in properties.items():
-        if prop_name not in data:
-            continue
-        value = data[prop_name]
-
-        if "enum" in prop_schema and value not in prop_schema["enum"]:
-            msg = (f"{file_label}: Property '{prop_name}' has invalid value "
-                   f"'{value}'. Allowed: {prop_schema['enum']}")
-            errors.append(msg)
-            logger.error(msg)
-
-        if prop_schema.get("type") == "object" and isinstance(value, dict):
-            validate_against_schema(
-                value, prop_schema, f"{file_label}.{prop_name}", errors, logger
-            )
-
-    if schema.get("additionalProperties") is False:
-        extra_keys = set(data.keys()) - set(properties.keys())
-        for extra in extra_keys:
-            msg = f"{file_label}: Unexpected property '{extra}'"
-            errors.append(msg)
-            logger.error(msg)
-
-
-def run_module():
-    """Main entry point for the Ansible module."""
-    module_args = dict(
-        input_project_dir=dict(type="str", required=True),
-        schema_dir=dict(type="str", required=True),
+def _validate_file(
+    file_config: dict[str, Any],
+    input_project_dir: str,
+    schema_dir: str,
+    state: _ValidationState,
+    logger: logging.Logger,
+) -> None:
+    """Load and schema-validate one configured input file."""
+    config_path = os.path.realpath(
+        os.path.join(input_project_dir, file_config["config_file"])
     )
-
-    module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
-
-    input_project_dir = module.params["input_project_dir"]
-    schema_dir = module.params["schema_dir"]
-    project_name = os.path.basename(input_project_dir)
-
-    logger, log_file = create_logger(project_name)
-    logger.info("=== Orchestrator Validation Start ===")
-
-    all_errors = []
-    valid_files = []
-    invalid_files = []
-    loaded_data = {}
-
-    # --- L1: Schema validation for each config file ---
-    for vf in VALIDATION_FILES:
-        config_path = os.path.join(input_project_dir, vf["config_file"])
-        schema_path = os.path.join(schema_dir, vf["schema_file"])
-
-        if not os.path.isfile(config_path):
-            if vf["required"]:
-                msg = f"Required file not found: {config_path}"
-                all_errors.append(msg)
-                invalid_files.append(config_path)
-                logger.error(msg)
-            else:
-                logger.info(f"Optional file not found (skipped): {config_path}")
-            continue
-
-        if is_vault_encrypted(config_path):
-            logger.info(f"Vault-encrypted file (skipped schema check): {config_path}")
-            valid_files.append(config_path)
-            continue
-
-        data = load_yaml(config_path)
-        if data is None:
-            msg = f"Failed to parse YAML: {config_path}"
-            all_errors.append(msg)
-            invalid_files.append(config_path)
-            logger.error(msg)
-            continue
-
-        schema = load_json(schema_path)
-        if schema is None:
-            msg = f"Schema file not found: {schema_path}"
-            all_errors.append(msg)
-            logger.error(msg)
-            continue
-
-        file_errors = []
-        file_label = os.path.basename(config_path)
-        validate_against_schema(data, schema, file_label, file_errors, logger)
-
-        if file_errors:
-            all_errors.extend(file_errors)
-            invalid_files.append(config_path)
+    schema_path = os.path.realpath(
+        os.path.join(schema_dir, file_config["schema_file"])
+    )
+    if not os.path.isfile(config_path):
+        if file_config["required"]:
+            error = msg.required_file_not_found_msg(config_path)
+            state.errors.append(error)
+            state.mark_file(config_path, False)
+            logger.error(error)
         else:
-            valid_files.append(config_path)
+            logger.info(msg.optional_file_skipped_msg(config_path))
+        return
 
-        loaded_data[vf["schema_file"]] = data
+    if is_vault_encrypted(config_path):
+        logger.info(msg.vault_file_skipped_msg(config_path))
+        state.mark_file(config_path, True)
+        return
 
-    # --- L2: Cross-field logic validation ---
-    orch_data = loaded_data.get("orchestrator_config.json")
-    if orch_data:
-        l2_errors = validate_orchestrator_config_l2(orch_data, input_project_dir, logger)
-        if l2_errors:
-            all_errors.extend(l2_errors)
-            logger.error(f"L2 orchestrator_config errors: {l2_errors}")
+    data = load_yaml(config_path)
+    if data is None:
+        error = msg.yaml_parse_failed_msg(config_path)
+        state.errors.append(error)
+        state.mark_file(config_path, False)
+        logger.error(error)
+        return
 
-    ns_data = loaded_data.get("network_spec.json")
-    if ns_data:
-        ns_errors = []
-        validate_network_spec(ns_data, ns_errors, logger)
-        if ns_errors:
-            all_errors.extend(ns_errors)
-            logger.error(f"L2 network_spec errors: {ns_errors}")
+    schema_definition = load_json(schema_path)
+    if schema_definition is None:
+        error = msg.schema_file_not_found_msg(schema_path)
+        state.errors.append(error)
+        state.mark_file(config_path, False)
+        logger.error(error)
+        return
 
-    logger.info("=== Orchestrator Validation End ===")
+    file_errors = validate_against_schema(
+        data, schema_definition, os.path.basename(config_path), logger
+    )
+    state.errors.extend(file_errors)
+    state.mark_file(config_path, not file_errors)
+    if not file_errors:
+        state.loaded_data[file_config["schema_file"]] = data
 
-    validation_failed = len(all_errors) > 0
+
+def _run_l2_validation(
+    input_project_dir: str,
+    state: _ValidationState,
+    logger: logging.Logger,
+) -> None:
+    """Run semantic validation and update per-file status."""
+    orchestrator_data = state.loaded_data.get("orchestrator_config.json")
+    if isinstance(orchestrator_data, dict):
+        errors = validate_orchestrator_config_l2(
+            orchestrator_data, input_project_dir, logger
+        )
+        if errors:
+            state.errors.extend(errors)
+            state.mark_file(
+                os.path.join(input_project_dir, "orchestrator_config.yml"), False
+            )
+            logger.error(msg.l2_validation_errors_msg("orchestrator_config", errors))
+
+    network_data = state.loaded_data.get("network_spec.json")
+    if isinstance(network_data, dict):
+        errors = validate_network_spec(network_data, logger)
+        if errors:
+            state.errors.extend(errors)
+            state.mark_file(
+                os.path.join(input_project_dir, "network_spec.yml"), False
+            )
+            logger.error(msg.l2_validation_errors_msg("network_spec", errors))
+
+    storage_errors = validate_storage_references(
+        input_project_dir,
+        state.loaded_data.get("storage_config.json"),
+        logger,
+    )
+    if storage_errors:
+        state.errors.extend(storage_errors)
+        state.mark_file(
+            os.path.join(input_project_dir, "storage_config.yml"), False
+        )
+
+
+def run_module() -> None:
+    """Run the Ansible module and return structured validation results."""
+    module = AnsibleModule(
+        argument_spec={
+            "input_project_dir": {"type": "str", "required": True},
+            "schema_dir": {"type": "str", "required": True},
+            "log_dir": {"type": "str", "required": False, "default": ""},
+        },
+        supports_check_mode=True,
+    )
+    input_project_dir = os.path.realpath(module.params["input_project_dir"])
+    schema_dir = os.path.realpath(module.params["schema_dir"])
+    configured_log_dir = module.params["log_dir"] or os.path.join(
+        os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "log", "core", "playbooks"
+    )
+    log_dir = os.path.realpath(configured_log_dir)
+    project_name = os.path.basename(input_project_dir)
+    logger, log_file = create_logger(project_name, log_dir)
+    logger.info(msg.VALIDATION_START_MSG)
+
+    state = _ValidationState()
+    for file_config in VALIDATION_FILES:
+        _validate_file(
+            file_config, input_project_dir, schema_dir, state, logger
+        )
+    _run_l2_validation(input_project_dir, state, logger)
+    logger.info(msg.VALIDATION_END_MSG)
+
+    validation_failed = bool(state.errors)
     status = "failed" if validation_failed else "completed"
-
-    message = [
-        f"Orchestrator configuration validation {status}.",
-        f"Valid files: {len(valid_files)}, Invalid files: {len(invalid_files)}.",
-        f"Log file: {log_file}",
+    summary = [
+        msg.validation_status_msg(status),
+        msg.validation_counts_msg(
+            len(state.valid_files), len(state.invalid_files)
+        ),
+        msg.validation_log_msg(log_file),
     ]
-
     module.exit_json(
         changed=False,
         validation_failed=validation_failed,
-        error_msg=message,
+        error_msg=summary,
         log_file=log_file,
-        errors=all_errors,
-        valid_files=valid_files,
-        invalid_files=invalid_files,
+        errors=state.errors,
+        valid_files=state.valid_files,
+        invalid_files=state.invalid_files,
     )
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Run the module entry point."""
     run_module()
+
+
+if __name__ == "__main__":
+    main()

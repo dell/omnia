@@ -21,18 +21,77 @@
 - name: Include include_high_availability_config vars
   ansible.builtin.include_vars: "{{ ha_config_file }}"
 
+- name: Identify deployed service Kubernetes configuration
+  ansible.builtin.set_fact:
+    deployed_service_k8s_cluster_matches: >-
+      {{ service_k8s_cluster | default([])
+         | selectattr('deployment', 'defined')
+         | selectattr('deployment', 'sameas', true)
+         | list }}
+
+- name: Select service Kubernetes configuration
+  ansible.builtin.set_fact:
+    deployed_service_k8s_cluster: >-
+      {{ deployed_service_k8s_cluster_matches | first
+         | default(service_k8s_cluster | default([]) | first | default({})) }}
+
 - name: Set facts for service_k8s
   ansible.builtin.set_fact:
-    cluster_name: "{{ service_k8s_cluster[0].cluster_name }}"
-    k8s_cni: "{{ service_k8s_cluster[0].k8s_cni }}"
-    pod_external_ip_range: "{{ service_k8s_cluster[0].pod_external_ip_range }}"
-    k8s_service_addresses: "{{ service_k8s_cluster[0].k8s_service_addresses }}"
-    k8s_pod_network_cidr: "{{ service_k8s_cluster[0].k8s_pod_network_cidr }}"
-    csi_powerscale_driver_secret_file_path: "{{ service_k8s_cluster[0].csi_powerscale_driver_secret_file_path }}"
-    csi_powerscale_driver_values_file_path: "{{ service_k8s_cluster[0].csi_powerscale_driver_values_file_path }}"
-    nfs_storage_name: "{{ service_k8s_cluster[0].nfs_storage_name }}"
-    k8s_crio_storage_size: "{{ service_k8s_cluster[0].k8s_crio_storage_size }}"
-    etcd_on_local_disk: "{{ service_k8s_cluster[0].etcd_on_local_disk | default(false) }}"
+    service_k8s_cluster_name: "{{ deployed_service_k8s_cluster.cluster_name }}"
+    k8s_cni: "{{ deployed_service_k8s_cluster.k8s_cni }}"
+    pod_external_ip_range: "{{ deployed_service_k8s_cluster.pod_external_ip_range }}"
+    k8s_service_addresses: "{{ deployed_service_k8s_cluster.k8s_service_addresses }}"
+    k8s_pod_network_cidr: "{{ deployed_service_k8s_cluster.k8s_pod_network_cidr }}"
+    nfs_storage_name: "{{ deployed_service_k8s_cluster.nfs_storage_name }}"
+    k8s_crio_storage_size: "{{ deployed_service_k8s_cluster.k8s_crio_storage_size }}"
+    etcd_on_local_disk: "{{ deployed_service_k8s_cluster.etcd_on_local_disk | default(false) }}"
+
+- name: Validate enabled PowerScale CSI inputs
+  when: hostvars['localhost'].get('enable_powerscale_csi', false) | bool
+  block:
+    - name: Validate deployed Kubernetes configuration for PowerScale CSI
+      ansible.builtin.assert:
+        that:
+          - deployed_service_k8s_cluster_matches | length == 1
+        fail_msg: "{{ powerscale_csi_deployment_fail_msg }}"
+        quiet: true
+
+    - name: Set PowerScale CSI configuration paths
+      ansible.builtin.set_fact:
+        csi_powerscale_driver_secret_file_path: >-
+          {{ deployed_service_k8s_cluster.get(
+             'csi_powerscale_driver_secret_file_path', '') }}
+        csi_powerscale_driver_values_file_path: >-
+          {{ deployed_service_k8s_cluster.get(
+             'csi_powerscale_driver_values_file_path', '') }}
+
+    - name: Validate PowerScale CSI input paths
+      ansible.builtin.assert:
+        that:
+          - csi_powerscale_driver_secret_file_path is string
+          - csi_powerscale_driver_secret_file_path is match('^/.+')
+          - csi_powerscale_driver_values_file_path is string
+          - csi_powerscale_driver_values_file_path is match('^/.+')
+        fail_msg: "{{ powerscale_csi_input_path_fail_msg }}"
+        quiet: true
+
+    - name: Check PowerScale CSI input files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ csi_powerscale_driver_secret_file_path }}"
+        - "{{ csi_powerscale_driver_values_file_path }}"
+      register: powerscale_csi_input_files
+      delegate_to: localhost
+
+    - name: Validate PowerScale CSI input files
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists | default(false)
+          - item.stat.isreg | default(false)
+        fail_msg: "{{ powerscale_csi_input_file_fail_msg }}"
+        quiet: true
+      loop: "{{ powerscale_csi_input_files.results }}"
 
 - name: Read the service_k8s mount point
   ansible.builtin.set_fact:
@@ -41,13 +100,12 @@
     # k8s_server_share_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_share_path }}"
     k8s_nfs_server_path: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).source }}"
 
-# Override packages_base_dir_* at set_fact level so that any stale
-# play-level facts (e.g. from slurm_config include_vars) cannot shadow
-# the k8s_config definitions.
-- name: Set packages_base_dir for k8s
+# Use Kubernetes-specific fact names because set_fact values persist for the
+# remainder of the host play and must not override the Slurm package paths.
+- name: Set Kubernetes package base directories
   ansible.builtin.set_fact:
-    packages_base_dir_x86_64: "{{ k8s_client_mount_path }}/packages/x86_64"
-    packages_base_dir_aarch64: "{{ k8s_client_mount_path }}/packages/aarch64"
+    k8s_packages_base_dir_x86_64: "{{ k8s_client_mount_path }}/packages/x86_64"
+    k8s_packages_base_dir_aarch64: "{{ k8s_client_mount_path }}/packages/aarch64"
 
 - name: Ensure SSH key directory exists on K8s share
   ansible.builtin.file:
@@ -128,10 +186,9 @@
   ansible.builtin.set_fact:
     pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['localhost']['pulp_port'] | default(2225) }}"
 
-- name: Set fact for dns, csi driver support and service_k8s_version
+- name: Set fact for dns and service_k8s_version
   ansible.builtin.set_fact:
     dns: "{{ hostvars['localhost']['dns'] }}"
-    csi_driver_powerscale_support: "{{ hostvars['localhost']['csi_driver_powerscale_support'] | string | lower }}"
     service_k8s_version: "{{ hostvars['localhost']['service_k8s_version'] }}"
 
 - name: Create required share directories on NFS
@@ -162,28 +219,28 @@
 # additional packages
 - name: Create x86_64 package base directory
   ansible.builtin.file:
-    path: "{{ packages_base_dir_x86_64 }}"
+    path: "{{ k8s_packages_base_dir_x86_64 }}"
     state: directory
-    mode: '{{ common_mode }}'
+    mode: "{{ folder_mode }}"
 
 - name: Create aarch64 package base directory
   ansible.builtin.file:
-    path: "{{ packages_base_dir_aarch64 }}"
+    path: "{{ k8s_packages_base_dir_aarch64 }}"
     state: directory
-    mode: '{{ common_mode }}'
+    mode: "{{ folder_mode }}"
 
 - name: Create x86_64 package layout directories
   ansible.builtin.file:
-    path: "{{ packages_base_dir_x86_64 }}/{{ item }}"
+    path: "{{ k8s_packages_base_dir_x86_64 }}/{{ item }}"
     state: directory
-    mode: '{{ common_mode }}'
+    mode: "{{ folder_mode }}"
   loop: "{{ packages_layout_x86_64 }}"
 
 - name: Create aarch64 package layout directories
   ansible.builtin.file:
-    path: "{{ packages_base_dir_aarch64 }}/{{ item }}"
+    path: "{{ k8s_packages_base_dir_aarch64 }}/{{ item }}"
     state: directory
-    mode: '{{ common_mode }}'
+    mode: "{{ folder_mode }}"
   loop: "{{ packages_layout_aarch64 }}"
 
 - name: Print copy paths for x86_64
@@ -420,5 +477,5 @@
   become: true
 
 - name: Get CSI PowerScale driver dependencies
-  when: hostvars['localhost']['csi_driver_powerscale_support']
+  when: hostvars['localhost'].get('enable_powerscale_csi', false) | bool
   ansible.builtin.include_tasks: get_powerscale_dependencies.yml

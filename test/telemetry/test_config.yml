@@ -65,6 +65,7 @@ clone_path: "/root/monorepo/omnia"
 #
 # Default (empty):
 #   Uses files directly from the target server at:
+#     $TELEMETRY_DATA_PATH/input/$OMNIA_PROJECT_NAME/ when set, otherwise
 #     $OMNIA_DATA_PATH/telemetry/input/$OMNIA_PROJECT_NAME/
 #   This is the recommended mode -- always uses the deployed config.
 #
@@ -81,7 +82,8 @@ dataset: ""
 # SYNC — TELEMETRY INPUT
 # =============================================================================
 # When true, pushes the local dataset input/ files to the target server.
-# Syncs: datasets/<dataset>/input/ -> <OMNIA_DATA_PATH>/telemetry/input/<project_name>/
+# Syncs to <TELEMETRY_DATA_PATH>/input/<project_name>/ when set, otherwise
+# <OMNIA_DATA_PATH>/telemetry/input/<project_name>/.
 #
 # This ensures the target server has the correct telemetry_config.yml
 # and packages before running the playbook.

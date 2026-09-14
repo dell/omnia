@@ -12,4 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utils domain FVT package."""
+"""
+Utils domain FVT package.
+
+Test scenarios:
+- precheck: Environment validation tests
+- setup: Domain setup tests
+- collect: Log collection tests
+- install_os: OS installation tests
+- cleanup_logs: Log cleanup tests
+- cleanup_install_os: Install OS cleanup tests
+- cleanup: Combined cleanup tests
+"""

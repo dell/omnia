@@ -259,6 +259,7 @@ class CreateRestartUseCase:
                 "job_id": str(command.job_id),
                 "image_group_id": image_group_id,
                 "attempt": stage.attempt,
+                "enable_build_stream": True,
             }),
             correlation_id=str(command.correlation_id),
             timeout=ExecutionTimeout(DEFAULT_TIMEOUT_MINUTES),

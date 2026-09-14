@@ -34,14 +34,9 @@ from ansible.module_utils.repo_manager.process_parallel import execute_parallel,
 from ansible.module_utils.repo_manager.download_common import (
     build_task_repo_name,
     build_content_base_dir,
-    process_manifest,
-    process_tarball,
-    process_git,
-    process_shell,
-    process_ansible_galaxy_collection,
-    process_iso,
-    process_pip,
-    process_rpm_file
+)
+from ansible.module_utils.repo_manager.artifact_processor_registry import (
+    get_artifact_processor,
 )
 
 DOCUMENTATION = r"""
@@ -101,9 +96,11 @@ success_count:
   type: int
   returned: always
 """
-from ansible.module_utils.repo_manager.download_image import process_image
-from ansible.module_utils.repo_manager.download_rpm import process_rpm
 from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
+from ansible.module_utils.repo_manager.security_utils import (
+    redact_sensitive_value,
+    validate_no_url_credentials,
+)
 from ansible.module_utils.repo_manager.software_utils import (
     load_json,
     set_version_variables,
@@ -265,57 +262,61 @@ def determine_function(
             )
 
         if task_type == "manifest":
-            return process_manifest, [
+            return get_artifact_processor(task_type), [
                 task, status_file, content_base_dir, repo_name
             ]
         if task_type == "git":
-            return process_git, [
+            return get_artifact_processor(task_type), [
                 task, status_file, content_base_dir, repo_name
             ]
         if task_type == "tarball":
-            return process_tarball, [
+            return get_artifact_processor(task_type), [
                 task, status_file, version_variables,
                 content_base_dir, repo_name
             ]
         if task_type == "shell":
-            return process_shell, [
+            return get_artifact_processor(task_type), [
                 task, status_file, content_base_dir, repo_name
             ]
         if task_type == "ansible_galaxy_collection":
-            return process_ansible_galaxy_collection, [
+            return get_artifact_processor(task_type), [
                 task, status_file, content_base_dir, repo_name
             ]
         if task_type == "iso":
-            return process_iso, [
+            return get_artifact_processor(task_type), [
                 task, status_file, version_variables,
                 content_base_dir, repo_name
             ]
         if task_type == "pip_module":
-            return process_pip, [
+            return get_artifact_processor(task_type), [
                 task, status_file, content_base_dir, repo_name,
                 cluster_os_type, cluster_os_version, arc
             ]
         if task_type == "image":
-            return process_image, [
+            return get_artifact_processor(task_type), [
                 task, status_file, version_variables, registry_contexts,
                 docker_username, docker_secret_token
             ]
         if task_type == "rpm_file":
-            return process_rpm_file, [
+            return get_artifact_processor(task_type), [
                 task, status_file, content_base_dir, repo_name
             ]
         if task_type in ("rpm", "rpm_repo"):
-            return process_rpm, [
+            return get_artifact_processor(task_type), [
                 task, repo_store_path, status_file, cluster_os_type,
                 cluster_os_version, repo_config_value, arc
             ]
 
         raise ValueError(f"Unknown task type: {task_type}")
-    except Exception as e:
-        raise RuntimeError(f"Failed to determine function for task: {str(e)}")
+    except Exception as error:
+        raise RuntimeError(
+            "Failed to determine the artifact processor for this task"
+        ) from error
 
 
-def generate_pretty_table(task_results, total_duration, overall_status, slogger):
+def generate_pretty_table(
+        task_results, total_duration, overall_status, slogger,
+        architecture=None, software=None):
     """
     Generates a pretty table with the task results, total duration, and overall status.
 
@@ -338,6 +339,12 @@ def generate_pretty_table(task_results, total_duration, overall_status, slogger)
         slogger.info(f"Received {len(task_results)} task results for table generation")
 
         table = PrettyTable(["Task", "Status", "LogFile"])
+        if architecture and software:
+            software_label = (
+                ", ".join(software)
+                if isinstance(software, list) else str(software)
+            )
+            table.title = f"{architecture} / {software_label}"
         for result in task_results:
             # Handle missing keys gracefully
             task_data = result.get("task", {})
@@ -353,9 +360,9 @@ def generate_pretty_table(task_results, total_duration, overall_status, slogger)
         slogger.info("Task results table generated successfully")
         return table.get_string()
 
-    except Exception as e:
-        slogger.error(f"Error occurred while generating pretty table: {e}")
-        return f"Error: {e}"
+    except Exception:
+        slogger.error("Error occurred while generating the package-status table")
+        return "Error: unable to generate the package-status table"
 
 
 def generate_software_status_table(status_dict, slogger):
@@ -397,9 +404,9 @@ def generate_software_status_table(status_dict, slogger):
         slogger.info("Software status table generation completed successfully")
         return "\n\n".join(tables)
 
-    except Exception as e:
-        slogger.error(f"Error occurred while generating software status table: {e}")
-        return f"Error: {e}"
+    except Exception:
+        slogger.error("Error occurred while generating the software-status table")
+        return "Error: unable to generate the software-status table"
 
 
 def main():
@@ -462,8 +469,8 @@ def main():
         "repo_store_path": {"type": "str", "required": False, "default": DEFAULT_REPO_STORE_PATH},
         "software": {"type": "list", "elements": "str", "required": True},
         "user_json_file": {"type": "str", "required": False, "default": ""},
-        "cluster_os_type": {"type": "str", "required": False, "default": "rhel"},
-        "cluster_os_version": {"type": "str", "required": False, "default": "10.0"},
+        "cluster_os_type": {"type": "str", "required": False},
+        "cluster_os_version": {"type": "str", "required": False},
         "repo_config_policy": {"type": "str", "required": False, "default": "partial"},
         "show_softwares_status": {"type": "bool", "required": False, "default": False},
         "overall_status_dict": {"type": "dict", "required": True},
@@ -483,6 +490,10 @@ def main():
     }
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
     tasks = module.params["tasks"]
+    try:
+        validate_no_url_credentials(tasks)
+    except ValueError:
+        module.fail_json(msg="Task list contains a credential-bearing URL.")
     nthreads = module.params["nthreads"]
     dnf_max_concurrent_commands = module.params["dnf_max_concurrent_commands"]
     log_dir = module.params["log_dir"]
@@ -509,7 +520,7 @@ def main():
     start_time = datetime.now()
     formatted_start_time = start_time.strftime("%I:%M:%S %p")
     slogger.info(f"Start execution time: {formatted_start_time}")
-    slogger.info(f"Task list: {tasks}")
+    slogger.info("Task list: %s", redact_sensitive_value(tasks))
     slogger.info(f"Number of threads: {nthreads}")
     slogger.info(
         "Maximum concurrent DNF commands: %d", dnf_max_concurrent_commands
@@ -531,9 +542,17 @@ def main():
 
     try:
         # Build user_data from catalog config and module params.
-        cluster_os_type = module.params.get("cluster_os_type", "rhel")
-        cluster_os_version = module.params.get("cluster_os_version", "10.0")
+        cluster_os_type = module.params.get("cluster_os_type")
+        cluster_os_version = module.params.get("cluster_os_version")
         repo_config_policy = module.params.get("repo_config_policy", "partial")
+
+        if not cluster_os_type or not cluster_os_version or not arc:
+            module.fail_json(
+                msg=(
+                    "cluster_os_type, cluster_os_version and arch are required "
+                    "for package execution"
+                )
+            )
 
         if user_json_file and os.path.isfile(user_json_file):
             user_data = load_json(user_json_file)
@@ -556,15 +575,15 @@ def main():
                 # Build softwares list from catalog Groups for version variable extraction
                 for catalog in catalogs:
                     for group_name, group_def in catalog.get("groups", {}).items():
-                        sw_entry = {"name": group_name, "arch": [arc] if arc else ["x86_64"]}
+                        sw_entry = {"name": group_name, "arch": [arc]}
                         # Extract version if available in group definition
                         if isinstance(group_def, dict) and group_def.get("version"):
                             sw_entry["version"] = group_def["version"]
                         user_data["softwares"].append(sw_entry)
-            except Exception as catalog_err:
-                slogger.warning(f"Could not load catalog for version variables: {catalog_err}")
+            except Exception:
+                slogger.warning("Could not load catalog for version variables.")
 
-        subgroup_dict, software_names = get_subgroup_dict(user_data, slogger)
+        _, software_names = get_subgroup_dict(user_data, slogger)
         version_variables = set_version_variables(
             user_data, software_names, cluster_os_version, slogger
         )
@@ -599,9 +618,12 @@ def main():
 
         slogger.info(f"End execution time: {formatted_end_time}")
         slogger.info(f"Total execution time: {total_duration}")
-        slogger.info(f"Task results: {task_results}")
+        slogger.info("Task results: %s", redact_sensitive_value(task_results))
 
-        table_output = generate_pretty_table(task_results, total_duration, overall_status, slogger)
+        table_output = generate_pretty_table(
+            task_results, total_duration, overall_status, slogger,
+            architecture=arc, software=software
+        )
         log_table_output(table_output, log_file)
         result["total_duration"] = total_duration
         result["task_results"] = task_results
@@ -613,7 +635,7 @@ def main():
         if overall_status == "SUCCESS":
             result["overall_status"] = "SUCCESS"
             result["changed"] = True
-            slogger.info(f"Result: {result}")
+            slogger.info("Result: %s", redact_sensitive_value(result))
             module.exit_json(**result)
         elif overall_status == "PARTIAL":
             result["overall_status"] = "PARTIAL"
@@ -622,16 +644,16 @@ def main():
             result["overall_status"] = "FAILURE"
             module.exit_json(msg="Some tasks failed", **result)
 
-    except RuntimeError as e:
-        slogger.error(f"Execution failed: {str(e)}")
-        module.fail_json(msg=f"Error during execution: {str(e)}", **result)
+    except RuntimeError:
+        slogger.error("Repo Manager task execution failed.")
+        module.fail_json(msg="Error during task execution.", **result)
 
-    except Exception as e:
+    except Exception:
         result["table_output"] = (
             table_output if "table_output" in locals() else "No table generated."
         )
-        slogger.error(f"Execution failed: {str(e)}")
-        module.fail_json(msg=f"Error during execution: {str(e)}", **result)
+        slogger.error("Repo Manager task execution failed.")
+        module.fail_json(msg="Error during task execution.", **result)
 
 
 if __name__ == "__main__":

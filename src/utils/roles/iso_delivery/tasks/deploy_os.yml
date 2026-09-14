@@ -125,6 +125,7 @@
   register: _ssh_key_verify
   changed_when: false
   failed_when: false
+  no_log: true
   when:
     - target_admin_ip | default('') | length > 0
     - ssh_verify_enabled | default(true) | bool
@@ -147,6 +148,7 @@
       root@{{ target_admin_ip }}
       'hostname && cat /etc/redhat-release && cat /root/.ks-complete 2>/dev/null || echo "Kickstart marker not found"'
   register: _os_verify
+  no_log: true
   changed_when: false
   failed_when: false
   when:

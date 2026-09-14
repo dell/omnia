@@ -20,6 +20,7 @@ slurm_config:
   # NFS cleanup configuration
   nfs_cleanup: true
   unmount_mounts: true
+  cleanup_nfs_server: true
   preserve_directories:
     - "slurm_backups"
 

@@ -1,6 +1,6 @@
 # Host & Config — config loading, credentials, testinfra, remote utilities
 
-**Source file:** `src/omnia_auto/functions/host_func.py`
+**Source file:** `omnia_auto/functions/host_func.py`
 
 ## What is this?
 
@@ -12,14 +12,15 @@ managing directories on the remote host.
 
 ---
 
-## `load_test_config() -> dict`
+## `load_test_config(config_path=None) -> dict`
 
 Load and parse your YAML config file (the one you registered with
 `configure(config_file=...)`).
 
 ### Parameters
 
-None — the config file path comes from `configure()`.
+`config_path` is optional. When supplied, it is used directly. Otherwise the
+path comes from `configure(module_root=..., config_file=...)`.
 
 ### Returns
 
@@ -32,7 +33,11 @@ You **must** call `configure(module_root=..., config_file=...)` first.
 
 ### Raises
 
-`RuntimeError` if `config_file` was not configured.
+- `RuntimeError` if no explicit path is supplied and `config_file` was not configured.
+- `OSError` if the selected file cannot be read.
+- `yaml.YAMLError` if the file contains invalid YAML.
+
+A missing selected file returns `{}`.
 
 ### Example
 
@@ -62,15 +67,16 @@ report_name: "test_report"
 
 ---
 
-## `load_test_credentials() -> dict`
+## `load_test_credentials(creds_path=None, key_path=None) -> dict`
 
 Load credentials from the credentials YAML file (the one registered with
-`configure(credentials_file=...)`).  Handles Ansible Vault encryption
-automatically.
+`configure(credentials_file=...)`). It decrypts existing Ansible Vault
+payloads and automatically migrates plaintext YAML to encrypted storage.
 
 ### Parameters
 
-None — file paths come from `configure()`.
+`creds_path` and `key_path` are optional explicit paths. Any omitted path is
+resolved from `configure()`.
 
 ### Returns
 
@@ -80,10 +86,11 @@ None — file paths come from `configure()`.
 
 | Scenario | What happens |
 |----------|--------------|
-| Plain YAML file exists | Reads it, generates a vault key, encrypts the file in-place, returns the dict |
+| Plain YAML file exists | Reads it, creates a Vault key if needed, atomically encrypts it in place, and returns the mapping |
 | Encrypted file + key file exists | Decrypts using the key, returns the dict |
 | Encrypted file + key file **missing** | Raises `ValueError` — you need the key to decrypt |
 | File not found | Returns `{}` (empty dict) — no credentials |
+| YAML root is not a mapping | Raises `ValueError` |
 
 ### Prerequisite
 
@@ -101,20 +108,24 @@ password = creds.get("oim_password", "")
 ### What should be in your `test_creds.yml`?
 
 ```yaml
-oim_password: "my_ssh_password"
+oim_password: ""
 ```
+
+Populate the value with the credential CLI described in
+`08_credentials.md`, then encrypt the file before use.
 
 ---
 
-## `encrypt_test_credentials() -> bool`
+## `encrypt_test_credentials(creds_path=None, key_path=None) -> bool`
 
-Explicitly encrypt the credentials file using Ansible Vault.  Returns
-`True` on success.  This is useful to call in `pytest_sessionstart` to
-make sure credentials are encrypted before any tests run.
+Explicitly encrypt the credentials file using Ansible Vault. Returns `True`
+on success. This is useful when a workflow needs to enforce encrypted storage
+before any credential read occurs; normal plaintext reads also migrate the
+file automatically.
 
 ### Parameters
 
-None — uses `configure()` settings.
+Both paths are optional; omitted paths use `configure()` settings.
 
 ### Prerequisite
 
@@ -264,7 +275,8 @@ The return value has the same `stdout`, `stderr`, and `rc` attributes as
 
 Build a connection dictionary from your config and credentials, ready to
 pass into `sync_files()` or `clone_repo()`.  This saves you from
-manually extracting `mode`, `ip`, `user`, `password`, `ssh_opts` every time.
+manually extracting `mode`, `ip`, `user`, `port`, `auth_secret`, and
+`ssh_opts` every time.
 
 ### Parameters
 
@@ -279,7 +291,8 @@ A `dict` with these keys:
 | `mode` | `str` | `"local"` or `"ssh"` (based on `is_local_execution()`) |
 | `ip` | `str` or `None` | Target server IP (or `None` if local) |
 | `user` | `str` | SSH username (from `oim_ssh_user` in config) |
-| `password` | `str` or `None` | SSH password (from credentials) |
+| `port` | `int` | SSH port (from `oim_ssh_port`, default `22`) |
+| `auth_secret` | `str` or `None` | SSH authentication secret (from credentials) |
 | `ssh_opts` | `str` | SSH options string |
 
 ### Raises
@@ -301,8 +314,9 @@ conn = connection_params()
 #     "mode": "ssh",
 #     "ip": "10.20.0.100",
 #     "user": "root",
-#     "password": None,
-#     "ssh_opts": "-o StrictHostKeyChecking=no ...",
+#     "port": 22,
+#     "auth_secret": None,
+#     "ssh_opts": "-o StrictHostKeyChecking=accept-new ...",
 # }
 
 # Now pass directly to sync_files:
@@ -312,14 +326,15 @@ result = sync_files(
     dest="/remote/input",
     ip=conn["ip"],
     user=conn["user"],
-    password=conn["password"],
+    port=conn["port"],
+    auth_secret=conn["auth_secret"],
     ssh_opts=conn["ssh_opts"],
 )
 ```
 
 ---
 
-## `read_remote_env(host, var_name, env_file=None) -> str`
+## `read_remote_env(host, var_name, env_file=None, required=True) -> str`
 
 Read an environment variable from the target host.
 
@@ -337,6 +352,7 @@ explicitly sourcing the env file before reading the variable.
 | `host` | `Host` | **Yes** | A testinfra `Host` object from `get_testinfra_host()`. | *(see below)* |
 | `var_name` | `str` | **Yes** | The name of the environment variable you want to read. | `"OMNIA_DATA_PATH"` |
 | `env_file` | `str` | No | Full path to the env file on the target to source before reading. If not given, uses `configure(env_file=...)` or defaults to `/etc/omnia/omnia.env`. | `"/etc/myapp/env"` |
+| `required` | `bool` | No | Raise when the value is missing. Use `False` only for an optional variable with an explicit fallback. | `False` |
 
 ### Returns
 
@@ -344,7 +360,8 @@ explicitly sourcing the env file before reading the variable.
 
 ### Raises
 
-`ValueError` — if the variable is **not set** or **empty** on the target.
+`ValueError` — if the input is invalid, or a required variable is **not set**
+or **empty** on the target.
 
 ### Prerequisite
 
@@ -364,6 +381,11 @@ print(data_path)  # "/opt/omnia"
 
 # Read from a custom env file
 value = read_remote_env(host, "MY_VAR", env_file="/etc/myapp/env")
+
+# An absent optional override returns an empty string.
+override = read_remote_env(
+    host, "TELEMETRY_DATA_PATH", required=False,
+)
 ```
 
 ---
@@ -411,7 +433,104 @@ ensure_remote_dir(host, "/opt/omnia/image_build_manager/input/project_default")
 
 ---
 
-## `resolve_domain_input_path(host, domain, data_path_var, project_var) -> str`
+## `read_remote_yaml(host, file_path) -> dict`
+
+Read a YAML mapping from the target host. An empty YAML document returns `{}`.
+
+### Raises
+
+| Error | When |
+|-------|------|
+| `ValueError` | `file_path` is empty, YAML is malformed, or the YAML root is not a mapping |
+| `RuntimeError` | The target command cannot read the file |
+
+```python
+from omnia_auto import get_testinfra_host, read_remote_yaml
+
+host = get_testinfra_host()
+config = read_remote_yaml(host, "/etc/omnia/example.yml")
+```
+
+---
+
+## `read_yaml_key(data, key_path, default=None)`
+
+Read a dot-separated path from a YAML mapping. Integer path segments address
+list elements. Missing or incompatible segments return `default`.
+
+```python
+from omnia_auto import read_yaml_key
+
+endpoint = read_yaml_key(config, "clusters.0.endpoint", default="")
+```
+
+---
+
+## `get_inventory_hosts(host, inventory_path, groups, prefix_match=True) -> dict`
+
+Read an Ansible YAML inventory and collect unique host names from selected
+groups. With `prefix_match=True`, a request for `slurm_node` also matches
+groups such as `slurm_node_x86_64`.
+
+The result contains `success`, `hostnames`, `by_group`, and `error`. Invalid
+input or no matching hosts is represented by `success: False`; file and YAML
+errors from `read_remote_yaml()` are raised.
+
+```python
+from omnia_auto import get_inventory_hosts
+
+result = get_inventory_hosts(
+    host,
+    "/opt/omnia/orchestrator.yml",
+    ["slurm_control_node", "slurm_node"],
+)
+```
+
+## `get_inventory_host_var(...)`
+
+Read one host variable from
+`all.children.<group>.hosts.<hostname>.<var_name>`. Missing data returns the
+provided `default`; file and YAML errors from `read_remote_yaml()` are raised.
+
+```python
+from omnia_auto import get_inventory_host_var
+
+address = get_inventory_host_var(
+    host,
+    "/opt/omnia/orchestrator.yml",
+    "slurm_control_node_x86_64",
+    "control01",
+    "ansible_host",
+    default="",
+)
+```
+
+---
+
+## `resolve_domain_data_path(host, domain, data_path_var, domain_data_path_var=None) -> str`
+
+Resolve a domain's complete data root from the target environment. A non-empty
+domain-specific variable takes precedence; otherwise the function derives
+`<base-data-path>/<domain>`.
+
+```python
+from omnia_auto import resolve_domain_data_path
+
+data_root = resolve_domain_data_path(
+    host,
+    domain="telemetry",
+    data_path_var="OMNIA_DATA_PATH",
+    domain_data_path_var="TELEMETRY_DATA_PATH",
+)
+```
+
+With `TELEMETRY_DATA_PATH=/data/telemetry`, the result is `/data/telemetry`.
+When that optional variable is absent or empty and
+`OMNIA_DATA_PATH=/opt/omnia`, the result is `/opt/omnia/telemetry`.
+
+---
+
+## `resolve_domain_input_path(host, domain, data_path_var, project_var, domain_data_path_var=None) -> str`
 
 Build the full remote input directory path for a domain by reading
 environment variables from the target host.
@@ -419,7 +538,7 @@ environment variables from the target host.
 ### What it builds
 
 ```
-<OMNIA_DATA_PATH>/<domain>/input/<OMNIA_PROJECT_NAME>/
+<effective-domain-data-path>/input/<OMNIA_PROJECT_NAME>/
 ```
 
 For example: `/opt/omnia/image_build_manager/input/project_default`
@@ -432,6 +551,7 @@ For example: `/opt/omnia/image_build_manager/input/project_default`
 | `domain` | `str` | **Yes** | The domain name (your module's name). | `"image_build_manager"` |
 | `data_path_var` | `str` | **Yes** | The **name** of the environment variable on the target that holds the data path. | `"OMNIA_DATA_PATH"` |
 | `project_var` | `str` | **Yes** | The **name** of the environment variable on the target that holds the project name. | `"OMNIA_PROJECT_NAME"` |
+| `domain_data_path_var` | `str` | No | Name of the optional variable holding the complete domain root. | `"IMAGE_BUILD_MANAGER_DATA_PATH"` |
 
 **Important:** You pass the **names** of the env vars (strings like `"OMNIA_DATA_PATH"`),
 not their values.  The function reads the values from the target host.
@@ -442,7 +562,8 @@ not their values.  The function reads the values from the target host.
 
 ### Raises
 
-`ValueError` — if `domain` is empty, or either env var is not set on the target.
+`ValueError` — if the domain/path is unsafe, the project is unset, or neither
+the optional domain override nor the required base data path can be resolved.
 
 ### Prerequisite
 
@@ -462,6 +583,7 @@ path = resolve_domain_input_path(
     domain="image_build_manager",
     data_path_var="OMNIA_DATA_PATH",       # reads value from target
     project_var="OMNIA_PROJECT_NAME",      # reads value from target
+    domain_data_path_var="IMAGE_BUILD_MANAGER_DATA_PATH",
 )
 print(path)
 # "/opt/omnia/image_build_manager/input/project_default"
@@ -473,9 +595,9 @@ print(path)
 
 | Function | What you need first |
 |----------|-------------------|
-| `load_test_config()` | `configure(config_file=...)` |
-| `load_test_credentials()` | `configure(credentials_file=..., credentials_key=...)` |
-| `encrypt_test_credentials()` | `configure(credentials_file=..., credentials_key=...)` |
+| `load_test_config()` | An explicit `config_path`, or `configure(config_file=...)` |
+| `load_test_credentials()` | Explicit credential/key paths, or corresponding `configure()` settings |
+| `encrypt_test_credentials()` | Explicit credential/key paths, or corresponding `configure()` settings |
 | `get_testinfra_host()` | `configure()` with config and credentials |
 | `is_local_execution()` | `configure()` |
 | `run_on_host()` | `get_testinfra_host()` → `host` object |
@@ -483,4 +605,9 @@ print(path)
 | `connection_params()` | `configure()` with config and credentials |
 | `read_remote_env()` | `get_testinfra_host()` → `host` object |
 | `ensure_remote_dir()` | `get_testinfra_host()` → `host` object |
+| `read_remote_yaml()` | `get_testinfra_host()` → `host` object and a readable YAML file |
+| `read_yaml_key()` | A parsed mapping and dot-separated key path |
+| `get_inventory_hosts()` | A readable Ansible YAML inventory and group names |
+| `get_inventory_host_var()` | A readable Ansible YAML inventory and host-variable path |
+| `resolve_domain_data_path()` | `get_testinfra_host()` → `host` object, env vars on target |
 | `resolve_domain_input_path()` | `get_testinfra_host()` → `host` object, env vars on target |

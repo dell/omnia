@@ -29,14 +29,15 @@ it asks before updating them. To update without the existence prompt, run:
 ./setup_env.sh --update-creds
 ```
 
-For automation, a value can be supplied non-interactively:
+For automation, a value can be supplied non-interactively through standard
+input so it does not appear in the process argument list:
 
 ```bash
-./setup_env.sh --creds '<SSH_PASSWORD>'
+printf '%s' '<SSH_PASSWORD>' | ./setup_env.sh --creds-stdin
 ```
 
-Prefer the interactive command because a command-line password can remain in
-shell history. The framework decrypts the vault transparently during tests.
+The framework decrypts the vault transparently during tests. Avoid placing
+passwords directly in command-line arguments or shell history.
 
 ---
 

@@ -23,6 +23,20 @@
 - name: Configure the ochami
   environment: "{{ hostvars['oim']['ochami_env'] }}"
   block:
+    - name: Remove obsolete node-registration SMD group
+      ansible.builtin.uri:
+        url: >-
+          https://{{ cluster_name }}.{{ cluster_domain
+          }}:8443/hsm/v2/groups/node_registration
+        method: DELETE
+        headers:
+          Authorization: >-
+            Bearer {{ hostvars['oim']['ochami_env'][(oim_node_name | upper) + '_ACCESS_TOKEN'] }}
+        status_code: [200, 404]
+        validate_certs: false
+      no_log: true
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
     - name: Create groups
       ansible.builtin.include_tasks: create_groups.yml
       with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"

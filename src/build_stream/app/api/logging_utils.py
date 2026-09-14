@@ -170,36 +170,36 @@ def _get_or_create_job_logger(
 
 
 # ---------------------------------------------------------------------------
-# Auth log file (singleton)
+# Event log file (singleton)
 # ---------------------------------------------------------------------------
-_auth_logger: Optional[logging.Logger] = None
+_event_logger: Optional[logging.Logger] = None
 
 
-def _get_or_create_auth_logger() -> Optional[logging.Logger]:
-    """Return the cached auth logger, creating it on first call.
+def _get_or_create_event_logger() -> Optional[logging.Logger]:
+    """Return the cached event logger, creating it on first call.
 
-    Writes to ``<LOG_BASE>/auth.log``.
+    Writes to ``<LOG_BASE>/events.log``.
     """
-    global _auth_logger  # pylint: disable=global-statement
-    if _auth_logger is not None:
-        return _auth_logger
+    global _event_logger  # pylint: disable=global-statement
+    if _event_logger is not None:
+        return _event_logger
 
     try:
         _LOG_BASE.mkdir(parents=True, exist_ok=True)
-        log_file = _LOG_BASE / "auth.log"
+        log_file = _LOG_BASE / "events.log"
         log_file.touch(exist_ok=True)
 
-        auth_logger = logging.getLogger("build_stream.auth")
-        auth_logger.setLevel(logging.DEBUG)
-        auth_logger.propagate = False
+        event_logger = logging.getLogger("build_stream.events")
+        event_logger.setLevel(logging.DEBUG)
+        event_logger.propagate = False
         handler = logging.FileHandler(str(log_file), mode="a")
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(_LOG_FORMATTER)
-        auth_logger.addHandler(handler)
-        _auth_logger = auth_logger
-        return _auth_logger
+        event_logger.addHandler(handler)
+        _event_logger = event_logger
+        return _event_logger
     except OSError:
-        logging.getLogger(__name__).warning("Failed to create auth log file")
+        logging.getLogger(__name__).warning("Failed to create event log file")
         return None
 
 
@@ -212,7 +212,7 @@ def log_auth_info(
     exc_info: bool = False,
     end_section: bool = False,
 ) -> None:
-    """Log an auth/register event to ``<LOG_BASE>/auth.log``.
+    """Log an auth/register event to ``<LOG_BASE>/events.log``.
 
     Sensitive data is automatically redacted before writing.
 
@@ -223,7 +223,7 @@ def log_auth_info(
         end_section: Append a separator line to visually delimit this execution.
     """
     # Checkmarx: Validate input to prevent sensitive data from being passed
-    # Only allow safe characters in auth log messages
+    # Only allow safe characters in event log messages
     if not isinstance(message, str):
         message = str(message)
     
@@ -241,22 +241,21 @@ def log_auth_info(
     if exc_info:
         log_message = f"{log_message}\n{traceback.format_exc().rstrip()}"
 
-    # Checkmarx: Sanitize sensitive user/session data before logging auth events
+    # Checkmarx: Redact sensitive user/session data before writing any record
     # All user-identifiable information is redacted via _sanitize_message()
     log_message = _sanitize_message(log_message)
 
     log_func = getattr(logger, level, logger.info)
     log_func(log_message)
 
-    # Checkmarx: Auth logger only writes sanitized messages - no raw user data
-    # User/session details are redacted before being written to auth.log
-    auth_logger = _get_or_create_auth_logger()
-    if auth_logger:
-        auth_log_func = getattr(auth_logger, level, auth_logger.info)
-        auth_log_func(log_message)
+    # Messages are redacted by _sanitize_message() above before reaching any
+    # handler. Mirrors the per-job branch in log_secure_info().
+    event_logger = _get_or_create_event_logger()
+    if event_logger:
+        event_log_func = getattr(event_logger, level, event_logger.info)
+        event_log_func(log_message)
         if end_section:
-            # Checkmarx: Separator line only - no sensitive data
-            auth_logger.info(_SEPARATOR)
+            event_logger.info(_SEPARATOR)
 
 
 # ---------------------------------------------------------------------------

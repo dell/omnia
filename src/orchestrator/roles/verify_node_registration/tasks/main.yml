@@ -1,0 +1,199 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# This role runs once for each host in the dynamic node_registration_targets
+# group. The play uses connection=local, so Ansible checks target nodes in
+# parallel up to its configured forks limit while the OIM remains the SSH client.
+
+- name: "[Node-Registration] Validate per-node verification context"
+  ansible.builtin.assert:
+    that:
+      - hostvars['localhost']['pxe_start_epoch'] is defined
+      - hostvars['localhost']['pxe_start_epoch'] | string | length > 0
+      - bmc_ip is defined
+      - bmc_ip | string | length > 0
+    fail_msg: "{{ verify_node_registration_fail_msg }}"
+
+- name: "[Node-Registration] Poll fresh boot and cloud-init state"
+  ansible.builtin.shell: |
+    set -o pipefail
+
+    remote_output=$(
+      ssh -o StrictHostKeyChecking=no \
+        -o ConnectTimeout=5 \
+        -o BatchMode=yes \
+        root@"{{ inventory_hostname }}" 'bash -s' 2>&1 <<'REMOTE_CHECK'
+    uptime_seconds=$(awk '{printf "%d", $1}' /proc/uptime 2>/dev/null)
+    cloud_init_json='{}'
+    if command -v cloud-init >/dev/null 2>&1; then
+      cloud_init_output=$(cloud-init status --long 2>&1)
+      cloud_init_json=$(cloud-init status --format json 2>/dev/null || true)
+      if ! printf '%s' "$cloud_init_json" |
+        python3 -c 'import json, sys; json.load(sys.stdin)' 2>/dev/null; then
+        cloud_init_json='{}'
+      fi
+      cloud_init_state=$(printf '%s\n' "$cloud_init_output" |
+        sed -n 's/^status:[[:space:]]*//p' | head -n 1)
+      cloud_init_extended_state=$(printf '%s\n' "$cloud_init_output" |
+        sed -n 's/^extended_status:[[:space:]]*//p' | head -n 1)
+      cloud_init_benign_degraded=0
+      if [[ "$cloud_init_state:$cloud_init_extended_state" == done:degraded* ]]; then
+        if printf '%s' "$cloud_init_json" | python3 -c "$(
+          printf '%s\n' \
+            'import json, sys' \
+            'status = json.load(sys.stdin)' \
+            'errors = status.get("errors") or []' \
+            'recoverable = status.get("recoverable_errors") or {}' \
+            'messages = [str(message) for entries in recoverable.values()' \
+            '            for message in (entries if isinstance(entries, list) else [entries])]' \
+            'is_benign = not errors and messages and all(' \
+            '    "empty cloud config" in message for message in messages)' \
+            'sys.exit(0 if is_benign else 1)'
+        )"; then
+          cloud_init_benign_degraded=1
+        fi
+      fi
+    else
+      cloud_init_output="cloud-init command is not installed"
+      cloud_init_state="not_installed"
+      cloud_init_extended_state="not_installed"
+      cloud_init_benign_degraded=0
+    fi
+    cloud_init_detail=$(printf '%s' "$cloud_init_output" |
+      tr '\n' ';' | tr -s '[:space:]' ' ' | cut -c1-1000)
+    printf 'UPTIME_SECS=%s\n' "$uptime_seconds"
+    printf 'CLOUD_INIT_STATE=%s\n' "${cloud_init_state:-unknown}"
+    printf 'CLOUD_INIT_EXTENDED_STATE=%s\n' "${cloud_init_extended_state:-unknown}"
+    printf 'CLOUD_INIT_BENIGN_DEGRADED=%s\n' "$cloud_init_benign_degraded"
+    printf 'CLOUD_INIT_JSON_B64=%s\n' "$(printf '%s' "$cloud_init_json" | base64 | tr -d '\n')"
+    printf 'CLOUD_INIT_DETAIL=%s\n' "${cloud_init_detail:-cloud-init returned no status output}"
+    REMOTE_CHECK
+    )
+    ssh_rc=$?
+
+    if [ "$ssh_rc" -ne 0 ]; then
+      ssh_detail=$(printf '%s' "$remote_output" |
+        tr '\n' ';' | tr -s '[:space:]' ' ' | cut -c1-500)
+      echo "NODE_STATE=unreachable"
+      echo "NODE_DETAIL=Passwordless root SSH failed on {{ inventory_hostname }}: ${ssh_detail:-no SSH error was returned}"
+      exit 1
+    fi
+
+    uptime_seconds=$(printf '%s\n' "$remote_output" |
+      sed -n 's/^UPTIME_SECS=//p' | head -n 1)
+    cloud_init_state=$(printf '%s\n' "$remote_output" |
+      sed -n 's/^CLOUD_INIT_STATE=//p' | head -n 1)
+    cloud_init_extended_state=$(printf '%s\n' "$remote_output" |
+      sed -n 's/^CLOUD_INIT_EXTENDED_STATE=//p' | head -n 1)
+    cloud_init_benign_degraded=$(printf '%s\n' "$remote_output" |
+      sed -n 's/^CLOUD_INIT_BENIGN_DEGRADED=//p' | head -n 1)
+    cloud_init_detail=$(printf '%s\n' "$remote_output" |
+      sed -n 's/^CLOUD_INIT_DETAIL=//p' | head -n 1)
+
+    if ! [[ "$uptime_seconds" =~ ^[0-9]+$ ]]; then
+      echo "NODE_STATE=boot_time_unavailable"
+      echo "NODE_DETAIL=SSH succeeded but /proc/uptime could not be read"
+      exit 2
+    fi
+
+    boot_epoch=$(($(date +%s) - uptime_seconds))
+    if [ "$boot_epoch" -lt "{{ hostvars['localhost']['pxe_start_epoch'] }}" ]; then
+      echo "NODE_STATE=stale_boot"
+      echo "NODE_DETAIL=Node boot predates the current PXE request"
+      exit 1
+    fi
+
+    case "${cloud_init_state}:${cloud_init_extended_state}" in
+      done:degraded*)
+        if [ "$cloud_init_benign_degraded" = "1" ]; then
+          echo "NODE_STATE=success"
+          echo "NODE_DETAIL=Fresh PXE boot completed; only the known OpenCHAMI empty user-data warning was reported"
+          exit 0
+        fi
+        echo "NODE_STATE=cloud_init_error"
+        echo "NODE_DETAIL=${cloud_init_detail:-cloud-init completed in a degraded state}"
+        exit 2
+        ;;
+      done:*)
+        echo "NODE_STATE=success"
+        echo "NODE_DETAIL=Fresh PXE boot completed and cloud-init status is done"
+        exit 0
+        ;;
+      error:*|degraded:*|disabled:*|not_installed:*)
+        echo "NODE_STATE=cloud_init_error"
+        echo "NODE_DETAIL=${cloud_init_detail:-cloud-init reported ${cloud_init_state}}"
+        exit 2
+        ;;
+      *)
+        echo "NODE_STATE=cloud_init_pending"
+        echo "NODE_DETAIL=${cloud_init_detail:-cloud-init status is ${cloud_init_state:-unknown}}"
+        exit 1
+        ;;
+    esac
+  args:
+    executable: /bin/bash
+  register: verify_node_registration_poll_result
+  until: verify_node_registration_poll_result.rc in [0, 2]
+  retries: "{{ hostvars['localhost']['node_registration_retries'] }}"
+  delay: "{{ hostvars['localhost']['node_registration_delay'] }}"
+  changed_when: false
+  failed_when: false
+
+- name: "[Node-Registration] Record structured node result"
+  ansible.builtin.set_fact:
+    verify_node_registration_result:
+      admin_ip: "{{ inventory_hostname }}"
+      bmc_ip: "{{ bmc_ip }}"
+      xname: "{{ xname | default('') }}"
+      hostname: "{{ hostname_node | default('') }}"
+      service_tag: "{{ service_tag | default('') }}"
+      status: "{{ 'success' if verify_node_registration_poll_result.rc == 0 else 'failed' }}"
+      state: "{{ _node_state }}"
+      detail: "{{ _node_detail }}"
+      terminal: "{{ verify_node_registration_poll_result.rc == 2 }}"
+      attempts: "{{ verify_node_registration_poll_result.attempts | default(1) }}"
+      verification_method: ssh_cloud_init
+      cloud_init:
+        status: "{{ _cloud_init_data.status | default('unknown') }}"
+        extended_status: "{{ _cloud_init_data.extended_status | default('unknown') }}"
+        boot_status_code: "{{ _cloud_init_data.boot_status_code | default('') }}"
+        errors: "{{ _cloud_init_data.errors | default([]) }}"
+        recoverable_errors: "{{ _cloud_init_data.recoverable_errors | default({}) }}"
+  vars:
+    _state_line: >-
+      {{ verify_node_registration_poll_result.stdout_lines | default([])
+         | select('match', '^NODE_STATE=') | first
+         | default('NODE_STATE=unknown') }}
+    _detail_line: >-
+      {{ verify_node_registration_poll_result.stdout_lines | default([])
+         | select('match', '^NODE_DETAIL=') | first
+         | default('NODE_DETAIL=No verification detail was returned') }}
+    _cloud_init_json_line: >-
+      {{ verify_node_registration_poll_result.stdout_lines | default([])
+         | select('match', '^CLOUD_INIT_JSON_B64=') | first
+         | default('CLOUD_INIT_JSON_B64=') }}
+    _node_state: "{{ _state_line.split('=', 1)[1] }}"
+    _node_detail: "{{ _detail_line.split('=', 1)[1] }}"
+    _cloud_init_json_b64: "{{ _cloud_init_json_line.split('=', 1)[1] }}"
+    _cloud_init_data: >-
+      {{ (_cloud_init_json_b64 | b64decode | from_json)
+         if _cloud_init_json_b64 | length > 0 else {} }}
+
+- name: "[Node-Registration] Display node result"
+  ansible.builtin.debug:
+    msg: >-
+      {{ verify_node_registration_status_ok
+         if verify_node_registration_result.status == 'success'
+         else verify_node_registration_status_failed }}
+      {{ inventory_hostname }} — {{ verify_node_registration_result.detail }}

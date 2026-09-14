@@ -1,0 +1,94 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "repo_status",
+    "description": "Consumer-side schema for repo_status.yml produced by repo_manager.",
+    "type": "object",
+    "required": [
+        "overall_status",
+        "cluster_os_type",
+        "repositories"
+    ],
+    "properties": {
+        "overall_status": {
+            "type": "string",
+            "const": "success"
+        },
+        "cluster_os_type": {"$ref": "#/$defs/nonBlankString"},
+        "repo_manager": {
+            "type": "object",
+            "description": "Optional repository service metadata consumed when present. Other producer-owned metadata is ignored.",
+            "properties": {
+                "port": {
+                    "description": "Managed repository service port. An empty string allows URL-based discovery.",
+                    "oneOf": [
+                        {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 65535
+                        },
+                        {"const": ""}
+                    ]
+                },
+                "certificates": {
+                    "type": "object",
+                    "description": "Optional public CA certificate consumed by image build tasks.",
+                    "properties": {
+                        "server_crt": {"type": "string"}
+                    },
+                    "additionalProperties": true
+                }
+            },
+            "additionalProperties": true
+        },
+        "repositories": {
+            "type": "object",
+            "minProperties": 1,
+            "patternProperties": {
+                "^[0-9]+(?:\\.[0-9]+)*$": {"$ref": "#/$defs/versionRepositories"}
+            },
+            "additionalProperties": false
+        }
+    },
+    "$defs": {
+        "nonBlankString": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^\\S(?:.*\\S)?$"
+        },
+        "repository": {
+            "type": "object",
+            "required": ["url"],
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^https?://\\S+$",
+                    "format": "uri"
+                },
+                "priority": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                }
+            },
+            "additionalProperties": true
+        },
+        "architectureRepositories": {
+            "type": "object",
+            "patternProperties": {
+                "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$": {"$ref": "#/$defs/repository"}
+            },
+            "additionalProperties": false
+        },
+        "versionRepositories": {
+            "type": "object",
+            "minProperties": 1,
+            "properties": {
+                "x86_64": {"$ref": "#/$defs/architectureRepositories"},
+                "aarch64": {"$ref": "#/$defs/architectureRepositories"}
+            },
+            "additionalProperties": true
+        }
+    },
+    "additionalProperties": true
+}

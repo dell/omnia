@@ -12,41 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# ============================================================================
-# SAMPLE: repo_status.yml — repo_manager output contract
-# ============================================================================
+# SAMPLE: repo_status.yml — current repo_manager output contract.
 #
-# This is a REFERENCE TEMPLATE. In production, repo_manager generates this file.
-#
-# Runtime location (created by repo_manager or copied manually):
+# This fixture demonstrates a successful two-version Repo Manager run for the
+# RHEL 10.0 and RHEL 10.2 x86_64/aarch64 catalogs in src/main/samples. In a
+# deployment Repo Manager creates this file under:
 #   /opt/omnia/repo_manager/output/<project_name>/repo_status.yml
-#
-# Producer: repo_manager domain (repo_manager.yml)
-# Consumer: image_build_manager domain (image_build_manager.yml Step 4)
-#
-# Manual setup (if repo_manager was NOT run):
-#   1. Copy this file to the runtime location:
-#      mkdir -p /opt/omnia/repo_manager/output/project_default
-#      cp repo_status.yml /opt/omnia/repo_manager/output/project_default/
-#   2. Edit the copied file with your actual repo manager URLs and cert paths
-#   3. Verify: omnia-cli repo-manager
-#
-# image_build_manager pre-check validates:
-#   1. File exists at repo_manager_output_path
-#   2. overall_status == "success"
-#   3. rpm_repos contains valid URLs for the target architectures
-#   4. repo_manager section contains certificate and port
-# ============================================================================
+# Replace {{ admin_nic_ip }} before using this reference fixture directly.
 
 overall_status: "success"
 cluster_os_type: "rhel"
 repo_config: "partial"
 
+execution_contexts:
+  - context_id: "rhel_10.0"
+    os_type: "rhel"
+    os_version: "10.0"
+    architectures: ["x86_64", "aarch64"]
+  - context_id: "rhel_10.2"
+    os_type: "rhel"
+    os_version: "10.2"
+    architectures: ["x86_64", "aarch64"]
+
+overall_status_by_version:
+  "10.0": "success"
+  "10.2": "success"
+
 repo_manager:
   port: 2225
   certificates:
     server_crt: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt"
-    server_key: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.key"
     certs_dir: "/opt/omnia/repo_manager/pulp_config/settings/certs"
 
 repositories:
@@ -54,110 +49,121 @@ repositories:
     x86_64:
       baseos:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_baseos/"
-        priority: 100
       appstream:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_appstream/"
-        priority: 100
       codeready-builder:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_codeready-builder/"
-        priority: 100
       slurm_custom:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_slurm_custom/"
         priority: 100
-      ldms: {}
+      ldms:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_ldms/"
       epel:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_epel/"
-        priority: 100
       kubernetes-v1-35:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_kubernetes-v1-35/"
-        priority: 100
       cri-o-v1-35:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_cri-o-v1-35/"
-        priority: 100
       doca:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_doca/"
-        priority: 100
-      docker-ce:
-        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_docker-ce/"
-        priority: 100
       cuda:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_cuda/"
-        priority: 100
       nvidia-hpc-sdk:
         url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_nvidia-hpc-sdk/"
-        priority: 100
-      repo_manager_additional:
-        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_repo_manager-additional/"
-        priority: 100
-      additional_repos: {}
-
+      vast:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_vast/"
     aarch64:
-      baseos: {}
-      appstream: {}
-      codeready-builder: {}
-      slurm_custom: {}
-      ldms: {}
-      repo_manager_additional:
-        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_repo_manager-additional/"
+      baseos:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_baseos/"
+      appstream:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_appstream/"
+      codeready-builder:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_codeready-builder/"
+      slurm_custom:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_slurm_custom/"
+      ldms:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_ldms/"
+      epel:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_epel/"
+      kubernetes-v1-35:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_kubernetes-v1-35/"
+      cri-o-v1-35:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_cri-o-v1-35/"
+      doca:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_doca/"
+      cuda:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_cuda/"
+      nvidia-hpc-sdk:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_nvidia-hpc-sdk/"
+      vast:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_vast/"
+  "10.2":
+    x86_64:
+      baseos:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/rpms/x86_64_rhel_10.2_baseos/"
+      appstream:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/rpms/x86_64_rhel_10.2_appstream/"
+      codeready-builder:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/rpms/x86_64_rhel_10.2_codeready-builder/"
+      slurm_custom:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/rpms/x86_64_rhel_10.2_slurm_custom/"
         priority: 100
-      epel: {}
-      kubernetes-v1-35: {}
-      cri-o-v1-35: {}
-      doca: {}
-      docker-ce: {}
-      cuda: {}
-      nvidia-hpc-sdk: {}
-      additional_repos: {}
+      ldms:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/rpms/x86_64_rhel_10.2_ldms/"
+      epel:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/rpms/x86_64_rhel_10.2_epel/"
+      kubernetes-v1-35:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/rpms/x86_64_rhel_10.2_kubernetes-v1-35/"
+      cri-o-v1-35:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/rpms/x86_64_rhel_10.2_cri-o-v1-35/"
+      doca:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/rpms/x86_64_rhel_10.2_doca/"
+      cuda:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/rpms/x86_64_rhel_10.2_cuda/"
+      nvidia-hpc-sdk:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/rpms/x86_64_rhel_10.2_nvidia-hpc-sdk/"
+      vast:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/rpms/x86_64_rhel_10.2_vast/"
+    aarch64:
+      baseos:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.2/rpms/aarch64_rhel_10.2_baseos/"
+      appstream:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.2/rpms/aarch64_rhel_10.2_appstream/"
+      codeready-builder:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.2/rpms/aarch64_rhel_10.2_codeready-builder/"
+      slurm_custom:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.2/rpms/aarch64_rhel_10.2_slurm_custom/"
+      ldms:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.2/rpms/aarch64_rhel_10.2_ldms/"
+      epel:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.2/rpms/aarch64_rhel_10.2_epel/"
+      kubernetes-v1-35:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.2/rpms/aarch64_rhel_10.2_kubernetes-v1-35/"
+      cri-o-v1-35:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.2/rpms/aarch64_rhel_10.2_cri-o-v1-35/"
+      doca:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.2/rpms/aarch64_rhel_10.2_doca/"
+      cuda:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.2/rpms/aarch64_rhel_10.2_cuda/"
+      nvidia-hpc-sdk:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.2/rpms/aarch64_rhel_10.2_nvidia-hpc-sdk/"
+      vast:
+        url: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.2/rpms/aarch64_rhel_10.2_vast/"
 
 registries:
-  user_registry1:
+  private_registry:
+    base_url: "https://harbor.example.com"
     port: 443
+    host: "harbor.example.com:443"
     tls:
-      capath: "/etc/omnia/certs/my-reg.example.com/ca.crt"
-      clientcertpath: "/etc/omnia/certs/my-reg.example.com/client.crt"
-      clientkeypath: "/etc/omnia/certs/my-reg.example.com/client.key"
       insecure: false
 
-  user_registry2:
-    host: "10.0.0.1"
-    port: 443
-    tls:
-      capath: "/etc/omnia/certs/internal-registry/ca.crt"
-      clientcertpath: "/etc/omnia/certs/internal-registry/client.crt"
-      clientkeypath: "/etc/omnia/certs/internal-registry/client.key"
-      insecure: false
-
+# File and Python outputs remain scoped to the primary execution context.
 file_repos:
   x86_64:
-    git:
-      karavi_observability: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/git/karavi-observability/"
-      helm_charts: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/git/helm-charts/"
-
     tarball:
-      sionlib: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/sionlib/"
-      msr_safe: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/msr-safe/"
-      papi: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/papi/"
-      geopm: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/geopm/"
-      likwid: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/likwid/"
-      osu_micro_benchmarks: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/osu-micro-benchmarks/"
-      imb: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/imb/"
-      nfs_subdir_external_provisioner_4_0_18: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/nfs-subdir-external-provisioner-4.0.18/"  # noqa: yaml[line-length]
       helm_v3_20_1_amd64: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/helm-v3.20.1-amd64/"
-      victoria_metrics_operator_0_59_3: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/victoria-metrics-operator-0.59.3/"  # noqa: yaml[line-length]
-      strimzi_kafka_operator_helm_3_chart_1_0_1: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/strimzi-kafka-operator-helm-3-chart-1.0.1/"  # noqa: yaml[line-length]
-      cert_manager_v1_10_0: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/cert-manager-v1.10.0/"
-
-    manifest:
-      metallb_native_v0_15_3: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/manifest/metallb-native-v0.15.3/"
-      calico_v3_31_4: "https://{{ admin_nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/manifest/calico-v3.31.4/"
-
     pip_module:
-      kubernetes_33_1_0: "https://{{ admin_nic_ip }}:2225/pypi/offline_repo/cluster/x86_64/rhel/10.0/pip_module/kubernetes==33.1.0/"
-      prettytable_3_14_0: "https://{{ admin_nic_ip }}:2225/pypi/offline_repo/cluster/x86_64/rhel/10.0/pip_module/prettytable==3.14.0/"
-      PyMySQL_1_1_2: "https://{{ admin_nic_ip }}:2225/pypi/offline_repo/cluster/x86_64/rhel/10.0/pip_module/PyMySQL==1.1.2/"
-      omsdk_1_2_518: "https://{{ admin_nic_ip }}:2225/pypi/offline_repo/cluster/x86_64/rhel/10.0/pip_module/omsdk==1.2.518/"
-      cryptography_45_0_7: "https://{{ admin_nic_ip }}:2225/pypi/offline_repo/cluster/x86_64/rhel/10.0/pip_module/cryptography==45.0.7/"
-      prometheus_client_0_20_0: "https://{{ admin_nic_ip }}:2225/pypi/offline_repo/cluster/x86_64/rhel/10.0/pip_module/prometheus_client==0.20.0/"
       cffi_1_17_1: "https://{{ admin_nic_ip }}:2225/pypi/offline_repo/cluster/x86_64/rhel/10.0/pip_module/cffi==1.17.1/"
   aarch64: {}
 

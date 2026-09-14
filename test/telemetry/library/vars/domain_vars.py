@@ -48,13 +48,18 @@ FVT_TAGS: List[str] = [
 MARKERS: List[str] = [
     "sanity",
     "functional",
+    "precheck",
     "sink",
     "source",
     "deploy",
     "ome",
     "ldms",
+    "vast",
     "sfm",
     "ufm",
+    "nft",
+    "performance",
+    "idempotency",
 ]
 
 # =====================================================================

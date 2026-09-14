@@ -24,6 +24,7 @@ from library.functions import (
     check_catalog_structure,
     check_catalog_log_file_exists,
 )
+from library.vars.common_vars import _get_input_path
 from library.messages import (
     TEST_NAMES,
 )
@@ -36,9 +37,8 @@ def test_catalog_generate_missing_input_file(host):
     tl = TestLogger(TEST_NAMES["catalog_generate_deploy"], "TC_RM_CAT_NEG_001")
 
     # Check that a non-existent input file is detected
-    non_existent_file = (
-        "/opt/omnia/repo_manager/input/project_default/nonexistent.txt"
-    )
+    input_path = _get_input_path()
+    non_existent_file = f"{input_path}/nonexistent.txt"
     result = host.run(f"test -f {non_existent_file} && echo 'exists' || echo 'missing'")
 
     if "missing" in result.stdout:
@@ -57,9 +57,8 @@ def test_catalog_add_missing_input_file(host):
     tl = TestLogger(TEST_NAMES["catalog_add_deploy"], "TC_RM_CAT_NEG_002")
 
     # Check that a non-existent input file is detected
-    non_existent_file = (
-        "/opt/omnia/repo_manager/input/project_default/nonexistent_add.txt"
-    )
+    input_path = _get_input_path()
+    non_existent_file = f"{input_path}/nonexistent_add.txt"
     result = host.run(f"test -f {non_existent_file} && echo 'exists' || echo 'missing'")
 
     if "missing" in result.stdout:
@@ -78,9 +77,8 @@ def test_catalog_delete_missing_input_file(host):
     tl = TestLogger(TEST_NAMES["catalog_delete_deploy"], "TC_RM_CAT_NEG_003")
 
     # Check that a non-existent input file is detected
-    non_existent_file = (
-        "/opt/omnia/repo_manager/input/project_default/nonexistent_delete.txt"
-    )
+    input_path = _get_input_path()
+    non_existent_file = f"{input_path}/nonexistent_delete.txt"
     result = host.run(f"test -f {non_existent_file} && echo 'exists' || echo 'missing'")
 
     if "missing" in result.stdout:

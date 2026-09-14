@@ -22,6 +22,15 @@
 # This task bridges build_status.yml into facts used by:
 #   1. s3_configurations  (dict with endpoint_url + bucket)
 #      → used by boot-service template (boot-svc.yaml.j2) to construct PXE boot HTTP URLs
+#
+# Tag-aware dependency checking:
+# - prepare/deploy tags: Don't require build_status.yml (not needed for OpenCHAMI deployment)
+# - execute/provision/pxeboot tags: Require build_status.yml (needed for boot service templates)
+# - Default flow (no tags): Require build_status.yml (complete flow needs it)
+
+- name: Load S3 configuration messages
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/vars/s3_config_messages.yml"
 
 - name: Load orchestrator config for build_status path
   ansible.builtin.include_vars:
@@ -31,7 +40,23 @@
 
 - name: Set image_build_manager output path
   ansible.builtin.set_fact:
-    _build_status_path: "{{ _orch_config.image_build_manager_output_path | default(hostvars['localhost']['image_build_manager_output_path']) }}"
+    _build_status_path: >-
+      {{ _orch_config.image_build_manager_output_path
+         | default(hostvars['localhost']['image_build_manager_output_path'], true) }}
+
+- name: Normalize lifecycle tags for S3 dependency evaluation
+  ansible.builtin.set_fact:
+    _s3_run_tags: >-
+      {{ hostvars['localhost']['omnia_run_tags'] | default([])
+         | difference(['all', 'always']) | list }}
+
+- name: Determine if build_status.yml is required based on tags
+  ansible.builtin.set_fact:
+    _build_status_required: >-
+      {{
+        (_s3_run_tags | length == 0) or
+        (_s3_run_tags | intersect(['execute', 'provision', 'pxeboot']) | length > 0)
+      }}
 
 - name: Verify build_status.yml exists
   ansible.builtin.stat:
@@ -39,26 +64,54 @@
   register: _build_status_stat
   delegate_to: localhost
 
-- name: Fail if build_status.yml is missing
+- name: Fail if build_status.yml is required but missing
   ansible.builtin.fail:
-    msg: >-
-      image_build_manager output not found at '{{ _build_status_path }}'.
-      Run image_build_manager before orchestrator to generate build_status.yml.
-      Or set image_build_manager_output_path in orchestrator_config.yml.
-  when: not _build_status_stat.stat.exists
+    msg: "{{ build_status_missing_required_msg }}"
+  when:
+    - _build_status_required | bool
+    - not _build_status_stat.stat.exists
+
+- name: Skip S3 configuration for prepare/deploy tags when build_status.yml is missing
+  ansible.builtin.debug:
+    msg: "{{ build_status_missing_optional_msg }}"
+  when:
+    - not _build_status_required | bool
+    - not _build_status_stat.stat.exists
+
+- name: Set default s3_configurations when not required
+  ansible.builtin.set_fact:
+    s3_configurations: {}
+    build_status: {}
+  when:
+    - not _build_status_required | bool
+    - not _build_status_stat.stat.exists
 
 - name: Load build_status.yml from image_build_manager output
   ansible.builtin.include_vars:
     file: "{{ _build_status_path }}"
     name: _build_status
   delegate_to: localhost
+  when: _build_status_stat.stat.exists
 
 - name: Validate build_status overall_status
   ansible.builtin.fail:
-    msg: >-
-      image_build_manager build_status.yml reports overall_status='{{ _build_status.overall_status | default("unknown") }}'.
-      Expected 'success'. Fix image builds before running orchestrator.
-  when: (_build_status.overall_status | default('')) != 'success'
+    msg: "{{ build_status_invalid_msg }}"
+  when:
+    - _build_status_stat.stat.exists
+    - (_build_status.overall_status | default('')) != 'success'
+
+- name: Validate S3 configuration in build_status
+  ansible.builtin.assert:
+    that:
+      - _build_status.s3_configurations is defined
+      - _build_status.s3_configurations is mapping
+      - _build_status.s3_configurations.endpoint_url is defined
+      - _build_status.s3_configurations.endpoint_url | length > 0
+    fail_msg: >-
+      image_build_manager build_status.yml does not contain a usable
+      s3_configurations.endpoint_url. Regenerate the build output before
+      running orchestrator.
+  when: _build_status_stat.stat.exists
 
 # -------------------------------------------------------------------
 # Bridge: set s3_configurations fact from build_status.yml
@@ -69,7 +122,11 @@
       endpoint_url: "{{ _build_status.s3_configurations.endpoint_url }}"
       bucket: "{{ _build_status.s3_configurations.bucket | default('boot-images') }}"
     build_status: "{{ _build_status }}"
+  when: _build_status_stat.stat.exists
 
 - name: Display S3 configuration from build_status
   ansible.builtin.debug:
-    msg: "S3 endpoint: {{ s3_configurations.endpoint_url }}, bucket: {{ s3_configurations.bucket }}"
+    msg: >-
+      S3 endpoint: {{ s3_configurations.endpoint_url }},
+      bucket: {{ s3_configurations.bucket }}
+  when: _build_status_stat.stat.exists

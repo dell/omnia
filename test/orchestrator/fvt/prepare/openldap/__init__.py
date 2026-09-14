@@ -1,0 +1,1 @@
+"""OpenLDAP prepare lifecycle verification."""

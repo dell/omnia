@@ -28,8 +28,8 @@
     - role: orchestrator_setup
       vars:
         openchami_vars_support: true
-        omnia_metadata_support: true
         oim_group: true
+        orchestrator_initialize_state: false
 
 - name: Validate OpenLDAP readiness
   hosts: oim

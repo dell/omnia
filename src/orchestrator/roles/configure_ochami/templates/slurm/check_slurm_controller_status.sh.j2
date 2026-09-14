@@ -2,6 +2,22 @@
 CONTROLLER_IP="{{ hostvars['oim']['controller_ip'] }}"
 MARKER="/var/log/track/slurm_controller_track"
 SERVICE_FILE="/usr/lib/systemd/system/slurmd.service"
+WAIT_TIMEOUT_SECONDS=1800
+WAIT_INTERVAL_SECONDS=5
+DEADLINE=$((SECONDS + WAIT_TIMEOUT_SECONDS))
+
+fail_timeout() {
+    echo "ERROR: $1 was not ready within ${WAIT_TIMEOUT_SECONDS} seconds." >&2
+    exit 1
+}
+
+if ! mountpoint -q "$(dirname "$MARKER")"; then
+    echo "Mounting the Slurm controller tracking export..."
+    if ! timeout 60 mount "$(dirname "$MARKER")"; then
+        echo "ERROR: Unable to mount the tracking export at $(dirname "$MARKER")." >&2
+        exit 1
+    fi
+fi
 
 echo "Reading slurm controller port from $SERVICE_FILE ..."
 EXEC_LINE=$(grep -E "^ExecStart=" "$SERVICE_FILE")
@@ -15,24 +31,30 @@ fi
 echo "Controller port identified as $CONTROLLER_PORT"
 echo "Waiting for slurm controller to be reachable..."
 
-while true; do
+CONTROLLER_READY=0
+while ((SECONDS < DEADLINE)); do
     if ping -c1 -W1 "$CONTROLLER_IP" &>/dev/null && \
       bash -c "cat < /dev/tcp/$CONTROLLER_IP/$CONTROLLER_PORT" &>/dev/null; then
         echo "Slurm controller reachable and port $CONTROLLER_PORT is open."
+        CONTROLLER_READY=1
         break
-    else
-        echo "Controller not ready. Retrying in 5 seconds..."
-        sleep 5
     fi
+    echo "Controller not ready. Retrying in ${WAIT_INTERVAL_SECONDS} seconds..."
+    sleep "$WAIT_INTERVAL_SECONDS"
 done
 
+if [ "$CONTROLLER_READY" -ne 1 ]; then
+    fail_timeout "Slurm controller $CONTROLLER_IP:$CONTROLLER_PORT"
+fi
+
 echo "Waiting for marker file: $MARKER"
-while true; do
+while ((SECONDS < DEADLINE)); do
     if [ -f "$MARKER" ]; then
         echo "Marker file found. Proceeding."
-        break
-    else
-        echo "Marker file not found. Retrying in 5 seconds..."
-        sleep 5
+        exit 0
     fi
+    echo "Marker file not found. Retrying in ${WAIT_INTERVAL_SECONDS} seconds..."
+    sleep "$WAIT_INTERVAL_SECONDS"
 done
+
+fail_timeout "Slurm controller marker $MARKER"

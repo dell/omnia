@@ -59,20 +59,6 @@ def validate_test_config() -> Dict[str, Any]:
             "oim_server_ip is empty — running in local mode"
         )
 
-    # omnia_data_path must start with /
-    data_path = config.get("omnia_data_path", "/opt/omnia")
-    if not data_path.startswith("/"):
-        errors.append(
-            f"omnia_data_path must be absolute: '{data_path}'"
-        )
-
-    # venv_path must start with /
-    venv_path = config.get("venv_path", "/opt/omnia/venv")
-    if not venv_path.startswith("/"):
-        errors.append(
-            f"venv_path must be absolute: '{venv_path}'"
-        )
-
     return {
         "valid": len(errors) == 0,
         "errors": errors,

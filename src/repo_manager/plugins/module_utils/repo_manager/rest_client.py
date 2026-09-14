@@ -11,18 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Provide a small CA-verified HTTPS client for Pulp operations."""
 
 import json
 import http.client
+import os
 import ssl
 import base64
 from urllib.parse import urlparse
+
+from ansible.module_utils.repo_manager.config import PULP_SSL_CA_CERT
 
 
 class RestClient:
     """
     REST client to interact with HTTP(S) endpoints using JSON-based POST and GET requests.
-    SSL verification is disabled for all requests.
+    HTTPS peers are verified with the configured Pulp CA bundle.
 
     Args:
         base_url (str): The base URL of the server (e.g., https://localhost:443).
@@ -30,10 +34,13 @@ class RestClient:
         password (str): Password for basic authentication.
     """
 
-    def __init__(self, base_url, username, password):
+    def __init__(self, base_url, username, password, ca_bundle=None):
         self.base_url = base_url
-        self.username = username
-        self.password = password
+        self.ca_bundle = (
+            ca_bundle
+            or os.environ.get("PULP_CA_BUNDLE")
+            or PULP_SSL_CA_CERT
+        )
         auth = f"{username}:{password}"
         auth_encoded = base64.b64encode(auth.encode()).decode()
         self.headers = {
@@ -43,22 +50,29 @@ class RestClient:
 
     def get_connection(self):
         """
-        Creates an HTTP or HTTPS connection to the server.
-        For HTTPS, SSL verification is disabled.
+        Create a certificate- and hostname-verified HTTPS connection.
 
         Returns:
             http.client.HTTPConnection or http.client.HTTPSConnection: A connection instance.
         """
         parsed_url = urlparse(self.base_url)
 
-        if parsed_url.scheme == 'https':
-            # nosec B323 - Internal Pulp server uses self-signed certificates
-            context = ssl._create_unverified_context()  # nosec B323
-            return http.client.HTTPSConnection(parsed_url.hostname, parsed_url.port, context=context, timeout=60)
-        # http support is disabled
-        # elif parsed_url.scheme == 'http':
-        #     return http.client.HTTPConnection(parsed_url.hostname, parsed_url.port, timeout=60)
-        return None
+        if (
+                parsed_url.scheme != "https"
+                or not parsed_url.hostname
+                or parsed_url.username is not None
+                or parsed_url.password is not None
+        ):
+            raise ValueError("Pulp base URL must be an HTTPS origin without credentials")
+
+        context = ssl.create_default_context(cafile=self.ca_bundle)
+        context.check_hostname = True
+        return http.client.HTTPSConnection(
+            parsed_url.hostname,
+            parsed_url.port or 443,
+            context=context,
+            timeout=60,
+        )
 
     def post(self, uri, data):
         """
@@ -71,8 +85,9 @@ class RestClient:
         Returns:
             dict or None: Parsed JSON response if successful, None otherwise.
         """
-        conn = self.get_connection()
+        conn = None
         try:
+            conn = self.get_connection()
             conn.request("POST", uri, body=json.dumps(data), headers=self.headers)
             response = conn.getresponse()
             if response.status != 202:
@@ -81,7 +96,8 @@ class RestClient:
         except Exception:
             return None
         finally:
-            conn.close()
+            if conn is not None:
+                conn.close()
 
     def get(self, uri):
         """
@@ -93,8 +109,9 @@ class RestClient:
         Returns:
             dict or None: Parsed JSON response if status is 200, None otherwise.
         """
-        conn = self.get_connection()
+        conn = None
         try:
+            conn = self.get_connection()
             conn.request("GET", uri, headers=self.headers)
             response = conn.getresponse()
             if response.status != 200:
@@ -103,7 +120,8 @@ class RestClient:
         except Exception:
             return None
         finally:
-            conn.close()
+            if conn is not None:
+                conn.close()
 
     def raw_get(self, uri):
         """
@@ -115,9 +133,12 @@ class RestClient:
         Returns:
             http.client.HTTPResponse or None: Response object if request succeeds, None otherwise.
         """
-        conn = self.get_connection()
+        conn = None
         try:
+            conn = self.get_connection()
             conn.request("GET", uri, headers=self.headers)
             return conn.getresponse()
         except Exception:
+            if conn is not None:
+                conn.close()
             return None

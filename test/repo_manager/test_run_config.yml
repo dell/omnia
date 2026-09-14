@@ -1,11 +1,134 @@
----
-# Repo Manager — Batch test execution configuration
-# Used by run_validation.sh --config
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-scenarios:
-  - validate
-  - deploy
-  - download
-  - status
-  - cleanup
-  - catalog
+---
+# =============================================================================
+# Test Run Configuration -- Repo Manager
+# =============================================================================
+#
+# Configure which test categories to run, execution order, and marker filters.
+#
+# Usage:
+#   1. Edit this file to enable/disable scenarios and set markers
+#   2. Run: ./run_validation.sh --config
+#
+# -----------------------------------------------------------------------------
+# Category Structure
+# -----------------------------------------------------------------------------
+# Top-level categories match the run_validation.sh first argument:
+#
+#   fvt_repo_manager  -- Functional Verification Tests (playbook tags)
+#   ut_repo_manager   -- Deterministic unit and source-contract tests
+#
+# FVT scenarios (nested under fvt_repo_manager):
+#   Each scenario maps to an FVT subdirectory.  Fields:
+#     run:          true/false    - Whether to execute this scenario
+#     command:      <string>      - exec, verify, or test (default: test)
+#                                   exec   = Run the playbook / trigger only
+#                                   verify = Run verification tests only
+#                                   test   = Exec + Verify (full flow)
+#     suite:        <folder>      - FVT subfolder filter (empty = all)
+#     marker:       <expression>  - Marker filter expression (empty = all)
+#
+# -----------------------------------------------------------------------------
+# Marker Expression Syntax
+# -----------------------------------------------------------------------------
+#   Single:   "sanity"                  -- tests with @pytest.mark.sanity
+#   OR:       "sanity,functional"       -- tests with EITHER marker
+#   AND:      "sanity+functional"       -- tests with BOTH markers
+#
+# Available markers:
+#   Quality:       sanity, functional, positive, negative
+#   Execution:     deploy, destructive
+#   Architecture:  x86_64, aarch64
+#
+# -----------------------------------------------------------------------------
+# Available FVT Suites (subfolders under fvt/<tag>/)
+# -----------------------------------------------------------------------------
+#   catalog:       add, delete, generate, negative, validate
+#   negative:      error_scenarios
+#
+#   precheck, prepare, execute, status, cleanup, cleanup_repos, policy,
+#   and user_registry keep their tests directly under the tag directory;
+#   leave suite empty for those scenarios.
+#
+# =============================================================================
+
+# =============================================================================
+# Execution Options
+# =============================================================================
+skip_on_failure: false
+
+# =============================================================================
+# FVT -- Functional Verification Tests
+# =============================================================================
+fvt_repo_manager:
+  precheck:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+  prepare:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+  execute:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+  status:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+  cleanup:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "destructive"
+  cleanup_repos:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "destructive"
+  policy:
+    run: false
+    command: "verify"
+    suite: ""
+    marker: "sanity"
+  catalog:
+    run: false
+    command: "test"
+    suite: "validate"
+    marker: "sanity"
+  negative:
+    run: false
+    command: "verify"
+    suite: ""
+    marker: "negative"
+  user_registry:
+    run: false
+    command: "verify"
+    suite: ""
+    marker: "sanity"
+
+# =============================================================================
+# UT -- Deterministic Unit and Source-Contract Tests
+# =============================================================================
+ut_repo_manager:
+  run: false
+  command: "test"
+  marker: ""

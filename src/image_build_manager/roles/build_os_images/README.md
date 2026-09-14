@@ -1,8 +1,8 @@
 # build_os_images
 
 Builds base and compute OS images for x86_64 and aarch64 architectures using
-OpenCHAMI image-builder. Uploads artifacts to S3 and verifies pushed images
-via `regctl`.
+the selected OpenCHAMI `image-builder` or `image-thrillhouse` engine. Uploads
+artifacts to S3 and verifies pushed OCI images via `regctl`.
 
 ## Build Flow
 
@@ -14,7 +14,8 @@ via `regctl`.
      to prevent undefined variable errors even if the loop is somehow empty
    - Each compute group uses its own `os_version` from `compute_images_dict`
 4. **Verification** — `regctl` manifest inspection for each pushed image
-5. **Status** — record built images in `build_completed_images` for `build_status.yml`
+5. **Status** — record completed functional-group images in
+   `build_completed_images` for `build_status.yml`
 
 Compute image builds are **skipped** when `compute_images_dict` is empty
 (e.g. base-only builds or no functional groups resolved for the architecture).
@@ -28,12 +29,15 @@ Compute image builds are **skipped** when `compute_images_dict` is empty
 
 ## Role Variables
 
-See `defaults/main.yml` and `vars/main.yml` for the full list.
+See `vars/main.yml`; this role has no `defaults/main.yml`.
 
-## Dependencies
+## Orchestration Prerequisites
+
+The role declares no automatic dependencies in `meta/main.yml`. The top-level
+playbooks prepare these facts and services before invoking it:
 
 - `image_build_setup` — environment and config loading
-- `collect_build_credentials` — S3 and registry credentials
+- `collect_build_credentials` — S3 and optional aarch64 SSH credentials
 - `deploy_minio` — local MinIO deployment (when s3_provider is minio)
 - `deploy_registry` — local OCI registry deployment (includes `regctl` install)
 - `fetch_build_packages` — resolves `base_image_packages` and `compute_images_dict`

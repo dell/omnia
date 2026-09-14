@@ -16,7 +16,6 @@ Both modes produce the **same output shape**:
 - `compute_images_dict` — dict of `{layer_name: {functional_group, packages, os_version}}`
 - `cluster_os_type` — OS type (e.g. `rhel`); from `package_groups.yml` or catalog baseos group
 - `cluster_os_version` — OS version (e.g. `10.0`); from `package_groups.yml` or catalog baseos group
-- `service_k8s_version` — Kubernetes version string (catalog mode) or `""` (config mode)
 
 ### Config Mode Details
 
@@ -25,6 +24,8 @@ dict in `package_groups.yml`, filtered by architecture suffix (`_x86_64` / `_aar
 No separate `functional_groups` list is needed in `image_build_config.yml`.
 
 OS metadata (`os`, `os_version`) is read from top-level fields in `package_groups.yml`.
+Groups with empty package lists and names containing `driver_group` are omitted
+from `compute_images_dict`.
 
 ### Catalog Layer Classification
 
@@ -55,14 +56,15 @@ from those groups but skip their packages (already in the base image).
 
 See `vars/main.yml` for the full list.
 
-## Dependencies
+## Orchestration Prerequisite
 
-- `image_build_setup` — environment, config loading, and repo_status parsing
+No dependency is declared in `meta/main.yml`; callers must first run
+`image_build_setup` so configuration and repository facts are available.
 
 ## Example
 
 ```yaml
-# Config mode (default)
+# Config mode
 - hosts: localhost
   roles:
     - fetch_build_packages

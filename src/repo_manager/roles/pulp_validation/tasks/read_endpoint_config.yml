@@ -19,7 +19,7 @@
 # Pulp endpoint variables for use by other playbooks.
 #
 # Variables Set:
-#   - pulp_server_ip: Pulp server IP address (from config or SYSTEM_ADMIN_NIC_IPV4 env var)
+#   - pulp_server_ip: Pulp server IP address (from config or admin NIC env var)
 #   - pulp_server_port: Pulp server port
 #   - pulp_protocol: Always https (internal compatibility fact)
 #   - admin_nic_ip: Alias for pulp_server_ip (backward compatibility)
@@ -30,7 +30,7 @@
   block:
     - name: Check if endpoint config file exists
       ansible.builtin.stat:
-        path: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
+        path: "{{ repo_manager_endpoint_config }}"
       register: endpoint_config_file
 
     - name: Fail if endpoint config file not found
@@ -40,7 +40,7 @@
 
     - name: Include endpoint config file
       ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/repo_manager_endpoint_config.yml"
+        file: "{{ repo_manager_endpoint_config }}"
         name: endpoint_config
 
   rescue:
@@ -52,27 +52,36 @@
   ansible.builtin.set_fact:
     admin_nic_ip: >-
       {{ admin_nic_ip | default(
-         lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true), true) }}
+         lookup('ansible.builtin.env', 'SYSTEM_ADMIN_NIC_IPV4')
+         | default('', true), true) }}
 
 - name: Validate endpoint configuration contract
   ansible.builtin.assert:
     that:
       - endpoint_config is mapping
-      - (endpoint_config.keys() | difference(['pulp_server_ip', 'pulp_server_port']) | length) == 0
-      - (endpoint_config.pulp_server_ip is defined and endpoint_config.pulp_server_ip | length > 0) or (admin_nic_ip is defined and admin_nic_ip | length > 0)
+      - >-
+        (endpoint_config.keys() |
+         difference(['pulp_server_ip', 'pulp_server_port']) |
+         length) == 0
+      - >-
+        (endpoint_config.pulp_server_ip is defined and
+         endpoint_config.pulp_server_ip | length > 0) or
+        (admin_nic_ip is defined and admin_nic_ip | length > 0)
       - endpoint_config.pulp_server_port is defined
       - endpoint_config.pulp_server_port is integer
       - endpoint_config.pulp_server_port | int >= 1
       - endpoint_config.pulp_server_port | int <= 65535
     fail_msg: >-
-      Invalid repo_manager_endpoint_config.yml. Only pulp_server_ip (optional)
-      and pulp_server_port (required integer from 1 to 65535) are supported.
-      pulp_server_ip must be provided either in the file or through
-      SYSTEM_ADMIN_NIC_IPV4.
+      {{ pulp_validation_validate_endpoint_configuration_contract_msg }}
+    quiet: true
 
 - name: Set Pulp endpoint variables from config or environment
   ansible.builtin.set_fact:
-    pulp_server_ip: "{{ endpoint_config.pulp_server_ip | default(admin_nic_ip) }}"
+    pulp_server_ip: >-
+      {{ endpoint_config.pulp_server_ip
+         if endpoint_config.pulp_server_ip is defined and
+            endpoint_config.pulp_server_ip | length > 0
+         else admin_nic_ip }}
     pulp_server_port: "{{ endpoint_config.pulp_server_port | int }}"
     pulp_protocol: "https"
     cacheable: true
@@ -89,10 +98,8 @@
     that:
       - pulp_server_ip in ansible_all_ipv4_addresses
     fail_msg: >-
-      Pulp endpoint IP {{ pulp_server_ip }} is not assigned to this host.
-      Set pulp_server_ip in repo_manager_endpoint_config.yml or correct
-      SYSTEM_ADMIN_NIC_IPV4. Available IPv4 addresses:
-      {{ ansible_all_ipv4_addresses | join(', ') }}.
+      {{ pulp_validation_validate_pulp_endpoint_ip_belongs_to_this_host_msg }}
+    quiet: true
   when: ansible_all_ipv4_addresses is defined
 
 - name: Set backward compatibility variables

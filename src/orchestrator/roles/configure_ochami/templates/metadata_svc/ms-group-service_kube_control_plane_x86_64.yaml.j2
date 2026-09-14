@@ -193,8 +193,6 @@
                           fieldPath: spec.nodeName
                     - name: vip_interface
                       value: vip_interface
-                    - name: vip_cidr
-                      value: "{{ admin_netmask_bits }}"
                     - name: dns_mode
                       value: first
                     - name: cp_enable
@@ -215,11 +213,15 @@
                       value: "3"
                     - name: vip_retryperiod
                       value: "1"
-                    - name: vip_address
+                    - name: address
                       value: {{ kube_vip }}
+                    - name: vip_subnet
+                      value: "{{ admin_netmask_bits }}"
                     - name: prometheus_server
                       value: :2112
-                  image: ghcr.io/kube-vip/kube-vip:v0.8.9
+                    - name: kubernetes_addr
+                      value: {{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}:6443
+                  image: "{{ kube_vip_image }}"
                   imagePullPolicy: IfNotPresent
                   name: kube-vip
                   resources: {}
@@ -248,7 +250,7 @@
           content: |
             #!/bin/bash
             set -e
-            HELM_VERSION="v3.20.1"
+            HELM_VERSION="v{{ helm_version }}"
             ARCH="amd64"
             cp {{ k8s_client_mount_path }}/helm/linux-${ARCH}-helm-$HELM_VERSION/helm /usr/local/bin/helm
             chmod +x /usr/local/bin/helm
@@ -302,33 +304,33 @@
         - systemctl start firewalld
 
         # Open essential ports
-        - firewall-cmd --permanent --add-port=22/tcp
-        - firewall-cmd --permanent --add-port=6443/tcp
-        - firewall-cmd --permanent --add-port=2379-2380/tcp
-        - firewall-cmd --permanent --add-port=10250/tcp
-        - firewall-cmd --permanent --add-port=10251/tcp
-        - firewall-cmd --permanent --add-port=10252/tcp
-        - firewall-cmd --permanent --add-port=10257/tcp
-        - firewall-cmd --permanent --add-port=10259/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=22/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=6443/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=2379-2380/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=10250/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=10251/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=10252/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=10257/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=10259/tcp
 
         # CNI-related ports if running workloads on control plane (NodePort, CNI, etc.)
-        - firewall-cmd --permanent --add-port=30000-32767/tcp
-        - firewall-cmd --permanent --add-port=179/tcp
-        - firewall-cmd --permanent --add-port=4789/udp
-        - firewall-cmd --permanent --add-port=5473/tcp
-        - firewall-cmd --permanent --add-port=51820/udp
-        - firewall-cmd --permanent --add-port=51821/udp
-        - firewall-cmd --permanent --add-port=9100/tcp
-        - firewall-cmd --permanent --add-port=7472/tcp
-        - firewall-cmd --permanent --add-port=7472/udp
-        - firewall-cmd --permanent --add-port=7946/tcp
-        - firewall-cmd --permanent --add-port=7946/udp
-        - firewall-cmd --permanent --add-port=9090/tcp
-        - firewall-cmd --permanent --add-port=8080/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=30000-32767/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=179/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=4789/udp
+        - firewall-cmd --permanent --zone=trusted --add-port=5473/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=51820/udp
+        - firewall-cmd --permanent --zone=trusted --add-port=51821/udp
+        - firewall-cmd --permanent --zone=trusted --add-port=9100/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=7472/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=7472/udp
+        - firewall-cmd --permanent --zone=trusted --add-port=7946/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=7946/udp
+        - firewall-cmd --permanent --zone=trusted --add-port=9090/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=8080/tcp
         
         # Enable services
-        - firewall-cmd --permanent --add-service=http
-        - firewall-cmd --permanent --add-service=https
+        - firewall-cmd --permanent --zone=trusted --add-service=http
+        - firewall-cmd --permanent --zone=trusted --add-service=https
 
         # Add pod/service networks
         - firewall-cmd --permanent --zone=trusted --add-source={{ k8s_service_addresses }}
@@ -377,7 +379,6 @@
         - systemctl start crio.service
         - systemctl enable crio.service
         - sudo systemctl enable --now kubelet
-        - kubeadm config images pull --kubernetes-version={{ service_k8s_version }}
 {% set role_name = 'service_kube_control_plane' %}
 {% include 'pull_additional_images.yaml.j2' %}
         - echo "Installing helm"
@@ -405,8 +406,31 @@
 {% if etcd_on_local_disk | default(false) %}
             /usr/local/bin/etcd-disk-setup.sh
 {% endif %}
-            rm -rf /var/lib/etcd/*  /var/lib/kubelet/* /etc/kubernetes/*
-            rm -rf /var/lib/etcd/.*  /var/lib/kubelet/.* /etc/kubernetes/.*
+            # Stop and reset any incomplete state left by an earlier PXE attempt.
+            systemctl stop kubelet.service || true
+            kubeadm reset --force --cri-socket=unix:///var/run/crio/crio.sock || true
+            systemctl stop crio.service || true
+            for state_dir in /var/lib/etcd /var/lib/kubelet /etc/kubernetes; do
+              mkdir -p "$state_dir"
+              find "$state_dir" -mindepth 1 -xdev -delete
+            done
+            systemctl start crio.service
+            crio_ready=false
+            for attempt in $(seq 1 60); do
+              if crictl info >/dev/null 2>&1; then
+                crio_ready=true
+                break
+              fi
+              echo "Waiting for CRI-O before pulling images (attempt ${attempt}/60)..."
+              sleep 2
+            done
+            if [ "$crio_ready" != "true" ]; then
+              echo "ERROR: CRI-O did not become ready within 2 minutes."
+              exit 1
+            fi
+            kubeadm config images pull --kubernetes-version={{ service_k8s_version }}
+            systemctl start kubelet.service
+
             K8S_CLIENT_MOUNT_PATH="{{ k8s_client_mount_path }}"
             NODE_NAME="{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}"
             KUBE_VIP="{{ kube_vip }}"
@@ -565,10 +589,9 @@
 {% if etcd_on_local_disk | default(false) %}
             /usr/local/bin/etcd-fstab-update.sh
 {% endif %}
-            mkdir -p $HOME/.kube /root/.kube
-            cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
-            chown $(id -u):$(id -g) $HOME/.kube/config
-            yes | cp -i /etc/kubernetes/admin.conf /root/.kube/config
+            mkdir -p /root/.kube
+            cp -f /etc/kubernetes/admin.conf /root/.kube/config
+            chown root:root /root/.kube/config
             kubectl get nodes -o wide || echo "Cluster not yet fully up"
             kubectl get pods --all-namespaces -o wide || echo "Pods may not be ready yet"
             echo "Rollout and Restart coredns"

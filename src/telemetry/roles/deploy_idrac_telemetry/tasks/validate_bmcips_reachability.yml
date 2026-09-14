@@ -15,8 +15,16 @@
 # Validate BMC reachability from first worker node.
 # The play runs on control plane (service_kube_cp_group) which cannot reach
 # BMC subnets, so we delegate to a worker node that has network access.
+- name: Set BMC group data filename from bmc_group_data_path
+  ansible.builtin.set_fact:
+    bmc_group_data_filename: "{{ hostvars['localhost']['bmc_group_data_path'] }}"
+  when:
+    - hostvars['localhost']['bmc_group_data_path'] is defined
+    - hostvars['localhost']['bmc_group_data_path'] | length > 0
+
 - name: Validate BMC reachability
   update_bmc_group_entry:
+    csv_path: "{{ bmc_group_data_filename }}"
     nodes: "{{ filtered_bmc_ip_dict_list }}"
     bmc_username: "{{ telemetry_credentials.bmc_username }}"
     bmc_password: "{{ telemetry_credentials.bmc_password }}"

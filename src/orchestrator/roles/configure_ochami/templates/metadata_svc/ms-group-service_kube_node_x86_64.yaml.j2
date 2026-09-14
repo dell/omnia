@@ -196,25 +196,25 @@
         - systemctl start firewalld
 
         # Open required ports for kube node
-        - firewall-cmd --permanent --add-port=22/tcp
-        - firewall-cmd --permanent --add-port=10250/tcp
-        - firewall-cmd --permanent --add-port=30000-32767/tcp
-        - firewall-cmd --permanent --add-port=179/tcp
-        - firewall-cmd --permanent --add-port=4789/udp
-        - firewall-cmd --permanent --add-port=5473/tcp
-        - firewall-cmd --permanent --add-port=51820/udp
-        - firewall-cmd --permanent --add-port=51821/udp
-        - firewall-cmd --permanent --add-port=9100/tcp
-        - firewall-cmd --permanent --add-port=7472/tcp
-        - firewall-cmd --permanent --add-port=7472/udp
-        - firewall-cmd --permanent --add-port=7946/tcp
-        - firewall-cmd --permanent --add-port=7946/udp
-        - firewall-cmd --permanent --add-port=9090/tcp
-        - firewall-cmd --permanent --add-port=8080/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=22/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=10250/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=30000-32767/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=179/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=4789/udp
+        - firewall-cmd --permanent --zone=trusted --add-port=5473/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=51820/udp
+        - firewall-cmd --permanent --zone=trusted --add-port=51821/udp
+        - firewall-cmd --permanent --zone=trusted --add-port=9100/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=7472/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=7472/udp
+        - firewall-cmd --permanent --zone=trusted --add-port=7946/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=7946/udp
+        - firewall-cmd --permanent --zone=trusted --add-port=9090/tcp
+        - firewall-cmd --permanent --zone=trusted --add-port=8080/tcp
 
         # Enable services
-        - firewall-cmd --permanent --add-service=http
-        - firewall-cmd --permanent --add-service=https
+        - firewall-cmd --permanent --zone=trusted --add-service=http
+        - firewall-cmd --permanent --zone=trusted --add-service=https
 
         # Add Kubernetes pod/service CIDRs (replace with your actual values)
         - firewall-cmd --permanent --zone=trusted --add-source={{ k8s_service_addresses }}
@@ -264,7 +264,6 @@
         - systemctl start crio.service
         - systemctl enable crio.service
         - sudo systemctl enable --now kubelet
-        - kubeadm config images pull --kubernetes-version={{ service_k8s_version }}
 {% set role_name = 'service_kube_node' %}
 {% include 'pull_additional_images.yaml.j2' %}
         - |
@@ -274,8 +273,31 @@
           if [ ! -f "$MARKER" ]; then
             # Join Kubernetes cluster
             echo "Initial boot - initializing and setting up service_kube_node_x86_64"
-            rm -rf /var/lib/kubelet/* /etc/kubernetes/*
-            rm -rf /var/lib/kubelet/.* /etc/kubernetes/.*
+            # Stop and reset any incomplete state left by an earlier PXE attempt.
+            systemctl stop kubelet.service || true
+            kubeadm reset --force --cri-socket=unix:///var/run/crio/crio.sock || true
+            systemctl stop crio.service || true
+            for state_dir in /var/lib/kubelet /etc/kubernetes; do
+              mkdir -p "$state_dir"
+              find "$state_dir" -mindepth 1 -xdev -delete
+            done
+            systemctl start crio.service
+            crio_ready=false
+            for attempt in $(seq 1 60); do
+              if crictl info >/dev/null 2>&1; then
+                crio_ready=true
+                break
+              fi
+              echo "Waiting for CRI-O before pulling images (attempt ${attempt}/60)..."
+              sleep 2
+            done
+            if [ "$crio_ready" != "true" ]; then
+              echo "ERROR: CRI-O did not become ready within 2 minutes."
+              exit 1
+            fi
+            kubeadm config images pull --kubernetes-version={{ service_k8s_version }}
+            systemctl start kubelet.service
+
             K8S_CLIENT_MOUNT_PATH="{{ k8s_client_mount_path }}"
             NODE_NAME="{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}"
             KUBE_VIP="{{ kube_vip }}"

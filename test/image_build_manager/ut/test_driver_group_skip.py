@@ -33,6 +33,10 @@ SAMPLE_CATALOG = (
     REPO_ROOT / "src" / "main" / "samples"
     / "catalog_rhel_10_0_x86_aarch64.json"
 )
+RHEL_10_2_CATALOG = (
+    REPO_ROOT / "src" / "main" / "samples"
+    / "catalog_rhel_10_2_x86_aarch64.json"
+)
 
 # ---------------------------------------------------------------------------
 # Mock ansible imports so parse_catalog.py can be imported outside Ansible
@@ -375,3 +379,18 @@ class TestSampleCatalogDriverGroups:
                 assert "nvidia-driver" not in pkg.lower() or "driver_group" not in fg_name, (
                     f"Driver package '{pkg}' leaked into compute group {fg_name}"
                 )
+
+
+@pytest.mark.parametrize("build_arch", ["x86_64", "aarch64"])
+def test_rhel_10_2_catalog_resolves_for_supported_architectures(build_arch):
+    """The shipped RHEL 10.2 catalog resolves build inputs for both arches."""
+    result = resolve_catalog(
+        catalog_file=str(RHEL_10_2_CATALOG),
+        build_arch=build_arch,
+    )
+
+    assert result["cluster_os_type"] == "rhel"
+    assert result["cluster_os_version"] == "10.2"
+    assert result["cluster_os_versions"] == ["10.2"]
+    assert result["base_image_packages"]
+    assert result["compute_images_dict"]

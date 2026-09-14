@@ -117,7 +117,7 @@
                   'runcmd': (metadata_svc_groups_dict[item].runcmd | default([])) + single_mnt_runcmd
                 }, recursive=True))
               }, recursive=True) }}
-      loop: "{{ target_functional_groups }}"
+      loop: "{{ mount_target_functional_groups }}"
       loop_control:
         label: "{{ item }}"
 

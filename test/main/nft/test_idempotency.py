@@ -16,13 +16,15 @@
 Omnia Main — Non-Functional Idempotency Tests.
 
 Verifies that running omnia.sh commands twice produces no side effects:
-  NFT_MA_003: --setup-venv is idempotent (venv and env file survive second run)
-  NFT_MA_004: --init is idempotent (domain dirs survive second run)
+  MAIN_NFT_003: --setup-venv is idempotent (venv and env file survive second run)
+  MAIN_NFT_004: --init is idempotent (domain dirs survive second run)
 """
 
 import pytest
 
-from library.functions import TestLogger, load_test_config
+from library.vars import TEST_CASES as TC
+
+from library.functions import TestLogger, resolve_runtime_paths
 from library.functions.omnia_main_func import (
     run_omnia_cmd,
     check_venv_created,
@@ -30,14 +32,14 @@ from library.functions.omnia_main_func import (
     check_domain_log_dirs,
     check_domain_input_staged,
 )
-from library.vars.common_vars import DOMAINS_WITH_INIT
 
 
 @pytest.mark.nft
 @pytest.mark.order(1)
 def test_setup_venv_idempotent(host):
-    """NFT_MA_003: Verify running --setup-venv twice produces no errors."""
-    tl = TestLogger("NFT: setup-venv idempotency", "NFT_MA_003")
+    """MAIN_NFT_003: Verify running --setup-venv twice produces no errors."""
+    tc = TC["setup_venv_idempotent"]
+    tl = TestLogger(tc["title"], tc["id"])
 
     # First run
     result1 = run_omnia_cmd(host, "omnia_sh_setup_venv")
@@ -105,12 +107,13 @@ def test_setup_venv_idempotent(host):
 @pytest.mark.nft
 @pytest.mark.order(2)
 def test_init_idempotent(host):
-    """NFT_MA_004: Verify running --init twice leaves domain state unchanged."""
-    tl = TestLogger("NFT: init idempotency", "NFT_MA_004")
+    """MAIN_NFT_004: Verify running --init twice leaves domain state unchanged."""
+    tc = TC["init_idempotent"]
+    tl = TestLogger(tc["title"], tc["id"])
 
-    config = load_test_config()
-    data_path = config.get("omnia_data_path", "/opt/omnia")
-    project = config.get("project_name", "project_default")
+    runtime = resolve_runtime_paths(host)
+    data_path = runtime["data_path"]
+    project = runtime["project_name"]
 
     # First run
     result1 = run_omnia_cmd(host, "omnia_sh_init")

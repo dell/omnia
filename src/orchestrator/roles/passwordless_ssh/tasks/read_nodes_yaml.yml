@@ -26,7 +26,7 @@
 
 - name: Set nodes directory path
   ansible.builtin.set_fact:
-    omnia_nodes_dir: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes"
+    omnia_nodes_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/openchami/workdir/nodes"
 
 - name: Find all per-category nodes files
   ansible.builtin.find:

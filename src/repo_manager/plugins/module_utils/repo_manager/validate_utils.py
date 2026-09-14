@@ -11,29 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Validate repository certificate configuration and filesystem state."""
+
 # pylint: disable=import-error,no-name-in-module
 import os
 from ansible.module_utils.repo_manager.common_functions import load_yaml_file
 from ansible.module_utils.repo_manager.config import (
-    ARCH_SUFFIXES,
     get_repos_section,
     iterate_all_repos
 )
 
 
-def get_pem_files(repo_cert_path):
-    """
-    Retrieves a list of .pem files from a specified repository certificate path.
-
-    Parameters:
-        repo_cert_path (str): The path to the repository certificates.
-
-    Returns:
-        list: A list of .pem file names if the directory exists, otherwise None.
-    """
-    if not os.path.isdir(repo_cert_path):
-        return None  # Explicitly indicate missing directory
-    return [f for f in os.listdir(repo_cert_path) if f.endswith(".pem")]
 
 
 def validate_repo_certificates(repo_list, certs_path):
@@ -94,14 +82,15 @@ def validate_repo_certificates(repo_list, certs_path):
     return cert_issues
 
 
-def validate_certificates(local_repo_config_path, certs_path, cluster_os_version="10.0"):
+def validate_certificates(local_repo_config_path, certs_path,
+                          cluster_os_version, architectures):
     """
     Validates the repository certificates based on the provided repository list and certificate path.
 
     Parameters:
         local_repo_config_path (str): The path to the local repository configuration file.
         certs_path (str): The path to the repository certificates.
-        cluster_os_version (str): OS version to look up repos (default: "10.0").
+        cluster_os_version (str): OS version selected from the catalog.
 
     Returns:
         dict: A dictionary containing the validation status and a list of issues if any.
@@ -111,7 +100,7 @@ def validate_certificates(local_repo_config_path, certs_path, cluster_os_version
 
     # Collect all repos with certificates from new structure
     all_repos = []
-    for arch in ARCH_SUFFIXES:
+    for arch in architectures:
         repos_section = get_repos_section(config_file, cluster_os_version, arch)
         for repo_name, repo_config in iterate_all_repos(repos_section):
             if repo_config and isinstance(repo_config, dict):

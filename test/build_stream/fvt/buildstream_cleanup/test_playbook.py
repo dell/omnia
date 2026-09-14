@@ -37,7 +37,7 @@ from library.messages import (
 
 @pytest.mark.deploy
 @pytest.mark.sanity
-@pytest.mark.order(0)
+@pytest.mark.order(1)
 def test_deploy_buildstream_cleanup(host):
     """Run cleanup/cleanup_build_stream.yml -e standalone_mode=true.
 

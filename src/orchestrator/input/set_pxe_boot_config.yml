@@ -13,38 +13,43 @@
 # limitations under the License.
 ---
 # PXE Boot Configuration
-# This file configures PXE boot and phone-home verification timing
+# This file configures PXE boot and node-registration verification timing
 #
 # Usage:
-#   - To run PXE boot: ansible-playbook orchestrator.yml --tags setpxe
-#   - Standalone: ansible-playbook setpxe/set_pxe_boot.yml
+#   - To run PXE boot: ansible-playbook orchestrator.yml --tags pxeboot
+#   - Standalone: ansible-playbook pxeboot/pxeboot.yml
 
 # ─────────────────────────────────────────────────────────────────────────
-# Phone-Home Verification Configuration
+# Node-Registration Verification Configuration
 # ─────────────────────────────────────────────────────────────────────────
 
-# Enable/disable phone-home verification (default: true)
-# When enabled, the playbook waits for nodes to boot and send cloud-init callbacks
-# When disabled, the playbook exits immediately after PXE boot
-enable_phone_home: true
+# Enable/disable node-registration verification (default: true)
+# When enabled, each node must be reachable through passwordless root SSH,
+# have booted after the PXE request, and report cloud-init status "done".
+# Verification is performed directly from the OIM. Metadata Service's
+# /phone-home route is a WireGuard bootstrap endpoint and is not a generic
+# cloud-init completion callback.
+# When disabled, the playbook reports PXE initiation without claiming that the
+# operating system boot or cloud-init execution was verified.
+# Legacy variable name: enable_phone_home (deprecated, will be removed)
+enable_node_registration: true
 
-# Initial wait time before starting phone-home polling (in minutes)
+# Initial wait time before starting node-registration polling (in minutes)
 # Nodes need time to boot and begin cloud-init before we start checking
 # Recommended: 3-5 minutes for typical hardware
-phone_home_pause_minutes: 3
+# Legacy variable name: phone_home_pause_minutes (deprecated, will be removed)
+node_registration_pause_minutes: 3
 
-# Maximum number of phone-home polling retries
-# Total wait time = phone_home_retries × phone_home_delay
-# Example: 120 retries × 15 seconds = 30 minutes
-phone_home_retries: 120
+# Maximum number of node-registration polling retries
+# Approximate retry delay budget per node = retries × delay. SSH connection
+# time and the initial pause are additional. Nodes are checked concurrently,
+# bounded by the Ansible forks setting.
+# Legacy variable name: phone_home_retries (deprecated, will be removed)
+node_registration_retries: 120
 
-# Delay between phone-home polling retries (in seconds)
-phone_home_delay: 15
-
-# Journal log pattern to search for phone-home callbacks
-# This pattern is used to grep the metadata-service journal on OIM
-# Do not change unless you've customized cloud-init configuration
-phone_home_log_pattern: "phone-home"
+# Delay between node-registration polling retries (in seconds)
+# Legacy variable name: phone_home_delay (deprecated, will be removed)
+node_registration_delay: 15
 
 # ─────────────────────────────────────────────────────────────────────────
 # PXE Boot Configuration (Advanced)

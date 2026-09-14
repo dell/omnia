@@ -122,5 +122,6 @@ then the `test_config.yml` default.
 | `sync_output: true`, named dataset | Only `datasets/<name>/repo_manager_output/` → execution OIM |
 | `sync_output: true`, empty dataset | `src/image_build_manager/samples/repo_manager_output/` → execution OIM |
 
-The framework reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the
-target server to resolve sync destinations.
+The framework uses a non-empty `IMAGE_BUILD_MANAGER_DATA_PATH` from the target
+server. Otherwise it derives the domain root from `OMNIA_DATA_PATH`; the
+project subdirectory always comes from `OMNIA_PROJECT_NAME`.

@@ -16,6 +16,11 @@ Volume={{ auth_init_dir }}/bootstrap.ldif:/container-init/bootstrap.ldif:ro,Z
 Volume={{ auth_certs_dir }}:/etc/openldap/certs:ro,Z
 Volume={{ auth_data_dir }}:/var/lib/openldap/openldap-data:Z
 AutoUpdate=registry
+HealthCmd=ldapwhoami -x -H ldap://127.0.0.1:389
+HealthInterval=30s
+HealthTimeout=5s
+HealthRetries=3
+HealthStartPeriod=30s
 
 [Service]
 Restart=always

@@ -1,0 +1,23 @@
+---
+galaxy_info:
+  role_name: oim_log_backup
+  namespace: omnia
+  author: Dell Technologies Omnia Team
+  description: Archive OIM domain log directories into a single backup bundle
+  company: Dell Technologies
+
+  license: Apache-2.0
+
+  min_ansible_version: "2.20"
+
+  platforms:
+    - name: EL
+      versions:
+        - "10"
+
+  galaxy_tags:
+    - hpc
+    - logging
+    - backup
+
+dependencies: []

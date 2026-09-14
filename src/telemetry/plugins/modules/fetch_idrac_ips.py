@@ -15,15 +15,67 @@
 # pylint: disable=import-error,no-name-in-module,line-too-long
 
 #!/usr/bin/python
-"""Module to map and fetch iDRAC IPs and related information from 
-service cluster metadata and BMC group data. This module reads the
-service cluster metadata and BMC group data to find iDRAC podnames
-and their associated IPs. It checks for service tags and parent status
-to filter relevant nodes, then retrieves the iDRAC podnames and IPs 
-from the BMC group data. It compiles these details into a dictionary
-where keys are iDRAC podnames and values are lists of IPs associated 
-with those podnames.
-The module also handles cases where no relevant data isfound"""
+"""Module to map and fetch iDRAC IPs and related information from
+service cluster metadata and BMC group data."""
+
+DOCUMENTATION = r'''
+---
+module: fetch_idrac_ips
+short_description: Map iDRAC pod names to their associated BMC IPs
+version_added: "2.3.0"
+description:
+  - Reads service cluster metadata and BMC group data to build a mapping
+    of iDRAC pod names to their associated BMC IP addresses.
+  - Filters nodes by C(service_tag) presence and C(parent_status) flag,
+    then cross-references with the BMC group data dictionary.
+  - Management nodes (role C(service_kube_control_plane)) are mapped to
+    the C(MGMT_node) key in the BMC group data.
+options:
+  service_cluster_metadata:
+    description: >
+      Dictionary of service cluster node metadata keyed by node identifier.
+      Each entry should contain C(service_tag), C(parent_status),
+      C(idrac_podname), and optionally C(role).
+    type: dict
+    required: true
+  parent_to_bmc_ip_details:
+    description: >
+      Dictionary mapping parent service tags to lists of BMC IP addresses.
+      Should include a C(MGMT_node) key for management node IPs.
+    type: dict
+    required: true
+author:
+  - Dell Technologies (@dell)
+'''
+
+EXAMPLES = r'''
+- name: Fetch iDRAC pod-to-IP mapping
+  omnia.telemetry.fetch_idrac_ips:
+    service_cluster_metadata: "{{ service_cluster_metadata }}"
+    parent_to_bmc_ip_details: "{{ parent_to_bmc_ip_details }}"
+  register: idrac_result
+
+- name: Display the mapping
+  ansible.builtin.debug:
+    var: idrac_result.idrac_podname_ips
+'''
+
+RETURN = r'''
+changed:
+  description: Always false (read-only module).
+  type: bool
+  returned: always
+  sample: false
+idrac_podname_ips:
+  description: >
+    Dictionary mapping iDRAC pod names to lists of BMC IP addresses
+    associated with that pod.
+  type: dict
+  returned: always
+  sample:
+    idrac-pod-0: ["192.168.1.10", "192.168.1.11"]
+    idrac-pod-1: ["192.168.1.20"]
+'''
 
 from ansible.module_utils.basic import AnsibleModule
 

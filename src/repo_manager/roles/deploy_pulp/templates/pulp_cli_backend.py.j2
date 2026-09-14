@@ -1,0 +1,13 @@
+#!{{ pulp_cli_runtime_python_executable }}
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Licensed under the Apache License, Version 2.0.
+"""Managed Pulp CLI entry point for the selected Python runtime."""
+
+import sys
+
+from pulp_cli import main
+
+
+if __name__ == "__main__":
+    sys.argv[0] = sys.argv[0].removesuffix(".exe")
+    sys.exit(main())

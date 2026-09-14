@@ -13,11 +13,11 @@
 # limitations under the License.
 
 """
-Pytest configuration for repo_manager FVT.
+Pytest configuration for Repo Manager FVT and deterministic unit tests.
 
 Provides:
 - host fixture (testinfra connection to target)
-- Custom markers: sanity, functional, deploy, positive, negative
+- Custom markers: sanity, functional, deploy, positive, negative, destructive
 - Marker expression: '+' for AND, ',' for OR
 - Test ordering via @pytest.mark.order(n)
 - Credential auto-encryption
@@ -33,6 +33,13 @@ _TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TEST_DIR not in sys.path:
     sys.path.insert(0, _TEST_DIR)
 
+# The UT suites share source_loader.py from their own directory. Pytest invoked
+# through ValidationRunner receives an absolute test path, so it does not add
+# that directory to sys.path automatically as unittest discovery does.
+_UT_DIR = os.path.join(_TEST_DIR, "ut")
+if _UT_DIR not in sys.path:
+    sys.path.insert(0, _UT_DIR)
+
 # Add plugins directory to path for omnia_auto
 _PLUGINS_DIR = os.path.join(os.path.dirname(_TEST_DIR), "plugins")
 if _PLUGINS_DIR not in sys.path:
@@ -43,7 +50,7 @@ if _PLUGINS_DIR not in sys.path:
 _OMNIA_ENV_FILE = "/etc/omnia/omnia.env"
 if os.path.exists(_OMNIA_ENV_FILE):
     try:
-        with open(_OMNIA_ENV_FILE, "r") as _f:
+        with open(_OMNIA_ENV_FILE, "r", encoding="utf-8") as _f:
             for _line in _f:
                 _line = _line.strip()
                 # Skip comments and empty lines
@@ -73,7 +80,7 @@ if os.path.exists(_OMNIA_ENV_FILE):
         pass
 
 # --- Initialize omnia_auto BEFORE any imports that use it ---
-import omnia_auto
+import omnia_auto  # pylint: disable=wrong-import-position
 omnia_auto.configure(
     module_root=_TEST_DIR,
     config_file="test_config.yml",
@@ -82,7 +89,7 @@ omnia_auto.configure(
 )
 
 # --- Common functions from omnia_auto ---
-from omnia_auto import (
+from omnia_auto import (  # pylint: disable=wrong-import-position
     get_testinfra_host,
     is_local_execution,
     load_test_config,
@@ -90,28 +97,107 @@ from omnia_auto import (
     set_current_report,
     get_current_report,
     get_test_output,
-    encrypt_test_credentials,
+    get_last_tc_id,
+    build_report_name,
     log,
     add_session_result,
     print_summary_table,
+    get_last_detail_fields,
 )
+
+# --- Module-specific functions ---
+from library.functions import host_func  # pylint: disable=wrong-import-position
+
+
+# =============================================================================
+# DATASET OVERRIDES
+# =============================================================================
+
+def _apply_dataset_overrides(config):
+    """Apply dataset/sync overrides from environment variables.
+
+    Environment variables (set by run_validation.sh --config mode):
+      OMNIA_DATASET_OVERRIDE      — override config["dataset"]
+      OMNIA_SYNC_INPUT_OVERRIDE   — override config["sync_repo_manager_input"]
+
+    Args:
+        config: Test configuration dict from load_test_config().
+
+    Returns:
+        dict: Updated config dict (mutated in place).
+    """
+    ds_override = os.environ.get("OMNIA_DATASET_OVERRIDE", "")
+    if ds_override:
+        log(f"Dataset override: {config.get('dataset')} -> {ds_override}", "INFO")
+        config["dataset"] = ds_override
+
+    si_override = os.environ.get("OMNIA_SYNC_INPUT_OVERRIDE", "")
+    if si_override:
+        log(
+            "Sync input override: "
+            f"{config.get('sync_repo_manager_input')} -> {si_override}",
+            "INFO",
+        )
+        config["sync_repo_manager_input"] = si_override.lower() == "true"
+
+    return config
+
+
+# =============================================================================
+# SESSION STARTUP — ENCRYPT, CLONE, SYNC
+# =============================================================================
+
+def pytest_sessionstart(session):
+    """Session startup: validate config, encrypt creds, sync files, init report."""
+    _ = session
+    if os.environ.get("OMNIA_COMMAND_TYPE") == "ut":
+        return
+    config = load_test_config()
+
+    # Apply dataset/sync overrides from env vars (set by --config mode)
+    config = _apply_dataset_overrides(config)
+
+    target_host = get_testinfra_host()
+
+    if not is_local_execution():
+        sync_result = host_func.sync_project_to_remote()
+        if sync_result["success"]:
+            log(sync_result["details"], "OK")
+        else:
+            log(f"Project sync failed: {sync_result['error']}", "WARN")
+
+    if config.get("sync_repo_manager_input", False):
+        sync_result = host_func.sync_repo_manager_input(target_host, config)
+        if sync_result["success"]:
+            log(sync_result["details"], "OK")
+        else:
+            log(f"Input sync failed: {sync_result['error']}", "ERROR")
+
 
 # --- Session-scoped test report ---
 @pytest.fixture(scope="session", autouse=True)
 def test_report():
     """Create a session-wide test report."""
+    if os.environ.get("OMNIA_COMMAND_TYPE") == "ut":
+        yield None
+        return
     config = load_test_config()
     report_path = config.get("report_path", "/opt/omnia/reports")
-    oim_ip = config.get("oim_server_ip", "127.0.0.1")
+    oim_ip = config.get("oim_server_ip", "")
+    if not oim_ip:
+        oim_ip = "localhost"
+    report_name = build_report_name(
+        domain_name="repo_manager",
+        base_name="repo_manager_fvt",
+    )
     report = TestReport(
         module_name="repo_manager",
         report_path=report_path,
-        report_name="repo_manager_fvt",
+        report_name=report_name,
         server_ip=oim_ip,
     )
     set_current_report(report)
     yield report
-    print_summary_table()
 
 
 # =============================================================================
@@ -142,6 +228,7 @@ def pytest_configure(config):
         "functional": "Functional verification",
         "positive": "Positive test cases",
         "negative": "Negative test cases",
+        "destructive": "Explicit opt-in cleanup tests",
         "deploy": "Playbook deployment tests",
         "x86_64": "x86_64 architecture tests",
         "aarch64": "aarch64 architecture tests",
@@ -182,6 +269,85 @@ def pytest_collection_modifyitems(config, items):
 
 
 # =============================================================================
+def pytest_sessionfinish(session, exitstatus):
+    """Save report and print summary table after all tests complete."""
+    _ = session, exitstatus
+    report = get_current_report()
+    if report and report.results:
+        # Ensure report directory exists (may have been removed by cleanup)
+        os.makedirs(report.report_path, exist_ok=True)
+        report.save()
+
+    print_summary_table()
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Capture test results and output for the HTML report + summary."""
+    _ = call
+    outcome = yield
+    result = outcome.get_result()
+
+    if result.when not in {"call", "setup"}:
+        return
+
+    if result.when == "setup" and not result.skipped:
+        return
+
+    status = "PASSED" if result.passed else (
+        "SKIPPED" if result.skipped else "FAILED"
+    )
+
+    output = get_test_output(item.name)
+    details = output if output else ""
+    detail_fields = get_last_detail_fields()
+    skip_reason = ""
+
+    if result.skipped:
+        if hasattr(result, "wasxfail"):
+            status = "SKIPPED"
+        rep_text = str(result.longrepr) if result.longrepr else ""
+        if "Skipped:" in rep_text:
+            skip_reason = rep_text.split("Skipped:", 1)[-1].strip()
+        elif "SKIP" in rep_text:
+            skip_reason = rep_text.split("SKIP", 1)[-1].strip()
+
+    if status == "SKIPPED" and skip_reason:
+        details = (
+            (details + "\n" if details else "")
+            + f"SKIPPED: {skip_reason}"
+        )
+
+    tc_id = get_last_tc_id()
+    if not tc_id:
+        doc = getattr(item.obj, "__doc__", "") or ""
+        if doc.strip().startswith("TC_"):
+            tc_id = doc.strip().split(":", 1)[0].strip()
+
+    add_session_result(
+        test_name=item.name,
+        status=status,
+        duration=getattr(result, "duration", 0),
+        tc_id=tc_id,
+    )
+
+    report = get_current_report()
+    if report:
+        report_payload = {
+            "tc_id": tc_id,
+            "test_name": item.name,
+            "status": status,
+            "duration": getattr(result, "duration", 0),
+            "details": details,
+            "error": (
+                str(result.longrepr) if result.failed else ""
+            ),
+        }
+        if detail_fields:
+            report_payload["detail_fields"] = detail_fields
+        report.add_result(report_payload)
+
+
 @pytest.fixture(scope="session")
 def host():
     """Return a testinfra host connection to the target."""

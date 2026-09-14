@@ -52,6 +52,6 @@
               }, recursive=True))
             }, recursive=True)
           }}
-      loop: "{{ target_functional_groups }}"
+      loop: "{{ mount_target_functional_groups }}"
       loop_control:
         label: "{{ item }}"

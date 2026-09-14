@@ -369,8 +369,10 @@ class UploadFilesUseCase:
             # Store in ArtifactStore only for changed files
             self._store_in_artifact_store(job_id, filename, content)
 
-        # Always write to both NFS locations (job-scoped and shared)
-        self._write_to_nfs_job_directory(job_id, filename, content)
+        # failed_nodes.json is playbook output in the artifact directory.  On
+        # retry, only refresh its job-specific restart-state copy below.
+        if filename != "failed_nodes.json":
+            self._write_to_nfs_job_directory(job_id, filename, content)
 
         # Route files to their correct destinations
         if filename == "failed_nodes.json":

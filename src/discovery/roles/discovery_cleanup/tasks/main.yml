@@ -1,0 +1,60 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Display Discovery cleanup start
+  ansible.builtin.debug:
+    msg: "{{ discovery_cleanup_started_msg }}"
+
+- name: Validate Discovery cleanup inputs
+  ansible.builtin.include_tasks: validate.yml
+
+- name: Resolve Discovery cleanup selection
+  ansible.builtin.set_fact:
+    discovery_cleanup_remove_output: >-
+      {{ discovery_cleanup_selected_tags | length == 0 or
+         'cleanup' in discovery_cleanup_selected_tags }}
+    discovery_cleanup_remove_credentials: >-
+      {{ 'cleanup_credentials' in discovery_cleanup_selected_tags or
+         cleanup_credentials | bool }}
+
+- name: Remove Discovery project outputs
+  ansible.builtin.include_tasks: cleanup_output.yml
+  when: discovery_cleanup_remove_output | bool
+
+- name: Remove Discovery credentials
+  ansible.builtin.include_tasks: cleanup_credentials.yml
+  when: discovery_cleanup_remove_credentials | bool
+
+- name: Display Discovery cleanup summary
+  ansible.builtin.debug:
+    msg:
+      - "{{ discovery_cleanup_summary_header }}"
+      - ""
+      - >-
+        Output contents: {{
+        discovery_cleanup_output_preserved_msg
+        if not (discovery_cleanup_remove_output | bool)
+        else discovery_cleanup_output_absent_msg
+        if not (discovery_cleanup_output_stat.stat.exists | default(false))
+        else discovery_cleanup_output_check_mode_msg
+        if ansible_check_mode
+        else discovery_cleanup_output_removed_msg }}
+      - >-
+        Credentials: {{ discovery_cleanup_credentials_check_mode_msg
+        if ansible_check_mode and discovery_cleanup_remove_credentials | bool
+        else discovery_cleanup_credentials_removed_msg
+        if discovery_cleanup_remove_credentials | bool else
+        discovery_cleanup_credentials_preserved_msg }}
+      - "{{ discovery_cleanup_other_inputs_msg }}"

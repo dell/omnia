@@ -35,40 +35,51 @@ supported_tags:
   - execute
   - discovery
   - cleanup
+  - cleanup_credentials
   - upgrade
   - rollback
 
 skip_credential_tags:
   - precheck
   - cleanup
+  - cleanup_credentials
   - validate
 
 invalid_tag_combinations:
   - [execute, cleanup]
   - [discovery, cleanup]
   - [prepare, cleanup]
+  - [execute, cleanup_credentials]
+  - [discovery, cleanup_credentials]
+  - [prepare, cleanup_credentials]
   - [prepare, upgrade]
   - [execute, upgrade]
   - [discovery, upgrade]
   - [cleanup, upgrade]
+  - [cleanup_credentials, upgrade]
   - [prepare, rollback]
   - [execute, rollback]
   - [discovery, rollback]
   - [cleanup, rollback]
+  - [cleanup_credentials, rollback]
   - [upgrade, rollback]
   - [precheck, prepare]
   - [precheck, execute]
   - [precheck, discovery]
   - [precheck, cleanup]
+  - [precheck, cleanup_credentials]
   - [precheck, upgrade]
   - [precheck, rollback]
   - [credentials, prepare]
   - [credentials, execute]
   - [credentials, discovery]
   - [credentials, cleanup]
+  - [credentials, cleanup_credentials]
   - [credentials, upgrade]
   - [credentials, rollback]
   - [credentials, precheck]
+  - [validate, cleanup]
+  - [validate, cleanup_credentials]
 
 # --- Tag validation messages ---
 tag_validation_fail_msg: |
@@ -82,7 +93,8 @@ tag_combination_fail_msg: |
   {% for combo in invalid_tag_combinations %}
   - {{ combo | join(' + ') }}
   {% endfor %}
-  Please run with only ONE tag at a time (or no tags for default flow).
+  Use one tag at a time. cleanup + cleanup_credentials is the only supported
+  two-tag combination.
 
 # Discovery setup defaults
 default_project_name: "project_default"

@@ -54,7 +54,7 @@
 
 - name: Set facts for slurm
   ansible.builtin.set_fact:
-    cluster_name: "{{ slurm_cluster[0].cluster_name }}"
+    slurm_cluster_name: "{{ slurm_cluster[0].cluster_name }}"
     configs_input: "{{ slurm_cluster[0].config_sources | default({}) | dict2items | rejectattr('value', 'falsy') | list | items2dict }}"
     skip_merge: "{{ slurm_cluster[0].skip_merge | default(false) }}"
     slurm_config_path: "{{ share_path }}/{{ slurm_dir_name }}"
@@ -137,7 +137,7 @@
   ansible.builtin.copy:
     src: "{{ pulp_webserver_cert_path }}"
     dest: "{{ slurm_config_path }}/cert"
-    mode: "{{ file_mode }}"
+    mode: "{{ conf_file_mode }}"
   become: true
 
 - name: Set hpc_tools_path

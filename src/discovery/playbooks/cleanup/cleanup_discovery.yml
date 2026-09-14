@@ -12,14 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# cleanup_discovery.yml -- Placeholder for discovery cleanup flow.
-# Full implementation deferred to a future release.
+# cleanup_discovery.yml -- Remove Discovery-owned outputs and credentials.
+#
+# Usage from the Discovery domain root:
+#   ansible-playbook playbooks/discovery.yml --tags cleanup
+#   ansible-playbook playbooks/discovery.yml --tags cleanup \
+#     -e cleanup_credentials=false
+#   ansible-playbook playbooks/discovery.yml --tags cleanup_credentials
+#
+# Full cleanup does not remove or create the current project's output
+# directory. When it exists, cleanup removes all contents and leaves the empty
+# directory in place. Discovery credentials are removed by default. The
+# opt-out preserves only the encrypted credential file and its vault key.
 
-- name: Discovery cleanup placeholder
+- name: Standalone setup for Discovery cleanup
   hosts: localhost
   connection: local
   gather_facts: false
+  tags:
+    - cleanup
+    - cleanup_credentials
   tasks:
-    - name: Cleanup not implemented
-      ansible.builtin.debug:
-        msg: "discovery cleanup flow is not implemented yet -- reserved for future release"
+    - name: Run discovery_setup role when invoked standalone
+      ansible.builtin.include_role:
+        name: discovery_setup
+      vars:
+        discovery_cleanup_mode: true
+      when: not (discovery_setup_done | default(false) | bool)
+
+- name: Cleanup Discovery outputs and credentials
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - cleanup
+    - cleanup_credentials
+  roles:
+    - discovery_cleanup

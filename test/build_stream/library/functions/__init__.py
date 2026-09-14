@@ -36,9 +36,16 @@ from omnia_auto import (
     TestReport,
     get_current_report,
     set_current_report,
+    build_report_name,
+    record_playbook_failure,
     run_playbook as _run_playbook,
 )
 from library.vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
+from library.functions.host_func import (
+    check_target_connectivity,
+    sync_build_stream_input,
+    sync_project_to_remote,
+)
 
 # --- GitLab verification ---
 from library.functions.gitlab_func import (
@@ -91,12 +98,18 @@ from library.functions.pipeline_func import (
     verify_stage_completed,
     get_image_groups_for_job,
     get_images_for_job,
+    resolve_deploy_image_group,
     # Stage monitoring
     poll_stage_until_complete,
     # GitLab CI/CD stage tracking
     get_child_pipeline_id,
     get_gitlab_pipeline_jobs,
     poll_gitlab_ci_stages,
+    swap_pxe_mapping_rows,
+    wait_for_child_pipeline,
+    run_deploy_child_pipeline,
+    get_gitlab_job_trace,
+    discover_deploy_pipeline,
     # BSM API
     get_catalog_roles,
     verify_registry_images,
@@ -112,6 +125,8 @@ from library.functions.pipeline_func import (
     verify_build_image,
     verify_build_image_meta,
     get_pipeline_summary,
+    get_bsm_job_details,
+    get_bsm_artifact_json,
     # Repo manager output
     check_repo_status,
     # Registry & S3 direct checks
@@ -192,7 +207,12 @@ __all__ = [
     "TestReport",
     "get_current_report",
     "set_current_report",
+    "build_report_name",
+    "record_playbook_failure",
     "run_playbook",
+    "check_target_connectivity",
+    "sync_build_stream_input",
+    "sync_project_to_remote",
     # GitLab
     "check_gitlab_packages_installed",
     "check_gitlab_server_reachable",
@@ -260,11 +280,17 @@ __all__ = [
     "get_stage_state",
     "verify_stage_completed",
     "get_image_groups_for_job",
+    "resolve_deploy_image_group",
     "get_images_for_job",
     "poll_stage_until_complete",
     "get_child_pipeline_id",
     "get_gitlab_pipeline_jobs",
     "poll_gitlab_ci_stages",
+    "swap_pxe_mapping_rows",
+    "wait_for_child_pipeline",
+    "run_deploy_child_pipeline",
+    "get_gitlab_job_trace",
+    "discover_deploy_pipeline",
     "get_catalog_roles",
     "verify_registry_images",
     "verify_s3_boot_images",
@@ -277,6 +303,8 @@ __all__ = [
     "verify_build_image",
     "verify_build_image_meta",
     "get_pipeline_summary",
+    "get_bsm_job_details",
+    "get_bsm_artifact_json",
     "check_repo_status",
     "check_registry_images_exist",
     "check_s3_boot_images_exist",

@@ -28,9 +28,10 @@ import stat
 import string
 import secrets
 import base64
-from pathlib import Path
-import yaml
 import tomllib as toml
+from pathlib import Path
+
+import yaml
 
 
 def load_yaml_file(path):
@@ -52,31 +53,8 @@ def load_yaml_file(path):
         return yaml.safe_load(file)
 
 
-def get_repo_list(config_file, repo_key):
-    """
-    Retrieve the list of repositories from config using a given key.
-
-    Args:
-        config_file (dict): The configuration file data.
-        repo_key (str): The key to retrieve the repository list.
-
-    Returns:
-        list: The list of repositories.
-    """
-    return config_file.get(repo_key, [])
 
 
-def is_file_exists(file_path):
-    """
-    Check if a file exists at the given path.
-
-    Args:
-        file_path (str): The path to the file.
-
-    Returns:
-        bool: True if the file exists, False otherwise.
-    """
-    return os.path.isfile(file_path)
 
 
 def is_encrypted(file_path):
@@ -140,7 +118,7 @@ def process_file(file_path, vault_key, mode):
         if currently_encrypted:
             success, message = True, f"Already encrypted: {file_path}"
         else:
-            code, out, err = run_vault_command('encrypt', file_path, vault_key)
+            code, _, err = run_vault_command('encrypt', file_path, vault_key)
             if code == 0:
                 success, message = True, f"Encrypted: {file_path}"
             else:
@@ -150,7 +128,7 @@ def process_file(file_path, vault_key, mode):
         if not currently_encrypted:
             success, message = True, f"Already decrypted: {file_path}"
         else:
-            code, out, err = run_vault_command('decrypt', file_path, vault_key)
+            code, _, err = run_vault_command('decrypt', file_path, vault_key)
             if code == 0:
                 success, message = True, f"Decrypted: {file_path}"
             else:
@@ -288,33 +266,29 @@ def get_arch_from_sw_config(software_name, sw_config_data):
         if pkg_archs:
             return {software_name: list(pkg_archs)}
 
-    # Default to x86_64 if no architecture found
-    return {software_name: ["x86_64"]}
+    raise ValueError(
+        f"No architecture is defined for software '{software_name}' in the catalog"
+    )
 
 
 def get_arch_from_functional_groups_config(software_name, functional_groups_config_data):
-    """
-    Extract architecture values under each group defined in functional_groups_config.yml
-    Parameters
-       software_name: name of the software
-       functional_groups_config_data: content of functional_groups_config.yml
-
-    Returns:
-        dict: {software_name: [archs]}
-    """
+    """Extract architecture values from legacy functional group configuration."""
     archs = []
     groups = functional_groups_config_data.get("Groups", {})
 
     if not groups:
-        error_msg = "No groups defined in functional_groups_config.yml under 'Groups'"
-        raise ValueError(error_msg)
+        raise ValueError(
+            "No groups defined in functional_groups_config.yml under 'Groups'"
+        )
 
     for group_name, group_data in groups.items():
         architecture = group_data.get("architecture")
         if architecture:
             archs.append(architecture.strip())
         else:
-            error_msg = f"No architecture defined for group '{group_name}' in functional_groups_config.yml"
-            raise ValueError(error_msg)
+            raise ValueError(
+                f"No architecture defined for group '{group_name}' "
+                "in functional_groups_config.yml"
+            )
 
     return {software_name: archs}

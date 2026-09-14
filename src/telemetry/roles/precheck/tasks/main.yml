@@ -20,6 +20,9 @@
 # Runs all K8s cluster health checks on kube_vip.
 # (kube_vip input/reachability checks are done on localhost via validate_kube_vip.yml)
 
+- name: Check K8s node reachability
+  ansible.builtin.include_tasks: check_k8s_node_reachability.yml
+
 - name: Check K8s control plane nodes
   ansible.builtin.include_tasks: check_control_plane.yml
 

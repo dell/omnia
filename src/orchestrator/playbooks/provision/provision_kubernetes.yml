@@ -27,7 +27,7 @@
   pre_tasks:
     - name: Load orchestrator state
       ansible.builtin.include_vars:
-        file: "{{ hostvars['localhost']['orchestrator_output_dir'] | default('/opt/omnia/.data') }}/orchestrator_state.yml"
+        file: "{{ hostvars['localhost']['orchestrator_output_dir'] }}/orchestrator_state.yml"
 
     - name: Load functional groups configuration
       ansible.builtin.include_vars:
@@ -49,8 +49,10 @@
         msg: "No functional groups match kubernetes category. Skipping."
       when: target_functional_groups | length == 0
 
-  roles:
-    - role: provision_common
+    - name: Register Kubernetes nodes and initialize provisioning facts
+      ansible.builtin.include_role:
+        name: provision_common
+        tasks_from: registration.yml
       when: target_functional_groups | length > 0
 
   tasks:
@@ -84,3 +86,20 @@
           when:
             - "'openldap' in category_bolt_ons"
             - openldap_support | default(false) | bool
+
+    - name: Generate Kubernetes node mount and swap cloud-init data
+      ansible.builtin.include_role:
+        name: mount_config
+      vars:
+        mount_config_mode: "cloud-init"
+      when:
+        - target_functional_groups | length > 0
+        - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+        - "'mount_config' in (category_bolt_ons | default([]))"
+
+    - name: Publish Kubernetes Boot Service and Metadata Service configuration
+      ansible.builtin.include_role:
+        name: provision_common
+      vars:
+        provision_common_registration_complete: true
+      when: target_functional_groups | length > 0

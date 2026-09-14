@@ -15,18 +15,20 @@
 """
 Omnia Main CLI — --skip, --dry-run Verification.
 
-TC_CL_018: Verify --skip flag appears in help output
-TC_CL_019: Verify --dry-run flag appears in help output
-TC_CL_020: Verify --skip with invalid domain exits with error
-TC_CL_021: Verify --skip + explicit domain list is mutually exclusive
-TC_CL_022: Verify --skip without -s/-i exits with error
-TC_CL_023: Verify --skip without domain list exits with error
-TC_CL_024: Verify --dry-run shows domain list without executing
-TC_CL_025: Verify --dry-run --skip shows filtered domain list
-TC_CL_026: Verify --dry-run without -s/-i exits with error
+MAIN_FVT_CLI_V015: Verify --skip flag appears in help output
+MAIN_FVT_CLI_V016: Verify --dry-run flag appears in help output
+MAIN_FVT_CLI_V017: Verify --skip with invalid domain exits with error
+MAIN_FVT_CLI_V018: Verify --skip + explicit domain list is mutually exclusive
+MAIN_FVT_CLI_V019: Verify --skip without -s/-i exits with error
+MAIN_FVT_CLI_V020: Verify --skip without domain list exits with error
+MAIN_FVT_CLI_V021: Verify --dry-run shows domain list without executing
+MAIN_FVT_CLI_V022: Verify --dry-run --skip shows filtered domain list
+MAIN_FVT_CLI_V023: Verify --dry-run without -s/-i exits with error
 """
 
 import pytest
+
+from library.vars import TEST_CASES as TC
 
 from library.functions import TestLogger
 from library.functions.omnia_main_func import (
@@ -34,7 +36,6 @@ from library.functions.omnia_main_func import (
     run_omnia_cmd_expect_error,
 )
 from library.messages import (
-    TEST_NAMES,
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
@@ -46,13 +47,13 @@ from library.vars.common_vars import KNOWN_DOMAINS
 # ─────────────────────────────────────────────────────────────────────────────
 
 @pytest.mark.sanity
-@pytest.mark.order(18)
+@pytest.mark.order(15)
 def test_skip_in_help(host):
-    """TC_CL_018: Verify --skip flag appears in help output."""
-    tl = TestLogger(
-        TEST_NAMES["skip_in_help"], "TC_CL_018"
-    )
+    """MAIN_FVT_CLI_V015: Verify --skip flag appears in help output."""
+    tc = TC["skip_in_help"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(host, "omnia_sh_help")
+    tl.bind_result(result)
 
     found = "--skip" in result.get("output", "")
 
@@ -65,13 +66,13 @@ def test_skip_in_help(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(19)
+@pytest.mark.order(16)
 def test_dry_run_in_help(host):
-    """TC_CL_019: Verify --dry-run flag appears in help output."""
-    tl = TestLogger(
-        TEST_NAMES["dry_run_in_help"], "TC_CL_019"
-    )
+    """MAIN_FVT_CLI_V016: Verify --dry-run flag appears in help output."""
+    tc = TC["dry_run_in_help"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(host, "omnia_sh_help")
+    tl.bind_result(result)
 
     found = "--dry-run" in result.get("output", "")
 
@@ -87,16 +88,16 @@ def test_dry_run_in_help(host):
 # --skip error handling tests
 # ─────────────────────────────────────────────────────────────────────────────
 
-@pytest.mark.sanity
-@pytest.mark.order(20)
+@pytest.mark.regression
+@pytest.mark.order(17)
 def test_skip_invalid_domain(host):
-    """TC_CL_020: Verify --skip with invalid domain exits with error."""
-    tl = TestLogger(
-        TEST_NAMES["skip_invalid_domain"], "TC_CL_020"
-    )
+    """MAIN_FVT_CLI_V017: Verify --skip with invalid domain exits with error."""
+    tc = TC["skip_invalid_domain"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd_expect_error(
         host, "omnia_sh_skip_invalid_domain",
     )
+    tl.bind_result(result)
 
     if result["success"]:
         tl.passed(LOG["skip_invalid_ok"].format(
@@ -112,16 +113,16 @@ def test_skip_invalid_domain(host):
     )
 
 
-@pytest.mark.sanity
-@pytest.mark.order(21)
+@pytest.mark.regression
+@pytest.mark.order(18)
 def test_skip_with_include_error(host):
-    """TC_CL_021: Verify --skip + explicit domain list is rejected."""
-    tl = TestLogger(
-        TEST_NAMES["skip_with_include_error"], "TC_CL_021"
-    )
+    """MAIN_FVT_CLI_V018: Verify --skip + explicit domain list is rejected."""
+    tc = TC["skip_with_include_error"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd_expect_error(
         host, "omnia_sh_skip_with_include",
     )
+    tl.bind_result(result)
 
     if result["success"]:
         tl.passed(LOG["skip_include_error_ok"].format(
@@ -137,16 +138,16 @@ def test_skip_with_include_error(host):
     )
 
 
-@pytest.mark.sanity
-@pytest.mark.order(22)
+@pytest.mark.regression
+@pytest.mark.order(19)
 def test_skip_without_init_error(host):
-    """TC_CL_022: Verify --skip without -s/-i exits with error."""
-    tl = TestLogger(
-        TEST_NAMES["skip_without_init_error"], "TC_CL_022"
-    )
+    """MAIN_FVT_CLI_V019: Verify --skip without -s/-i exits with error."""
+    tc = TC["skip_without_init_error"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd_expect_error(
         host, "omnia_sh_skip_without_init",
     )
+    tl.bind_result(result)
 
     if result["success"]:
         tl.passed(LOG["skip_without_init_ok"].format(
@@ -162,16 +163,16 @@ def test_skip_without_init_error(host):
     )
 
 
-@pytest.mark.sanity
-@pytest.mark.order(23)
+@pytest.mark.regression
+@pytest.mark.order(20)
 def test_skip_no_args_error(host):
-    """TC_CL_023: Verify --skip without domain list exits with error."""
-    tl = TestLogger(
-        TEST_NAMES["skip_no_args_error"], "TC_CL_023"
-    )
+    """MAIN_FVT_CLI_V020: Verify --skip without domain list exits with error."""
+    tc = TC["skip_no_args_error"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd_expect_error(
         host, "omnia_sh_skip_no_args",
     )
+    tl.bind_result(result)
 
     if result["success"]:
         tl.passed(LOG["skip_no_args_ok"].format(
@@ -192,13 +193,13 @@ def test_skip_no_args_error(host):
 # ─────────────────────────────────────────────────────────────────────────────
 
 @pytest.mark.sanity
-@pytest.mark.order(24)
+@pytest.mark.order(21)
 def test_dry_run_output(host):
-    """TC_CL_024: Verify --dry-run shows domain list without executing."""
-    tl = TestLogger(
-        TEST_NAMES["dry_run_output"], "TC_CL_024"
-    )
+    """MAIN_FVT_CLI_V021: Verify --dry-run shows domain list without executing."""
+    tc = TC["dry_run_output"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(host, "omnia_sh_dry_run")
+    tl.bind_result(result)
     output = result.get("output", "")
 
     # --dry-run should print "DRY RUN" and list domains
@@ -219,16 +220,16 @@ def test_dry_run_output(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(25)
+@pytest.mark.order(22)
 def test_dry_run_with_skip(host):
-    """TC_CL_025: Verify --dry-run --skip shows filtered domain list."""
-    tl = TestLogger(
-        TEST_NAMES["dry_run_with_skip"], "TC_CL_025"
-    )
+    """MAIN_FVT_CLI_V022: Verify --dry-run --skip shows filtered domain list."""
+    tc = TC["dry_run_with_skip"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(
         host, "omnia_sh_dry_run_with_skip",
         domain="telemetry",
     )
+    tl.bind_result(result)
     output = result.get("output", "")
 
     # Should show DRY RUN and mention "Skipped"
@@ -249,16 +250,16 @@ def test_dry_run_with_skip(host):
     assert success, ASSERT["dry_run_failed"]
 
 
-@pytest.mark.sanity
-@pytest.mark.order(26)
+@pytest.mark.regression
+@pytest.mark.order(23)
 def test_dry_run_without_init_error(host):
-    """TC_CL_026: Verify --dry-run without -s/-i exits with error."""
-    tl = TestLogger(
-        TEST_NAMES["dry_run_without_init_error"], "TC_CL_026"
-    )
+    """MAIN_FVT_CLI_V023: Verify --dry-run without -s/-i exits with error."""
+    tc = TC["dry_run_without_init_error"]
+    tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd_expect_error(
         host, "omnia_sh_dry_run_without_init",
     )
+    tl.bind_result(result)
 
     if result["success"]:
         tl.passed(LOG["dry_run_without_init_ok"].format(

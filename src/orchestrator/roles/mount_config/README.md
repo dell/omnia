@@ -48,7 +48,7 @@ mounts:
     mnt_opts: "rw,hard,intr,_netdev"
 ```
 
-When a PXE mapping file is provided, this mount will be added to the `host_mount_map` for all hosts in the specified groups. Cloud-init templates will conditionally render these mounts based on `ds.meta_data.instance_data.local_hostname`.
+When a PXE mapping file is provided, this mount will be added to the `host_mount_map` for all hosts in the specified groups. Node-specific identifiers are resolved on the node with `cloud-init query`.
 
 ## Configuration
 
@@ -60,7 +60,7 @@ When a PXE mapping file is provided, this mount will be added to the `host_mount
 - `pxe_mapping_file_path`: Path to PXE mapping file (optional, passed to role)
 
 ### Output Data Structures
-- `cloud_init_groups_dict`: Dictionary mapping functional group names to their mounts and runcmd entries
+- `metadata_svc_groups_dict`: Dictionary mapping functional group names to their mounts and runcmd entries
 - `host_mount_map`: Dictionary mapping hostnames to their host-specific mounts and runcmd entries (when PXE mapping provided)
 
 ## Cloud-Init Integration
@@ -68,7 +68,6 @@ When a PXE mapping file is provided, this mount will be added to the `host_mount
 Both functional group and host-specific mounts are rendered in cloud-init templates:
 
 1. **Functional Group Mounts**: Rendered for all nodes in the functional group
-2. **Host-Specific Mounts**: Conditionally rendered only for the current node (using `ds.meta_data.instance_data.local_hostname`)
+2. **Host-Specific Mounts**: Resolve the current node identifier with `cloud-init query` before creating node-specific bind mounts
 
 This allows a single cloud-init template to serve multiple nodes while each node receives only its applicable mounts.
-

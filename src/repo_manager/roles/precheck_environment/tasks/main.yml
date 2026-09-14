@@ -62,7 +62,7 @@
       ansible.builtin.assert:
         that:
           - item.stat.exists | default(false)
-        fail_msg: "Upstream contract not found: {{ item.item }}"
+        fail_msg: "{{ precheck_environment_validate_upstream_contracts_are_accessible_msg }}"
         quiet: true
       loop: "{{ upstream_checks.results }}"
       when: repo_manager_has_upstream | bool

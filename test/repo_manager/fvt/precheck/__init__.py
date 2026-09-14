@@ -1,1 +1,1 @@
-# Repo Manager validate scenario
+# Repo Manager precheck scenario

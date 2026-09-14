@@ -2,6 +2,8 @@
 collections:
   - name: ansible.posix
     version: "2.0.0"
+  - name: ansible.utils
+    version: "5.1.1"
   - name: community.general
     version: "10.3.0"
   - name: dellemc.openmanage

@@ -32,10 +32,13 @@ from omnia_auto import (
     load_test_credentials,
     get_module_root,
     run_on_host,
+    run_ssh_command,
     is_local_execution,
     TestReport,
     get_current_report,
     set_current_report,
+    build_report_name,
+    record_playbook_failure,
     run_playbook as _run_playbook,
 )
 from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
@@ -72,6 +75,7 @@ from .slurm_func import (
     check_slurm_services_running,
     check_slurm_directories_exist,
     check_slurm_config_files_exist,
+    check_slurm_config_integrity,
     check_slurm_nodes_registered,
     check_slurm_partitions_exist,
     check_munge_service_running,
@@ -102,6 +106,52 @@ from .slurm_func import (
     check_infiniband_available,
     check_mpi_available,
     check_mpi_job_execution,
+)
+
+# --- Kubernetes verification ---
+from .k8s_func import (
+    # Node discovery
+    get_k8s_nodes_from_pxe,
+    get_k8s_control_plane_nodes,
+    get_k8s_worker_nodes,
+    get_k8s_all_nodes,
+    get_node_ip_from_pxe,
+    # K8s enabled check
+    check_k8s_enabled,
+    # Node status checks
+    check_k8s_nodes_ready,
+    check_k8s_control_plane_nodes,
+    check_k8s_worker_nodes,
+    # Service checks
+    check_kubelet_running,
+    check_containerd_running,
+    # Pod and component checks
+    check_k8s_system_pods,
+    check_k8s_apiserver_responding,
+    check_k8s_etcd_healthy,
+    check_k8s_coredns_running,
+    check_k8s_kube_proxy_running,
+    check_k8s_static_pod,
+    check_k8s_cluster_info,
+    # Directory/file checks
+    check_k8s_directories_exist,
+    check_k8s_config_files_exist,
+    check_k8s_pki_certs_exist,
+    check_k8s_nfs_config_exists,
+    # SSH checks
+    check_k8s_ssh,
+    # Workload tests
+    check_k8s_pod_create,
+    check_k8s_dns_resolution,
+    check_k8s_service_create,
+    # Node metadata
+    check_k8s_node_labels,
+    check_k8s_node_taints,
+    # SMD/Metadata checks
+    check_k8s_smd_groups,
+    check_k8s_metadata_configured,
+    # LDAP integration
+    check_k8s_ldap_integration,
 )
 
 # --- OpenCHAMI configuration verification ---
@@ -144,8 +194,27 @@ from .orchestrator_playbook_tester import (
 )
 
 
+_NONINTERACTIVE_PXE_TAGS = {"execute", "pxeboot"}
+
+
 def run_playbook(tag=None, **kwargs):
-    """Wrapper that injects module-specific playbook and workdir."""
+    """Inject Orchestrator defaults and disable its TTY-only PXE delay.
+
+    Automated pytest execution streams Ansible through pipes, so the timed
+    ``ansible.builtin.pause`` cannot safely access a controlling terminal.
+    Starting the existing bounded node-registration polling immediately keeps
+    the same verification contract without requiring interactive input.
+    """
+    tag_values = set(tag) if isinstance(tag, list) else {tag}
+    extra_vars = kwargs.pop("extra_vars", None)
+    if tag_values & _NONINTERACTIVE_PXE_TAGS and (
+        extra_vars is None or isinstance(extra_vars, dict)
+    ):
+        resolved_extra_vars = dict(extra_vars or {})
+        resolved_extra_vars["node_registration_pause_minutes"] = 0
+        kwargs["extra_vars"] = resolved_extra_vars
+    elif extra_vars is not None:
+        kwargs["extra_vars"] = extra_vars
     return _run_playbook(
         playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),
         playbook_workdir=kwargs.pop("playbook_workdir", PLAYBOOK_WORKDIR),

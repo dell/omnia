@@ -1,0 +1,102 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Inspect Discovery project output directory
+  ansible.builtin.stat:
+    path: "{{ discovery_cleanup_output_dir }}"
+    follow: false
+  register: discovery_cleanup_output_stat
+  become: true
+
+- name: Validate Discovery project output directory type
+  ansible.builtin.assert:
+    that:
+      - >-
+        not discovery_cleanup_output_stat.stat.exists or
+        (discovery_cleanup_output_stat.stat.isdir | default(false) and
+         not (discovery_cleanup_output_stat.stat.islnk | default(false)))
+    fail_msg: "{{ discovery_cleanup_invalid_output_type_msg }}"
+    quiet: true
+
+- name: Find entries in Discovery project output directory
+  ansible.builtin.find:
+    paths:
+      - "{{ discovery_cleanup_output_dir }}"
+    file_type: any
+    hidden: true
+    recurse: false
+    follow: false
+  register: discovery_cleanup_output_entries
+  when: discovery_cleanup_output_stat.stat.isdir | default(false)
+  become: true
+
+- name: Validate Discovery project output directory was fully inspected
+  ansible.builtin.assert:
+    that:
+      - >-
+        discovery_cleanup_output_entries.skipped_paths
+        | default({}) | length == 0
+    fail_msg: "{{ discovery_cleanup_output_scan_failed_msg }}"
+    quiet: true
+  when: discovery_cleanup_output_stat.stat.isdir | default(false)
+
+- name: Remove entries from Discovery project output directory
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ discovery_cleanup_output_entries.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path }}"
+  become: true
+
+- name: Verify Discovery project output directory is empty
+  ansible.builtin.find:
+    paths:
+      - "{{ discovery_cleanup_output_dir }}"
+    file_type: any
+    hidden: true
+    recurse: false
+    follow: false
+  register: discovery_cleanup_remaining_output_entries
+  when:
+    - discovery_cleanup_output_stat.stat.isdir | default(false)
+    - not ansible_check_mode
+  become: true
+
+- name: Reinspect Discovery project output directory
+  ansible.builtin.stat:
+    path: "{{ discovery_cleanup_output_dir }}"
+    follow: false
+  register: discovery_cleanup_final_output_stat
+  when:
+    - discovery_cleanup_output_stat.stat.isdir | default(false)
+    - not ansible_check_mode
+  become: true
+
+- name: Validate Discovery project output contents were removed
+  ansible.builtin.assert:
+    that:
+      - discovery_cleanup_final_output_stat.stat.exists | default(false)
+      - discovery_cleanup_final_output_stat.stat.isdir | default(false)
+      - not (discovery_cleanup_final_output_stat.stat.islnk | default(false))
+      - >-
+        discovery_cleanup_remaining_output_entries.skipped_paths
+        | default({}) | length == 0
+      - discovery_cleanup_remaining_output_entries.matched | default(0) | int == 0
+    fail_msg: "{{ discovery_cleanup_output_not_empty_msg }}"
+    quiet: true
+  when:
+    - discovery_cleanup_output_stat.stat.isdir | default(false)
+    - not ansible_check_mode

@@ -19,6 +19,118 @@ Optimized with parallel processing and connection pooling.
 Supports iDRAC 9 and iDRAC 10.
 """
 
+DOCUMENTATION = r'''
+---
+module: enable_telemetry_service
+short_description: Enable all telemetry reports on iDRAC nodes via Redfish
+version_added: "2.3.0"
+description:
+  - Enables the Redfish TelemetryService and all available
+    MetricReportDefinitions on one or more iDRAC nodes.
+  - Uses parallel processing (ThreadPoolExecutor) at both the server and
+    report level for high throughput across large fleets.
+  - Supports iDRAC 9 and iDRAC 10 firmware with 37 known report types.
+options:
+  idrac_ips:
+    description: List of iDRAC IP addresses to configure.
+    type: list
+    elements: str
+    required: true
+  username:
+    description: iDRAC username for Redfish authentication.
+    type: str
+    required: true
+  password:
+    description: iDRAC password for Redfish authentication.
+    type: str
+    required: true
+  parallel_jobs:
+    description: Maximum number of servers to configure in parallel.
+    type: int
+    default: 64
+  timeout:
+    description: HTTP request timeout in seconds per Redfish call.
+    type: int
+    default: 30
+  exclude_reports:
+    description: List of report names to skip during enablement.
+    type: list
+    elements: str
+    default: []
+author:
+  - Dell Technologies (@dell)
+'''
+
+EXAMPLES = r'''
+- name: Enable telemetry on all iDRAC nodes
+  omnia.telemetry.enable_telemetry_service:
+    idrac_ips: "{{ telemetry_idrac_ips }}"
+    username: "{{ idrac_username }}"
+    password: "{{ idrac_password }}"
+    parallel_jobs: 32
+
+- name: Enable telemetry excluding GPU reports
+  omnia.telemetry.enable_telemetry_service:
+    idrac_ips: "{{ telemetry_idrac_ips }}"
+    username: "{{ idrac_username }}"
+    password: "{{ idrac_password }}"
+    exclude_reports:
+      - GPUMetrics
+      - GPUStatistics
+'''
+
+RETURN = r'''
+changed:
+  description: Whether telemetry was enabled on any server.
+  type: bool
+  returned: always
+success_count:
+  description: Number of servers successfully configured.
+  type: int
+  returned: always
+  sample: 10
+failed_count:
+  description: Number of servers that failed configuration.
+  type: int
+  returned: always
+  sample: 2
+total_reports_enabled:
+  description: Total individual reports enabled across all servers.
+  type: int
+  returned: always
+  sample: 370
+total_reports_failed:
+  description: Total individual reports that failed to enable.
+  type: int
+  returned: always
+  sample: 0
+total_reports_skipped:
+  description: Total individual reports skipped (excluded).
+  type: int
+  returned: always
+  sample: 20
+duration_seconds:
+  description: Wall-clock duration of the operation in seconds.
+  type: float
+  returned: always
+  sample: 45.32
+success_results:
+  description: Per-server results for successful configurations.
+  type: list
+  elements: dict
+  returned: always
+failed_results:
+  description: Per-server results for failed configurations.
+  type: list
+  elements: dict
+  returned: always
+msg:
+  description: Summary message.
+  type: str
+  returned: always
+  sample: "Telemetry enabled on 10/12 servers (370 reports)"
+'''
+
 import logging
 import os
 import time

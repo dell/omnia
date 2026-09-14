@@ -27,28 +27,30 @@
 #   1. test_creds.yml       — OIM SSH and enabled external appliance credentials
 #                              (OME and SFM), stored locally.
 #   2. telemetry_credentials.yml — Domain credentials (BMC, MySQL, CSI, LDMS, UFM, VAST).
-#      Created at $OMNIA_DATA_PATH/telemetry/input/$OMNIA_PROJECT_NAME/
+#      Created at $TELEMETRY_DATA_PATH/input/$OMNIA_PROJECT_NAME/ when set,
+#      otherwise $OMNIA_DATA_PATH/telemetry/input/$OMNIA_PROJECT_NAME/,
 #      and encrypted with ansible-vault.
 #
 # TEST CREDENTIALS:
 #   --set-creds          Prompt for OIM SSH and enabled OME/SFM credentials.
 #   --update-creds       Force-update OIM SSH and enabled OME/SFM credentials.
-#   --creds <pass>       Non-interactive OIM SSH password set only.
+#   --creds-stdin        Read a non-interactive OIM SSH password from stdin.
 #
 # DOMAIN CREDENTIALS:
 #   --set-domain-creds   Interactive prompt for telemetry domain credentials.
 #   --update-domain-creds  Force-update domain credentials (no "already set" check).
-#   --domain-creds <json>  Non-interactive. JSON: '{"bmc_username":"x",...}'
+#   --domain-creds-stdin Read a non-interactive JSON object from stdin.
 #
 # Usage:
 #   bash setup_env.sh                        # Baremetal or active venv
 #   bash setup_env.sh --venv                 # Create .venv/ and install there
+#   bash setup_env.sh --force                 # Force-reinstall dependencies
 #   bash setup_env.sh --venv --force         # Recreate .venv/ from scratch
 #   bash setup_env.sh --set-creds            # Prompt for test credentials
 #   bash setup_env.sh --update-creds         # Update test credentials
-#   bash setup_env.sh --creds "secret"       # Set OIM SSH password via flag
+#   approved-secret-provider | bash setup_env.sh --creds-stdin
 #   bash setup_env.sh --set-domain-creds     # Prompt for telemetry creds
-#   bash setup_env.sh --domain-creds '{...}' # Non-interactive domain creds
+#   credential-json-provider | bash setup_env.sh --domain-creds-stdin
 #   bash setup_env.sh --debug                # Verbose pip output
 #   bash setup_env.sh --help                 # Show this help
 # =============================================================================
@@ -58,6 +60,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${SCRIPT_DIR}/.venv"
 REQUIREMENTS="${SCRIPT_DIR}/requirements.txt"
+WHEEL_PATH="${SCRIPT_DIR}/../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl"
+cd "$SCRIPT_DIR"
 
 # ── Test credentials (local) ──
 CREDS_FILE="${SCRIPT_DIR}/test_creds.yml"
@@ -67,9 +71,7 @@ CREDS_KEY="${SCRIPT_DIR}/.test_creds.key"
 DOMAIN_CREDS_FILENAME="telemetry_credentials.yml"
 DOMAIN_CREDS_KEY_FILENAME=".telemetry_credentials_key"
 DOMAIN_NAME="telemetry"
-
-# ── omnia_auto credential CLI ──
-CRED_CLI="python3 -m omnia_auto"
+DOMAIN_DATA_PATH_ENV="TELEMETRY_DATA_PATH"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Colors & helpers
@@ -90,9 +92,14 @@ fail()  { echo -e "  ${RED}[FAIL]${NC} $1"; exit 1; }
 # Resolve domain creds path from env vars
 # ─────────────────────────────────────────────────────────────────────────────
 _resolve_domain_creds_dir() {
-    local _data_path="${OMNIA_DATA_PATH:-/opt/omnia}"
-    local _project="${OMNIA_PROJECT_NAME:-project_default}"
-    echo "${_data_path}/${DOMAIN_NAME}/input/${_project}"
+    local _domain_root=""
+    if [[ -v "$DOMAIN_DATA_PATH_ENV" ]]; then
+        _domain_root="${!DOMAIN_DATA_PATH_ENV}"
+    fi
+    if [ -z "$_domain_root" ]; then
+        _domain_root="${OMNIA_DATA_PATH%/}/${DOMAIN_NAME}"
+    fi
+    echo "${_domain_root%/}/input/${OMNIA_PROJECT_NAME}"
 }
 
 _domain_creds_path() {
@@ -112,10 +119,10 @@ DEBUG=false
 PIP_QUIET="--quiet"
 SET_CREDS=false
 UPDATE_CREDS=false
-CREDS_VALUE=""
+CREDS_FROM_STDIN=false
 SET_DOMAIN_CREDS=false
 UPDATE_DOMAIN_CREDS=false
-DOMAIN_CREDS_JSON=""
+DOMAIN_CREDS_FROM_STDIN=false
 TEST_CONFIG="${SCRIPT_DIR}/test_config.yml"
 
 # shellcheck disable=SC2034
@@ -126,18 +133,17 @@ while [[ $# -gt 0 ]]; do
         --debug)             DEBUG=true; PIP_QUIET=""; shift ;;
         --set-creds)         SET_CREDS=true; shift ;;
         --update-creds)      UPDATE_CREDS=true; shift ;;
-        --creds)
-            if [[ $# -lt 2 ]]; then
-                fail "--creds requires a value. Usage: --creds <PASSWORD>"
-            fi
-            CREDS_VALUE="$2"; shift 2 ;;
+        --creds-stdin)       CREDS_FROM_STDIN=true; shift ;;
         --set-domain-creds)    SET_DOMAIN_CREDS=true; shift ;;
         --update-domain-creds) UPDATE_DOMAIN_CREDS=true; shift ;;
-        --domain-creds)
-            if [[ $# -lt 2 ]]; then
-                fail "--domain-creds requires JSON. Usage: --domain-creds '{\"bmc_username\":\"x\"}'"
-            fi
-            DOMAIN_CREDS_JSON="$2"; shift 2 ;;
+        --domain-creds-stdin) DOMAIN_CREDS_FROM_STDIN=true; shift ;;
+        --creds|--creds=*|--password|--password=*|--set-password|\
+        --update-password|--password-stdin)
+            fail "Secret-valued command-line flags are no longer supported. Pipe the password to --creds-stdin."
+            ;;
+        --domain-creds|--domain-creds=*)
+            fail "Secret-valued command-line flags are no longer supported. Pipe JSON to --domain-creds-stdin."
+            ;;
         --help|-h)
             cat <<'HELPEOF'
 
@@ -149,23 +155,24 @@ INSTALL MODES
 ─────────────────────────────────────────────────────────────────
   (no flag)       Baremetal mode (pip install --user).
   --venv          Create .venv/ and install there.
-  --force, -f     With --venv: recreate .venv/ from scratch.
+  --force, -f     Force-reinstall all packages from requirements.txt.
+                  With --venv, also recreate .venv/ from scratch.
 
 TEST CREDENTIALS (test_creds.yml)
 ─────────────────────────────────────────────────────────────────
   --set-creds     Prompt for OIM SSH and enabled OME/SFM credentials.
   --update-creds  Force-update OIM SSH and enabled OME/SFM credentials.
-  --creds PWD     Non-interactive OIM SSH password set only.
-
+  --creds-stdin   Read an OIM SSH password from standard input.
 DOMAIN CREDENTIALS (telemetry_credentials.yml)
 ─────────────────────────────────────────────────────────────────
-  Created at: $OMNIA_DATA_PATH/telemetry/input/$OMNIA_PROJECT_NAME/
+  Created at $TELEMETRY_DATA_PATH/input/$OMNIA_PROJECT_NAME/ when set;
+  otherwise $OMNIA_DATA_PATH/telemetry/input/$OMNIA_PROJECT_NAME/.
   Fields: bmc, mysql, csi, ldms, ufm, vast credentials.
 
   --set-domain-creds     Interactive prompt for all domain fields.
-  --update-domain-creds  Force-update domain creds (no "exists" check).
-  --domain-creds JSON    Non-interactive. Example:
-    --domain-creds '{"bmc_username":"admin","bmc_password":"pass"}'
+  --update-domain-creds  Update an existing valid domain credential store.
+  --domain-creds-stdin   Read a JSON object from standard input. Example:
+    credential-json-provider | bash setup_env.sh --domain-creds-stdin
 
 OTHER OPTIONS
 ─────────────────────────────────────────────────────────────────
@@ -175,9 +182,67 @@ OTHER OPTIONS
 HELPEOF
             exit 0 ;;
         *)
-            fail "Unknown option: $1 (use --help for usage)" ;;
+            fail "Unknown option. Use --help for supported arguments." ;;
     esac
 done
+
+_validate_domain_environment() {
+    if [ -z "${OMNIA_PROJECT_NAME:-}" ]; then
+        fail "OMNIA_PROJECT_NAME is required. Source /etc/omnia/omnia.env."
+    fi
+    if [[ ! "$OMNIA_PROJECT_NAME" =~ ^[A-Za-z0-9._-]+$ ]]; then
+        fail "OMNIA_PROJECT_NAME contains unsupported characters."
+    fi
+    if [ "$OMNIA_PROJECT_NAME" = "." ] \
+        || [ "$OMNIA_PROJECT_NAME" = ".." ]; then
+        fail "OMNIA_PROJECT_NAME must name a project directory."
+    fi
+
+    local _domain_root=""
+    if [[ -v "$DOMAIN_DATA_PATH_ENV" ]]; then
+        _domain_root="${!DOMAIN_DATA_PATH_ENV}"
+    fi
+    if [ -z "$_domain_root" ]; then
+        if [ -z "${OMNIA_DATA_PATH:-}" ]; then
+            fail "$DOMAIN_DATA_PATH_ENV or OMNIA_DATA_PATH is required."
+        fi
+        _domain_root="${OMNIA_DATA_PATH%/}/${DOMAIN_NAME}"
+    fi
+    case "$_domain_root" in
+        /*) ;;
+        *) fail "Resolved domain data path must be absolute." ;;
+    esac
+    if [ "${_domain_root%/}" = "" ]; then
+        fail "Resolved domain data path must not be the filesystem root."
+    fi
+}
+
+_validate_domain_environment
+
+ssh_action_count=0
+for selected in "$CREDS_FROM_STDIN" "$SET_CREDS" "$UPDATE_CREDS"; do
+    if [ "$selected" = true ]; then
+        ssh_action_count=$((ssh_action_count + 1))
+    fi
+done
+if [ "$ssh_action_count" -gt 1 ]; then
+    fail "Use only one OIM SSH credential action per invocation."
+fi
+
+domain_action_count=0
+for selected in \
+    "$DOMAIN_CREDS_FROM_STDIN" "$SET_DOMAIN_CREDS" "$UPDATE_DOMAIN_CREDS"; do
+    if [ "$selected" = true ]; then
+        domain_action_count=$((domain_action_count + 1))
+    fi
+done
+if [ "$domain_action_count" -gt 1 ]; then
+    fail "Use only one domain credential action per invocation."
+fi
+if [ "$CREDS_FROM_STDIN" = true ] \
+    && [ "$DOMAIN_CREDS_FROM_STDIN" = true ]; then
+    fail "Only one credential payload can be read from stdin per invocation."
+fi
 
 echo ""
 echo "================================================================="
@@ -188,16 +253,16 @@ echo ""
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 1: Check Python 3.12+
 # ─────────────────────────────────────────────────────────────────────────────
+_python_is_supported() {
+    "$1" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)' \
+        </dev/null 2>/dev/null
+}
+
 PYTHON_CMD=""
 for cmd in python3.12 python3 python; do
-    if command -v "$cmd" &>/dev/null; then
-        version=$("$cmd" --version 2>&1 | grep -oP '\d+\.\d+')
-        major=$(echo "$version" | cut -d. -f1)
-        minor=$(echo "$version" | cut -d. -f2)
-        if [ "$major" -ge 3 ] && [ "$minor" -ge 12 ]; then
-            PYTHON_CMD="$cmd"
-            break
-        fi
+    if command -v "$cmd" >/dev/null 2>&1 && _python_is_supported "$cmd"; then
+        PYTHON_CMD="$cmd"
+        break
     fi
 done
 
@@ -205,7 +270,7 @@ if [ -z "$PYTHON_CMD" ]; then
     fail "Python 3.12+ is required but not found. Install: dnf install python3.12 python3.12-pip"
 fi
 
-ok "Python: $($PYTHON_CMD --version 2>&1)"
+ok "Python: $($PYTHON_CMD --version </dev/null 2>&1)"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 2: Install system dependencies (sshpass for PowerScale syslog config)
@@ -214,7 +279,7 @@ if command -v dnf &>/dev/null; then
     info "Checking for sshpass (required for PowerScale syslog configuration)"
     if ! command -v sshpass &>/dev/null; then
         info "Installing sshpass via dnf"
-        dnf install -y sshpass
+        dnf install -y sshpass </dev/null
         ok "sshpass installed"
     else
         ok "sshpass already installed"
@@ -223,7 +288,8 @@ elif command -v apt-get &>/dev/null; then
     info "Checking for sshpass (required for PowerScale syslog configuration)"
     if ! command -v sshpass &>/dev/null; then
         info "Installing sshpass via apt-get"
-        apt-get update -qq && apt-get install -y sshpass
+        apt-get update -qq </dev/null
+        apt-get install -y sshpass </dev/null
         ok "sshpass installed"
     else
         ok "sshpass already installed"
@@ -252,17 +318,19 @@ if [ "$USE_VENV" = true ]; then
         ok "Virtual environment already exists: .venv/"
     else
         info "Creating virtual environment: .venv/"
-        "$PYTHON_CMD" -m venv "$VENV_DIR"
+        "$PYTHON_CMD" -m venv "$VENV_DIR" </dev/null
         ok "Virtual environment created"
     fi
 
     # shellcheck disable=SC1091
-    source "${VENV_DIR}/bin/activate"
+    source "${VENV_DIR}/bin/activate" </dev/null
+    PYTHON_CMD="${VENV_DIR}/bin/python"
     ok "Activated .venv/"
 
 elif [ -n "${VIRTUAL_ENV:-}" ]; then
     INSTALL_MODE="active-venv"
     PIP_USER_FLAG=""
+    PYTHON_CMD="${VIRTUAL_ENV}/bin/python"
     ok "Detected active virtual environment: ${VIRTUAL_ENV}"
 
 else
@@ -271,23 +339,95 @@ else
     ok "Install mode: baremetal (system Python)"
 fi
 
+if ! _python_is_supported "$PYTHON_CMD"; then
+    fail "The selected Python interpreter must be version 3.12 or newer: ${PYTHON_CMD}"
+fi
+
 echo -e "  ${CYAN}Mode:${NC} ${INSTALL_MODE}"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 4: Install dependencies
 # ─────────────────────────────────────────────────────────────────────────────
+_pip_install() {
+    PIP_NO_INPUT=1 "$PYTHON_CMD" -m pip install --no-input "$@" </dev/null
+}
+
 info "Upgrading pip"
-pip install --upgrade pip $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
-    pip install --upgrade pip $PIP_QUIET
+_pip_install --upgrade pip $PIP_QUIET $PIP_USER_FLAG
+
+if [ ! -f "$WHEEL_PATH" ]; then
+    fail "omnia-auto wheel not found: ${WHEEL_PATH}"
+fi
 
 info "Installing dependencies from requirements.txt"
-pip install -r "$REQUIREMENTS" $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
-    pip install -r "$REQUIREMENTS" $PIP_QUIET
+PIP_FORCE_ARGS=()
+if [ "$FORCE" = true ]; then
+    PIP_FORCE_ARGS=(--force-reinstall)
+    info "Force-reinstalling all requirements (--force)"
+fi
 
-if ! pip show pytest-order &>/dev/null; then
-    info "Installing pytest-order"
-    pip install pytest-order $PIP_QUIET $PIP_USER_FLAG 2>/dev/null || \
-        pip install pytest-order $PIP_QUIET
+_pip_install "${PIP_FORCE_ARGS[@]}" -r "$REQUIREMENTS" \
+    $PIP_QUIET $PIP_USER_FLAG
+
+_omnia_auto_has_required_features() {
+    "$PYTHON_CMD" -c '
+import inspect
+import omnia_auto
+params = inspect.signature(omnia_auto.sync_files).parameters
+if not {"auth_secret", "port"}.issubset(params) or not callable(omnia_auto.connection_params):
+    raise SystemExit(1)
+' </dev/null 2>/dev/null \
+        && "$PYTHON_CMD" -m omnia_auto write-field --help \
+            </dev/null 2>/dev/null \
+            | grep -q -- "--value-stdin" \
+        && "$PYTHON_CMD" -m omnia_auto write-fields --help \
+            </dev/null 2>/dev/null \
+            | grep -q -- "--fields-stdin"
+}
+
+_omnia_auto_matches_local_wheel() {
+    "$PYTHON_CMD" - "$WHEEL_PATH" 2>/dev/null <<'PY'
+import importlib.util
+from pathlib import Path, PurePosixPath
+import sys
+import zipfile
+
+wheel_path = Path(sys.argv[1])
+spec = importlib.util.find_spec("omnia_auto")
+if spec is None or not spec.submodule_search_locations:
+    raise SystemExit(1)
+package_root = Path(next(iter(spec.submodule_search_locations))).resolve()
+with zipfile.ZipFile(wheel_path) as archive:
+    members = [
+        name for name in archive.namelist()
+        if name.startswith("omnia_auto/") and not name.endswith("/")
+    ]
+    if not members:
+        raise SystemExit(1)
+    for name in members:
+        relative_path = PurePosixPath(name).relative_to("omnia_auto")
+        if ".." in relative_path.parts:
+            raise SystemExit(1)
+        installed_path = package_root.joinpath(*relative_path.parts)
+        if (
+            not installed_path.is_file()
+            or installed_path.read_bytes() != archive.read(name)
+        ):
+            raise SystemExit(1)
+PY
+}
+
+
+if ! _omnia_auto_has_required_features \
+    || ! _omnia_auto_matches_local_wheel; then
+    info "Refreshing the same-version local omnia-auto wheel"
+    _pip_install --force-reinstall --no-deps \
+        "$WHEEL_PATH" $PIP_QUIET $PIP_USER_FLAG
+fi
+
+if ! _omnia_auto_has_required_features \
+    || ! _omnia_auto_matches_local_wheel; then
+    fail "Installed omnia-auto does not match the required local wheel API"
 fi
 
 ok "All dependencies installed"
@@ -295,6 +435,10 @@ ok "All dependencies installed"
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 5: Credential helpers (delegate to omnia_auto credential CLI)
 # ─────────────────────────────────────────────────────────────────────────────
+
+_credential_cli() {
+    "$PYTHON_CMD" -m omnia_auto "$@"
+}
 
 _show_oim_server_ip() {
     if [ ! -f "$TEST_CONFIG" ]; then
@@ -311,12 +455,19 @@ _show_oim_server_ip() {
     fi
 }
 
-# Write SSH creds to test_creds.yml (local)
-_write_ssh_creds() {
-    local _pass="$1"
-    $CRED_CLI write-fields \
+# Prompt for and write SSH creds without retaining the secret in the shell.
+_prompt_and_write_ssh_creds() {
+    _credential_cli prompt-and-confirm --message "SSH Password" </dev/tty \
+        | _credential_cli write-field \
         --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
-        --fields "{\"oim_password\":\"${_pass}\"}" >/dev/null 2>&1
+        --field oim_password --value-stdin >/dev/null
+    ok "SSH credentials saved: test_creds.yml (encrypted)"
+}
+
+_write_ssh_creds_stdin() {
+    _credential_cli write-field \
+        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+        --field oim_password --value-stdin >/dev/null
     ok "SSH credentials saved: test_creds.yml (encrypted)"
 }
 
@@ -324,15 +475,15 @@ _write_ssh_creds() {
 OME_CRED_SPEC='[
   {"field":"ome_username","label":"OME Username","group":"OME Credentials","secret":false},
   {"field":"ome_password","label":"OME Password","secret":true,"confirm":true},
-  {"field":"pfx_secret","label":"PFX Secret","secret":true,"optional":true}
+  {"field":"pfx_secret","label":"PFX Secret","secret":true,"confirm":true,"optional":true}
 ]'
 
 # Prompt for OME credentials interactively using Python CLI
 _prompt_ome_creds() {
     echo ""
-    $CRED_CLI prompt-fields \
+    _credential_cli prompt-fields \
         --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
-        --spec "$OME_CRED_SPEC"
+        --spec "$OME_CRED_SPEC" --require-complete </dev/tty
     ok "OME credentials saved: test_creds.yml (encrypted)"
 }
 
@@ -347,17 +498,29 @@ SFM_CRED_SPEC='[
 # Prompt for SFM credentials interactively using Python CLI
 _prompt_sfm_creds() {
     echo ""
-    $CRED_CLI prompt-fields \
+    _credential_cli prompt-fields \
         --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
-        --spec "$SFM_CRED_SPEC"
+        --spec "$SFM_CRED_SPEC" --require-complete </dev/tty
     ok "SFM credentials saved: test_creds.yml (encrypted)"
 }
 
-# Read a field from test_creds.yml
-_read_test_creds_field() {
-    local _field="$1"
-    $CRED_CLI read-field --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
-        --field "$_field" 2>/dev/null || true
+# Return success only when every named test credential is present and non-empty.
+# Values stay inside the pipeline and are not retained by this script.
+_test_credential_fields_are_set() {
+    if ! _credential_cli is-encrypted \
+        --creds-path "$CREDS_FILE" </dev/null >/dev/null 2>&1; then
+        return 1
+    fi
+    local _field
+    for _field in "$@"; do
+        if ! _credential_cli read-field \
+            --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+            --field "$_field" 2>/dev/null \
+            | grep -q '[^[:space:]]'; then
+            return 1
+        fi
+    done
+    return 0
 }
 
 # Check if ome_ip is configured in test_config.yml
@@ -370,7 +533,8 @@ _get_ome_ip() {
 _is_ome_enabled() {
     local _val
     _val=$(grep -E '^configure_ome:' "$TEST_CONFIG" 2>/dev/null \
-        | sed 's/^configure_ome:[[:space:]]*//; s/["'\''[:space:]]//g' || echo "false")
+        | sed 's/^configure_ome:[[:space:]]*//; s/[[:space:]]#.*$//; s/["'\''[:space:]]//g' \
+        | tr '[:upper:]' '[:lower:]' || echo "false")
     [ "$_val" = "true" ]
 }
 
@@ -395,33 +559,44 @@ _is_sfm_enabled() {
 }
 
 # Write domain creds to telemetry_credentials.yml (at env-var path)
-_write_domain_creds() {
-    local _json="$1"
+_write_domain_creds_stdin() {
     local _path; _path=$(_domain_creds_path)
     local _key;  _key=$(_domain_creds_key_path)
     local _dir;  _dir=$(_resolve_domain_creds_dir)
 
     mkdir -p "$_dir"
-    $CRED_CLI write-fields \
+    _credential_cli write-fields \
         --creds-path "$_path" --key-path "$_key" \
-        --fields "$_json" >/dev/null 2>&1
+        --fields-stdin --spec "$DOMAIN_CRED_SPEC" >/dev/null
     ok "Domain credentials saved: $_path (encrypted)"
 }
 
-# Read a field from the domain creds file
-_read_domain_field() {
-    local _field="$1"
+# Return success for an encrypted store with at least one non-empty credential.
+# Telemetry fields are component-dependent, so no single field is universally
+# mandatory here; the playbook validates fields for the enabled components.
+_domain_credential_store_is_readable() {
     local _path; _path=$(_domain_creds_path)
     local _key;  _key=$(_domain_creds_key_path)
-    $CRED_CLI read-field --creds-path "$_path" --key-path "$_key" \
-        --field "$_field" 2>/dev/null || true
+    if ! _credential_cli is-encrypted --creds-path "$_path" \
+        </dev/null >/dev/null 2>&1; then
+        return 1
+    fi
+    _credential_cli read-all \
+        --creds-path "$_path" --key-path "$_key" \
+        </dev/null 2>/dev/null \
+        | "$PYTHON_CMD" -c '
+import json
+import sys
+fields = json.load(sys.stdin)
+raise SystemExit(0 if any(isinstance(value, str) and value for value in fields.values()) else 1)
+' >/dev/null 2>&1
 }
 
 # Ask yes/no
 _ask_yes_no() {
     local prompt="$1"
     while true; do
-        read -r -p "$prompt (yes/no): " answer
+        read -r -p "$prompt (yes/no): " answer </dev/tty
         case "$answer" in
             yes|YES|Yes|y|Y) return 0 ;;
             no|NO|No|n|N)   return 1 ;;
@@ -430,24 +605,12 @@ _ask_yes_no() {
     done
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Step 6: Test credential dispatch  (--set-creds / --update-creds / --creds)
-# ─────────────────────────────────────────────────────────────────────────────
-if [ -n "$CREDS_VALUE" ]; then
-    _show_oim_server_ip
-    info "Setting SSH password from --creds flag"
-    _write_ssh_creds "$CREDS_VALUE"
+# Handle telemetry-specific external appliance credentials after the common
+# OIM SSH flow. Mode is either "set" (confirm before replacing) or "update".
+_handle_external_credentials() {
+    local _mode="$1"
+    local _ome_ip _sfm_api_ip _sfm_ssh_ip
 
-elif [ "$UPDATE_CREDS" = true ]; then
-    _show_oim_server_ip
-    if [ ! -f "$CREDS_FILE" ]; then
-        fail "No credentials file found. Use --set-creds to create one first."
-    fi
-    echo -e "\n  ${CYAN}Update SSH password for the target OIM server.${NC}\n"
-    _cred_input=$($CRED_CLI prompt-and-confirm --message "SSH Password")
-    _write_ssh_creds "$_cred_input"
-
-    # Also prompt for OME credentials if configure_ome=true
     if _is_ome_enabled; then
         _ome_ip=$(_get_ome_ip)
         echo ""
@@ -456,53 +619,11 @@ elif [ "$UPDATE_CREDS" = true ]; then
         else
             echo -e "  ${CYAN}OME telemetry enabled (configure_ome=true)${NC}"
         fi
-        echo -e "  ${CYAN}OME credentials required for Kafka forwarder.${NC}"
-        _prompt_ome_creds
-    fi
 
-    # Also prompt for SFM credentials if configure_sfm=true
-    if _is_sfm_enabled; then
-        _sfm_api_ip=$(_get_sfm_api_ip)
-        _sfm_ssh_ip=$(_get_sfm_ssh_ip)
-        echo ""
-        if [ -n "$_sfm_api_ip" ] || [ -n "$_sfm_ssh_ip" ]; then
-            echo -e "  ${CYAN}SFM detected: API=${_sfm_api_ip:-not set}, SSH=${_sfm_ssh_ip:-not set}${NC}"
-        else
-            echo -e "  ${CYAN}SFM integration enabled (configure_sfm=true)${NC}"
-        fi
-        echo -e "  ${CYAN}SFM API and SSH credentials are required.${NC}"
-        _prompt_sfm_creds
-    fi
-
-elif [ "$SET_CREDS" = true ]; then
-    _show_oim_server_ip
-    if [ -f "$CREDS_FILE" ]; then
-        warn "SSH password is already set (test_creds.yml exists)."
-        if _ask_yes_no "  Do you want to update the SSH password?"; then
-            echo -e "\n  ${CYAN}Enter new SSH password for the target OIM server.${NC}\n"
-            _cred_input=$($CRED_CLI prompt-and-confirm --message "SSH Password")
-            _write_ssh_creds "$_cred_input"
-        else
-            ok "SSH password update skipped."
-        fi
-    else
-        echo -e "\n  ${CYAN}Enter SSH password for the target OIM server.${NC}\n"
-        _cred_input=$($CRED_CLI prompt-and-confirm --message "SSH Password")
-        _write_ssh_creds "$_cred_input"
-    fi
-
-    # Also prompt for OME credentials if configure_ome=true
-    if _is_ome_enabled; then
-        _ome_ip=$(_get_ome_ip)
-        echo ""
-        if [ -n "$_ome_ip" ]; then
-            echo -e "  ${CYAN}OME (OpenManage Enterprise) detected: ${_ome_ip}${NC}"
-        else
-            echo -e "  ${CYAN}OME telemetry enabled (configure_ome=true)${NC}"
-        fi
-        _e_ome_user=$(_read_test_creds_field "ome_username")
-
-        if [ -n "$_e_ome_user" ]; then
+        if [ "$_mode" = "update" ]; then
+            echo -e "  ${CYAN}OME credentials required for Kafka forwarder.${NC}"
+            _prompt_ome_creds
+        elif _test_credential_fields_are_set ome_username ome_password; then
             warn "OME credentials already set."
             if _ask_yes_no "  Do you want to update OME credentials?"; then
                 _prompt_ome_creds
@@ -515,7 +636,6 @@ elif [ "$SET_CREDS" = true ]; then
         fi
     fi
 
-    # Also prompt for SFM credentials if configure_sfm=true
     if _is_sfm_enabled; then
         _sfm_api_ip=$(_get_sfm_api_ip)
         _sfm_ssh_ip=$(_get_sfm_ssh_ip)
@@ -525,15 +645,13 @@ elif [ "$SET_CREDS" = true ]; then
         else
             echo -e "  ${CYAN}SFM integration enabled (configure_sfm=true)${NC}"
         fi
-        _e_sfm_api_user=$(_read_test_creds_field "sfm_api_username")
-        _e_sfm_api_password=$(_read_test_creds_field "sfm_api_password")
-        _e_sfm_ssh_user=$(_read_test_creds_field "sfm_ssh_username")
-        _e_sfm_ssh_password=$(_read_test_creds_field "sfm_ssh_password")
 
-        if [ -n "$_e_sfm_api_user" ] \
-            && [ -n "$_e_sfm_api_password" ] \
-            && [ -n "$_e_sfm_ssh_user" ] \
-            && [ -n "$_e_sfm_ssh_password" ]; then
+        if [ "$_mode" = "update" ]; then
+            echo -e "  ${CYAN}SFM API and SSH credentials are required.${NC}"
+            _prompt_sfm_creds
+        elif _test_credential_fields_are_set \
+            sfm_api_username sfm_api_password \
+            sfm_ssh_username sfm_ssh_password; then
             warn "SFM credentials already set."
             if _ask_yes_no "  Do you want to update SFM credentials?"; then
                 _prompt_sfm_creds
@@ -545,37 +663,81 @@ elif [ "$SET_CREDS" = true ]; then
             _prompt_sfm_creds
         fi
     fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 6: Test credential dispatch
+# ─────────────────────────────────────────────────────────────────────────────
+if [ "$CREDS_FROM_STDIN" = true ]; then
+    _show_oim_server_ip
+    info "Reading SSH password from standard input"
+    _write_ssh_creds_stdin
+
+elif [ "$UPDATE_CREDS" = true ]; then
+    _show_oim_server_ip
+    if ! _test_credential_fields_are_set oim_password; then
+        fail "No SSH password found. Use --set-creds to create one first."
+    fi
+    echo -e "\n  ${CYAN}Update SSH password for the target OIM server.${NC}\n"
+    _prompt_and_write_ssh_creds
+
+elif [ "$SET_CREDS" = true ]; then
+    _show_oim_server_ip
+    if _test_credential_fields_are_set oim_password; then
+        warn "SSH password is already set."
+        if _ask_yes_no "  Do you want to update the SSH password?"; then
+            echo -e "\n  ${CYAN}Enter new SSH password for the target OIM server.${NC}\n"
+            _prompt_and_write_ssh_creds
+        else
+            ok "SSH password update skipped."
+        fi
+    else
+        echo -e "\n  ${CYAN}Enter SSH password for the target OIM server.${NC}\n"
+        _prompt_and_write_ssh_creds
+    fi
+fi
+
+if [ "$UPDATE_CREDS" = true ]; then
+    _handle_external_credentials update
+elif [ "$SET_CREDS" = true ]; then
+    _handle_external_credentials set
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 7: Domain credential dispatch  (--set-domain-creds / --update-domain-creds / --domain-creds)
+# Step 7: Domain credential dispatch
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Domain credential field spec (JSON for prompt-fields CLI)
 DOMAIN_CRED_SPEC='[
   {"field":"bmc_username","label":"BMC Username","group":"iDRAC BMC Credentials","secret":false},
-  {"field":"bmc_password","label":"BMC Password","secret":true},
+  {"field":"bmc_password","label":"BMC Password","secret":true,"confirm":true},
   {"field":"mysqldb_user","label":"MySQL User","group":"MySQL Database Credentials","secret":false},
-  {"field":"mysqldb_password","label":"MySQL Password","secret":true},
-  {"field":"mysqldb_root_password","label":"MySQL Root Password","secret":true},
+  {"field":"mysqldb_password","label":"MySQL Password","secret":true,"confirm":true},
+  {"field":"mysqldb_root_password","label":"MySQL Root Password","secret":true,"confirm":true},
   {"field":"csi_username","label":"CSI Username","group":"PowerScale CSI Credentials","secret":false},
-  {"field":"csi_password","label":"CSI Password","secret":true},
-  {"field":"ldms_sampler_password","label":"LDMS Sampler Password","group":"LDMS Sampler Credentials","secret":true},
+  {"field":"csi_password","label":"CSI Password","secret":true,"confirm":true},
+  {"field":"ldms_sampler_password","label":"LDMS Sampler Password","group":"LDMS Sampler Credentials","secret":true,"confirm":true},
   {"field":"ufm_username","label":"UFM Username","group":"UFM Telemetry Credentials","secret":false},
-  {"field":"ufm_password","label":"UFM Password","secret":true},
+  {"field":"ufm_password","label":"UFM Password","secret":true,"confirm":true},
   {"field":"vast_username","label":"VAST Username","group":"VAST Telemetry Credentials","secret":false},
-  {"field":"vast_password","label":"VAST Password","secret":true}
+  {"field":"vast_password","label":"VAST Password","secret":true,"confirm":true}
 ]'
 
-if [ -n "$DOMAIN_CREDS_JSON" ]; then
-    info "Setting domain credentials from --domain-creds flag"
-    _write_domain_creds "$DOMAIN_CREDS_JSON"
+if [ "$DOMAIN_CREDS_FROM_STDIN" = true ]; then
+    info "Reading domain credentials from standard input"
+    _write_domain_creds_stdin
 
 elif [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
     _domain_path=$(_domain_creds_path)
     _domain_key=$(_domain_creds_key_path)
 
-    if [ "$SET_DOMAIN_CREDS" = true ] && [ -f "$_domain_path" ]; then
+    if [ "$UPDATE_DOMAIN_CREDS" = true ] \
+        && ! _domain_credential_store_is_readable; then
+        fail "No readable, non-empty encrypted domain credential store found. Use --set-domain-creds first."
+    fi
+
+    if [ "$SET_DOMAIN_CREDS" = true ] \
+        && _domain_credential_store_is_readable; then
         warn "Domain credentials already exist: $_domain_path"
         if ! _ask_yes_no "  Do you want to update domain credentials?"; then
             ok "Domain credential update skipped."
@@ -590,33 +752,53 @@ elif [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
 
         # Use the prompt-fields CLI to handle all prompting
         mkdir -p "$(_resolve_domain_creds_dir)"
-        $CRED_CLI prompt-fields \
+        _domain_prompt_result=$(_credential_cli prompt-fields \
             --creds-path "$_domain_path" \
             --key-path "$_domain_key" \
-            --spec "$DOMAIN_CRED_SPEC"
+            --spec "$DOMAIN_CRED_SPEC" </dev/tty)
 
         echo ""
-        ok "Domain credentials saved: $_domain_path (encrypted)"
+        if [ "$_domain_prompt_result" = "SKIPPED" ]; then
+            warn "No domain credential values were entered; nothing was changed."
+        else
+            ok "Domain credentials saved: $_domain_path (encrypted)"
+        fi
     fi
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 8: No credential flags — status report
 # ─────────────────────────────────────────────────────────────────────────────
-if [ -z "$CREDS_VALUE" ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = false ] \
-   && [ -z "$DOMAIN_CREDS_JSON" ] && [ "$SET_DOMAIN_CREDS" = false ] \
+if [ "$CREDS_FROM_STDIN" = false ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = false ] \
+   && [ "$DOMAIN_CREDS_FROM_STDIN" = false ] && [ "$SET_DOMAIN_CREDS" = false ] \
    && [ "$UPDATE_DOMAIN_CREDS" = false ]; then
-    if [ -f "$CREDS_FILE" ]; then
-        ok "Test credentials: test_creds.yml (encrypted)"
+    if _test_credential_fields_are_set oim_password; then
+        ok "OIM SSH credentials: test_creds.yml (encrypted)"
     else
-        warn "No test credentials (test_creds.yml)"
+        warn "No OIM SSH credentials (test_creds.yml)"
         warn "  Set with: bash setup_env.sh --set-creds"
     fi
+    if _is_ome_enabled; then
+        if _test_credential_fields_are_set ome_username ome_password; then
+            ok "OME credentials: test_creds.yml (encrypted)"
+        else
+            warn "OME is enabled but required credentials are incomplete"
+        fi
+    fi
+    if _is_sfm_enabled; then
+        if _test_credential_fields_are_set \
+            sfm_api_username sfm_api_password \
+            sfm_ssh_username sfm_ssh_password; then
+            ok "SFM credentials: test_creds.yml (encrypted)"
+        else
+            warn "SFM is enabled but required credentials are incomplete"
+        fi
+    fi
     _dc=$(_domain_creds_path)
-    if [ -f "$_dc" ]; then
-        ok "Domain credentials: $_dc (encrypted)"
+    if _domain_credential_store_is_readable; then
+        ok "Domain credential store: $_dc (readable and encrypted)"
     else
-        warn "No domain credentials: $_dc"
+        warn "No readable, non-empty domain credential store: $_dc"
         warn "  Set with: bash setup_env.sh --set-domain-creds"
     fi
 fi
@@ -625,57 +807,6 @@ fi
 # Step 9: Make scripts executable
 # ─────────────────────────────────────────────────────────────────────────────
 chmod +x "${SCRIPT_DIR}/run_validation.sh" 2>/dev/null || true
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Tab-completion for run_validation.sh
-# ─────────────────────────────────────────────────────────────────────────────
-# shellcheck disable=SC2207
-_run_validation_completions() {
-    local cur="${COMP_WORDS[COMP_CWORD]}"
-    local prev="${COMP_WORDS[COMP_CWORD-1]}"
-    local domain="telemetry"
-    local tags="precheck validate deploy cleanup"
-    local commands="exec verify test list help"
-    local options="--suite --marker -v --verbose --debug --config"
-    local markers="sanity functional sink source deploy nft"
-
-    case "$COMP_CWORD" in
-        1)
-            COMPREPLY=( $(compgen -W "${domain} --config help --completion" -- "$cur") )
-            ;;
-        2)
-            COMPREPLY=( $(compgen -W "${tags} ${commands}" -- "$cur") )
-            ;;
-        3)
-            if echo " ${tags} " | grep -q " ${prev} "; then
-                COMPREPLY=( $(compgen -W "${commands}" -- "$cur") )
-            else
-                COMPREPLY=( $(compgen -W "${options}" -- "$cur") )
-            fi
-            ;;
-        *)
-            case "$prev" in
-                --suite)
-                    local suites="" tag_dir=""
-                    for w in "${COMP_WORDS[@]}"; do
-                        if echo " ${tags} " | grep -q " ${w} "; then
-                            tag_dir="${SCRIPT_DIR}/fvt/${w}"; break
-                        fi
-                    done
-                    if [ -n "${tag_dir}" ] && [ -d "${tag_dir}" ]; then
-                        suites=$(find "${tag_dir}" -mindepth 1 -maxdepth 1 -type d \
-                            -not -name '__pycache__' -printf '%f\n' 2>/dev/null || true)
-                    fi
-                    COMPREPLY=( $(compgen -W "${suites}" -- "$cur") )
-                    ;;
-                --marker) COMPREPLY=( $(compgen -W "${markers}" -- "$cur") ) ;;
-                *)        COMPREPLY=( $(compgen -W "${options}" -- "$cur") ) ;;
-            esac
-            ;;
-    esac
-}
-
-complete -F _run_validation_completions ./run_validation.sh
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Summary
@@ -709,23 +840,21 @@ echo ""
 echo "  Credentials (two separate files):"
 echo ""
 echo "    1. Test credentials (test_creds.yml) — OIM SSH and enabled OME/SFM access:"
-if [ -f "$CREDS_FILE" ]; then
-    echo "       test_creds.yml exists (encrypted)"
+if _test_credential_fields_are_set oim_password; then
+    echo "       OIM SSH credentials are set (encrypted)"
     echo "       To update:  bash setup_env.sh --update-creds"
 else
-    echo "       Not set. Create with: bash setup_env.sh --set-creds"
+    echo "       OIM SSH credentials are not set. Create with: bash setup_env.sh --set-creds"
 fi
 echo ""
 echo "    2. Telemetry domain credentials:"
 _dc_summary=$(_domain_creds_path)
-if [ -f "$_dc_summary" ]; then
-    echo "       ${_dc_summary} (encrypted)"
+if _domain_credential_store_is_readable; then
+    echo "       ${_dc_summary} (readable and encrypted)"
     echo "       To update:  bash setup_env.sh --update-domain-creds"
 else
     echo "       Not set. Create with: bash setup_env.sh --set-domain-creds"
 fi
-echo ""
-echo "  Tab-completion enabled for ./run_validation.sh"
 echo ""
 echo "================================================================="
 echo ""

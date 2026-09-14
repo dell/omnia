@@ -178,9 +178,7 @@ df -h "${MOUNT_POINT}" || true
 
 {% if pv_entry.node_key is defined and pv_entry.node_mount_point is defined %}
 # Get node-specific identifier from cloud-init datasource
-{% raw %}
-NODE_VALUE="{{ {% endraw %}{{ pv_entry.node_key }}{% raw %} }}"
-{% endraw %}
+NODE_VALUE="$(cloud-init query {{ ms_ds_dict.get(pv_entry.node_key) }})"
 
 log "Using node identifier: ${NODE_VALUE}"
 

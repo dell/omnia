@@ -35,12 +35,14 @@ from omnia_auto import (
     log,
     read_remote_env,
     read_yaml_key,
+    resolve_domain_data_path,
     resolve_domain_input_path,
 )
 
 from ..vars.common_vars import (
     CMDS,
     DOMAIN_NAME,
+    ENV_TELEMETRY_DATA_PATH,
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
     TELEMETRY_CONFIG_FILE,
@@ -66,14 +68,19 @@ def _get_input_path(host):
         str: Absolute path to telemetry input directory on the OIM.
     """
     return resolve_domain_input_path(
-        host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
+        host,
+        DOMAIN_NAME,
+        ENV_OMNIA_DATA_PATH,
+        ENV_OMNIA_PROJECT_NAME,
+        domain_data_path_var=ENV_TELEMETRY_DATA_PATH,
     )
 
 
 def get_output_path(host):
     """Resolve the telemetry output directory on the OIM host.
 
-    Returns ``<OMNIA_DATA_PATH>/telemetry/output/<OMNIA_PROJECT_NAME>``.
+    Uses ``TELEMETRY_DATA_PATH`` when non-empty. Otherwise returns
+    ``<OMNIA_DATA_PATH>/telemetry/output/<OMNIA_PROJECT_NAME>``.
 
     Args:
         host: Testinfra host connection to the OIM.
@@ -81,9 +88,14 @@ def get_output_path(host):
     Returns:
         str: Absolute path to telemetry output directory on the OIM.
     """
-    data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH)
+    data_path = resolve_domain_data_path(
+        host,
+        DOMAIN_NAME,
+        ENV_OMNIA_DATA_PATH,
+        domain_data_path_var=ENV_TELEMETRY_DATA_PATH,
+    )
     project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
-    output_path = f"{data_path}/{DOMAIN_NAME}/output/{project}"
+    output_path = f"{data_path}/output/{project}"
     log(f"Resolved remote output path: {output_path}", "INFO")
     return output_path
 

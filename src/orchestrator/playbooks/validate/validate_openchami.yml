@@ -33,8 +33,8 @@
     - role: orchestrator_setup
       vars:
         openchami_vars_support: true
-        omnia_metadata_support: true
         oim_group: true
+        orchestrator_initialize_state: false
 
 - name: Validate orchestrator input configuration
   hosts: localhost
@@ -48,6 +48,12 @@
   hosts: oim
   connection: ssh
   tasks:
+    - name: Load S3 configuration from Image Build Manager output
+      ansible.builtin.include_role:
+        name: orchestrator_common
+        tasks_from: configure_s3_access.yml
+      when: s3_configurations is not defined
+
     - name: OpenCHAMI authentication
       ansible.builtin.include_role:
         name: orchestrator_common

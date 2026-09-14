@@ -1,6 +1,6 @@
 # Sync — `clone_repo()`, `sync_files()`
 
-**Source file:** `src/omnia_auto/functions/sync_func.py`
+**Source file:** `omnia_auto/functions/sync_func.py`
 
 ## What is this?
 
@@ -30,8 +30,9 @@ deletes and re-clones).
 | `dest` | `str` | **Yes** | Where to clone the repo. If `mode="ssh"`, this is a path on the remote host. | `"/root/omnia"` |
 | `ip` | `str` | **Required for SSH** | Target host IP address. Only needed when `mode="ssh"`. | `"10.20.0.100"` |
 | `user` | `str` | No | SSH username. Default: `"root"`. | `"root"` |
-| `password` | `str` | No | SSH password. If provided, `sshpass` is used automatically. If not provided, key-based auth is assumed. | `"my_password"` |
-| `ssh_opts` | `str` | No | SSH options string. Default: `"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"`. | `"-o StrictHostKeyChecking=no"` |
+| `port` | `int` | No | SSH port. Default: `22`. | `2222` |
+| `auth_secret` | `str` | No | SSH authentication secret. If provided, `sshpass` reads it through a private descriptor. If omitted, key-based authentication is used. | `supplied_secret` |
+| `ssh_opts` | `str` | No | SSH options string. Default: `"-o StrictHostKeyChecking=accept-new -o LogLevel=ERROR"`; normal `known_hosts` verification remains enabled. | `"-o StrictHostKeyChecking=yes"` |
 | `force` | `bool` | No | If `True`, removes the existing repo and re-clones from scratch. Default: `False`. | `True` |
 | `timeout` | `int` | No | Maximum seconds to wait for the clone to complete. Default: `300` (5 minutes). | `600` |
 
@@ -50,13 +51,18 @@ A `dict` with these keys:
 - `mode` is not `"local"` or `"ssh"`
 - `mode="ssh"` but `ip` is not provided
 - `url` or `dest` is empty
+- `force` is not a boolean, or its destination is a protected broad path
+- SSH options disable host-key verification or contain command-bearing directives
+- SSH options are outside the package's safe connection-option allowlist
 - `git clone` command fails
 - Timeout exceeded
 
 ### Prerequisite
 
-None — this function is standalone.  But you'll typically get `ip`, `user`,
-`password` from `connection_params()`.
+Git must be available on the machine where the clone runs. SSH mode also
+requires an OpenSSH client; password authentication requires `sshpass`.
+You'll typically get `ip`, `user`, and `auth_secret` from
+`connection_params()`.
 
 ### Example — SSH clone
 
@@ -71,7 +77,8 @@ result = clone_repo(
     dest="/root/omnia",
     ip=conn["ip"],
     user=conn["user"],
-    password=conn["password"],
+    port=conn["port"],
+    auth_secret=conn["auth_secret"],
     ssh_opts=conn["ssh_opts"],
 )
 
@@ -124,8 +131,9 @@ Uses `rsync` for directories and `cp`/`scp` for single files.
 | `dest` | `str` | **Yes** | Destination path. If `mode="ssh"`, this is a path on the remote host. | `"/opt/omnia/ibm/input/project_default"` |
 | `ip` | `str` | **Required for SSH** | Target host IP address. Only needed when `mode="ssh"`. | `"10.20.0.100"` |
 | `user` | `str` | No | SSH username. Default: `"root"`. | `"root"` |
-| `password` | `str` | No | SSH password. If provided, `sshpass` is used. | `"my_password"` |
-| `ssh_opts` | `str` | No | SSH options string. Default: `"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"`. | `"-o StrictHostKeyChecking=no"` |
+| `port` | `int` | No | SSH port. Default: `22`. | `2222` |
+| `auth_secret` | `str` | No | SSH authentication secret. If provided, `sshpass` reads it through a private descriptor. | `supplied_secret` |
+| `ssh_opts` | `str` | No | SSH options string. Default: `"-o StrictHostKeyChecking=accept-new -o LogLevel=ERROR"`; normal `known_hosts` verification remains enabled. | `"-o StrictHostKeyChecking=yes"` |
 | `timeout` | `int` | No | Maximum seconds to wait. Default: `120` (2 minutes). | `300` |
 | `mkdir` | `bool` | No | If `True`, creates the destination directory before syncing. Default: `True`. | `False` |
 
@@ -145,6 +153,8 @@ A `dict` with these keys:
 - `src` or `dest` is empty
 - `src` path does not exist on the local machine
 - `mode="ssh"` but `ip` is not provided
+- SSH options disable host-key verification or contain command-bearing directives
+- SSH options are outside the package's safe connection-option allowlist
 - rsync/scp command fails
 - Timeout exceeded
 
@@ -157,8 +167,9 @@ A `dict` with these keys:
 
 ### Prerequisite
 
-None — standalone function.  But you'll typically get connection details
-from `connection_params()`.
+Directory copies require `rsync`. Remote copies also require an OpenSSH
+client; password authentication requires `sshpass`. You'll typically get
+connection details from `connection_params()`.
 
 ### Example — sync a dataset directory over SSH
 
@@ -173,7 +184,8 @@ result = sync_files(
     dest="/opt/omnia/image_build_manager/input/project_default",
     ip=conn["ip"],
     user=conn["user"],
-    password=conn["password"],
+    port=conn["port"],
+    auth_secret=conn["auth_secret"],
     ssh_opts=conn["ssh_opts"],
 )
 
@@ -199,10 +211,14 @@ assert result["success"], result["error"]
 ## Typical usage pattern in `conftest.py`
 
 ```python
+from pathlib import Path
+
 from omnia_auto import (
     connection_params, sync_files, clone_repo,
     load_test_config, log,
 )
+
+test_dir = Path(__file__).resolve().parent
 
 def pytest_sessionstart(session):
     config = load_test_config()
@@ -215,21 +231,23 @@ def pytest_sessionstart(session):
         dest=config.get("clone_path", "/root/omnia"),
         ip=conn["ip"],
         user=conn["user"],
-        password=conn["password"],
+        port=conn["port"],
+        auth_secret=conn["auth_secret"],
         ssh_opts=conn["ssh_opts"],
     )
     assert result["success"], result["error"]
     log(result["details"], "OK")
 
     # 2. Sync input dataset files
-    local_input = os.path.join(_TEST_DIR, "datasets", config["dataset"], "input")
+    local_input = test_dir / "datasets" / config["dataset"] / "input"
     result = sync_files(
         mode=conn["mode"],
         src=local_input,
         dest="/opt/omnia/ibm/input/project_default",
         ip=conn["ip"],
         user=conn["user"],
-        password=conn["password"],
+        port=conn["port"],
+        auth_secret=conn["auth_secret"],
         ssh_opts=conn["ssh_opts"],
     )
     assert result["success"], result["error"]
@@ -242,5 +260,5 @@ def pytest_sessionstart(session):
 
 | Function | What you need first |
 |----------|-------------------|
-| `clone_repo()` | Nothing (standalone). But `connection_params()` makes it easier. |
-| `sync_files()` | Nothing (standalone). But `connection_params()` makes it easier. |
+| `clone_repo()` | Git; OpenSSH and optionally `sshpass` in SSH mode. |
+| `sync_files()` | `rsync` for directories; OpenSSH and optionally `sshpass` in SSH mode. |

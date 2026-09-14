@@ -13,6 +13,10 @@
 # limitations under the License.
 ---
 
+# Step 0: Validate NFS inputs for security
+- name: Validate NFS inputs
+  ansible.builtin.include_tasks: validate_nfs_inputs.yml
+
 # Step 1: Resolve NFS path to local mount point
 - name: Initialize NFS auto-mount flag
   ansible.builtin.set_fact:

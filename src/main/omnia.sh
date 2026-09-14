@@ -19,11 +19,12 @@
 # =============================================================================
 #
 # Prerequisites:
-#   1. Edit src/main/omnia.env with your settings
+#   1. For a first-time install, edit src/main/omnia.env with your settings
 #   2. Run: ./omnia.sh --setup-venv   (one-time Python + Ansible setup)
 #
 # During setup, this script:
-#   - Installs omnia.env to /etc/omnia/omnia.env (system-wide)
+#   - Installs omnia.env to /etc/omnia/omnia.env on the first run
+#   - Preserves /etc/omnia/omnia.env on subsequent runs
 #   - Creates /etc/profile.d/omnia-env.sh so all new shells auto-load vars
 #   - Creates venv, installs deps, copies domain input files
 #
@@ -76,24 +77,59 @@ readonly PREPARE_ORDER=(
     "orchestrator"          # Third: OpenLDAP, functional groups, credential management
 )
 
-# Lifecycle tags to run for each domain (in order)
-readonly LIFECYCLE_TAGS=(
+# Lifecycle phases to run for each base domain (in order). Repo Manager uses
+# precheck for its validation phase; the other base domains use validate.
+readonly LIFECYCLE_PHASES=(
     "validate"      # Validate input configuration
     "credentials"   # Collect and encrypt credentials
     "prepare"       # Deploy infrastructure
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Auto-load installed environment
-# ─────────────────────────────────────────────────────────────────────────────
-if [ -f /etc/profile.d/omnia-env.sh ]; then
-    # shellcheck disable=SC1091
-    . /etc/profile.d/omnia-env.sh
-fi
+# Variables owned by omnia.env. Clear these before loading the selected file so
+# values removed from a config cannot leak in from a previously sourced shell.
+readonly OMNIA_ENV_VARIABLES=(
+    SYSTEM_ADMIN_NIC_IPV4
+    OMNIA_DATA_PATH
+    OMNIA_PROJECT_NAME
+    SYSTEM_HOSTNAME
+    SYSTEM_DOMAIN_NAME
+    OMNIA_VENV_PATH
+    OMNIA_VERSION
+    CATALOG_FILE_PATH
+    IMAGE_BUILD_MANAGER_DATA_PATH
+    REPO_MANAGER_DATA_PATH
+    DISCOVERY_DATA_PATH
+    ORCHESTRATOR_DATA_PATH
+    TELEMETRY_DATA_PATH
+    BUILD_STREAM_DATA_PATH
+)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Environment Loading
 # ─────────────────────────────────────────────────────────────────────────────
+source_omnia_env() {
+    local env_file="$1"
+    local variable
+    local allexport_was_set=false
+
+    if [[ "$-" == *a* ]]; then
+        allexport_was_set=true
+    fi
+
+    for variable in "${OMNIA_ENV_VARIABLES[@]}"; do
+        unset -v "$variable"
+    done
+
+    set -a
+    # shellcheck disable=SC1090
+    . "$env_file"
+    if [ "$allexport_was_set" = false ]; then
+        set +a
+    fi
+
+    ACTIVE_ENV_FILE="$env_file"
+}
+
 load_env() {
     # Apply defaults for optional variables
     OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
@@ -109,6 +145,7 @@ load_env() {
 validate_env() {
     local errors=0
     local warnings=0
+    local env_file="${ACTIVE_ENV_FILE:-/etc/omnia/omnia.env}"
 
     # --- Required env vars ---
     if [ -z "${SYSTEM_ADMIN_NIC_IPV4:-}" ]; then
@@ -130,7 +167,7 @@ validate_env() {
     fi
 
     if [ "$errors" -gt 0 ]; then
-        echo -e "${YELLOW}Set the required variables in src/main/omnia.env and re-run ./omnia.sh --setup-venv${NC}"
+        echo -e "${YELLOW}Set the required variables in ${env_file} and re-run ./omnia.sh --setup-venv${NC}"
         echo -e "${YELLOW}Or export them manually:  export SYSTEM_ADMIN_NIC_IPV4=<ip>${NC}"
         exit 1
     fi
@@ -142,7 +179,12 @@ validate_env() {
     actual_hostname="$(hostname -s 2>/dev/null || hostname 2>/dev/null)"
     if [ -n "$actual_hostname" ] && [ "$actual_hostname" != "$SYSTEM_HOSTNAME" ]; then
         echo -e "${RED}ERROR: SYSTEM_HOSTNAME (${SYSTEM_HOSTNAME}) does not match actual hostname (${actual_hostname})${NC}"
-        echo -e "${YELLOW}  Fix: update SYSTEM_HOSTNAME in omnia.env${NC}"
+        echo -e "${YELLOW}  Fix the installed configuration: update SYSTEM_HOSTNAME in ${env_file}, then re-run ./omnia.sh -s${NC}"
+        if [ "$env_file" = "$SYSTEM_ENV_FILE" ]; then
+            echo -e "${YELLOW}  If you corrected ${SCRIPT_DIR}/omnia.env instead, apply it with:${NC}"
+            echo -e "${YELLOW}    ./omnia.sh -s --force-env${NC}"
+            echo -e "${YELLOW}  Note: --force-env replaces all values in ${SYSTEM_ENV_FILE} with the repository file.${NC}"
+        fi
         echo -e "${YELLOW}  Or:  hostnamectl set-hostname ${SYSTEM_HOSTNAME}${NC}"
         errors=$((errors + 1))
     fi
@@ -152,7 +194,7 @@ validate_env() {
     actual_domain="$(hostname -d 2>/dev/null || true)"
     if [ -n "$actual_domain" ] && [ "$actual_domain" != "$SYSTEM_DOMAIN_NAME" ]; then
         echo -e "${YELLOW}WARNING: SYSTEM_DOMAIN_NAME (${SYSTEM_DOMAIN_NAME}) does not match system domain (${actual_domain})${NC}"
-        echo -e "${YELLOW}  Fix: update SYSTEM_DOMAIN_NAME in omnia.env${NC}"
+        echo -e "${YELLOW}  Fix: update SYSTEM_DOMAIN_NAME in ${env_file}${NC}"
         echo -e "${YELLOW}  Or:  hostnamectl set-hostname ${SYSTEM_HOSTNAME}.${SYSTEM_DOMAIN_NAME}${NC}"
         warnings=$((warnings + 1))
     fi
@@ -171,7 +213,7 @@ validate_env() {
         if [ "$ip_found" = false ]; then
             echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 (${SYSTEM_ADMIN_NIC_IPV4}) is not assigned to any local interface${NC}"
             echo -e "${YELLOW}  Available IPs: ${all_ips}${NC}"
-            echo -e "${YELLOW}  Fix: update SYSTEM_ADMIN_NIC_IPV4 in omnia.env${NC}"
+            echo -e "${YELLOW}  Fix: update SYSTEM_ADMIN_NIC_IPV4 in ${env_file}${NC}"
             errors=$((errors + 1))
         fi
     fi
@@ -204,9 +246,21 @@ validate_env_source() {
     local env_file="$1"
     local errors=0
 
-    # Source env file in a subshell to validate without polluting current env
+    if [ ! -r "$env_file" ]; then
+        echo -e "${RED}ERROR: Environment file is not readable: ${env_file}${NC}"
+        return 1
+    fi
+
+    if ! bash -n "$env_file"; then
+        echo -e "${RED}ERROR: Environment file has invalid Bash syntax: ${env_file}${NC}"
+        return 1
+    fi
+
+    # Read from a clean environment so inherited variables cannot hide a
+    # missing value in the file being validated.
     local ip_value
-    ip_value="$(bash -c "set -a; . \"$env_file\"; echo \"\$SYSTEM_ADMIN_NIC_IPV4\"")"
+    ip_value="$(env -i PATH="$PATH" bash --noprofile --norc -c \
+        '. "$1"; printf "%s" "${SYSTEM_ADMIN_NIC_IPV4:-}"' bash "$env_file")"
 
     if [ -z "$ip_value" ]; then
         echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 is not set in ${env_file}${NC}"
@@ -214,79 +268,110 @@ validate_env_source() {
         errors=$((errors + 1))
     fi
 
-    # Validate IP format (basic IPv4 check)
+    # Validate all four IPv4 octets, including their numeric range.
     if [ -n "$ip_value" ]; then
-        if ! echo "$ip_value" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+        local octets
+        local octet
+        IFS='.' read -ra octets <<< "$ip_value"
+        if [ "${#octets[@]}" -ne 4 ]; then
             echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 ('${ip_value}') is not a valid IPv4 address in ${env_file}${NC}"
             echo -e "${YELLOW}  Edit ${env_file} and fix SYSTEM_ADMIN_NIC_IPV4${NC}"
             errors=$((errors + 1))
+        else
+            for octet in "${octets[@]}"; do
+                if [[ ! "$octet" =~ ^[0-9]{1,3}$ ]] || [ "$((10#$octet))" -gt 255 ]; then
+                    echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV4 ('${ip_value}') is not a valid IPv4 address in ${env_file}${NC}"
+                    echo -e "${YELLOW}  Edit ${env_file} and fix SYSTEM_ADMIN_NIC_IPV4${NC}"
+                    errors=$((errors + 1))
+                    break
+                fi
+            done
         fi
     fi
 
     if [ "$errors" -gt 0 ]; then
         echo -e "${RED}Environment file validation failed. Fix ${env_file} before running setup.${NC}"
-        exit 1
+        return 1
     fi
 }
 
 install_system_env() {
-    local env_file="$SCRIPT_DIR/omnia.env"
+    local source_env_file="${1:-$SCRIPT_DIR/omnia.env}"
+    local system_env_file="${2:-$SYSTEM_ENV_FILE}"
+    local profile_drop_in="${3:-$PROFILE_DROP_IN}"
+    local system_env_dir
+    system_env_dir="$(dirname "$system_env_file")"
+    local env_file
 
-    echo -e "${BLUE}Installing environment to system...${NC}"
+    echo -e "${BLUE}Configuring system environment...${NC}"
 
-    if [ ! -f "$env_file" ]; then
-        echo -e "${YELLOW}WARNING: src/main/omnia.env not found — skipping env file install${NC}"
-        return 0
-    fi
-
-    # Validate source env file BEFORE installing to system
-    validate_env_source "$env_file"
-
-    mkdir -p "$SYSTEM_ENV_DIR"
-
-    if [ -f "$SYSTEM_ENV_FILE" ]; then
-        # Compare source with installed — update if source has changed
-        if ! diff -q "$env_file" "$SYSTEM_ENV_FILE" >/dev/null 2>&1; then
-            echo -e "  ${YELLOW}Source omnia.env differs from installed copy.${NC}"
-            echo -e "  ${BLUE}Updating: ${SYSTEM_ENV_FILE}${NC}"
-            cp -f "$env_file" "$SYSTEM_ENV_FILE"
-            chmod 0644 "$SYSTEM_ENV_FILE"
-            echo -e "  ${GREEN}Updated: ${SYSTEM_ENV_FILE}${NC}"
-        else
-            echo -e "  ${GREEN}Existing: ${SYSTEM_ENV_FILE} (matches source)${NC}"
+    if [ -f "$system_env_file" ] && [ "${FORCE_ENV:-false}" != true ]; then
+        env_file="$system_env_file"
+        echo -e "  ${GREEN}Using existing: ${system_env_file}${NC}"
+        if [ -f "$source_env_file" ] && ! diff -q "$source_env_file" "$system_env_file" >/dev/null 2>&1; then
+            echo -e "  ${YELLOW}Repository omnia.env differs; preserving the system configuration.${NC}"
+            echo -e "  ${YELLOW}To apply changes made in ${source_env_file}, run:${NC}"
+            echo -e "    ${YELLOW}./omnia.sh -s --force-env${NC}"
+            echo -e "  ${DIM}This replaces all values in ${system_env_file} with the repository file.${NC}"
         fi
     else
-        cp -f "$env_file" "$SYSTEM_ENV_FILE"
-        chmod 0644 "$SYSTEM_ENV_FILE"
-        echo -e "  ${GREEN}Installed: ${SYSTEM_ENV_FILE}${NC}"
+        if [ ! -f "$source_env_file" ]; then
+            echo -e "${RED}ERROR: Bootstrap environment file not found: ${source_env_file}${NC}"
+            return 1
+        fi
+
+        validate_env_source "$source_env_file"
+        mkdir -p "$system_env_dir"
+        install -m 0644 "$source_env_file" "$system_env_file"
+        env_file="$system_env_file"
+        if [ "${FORCE_ENV:-false}" = true ]; then
+            echo -e "  ${GREEN}Replaced: ${system_env_file} (--force-env)${NC}"
+        else
+            echo -e "  ${GREEN}Installed: ${system_env_file}${NC}"
+        fi
     fi
 
-    cat > "$PROFILE_DROP_IN" <<'PROFILE_EOF'
+    # Validate the file that setup will actually use before loading it.
+    validate_env_source "$env_file"
+
+    local quoted_system_env_file
+    printf -v quoted_system_env_file '%q' "$system_env_file"
+    mkdir -p "$(dirname "$profile_drop_in")"
+    cat > "$profile_drop_in" <<PROFILE_EOF
 #!/bin/bash
 #
 # Omnia environment variables
 #
 
-if [ -f /etc/omnia/omnia.env ]; then
+if [ -f ${quoted_system_env_file} ]; then
+    unset SYSTEM_ADMIN_NIC_IPV4 OMNIA_DATA_PATH OMNIA_PROJECT_NAME \
+        SYSTEM_HOSTNAME SYSTEM_DOMAIN_NAME OMNIA_VENV_PATH OMNIA_VERSION \
+        CATALOG_FILE_PATH IMAGE_BUILD_MANAGER_DATA_PATH REPO_MANAGER_DATA_PATH \
+        DISCOVERY_DATA_PATH ORCHESTRATOR_DATA_PATH TELEMETRY_DATA_PATH \
+        BUILD_STREAM_DATA_PATH
+    _omnia_allexport_was_set=false
+    if [[ "\$-" == *a* ]]; then
+        _omnia_allexport_was_set=true
+    fi
     set -a
-    . /etc/omnia/omnia.env
-    set +a
+    . ${quoted_system_env_file}
+    if [ "\$_omnia_allexport_was_set" = false ]; then
+        set +a
+    fi
+    unset _omnia_allexport_was_set
 fi
 PROFILE_EOF
 
-    chmod 0644 "$PROFILE_DROP_IN"
+    chmod 0644 "$profile_drop_in"
 
-    echo -e "  ${GREEN}Installed: ${PROFILE_DROP_IN}${NC}"
+    echo -e "  ${GREEN}Installed: ${profile_drop_in}${NC}"
 
     #
     # Load into current script execution
     #
-    set -a
-    # shellcheck disable=SC1090
-    . "$SYSTEM_ENV_FILE"
-    set +a
+    source_omnia_env "$env_file"
 
-    echo -e "${GREEN}Environment installed system-wide.${NC}"
+    echo -e "${GREEN}System environment ready.${NC}"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -391,9 +476,21 @@ setup_venv() {
 #
 
 if [ -f /etc/omnia/omnia.env ]; then
+    unset SYSTEM_ADMIN_NIC_IPV4 OMNIA_DATA_PATH OMNIA_PROJECT_NAME \
+        SYSTEM_HOSTNAME SYSTEM_DOMAIN_NAME OMNIA_VENV_PATH OMNIA_VERSION \
+        CATALOG_FILE_PATH IMAGE_BUILD_MANAGER_DATA_PATH REPO_MANAGER_DATA_PATH \
+        DISCOVERY_DATA_PATH ORCHESTRATOR_DATA_PATH TELEMETRY_DATA_PATH \
+        BUILD_STREAM_DATA_PATH
+    _omnia_allexport_was_set=false
+    if [[ "$-" == *a* ]]; then
+        _omnia_allexport_was_set=true
+    fi
     set -a
     . /etc/omnia/omnia.env
-    set +a
+    if [ "$_omnia_allexport_was_set" = false ]; then
+        set +a
+    fi
+    unset _omnia_allexport_was_set
 fi
 
 if [ -f "${OMNIA_VENV_PATH}/bin/activate" ]; then
@@ -403,9 +500,9 @@ else
     return 1 2>/dev/null || exit 1
 fi
 
-# Load omnia-cli bash completion
-if [ -f /etc/bash_completion.d/omnia-cli ]; then
-    source /etc/bash_completion.d/omnia-cli
+# Load the shared omnia-cli and omnia.sh Bash completion
+if [ -f /etc/bash_completion.d/omnia-bash-completion ]; then
+    source /etc/bash_completion.d/omnia-bash-completion
 fi
 ACTIVATE_EOF
     chmod +x "${OMNIA_DATA_PATH}/activate-omnia.sh"
@@ -709,6 +806,17 @@ run_domain() {
 # Prepare Base Domains
 # Orchestrates prepare steps of core infrastructure domains in dependency order
 # ─────────────────────────────────────────────────────────────────────────────
+prepare_tag_for_phase() {
+    local domain="$1"
+    local phase="$2"
+
+    if [ "$domain" = "repo_manager" ] && [ "$phase" = "validate" ]; then
+        printf '%s' "precheck"
+    else
+        printf '%s' "$phase"
+    fi
+}
+
 prepare_base_domains() {
     local skip_filter="${SKIP_DOMAINS:-}"
     local dry_run="${DRY_RUN:-false}"
@@ -795,10 +903,12 @@ prepare_base_domains() {
     if [ "$dry_run" = true ]; then
         echo -e "${BLUE}DRY RUN — would prepare these domains (phase-by-phase, fail-fast):${NC}"
         echo ""
-        for tag in "${LIFECYCLE_TAGS[@]}"; do
-            echo -e "  ${BLUE}Phase: $tag${NC}"
+        for phase in "${LIFECYCLE_PHASES[@]}"; do
+            echo -e "  ${BLUE}Phase: $phase${NC}"
             for domain in "${target_domains[@]}"; do
-                echo -e "    ${GREEN}${domain}${NC}"
+                local domain_tag
+                domain_tag="$(prepare_tag_for_phase "$domain" "$phase")"
+                echo -e "    ${GREEN}${domain}${NC} ${DIM}(--tags ${domain_tag})${NC}"
             done
             echo ""
         done
@@ -808,14 +918,16 @@ prepare_base_domains() {
     fi
 
     # ── Run phases across all domains (phase-by-phase, not domain-by-domain) ──
-    for tag in "${LIFECYCLE_TAGS[@]}"; do
+    for phase in "${LIFECYCLE_PHASES[@]}"; do
         echo -e "${BLUE}================================================================================${NC}"
-        echo -e "${BLUE}Phase: $tag (all domains)${NC}"
+        echo -e "${BLUE}Phase: $phase (all domains)${NC}"
         echo -e "${BLUE}================================================================================${NC}"
         echo ""
 
         for domain in "${target_domains[@]}"; do
             local playbook="$SRC_DIR/$domain/playbooks/${domain}.yml"
+            local domain_tag
+            domain_tag="$(prepare_tag_for_phase "$domain" "$phase")"
 
             if [ ! -f "$playbook" ]; then
                 echo -e "${RED}  ERROR: No playbook found for $domain at $playbook${NC}"
@@ -824,22 +936,22 @@ prepare_base_domains() {
                 return 1
             fi
 
-            echo -e "${BLUE}  Running: $domain --tags $tag${NC}"
+            echo -e "${BLUE}  Running: $domain --tags $domain_tag${NC}"
 
             # Build ansible-playbook command
-            local cmd=("ansible-playbook" "$playbook" "--tags" "$tag")
+            local cmd=("ansible-playbook" "$playbook" "--tags" "$domain_tag")
 
             echo -e "${DIM}    ${cmd[*]}${NC}"
 
             cd "$SRC_DIR/$domain"
             if "${cmd[@]}"; then
-                echo -e "${GREEN}    ✓ $domain $tag completed${NC}"
+                echo -e "${GREEN}    ✓ $domain $domain_tag completed${NC}"
             else
                 local rc=$?
-                echo -e "${RED}    ✗ $domain $tag failed (exit code: $rc)${NC}"
+                echo -e "${RED}    ✗ $domain $domain_tag failed (exit code: $rc)${NC}"
                 echo ""
                 echo -e "${RED}================================================================================${NC}"
-                echo -e "${RED}  FAILED: $domain failed in $tag phase. Stopping --prepare-base.${NC}"
+                echo -e "${RED}  FAILED: $domain failed in $phase phase. Stopping --prepare-base.${NC}"
                 echo -e "${RED}================================================================================${NC}"
                 echo -e "${YELLOW}  Fix the issue above and re-run: ./omnia.sh --prepare-base${NC}"
                 deactivate 2>/dev/null || true
@@ -848,7 +960,7 @@ prepare_base_domains() {
             echo ""
         done
 
-        echo -e "${GREEN}Phase $tag completed${NC}"
+        echo -e "${GREEN}Phase $phase completed${NC}"
         echo ""
     done
 
@@ -868,8 +980,112 @@ prepare_base_domains() {
 # ─────────────────────────────────────────────────────────────────────────────
 # Cleanup
 # ─────────────────────────────────────────────────────────────────────────────
+validate_full_cleanup_state() {
+    local data_root
+    local logical_data_root
+    local configured_data_path="${OMNIA_DATA_PATH%/}"
+    local domain domain_dir entry entry_name source_entry runtime_content
+    local blockers=()
+
+    if ! data_root="$(realpath -m -- "$OMNIA_DATA_PATH")"; then
+        echo -e "${RED}ERROR: Cannot resolve OMNIA_DATA_PATH: ${OMNIA_DATA_PATH}${NC}" >&2
+        return 1
+    fi
+    logical_data_root="$(realpath -ms -- "$OMNIA_DATA_PATH")"
+    if [[ "$data_root" != /* ]] || [[ "$data_root" =~ ^(/|/boot|/dev|/etc|/home|/media|/mnt|/opt|/proc|/root|/run|/srv|/sys|/tmp|/usr|/var)$ ]]; then
+        echo -e "${RED}ERROR: Refusing full cleanup for unsafe OMNIA_DATA_PATH: ${OMNIA_DATA_PATH}${NC}" >&2
+        return 1
+    fi
+    if [ -L "$configured_data_path" ] || [ "$data_root" != "$logical_data_root" ]; then
+        echo -e "${RED}ERROR: Refusing full cleanup because OMNIA_DATA_PATH contains a symbolic link: ${OMNIA_DATA_PATH}${NC}" >&2
+        return 1
+    fi
+
+    for domain in "${DOMAINS[@]}"; do
+        domain_dir="${data_root}/${domain}"
+        [ -e "$domain_dir" ] || [ -L "$domain_dir" ] || continue
+
+        if [ -L "$domain_dir" ] || [ ! -d "$domain_dir" ]; then
+            blockers+=("${domain_dir} (not a regular directory)")
+            continue
+        fi
+        if [ ! -r "$domain_dir" ] || [ ! -x "$domain_dir" ]; then
+            blockers+=("${domain_dir} (cannot be fully inspected)")
+            continue
+        fi
+
+        while IFS= read -r -d '' entry; do
+            entry_name="$(basename "$entry")"
+            case "$entry_name" in
+                input) ;;
+                log|output)
+                    if [ -L "$entry" ] || [ ! -d "$entry" ]; then
+                        blockers+=("${entry} (must be a regular directory containing no files or links)")
+                    elif [ ! -r "$entry" ] || [ ! -x "$entry" ]; then
+                        blockers+=("${entry} (cannot be fully inspected)")
+                    elif ! runtime_content="$(find -P "$entry" -mindepth 1 ! -type d -print -quit 2>/dev/null)"; then
+                        blockers+=("${entry} (cannot be fully inspected)")
+                    elif [ -n "$runtime_content" ]; then
+                        blockers+=("${entry} (contains a file or symbolic link: ${runtime_content})")
+                    fi
+                    ;;
+                *)
+                    # Build Stream stages its application beside input/output/log.
+                    # Accept only entries that match the current app payload type,
+                    # plus the legacy initializer-owned examples/config names.
+                    if [ "$domain" = "build_stream" ]; then
+                        source_entry="${SRC_DIR}/build_stream/app/${entry_name}"
+                        if [ -L "$entry" ]; then
+                            blockers+=("${entry} (symbolic links are not allowed)")
+                        elif [ -d "$source_entry" ] && [ -d "$entry" ]; then
+                            continue
+                        elif [ -f "$source_entry" ] && [ -f "$entry" ]; then
+                            continue
+                        elif [ "$entry_name" = "examples" ] && [ -d "$entry" ]; then
+                            continue
+                        elif [ "$entry_name" = "playbook_paths.yml" ] && [ -f "$entry" ]; then
+                            continue
+                        else
+                            blockers+=("${entry} (not recognized as Build Stream initializer content)")
+                        fi
+                    else
+                        blockers+=("$entry")
+                    fi
+                    ;;
+            esac
+        done < <(find -P "$domain_dir" -mindepth 1 -maxdepth 1 -print0)
+    done
+
+    if [ "${#blockers[@]}" -gt 0 ]; then
+        echo -e "${RED}ERROR: --cleanup --all cannot continue because domain cleanup is incomplete.${NC}"
+        echo -e "${RED}The following paths contain deployed, generated, non-empty, or unrecognized state:${NC}"
+        printf '  - %s\n' "${blockers[@]}"
+        echo ""
+        echo -e "${YELLOW}No files were removed. Run the matching domain cleanup first, for example:${NC}"
+        echo "  ./omnia.sh --run <domain> --tags cleanup"
+        echo -e "${YELLOW}Log/output trees containing only empty directories and Build Stream initializer files are allowed.${NC}"
+        echo -e "${YELLOW}Remove any intentionally retained paths reported above and retry.${NC}"
+        return 1
+    fi
+}
+
+cleanup_domain_initializer_artifacts() {
+    local domain init_script
+
+    for domain in "${DOMAINS[@]}"; do
+        init_script="${SRC_DIR}/${domain}/domain-init.sh"
+        if [ ! -x "$init_script" ]; then
+            echo -e "${RED}ERROR: Domain cleanup helper is missing or not executable: ${init_script}${NC}" >&2
+            return 1
+        fi
+        DOMAIN_INIT_LOG_ROOT="/var/log/omnia" "$init_script" --cleanup
+    done
+}
+
 cleanup_omnia() {
     local cleanup_all="${1:-false}"
+    local skip_approval="${2:-false}"
+    local confirm=""
     load_env
 
     echo -e "${BLUE}================================================================================${NC}"
@@ -878,36 +1094,61 @@ cleanup_omnia() {
     echo ""
 
     if [ "$cleanup_all" = true ]; then
+        # Refuse before prompting or deleting if lifecycle cleanup is pending.
+        validate_full_cleanup_state || return 1
+
         echo -e "${RED}WARNING: This will remove ALL Omnia data including:${NC}"
         echo -e "  - Python venv:          ${OMNIA_VENV_PATH}"
         echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
         echo -e "  - Profile drop-in:      ${PROFILE_DROP_IN}"
         echo -e "  - omnia-cli:            /usr/local/bin/omnia-cli"
-        echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-cli"
+        echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-bash-completion"
         echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
-        echo -e "  - ALL data:             ${OMNIA_DATA_PATH}/ (input, output, logs, everything)"
+        echo -e "  - Initializer input data: ${OMNIA_DATA_PATH}/<domain>/input"
+        echo -e "  - Remaining Omnia data:      ${OMNIA_DATA_PATH}/"
     else
         echo -e "${YELLOW}This will remove the Omnia venv, system environment files, omnia-cli, and dependency cache:${NC}"
         echo -e "  - Python venv:          ${OMNIA_VENV_PATH}"
         echo -e "  - System env:           ${SYSTEM_ENV_FILE}"
         echo -e "  - Profile drop-in:      ${PROFILE_DROP_IN}"
         echo -e "  - omnia-cli:            /usr/local/bin/omnia-cli"
-        echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-cli"
+        echo -e "  - Bash completion:      /etc/bash_completion.d/omnia-bash-completion"
         echo -e "  - Activation script:    ${OMNIA_DATA_PATH}/activate-omnia.sh"
         echo -e "  - Dependency cache:     ${OMNIA_DATA_PATH}/.data/deps-cache/"
         echo ""
         echo -e "${GREEN}Runtime data at ${OMNIA_DATA_PATH}/ (input, output, logs) will be preserved.${NC}"
-        echo -e "${YELLOW}Use --cleanup --all to remove everything.${NC}"
+        echo -e "${YELLOW}Use --cleanup --all for a guarded full reset.${NC}"
     fi
 
     echo ""
-    read -rp "Are you sure? (yes/no): " confirm
-    if [ "$confirm" != "yes" ]; then
-        echo -e "${YELLOW}Cleanup cancelled.${NC}"
-        return 0
+    if [ "$skip_approval" = true ]; then
+        echo -e "${YELLOW}Confirmation skipped by --skip-approval. Cleanup will start immediately.${NC}"
+    else
+        if [ "$cleanup_all" = true ]; then
+            if ! read -r -p "Type 'yes' to permanently remove the Omnia environment and all remaining data: " confirm; then
+                echo -e "${RED}ERROR: Confirmation input was not available. No files were removed.${NC}" >&2
+                echo -e "${YELLOW}Run interactively, or use --skip-approval only in trusted automation.${NC}" >&2
+                return 1
+            fi
+        elif ! read -r -p "Type 'yes' to remove the Omnia environment while preserving runtime data: " confirm; then
+            echo -e "${RED}ERROR: Confirmation input was not available. No files were removed.${NC}" >&2
+            echo -e "${YELLOW}Run interactively, or use --skip-approval only in trusted automation.${NC}" >&2
+            return 1
+        fi
+        if [ "$confirm" != "yes" ]; then
+            echo -e "${YELLOW}Cleanup cancelled. No files were removed.${NC}"
+            return 0
+        fi
     fi
 
     echo ""
+
+    if [ "$cleanup_all" = true ]; then
+        echo -e "${BLUE}Removing domain initializer input and log artifacts${NC}"
+        cleanup_domain_initializer_artifacts
+        # Close the preflight-to-delete race before global cleanup starts.
+        validate_full_cleanup_state || return 1
+    fi
 
     # Remove venv
     if [ -d "$OMNIA_VENV_PATH" ]; then
@@ -950,10 +1191,10 @@ cleanup_omnia() {
         echo -e "  ${GREEN}Removed.${NC}"
     fi
 
-    # Remove bash completion
-    if [ -f "/etc/bash_completion.d/omnia-cli" ]; then
-        echo -e "${BLUE}Removing bash completion from /etc/bash_completion.d/omnia-cli${NC}"
-        rm -f /etc/bash_completion.d/omnia-cli
+    # Remove Bash completion
+    if [ -f "/etc/bash_completion.d/omnia-bash-completion" ]; then
+        echo -e "${BLUE}Removing Bash completion from /etc/bash_completion.d/omnia-bash-completion${NC}"
+        rm -f /etc/bash_completion.d/omnia-bash-completion
         echo -e "  ${GREEN}Removed.${NC}"
     fi
 
@@ -965,7 +1206,8 @@ cleanup_omnia() {
         echo -e "  ${GREEN}Removed.${NC}"
     fi
 
-    # If --all, remove entire data path
+    # The full-cleanup preflight proved that no deployed domain state existed
+    # before deletion began.
     if [ "$cleanup_all" = true ]; then
         if [ -d "$OMNIA_DATA_PATH" ]; then
             echo -e "${BLUE}Removing all data: ${OMNIA_DATA_PATH}${NC}"
@@ -995,6 +1237,9 @@ copy_catalog() {
     local catalog_source="${SCRIPT_DIR}/samples/catalog_rhel.json"
     local catalog_target_dir="${OMNIA_DATA_PATH}/catalog"
     local catalog_target_file="${catalog_target_dir}/catalog_rhel.json"
+    local configured_catalog_file="${CATALOG_FILE_PATH:-$catalog_target_file}"
+    local configured_catalog_dir
+    configured_catalog_dir="$(dirname "$configured_catalog_file")"
 
     echo -e "${BLUE}================================================================================${NC}"
     echo -e "${BLUE}               Catalog Copy${NC}"
@@ -1028,7 +1273,47 @@ copy_catalog() {
 
     echo ""
     echo -e "${GREEN}Catalog files copied to: ${catalog_target_dir}/${NC}"
-    echo -e "${GREEN}  CATALOG_FILE_PATH=${catalog_target_file}${NC}"
+    echo -e "${GREEN}Configured catalog file:${NC}"
+    echo -e "  ${GREEN}CATALOG_FILE_PATH=${configured_catalog_file}${NC}"
+    echo -e "  ${DIM}The default catalog contains packages for both Slurm and service_k8s deployments.${NC}"
+    if [ "$configured_catalog_file" != "$catalog_target_file" ]; then
+        echo -e "  ${YELLOW}The configured path differs from the copied default (${catalog_target_file}).${NC}"
+        echo -e "  ${YELLOW}Copy the catalog you want to ${configured_catalog_file} before running catalog-based workflows.${NC}"
+    fi
+    echo ""
+    echo -e "${GREEN}Available catalog variants:${NC}"
+    echo -e "  ${GREEN}Source: ${SCRIPT_DIR}/samples/catalogs/<RHEL-version>/${NC}"
+    echo -e "  ${GREEN}Selection guide: ${SCRIPT_DIR}/samples/README.md${NC}"
+    echo -e "  ${DIM}RHEL versions: 10.0 and 10.2${NC}"
+    echo -e "  ${DIM}Workloads: Slurm only, service_k8s only, or combined${NC}"
+    echo -e "  ${DIM}Architectures: x86_64, aarch64, or mixed x86_64/aarch64${NC}"
+    echo -e "  ${DIM}Files ending in _no_vast.json exclude the VAST Data client.${NC}"
+    echo -e "  ${DIM}List every catalog: find \"${SCRIPT_DIR}/samples/catalogs\" -type f -name '*.json' | sort${NC}"
+    echo ""
+    echo -e "${YELLOW}Recommended for a small x86_64 Slurm test without VAST:${NC}"
+    echo -e "  ${YELLOW}Choose the command matching the RHEL version used to build the nodes.${NC}"
+    echo -e "  ${DIM}RHEL 10.0:${NC}"
+    printf '     cp "%s" \\\n' "${SCRIPT_DIR}/samples/catalogs/10.0/slurm_x86_64_no_vast.json"
+    echo -e "       \"${configured_catalog_file}\""
+    echo -e "  ${DIM}RHEL 10.2:${NC}"
+    printf '     cp "%s" \\\n' "${SCRIPT_DIR}/samples/catalogs/10.2/slurm_x86_64_no_vast.json"
+    echo -e "       \"${configured_catalog_file}\""
+    echo -e "  ${DIM}These Slurm-only catalogs exclude service_k8s, aarch64, and VAST content.${NC}"
+    echo -e "  ${DIM}They replace the active catalog in place, so no environment-file change is required.${NC}"
+    echo ""
+    echo -e "${YELLOW}To use a different catalog:${NC}"
+    echo -e "  ${YELLOW}1. Keep the current path and replace its contents:${NC}"
+    echo -e "     mkdir -p \"${configured_catalog_dir}\""
+    echo -e "     cp /path/to/catalog.json \"${configured_catalog_file}\""
+    echo ""
+    echo -e "  ${YELLOW}2. Or keep a separate filename and update the catalog path:${NC}"
+    echo -e "     cp /path/to/catalog.json \"${configured_catalog_dir}/custom_catalog.json\""
+    echo -e "     vi ${ACTIVE_ENV_FILE:-$SYSTEM_ENV_FILE}"
+    echo -e "     Set: CATALOG_FILE_PATH=${configured_catalog_dir}/custom_catalog.json"
+    echo -e "     source ${PROFILE_DROP_IN}"
+    echo ""
+    echo -e "  ${DIM}If you edit ${SCRIPT_DIR}/omnia.env instead of ${ACTIVE_ENV_FILE:-$SYSTEM_ENV_FILE},${NC}"
+    echo -e "  ${DIM}apply it with ./omnia.sh -s --force-env (this replaces the installed env file).${NC}"
     echo ""
 }
 
@@ -1164,8 +1449,8 @@ show_help() {
 Omnia Infrastructure Manager (OIM) — v${OMNIA_RELEASE}
 
 PREREQUISITE:
-  Edit src/main/omnia.env before running --setup-venv.
-  After setup, vars are installed system-wide at /etc/omnia/omnia.env.
+  Before the first --setup-venv, edit src/main/omnia.env.
+  After the first setup, edit /etc/omnia/omnia.env; setup preserves it.
 
 USAGE:
   $0 <command> [options]
@@ -1186,7 +1471,8 @@ SETUP COMMANDS (run once, in order):
 EXECUTION COMMANDS:
   --prepare-base [options]
                         Prepare three base infrastructure domains in dependency order.
-                        For each domain, runs lifecycle phases: validate → credentials → prepare
+                        Runs validation → credentials → prepare. Validation uses
+                        precheck for repo_manager and validate for the other domains.
                         Domains: repo_manager, image_build_manager, orchestrator
                         Options:
                           --skip <list>       Comma-separated domains to skip
@@ -1213,41 +1499,18 @@ RECOMMENDED EXECUTION ORDER:
   WARNING: Running a later step without completing earlier steps may fail.
            The CLI will warn you if prerequisite outputs are missing.
 
-  Tags by domain (use --tags <tag> to run a specific stage):
-  Execution order: precheck -> validate -> prepare -> execute -> cleanup
+  Public tags by domain (use --tags <tag> to select a stage):
+    build_stream:        precheck validate credentials prepare execute build cleanup upgrade rollback
+    discovery:           precheck validate credentials prepare execute discovery cleanup cleanup_credentials upgrade rollback
+    image_build_manager: precheck validate credentials prepare execute build cleanup cleanup_images upgrade rollback
+    orchestrator:        precheck validate credentials prepare deploy provision execute validate-deployment pxeboot cleanup cleanup_credentials upgrade rollback
+    repo_manager:        precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos upgrade rollback catalog_generate catalog_add catalog_delete catalog_validate
+    telemetry:           precheck validate validation prepare credentials execute deploy cleanup cleanup_kafka cleanup_victoria_metrics cleanup_victoria_logs cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria
+    utils:               precheck setup collect install_os backup_oim_logs cleanup cleanup_logs cleanup_install_os cleanup_backup_oim_logs upgrade rollback
 
-    repo_manager:
-      precheck        Environment prerequisite check      (never: explicit only)
-      validate        Validate input configurations
-      prepare         Deploy Pulp server
-      execute         Deploy + download + status (full domain tasks)
-      cleanup         Remove Pulp server and all data     (never: explicit only)
-
-    image_build_manager:
-      precheck        Environment prerequisite check      (never: explicit only)
-      validate        Validate image build configuration
-      prepare         Deploy build infrastructure (MinIO + Registry)
-      execute         Build OS images (full domain tasks)
-      cleanup         Remove build infrastructure         (never: explicit only)
-
-    orchestrator:
-      precheck        Validate orchestrator prerequisites (never: explicit only)
-      validate        Validate orchestrator configuration
-      prepare         Prepare orchestrator components
-      execute         Deploy + provision (full domain tasks)
-      cleanup         Remove orchestrator components      (never: explicit only)
-
-    telemetry:
-      precheck        Validate telemetry prerequisites    (never: explicit only)
-      validate        Validate telemetry input files
-      prepare         Prepare telemetry components
-      execute         Deploy all telemetry sources + sinks (full domain tasks)
-      cleanup         Remove telemetry components         (never: explicit only)
-
-  Without --tags, --run <domain> executes the full domain (equivalent to --tags execute).
-  Tags marked "(never: explicit only)" require --tags <tag> to run;
-  they are skipped during a normal full domain run.
-  Additional domain-specific tags are available — see domain help.
+  Without --tags, each playbook runs its full default flow. Tags marked with
+  Ansible's "never" tag run only when explicitly selected. Domain playbooks
+  validate supported tags and combinations.
 
 DIAGNOSTIC COMMANDS:
   --check-deps          Audit all domain requirements.txt and requirements.yml
@@ -1256,28 +1519,42 @@ DIAGNOSTIC COMMANDS:
 
 CLEANUP COMMANDS:
   --cleanup             Remove venv, system env files (/etc/omnia/omnia.env,
-                        /etc/profile.d/omnia-env.sh), activation script, and
-                        dependency cache. Runtime data at \$OMNIA_DATA_PATH/
-                        (input, output, logs) is preserved.
-  --cleanup --all       Remove EVERYTHING: venv, system env, cache, AND all data at
-                        \$OMNIA_DATA_PATH/ (full reset). Prompts for confirmation.
+                        /etc/profile.d/omnia-env.sh), omnia-cli, shared Bash
+                        completion, activation script, and dependency cache.
+                        Runtime data at \$OMNIA_DATA_PATH/ (input, output, logs)
+                        is preserved.
+  --cleanup --all       Guarded full reset. Refuses to start when a domain has
+                        uncleared state; log/output trees containing only empty
+                        directories and known Build Stream initializer files are
+                        allowed. Run the matching domain cleanup (or remove
+                        reported paths) first. Then removes domain input/log
+                        paths, the venv, system env, cache, and remaining
+                        \$OMNIA_DATA_PATH data.
 
 OPTIONS:
   --deps-only           With -s or -i: install pip/Galaxy deps but skip input file staging.
                         Cannot be used standalone; requires -s or -i.
   --force-deps          With -s or -i: bypass the dependency cache and force a
                         fresh pip install + Galaxy collection install.
+  --force-env           With -s: replace /etc/omnia/omnia.env with the repository
+                        omnia.env. Existing system configuration is preserved by default.
   --skip <domain,...>   With -s or -i: skip specific domains during init.
-                        Cannot be combined with an explicit domain list.
+                        With --prepare-base: skip only repo_manager,
+                        image_build_manager, or orchestrator.
+                        Cannot be combined with an explicit -i domain list.
                         Examples:
                           ./omnia.sh -i --skip telemetry
                           ./omnia.sh -s --skip telemetry,utils
                           ./omnia.sh -i --skip build_stream --deps-only
-  --dry-run             With -s or -i: show which domains would be initialized
-                        without executing. Useful for previewing --skip behavior.
+  --dry-run             With -s or -i: show which domains would be initialized.
+                        With --prepare-base: show which base domains and phases
+                        would run. Does not initialize or prepare domains; other
+                        setup steps still run when used with -s.
   --skip-catalog        With -s: skip the automatic catalog copy.
-  --skip-omnia-cli      With -s: skip installing omnia-cli and bash completion
+  --skip-omnia-cli      With -s: skip installing omnia-cli and shared bash completion
                         to /usr/local/bin/ and /etc/bash_completion.d/.
+  --skip-approval       With --cleanup: skip the confirmation prompt. Intended
+                        only for trusted, unattended automation.
   --help, -h            Show this help message.
 
 DOMAINS:
@@ -1298,14 +1575,18 @@ DIAGNOSTICS (see omnia-cli):
   omnia-cli help [<domain>]                   CLI help
 
 INSTALL omnia-cli TO PATH (automatic during --setup-venv):
-  omnia-cli and bash completion are installed automatically.
+  omnia-cli and shared completion for omnia-cli and omnia.sh are installed automatically.
   To skip: omnia.sh -s --skip-omnia-cli
   Manual: sudo cp omnia-cli /usr/local/bin/ && sudo chmod +x /usr/local/bin/omnia-cli
 
 SYSTEM ENVIRONMENT:
-  After --setup-venv, omnia.env is installed to:
+  On the first --setup-venv, the repository omnia.env is installed to:
     /etc/omnia/omnia.env           — system-wide env file
     /etc/profile.d/omnia-env.sh    — auto-sourced on login
+
+  On later runs, /etc/omnia/omnia.env is authoritative and is not overwritten.
+  Edit that file for normal changes. Use -s --force-env only to replace it
+  intentionally from the repository copy.
 
   Variables:
     SYSTEM_ADMIN_NIC_IPV4  Admin NIC IPv4 (REQUIRED)
@@ -1319,6 +1600,8 @@ EXAMPLES:
   # First-time setup:
   vi src/main/omnia.env                        # Set SYSTEM_ADMIN_NIC_IPV4 and other vars
   ./omnia.sh -s                                # Installs env + venv + deps + input files + catalog
+  vi /etc/omnia/omnia.env                      # Make environment changes after first setup
+  ./omnia.sh -s --force-env                    # Explicitly replace system env from repository
   ./omnia.sh -s --deps-only                    # Installs env + venv + deps (skips input staging)
   ./omnia.sh -s --skip-catalog                 # Setup without catalog copy
 
@@ -1349,18 +1632,22 @@ EXAMPLES:
 
   # Run a domain playbook:
   ./omnia.sh --run image_build_manager --tags prepare
-  ./omnia.sh -r repo_manager                   # Run all tags
-  ./omnia.sh -r telemetry                      # Run all tags
+  ./omnia.sh -r repo_manager                   # Run the default Repo Manager flow
+  ./omnia.sh -r telemetry                      # Run the default Telemetry flow
 
-  # Validate a domain (uses --tags validate):
+  # Validate domain input:
   ./omnia.sh --run image_build_manager --tags validate
-  ./omnia.sh -r repo_manager --tags validate
+  ./omnia.sh -r repo_manager --tags precheck
 
-  # Cleanup (remove venv + system env, preserve data):
+  # Cleanup (remove environment + CLI integration, preserve runtime data):
   ./omnia.sh --cleanup
 
-  # Full cleanup (remove EVERYTHING including data):
+  # Guarded full cleanup (requires domain lifecycle state to be cleaned first):
   ./omnia.sh --cleanup --all
+
+  # Unattended cleanup (no confirmation prompt):
+  ./omnia.sh --cleanup --skip-approval
+  ./omnia.sh --cleanup --all --skip-approval
 
   # Diagnostics:
   omnia-cli status               # All domains
@@ -1374,9 +1661,11 @@ EOF
 main() {
     DEPS_ONLY=false    # Global — used by init_domains()
     FORCE_DEPS=false   # Global — passed to domain-init.sh
+    FORCE_ENV=false    # Global — explicitly replace the installed environment
     SKIP_DOMAINS=""    # Global — comma-separated domains to skip during init
     DRY_RUN=false      # Global — preview mode for init
     local CLEANUP_ALL=false
+    local CLEANUP_SKIP_APPROVAL=false
     local SKIP_CATALOG=false
     local SKIP_OMNIA_CLI=false
     local command=""
@@ -1406,6 +1695,10 @@ main() {
                 ;;
             --force-deps)
                 FORCE_DEPS=true
+                shift
+                ;;
+            --force-env)
+                FORCE_ENV=true
                 shift
                 ;;
             --skip-catalog)
@@ -1451,6 +1744,10 @@ main() {
                 CLEANUP_ALL=true
                 shift
                 ;;
+            --skip-approval)
+                CLEANUP_SKIP_APPROVAL=true
+                shift
+                ;;
             --run|-r)
                 command="run"
                 if [ $# -lt 2 ]; then
@@ -1481,6 +1778,12 @@ main() {
         esac
     done
 
+    # Setup selects and validates its environment in install_system_env(). Other
+    # commands load the already-installed configuration before using defaults.
+    if [ "$command" != "setup-venv" ] && [ -f "$SYSTEM_ENV_FILE" ]; then
+        source_omnia_env "$SYSTEM_ENV_FILE"
+    fi
+
     # Validate flag combinations
     if [ "$DEPS_ONLY" = true ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ]; then
         echo -e "${RED}ERROR: --deps-only requires --setup-venv (-s) or --init (-i)${NC}"
@@ -1490,6 +1793,11 @@ main() {
     if [ "$FORCE_DEPS" = true ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ]; then
         echo -e "${RED}ERROR: --force-deps requires --setup-venv (-s) or --init (-i)${NC}"
         echo -e "${YELLOW}Usage: $0 -s --force-deps or $0 -i --force-deps${NC}"
+        exit 1
+    fi
+    if [ "$FORCE_ENV" = true ] && [ "$command" != "setup-venv" ]; then
+        echo -e "${RED}ERROR: --force-env requires --setup-venv (-s)${NC}"
+        echo -e "${YELLOW}Usage: $0 -s --force-env${NC}"
         exit 1
     fi
     if [ -n "$SKIP_DOMAINS" ] && [ "$command" != "setup-venv" ] && [ "$command" != "init" ] && [ "$command" != "prepare-base" ]; then
@@ -1508,6 +1816,16 @@ main() {
         echo -e "${YELLOW}Usage: $0 -i --dry-run or $0 --prepare-base --dry-run${NC}"
         exit 1
     fi
+    if [ "$CLEANUP_ALL" = true ] && [ "$command" != "cleanup" ]; then
+        echo -e "${RED}ERROR: --all is only valid with --cleanup${NC}"
+        echo -e "${YELLOW}Usage: $0 --cleanup --all${NC}"
+        exit 1
+    fi
+    if [ "$CLEANUP_SKIP_APPROVAL" = true ] && [ "$command" != "cleanup" ]; then
+        echo -e "${RED}ERROR: --skip-approval is only valid with --cleanup${NC}"
+        echo -e "${YELLOW}Usage: $0 --cleanup [--all] --skip-approval${NC}"
+        exit 1
+    fi
 
     case "$command" in
         setup-venv)
@@ -1519,18 +1837,20 @@ main() {
                 copy_catalog
             fi
 
-            # Install omnia-cli and bash completion unless --skip-omnia-cli
+            # Install omnia-cli and shared completion unless --skip-omnia-cli
             if [ "$SKIP_OMNIA_CLI" = false ]; then
                 local cli_src="${SCRIPT_DIR}/omnia-cli"
-                local completion_src="${SCRIPT_DIR}/omnia-cli-completion.bash"
+                local completion_src="${SCRIPT_DIR}/omnia-bash-completion"
+                local completion_dest="/etc/bash_completion.d/omnia-bash-completion"
                 if [ -f "$cli_src" ]; then
                     cp "$cli_src" /usr/local/bin/omnia-cli
                     chmod +x /usr/local/bin/omnia-cli
                     echo -e "${GREEN}Installed omnia-cli to /usr/local/bin/omnia-cli${NC}"
                 fi
                 if [ -f "$completion_src" ]; then
-                    cp "$completion_src" /etc/bash_completion.d/omnia-cli
-                    echo -e "${GREEN}Installed bash completion to /etc/bash_completion.d/omnia-cli${NC}"
+                    mkdir -p /etc/bash_completion.d
+                    cp "$completion_src" "$completion_dest"
+                    echo -e "${GREEN}Installed Bash completion for omnia-cli and omnia.sh to ${completion_dest}${NC}"
                 fi
             else
                 echo -e "${DIM}Skipping omnia-cli install (--skip-omnia-cli)${NC}"
@@ -1559,7 +1879,7 @@ main() {
             check_deps
             ;;
         cleanup)
-            cleanup_omnia "$CLEANUP_ALL"
+            cleanup_omnia "$CLEANUP_ALL" "$CLEANUP_SKIP_APPROVAL"
             ;;
         run)
             run_domain "$run_domain_name" "${run_extra_args[@]}"
@@ -1570,4 +1890,6 @@ main() {
     esac
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

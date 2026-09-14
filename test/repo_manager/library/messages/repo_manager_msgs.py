@@ -49,11 +49,11 @@ TEST_NAMES = {
     "repo_status_regenerated": "Verify repo_status.yml regenerated",
     # Cleanup
     "pulp_container_removed": "Verify Pulp container removed",
-    "pulp_cli_removed": "Verify Pulp CLI removed",
+    "pulp_cli_preserved": "Verify managed Pulp CLI preserved",
     "pulp_directories_removed": "Verify Pulp directories removed",
     # Policy Override Tests
     "per_repo_policy_override": "Per-repo policy overrides global repo_config",
-    "per_repo_caching_override": "Per-repo caching overrides global CACHING_POLICY",
+    "per_repo_caching_override": "Per-repo caching overrides global caching_policy",
     "per_repo_complete_override": "Per-repo completely overrides global settings",
     "per_repo_policy_only": "Per-repo policy only, caching from global",
     "per_repo_caching_only": "Per-repo caching only, policy from global",
@@ -89,6 +89,16 @@ TEST_NAMES = {
     "catalog_add_deploy": "Deploy catalog_add playbook",
     "catalog_delete_deploy": "Deploy catalog_delete playbook",
     "catalog_validate_deploy": "Deploy catalog_validate playbook",
+    # User Registry Tests
+    "user_registry_validation_deploy": "Deploy validation playbook for user registry checks",
+    "user_registry_section_exists": "Verify registries section exists in config",
+    "user_registry_structure_valid": "Verify registry entries have valid structure",
+    "user_registry_base_url_valid": "Verify registry base_url is a valid HTTP(S) origin",
+    "user_registry_reachable": "Verify configured registries are reachable",
+    "user_registry_tls_cert_paths_valid": "Verify TLS certificate paths are valid",
+    "user_registry_tls_pair_consistent": "Verify client cert and key are configured together",
+    "user_registry_auth_type_valid": "Verify registry auth type is valid",
+    "user_registry_credentials_present": "Verify registry credentials are configured",
 }
 
 TEST_LOG_MSGS = {
@@ -143,8 +153,8 @@ TEST_LOG_MSGS = {
     # Cleanup
     "pulp_container_removed": "Pulp container removed",
     "pulp_container_still_exists": "Pulp container still exists",
-    "pulp_cli_removed": "Pulp CLI symlink removed",
-    "pulp_cli_still_exists": "Pulp CLI symlink still exists",
+    "pulp_cli_preserved": "Managed Pulp CLI launcher preserved",
+    "pulp_cli_missing": "Managed Pulp CLI launcher missing or unusable",
     "pulp_dirs_removed": "Pulp directories removed",
     "pulp_dirs_still_exist": "Pulp directories still exist",
     # Policy Override Tests
@@ -206,6 +216,26 @@ TEST_LOG_MSGS = {
     "catalog_delete_failed": "Catalog delete failed",
     "catalog_validate_ok": "Catalog validate completed",
     "catalog_validate_failed": "Catalog validate failed",
+    # User Registry Tests
+    "user_registry_validation_ok": "User registry validation playbook completed",
+    "user_registry_validation_failed": "User registry validation playbook failed",
+    "user_registry_section_ok": "Registries section found in config",
+    "user_registry_section_missing": "Registries section missing or empty in config",
+    "user_registry_structure_ok": "All registry entries have valid structure",
+    "user_registry_structure_invalid": "Registry entry structure is invalid",
+    "user_registry_base_url_ok": "Registry base_url is a valid HTTP(S) origin",
+    "user_registry_base_url_invalid": "Registry base_url is invalid",
+    "user_registry_reachable_ok": "All configured registries are reachable",
+    "user_registry_unreachable": "Some configured registries are unreachable",
+    "user_registry_no_registries": "No registries configured; skipping reachability",
+    "user_registry_tls_ok": "All TLS certificate paths are valid",
+    "user_registry_tls_invalid": "Some TLS certificate paths are invalid",
+    "user_registry_tls_pair_ok": "Client cert and key configured together",
+    "user_registry_tls_pair_invalid": "Client cert/key pair is incomplete",
+    "user_registry_auth_type_ok": "Auth type is valid",
+    "user_registry_auth_type_invalid": "Auth type is unsupported",
+    "user_registry_credentials_ok": "Registry credentials are present",
+    "user_registry_credentials_missing": "Registry credentials are missing",
 }
 
 TEST_ASSERT_MSGS = {
@@ -232,11 +262,11 @@ TEST_ASSERT_MSGS = {
     "software_packages_missing": "All software packages must be present in Pulp",
     "software_config_error": "Software configuration file must be valid and present",
     "pulp_container_still_exists": "Pulp container must be removed after cleanup",
-    "pulp_cli_still_exists": "Pulp CLI symlink must be removed after cleanup",
+    "pulp_cli_missing": "Managed Pulp CLI must remain usable after cleanup",
     "pulp_dirs_still_exist": "Pulp directories must be removed after cleanup",
     # Policy Override Tests
     "per_repo_policy_must_override": "Per-repo policy must override global repo_config",
-    "per_repo_caching_must_override": "Per-repo caching must override global CACHING_POLICY",
+    "per_repo_caching_must_override": "Per-repo caching must override global caching_policy",
     "per_repo_must_completely_override": "Per-repo must completely override global settings",
     "per_repo_policy_must_use_global_caching": "Per-repo policy must use global caching",
     "per_repo_caching_must_use_global_policy": "Per-repo caching must use global policy",
@@ -270,4 +300,16 @@ TEST_ASSERT_MSGS = {
     "catalog_add_must_succeed": "Catalog add must succeed",
     "catalog_delete_must_succeed": "Catalog delete must succeed",
     "catalog_validate_must_succeed": "Catalog validate must succeed",
+    # User Registry Tests
+    "user_registry_validation_must_pass": "User registry validation playbook must succeed",
+    "user_registry_section_must_exist": (
+        "Registries section must exist in config when registries are defined"
+    ),
+    "user_registry_structure_must_be_valid": "All registry entries must have valid structure",
+    "user_registry_base_url_must_be_valid": "Registry base_url must be a valid HTTP(S) origin",
+    "user_registry_must_be_reachable": "All configured registries must be reachable",
+    "user_registry_tls_must_be_valid": "All TLS certificate paths must exist on disk",
+    "user_registry_tls_pair_must_be_consistent": "Client cert and key must be configured together",
+    "user_registry_auth_type_must_be_valid": "Registry auth type must be none or basic",
+    "user_registry_credentials_must_exist": "Registry credentials must be present for basic auth",
 }

@@ -115,4 +115,5 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
     "slurm_conf_module_required": "slurm_conf module must be available",
     "slurm_conf_merge_required": "slurm_conf merge functionality must work",
     "slurm_conf_syntax_valid": "slurm.conf must have valid syntax",
+    "slurm_config_integrity_failed": "Deployed slurm.conf must match input configuration",
 }

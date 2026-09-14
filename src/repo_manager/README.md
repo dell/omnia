@@ -74,7 +74,7 @@ explicitly.
 | `download` / `execute` | Resolve and synchronize catalog content | Existing credentials |
 | `status` | Generate current `repo_status.yml` | Existing Pulp credentials |
 | `cleanup_repos` | Selectively remove Pulp RPM, container, File or Python content | Existing Pulp credentials |
-| `cleanup_pulp` / `cleanup` | Remove the Pulp deployment and runtime data | Optional credential deletion |
+| `cleanup_pulp` / `cleanup` | Remove the Pulp deployment, runtime data, and credentials by default | `cleanup_credentials=false` preserves credentials |
 | `catalog_generate` | Create catalog JSON from text input | No |
 | `catalog_add` | Add or update catalog packages | No |
 | `catalog_delete` | Delete catalog packages | No |
@@ -115,13 +115,24 @@ intentionally removes every tag in that Pulp container repository.
 ### Full Pulp Cleanup
 
 ```bash
-# Remove Pulp and runtime content; credential deletion is interactive.
+# Remove Pulp, runtime content, and Repo Manager credentials.
 ansible-playbook repo_manager.yml --tags cleanup_pulp
 
 # Preserve operational logs and credentials.
 ansible-playbook repo_manager.yml --tags cleanup_pulp \
   -e "cleanup_logs=false" -e "cleanup_credentials=false"
 ```
+
+Credential deletion is enabled by default and does not add a separate prompt;
+the explicit cleanup tag is the operator's request. `cleanup_repos` is selective
+content cleanup and retains credentials because the Pulp deployment remains.
+
+For a complete Omnia reset, run `sudo ./omnia.sh --run repo_manager --tags
+cleanup` from `src/main`, resolve any retained paths it reports, and then run
+`sudo ./omnia.sh --cleanup --all`. `src/repo_manager/domain-init.sh --cleanup`
+is a non-interactive helper that removes only initializer-owned staged input and
+domain log paths. Both global cleanup modes prompt for `yes`; trusted automation
+can add `--skip-approval`.
 
 ---
 
@@ -156,8 +167,9 @@ Credential files are Ansible Vault protected, root-owned and mode `0600`.
 | Package/group state | `log/<os>/<version>/<arch>/` | Per-group CSV and worker results |
 | Mirror indexes | `log/<os>/<version>/mirror_status/` | Composite catalog and Pulp mirror state |
 
-Run the `status` tag after download or selective cleanup when consumers need a
-fresh `repo_status.yml`.
+Selective cleanup removes the now-stale `repo_status.yml`. Run `download,status`
+to restore cleaned catalog content and regenerate the consumer output, or run
+`status` alone to describe the intentionally incomplete current Pulp state.
 
 ---
 
@@ -246,12 +258,12 @@ configuration entry.
 
 | Setting | Default | Scope |
 |---------|---------|-------|
-| `parallel_config.default_nthreads` | `1` | General catalog worker processes |
-| `rpm_repo_config.thread_pool_size` | `1` | RPM repository synchronization |
+| `parallel_config.default_nthreads` | `3` | General catalog worker processes |
+| `rpm_repo_config.thread_pool_size` | `3` | RPM repository synchronization |
 | `dnf_config.max_concurrent_commands` | `1` | DNF commands and shared metadata cache |
 
-Keep DNF concurrency at one. General workers may be raised to `2-5` only after
-validating Pulp, network, CPU, memory and storage capacity.
+Keep DNF concurrency at one. Reduce either parallel setting when Pulp, network,
+CPU, memory, or storage capacity cannot sustain the default concurrency.
 
 ---
 
@@ -280,6 +292,8 @@ validating Pulp, network, CPU, memory and storage capacity.
 | Direct cleanup playbook | `/var/log/omnia/repo_manager/cleanup.log` |
 | Selective cleanup details | `<REPO_MANAGER_DATA_PATH>/log/<os>/<version>/cleanup/standard.log` |
 | Selective cleanup results | `<REPO_MANAGER_DATA_PATH>/log/<os>/<version>/cleanup/cleanup_status.csv` |
+| Multi-version/shared cleanup details | `<REPO_MANAGER_DATA_PATH>/log/<os>/cleanup/standard.log` |
+| Multi-version/shared cleanup results | `<REPO_MANAGER_DATA_PATH>/log/<os>/cleanup/cleanup_status.csv` |
 
 Full Pulp cleanup removes runtime logs by default. Use
 `-e "cleanup_logs=false"` to preserve them.

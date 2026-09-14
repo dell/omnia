@@ -42,6 +42,21 @@ from catalog.transformer import detect_schema_version, transform, write_keymap
 from catalog.optimizer import optimize
 
 
+_CATALOG_FAILURE_MESSAGES = {
+    "catalog_read": "Failed to read catalog.",
+    "delete_parse": "Failed to parse delete file.",
+    "input_json_parse": "Failed to parse input JSON.",
+    "input_parse": "Failed to parse input file.",
+    "optimize_schema": "Failed to detect catalog schema version for optimization.",
+    "transform_schema": "Failed to detect input catalog schema version.",
+}
+
+
+def _log_catalog_failure(logger, operation):
+    """Log a stable failure message without formatting exception-controlled data."""
+    logger.error(_CATALOG_FAILURE_MESSAGES[operation])
+
+
 def setup_logging(log_dir=None, log_file='catalog_manager.log'):
     """Setup logging configuration."""
     logger = logging.getLogger()
@@ -83,8 +98,8 @@ def cmd_generate(args):
             default_os=args.default_os,
             default_os_version=args.default_os_version
         )
-    except (FileNotFoundError, ValueError) as e:
-        logger.error("Failed to parse input file: %s", e)
+    except (FileNotFoundError, ValueError):
+        _log_catalog_failure(logger, "input_parse")
         return 1
 
     catalog = create_new_catalog(
@@ -118,8 +133,8 @@ def cmd_add(args):
 
     try:
         catalog = read_catalog(args.catalog)
-    except (FileNotFoundError, ValueError) as e:
-        logger.error("Failed to read catalog: %s", e)
+    except (FileNotFoundError, ValueError):
+        _log_catalog_failure(logger, "catalog_read")
         return 1
 
     try:
@@ -129,8 +144,8 @@ def cmd_add(args):
             default_os=args.default_os,
             default_os_version=args.default_os_version
         )
-    except (FileNotFoundError, ValueError) as e:
-        logger.error("Failed to parse input file: %s", e)
+    except (FileNotFoundError, ValueError):
+        _log_catalog_failure(logger, "input_parse")
         return 1
 
     summary = upsert_packages(catalog, parsed)
@@ -154,14 +169,14 @@ def cmd_delete(args):
 
     try:
         catalog = read_catalog(args.catalog)
-    except (FileNotFoundError, ValueError) as e:
-        logger.error("Failed to read catalog: %s", e)
+    except (FileNotFoundError, ValueError):
+        _log_catalog_failure(logger, "catalog_read")
         return 1
 
     try:
         parsed_delete = parse_delete_file(args.input)
-    except (FileNotFoundError, ValueError) as e:
-        logger.error("Failed to parse delete file: %s", e)
+    except (FileNotFoundError, ValueError):
+        _log_catalog_failure(logger, "delete_parse")
         return 1
 
     summary = delete_packages(catalog, parsed_delete)
@@ -185,8 +200,8 @@ def cmd_validate(args):
 
     try:
         catalog = read_catalog(args.catalog)
-    except (FileNotFoundError, ValueError) as e:
-        logger.error("Failed to read catalog: %s", e)
+    except (FileNotFoundError, ValueError):
+        _log_catalog_failure(logger, "catalog_read")
         return 1
 
     issues = validate_catalog(catalog, args.schema)
@@ -214,15 +229,15 @@ def cmd_transform(args):  # pylint: disable=too-many-locals,too-many-branches,to
     except FileNotFoundError:
         logger.error("Input file '%s' not found", args.input)
         return 1
-    except json.JSONDecodeError as e:
-        logger.error("Failed to parse input JSON: %s", e)
+    except json.JSONDecodeError:
+        _log_catalog_failure(logger, "input_json_parse")
         return 1
 
     # Detect schema version
     try:
         version = detect_schema_version(data)
-    except ValueError as e:
-        logger.error(str(e))
+    except ValueError:
+        _log_catalog_failure(logger, "transform_schema")
         return 1
 
     if version == '2.0':
@@ -317,8 +332,8 @@ def cmd_optimize(args):  # pylint: disable=too-many-statements
     # Read catalog
     try:
         catalog = read_catalog(args.catalog)
-    except (FileNotFoundError, ValueError) as e:
-        logger.error("Failed to read catalog: %s", e)
+    except (FileNotFoundError, ValueError):
+        _log_catalog_failure(logger, "catalog_read")
         return 1
 
     # Verify 2.0 format
@@ -327,8 +342,8 @@ def cmd_optimize(args):  # pylint: disable=too-many-statements
         if version != '2.0':
             logger.error("Optimize requires a Schema 2.0 catalog (found %s)", version)
             return 1
-    except ValueError as e:
-        logger.error(str(e))
+    except ValueError:
+        _log_catalog_failure(logger, "optimize_schema")
         return 1
 
     print("═══ Catalog Optimize ═══")

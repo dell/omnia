@@ -15,8 +15,13 @@
 """
 Discovery — Host Synchronization Functions
 
-Functions for syncing project code and input datasets to the target host.
-Re-exports common functions from omnia_auto.
+This module provides functions for syncing project code and input datasets
+to the target host. It re-exports common functions from omnia_auto and
+provides domain-specific synchronization for the discovery domain.
+
+Functions:
+    sync_project_to_remote: Sync the local omnia project tree to clone_path on target
+    sync_discovery_input: Sync discovery input files (dataset) to target
 """
 
 import os
@@ -33,12 +38,24 @@ from ..vars.common_vars import DOMAIN_NAME, INPUT_PATH_TEMPLATE
 def sync_project_to_remote(_host) -> Dict[str, Any]:
     """Sync the local omnia project tree to clone_path on target.
 
-    Copies the complete project from the local monorepo to the remote
-    clone_path. This replaces git-clone when the code is already
+    This function copies the complete project from the local monorepo to the
+    remote clone_path. This replaces git-clone when the code is already
     available locally.
 
-    Source: <repo_root>/ (the omnia monorepo root)
-    Dest:   <clone_path>/ on the target server
+    Args:
+        _host: Testinfra host connection (unused, kept for interface compatibility).
+
+    Returns:
+        Dict[str, Any]: A dictionary with keys:
+            - success (bool): Whether the sync operation succeeded
+            - details (str): Details about the sync operation
+            - error (str): Error message if the sync failed
+
+    Source:
+        <repo_root>/ (the omnia monorepo root)
+
+    Destination:
+        <clone_path>/ on the target server
     """
     config = load_test_config()
     oim_server_ip = config.get("oim_server_ip", "")
@@ -75,11 +92,23 @@ def sync_project_to_remote(_host) -> Dict[str, Any]:
 def sync_discovery_input(host) -> Dict[str, Any]:
     """Sync discovery input files (dataset) to target.
 
+    This function synchronizes the discovery input files from the local dataset
+    directory to the target host's input directory. It supports both local and
+    remote synchronization modes.
+
     Args:
-        host: Testinfra host connection.
+        host: Testinfra host connection for the target server.
 
     Returns:
-        Dict with keys: success (bool), details (str), error (str).
+        Dict[str, Any]: A dictionary with keys:
+            - success (bool): Whether the sync operation succeeded
+            - details (str): Details about the sync operation
+            - error (str): Error message if the sync failed
+
+    Notes:
+        - The local input path is constructed as: <module_root>/datasets/<dataset>/input
+        - The remote input path is constructed using INPUT_PATH_TEMPLATE with the project name
+        - Uses sync_files from omnia_auto for the actual file transfer
     """
     config = load_test_config()
     dataset = config.get("dataset", "data_set_01")

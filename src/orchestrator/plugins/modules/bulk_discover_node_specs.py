@@ -103,9 +103,12 @@ def _redfish_get(bmc_ip, path, username, password, timeout):
     ctx = _create_ssl_context()
 
     try:
-        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:  # nosec B310
+        resp = urllib.request.urlopen(req, timeout=timeout, context=ctx)  # nosec B310
+        try:
             data = json.loads(resp.read().decode())
             return (True, data)
+        finally:
+            resp.close()
     except urllib.error.HTTPError as exc:
         return (False, f"HTTP {exc.code}: {exc.reason}")
     except urllib.error.URLError as exc:

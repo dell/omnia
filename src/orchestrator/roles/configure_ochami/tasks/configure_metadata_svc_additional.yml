@@ -42,6 +42,13 @@
     - additional_metadata_svc_common_enabled | default(false) | bool
     - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
+- name: Initialize additional metadata-service common group bodies
+  ansible.builtin.set_fact:
+    _ms_additional_bodies: []
+  when:
+    - additional_metadata_svc_common_enabled | default(false) | bool
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
 - name: Build metadata-service group body for additional common entries
   ansible.builtin.set_fact:
     _ms_additional_bodies: >-

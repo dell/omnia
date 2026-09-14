@@ -18,6 +18,7 @@ from .common_vars import (
     OUTPUT_FILES,
     PULP_CONTAINER_NAME,
     PULP_PORT,
+    USER_REGISTRY_TIMEOUT,
 )
 from .domain_vars import (
     DOMAIN_NAME,
@@ -25,4 +26,10 @@ from .domain_vars import (
     MARKERS,
     SUITES,
     EXCLUDE_TAGS,
+    ALL_EXEC_TAGS,
+    ALL_EXEC_MARKER,
+    ALL_VERIFY_EXCLUDE_MARKERS,
+    REQUIRED_SUITE_TAGS,
+    VERIFY_ONLY_TAGS,
+    VERIFY_ONLY_SUITES,
 )

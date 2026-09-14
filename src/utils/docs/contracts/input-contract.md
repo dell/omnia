@@ -2,41 +2,166 @@
 
 **Domain**: `utils` | **Collection**: `omnia.utils`
 
----
+Runtime inputs are staged under
+`<OMNIA_DATA_PATH>/utils/input/<project>/`. `domain-init.sh` copies the flat
+source templates from `src/utils/input/` into the active project directory.
 
-> **Note**: PXE boot input contracts (`set_pxe_boot_config.yml`, credentials, inventory)
-> have been moved to the orchestrator domain. See `src/orchestrator/docs/` for details.
-
-## 1. iso_config.yml (ARM Install)
-
-**Purpose**: Configuration for AArch64 OS installation.
-
-**Location**: `input/project_default/iso_config.yml`
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `iso_source_path` | string | Yes | - | Path to source RHEL ISO |
-| `iso_source_checksum` | string | No | `""` | SHA256 checksum for verification |
-| `iso_target_directory` | string | No | `<OMNIA_DATA_PATH>/iso_output` | Output directory |
-| `nfs_share_path` | string | No | Auto-detect | NFS share for iDRAC virtual media |
-| `kickstart_template` | string | No | `rhel10` | Built-in kickstart template |
-| `kickstart_file` | string | No | `""` | Custom kickstart file path |
-| `force_reinstall` | bool | No | `false` | Reinstall even if node is reachable |
+PXE boot inputs are not part of this contract. PXE management is owned by the
+orchestrator domain.
 
 ---
 
-## 2. Environment Variables
+## 1. collect_pxe.yml
 
-**Purpose**: System-wide configuration from `omnia.env`.
+**Purpose**: Node inventory for cluster log collection.
 
-**Location**: `/etc/omnia/omnia.env` (installed by `omnia.sh --setup-venv`)
+**Source template**: `src/utils/input/collect_pxe.yml`
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OMNIA_DATA_PATH` | Yes | Base path for Omnia data (default: `/opt/omnia`) |
-| `OMNIA_PROJECT_NAME` | No | Project name (default: `project_default`) |
-| `SYSTEM_ADMIN_NIC_IPV4` | Yes | OIM admin network IP |
-| `SYSTEM_HOSTNAME` | Yes | OIM short hostname |
-| `SYSTEM_DOMAIN_NAME` | No | Domain name |
+**Required by**: `collect` flow (`prepare` direct stage)
 
+Each field is a list of admin-network IPv4 addresses. Empty lists are accepted;
+the corresponding group is skipped.
 
+| Field | Type | Consumed as |
+|-------|------|-------------|
+| `service_kube_control_plane_x86_64` | list[string] | Kubernetes control-plane hosts |
+| `service_kube_node_x86_64` | list[string] | Kubernetes worker hosts |
+| `slurm_control_node_x86_64` | list[string] | Slurm controller hosts |
+| `slurm_node_x86_64` | list[string] | x86_64 Slurm compute hosts |
+| `slurm_node_aarch64` | list[string] | aarch64 Slurm compute hosts |
+| `login_node_x86_64` | list[string] | Login hosts |
+| `login_compiler_node_aarch64` | list[string] | Login compiler hosts |
+
+The two Slurm node lists are merged into one dynamic `slurm_nodes` inventory
+group. The collector connects over SSH using the current Ansible/SSH context.
+
+---
+
+## 2. install_os_config.yml
+
+**Purpose**: Mode-dependent configuration for custom ISO generation and OS
+deployment through iDRAC.
+
+**Source template**: `src/utils/input/install_os_config.yml`
+
+**Required by**: `install_os` except direct `credentials`-only mode
+
+### ISO and Kickstart Fields
+
+| Field | Type | Shipped value | Requirement / behavior |
+|-------|------|---------------|------------------------|
+| `source_iso_path` | string | `""` | Required for build, generate_ks, and untagged direct flow |
+| `source_iso_checksum` | string | `""` | Optional SHA256 verification |
+| `custom_iso_path` | string | `""` | Required for build/deploy; must use `server:/path/file.iso` syntax |
+| `kickstart_delivery_method` | string | `embedded` | `embedded` or `nfs` |
+| `kickstart_file` | string | `""` | Optional user-provided Kickstart; built-in template is used when empty |
+| `kickstart_template` | string | `rhel10` | Template name under `iso_creation/templates/` |
+
+### Target and Network Fields
+
+| Field | Type | Shipped value | Requirement / behavior |
+|-------|------|---------------|------------------------|
+| `target_bmc_ip` | string | `""` | Required for deploy |
+| `target_hostname` | string | `""` | Used by generated Kickstart |
+| `target_admin_ip` | string | `""` | Required for deploy and used for SSH verification |
+| `target_architecture` | string | `""` | `x86_64` or `aarch64`; inferred from ISO name, then defaults to x86_64 |
+| `network_device` | string | `""` | Empty lets Kickstart select the active link |
+| `netmask` | string | `255.255.255.0` | Static network mask |
+| `gateway` | string | `""` | Optional gateway |
+| `dns_server` | string | `""` | Optional DNS server |
+| `ssh_public_key_path` | string | `""` | Defaults to `/root/.ssh/id_rsa.pub`; required for build/generate flow |
+| `install_disk` | string | `sda` | Target installation disk |
+| `timezone` | string | `UTC` | Installed-system timezone |
+
+### Execution Controls
+
+| Field | Type | Shipped value | Description |
+|-------|------|---------------|-------------|
+| `rebuild_iso` | bool | `false` | Rebuild an existing custom ISO |
+| `force_reinstall` | bool | `false` | Continue even if the target admin IP is already reachable |
+| `ssh_verify_enabled` | bool | `true` | Verify the installed system over SSH |
+| `ssh_verify_retries` | int | `60` | SSH verification attempts |
+| `ssh_verify_delay` | int | `30` | Delay in seconds between attempts |
+
+The config validator applies requirements from the active direct tag. The
+public `install_os` tag imports the complete playbook.
+
+---
+
+## 3. install_os_credentials.yml
+
+**Purpose**: BMC authentication and OS-root password used for iDRAC deployment
+and Kickstart generation.
+
+**Location**: Runtime `input/<project>/install_os_credentials.yml`
+
+**Generated by**: `collect_install_os_credentials` through interactive prompts
+
+**Vault key**: Runtime `input/<project>/.install_os_credentials_key`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `bmc_username` | string | Yes | iDRAC user |
+| `bmc_password` | string | Yes | iDRAC password |
+| `os_root_password` | string | Yes | Root password; converted to a Kickstart-compatible hash |
+
+The credential document is encrypted with Ansible Vault and both it and the key
+use restrictive permissions. Plaintext credential content is not an input
+contract.
+
+---
+
+## 4. backup_oim_logs_config.yml
+
+**Purpose**: Optional domain selection and destination override for OIM log
+backup.
+
+**Source template**: `src/utils/input/backup_oim_logs_config.yml`
+
+**Required by**: Never; absence uses all domains and the default destination
+
+| Field | Type | Shipped value | Description |
+|-------|------|---------------|-------------|
+| `domains` | list[string] | All seven Omnia domains | Domain names whose `<OMNIA_DATA_PATH>/<domain>/log` directory is archived; an empty list falls back to all domains |
+| `backup_path` | string | `""` | Local directory or raw NFS export; empty defers to environment/default resolution |
+
+Supported shipped domain names are `repo_manager`, `image_build_manager`,
+`orchestrator`, `discovery`, `telemetry`, `build_stream`, and `utils`.
+
+Backup destination precedence:
+
+1. CLI extra variable `backup_path`
+2. Config-file `backup_path`
+3. `OMNIA_BACKUP_PATH`
+4. `<OMNIA_DATA_PATH>/utils/output/<project>/backup_oim_logs`
+
+A raw NFS value uses `<server>:/<export>` syntax and is mounted locally before
+backup or cleanup.
+
+---
+
+## 5. Environment Variables
+
+Environment is normally installed by `src/main/omnia.sh` and sourced from
+`/etc/profile.d/omnia-env.sh` before direct playbook execution.
+
+| Variable | Required | Default / use |
+|----------|----------|---------------|
+| `OMNIA_DATA_PATH` | Recommended | Defaults to `/opt/omnia`; root of domain input/output/log paths |
+| `OMNIA_PROJECT_NAME` | No | Defaults to `project_default` |
+| `SYSTEM_ADMIN_NIC_IPV4` | Precheck | Must be assigned to a local OIM interface |
+| `SYSTEM_HOSTNAME` | Precheck | Must match the OIM short hostname |
+| `SYSTEM_DOMAIN_NAME` | Precheck | Compared with the OIM domain; mismatch is reported by validation |
+| `OMNIA_VENV_PATH` | Direct execution | Shared Python environment created by main setup |
+| `OMNIA_BACKUP_PATH` | No | OIM log-backup destination when no CLI/config override is set |
+
+---
+
+## 6. Direct Extra Variables
+
+| Variable | Flow | Default | Description |
+|----------|------|---------|-------------|
+| `identifier` | collect | Inventory hostname | Identifier written into collection metadata |
+| `log_retention_days` | cleanup_logs | `7` | Minimum age of collected archives selected for deletion |
+| `cleanup_credentials` | cleanup_install_os | `true` | Set `false` only to preserve generated credentials |
+| `backup_path` | backup/cleanup backup | See precedence above | Highest-precedence destination override |

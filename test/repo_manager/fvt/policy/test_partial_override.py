@@ -17,6 +17,7 @@ from library.functions import (
     check_repo_caching,
     check_global_repo_config,
     check_global_caching_policy,
+    get_configured_repos,
 )
 from library.messages.repo_manager_msgs import (
     TEST_NAMES,
@@ -40,35 +41,44 @@ def test_per_repo_policy_only(host: Host):
         tl.failed(LOG["global_config_failed"], "Cannot read global settings")
         pytest.skip("Cannot verify without global config")
 
-    # Test with a repo that has only policy override (no caching)
-    # Assuming cuda has only policy override in test config
-    repo_name = "cuda"
-    repo_policy = check_repo_policy(host, repo_name)
-    repo_caching = check_repo_caching(host, repo_name)
+    # Get all configured repos
+    repos_result = get_configured_repos(host, arch="x86_64")
 
-    if not repo_policy["success"] or not repo_caching["success"]:
-        tl.failed(LOG["repo_config_failed"], "Cannot determine repo settings")
-        pytest.skip(f"Cannot determine settings for {repo_name}")
+    if not repos_result["success"]:
+        tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
+        pytest.skip("Cannot verify without configured repos")
 
-    # Verify policy is from per-repo, caching is from global
-    policy_source = repo_policy.get("source")
-    caching_source = repo_caching.get("source")
+    configured_repos = repos_result["repos"]
 
-    if policy_source == "per_repo" and caching_source == "global":
-        tl.passed(LOG["per_repo_policy_used"],
-                 f"{repo_name} uses per-repo policy ({repo_policy.get('policy')}) "
-                 f"and global caching ({repo_caching.get('caching')})")
-    elif policy_source == "global" and caching_source == "global":
-        tl.passed("global_settings_used",
-                 f"{repo_name} uses global policy ({repo_policy.get('policy')}) "
-                 f"and global caching ({repo_caching.get('caching')})")
+    # Find a repo with policy from per-repo, caching from global
+    found_repo = None
+    for repo_name in configured_repos:
+        repo_policy = check_repo_policy(host, repo_name)
+        repo_caching = check_repo_caching(host, repo_name)
+
+        if repo_policy["success"] and repo_caching["success"]:
+            policy_source = repo_policy.get("source")
+            caching_source = repo_caching.get("source")
+
+            if policy_source == "per_repo" and caching_source == "global":
+                found_repo = repo_name
+                break
+
+    if found_repo:
+        tl.passed(
+            LOG["per_repo_policy_used"],
+            f"{found_repo} uses per-repo policy and global caching"
+        )
     else:
-        tl.passed("other_configuration",
-                 f"{repo_name} uses: policy from {policy_source}, caching from {caching_source}")
+        tl.passed(
+            "other_configuration",
+            f"No repo with per-repo policy + global caching found "
+            f"among {len(configured_repos)} repos"
+        )
+        pytest.skip("No repo has per-repo policy + global caching configuration")
 
-    # Test passes if caching is from global (policy can be either)
-    assert caching_source == "global", \
-        f"Caching should be from global, got: {caching_source}"
+    assert found_repo is not None, \
+        "Expected to find repo with per-repo policy + global caching"
 
 
 @pytest.mark.sanity
@@ -86,35 +96,44 @@ def test_per_repo_caching_only(host: Host):
         tl.failed(LOG["global_config_failed"], "Cannot read global settings")
         pytest.skip("Cannot verify without global config")
 
-    # Test with a repo that has only caching override (no policy)
-    # Assuming docker-ce has only caching override in test config
-    repo_name = "docker-ce"
-    repo_policy = check_repo_policy(host, repo_name)
-    repo_caching = check_repo_caching(host, repo_name)
+    # Get all configured repos
+    repos_result = get_configured_repos(host, arch="x86_64")
 
-    if not repo_policy["success"] or not repo_caching["success"]:
-        tl.failed(LOG["repo_config_failed"], "Cannot determine repo settings")
-        pytest.skip(f"Cannot determine settings for {repo_name}")
+    if not repos_result["success"]:
+        tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
+        pytest.skip("Cannot verify without configured repos")
 
-    # Verify caching and policy sources (both valid configurations)
-    policy_source = repo_policy.get("source")
-    caching_source = repo_caching.get("source")
+    configured_repos = repos_result["repos"]
 
-    if policy_source == "global" and caching_source == "per_repo":
-        tl.passed(LOG["per_repo_caching_used"],
-                 f"{repo_name} uses global policy ({repo_policy.get('policy')}) "
-                 f"and per-repo caching ({repo_caching.get('caching')})")
-    elif policy_source == "global" and caching_source == "global":
-        tl.passed("global_settings_used",
-                 f"{repo_name} uses global policy ({repo_policy.get('policy')}) "
-                 f"and global caching ({repo_caching.get('caching')})")
+    # Find a repo with policy from global, caching from per-repo
+    found_repo = None
+    for repo_name in configured_repos:
+        repo_policy = check_repo_policy(host, repo_name)
+        repo_caching = check_repo_caching(host, repo_name)
+
+        if repo_policy["success"] and repo_caching["success"]:
+            policy_source = repo_policy.get("source")
+            caching_source = repo_caching.get("source")
+
+            if policy_source == "global" and caching_source == "per_repo":
+                found_repo = repo_name
+                break
+
+    if found_repo:
+        tl.passed(
+            LOG["per_repo_caching_used"],
+            f"{found_repo} uses global policy and per-repo caching"
+        )
     else:
-        tl.passed("other_configuration",
-                 f"{repo_name} uses: policy from {policy_source}, caching from {caching_source}")
+        tl.passed(
+            "other_configuration",
+            f"No repo with global policy + per-repo caching found "
+            f"among {len(configured_repos)} repos"
+        )
+        pytest.skip("No repo has global policy + per-repo caching configuration")
 
-    # Test passes if policy is from global (caching can be either)
-    assert policy_source == "global", \
-        f"Policy should be from global, got: {policy_source}"
+    assert found_repo is not None, \
+        "Expected to find repo with global policy + per-repo caching"
 
 
 @pytest.mark.sanity
@@ -132,27 +151,40 @@ def test_empty_per_repo_config(host: Host):
         tl.failed(LOG["global_config_failed"], "Cannot read global settings")
         pytest.skip("Cannot verify without global config")
 
-    # Test with a repo that has empty config (no overrides)
-    # Assuming baseos has empty config in test config
-    repo_name = "baseos"
-    repo_policy = check_repo_policy(host, repo_name)
-    repo_caching = check_repo_caching(host, repo_name)
+    # Get all configured repos
+    repos_result = get_configured_repos(host, arch="x86_64")
 
-    if not repo_policy["success"] or not repo_caching["success"]:
-        tl.failed(LOG["repo_config_failed"], "Cannot determine repo settings")
-        pytest.skip(f"Cannot determine settings for {repo_name}")
+    if not repos_result["success"]:
+        tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
+        pytest.skip("Cannot verify without configured repos")
 
-    # Verify both policy and caching are from global
-    policy_source = repo_policy.get("source")
-    caching_source = repo_caching.get("source")
+    configured_repos = repos_result["repos"]
 
-    if policy_source == "global" and caching_source == "global":
-        tl.passed(LOG["empty_config_uses_global"],
-                 f"{repo_name} uses global policy ({repo_policy.get('policy')}) "
-                 f"and global caching ({repo_caching.get('caching')})")
+    # Find a repo with both policy and caching from global
+    found_repo = None
+    for repo_name in configured_repos:
+        repo_policy = check_repo_policy(host, repo_name)
+        repo_caching = check_repo_caching(host, repo_name)
+
+        if repo_policy["success"] and repo_caching["success"]:
+            policy_source = repo_policy.get("source")
+            caching_source = repo_caching.get("source")
+
+            if policy_source == "global" and caching_source == "global":
+                found_repo = repo_name
+                break
+
+    if found_repo:
+        tl.passed(
+            LOG["empty_config_uses_global"],
+            f"{found_repo} uses global policy and global caching"
+        )
     else:
-        tl.failed(LOG["empty_config_uses_global"],
-                 f"{repo_name} policy source: {policy_source}, caching source: {caching_source}")
+        tl.failed(
+            LOG["empty_config_uses_global"],
+            f"No repo with global policy + global caching found "
+            f"among {len(configured_repos)} repos"
+        )
 
-    assert policy_source == "global" and caching_source == "global", \
+    assert found_repo is not None, \
         ASSERT["empty_config_must_use_global"]

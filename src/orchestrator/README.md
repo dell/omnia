@@ -36,7 +36,7 @@ ansible-galaxy collection install omnia.orchestrator
 | `omnia.orchestrator.telemetry` | Telemetry and monitoring stack deployment |
 | `omnia.orchestrator.collect_pxe_credentials` | Vault-encrypted BMC credential management for PXE boot |
 | `omnia.orchestrator.idrac_pxe_boot` | Configure Dell iDRAC PXE boot via Redfish API |
-| `omnia.orchestrator.verify_phone_home` | Cloud-init phone-home verification after PXE boot |
+| `omnia.orchestrator.verify_node_registration` | Fresh-boot and cloud-init verification after PXE boot |
 
 ### Modules
 
@@ -67,9 +67,29 @@ ansible-galaxy collection install omnia.orchestrator
     - role: omnia.orchestrator.orchestrator_setup
       vars:
         openchami_vars_support: true
-        omnia_metadata_support: true
         oim_group: true
 ```
+
+## Cleanup and Reset
+
+Full Orchestrator cleanup removes all enabled components and the encrypted
+Orchestrator credential file and vault key by default. Set
+`cleanup_credentials=false` only when those credentials must be retained:
+
+```bash
+cd src/main
+sudo ./omnia.sh --run orchestrator --tags cleanup
+sudo ./omnia.sh --run orchestrator --tags cleanup \
+  -e cleanup_credentials=false
+```
+
+`src/orchestrator/domain-init.sh --cleanup` is non-interactive and removes only
+initializer-owned staged input and log paths; it does not clean deployed
+components. Run the domain cleanup tag first, then use
+`sudo ./omnia.sh --cleanup --all` for a guarded global reset. Both global cleanup
+modes prompt for `yes`; trusted automation can add `--skip-approval`. Detailed
+component cleanup behavior is documented in
+[`playbooks/cleanup/README.md`](playbooks/cleanup/README.md).
 
 ## License
 

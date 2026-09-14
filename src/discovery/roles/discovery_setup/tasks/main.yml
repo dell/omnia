@@ -20,6 +20,15 @@
     omnia_run_tags: "{{ ansible_run_tags | default([]) | list }}"
     cacheable: true
 
+- name: Resolve whether Discovery cleanup was requested
+  ansible.builtin.set_fact:
+    discovery_cleanup_requested: >-
+      {{ discovery_cleanup_mode | default(false) | bool or
+         (provided_tags | default([])
+          | intersect(['cleanup', 'cleanup_credentials'])
+          | length > 0) }}
+    cacheable: true
+
 - name: Identify invalid tags
   ansible.builtin.set_fact:
     invalid_tags: "{{ provided_tags | difference(supported_tags) }}"
@@ -91,9 +100,12 @@
   ansible.builtin.stat:
     path: "{{ discovery_input_dir }}"
   register: discovery_input_stat
+  when: not discovery_cleanup_requested | bool
 
 - name: Auto-copy input files from source if runtime input dir is missing
-  when: not discovery_input_stat.stat.exists
+  when:
+    - not discovery_cleanup_requested | bool
+    - not discovery_input_stat.stat.exists
   block:
     - name: Check if source input directory exists
       ansible.builtin.stat:
@@ -128,12 +140,14 @@
     path: "{{ discovery_output_dir }}"
     state: directory
     mode: '0755'
+  when: not discovery_cleanup_requested | bool
 
-# Step 5: Load discovery configuration
+# Step 6: Load discovery configuration
 - name: Include discovery config file
   ansible.builtin.include_vars:
     file: "{{ discovery_input_dir }}/discovery_config.yml"
   failed_when: false
+  when: not discovery_cleanup_requested | bool
 
 - name: Set enable_bmc_discovery for credential utility
   ansible.builtin.set_fact:

@@ -56,12 +56,7 @@ oim_ssh_port: 22
 # clone_path:   Absolute path on the TARGET SERVER where the project code is synced.
 #               Only used in remote mode. In local mode, the playbook path is
 #               resolved automatically from the source tree.
-clone_path: "/root/omnia"
-
-# venv_path:    Path to Python virtual environment on the target server.
-#               If set, the venv is activated before running ansible-playbook.
-#               Leave empty to use system-wide ansible.
-venv_path: ""
+clone_path: "/omnia"
 
 # =============================================================================
 # DATASET CONFIGURATION
@@ -69,9 +64,8 @@ venv_path: ""
 # Controls where input files are loaded from for test execution.
 #
 # Default (empty):
-#   Uses files directly from the deployed system:
-#     /opt/omnia/build_stream/input/<project_name>/build_stream_config.yml
-#   This is the recommended mode — always reads the live configuration.
+#   Leaves target input unchanged when sync_build_stream_input is false.
+#   When input sync is enabled, src/build_stream/input/ is the source.
 #
 # Custom dataset:
 #   Set to a folder name under test/build_stream/datasets/<name>/.
@@ -88,16 +82,13 @@ project_name: "project_default"
 # SYNC — BUILD STREAM INPUT
 # =============================================================================
 # When true, pushes the local dataset input/ files to the target server.
-# Syncs: datasets/<dataset>/input/ -> /opt/omnia/build_stream/input/<project_name>/
+# A configured dataset uses datasets/<dataset>/input/. An empty dataset uses
+# src/build_stream/input/. Credentials and vault keys are always excluded.
+# Destination is resolved from OMNIA_DATA_PATH and OMNIA_PROJECT_NAME on OIM.
 #
 # This ensures the target server has the correct build_stream_config.yml
 # before running the playbook.
 sync_build_stream_input: false
-
-# Base path where build_stream stores its data on the target host.
-# The config file is read from: <shared_path>/input/<project_name>/build_stream_config.yml
-# Default: /opt/omnia/build_stream
-shared_path: "/opt/omnia/build_stream"
 
 # =============================================================================
 # REPORT CONFIGURATION
@@ -131,21 +122,21 @@ report_id: ""
 # to cancel manually in GitLab.
 allow_pipeline_cancel: false
 
-# Catalog filename to use for build pipeline trigger.
-# Must be a JSON file from src/main/samples/ only.
-# Available catalogs:
-#   catalog_rhel.json
-#
-# Required: must be set before running --test or --verify.
-catalog_name: "catalog_rhel.json"
+# Catalog path to use for the build pipeline trigger. The value is relative to
+# src/main/samples/catalogs/ so the user can select any supported release and
+# workload without changing the automation code.
+# Build-pipeline exec/test always uploads this file and replaces the existing
+# GitLab catalog with uniquely identified content to trigger a new pipeline.
+# Required for build-pipeline exec/test. Build-pipeline verify reads the job_id
+# and does not load or upload a catalog.
+catalog_path: "10.0/slurm_x86_64_no_vast.json"
 
 # Job ID from the most recent build pipeline run.
-# Automatically populated by test_playbook.py during --test mode.
+# Always overwritten with the newly created job during build-pipeline
+# exec/test. Verify mode only reads this value and never changes it.
 # Must be set manually before running --verify if no prior --test was run.
 # Format: UUID (e.g. 019bf590-1234-7890-abcd-ef1234567890)
 job_id: ""
 
-# Image group identifier for deploy/cleanup tests.
-# When set, automation uses this specific image group.
-# When empty, automation auto-selects the latest BUILT image group.
-image_identifier: ""
+# Deploy pipeline always resolves the image group and prior GitLab pipeline
+# from job_id. It never falls back to the latest image.

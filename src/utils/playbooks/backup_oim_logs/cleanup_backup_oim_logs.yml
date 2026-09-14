@@ -1,0 +1,132 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =========================================================================
+# Standalone cleanup playbook for OIM log backup artifacts.
+# This playbook is ONLY invoked via utils.yml with the
+# cleanup_backup_oim_logs tag. It removes the whole backup workspace
+# (every omnia_oim_logs_* run directory) - there is no retention policy.
+# =========================================================================
+
+- name: Cleanup OIM log backup artifacts
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  pre_tasks:
+    - name: Record execution start time
+      ansible.builtin.set_fact:
+        utils_execution_start_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
+  tasks:
+    - name: Set OMNIA_DATA_PATH and OMNIA_PROJECT_NAME facts
+      ansible.builtin.set_fact:
+        omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+        project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+
+    - name: Check for optional backup_oim_logs_config.yml
+      ansible.builtin.stat:
+        path: "{{ omnia_data_path }}/utils/input/{{ project_name }}/backup_oim_logs_config.yml"
+      register: _cleanup_config_stat
+
+    - name: Load backup_oim_logs_config.yml when present
+      ansible.builtin.include_vars:
+        file: "{{ omnia_data_path }}/utils/input/{{ project_name }}/backup_oim_logs_config.yml"
+        name: backup_config
+      when: _cleanup_config_stat.stat.exists
+
+    - name: Resolve backup path (CLI extra-var > config file > OMNIA_BACKUP_PATH > default)
+      ansible.builtin.set_fact:
+        backup_path_resolved: >-
+          {{
+            (backup_path | default('', true))
+            if (backup_path | default('', true) | length > 0)
+            else (
+              (backup_config.backup_path | default('', true))
+              if (_cleanup_config_stat.stat.exists and (backup_config.backup_path | default('', true) | length > 0))
+              else (
+                (lookup('env', 'OMNIA_BACKUP_PATH') | default('', true))
+                if (lookup('env', 'OMNIA_BACKUP_PATH') | default('', true) | length > 0)
+                else (omnia_data_path + '/utils/output/' + project_name + '/backup_oim_logs')
+              )
+            )
+          }}
+
+    - name: Detect raw NFS export syntax ("<server>:/<path>")
+      ansible.builtin.set_fact:
+        backup_is_nfs_export: "{{ backup_path_resolved is match('^[^/]+:/.+') }}"
+
+    - name: Mount NFS export before cleanup
+      when: backup_is_nfs_export
+      block:
+        - name: Ensure local NFS mountpoint exists
+          ansible.builtin.file:
+            path: /tmp/omnia_backup_oim_logs_nfs
+            state: directory
+            mode: "0755"
+
+        - name: Mount backup NFS export
+          ansible.builtin.mount:
+            src: "{{ backup_path_resolved.split(':', 1)[0] }}:{{ backup_path_resolved.split(':', 1)[1] }}"
+            path: /tmp/omnia_backup_oim_logs_nfs
+            fstype: nfs
+            state: mounted
+
+    - name: Set backup workspace (local path, or mounted NFS mountpoint)
+      ansible.builtin.set_fact:
+        backup_workspace: "{{ '/tmp/omnia_backup_oim_logs_nfs' if backup_is_nfs_export else backup_path_resolved }}"
+
+    - name: Check if backup workspace exists
+      ansible.builtin.stat:
+        path: "{{ backup_workspace }}"
+      register: _cleanup_workspace_stat
+
+    - name: Find backup run directories
+      ansible.builtin.find:
+        paths: "{{ backup_workspace }}"
+        patterns: "omnia_oim_logs_*"
+        file_type: directory
+      register: _cleanup_run_dirs
+      when: _cleanup_workspace_stat.stat.exists
+
+    - name: Remove backup run directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ _cleanup_run_dirs.files | default([]) }}"
+      when:
+        - _cleanup_workspace_stat.stat.exists
+        - _cleanup_run_dirs.files is defined
+
+    - name: Display OIM log backup cleanup summary
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "OIM Log Backup Cleanup Complete"
+          - "=========================================="
+          - "Backup workspace: {{ backup_workspace }}"
+          - "Run directories removed: {{ _cleanup_run_dirs.files | default([]) | length }}"
+          - "=========================================="
+  post_tasks:
+    - name: Record execution end time
+      ansible.builtin.set_fact:
+        utils_execution_end_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
+
+    - name: Write execution status
+      ansible.builtin.include_role:
+        name: utils_status_writer
+      vars:
+        utils_domain_status: "{{ 'success' if ansible_failed_result is not defined else 'failure' }}"
+        utils_playbook_name: "cleanup_backup_oim_logs.yml"

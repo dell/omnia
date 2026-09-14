@@ -1,0 +1,159 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# check_k8s_node_reachability.yml — Runs on: kube_vip
+# =============================================================================
+# Verifies that all K8s nodes from the cluster inventory are reachable via SSH.
+# This check prevents deployment failures due to unreachable nodes.
+
+- name: Resolve cluster inventory file path
+  ansible.builtin.set_fact:
+    cluster_inventory_path: >-
+      {%- set inv_path = hostvars['localhost']['telemetry_config'].cluster_inventory -%}
+      {%- if inv_path.startswith('/') -%}
+        {{ inv_path }}
+      {%- else -%}
+        {{ playbook_dir | dirname }}/input/{{ inv_path }}
+      {%- endif -%}
+  delegate_to: localhost
+  run_once: true
+
+- name: Parse cluster inventory file with Python YAML
+  ansible.builtin.shell: |
+    python3 -c "
+    import yaml, json
+    try:
+        data = yaml.safe_load(open('{{ cluster_inventory_path }}'))
+        print(json.dumps(data))
+    except Exception as e:
+        print(json.dumps({'_parse_error': str(e)}))
+    "
+  register: cluster_inv_parse
+  delegate_to: localhost
+  run_once: true
+  changed_when: false
+
+- name: Set cluster inventory data
+  ansible.builtin.set_fact:
+    cluster_inv: "{{ cluster_inv_parse.stdout | from_json }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Extract K8s control plane node IPs from inventory
+  ansible.builtin.set_fact:
+    k8s_control_ips: >-
+      {{
+        cluster_inv.all.children | default({}) |
+        dict2items |
+        selectattr('key', 'match', '^service_kube_control_plane') |
+        map(attribute='value.hosts') |
+        map('dict2items') |
+        flatten |
+        map(attribute='value.ansible_host') |
+        list
+      }}
+  delegate_to: localhost
+  run_once: true
+
+- name: Extract K8s worker node IPs from inventory
+  ansible.builtin.set_fact:
+    k8s_worker_ips: >-
+      {{
+        cluster_inv.all.children | default({}) |
+        dict2items |
+        selectattr('key', 'match', '^service_kube_node') |
+        map(attribute='value.hosts') |
+        map('dict2items') |
+        flatten |
+        map(attribute='value.ansible_host') |
+        list
+      }}
+  delegate_to: localhost
+  run_once: true
+
+- name: Build list of all K8s node IPs from inventory
+  ansible.builtin.set_fact:
+    k8s_node_ip_list: "{{ (k8s_control_ips | default([])) + (k8s_worker_ips | default([])) }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Check network reachability for all K8s nodes from inventory
+  ansible.builtin.shell:
+    cmd: "timeout 5 nc -zv {{ item }} 22 2>&1 || echo 'UNREACHABLE'"
+  delegate_to: localhost
+  loop: "{{ k8s_node_ip_list }}"
+  loop_control:
+    label: "{{ item }}"
+  register: k8s_node_reachability_check
+  changed_when: false
+  failed_when: false
+  when: k8s_node_ip_list | length > 0
+  run_once: true
+
+- name: Collect unreachable K8s nodes
+  ansible.builtin.set_fact:
+    unreachable_k8s_nodes: >-
+      {{
+        k8s_node_reachability_check.results |
+        selectattr('stdout', 'search', 'UNREACHABLE') |
+        map(attribute='item') |
+        list
+      }}
+  delegate_to: localhost
+  run_once: true
+  when: k8s_node_ip_list | length > 0
+
+- name: Fail if any K8s nodes are unreachable
+  ansible.builtin.fail:
+    msg: |
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      [PRECHECK FAIL] K8s Nodes Unreachable
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      The following K8s nodes from cluster inventory are not reachable via SSH (port 22):
+      {% for node in unreachable_k8s_nodes %}
+        - {{ node }}
+      {% endfor %}
+
+      Telemetry deployment requires all K8s nodes in the cluster inventory to be reachable.
+      Cannot proceed until all nodes are accessible.
+
+      Action required for each unreachable node:
+      1. Verify the node is powered on
+      2. Check network connectivity from the Ansible controller
+      3. Ensure SSH service is running on the node
+      4. Verify firewall rules allow SSH (port 22) access
+      5. Test connectivity: ping <node-ip> and ssh root@<node-ip>
+      6. Check if the IP address in cluster inventory is correct
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  when:
+    - k8s_node_ip_list | length > 0
+    - unreachable_k8s_nodes | length > 0
+  delegate_to: localhost
+  run_once: true
+
+- name: Display K8s node reachability check — PASSED
+  ansible.builtin.debug:
+    msg:
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "[PRECHECK] K8s Node Reachability — PASSED"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "  All {{ k8s_node_ip_list | length }} K8s node(s) from inventory are reachable via SSH  ✓"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  when:
+    - k8s_node_ip_list | length > 0
+    - unreachable_k8s_nodes | length == 0
+  delegate_to: localhost
+  run_once: true

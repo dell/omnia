@@ -33,13 +33,15 @@ from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
+from library.vars.test_case_vars import TEST_CASES as TC
 
 
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_input_config_exists(host):
     """TC_VL_001: Verify discovery_config.yml exists on target."""
-    tl = TestLogger(TEST_NAMES["input_config_exists"], "TC_VL_001")
+    tc = TC["input_config_exists"]
+    tl = TestLogger(TEST_NAMES["input_config_exists"], tc["id"])
     result = check_input_config_exists(host)
 
     if result["success"]:
@@ -54,7 +56,8 @@ def test_input_config_exists(host):
 @pytest.mark.order(2)
 def test_network_spec_exists(host):
     """TC_VL_002: Verify network_spec.yml exists on target."""
-    tl = TestLogger(TEST_NAMES["network_spec_exists"], "TC_VL_002")
+    tc = TC["network_spec_exists"]
+    tl = TestLogger(TEST_NAMES["network_spec_exists"], tc["id"])
     result = check_network_spec_exists(host)
 
     if result["success"]:
@@ -69,7 +72,8 @@ def test_network_spec_exists(host):
 @pytest.mark.order(3)
 def test_credentials_present(host):
     """TC_VL_003: Verify credentials file present on target."""
-    tl = TestLogger(TEST_NAMES["credentials_present"], "TC_VL_003")
+    tc = TC["credentials_present"]
+    tl = TestLogger(TEST_NAMES["credentials_present"], tc["id"])
     result = check_credentials_present(host)
 
     if result["success"]:

@@ -21,7 +21,8 @@ Ansible module for image_build_manager-specific input validation.
 Performs L1 (JSON schema) and L2 (cross-field logic) validation on:
   - image_build_config.yml
   - image_build_credentials.yml (if exists and decrypted)
-  - functional_groups_config.yml (if exists)
+  - package_groups.yml (required in config mode; validated when present)
+  - catalog JSON selected by CATALOG_FILE_PATH (required in catalog mode)
 
 Usage in a playbook:
   - name: Validate image build configuration
@@ -30,7 +31,6 @@ Usage in a playbook:
       schema_dir: "{{ role_path }}/../../../plugins/module_utils/input_validation/schema"
 """
 
-import logging
 import os
 
 from ansible.module_utils.basic import AnsibleModule
@@ -60,7 +60,7 @@ short_description: Validate image build configuration files
 version_added: "2.3.0"
 description:
   - Performs L1 (JSON schema) validation on image_build_config.yml and
-    image_build_credentials.yml.
+    image_build_credentials.yml, package_groups.yml, and catalog JSON.
   - Performs L2 (cross-field logic) validation on config values.
   - Skips Ansible Vault encrypted files automatically.
   - Returns structured validation results with error details and log path.
@@ -128,6 +128,110 @@ VALIDATION_LOG_PATH = os.path.join(
 )  # Derived from OMNIA_DATA_PATH — overridden by log_dir param
 
 
+def _validate_document(data, schema_path, file_label, errors, logger):
+    """Validate a document against its complete JSON Schema contract."""
+    schema_def = load_json(schema_path)
+    if schema_def is None:
+        error = msg.schema_file_not_found_msg(schema_path)
+        errors.append(error)
+        logger.error(error)
+        return False
+
+    initial_error_count = len(errors)
+    validate_against_schema(data, schema_def, file_label, errors, logger)
+    return len(errors) == initial_error_count
+
+
+def _mark_file(path, is_valid, valid_files, invalid_files):
+    """Record a path once in the appropriate validation result list."""
+    target = valid_files if is_valid else invalid_files
+    other = invalid_files if is_valid else valid_files
+    if path in other:
+        other.remove(path)
+    if path not in target:
+        target.append(path)
+
+
+def _validate_catalog(schema_dir, errors, valid_files, invalid_files, logger):
+    """Validate the catalog selected through CATALOG_FILE_PATH."""
+    catalog_file = os.environ.get("CATALOG_FILE_PATH", "")
+    if not catalog_file:
+        errors.append(msg.CATALOG_PATH_REQUIRED_MSG)
+        logger.error(msg.CATALOG_PATH_REQUIRED_MSG)
+        return
+
+    if not os.path.isfile(catalog_file):
+        errors.append(msg.CATALOG_FILE_NOT_FOUND_MSG)
+        _mark_file(catalog_file, False, valid_files, invalid_files)
+        logger.error(msg.CATALOG_FILE_NOT_FOUND_MSG)
+        return
+
+    catalog_data = load_json(catalog_file)
+    if catalog_data is None:
+        error = f"Failed to parse JSON: {catalog_file}"
+        errors.append(error)
+        _mark_file(catalog_file, False, valid_files, invalid_files)
+        logger.error(error)
+        return
+
+    catalog_errors = []
+    schema_valid = _validate_document(
+        catalog_data,
+        os.path.join(schema_dir, "catalog.json"),
+        os.path.basename(catalog_file),
+        catalog_errors,
+        logger,
+    )
+    if schema_valid:
+        catalog_errors.extend(validate_catalog_logic(catalog_file, logger))
+    errors.extend(catalog_errors)
+    _mark_file(
+        catalog_file,
+        not catalog_errors,
+        valid_files,
+        invalid_files,
+    )
+
+
+def _validate_package_groups(
+    input_project_dir,
+    schema_dir,
+    required,
+    errors,
+    valid_files,
+    invalid_files,
+    logger,
+):
+    """Validate package_groups.yml when present or required by config mode."""
+    package_groups_path = os.path.join(input_project_dir, "package_groups.yml")
+    if not os.path.isfile(package_groups_path):
+        if required:
+            errors.append(msg.PACKAGE_GROUPS_REQUIRED_MSG)
+            _mark_file(package_groups_path, False, valid_files, invalid_files)
+            logger.error(msg.PACKAGE_GROUPS_REQUIRED_MSG)
+        return
+
+    package_groups_data = load_yaml(package_groups_path)
+    package_errors = []
+    if package_groups_data is None:
+        package_errors.append(msg.yaml_parse_failed_msg(package_groups_path))
+    else:
+        _validate_document(
+            package_groups_data,
+            os.path.join(schema_dir, "package_groups.json"),
+            "package_groups.yml",
+            package_errors,
+            logger,
+        )
+    errors.extend(package_errors)
+    _mark_file(
+        package_groups_path,
+        not package_errors,
+        valid_files,
+        invalid_files,
+    )
+
+
 def run_module():
     """Main entry point for the Ansible module."""
     module_args = dict(
@@ -183,26 +287,19 @@ def run_module():
             logger.error(err)
             continue
 
-        schema_def = load_json(schema_path)
-        if schema_def is None:
-            err = msg.schema_file_not_found_msg(schema_path)
-            all_errors.append(err)
-            logger.error(err)
-            continue
-
-        file_errors = []
         file_label = os.path.basename(config_path)
-        validate_against_schema(data, schema_def, file_label, file_errors, logger)
-
-        if file_errors:
-            all_errors.extend(file_errors)
-            invalid_files.append(config_path)
-        else:
-            valid_files.append(config_path)
+        file_errors = []
+        is_valid = _validate_document(
+            data, schema_path, file_label, file_errors, logger
+        )
+        all_errors.extend(file_errors)
+        _mark_file(config_path, is_valid, valid_files, invalid_files)
 
         # Keep config data for L2 validation
         if vf["schema_file"] == "image_build_config.json":
-            config_data = data
+            # L2 validators assume the schema-established types. Do not pass
+            # malformed values (for example quoted booleans) into them.
+            config_data = data if is_valid else None
 
     # --- L2: Cross-field logic validation ---
     if config_data:
@@ -214,22 +311,28 @@ def run_module():
         # Catalog validation (when functional_groups_source == 'catalog')
         fg_source = config_data.get("functional_groups_source", "config")
         if fg_source == "catalog":
-            catalog_file = os.environ.get("CATALOG_FILE_PATH", "")
-            if catalog_file:
-                catalog_errors = validate_catalog_logic(catalog_file, logger)
-                if catalog_errors:
-                    all_errors.extend(catalog_errors)
-                    logger.error(f"Catalog validation errors: {catalog_errors}")
-            else:
-                logger.info(
-                    "Catalog mode enabled but CATALOG_FILE_PATH not set — "
-                    "catalog validation deferred to runtime."
-                )
+            _validate_catalog(
+                schema_dir,
+                all_errors,
+                valid_files,
+                invalid_files,
+                logger,
+            )
+
+        # package_groups.yml is required in config mode and schema-validated
+        # whenever it is supplied, including catalog mode.
+        _validate_package_groups(
+            input_project_dir,
+            schema_dir,
+            fg_source == "config",
+            all_errors,
+            valid_files,
+            invalid_files,
+            logger,
+        )
 
         # Cross-validate credentials against config if both exist and decrypted
-        cred_path = os.path.join(
-            input_project_dir, "image_build_manager/image_build_credentials.yml"
-        )
+        cred_path = os.path.join(input_project_dir, "image_build_credentials.yml")
         if os.path.isfile(cred_path) and not is_vault_encrypted(cred_path):
             cred_data = load_yaml(cred_path)
             if cred_data and isinstance(cred_data, dict):

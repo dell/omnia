@@ -135,6 +135,13 @@ OPTIONAL_ENV_VARS: Dict[str, str] = {
     "SYSTEM_DOMAIN_NAME": "omnia.cluster",
 }
 
+# Runtime paths resolved from the target's Omnia environment.
+RUNTIME_PATH_ENV_VARS: Dict[str, str] = {
+    "data_path": "OMNIA_DATA_PATH",
+    "project_name": "OMNIA_PROJECT_NAME",
+    "venv_path": "OMNIA_VENV_PATH",
+}
+
 # =============================================================================
 # CLI COMMANDS AND OPTIONS
 # =============================================================================
@@ -343,7 +350,7 @@ CMDS: Dict[str, str] = {
         "{venv_path}/bin/ansible --version 2>&1"
     ),
     "venv_pip_list": (
-        "{venv_path}/bin/pip list --format=columns 2>&1"
+        "{venv_path}/bin/python3 -m pip list --format=json"
     ),
     "venv_galaxy_list": (
         "{venv_path}/bin/ansible-galaxy collection list 2>&1"

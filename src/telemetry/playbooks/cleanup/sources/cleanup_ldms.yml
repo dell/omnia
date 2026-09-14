@@ -33,7 +33,7 @@
   hosts: localhost
   gather_facts: false
   vars_files:
-    - ../../../roles/common/vars/main.yml
+    - ../../../vars/telemetry_common.yml
   tasks:
     - name: Load telemetry config
       ansible.builtin.include_role:

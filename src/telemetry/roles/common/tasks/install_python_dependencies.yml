@@ -26,7 +26,7 @@
 #
 # Installation modes:
 #   - online:  Install from PyPI (pip install <package>==<version>)
-#   - offline: Install from Pulp repo (pip install --index-url <repo_url>/pip_module/ <package>==<version>)
+#   - offline: Install from a package-specific directory under <repo_url>/pip_module/
 #
 # Parameters:
 #   component: Component name to look up in telemetry_packages.yml (required)
@@ -70,9 +70,9 @@
     fail_msg: "repo_url must be set in telemetry_packages.yml when install_mode is 'offline'"
   when: install_mode == "offline"
 
-- name: Build pip index URL from repo_url
+- name: Build pip module URL from repo_url
   ansible.builtin.set_fact:
-    pip_index_url: "{{ repo_url }}/pip_module/"
+    pip_module_url: "{{ repo_url }}/pip_module/"
   when: install_mode == "offline"
 
 - name: Get packages for component from telemetry_packages.yml
@@ -92,5 +92,6 @@
   ansible.builtin.include_tasks: install_single_python_package.yml
   vars:
     package_name: "{{ item.key }}"
+    package_distribution_name: "{{ telemetry_pip_distribution_names[item.key] | default(item.key) }}"
     package_version: "{{ item.value }}"
     component_name: "{{ component }}"

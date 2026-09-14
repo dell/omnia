@@ -28,11 +28,12 @@ Create input files manually in the target directory with your specific catalog c
 Set `sync_repo_manager_input: true` in `test_config.yml` to sync input files from the source tree:
 
 ```yaml
-# In /root/sujal/omnia/test/repo_manager/test_config.yml
+# In <omnia-root>/test/repo_manager/test_config.yml
 sync_repo_manager_input: true
 ```
 
-This will sync input files from `/root/sujal/omnia/src/repo_manager/input/` to the target system's input directory.
+This syncs input files from `<omnia-root>/src/repo_manager/input/` to the
+target system's input directory.
 
 ### Option 3: Dataset-Based Testing (Not Currently Available)
 Unlike other test domains (utils, image_build_manager, etc.), repo_manager does not currently have a dataset generator system. Input files must be created manually or synced from source.
@@ -120,7 +121,7 @@ glibc_langpack_en
 
 ### 1. Install Test Dependencies
 ```bash
-cd /root/sujal/omnia/test/repo_manager
+cd <omnia-root>/test/repo_manager
 bash setup_env.sh --venv
 ```
 
@@ -148,47 +149,38 @@ mkdir -p /opt/omnia/repo_manager/log/catalog
 
 ## Running Tests
 
-### Run All Catalog Tests (Including Negative Tests)
-```bash
-cd /root/sujal/omnia/test/repo_manager
-./run_validation.sh catalog test
-```
-
-This will run all catalog operations in order:
-1. **catalog_generate** (11 tests)
-2. **catalog_add** (8 tests) - if additions.txt exists
-3. **catalog_delete** (6 tests) - if removals.txt exists
-4. **catalog_validate** (4 tests)
-5. **catalog_negative** (7 tests) - validation and error scenarios
+Catalog lifecycle execution intentionally has no “run all” mode. Select one
+operation suite so generate, add, and delete cannot run accidentally in the
+same invocation.
 
 ### Run Specific Catalog Operation
 ```bash
 # Generate only
-./run_validation.sh catalog/generate test
+./run_validation.sh fvt_repo_manager catalog test --suite generate
 
 # Add only
-./run_validation.sh catalog/add test
+./run_validation.sh fvt_repo_manager catalog test --suite add
 
 # Delete only
-./run_validation.sh catalog/delete test
+./run_validation.sh fvt_repo_manager catalog test --suite delete
 
 # Validate only
-./run_validation.sh catalog/validate test
+./run_validation.sh fvt_repo_manager catalog test --suite validate
 
 # Negative tests only
-./run_validation.sh catalog/negative test
+./run_validation.sh fvt_repo_manager catalog verify --suite negative
 ```
 
 ### Run with Marker Filtering
 ```bash
 # Run only sanity tests
-./run_validation.sh catalog test --marker sanity
+./run_validation.sh fvt_repo_manager catalog test --suite validate --marker sanity
 
 # Run only positive tests
-./run_validation.sh catalog test --marker positive
+./run_validation.sh fvt_repo_manager catalog verify --suite validate --marker positive
 
 # Run only negative tests
-./run_validation.sh catalog test --marker negative
+./run_validation.sh fvt_repo_manager catalog verify --suite negative --marker negative
 ```
 
 ## Input File Creation from Source
@@ -198,7 +190,7 @@ If you want to use the source directory as a reference and sync to target:
 ### Step 1: Create Input Files in Source Directory
 ```bash
 # Create catalog input files in source directory
-cat > /root/sujal/omnia/src/repo_manager/input/project_default/packages.txt << 'EOF'
+cat > <omnia-root>/src/repo_manager/input/project_default/packages.txt << 'EOF'
 [slurm_control_node_rhel_10_0_x86_64]
 baseos_group_10.0
   systemd rpm https://access.redhat.com/downloads/content/693 ver=10.0 arch=x86_64
@@ -218,7 +210,7 @@ The test framework will automatically sync the input files from source to the ta
 ## Sync Configuration Notes
 
 ### sync_repo_manager_input Behavior
-- **When true**: Input files are synced from `/root/sujal/omnia/src/repo_manager/input/` to the target's input directory
+- **When true**: Input files are synced from `<omnia-root>/src/repo_manager/input/` to the target's input directory
 - **When false**: Tests use input files that already exist on the target system
 - **Use case**: Set to `true` during development to use source files directly; set to `false` for production testing with pre-staged input files
 
@@ -229,7 +221,7 @@ The test framework will automatically sync the input files from source to the ta
 
 ## Test Scenarios
 
-### Catalog Generate (11 tests)
+### Catalog Generate (8 tests)
 - TC_RM_CAT_GEN_000: Deploy catalog_generate playbook
 - TC_RM_CAT_GEN_001: Verify catalog input directory exists
 - TC_RM_CAT_GEN_002: Verify catalog file exists after generate
@@ -237,28 +229,22 @@ The test framework will automatically sync the input files from source to the ta
 - TC_RM_CAT_GEN_004: Verify catalog has functional layers
 - TC_RM_CAT_GEN_005: Verify catalog has groups
 - TC_RM_CAT_GEN_006: Verify catalog has packages
-- TC_RM_CAT_GEN_007: Verify catalog has specific group
-- TC_RM_CAT_GEN_008: Verify catalog has specific package
-- TC_RM_CAT_GEN_009: Verify package type is correct
-- TC_RM_CAT_GEN_010: Verify catalog log file exists
+- TC_RM_CAT_GEN_007: Verify catalog log file exists
 
-### Catalog Add (8 tests)
+### Catalog Add (6 tests)
 - TC_RM_CAT_ADD_000: Deploy catalog_add playbook
 - TC_RM_CAT_ADD_001: Verify catalog add operation completed successfully
 - TC_RM_CAT_ADD_002: Verify catalog structure still valid after add
-- TC_RM_CAT_ADD_003: Verify packages from input file were added to catalog
-- TC_RM_CAT_ADD_004: Verify groups from input file were created in catalog
-- TC_RM_CAT_ADD_005: Verify catalog has functional layers after add
-- TC_RM_CAT_ADD_006: Verify catalog has groups after add
-- TC_RM_CAT_ADD_007: Verify catalog has packages after add
+- TC_RM_CAT_ADD_003: Verify catalog has functional layers after add
+- TC_RM_CAT_ADD_004: Verify catalog has groups after add
+- TC_RM_CAT_ADD_005: Verify catalog has packages after add
 
-### Catalog Delete (6 tests)
+### Catalog Delete (5 tests)
 - TC_RM_CAT_DEL_000: Deploy catalog_delete playbook
 - TC_RM_CAT_DEL_001: Verify catalog delete operation completed successfully
 - TC_RM_CAT_DEL_002: Verify catalog structure still valid after delete
-- TC_RM_CAT_DEL_003: Verify packages from input file were removed from catalog
-- TC_RM_CAT_DEL_004: Verify catalog has functional layers after delete
-- TC_RM_CAT_DEL_005: Verify catalog has groups after delete
+- TC_RM_CAT_DEL_003: Verify catalog has functional layers after delete
+- TC_RM_CAT_DEL_004: Verify catalog has groups after delete
 
 ### Catalog Validate (4 tests)
 - TC_RM_CAT_VAL_000: Deploy catalog_validate playbook
@@ -309,7 +295,9 @@ The catalog tests have a natural dependency order:
 3. **catalog_delete** can only run after catalog_generate (or after add)
 4. **catalog_validate** can only run after catalog_generate
 
-The test runner automatically handles this order when you run `./run_validation.sh catalog test`.
+Run each suite explicitly in this order when the complete catalog lifecycle is
+required. The runner refuses an ambiguous catalog `exec` or `test` without
+`--suite`.
 
 ## Cleaning Up
 

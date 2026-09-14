@@ -23,11 +23,12 @@ All verification functions return a dict with keys:
   success (bool), details (str), error (str), and optionally skipped (bool).
 """
 
+import base64
 import time
 import re
 from typing import Any, Dict, List, Optional
 
-from omnia_auto import load_test_config, run_on_host
+from omnia_auto import load_test_config, run_on_host, run_ssh_command
 from ..vars.common_vars import CMDS
 from ..vars.slurm_vars import (
     SLURM_SERVICES,
@@ -41,7 +42,7 @@ from ..vars.slurm_vars import (
 # =============================================================================
 
 def check_slurm_enabled(host) -> Dict[str, Any]:
-    """Check if SLURM is enabled in the catalog.
+    """Check whether SLURM roles were assigned in the PXE mapping.
 
     Args:
         host: Testinfra host connection
@@ -52,21 +53,22 @@ def check_slurm_enabled(host) -> Dict[str, Any]:
     config = load_test_config()
     project = config.get("project_name", "project_default")
 
-    # Check if SLURM functional groups exist in orchestrator_config.yml
-    orchestrator_config_path = f"/opt/omnia/orchestrator/input/{project}/orchestrator_config.yml"
+    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
 
-    cmd = f"test -f {orchestrator_config_path} && cat {orchestrator_config_path}"
+    cmd = (
+        f"test -f {pxe_mapping_path} && "
+        f"tail -n +2 {pxe_mapping_path} | cut -d',' -f1"
+    )
     result = run_on_host(host, cmd)
 
     if result.rc != 0:
         return {
             "success": False,
             "skipped": False,
-            "details": "Orchestrator config file not found",
-            "error": f"Cannot check SLURM status - config file missing: {orchestrator_config_path}"
+            "details": "PXE mapping file not found",
+            "error": f"Cannot check SLURM status - mapping file missing: {pxe_mapping_path}"
         }
 
-    # Check for SLURM functional groups in the config
     slurm_keywords = ["slurm_control", "slurm_node", "slurm_login"]
     has_slurm = any(keyword in result.stdout.lower() for keyword in slurm_keywords)
 
@@ -74,15 +76,15 @@ def check_slurm_enabled(host) -> Dict[str, Any]:
         return {
             "success": True,
             "skipped": False,
-            "details": "SLURM functional groups found in orchestrator config",
+            "details": "SLURM functional groups found in PXE mapping",
             "error": ""
         }
     else:
         return {
             "success": False,
             "skipped": True,
-            "details": "SLURM functional groups not found in orchestrator config",
-            "error": "SLURM is not enabled in the catalog"
+            "details": "SLURM functional groups not found in PXE mapping",
+            "error": "SLURM roles were not assigned to provisioned nodes"
         }
 
 
@@ -255,6 +257,145 @@ def check_slurm_config_files_exist(host) -> Dict[str, Any]:
         "success": False,
         "details": f"No SLURM config files found on control node {control_ip}",
         "error": "SLURM config files check failed on remote node"
+    }
+
+
+def check_slurm_config_integrity(host) -> Dict[str, Any]:
+    """Check if deployed slurm.conf matches input configuration.
+
+    Verifies that key configuration parameters from slurm_config.yml
+    are correctly reflected in the deployed /etc/slurm/slurm.conf on the control node.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, skipped
+    """
+    # Read PXE mapping to get control node IP
+    config = load_test_config()
+    project = config.get("project_name", "project_default")
+    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+
+    cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "details": "Could not find control node in PXE mapping",
+            "error": "PXE mapping read failed or no control node found"
+        }
+
+    control_ip = result.stdout.strip()
+    slurm_config_path = f"/opt/omnia/orchestrator/input/{project}/slurm_config.yml"
+
+    # Check if slurm_config.yml exists
+    cmd = f"test -f {slurm_config_path} && echo exists || echo missing"
+    result = run_on_host(host, cmd)
+
+    if result.stdout.strip() != "exists":
+        return {
+            "success": False,
+            "details": "slurm_config.yml not found in input directory",
+            "error": f"Input config file not found: {slurm_config_path}"
+        }
+
+    # Read slurm_config.yml to extract key parameters
+    cmd = f"cat {slurm_config_path}"
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": "Failed to read slurm_config.yml",
+            "error": f"Read failed: {result.stderr}"
+        }
+
+    input_config = result.stdout
+
+    # Extract cluster name from input config
+    cluster_name = None
+    for line in input_config.split('\n'):
+        if 'cluster_name:' in line.lower():
+            cluster_name = line.split(':')[1].strip().strip('"\'')
+            break
+
+    if not cluster_name:
+        return {
+            "success": False,
+            "details": "Could not extract cluster_name from slurm_config.yml",
+            "error": "cluster_name not found in input configuration"
+        }
+
+    # Read deployed slurm.conf from control node
+    ssh_cmd = f"ssh -o StrictHostKeyChecking=no root@{control_ip} 'cat /etc/slurm/slurm.conf'"
+    deployed_result = run_on_host(host, ssh_cmd)
+
+    if deployed_result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Failed to read /etc/slurm/slurm.conf from control node {control_ip}",
+            "error": f"SSH read failed: {deployed_result.stderr}"
+        }
+
+    deployed_config = deployed_result.stdout
+
+    # Verify cluster name matches
+    cluster_name_in_deployed = None
+    for line in deployed_config.split('\n'):
+        if line.strip().startswith('ClusterName'):
+            cluster_name_in_deployed = line.split('=')[1].strip()
+            break
+
+    if not cluster_name_in_deployed:
+        return {
+            "success": False,
+            "details": "ClusterName not found in deployed slurm.conf",
+            "error": "ClusterName parameter missing from deployed configuration"
+        }
+
+    if cluster_name != cluster_name_in_deployed:
+        return {
+            "success": False,
+            "details": f"Cluster name mismatch: input={cluster_name}, deployed={cluster_name_in_deployed}",
+            "error": "Cluster name does not match between input and deployed config"
+        }
+
+    # Check for extra_confs in input config
+    extra_confs_present = 'extra_confs:' in input_config
+
+    # If extra_confs present, verify they are referenced in deployed config
+    if extra_confs_present:
+        # Extract extra conf file names
+        extra_conf_files = []
+        in_extra_confs = False
+        for line in input_config.split('\n'):
+            if 'extra_confs:' in line:
+                in_extra_confs = True
+                continue
+            if in_extra_confs:
+                if line.strip().startswith('-') and '.conf' in line:
+                    conf_file = line.strip().split(':')[-1].strip().strip('"\'')
+                    if conf_file:
+                        extra_conf_files.append(conf_file)
+                elif not line.strip().startswith(' ') and not line.strip().startswith('-'):
+                    in_extra_confs = False
+
+        if extra_conf_files:
+            # Check if these conf files are included in deployed slurm.conf
+            for conf_file in extra_conf_files:
+                if conf_file not in deployed_config:
+                    return {
+                        "success": False,
+                        "details": f"Extra conf file {conf_file} not found in deployed slurm.conf",
+                        "error": f"Custom config file not deployed: {conf_file}"
+                    }
+
+    return {
+        "success": True,
+        "details": f"SLURM config integrity verified on control node {control_ip}",
+        "error": ""
     }
 
 
@@ -1337,29 +1478,35 @@ def check_gpu_available(host) -> Dict[str, Any]:
             "gpu_nodes": []
         }
 
-    # Check for GPU configuration in slurm.conf
-    check_cmd = f"ssh -o StrictHostKeyChecking=no {control_ip} 'grep -i gres /etc/slurm/slurm.conf' 2>/dev/null"
-    result = run_on_host(host, check_cmd)
+    # Query Slurm's resolved runtime GRES values.  A broad grep of slurm.conf
+    # can match comments or a bare ``GresTypes`` declaration and incorrectly
+    # claim that GPU nodes exist.
+    sinfo_result = run_ssh_command(
+        host,
+        control_ip,
+        "sinfo -h -o '%N|%G'",
+    )
+    gpu_nodes = []
+    if sinfo_result.rc == 0:
+        for line in sinfo_result.stdout.splitlines():
+            node_name, separator, gres = line.partition("|")
+            normalized_gres = gres.strip().lower()
+            if (
+                separator
+                and normalized_gres not in {"", "(null)", "n/a"}
+                and re.search(r"(?:^|,)gpu(?::|=)", normalized_gres)
+            ):
+                gpu_nodes.append(node_name.strip())
 
-    if result.rc == 0 and result.stdout.strip():
-        gpu_lines = [line.strip() for line in result.stdout.split('\n') if line.strip()]
+    if gpu_nodes:
         return {
             "success": True,
-            "details": f"GPU resources configured in slurm.conf: {len(gpu_lines)} GRES entries",
+            "details": (
+                "GPU resources reported by Slurm on nodes: "
+                + ", ".join(gpu_nodes)
+            ),
             "error": "",
-            "gpu_nodes": gpu_lines
-        }
-
-    # Check sinfo for GPU partitions
-    sinfo_cmd = f"ssh -o StrictHostKeyChecking=no {control_ip} 'sinfo -o \"%P %G\"' 2>/dev/null"
-    sinfo_result = run_on_host(host, sinfo_cmd)
-
-    if "gpu" in sinfo_result.stdout.lower():
-        return {
-            "success": True,
-            "details": "GPU resources found in SLURM partition configuration",
-            "error": "",
-            "gpu_nodes": []
+            "gpu_nodes": gpu_nodes
         }
 
     return {
@@ -1420,34 +1567,30 @@ def check_gpu_job_execution(host) -> Dict[str, Any]:
             "job_id": None
         }
 
-    # Submit a simple GPU job
-    gpu_job_cmd = f"ssh -o StrictHostKeyChecking=no {control_ip} 'sbatch --gres=gpu:1 --wrap=\"nvidia-smi\" --output=/tmp/gpu_test.out' 2>&1"
-    result = run_on_host(host, gpu_job_cmd)
+    # Execute synchronously so a successful submission cannot hide a failed
+    # allocation, driver problem, or workload failure.
+    result = run_ssh_command(
+        host,
+        control_ip,
+        "timeout 180 srun --nodes=1 --ntasks=1 --gres=gpu:1 nvidia-smi -L",
+    )
 
-    if result.rc != 0:
+    if result.rc != 0 or "GPU" not in result.stdout:
         return {
             "success": False,
-            "details": f"GPU job submission failed: {result.stdout}",
-            "error": "GPU job submission failed",
+            "details": (
+                f"GPU workload failed (rc={result.rc}): "
+                f"{result.stdout} {result.stderr}"
+            ),
+            "error": "GPU workload did not complete successfully",
             "job_id": None
         }
-
-    job_id_match = re.search(r'Submitted batch job (\d+)', result.stdout)
-    if not job_id_match:
-        return {
-            "success": False,
-            "details": f"Could not extract job ID from GPU job submission: {result.stdout}",
-            "error": "Job ID extraction failed",
-            "job_id": None
-        }
-
-    job_id = job_id_match.group(1)
 
     return {
         "success": True,
-        "details": f"GPU job {job_id} submitted successfully",
+        "details": "Synchronous Slurm GPU workload completed successfully",
         "error": "",
-        "job_id": job_id
+        "job_id": "synchronous"
     }
 
 
@@ -1623,12 +1766,35 @@ int main(int argc, char** argv) {
 }
 """
 
-    # This is a simplified test - in reality you'd need to compile and run the MPI program
+    encoded_program = base64.b64encode(mpi_program.encode("utf-8")).decode(
+        "ascii"
+    )
+    remote_script = f"""set -euo pipefail
+test -d /hpc_tools
+workdir=$(mktemp -d /hpc_tools/.omnia_mpi_test.XXXXXX)
+trap 'rm -r -- "$workdir"' EXIT
+printf '%s' '{encoded_program}' | base64 --decode > "$workdir/hello_mpi.c"
+mpicc -O2 -o "$workdir/hello_mpi" "$workdir/hello_mpi.c"
+timeout 180 srun --nodes=1 --ntasks=2 "$workdir/hello_mpi"
+"""
+    result = run_ssh_command(host, login_ip, remote_script)
+    rank_lines = [
+        line for line in result.stdout.splitlines()
+        if line.startswith("Hello from rank ")
+    ]
+    if result.rc != 0 or len(rank_lines) != 2:
+        return {
+            "success": False,
+            "details": (
+                f"MPI workload failed (rc={result.rc}): "
+                f"{result.stdout} {result.stderr}"
+            ),
+            "error": "MPI compile or Slurm execution failed",
+            "job_id": None,
+        }
     return {
         "success": True,
-        "details": "MPI job execution test structure verified (full execution requires compilation environment)",
+        "details": "MPI program compiled and completed as a two-rank Slurm job",
         "error": "",
-        "job_id": None
+        "job_id": "synchronous",
     }
-
-

@@ -41,6 +41,7 @@ from library.functions import (
     check_file_repos_synced,
     check_pulp_content_accessible,
     check_software_packages_in_pulp,
+    get_configured_repos,
 )
 from library.messages import (
     TEST_NAMES,
