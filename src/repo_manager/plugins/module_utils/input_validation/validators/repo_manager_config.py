@@ -36,7 +36,7 @@ from ansible.module_utils.input_validation.messages.common_messages import (
     PRIORITY_MUST_BE_INTEGER_MSG, PRIORITY_MUST_BE_IN_RANGE_MSG,
     ADDITIONAL_REPO_PRIORITY_CONFLICT_MSG,
     MISSING_REPO_CONFIGURATION_MSG, MISSING_REPO_URL_MSG,
-    MISSING_ARCH_SOURCE_MSG, RPM_REPO_STREAMED_POLICY_MSG,
+    MISSING_ARCH_SOURCE_MSG, RPM_REPO_NEVER_POLICY_MSG,
 )
 from ansible.module_utils.repo_manager.registry_utils import (
     PUBLIC_REGISTRY_URLS,
@@ -50,8 +50,6 @@ from ansible.module_utils.repo_manager.catalog_resolver import (
     select_package_source,
 )
 from ansible.module_utils.repo_manager.repo_settings import (
-    DEFAULT_CACHING_POLICY,
-    POLICY_CACHING_MAP,
     SUBSCRIPTION_REPOSITORIES,
     iterate_all_repos,
 )
@@ -493,18 +491,12 @@ def _collect_repo_configs(repos_section):
     return configs
 
 
-def _effective_repo_download_policy(config_data, repo_config):
-    """Resolve the Pulp policy using the same per-repo/global precedence as runtime."""
+def _effective_repo_policy(config_data, repo_config):
+    """Resolve the user-facing policy with repository override precedence."""
     repo_config = repo_config if isinstance(repo_config, dict) else {}
-    policy = str(
+    return str(
         repo_config.get("policy", config_data.get("repo_config", "partial"))
     ).lower()
-    caching = repo_config.get(
-        "caching", config_data.get("caching_policy", DEFAULT_CACHING_POLICY)
-    )
-    if not isinstance(caching, bool):
-        return None  # The schema/type validation reports this independently.
-    return POLICY_CACHING_MAP.get((policy, caching), "on_demand")
 
 
 def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
@@ -556,7 +548,7 @@ def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
     missing_sources = set()
     missing_mappings = set()
     missing_urls = set()
-    streamed_rpm_repos = set()
+    never_rpm_repos = set()
 
     for selected in _iter_selected_packages(
             catalogs, all_archs, logger, os_version=cluster_os_version):
@@ -581,10 +573,10 @@ def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
         repo_config = configured_repos.get(arch, {}).get(reponame)
 
         if (package_type == "rpm_repo"
-                and _effective_repo_download_policy(
+                and _effective_repo_policy(
                     config_data, repo_config or {}
-                ) == "streamed"):
-            streamed_rpm_repos.add((package_name, reponame, arch))
+                ) == "never"):
+            never_rpm_repos.add((package_name, reponame, arch))
 
     # Apply mapping and URL rules once per referenced repository. In
     # non-subscription mode every selected RPM repository, including BaseOS,
@@ -645,10 +637,10 @@ def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
             )
         ))
 
-    for package_name, reponame, arch in sorted(streamed_rpm_repos):
+    for package_name, reponame, arch in sorted(never_rpm_repos):
         errors.append(create_error_msg(
             "repositories", reponame,
-            RPM_REPO_STREAMED_POLICY_MSG.format(
+            RPM_REPO_NEVER_POLICY_MSG.format(
                 package_name=package_name,
                 reponame=reponame,
                 arch=arch,

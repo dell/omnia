@@ -2444,6 +2444,19 @@ def create_aggregated_repository(repo_name, log):
     return True, repo_name
 
 
+def _resolve_aggregated_remote_policy(repo_entry):
+    """Return a validated Pulp policy for an additional repository remote."""
+    policy = str(repo_entry.get("policy", "partial")).lower()
+    if policy in ("immediate", "on_demand", "streamed"):
+        return validate_pulp_policy(policy)
+
+    caching = repo_entry.get("caching", True)
+    if not isinstance(caching, bool):
+        raise ValueError("Additional repository caching must be a boolean")
+    resolved_policy = POLICY_CACHING_MAP.get((policy, caching), policy)
+    return validate_pulp_policy(resolved_policy)
+
+
 def create_aggregated_remote(repo_entry, repo_name, log):
     """
     Create or update a remote for an additional repo entry.
@@ -2459,7 +2472,7 @@ def create_aggregated_remote(repo_entry, repo_name, log):
     repo_name = validate_repository_id(repo_name)
     name = validate_repository_id(repo_entry["name"])
     url = validate_repository_url(repo_entry["url"])
-    policy = validate_pulp_policy(repo_entry["policy"])
+    policy = _resolve_aggregated_remote_policy(repo_entry)
     remote_name = validate_repository_id(f"{repo_name}-{name}")
 
     log.info("Creating or updating aggregated remote '%s'.", remote_name)

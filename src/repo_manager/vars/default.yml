@@ -364,7 +364,7 @@ container_sync_policy: "immediate"
 rpm_repo_config:
   # Number of RPM repositories to process in parallel in every Pulp stage (1-10).
   # Keep one repository in flight by default for a local Pulp service.
-  thread_pool_size: 1      # ENV: REPO_MANAGER_THREAD_POOL_SIZE
+  thread_pool_size: 2      # ENV: REPO_MANAGER_THREAD_POOL_SIZE
 
   # Continue processing other repositories to collect complete diagnostics.
   # Any repository-stage failure still fails the module before artifact tasks.
