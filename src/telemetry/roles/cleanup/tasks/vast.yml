@@ -15,28 +15,38 @@
 
 - name: VAST | Discover Victoria API resources
   ansible.builtin.command: >
-    kubectl api-resources --namespaced=true --api-group=operator.victoriametrics.com --output=name
+    kubectl api-resources --namespaced=true --api-group=operator.victoriametrics.com --output=name --request-timeout=15s
   register: _vast_victoria_api_resources
   changed_when: false
+  failed_when: false
 
-- name: "VAST | Delete resources"
+- name: "VAST | Delete resources (non-CRD)"
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+    --ignore-not-found=true --wait=false --timeout=30s --request-timeout=15s
   loop: "{{ vast_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
-  changed_when: false
-  when: >-
-    item.type != 'vmservicescrape'
-    or 'vmservicescrapes.operator.victoriametrics.com'
-       in _vast_victoria_api_resources.stdout_lines
+  when: item.type != 'vmservicescrape'
+  failed_when: false
+
+- name: "VAST | Delete resources (CRD)"
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+    --ignore-not-found=true --wait=false --timeout=30s --request-timeout=15s
+  loop: "{{ vast_resources }}"
+  loop_control:
+    label: "{{ item.type }}/{{ item.name }}"
+  when:
+    - item.type == 'vmservicescrape'
+    - 'vmservicescrapes.operator.victoriametrics.com' in _vast_victoria_api_resources.stdout_lines
+  failed_when: false
 
 - name: "VAST | Force delete pods"
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pod -l {{ vast_pod_label }}
-    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
-  changed_when: false
+    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true --timeout=15s --request-timeout=10s
+  failed_when: false
 
 - name: "VAST | Remove generated manifests"
   ansible.builtin.file:

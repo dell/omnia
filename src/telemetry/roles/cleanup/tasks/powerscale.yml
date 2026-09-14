@@ -15,9 +15,10 @@
 
 - name: PowerScale | Discover Victoria API resources
   ansible.builtin.command: >
-    kubectl api-resources --namespaced=true --api-group=operator.victoriametrics.com --output=name
+    kubectl api-resources --namespaced=true --api-group=operator.victoriametrics.com --output=name --request-timeout=15s
   register: _powerscale_victoria_api_resources
   changed_when: false
+  failed_when: false
 
 - name: PowerScale | Check for Helm release
   ansible.builtin.command:
@@ -32,6 +33,7 @@
       - --short
   register: _powerscale_helm_releases
   changed_when: false
+  failed_when: false
 
 - name: PowerScale | Uninstall Helm release
   ansible.builtin.command:
@@ -41,59 +43,79 @@
       - "{{ powerscale_helm_release }}"
       - --namespace
       - "{{ telemetry_namespace }}"
-      - --wait
+      - --no-hooks
+      - --ignore-not-found
       - --timeout
-      - "{{ cleanup_helm_timeout }}"
+      - "15s"
   when: powerscale_helm_release in _powerscale_helm_releases.stdout_lines
   changed_when: true
+  failed_when: false
 
-- name: PowerScale | Wait for Helm resources to terminate
-  ansible.builtin.pause:
-    seconds: "{{ cleanup_post_delete_pause }}"
+- name: PowerScale | Force delete Helm-managed pods
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete pod -l app.kubernetes.io/name=karavi-metrics-powerscale
+    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true --timeout=15s
   when: powerscale_helm_release in _powerscale_helm_releases.stdout_lines
+  failed_when: false
+
+- name: PowerScale | Force delete CSI volume exporter pods
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete pod -l app=csi-volume-exporter
+    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true --timeout=15s
+  when: powerscale_helm_release in _powerscale_helm_releases.stdout_lines
+  failed_when: false
 
 - name: PowerScale | Delete label-selected resources
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item.type }} -l {{ item.label }}
-    --ignore-not-found=true --wait=false
+    --ignore-not-found=true --wait=false --timeout=30s
   loop: "{{ powerscale_label_resources }}"
   loop_control:
     label: "{{ item.type }} ({{ item.label }})"
-  changed_when: false
+  failed_when: false
 
-- name: PowerScale | Delete named resources
+- name: PowerScale | Delete named resources (non-CRD)
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+    --ignore-not-found=true --wait=false --timeout=30s
   loop: "{{ powerscale_named_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
-  changed_when: false
   when:
     - item.type != 'pvc' or _cleanup_delete_volume_enabled | bool
-    - >-
-      item.type != 'vmservicescrape'
-      or 'vmservicescrapes.operator.victoriametrics.com'
-         in _powerscale_victoria_api_resources.stdout_lines
+    - item.type != 'vmservicescrape'
+  failed_when: false
+
+- name: PowerScale | Delete named resources (CRD)
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+    --ignore-not-found=true --wait=false --timeout=30s
+  loop: "{{ powerscale_named_resources }}"
+  loop_control:
+    label: "{{ item.type }}/{{ item.name }}"
+  when:
+    - item.type == 'vmservicescrape'
+    - "'vmservicescrapes.operator.victoriametrics.com' in _powerscale_victoria_api_resources.stdout_lines"
+  failed_when: false
 
 - name: PowerScale | Delete cert-manager resources
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item }}
     -l "app.kubernetes.io/instance=karavi-observability,app.kubernetes.io/name=cert-manager"
-    --ignore-not-found=true --wait=false
+    --ignore-not-found=true --wait=false --timeout=30s
   loop:
     - deployment
     - pod
-  changed_when: false
+  failed_when: false
 
 - name: PowerScale | Delete cluster-scoped resources
   ansible.builtin.command: >
     kubectl delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+    --ignore-not-found=true --wait=false --timeout=30s
   loop: "{{ powerscale_cluster_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
-  changed_when: false
+  failed_when: false
 
 - name: PowerScale | Remove generated manifest
   ansible.builtin.file:
@@ -103,10 +125,10 @@
 - name: PowerScale | Force delete pods
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pod -l {{ item }}
-    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
+    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true --timeout=15s
   loop: "{{ powerscale_pod_labels }}"
-  changed_when: false
   when: _cleanup_delete_volume_enabled | bool
+  failed_when: false
 
 - name: PowerScale | Wait for pods to terminate
   ansible.builtin.command: >
@@ -116,8 +138,9 @@
   register: _powerscale_pod_wait
   changed_when: false
   until: _powerscale_pod_wait.stdout | trim | length == 0
-  retries: "{{ cleanup_custom_resource_retries }}"
-  delay: "{{ cleanup_custom_resource_delay }}"
+  retries: 6
+  delay: 5
+  failed_when: false
 
 - name: PowerScale | Wait for PVCs to terminate
   ansible.builtin.command: >
@@ -129,9 +152,10 @@
   register: _powerscale_pvc_wait
   changed_when: false
   until: _powerscale_pvc_wait.stdout | trim | length == 0
-  retries: "{{ cleanup_custom_resource_retries }}"
-  delay: "{{ cleanup_custom_resource_delay }}"
+  retries: 6
+  delay: 5
   when: _cleanup_delete_volume_enabled | bool
+  failed_when: false
 
 - name: PowerScale | Cleanup complete
   ansible.builtin.debug:

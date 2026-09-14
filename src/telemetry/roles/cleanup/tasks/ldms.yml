@@ -207,6 +207,7 @@
   loop: "{{ ldms_helm_releases }}"
   register: _ldms_helm_release_checks
   changed_when: false
+  failed_when: false
 
 - name: LDMS | Delete existing Helm releases
   ansible.builtin.command:
@@ -221,6 +222,7 @@
     label: "{{ item.item }}"
   when: item.stdout_lines | default([]) | length > 0
   changed_when: true
+  failed_when: false
 
 - name: LDMS | Wait for Helm resources to terminate
   ansible.builtin.pause:
@@ -229,53 +231,53 @@
 - name: LDMS | Delete StatefulSets
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete statefulset {{ item }}
-    --ignore-not-found=true --wait=false
+    --ignore-not-found=true --wait=false --timeout=30s --request-timeout=15s
   loop: "{{ ldms_statefulset_resources }}"
-  changed_when: false
+  failed_when: false
 
 - name: LDMS | Delete Services
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete service {{ item }}
-    --ignore-not-found=true --wait=false
+    --ignore-not-found=true --wait=false --timeout=30s --request-timeout=15s
   loop: "{{ ldms_service_resources }}"
-  changed_when: false
+  failed_when: false
 
 - name: LDMS | Delete named ConfigMaps
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete configmap {{ item }}
-    --ignore-not-found=true --wait=false
+    --ignore-not-found=true --wait=false --timeout=30s
   loop: "{{ ldms_configmap_resources }}"
-  changed_when: false
+  failed_when: false
 
 - name: LDMS | Delete ConfigMaps by label
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete configmap -l {{ ldms_configmap_label }}
-    --ignore-not-found=true --wait=false
-  changed_when: false
+    --ignore-not-found=true --wait=false --timeout=30s --request-timeout=15s
+  failed_when: false
 
 - name: LDMS | Delete Secrets
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+    --ignore-not-found=true --wait=false --timeout=30s --request-timeout=15s
   loop: "{{ ldms_secret_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
-  changed_when: false
+  failed_when: false
 
 - name: LDMS | Delete PVCs
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pvc -l {{ ldms_pvc_label }}
-    --ignore-not-found=true --wait=false
-  changed_when: false
+    --ignore-not-found=true --wait=false --timeout=30s --request-timeout=15s
   when: _cleanup_delete_volume_enabled | bool
+  failed_when: false
 
 - name: LDMS | Force delete pods
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pod -l {{ item }}
-    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
+    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true --timeout=15s --request-timeout=10s
   loop: "{{ ldms_pod_labels }}"
-  changed_when: false
   when: _cleanup_delete_volume_enabled | bool
+  failed_when: false
 
 - name: LDMS | Wait for pods to terminate
   ansible.builtin.command: >
@@ -285,8 +287,9 @@
   register: _ldms_pod_wait
   changed_when: false
   until: _ldms_pod_wait.stdout | trim | length == 0
-  retries: "{{ cleanup_custom_resource_retries }}"
-  delay: "{{ cleanup_custom_resource_delay }}"
+  retries: 6
+  delay: 5
+  failed_when: false
 
 - name: LDMS | Wait for PVCs to terminate
   ansible.builtin.command: >
@@ -295,24 +298,25 @@
   register: _ldms_pvc_wait
   changed_when: false
   until: _ldms_pvc_wait.stdout | trim | length == 0
-  retries: "{{ cleanup_custom_resource_retries }}"
-  delay: "{{ cleanup_custom_resource_delay }}"
+  retries: 6
+  delay: 5
   when: _cleanup_delete_volume_enabled | bool
+  failed_when: false
 
 - name: LDMS | Delete Vector-LDMS bridge resources
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+    --ignore-not-found=true --wait=false --timeout=30s
   loop: "{{ vector_ldms_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
-  changed_when: false
+  failed_when: false
 
 - name: LDMS | Force delete Vector-LDMS pods
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pod -l {{ vector_ldms_pod_label }}
-    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
-  changed_when: false
+    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true --timeout=15s
+  failed_when: false
 
 - name: LDMS | K8s cleanup complete
   ansible.builtin.debug:
@@ -425,7 +429,7 @@
           ldms_sampler_service_name in
           ((item.ansible_facts | default({})).services | default({}))
           or (ldms_sampler_service_name ~ '.service') in
-             ((item.ansible_facts | default({})).services | default({}))
+             ((item.ansible_facts | default({})).services | default({}})
       register: _ldms_sampler_disable_results
       ignore_unreachable: true
 

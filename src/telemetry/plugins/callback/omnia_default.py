@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 
 from ansible import constants as C  # pylint: disable=no-name-in-module
 from ansible.plugins.callback.default import CallbackModule as DefaultCallback
@@ -75,6 +76,7 @@ class CallbackModule(DefaultCallback):  # pylint: disable=too-many-ancestors
     def __init__(self):
         super().__init__()
         self._patched = False
+        self._task_start_times = {}
 
     def _patch_display(self):
         """Monkey-patch Display.display to drop [ERROR] context blocks."""
@@ -101,6 +103,20 @@ class CallbackModule(DefaultCallback):  # pylint: disable=too-many-ancestors
         """Ensure patch is active before the first play."""
         self._patch_display()
         super().v2_playbook_on_play_start(play)
+
+    def v2_playbook_on_task_start(self, task, is_conditional):
+        """Track task start time for timeout monitoring."""
+        self._patch_display()
+        task_name = task.get_name()
+        self._task_start_times[task_name] = time.time()
+        super().v2_playbook_on_task_start(task, is_conditional)
+
+    def v2_playbook_on_handler_task_start(self, task):
+        """Track handler task start time for timeout monitoring."""
+        self._patch_display()
+        task_name = task.get_name()
+        self._task_start_times[task_name] = time.time()
+        super().v2_playbook_on_handler_task_start(task)
 
     def _format_result_msg(self, result_dict):
         """
@@ -161,6 +177,35 @@ class CallbackModule(DefaultCallback):  # pylint: disable=too-many-ancestors
         if ignore_errors:
             color_skip = getattr(C, "COLOR_SKIP", "cyan")
             self._display.display("...ignoring", color=color_skip)
+
+        # Check for long-running task
+        task_name = result._task.get_name()
+        if task_name in self._task_start_times:
+            duration = time.time() - self._task_start_times[task_name]
+            if duration > 300:  # 5 minutes
+                color_warn = getattr(C, "COLOR_WARN", "yellow")
+                self._display.display(
+                    f"WARNING: Task '{task_name}' took {duration:.1f} seconds to complete",
+                    color=color_warn,
+                )
+            del self._task_start_times[task_name]
+        # pylint: enable=protected-access
+
+    def v2_runner_on_ok(self, result):
+        """Track successful task completion and check for long-running tasks."""
+        # pylint: disable=protected-access
+        self._patch_display()
+        task_name = result._task.get_name()
+        if task_name in self._task_start_times:
+            duration = time.time() - self._task_start_times[task_name]
+            if duration > 300:  # 5 minutes
+                color_warn = getattr(C, "COLOR_WARN", "yellow")
+                self._display.display(
+                    f"INFO: Task '{task_name}' took {duration:.1f} seconds to complete",
+                    color=color_warn,
+                )
+            del self._task_start_times[task_name]
+        super().v2_runner_on_ok(result)
         # pylint: enable=protected-access
 
     def v2_playbook_on_stats(self, stats):
