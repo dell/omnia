@@ -1,9 +1,9 @@
 ---
 galaxy_info:
-  role_name: slurm_config_rollback
+  role_name: slurm_config_common
   namespace: omnia
   author: Dell Technologies Omnia Team
-  description: Rollback Slurm configuration files from previous backups
+  description: Shared setup for Slurm config backup/cleanup/rollback utilities
   company: Dell Technologies
 
   license: Apache-2.0
@@ -18,7 +18,7 @@ galaxy_info:
   galaxy_tags:
     - hpc
     - slurm
-    - rollback
+    - backup
     - configuration
     - recovery
 

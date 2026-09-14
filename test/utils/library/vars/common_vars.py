@@ -70,6 +70,9 @@ INSTALL_OS_CREDENTIALS_FILE = "install_os_credentials.yml"
 # OIM log backup input file (optional)
 BACKUP_OIM_LOGS_CONFIG_FILE = "backup_oim_logs_config.yml"
 
+# Slurm config util input file (optional)
+SLURM_CONFIG_UTIL_CONFIG_FILE = "slurm_config_util_config.yml"
+
 # =============================================================================
 # PLAYBOOK CONFIGURATION (module-specific)
 #============================================================================
@@ -79,6 +82,8 @@ PLAYBOOK_UTILS = "playbooks/utils.yml"
 PLAYBOOK_COLLECT = "playbooks/collect.yml"
 PLAYBOOK_INSTALL_OS = "playbooks/install_os.yml"
 PLAYBOOK_BACKUP_OIM_LOGS = "playbooks/backup_oim_logs/backup_oim_logs.yml"
+PLAYBOOK_SLURM_CONFIG_UTIL = "playbooks/slurm_config_util/slurm_config_util.yml"
+PLAYBOOK_CLEANUP_SLURM_CONFIG_UTIL = "playbooks/slurm_config_util/cleanup_slurm_config_util.yml"
 PLAYBOOK_WORKDIR = "src/utils"
 
 # Valid playbook tags for collect.yml
@@ -104,6 +109,20 @@ BACKUP_OIM_LOGS_TAGS = [
     "bundle",
 ]
 
+# Valid playbook tags for slurm_config_util.yml
+SLURM_CONFIG_UTIL_TAGS = [
+    "config_backup",
+    "slurm_cleanup",
+    "config_rollback",
+]
+
+# Directories present in every Slurm config backup
+SLURM_CONFIG_BACKUP_DIRECTORIES = [
+    "etc/slurm",
+    "etc/munge",
+    "etc/my.cnf.d",
+]
+
 # Valid playbook tags for utils.yml (main entry point)
 UTILS_PLAYBOOK_TAGS = [
     "precheck",
@@ -115,6 +134,10 @@ UTILS_PLAYBOOK_TAGS = [
     "cleanup_logs",
     "cleanup_install_os",
     "cleanup_backup_oim_logs",
+    "config_backup",
+    "slurm_cleanup",
+    "config_rollback",
+    "cleanup_slurm_config_util",
 ]
 
 # Domains backed up by backup_oim_logs.yml when no config file selection is supplied

@@ -115,6 +115,8 @@ def pytest_configure(config):
         "install_os": "OS installation tests",
         "backup_oim_logs": "OIM log backup tests",
         "cleanup_backup_oim_logs": "OIM log backup cleanup tests",
+        "slurm_config_util": "Slurm config backup/cleanup/rollback tests",
+        "cleanup_slurm_config_util": "Slurm config backup cleanup tests",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")

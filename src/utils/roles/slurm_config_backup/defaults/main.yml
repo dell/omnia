@@ -1,4 +1,3 @@
 ---
-
-slurm_share_dir_name: slurm
-slurm_backups_dir_name: slurm_backups
+# Optional: skip the interactive prompt by pre-setting this var
+# backup_base_name: ""

@@ -1,48 +1,53 @@
 # slurm_config_backup
 
-Creates backups of Slurm configuration files for recovery and rollback operations.
+Creates a timestamped backup of the active Slurm controller configuration
+(`etc/slurm`, `etc/munge`, `etc/my.cnf.d`) from the Slurm NFS share.
 
 ## Description
 
-This role creates timestamped backups of Slurm configuration files including slurm.conf, slurmdbd.conf, and other critical configuration files. It supports incremental backups and configurable retention policies.
-
-## Requirements
-
-- Slurm installation on target nodes
-- Sufficient disk space for backup storage
-- Read access to Slurm configuration directories
+Includes `slurm_config_common` to resolve the Slurm controller and the
+backup destination, prompts for an optional backup name, copies the
+controller's config directories into a new timestamped backup directory, and
+writes a `metadata.json` manifest (with SHA256 checksums of every backed-up
+file) alongside it.
 
 ## Role Variables
 
-Available variables are listed below, along with default values (see `defaults/main.yml`):
+See `slurm_config_common/defaults/main.yml` and `vars/main.yml` for path
+resolution. Role-local:
 
 ```yaml
-# Backup configuration
-backup_dir: "/opt/omnia/backups/slurm"
-backup_retention_days: 30
-compress_backups: true
+# Optional: pre-set to skip the interactive "backup base name" prompt
+backup_base_name: ""
+```
 
-# Source paths
-slurm_conf_dir: "/etc/slurm"
-slurmdbd_conf_file: "/etc/slurm/slurmdbd.conf"
-include_logs: false
+## Backup Output
+
+```
+{slurm_backups_root}/{backup_base_name}_{timestamp}/     # or {timestamp}/ if no base name
+├── {controller_hostname}/
+│   ├── etc/slurm/
+│   ├── etc/munge/
+│   └── etc/my.cnf.d/
+└── metadata.json
 ```
 
 ## Dependencies
 
-None.
+- `slurm_config_common` (included automatically)
 
 ## Example Playbook
 
 ```yaml
-- hosts: slurm_controllers
-  become: true
+- hosts: localhost
+  gather_facts: true
   roles:
     - role: slurm_config_backup
-      vars:
-        backup_dir: "/opt/omnia/backups/slurm"
-        backup_retention_days: 60
-        compress_backups: true
+```
+
+```bash
+cd src/utils
+ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags config_backup
 ```
 
 ## License
