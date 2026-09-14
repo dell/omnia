@@ -28,6 +28,15 @@
     state: absent
   loop: "{{ pulp_legacy_deployment_paths }}"
 
+- name: Render Pulp nginx proxy timeout override
+  ansible.builtin.template:
+    src: nginx_proxy_timeouts.conf.j2
+    dest: "{{ deploy_pulp_nginx_timeout_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  register: deploy_pulp_nginx_timeout_render
+
 - name: Prepare persistent Pulp secret key
   ansible.builtin.include_tasks: prepare_secret.yml
 
@@ -64,6 +73,7 @@
     state: >-
       {{ 'restarted'
          if ((_pulp_settings_render.changed | default(false)) or
+             (deploy_pulp_nginx_timeout_render.changed | default(false)) or
              (_pulp_quadlet_render.changed | default(false)) or
              (_pulp_certificate_generation.changed | default(false)))
          else 'started' }}

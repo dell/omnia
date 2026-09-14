@@ -34,7 +34,10 @@ import os
 import csv
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.repo_manager.standard_logger import secure_log_file
+from ansible.module_utils.repo_manager.standard_logger import (
+    SecureFileHandler,
+    secure_log_file,
+)
 
 DOCUMENTATION = r"""
 ---
@@ -62,6 +65,11 @@ options:
       description: Shared repository subscription decision
       required: false
       type: bool
+    subscription_repository_ids:
+      description: Repo IDs discovered by the shared RHSM inventory check
+      required: false
+      type: list
+      elements: str
     catalog_execution_contexts:
       description: Ordered catalog contexts resolved by Repo Manager setup
       required: false
@@ -176,12 +184,13 @@ def createlogger(project_name, log_dir, tag_name=None):
         log_filename = f"validation_omnia_{project_name}.log"
 
     log_file_path = os.path.join(log_dir, log_filename)
-    secure_log_file(log_file_path)
-    logging.basicConfig(
-        filename=log_file_path,
-        format="%(asctime)s %(message)s",
-        filemode="w"
-    )
+    root_logger = logging.getLogger()
+    if root_logger.handlers:
+        secure_log_file(log_file_path)
+    else:
+        file_handler = SecureFileHandler(log_file_path, mode="w")
+        file_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+        root_logger.addHandler(file_handler)
     logger = logging.getLogger(tag_name if tag_name else project_name)
     logger.setLevel(logging.DEBUG)
     return logger
@@ -205,6 +214,10 @@ def main():
         "module_utils_path": {"type": "str"},
         "csv_file_path": {"type": "str", "required": False},
         "subscription_enabled": {"type": "bool", "required": False},
+        "subscription_repository_ids": {
+            "type": "list", "elements": "str", "required": False,
+            "default": [],
+        },
         "catalog_execution_contexts": {
             "type": "list", "elements": "dict", "required": False,
             "default": [],

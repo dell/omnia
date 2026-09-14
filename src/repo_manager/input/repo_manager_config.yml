@@ -32,6 +32,7 @@
 # | gpgkey         | No        | GPG key URL for package verification                     |
 # | policy         | No        | Sync policy: always | partial (default: from repo_config) |
 # | caching        | No        | Local caching: true | false (default: true)               |
+# | standard       | No        | true: standard only; false: EUS first, standard fallback |
 # | sslcacert      | No        | Path to SSL CA certificate                               |
 # | sslclientkey   | No        | Path to SSL client key (mTLS)                            |
 # | sslclientcert  | No        | Path to SSL client certificate (mTLS)                    |
@@ -63,7 +64,15 @@
 #    Their mapped repository must not resolve to the streamed policy; keep
 #    caching enabled globally or override that repository with caching: true.
 #
-# 3. registries
+# 3. standard
+# --------------------------
+#    Optional RHEL subscription channel selector. When absent or false, Repo
+#    Manager prefers EUS and falls back to standard. When true, only a standard
+#    repository is accepted. A repository-level standard value overrides this
+#    global value, and a non-empty explicit URL always has highest priority.
+#    The key is intentionally absent by default for backward compatibility.
+#
+# 4. registries
 # --------------------------
 #    Container registry configurations.
 #    Format: registry_name → { base_url, port, auth, tls }
@@ -85,7 +94,7 @@
 #        client_key_path : Path to client key (mTLS)
 #        insecure        : true to skip TLS verification (not recommended)
 #
-# 3. repositories
+# 5. repositories
 # --------------------------
 #    RPM repository configurations.
 #    Format: version → architecture → repo_name → { url, gpgkey, sslcacert, sslclientkey, sslclientcert }
@@ -98,6 +107,8 @@
 #    Optional per-entry fields:
 #      policy      : Sync policy – allowed values: always, partial (default: from repo_config)
 #      caching     : Local caching – allowed values: true, false (default: true)
+#      standard    : RHEL channel – true selects standard only; false selects
+#                    EUS first with standard fallback (default: global/false)
 #      sslcacert   : Path to SSL CA certificate
 #      sslclientkey: Path to SSL client key
 #      sslclientcert: Path to SSL client certificate
@@ -146,7 +157,7 @@ caching_policy: true    # Options: true (on_demand) | false (immediate)
 registries:
 
 # ------------------------------------------------------------
-# 4. REPOSITORIES
+# 3. REPOSITORIES
 #    RPM repository configurations.
 #    Format: version → architecture → repo_name → { url, gpgkey, sslcacert, sslclientkey, sslclientcert }
 #
@@ -171,13 +182,18 @@ registries:
 #       use custom mirrors. Incorrect changes may cause Omnia failure.
 #   - ADDITIONAL REPOS (optional):
 #       For extra repositories not covered above (e.g. grafana, custom tools).
-#       Packages from these repos must be declared in the catalog.
+#       Packages from these repos must be declared in the catalog. An entitled
+#       RHEL binary RPM repository may use its exact Repo ID from
+#       `subscription-manager repos --list` and an empty URL. Example:
+#         rhel-10-for-x86_64-highavailability-rpms:
+#           url: ""
+#           standard: true
 # ------------------------------------------------------------
 repositories:
   "10.0":
     x86_64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
-      # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
+      # Optional per-repository standard overrides the global setting.
       baseos:
         url: ""
         gpgkey: ""
@@ -283,7 +299,7 @@ repositories:
           priority: 10
     aarch64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
-      # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
+      # Optional per-repository standard overrides the global setting.
       baseos:
         url: ""
         gpgkey: ""

@@ -23,15 +23,19 @@ import json
 import yaml
 import requests
 from cryptography.fernet import Fernet
-from jinja2 import Template
 from ansible.module_utils.repo_manager.common_functions import (
     load_yaml_file,
     load_vault_yaml
 )
-from ansible.module_utils.repo_manager.security_utils import redact_sensitive_value
+from ansible.module_utils.repo_manager.security_utils import (
+    redact_sensitive_value,
+    render_catalog_placeholders,
+)
 from ansible.module_utils.repo_manager.standard_logger import (
+    SecureFileHandler,
     UrlCredentialRedactionFilter,
     secure_log_file,
+    secure_log_stream,
 )
 from ansible.module_utils.repo_manager.registry_utils import resolve_registry_contexts
 # Global lock for logging synchronization
@@ -186,9 +190,7 @@ def log_table_output(table_output, log_file):
         RuntimeError: If there is an error during the file writing process or directory creation.
     """
     try:
-        secure_log_file(log_file)
-        # Write the table output to the log file
-        with open(log_file, "w", encoding="utf-8") as file:
+        with secure_log_stream(log_file, mode="w") as file:
             file.write("Command Execution Results Table:\n")  # Add a header to the table
             file.write(table_output)  # Write the actual table content
     except Exception as error:
@@ -204,20 +206,22 @@ def setup_logger(log_dir, log_file_path):
     Returns:
         logging.Logger: The configured logger instance.
     """
-    secure_log_file(log_file_path)
     logger = logging.getLogger(log_file_path)  # Create a logger with the provided log file path
     logger.setLevel(logging.INFO)  # Set the log level to INFO
     # Check if the logger already has handlers to avoid duplicate log entries
     if not logger.hasHandlers():
-        # Create a file handler to write logs to the specified file
-        file_handler = logging.FileHandler(log_file_path)
+        file_handler = SecureFileHandler(log_file_path)
         file_handler.addFilter(UrlCredentialRedactionFilter())
         # Define the format for log messages
-        formatter = logging.Formatter('%(asctime)s - %(levelname)-7s - [%(filename)s] - %(message)s')
+        formatter = logging.Formatter(
+            '%(asctime)s - %(levelname)-7s - [%(filename)s] - %(message)s'
+        )
         # Apply the formatter to the file handler
         file_handler.setFormatter(formatter)
         # Add the file handler to the logger
         logger.addHandler(file_handler)
+    else:
+        secure_log_file(log_file_path)
     return logger
 
 
@@ -496,8 +500,11 @@ def execute_parallel(
     deduplicated_tasks = []
     for task in tasks:
         rendered_task = dict(task)
-        package_template = Template(rendered_task.get("package") or "")
-        rendered_task["package"] = package_template.render(**version_variables)
+        rendered_task["package"] = render_catalog_placeholders(
+            rendered_task.get("package") or "",
+            version_variables,
+            "package name",
+        )
         package_key = _task_identity(rendered_task)
 
         if package_key not in seen_packages:

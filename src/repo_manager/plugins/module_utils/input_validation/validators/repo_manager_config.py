@@ -55,6 +55,9 @@ from ansible.module_utils.repo_manager.repo_settings import (
     SUBSCRIPTION_REPOSITORIES,
     iterate_all_repos,
 )
+from ansible.module_utils.repo_manager.rhel_subscription import (
+    subscription_can_supply,
+)
 from ansible.module_utils.repo_manager.security_utils import (
     redact_url_credentials,
     validate_repository_url,
@@ -93,6 +96,13 @@ def validate(
             f"caching_policy must be a boolean, got {type(caching_policy).__name__}"
         ))
 
+    standard = data.get("standard")
+    if standard is not None and not isinstance(standard, bool):
+        errors.append(create_error_msg(
+            repo_manager_config_yml, "standard",
+            f"standard must be a boolean, got {type(standard).__name__}"
+        ))
+
     # Load catalog content for source validation, but consume the execution
     # contexts and subscription decision already resolved by orchestration.
     # Validation must never perform a second subscription check.
@@ -103,6 +113,9 @@ def validate(
     module_params = getattr(module, "params", {}) or {}
     execution_contexts = module_params.get("catalog_execution_contexts")
     subscription_enabled = module_params.get("subscription_enabled")
+    subscription_repository_ids = module_params.get(
+        "subscription_repository_ids", []
+    )
     if not isinstance(execution_contexts, list) or not execution_contexts:
         errors.append(create_error_msg(
             "catalog_execution_contexts", "",
@@ -113,6 +126,12 @@ def validate(
         errors.append(create_error_msg(
             "subscription_enabled", "",
             "Resolved subscription status was not provided"
+        ))
+        return errors
+    if not isinstance(subscription_repository_ids, list):
+        errors.append(create_error_msg(
+            "subscription_repository_ids", "",
+            "Resolved subscription repository inventory was not provided"
         ))
         return errors
     for execution_context in execution_contexts:
@@ -171,6 +190,7 @@ def validate(
         errors.extend(_validate_catalog_repo_mapping(
             data, cluster_os_version, selected_architectures, logger,
             omnia_base_dir, subscription_enabled, catalogs=catalogs,
+            subscription_repository_ids=subscription_repository_ids,
             referenced_repositories=execution_context.get(
                 "referenced_repositories", {}
             )
@@ -490,6 +510,7 @@ def _effective_repo_download_policy(config_data, repo_config):
 def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
                                    logger, _omnia_base_dir,
                                    subscription_enabled=False, catalogs=None,
+                                   subscription_repository_ids=None,
                                    referenced_repositories=None):
     """
     Validate that all catalog package reponame entries have corresponding repositories
@@ -503,6 +524,7 @@ def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
         _omnia_base_dir (str): Base directory for catalog path (unused).
         subscription_enabled (bool): Shared subscription decision.
         catalogs (list): Loaded catalog documents.
+        subscription_repository_ids (list): Shared RHSM Repo ID inventory.
         referenced_repositories (dict): Authoritative catalog-selected
             repository names by architecture. When omitted, names are derived
             for direct helper compatibility.
@@ -526,6 +548,7 @@ def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
         configured_repos[arch] = _collect_repo_configs(repos_section)
 
     base_subscription_repos = set(SUBSCRIPTION_REPOSITORIES)
+    entitled_repo_ids = set(subscription_repository_ids or [])
     selected_repos_by_arch = {
         arch: set((referenced_repositories or {}).get(arch, []))
         for arch in all_archs
@@ -566,12 +589,20 @@ def _validate_catalog_repo_mapping(config_data, cluster_os_version, all_archs,
     # Apply mapping and URL rules once per referenced repository. In
     # non-subscription mode every selected RPM repository, including BaseOS,
     # AppStream and CodeReady Builder, requires an explicit URL. Subscription
-    # mode exempts only those exact three names when discovery will supply them.
+    # mode exempts the three backward-compatible logical names and exact
+    # entitled Repo IDs when discovery can supply them.
     for arch in all_archs:
         for reponame in sorted(selected_repos_by_arch.get(arch, set())):
             repo_config = configured_repos.get(arch, {}).get(reponame)
             subscription_provides_repo = (
-                subscription_enabled and reponame in base_subscription_repos
+                subscription_enabled
+                and subscription_can_supply(
+                    reponame,
+                    arch,
+                    cluster_os_version,
+                    entitled_repo_ids,
+                    builtin_repositories=base_subscription_repos,
+                )
             )
             if repo_config is None:
                 if not subscription_provides_repo:
