@@ -69,7 +69,7 @@
           kube_vip is required. Ensure you have set cluster_inventory in
           telemetry_config.yml to point to the orchestrator inventory file
           (e.g., $OMNIA_DATA_PATH/telemetry/input/$OMNIA_PROJECT_NAME/cluster_inventory.yml).
-          Run orchestrator.yml first to generate the inventory files.
+          or run orchestrator.yml first to generate the inventory files.
 
     - name: Add kube_vip to in-memory inventory
       ansible.builtin.add_host:
