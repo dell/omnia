@@ -236,10 +236,21 @@ def pytest_collection_modifyitems(session, config, items):
 # =============================================================================
 
 def _apply_dataset_overrides(config):
-    """Apply dataset/sync overrides from environment variables."""
+    """Apply dataset/sync overrides from environment variables.
+
+    Environment variables (set by run_validation.sh --config mode):
+      OMNIA_DATASET_OVERRIDE      — override config["dataset"]
+      OMNIA_SYNC_INPUT_OVERRIDE   — override config["sync_telemetry_input"]
+
+    Args:
+        config: Test configuration dict from load_test_config().
+
+    Returns:
+        dict: Updated config dict (mutated in place).
+    """
     ds_override = os.environ.get("OMNIA_DATASET_OVERRIDE", "")
     if ds_override:
-        log(f"Dataset override: {config.get('dataset')} -> {ds_override}", "INFO")
+        log(f"Dataset override: {config.get('dataset')} → {ds_override}", "INFO")
         config["dataset"] = ds_override
 
     si_override = os.environ.get("OMNIA_SYNC_INPUT_OVERRIDE", "")
@@ -290,7 +301,7 @@ def pytest_sessionstart(session):
             log(f"Project sync failed: {sync_result['error']}", "WARN")
 
     if config.get("sync_telemetry_input", False):
-        sync_result = sync_telemetry_input(host)
+        sync_result = sync_telemetry_input(host, config)
         if sync_result["success"]:
             log(sync_result["details"], "OK")
         else:

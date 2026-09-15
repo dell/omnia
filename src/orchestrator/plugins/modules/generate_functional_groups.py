@@ -314,8 +314,13 @@ def render_yaml_with_comments(data):
         lines.extend([
             f"  - name: \"{functional_group['name']}\"",
             f"    cluster_name: \"{functional_group['cluster_name']}\"",
-            "    group:",
         ])
+        if functional_group.get("category") is not None:
+            lines.extend([
+                f"    category: \"{functional_group['category']}\"",
+                f"    layer: \"{functional_group['layer']}\"",
+            ])
+        lines.append("    group:")
         lines.extend(
             f"      - {group_name}"
             for group_name in sorted(set(functional_group["group"]))

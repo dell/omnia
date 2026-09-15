@@ -67,6 +67,12 @@ COLLECT_PXE_FILE = "collect_pxe.yml"
 INSTALL_OS_CONFIG_FILE = "install_os_config.yml"
 INSTALL_OS_CREDENTIALS_FILE = "install_os_credentials.yml"
 
+# OIM log backup input file (optional)
+BACKUP_OIM_LOGS_CONFIG_FILE = "backup_oim_logs_config.yml"
+
+# Slurm config util input file (optional)
+SLURM_CONFIG_UTIL_CONFIG_FILE = "slurm_config_util_config.yml"
+
 # =============================================================================
 # PLAYBOOK CONFIGURATION (module-specific)
 #============================================================================
@@ -75,6 +81,9 @@ INSTALL_OS_CREDENTIALS_FILE = "install_os_credentials.yml"
 PLAYBOOK_UTILS = "playbooks/utils.yml"
 PLAYBOOK_COLLECT = "playbooks/collect.yml"
 PLAYBOOK_INSTALL_OS = "playbooks/install_os.yml"
+PLAYBOOK_BACKUP_OIM_LOGS = "playbooks/backup_oim_logs/backup_oim_logs.yml"
+PLAYBOOK_SLURM_CONFIG_UTIL = "playbooks/slurm_config_util/slurm_config_util.yml"
+PLAYBOOK_CLEANUP_SLURM_CONFIG_BACKUPS = "playbooks/slurm_config_util/cleanup_slurm_config_backups.yml"
 PLAYBOOK_WORKDIR = "src/utils"
 
 # Valid playbook tags for collect.yml
@@ -94,16 +103,56 @@ INSTALL_OS_TAGS = [
     "generate_ks",
 ]
 
+# Valid playbook tags for backup_oim_logs.yml
+BACKUP_OIM_LOGS_TAGS = [
+    "setup",
+    "bundle",
+]
+
+# Valid playbook tags for slurm_config_util.yml
+SLURM_CONFIG_UTIL_TAGS = [
+    "config_backup",
+    "slurm_cleanup",
+    "config_rollback",
+]
+
+# Directories present in every Slurm config backup
+SLURM_CONFIG_BACKUP_DIRECTORIES = [
+    "etc/slurm",
+    "etc/munge",
+    "etc/my.cnf.d",
+]
+
 # Valid playbook tags for utils.yml (main entry point)
 UTILS_PLAYBOOK_TAGS = [
     "precheck",
     "setup",
     "collect",
     "install_os",
+    "backup_oim_logs",
     "cleanup",
     "cleanup_logs",
     "cleanup_install_os",
+    "cleanup_backup_oim_logs",
+    "slurm_config_backup",
+    "slurm_config_cleanup",
+    "slurm_config_rollback",
+    "cleanup_slurm_config_backups",
 ]
+
+# Domains backed up by backup_oim_logs.yml when no config file selection is supplied
+BACKUP_ALL_DOMAINS = [
+    "repo_manager",
+    "image_build_manager",
+    "orchestrator",
+    "discovery",
+    "telemetry",
+    "build_stream",
+    "utils",
+]
+
+# OIM log backup bundle naming pattern
+BACKUP_BUNDLE_PATTERN = r"omnia_oim_logs_\d{8}-\d{6}\.tar\.gz"
 
 # =============================================================================
 # SHARED PATH DEFAULTS (runtime output on target host)

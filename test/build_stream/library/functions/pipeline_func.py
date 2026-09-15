@@ -23,10 +23,15 @@ import json
 import sys
 import time
 import base64
+import csv
 import datetime
+import io
+import os
+import re
+from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Dict, List, Optional
 
-from omnia_auto import load_test_config, run_on_host
+from omnia_auto import load_test_config, read_remote_yaml, run_on_host
 
 from library.vars.common_vars import (
     BSM_HEALTH_PATH,
@@ -37,19 +42,16 @@ from library.vars.common_vars import (
     BUILD_STREAM_CREDENTIALS_FILE,
     BUILD_STREAM_CREDENTIALS_KEY,
     BUILD_PIPELINE_ONLY_STAGES,
-    CATALOG_DEFAULT_FILENAME,
     CATALOG_FILE_PATH,
     CMDS,
     GITLAB_API_VERSION,
     GITLAB_ROOT_TOKEN_FILE,
+    GITLAB_SSH_PRIVATE_KEY,
     IMAGE_GROUP_STATUS_BUILT,
-    IMAGE_GROUP_STATUS_CLEANED,
     JOB_WAIT_TIMEOUT,
     NFS_ARTIFACT_BASE_DEFAULT,
     PIPELINE_POLL_INTERVAL,
     PIPELINE_POLL_TIMEOUT,
-    PIPELINE_TYPE_BUILD,
-    PIPELINE_TYPE_KEY,
     POSTGRES_CONTAINER_NAME,
     POSTGRES_DB_NAME,
     POSTGRES_USER,
@@ -61,8 +63,12 @@ from library.vars.common_vars import (
     STAGE_POLL_TIMEOUT,
     STAGE_STATE_COMPLETED,
     STAGE_STATE_FAILED,
-    STAGE_STATE_RUNNING,
     GITLAB_CI_BUILD_STAGES,
+    PXE_MAPPING_FILE_PATH,
+)
+from ._config_helpers import (
+    resolve_build_stream_input_path,
+    resolve_omnia_data_path,
 )
 
 
@@ -79,20 +85,16 @@ def _get_gitlab_config(host) -> Dict[str, str]:
     Returns:
         Dict of configuration key-value pairs.
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    data_path = config.get("shared_path", "/opt/omnia/build_stream")
-    config_path = f"{data_path}/input/{project}/{BUILD_STREAM_CONFIG_FILE}"
-
-    cmd = CMDS["cat_file"].format(path=config_path)
-    result = run_on_host(host, cmd)
+    config_path = (
+        f"{resolve_build_stream_input_path(host)}/{BUILD_STREAM_CONFIG_FILE}"
+    )
 
     values = {"_config_path": config_path}
-    if result.rc == 0 and result.stdout.strip():
-        for line in result.stdout.strip().split("\n"):
-            if ":" in line and not line.strip().startswith("#"):
-                key, _, val = line.partition(":")
-                values[key.strip()] = val.strip().strip('"').strip("'")
+    try:
+        config = read_remote_yaml(host, config_path)
+    except (OSError, RuntimeError, ValueError):
+        return values
+    values.update({key: str(value) for key, value in config.items()})
     return values
 
 
@@ -114,11 +116,9 @@ def load_server_credentials(host) -> Dict[str, str]:
     if _server_creds_cache:
         return dict(_server_creds_cache)
 
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    data_path = config.get("shared_path", "/opt/omnia/build_stream")
-    creds_path = f"{data_path}/input/{project}/{BUILD_STREAM_CREDENTIALS_FILE}"
-    key_path = f"{data_path}/input/{project}/{BUILD_STREAM_CREDENTIALS_KEY}"
+    input_path = resolve_build_stream_input_path(host)
+    creds_path = f"{input_path}/{BUILD_STREAM_CREDENTIALS_FILE}"
+    key_path = f"{input_path}/{BUILD_STREAM_CREDENTIALS_KEY}"
 
     creds: Dict[str, str] = {"_path": creds_path}
 
@@ -197,19 +197,6 @@ def check_server_credentials(host) -> Dict[str, Any]:
     return result
 
 
-def _get_gitlab_ssh_password(host) -> str:
-    """Load gitlab_ssh_password from server credentials file.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Password string, or empty string if not found.
-    """
-    creds = load_server_credentials(host)
-    return creds.get("gitlab_ssh_password", "")
-
-
 def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
     """Run a command on the GitLab server via SSH from OIM.
 
@@ -225,27 +212,23 @@ def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
     if not gitlab_host:
         return {"success": False, "stdout": "", "error": "gitlab_host not configured"}
 
-    ssh_cmd = CMDS["ssh_to_gitlab"].format(gitlab_host=gitlab_host, cmd=cmd)
+    ssh_cmd = CMDS["ssh_to_gitlab"].format(
+        identity_file=GITLAB_SSH_PRIVATE_KEY,
+        gitlab_host=gitlab_host,
+        cmd=cmd,
+    )
     result = run_on_host(host, ssh_cmd)
 
     if result.rc == 0:
         return {"success": True, "stdout": result.stdout or "", "error": ""}
 
-    password = _get_gitlab_ssh_password(host)
-    if password:
-        sshpass_cmd = CMDS["sshpass_to_gitlab"].format(
-            password=password, gitlab_host=gitlab_host, cmd=cmd,
-        )
-        result = run_on_host(host, sshpass_cmd)
-        if result.rc == 0:
-            return {"success": True, "stdout": result.stdout or "", "error": ""}
-        return {
-            "success": False, "stdout": result.stdout or "",
-            "error": f"SSH to {gitlab_host} failed (rc={result.rc})",
-        }
     return {
-        "success": False, "stdout": "",
-        "error": f"SSH to {gitlab_host} failed (key-based auth rejected)",
+        "success": False,
+        "stdout": result.stdout or "",
+        "error": (
+            f"SSH to {gitlab_host} failed (rc={result.rc}); "
+            "verify the Build Stream GitLab SSH key registration"
+        ),
     }
 
 
@@ -263,6 +246,8 @@ def _get_gitlab_root_token(host) -> Dict[str, Any]:
     )
     if ssh_result["success"] and ssh_result["stdout"].strip():
         return {"success": True, "token": ssh_result["stdout"].strip(), "error": ""}
+    if not ssh_result["success"]:
+        return {"success": False, "token": "", "error": ssh_result["error"]}
     return {"success": False, "token": "", "error": "Root token not found"}
 
 
@@ -609,6 +594,7 @@ def wait_for_pipeline_triggered(
     timeout: int = PIPELINE_POLL_TIMEOUT,
     poll_interval: int = PIPELINE_POLL_INTERVAL,
     log_callback: Optional[Callable] = None,
+    commit_id: str = "",
 ) -> Dict[str, Any]:
     """Wait until a new pipeline appears in GitLab after the initial one.
 
@@ -618,6 +604,7 @@ def wait_for_pipeline_triggered(
         timeout: Max seconds to wait.
         poll_interval: Seconds between polls.
         log_callback: Optional logging callback.
+        commit_id: Optional commit SHA that the new pipeline must match.
 
     Returns:
         Dict with keys: success, pipeline_id, status, elapsed, error.
@@ -634,12 +621,20 @@ def wait_for_pipeline_triggered(
     start = time.time()
     while time.time() - start < timeout:
         elapsed = int(time.time() - start)
-        pipelines = list_pipelines(host, per_page=5)
+        pipelines = list_pipelines(host, per_page=20)
         if pipelines["success"] and pipelines["pipelines"]:
-            latest = pipelines["pipelines"][0]
-            if latest.get("id", 0) > initial_pipeline_id:
-                result["pipeline_id"] = latest["id"]
-                result["status"] = latest.get("status", "")
+            matches = [
+                pipeline for pipeline in pipelines["pipelines"]
+                if pipeline.get("id", 0) > initial_pipeline_id
+                and (
+                    not commit_id
+                    or pipeline.get("sha", "") == commit_id
+                )
+            ]
+            if matches:
+                matched = max(matches, key=lambda pipeline: pipeline["id"])
+                result["pipeline_id"] = matched["id"]
+                result["status"] = matched.get("status", "")
                 result["elapsed"] = elapsed
                 result["success"] = True
                 return result
@@ -647,7 +642,8 @@ def wait_for_pipeline_triggered(
         time.sleep(poll_interval)
 
     result["elapsed"] = int(time.time() - start)
-    result["error"] = f"No new pipeline after {timeout}s"
+    commit_detail = f" for commit {commit_id[:12]}" if commit_id else ""
+    result["error"] = f"No new pipeline{commit_detail} after {timeout}s"
     return result
 
 
@@ -896,9 +892,6 @@ def get_catalog_content(host) -> Dict[str, Any]:
     """
     result = {"success": False, "content": "", "catalog_file": "", "error": ""}
 
-    config = load_test_config()
-    catalog_name = config.get("catalog_name", "") or CATALOG_DEFAULT_FILENAME
-
     api_base = _get_gitlab_api_base(host)
     if not api_base["success"]:
         result["error"] = api_base["error"]
@@ -939,9 +932,10 @@ def get_catalog_content(host) -> Dict[str, Any]:
 # PIPELINE TRIGGER FUNCTIONS
 # =============================================================================
 
-def trigger_build_pipeline_auto(
+def trigger_build_pipeline_auto(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     host, log_callback: Optional[Callable] = None,
     initial_pipeline_id: int = 0,
+    initial_job_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Wait for the build pipeline triggered by the prior catalog push.
 
@@ -963,6 +957,8 @@ def trigger_build_pipeline_auto(
         log_callback: Optional logging callback.
         initial_pipeline_id: Pipeline ID recorded before the catalog
             push (0 = adopt the latest pipeline).
+        initial_job_id: Latest BSM job ID recorded before the catalog
+            push. The first different job is the job created by this run.
 
     Returns:
         Dict with keys: success, pipeline_id, job_id, details, error.
@@ -987,12 +983,32 @@ def trigger_build_pipeline_auto(
 
     all_pipelines = pipelines.get("pipelines", [])
     if not all_pipelines:
-        result["error"] = "No pipelines found in GitLab"
-        return result
+        _log("Waiting for the catalog upload to create a pipeline...")
+        wait = wait_for_pipeline_triggered(
+            host, initial_pipeline_id, log_callback=_log,
+        )
+        if not wait["success"]:
+            result["error"] = wait["error"]
+            return result
+        all_pipelines = [{
+            "id": wait["pipeline_id"],
+            "status": wait["status"],
+        }]
+
+    # Consider only pipelines created after this execution's catalog upload.
+    # Without this filter, an unrelated pipeline that was already running can
+    # be adopted and its job_id can be mistaken for the new build job.
+    candidate_pipelines = [
+        pipeline for pipeline in all_pipelines
+        if (
+            not initial_pipeline_id
+            or pipeline.get("id", 0) > initial_pipeline_id
+        )
+    ]
 
     # Separate running from completed pipelines
     running = [
-        p for p in all_pipelines
+        p for p in candidate_pipelines
         if p.get("status") in (
             "running", "pending", "created", "waiting_for_resource",
         )
@@ -1074,9 +1090,15 @@ def trigger_build_pipeline_auto(
 
     # Wait for BSM job in database
     _log("Waiting for BSM job in database...")
-    old_job = get_latest_job(host)
-    old_job_id = old_job.get("job_id", "") if old_job["success"] else ""
+    if initial_job_id is None:
+        old_job = get_latest_job(host)
+        old_job_id = old_job.get("job_id", "") if old_job["success"] else ""
+    else:
+        old_job_id = initial_job_id
     job_id = _wait_for_new_job(host, old_job_id, log_callback=_log)
+    if not job_id:
+        result["error"] = "No new BSM job was created by the triggered pipeline"
+        return result
     result["job_id"] = job_id
 
     result["success"] = True
@@ -1260,6 +1282,482 @@ def get_image_groups_for_job(host, job_id: str) -> Dict[str, Any]:
             })
     result["image_groups"] = groups
     result["success"] = True
+    return result
+
+
+def resolve_deploy_image_group(
+    host, job_id: str, require_built: bool = False,
+) -> Dict[str, Any]:
+    """Resolve one, and only one, image group mapped to ``job_id``."""
+    result = {
+        "success": False, "job_id": job_id,
+        "image_group_id": "", "status": "", "error": "",
+    }
+    if not re.fullmatch(
+        r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+        r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+        str(job_id),
+    ):
+        result["error"] = "job_id must be a valid UUID"
+        return result
+
+    groups_result = get_image_groups_for_job(host, job_id)
+    if not groups_result["success"]:
+        result["error"] = groups_result["error"]
+        return result
+
+    groups = groups_result["image_groups"]
+    if not groups:
+        result["error"] = f"No image group is mapped to job_id {job_id}"
+        return result
+    if len(groups) != 1:
+        result["error"] = (
+            f"Expected one image group for job_id {job_id}, found {len(groups)}"
+        )
+        return result
+
+    group = groups[0]
+    if require_built and group["status"] != IMAGE_GROUP_STATUS_BUILT:
+        result["error"] = (
+            f"Image group {group['id']} is {group['status']}; "
+            f"expected {IMAGE_GROUP_STATUS_BUILT} before deploy"
+        )
+        return result
+
+    result.update({
+        "success": True,
+        "image_group_id": group["id"],
+        "status": group["status"],
+    })
+    return result
+
+
+def swap_pxe_mapping_rows(  # pylint: disable=too-many-locals,too-many-return-statements
+    host,
+) -> Dict[str, Any]:
+    """Swap the first two PXE data rows in GitLab and commit the change."""
+    result = {"success": False, "commit_id": "", "error": ""}
+    api_base = _get_gitlab_api_base(host)
+    if not api_base["success"]:
+        result["error"] = api_base["error"]
+        return result
+
+    cmd = CMDS["gitlab_api_get_file"].format(
+        token=api_base["token"], api_url=api_base["api_url"],
+        project_id=api_base["project_id"],
+        file_path=PXE_MAPPING_FILE_PATH.replace("/", "%2F"),
+        branch=api_base["branch"],
+    )
+    response = run_on_host(host, cmd)
+    if response.rc != 0:
+        result["error"] = f"Unable to read PXE mapping file (rc={response.rc})"
+        return result
+
+    try:
+        payload = json.loads(response.stdout.strip())
+        content = base64.b64decode(payload["content"]).decode("utf-8")
+        rows = list(csv.reader(io.StringIO(content)))
+    except (json.JSONDecodeError, KeyError, ValueError, UnicodeDecodeError) as exc:
+        result["error"] = f"Unable to parse PXE mapping file: {exc}"
+        return result
+
+    if len(rows) < 3:
+        result["error"] = "PXE mapping file requires a header and at least two nodes"
+        return result
+    if rows[1] == rows[2]:
+        result["error"] = "The first two PXE node rows are identical; swap is not a change"
+        return result
+
+    rows[1], rows[2] = rows[2], rows[1]
+    output = io.StringIO(newline="")
+    writer = csv.writer(output, lineterminator="\n")
+    writer.writerows(rows)
+    encoded_content = base64.b64encode(
+        output.getvalue().encode("utf-8")
+    ).decode("ascii")
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    update_payload = json.dumps({
+        "branch": api_base["branch"],
+        "content": encoded_content,
+        "encoding": "base64",
+        "commit_message": (
+            f"Automation: swap PXE mapping rows for deploy ({timestamp})"
+        ),
+    })
+    update_cmd = CMDS["gitlab_api_update_file"].format(
+        token=api_base["token"], api_url=api_base["api_url"],
+        project_id=api_base["project_id"],
+        file_path=PXE_MAPPING_FILE_PATH.replace("/", "%2F"),
+        json_data=update_payload,
+    )
+    update = run_on_host(host, update_cmd)
+    if update.rc != 0:
+        result["error"] = f"Unable to update PXE mapping file (rc={update.rc})"
+        return result
+    try:
+        body = json.loads(update.stdout.strip())
+    except json.JSONDecodeError as exc:
+        result["error"] = f"Invalid GitLab update response: {exc}"
+        return result
+    if "file_path" not in body:
+        result["error"] = (
+            "GitLab rejected PXE mapping update: "
+            f"{body.get('message', body)}"
+        )
+        return result
+    commit_id = body.get("commit_id", "") or body.get("id", "")
+    if not commit_id:
+        committed_file = run_on_host(host, cmd)
+        if committed_file.rc == 0:
+            try:
+                commit_id = json.loads(
+                    committed_file.stdout.strip()
+                ).get("last_commit_id", "")
+            except json.JSONDecodeError:
+                commit_id = ""
+    if not commit_id:
+        result["error"] = (
+            "PXE mapping was updated but its Git commit ID could not be resolved"
+        )
+        return result
+    result.update({"success": True, "commit_id": commit_id})
+    return result
+
+
+def wait_for_child_pipeline(
+    host, parent_pipeline_id: int, timeout: int = PIPELINE_POLL_TIMEOUT,
+) -> Dict[str, Any]:
+    """Wait for GitLab to create the dynamic deploy child pipeline."""
+    started = time.time()
+    last_error = ""
+    while time.time() - started < timeout:
+        child = get_child_pipeline_id(host, parent_pipeline_id)
+        if child["success"]:
+            return child
+        last_error = child["error"]
+        time.sleep(PIPELINE_POLL_INTERVAL)
+    return {
+        "success": False, "child_pipeline_id": 0,
+        "error": last_error or "Timed out waiting for deploy child pipeline",
+    }
+
+
+def play_gitlab_job(host, job_id: int) -> Dict[str, Any]:
+    """Play one manual GitLab CI job by numeric job ID."""
+    result = {"success": False, "job": {}, "error": ""}
+    api_base = _get_gitlab_api_base(host)
+    if not api_base["success"]:
+        result["error"] = api_base["error"]
+        return result
+    cmd = CMDS["gitlab_api_play_job"].format(
+        token=api_base["token"], api_url=api_base["api_url"],
+        project_id=api_base["project_id"], job_id=int(job_id),
+    )
+    response = run_on_host(host, cmd)
+    if response.rc != 0:
+        result["error"] = f"Unable to play GitLab job {job_id} (rc={response.rc})"
+        return result
+    try:
+        job = json.loads(response.stdout.strip())
+    except json.JSONDecodeError as exc:
+        result["error"] = f"Invalid play-job response: {exc}"
+        return result
+    if not job.get("id") or job.get("status") == "failed":
+        result["error"] = str(job.get("message", job))
+        return result
+    result.update({"success": True, "job": job})
+    return result
+
+
+def wait_for_pipeline_job(
+    host, pipeline_id: int, job_name: str,
+    wanted_statuses: Optional[List[str]] = None,
+    timeout: int = STAGE_POLL_TIMEOUT,
+) -> Dict[str, Any]:
+    """Wait for a named child-pipeline job to appear and reach a status."""
+    wanted = set(wanted_statuses or ["manual"])
+    started = time.time()
+    while time.time() - started < timeout:
+        jobs_result = get_gitlab_pipeline_jobs(host, pipeline_id)
+        if jobs_result["success"]:
+            matches = [
+                job for job in jobs_result["jobs"]
+                if job["name"] == job_name
+            ]
+            if len(matches) > 1:
+                return {
+                    "success": False, "job": {},
+                    "error": f"Multiple GitLab jobs named {job_name!r}",
+                }
+            if matches:
+                job = matches[0]
+                if job["status"] in wanted:
+                    return {"success": True, "job": job, "error": ""}
+                if job["status"] in {"failed", "canceled"}:
+                    return {
+                        "success": False, "job": job,
+                        "error": f"GitLab job {job_name} is {job['status']}",
+                    }
+        time.sleep(PIPELINE_POLL_INTERVAL)
+    return {
+        "success": False, "job": {},
+        "error": f"Timed out waiting for GitLab job {job_name}",
+    }
+
+
+def run_deploy_child_pipeline(  # pylint: disable=too-many-return-statements
+    host, child_pipeline_id: int, image_group_id: str,
+    log_callback: Optional[Callable] = None,
+) -> Dict[str, Any]:
+    """Select the mapped image, play deploy, and await all deploy jobs."""
+    result = {
+        "success": False, "jobs": {}, "summary_job_id": 0, "error": "",
+    }
+
+    def _log(message: str) -> None:
+        if log_callback:
+            log_callback(message)
+
+    selection = wait_for_pipeline_job(
+        host, child_pipeline_id, image_group_id, ["manual"],
+        timeout=PIPELINE_POLL_TIMEOUT,
+    )
+    if not selection["success"]:
+        result["error"] = selection["error"]
+        return result
+    _log(f"Selecting image group {image_group_id}")
+    played = play_gitlab_job(host, selection["job"]["id"])
+    if not played["success"]:
+        result["error"] = played["error"]
+        return result
+    selected = wait_for_pipeline_job(
+        host, child_pipeline_id, image_group_id, ["success"],
+    )
+    if not selected["success"]:
+        result["error"] = selected["error"]
+        return result
+    result["jobs"]["select_image"] = selected["job"]
+
+    deploy = wait_for_pipeline_job(
+        host, child_pipeline_id, "deploy", ["manual"],
+        timeout=PIPELINE_POLL_TIMEOUT,
+    )
+    if not deploy["success"]:
+        result["error"] = deploy["error"]
+        return result
+    _log("Starting manual deploy job")
+    played = play_gitlab_job(host, deploy["job"]["id"])
+    if not played["success"]:
+        result["error"] = played["error"]
+        return result
+
+    for job_name in ("deploy", "restart", "validate", "summary"):
+        _log(f"Waiting for {job_name} job")
+        completed = wait_for_pipeline_job(
+            host, child_pipeline_id, job_name, ["success"],
+        )
+        if not completed["success"]:
+            result["error"] = completed["error"]
+            return result
+        result["jobs"][job_name] = completed["job"]
+
+    result["summary_job_id"] = result["jobs"]["summary"]["id"]
+    result["success"] = True
+    return result
+
+
+def get_gitlab_job_trace(host, job_id: int) -> Dict[str, Any]:
+    """Return the text trace for a GitLab CI job."""
+    result = {"success": False, "trace": "", "error": ""}
+    api_base = _get_gitlab_api_base(host)
+    if not api_base["success"]:
+        result["error"] = api_base["error"]
+        return result
+    cmd = CMDS["gitlab_api_job_trace"].format(
+        token=api_base["token"], api_url=api_base["api_url"],
+        project_id=api_base["project_id"], job_id=int(job_id),
+    )
+    response = run_on_host(host, cmd)
+    if response.rc != 0:
+        result["error"] = f"Unable to read GitLab job trace (rc={response.rc})"
+        return result
+    result.update({"success": True, "trace": response.stdout or ""})
+    return result
+
+
+def discover_deploy_pipeline(  # pylint: disable=too-many-locals
+    host, job_id: str, image_group_id: str,
+) -> Dict[str, Any]:
+    """Discover the latest dynamic deploy child selected for ``job_id``.
+
+    Root pipelines are followed through at most two downstream bridge levels:
+    the deploy controller and its generated dynamic child.  A child is a match
+    only when its successful image-selection job is named ``image_group_id``
+    and its trace contains the configured ``job_id``.
+    """
+    result = {
+        "success": False,
+        "parent_pipeline_id": 0,
+        "child_pipeline_id": 0,
+        "summary_job_id": 0,
+        "error": "",
+    }
+    pipelines = list_pipelines(host, per_page=100)
+    if not pipelines["success"]:
+        result["error"] = pipelines["error"]
+        return result
+
+    for root in pipelines["pipelines"]:
+        root_id = int(root.get("id", 0) or 0)
+        if not root_id:
+            continue
+        candidates = []
+        first_child = get_child_pipeline_id(host, root_id)
+        if first_child["success"]:
+            first_id = first_child["child_pipeline_id"]
+            candidates.append(first_id)
+            second_child = get_child_pipeline_id(host, first_id)
+            if second_child["success"]:
+                candidates.append(second_child["child_pipeline_id"])
+
+        for candidate_id in reversed(candidates):
+            jobs_result = get_gitlab_pipeline_jobs(host, candidate_id)
+            if not jobs_result["success"]:
+                continue
+            selected = [
+                job for job in jobs_result["jobs"]
+                if job["name"] == image_group_id
+                and job["status"] == "success"
+            ]
+            summary = [
+                job for job in jobs_result["jobs"]
+                if job["name"] == "summary"
+            ]
+            if len(selected) != 1 or len(summary) != 1:
+                continue
+            trace = get_gitlab_job_trace(host, selected[0]["id"])
+            if not trace["success"] or job_id not in trace["trace"]:
+                continue
+            result.update({
+                "success": True,
+                "parent_pipeline_id": root_id,
+                "child_pipeline_id": candidate_id,
+                "summary_job_id": summary[0]["id"],
+            })
+            return result
+
+    result["error"] = (
+        "No recent GitLab deploy pipeline selected image group "
+        f"{image_group_id} for job_id {job_id}"
+    )
+    return result
+
+
+def get_bsm_job_details(host, job_id: str) -> Dict[str, Any]:
+    """Fetch a job from the authenticated BuildStream API."""
+    result = {"success": False, "job": {}, "error": ""}
+    token = _get_bsm_access_token(host)
+    config = _get_gitlab_config(host)
+    host_ip = config.get(BSM_HOST_IP_KEY, "")
+    port = config.get(BSM_PORT_KEY, "")
+    if not token or not host_ip or not port:
+        result["error"] = "BuildStream API credentials or endpoint unavailable"
+        return result
+    cmd = CMDS["bsm_api_get_job"].format(
+        token=token, host=host_ip, port=port, job_id=job_id,
+    )
+    response = run_on_host(host, cmd)
+    if response.rc != 0:
+        result["error"] = f"Unable to fetch job (rc={response.rc})"
+        return result
+    try:
+        job = json.loads(response.stdout.strip())
+    except json.JSONDecodeError as exc:
+        result["error"] = f"Invalid BuildStream job response: {exc}"
+        return result
+    if not isinstance(job, dict) or job.get("detail"):
+        result["error"] = str(job.get("detail", "Job response is not an object"))
+        return result
+    result.update({"success": True, "job": job})
+    return result
+
+
+def get_bsm_artifact_json(  # pylint: disable=too-many-locals,too-many-return-statements
+    host, job_id: str, label: str,
+) -> Dict[str, Any]:
+    """Download a JSON artifact; a 404 is returned as an optional absence."""
+    result = {
+        "success": False, "exists": False, "data": None,
+        "http_code": 0, "error": "",
+    }
+    if label not in {"node-results", "failed-nodes"}:
+        result["error"] = f"Unsupported artifact label: {label}"
+        return result
+    token = _get_bsm_access_token(host)
+    config = _get_gitlab_config(host)
+    host_ip = config.get(BSM_HOST_IP_KEY, "")
+    port = config.get(BSM_PORT_KEY, "")
+    if not token or not host_ip or not port:
+        result["error"] = "BuildStream API credentials or endpoint unavailable"
+        return result
+    cmd = CMDS["bsm_api_get_artifact"].format(
+        token=token, host=host_ip, port=port,
+        job_id=job_id, label=label,
+    )
+    response = run_on_host(host, cmd)
+    if response.rc != 0:
+        result["error"] = f"Artifact request failed (rc={response.rc})"
+        return result
+    body, separator, code_text = (response.stdout or "").rpartition("\n")
+    if not separator or not code_text.isdigit():
+        result["error"] = "Artifact response did not include an HTTP status"
+        return result
+    code = int(code_text)
+    result["http_code"] = code
+    if code == 200:
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError as exc:
+            result["error"] = f"Artifact is not valid JSON: {exc}"
+            return result
+        result.update({
+            "success": True, "exists": True, "data": data,
+            "source": "api",
+        })
+        return result
+
+    filenames = {
+        "node-results": "node_results.json",
+        "failed-nodes": "failed_nodes.json",
+    }
+    artifact_path = (
+        f"{resolve_omnia_data_path(host)}/build_stream_root/artifacts/"
+        f"{job_id}/{filenames[label]}"
+    )
+    file_response = run_on_host(
+        host, CMDS["cat_file"].format(path=artifact_path),
+    )
+    if file_response.rc == 0 and file_response.stdout.strip():
+        try:
+            data = json.loads(file_response.stdout)
+        except json.JSONDecodeError as exc:
+            result["error"] = f"Stored artifact is not valid JSON: {exc}"
+            return result
+        result.update({
+            "success": True,
+            "exists": True,
+            "data": data,
+            "source": "filesystem-fallback",
+            "api_error": f"Artifact API returned HTTP {code}",
+        })
+        return result
+
+    if code == 404:
+        result.update({"success": True, "source": "absent"})
+        return result
+    result["error"] = (
+        f"Artifact API returned HTTP {code} and {artifact_path} was unavailable"
+    )
     return result
 
 
@@ -1851,9 +2349,12 @@ def check_repo_status(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, overall_status, path, details, error.
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    repo_status_path = f"/opt/omnia/repo_manager/output/{project}/repo_status.yml"
+    input_path = resolve_build_stream_input_path(host)
+    project = input_path.rstrip("/").rsplit("/", 1)[-1]
+    omnia_data_path = resolve_omnia_data_path(host)
+    repo_status_path = (
+        f"{omnia_data_path}/repo_manager/output/{project}/repo_status.yml"
+    )
 
     result = {
         "success": False, "overall_status": "",
@@ -2031,24 +2532,22 @@ def check_s3_boot_images_exist(host) -> Dict[str, Any]:
 # CATALOG PUSH FROM EXAMPLES
 # =============================================================================
 
-def push_catalog_from_examples(
-    host, catalog_name: str,
+def push_catalog_from_examples(  # pylint: disable=too-many-locals
+    host, catalog_path: str,
     log_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
-    """Load catalog from src/main/samples/ folder and push to GitLab.
+    """Load a selected catalog below ``samples/catalogs`` and push it.
 
     Args:
         host: Testinfra host connection.
-        catalog_name: Filename (e.g. 'catalog_rhel.json').
+        catalog_path: POSIX path relative to ``src/main/samples/catalogs``.
         log_callback: Optional logging callback.
 
     Returns:
-        Dict with keys: success, catalog_name, commit_id, error.
+        Dict with keys: success, catalog_path, commit_id, error.
     """
-    import os
-
     result = {
-        "success": False, "catalog_name": catalog_name,
+        "success": False, "catalog_path": catalog_path,
         "commit_id": "", "error": "",
     }
 
@@ -2058,26 +2557,51 @@ def push_catalog_from_examples(
         else:
             print(f"    | {msg}", flush=True)
 
-    # Resolve catalog path
-    # From test/build_stream -> ../../src/main/samples/
-    test_dir = os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)
-    )))
-    samples_dir = os.path.normpath(os.path.join(
-        test_dir, "..", "..", "src", "main", "samples",
-    ))
-    catalog_path = os.path.join(samples_dir, catalog_name)
-
-    if not os.path.isfile(catalog_path):
+    selected_path = PurePosixPath(catalog_path)
+    if (
+        selected_path.is_absolute()
+        or ".." in selected_path.parts
+        or selected_path.suffix.lower() != ".json"
+        or len(selected_path.parts) < 2
+    ):
         result["error"] = (
-            f"Catalog '{catalog_name}' not found in {samples_dir}. "
-            f"Available: {', '.join(os.listdir(samples_dir)) if os.path.isdir(samples_dir) else 'N/A'}"
+            "catalog_path must be a relative JSON path below "
+            "src/main/samples/catalogs (for example, "
+            "10.0/slurm_x86_64_no_vast.json)"
         )
         return result
 
-    _log(f"Loading catalog from: {catalog_path}")
+    # From test/build_stream -> ../../src/main/samples/catalogs/
+    test_dir = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)
+    )))
+    catalogs_dir = Path(
+        test_dir, "..", "..", "src", "main", "samples", "catalogs",
+    ).resolve()
+    selected_catalog = (catalogs_dir / Path(*selected_path.parts)).resolve()
     try:
-        with open(catalog_path, "r", encoding="utf-8") as f:
+        selected_catalog.relative_to(catalogs_dir)
+    except ValueError:
+        result["error"] = "catalog_path resolves outside src/main/samples/catalogs"
+        return result
+
+    if not selected_catalog.is_file():
+        available = []
+        if catalogs_dir.is_dir():
+            available = sorted(
+                path.relative_to(catalogs_dir).as_posix()
+                for path in catalogs_dir.rglob("*.json")
+                if path.is_file()
+            )
+        result["error"] = (
+            f"Catalog '{catalog_path}' not found below {catalogs_dir}. "
+            f"Available: {', '.join(available) if available else 'N/A'}"
+        )
+        return result
+
+    _log(f"Loading catalog from: {selected_catalog}")
+    try:
+        with selected_catalog.open("r", encoding="utf-8") as f:
             content = f.read()
     except (IOError, OSError) as exc:
         result["error"] = f"Failed to read catalog: {exc}"
@@ -2086,7 +2610,7 @@ def push_catalog_from_examples(
     # Add unique identifier to avoid cache hits
     try:
         catalog = json.loads(content)
-        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         # Support both "Catalog" (legacy) and "catalog" (current) key names
         cat_key = "Catalog" if "Catalog" in catalog else "catalog"
         if cat_key in catalog:
@@ -2096,7 +2620,7 @@ def push_catalog_from_examples(
     except json.JSONDecodeError:
         pass  # push raw content if not valid JSON
 
-    _log("Uploading catalog to GitLab...")
+    _log("Uploading catalog to GitLab (replacing the existing catalog)...")
     upload = upload_catalog_file(host, content)
     if not upload["success"]:
         result["error"] = f"Upload failed: {upload['error']}"
@@ -2104,7 +2628,7 @@ def push_catalog_from_examples(
 
     result["success"] = True
     result["commit_id"] = upload.get("commit_id", "")
-    _log(f"Catalog '{catalog_name}' uploaded to GitLab")
+    _log(f"Catalog '{catalog_path}' uploaded to GitLab")
     return result
 
 
@@ -2117,9 +2641,6 @@ def update_job_id_in_config(job_id: str) -> bool:
     Returns:
         True if successfully written, False otherwise.
     """
-    import os
-    import re
-
     test_dir = os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)
     )))
@@ -2129,13 +2650,15 @@ def update_job_id_in_config(job_id: str) -> bool:
         with open(config_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # Replace job_id line (handles empty and populated values)
-        content = re.sub(
+        # Replace exactly one job_id line (handles empty and populated values).
+        content, replacements = re.subn(
             r'^(job_id:\s*).*$',
             f'job_id: "{job_id}"',
             content,
             flags=re.MULTILINE,
         )
+        if replacements != 1:
+            return False
 
         with open(config_path, "w", encoding="utf-8") as f:
             f.write(content)

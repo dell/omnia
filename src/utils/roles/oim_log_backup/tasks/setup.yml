@@ -1,0 +1,94 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# =============================================================================
+# setup.yml - Resolve the backup path/domains and prepare the workspace
+# =============================================================================
+
+- name: Check for optional backup_oim_logs_config.yml
+  ansible.builtin.stat:
+    path: "{{ backup_config_file }}"
+  register: _backup_config_stat
+
+- name: Load backup_oim_logs_config.yml when present
+  ansible.builtin.include_vars:
+    file: "{{ backup_config_file }}"
+    name: backup_config
+  when: _backup_config_stat.stat.exists
+
+- name: Resolve backup domain list (config file overrides the default of all domains)
+  ansible.builtin.set_fact:
+    backup_domains: >-
+      {{
+        (backup_config.domains | default([], true))
+        if (_backup_config_stat.stat.exists and (backup_config.domains | default([], true) | length > 0))
+        else backup_all_domains
+      }}
+
+- name: Resolve backup path (CLI extra-var > config file > OMNIA_BACKUP_PATH > default)
+  ansible.builtin.set_fact:
+    backup_path_resolved: >-
+      {{
+        (backup_path | default('', true))
+        if (backup_path | default('', true) | length > 0)
+        else (
+          (backup_config.backup_path | default('', true))
+          if (_backup_config_stat.stat.exists and (backup_config.backup_path | default('', true) | length > 0))
+          else (
+            (lookup('env', 'OMNIA_BACKUP_PATH') | default('', true))
+            if (lookup('env', 'OMNIA_BACKUP_PATH') | default('', true) | length > 0)
+            else backup_default_dir
+          )
+        )
+      }}
+
+- name: Detect raw NFS export syntax ("<server>:/<path>")
+  ansible.builtin.set_fact:
+    backup_is_nfs_export: "{{ backup_path_resolved is match('^[^/]+:/.+') }}"
+
+- name: Mount NFS export for backup workspace
+  when: backup_is_nfs_export
+  block:
+    - name: Split NFS export into server and remote path
+      ansible.builtin.set_fact:
+        backup_nfs_server: "{{ backup_path_resolved.split(':', 1)[0] }}"
+        backup_nfs_remote_path: "{{ backup_path_resolved.split(':', 1)[1] }}"
+
+    - name: Ensure local NFS mountpoint exists
+      ansible.builtin.file:
+        path: "{{ backup_nfs_mountpoint }}"
+        state: directory
+        mode: "0755"
+
+    - name: Mount backup NFS export
+      ansible.builtin.mount:
+        src: "{{ backup_nfs_server }}:{{ backup_nfs_remote_path }}"
+        path: "{{ backup_nfs_mountpoint }}"
+        fstype: nfs
+        state: mounted
+
+- name: Set backup workspace (local path, or mounted NFS mountpoint)
+  ansible.builtin.set_fact:
+    backup_workspace: "{{ backup_nfs_mountpoint if backup_is_nfs_export else backup_path_resolved }}"
+
+- name: Set backup timestamp (IST, same convention as log_collector)
+  ansible.builtin.set_fact:
+    backup_ts: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y%m%d-%H%M%S') }}"
+
+- name: Ensure backup workspace directory exists
+  ansible.builtin.file:
+    path: "{{ backup_workspace }}"
+    state: directory
+    mode: "0755"

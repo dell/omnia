@@ -12,51 +12,136 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Build Stream — Config Validation Functions.
+"""Fail-closed configuration validation for Build Stream automation."""
 
-Validates test_config.yml and test_creds.yml before test execution.
-"""
+import os
+import re
+from typing import Any, Dict, List
 
-from typing import Any, Dict
+import yaml
 
-from omnia_auto import load_test_config
+from ..vars.common_vars import (
+    IPV4_PATTERN,
+    MODULE_ROOT,
+    REQUIRED_CONFIG_FIELDS,
+    REQUIRED_DATASET_FILES,
+    REQUIRED_SRC_FILES,
+    SRC_INPUT_DIR,
+)
 
 
 class ConfigValidationError(Exception):
     """Raised when test configuration is invalid."""
 
 
+def _validate_dataset(dataset: str) -> List[str]:
+    """Validate the selected dataset, or the canonical source input."""
+    errors: List[str] = []
+    if not dataset:
+        for relative_file in REQUIRED_SRC_FILES:
+            path = os.path.join(SRC_INPUT_DIR, relative_file)
+            if not os.path.isfile(path):
+                errors.append(f"Required src file missing: {path}")
+        return errors
+
+    if (
+        not isinstance(dataset, str)
+        or dataset in {".", "..", "generator"}
+        or os.path.isabs(dataset)
+        or os.path.basename(dataset) != dataset
+        or "\x00" in dataset
+    ):
+        return [f"Unsafe dataset name: {dataset!r}"]
+
+    dataset_root = os.path.realpath(os.path.join(MODULE_ROOT, "datasets"))
+    dataset_path = os.path.join(dataset_root, dataset)
+    if os.path.islink(dataset_path) or not os.path.isdir(dataset_path):
+        return [f"Dataset directory not found: datasets/{dataset}/"]
+    if os.path.dirname(os.path.realpath(dataset_path)) != dataset_root:
+        return [f"Dataset escapes datasets directory: {dataset!r}"]
+
+    for relative_file in REQUIRED_DATASET_FILES:
+        path = os.path.join(dataset_path, relative_file)
+        if not os.path.isfile(path) or os.path.islink(path):
+            errors.append(
+                f"Required file missing: datasets/{dataset}/{relative_file}"
+            )
+    return errors
+
+
 def validate_test_config() -> Dict[str, Any]:
-    """Validate test_config.yml has all required fields.
+    """Validate required settings, paths, formats, and dataset files."""
+    config_path = os.path.join(MODULE_ROOT, "test_config.yml")
+    errors: List[str] = []
+    warnings: List[str] = []
 
-    Returns:
-        Dict with keys: valid, warnings, errors.
-    """
-    config = load_test_config()
+    try:
+        with open(config_path, "r", encoding="utf-8") as config_file:
+            config = yaml.safe_load(config_file) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        return {
+            "valid": False,
+            "errors": [f"Unable to read test_config.yml: {exc}"],
+            "warnings": [],
+        }
 
-    result = {
-        "valid": True,
-        "warnings": [],
-        "errors": [],
+    if not isinstance(config, dict):
+        return {
+            "valid": False,
+            "errors": ["test_config.yml root must be a mapping"],
+            "warnings": [],
+        }
+
+    for field in REQUIRED_CONFIG_FIELDS:
+        if field not in config or config[field] is None:
+            errors.append(f"Required field missing in test_config.yml: {field}")
+    if "oim_server_ip" not in config:
+        errors.append(
+            'Required field missing: oim_server_ip (set to "" for local mode)'
+        )
+    if errors:
+        return {"valid": False, "errors": errors, "warnings": warnings}
+
+    oim_ip = config["oim_server_ip"]
+    if oim_ip and not IPV4_PATTERN.fullmatch(str(oim_ip)):
+        errors.append(f"oim_server_ip: invalid IPv4 format {oim_ip!r}")
+
+    project_name = config["project_name"]
+    if (
+        not isinstance(project_name, str)
+        or not re.fullmatch(r"[A-Za-z0-9._-]+", project_name)
+        or project_name in {".", ".."}
+    ):
+        errors.append("project_name must be a safe non-empty directory name")
+
+    for field in ("sync_build_stream_input", "allow_pipeline_cancel"):
+        if field in config and not isinstance(config[field], bool):
+            errors.append(f"{field} must be true or false (without quotes)")
+
+    dataset = os.environ.get("OMNIA_DATASET_OVERRIDE", "") or config["dataset"]
+    errors.extend(_validate_dataset(dataset))
+
+    if " " in str(config["report_path"]):
+        errors.append("report_path must not contain spaces")
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", str(config["report_name"])):
+        errors.append(
+            "report_name must contain only letters, numbers, underscores, hyphens"
+        )
+
+    if oim_ip:
+        clone_path = config.get("clone_path")
+        if not isinstance(clone_path, str) or not clone_path.strip():
+            errors.append("clone_path required for remote execution")
+        elif not os.path.isabs(clone_path.strip()):
+            errors.append(f"clone_path must be absolute: {clone_path}")
+        if not config.get("oim_ssh_user"):
+            errors.append("oim_ssh_user required when oim_server_ip is set")
+
+    return {
+        "valid": not errors,
+        "errors": errors,
+        "warnings": warnings,
     }
-
-    if not config.get("clone_path"):
-        result["errors"].append("clone_path is required")
-        result["valid"] = False
-
-    if not config.get("project_name"):
-        result["warnings"].append(
-            "project_name not set, using default 'project_default'"
-        )
-
-    oim_ip = config.get("oim_server_ip", "")
-    if not oim_ip:
-        result["warnings"].append(
-            "oim_server_ip is empty, will run in local mode"
-        )
-
-    return result
 
 
 def validate_all() -> Dict[str, Any]:
@@ -75,4 +160,4 @@ def validate_all() -> Dict[str, Any]:
             f"Config validation failed: {config_result['errors']}"
         )
 
-    return {"warnings": config_result["warnings"]}
+    return config_result

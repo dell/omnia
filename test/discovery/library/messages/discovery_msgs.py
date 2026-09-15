@@ -42,7 +42,16 @@ TEST_NAMES: Dict[str, str] = {
         "Deploy: discovery.yml --tags execute"
     ),
     "deploy_cleanup": (
-        "Deploy: discovery.yml --tags cleanup"
+        "Deploy: discovery.yml --tags cleanup (full cleanup)"
+    ),
+    "deploy_cleanup_preserve_credentials": (
+        "Deploy: discovery.yml --tags cleanup -e cleanup_credentials=false"
+    ),
+    "deploy_cleanup_preserve_logs": (
+        "Deploy: discovery.yml --tags cleanup -e cleanup_logs=false"
+    ),
+    "deploy_cleanup_idempotent": (
+        "Deploy: discovery.yml --tags cleanup (idempotency test)"
     ),
 
     # Validate
@@ -79,6 +88,32 @@ TEST_NAMES: Dict[str, str] = {
     # Clone / sync
     "clone_status": (
         "Verify repository is cloned and synced on target"
+    ),
+
+    # Cleanup
+    "output_dir_removed": (
+        "Verify output directory is empty after cleanup"
+    ),
+    "credentials_removed": (
+        "Verify credentials file is removed after cleanup"
+    ),
+    "credentials_preserved": (
+        "Verify credentials file is preserved when cleanup_credentials=false"
+    ),
+    "pxe_mapping_files_removed": (
+        "Verify PXE mapping files are removed after cleanup"
+    ),
+    "discovery_report_files_removed": (
+        "Verify discovery report files are removed after cleanup"
+    ),
+    "status_files_removed": (
+        "Verify discovery status files are removed after cleanup"
+    ),
+    "log_files_removed": (
+        "Verify log files are removed after cleanup"
+    ),
+    "log_files_preserved": (
+        "Verify log files are preserved when cleanup_logs=false"
     ),
 }
 
@@ -121,6 +156,24 @@ TEST_LOG_MSGS: Dict[str, str] = {
     # Clone
     "clone_ok": "Repository cloned and synced",
     "clone_failed": "Repository clone check failed",
+
+    # Cleanup
+    "output_dir_removed_ok": "Output directory cleaned successfully",
+    "output_dir_not_empty": "Output directory not empty after cleanup",
+    "credentials_removed_ok": "Credentials file removed successfully",
+    "credentials_not_removed": "Credentials file still exists after cleanup",
+    "credentials_preserved_ok": "Credentials file preserved as expected",
+    "credentials_not_preserved": "Credentials file was removed when it should have been preserved",
+    "pxe_mapping_files_removed_ok": "PXE mapping files removed successfully",
+    "pxe_mapping_files_not_removed": "PXE mapping files still exist after cleanup",
+    "discovery_report_files_removed_ok": "Discovery report files removed successfully",
+    "discovery_report_files_not_removed": "Discovery report files still exist after cleanup",
+    "status_files_removed_ok": "Discovery status files removed successfully",
+    "status_files_not_removed": "Discovery status files still exist after cleanup",
+    "log_files_removed_ok": "Log files removed successfully",
+    "log_files_not_removed": "Log files still exist after cleanup",
+    "log_files_preserved_ok": "Log files preserved as expected",
+    "log_files_not_preserved": "Log files were removed when they should have been preserved",
 }
 
 # =============================================================================

@@ -74,7 +74,7 @@ def _build_cleanup_sed(ip_name_map, nodes_to_remove):
             f"sed -i -E '/^({ip_pattern})[[:space:]]/d' /etc/hosts 2>/dev/null || true"
         )
     if all_names:
-        name_pattern = "|".join(all_names)
+        name_pattern = "|".join(_regex_escape(name) for name in all_names)
         cmds.append(
             f"sed -i -E '/[[:space:]]({name_pattern})$/d' /etc/hosts 2>/dev/null || true"
         )

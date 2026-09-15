@@ -70,6 +70,27 @@ ansible-galaxy collection install omnia.orchestrator
         oim_group: true
 ```
 
+## Cleanup and Reset
+
+Full Orchestrator cleanup removes all enabled components and the encrypted
+Orchestrator credential file and vault key by default. Set
+`cleanup_credentials=false` only when those credentials must be retained:
+
+```bash
+cd src/main
+sudo ./omnia.sh --run orchestrator --tags cleanup
+sudo ./omnia.sh --run orchestrator --tags cleanup \
+  -e cleanup_credentials=false
+```
+
+`src/orchestrator/domain-init.sh --cleanup` is non-interactive and removes only
+initializer-owned staged input and log paths; it does not clean deployed
+components. Run the domain cleanup tag first, then use
+`sudo ./omnia.sh --cleanup --all` for a guarded global reset. Both global cleanup
+modes prompt for `yes`; trusted automation can add `--skip-approval`. Detailed
+component cleanup behavior is documented in
+[`playbooks/cleanup/README.md`](playbooks/cleanup/README.md).
+
 ## License
 
 Apache-2.0

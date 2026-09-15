@@ -15,8 +15,10 @@
 """
 Orchestrator Provision — Slurm Provisioning.
 
-TC_SL_000: Deploy orchestrator.yml --tags provision_slurm
+ORCH_FVT_PROVISION_E002: Deploy orchestrator.yml --tags provision
 """
+
+from pathlib import Path
 
 import pytest
 
@@ -26,6 +28,7 @@ from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
 )
+from library.vars.common_vars import SRC_ORCHESTRATOR_DIR
 
 
 @pytest.mark.deploy
@@ -33,11 +36,12 @@ from library.messages import (
 @pytest.mark.buildstream
 @pytest.mark.order(0)
 def test_slurm_provision(host):
-    """TC_SL_000: Deploy orchestrator.yml --tags provision_slurm."""
+    """ORCH_FVT_PROVISION_E002: Deploy the public provision lifecycle for Slurm."""
     tl = TestLogger(
-        TEST_NAMES["deploy_playbook"].format(tag="provision_slurm"), "TC_SL_000"
+        TEST_NAMES["deploy_playbook"].format(tag="provision"),
+        "ORCH_FVT_PROVISION_E002",
     )
-    result = run_playbook(tag="provision_slurm")
+    result = run_playbook(tag="provision")
 
     if result["success"]:
         tl.passed(LOG["playbook_success"].format(
@@ -52,6 +56,23 @@ def test_slurm_provision(host):
         )
 
     assert result["success"], ASSERT["playbook_failed"].format(
-        playbook="orchestrator.yml", tag="provision_slurm",
+        playbook="orchestrator.yml", tag="provision",
         rc=result["rc"], duration=result["duration"],
     )
+
+
+@pytest.mark.sanity
+@pytest.mark.buildstream
+@pytest.mark.order(1)
+def test_slurm_provision_contract():
+    """ORCH_FVT_PROVISION_V006: Slurm is part of the public provision lifecycle."""
+    tl = TestLogger(
+        "Validate Slurm provision lifecycle contract",
+        "ORCH_FVT_PROVISION_V006",
+    )
+    source = (
+        Path(SRC_ORCHESTRATOR_DIR) / "playbooks" / "orchestrator.yml"
+    ).read_text(encoding="utf-8")
+    expected = "ansible.builtin.import_playbook: provision/provision_slurm.yml"
+    assert expected in source
+    tl.passed("Slurm provision playbook is included by orchestrator.yml")

@@ -1,56 +1,19 @@
-# SLURM Tests
+# Slurm tests
 
-## Overview
+The authoritative Slurm verification tree is `fvt/check/slurm/`. It includes
+core cluster tests and all non-Kubernetes feature suites.
 
-This test suite provides comprehensive testing for the SLURM workload manager within the Omnia Orchestrator domain.
-
-## Running SLURM Tests
+Run deployment and verification separately:
 
 ```bash
-# Run all SLURM tests
-./run_validation.sh fvt_orchestrator slurm verify --marker sanity
-
-# Run SLURM provision test
-./run_validation.sh fvt_orchestrator provision test --marker slurm
-
-# Run SLURM validation tests
-./run_validation.sh fvt_orchestrator validate verify --marker slurm
+cd test/orchestrator
+./run_validation.sh fvt_orchestrator provision exec --suite slurm
+./run_validation.sh fvt_orchestrator check verify --suite slurm
 ```
 
-## Test Categories
+This mirrors PR #5220’s Kubernetes structure (`provision/kubernetes` plus
+`check/kubernetes`) and prevents a platform suite from executing the generic
+root provision trigger a second time.
 
-### Provision Tests
-- Deploy SLURM cluster
-- Verify playbook execution
-
-### Validation Tests
-- Service status checks (slurmctld, slurmd, slurmdbd, munge)
-- Directory and file verification
-- Node registration and partition checks
-- Node state verification
-
-## Test Cases
-
-See [fvt/TEST_CASES.md](fvt/TEST_CASES.md) for the complete list of SLURM test cases with IDs and descriptions.
-
-## Prerequisites
-
-- SLURM must be deployed before running validation tests
-- PXE mapping file must be configured for node discovery tests
-- SSH connectivity between nodes for job execution tests
-
-## Troubleshooting
-
-### SLURM Service Not Running
-- Deploy SLURM first: `./run_validation.sh fvt_orchestrator provision test --marker slurm`
-- Check service status: `systemctl status slurmctld slurmd`
-
-### Node Registration Issues
-- Verify PXE mapping file exists
-- Check node functional groups in PXE mapping
-- Ensure nodes are reachable via SSH
-
-### Job Execution Failures
-- Verify all nodes are in idle state: `sinfo`
-- Check munge authentication
-- Verify SSH connectivity between node types
+See [`SLURM_TESTING_FRAMEWORK.md`](SLURM_TESTING_FRAMEWORK.md) for feature
+filters and [`TEST_CASES.md`](TEST_CASES.md) for IDs and collection commands.

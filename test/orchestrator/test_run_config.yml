@@ -28,7 +28,8 @@
 # Top-level categories match the run_validation.sh first argument:
 #
 #   fvt_orchestrator  — Functional Verification Tests (playbook tags)
-#   fvt_k8s           — Standalone Kubernetes Verification Tests
+#   nft_orchestrator  — Performance, idempotency, and security tests
+#   ut_orchestrator   — Deterministic framework/source-contract tests
 #
 # FVT scenarios (nested under fvt_orchestrator):
 #   Each scenario maps to an Ansible playbook tag.  Fields:
@@ -42,6 +43,8 @@
 #     dataset:      <name>        - Override dataset from test_config.yml
 #                                   Must be a valid folder under datasets/
 #     sync_input:   true/false    - Override sync_orchestrator_input
+#     sync_output:  true/false    - Override sync_repo_manager_output
+#     sync_image_output: true/false - Override image-builder output sync
 #
 # -----------------------------------------------------------------------------
 # Marker Expression Syntax
@@ -52,19 +55,22 @@
 #   Standard: "functional"              — tests with @pytest.mark.functional
 #
 # Available markers:
-#   Quality:       sanity, functional
-#   Execution:     deploy
+#   Quality:       sanity, functional, negative, unit
+#   Execution:     deploy, destructive, recovery
+#   Platform:      slurm, kubernetes, gpu, buildstream
+#   Features:      additional_cloud_init, hpc_benchmarks, apptainer, openldap,
+#                  storage, vast, powervault
 #   NFT:           nft, performance, idempotency, security
-#   Negative:       negative
 #
 # -----------------------------------------------------------------------------
 # Available FVT Suites (subfolders under fvt/<tag>/)
 # -----------------------------------------------------------------------------
-#   validate:   status, slurm, kubernetes
-#   prepare:    openchami
+#   prepare:    openchami, openldap
 #   provision:  slurm, kubernetes
+#   check:      status, kubernetes, slurm
+#               The slurm suite also contains additional_cloud_init,
+#               hpc_benchmarks, apptainer, gpu, platform, vast, and powervault.
 #   cleanup:    status
-#   kubernetes: (comprehensive K8s tests)
 #
 # =============================================================================
 
@@ -77,41 +83,135 @@
 #                  When false (default), all tests run regardless of failures.
 skip_on_failure: false
 
+# Optional overrides for every enabled FVT scenario.
+# dataset_override: "data_set_01"
+# sync_input_override: true
+# sync_output_override: false
+# sync_image_output_override: false
+
 # =============================================================================
 # FVT — Functional Verification Tests
 # =============================================================================
 fvt_orchestrator:
-  validate:
-    run: true
+  precheck:
+    run: false
     command: "test"
     suite: ""
     marker: "sanity"
     dataset: ""
-    sync_input: true
+    sync_input: false
+    sync_output: false
+    sync_image_output: false
 
-  prepare:
-    run: true
+  validate:
+    run: false
     command: "test"
     suite: ""
-    marker: ""
+    marker: "sanity"
     dataset: ""
-    sync_input: true
+    sync_input: false
+    sync_output: false
+    sync_image_output: false
+
+  prepare:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+    sync_output: false
+    sync_image_output: false
+
+  deploy:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+    sync_output: false
+    sync_image_output: false
 
   provision:
-    run: true
+    run: false
     command: "exec"
-    suite: "kubernetes"
+    suite: "slurm"
     marker: ""
-    dataset: "k8s_only"
+    dataset: "slurm_only"
     sync_input: true
+    sync_output: true
+    sync_image_output: true
+
+  execute:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity,functional"
+    dataset: ""
+    sync_input: false
+    sync_output: false
+    sync_image_output: false
+
+  pxeboot:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "destructive"
+    dataset: ""
+    sync_input: false
+    sync_output: false
+    sync_image_output: false
+
+  check:
+    run: false
+    command: "verify"
+    suite: "slurm"
+    marker: "sanity,functional"
+    dataset: "slurm_only"
+    sync_input: false
+    sync_output: false
+    sync_image_output: false
 
   cleanup:
     run: false
     command: "test"
     suite: ""
-    marker: ""
+    marker: "destructive"
     dataset: ""
     sync_input: false
+    sync_output: false
+    sync_image_output: false
+
+  rollback:
+    run: false
+    command: "exec"
+    suite: ""
+    marker: "destructive"
+    dataset: ""
+    sync_input: false
+    sync_output: false
+    sync_image_output: false
+
+  playbooks:
+    run: false
+    command: "verify"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+    sync_output: false
+    sync_image_output: false
+
+  negative:
+    run: false
+    command: "verify"
+    suite: ""
+    marker: "negative"
+    dataset: ""
+    sync_input: false
+    sync_output: false
+    sync_image_output: false
 
 # =============================================================================
 # NFT — Non-Functional Tests
@@ -122,13 +222,12 @@ nft_orchestrator:
   marker: "nft"
   dataset: ""
   sync_input: false
+  sync_output: false
 
 # =============================================================================
-# Negative — Error Scenario Tests
+# UT — Deterministic unit and source-contract tests
 # =============================================================================
-negative_orchestrator:
+ut_orchestrator:
   run: false
   command: "test"
-  marker: "negative"
-  dataset: ""
-  sync_input: false
+  marker: "unit"

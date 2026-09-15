@@ -33,6 +33,7 @@ Examples:
 """
 
 import argparse
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -116,6 +117,12 @@ def _parse_cli_var(var_str):
     key, raw = var_str.split("=", 1)
     key = key.strip()
     raw = raw.strip()
+    normalized_key = key.lower().replace("-", "_")
+    if any(
+        sensitive in normalized_key
+        for sensitive in ("credential", "password", "secret", "token")
+    ):
+        _fail(f"Credential-like dataset override is not allowed: {key}")
     try:
         return key, yaml.safe_load(raw)
     except yaml.YAMLError:
@@ -218,26 +225,13 @@ def _copy_from_src(output_dir):
     # Copy input files
     input_dir = output_dir / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
-    for src_file in SRC_INPUT_DIR.glob("*.yml"):
+    for filename in ("build_stream_config.yml",):
+        src_file = SRC_INPUT_DIR / filename
+        if not src_file.is_file():
+            _fail(f"Required source input not found: {src_file}")
         dest = input_dir / src_file.name
         shutil.copy2(src_file, dest)
         _ok(f"Copied: input/{src_file.name}")
-
-    # Generate placeholder credentials (not shipped in src/)
-    creds_path = input_dir / "build_stream_credentials.yml"
-    if not creds_path.exists():
-        creds_content = (
-            "---\n\n"
-            "# Build Stream credentials (placeholder — never commit real passwords)\n"
-            'gitlab_root_password: ""\n'
-            'gitlab_ssh_password: ""\n\n'
-            'build_stream_auth_username: ""\n'
-            'build_stream_auth_password: ""\n\n'
-            'postgres_user: ""\n'
-            'postgres_password: ""\n'
-        )
-        creds_path.write_text(creds_content, encoding="utf-8")
-        _ok("Created: input/build_stream_credentials.yml (placeholder)")
 
     copied = [str(p.relative_to(output_dir)) for p in sorted(output_dir.rglob("*.yml"))]
     return copied
@@ -350,6 +344,13 @@ Examples:
         parser.error("profile is required unless --from-src is used")
 
     dataset_name = args.dataset_name
+    if (
+        not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", dataset_name)
+        or dataset_name in {".", "..", "generator"}
+    ):
+        parser.error(
+            "dataset_name must be a safe directory name and cannot be generator"
+        )
     profile_name = args.profile or "from-src"
     output_dir = DATASETS_DIR / dataset_name
 
@@ -364,6 +365,10 @@ Examples:
             f"Dataset '{dataset_name}' already exists at {output_dir}. "
             "Use --force to overwrite."
         )
+    if output_dir.is_symlink():
+        _fail(f"Refusing to replace dataset symlink: {output_dir}")
+    if output_dir.exists() and args.force:
+        shutil.rmtree(output_dir)
 
     if args.from_src:
         _info("Copying from src/build_stream/input/")

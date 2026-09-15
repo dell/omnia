@@ -32,9 +32,11 @@ Override any key with `--var KEY=VALUE` (repeatable).
 datasets/<name>/
   input/
     build_stream_config.yml      # BSM + GitLab settings
-    build_stream_credentials.yml # Placeholder credentials
   README.md                      # Auto-generated summary
 ```
+
+The generator never creates credentials. Configure the encrypted Build Stream
+credential pair directly on the execution OIM.
 
 ## Adding New Profiles
 

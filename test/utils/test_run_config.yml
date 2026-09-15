@@ -49,3 +49,39 @@ scenarios:
     marker: "sanity"
     dataset: ""
     sync_input: true
+
+  backup_oim_logs:
+    order: 4
+    run: true
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+
+  slurm_config_util:
+    order: 5
+    run: true
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+
+  cleanup_backup_oim_logs:
+    order: 6
+    run: true
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+
+  cleanup_slurm_config_backups:
+    order: 7
+    run: true
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false

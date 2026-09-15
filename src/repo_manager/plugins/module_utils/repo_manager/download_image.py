@@ -18,7 +18,6 @@
 
 import re
 from multiprocessing import Lock
-from jinja2 import Template
 from ansible.module_utils.repo_manager.process_parallel import docker_password_cipher
 from ansible.module_utils.repo_manager.parse_and_download import (
     execute_command, write_status_to_file
@@ -44,6 +43,7 @@ from ansible.module_utils.repo_manager.pulp_commands import (
     pulp_container_commands,
 )
 from ansible.module_utils.repo_manager.security_utils import (
+    render_catalog_placeholders,
     validate_container_digest,
     validate_container_policy,
     validate_container_reference,
@@ -399,7 +399,9 @@ def _process_configured_registry_image(
 
     tag_val = None
     if "tag" in package:
-        tag_val = Template(package["tag"]).render(**version_variables)
+        tag_val = render_catalog_placeholders(
+            package["tag"], version_variables, "configured registry image tag"
+        )
         tag_val = validate_container_tag(tag_val)
         package_identifier += f":{package['tag']}"
     elif "digest" in package:
@@ -568,6 +570,16 @@ def process_image(package, status_file_path, version_variables,
         remote_name = validate_repository_id(f"remote_{safe_reference}")
         package_identifier = package_reference
 
+        # Reject unsupported catalog syntax before creating or changing any
+        # Pulp object. Configured-registry tags cross the same boundary in
+        # _process_configured_registry_image before its first Pulp operation.
+        if "tag" in package:
+            tag_val = validate_container_tag(
+                render_catalog_placeholders(
+                    package['tag'], version_variables, "public registry image tag"
+                )
+            )
+
         # Create container repository first (must exist before idempotency check)
         with repository_creation_lock:
             result = create_container_repository(repository_name, logger)
@@ -594,12 +606,7 @@ def process_image(package, status_file_path, version_variables,
                 )
                 if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
                     raise RuntimeError(f"Failed to create remote digest: {remote_name}")
-
         elif "tag" in package:
-            tag_template = Template(package['tag'])
-            tag_val = validate_container_tag(
-                tag_template.render(**version_variables)
-            )
             package_identifier += f":{package['tag']}"
 
             # ═══ STEP 1: Pre-validate tag ═══

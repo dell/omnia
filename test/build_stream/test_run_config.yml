@@ -32,31 +32,32 @@
 # FVT scenarios (nested under fvt_build_stream):
 #   Each scenario maps to an FVT subdirectory.  Fields:
 #     run:          true/false    - Whether to execute this scenario
-#     command:      <string>      - deploy, verify, or test (default: test)
-#                                   deploy = Run the playbook / trigger only
+#     command:      <string>      - exec, verify, or test (default: test)
+#                                   exec   = Run the playbook / trigger only
 #                                   verify = Run verification tests only
 #                                   test   = Deploy + Verify (full flow)
 #     suite:        <folder>      - FVT subfolder filter (empty = all suites)
 #     marker:       <expression>  - Marker filter expression (empty = all)
+#     dataset:      <name>        - Override test_config.yml dataset
+#     sync_input:   true/false    - Override sync_build_stream_input
 #
 # -----------------------------------------------------------------------------
 # Marker Expression Syntax
 # -----------------------------------------------------------------------------
 #   Single:   "sanity"                  -- tests with @pytest.mark.sanity
-#   OR:       "sanity,functional"       -- tests with EITHER marker
-#   AND:      "sanity+functional"       -- tests with BOTH markers
+#   Execution: "sanity+deploy"           -- sanity execution cases
 #
 # Available markers:
-#   Quality:       sanity, functional, regression
+#   Quality:       sanity
 #   Execution:     deploy
 #
 # -----------------------------------------------------------------------------
 # Available FVT Suites (subfolders under fvt/<tag>/)
 # -----------------------------------------------------------------------------
 #   buildstream_install:  health, buildstream_install
-#   gitlab_cleanup:      (none)
-#   buildstream_cleanup: (none)
-#   build_pipeline:      build_pipeline
+#   buildstream_cleanup:  gitlab_cleanup, buildstream_cleanup
+#   build_pipeline:       build_pipeline
+#   deploy_pipeline:      deploy_pipeline
 #
 # =============================================================================
 
@@ -76,18 +77,26 @@ fvt_build_stream:
     command: "test"
     suite: ""
     marker: "sanity"
-  gitlab_cleanup:
-    run: false
-    command: "test"
-    suite: ""
-    marker: "sanity"
-  buildstream_cleanup:
-    run: false
-    command: "test"
-    suite: ""
-    marker: "sanity"
+    dataset: ""
+    sync_input: false
   build_pipeline:
     run: false
     command: "test"
     suite: ""
     marker: "sanity"
+    dataset: ""
+    sync_input: false
+  deploy_pipeline:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+  buildstream_cleanup:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false

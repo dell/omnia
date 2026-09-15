@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""GitLab Cleanup — Verification tests (under buildstream_cleanup)."""
+"""GitLab Cleanup — Verification tests."""

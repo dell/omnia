@@ -22,7 +22,8 @@ test-case identifier and display name.
 ID Format: UTILS_FVT_<PHASE>_<TYPE><SEQ>
 - UTILS: Domain code
 - FVT: Functional Verification Test
-- PHASE: PRECHECK, SETUP, COLLECT, INSTALL_OS, CLEANUP_LOGS, CLEANUP_INSTALL_OS, CLEANUP
+- PHASE: PRECHECK, SETUP, COLLECT, INSTALL_OS, BACKUP_OIM_LOGS, CLEANUP_LOGS,
+  CLEANUP_INSTALL_OS, CLEANUP_BACKUP_OIM_LOGS, CLEANUP
 - TYPE: E (execution/deploy), V (verification)
 - SEQ: Three-digit sequence number
 
@@ -186,10 +187,6 @@ TEST_CASES = {
         "id": "UTILS_FVT_INSTALL_OS_E004",
         "title": "Deploy install_os.yml (generate_ks tag)",
     },
-    "deploy_install_os_full": {
-        "id": "UTILS_FVT_INSTALL_OS_E005",
-        "title": "Deploy install_os.yml (full execution)",
-    },
 
     # ══════════════════════════════════════════════════════════════════════════
     # INSTALL_OS SCENARIO - Verification Tests
@@ -281,6 +278,206 @@ TEST_CASES = {
     "cleanup_all_install_os_cleaned": {
         "id": "UTILS_FVT_CLEANUP_V002",
         "title": "Verify all install_os artifacts cleaned",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # BACKUP_OIM_LOGS SCENARIO - Deploy Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "deploy_backup_oim_logs": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_E000",
+        "title": "Deploy backup_oim_logs.yml (full stack based on OMNIA_DEPLOY_TAG)",
+    },
+    "deploy_backup_oim_logs_setup": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_E001",
+        "title": "Deploy backup_oim_logs.yml (setup stage)",
+    },
+    "deploy_backup_oim_logs_bundle": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_E002",
+        "title": "Deploy backup_oim_logs.yml (bundle stage)",
+    },
+    "deploy_backup_oim_logs_full": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_E003",
+        "title": "Deploy backup_oim_logs.yml (full execution)",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # BACKUP_OIM_LOGS SCENARIO - Verification Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "backup_oim_logs_config_file_valid": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V001",
+        "title": "Verify backup_oim_logs_config.yml has valid YAML structure (when present)",
+    },
+    "backup_oim_logs_config_domains_valid": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V002",
+        "title": "Verify backup_oim_logs_config.yml domains are valid",
+    },
+    "backup_oim_logs_env_vars_loaded": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V003",
+        "title": "Verify OMNIA_DATA_PATH loaded from environment",
+    },
+    "backup_oim_logs_project_name_loaded": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V004",
+        "title": "Verify OMNIA_PROJECT_NAME loaded from environment",
+    },
+    "backup_oim_logs_output_dir_exists": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V005",
+        "title": "Verify OIM log backup output directory exists",
+    },
+    "backup_oim_logs_archive_created": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V006",
+        "title": "Verify OIM log backup archive (tar.gz) was created",
+    },
+    "backup_oim_logs_metadata_exists": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V007",
+        "title": "Verify metadata.json file exists",
+    },
+    "backup_oim_logs_metadata_valid": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V008",
+        "title": "Verify metadata.json has valid structure",
+    },
+    "backup_oim_logs_metadata_sha256": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V009",
+        "title": "Verify metadata.json contains archive SHA256 checksum",
+    },
+    "backup_oim_logs_archive_contents": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V010",
+        "title": "Verify archive contains expected domain log directories",
+    },
+    "backup_oim_logs_config_file_domains": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V011",
+        "title": "Verify domain selection from backup_oim_logs_config.yml is honored",
+    },
+    "backup_oim_logs_env_var_backup_path": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V012",
+        "title": "Verify OMNIA_BACKUP_PATH override is honored",
+    },
+    "backup_oim_logs_cli_backup_path": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V013",
+        "title": "Verify -e backup_path CLI override is honored",
+    },
+    "backup_oim_logs_nfs_export_mounted": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V014",
+        "title": "Verify a raw NFS export backup_path is detected and mounted",
+    },
+    "backup_oim_logs_missing_domain_dir_warns": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V015",
+        "title": "Verify a missing domain log directory is skipped with a warning",
+    },
+    "backup_oim_logs_custom_project_name": {
+        "id": "UTILS_FVT_BACKUP_OIM_LOGS_V016",
+        "title": "Verify a custom OMNIA_PROJECT_NAME is honored",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CLEANUP_BACKUP_OIM_LOGS SCENARIO
+    # ══════════════════════════════════════════════════════════════════════════
+    "deploy_cleanup_backup_oim_logs": {
+        "id": "UTILS_FVT_CLEANUP_BACKUP_OIM_LOGS_E001",
+        "title": "Deploy utils.yml (cleanup_backup_oim_logs)",
+    },
+    "cleanup_backup_oim_logs_workspace_removed": {
+        "id": "UTILS_FVT_CLEANUP_BACKUP_OIM_LOGS_V001",
+        "title": "Verify OIM log backup workspace run directories are removed",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # SLURM_CONFIG_UTIL SCENARIO - Deploy Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "deploy_slurm_config_backup": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_E001",
+        "title": "Deploy slurm_config_util.yml (slurm_config_backup tag)",
+    },
+    "deploy_slurm_cleanup": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_E002",
+        "title": "Deploy slurm_config_util.yml (slurm_cleanup tag)",
+    },
+    "deploy_slurm_config_rollback": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_E003",
+        "title": "Deploy slurm_config_util.yml (slurm_config_rollback tag)",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # SLURM_CONFIG_UTIL SCENARIO - Verification Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "slurm_config_util_config_file_valid": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V001",
+        "title": "Verify slurm_config_util_config.yml has valid YAML structure (when present)",
+    },
+    "slurm_config_util_env_vars_loaded": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V002",
+        "title": "Verify OMNIA_DATA_PATH loaded from environment",
+    },
+    "slurm_config_backup_output_dir_exists": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V003",
+        "title": "Verify Slurm config backup output directory exists",
+    },
+    "slurm_config_backup_run_dir_created": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V004",
+        "title": "Verify a timestamped backup run directory was created",
+    },
+    "slurm_config_backup_metadata_exists": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V005",
+        "title": "Verify metadata.json exists in the backup run directory",
+    },
+    "slurm_config_backup_metadata_valid": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V006",
+        "title": "Verify metadata.json has valid structure with checksums",
+    },
+    "slurm_config_backup_directories_present": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V007",
+        "title": "Verify backup contains etc/slurm, etc/munge, etc/my.cnf.d",
+    },
+    "slurm_cleanup_removes_config": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V008",
+        "title": "Verify slurm_cleanup removes the active Slurm config directory",
+    },
+    "slurm_config_rollback_restores_config": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V009",
+        "title": "Verify config_rollback restores files from the selected backup",
+    },
+    "slurm_config_rollback_fixes_permissions": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V010",
+        "title": "Verify config_rollback fixes slurmdbd.conf/munge.key permissions",
+    },
+    "slurm_config_util_cli_backup_path": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V011",
+        "title": "Verify -e slurm_backup_path CLI override is honored",
+    },
+    "slurm_config_util_csv_pxe_mapping": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V012",
+        "title": "Verify CSV-format pxe_mapping_path is parsed correctly",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CLEANUP_SLURM_CONFIG_BACKUPS SCENARIO
+    # ══════════════════════════════════════════════════════════════════════════
+    "deploy_cleanup_slurm_config_backups": {
+        "id": "UTILS_FVT_CLEANUP_SLURM_CONFIG_BACKUPS_E001",
+        "title": "Deploy utils.yml (cleanup_slurm_config_backups)",
+    },
+    "cleanup_slurm_config_backups_workspace_removed": {
+        "id": "UTILS_FVT_CLEANUP_SLURM_CONFIG_BACKUPS_V001",
+        "title": "Verify Slurm config backup workspace run directories are removed",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # NEGATIVE TEST CASES - SLURM_CONFIG_UTIL
+    # ══════════════════════════════════════════════════════════════════════════
+    "slurm_config_backup_missing_omnia_config_fails": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_NEG001",
+        "title": "Verify slurm_config_backup fails when omnia_config.yml is missing",
+    },
+    "slurm_config_backup_empty_slurm_cluster_fails": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_NEG002",
+        "title": "Verify slurm_config_backup fails when slurm_cluster is empty",
+    },
+    "slurm_cleanup_wrong_token_aborts": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_NEG003",
+        "title": "Verify slurm_cleanup aborts when confirmation token does not match",
+    },
+    "slurm_config_rollback_no_backups_fails": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_NEG004",
+        "title": "Verify config_rollback fails when no backups are available",
     },
 
     # ══════════════════════════════════════════════════════════════════════════

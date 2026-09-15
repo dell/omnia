@@ -19,6 +19,7 @@ All verification functions return a dict with keys:
   success (bool), details (str), error (str), and optionally skipped (bool).
 """
 
+import re
 from typing import Any, Dict, List
 
 from omnia_auto import load_test_config, run_on_host
@@ -271,17 +272,41 @@ def check_openchami_api_reachable(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    cmd = CMDS["curl_check"].format(host="localhost", port=8443)
+    hostname_result = run_on_host(host, CMDS["hostname_fqdn"])
+    fqdn = hostname_result.stdout.strip()
+    if (
+        hostname_result.rc != 0
+        or not fqdn
+        or re.fullmatch(r"[A-Za-z0-9.-]+", fqdn) is None
+    ):
+        return {
+            "success": False,
+            "details": "Unable to resolve the OIM fully qualified hostname",
+            "error": "OpenCHAMI API hostname could not be determined",
+        }
+
+    readiness_path = "/hsm/v2/service/ready"
+    cmd = CMDS["curl_check"].format(
+        host=fqdn,
+        port=8443,
+        path=readiness_path,
+    )
     result = run_on_host(host, cmd)
     if result.rc == 0:
         return {
             "success": True,
-            "details": "OpenCHAMI API reachable on port 8443",
+            "details": (
+                f"OpenCHAMI API readiness endpoint is reachable at "
+                f"https://{fqdn}:8443{readiness_path}"
+            ),
             "error": "",
         }
     return {
         "success": False,
-        "details": "curl to localhost:8443 failed",
+        "details": (
+            f"curl to https://{fqdn}:8443{readiness_path} failed "
+            f"with rc={result.rc}"
+        ),
         "error": "OpenCHAMI API not reachable",
     }
 

@@ -40,7 +40,7 @@
 #
 # Credential management (OpenBao / Vault):
 #   Domain credentials are fetched from OpenBao using JWT authentication.
-#   VAULT_SERVER_URL must be configured. Secrets are stored at:
+#   BAO_SERVER_URL must be configured. Secrets are stored at:
 #     secret/data/omnia/repo_manager
 #     secret/data/omnia/image_build_manager
 #     secret/data/omnia/orchestrator
@@ -56,7 +56,7 @@
 #   <CLUSTER_PREFIX>_TARGET_PASS
 #
 # Domain credentials come from OpenBao (Vault-compatible) via JWT auth:
-#   VAULT_SERVER_URL, VAULT_AUTH_ROLE, VAULT_SECRET_PATH
+#   BAO_SERVER_URL, BAO_AUTH_ROLE, BAO_DATA_PATH
 #
 # Default mode stages (full cycle):
 #   1. initialization          -> Load cluster config, validate connectivity
@@ -104,14 +104,14 @@ variables:
   #
   # OpenBao / Vault credential management (REQUIRED):
   #   Domain credentials are fetched from OpenBao (Vault-compatible) using JWT auth.
-  #   VAULT_SERVER_URL must be set — pipeline will fail without it.
-  #   Secrets are stored at: <VAULT_SECRET_PATH>/<domain>
+  #   BAO_SERVER_URL must be set — pipeline will fail without it.
+  #   Secrets are stored at: <BAO_DATA_PATH>/<domain>
   #     e.g. secret/data/omnia/repo_manager, secret/data/omnia/orchestrator
   #   For KV v2, include /data/ after mount point: secret/data/omnia
   #   For KV v1, omit /data/: secret/omnia
-  VAULT_SERVER_URL: ""
-  VAULT_AUTH_ROLE: "gitlab-role"
-  VAULT_SECRET_PATH: "secret/data/omnia"
+  BAO_SERVER_URL: ""
+  BAO_AUTH_ROLE: "gitlab-role"
+  BAO_DATA_PATH: "secret/data/omnia"
   #
   # Test credential files are stored as GitLab CI/CD File Type Variables.
   # Naming convention: <CLUSTER_PREFIX>_TEST_CREDS
@@ -215,17 +215,17 @@ default:
       fetch_openbao_secret() {
         local secret_name="$1"
         local output_file="$2"
-        if [ -z "$VAULT_SERVER_URL" ]; then
-          echo "ERROR: VAULT_SERVER_URL is not set."
+        if [ -z "$BAO_SERVER_URL" ]; then
+          echo "ERROR: BAO_SERVER_URL is not set."
           echo "  OpenBao is required for domain credential management."
-          echo "  Set VAULT_SERVER_URL in GitLab CI/CD variables."
+          echo "  Set BAO_SERVER_URL in GitLab CI/CD variables."
           return 1
         fi
         echo "  Authenticating with OpenBao..."
         local auth_response
         auth_response=$(curl -sk --request POST \
-          "${VAULT_SERVER_URL}/v1/auth/jwt/login" \
-          --data "{\"jwt\": \"${VAULT_ID_TOKEN}\", \"role\": \"${VAULT_AUTH_ROLE}\"}" 2>/dev/null)
+          "${BAO_SERVER_URL}/v1/auth/jwt/login" \
+          --data "{\"jwt\": \"${VAULT_ID_TOKEN}\", \"role\": \"${BAO_AUTH_ROLE}\"}" 2>/dev/null)
 
         local bao_token
         bao_token=$(echo "$auth_response" | python3 -c \
@@ -243,7 +243,7 @@ default:
         echo "  Fetching secret: ${secret_name}"
         local secret_response
         secret_response=$(curl -sk --header "X-Vault-Token: ${bao_token}" \
-          "${VAULT_SERVER_URL}/v1/${VAULT_SECRET_PATH}/${secret_name}" 2>/dev/null)
+          "${BAO_SERVER_URL}/v1/${BAO_DATA_PATH}/${secret_name}" 2>/dev/null)
         # Extract secret data (handles both KV v1 and KV v2 response formats)
         # Format all values as quoted strings (JSON format) for YAML compatibility
         python3 -c \
@@ -337,27 +337,27 @@ initialization:
     # Validate OpenBao server reachability (if configured)
     - echo "Validating OpenBao server configuration"
     - |
-      if [ -z "$VAULT_SERVER_URL" ]; then
-        echo "  WARNING: VAULT_SERVER_URL not configured"
+      if [ -z "$BAO_SERVER_URL" ]; then
+        echo "  WARNING: BAO_SERVER_URL not configured"
         echo "  OpenBao credential management will be skipped"
       else
-        echo "  Checking OpenBao server reachability: $VAULT_SERVER_URL"
+        echo "  Checking OpenBao server reachability: $BAO_SERVER_URL"
         # Extract host and port from URL (handle https://host:port format)
-        VAULT_HOST=$(echo "$VAULT_SERVER_URL" | sed -E 's|https?://([^:/]+).*|\1|')
-        VAULT_PORT=$(echo "$VAULT_SERVER_URL" | sed -E 's|.*:([0-9]+)/?$|\1|; s|.*||')
+        VAULT_HOST=$(echo "$BAO_SERVER_URL" | sed -E 's|https?://([^:/]+).*|\1|')
+        VAULT_PORT=$(echo "$BAO_SERVER_URL" | sed -E 's|.*:([0-9]+)/?$|\1|; s|.*||')
         VAULT_PORT="${VAULT_PORT:-8200}"
 
         # Test connectivity with curl (skip certificate verification for self-signed certs)
-        if curl -sk --connect-timeout 10 --max-time 15 "$VAULT_SERVER_URL/v1/sys/health" > /dev/null 2>&1; then
-          echo "  ✓ OpenBao server is reachable at $VAULT_SERVER_URL"
+        if curl -sk --connect-timeout 10 --max-time 15 "$BAO_SERVER_URL/v1/sys/health" > /dev/null 2>&1; then
+          echo "  ✓ OpenBao server is reachable at $BAO_SERVER_URL"
         else
           echo "  ✗ ERROR: OpenBao server is NOT reachable"
-          echo "    URL: $VAULT_SERVER_URL"
+          echo "    URL: $BAO_SERVER_URL"
           echo "    Host: $VAULT_HOST"
           echo "    Port: $VAULT_PORT"
           echo ""
           echo "  Troubleshooting steps:"
-          echo "    1. Verify VAULT_SERVER_URL is correct in CI/CD variables"
+          echo "    1. Verify BAO_SERVER_URL is correct in CI/CD variables"
           echo "    2. Check if OpenBao server is running"
           echo "    3. Verify network connectivity to the OpenBao server"
           echo "    4. Check firewall rules allow access to port $VAULT_PORT"
@@ -1035,7 +1035,7 @@ repo_manager:
   timeout: 3h
   id_tokens:
     VAULT_ID_TOKEN:
-      aud: $VAULT_SERVER_URL
+      aud: $BAO_SERVER_URL
   rules:
     - if: '$SKIP_STAGES =~ /repo_manager/'
       when: never
@@ -1261,7 +1261,7 @@ image_build_manager:
   timeout: 3h
   id_tokens:
     VAULT_ID_TOKEN:
-      aud: $VAULT_SERVER_URL
+      aud: $BAO_SERVER_URL
   rules:
     - if: '$SKIP_STAGES =~ /image_build_manager/'
       when: never
@@ -1493,7 +1493,7 @@ orchestrator:
   timeout: 3h
   id_tokens:
     VAULT_ID_TOKEN:
-      aud: $VAULT_SERVER_URL
+      aud: $BAO_SERVER_URL
   rules:
     - if: '$SKIP_STAGES =~ /orchestrator/'
       when: never
@@ -1725,7 +1725,7 @@ telemetry:
   timeout: 3h
   id_tokens:
     VAULT_ID_TOKEN:
-      aud: $VAULT_SERVER_URL
+      aud: $BAO_SERVER_URL
   rules:
     - if: '$SKIP_STAGES =~ /telemetry/'
       when: never
@@ -2122,27 +2122,75 @@ summary:
       print(f"Collected {len(jobs)} job status records")
       PY
 
+    - |
+      echo "Extracting report paths from domain test_config.yml files..."
+      python3 - <<'PY'
+      import json
+      import os
+      import yaml
+
+      cluster = os.environ.get("CLUSTER", "cluster1")
+      domains_env = os.environ.get("DOMAINS", "default")
+      if domains_env == "default":
+        domains = ["main", "repo_manager", "image_build_manager", "orchestrator", "telemetry"]
+      else:
+        # Handle both comma and pipe separators for domain lists
+        import re
+        domains = ["main"] + [d.strip() for d in re.split(r"[,|]", domains_env) if d.strip()]
+
+      report_paths = {}
+      for domain in domains:
+        config_path = f"clusters/{cluster}/inputs/test/{domain}/test_config.yml"
+        try:
+          with open(config_path, encoding="utf-8") as f:
+            cfg = yaml.safe_load(f)
+          if cfg:
+            path = cfg.get("report_path", "/opt/omnia/reports")
+            report_paths[domain] = path
+            print(f"  {domain}: {path}")
+          else:
+            report_paths[domain] = "/opt/omnia/reports"
+            print(f"  {domain}: (default) /opt/omnia/reports")
+        except FileNotFoundError:
+          report_paths[domain] = "/opt/omnia/reports"
+          print(f"  {domain}: (not found, using default) /opt/omnia/reports")
+        except Exception as e:
+          report_paths[domain] = "/opt/omnia/reports"
+          print(f"  {domain}: (error: {e}, using default) /opt/omnia/reports")
+
+      with open("pipeline_reports/domain_report_paths.json", "w", encoding="utf-8") as f:
+        json.dump(report_paths, f)
+      print("Report paths saved to pipeline_reports/domain_report_paths.json")
+      PY
+
     # Copy test reports from remote target to CI runner
     - |
       echo "Fetching test reports from target..."
-      REMOTE_REPORTS_PATH="/opt/omnia/reports"
       LOCAL_REPORTS_PATH="pipeline_reports/test_reports/$CI_JOB_ID"
       mkdir -p "$LOCAL_REPORTS_PATH"
       if [ "$DOMAINS" = "default" ]; then
         REPORT_DOMAINS="main repo_manager image_build_manager orchestrator telemetry"
       else
-        REPORT_DOMAINS="main $(echo "$DOMAINS" | tr ',' ' ')"
+        # Handle both comma and pipe separators for domain lists
+        REPORT_DOMAINS="main $(echo "$DOMAINS" | tr ',|' ' ')"
       fi
       for domain in $REPORT_DOMAINS; do
+        REMOTE_PATH=$(python3 -c "import json; print(json.load(open('pipeline_reports/domain_report_paths.json')).get('$domain', '/opt/omnia/reports'))")
         REPORT_GLOB="*_${CI_PIPELINE_ID}_${domain}_report.json"
+        echo "  Domain: $domain, Remote path: $REMOTE_PATH"
+        echo "  Looking for reports matching: $REPORT_GLOB"
         LATEST_JSON=$($SSH_CMD $TARGET \
-          "ls -1t $REMOTE_REPORTS_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+          "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
         if [ -n "$LATEST_JSON" ]; then
+          echo "  Found JSON: $LATEST_JSON"
           $SCP_CMD "$TARGET:$LATEST_JSON" "$LOCAL_REPORTS_PATH/" || true
           LATEST_HTML="${LATEST_JSON%.json}.html"
           if $SSH_CMD $TARGET "test -f $LATEST_HTML"; then
+            echo "  Found HTML: $LATEST_HTML"
             $SCP_CMD "$TARGET:$LATEST_HTML" "$LOCAL_REPORTS_PATH/" || true
           fi
+        else
+          echo "  No report found for domain: $domain"
         fi
       done
       echo "  Fresh reports copied to $LOCAL_REPORTS_PATH/"

@@ -87,7 +87,7 @@ invalid_tag_combinations:
 # --- Tag validation messages ---
 tag_validation_fail_msg: |
   Invalid tag usage detected.
-  Supported tags: {{ supported_tags | join(', ') }}
+  Supported tags: {{ effective_supported_tags | default(supported_tags) | join(', ') }}
   Invalid tags provided: {{ invalid_tags | join(', ') }}
   Please use only supported tags.
 tag_combination_fail_msg: |
