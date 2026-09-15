@@ -22,19 +22,15 @@
 # Usage:
 #   ansible-playbook build_stream.yml --tags validate
 
-- name: Standalone setup for validation
+- name: Validate build_stream configuration
   hosts: localhost
   connection: local
   gather_facts: false
   tasks:
-    - name: Run build_stream_setup role when invoked standalone
-      ansible.builtin.include_role:
-        name: build_stream_setup
-      when: not (build_stream_setup_done | default(false) | bool)
+    - name: Load build_stream_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/build_stream_config.yml"
 
-- name: BuildStream configuration validation
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - validate_build_stream_input
+    - name: Run BuildStream input validation
+      ansible.builtin.include_role:
+        name: validate_build_stream_input
