@@ -88,7 +88,7 @@ _TC_ID_MAP["test_deploy_telemetry"] = TEST_CASES["deploy_telemetry"]["id"]
 # =============================================================================
 
 def pytest_addoption(parser):
-    """Add --marker and --delete-volume options."""
+    """Add --marker and --delete-victoria-volume options."""
     parser.addoption(
         "--marker",
         action="store",
@@ -100,14 +100,15 @@ def pytest_addoption(parser):
         ),
     )
     parser.addoption(
-        "--delete-volume",
+        "--delete-victoria-volume",
         action="store",
         default=None,
         help=(
-            "Control PVC/volume deletion during cleanup. "
-            "When 'true', cleanup deletes PVCs (Delete_volume=true). "
-            "When 'false' or omitted (default), PVCs are preserved. "
-            "Also accepts DELETE_VOLUME environment variable."
+            "Control VictoriaMetrics and VictoriaLogs PVC/volume deletion during cleanup. "
+            "When 'true', cleanup deletes VictoriaMetrics and VictoriaLogs PVCs. "
+            "When 'false' or omitted (default), VictoriaMetrics and VictoriaLogs PVCs are preserved. "
+            "Other source volumes (iDRAC, LDMS, Kafka, etc.) are always deleted. "
+            "Also accepts DELETE_VICTORIA_VOLUME environment variable."
         ),
     )
 
@@ -431,22 +432,22 @@ def host():
 
 
 @pytest.fixture(scope="session")
-def delete_volume(request):
-    """Resolve Delete_volume flag from CLI option or environment variable.
+def delete_victoria_volume(request):
+    """Resolve delete_victoria_volume flag from CLI option or environment variable.
 
     Priority order:
-      1. --delete-volume CLI option (if provided)
-      2. DELETE_VOLUME environment variable (if set)
-      3. Default: false (PVCs preserved)
+      1. --delete-victoria-volume CLI option (if provided)
+      2. DELETE_VICTORIA_VOLUME environment variable (if set)
+      3. Default: false (VictoriaMetrics and VictoriaLogs PVCs preserved)
 
     Returns:
-        bool: True if Delete_volume=true, False otherwise.
+        bool: True if delete_victoria_volume=true, False otherwise.
     """
-    cli_value = request.config.getoption("--delete-volume")
+    cli_value = request.config.getoption("--delete-victoria-volume")
     if cli_value is not None:
         return cli_value.lower() in ("true", "1", "yes")
 
-    env_value = os.environ.get("DELETE_VOLUME")
+    env_value = os.environ.get("DELETE_VICTORIA_VOLUME")
     if env_value is not None:
         return env_value.lower() in ("true", "1", "yes")
 

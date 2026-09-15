@@ -118,7 +118,7 @@ def test_deploy_idempotency(host):
 @pytest.mark.nft
 @pytest.mark.idempotency
 @pytest.mark.order(111)
-def test_cleanup_idempotency(host, delete_volume):
+def test_cleanup_idempotency(host, delete_victoria_volume):
     """NFT_TL_005: Cleanup idempotency — second run exits 0.
 
     Runs the full cleanup playbook twice in sequence:
@@ -128,13 +128,13 @@ def test_cleanup_idempotency(host, delete_volume):
     This validates that all cleanup tasks handle missing resources
     gracefully (--ignore-not-found, failed_when: false, helm guards).
 
-    The ``delete_volume`` fixture controls whether ``Delete_volume=true``
+    The ``delete_victoria_volume`` fixture controls whether ``Delete_victoria_volume=true``
     is passed — matching the production cleanup invocation.
     """
     tc = TC["nft_cleanup_idempotent"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    extra_vars = {"Delete_volume": "true"} if delete_volume else None
+    extra_vars = {"Delete_victoria_volume": "true"} if delete_victoria_volume else None
 
     # -- Run 1: Initial cleanup -------------------------------------------
     tl.check("Running first cleanup (initial cleanup)")
@@ -223,14 +223,14 @@ def test_cleanup_idempotency_no_pods(host):
 @pytest.mark.nft
 @pytest.mark.idempotency
 @pytest.mark.order(113)
-def test_cleanup_idempotency_no_pvcs(host, delete_volume):
+def test_cleanup_idempotency_no_pvcs(host, delete_victoria_volume):
     """NFT_TL_005c: Verify PVC state after idempotent cleanup.
 
     After two cleanup runs:
-      - With Delete_volume=true: zero PVCs must remain.
-      - With Delete_volume=false: PVCs must be preserved.
+      - With delete_victoria_volume=true: zero PVCs must remain (all deleted).
+      - With delete_victoria_volume=false: VictoriaMetrics and VictoriaLogs PVCs must be preserved, other PVCs deleted.
     """
-    if delete_volume:
+    if delete_victoria_volume:
         tc = TC["no_pvcs_after_full_cleanup"]
         tl = TestLogger(
             "Verify no PVCs after idempotent cleanup",

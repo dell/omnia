@@ -204,22 +204,20 @@ current pod. Previous certificate imports are retained as rollback material.
 | TC ID | Test | Marker | Condition |
 |-------|------|--------|-----------|
 | TC_CL_002 | Verify telemetry pods removed | sanity | always |
-| TC_CL_003 | Verify Kafka topics removed | sanity | `DELETE_VOLUME=true` |
+| TC_CL_003 | Verify Kafka topics removed | sanity | `DELETE_VICTORIA_VOLUME=true` |
 | TC_CL_011 | Verify no pods remain after full cleanup | sanity | always |
-| TC_CL_012 | Verify no PVCs remain after full cleanup | sanity | `DELETE_VOLUME=true` |
-| TC_CL_013 | Verify PVCs preserved after cleanup | sanity | `DELETE_VOLUME` unset/`false` (default) |
+| TC_CL_012 | Verify no PVCs remain after full cleanup | sanity | `DELETE_VICTORIA_VOLUME=true` |
+| TC_CL_013 | Verify VictoriaMetrics and VictoriaLogs PVCs preserved after cleanup | sanity | `DELETE_VICTORIA_VOLUME` unset/`false` (default) |
 
-**Conditional Cleanup Tests**: When `DELETE_VOLUME` is set, the cleanup
-playbook is invoked with `-e Delete_volume=true` and all cleanup tests run.
+**Conditional Cleanup Tests**: When `DELETE_VICTORIA_VOLUME` is set, the cleanup
+playbook is invoked with `-e Delete_victoria_volume=true` and all cleanup tests run.
 When unset/`false` (default), only the test matching the current
-`Delete_volume` mode is skipped (not failed). See
-`status/test_cleanup_final.py` and the `delete_volume` fixture defined
+`delete_victoria_volume` mode is skipped (not failed). See
+`status/test_cleanup_final.py` and the `delete_victoria_volume` fixture defined
 in `conftest.py`.
 
-TC_CL_003 is skipped when `DELETE_VOLUME` is unset/`false`: per
-`src/telemetry/roles/cleanup/tasks/kafka.yml`, KafkaTopic CRDs are only
-deleted when `Delete_volume=true` — otherwise topic metadata is kept
-alongside the retained Kafka PVCs.
+TC_CL_003 is always run: KafkaTopic CRDs are always deleted regardless of
+the delete_victoria_volume flag. Kafka volumes are always deleted.
 
 ### Playbook Execution
 

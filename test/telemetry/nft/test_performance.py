@@ -144,19 +144,19 @@ def test_deploy_performance(host):
 @pytest.mark.nft
 @pytest.mark.performance
 @pytest.mark.order(102)
-def test_cleanup_performance(host, delete_volume):
+def test_cleanup_performance(host, delete_victoria_volume):
     """NFT_TL_003: Verify cleanup completes within 300s (5 min) threshold.
 
     Runs ``ansible-playbook telemetry.yml --tags cleanup`` and asserts
     that full cleanup completes in under 5 minutes.
 
-    The ``delete_volume`` fixture controls whether ``Delete_volume=true``
+    The ``delete_victoria_volume`` fixture controls whether ``Delete_victoria_volume=true``
     is passed — matching the production cleanup invocation.
     """
     tc = TC["nft_cleanup_perf"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    extra_vars = {"Delete_volume": "true"} if delete_volume else None
+    extra_vars = {"Delete_victoria_volume": "true"} if delete_victoria_volume else None
 
     tl.check(f"Running cleanup playbook (threshold: {CLEANUP_THRESHOLD}s)")
     result = run_playbook(

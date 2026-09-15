@@ -67,14 +67,14 @@ def test_no_pods_after_full_cleanup(host):
 
 @pytest.mark.sanity
 @pytest.mark.order(62)
-def test_no_pvcs_after_full_cleanup(host, delete_volume):
+def test_no_pvcs_after_full_cleanup(host, delete_victoria_volume):
     """TC_CL_012: Verify PVC state after full cleanup.
 
     After a full cleanup (--tags cleanup):
-      - With Delete_volume=true: zero PVCs must remain.
-      - With Delete_volume=false: PVCs must be preserved.
+      - With delete_victoria_volume=true: zero PVCs must remain (all deleted).
+      - With delete_victoria_volume=false: VictoriaMetrics and VictoriaLogs PVCs must be preserved, other PVCs deleted.
     """
-    if delete_volume:
+    if delete_victoria_volume:
         tc = TC["no_pvcs_after_full_cleanup"]
         tl = TestLogger(tc["title"], tc["id"])
 
