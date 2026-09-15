@@ -773,12 +773,12 @@ def generate_cluster_trigger_job(cluster_name):
 def generate_cluster_variables(cluster_name):
     """Generate cluster-level variables for .gitlab-ci.yml."""
     upper_prefix = cluster_name.upper()
-    return f"""  {upper_prefix}_OMNIA_REPO: "${{OMNIA_REPO}}"
-  {upper_prefix}_OMNIA_BRANCH: "${{OMNIA_BRANCH}}"
-  {upper_prefix}_OMNIA_INSTALL_PATH: "${{OMNIA_INSTALL_PATH}}"
-  {upper_prefix}_BAO_SERVER_URL: "${{BAO_SERVER_URL}}"
-  {upper_prefix}_BAO_AUTH_ROLE: "${{BAO_AUTH_ROLE}}"
-  {upper_prefix}_BAO_DATA_PATH: "${{BAO_DATA_PATH}}"
+    return f"""  {upper_prefix}_OMNIA_REPO: ""
+  {upper_prefix}_OMNIA_BRANCH: ""
+  {upper_prefix}_OMNIA_INSTALL_PATH: ""
+  {upper_prefix}_BAO_SERVER_URL: ""
+  {upper_prefix}_BAO_AUTH_ROLE: ""
+  {upper_prefix}_BAO_DATA_PATH: ""
   {upper_prefix}_PIPELINE_MODE: "default"
   {upper_prefix}_DOMAINS: "default"
   {upper_prefix}_ENABLE_SETUP: "false"
@@ -991,16 +991,10 @@ def cmd_create(args, client):
 
         # Also set global defaults that aren't in the config file
         global_keys = [
-            ("OMNIA_REPO", "https://github.com/dell/omnia.git"),
-            ("OMNIA_BRANCH", "main"),
-            ("OMNIA_INSTALL_PATH", "/root/omnia"),
             ("EMAIL_RECIPIENTS", ""),
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
-            ("BAO_SERVER_URL", ""),
-            ("BAO_AUTH_ROLE", ""),
-            ("BAO_DATA_PATH", ""),
         ]
         for key, default_val in global_keys:
             if key not in config_vars:
@@ -1030,16 +1024,10 @@ def cmd_create(args, client):
 
         # Global pipeline variables
         global_keys = [
-            ("OMNIA_REPO", "https://github.com/dell/omnia.git"),
-            ("OMNIA_BRANCH", "main"),
-            ("OMNIA_INSTALL_PATH", "/root/omnia"),
             ("EMAIL_RECIPIENTS", ""),
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
-            ("BAO_SERVER_URL", ""),
-            ("BAO_AUTH_ROLE", ""),
-            ("BAO_DATA_PATH", ""),
         ]
         for key, default_val in global_keys:
             status = client.set_variable(project_id, key, default_val)
@@ -1195,16 +1183,10 @@ def cmd_update(args, client):
 
         # Global pipeline variables
         global_keys = [
-            ("OMNIA_REPO", "https://github.com/dell/omnia.git"),
-            ("OMNIA_BRANCH", "main"),
-            ("OMNIA_INSTALL_PATH", "/root/omnia"),
             ("EMAIL_RECIPIENTS", ""),
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
-            ("BAO_SERVER_URL", ""),
-            ("BAO_AUTH_ROLE", ""),
-            ("BAO_DATA_PATH", ""),
         ]
         for key, default_val in global_keys:
             status = client.set_variable(project_id, key, default_val)
