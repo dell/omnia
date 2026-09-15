@@ -1157,11 +1157,21 @@ spec:
   storageClassName: ""
 """
     
-    # Create PV YAML file
-    pv_file = f"/tmp/{pv_name}.yaml"
+    # Create PV YAML file using mktemp for security
+    mktemp_cmd = _ssh_cmd(cp_ip, "mktemp -t")
+    mktemp_result = run_on_host(host, mktemp_cmd)
+    if mktemp_result.rc != 0 or not mktemp_result.stdout.strip():
+        return {
+            "success": False,
+            "details": "Failed to create temporary file for PV YAML",
+            "error": "mktemp command failed",
+        }
+    pv_file = mktemp_result.stdout.strip()
+    
     write_pv_cmd = _ssh_cmd(cp_ip, f"cat > {pv_file} << 'PVYAML'\n{pv_yaml}PVYAML")
     result = run_on_host(host, write_pv_cmd)
     if result.rc != 0:
+        run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file}"))
         return {
             "success": False,
             "details": f"Failed to write PV YAML: {result.stdout}",
@@ -1179,8 +1189,19 @@ spec:
             "error": f"PV creation failed: {result.stdout[:200]}",
         }
     
-    # Create PVC YAML file
-    pvc_file = f"/tmp/{pvc_name}.yaml"
+    # Create PVC YAML file using mktemp for security
+    mktemp_cmd = _ssh_cmd(cp_ip, "mktemp -t")
+    mktemp_result = run_on_host(host, mktemp_cmd)
+    if mktemp_result.rc != 0 or not mktemp_result.stdout.strip():
+        run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pv {pv_name} --ignore-not-found"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file}"))
+        return {
+            "success": False,
+            "details": "Failed to create temporary file for PVC YAML",
+            "error": "mktemp command failed",
+        }
+    pvc_file = mktemp_result.stdout.strip()
+    
     write_pvc_cmd = _ssh_cmd(cp_ip, f"cat > {pvc_file} << 'PVCYAML'\n{pvc_yaml}PVCYAML")
     result = run_on_host(host, write_pvc_cmd)
     if result.rc != 0:
@@ -1263,13 +1284,26 @@ spec:
   restartPolicy: Never
 """
     
-    pod_file = f"/tmp/{pod_name}.yaml"
+    # Create pod YAML file using mktemp for security
+    mktemp_cmd = _ssh_cmd(cp_ip, "mktemp -t")
+    mktemp_result = run_on_host(host, mktemp_cmd)
+    if mktemp_result.rc != 0 or not mktemp_result.stdout.strip():
+        run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pvc {pvc_name} -n {ns} --ignore-not-found"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pv {pv_name} --ignore-not-found"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file} {pvc_file}"))
+        return {
+            "success": False,
+            "details": "Failed to create temporary file for pod YAML",
+            "error": "mktemp command failed",
+        }
+    pod_file = mktemp_result.stdout.strip()
+    
     write_pod_cmd = _ssh_cmd(cp_ip, f"cat > {pod_file} << 'PODYAML'\n{pod_yaml}PODYAML")
     result = run_on_host(host, write_pod_cmd)
     if result.rc != 0:
         run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pvc {pvc_name} -n {ns} --ignore-not-found"))
         run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pv {pv_name} --ignore-not-found"))
-        run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file} {pvc_file}"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file} {pvc_file} {pod_file}"))
         return {
             "success": False,
             "details": f"Failed to write pod YAML: {result.stdout}",
