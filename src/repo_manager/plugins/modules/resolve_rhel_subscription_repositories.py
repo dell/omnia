@@ -125,8 +125,12 @@ def main():
             "repository_names_by_arch": {
                 "type": "dict", "required": True,
             },
+            # Callers protect this mapping with task-level ``no_log``. Marking
+            # the nested dictionary itself ``no_log`` makes Ansible redact
+            # ordinary scalar values (for example priorities) from returned
+            # certificate paths, corrupting valid entitlement filenames.
             "repository_configurations_by_arch": {
-                "type": "dict", "required": True, "no_log": True,
+                "type": "dict", "required": True,
             },
             "global_standard": {
                 "type": "bool", "required": False, "default": False,
