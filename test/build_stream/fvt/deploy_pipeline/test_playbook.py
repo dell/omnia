@@ -4,11 +4,9 @@ import pytest
 
 from library.functions import (
     TestLogger,
-    list_pipelines,
     run_deploy_child_pipeline,
-    swap_pxe_mapping_rows,
+    trigger_pipeline_with_variables,
     wait_for_child_pipeline,
-    wait_for_pipeline_triggered,
 )
 from library.vars import TEST_CASES as TC
 
@@ -17,24 +15,17 @@ from library.vars import TEST_CASES as TC
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_execute_deploy_pipeline(host, deploy_pipeline_state):
-    """Swap PXE rows, select the mapped image, and play deploy."""
+    """Trigger deploy via the API, select the mapped image, and play deploy."""
     tc = TC["execute_deploy_pipeline"]
     tl = TestLogger(tc["title"], tc["id"])
-    before = list_pipelines(host, per_page=5)
-    assert before["success"], before["error"]
-    initial_pipeline_id = 0
-    if before["pipelines"]:
-        initial_pipeline_id = int(before["pipelines"][0].get("id", 0))
-
-    changed = swap_pxe_mapping_rows(host)
-    assert changed["success"], changed["error"]
-    tl.check("Swapped the first two PXE mapping data rows")
-    parent = wait_for_pipeline_triggered(
-        host, initial_pipeline_id, commit_id=changed["commit_id"],
+    parent = trigger_pipeline_with_variables(
+        host, {"PIPELINE_TYPE": "deploy"},
     )
     assert parent["success"], parent["error"]
     deploy_pipeline_state.parent_pipeline_id = parent["pipeline_id"]
-    tl.check(f"Deploy parent pipeline: {parent['pipeline_id']}")
+    tl.check(
+        f"Triggered deploy parent pipeline via API: {parent['pipeline_id']}"
+    )
     controller = wait_for_child_pipeline(host, parent["pipeline_id"])
     assert controller["success"], controller["error"]
     tl.check(f"Deploy controller pipeline: {controller['child_pipeline_id']}")

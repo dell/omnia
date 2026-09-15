@@ -105,7 +105,6 @@ from library.functions.pipeline_func import (
     get_child_pipeline_id,
     get_gitlab_pipeline_jobs,
     poll_gitlab_ci_stages,
-    swap_pxe_mapping_rows,
     wait_for_child_pipeline,
     run_deploy_child_pipeline,
     get_gitlab_job_trace,
@@ -179,6 +178,26 @@ from library.functions.validation_func import (
     ConfigValidationError,
 )
 
+# --- Non-functional resilience and security ---
+from library.functions.nft_func import (
+    artifact_path_absent,
+    bsm_request,
+    create_disposable_job,
+    forbidden_upload_absent,
+    get_bsm_context,
+    get_scoped_token,
+    pipeline_status,
+    restart_service,
+    secret_absent_from_bsm_logs,
+    stop_service,
+    trigger_catalog_job,
+    upload_inline_file,
+    upload_oversized_file,
+    wait_for_pipeline_status,
+    wait_for_queue_claimed,
+    wait_for_queue_entry,
+)
+
 
 def run_playbook(extra_vars=None, **kwargs):
     """Wrapper that injects module-specific playbook and workdir."""
@@ -210,6 +229,22 @@ __all__ = [
     "build_report_name",
     "record_playbook_failure",
     "run_playbook",
+    "artifact_path_absent",
+    "bsm_request",
+    "create_disposable_job",
+    "forbidden_upload_absent",
+    "get_bsm_context",
+    "get_scoped_token",
+    "pipeline_status",
+    "restart_service",
+    "secret_absent_from_bsm_logs",
+    "stop_service",
+    "trigger_catalog_job",
+    "upload_inline_file",
+    "upload_oversized_file",
+    "wait_for_pipeline_status",
+    "wait_for_queue_claimed",
+    "wait_for_queue_entry",
     "check_target_connectivity",
     "sync_build_stream_input",
     "sync_project_to_remote",
@@ -286,7 +321,6 @@ __all__ = [
     "get_child_pipeline_id",
     "get_gitlab_pipeline_jobs",
     "poll_gitlab_ci_stages",
-    "swap_pxe_mapping_rows",
     "wait_for_child_pipeline",
     "run_deploy_child_pipeline",
     "get_gitlab_job_trace",

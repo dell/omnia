@@ -11,8 +11,4 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
-description: Source-aligned BuildStream configuration with the domain enabled.
-patches:
-  build_stream_config:
-    enable_build_stream: true
+"""BuildStream dataset generator package."""

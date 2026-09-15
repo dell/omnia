@@ -381,4 +381,44 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "title": "Verify deploy pipeline summary passed",
     },
 
+    # =================================================================
+    # SECTION F: Non-functional resilience and security
+    # =================================================================
+    "gitlab_cancel_then_create_new_job": {
+        "id": "BSM_NFT_RESILIENCE_001",
+        "title": "Cancel GitLab pipeline and create an independent BSM job",
+    },
+    "bsm_container_restart_recovery": {
+        "id": "BSM_NFT_RESILIENCE_002",
+        "title": "Verify BSM container and persisted job recover after restart",
+    },
+    "bsm_restart_during_active_stage": {
+        "id": "BSM_NFT_RESILIENCE_003",
+        "title": "Verify active BSM job survives API container restart",
+    },
+    "watcher_restart_during_queued_request": {
+        "id": "BSM_NFT_RESILIENCE_004",
+        "title": "Verify watcher restart preserves queued job isolation",
+    },
+    "protected_endpoints_reject_invalid_tokens": {
+        "id": "BSM_NFT_SECURITY_001",
+        "title": "Verify protected endpoints reject invalid bearer tokens",
+    },
+    "scope_authorization_enforced": {
+        "id": "BSM_NFT_SECURITY_002",
+        "title": "Verify read-only OAuth scope cannot mutate jobs",
+    },
+    "upload_path_and_filename_protection": {
+        "id": "BSM_NFT_SECURITY_003",
+        "title": "Verify upload whitelist blocks path traversal",
+    },
+    "oversized_upload_rejected_without_partial_state": {
+        "id": "BSM_NFT_SECURITY_004",
+        "title": "Verify oversized upload leaves no partial artifact",
+    },
+    "secret_redaction_in_logs_and_responses": {
+        "id": "BSM_NFT_SECURITY_005",
+        "title": "Verify authentication secrets are absent from logs",
+    },
+
 }

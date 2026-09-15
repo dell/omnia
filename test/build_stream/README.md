@@ -121,9 +121,20 @@ Generate reproducible non-secret input with:
 
 ```bash
 cd datasets/generator
-./generate_dataset.py my_dataset defaults
+./generate_dataset.py create my_dataset --profile defaults
 cd ../..
 ```
+
+Run deployed-system non-functional tests with:
+
+```bash
+./run_validation.sh nft_build_stream list
+./run_validation.sh nft_build_stream test --marker security
+```
+
+Resilience tests that cancel a GitLab pipeline or restart BuildStream services
+require explicit `nft_allow_*` authorization in `test_config.yml`. See
+[`nft/README.md`](nft/README.md) for the test registry and safety controls.
 
 Datasets never contain Build Stream credentials. Configure those directly on
 the execution OIM with `./setup_env.sh --set-domain-creds`.

@@ -16,9 +16,10 @@
 # =============================================================================
 # build_stream -- Validation Runner
 # =============================================================================
-# Delegates to the Python validation runner.  Environment setup (venv,
-# baremetal, dependencies) is handled by setup_env.sh -- this script
-# simply forwards arguments.
+# Delegates to the Python validation runner. Environment setup (venv,
+# baremetal, dependencies) is handled by setup_env.sh. Prefer the domain
+# virtual environment so invocation does not depend on whether the caller
+# remembered to activate it.
 #
 # Usage:
 #   ./run_validation.sh fvt_build_stream <tag> <command> [options]
@@ -30,5 +31,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_PYTHON="${SCRIPT_DIR}/.venv/bin/python3"
 
-exec python3 "${SCRIPT_DIR}/_run.py" "$@"
+if [[ -x "${VENV_PYTHON}" ]]; then
+    PYTHON_BIN="${VENV_PYTHON}"
+else
+    # setup_env.sh also supports baremetal installation. In that mode there
+    # is intentionally no domain .venv, so use the caller's Python.
+    PYTHON_BIN="$(command -v python3)"
+fi
+
+exec "${PYTHON_BIN}" "${SCRIPT_DIR}/_run.py" "$@"

@@ -21,8 +21,9 @@ from `datasets/<name>/`. Generate one with the dataset generator:
 
 ```bash
 cd datasets/generator/
-python generate_dataset.py my_ds defaults
-python generate_dataset.py my_ds --from-src
+./generate_dataset.py profiles
+./generate_dataset.py create my_ds --profile defaults
+./generate_dataset.py create source_snapshot --from-src
 ```
 
 See [`generator/README.md`](generator/README.md) for full usage.
@@ -33,8 +34,13 @@ See [`generator/README.md`](generator/README.md) for full usage.
 datasets/<name>/
   input/
     build_stream_config.yml
+  dataset_manifest.yml
   README.md
 ```
+
+The source configuration is authoritative. Profiles contain small structured
+patches, and generated manifests record source and artifact hashes. Use
+`--dry-run` to preview or `--check` to detect drift without publishing.
 
 ## Switching Datasets
 
