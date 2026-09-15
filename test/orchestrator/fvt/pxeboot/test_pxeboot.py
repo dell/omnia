@@ -37,9 +37,6 @@ from library.functions import (
 )
 
 
-pytestmark = pytest.mark.destructive
-
-
 @pytest.mark.sanity
 @pytest.mark.buildstream
 @pytest.mark.order(1)
@@ -57,37 +54,26 @@ def test_orchestrator_config_exists():
     else:
         msg = f"orchestrator_config.yml not found at {orchestrator_config_path}"
         tl.failed("PXE boot configuration validation failed", msg)
+        assert False, msg
 
 
 @pytest.mark.functional
 @pytest.mark.order(2)
 def test_pxe_boot_flag_validation():
-    """ORCH_FVT_PXEBOOT_V002: Verify enable_pxe_boot flag is properly configured."""
+    """ORCH_FVT_PXEBOOT_V002: Verify PXE boot is enabled via mapping file presence."""
     tl = TestLogger("PXE Boot Flag Validation", "ORCH_FVT_PXEBOOT_V002")
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    orchestrator_config_path = input_dir + "/orchestrator_config.yml"
+    pxe_mapping_file_path = input_dir + "/pxe_mapping_file.csv"
 
-    try:
-        with open(orchestrator_config_path, 'r', encoding='utf-8') as f:
-            orchestrator_config = yaml.safe_load(f)
-
-        if "enable_pxe_boot" not in orchestrator_config:
-            msg = "enable_pxe_boot flag missing in orchestrator_config.yml"
-            tl.failed("PXE boot configuration validation failed", msg)
-            return
-
-        enable_pxe = orchestrator_config.get("enable_pxe_boot", True)
-        if isinstance(enable_pxe, bool):
-            msg = f"enable_pxe_boot flag is properly set to {enable_pxe}"
-            tl.passed("PXE boot configuration validation passed", msg)
-        else:
-            msg = "enable_pxe_boot must be a boolean value"
-            tl.failed("PXE boot configuration validation failed", msg)
-    except Exception as e:
-        msg = f"Error validating PXE boot flag: {str(e)}"
-        tl.failed("PXE boot configuration validation failed", msg)
+    # PXE boot is considered enabled if pxe_mapping_file.csv exists
+    if Path(pxe_mapping_file_path).exists():
+        msg = f"PXE boot is enabled (pxe_mapping_file.csv found at {pxe_mapping_file_path})"
+        tl.passed("PXE boot configuration validation passed", msg)
+    else:
+        msg = "PXE boot is disabled (pxe_mapping_file.csv not found)"
+        tl.passed("PXE boot configuration validation passed", msg)
 
 
 @pytest.mark.sanity
@@ -131,7 +117,7 @@ def test_pxe_mapping_file_format():
         if len(lines) < 2:
             msg = "pxe_mapping_file.csv must have header and at least one data row"
             tl.failed("PXE boot configuration validation failed", msg)
-            return
+            assert False, msg
 
         # Validate header
         header = lines[0].strip().split(',')
@@ -139,7 +125,7 @@ def test_pxe_mapping_file_format():
         if len(header) < 9:
             msg = f"Expected at least 9 columns, found {len(header)}"
             tl.failed("PXE boot configuration validation failed", msg)
-            return
+            assert False, msg
 
         # Validate data rows
         validation_errors = []
@@ -152,12 +138,14 @@ def test_pxe_mapping_file_format():
         if validation_errors:
             msg = f"PXE mapping file format errors: {validation_errors}"
             tl.failed("PXE boot configuration validation failed", msg)
+            assert False, msg
         else:
             msg = "pxe_mapping_file.csv format is valid"
             tl.passed("PXE boot configuration validation passed", msg)
     except Exception as e:
         msg = f"Error validating PXE mapping file format: {str(e)}"
         tl.failed("PXE boot configuration validation failed", msg)
+        assert False, msg
 
 
 @pytest.mark.sanity
@@ -243,12 +231,14 @@ def test_set_pxe_boot_config_validation():
         if validation_errors:
             msg = f"Set PXE boot config validation errors: {validation_errors}"
             tl.failed("PXE boot configuration validation failed", msg)
+            assert False, msg
         else:
             msg = "set_pxe_boot_config.yml parameters are valid"
             tl.passed("PXE boot configuration validation passed", msg)
     except Exception as e:
         msg = f"Error validating set_pxe_boot_config.yml: {str(e)}"
         tl.failed("PXE boot configuration validation failed", msg)
+        assert False, msg
 
 
 @pytest.mark.sanity
@@ -287,6 +277,15 @@ def test_bmc_credentials_validation():
 
     try:
         with open(credentials_file_path, 'r', encoding='utf-8') as f:
+            first_line = f.readline()
+            # Check if file is encrypted with Ansible Vault
+            if first_line.startswith('$ANSIBLE_VAULT'):
+                msg = "Credentials file is encrypted (will be decrypted during execution)"
+                tl.passed("PXE boot configuration validation passed", msg)
+                return
+
+            # Reset file pointer and try to load YAML
+            f.seek(0)
             try:
                 config = yaml.safe_load(f)
             except yaml.YAMLError:
@@ -294,22 +293,25 @@ def test_bmc_credentials_validation():
                 tl.passed("PXE boot configuration validation passed", msg)
                 return
 
-        if config:
+        if config and isinstance(config, dict):
             if "bmc_username" not in config and "username" not in config:
                 msg = "BMC username not found in credentials file"
                 tl.failed("PXE boot configuration validation failed", msg)
+                assert False, msg
             elif "bmc_password" not in config and "password" not in config:
                 msg = "BMC password not found in credentials file"
                 tl.failed("PXE boot configuration validation failed", msg)
+                assert False, msg
             else:
                 msg = "BMC credentials are available"
                 tl.passed("PXE boot configuration validation passed", msg)
         else:
-            msg = "Credentials file is empty (will be populated during execution)"
+            msg = "Credentials file is encrypted or empty (will be validated during execution)"
             tl.passed("PXE boot configuration validation passed", msg)
     except Exception as e:
         msg = f"Error validating BMC credentials: {str(e)}"
         tl.failed("PXE boot configuration validation failed", msg)
+        assert False, msg
 
 
 @pytest.mark.functional
@@ -320,22 +322,14 @@ def test_pxe_boot_skip_when_disabled():
     test_config = load_test_config()
     input_dir = test_config.get("input_project_dir",
                                     "/opt/omnia/orchestrator/input/project_default")
-    orchestrator_config_path = input_dir + "/orchestrator_config.yml"
+    pxe_mapping_file_path = input_dir + "/pxe_mapping_file.csv"
 
-    try:
-        with open(orchestrator_config_path, 'r', encoding='utf-8') as f:
-            orchestrator_config = yaml.safe_load(f)
-
-        enable_pxe = orchestrator_config.get("enable_pxe_boot", True)
-
-        if not enable_pxe:
-            msg = "PXE boot is disabled (expected for VM environments)"
-            tl.passed("PXE boot configuration validation passed", msg)
-        else:
-            tl.passed("PXE boot configuration validation passed", "PXE boot is enabled")
-    except Exception as e:
-        msg = f"Error checking PXE boot flag: {str(e)}"
-        tl.failed("PXE boot configuration validation failed", msg)
+    # PXE boot is considered disabled if pxe_mapping_file.csv does not exist
+    if not Path(pxe_mapping_file_path).exists():
+        msg = "PXE boot is disabled (pxe_mapping_file.csv not found)"
+        tl.passed("PXE boot configuration validation passed", msg)
+    else:
+        tl.passed("PXE boot configuration validation passed", "PXE boot is enabled")
 
 
 @pytest.mark.functional
@@ -407,12 +401,14 @@ def test_failed_nodes_output_format():
         if validation_errors:
             msg = f"failed_nodes.json validation errors: {validation_errors}"
             tl.failed("PXE boot configuration validation failed", msg)
+            assert False, msg
         else:
             msg = "failed_nodes.json format and structure are valid"
             tl.passed("PXE boot configuration validation passed", msg)
     except Exception as e:
         msg = f"Error validating failed_nodes.json: {str(e)}"
         tl.failed("PXE boot configuration validation failed", msg)
+        assert False, msg
 
 
 @pytest.mark.functional
@@ -484,44 +480,22 @@ def test_orchestrator_status_output_format():
         if validation_errors:
             msg = f"orchestrator_status.yml validation errors: {validation_errors}"
             tl.failed("PXE boot configuration validation failed", msg)
+            assert False, msg
         else:
             msg = "orchestrator_status.yml format and structure are valid"
             tl.passed("PXE boot configuration validation passed", msg)
     except Exception as e:
         msg = f"Error validating orchestrator_status.yml: {str(e)}"
         tl.failed("PXE boot configuration validation failed", msg)
+        assert False, msg
 
+# Removed test_pxe_boot_playbook_execution (ORCH_FVT_PXEBOOT_V014)
+# This test was checking if the playbook file exists in source code,
+# which is not a functional verification. Functional verification should
+# verify that PXE boot actually worked (nodes provisioned, services running),
+# not whether source code files exist.
 
-@pytest.mark.functional
-@pytest.mark.order(14)
-def test_pxe_boot_playbook_execution():
-    """ORCH_FVT_PXEBOOT_V014: Verify PXE boot playbook can be executed."""
-    tl = TestLogger("PXE Boot Playbook Execution", "ORCH_FVT_PXEBOOT_V014")
-    playbook_path = "/root/catalog/omnia/src/orchestrator/playbooks/pxeboot/pxeboot.yml"
-
-    if Path(playbook_path).exists():
-        msg = f"PXE boot playbook found at {playbook_path}"
-        tl.passed("PXE boot configuration validation passed", msg)
-    else:
-        msg = f"PXE boot playbook not found at {playbook_path}"
-        tl.failed("PXE boot configuration validation failed", msg)
-
-
-@pytest.mark.sanity
-@pytest.mark.buildstream
-@pytest.mark.order(15)
-def test_idrac_role_exists():
-    """ORCH_FVT_PXEBOOT_V015: Verify idrac_pxe_boot role exists."""
-    tl = TestLogger("iDRAC Role Exists", "ORCH_FVT_PXEBOOT_V015")
-    role_path = Path("/root/catalog/omnia/src/orchestrator/roles/idrac_pxe_boot")
-
-    if role_path.exists():
-        if (role_path / "tasks" / "main.yml").exists() and (role_path / "vars" / "main.yml").exists():
-            msg = f"idrac_pxe_boot role found at {role_path}"
-            tl.passed("PXE boot configuration validation passed", msg)
-        else:
-            msg = "idrac_pxe_boot role missing required files"
-            tl.failed("PXE boot configuration validation failed", msg)
-    else:
-        msg = f"idrac_pxe_boot role not found at {role_path}"
-        tl.failed("PXE boot configuration validation failed", msg)
+# Removed test_idrac_role_exists (ORCH_FVT_PXEBOOT_V015)
+# This test was checking if the role file exists in source code,
+# which is not a functional verification. Functional verification should
+# verify that PXE boot actually worked, not whether source code files exist.

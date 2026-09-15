@@ -16,9 +16,6 @@ import yaml
 from library.functions import load_test_config, run_on_host
 
 
-pytestmark = pytest.mark.destructive
-
-
 def _paths():
     config = load_test_config()
     shared = config.get("shared_path", "/opt/omnia/orchestrator").rstrip("/")
@@ -91,7 +88,7 @@ def test_bmc_credential_artifacts_exist(host):
     """ORCH_FVT_PXEBOOT_V025: Enabled PXE has encrypted credential artifacts."""
     _require_pxe_enabled(host)
     input_dir, _ = _paths()
-    for filename in ("omnia_config_credentials.yml", ".omnia_config_credentials_key"):
+    for filename in ("orchestrator_credentials.yml", ".orchestrator_credentials_key"):
         credential = host.file(posixpath.join(input_dir, filename))
         assert credential.is_file and credential.size > 0, filename
 
@@ -102,7 +99,7 @@ def test_bmc_credential_permissions(host):
     """ORCH_FVT_PXEBOOT_V026: BMC credentials are inaccessible to other users."""
     _require_pxe_enabled(host)
     input_dir, _ = _paths()
-    for filename in ("omnia_config_credentials.yml", ".omnia_config_credentials_key"):
+    for filename in ("orchestrator_credentials.yml", ".orchestrator_credentials_key"):
         credential = host.file(posixpath.join(input_dir, filename))
         assert credential.is_file, filename
         assert credential.mode & 0o077 == 0, (
