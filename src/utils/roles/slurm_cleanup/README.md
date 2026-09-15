@@ -1,48 +1,48 @@
 # slurm_cleanup
 
-Cleans up Slurm configuration files and removes cluster-specific settings.
+Deletes the active Slurm configuration directory from the Slurm NFS share.
 
 ## Description
 
-This role performs cleanup operations on Slurm configuration files, removing cluster-specific settings, temporary files, and resetting configurations to default states. It supports both partial and complete cleanup modes.
-
-## Requirements
-
-- Slurm installation on target nodes
-- Administrative privileges for Slurm configuration modification
-- Backup of current configuration (recommended)
+Includes `slurm_config_common` to resolve the active config path, prompts
+for an optional pre-cleanup backup (delegates to `slurm_config_backup`), then
+requires an explicit confirmation token before deleting the whole
+`{slurm_config_path}` directory (all controllers) from the NFS share.
 
 ## Role Variables
 
-Available variables are listed below, along with default values (see `defaults/main.yml`):
+Role-local (see `defaults/main.yml`):
 
 ```yaml
-# Cleanup scope
-cleanup_mode: "partial"  # partial, complete
-preserve_backups: true
-remove_logs: false
+# Optional: pre-set to skip the interactive prompts (e.g. for automation)
+pre_cleanup_backup_choice_input: "y"    # y|yes|n|no
+cleanup_confirm_input: "YES"            # must match slurm_cleanup_confirm_token
+```
 
-# Configuration paths
-slurm_conf_dir: "/etc/slurm"
-slurm_log_dir: "/var/log/slurm"
-slurm_spool_dir: "/var/spool/slurm"
+Shared (see `slurm_config_common`):
+
+```yaml
+slurm_cleanup_confirm_token: "YES"       # confirmation token required
+slurm_cleanup_pre_backup_default: "y"
 ```
 
 ## Dependencies
 
-None.
+- `slurm_config_common` (included automatically)
+- `slurm_config_backup` (included conditionally, if pre-cleanup backup is requested)
 
 ## Example Playbook
 
 ```yaml
-- hosts: slurm_controllers:slurm_nodes
-  become: true
+- hosts: localhost
+  gather_facts: true
   roles:
     - role: slurm_cleanup
-      vars:
-        cleanup_mode: "partial"
-        preserve_backups: true
-        remove_logs: false
+```
+
+```bash
+cd src/utils
+ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags slurm_config_cleanup
 ```
 
 ## License

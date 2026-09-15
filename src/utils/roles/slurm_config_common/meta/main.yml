@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  role_name: slurm_config_common
+  namespace: omnia
+  author: Dell Technologies Omnia Team
+  description: Shared setup for Slurm config backup/cleanup/rollback utilities
+  company: Dell Technologies
+
+  license: Apache-2.0
+
+  min_ansible_version: "2.20"
+
+  platforms:
+    - name: EL
+      versions:
+        - "10"
+
+  galaxy_tags:
+    - hpc
+    - slurm
+    - backup
+    - configuration
+    - recovery
+
+dependencies: []

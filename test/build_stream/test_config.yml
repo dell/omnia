@@ -140,3 +140,43 @@ job_id: ""
 
 # Deploy pipeline always resolves the image group and prior GitLab pipeline
 # from job_id. It never falls back to the latest image.
+
+# =============================================================================
+# NON-FUNCTIONAL TEST SAFETY CONTROLS
+# =============================================================================
+# Disruptive NFTs are disabled by default and operate only on the pipeline/job
+# created by the NFT session. Enable only the specific operation being tested.
+
+# Allows the resilience NFT to create a GitLab pipeline, cancel that exact
+# test-created pipeline, and verify that a replacement pipeline creates a new
+# BSM job. This is equivalent to selecting Cancel for that pipeline in GitLab.
+nft_allow_pipeline_cancel: false
+
+# Allows the resilience NFT to restart omnia_build_stream.service and verify
+# that the BSM API recovers and the configured/test-created job remains
+# accessible after the restart.
+nft_allow_service_restart: false
+
+# Allows the resilience NFT to restart omnia_build_stream.service while the
+# configured/test-created BSM job is active, then verify that its job identity
+# and stage records are preserved without duplication.
+nft_allow_active_stage_restart: false
+
+# Allows the resilience NFT to stop playbook-watcher.service while a request
+# for the test-created job is queued, restart the service, and verify that the
+# watcher recovers and claims that exact request.
+nft_allow_watcher_restart: false
+
+# Allows security NFTs to create one disposable, audit-labelled BSM job and
+# submit invalid path-traversal and oversized-file uploads. These tests verify
+# that rejected uploads leave no file or stage-state changes.
+nft_allow_security_mutation: false
+
+# Maximum time, in seconds, to wait for a service restart, GitLab cancellation,
+# queue transition, or other recovery condition used by resilience NFTs.
+nft_recovery_timeout_seconds: 120
+
+# Maximum time, in seconds, for each NFT-triggered GitLab pipeline to initialize
+# and create its BSM job. This includes time for GitLab to release a runner
+# after cancellation before starting the replacement pipeline.
+nft_pipeline_timeout_seconds: 300

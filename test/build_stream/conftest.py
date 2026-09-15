@@ -17,7 +17,7 @@ Pytest configuration for build_stream FVT.
 
 Provides:
 - host fixture (testinfra connection to target)
-- Custom markers: sanity, deploy
+- Custom markers: sanity, deploy, nft, resilience, security, disruptive
 - Marker expression: '+' for AND, ',' for OR
 - Test ordering via @pytest.mark.order(n)
 - Credential auto-encryption
@@ -130,6 +130,10 @@ def pytest_configure(config):
         "order(n)": "Specify test execution order (lower first)",
         "sanity": "Baseline verification (must-pass)",
         "deploy": "Playbook deployment tests",
+        "nft": "BuildStream non-functional test",
+        "resilience": "Service and pipeline recovery test",
+        "security": "Authentication, authorization, and input security test",
+        "disruptive": "Explicitly enabled test that changes live service state",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
@@ -310,7 +314,7 @@ def pytest_sessionstart(session):
     # Initialize test report
     valid_scenarios = {
         "buildstream_install", "buildstream_cleanup", "health",
-        "build_pipeline", "deploy_pipeline",
+        "build_pipeline", "deploy_pipeline", "nft",
     }
     module_name = "build_stream"
     test_paths = (
@@ -392,12 +396,10 @@ def pytest_runtest_makereport(item, call):
             + f"SKIPPED: {skip_reason}"
         )
 
-    # Get TC ID from TestLogger (set during test execution)
-    tc_id = get_last_tc_id()
-
-    # Fallback: look up TC ID from TEST_CASES if TestLogger didn't set it
-    if not tc_id:
-        tc_id = _TC_ID_MAP.get(item.name, "")
+    # Prefer the stable function-name registry. TestLogger state is process
+    # global and can otherwise leak the preceding ID into a marker-filtered
+    # test that was skipped before its logger was constructed.
+    tc_id = _TC_ID_MAP.get(item.name, "") or get_last_tc_id()
 
     # Accumulate for summary table (shared via omnia_auto)
     add_session_result(

@@ -23,9 +23,7 @@ import json
 import sys
 import time
 import base64
-import csv
 import datetime
-import io
 import os
 import re
 from pathlib import Path, PurePosixPath
@@ -64,7 +62,6 @@ from library.vars.common_vars import (
     STAGE_STATE_COMPLETED,
     STAGE_STATE_FAILED,
     GITLAB_CI_BUILD_STAGES,
-    PXE_MAPPING_FILE_PATH,
 )
 from ._config_helpers import (
     resolve_build_stream_input_path,
@@ -936,6 +933,7 @@ def trigger_build_pipeline_auto(  # pylint: disable=too-many-locals,too-many-bra
     host, log_callback: Optional[Callable] = None,
     initial_pipeline_id: int = 0,
     initial_job_id: Optional[str] = None,
+    job_wait_timeout: int = JOB_WAIT_TIMEOUT,
 ) -> Dict[str, Any]:
     """Wait for the build pipeline triggered by the prior catalog push.
 
@@ -958,6 +956,8 @@ def trigger_build_pipeline_auto(  # pylint: disable=too-many-locals,too-many-bra
         initial_pipeline_id: Pipeline ID recorded before the catalog
             push (0 = adopt the latest pipeline).
         initial_job_id: Latest BSM job ID recorded before the catalog
+        job_wait_timeout: Maximum seconds to wait for the corresponding
+            BSM job. Defaults to the standard build-pipeline timeout.
             push. The first different job is the job created by this run.
 
     Returns:
@@ -1095,7 +1095,9 @@ def trigger_build_pipeline_auto(  # pylint: disable=too-many-locals,too-many-bra
         old_job_id = old_job.get("job_id", "") if old_job["success"] else ""
     else:
         old_job_id = initial_job_id
-    job_id = _wait_for_new_job(host, old_job_id, log_callback=_log)
+    job_id = _wait_for_new_job(
+        host, old_job_id, timeout=job_wait_timeout, log_callback=_log,
+    )
     if not job_id:
         result["error"] = "No new BSM job was created by the triggered pipeline"
         return result
@@ -1329,98 +1331,6 @@ def resolve_deploy_image_group(
         "image_group_id": group["id"],
         "status": group["status"],
     })
-    return result
-
-
-def swap_pxe_mapping_rows(  # pylint: disable=too-many-locals,too-many-return-statements
-    host,
-) -> Dict[str, Any]:
-    """Swap the first two PXE data rows in GitLab and commit the change."""
-    result = {"success": False, "commit_id": "", "error": ""}
-    api_base = _get_gitlab_api_base(host)
-    if not api_base["success"]:
-        result["error"] = api_base["error"]
-        return result
-
-    cmd = CMDS["gitlab_api_get_file"].format(
-        token=api_base["token"], api_url=api_base["api_url"],
-        project_id=api_base["project_id"],
-        file_path=PXE_MAPPING_FILE_PATH.replace("/", "%2F"),
-        branch=api_base["branch"],
-    )
-    response = run_on_host(host, cmd)
-    if response.rc != 0:
-        result["error"] = f"Unable to read PXE mapping file (rc={response.rc})"
-        return result
-
-    try:
-        payload = json.loads(response.stdout.strip())
-        content = base64.b64decode(payload["content"]).decode("utf-8")
-        rows = list(csv.reader(io.StringIO(content)))
-    except (json.JSONDecodeError, KeyError, ValueError, UnicodeDecodeError) as exc:
-        result["error"] = f"Unable to parse PXE mapping file: {exc}"
-        return result
-
-    if len(rows) < 3:
-        result["error"] = "PXE mapping file requires a header and at least two nodes"
-        return result
-    if rows[1] == rows[2]:
-        result["error"] = "The first two PXE node rows are identical; swap is not a change"
-        return result
-
-    rows[1], rows[2] = rows[2], rows[1]
-    output = io.StringIO(newline="")
-    writer = csv.writer(output, lineterminator="\n")
-    writer.writerows(rows)
-    encoded_content = base64.b64encode(
-        output.getvalue().encode("utf-8")
-    ).decode("ascii")
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    update_payload = json.dumps({
-        "branch": api_base["branch"],
-        "content": encoded_content,
-        "encoding": "base64",
-        "commit_message": (
-            f"Automation: swap PXE mapping rows for deploy ({timestamp})"
-        ),
-    })
-    update_cmd = CMDS["gitlab_api_update_file"].format(
-        token=api_base["token"], api_url=api_base["api_url"],
-        project_id=api_base["project_id"],
-        file_path=PXE_MAPPING_FILE_PATH.replace("/", "%2F"),
-        json_data=update_payload,
-    )
-    update = run_on_host(host, update_cmd)
-    if update.rc != 0:
-        result["error"] = f"Unable to update PXE mapping file (rc={update.rc})"
-        return result
-    try:
-        body = json.loads(update.stdout.strip())
-    except json.JSONDecodeError as exc:
-        result["error"] = f"Invalid GitLab update response: {exc}"
-        return result
-    if "file_path" not in body:
-        result["error"] = (
-            "GitLab rejected PXE mapping update: "
-            f"{body.get('message', body)}"
-        )
-        return result
-    commit_id = body.get("commit_id", "") or body.get("id", "")
-    if not commit_id:
-        committed_file = run_on_host(host, cmd)
-        if committed_file.rc == 0:
-            try:
-                commit_id = json.loads(
-                    committed_file.stdout.strip()
-                ).get("last_commit_id", "")
-            except json.JSONDecodeError:
-                commit_id = ""
-    if not commit_id:
-        result["error"] = (
-            "PXE mapping was updated but its Git commit ID could not be resolved"
-        )
-        return result
-    result.update({"success": True, "commit_id": commit_id})
     return result
 
 
