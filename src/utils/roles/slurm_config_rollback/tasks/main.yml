@@ -251,20 +251,12 @@
     msg: "Detected stale NFS mount(s) on controller after restore, remounting: {{ controller_stale_mounts }}"
   when: controller_stale_mounts | length > 0
 
-- name: Unmount stale controller directories
-  ansible.builtin.command:
-    cmd: "umount -l /{{ item }}"
+- name: Remount stale controller directories
+  ansible.posix.mount:
+    path: "/{{ item }}"
+    state: remount
   loop: "{{ controller_stale_mounts }}"
   delegate_to: slurm_controller
-  changed_when: true
-  when: controller_stale_mounts | length > 0
-
-- name: Remount controller directories
-  ansible.builtin.command:
-    cmd: "mount /{{ item }}"
-  loop: "{{ controller_stale_mounts }}"
-  delegate_to: slurm_controller
-  changed_when: true
   when: controller_stale_mounts | length > 0
 
 - name: Re-probe previously stale controller mounts

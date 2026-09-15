@@ -42,7 +42,7 @@ slurm_cleanup_pre_backup_default: "y"
 
 ```bash
 cd src/utils
-ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags slurm_cleanup
+ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags slurm_config_cleanup
 ```
 
 ## License

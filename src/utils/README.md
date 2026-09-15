@@ -185,7 +185,7 @@ Backup-destination precedence, highest to lowest (same as `backup_oim_logs`):
 4. `$OMNIA_DATA_PATH/utils/output/$OMNIA_PROJECT_NAME/slurm_config_util`
 
 ```bash
-# Backup: prompts for an optional backup name
+# Backup: uses configurable backup_base_name (default: "slurm_config")
 ansible-playbook playbooks/utils.yml --tags slurm_config_backup
 
 # Cleanup: prompts for a pre-cleanup backup, then requires the confirmation token

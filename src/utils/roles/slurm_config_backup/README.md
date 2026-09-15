@@ -6,10 +6,10 @@ Creates a timestamped backup of the active Slurm controller configuration
 ## Description
 
 Includes `slurm_config_common` to resolve the Slurm controller and the
-backup destination, prompts for an optional backup name, copies the
-controller's config directories into a new timestamped backup directory, and
-writes a `metadata.json` manifest (with SHA256 checksums of every backed-up
-file) alongside it.
+backup destination, copies the controller's config directories into a new
+timestamped backup directory (with configurable `backup_base_name` prefix,
+default: "slurm_config"), and writes a `metadata.json` manifest (with SHA256
+checksums of every backed-up file) alongside it.
 
 ## Role Variables
 
@@ -17,14 +17,16 @@ See `slurm_config_common/defaults/main.yml` and `vars/main.yml` for path
 resolution. Role-local:
 
 ```yaml
-# Optional: pre-set to skip the interactive "backup base name" prompt
-backup_base_name: ""
+# Optional base name for backup directories (prepended to timestamp)
+# Default: "slurm_config" creates "slurm_config_20260915-072310"
+# Can be set via CLI extra-var, config file, or this defaults file
+backup_base_name: "slurm_config"
 ```
 
 ## Backup Output
 
 ```
-{slurm_backups_root}/{backup_base_name}_{timestamp}/     # or {timestamp}/ if no base name
+{slurm_backups_root}/{backup_base_name}_{timestamp}/
 ├── {controller_hostname}/
 │   ├── etc/slurm/
 │   ├── etc/munge/
@@ -47,7 +49,7 @@ backup_base_name: ""
 
 ```bash
 cd src/utils
-ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags config_backup
+ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags slurm_config_backup
 ```
 
 ## License

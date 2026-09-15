@@ -9,8 +9,9 @@ Includes `slurm_config_common` to resolve the controller and backup
 destination, lists available backups (latest first), validates backup
 integrity (`slurm.conf`, `slurmdbd.conf`, `cgroup.conf`, `gres.conf`,
 `munge.key`), optionally creates a safety backup, restores the config
-directories, detects and remounts any controller NFS mounts (`/etc/slurm`,
-`/etc/munge`, `/etc/my.cnf.d`) left stale by that restore, fixes file
+directories, detects and remounts any stale NFS mounts on the controller
+(`/etc/slurm`, `/etc/munge`, `/etc/my.cnf.d`) caused by directory recreation
+during restore (using `ansible.posix.mount` with `state: remount`), fixes file
 permissions on the controller (`slurmdbd.conf`: `0600`, `munge.key`: `0400`),
 restarts `slurmdbd` if its config changed, and runs `scontrol reconfigure`.
 
