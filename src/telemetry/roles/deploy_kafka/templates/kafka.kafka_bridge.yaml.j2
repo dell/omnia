@@ -8,6 +8,12 @@ spec:
   bootstrapServers: kafka-kafka-bootstrap:9093
   http:
     port: 8080
+    # Enable TLS for HTTP REST API
+    tls:
+      certificateAndKey:
+        secretName: kafkapump
+        certificate: user.crt
+        key: user.key
   # Enable TLS for Kafka connection
   tls:
     trustedCertificates:
