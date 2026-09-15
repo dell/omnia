@@ -286,9 +286,15 @@ def check_openchami_api_reachable(host) -> Dict[str, Any]:
         }
 
     readiness_path = "/hsm/v2/service/ready"
+    
+    # Get the haproxy port dynamically
+    port_cmd = "ss -tlnp 2>/dev/null | grep haproxy | grep -oE ':[0-9]+' | head -1 | tr -d ':'"
+    port_result = run_on_host(host, port_cmd)
+    port = port_result.stdout.strip() if port_result.rc == 0 and port_result.stdout.strip() else "8443"
+    
     cmd = CMDS["curl_check"].format(
         host=fqdn,
-        port=8443,
+        port=port,
         path=readiness_path,
     )
     result = run_on_host(host, cmd)
@@ -297,14 +303,14 @@ def check_openchami_api_reachable(host) -> Dict[str, Any]:
             "success": True,
             "details": (
                 f"OpenCHAMI API readiness endpoint is reachable at "
-                f"https://{fqdn}:8443{readiness_path}"
+                f"https://{fqdn}:{port}{readiness_path}"
             ),
             "error": "",
         }
     return {
         "success": False,
         "details": (
-            f"curl to https://{fqdn}:8443{readiness_path} failed "
+            f"curl to https://{fqdn}:{port}{readiness_path} failed "
             f"with rc={result.rc}"
         ),
         "error": "OpenCHAMI API not reachable",
