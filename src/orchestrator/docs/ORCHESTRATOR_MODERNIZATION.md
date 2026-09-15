@@ -32,15 +32,16 @@ workflow aligned to OpenCHAMI-based provisioning.
 
 - Split monolithic entrypoint into component-specific playbooks per lifecycle phase
 - Separate OpenCHAMI and OpenLDAP lifecycle management into independent playbooks
-- Introduce 9 supported tags: `precheck`, `prepare`, `deploy`, `provision`,
-  `validate`, `pxeboot`, `cleanup`, `upgrade`, `rollback`
+- Introduce 13 supported tags: `precheck`, `validate`, `credentials`,
+  `prepare`, `deploy`, `provision`, `execute`, `validate-deployment`,
+  `pxeboot`, `cleanup`, `cleanup_credentials`, `upgrade`, and `rollback`
 - `orchestrator.yml` is now a thin routing wrapper using `import_playbook`
 - Each component (OpenCHAMI, OpenLDAP) has dedicated precheck, prepare, deploy,
   cleanup, upgrade, and rollback playbooks
 - Eliminate all hardcoded functional-group names from provisioning logic
 - Treat functional groups as data, not code-level selectors
 - Introduce post-provisioning validation
-- Make bolt-on services (k8s, slurm, openldap, telemetry, mounts) fully
+- Make bolt-on services (Kubernetes, Slurm, OpenLDAP, and mounts) fully
   data-driven and optional
 
 **Boundaries (out of scope):**
@@ -93,7 +94,7 @@ and OpenLDAP operations:
 | `upgrade_orchestrator.yml` | Placeholder — no real implementation |
 | `rollback_orchestrator.yml` | Placeholder — no real implementation |
 
-### 2.3 Existing Roles (14)
+### 2.3 Existing Roles (13)
 
 | Role | Responsibility | Status |
 |------|---------------|--------|
@@ -101,16 +102,15 @@ and OpenLDAP operations:
 | `validate_orchestrator_input` | L1 schema + L2 logic validation | Retained |
 | `orchestrator_credentials` | Credential prompt, encrypt, vault | Retained |
 | `orchestrator_functional_groups` | Generate FG YAML from PXE CSV | Refactored |
-| `orchestrator_validations` | Software config, mapping file, image, telemetry | Patched (conditional creds) |
+| `orchestrator_validations` | Project inputs, mapping file, images, and storage | Patched (conditional creds) |
 | `orchestrator_common` | openchami_auth, configure_s3_access, kube_vip check | Retained |
 | `passwordless_ssh` | Build host lists, configure OIM SSH | Retained |
 | `deploy_openchami` | Deploy OpenCHAMI containers | Retained |
-| `configure_ochami` | SMD groups, BSS boot, cloud-init, inventories | Retained (to be split in Phase 3) |
+| `configure_ochami` | Template and task library retained for Boot/Metadata Service compatibility | Retained; no longer invoked as the active provisioning pipeline |
 | `k8s_config` | K8s NFS share, manifests, packages | Refactored |
 | `slurm_config` | Slurm config files on NFS | Refactored |
 | `mount_config` | Cloud-init mounts, swap, NFS bolt-ons | Refactored |
 | `openldap` | LDAP domain, server-ip, connection type | Retained |
-| `telemetry` | iDRAC, LDMS, PowerScale, UFM, VAST, OME | Retained |
 
 ### 2.4 Data Flow
 
@@ -119,19 +119,19 @@ orchestrator_config.yml ──┐
 network_spec.yml ─────────┤
 pxe_mapping_file.csv ─────┼──► orchestrator_setup ──► validate ──► functional_groups
 omnia_config.yml ──────────┤
-software_config.json ──────┘
+catalog_rhel.json ─────────┘
                                │
                                ▼
-                          deploy_openchami ──► configure_ochami
+                          deploy_openchami ──► provision_common
                                │                    │
                                │           ┌────────┴────────┐
                                ▼           ▼                 ▼
-                          SMD discovery    BSS boot       cloud-init
-                               │           params           config
+                          SMD discovery   Boot Service  Metadata Service
+                               │           params           data
                                ▼
                      ┌─────────┼─────────┐
                      ▼         ▼         ▼
-                mount_config  k8s_config  slurm_config + openldap + telemetry
+                mount_config  k8s_config  slurm_config + openldap
 ```
 
 ---
@@ -144,10 +144,10 @@ software_config.json ──────┘
    handled by separate playbooks. Each can be managed independently.
 
 2. **Tag-driven routing** — `orchestrator.yml` is a thin wrapper. Tags control
-   which phase runs. Each tag maps to a pair of component playbooks.
+   which phase runs. Each tag maps to one or more focused playbooks.
 
-3. **Single Responsibility** — Each playbook owns exactly one lifecycle stage
-   for one component.
+3. **Single Responsibility** — Each playbook owns one focused responsibility
+   and may be routed by multiple lifecycle tags.
 
 4. **Functional groups are data, not code** — Adding a new FG requires zero
    code changes. The orchestrator reads FGs from the PXE mapping CSV and
@@ -156,11 +156,12 @@ software_config.json ──────┘
 5. **Generic provisioning pipeline** — All nodes follow the same path:
    PXE Mapping → Functional Groups → Image Resolution → SMD Registration →
    OIM Storage Preparation → Bolt-On Preparation → Node Mount/Swap Assembly →
-   BSS/Metadata-Service Publication → Validation. Publishing is deliberately
+   Boot Service/Metadata Service Publication → Validation. Publishing is deliberately
    last so nodes cannot receive incomplete cloud-init data.
 
-6. **Bolt-on services are optional and data-driven** — k8s, slurm, openldap,
-   telemetry configuration is gated by support flags, not hardcoded FG checks.
+6. **Bolt-on services are optional and data-driven** — Kubernetes, Slurm,
+   OpenLDAP, and storage configuration is gated by support flags, not
+   hardcoded functional-group checks.
 
 7. **Idempotency** — Every playbook must be safe to run multiple times.
 
@@ -169,9 +170,9 @@ software_config.json ──────┘
 | Phase | OpenCHAMI Playbook | OpenLDAP Playbook | Purpose |
 |-------|-------------------|-------------------|---------|
 | precheck | `precheck_openchami.yml` | `precheck_openldap.yml` | Generate functional groups and validate inputs |
-| prepare | `prepare_openchami.yml` | `prepare_openldap.yml` | Credentials + configuration prep |
+| prepare | `prepare_openchami.yml` | OpenLDAP preparation is performed idempotently by `deploy_openldap` | Credentials, deployment, and readiness preparation |
 | deploy | `deploy_openchami.yml` | `deploy_openldap.yml` | Deploy services on OIM |
-| validate | `validate_openchami.yml` | `validate_openldap.yml` | Readiness gate checks |
+| validate-deployment | `validate_openchami.yml` | `validate_openldap.yml` | Readiness gate checks |
 | cleanup | `cleanup_full.yml` | Canonical cleanup role | Component teardown with aggregate results |
 | upgrade | `upgrade_openchami.yml` | `upgrade_openldap.yml` | In-place version upgrade |
 | rollback | `rollback_openchami.yml` | `rollback_openldap.yml` | Revert to previous state |
@@ -190,8 +191,8 @@ Additional playbooks (not component-split):
 
 ### 3.3 Orchestrator Entrypoint (Implemented)
 
-The `orchestrator.yml` is now a thin routing wrapper (~290 lines including
-comments) that imports component playbooks based on tags:
+The `orchestrator.yml` is now a thin routing wrapper that imports component
+playbooks based on tags:
 
 ```yaml
 ---
@@ -215,27 +216,39 @@ comments) that imports component playbooks based on tags:
 - import_playbook: precheck/precheck_openchami.yml    # tags: [precheck]
 - import_playbook: precheck/precheck_openldap.yml     # tags: [precheck]
 
-# PREPARE: Credentials + configuration
+# VALIDATE: Project input files only
+- name: Validate input files
+  hosts: localhost
+  tags: [validate]
+  roles:
+    - validate_orchestrator_input
+
+# CREDENTIALS: Standalone credential collection
+- import_playbook: credentials/orchestrator_credentials.yml  # tags: [credentials]
+
+# PREPARE: Credentials plus service deployment/readiness
 - import_playbook: prepare/prepare_openchami.yml      # tags: [prepare]
-- import_playbook: prepare/prepare_openldap.yml       # tags: [prepare]
 
 # DEPLOY: Services + readiness gates
-- import_playbook: deploy/deploy_openchami.yml        # tags: [deploy]
-- import_playbook: deploy/deploy_openldap.yml         # tags: [deploy]
-- import_playbook: validate/validate_openchami.yml    # tags: [deploy, validate]
-- import_playbook: validate/validate_openldap.yml     # tags: [deploy, validate]
+- import_playbook: deploy/deploy_openchami.yml        # tags: [prepare, deploy]
+- import_playbook: deploy/deploy_openldap.yml         # tags: [prepare, deploy]
+- import_playbook: validate/validate_preamble.yml     # tags: [validate-deployment]
+- import_playbook: validate/validate_openchami.yml    # tags: [prepare, deploy, validate-deployment]
+- import_playbook: validate/validate_openldap.yml     # tags: [prepare, deploy, validate-deployment]
 
-# PROVISION: SSH preamble + category provisioning + validation
-- import_playbook: provision/provision_preamble.yml   # tags: [provision]
-- import_playbook: provision/provision_kubernetes.yml  # tags: [provision]
-- import_playbook: provision/provision_slurm.yml       # tags: [provision]
-- import_playbook: provision/provision_os.yml          # tags: [provision]
-- import_playbook: provision/provision_custom.yml      # tags: [provision]
-- import_playbook: validate/validate_provisioning.yml  # tags: [provision, validate]
+# PROVISION/EXECUTE: SSH preamble + category provisioning + validation
+- import_playbook: provision/provision_preamble.yml   # tags: [provision, execute]
+- import_playbook: provision/provision_kubernetes.yml  # tags: [provision, execute]
+- import_playbook: provision/provision_slurm.yml       # tags: [provision, execute]
+- import_playbook: provision/provision_os.yml          # tags: [provision, execute]
+- import_playbook: provision/provision_custom.yml      # tags: [provision, execute]
+- import_playbook: validate/validate_provisioning.yml  # tags: [provision, execute]
 
-# OPT-IN: PXE boot, cleanup, upgrade, rollback (all require an explicit tag)
-- import_playbook: pxeboot/pxeboot.yml                # tags: [never, pxeboot]
-- import_playbook: cleanup/cleanup_full.yml            # tags: [cleanup, cleanup_credentials]
+# PXE runs independently or as part of execute when enabled
+- import_playbook: pxeboot/pxeboot.yml                # tags: [pxeboot, execute]
+
+# OPT-IN teardown/transition flows
+- import_playbook: cleanup/cleanup_full.yml            # tags: [never, cleanup, cleanup_credentials]
 - import_playbook: upgrade/upgrade_openchami.yml       # tags: [never, upgrade]
 - import_playbook: upgrade/upgrade_openldap.yml        # tags: [never, upgrade]
 - import_playbook: rollback/rollback_openchami.yml     # tags: [never, rollback]
@@ -261,7 +274,7 @@ src/orchestrator/
 │   ├── prepare/                         # Credentials + configuration prep
 │   │   ├── ansible.cfg
 │   │   ├── prepare_openchami.yml        # Credential management (prompt, encrypt, vault)
-│   │   └── prepare_openldap.yml         # LDAP dirs, TLS certs, config templating
+│   │   └── prepare_openldap.yml         # Optional component-level LDAP preparation
 │   │
 │   ├── deploy/                          # Service deployment
 │   │   ├── ansible.cfg
@@ -322,7 +335,7 @@ src/orchestrator/
 │   ├── validate_openchami/              # Health checks
 │   │
 │   │── # ── Provisioning Roles ────────────────────────────────
-│   ├── configure_ochami/                # BSS, cloud-init, node orchestration
+│   ├── configure_ochami/                # Retained Boot/Metadata templates and helpers
 │   ├── generate_inventories/            # Query SMD, generate inventories
 │   ├── validate_provisioning/           # Post-provision verification
 │   ├── passwordless_ssh/                # SSH key distribution
@@ -331,8 +344,7 @@ src/orchestrator/
 │   ├── k8s_config/                      # Kubernetes configuration
 │   ├── slurm_config/                    # Slurm scheduler configuration
 │   ├── mount_config/                    # Storage mount configuration
-│   ├── openldap/                        # OpenLDAP configuration
-│   └── telemetry/                       # Telemetry deployment
+│   └── openldap/                        # OpenLDAP client configuration
 │
 ├── plugins/
 │   ├── modules/
@@ -343,7 +355,6 @@ src/orchestrator/
 │   │   ├── fetch_credential_rule.py
 │   │   ├── validate_credentials.py
 │   │   ├── generate_argon2_password.py
-│   │   └── fetch_telemetry_status.py
 │   ├── module_utils/
 │   │   ├── orchestrator_validation/
 │   │   │   ├── core/
@@ -377,10 +388,10 @@ src/orchestrator/
 │
 ├── docs/
 │   ├── ORCHESTRATOR_DESIGN.md
-│   └── ORCHESTRATOR_MODERNIZATION.md    # This file
-│
-├── INPUT_CONTRACT.md
-└── OUTPUT_CONTRACT.md
+│   ├── ORCHESTRATOR_MODERNIZATION.md    # This file
+│   └── contracts/
+│       ├── input-contract.md
+│       └── output-contract.md
 ```
 
 ---
@@ -404,10 +415,10 @@ src/orchestrator/
 
 | Component | Change | Status |
 |-----------|--------|--------|
-| **`orchestrator.yml`** | Rewritten from 247-line monolith → thin tag-routing wrapper (~290 lines with comments) | ✅ Done |
+| **`orchestrator.yml`** | Rewritten from a monolithic entrypoint into a thin tag-routing wrapper | ✅ Done |
 | **`orchestrator_setup` role** | Added upgrade lock bypass for `upgrade`/`rollback` tags, catalog-based feature flags, `enable_pxe_boot` config | ✅ Done |
 | **`orchestrator_validations` role** | Made credential loading conditional to avoid failures during `precheck` when creds aren't yet available | ✅ Done |
-| **`prepare_orchestrator.yml`** | Split into `prepare_openchami.yml` (credentials) + `prepare_openldap.yml` (dirs, TLS, configs) | ✅ Done |
+| **`prepare_orchestrator.yml`** | Replaced by `prepare_openchami.yml` for credentials; the canonical flow performs OpenLDAP preparation in `deploy_openldap` | ✅ Done |
 | **`validate_orchestrator.yml`** | Distributed to `validate_openchami.yml` + `validate_openldap.yml` with standalone setup plays | ✅ Done |
 | **Cleanup workflow** | Consolidated selection, confirmation, execution, aggregation, and reporting in one cleanup role; component playbooks are compatibility wrappers | ✅ Done |
 | **`upgrade_orchestrator.yml`** | Replaced with `upgrade_openchami.yml` (version-specific 0.1.7→0.2.0 migration) + `upgrade_openldap.yml` (Fedora→Wolfi) | ✅ Done |
@@ -422,7 +433,7 @@ src/orchestrator/
 | **`precheck_openchami.yml`** | Validate input (L1+L2), parameters, boot images, OIM timezone, OpenCHAMI config vars | ✅ Done |
 | **`precheck_openldap.yml`** | Validate LDAP credentials, domain, container prereqs (when enabled) | ✅ Done |
 | **`prepare_openchami.yml`** | Credential management (prompt, encrypt, vault) — extracted from prepare_orchestrator | ✅ Done |
-| **`prepare_openldap.yml`** | Load LDAP creds, create dirs, TLS certs, template configs — extracted from prepare_orchestrator | ✅ Done |
+| **`prepare_openldap.yml`** | Optional component-level OpenLDAP preparation entry point; the canonical top-level flow performs the same idempotent preparation in `deploy_openldap` | ✅ Done |
 | **`cleanup_openchami.yml`** | Compatibility entry point that selects OpenCHAMI in the canonical cleanup workflow | ✅ Done |
 | **`cleanup_openldap.yml`** | Compatibility entry point that selects OpenLDAP in the canonical cleanup workflow | ✅ Done |
 | **`upgrade_openchami.yml`** | Version detection (package_facts), backup, legacy→fabrica migration, restart, verify | ✅ Done |
@@ -434,7 +445,7 @@ src/orchestrator/
 
 | Component | Reason |
 |-----------|--------|
-| **`prepare_orchestrator.yml`** | Split into `prepare_openchami.yml` + `prepare_openldap.yml` |
+| **`prepare_orchestrator.yml`** | Replaced by `prepare_openchami.yml`; OpenLDAP preparation is owned by the deployment role in the canonical flow |
 | **`validate_orchestrator.yml`** | Distributed to `validate_openchami.yml` + `validate_openldap.yml` |
 | **Previous cleanup execution paths** | Consolidated behind the canonical cleanup role; compatibility entry points remain |
 | **`upgrade_orchestrator.yml`** | Replaced by `upgrade_openchami.yml` + `upgrade_openldap.yml` |
@@ -450,26 +461,26 @@ src/orchestrator/
 ```
 precheck_openchami.yml:
   Hosts: localhost
+  Top-level prerequisite:
+    orchestrator_setup (upgrade guard, paths, vars, OIM group)
   Roles:
-    1. orchestrator_setup (upgrade guard, paths, vars, OIM group)
-    2. validate_orchestrator_input (L1 schema + L2 logic)
-    3. orchestrator_validations (pre-flight: mapping, software, images)
+    1. validate_orchestrator_input (L1 schema + L2 logic)
+    2. orchestrator_validations (pre-flight: mapping, software, images)
   Hosts: oim
   Tasks:
-    4. validate_oim_timezone
-    5. validate_boot_images (HTTP HEAD for kernel, initrd, and rootfs per FG)
-    6. assert OpenCHAMI config vars (domain_name, admin_nic_ip, etc.)
+    3. validate_oim_timezone
+    4. validate_boot_images (HTTP HEAD for kernel, initrd, and rootfs per FG)
+    5. assert OpenCHAMI config vars (domain_name, admin_nic_ip, etc.)
 
 precheck_openldap.yml:
   Hosts: localhost
   Tasks:
-    7. Assert OpenLDAP prerequisites (when openldap_support)
-       - LDAP admin credentials exist
-       - Domain configuration valid
-       - Container prerequisites met
+    6. Assert OpenLDAP feature configuration (when openldap_support)
+       - Domain configuration is valid
+       - Missing credential file produces a warning; prepare collects it
 
 Output:
-  - Generated/updated `$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/.data/functional_groups_config.yml`
+  - Generated/updated `$ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/.data/functional_groups_config.yml`
   - Validated configuration with no service changes or `orchestrator_state.yml` update
   - Clear error messages on any failure
 ```
@@ -485,26 +496,23 @@ stateful lifecycle tags (`prepare`, `deploy`, `provision`, `execute`,
 `.data` directory only to publish the functional-group configuration; other
 lightweight flows do not initialize persistent output state.
 
-### 6.2 Tag: `prepare` — Credentials + Configuration
+### 6.2 Tag: `prepare` — Credentials + Deployment + Readiness
 
 ```
-prepare_openchami.yml:
-  Hosts: localhost
-  Roles:
-    1. orchestrator_setup
-    2. orchestrator_credentials (prompt, encrypt, vault)
-
-prepare_openldap.yml:
-  Hosts: oim
-  Tasks:
-    3. Load decrypted credentials
-    4. Create OpenLDAP directories
-    5. Generate TLS certificates
-    6. Template OpenLDAP configuration files
+Canonical prepare route:
+  1. Top-level orchestrator_setup resolves paths, configuration, and hosts.
+  2. prepare_openchami.yml collects/reuses the encrypted credentials.
+  3. deploy_openchami.yml reconciles OpenCHAMI.
+  4. deploy_openldap.yml reconciles OpenLDAP when enabled; its role loads
+     credentials, creates directories, generates TLS material, templates the
+     configuration, and starts the container when needed.
+  5. validate_openchami.yml and validate_openldap.yml run readiness gates.
 
 Output:
   - Encrypted credential vault
-  - OpenLDAP dirs, TLS certs, configs ready for deployment
+  - Reconciled OpenCHAMI services
+  - Reconciled OpenLDAP service when enabled
+  - Readiness results for enabled services
 ```
 
 ### 6.3 Tag: `deploy` — Service Deployment + Readiness Gates
@@ -512,10 +520,11 @@ Output:
 ```
 deploy_openchami.yml:
   Hosts: localhost → oim
+  Top-level prerequisite:
+    orchestrator_setup
   Tasks:
-    1. orchestrator_setup
-    2. configure_s3_access (load build_status.yml, set s3_configurations)
-    3. deploy_openchami role (verify → prereq → deploy/refresh)
+    1. configure_s3_access (load build_status.yml, set s3_configurations)
+    2. deploy_openchami role (verify → prereq → deploy/refresh)
 
 deploy_openldap.yml:
   Hosts: oim
@@ -525,7 +534,8 @@ deploy_openldap.yml:
 validate_openchami.yml:
   Hosts: oim
   Tasks:
-    5. Validate OpenCHAMI readiness (SMD, BSS, cloud-init-server)
+    5. Validate OpenCHAMI readiness (aggregate target, SMD, Boot Service,
+       Metadata Service, TokenSmith, and certificate services)
 
 validate_openldap.yml:
   Hosts: oim
@@ -552,10 +562,10 @@ provision_custom.yml:        # Skip when no unmatched FGs
 validate_provisioning.yml:
   Tasks:
     - Query SMD → generate ALL inventories (one pass)
-    - Verify nodes registered, BSS params set, cloud-init loaded
+    - Verify nodes registered and Boot Service/Metadata Service data published
 ```
 
-### 6.5 Tag: `pxeboot` — PXE Boot (Opt-In)
+### 6.5 Tag: `pxeboot` — PXE Boot
 
 ```
 pxeboot.yml:
@@ -568,6 +578,9 @@ pxeboot.yml:
     3. Graceful reboot
     4. Node-registration verification
 ```
+
+The tag can be run independently. The same PXE flow also runs during the
+default and `execute` workflows when `enable_pxe_boot` is `true`.
 
 ### 6.6 Tag: `cleanup` — Canonical Component Teardown (Opt-In)
 
@@ -636,29 +649,61 @@ rollback_openldap.yml:
     5. Verify LDAP service health
 ```
 
-### 6.9 Tag: `validate` — Validation Only
+### 6.9 Tag: `validate` — Input Validation Only
 
 ```
-Runs validate_openchami.yml + validate_openldap.yml + validate_provisioning.yml
-without deploying or provisioning anything.
-
-Useful for checking system health after manual changes or disaster recovery.
+Runs the schema and cross-file logic checks for the project input files.
+It does not contact OpenCHAMI/OpenLDAP or validate provisioned nodes.
 ```
 
-### 6.10 Standalone Playbook Usage
+### 6.10 Tag: `credentials` — Credential Collection
 
-Each playbook can be run independently. Prerequisites:
+```
+Collects or reuses the encrypted Orchestrator credential file and vault key.
+No service deployment or node provisioning is performed.
+```
 
-| To run standalone... | Prerequisites |
-|---------------------|---------------|
-| `precheck_openchami.yml` | Functional groups generated from current inputs |
-| `prepare_openchami.yml` | `precheck` should have passed |
-| `deploy_openchami.yml` | `precheck` + `prepare` |
-| `provision_preamble.yml` | `precheck` + `prepare` + `deploy` |
-| `provision_kubernetes.yml` | All above + `provision_preamble` |
+### 6.11 Tag: `execute` — Provision and PXE
+
+```
+Runs the provisioning preamble, provisions every configured node category,
+validates provisioning, and runs PXE/node-registration when
+enable_pxe_boot is true.
+```
+
+### 6.12 Tag: `validate-deployment` — Service Readiness
+
+```
+Loads the standalone validation prerequisites and checks the deployed
+OpenCHAMI and OpenLDAP services without redeploying them.
+```
+
+### 6.13 Tag: `cleanup_credentials` — Credential Cleanup
+
+```
+Runs the canonical cleanup workflow with only the credentials component
+selected, removing the encrypted credential file and its vault key.
+```
+
+### 6.14 Standalone Playbook Usage
+
+The top-level `orchestrator.yml` is the canonical entry point. A phase
+playbook can be run directly only when its documented setup and predecessor
+requirements have already been satisfied:
+
+| To run directly... | Prerequisites |
+|--------------------|---------------|
+| `precheck_openchami.yml` | Supply `orchestrator_setup` facts and generated functional groups in the same Ansible run |
+| `prepare_openchami.yml` | Supply `orchestrator_setup` facts in the same Ansible run |
+| `deploy_openchami.yml` | Supply setup facts and complete precheck/credential state |
+| `provision_preamble.yml` | Supply setup facts and complete precheck/deployment state |
+| `provision_{kubernetes,slurm,os,custom}.yml` | Import after `provision_preamble.yml` in the same run, or explicitly supply all setup and preamble facts |
 | `cleanup_openchami.yml` | Services must be deployed |
 | `upgrade_openchami.yml` | Services must be deployed, backup recommended |
 | `rollback_openchami.yml` | Backup must exist from previous upgrade/snapshot |
+
+The configuration does not enable Ansible fact caching. Facts created by a
+separate earlier `ansible-playbook` command are therefore not inherited.
 
 ---
 
@@ -711,7 +756,7 @@ default_description: "User-Defined Functional Group"
 
 ### 7.2 Bolt-On Services as Data
 
-Bolt-on services (k8s, slurm, openldap, telemetry) are NOT triggered by
+Bolt-on services (Kubernetes, Slurm, OpenLDAP, and storage) are NOT triggered by
 functional group names. They are triggered by configuration data:
 
 ```yaml
@@ -775,13 +820,13 @@ functional group names. They are triggered by configuration data:
 │  └───────────────────────────────────────────────────────────┘  │
 │                                                                 │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │  Opt-In Lifecycle Operations                              │  │
-│  │  ────────────────────────────                             │  │
+│  │  Conditional and Opt-In Lifecycle Operations              │  │
+│  │  ─────────────────────────────────────────────              │  │
 │  │                                                           │  │
 │  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐     │  │
 │  │  │ pxeboot  │ │ cleanup  │ │ upgrade  │ │ rollback │     │  │
 │  │  │ ──────── │ │ ──────── │ │ ──────── │ │ ──────── │     │  │
-│  │  │ BMC boot │ │ OCH+LDAP │ │ OCH+LDAP │ │ OCH+LDAP │     │  │
+│  │  │conditional│ │ OCH+LDAP │ │ OCH+LDAP │ │ OCH+LDAP │     │  │
 │  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘     │  │
 │  └───────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
@@ -806,7 +851,7 @@ functional group names. They are triggered by configuration data:
 | Task | Description | Status |
 |------|-------------|--------|
 | 2.1 | Create `precheck_openchami.yml` + `precheck_openldap.yml` | ✅ Done |
-| 2.2 | Split `prepare_orchestrator.yml` → `prepare_openchami.yml` + `prepare_openldap.yml` | ✅ Done |
+| 2.2 | Replace `prepare_orchestrator.yml` with credential preparation and idempotent OpenLDAP preparation in the deployment role | ✅ Done |
 | 2.3 | Wire `deploy` tag for `deploy_openchami.yml` + `deploy_openldap.yml` | ✅ Done |
 | 2.4 | Distribute `validate_orchestrator.yml` → `validate_openchami.yml` + `validate_openldap.yml` | ✅ Done |
 | 2.5 | Create `provision_preamble.yml` (SSH + auth, runs once) | ✅ Done |
@@ -815,16 +860,16 @@ functional group names. They are triggered by configuration data:
 | 2.8 | Update `supported_tags`, `invalid_tag_combinations`, `skip_credential_tags` | ✅ Done |
 | 2.9 | Remove old `*_orchestrator.yml` files | ✅ Done |
 
-### Phase 3: Provisioning Refactor (Week 5-7) — Planned
+### Phase 3: Provisioning Refactor (Week 5-7) — In Progress
 
-| Task | Description | Risk |
-|------|-------------|------|
-| 3.1 | Extract `orchestration_mapping_nodes.yml` into `provision_common` role | High |
-| 3.2 | Implement per-category `nodes_<category>.yaml` generation (upsert semantics) | High |
-| 3.3 | Create `generate_inventories` role (query SMD, single-pass inventory gen) | Medium |
-| 3.4 | Remove inline DNS shell scripts, move to `provision_common/tasks/configure_dns.yml` | Low |
-| 3.5 | Consolidate duplicate SELinux context tasks | Low |
-| 3.6 | Delete `configure_ochami` role after task absorption | Medium |
+| Task | Description | Status |
+|------|-------------|--------|
+| 3.1 | Extract `orchestration_mapping_nodes.yml` into `provision_common` role | ✅ Done |
+| 3.2 | Implement per-category `nodes_<category>.yaml` generation (upsert semantics) | ✅ Done |
+| 3.3 | Create `generate_inventories` role (query SMD, single-pass inventory gen) | ✅ Done |
+| 3.4 | Remove inline DNS shell scripts, move to `provision_common/tasks/configure_dns.yml` | ✅ Done |
+| 3.5 | Consolidate duplicate SELinux context tasks | Planned |
+| 3.6 | Delete `configure_ochami` role after task absorption | Planned |
 
 ### Phase 4: Bolt-On Decoupling (Week 8-9) ✅ COMPLETE
 
@@ -858,7 +903,7 @@ functional group names. They are triggered by configuration data:
 |------|-------------|--------|
 | 6.1 | Ansible `--syntax-check`: all playbooks + `orchestrator.yml` | ✅ Pass |
 | 6.2 | ansible-lint: all 181 files processed | ✅ Pass (0 violations) |
-| 6.3 | `--list-tasks` for each tag: precheck, prepare, deploy, provision, validate, pxeboot, cleanup, upgrade, rollback | ✅ Pass |
+| 6.3 | `--list-tasks` for all 13 tags: precheck, validate, credentials, prepare, deploy, provision, execute, validate-deployment, pxeboot, cleanup, cleanup_credentials, upgrade, rollback | ✅ Pass |
 | 6.4 | Tag validation: unsupported tags rejected, conflicting combos rejected | ✅ Pass |
 | 6.5 | No stale references to removed `*_orchestrator.yml` files | ✅ Pass |
 | 6.6 | End-to-end test: standard deployment (k8s + slurm + login + os) | ⏳ Requires live environment |
@@ -879,8 +924,7 @@ functional group names. They are triggered by configuration data:
 | SMD registration without `--overwrite` causes stale nodes | Medium | Medium | `validate_provisioning.yml` compares expected vs actual SMD state |
 | Per-category nodes.yaml split breaks node registration | High | Low | Phase 3.2 integration test planned |
 | Login nodes without Slurm FGs fall through to custom | Low | Low | Documented behavior (§6.5.3). Configurable via classification data. |
-| Telemetry role complexity | Medium | Low | Defer telemetry refactoring. Already uses support flags correctly. |
-| Standalone playbook missing prerequisites | Medium | Medium | §6.10 documents prerequisites. Clear error messages on missing state. |
+| Standalone playbook missing prerequisites | Medium | Medium | §6.14 documents prerequisites. Clear error messages on missing state. |
 | Component-split playbooks drift apart | Low | Low | Consistent naming convention (`<phase>_<component>.yml`) and shared `orchestrator_setup` role. |
 
 ---
@@ -892,12 +936,16 @@ functional group names. They are triggered by configuration data:
 ```yaml
 supported_tags:
   - precheck
+  - validate
+  - credentials
   - prepare
   - deploy
   - provision
+  - execute
+  - validate-deployment
   - pxeboot
   - cleanup
-  - validate
+  - cleanup_credentials
   - upgrade
   - rollback
 ```
@@ -908,6 +956,8 @@ supported_tags:
 skip_credential_tags:
   - precheck
   - cleanup
+  - cleanup_credentials
+  - validate-deployment
   - validate
 ```
 
@@ -916,15 +966,35 @@ skip_credential_tags:
 ```yaml
 invalid_tag_combinations:
   - [precheck, cleanup]
+  - [validate, cleanup]
+  - [validate-deployment, cleanup]
+  - [credentials, cleanup]
   - [prepare, cleanup]
   - [deploy, cleanup]
   - [provision, cleanup]
+  - [execute, cleanup]
   - [pxeboot, cleanup]
+  - [cleanup, upgrade]
+  - [cleanup, rollback]
+  - [precheck, cleanup_credentials]
+  - [validate, cleanup_credentials]
+  - [validate-deployment, cleanup_credentials]
+  - [credentials, cleanup_credentials]
+  - [prepare, cleanup_credentials]
+  - [deploy, cleanup_credentials]
+  - [provision, cleanup_credentials]
+  - [execute, cleanup_credentials]
+  - [pxeboot, cleanup_credentials]
+  - [cleanup_credentials, upgrade]
+  - [cleanup_credentials, rollback]
   - [precheck, upgrade]
+  - [validate, upgrade]
+  - [validate-deployment, upgrade]
+  - [credentials, upgrade]
   - [prepare, upgrade]
   - [deploy, upgrade]
   - [provision, upgrade]
-  - [cleanup, upgrade]
+  - [execute, upgrade]
   - [upgrade, rollback]
 ```
 
@@ -948,7 +1018,7 @@ invalid_tag_combinations:
 | `network_spec.yml` | User / discovery | Yes |
 | `orchestrator_config.yml` | User | Yes |
 | `omnia_config.yml` | User | Yes |
-| `software_config.json` | Image build / user | Yes |
+| `catalog_rhel.json` | Catalog initialization / user override | Yes for catalog-backed flows |
 | `storage_config.yml` | User | When NFS mounts needed |
 | `build_status.yml` | Image build workflow | Yes (S3 endpoint) |
 
@@ -958,9 +1028,9 @@ invalid_tag_combinations:
 |------|----------|
 | `functional_groups_config.yml` | Internal (provisioning) |
 | `orchestrator_state.yml` | Internal (support flags for standalone runs) |
-| `orchestrator_inventory.yml` | External (Ansible inventory) |
-| `bmc_group_data.yml` | External (BMC operations) |
+| `orchestrator_inventory.yaml` | External (Ansible inventory) |
+| `bmc_group_data.csv` | External (BMC operations) |
 | `provisioning_report.yml` | External (audit/review) |
 | SMD state (in OpenCHAMI) | OpenCHAMI services |
-| BSS boot params (in OpenCHAMI) | PXE boot |
-| Cloud-init data (in OpenCHAMI) | Node first-boot |
+| Boot Service parameters (in OpenCHAMI) | PXE boot |
+| Metadata Service data (in OpenCHAMI) | Node first boot and cloud-init rendering |

@@ -22,12 +22,15 @@ verify that every node performed a fresh boot and completed cloud-init.
    ```
 
 2. **PXE mapping file**: `pxe_mapping_file.csv` must exist in orchestrator input directory
-   - Location: `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv`
-   - Required columns: `BMC_IP`, `ADMIN_IP`, `HOSTNAME`, and `SERVICE_TAG`
-   - Column order is not significant
+   - Location: `$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv`
+   - Retain all 11 header columns in the documented order, including columns
+     whose values are optional
 
 3. **Configuration file**: `set_pxe_boot_config.yml` (optional, uses defaults if missing)
-   - Location: `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/set_pxe_boot_config.yml`
+   - Location: `$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/set_pxe_boot_config.yml`
+
+When `ORCHESTRATOR_DATA_PATH` is unset, it resolves to
+`$OMNIA_DATA_PATH/orchestrator`.
 
 ## Usage
 
@@ -92,12 +95,15 @@ slurm_control_node_x86_64,grp0,ABCD12,,node1,aa:bb:cc:dd:ee:ff,172.16.1.10,xx:yy
 slurm_node_x86_64,grp1,ABCD34,,node2,aa:bb:cc:dd:ee:gg,172.16.1.11,xx:yy:zz:aa:bb:dd,172.17.1.11,,
 ```
 
-**Required columns:**
+**Required header order:**
 
-- `HOSTNAME`: node hostname
-- `SERVICE_TAG`: node service tag
-- `ADMIN_IP`: unique admin-network address used for SSH verification
-- `BMC_IP`: unique iDRAC address used for Redfish operations
+`FUNCTIONAL_GROUP_NAME`, `GROUP_NAME`, `SERVICE_TAG`, `PARENT_SERVICE_TAG`,
+`HOSTNAME`, `ADMIN_MAC`, `ADMIN_IP`, `BMC_MAC`, `BMC_IP`, `IB_NIC_NAME`,
+`IB_IP`.
+
+All headers must be present even when an optional field, such as
+`SERVICE_TAG`, `PARENT_SERVICE_TAG`, `BMC_MAC`, `IB_NIC_NAME`, or `IB_IP`, is
+empty for a row.
 
 The parser follows CSV quoting rules. Invalid or duplicate BMC/admin addresses
 fail before any Redfish operation is attempted.
@@ -105,7 +111,7 @@ fail before any Redfish operation is attempted.
 ## Output
 
 The play writes all lifecycle reports under
-`$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/`, including on a
+`$ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/`, including on a
 successful run:
 
 - `pxeboot_status.yml`: complete PXE and verification result for every node.
@@ -217,7 +223,7 @@ FAILED! => BMC credentials not found. Run orchestrator credentials first
 ### pxe_mapping_file.csv not found
 
 ```
-FAILED! => pxe_mapping_file.csv not found at $OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv
+FAILED! => pxe_mapping_file.csv not found at $ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv
 ```
 
 **Solution**: Copy `pxe_mapping_file.csv` to the orchestrator input directory.

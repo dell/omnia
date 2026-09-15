@@ -14,7 +14,8 @@
 ---
 
 # Precheck OpenCHAMI --- Validate all OpenCHAMI-related variables and prerequisites
-# Can be run standalone or imported by orchestrator.yml
+# Imported by the canonical orchestrator.yml entry point. Direct execution
+# requires the setup facts and generated functional-group data to exist.
 #
 # This playbook validates inputs without modifying the system.
 # It should be run before prepare and deploy to fail fast on
@@ -37,7 +38,7 @@
     - name: Run input validation
       ansible.builtin.include_role:
         name: validate_orchestrator_input
-      when: not config_file_status | default(false) | bool
+      when: not _orchestrator_input_validated | default(false) | bool
 
 # Step 2: Validate orchestrator parameters (mapping, software config, hosts)
 - name: Validate orchestrator parameters

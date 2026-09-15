@@ -14,7 +14,8 @@
 ---
 
 # Upgrade OpenCHAMI --- In-place upgrade from 0.1.7-1 to 0.2.0
-# Can be run standalone or imported by orchestrator.yml
+# Imported by the canonical orchestrator.yml entry point. Direct execution
+# requires orchestrator_setup facts and a deployed OpenCHAMI environment.
 #
 # Logic:
 #   1. Detect currently installed OpenCHAMI version (RPM query)
