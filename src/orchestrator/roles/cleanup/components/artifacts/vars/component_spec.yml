@@ -21,7 +21,7 @@ artifacts_config:
   deployment_outputs:
     - "{{ orchestrator_output_dir }}"
   cleanup_framework_artifacts:
-    - "{{ omnia_data_path }}/orchestrator/log/cleanup"
+    - "{{ orchestrator_data_path }}/log/cleanup"
     - "/var/lib/omnia/cleanup"
   preserve_inputs:
     - "{{ omnia_data_path }}/.data/upgrade_in_progress.lock"
