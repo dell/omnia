@@ -1,0 +1,85 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Build the pod layout before rendering the StatefulSet. Pod zero owns BMCs
+# without a parent (the management layer); every unique parent owns one
+# additional pod.
+
+- name: Set BMC group data filename from bmc_group_data_path
+  ansible.builtin.set_fact:
+    bmc_group_data_filename: >-
+      {{ hostvars['localhost']['bmc_group_data_path'] }}
+
+# These native list expressions and Jinja conditions must remain on one line;
+# folded continuations change their types or evaluation in Ansible templates.
+# yamllint disable rule:line-length
+- name: Load BMC inventory from bmc_group_data.csv
+  ansible.builtin.set_fact:
+    bmc_group_data_lines: "{{ lookup('file', bmc_group_data_filename).split('\n') }}"
+
+- name: Parse BMC group data CSV and create parent-to-IP mapping
+  ansible.builtin.set_fact:
+    bmc_ips_dict: >-
+      {%- set result = {'MGMT_node': []} -%}
+      {%- for line in bmc_group_data_lines[1:] if line.strip() and not line.lstrip().startswith('#') -%}
+        {%- set parts = line.split(',') -%}
+        {%- if parts | length >= 3 and parts[0].strip() and parts[0].strip() != 'BMC_IP' -%}
+          {%- set bmc_ip = parts[0].strip() -%}
+          {%- set parent = parts[2].strip() -%}
+          {%- if parent -%}
+            {%- set parent_ips = result.get(parent, []) + [bmc_ip] -%}
+            {%- set _ = result.update({parent: parent_ips}) -%}
+          {%- else -%}
+            {%- set _ = result['MGMT_node'].append(bmc_ip) -%}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ result }}
+- name: Derive iDRAC parent groups and replica count
+  ansible.builtin.set_fact:
+    idrac_parent_tags: "{{ bmc_ips_dict.keys() | reject('equalto', 'MGMT_node') | sort | list }}"
+    idrac_replica_count: "{{ (bmc_ips_dict.keys() | reject('equalto', 'MGMT_node') | list | length) + 1 }}"
+# yamllint enable rule:line-length
+
+- name: Create service cluster metadata for iDRAC pods
+  ansible.builtin.set_fact:
+    service_cluster_metadata: >-
+      {%- set result = {
+        'MGMT_node': {
+          'parent_status': true,
+          'service_tag': 'MGMT_node',
+          'role': 'service_kube_control_plane',
+          'idrac_podname': idrac_telemetry_k8s_name ~ '-0'
+        }
+      } -%}
+      {%- for parent in idrac_parent_tags -%}
+        {%- set _ = result.update({
+          parent: {
+            'parent_status': true,
+            'service_tag': parent,
+            'role': '',
+            'idrac_podname': idrac_telemetry_k8s_name ~ '-' ~ loop.index
+          }
+        }) -%}
+      {%- endfor -%}
+      {{ result }}
+
+- name: Log iDRAC pod layout
+  ansible.builtin.debug:
+    msg: >-
+      Rendering {{ idrac_replica_count }} iDRAC telemetry pod(s):
+      one MGMT pod and {{ idrac_parent_tags | length }} parent pod(s)
+      for {{ idrac_parent_tags | join(', ')
+             | default('no parent groups', true) }}.
