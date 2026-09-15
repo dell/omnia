@@ -22,7 +22,9 @@ pipeline files, and CI/CD variables.
 import json
 from typing import Any, Dict, List
 
-from omnia_auto import load_test_config, run_on_host
+from omnia_auto import read_remote_yaml, run_on_host
+
+from ._config_helpers import resolve_build_stream_input_path
 
 from library.vars.common_vars import (
     CMDS,
@@ -33,6 +35,7 @@ from library.vars.common_vars import (
     GITLAB_PIPELINE_VARIABLES,
     GITLAB_RB_PATH,
     GITLAB_ROOT_TOKEN_FILE,
+    GITLAB_SSH_PRIVATE_KEY,
     GITLAB_RUNNER_CONTAINER,
     GITLAB_RUNNER_QUADLET_DIR,
     GITLAB_RUNNER_QUADLET_FILE,
@@ -43,15 +46,9 @@ from library.vars.common_vars import (
 )
 
 
-def _get_gitlab_config_path() -> str:
+def _get_gitlab_config_path(host) -> str:
     """Return the resolved path to build_stream_config.yml on the target host."""
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    data_path = config.get("shared_path", "/opt/omnia/build_stream")
-    return (
-        f"{data_path}/input/{project}/"
-        "build_stream_config.yml"
-    )
+    return f"{resolve_build_stream_input_path(host)}/build_stream_config.yml"
 
 
 def _get_gitlab_config(host) -> Dict[str, str]:
@@ -64,38 +61,20 @@ def _get_gitlab_config(host) -> Dict[str, str]:
         Dict of configuration values. Includes '_config_path' key for
         error reporting.
     """
-    config_path = _get_gitlab_config_path()
-    cmd = CMDS["cat_file"].format(path=config_path)
-    result = run_on_host(host, cmd)
-
+    config_path = _get_gitlab_config_path(host)
     values = {"_config_path": config_path}
-    if result.rc == 0 and result.stdout.strip():
-        for line in result.stdout.strip().split("\n"):
-            if ":" in line and not line.strip().startswith("#"):
-                key, _, val = line.partition(":")
-                values[key.strip()] = val.strip().strip('"').strip("'")
+    try:
+        config = read_remote_yaml(host, config_path)
+    except (OSError, RuntimeError, ValueError):
+        return values
+    values.update({key: str(value) for key, value in config.items()})
     return values
-
-
-def _get_gitlab_ssh_password(host) -> str:
-    """Load gitlab_ssh_password from server credentials file.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Password string, or empty string if not found.
-    """
-    from library.functions.pipeline_func import load_server_credentials
-    creds = load_server_credentials(host)
-    return creds.get("gitlab_ssh_password", "")
 
 
 def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
     """Run a command on the GitLab server via SSH from OIM.
 
-    Tries key-based SSH first (BatchMode=yes). If that fails,
-    falls back to sshpass with gitlab_ssh_password from test_creds.yml.
+    Uses the key-based SSH relationship configured by Build Stream.
 
     Args:
         host: Testinfra host connection.
@@ -118,9 +97,11 @@ def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
             ),
         }
 
-    # Try key-based SSH first (BatchMode=yes — no password prompt)
+    # BatchMode prevents an accidental interactive password prompt.
     ssh_cmd = CMDS["ssh_to_gitlab"].format(
-        gitlab_host=gitlab_host, cmd=cmd,
+        identity_file=GITLAB_SSH_PRIVATE_KEY,
+        gitlab_host=gitlab_host,
+        cmd=cmd,
     )
     result = run_on_host(host, ssh_cmd)
 
@@ -131,39 +112,12 @@ def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
             "error": "",
         }
 
-    # Key-based failed — try sshpass with gitlab_ssh_password
-    password = _get_gitlab_ssh_password(host)
-    if password:
-        sshpass_cmd = CMDS["sshpass_to_gitlab"].format(
-            password=password,
-            gitlab_host=gitlab_host,
-            cmd=cmd,
-        )
-        result = run_on_host(host, sshpass_cmd)
-        if result.rc == 0:
-            return {
-                "success": True,
-                "stdout": result.stdout if result.stdout else "",
-                "error": "",
-            }
-        return {
-            "success": False,
-            "stdout": result.stdout if result.stdout else "",
-            "error": (
-                f"SSH to {gitlab_host} failed with sshpass (rc={result.rc}). "
-                f"Verify gitlab_ssh_password in test_creds.yml and "
-                f"that sshpass is installed on the OIM host."
-            ),
-        }
-
     return {
         "success": False,
-        "stdout": "",
+        "stdout": result.stdout if result.stdout else "",
         "error": (
-            f"SSH to {gitlab_host} failed (key-based auth rejected). "
-            f"gitlab_ssh_password not set in test_creds.yml. "
-            f"Run: setup_env.sh --set-domain-creds to set the password, "
-            f"or set up SSH key-based auth: ssh-copy-id root@{gitlab_host}"
+            f"SSH to {gitlab_host} failed (rc={result.rc}). "
+            "Verify the Build Stream GitLab SSH key registration."
         ),
     }
 
@@ -186,6 +140,12 @@ def _get_gitlab_root_token(host) -> Dict[str, Any]:
             "success": True,
             "token": ssh_result["stdout"].strip(),
             "error": "",
+        }
+    if not ssh_result["success"]:
+        return {
+            "success": False,
+            "token": "",
+            "error": ssh_result["error"],
         }
     return {
         "success": False,
@@ -715,7 +675,7 @@ def check_gitlab_project_exists(host) -> Dict[str, Any]:
         error.
     """
     gitlab_config = _get_gitlab_config(host)
-    project_name = gitlab_config.get("project_name", "omnia-catalog")
+    project_name = gitlab_config.get("gitlab_project_name", "omnia-catalog")
 
     result = {
         "success": False,
@@ -756,7 +716,7 @@ def check_gitlab_project_visibility(host) -> Dict[str, Any]:
         Dict with keys: success, expected, actual, details, error.
     """
     gitlab_config = _get_gitlab_config(host)
-    project_name = gitlab_config.get("project_name", "omnia-catalog")
+    project_name = gitlab_config.get("gitlab_project_name", "omnia-catalog")
     expected = gitlab_config.get("project_visibility", "private")
 
     result = {
@@ -803,7 +763,7 @@ def check_gitlab_default_branch(host) -> Dict[str, Any]:
         Dict with keys: success, expected, actual, details, error.
     """
     gitlab_config = _get_gitlab_config(host)
-    project_name = gitlab_config.get("project_name", "omnia-catalog")
+    project_name = gitlab_config.get("gitlab_project_name", "omnia-catalog")
     expected = gitlab_config.get("default_branch", "main")
 
     result = {
@@ -846,7 +806,7 @@ def _get_gitlab_api_context(host) -> Dict[str, str]:
     gitlab_config = _get_gitlab_config(host)
     gitlab_host = gitlab_config.get("gitlab_host", "")
     gitlab_port = gitlab_config.get("gitlab_https_port", "443")
-    project_name = gitlab_config.get("project_name", "omnia-catalog")
+    project_name = gitlab_config.get("gitlab_project_name", "omnia-catalog")
     branch = gitlab_config.get("default_branch", "main")
 
     token_result = _get_gitlab_root_token(host)

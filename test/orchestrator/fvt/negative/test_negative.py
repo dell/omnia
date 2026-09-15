@@ -20,16 +20,16 @@ invalid inputs, and failure scenarios. These tests ensure robust error handling
 and appropriate user feedback when things go wrong.
 
 Test Cases:
-    TC_OR_NEG_001: Verify deployment fails with missing orchestrator_config.yml
-    TC_OR_NEG_002: Verify deployment fails with missing network_spec.yml
-    TC_OR_NEG_003: Verify deployment fails with missing credentials file
-    TC_OR_NEG_004: Verify deployment fails with invalid YAML syntax
-    TC_OR_NEG_005: Verify validation fails with invalid schema
-    TC_OR_NEG_006: Verify prepare fails when required services unavailable
-    TC_OR_NEG_007: Verify cleanup fails when containers not running
-    TC_OR_NEG_008: Verify SLURM tests skip when SLURM not configured
-    TC_OR_NEG_009: Verify rollback fails when rollback not supported
-    TC_OR_NEG_010: Verify API tests skip when OpenCHAMI services unavailable
+    ORCH_FVT_NEGATIVE_V013: Verify deployment fails with missing orchestrator_config.yml
+    ORCH_FVT_NEGATIVE_V014: Verify deployment fails with missing network_spec.yml
+    ORCH_FVT_NEGATIVE_V015: Verify deployment fails with missing credentials file
+    ORCH_FVT_NEGATIVE_V016: Verify deployment fails with invalid YAML syntax
+    ORCH_FVT_NEGATIVE_V017: Verify validation fails with invalid schema
+    ORCH_FVT_NEGATIVE_V018: Verify prepare fails when required services unavailable
+    ORCH_FVT_NEGATIVE_V019: Verify cleanup fails when containers not running
+    ORCH_FVT_NEGATIVE_V020: Verify SLURM tests skip when SLURM not configured
+    ORCH_FVT_NEGATIVE_V021: Verify rollback fails when rollback not supported
+    ORCH_FVT_NEGATIVE_V022: Verify API tests skip when OpenCHAMI services unavailable
 """
 
 import pytest
@@ -60,12 +60,12 @@ def _get_input_path() -> str:
 @pytest.mark.negative
 @pytest.mark.order(1)
 def test_deploy_fails_missing_orchestrator_config(host):
-    """TC_OR_NEG_001: Verify deployment fails with missing orchestrator_config.yml.
+    """ORCH_FVT_NEGATIVE_V013: Verify deployment fails with missing orchestrator_config.yml.
 
     Tests that the orchestrator properly detects and reports when the main
     configuration file is missing, providing clear error messages to users.
     """
-    tl = TestLogger("Negative: Missing orchestrator_config.yml", "TC_OR_NEG_001")
+    tl = TestLogger("Negative: Missing orchestrator_config.yml", "ORCH_FVT_NEGATIVE_V013")
 
     # Check if orchestrator_config.yml exists
     input_path = _get_input_path()
@@ -89,12 +89,12 @@ def test_deploy_fails_missing_orchestrator_config(host):
 @pytest.mark.negative
 @pytest.mark.order(2)
 def test_deploy_fails_missing_network_spec(host):
-    """TC_OR_NEG_002: Verify deployment fails with missing network_spec.yml.
+    """ORCH_FVT_NEGATIVE_V014: Verify deployment fails with missing network_spec.yml.
 
     Tests that the orchestrator properly detects when network specification
     is missing and provides appropriate error handling.
     """
-    tl = TestLogger("Negative: Missing network_spec.yml", "TC_OR_NEG_002")
+    tl = TestLogger("Negative: Missing network_spec.yml", "ORCH_FVT_NEGATIVE_V014")
 
     input_path = _get_input_path()
     network_path = f"{input_path}/{NETWORK_SPEC_FILE}"
@@ -116,12 +116,12 @@ def test_deploy_fails_missing_network_spec(host):
 @pytest.mark.negative
 @pytest.mark.order(3)
 def test_deploy_fails_missing_credentials(host):
-    """TC_OR_NEG_003: Verify deployment fails with missing credentials file.
+    """ORCH_FVT_NEGATIVE_V015: Verify deployment fails with missing credentials file.
 
     Tests that the orchestrator properly handles missing credential files
     and provides clear error messages about authentication requirements.
     """
-    tl = TestLogger("Negative: Missing credentials file", "TC_OR_NEG_003")
+    tl = TestLogger("Negative: Missing credentials file", "ORCH_FVT_NEGATIVE_V015")
 
     result = check_credentials_present(host)
 
@@ -140,12 +140,12 @@ def test_deploy_fails_missing_credentials(host):
 @pytest.mark.negative
 @pytest.mark.order(4)
 def test_deploy_fails_invalid_yaml_syntax(host):
-    """TC_OR_NEG_004: Verify deployment fails with invalid YAML syntax.
+    """ORCH_FVT_NEGATIVE_V016: Verify deployment fails with invalid YAML syntax.
 
     Tests that the orchestrator properly validates YAML syntax and provides
     clear error messages when configuration files contain invalid YAML.
     """
-    tl = TestLogger("Negative: Invalid YAML syntax detection", "TC_OR_NEG_004")
+    tl = TestLogger("Negative: Invalid YAML syntax detection", "ORCH_FVT_NEGATIVE_V016")
 
     input_path = _get_input_path()
     config_path = f"{input_path}/{ORCHESTRATOR_CONFIG_FILE}"
@@ -178,12 +178,12 @@ def test_deploy_fails_invalid_yaml_syntax(host):
 @pytest.mark.negative
 @pytest.mark.order(5)
 def test_validation_fails_invalid_schema(host):
-    """TC_OR_NEG_005: Verify validation fails with invalid schema.
+    """ORCH_FVT_NEGATIVE_V017: Verify validation fails with invalid schema.
 
     Tests that the orchestrator's schema validation properly rejects
     configuration files that don't conform to the expected schema.
     """
-    tl = TestLogger("Negative: Invalid schema detection", "TC_OR_NEG_005")
+    tl = TestLogger("Negative: Invalid schema detection", "ORCH_FVT_NEGATIVE_V017")
 
     # This would require creating a file with invalid schema
     # For now, we'll skip as it would interfere with other tests
@@ -196,13 +196,13 @@ def test_validation_fails_invalid_schema(host):
 @pytest.mark.negative
 @pytest.mark.order(6)
 def test_prepare_fails_services_unavailable(host):
-    """TC_OR_NEG_006: Verify prepare fails when required services unavailable.
+    """ORCH_FVT_NEGATIVE_V018: Verify prepare fails when required services unavailable.
 
     Tests that the orchestrator properly detects when required system
     services (Docker/Podman, systemd) are unavailable and provides
     appropriate error messages.
     """
-    tl = TestLogger("Negative: Required services unavailable", "TC_OR_NEG_006")
+    tl = TestLogger("Negative: Required services unavailable", "ORCH_FVT_NEGATIVE_V018")
 
     # Check if Podman is available
     result = run_on_host(host, "which podman && echo 'available' || echo 'unavailable'")
@@ -222,12 +222,12 @@ def test_prepare_fails_services_unavailable(host):
 @pytest.mark.negative
 @pytest.mark.order(7)
 def test_cleanup_fails_containers_not_running(host):
-    """TC_OR_NEG_007: Verify cleanup handles containers not running gracefully.
+    """ORCH_FVT_NEGATIVE_V019: Verify cleanup handles containers not running gracefully.
 
     Tests that cleanup operations handle the case where containers
     are not running without failing, as this is an expected state.
     """
-    tl = TestLogger("Negative: Cleanup with containers not running", "TC_OR_NEG_007")
+    tl = TestLogger("Negative: Cleanup with containers not running", "ORCH_FVT_NEGATIVE_V019")
 
     from library.functions import check_containers_removed
 
@@ -248,13 +248,13 @@ def test_cleanup_fails_containers_not_running(host):
 @pytest.mark.negative
 @pytest.mark.order(8)
 def test_slurm_tests_skip_when_not_configured(host):
-    """TC_OR_NEG_008: Verify SLURM tests skip when SLURM not configured.
+    """ORCH_FVT_NEGATIVE_V020: Verify SLURM tests skip when SLURM not configured.
 
     Tests that SLURM-specific tests are automatically skipped when
     SLURM is not enabled in the orchestrator configuration, preventing
     false failures.
     """
-    tl = TestLogger("Negative: SLURM tests skip when not configured", "TC_OR_NEG_008")
+    tl = TestLogger("Negative: SLURM tests skip when not configured", "ORCH_FVT_NEGATIVE_V020")
 
     from library.functions.slurm_func import check_slurm_enabled
 
@@ -275,13 +275,13 @@ def test_slurm_tests_skip_when_not_configured(host):
 @pytest.mark.negative
 @pytest.mark.order(9)
 def test_rollback_fails_when_not_supported(host):
-    """TC_OR_NEG_009: Verify rollback fails when rollback not supported.
+    """ORCH_FVT_NEGATIVE_V021: Verify rollback fails when rollback not supported.
 
     Tests that the orchestrator properly handles rollback attempts
     when rollback functionality is not supported, providing clear
     error messages.
     """
-    tl = TestLogger("Negative: Rollback not supported handling", "TC_OR_NEG_009")
+    tl = TestLogger("Negative: Rollback not supported handling", "ORCH_FVT_NEGATIVE_V021")
 
     # This would require attempting a rollback operation
     # For now, we'll skip as it would interfere with other tests
@@ -294,12 +294,12 @@ def test_rollback_fails_when_not_supported(host):
 @pytest.mark.negative
 @pytest.mark.order(10)
 def test_api_tests_skip_when_services_unavailable(host):
-    """TC_OR_NEG_010: Verify API tests skip when OpenCHAMI services unavailable.
+    """ORCH_FVT_NEGATIVE_V022: Verify API tests skip when OpenCHAMI services unavailable.
 
     Tests that API reachability tests are automatically skipped when
     OpenCHAMI services are not fully operational, preventing false failures.
     """
-    tl = TestLogger("Negative: API tests skip when services unavailable", "TC_OR_NEG_010")
+    tl = TestLogger("Negative: API tests skip when services unavailable", "ORCH_FVT_NEGATIVE_V022")
 
     from library.functions import check_openchami_api_reachable
 

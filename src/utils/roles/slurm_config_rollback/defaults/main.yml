@@ -1,5 +1,7 @@
 ---
-
-slurm_share_dir_name: slurm
-slurm_backups_dir_name: slurm_backups
-slurm_rollback_backup_list_limit_default: 20
+# Optional: pre-set these to skip the interactive prompts (e.g. for automation)
+# backup_choice_input: "1"
+# continue_missing_confs_input: "y"
+# continue_missing_munge_key_input: "y"
+# continue_missing_input: "y"
+# pre_rollback_backup_choice_input: "y"

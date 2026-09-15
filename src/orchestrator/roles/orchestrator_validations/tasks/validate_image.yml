@@ -34,7 +34,7 @@
     _fg_image_prefix_without_primary: >-
       {{ _fg_prefix
          | regex_replace(
-           '_first(?=_(rhel|rocky|ubuntu|sles)(_[0-9]+)+$|$)',
+           '_first(?=_rhel(_[0-9]+)+$|$)',
            ''
          ) }}
 

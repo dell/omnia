@@ -222,8 +222,9 @@
     mode: "0644"
   when: >-
     ansible_run_tags | default([])
-    | intersect(['all', 'execute', 'provision'])
+    | intersect(['execute', 'provision'])
     | length > 0
+    or 'all' in (ansible_run_tags | default([]))
     or ansible_run_tags | default([]) | length == 0
 
 - name: Initialize per-node provisioning status
@@ -313,6 +314,7 @@
         failed_nodes: failed_nodes.json
   when: >-
     ansible_run_tags | default([])
-    | intersect(['all', 'execute', 'provision'])
+    | intersect(['execute', 'provision'])
     | length > 0
+    or 'all' in (ansible_run_tags | default([]))
     or ansible_run_tags | default([]) | length == 0

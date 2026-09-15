@@ -21,10 +21,7 @@
 - name: Read additional_cloud_init_config_file path
   ansible.builtin.set_fact:
     additional_metadata_svc_file_path: >-
-      {{
-        hostvars['localhost']['additional_cloud_init_config_file']
-        | default('') | trim
-      }}
+      {{ hostvars['localhost']['additional_cloud_init_config_file'] | default('') | trim }}
 
 - name: Set defaults when additional metadata-service is disabled
   ansible.builtin.set_fact:

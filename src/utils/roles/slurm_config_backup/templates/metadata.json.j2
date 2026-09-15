@@ -1,0 +1,9 @@
+{
+  "backup_id": "{{ backup_id }}",
+  "backup_generated_at_utc": "{{ backup_generated_at_utc }}",
+  "controller_hostname": "{{ backup_controller_hostname }}",
+  "source_path": "{{ backup_source_path }}",
+  "backup_location": "{{ backup_location }}",
+  "directories_included": {{ backup_directories | to_json }},
+  "file_checksums_sha256": {{ backup_checksums_output | to_json }}
+}

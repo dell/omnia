@@ -158,6 +158,12 @@
         name: "{{ pulp_container_name }}.service"
         state: stopped
         enabled: false
+      register: pulp_service_result
+      failed_when: >-
+        (pulp_service_result.failed | default(false) | bool)
+        and
+        ('Could not find the requested service' not in
+         (pulp_service_result.msg | default('')))
       when: >-
         ansible_facts.services.get(
           pulp_container_name ~ '.service', {}

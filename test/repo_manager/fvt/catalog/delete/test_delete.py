@@ -6,11 +6,11 @@
 """
 Repo Manager — Catalog Delete scenario verification tests.
 
-TC_RM_CAT_DEL_000: Deploy catalog_delete playbook
-TC_RM_CAT_DEL_001: Verify catalog delete operation completed successfully
-TC_RM_CAT_DEL_002: Verify catalog structure still valid after delete
-TC_RM_CAT_DEL_003: Verify catalog has functional layers after delete
-TC_RM_CAT_DEL_004: Verify catalog has groups after delete
+RM_FVT_CATALOG_DELETE_E001: Deploy catalog_delete playbook
+RM_FVT_CATALOG_DELETE_V001: Verify catalog delete operation completed successfully
+RM_FVT_CATALOG_DELETE_V002: Verify catalog structure still valid after delete
+RM_FVT_CATALOG_DELETE_V003: Verify catalog has functional layers after delete
+RM_FVT_CATALOG_DELETE_V004: Verify catalog has groups after delete
 """
 
 import pytest
@@ -34,8 +34,8 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_catalog_delete_deploy(host):
-    """TC_RM_CAT_DEL_000: Deploy catalog_delete playbook."""
-    tl = TestLogger(TEST_NAMES["catalog_delete_deploy"], "TC_RM_CAT_DEL_000")
+    """RM_FVT_CATALOG_DELETE_E001: Deploy catalog_delete playbook."""
+    tl = TestLogger(TEST_NAMES["catalog_delete_deploy"], "RM_FVT_CATALOG_DELETE_E001")
 
     # Check if input file exists
     input_path = _get_input_path()
@@ -67,8 +67,8 @@ def test_catalog_delete_deploy(host):
 @pytest.mark.positive
 @pytest.mark.order(1)
 def test_catalog_delete_operation_completed():
-    """TC_RM_CAT_DEL_001: Verify catalog delete operation completed successfully."""
-    tl = TestLogger(TEST_NAMES["catalog_delete_deploy"], "TC_RM_CAT_DEL_001")
+    """RM_FVT_CATALOG_DELETE_V001: Verify catalog delete operation completed successfully."""
+    tl = TestLogger(TEST_NAMES["catalog_delete_deploy"], "RM_FVT_CATALOG_DELETE_V001")
 
     # The delete operation should complete without errors
     # The playbook result from test_catalog_delete_deploy already verified this
@@ -81,8 +81,8 @@ def test_catalog_delete_operation_completed():
 @pytest.mark.positive
 @pytest.mark.order(2)
 def test_catalog_structure_valid_after_delete(host):
-    """TC_RM_CAT_DEL_002: Verify catalog structure still valid after delete."""
-    tl = TestLogger(TEST_NAMES["catalog_structure_valid"], "TC_RM_CAT_DEL_002")
+    """RM_FVT_CATALOG_DELETE_V002: Verify catalog structure still valid after delete."""
+    tl = TestLogger(TEST_NAMES["catalog_structure_valid"], "RM_FVT_CATALOG_DELETE_V002")
 
     # This test requires catalog_generate to have run first
     result = check_catalog_structure(host)
@@ -104,8 +104,8 @@ def test_catalog_structure_valid_after_delete(host):
 @pytest.mark.positive
 @pytest.mark.order(3)
 def test_catalog_has_functional_layers_after_delete(host):
-    """TC_RM_CAT_DEL_003: Verify catalog still has functional layers after delete."""
-    tl = TestLogger(TEST_NAMES["catalog_functional_layers"], "TC_RM_CAT_DEL_003")
+    """RM_FVT_CATALOG_DELETE_V003: Verify catalog still has functional layers after delete."""
+    tl = TestLogger(TEST_NAMES["catalog_functional_layers"], "RM_FVT_CATALOG_DELETE_V003")
     result = check_catalog_functional_layers(host)
 
     if result["success"]:
@@ -120,8 +120,8 @@ def test_catalog_has_functional_layers_after_delete(host):
 @pytest.mark.positive
 @pytest.mark.order(4)
 def test_catalog_has_groups_after_delete(host):
-    """TC_RM_CAT_DEL_004: Verify catalog still has groups after delete."""
-    tl = TestLogger(TEST_NAMES["catalog_groups"], "TC_RM_CAT_DEL_004")
+    """RM_FVT_CATALOG_DELETE_V004: Verify catalog still has groups after delete."""
+    tl = TestLogger(TEST_NAMES["catalog_groups"], "RM_FVT_CATALOG_DELETE_V004")
     result = check_catalog_groups(host)
 
     if result["success"]:

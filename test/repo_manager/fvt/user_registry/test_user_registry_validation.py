@@ -6,15 +6,15 @@
 """
 Repo Manager — User Registry validation tests.
 
-TC_RM_UR_000: Deploy validation playbook (includes user registry checks)
-TC_RM_UR_001: Verify registries section exists in repo_manager_config.yml
-TC_RM_UR_002: Verify registry entries have valid structure
-TC_RM_UR_003: Verify registry base_url values are valid HTTP(S) origins
-TC_RM_UR_004: Verify configured registries are reachable
-TC_RM_UR_005: Verify TLS certificate paths exist on disk
-TC_RM_UR_006: Verify client cert and key are configured together
-TC_RM_UR_007: Verify registry auth type is valid (none or basic)
-TC_RM_UR_008: Verify credentials are configured for basic auth registries
+RM_FVT_USER_REGISTRY_E001: Deploy validation playbook (includes user registry checks)
+RM_FVT_USER_REGISTRY_V001: Verify registries section exists in repo_manager_config.yml
+RM_FVT_USER_REGISTRY_V002: Verify registry entries have valid structure
+RM_FVT_USER_REGISTRY_V003: Verify registry base_url values are valid HTTP(S) origins
+RM_FVT_USER_REGISTRY_V004: Verify configured registries are reachable
+RM_FVT_USER_REGISTRY_V005: Verify TLS certificate paths exist on disk
+RM_FVT_USER_REGISTRY_V006: Verify client cert and key are configured together
+RM_FVT_USER_REGISTRY_V007: Verify registry auth type is valid (none or basic)
+RM_FVT_USER_REGISTRY_V008: Verify credentials are configured for basic auth registries
 """
 
 import pytest
@@ -42,9 +42,9 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_user_registry_validation_deploy(host):
-    """TC_RM_UR_000: Deploy validation playbook (includes user registry checks)."""
+    """RM_FVT_USER_REGISTRY_E001: Deploy validation playbook (includes user registry checks)."""
     assert host is not None
-    tl = TestLogger(TEST_NAMES["user_registry_validation_deploy"], "TC_RM_UR_000")
+    tl = TestLogger(TEST_NAMES["user_registry_validation_deploy"], "RM_FVT_USER_REGISTRY_E001")
     result = run_playbook(tag="precheck", verbosity=1)
 
     if result["success"]:
@@ -59,8 +59,8 @@ def test_user_registry_validation_deploy(host):
 @pytest.mark.positive
 @pytest.mark.order(1)
 def test_user_registry_section_exists(host):
-    """TC_RM_UR_001: Verify registries section exists in repo_manager_config.yml."""
-    tl = TestLogger(TEST_NAMES["user_registry_section_exists"], "TC_RM_UR_001")
+    """RM_FVT_USER_REGISTRY_V001: Verify registries section exists in repo_manager_config.yml."""
+    tl = TestLogger(TEST_NAMES["user_registry_section_exists"], "RM_FVT_USER_REGISTRY_V001")
     result = check_user_registry_section_exists(host)
 
     if result["success"]:
@@ -75,8 +75,8 @@ def test_user_registry_section_exists(host):
 @pytest.mark.positive
 @pytest.mark.order(2)
 def test_user_registry_structure_valid(host):
-    """TC_RM_UR_002: Verify registry entries have valid structure."""
-    tl = TestLogger(TEST_NAMES["user_registry_structure_valid"], "TC_RM_UR_002")
+    """RM_FVT_USER_REGISTRY_V002: Verify registry entries have valid structure."""
+    tl = TestLogger(TEST_NAMES["user_registry_structure_valid"], "RM_FVT_USER_REGISTRY_V002")
     result = check_user_registry_structure(host)
 
     if result.get("skipped"):
@@ -95,8 +95,8 @@ def test_user_registry_structure_valid(host):
 @pytest.mark.positive
 @pytest.mark.order(3)
 def test_user_registry_base_url_valid(host):
-    """TC_RM_UR_003: Verify registry base_url values are valid HTTP(S) origins."""
-    tl = TestLogger(TEST_NAMES["user_registry_base_url_valid"], "TC_RM_UR_003")
+    """RM_FVT_USER_REGISTRY_V003: Verify registry base_url values are valid HTTP(S) origins."""
+    tl = TestLogger(TEST_NAMES["user_registry_base_url_valid"], "RM_FVT_USER_REGISTRY_V003")
     result = check_user_registry_base_url_valid(host)
 
     if result.get("skipped"):
@@ -115,8 +115,8 @@ def test_user_registry_base_url_valid(host):
 @pytest.mark.positive
 @pytest.mark.order(4)
 def test_user_registry_reachable(host):
-    """TC_RM_UR_004: Verify configured registries are reachable."""
-    tl = TestLogger(TEST_NAMES["user_registry_reachable"], "TC_RM_UR_004")
+    """RM_FVT_USER_REGISTRY_V004: Verify configured registries are reachable."""
+    tl = TestLogger(TEST_NAMES["user_registry_reachable"], "RM_FVT_USER_REGISTRY_V004")
     result = check_user_registry_reachability(host)
 
     if result.get("skipped"):
@@ -135,8 +135,8 @@ def test_user_registry_reachable(host):
 @pytest.mark.positive
 @pytest.mark.order(5)
 def test_user_registry_tls_cert_paths_valid(host):
-    """TC_RM_UR_005: Verify TLS certificate paths exist on disk."""
-    tl = TestLogger(TEST_NAMES["user_registry_tls_cert_paths_valid"], "TC_RM_UR_005")
+    """RM_FVT_USER_REGISTRY_V005: Verify TLS certificate paths exist on disk."""
+    tl = TestLogger(TEST_NAMES["user_registry_tls_cert_paths_valid"], "RM_FVT_USER_REGISTRY_V005")
     result = check_user_registry_tls_cert_paths(host)
 
     if result.get("skipped"):
@@ -155,8 +155,8 @@ def test_user_registry_tls_cert_paths_valid(host):
 @pytest.mark.positive
 @pytest.mark.order(6)
 def test_user_registry_tls_pair_consistent(host):
-    """TC_RM_UR_006: Verify client cert and key are configured together."""
-    tl = TestLogger(TEST_NAMES["user_registry_tls_pair_consistent"], "TC_RM_UR_006")
+    """RM_FVT_USER_REGISTRY_V006: Verify client cert and key are configured together."""
+    tl = TestLogger(TEST_NAMES["user_registry_tls_pair_consistent"], "RM_FVT_USER_REGISTRY_V006")
     result = check_user_registry_tls_pair_consistent(host)
 
     if result.get("skipped"):
@@ -175,8 +175,8 @@ def test_user_registry_tls_pair_consistent(host):
 @pytest.mark.positive
 @pytest.mark.order(7)
 def test_user_registry_auth_type_valid(host):
-    """TC_RM_UR_007: Verify registry auth type is valid (none or basic)."""
-    tl = TestLogger(TEST_NAMES["user_registry_auth_type_valid"], "TC_RM_UR_007")
+    """RM_FVT_USER_REGISTRY_V007: Verify registry auth type is valid (none or basic)."""
+    tl = TestLogger(TEST_NAMES["user_registry_auth_type_valid"], "RM_FVT_USER_REGISTRY_V007")
     result = check_user_registry_auth_type(host)
 
     if result.get("skipped"):
@@ -195,8 +195,8 @@ def test_user_registry_auth_type_valid(host):
 @pytest.mark.positive
 @pytest.mark.order(8)
 def test_user_registry_credentials_present(host):
-    """TC_RM_UR_008: Verify credentials are configured for basic auth registries."""
-    tl = TestLogger(TEST_NAMES["user_registry_credentials_present"], "TC_RM_UR_008")
+    """RM_FVT_USER_REGISTRY_V008: Verify credentials are configured for basic auth registries."""
+    tl = TestLogger(TEST_NAMES["user_registry_credentials_present"], "RM_FVT_USER_REGISTRY_V008")
     result = check_user_registry_credentials(host)
 
     if result.get("skipped"):

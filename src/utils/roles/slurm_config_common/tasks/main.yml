@@ -1,0 +1,43 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# =============================================================================
+# slurm_config_common - Shared setup for backup/cleanup/rollback utilities
+# =============================================================================
+# Resolves the optional slurm_config_util_config.yml, reads omnia_config.yml
+# and storage_config.yml, parses the PXE mapping (CSV or YAML) to identify the
+# Slurm controller, and resolves the active config path + backup destination
+# (local path or NFS export, same precedence as oim_log_backup).
+#
+# Idempotent/cheap to re-run: each of the three operation roles includes this
+# role first so every operation (config_backup, slurm_cleanup, config_rollback)
+# can be invoked standalone with a single tag.
+
+- name: Resolve input files and Slurm cluster config
+  ansible.builtin.include_tasks: resolve_inputs.yml
+  when: not (slurm_config_common_done | default(false) | bool)
+
+- name: Parse PXE mapping and identify Slurm controller
+  ansible.builtin.include_tasks: parse_pxe_mapping.yml
+  when: not (slurm_config_common_done | default(false) | bool)
+
+- name: Resolve backup destination (local path or NFS export)
+  ansible.builtin.include_tasks: resolve_backup_destination.yml
+  when: not (slurm_config_common_done | default(false) | bool)
+
+- name: Mark common setup as complete
+  ansible.builtin.set_fact:
+    slurm_config_common_done: true
+  when: not (slurm_config_common_done | default(false) | bool)

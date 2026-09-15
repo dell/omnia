@@ -22,11 +22,15 @@ volumes are properly removed after running cleanup playbooks.
 
 from typing import Any, Dict, List
 
-from omnia_auto import load_test_config, run_on_host
+from omnia_auto import run_on_host
+
+from ._config_helpers import (
+    resolve_build_stream_data_path,
+    resolve_build_stream_input_path,
+)
 
 from library.vars.common_vars import (
     BSM_CONTAINER_NAME,
-    BUILDSTREAM_CLEANUP_DIRECTORIES,
     BUILDSTREAM_CREDENTIAL_FILES,
     BUILDSTREAM_OAUTH_CREDENTIAL_FILES,
     CMDS,
@@ -863,11 +867,8 @@ def check_postgres_volumes_preserved(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, volumes, details, error.
     """
-    config = load_test_config()
-    shared_path = config.get(
-        "shared_path", "/opt/omnia/build_stream"
-    )
-    omnia_path = shared_path.rsplit("/build_stream", 1)[0]
+    data_path = resolve_build_stream_data_path(host)
+    omnia_path = data_path.rsplit("/build_stream", 1)[0]
     postgres_dir = f"{omnia_path}/postgres"
 
     cmd = CMDS["dir_exists"].format(path=postgres_dir)
@@ -900,11 +901,8 @@ def check_buildstream_directories_removed(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, removed, still_exist, details, error.
     """
-    config = load_test_config()
-    shared_path = config.get(
-        "shared_path", "/opt/omnia/build_stream"
-    )
-    omnia_path = shared_path.rsplit("/build_stream", 1)[0]
+    data_path = resolve_build_stream_data_path(host)
+    omnia_path = data_path.rsplit("/build_stream", 1)[0]
 
     # Build dynamic list based on config
     dirs = [
@@ -954,12 +952,7 @@ def check_buildstream_credentials_removed(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, removed, still_exist, details, error.
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    shared_path = config.get(
-        "shared_path", "/opt/omnia/build_stream"
-    )
-    input_dir = f"{shared_path}/input/{project}"
+    input_dir = resolve_build_stream_input_path(host)
 
     result = {
         "success": False,
@@ -1001,12 +994,7 @@ def check_buildstream_oauth_credentials_removed(
     Returns:
         Dict with keys: success, removed, still_exist, details, error.
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    shared_path = config.get(
-        "shared_path", "/opt/omnia/build_stream"
-    )
-    input_dir = f"{shared_path}/input/{project}"
+    input_dir = resolve_build_stream_input_path(host)
 
     result = {
         "success": False,

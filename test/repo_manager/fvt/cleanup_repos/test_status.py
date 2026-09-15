@@ -53,7 +53,7 @@ def _cleanup_target():
 @pytest.mark.destructive
 @pytest.mark.order(0)
 def test_deploy_exact_repository_cleanup(host):
-    """TC_RM_SCL_000: Clean only an explicitly named disposable RPM repository."""
+    """RM_FVT_CLEANUP_REPOS_E001: Clean only an explicitly named disposable RPM repository."""
     assert host is not None
     target, _version = _cleanup_target()
     result = run_playbook(
@@ -66,7 +66,7 @@ def test_deploy_exact_repository_cleanup(host):
 @pytest.mark.destructive
 @pytest.mark.order(1)
 def test_exact_repository_is_absent_while_pulp_is_healthy(host):
-    """TC_RM_SCL_001: Distinguish verified absence from endpoint failure."""
+    """RM_FVT_CLEANUP_REPOS_V001: Distinguish verified absence from endpoint failure."""
     target, _version = _cleanup_target()
     health = host.run("/usr/local/bin/pulp status")
     assert health.rc == 0, health.stderr
@@ -84,7 +84,7 @@ def test_exact_repository_is_absent_while_pulp_is_healthy(host):
 @pytest.mark.destructive
 @pytest.mark.order(2)
 def test_selective_cleanup_invalidates_repo_status(host):
-    """TC_RM_SCL_002: Stale consumer URLs are removed after verified cleanup."""
+    """RM_FVT_CLEANUP_REPOS_V002: Stale consumer URLs are removed after verified cleanup."""
     _cleanup_target()
     repo_status = f"{_get_output_path()}/repo_status.yml"
     assert not host.file(repo_status).exists, (
@@ -95,7 +95,7 @@ def test_selective_cleanup_invalidates_repo_status(host):
 @pytest.mark.destructive
 @pytest.mark.order(3)
 def test_cleanup_status_records_exact_success(host):
-    """TC_RM_SCL_003: Cleanup CSV records the requested identity successfully."""
+    """RM_FVT_CLEANUP_REPOS_V003: Cleanup CSV records the requested identity successfully."""
     target, version = _cleanup_target()
     status_path = (
         f"{_get_base_path()}/log/rhel/{version}/cleanup/cleanup_status.csv"
