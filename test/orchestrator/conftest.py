@@ -128,6 +128,7 @@ def pytest_configure(config):
         "powervault": "PowerVault iSCSI and multipath tests",
         "recovery": "Retry, recovery, and interrupted-run tests",
         "unit": "Deterministic unit and source-contract tests",
+        "kernel_override": "Kernel-version override validation",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")

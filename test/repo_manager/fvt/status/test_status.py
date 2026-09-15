@@ -6,9 +6,9 @@
 """
 Repo Manager — Status scenario verification tests.
 
-TC_RM_ST_000: Deploy repo_manager --tags status
-TC_RM_ST_001: Verify repo_status.yml regenerated
-TC_RM_ST_002: Verify overall_status is success
+RM_FVT_STATUS_E001: Deploy repo_manager --tags status
+RM_FVT_STATUS_V001: Verify repo_status.yml regenerated
+RM_FVT_STATUS_V002: Verify overall_status is success
 """
 
 import pytest
@@ -30,8 +30,8 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_status(host):
-    """TC_RM_ST_000: Deploy repo_manager --tags status."""
-    tl = TestLogger(TEST_NAMES["repo_status_regenerated"], "TC_RM_ST_000")
+    """RM_FVT_STATUS_E001: Deploy repo_manager --tags status."""
+    tl = TestLogger(TEST_NAMES["repo_status_regenerated"], "RM_FVT_STATUS_E001")
     result = run_playbook(tag="status")
 
     if result["success"]:
@@ -46,8 +46,8 @@ def test_deploy_status(host):
 @pytest.mark.positive
 @pytest.mark.order(1)
 def test_repo_status_regenerated(host):
-    """TC_RM_ST_001: Verify repo_status.yml regenerated."""
-    tl = TestLogger(TEST_NAMES["repo_status_regenerated"], "TC_RM_ST_001")
+    """RM_FVT_STATUS_V001: Verify repo_status.yml regenerated."""
+    tl = TestLogger(TEST_NAMES["repo_status_regenerated"], "RM_FVT_STATUS_V001")
     result = check_repo_status_exists(host)
 
     if result["success"]:
@@ -62,8 +62,8 @@ def test_repo_status_regenerated(host):
 @pytest.mark.positive
 @pytest.mark.order(2)
 def test_repo_status_success_after_status(host):
-    """TC_RM_ST_002: Verify overall_status is success."""
-    tl = TestLogger(TEST_NAMES["repo_status_success"], "TC_RM_ST_002")
+    """RM_FVT_STATUS_V002: Verify overall_status is success."""
+    tl = TestLogger(TEST_NAMES["repo_status_success"], "RM_FVT_STATUS_V002")
     result = check_repo_status_success(host)
 
     if result["success"]:
