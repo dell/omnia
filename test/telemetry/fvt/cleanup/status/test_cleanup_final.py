@@ -36,6 +36,8 @@ from library.functions.cleanup_func import (
     verify_no_pods_remaining,
     verify_no_pvcs_remaining,
     verify_pvcs_preserved,
+    verify_source_pvcs_deleted,
+    verify_sink_pvcs_deleted,
 )
 
 
@@ -67,29 +69,54 @@ def test_no_pods_after_full_cleanup(host):
 
 @pytest.mark.sanity
 @pytest.mark.order(62)
-def test_no_pvcs_after_full_cleanup(host, delete_volume):
+def test_no_pvcs_after_full_cleanup(host, delete_sinks_volume):
     """TC_CL_012: Verify PVC state after full cleanup.
 
     After a full cleanup (--tags cleanup):
-      - With Delete_volume=true: zero PVCs must remain.
-      - With Delete_volume=false: PVCs must be preserved.
+      - With delete_sinks_volume=true: zero PVCs must remain (all deleted).
+      - With delete_sinks_volume=false: Kafka and VictoriaMetrics/VictoriaLogs PVCs must be preserved, other PVCs deleted.
     """
-    if delete_volume:
-        tc = TC["no_pvcs_after_full_cleanup"]
-        tl = TestLogger(tc["title"], tc["id"])
+    # First, verify source PVCs are always deleted (regardless of flag)
+    tc_source = TC["no_pvcs_after_full_cleanup"]
+    tl_source = TestLogger("Verify source PVCs deleted", tc_source["id"] + "-source")
 
-        result = verify_no_pvcs_remaining(host)
+    result_source = verify_source_pvcs_deleted(host)
 
-        if result["success"]:
-            tl.passed(LOG_MSGS["no_pvcs_remaining"], result["details"])
+    if result_source["success"]:
+        tl_source.passed(
+            LOG_MSGS["no_pvcs_remaining"],
+            result_source["details"],
+        )
+    else:
+        tl_source.failed(
+            LOG_MSGS["pvcs_remaining"].format(count=result_source["count"]),
+            result_source["details"],
+        )
+
+    assert result_source["success"], (
+        f"Source PVCs were not deleted: {result_source['error']}"
+    )
+
+    # Then, verify sink PVCs based on the flag
+    if delete_sinks_volume:
+        tc_sink = TC["no_pvcs_after_full_cleanup"]
+        tl_sink = TestLogger("Verify sink PVCs deleted", tc_sink["id"] + "-sink")
+
+        result_sink = verify_sink_pvcs_deleted(host)
+
+        if result_sink["success"]:
+            tl_sink.passed(
+                LOG_MSGS["no_pvcs_remaining"],
+                result_sink["details"],
+            )
         else:
-            tl.failed(
-                LOG_MSGS["pvcs_remaining"].format(count=result["count"]),
-                result["details"],
+            tl_sink.failed(
+                LOG_MSGS["pvcs_remaining"].format(count=result_sink["count"]),
+                result_sink["details"],
             )
 
-        assert result["success"], ASSERT_MSGS["pvcs_remaining"].format(
-            count=result["count"],
+        assert result_sink["success"], (
+            f"Sink PVCs were not deleted: {result_sink['error']}"
         )
     else:
         tc = TC["pvcs_preserved_after_cleanup"]

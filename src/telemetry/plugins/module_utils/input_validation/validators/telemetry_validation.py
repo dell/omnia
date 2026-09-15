@@ -324,7 +324,7 @@ def validate_telemetry_config(
     # =========================================================================
     # Validate collection_targets per source type
     # =========================================================================
-    # iDRAC: supports kafka and victoria_metrics
+    # iDRAC: supports kafka and victoria_metrics (at least one required when enabled)
     idrac_targets = set(idrac_collection_targets)
     allowed_idrac_targets = {"kafka", "victoria_metrics"}
     invalid_idrac_targets = idrac_targets - allowed_idrac_targets
@@ -333,6 +333,14 @@ def validate_telemetry_config(
             "telemetry_sources.idrac.collection_targets",
             list(invalid_idrac_targets),
             f"Invalid collection targets for iDRAC. Only 'kafka' and 'victoria_metrics' are supported. Found: {invalid_idrac_targets}"
+        ))
+    
+    # iDRAC only has metrics_enabled (no logs_enabled)
+    if idrac_telemetry_support and not idrac_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.idrac.collection_targets",
+            list(idrac_targets),
+            "iDRAC collection_targets must not be empty when iDRAC telemetry is enabled. At least one target is required ('kafka' or 'victoria_metrics')."
         ))
 
     # LDMS: only supports kafka
@@ -354,6 +362,32 @@ def validate_telemetry_config(
             list(invalid_powerscale_targets),
             f"Invalid collection targets for PowerScale. Only 'victoria_metrics' and 'victoria_logs' are supported. Found: {invalid_powerscale_targets}"
         ))
+    
+    # Validate that required targets are present based on enabled features
+    powerscale_metrics_enabled = powerscale_source.get("metrics_enabled", False)
+    powerscale_logs_enabled = powerscale_source.get("logs_enabled", False)
+    
+    if powerscale_metrics_enabled and "victoria_metrics" not in powerscale_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.powerscale.collection_targets",
+            list(powerscale_targets),
+            "PowerScale collection_targets must include 'victoria_metrics' when metrics_enabled is true."
+        ))
+    
+    if powerscale_logs_enabled and "victoria_logs" not in powerscale_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.powerscale.collection_targets",
+            list(powerscale_targets),
+            "PowerScale collection_targets must include 'victoria_logs' when logs_enabled is true."
+        ))
+    
+    # Ensure at least one target is specified when any feature is enabled
+    if (powerscale_metrics_enabled or powerscale_logs_enabled) and not powerscale_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.powerscale.collection_targets",
+            list(powerscale_targets),
+            "PowerScale collection_targets must not be empty when PowerScale telemetry is enabled. At least one target is required."
+        ))
 
     # UFM: supports victoria_metrics and victoria_logs
     ufm_targets = set(ufm_source.get("collection_targets", []))
@@ -364,6 +398,69 @@ def validate_telemetry_config(
             "telemetry_sources.ufm.collection_targets",
             list(invalid_ufm_targets),
             f"Invalid collection targets for UFM. Only 'victoria_metrics' and 'victoria_logs' are supported. Found: {invalid_ufm_targets}"
+        ))
+    
+    # Validate that required targets are present based on enabled features
+    ufm_metrics_enabled = ufm_source.get("metrics_enabled", False)
+    ufm_logs_enabled = ufm_source.get("logs_enabled", False)
+    
+    if ufm_metrics_enabled and "victoria_metrics" not in ufm_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.ufm.collection_targets",
+            list(ufm_targets),
+            "UFM collection_targets must include 'victoria_metrics' when metrics_enabled is true."
+        ))
+    
+    if ufm_logs_enabled and "victoria_logs" not in ufm_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.ufm.collection_targets",
+            list(ufm_targets),
+            "UFM collection_targets must include 'victoria_logs' when logs_enabled is true."
+        ))
+    
+    # Ensure at least one target is specified when any feature is enabled
+    if (ufm_metrics_enabled or ufm_logs_enabled) and not ufm_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.ufm.collection_targets",
+            list(ufm_targets),
+            "UFM collection_targets must not be empty when UFM telemetry is enabled. At least one target is required."
+        ))
+
+    # VAST: supports victoria_metrics and victoria_logs
+    vast_targets = set(vast_source.get("collection_targets", []))
+    allowed_vast_targets = {"victoria_metrics", "victoria_logs"}
+    invalid_vast_targets = vast_targets - allowed_vast_targets
+    if invalid_vast_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.vast.collection_targets",
+            list(invalid_vast_targets),
+            f"Invalid collection targets for VAST. Only 'victoria_metrics' and 'victoria_logs' are supported. Found: {invalid_vast_targets}"
+        ))
+    
+    # Validate that required targets are present based on enabled features
+    vast_metrics_enabled = vast_source.get("metrics_enabled", False)
+    vast_logs_enabled = vast_source.get("logs_enabled", False)
+    
+    if vast_metrics_enabled and "victoria_metrics" not in vast_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.vast.collection_targets",
+            list(vast_targets),
+            "VAST collection_targets must include 'victoria_metrics' when metrics_enabled is true."
+        ))
+    
+    if vast_logs_enabled and "victoria_logs" not in vast_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.vast.collection_targets",
+            list(vast_targets),
+            "VAST collection_targets must include 'victoria_logs' when logs_enabled is true."
+        ))
+    
+    # Ensure at least one target is specified when any feature is enabled
+    if (vast_metrics_enabled or vast_logs_enabled) and not vast_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.vast.collection_targets",
+            list(vast_targets),
+            "VAST collection_targets must not be empty when VAST telemetry is enabled. At least one target is required."
         ))
 
     # OME: only supports kafka (OME does NOT push directly to VictoriaMetrics)

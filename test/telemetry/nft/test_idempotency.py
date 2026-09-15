@@ -43,6 +43,8 @@ from library.functions.cleanup_func import (
     verify_no_pods_remaining,
     verify_no_pvcs_remaining,
     verify_pvcs_preserved,
+    verify_source_pvcs_deleted,
+    verify_sink_pvcs_deleted,
 )
 
 
@@ -118,7 +120,7 @@ def test_deploy_idempotency(host):
 @pytest.mark.nft
 @pytest.mark.idempotency
 @pytest.mark.order(111)
-def test_cleanup_idempotency(host, delete_volume):
+def test_cleanup_idempotency(host, delete_sinks_volume):
     """NFT_TL_005: Cleanup idempotency — second run exits 0.
 
     Runs the full cleanup playbook twice in sequence:
@@ -128,13 +130,13 @@ def test_cleanup_idempotency(host, delete_volume):
     This validates that all cleanup tasks handle missing resources
     gracefully (--ignore-not-found, failed_when: false, helm guards).
 
-    The ``delete_volume`` fixture controls whether ``Delete_volume=true``
+    The ``delete_sinks_volume`` fixture controls whether ``Delete_victoria_volume=true``
     is passed — matching the production cleanup invocation.
     """
     tc = TC["nft_cleanup_idempotent"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    extra_vars = {"Delete_volume": "true"} if delete_volume else None
+    extra_vars = {"Delete_sinks_volume": "true"} if delete_sinks_volume else None
 
     # -- Run 1: Initial cleanup -------------------------------------------
     tl.check("Running first cleanup (initial cleanup)")
@@ -223,32 +225,60 @@ def test_cleanup_idempotency_no_pods(host):
 @pytest.mark.nft
 @pytest.mark.idempotency
 @pytest.mark.order(113)
-def test_cleanup_idempotency_no_pvcs(host, delete_volume):
+def test_cleanup_idempotency_no_pvcs(host, delete_sinks_volume):
     """NFT_TL_005c: Verify PVC state after idempotent cleanup.
 
     After two cleanup runs:
-      - With Delete_volume=true: zero PVCs must remain.
-      - With Delete_volume=false: PVCs must be preserved.
+      - With delete_sinks_volume=true: zero PVCs must remain (all deleted).
+      - With delete_sinks_volume=false: Kafka and VictoriaMetrics/VictoriaLogs PVCs must be preserved, other PVCs deleted.
     """
-    if delete_volume:
-        tc = TC["no_pvcs_after_full_cleanup"]
-        tl = TestLogger(
-            "Verify no PVCs after idempotent cleanup",
-            tc["id"] + "-idem",
+    # First, verify source PVCs are always deleted (regardless of flag)
+    tc_source = TC["no_pvcs_after_full_cleanup"]
+    tl_source = TestLogger(
+        "Verify source PVCs deleted after idempotent cleanup",
+        tc_source["id"] + "-source-idem",
+    )
+
+    result_source = verify_source_pvcs_deleted(host)
+
+    if result_source["success"]:
+        tl_source.passed(
+            LOG_MSGS["no_pvcs_remaining"],
+            result_source["details"],
+        )
+    else:
+        tl_source.failed(
+            LOG_MSGS["pvcs_remaining"].format(count=result_source["count"]),
+            result_source["details"],
         )
 
-        result = verify_no_pvcs_remaining(host)
+    assert result_source["success"], (
+        f"Source PVCs were not deleted: {result_source['error']}"
+    )
 
-        if result["success"]:
-            tl.passed(LOG_MSGS["no_pvcs_remaining"], result["details"])
+    # Then, verify sink PVCs based on the flag
+    if delete_sinks_volume:
+        tc_sink = TC["no_pvcs_after_full_cleanup"]
+        tl_sink = TestLogger(
+            "Verify sink PVCs deleted after idempotent cleanup",
+            tc_sink["id"] + "-sink-idem",
+        )
+
+        result_sink = verify_sink_pvcs_deleted(host)
+
+        if result_sink["success"]:
+            tl_sink.passed(
+                LOG_MSGS["no_pvcs_remaining"],
+                result_sink["details"],
+            )
         else:
-            tl.failed(
-                LOG_MSGS["pvcs_remaining"].format(count=result["count"]),
-                result["details"],
+            tl_sink.failed(
+                LOG_MSGS["pvcs_remaining"].format(count=result_sink["count"]),
+                result_sink["details"],
             )
 
-        assert result["success"], ASSERT_MSGS["pvcs_remaining"].format(
-            count=result["count"],
+        assert result_sink["success"], (
+            f"Sink PVCs were not deleted: {result_sink['error']}"
         )
     else:
         tc = TC["pvcs_preserved_after_cleanup"]
@@ -268,15 +298,3 @@ def test_cleanup_idempotency_no_pvcs(host, delete_volume):
             )
 
         assert result["success"], ASSERT_MSGS["pvcs_not_preserved"]
-
-    if result["success"]:
-        tl.passed(LOG_MSGS["no_pvcs_remaining"], result["details"])
-    else:
-        tl.failed(
-            LOG_MSGS["pvcs_remaining"].format(count=result["count"]),
-            result["details"],
-        )
-
-    assert result["success"], ASSERT_MSGS["pvcs_remaining"].format(
-        count=result["count"],
-    )
