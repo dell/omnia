@@ -234,7 +234,7 @@
     --ignore-not-found=true --wait=false
   loop: "{{ ldms_statefulset_resources }}"
   register: _ldms_statefulset_delete
-  changed_when: _ldms_statefulset_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _ldms_statefulset_delete.rc == 0
   failed_when: false
 
 - name: LDMS | Delete Services
@@ -243,7 +243,7 @@
     --ignore-not-found=true --wait=false
   loop: "{{ ldms_service_resources }}"
   register: _ldms_service_delete
-  changed_when: _ldms_service_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _ldms_service_delete.rc == 0
   failed_when: false
 
 - name: LDMS | Delete named ConfigMaps
@@ -252,7 +252,7 @@
     --ignore-not-found=true --wait=false
   loop: "{{ ldms_configmap_resources }}"
   register: _ldms_configmap_delete
-  changed_when: _ldms_configmap_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _ldms_configmap_delete.rc == 0
   failed_when: false
 
 - name: LDMS | Delete ConfigMaps by label
@@ -271,7 +271,7 @@
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   register: _ldms_secret_delete
-  changed_when: _ldms_secret_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _ldms_secret_delete.rc == 0
   failed_when: false
 
 - name: LDMS | Delete PVCs
@@ -325,7 +325,7 @@
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   register: _ldms_vector_delete
-  changed_when: _ldms_vector_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _ldms_vector_delete.rc == 0
   failed_when: false
 
 - name: LDMS | Force delete Vector-LDMS pods

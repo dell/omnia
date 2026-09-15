@@ -73,7 +73,7 @@
   loop_control:
     label: "{{ item.type }} ({{ item.label }})"
   register: _powerscale_label_delete
-  changed_when: _powerscale_label_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _powerscale_label_delete.rc == 0
   failed_when: false
 
 - name: PowerScale | Delete named resources (non-CRD)
@@ -87,7 +87,7 @@
   when:
     - item.type != 'pvc' or _cleanup_delete_volume_enabled | bool
     - item.type != 'vmservicescrape'
-  changed_when: _powerscale_named_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _powerscale_named_delete.rc == 0
   failed_when: false
 
 - name: PowerScale | Delete named resources (CRD)
@@ -103,7 +103,7 @@
     - _powerscale_victoria_api_resources.stdout_lines is defined
     - 'vmservicescrapes.operator.victoriametrics.com' in
       _powerscale_victoria_api_resources.stdout_lines
-  changed_when: _powerscale_crd_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _powerscale_crd_delete.rc == 0
   failed_when: false
 
 - name: PowerScale | Delete cert-manager resources

@@ -21,7 +21,7 @@
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   register: _idrac_delete
-  changed_when: _idrac_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _idrac_delete.rc == 0
   failed_when: false
 
 - name: IDRAC | Delete ConfigMaps by label
@@ -48,7 +48,7 @@
   loop: "{{ idrac_pvc_resources }}"
   register: _idrac_named_pvc_delete
   when: _cleanup_delete_volume_enabled | bool
-  changed_when: _idrac_named_pvc_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _idrac_named_pvc_delete.rc == 0
   failed_when: false
 
 - name: IDRAC | Force delete pods

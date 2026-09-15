@@ -37,7 +37,7 @@
     label: "{{ item.type }}/{{ item.name }}"
   register: _ome_delete
   when: item.type != 'kafkauser'
-  changed_when: _ome_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _ome_delete.rc == 0
   failed_when: false
 
 - name: OME | Delete Vector-OME bridge resources (CRD)
@@ -52,7 +52,7 @@
     - item.type == 'kafkauser'
     - _ome_strimzi_api_resources.stdout_lines is defined
     - "'kafkausers.kafka.strimzi.io' in _ome_strimzi_api_resources.stdout_lines"
-  changed_when: _ome_crd_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _ome_crd_delete.rc == 0
   failed_when: false
 
 - name: OME | Force delete Vector-OME pods

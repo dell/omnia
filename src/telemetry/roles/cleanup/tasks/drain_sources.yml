@@ -45,7 +45,7 @@
     label: "{{ item }}"
   register: _source_pod_delete_before
   when: hostvars['localhost']['_cleanup_all'] | bool
-  changed_when: _source_pod_delete_before.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _source_pod_delete_before.rc == 0
   failed_when: false
 
 - name: Wait for source pods to terminate before sink cleanup
@@ -94,7 +94,7 @@
     label: "{{ item }}"
   register: _source_pod_delete_after
   when: hostvars['localhost']['_cleanup_all'] | bool
-  changed_when: _source_pod_delete_after.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _source_pod_delete_after.rc == 0
   failed_when: false
 
 - name: Mark source drain as cleaned

@@ -29,7 +29,7 @@
     label: "{{ item.type }}/{{ item.name }}"
   register: _ufm_delete
   when: item.type != 'vmservicescrape'
-  changed_when: _ufm_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _ufm_delete.rc == 0
   failed_when: false
 
 - name: "UFM | Delete resources (CRD)"
@@ -45,7 +45,7 @@
     - _ufm_victoria_api_resources.stdout_lines is defined
     - 'vmservicescrapes.operator.victoriametrics.com' in
       _ufm_victoria_api_resources.stdout_lines
-  changed_when: _ufm_crd_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
+  changed_when: _ufm_crd_delete.rc == 0
   failed_when: false
 
 - name: "UFM | Force delete pods"
