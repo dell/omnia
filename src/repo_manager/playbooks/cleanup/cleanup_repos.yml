@@ -307,6 +307,11 @@
               (pulp_container_name | default('pulp')) ~ '.service', {}
             ).get('status', 'not-found') != 'not-found'
           register: pulp_service_result
+          failed_when: >-
+            (pulp_service_result.failed | default(false) | bool)
+            and
+            ('Could not find the requested service' not in
+             (pulp_service_result.msg | default('')))
 
         - name: Remove Pulp Quadlet file
           ansible.builtin.file:

@@ -33,6 +33,8 @@ from pathlib import Path
 
 import yaml
 
+from ansible.module_utils.repo_manager.secure_path import open_secure_directory
+
 
 def load_yaml_file(path):
     """
@@ -198,32 +200,99 @@ def load_pulp_config(path):
     }
 
 
-def generate_vault_key(key_path):
-    """
-    Generate a secure Ansible Vault key
-    only if the file does not already exist.
+def _open_vault_key_directory(directory_path):
+    """Open and validate the directory used for a certificate vault key."""
+    directory_descriptor = open_secure_directory(directory_path)
+    directory_status = os.fstat(directory_descriptor)
+    if (
+            not stat.S_ISDIR(directory_status.st_mode)
+            or directory_status.st_uid != os.geteuid()
+            or directory_status.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+    ):
+        os.close(directory_descriptor)
+        raise PermissionError("Certificate vault-key directory is not trusted")
+    return directory_descriptor
 
-    Args:
-        key_path (str): The directory where the Vault key file should be saved.
 
-    Returns:
-        str: The full path to the key file, or None if failed.
-    """
-    if os.path.isfile(key_path):
-        return key_path
-
+def _open_or_create_vault_key(directory_descriptor, key_name):
+    """Return the no-follow key descriptor and whether it was newly created."""
+    if not hasattr(os, "O_NOFOLLOW"):
+        raise OSError("Secure certificate vault-key creation is unavailable")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+    flags |= getattr(os, "O_CLOEXEC", 0)
     try:
-        alphabet = string.ascii_letters + string.digits
-        key = ''.join(secrets.choice(alphabet) for _ in range(32))
+        return os.open(
+            key_name,
+            flags,
+            stat.S_IRUSR | stat.S_IWUSR,
+            dir_fd=directory_descriptor,
+        ), True
+    except FileExistsError:
+        flags = os.O_RDONLY | os.O_NOFOLLOW
+        flags |= getattr(os, "O_CLOEXEC", 0)
+        return os.open(
+            key_name, flags, dir_fd=directory_descriptor
+        ), False
 
-        with open(key_path, "w", encoding="utf-8") as f:
-            f.write(key + "\n")
 
-        os.chmod(key_path, stat.S_IRUSR | stat.S_IWUSR)
+def _validate_vault_key_descriptor(key_descriptor):
+    """Reject an existing key that is not a privately owned regular file."""
+    key_status = os.fstat(key_descriptor)
+    if (
+            not stat.S_ISREG(key_status.st_mode)
+            or key_status.st_uid != os.geteuid()
+            or key_status.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+    ):
+        raise PermissionError("Certificate vault key is not trusted")
+
+
+def _write_new_vault_key(key_descriptor):
+    """Write and synchronize a new random certificate vault key."""
+    alphabet = string.ascii_letters + string.digits
+    key = ''.join(secrets.choice(alphabet) for _ in range(32))
+    key_data = memoryview((key + "\n").encode("ascii"))
+    while key_data:
+        written = os.write(key_descriptor, key_data)
+        if written == 0:
+            raise OSError("Unable to write certificate vault key")
+        key_data = key_data[written:]
+    os.fsync(key_descriptor)
+
+
+def generate_vault_key(key_path):
+    """Create or securely reuse the certificate Ansible Vault key."""
+    directory_path = os.path.dirname(os.path.abspath(key_path))
+    key_name = os.path.basename(key_path)
+    if not key_name:
+        return None
+
+    directory_descriptor = None
+    key_descriptor = None
+    created = False
+    try:
+        directory_descriptor = _open_vault_key_directory(directory_path)
+        key_descriptor, created = _open_or_create_vault_key(
+            directory_descriptor, key_name
+        )
+        _validate_vault_key_descriptor(key_descriptor)
+        os.fchmod(key_descriptor, stat.S_IRUSR | stat.S_IWUSR)
+        if created:
+            _write_new_vault_key(key_descriptor)
+            os.fsync(directory_descriptor)
         return key_path
 
-    except (OSError, IOError):
+    except OSError:
+        if created and directory_descriptor is not None:
+            try:
+                os.unlink(key_name, dir_fd=directory_descriptor)
+            except OSError:
+                pass
         return None
+    finally:
+        if key_descriptor is not None:
+            os.close(key_descriptor)
+        if directory_descriptor is not None:
+            os.close(directory_descriptor)
 
 
 def get_arch_from_sw_config(software_name, sw_config_data):

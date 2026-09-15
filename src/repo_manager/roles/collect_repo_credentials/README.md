@@ -94,6 +94,10 @@ docker_password: ''
 registry_credentials:
   registries/harbor-production:
     registry: "private_registry"
+    origin:
+      scheme: "https"
+      host: "harbor.example.com"
+      port: 443
     username: "registry_user"
     password: "encrypted_password"
 ```
@@ -102,6 +106,11 @@ When Docker Hub authentication is required, set both values through the
 credential prompt. When it is not required, the role stores both fields as
 `''`. Blank YAML values, whitespace-only values, and legacy `"None"` values are
 automatically repaired to empty strings.
+
+Each configured-registry credential is bound to its canonical scheme, host and
+effective port. A legacy record without `origin`, or an intentional endpoint
+change, requires the complete username/password pair to be entered once. An
+unchanged endpoint continues to reuse its encrypted credential noninteractively.
 
 ## Authentication Types
 

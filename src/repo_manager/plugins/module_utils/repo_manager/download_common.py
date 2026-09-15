@@ -34,7 +34,6 @@ import time
 from multiprocessing import Lock
 from urllib.parse import quote, urlsplit
 import requests
-from jinja2 import Template
 from requests.adapters import HTTPAdapter
 from ansible.module_utils.repo_manager.parse_and_download import write_status_to_file, execute_command
 from ansible.module_utils.repo_manager.rest_client import RestClient
@@ -60,6 +59,7 @@ from ansible.module_utils.repo_manager.pulp_commands import (
 )
 from ansible.module_utils.repo_manager.software_utils import build_repo_name
 from ansible.module_utils.repo_manager.security_utils import (
+    render_catalog_placeholders,
     validate_artifact_url,
     normalize_pulp_distribution_url,
     parse_python_requirement,
@@ -130,7 +130,7 @@ def build_task_repo_name(task, arc, cluster_os_type, cluster_os_version,
                          version_variables=None):
     """Build the Pulp repository name for a download task.
 
-    Resolves any Jinja2 template variables in the package name, prepends
+    Resolves supported version placeholders in the package name, prepends
     the type-specific prefix, and delegates to ``build_repo_name()``.
 
     Args:
@@ -138,16 +138,17 @@ def build_task_repo_name(task, arc, cluster_os_type, cluster_os_version,
         arc (str): Architecture (e.g. ``x86_64``).
         cluster_os_type (str): OS type (e.g. ``rhel``).
         cluster_os_version (str): OS version (e.g. ``10.0``).
-        version_variables (dict, optional): Jinja2 variables for template
-            rendering.  Required for tarball / iso tasks whose package
+        version_variables (dict, optional): Values for catalog placeholders.
+            Required for tarball / iso tasks whose package
             name may contain ``{{ … }}`` placeholders.
 
     Returns:
         str: Fully-qualified Pulp repository name.
     """
     raw_name = task.get("package", "")
-    if version_variables:
-        raw_name = Template(raw_name).render(**version_variables)
+    raw_name = render_catalog_placeholders(
+        raw_name, version_variables or {}, "package name"
+    )
     prefix = TASK_TYPE_PREFIX.get(task.get("type", ""), "")
     if task.get("type") == "pip_module":
         _package_name, _version, raw_name = parse_python_requirement(
@@ -1036,15 +1037,16 @@ def process_tarball(package, status_file_path, version_variables, content_base_d
     url = None
     path_support = False
     url_support = True
-    package_template = Template(package.get('package', None))  # Use Jinja2 Template for package
     package_name = validate_artifact_identifier(
-        package_template.render(**version_variables)
+        render_catalog_placeholders(
+            package.get('package'), version_variables, "tarball package name"
+        )
     )
     package_type = package['type']
     if 'url' in package:
-        url_template = Template(package.get('url', None))  # Use Jinja2 Template for URL
-        # Render the URL, substituting Jinja variables if present
-        url = url_template.render(**version_variables)
+        url = render_catalog_placeholders(
+            package.get('url'), version_variables, "tarball URL"
+        )
     if 'path' in package:
         path = package['path']
 
@@ -1156,10 +1158,10 @@ def process_iso(package, status_file_path,
 
     distribution_name = repository_name
     if 'url' in package:
-        url_template = Template(package.get('url', None))  # Use Jinja2 Template for URL
-        # Render the URL, substituting Jinja variables if present
         url = validate_artifact_url(
-            url_template.render(**version_variables)
+            render_catalog_placeholders(
+                package.get('url'), version_variables, "ISO URL"
+            )
         )
     if 'path' in package:
         path = package['path']

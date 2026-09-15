@@ -11,6 +11,11 @@ settings_py_path: "{{ pulp_settings_dir }}/settings.py"
 pulp_config_filepath: "{{ pulp_ha_dir }}/cli.toml"
 config_default_dir: "{{ pulp_system_cli_config_file | dirname }}"
 config_default_loc: "{{ pulp_system_cli_config_file }}"
+deploy_pulp_nginx_override_dir: "{{ pulp_settings_dir }}/nginx"
+deploy_pulp_nginx_timeout_file: >-
+  {{ deploy_pulp_nginx_override_dir }}/omnia_proxy_timeouts.conf
+deploy_pulp_nginx_timeout_container_file: >-
+  /etc/nginx/pulp/omnia_proxy_timeouts.conf
 
 pulp_dir_permissions: "0755"
 pulp_public_dir_permissions: "0755"
@@ -96,6 +101,9 @@ pulp_directories_https:
   - path: "{{ pulp_certs_dir }}"
     mode: "{{ pulp_dir_permissions }}"
     create: true
+  - path: "{{ deploy_pulp_nginx_override_dir }}"
+    mode: "{{ pulp_dir_permissions }}"
+    create: true
   - path: "{{ pulp_content_dir }}"
     mode: "{{ pulp_public_dir_permissions }}"
     create: "{{ 'content_path' not in pulp_storage_paths.user_provided }}"
@@ -139,6 +147,10 @@ volumes_https:
     {{ pulp_ha_dir ~ ':' ~
        pulp_deployment_defaults.container_mounts.cli_config_path ~
        selinux_option }}
+  - >-
+    {{ deploy_pulp_nginx_timeout_file ~ ':' ~
+       deploy_pulp_nginx_timeout_container_file ~
+       (':ro,z' if selinux_option | default('') == ':z' else ':ro') }}
 
 cert_validity_days: >-
   {{ pulp_deployment_defaults.https.certificate_validity_days }}
@@ -179,6 +191,12 @@ deploy_pulp_validate_user_provided_pulp_storage_directories_are_ready_msg: >-
 deploy_pulp_validate_pulp_host_storage_paths_are_unique_msg: >-
   Each Pulp storage purpose must use a distinct host directory. Review
   pulp_storage_paths in vars/default.yml.
+
+deploy_pulp_validate_capacity_and_timeout_configuration_msg: >-
+  Invalid local Pulp capacity or timeout configuration. Worker counts must be
+  positive, nginx connect timeout must be positive and shorter than its proxy
+  timeout, and the required timeout order is Gunicorn < nginx proxy < Repo
+  Manager Pulp query timeout.
 
 deploy_pulp_validate_persistent_pulp_secret_key_msg: >-
   The persistent Pulp secret key is empty or invalid. Restore
