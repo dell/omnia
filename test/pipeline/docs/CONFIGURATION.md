@@ -138,9 +138,9 @@ After running `setup_gitlab_project.py --create`, the following CI/CD variables 
 | `OMNIA_REPO` | config | Omnia repository URL |
 | `OMNIA_BRANCH` | config | Git branch to clone |
 | `OMNIA_INSTALL_PATH` | config | Install path on target |
-| `VAULT_SERVER_URL` | config | OpenBao server URL |
-| `VAULT_AUTH_ROLE` | config | OpenBao JWT role |
-| `VAULT_SECRET_PATH` | config | OpenBao secret path |
+| `BAO_SERVER_URL` | config | OpenBao server URL |
+| `BAO_AUTH_ROLE` | config | OpenBao JWT role |
+| `BAO_DATA_PATH` | config | OpenBao secret path |
 | `EMAIL_RECIPIENTS` | config | Email notification recipients |
 | `EMAIL_SENDER` | config | Email sender address |
 | `SMTP_SERVER` | config | SMTP server hostname |

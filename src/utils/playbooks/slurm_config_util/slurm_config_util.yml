@@ -1,0 +1,106 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# slurm_config_util.yml - Slurm configuration backup/cleanup/rollback utilities
+#
+# Usage (run ONE tag at a time - no comma-separated tags):
+#   cd src/utils
+#   ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags slurm_config_backup
+#   ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags slurm_config_cleanup
+#   ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags slurm_config_rollback
+#
+# Optional overrides:
+#   -e slurm_backup_path=<local path or "<server>:/<export>">
+#   -e pxe_mapping_path=<path to nodes_slurm.yaml or pxe_mapping_file.csv>
+#   -e omnia_config_path=<path> / -e storage_config_path=<path>
+#   input/slurm_config_util_config.yml under the utils input dir
+
+- name: Slurm configuration backup
+  hosts: localhost
+  gather_facts: true
+  tags:
+    - never
+    - slurm_config_backup
+  pre_tasks:
+    - name: Record execution start time
+      ansible.builtin.set_fact:
+        utils_execution_start_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
+  roles:
+    - role: slurm_config_backup
+  post_tasks:
+    - name: Record execution end time
+      ansible.builtin.set_fact:
+        utils_execution_end_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
+
+    - name: Write execution status
+      ansible.builtin.include_role:
+        name: utils_status_writer
+      vars:
+        utils_domain_status: "{{ 'success' if ansible_failed_result is not defined else 'failure' }}"
+        utils_playbook_name: "slurm_config_util.yml"
+
+- name: Slurm configuration cleanup
+  hosts: localhost
+  gather_facts: true
+  tags:
+    - never
+    - slurm_config_cleanup
+  pre_tasks:
+    - name: Record execution start time
+      ansible.builtin.set_fact:
+        utils_execution_start_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
+  roles:
+    - role: slurm_cleanup
+  post_tasks:
+    - name: Record execution end time
+      ansible.builtin.set_fact:
+        utils_execution_end_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
+
+    - name: Write execution status
+      ansible.builtin.include_role:
+        name: utils_status_writer
+      vars:
+        utils_domain_status: "{{ 'success' if ansible_failed_result is not defined else 'failure' }}"
+        utils_playbook_name: "slurm_config_util.yml"
+
+- name: Slurm configuration rollback
+  hosts: localhost
+  gather_facts: true
+  tags:
+    - never
+    - slurm_config_rollback
+  pre_tasks:
+    - name: Record execution start time
+      ansible.builtin.set_fact:
+        utils_execution_start_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
+  roles:
+    - role: slurm_config_rollback
+  post_tasks:
+    - name: Record execution end time
+      ansible.builtin.set_fact:
+        utils_execution_end_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
+
+    - name: Write execution status
+      ansible.builtin.include_role:
+        name: utils_status_writer
+      vars:
+        utils_domain_status: "{{ 'success' if ansible_failed_result is not defined else 'failure' }}"
+        utils_playbook_name: "slurm_config_util.yml"

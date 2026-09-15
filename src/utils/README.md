@@ -39,6 +39,7 @@ source /etc/profile.d/omnia-env.sh
 vi "$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/collect_pxe.yml"
 vi "$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/install_os_config.yml"
 vi "$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/backup_oim_logs_config.yml"
+vi "$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME/slurm_config_util_config.yml"
 
 # Run one public utility tag at a time.
 cd ../utils
@@ -46,6 +47,9 @@ ansible-playbook playbooks/utils.yml --tags precheck
 ansible-playbook playbooks/utils.yml --tags collect
 ansible-playbook playbooks/utils.yml --tags install_os
 ansible-playbook playbooks/utils.yml --tags backup_oim_logs
+ansible-playbook playbooks/utils.yml --tags slurm_config_backup
+ansible-playbook playbooks/utils.yml --tags slurm_config_cleanup
+ansible-playbook playbooks/utils.yml --tags slurm_config_rollback
 ```
 
 For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
@@ -63,10 +67,14 @@ For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
 | `collect` | Collect configured Kubernetes, Slurm, and login-node logs | `collect_pxe.yml` |
 | `install_os` | Run the OS installation playbook | `install_os_config.yml`; credentials are collected as needed |
 | `backup_oim_logs` | Archive OIM log directories for selected Omnia domains | Optional `backup_oim_logs_config.yml` |
-| `cleanup` | Clean log-collection and OS-installation artifacts | None |
+| `slurm_config_backup` | Back up the active Slurm controller configuration from the NFS share | `omnia_config.yml`, `storage_config.yml`, PXE mapping |
+| `slurm_config_cleanup` | Delete the active Slurm configuration from the NFS share (with optional pre-backup) | Same as `slurm_config_backup` |
+| `slurm_config_rollback` | Restore a Slurm configuration backup and run `scontrol reconfigure` | Same as `slurm_config_backup`; requires an existing backup |
+| `cleanup` | Clean all utility artifacts and remove OS-install credentials by default | None |
 | `cleanup_logs` | Apply retention cleanup to collected log bundles | None |
-| `cleanup_install_os` | Remove temporary OS-installation artifacts and optionally credentials | None |
+| `cleanup_install_os` | Remove temporary OS-installation artifacts and credentials by default | None |
 | `cleanup_backup_oim_logs` | Remove all OIM log-backup run directories | Optional backup-path override |
+| `cleanup_slurm_config_backups` | Remove all Slurm config-backup run directories | Optional backup-path override |
 | `upgrade` / `rollback` | Reserved placeholders; no lifecycle action is implemented | None |
 
 Run exactly one public tag at a time. With no tag, `utils.yml` runs the common
@@ -81,6 +89,27 @@ The imported playbooks expose additional stage tags when run directly:
 | `playbooks/collect.yml` | `setup`, `prepare`, `k8s`, `slurm`, `bundle`; no tag runs the complete flow |
 | `playbooks/install_os.yml` | `credentials`, `build_iso`, `deploy`, `generate_ks`; no tag runs end to end |
 | `playbooks/backup_oim_logs/backup_oim_logs.yml` | `setup`, `bundle`; no tag runs both stages |
+| `playbooks/slurm_config_util/slurm_config_util.yml` | `slurm_config_backup`, `slurm_config_cleanup`, `slurm_config_rollback` (each self-contained; run one at a time) |
+
+### Cleanup and Reset
+
+The public `cleanup` tag removes log-collection artifacts, OS-installation
+temporary files, OIM log backups, and stored OS-install credentials and their
+vault key by default. Use `-e cleanup_credentials=false` only when the
+OS-install credentials must be retained:
+
+```bash
+cd src/main
+sudo ./omnia.sh --run utils --tags cleanup
+sudo ./omnia.sh --run utils --tags cleanup \
+  -e cleanup_credentials=false
+```
+
+`src/utils/domain-init.sh --cleanup` is non-interactive and removes only
+initializer-owned staged input and domain log paths; it does not replace the
+Ansible cleanup tag. After domain cleanup, use
+`sudo ./omnia.sh --cleanup --all` for the guarded global reset. Both global
+cleanup modes prompt for `yes`; trusted automation can add `--skip-approval`.
 
 ---
 
@@ -139,6 +168,40 @@ ansible-playbook playbooks/utils.yml --tags backup_oim_logs \
 ansible-playbook playbooks/utils.yml --tags cleanup_backup_oim_logs
 ```
 
+### Slurm Configuration Utilities
+
+`slurm_config_backup`, `slurm_config_cleanup`, and `slurm_config_rollback` manage the active
+Slurm controller configuration (`etc/slurm`, `etc/munge`, `etc/my.cnf.d`)
+stored on the Slurm NFS share (`storage_config.yml` → `slurm_cluster[].nfs_storage_name`).
+Each tag resolves the controller from the PXE mapping (YAML `nodes_slurm.yaml`
+or CSV `pxe_mapping_file.csv`, auto-detected) and is self-contained, so any
+one can be run standalone without the others.
+
+Backup-destination precedence, highest to lowest (same as `backup_oim_logs`):
+
+1. `-e slurm_backup_path=<path>`
+2. `slurm_backup_path` in `slurm_config_util_config.yml`
+3. `OMNIA_BACKUP_PATH`
+4. `$OMNIA_DATA_PATH/utils/output/$OMNIA_PROJECT_NAME/slurm_config_util`
+
+```bash
+# Backup: uses configurable backup_base_name (default: "slurm_config")
+ansible-playbook playbooks/utils.yml --tags slurm_config_backup
+
+# Cleanup: prompts for a pre-cleanup backup, then requires the confirmation token
+ansible-playbook playbooks/utils.yml --tags slurm_config_cleanup
+
+# Rollback: lists available backups (latest first), validates, restores,
+# fixes slurmdbd.conf/munge.key permissions, and runs `scontrol reconfigure`
+ansible-playbook playbooks/utils.yml --tags slurm_config_rollback
+
+# NFS backup destination override
+ansible-playbook playbooks/utils.yml --tags slurm_config_backup \
+  -e 'slurm_backup_path=172.96.20.223:/mnt/backup_dir'
+
+ansible-playbook playbooks/utils.yml --tags cleanup_slurm_config_backups
+```
+
 ---
 
 ## Input / Output
@@ -150,8 +213,9 @@ ansible-playbook playbooks/utils.yml --tags cleanup_backup_oim_logs
 | `collect_pxe.yml` | `utils/input/<project>/` | Log collection |
 | `install_os_config.yml` | `utils/input/<project>/` | OS installation except credentials-only mode |
 | `install_os_credentials.yml` | `utils/input/<project>/` | Generated and Vault-encrypted when credentials are collected |
-| `.install_os_vault_key` | `utils/input/<project>/` | Generated with restrictive permissions |
+| `.install_os_credentials_key` | `utils/input/<project>/` | Generated with restrictive permissions |
 | `backup_oim_logs_config.yml` | `utils/input/<project>/` | No; selects domains and optionally the destination |
+| `slurm_config_util_config.yml` | `utils/input/<project>/` | No; overrides input paths and optionally the backup destination |
 
 ### Output
 
@@ -160,6 +224,7 @@ ansible-playbook playbooks/utils.yml --tags cleanup_backup_oim_logs
 | Collected log run | `utils/output/<project>/collect/omnia_logs_<timestamp>/` | `omnia_logs_<timestamp>.tar.gz` and `metadata.json` |
 | Install status | `utils/output/<project>/install_os_status.yml` | Target, ISO, architecture, and verification result |
 | OIM log backup | `utils/output/<project>/backup_oim_logs/omnia_oim_logs_<timestamp>/` | Archive and `metadata.json` |
+| Slurm config backup | `utils/output/<project>/slurm_config_util/<name>_<timestamp>/` | Config directories per controller and `metadata.json` |
 | Domain status | `utils/output/<project>/utils_status.yml` | Latest Utils execution status |
 | Runtime logs | `utils/log/<project>/` | Project-scoped domain logs |
 | Ansible log | `/var/log/omnia/utils/utils.log` | Top-level playbook execution log |
@@ -183,6 +248,10 @@ See `docs/contracts/` for field-level contracts.
 | `iso_creation` | Render Kickstart and build embedded or NFS-delivered custom ISOs |
 | `iso_delivery` | Attach virtual media through iDRAC and verify installation |
 | `oim_log_backup` | Archive Omnia domain log directories with metadata |
+| `slurm_config_common` | Shared setup for the three Slurm config utility roles (resolves controller, paths, backup destination) |
+| `slurm_config_backup` | Back up the active Slurm controller configuration with checksummed metadata |
+| `slurm_cleanup` | Delete the active Slurm configuration (with optional pre-cleanup backup) |
+| `slurm_config_rollback` | Restore a Slurm configuration backup and reconfigure `slurmctld` |
 | `utils_status_writer` | Write and validate `utils_status.yml` |
 
 ### Reusable Roles Not Exposed by `utils.yml`
@@ -192,9 +261,6 @@ See `docs/contracts/` for field-level contracts.
 | `create_container_group` | Build container inventory groups |
 | `fetch_arm_params` | Load ARM-oriented configuration parameters |
 | `validate_arm_config` | Validate ARM configuration |
-| `slurm_cleanup` | Remove Slurm configuration artifacts |
-| `slurm_config_backup` | Back up Slurm configuration files |
-| `slurm_config_rollback` | Restore a Slurm configuration backup |
 
 ---
 
@@ -222,9 +288,11 @@ $OMNIA_DATA_PATH/utils/
 |   +-- install_os_config.yml
 |   +-- install_os_credentials.yml
 |   +-- backup_oim_logs_config.yml
+|   +-- slurm_config_util_config.yml
 +-- output/<project>/
 |   +-- collect/
 |   +-- backup_oim_logs/
+|   +-- slurm_config_util/
 |   +-- install_os_status.yml
 |   +-- utils_status.yml
 +-- log/<project>/

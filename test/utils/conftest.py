@@ -115,6 +115,10 @@ def pytest_configure(config):
         "install_os": "OS installation tests",
         "backup_oim_logs": "OIM log backup tests",
         "cleanup_backup_oim_logs": "OIM log backup cleanup tests",
+        "slurm_config_util": "Slurm config backup/cleanup/rollback tests",
+        "cleanup_slurm_config_backups": "Slurm config backup cleanup tests",
+        "destructive": "Deletes live state (e.g. the active Slurm config share). "
+                        "Opt-in only: excluded unless explicitly selected via --marker destructive",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
@@ -152,6 +156,17 @@ def pytest_collection_modifyitems(session, config, items):
     """
     marker_expr = config.getoption("--marker", default="")
     mode, markers = _parse_marker_expression(marker_expr)
+
+    # Step 0: Destructive tests (e.g. those that delete a live/shared config)
+    # are opt-in only. Deselect them unless explicitly requested via
+    # --marker destructive (alone or combined, e.g. slurm_config_util+destructive).
+    if "destructive" not in markers:
+        selected, deselected = [], []
+        for item in items:
+            (deselected if _item_has_marker(item, "destructive") else selected).append(item)
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
+        items[:] = selected
 
     # Step 1: Filter by marker expression
     if mode != "none" and markers:

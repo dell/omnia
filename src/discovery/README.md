@@ -84,6 +84,19 @@ even when it is combined with `cleanup` and
 `-e cleanup_credentials=false`. Cleanup is limited to the project selected by
 `OMNIA_PROJECT_NAME`; Discovery log files are preserved.
 
+For a complete Omnia reset, run the Discovery cleanup tag first, then run the
+guarded global cleanup from `src/main`:
+
+```bash
+sudo ./omnia.sh --run discovery --tags cleanup
+sudo ./omnia.sh --cleanup --all
+```
+
+`src/discovery/domain-init.sh --cleanup` is non-interactive and removes only the
+initializer-owned staged input and domain log paths. It does not replace the
+Ansible cleanup tag. Both global cleanup modes prompt for `yes`; trusted
+automation can add `--skip-approval`.
+
 ## License
 
 Apache-2.0

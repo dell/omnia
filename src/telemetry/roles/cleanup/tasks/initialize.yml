@@ -90,6 +90,13 @@
           Set only one matching boolean value for Delete_volume or delete_volume.
           Accepted values are true, false, yes, no, 1, and 0.
 
+    # Remove local credentials after local option validation but before a
+    # configuration or remote prerequisite can fail. Component cleanup uses
+    # deployed Kubernetes resources, not this stored credential file.
+    - name: Cleanup credentials for complete cleanup
+      ansible.builtin.include_tasks: cleanup_credentials.yml
+      when: _cleanup_all | bool
+
     - name: Load telemetry configuration
       ansible.builtin.include_role:
         name: common

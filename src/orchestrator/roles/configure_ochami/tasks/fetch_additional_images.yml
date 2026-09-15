@@ -29,17 +29,14 @@
     var: additional_images_dict
     verbosity: 2
 
-- name: Check if local_repo_config.yml exists
-  ansible.builtin.stat:
-    path: "{{ local_repo_config_path }}"
-  register: local_repo_config_stat
-
-- name: Read local_repo_config.yml
-  ansible.builtin.include_vars:
-    file: "{{ local_repo_config_path }}"
-    name: local_repo_config
-  when: local_repo_config_stat.stat.exists
-
-- name: Set fact for user_registry
+- name: Initialize user_registry list
   ansible.builtin.set_fact:
-    user_registry: "{{ local_repo_config.user_registry | default([]) }}"
+    user_registry: []
+
+- name: Build user_registry from repo_status.yml registries
+  ansible.builtin.set_fact:
+    user_registry: "{{ user_registry + [{'host': item.value.host}] }}"
+  loop: "{{ hostvars['localhost']['registries'] | default({}) | dict2items }}"
+  when:
+    - item.value.host is defined
+    - item.value.host | length > 0

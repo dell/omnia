@@ -226,12 +226,18 @@ pulp_deployment_defaults:
     cli_config_path: "/root/.config/pulp"
 
   workers:
-    task: 10
-    api: 10
-    content: 10
+    # Conservative single-host defaults. Increase only after validating CPU,
+    # memory, storage latency and sustained Pulp task throughput.
+    task: 4
+    api: 4
+    content: 4
 
   timeouts:
-    gunicorn_seconds: 120
+    # Keep the timeout chain ordered so the application records the failure
+    # before nginx and Repo Manager stop waiting for the request.
+    gunicorn_seconds: 300
+    nginx_proxy_seconds: 330
+    nginx_connect_seconds: 30
     api_max_requests: 1000
     api_max_requests_jitter: 50
 
@@ -317,8 +323,8 @@ max_retries: 10
 # -----------------------------------------------------------------------------
 parallel_config:
   # Worker processes for catalog package downloads (1-5).
-  # Default is 3. Reduce to 1 for maximum stability on constrained Pulp hosts.
-  default_nthreads: 2
+  # Keep one worker by default for stable operation with a local Pulp service.
+  default_nthreads: 4
   default_timeout_seconds: 60
   task_poll_interval_seconds: 10
 
@@ -357,8 +363,8 @@ container_sync_policy: "immediate"
 # -----------------------------------------------------------------------------
 rpm_repo_config:
   # Number of RPM repositories to process in parallel in every Pulp stage (1-10).
-  # Default is 3. Reduce to 1 for slow or heavily shared NFS-backed storage.
-  thread_pool_size: 3      # ENV: REPO_MANAGER_THREAD_POOL_SIZE
+  # Keep one repository in flight by default for a local Pulp service.
+  thread_pool_size: 2      # ENV: REPO_MANAGER_THREAD_POOL_SIZE
 
   # Continue processing other repositories to collect complete diagnostics.
   # Any repository-stage failure still fails the module before artifact tasks.
@@ -372,7 +378,7 @@ rpm_repo_config:
   progress_check_interval: 30  # ENV: REPO_MANAGER_PROGRESS_CHECK_INTERVAL
 
   # A single CLI API request must outlive the Pulp Gunicorn request timeout.
-  cli_query_timeout: 150  # ENV: REPO_MANAGER_PULP_QUERY_TIMEOUT
+  cli_query_timeout: 360  # ENV: REPO_MANAGER_PULP_QUERY_TIMEOUT
 
   # Retry read-only Pulp CLI queries when the API is temporarily restarting or
   # overloaded. Mutating commands are reconciled by correlation ID instead.

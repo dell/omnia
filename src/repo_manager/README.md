@@ -74,7 +74,7 @@ explicitly.
 | `download` / `execute` | Resolve and synchronize catalog content | Existing credentials |
 | `status` | Generate current `repo_status.yml` | Existing Pulp credentials |
 | `cleanup_repos` | Selectively remove Pulp RPM, container, File or Python content | Existing Pulp credentials |
-| `cleanup_pulp` / `cleanup` | Remove the Pulp deployment and runtime data | Optional credential deletion |
+| `cleanup_pulp` / `cleanup` | Remove the Pulp deployment, runtime data, and credentials by default | `cleanup_credentials=false` preserves credentials |
 | `catalog_generate` | Create catalog JSON from text input | No |
 | `catalog_add` | Add or update catalog packages | No |
 | `catalog_delete` | Delete catalog packages | No |
@@ -115,13 +115,24 @@ intentionally removes every tag in that Pulp container repository.
 ### Full Pulp Cleanup
 
 ```bash
-# Remove Pulp and runtime content; credential deletion is interactive.
+# Remove Pulp, runtime content, and Repo Manager credentials.
 ansible-playbook repo_manager.yml --tags cleanup_pulp
 
 # Preserve operational logs and credentials.
 ansible-playbook repo_manager.yml --tags cleanup_pulp \
   -e "cleanup_logs=false" -e "cleanup_credentials=false"
 ```
+
+Credential deletion is enabled by default and does not add a separate prompt;
+the explicit cleanup tag is the operator's request. `cleanup_repos` is selective
+content cleanup and retains credentials because the Pulp deployment remains.
+
+For a complete Omnia reset, run `sudo ./omnia.sh --run repo_manager --tags
+cleanup` from `src/main`, resolve any retained paths it reports, and then run
+`sudo ./omnia.sh --cleanup --all`. `src/repo_manager/domain-init.sh --cleanup`
+is a non-interactive helper that removes only initializer-owned staged input and
+domain log paths. Both global cleanup modes prompt for `yes`; trusted automation
+can add `--skip-approval`.
 
 ---
 

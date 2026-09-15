@@ -15,7 +15,7 @@
 """
 Orchestrator Cleanup — Deploy.
 
-TC_CL_000: Deploy orchestrator.yml --tags cleanup
+ORCH_FVT_CLEANUP_E001: Deploy orchestrator.yml --tags cleanup
 """
 
 import pytest
@@ -28,13 +28,16 @@ from library.messages import (
 )
 
 
+pytestmark = pytest.mark.destructive
+
+
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_cleanup(host):
-    """TC_CL_000: Deploy orchestrator.yml --tags cleanup."""
+    """ORCH_FVT_CLEANUP_E001: Deploy orchestrator.yml --tags cleanup."""
     tl = TestLogger(
-        TEST_NAMES["deploy_playbook"].format(tag="cleanup"), "TC_CL_000"
+        TEST_NAMES["deploy_playbook"].format(tag="cleanup"), "ORCH_FVT_CLEANUP_E001"
     )
     result = run_playbook(tag="cleanup")
 

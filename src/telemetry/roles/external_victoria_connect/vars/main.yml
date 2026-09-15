@@ -41,8 +41,11 @@ victoria_tls_secret: "victoria-tls-certs"
 victoria_cert_dir_remote: "{{ telemetry_data_path | default(omnia_data_path | default('/opt/omnia') + '/telemetry') }}/certs/victoria"
 
 # Output paths
+# The fallback is intentionally kept as one Jinja expression to preserve filter precedence.
+# yamllint disable rule:line-length
 victoria_output_dir: >-
-  {{ output_project_dir | default('/opt/omnia/telemetry/output/project_default') }}/external_victoria
+  {{ output_project_dir | default((telemetry_data_path | default(omnia_data_path | default('/opt/omnia') + '/telemetry')) + '/output/' + (project_name | default(lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true)))) }}/external_victoria
+# yamllint enable rule:line-length
 victoria_output_file: "{{ victoria_output_dir }}/external_victoria_connect_details.yml"
 
 # Error messages
