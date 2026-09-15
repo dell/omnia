@@ -95,6 +95,7 @@
   ansible.builtin.set_fact:
     kube_vip: ""
   when: kube_vip is not defined
+
 - name: Generate BMC group data file
   ansible.builtin.template:
     src: "{{ ochami_template_dir }}/nodes/bmc_group_data.csv.j2"
