@@ -50,13 +50,12 @@ DOCUMENTATION = r"""
         - default_callback
 """
 
-# Match only the 2.19/2.20 task-failure context block.  Do not match generic
-# ``Origin:`` lines: parser and missing-collection errors include those lines
-# too, and suppressing the complete message makes Ansible appear to exit
-# without reporting the actual problem.
+# Pattern to detect the 2.19/2.20 [ERROR] task-failure context block
 _ERROR_CONTEXT_PATTERN = re.compile(
     r"\[ERROR\]:\s*Task failed:|"
-    r"\[ERROR\]:\s*Action failed:"
+    r"\[ERROR\]:\s*Action failed:|"
+    r"Origin:\s+\S+\.ya?ml:\d+:\d+|"
+    r"\s+\^\s+column\s+\d+"
 )
 
 
