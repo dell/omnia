@@ -21,7 +21,7 @@
 telemetry_namespace: "telemetry"
 # Preserve sink volumes (Kafka, VictoriaMetrics, VictoriaLogs) unless the user explicitly requests deletion.
 # Both -e delete_sinks_volume=true and -e Delete_sinks_volume=true are accepted.
-# Source volumes (iDRAC, LDMS, PowerScale, etc.) are always deleted regardless of this flag.
+# Source volumes (iDRAC, LDMS, PowerScale, etc.) are always deleted.
 _cleanup_delete_sinks_volume_enabled: >-
   {{
     (hostvars['localhost'] | default({}))['_cleanup_delete_sinks_volume']

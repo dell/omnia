@@ -56,12 +56,6 @@
           ((_cleanup_unreachable_nodes | default({})).ldms | default([]))
           | unique | sort
         }}
-    _cleanup_delete_volume: >-
-      {{
-        _cleanup_delete_volume
-        | default(Delete_volume | default(delete_volume | default(false)))
-        | bool
-      }}
 
 - name: Build per-capability cleanup results
   ansible.builtin.set_fact:
@@ -160,27 +154,18 @@
       idrac: >-
         {{
           'skipped' if _cleanup_components.idrac == 'skipped'
-          else (
-            'preserved' if not (_cleanup_delete_volume | bool)
-            else ('cleaned' if _cleanup_components.idrac == 'cleaned' else 'failed')
-          )
+          else ('cleaned' if _cleanup_components.idrac == 'cleaned' else 'failed')
         }}
       ldms: >-
         {{
           'skipped' if _cleanup_components.ldms == 'skipped'
-          else (
-            'preserved' if not (_cleanup_delete_volume | bool)
-            else ('cleaned' if _cleanup_components.ldms == 'cleaned' else 'failed')
-          )
+          else ('cleaned' if _cleanup_components.ldms == 'cleaned' else 'failed')
         }}
       ome: skipped
       powerscale: >-
         {{
           'skipped' if _cleanup_components.powerscale == 'skipped'
-          else (
-            'preserved' if not (_cleanup_delete_volume | bool)
-            else ('cleaned' if _cleanup_components.powerscale == 'cleaned' else 'failed')
-          )
+          else ('cleaned' if _cleanup_components.powerscale == 'cleaned' else 'failed')
         }}
       ufm: skipped
       vast: skipped
@@ -188,7 +173,7 @@
         {{
           'skipped' if _cleanup_components.kafka == 'skipped'
           else (
-            'preserved' if not (_cleanup_delete_volume | bool)
+            'preserved' if not (_cleanup_delete_sinks_volume_enabled | bool)
             else ('cleaned' if _cleanup_components.kafka == 'cleaned' else 'failed')
           )
         }}
@@ -196,7 +181,7 @@
         {{
           'skipped' if _cleanup_components.victoria_metrics == 'skipped'
           else (
-            'preserved' if not (_cleanup_delete_volume | bool)
+            'preserved' if not (_cleanup_delete_sinks_volume_enabled | bool)
             else ('cleaned' if _cleanup_components.victoria_metrics == 'cleaned' else 'failed')
           )
         }}
@@ -204,7 +189,7 @@
         {{
           'skipped' if _cleanup_components.victoria_logs == 'skipped'
           else (
-            'preserved' if not (_cleanup_delete_volume | bool)
+            'preserved' if not (_cleanup_delete_sinks_volume_enabled | bool)
             else ('cleaned' if _cleanup_components.victoria_logs == 'cleaned' else 'failed')
           )
         }}
@@ -221,7 +206,7 @@
           _cleanup_volume_verification_failed | default(false) | bool
           or 'failed' in _volume_values
           or (
-            _cleanup_delete_volume | bool
+            _cleanup_delete_sinks_volume_enabled | bool
             and _cleanup_status == 'failed'
             and 'cleaned' in _volume_values
           )
@@ -256,7 +241,7 @@
     msg:
       - "======================================================"
       - "Telemetry Cleanup Status: {{ _cleanup_status | upper | trim }}"
-      - "Persistent volumes: {{ _cleanup_volume_status | upper | trim }}"
+      - "Volumes: {{ _cleanup_volume_status | upper | trim }}"
       - "======================================================"
       - "Output: {{ _output_base }}/telemetry_status.yml"
       - ""

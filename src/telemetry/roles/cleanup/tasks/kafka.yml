@@ -49,7 +49,7 @@
         (_kafka_topic_operator_replicas.stdout | default('0', true) | int)
         > 0
       }}
-  when: true
+  when: not (_cleanup_preserve_sink_volumes | bool)
 
 - name: Kafka | Delete bridge resources
   ansible.builtin.command: >
@@ -501,7 +501,7 @@
     kubectl -n {{ telemetry_namespace }} delete pvc -l {{ kafka_pvc_label }}
     --ignore-not-found=true --wait=false
   changed_when: false
-  when: true
+  when: not (_cleanup_preserve_sink_volumes | bool)
   failed_when: false
 
 - name: Kafka | Force delete any remaining Kafka PVCs
@@ -509,7 +509,7 @@
     kubectl -n {{ telemetry_namespace }} delete pvc -l strimzi.io/cluster=kafka
     --ignore-not-found=true --wait=false
   changed_when: false
-  when: true
+  when: not (_cleanup_preserve_sink_volumes | bool)
   failed_when: false
 
 - name: Kafka | Get Kafka PVs
@@ -584,7 +584,7 @@
     label: "{{ item }}"
   register: _kafka_pv_patch
   when:
-    - true
+    - not (_cleanup_preserve_sink_volumes | bool)
     - _kafka_pvs.stdout_lines | default([]) | length > 0
   changed_when: _kafka_pv_patch.rc == 0
   failed_when: false
@@ -597,7 +597,7 @@
     label: "{{ item }}"
   register: _kafka_pv_delete
   when:
-    - true
+    - not (_cleanup_preserve_sink_volumes | bool)
     - _kafka_pvs.stdout_lines | default([]) | length > 0
   changed_when: _kafka_pv_delete.rc == 0
   failed_when: false
@@ -611,7 +611,7 @@
   retries: "{{ cleanup_custom_resource_retries }}"
   delay: "{{ cleanup_custom_resource_delay }}"
   when:
-    - true
+    - not (_cleanup_preserve_sink_volumes | bool)
     - _kafka_pvs.stdout_lines | default([]) | length > 0
   failed_when: false
 
@@ -692,7 +692,6 @@
     --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
   loop: "{{ kafka_pod_labels }}"
   changed_when: false
-  when: true
   failed_when: false
 
 - name: Kafka | Wait for pods to terminate
@@ -713,10 +712,10 @@
     --output=name --ignore-not-found=true
   register: _kafka_pvc_wait
   changed_when: false
+  when: not (_cleanup_preserve_sink_volumes | bool)
   until: _kafka_pvc_wait.stdout | trim | length == 0
   retries: "{{ cleanup_custom_resource_retries }}"
   delay: "{{ cleanup_custom_resource_delay }}"
-  when: true
   failed_when: false
 
 - name: Kafka | Check Strimzi Helm release

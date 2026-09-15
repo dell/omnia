@@ -40,7 +40,7 @@
     disabled_telemetry_ips: "{{ disabled_telemetry_ips | default([]) }}"
     telemetry_config: "{{ hostvars['localhost']['telemetry_config'] | default({}) }}"
     _report_output_dir: >-
-      {{ output_project_dir | default(omnia_data_path + '/telemetry/output/' + (project_name | default('project_default'))) }}
+      {{ output_project_dir | default('/opt/omnia/telemetry/output/' + (project_name | default('project_default'))) }}
 
 - name: Ensure telemetry report output directory exists
   ansible.builtin.file:
