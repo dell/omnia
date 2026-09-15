@@ -29,6 +29,15 @@
     _fg_arch: "{{ functional_group_name | regex_search('(x86_64|aarch64)$') | default('x86_64') }}"
     _fg_prefix: "{{ functional_group_name | regex_replace('_(x86_64|aarch64)$', '') }}"
 
+- name: Compute base image prefix for a primary control-plane FG
+  ansible.builtin.set_fact:
+    _fg_image_prefix_without_primary: >-
+      {{ _fg_prefix
+         | regex_replace(
+           '_first(?=_(rhel|rocky|ubuntu|sles)(_[0-9]+)+$|$)',
+           ''
+         ) }}
+
 - name: Initialize kernel, initrd and image
   ansible.builtin.set_fact:
     kernel: ""
@@ -131,7 +140,7 @@
     _fg_image_entry: >-
       {{ _all_fg_entries
          | selectattr('functional_group', 'search',
-             '^' + _fg_prefix | regex_replace('_first$', '') + '_.*' + _fg_arch + '$')
+             '^' + _fg_image_prefix_without_primary + '_.*' + _fg_arch + '$')
          | list | first | default({}) }}
   when:
     - _all_fg_entries | default([]) | length > 0

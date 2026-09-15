@@ -533,20 +533,24 @@ def _validate_hardware_defaults(
             )
 
 
-def _load_slurm_parser() -> Any:
-    """Load the canonical Slurm parser in its deployed Ansible namespace."""
+def _load_slurm_helpers() -> tuple[Any, Any] | None:
+    """Load canonical Slurm parsing and type-validation helpers."""
     try:
         # pylint: disable-next=import-outside-toplevel
         from ansible.module_utils.slurm.slurm_conf_utils import (
             parse_slurm_conf,
+            validate_config_types,
         )
     except ImportError:
         try:
             # pylint: disable-next=import-outside-toplevel
-            from slurm.slurm_conf_utils import parse_slurm_conf
+            from slurm.slurm_conf_utils import (
+                parse_slurm_conf,
+                validate_config_types,
+            )
         except ImportError:
             return None
-    return parse_slurm_conf
+    return parse_slurm_conf, validate_config_types
 
 
 def _fallback_duplicate_keys(path: str) -> list[str]:
@@ -584,61 +588,114 @@ def _validate_slurm_config_sources(
     file_statuses: FileStatuses | None,
     auxiliary_errors: list[str],
 ) -> None:
-    """Validate custom Slurm paths and duplicate scalar keys."""
-    parser = _load_slurm_parser()
+    """Validate custom Slurm paths, keys, value types, and duplicates."""
+    helpers = _load_slurm_helpers()
+    parser, type_validator = helpers if helpers else (None, None)
     file_errors: list[str] = []
+    inline_errors: list[str] = []
     for cluster in clusters:
         cluster_name = str(cluster.get("cluster_name", ""))
+        skip_merge = cluster.get("skip_merge") is True
         config_sources = cluster.get("config_sources", {})
         if not isinstance(config_sources, dict):
             continue
         for config_name, source in config_sources.items():
-            if not isinstance(source, str):
-                continue
-            path = os.path.realpath(source)
-            if not os.path.isfile(path):
-                _mark_file_status(file_statuses, path, False)
-                record_error(
-                    file_errors,
-                    logger,
-                    msg.omnia_slurm_config_file_missing_msg(
-                        cluster_name, str(config_name), source
-                    ),
-                )
-                continue
-            try:
-                if parser:
-                    _config, duplicate_keys = parser(
-                        path, str(config_name), False
+            source_errors: list[str] = []
+            parsed_config: dict[str, Any] | None = None
+            path: str | None = None
+            if isinstance(source, str):
+                path = os.path.realpath(source)
+                if not os.path.isfile(path):
+                    record_error(
+                        source_errors,
+                        logger,
+                        msg.omnia_slurm_config_file_missing_msg(
+                            cluster_name, str(config_name), source
+                        ),
                     )
-                    duplicate_keys = sorted(set(duplicate_keys))
                 else:
-                    duplicate_keys = _fallback_duplicate_keys(path)
-            except (OSError, UnicodeError, ValueError, IndexError, AttributeError):
-                _mark_file_status(file_statuses, path, False)
-                record_error(
-                    file_errors,
-                    logger,
-                    msg.omnia_slurm_config_file_invalid_msg(
-                        cluster_name, str(config_name), source
-                    ),
-                )
-                continue
-            if duplicate_keys:
-                _mark_file_status(file_statuses, path, False)
-                record_error(
-                    file_errors,
-                    logger,
-                    msg.omnia_slurm_config_duplicate_keys_msg(
-                        cluster_name,
-                        str(config_name),
-                        source,
-                        duplicate_keys,
-                    ),
-                )
+                    try:
+                        if parser:
+                            parsed_config, duplicate_keys = parser(
+                                path, str(config_name), False
+                            )
+                            duplicate_keys = sorted(set(duplicate_keys))
+                        else:
+                            duplicate_keys = _fallback_duplicate_keys(path)
+                    except (
+                        OSError,
+                        UnicodeError,
+                        ValueError,
+                        IndexError,
+                        AttributeError,
+                    ):
+                        record_error(
+                            source_errors,
+                            logger,
+                            msg.omnia_slurm_config_file_invalid_msg(
+                                cluster_name, str(config_name), source
+                            ),
+                        )
+                    else:
+                        if duplicate_keys:
+                            record_error(
+                                source_errors,
+                                logger,
+                                msg.omnia_slurm_config_duplicate_keys_msg(
+                                    cluster_name,
+                                    str(config_name),
+                                    source,
+                                    duplicate_keys,
+                                ),
+                            )
             else:
-                _mark_file_status(file_statuses, path, True)
+                parsed_config = source
+
+            if (
+                parsed_config
+                and type_validator is not None
+                and (path is None or not skip_merge)
+            ):
+                validation_result = type_validator(
+                    parsed_config, str(config_name), None
+                )
+                invalid_keys = sorted(
+                    set(validation_result.get("invalid_keys", []))
+                )
+                if invalid_keys:
+                    record_error(
+                        source_errors,
+                        logger,
+                        msg.omnia_slurm_config_invalid_keys_msg(
+                            cluster_name,
+                            str(config_name),
+                            invalid_keys,
+                        ),
+                    )
+                type_errors = [
+                    str(item.get("error_msg", item))
+                    if isinstance(item, dict)
+                    else str(item)
+                    for item in validation_result.get("type_errors", [])
+                ]
+                if type_errors:
+                    record_error(
+                        source_errors,
+                        logger,
+                        msg.omnia_slurm_config_type_errors_msg(
+                            cluster_name,
+                            str(config_name),
+                            type_errors,
+                        ),
+                    )
+
+            if path is not None:
+                _mark_file_status(file_statuses, path, not source_errors)
+                file_errors.extend(source_errors)
+            else:
+                inline_errors.extend(source_errors)
     errors.extend(file_errors)
+    errors.extend(inline_errors)
     auxiliary_errors.extend(file_errors)
 
 

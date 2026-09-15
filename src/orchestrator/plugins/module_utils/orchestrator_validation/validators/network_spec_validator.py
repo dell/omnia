@@ -21,7 +21,6 @@ from typing import Any
 
 from ..messages import orchestrator_messages as msg
 
-
 AddressRange = tuple[ipaddress.IPv4Address, ipaddress.IPv4Address]
 ConfiguredNetwork = tuple[str, ipaddress.IPv4Network]
 ConfiguredRange = tuple[str, AddressRange]
@@ -223,27 +222,13 @@ def _validate_admin_bmc_relationships(
 
 
 def _validate_ib_admin_relationships(
-    primary_admin_networks: list[ConfiguredNetwork],
     all_admin_networks: list[ConfiguredNetwork],
     ib_networks: list[ConfiguredNetwork],
     errors: list[str],
     logger: Logger | None,
 ) -> None:
-    """Validate IB subnet separation and primary-admin prefix compatibility."""
+    """Validate that IB and admin subnets do not overlap."""
     for ib_label, ib_network in ib_networks:
-        for admin_label, admin_network in primary_admin_networks:
-            if ib_network.prefixlen != admin_network.prefixlen:
-                record_error(
-                    errors,
-                    logger,
-                    msg.ib_admin_netmask_mismatch_msg(
-                        ib_label,
-                        ib_network.prefixlen,
-                        admin_label,
-                        admin_network.prefixlen,
-                    ),
-                )
-
         for admin_label, admin_network in all_admin_networks:
             if ib_network.overlaps(admin_network):
                 record_error(
@@ -279,7 +264,6 @@ def validate(config_data: Any, logger: Logger | None = None) -> list[str]:
         return errors
 
     admin_entries: list[tuple[str, dict[str, Any]]] = []
-    primary_admin_networks: list[ConfiguredNetwork] = []
     all_admin_networks: list[ConfiguredNetwork] = []
     configured_ranges: list[ConfiguredRange] = []
     ib_networks: list[ConfiguredNetwork] = []
@@ -304,7 +288,6 @@ def validate(config_data: Any, logger: Logger | None = None) -> list[str]:
             )
             if primary_network:
                 primary_entry = (admin_label, primary_network)
-                primary_admin_networks.append(primary_entry)
                 all_admin_networks.append(primary_entry)
             if primary_range:
                 configured_ranges.append((admin_label, primary_range))
@@ -340,7 +323,6 @@ def validate(config_data: Any, logger: Logger | None = None) -> list[str]:
         admin_entries, configured_ranges, errors, logger
     )
     _validate_ib_admin_relationships(
-        primary_admin_networks,
         all_admin_networks,
         ib_networks,
         errors,

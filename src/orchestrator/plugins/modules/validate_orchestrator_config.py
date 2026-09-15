@@ -27,18 +27,37 @@ import yaml
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     high_availability_applicable,
-    logic_additional_cloud_init as validate_additional_cloud_init,
-    logic_high_availability as validate_high_availability,
-    logic_omnia as validate_omnia_config,
-    logic_pxe_mapping as validate_pxe_mapping,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     logic as validate_orchestrator_config_l2,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic_additional_cloud_init as validate_additional_cloud_init,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic_high_availability as validate_high_availability,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     logic_network as validate_network_spec,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic_omnia as validate_omnia_config,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic_pxe_mapping as validate_pxe_mapping,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic_security as validate_security_config,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic_storage as validate_storage_config,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     schema as validate_against_schema,
 )
 from ansible.module_utils.orchestrator_validation.messages import (
     orchestrator_messages as msg,
 )
-
 
 DOCUMENTATION = r'''
 ---
@@ -47,7 +66,8 @@ short_description: Validate Orchestrator configuration files
 version_added: "2.3.0"
 description:
   - Performs complete JSON Schema and cross-field validation.
-  - Validates orchestrator_config.yml, omnia_config.yml, and network_spec.yml.
+  - Validates orchestrator_config.yml, omnia_config.yml, network_spec.yml,
+    security_config.yml, and storage_config.yml.
   - Validates high_availability_config.yml when Kubernetes is selected.
   - Validates PXE mapping and additional cloud-init cross-file contracts.
   - Validates storage_config.yml when present and requires it when referenced.
@@ -73,7 +93,7 @@ EXAMPLES = r'''
 - name: Validate Orchestrator configuration files
   omnia.orchestrator.validate_orchestrator_config:
     input_project_dir: >-
-      {{ omnia_data_path }}/orchestrator/input/{{ project_name }}
+      {{ orchestrator_data_path }}/input/{{ project_name }}
     schema_dir: >-
       {{ role_path }}/../../plugins/module_utils/orchestrator_validation/schema
     log_dir: "{{ omnia_data_path }}/log/core/playbooks"
@@ -132,6 +152,11 @@ VALIDATION_FILES = (
         "config_file": "storage_config.yml",
         "schema_file": "storage_config.json",
         "required": False,
+    },
+    {
+        "config_file": "security_config.yml",
+        "schema_file": "security_config.json",
+        "required": True,
     },
 )
 HA_VALIDATION_FILE = {
@@ -350,7 +375,37 @@ def _run_l2_validation(
             )
             logger.error(msg.l2_validation_errors_msg("network_spec", errors))
 
+    security_data = state.loaded_data.get("security_config.json")
+    if isinstance(security_data, dict):
+        errors = validate_security_config(security_data, logger)
+        if errors:
+            state.errors.extend(errors)
+            state.mark_file(
+                os.path.join(input_project_dir, "security_config.yml"), False
+            )
+            logger.error(
+                msg.l2_validation_errors_msg("security_config", errors)
+            )
+
     omnia_data = state.loaded_data.get("omnia_config.json")
+    storage_data = state.loaded_data.get("storage_config.json")
+    if isinstance(storage_data, dict):
+        errors = validate_storage_config(
+            storage_data,
+            orchestrator_data if isinstance(orchestrator_data, dict) else {},
+            omnia_data if isinstance(omnia_data, dict) else {},
+            input_project_dir,
+            logger,
+        )
+        if errors:
+            state.errors.extend(errors)
+            state.mark_file(
+                os.path.join(input_project_dir, "storage_config.yml"), False
+            )
+            logger.error(
+                msg.l2_validation_errors_msg("storage_config", errors)
+            )
+
     if isinstance(omnia_data, dict):
         auxiliary_file_statuses: dict[str, bool] = {}
         auxiliary_errors: list[str] = []

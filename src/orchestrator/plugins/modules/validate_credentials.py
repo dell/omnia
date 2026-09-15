@@ -44,6 +44,13 @@ options:
     description: Path to the module_utils directory containing schema files.
     required: true
     type: str
+  fail_on_invalid:
+    description:
+      - Whether an invalid value should fail the module.
+      - Set to C(false) when checking a stored value before prompting again.
+    required: false
+    type: bool
+    default: true
 '''
 
 EXAMPLES = r'''
@@ -60,6 +67,10 @@ RETURN = r'''
 msg:
   description: Validation result message.
   type: str
+  returned: always
+valid:
+  description: Whether the credential satisfies the configured rule.
+  type: bool
   returned: always
 '''
 
@@ -95,7 +106,8 @@ def main():
             "required": True,
             "no_log": True,
         },
-        "module_utils_path": {"type": "str", "required": True}
+        "module_utils_path": {"type": "str", "required": True},
+        "fail_on_invalid": {"type": "bool", "default": True},
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
@@ -114,9 +126,14 @@ def main():
                                                       params["credential_input"], rules)
 
     if credential_valid:
-        module.exit_json(changed=False, msg=f"{credential_msg}")
-    else:
-        module.fail_json(msg=f"Validation failed: {credential_msg}")
+        module.exit_json(changed=False, valid=True, msg=f"{credential_msg}")
+    if params["fail_on_invalid"]:
+        module.fail_json(valid=False, msg=f"Validation failed: {credential_msg}")
+    module.exit_json(
+        changed=False,
+        valid=False,
+        msg=f"Validation failed: {credential_msg}",
+    )
 
 if __name__ == "__main__":
     main()

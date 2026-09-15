@@ -29,8 +29,7 @@ import yaml
 from ..messages import orchestrator_messages as msg
 from .network_spec_validator import is_valid_ipv4, network_from_config, record_error
 
-
-REQUIRED_HEADERS = (
+CANONICAL_HEADERS = (
     "FUNCTIONAL_GROUP_NAME",
     "GROUP_NAME",
     "SERVICE_TAG",
@@ -40,8 +39,9 @@ REQUIRED_HEADERS = (
     "ADMIN_IP",
     "BMC_MAC",
     "BMC_IP",
+    "IB_NIC_NAME",
+    "IB_IP",
 )
-IB_HEADERS = ("IB_NIC_NAME", "IB_IP")
 REQUIRED_VALUE_FIELDS = (
     "FUNCTIONAL_GROUP_NAME",
     "GROUP_NAME",
@@ -63,6 +63,11 @@ GROUP_PATTERN = re.compile(
 )
 FUNCTIONAL_GROUP_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 TAG_PATTERN = re.compile(r"^[A-Za-z0-9]+$")
+IB_NIC_NAME_PATTERN = re.compile(
+    r"^(?:(?:InfiniBand\.PCIe\.Slot\.|InfiniBand\.Slot\.|"
+    r"NIC\.InfiniBand\.)[0-9A-Fa-f]+-[0-9]+|"
+    r"InfiniBand\.Single-[0-9]+)$"
+)
 ARCHITECTURE_PATTERN = re.compile(r"_(x86_64|aarch64)$")
 OS_VERSION_SUFFIX_PATTERN = re.compile(
     r"_(?P<os>rhel|rocky|ubuntu|sles)(?P<version>(?:_[0-9]+)*)$"
@@ -152,8 +157,17 @@ def _validate_unique_values(
     logger: Logger | None,
 ) -> None:
     """Validate mapping identities and network addresses that must be unique."""
-    for field in ("SERVICE_TAG", "HOSTNAME", "ADMIN_IP", "IB_IP"):
-        duplicate_values = _duplicates([row.get(field, "") for _, row in rows])
+    for field in (
+        "SERVICE_TAG",
+        "HOSTNAME",
+        "ADMIN_MAC",
+        "ADMIN_IP",
+        "IB_IP",
+    ):
+        values = [row.get(field, "") for _, row in rows]
+        if field == "ADMIN_MAC":
+            values = [value.lower().replace("-", ":") for value in values]
+        duplicate_values = _duplicates(values)
         if duplicate_values:
             record_error(
                 errors,
@@ -293,12 +307,28 @@ def _validate_ib_pair(
         record_error(errors, logger, msg.pxe_mapping_ib_pair_msg(row_number))
 
 
+def _validate_ib_nic_name(
+    row_number: int,
+    row: dict[str, str],
+    errors: list[str],
+    logger: Logger | None,
+) -> None:
+    """Validate the InfiniBand device formats supported by cloud-init."""
+    nic_name = row.get("IB_NIC_NAME", "")
+    if nic_name and not IB_NIC_NAME_PATTERN.fullmatch(nic_name):
+        record_error(
+            errors,
+            logger,
+            msg.pxe_mapping_invalid_ib_nic_name_msg(nic_name, row_number),
+        )
+
+
 def _validate_group_assignments(
     rows: list[tuple[int, dict[str, str]]],
     errors: list[str],
     logger: Logger | None,
 ) -> None:
-    """Reject a logical group assigned to multiple functional groups."""
+    """Reject mixed logical groups except the supported service/Slurm pair."""
     group_assignments: dict[str, set[str]] = {}
     for _, row in rows:
         group_name = row.get("GROUP_NAME", "")
@@ -309,14 +339,29 @@ def _validate_group_assignments(
             )
 
     for group_name, functional_groups in sorted(group_assignments.items()):
-        if len(functional_groups) > 1:
-            record_error(
-                errors,
-                logger,
-                msg.pxe_mapping_conflicting_group_msg(
-                    group_name, sorted(functional_groups)
-                ),
-            )
+        if len(functional_groups) <= 1:
+            continue
+
+        identities = [
+            _functional_group_identity(functional_group)
+            for functional_group in functional_groups
+        ]
+        normalized_roles = {
+            identity[0] for identity in identities if identity is not None
+        }
+        supported_slurm_topology = all(
+            identity is not None for identity in identities
+        ) and normalized_roles == {"service_kube_node", "slurm_node"}
+        if supported_slurm_topology:
+            continue
+
+        record_error(
+            errors,
+            logger,
+            msg.pxe_mapping_conflicting_group_msg(
+                group_name, sorted(functional_groups)
+            ),
+        )
 
 
 def _functional_group_architecture(functional_group: str) -> str | None:
@@ -381,21 +426,16 @@ def _validate_slurm_compiler_architecture(
         )
 
 
-def _omnia_data_root(input_project_dir: str) -> str:
-    """Derive OMNIA_DATA_PATH from the standard Orchestrator input layout."""
-    return os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.realpath(input_project_dir)))
-    )
-
-
 def _resolve_catalog_path(
     config_data: dict[str, Any], input_project_dir: str
 ) -> str:
     """Resolve the active catalog path using the production precedence."""
+    del input_project_dir
     configured_path = config_data.get("catalog_file_path")
     environment_path = os.getenv("CATALOG_FILE_PATH", "")
+    omnia_data_path = os.getenv("OMNIA_DATA_PATH", "") or "/opt/omnia"
     candidate = configured_path or environment_path or os.path.join(
-        _omnia_data_root(input_project_dir), "catalog", "catalog_rhel.json"
+        omnia_data_path, "catalog", "catalog_rhel.json"
     )
     return os.path.realpath(candidate)
 
@@ -473,18 +513,7 @@ def _validate_catalog_functional_groups(
     catalog_functional_groups, catalog_error = (
         _load_catalog_functional_groups(catalog_path)
     )
-    catalog_is_explicit = bool(
-        config_data.get("catalog_file_path")
-        or os.getenv("CATALOG_FILE_PATH", "")
-    )
-    if catalog_error and catalog_is_explicit:
-        record_error(
-            errors,
-            logger,
-            msg.pxe_mapping_catalog_unavailable_msg(
-                catalog_path, catalog_error
-            ),
-        )
+    if catalog_error:
         return
     if not catalog_functional_groups:
         return
@@ -598,44 +627,13 @@ def validate(
         record_error(errors, logger, msg.pxe_mapping_empty_msg(path))
         return errors
 
-    noncanonical_headers = [
-        column
-        for column in raw_header
-        if column != column.strip().upper()
-    ]
-    if noncanonical_headers:
+    if raw_header != list(CANONICAL_HEADERS):
         record_error(
             errors,
             logger,
-            msg.pxe_mapping_noncanonical_headers_msg(
-                path, noncanonical_headers
+            msg.pxe_mapping_header_contract_msg(
+                path, raw_header, list(CANONICAL_HEADERS)
             ),
-        )
-        return errors
-
-    duplicate_headers = _duplicates(header)
-    if duplicate_headers:
-        record_error(
-            errors,
-            logger,
-            msg.pxe_mapping_duplicate_headers_msg(path, duplicate_headers),
-        )
-        return errors
-
-    missing_headers = [
-        field for field in REQUIRED_HEADERS if field not in header
-    ]
-    if any(field in header for field in IB_HEADERS) and not all(
-        field in header for field in IB_HEADERS
-    ):
-        missing_headers.extend(
-            field for field in IB_HEADERS if field not in header
-        )
-    if missing_headers:
-        record_error(
-            errors,
-            logger,
-            msg.pxe_mapping_missing_columns_msg(path, missing_headers),
         )
         return errors
 
@@ -655,8 +653,8 @@ def validate(
             errors,
             logger,
         )
-        if all(field in header for field in IB_HEADERS):
-            _validate_ib_pair(row_number, row, errors, logger)
+        _validate_ib_pair(row_number, row, errors, logger)
+        _validate_ib_nic_name(row_number, row, errors, logger)
 
     _validate_unique_values(rows, errors, logger)
     _validate_group_assignments(rows, errors, logger)

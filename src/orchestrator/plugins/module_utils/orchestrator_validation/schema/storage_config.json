@@ -11,9 +11,12 @@
     },
     "mount_params": {
       "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/mountProfile"
-      }
+      "patternProperties": {
+        "^[A-Za-z0-9_-]+$": {
+          "$ref": "#/definitions/mountProfile"
+        }
+      },
+      "additionalProperties": false
     },
     "powervault_config": {
       "type": "array",
@@ -42,7 +45,11 @@
     },
     "absolutePath": {
       "type": "string",
-      "pattern": "^/"
+      "pattern": "^/[A-Za-z0-9/_.-]*$"
+    },
+    "absoluteFilePath": {
+      "type": "string",
+      "pattern": "^/[A-Za-z0-9/_.-]+$"
     },
     "targetList": {
       "type": "array",
@@ -50,17 +57,90 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "minLength": 1
+        "pattern": "^[A-Za-z0-9_-]+$"
       }
+    },
+    "absolutePathList": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/definitions/absolutePath"
+      }
+    },
+    "mountFileSystem": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "ext2",
+        "ext3",
+        "ext4",
+        "xfs",
+        "nfs",
+        "nfs4",
+        "cifs",
+        "tmpfs",
+        "cephfs",
+        "vfat",
+        "ntfs",
+        "none",
+        "fuse.s3fs"
+      ]
+    },
+    "powerVaultFileSystem": {
+      "type": "string",
+      "enum": [
+        "xfs",
+        "ext4",
+        "ext3",
+        "ext2",
+        "nfs",
+        "nfs4",
+        "cifs",
+        "ntfs",
+        "auto"
+      ]
+    },
+    "mountOptions": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9,=._@/-]+$"
+    },
+    "dumpFrequency": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-2]$"
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        }
+      ]
+    },
+    "fsckPass": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9]$"
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9
+        }
+      ]
     },
     "permissions": {
       "type": "object",
       "properties": {
         "owner": {
-          "$ref": "#/definitions/nonEmptyString"
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
         },
         "group": {
-          "$ref": "#/definitions/nonEmptyString"
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
         },
         "mode": {
           "type": "string",
@@ -82,30 +162,33 @@
           "$ref": "#/definitions/absolutePath"
         },
         "mount_params": {
-          "$ref": "#/definitions/nonEmptyString"
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
         },
         "fs_type": {
-          "$ref": "#/definitions/nonEmptyString"
+          "$ref": "#/definitions/mountFileSystem"
         },
         "mnt_opts": {
-          "type": "string"
+          "$ref": "#/definitions/mountOptions"
         },
         "dump_freq": {
-          "type": ["string", "integer"],
-          "pattern": "^[0-2]$"
+          "$ref": "#/definitions/dumpFrequency"
         },
         "fsck_pass": {
-          "type": ["string", "integer"],
-          "pattern": "^[0-9]$"
+          "$ref": "#/definitions/fsckPass"
         },
         "mount_on_oim": {
           "type": "boolean"
         },
         "node_key": {
-          "enum": ["local_hostname", "local_ipv4", "instance_id"]
+          "enum": [
+            "local_hostname",
+            "local_ipv4",
+            "instance_id"
+          ]
         },
         "node_mount_point": {
-          "$ref": "#/definitions/targetList"
+          "$ref": "#/definitions/absolutePathList"
         },
         "functional_group_prefix": {
           "$ref": "#/definitions/targetList"
@@ -117,23 +200,37 @@
           "$ref": "#/definitions/permissions"
         }
       },
-      "required": ["name", "source", "mount_point"],
+      "required": [
+        "name",
+        "source",
+        "mount_point"
+      ],
       "oneOf": [
         {
-          "required": ["functional_group_prefix"],
+          "required": [
+            "functional_group_prefix"
+          ],
           "not": {
-            "required": ["groups"]
+            "required": [
+              "groups"
+            ]
           }
         },
         {
-          "required": ["groups"],
+          "required": [
+            "groups"
+          ],
           "not": {
-            "required": ["functional_group_prefix"]
+            "required": [
+              "functional_group_prefix"
+            ]
           }
         }
       ],
       "dependencies": {
-        "node_key": ["node_mount_point"]
+        "node_key": [
+          "node_mount_point"
+        ]
       },
       "additionalProperties": false
     },
@@ -141,19 +238,22 @@
       "type": "object",
       "properties": {
         "fs_type": {
-          "$ref": "#/definitions/nonEmptyString"
+          "$ref": "#/definitions/mountFileSystem"
         },
         "mnt_opts": {
-          "type": "string"
+          "$ref": "#/definitions/mountOptions"
         },
         "dump_freq": {
-          "type": ["string", "integer"]
+          "$ref": "#/definitions/dumpFrequency"
         },
         "fsck_pass": {
-          "type": ["string", "integer"]
+          "$ref": "#/definitions/fsckPass"
         }
       },
-      "required": ["fs_type", "mnt_opts"],
+      "required": [
+        "fs_type",
+        "mnt_opts"
+      ],
       "additionalProperties": false
     },
     "powerVault": {
@@ -177,7 +277,8 @@
           "maximum": 65535
         },
         "iscsi_initiator": {
-          "$ref": "#/definitions/nonEmptyString"
+          "type": "string",
+          "pattern": "^iqn\\.[A-Za-z0-9.-]+(?::[A-Za-z0-9._:-]+)?$"
         },
         "volume_id": {
           "type": "string",
@@ -187,25 +288,30 @@
           "$ref": "#/definitions/absolutePath"
         },
         "mount_params": {
-          "$ref": "#/definitions/nonEmptyString"
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
         },
         "fs_type": {
-          "$ref": "#/definitions/nonEmptyString"
+          "$ref": "#/definitions/powerVaultFileSystem"
         },
         "mnt_opts": {
-          "type": "string"
+          "$ref": "#/definitions/mountOptions"
         },
         "dump_freq": {
-          "type": ["string", "integer"]
+          "$ref": "#/definitions/dumpFrequency"
         },
         "fsck_pass": {
-          "type": ["string", "integer"]
+          "$ref": "#/definitions/fsckPass"
         },
         "node_key": {
-          "enum": ["local_hostname", "local_ipv4", "instance_id"]
+          "enum": [
+            "local_hostname",
+            "local_ipv4",
+            "instance_id"
+          ]
         },
         "node_mount_point": {
-          "$ref": "#/definitions/targetList"
+          "$ref": "#/definitions/absolutePathList"
         },
         "functional_group_prefix": {
           "$ref": "#/definitions/targetList"
@@ -223,7 +329,9 @@
         "functional_group_prefix"
       ],
       "dependencies": {
-        "node_key": ["node_mount_point"]
+        "node_key": [
+          "node_mount_point"
+        ]
       },
       "additionalProperties": false
     },
@@ -234,19 +342,41 @@
           "$ref": "#/definitions/name"
         },
         "filename": {
-          "$ref": "#/definitions/absolutePath"
+          "$ref": "#/definitions/absoluteFilePath"
         },
         "size": {
-          "type": ["string", "integer"]
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^(auto|[0-9]+[BKMGT]?)$"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
         },
         "maxsize": {
-          "type": ["string", "integer"]
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9]+[BKMGT]?$"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
         },
         "functional_group_prefix": {
           "$ref": "#/definitions/targetList"
         }
       },
-      "required": ["filename", "size", "functional_group_prefix"],
+      "required": [
+        "filename",
+        "size",
+        "functional_group_prefix"
+      ],
       "additionalProperties": false
     }
   }

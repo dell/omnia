@@ -20,7 +20,7 @@
 
 #### Mandatory field (optional path override)
 # This depicts the path where user has kept the PXE mapping file.
-# Leave empty to use $OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv.
+# Leave empty to use $ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv.
 # The mapping file consists of the Service tag, Admin MAC,Hostname and its respective admin IP address and/or BMC IP.
 # Ensure that admin IPs given in mapping file are within the network defined in the network_spec.yml
 # A templates for mapping file exists in omnia/examples, namely, pxe_mapping_file.csv

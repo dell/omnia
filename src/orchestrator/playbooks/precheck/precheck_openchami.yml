@@ -14,7 +14,8 @@
 ---
 
 # Precheck OpenCHAMI --- Validate all OpenCHAMI-related variables and prerequisites
-# Can be run standalone or imported by orchestrator.yml
+# Imported by the canonical orchestrator.yml entry point. Direct execution
+# requires the setup facts and generated functional-group data to exist.
 #
 # This playbook validates inputs without modifying the system.
 # It should be run before prepare and deploy to fail fast on

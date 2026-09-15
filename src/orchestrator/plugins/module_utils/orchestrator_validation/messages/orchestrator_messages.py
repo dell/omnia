@@ -15,7 +15,6 @@
 
 from typing import Any
 
-
 VALIDATION_START_MSG = "=== Orchestrator Validation Start ==="
 VALIDATION_END_MSG = "=== Orchestrator Validation End ==="
 LANGUAGE_REQUIRED_MSG = (
@@ -236,6 +235,17 @@ def pxe_mapping_noncanonical_headers_msg(
     )
 
 
+def pxe_mapping_header_contract_msg(
+    path: str, actual: list[str], expected: list[str]
+) -> str:
+    """Return an exact PXE mapping header-contract error message."""
+    return (
+        f"orchestrator_config: Mapping file '{path}' has header {actual}; "
+        f"expected exactly {expected}. Preserve all columns in this order, "
+        "including IB_NIC_NAME and IB_IP."
+    )
+
+
 def pxe_mapping_row_width_msg(
     path: str, row: int, actual: int, expected: int
 ) -> str:
@@ -342,6 +352,16 @@ def pxe_mapping_ib_pair_msg(row: int) -> str:
     return (
         f"orchestrator_config: Mapping row {row} must set both IB_NIC_NAME "
         "and IB_IP, or leave both empty."
+    )
+
+
+def pxe_mapping_invalid_ib_nic_name_msg(value: str, row: int) -> str:
+    """Return an unsupported InfiniBand NIC-name format message."""
+    return (
+        f"orchestrator_config: Invalid IB_NIC_NAME '{value}' at mapping row "
+        f"{row}; supported formats are InfiniBand.PCIe.Slot.X-Y, "
+        "InfiniBand.Slot.X-Y, NIC.InfiniBand.X-Y, and "
+        "InfiniBand.Single-Y."
     )
 
 
@@ -481,19 +501,6 @@ def bmc_ip_in_dynamic_range_msg(
     return (
         f"network_spec: {label}.primary_oim_bmc_ip '{address}' must not be "
         f"inside {range_label}.dynamic_range."
-    )
-
-
-def ib_admin_netmask_mismatch_msg(
-    ib_label: str,
-    ib_prefix: int,
-    admin_label: str,
-    admin_prefix: int,
-) -> str:
-    """Return the IB/admin prefix-length mismatch error message."""
-    return (
-        f"network_spec: {ib_label}.netmask_bits '{ib_prefix}' must match "
-        f"{admin_label}.netmask_bits '{admin_prefix}'."
     )
 
 
@@ -684,6 +691,28 @@ def omnia_slurm_config_duplicate_keys_msg(
         f"omnia_config.yml: Slurm cluster '{cluster}' "
         f"config_sources.{config_name} file '{path}' contains duplicate "
         f"scalar key(s): {', '.join(keys)}."
+    )
+
+
+def omnia_slurm_config_invalid_keys_msg(
+    cluster: str, config_name: str, keys: list[str]
+) -> str:
+    """Return unsupported custom Slurm configuration keys."""
+    return (
+        f"omnia_config.yml: Slurm cluster '{cluster}' "
+        f"config_sources.{config_name} contains invalid key(s): "
+        f"{', '.join(keys)}."
+    )
+
+
+def omnia_slurm_config_type_errors_msg(
+    cluster: str, config_name: str, details: list[str]
+) -> str:
+    """Return custom Slurm configuration value-type errors."""
+    return (
+        f"omnia_config.yml: Slurm cluster '{cluster}' "
+        f"config_sources.{config_name} has invalid value type(s): "
+        f"{' | '.join(details)}."
     )
 
 
@@ -901,6 +930,67 @@ def missing_storage_names_msg(names: list[str]) -> str:
     return (
         "storage_config.yml does not define referenced storage: "
         f"{', '.join(names)}"
+    )
+
+
+def security_ldap_connection_type_msg(value: str) -> str:
+    """Return an unsupported LDAP transport message."""
+    return (
+        f"security_config.yml: ldap_connection_type '{value}' is invalid; "
+        "supported values are TLS and SSL."
+    )
+
+
+def storage_unknown_prefix_msg(
+    section: str, entry: str, prefix: str
+) -> str:
+    """Return an unmatched storage functional-group prefix message."""
+    return (
+        f"storage_config.yml: {section} entry '{entry}' has "
+        f"functional_group_prefix '{prefix}', which does not match a "
+        "supported, catalog, or mapped functional group."
+    )
+
+
+def storage_unknown_group_msg(
+    section: str, entry: str, group: str, valid_groups: list[str]
+) -> str:
+    """Return a storage target absent from the PXE mapping."""
+    return (
+        f"storage_config.yml: {section} entry '{entry}' targets unknown "
+        f"GROUP_NAME '{group}'; mapped groups are {valid_groups}."
+    )
+
+
+def storage_duplicate_mount_point_msg(
+    target: str, mount_point: str, entries: list[str]
+) -> str:
+    """Return a duplicate storage destination message."""
+    return (
+        f"storage_config.yml: Mount point '{mount_point}' is duplicated for "
+        f"functional group or group '{target}' in entries: "
+        f"{', '.join(entries)}."
+    )
+
+
+def storage_swap_overlap_msg(
+    prefix: str, entry: str, previous_entry: str
+) -> str:
+    """Return a duplicate swap target-prefix message."""
+    return (
+        f"storage_config.yml: Swap entry '{entry}' repeats "
+        f"functional_group_prefix '{prefix}' already used by "
+        f"'{previous_entry}'."
+    )
+
+
+def storage_swap_size_msg(
+    entry: str, size: str, maxsize: str
+) -> str:
+    """Return a swap maximum smaller than its requested size."""
+    return (
+        f"storage_config.yml: Swap entry '{entry}' has maxsize "
+        f"'{maxsize}' smaller than size '{size}'."
     )
 
 

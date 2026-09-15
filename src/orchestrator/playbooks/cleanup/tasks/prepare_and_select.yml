@@ -27,12 +27,23 @@
     project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
     cacheable: true
 
+- name: Resolve Orchestrator data path
+  ansible.builtin.set_fact:
+    orchestrator_data_path: >-
+      {{ lookup('env', 'ORCHESTRATOR_DATA_PATH')
+         | default(omnia_data_path + '/orchestrator', true) }}
+    cacheable: true
+
 - name: Set input_project_dir and output_project_dir
   ansible.builtin.set_fact:
-    input_project_dir: "{{ omnia_data_path }}/orchestrator/input/{{ project_name }}"
-    output_project_dir: "{{ omnia_data_path }}/orchestrator/output/{{ project_name }}"
-    omnia_project_input_dir: "{{ omnia_data_path }}/orchestrator/input/{{ project_name }}"
-    orchestrator_output_dir: "{{ omnia_data_path }}/orchestrator/output/{{ project_name }}"
+    input_project_dir: >-
+      {{ orchestrator_data_path }}/input/{{ project_name }}
+    output_project_dir: >-
+      {{ orchestrator_data_path }}/output/{{ project_name }}
+    omnia_project_input_dir: >-
+      {{ orchestrator_data_path }}/input/{{ project_name }}
+    orchestrator_output_dir: >-
+      {{ orchestrator_data_path }}/output/{{ project_name }}
     cacheable: true
 
 - name: Display cleanup information
@@ -149,7 +160,7 @@
     - enabled_components.k8s is defined
     - not cleanup_k8s_configured | bool
 
-- name: Validate full-cleanup data selection values
+- name: Validate shared-data cleanup selection values
   ansible.builtin.assert:
     that:
       - >-
@@ -161,10 +172,15 @@
     fail_msg: >-
       cleanup_slurm and cleanup_k8s accept only true or false. Omit a value
       to receive an interactive confirmation prompt.
-  when: effective_tags | length == 0 or effective_tags[0] == 'all'
+  when: >-
+    effective_tags | length == 0 or
+    effective_tags[0] == 'all' or
+    'slurm' in enabled_components or
+    'k8s' in enabled_components
 
-# Shared-data decisions are independent during a full cleanup. Explicit true
-# or false values are non-interactive; omitted values require confirmation.
+# Shared-data decisions are independent in full and component cleanup.
+# Explicit true or false values are non-interactive; omitted values require
+# confirmation.
 - name: Confirm Slurm shared-data cleanup
   ansible.builtin.pause:
     prompt: |
@@ -174,7 +190,6 @@
       the storage is still unmounted and removed from fstab.
   register: cleanup_slurm_confirmation
   when:
-    - effective_tags | length == 0 or effective_tags[0] == 'all'
     - enabled_components.slurm is defined
     - cleanup_slurm is not defined
     - not skip_approval | bool
@@ -189,13 +204,12 @@
       data; the storage is still unmounted and removed from fstab.
   register: cleanup_k8s_confirmation
   when:
-    - effective_tags | length == 0 or effective_tags[0] == 'all'
     - enabled_components.k8s is defined
     - cleanup_k8s is not defined
     - not skip_approval | bool
     - not dry_run | bool
 
-- name: Resolve full-cleanup shared-data decisions
+- name: Resolve shared-data cleanup decisions
   ansible.builtin.set_fact:
     cleanup_slurm_approved: >-
       {{ enabled_components.slurm is defined and
@@ -209,7 +223,8 @@
           else true if (skip_approval | bool or dry_run | bool)
           else (cleanup_k8s_confirmation.user_input | default('')
                 | trim | lower) == 'yes') }}
-  when: effective_tags | length == 0 or effective_tags[0] == 'all'
+  when:
+    - enabled_components.slurm is defined or enabled_components.k8s is defined
 
 # storage_mounts is not a separate full-cleanup pass. Slurm and Kubernetes
 # always invoke scoped mount cleanup themselves, whether data deletion was
@@ -222,25 +237,40 @@
           | items2dict) }}
   when: effective_tags | length == 0 or effective_tags[0] == 'all'
 
-- name: Display full-cleanup shared-data decisions
+- name: Display shared-data cleanup decisions
   ansible.builtin.debug:
     msg:
       - "Shared-data cleanup decisions:"
       - >-
-        Slurm: {{ 'delete data, unmount, and remove fstab entries'
+        Slurm: {{ 'not selected; skipped'
+        if enabled_components.slurm is not defined
+        else 'delete data, unmount, and remove fstab entries'
         if cleanup_slurm_approved | bool
         else 'preserve data, then unmount and remove fstab entries' }}
       - >-
-        Kubernetes: {{ 'not configured; skipped'
-        if not cleanup_k8s_configured | bool
+        Kubernetes: {{ 'not selected; skipped'
+        if enabled_components.k8s is not defined
+        else 'not configured; skipped'
+        if cleanup_k8s_configured is defined and
+           not cleanup_k8s_configured | bool
         else 'delete data, unmount, and remove fstab entries'
         if cleanup_k8s_approved | bool
         else 'preserve data, then unmount and remove fstab entries' }}
-  when: effective_tags | length == 0 or effective_tags[0] == 'all'
+      - >-
+        Credentials: {{ 'remove encrypted credential file and vault key'
+        if enabled_components.credentials is defined
+        else 'preserve credential file and vault key' }}
+  when:
+    - enabled_components.slurm is defined or enabled_components.k8s is defined
 
 - name: Set execution order (priority descending)
   ansible.builtin.set_fact:
-    execution_order: "{{ enabled_components | dict2items | sort(attribute='value.priority', reverse=true) | map(attribute='key') | list }}"
+    execution_order: >-
+      {{ enabled_components
+         | dict2items
+         | sort(attribute='value.priority', reverse=true)
+         | map(attribute='key')
+         | list }}
 
 - name: Display cleanup plan
   ansible.builtin.debug:

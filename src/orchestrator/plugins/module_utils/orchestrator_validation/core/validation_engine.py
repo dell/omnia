@@ -30,6 +30,8 @@ from ..validators import (
     omnia_config_validator,
     orchestrator_config_validator,
     pxe_mapping_validator,
+    security_config_validator,
+    storage_config_validator,
 )
 
 
@@ -173,6 +175,31 @@ def logic_high_availability(
     """Dispatch Kubernetes high-availability L2 validation."""
     return high_availability_validator.validate(
         config_data, input_project_dir, logger
+    )
+
+
+def logic_security(
+    config_data: Any,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Dispatch ``security_config.yml`` L2 validation."""
+    return security_config_validator.validate(config_data, logger)
+
+
+def logic_storage(
+    config_data: Any,
+    orchestrator_data: dict[str, Any],
+    omnia_data: dict[str, Any],
+    input_project_dir: str,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Dispatch ``storage_config.yml`` L2 validation."""
+    return storage_config_validator.validate(
+        config_data,
+        orchestrator_data,
+        omnia_data,
+        input_project_dir,
+        logger,
     )
 
 

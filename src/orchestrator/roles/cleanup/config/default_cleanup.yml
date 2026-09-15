@@ -32,7 +32,7 @@ cleanup_components:
       - "/etc/openchami"
       - "/etc/ochami"
       - "{{ omnia_data_path }}/openchami/workdir"
-      - "{{ omnia_data_path }}/orchestrator/log/openchami"
+      - "{{ orchestrator_data_path }}/log/openchami"
     description: "OpenCHAMI services, containers, configuration, and artifacts"
 
   openldap:
@@ -123,6 +123,6 @@ global_settings:
   skip_approval: false
   dry_run: false
   state_file_path: "/var/lib/omnia/cleanup/cleanup_state.json"
-  log_file_path: "{{ omnia_data_path }}/orchestrator/log/cleanup/cleanup.log"
+  log_file_path: "{{ orchestrator_data_path }}/log/cleanup/cleanup.log"
   backup_before_cleanup: false
   backup_path: "/var/lib/omnia/cleanup/backups"

@@ -14,7 +14,8 @@
 ---
 
 # Upgrade OpenLDAP --- Upgrade auth container from Wolfi-based 1.1 to 1.2
-# Can be run standalone or imported by orchestrator.yml
+# Imported by the canonical orchestrator.yml entry point. Direct execution
+# requires orchestrator_setup facts and a deployed OpenLDAP environment.
 #
 # Logic:
 #   1. Detect active container image
