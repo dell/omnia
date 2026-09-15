@@ -160,14 +160,14 @@
         msg: "Loaded credentials keys: {{ orchestrator_loaded_creds.keys() | list }}"
       when: orchestrator_loaded_creds is defined
 
-    # Step 5: Prompt for mandatory credentials (only if value is empty)
+    # Step 5: Prompt for mandatory credentials when missing or invalid
     - name: Prompt for mandatory orchestrator credentials
       ansible.builtin.include_tasks: prompt_credential_field.yml
       loop: "{{ orchestrator_credentials_definitions.provision.mandatory }}"
       loop_control:
         loop_var: cred_field
 
-    # Step 6: Prompt for conditional mandatory credentials (only if value is empty)
+    # Step 6: Prompt for enabled conditional credentials when missing or invalid
     - name: Prompt for conditional mandatory orchestrator credentials
       ansible.builtin.include_tasks: prompt_credential_field.yml
       loop: "{{ orchestrator_credentials_definitions.slurm.mandatory }}"

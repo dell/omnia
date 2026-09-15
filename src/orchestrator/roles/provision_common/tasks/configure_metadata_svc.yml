@@ -83,9 +83,10 @@
       {{ (slurm_cluster | default([]) | first | default({})).nfs_storage_name
          | default('') }}
     metadata_slurm_vast_storage_name: >-
-      {{ (slurm_cluster | default([]) | first | default({})).vast_storage_name
+      {{ ((slurm_cluster | default([]) | first | default({})).vast_storage_name
+          | default('', true) | trim)
          | default((slurm_cluster | default([]) | first | default({})).nfs_storage_name
-                   | default(''), true) }}
+                   | default('') | trim, true) }}
   when: target_category | default('') == 'slurm'
 
 - name: Select Slurm storage entries for metadata configuration
@@ -332,19 +333,32 @@
   ansible.builtin.set_fact:
     functional_group_name: "{{ fg_name }}"
 
-# Strip OS version suffix (e.g. _rhel_10_0, _ubuntu_24_04, _rocky_9_5) from the FG name
-# so the template lookup resolves to the base template (ms-group-slurm_control_node_x86_64.yaml.j2).
+# Strip only the catalog OS/version segment for template lookup. The rendered
+# destination and every OpenCHAMI identity continue to use the versioned FG.
 - name: Derive template base name from fg_name
   ansible.builtin.set_fact:
     _ms_template_base: >-
-      {{ fg_name
-         | regex_replace('_(rhel|ubuntu|rocky)_[0-9]+(_[0-9]+)*_', '_') }}
+      {{ (fg_name
+          | regex_replace(functional_group_os_version_regex, '_'))
+         if (fg_name is match(functional_group_versioned_role_regex))
+         else fg_name }}
+
+- name: Build metadata-service template candidates for {{ fg_name }}
+  ansible.builtin.set_fact:
+    _ms_template_candidates: >-
+      {{ [ochami_template_dir ~ '/metadata_svc/ms-group-'
+          ~ _ms_template_base ~ '.yaml.j2']
+         + ([ochami_template_dir
+             ~ '/metadata_svc/ms-group-default_x86_64.yaml.j2']
+            if (target_category | default('')) == 'custom' else []) }}
 
 - name: Load metadata-service group template - {{ fg_name }}
   block:
     - name: Render metadata-service group template - {{ fg_name }}
       ansible.builtin.template:
-        src: "{{ ochami_template_dir }}/metadata_svc/ms-group-{{ _ms_template_base }}.yaml.j2"
+        src: >-
+          {{ lookup('ansible.builtin.first_found',
+                    _ms_template_candidates) }}
         dest: "{{ metadata_svc_dir }}/ms-group-{{ fg_name }}.yaml"
         mode: "{{ file_permissions_644 }}"
       vars:

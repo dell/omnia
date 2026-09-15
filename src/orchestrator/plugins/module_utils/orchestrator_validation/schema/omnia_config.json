@@ -1,0 +1,303 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Omnia cluster configuration",
+  "type": "object",
+  "required": [
+    "slurm_cluster",
+    "service_k8s_cluster"
+  ],
+  "properties": {
+    "slurm_cluster": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/slurmCluster"
+      }
+    },
+    "service_k8s_cluster": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/serviceK8sCluster"
+      }
+    },
+    "orchestrator": {
+      "$ref": "#/definitions/orchestratorOverrides"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": ".*\\S.*"
+    },
+    "storageName": {
+      "type": "string",
+      "pattern": "^(|[A-Za-z0-9_-]{1,64})$"
+    },
+    "ipv4Cidr": {
+      "type": "string",
+      "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})/(?:[0-9]|[12][0-9]|3[0-2])$"
+    },
+    "ipv4RangeOrCidr": {
+      "type": "string",
+      "pattern": "^(?:(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})-(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})|(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})/(?:[0-9]|[12][0-9]|3[0-2]))$"
+    },
+    "optionalAbsolutePath": {
+      "type": "string",
+      "pattern": "^(|/.+)$"
+    },
+    "kubernetesBoltOnList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "mount_config",
+          "k8s_config",
+          "telemetry",
+          "openldap"
+        ]
+      }
+    },
+    "slurmBoltOnList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "mount_config",
+          "slurm_config",
+          "openldap"
+        ]
+      }
+    },
+    "orchestratorOverrides": {
+      "type": "object",
+      "properties": {
+        "bolt_ons": {
+          "type": "object",
+          "properties": {
+            "kubernetes": {
+              "$ref": "#/definitions/kubernetesBoltOnList"
+            },
+            "slurm": {
+              "$ref": "#/definitions/slurmBoltOnList"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "hardwareDefaults": {
+      "type": "object",
+      "patternProperties": {
+        "^[A-Za-z0-9][A-Za-z0-9_.-]*$": {
+          "type": "object",
+          "required": [
+            "sockets",
+            "cores_per_socket",
+            "threads_per_core",
+            "real_memory"
+          ],
+          "properties": {
+            "sockets": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "cores_per_socket": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "threads_per_core": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "real_memory": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "gres": {
+              "type": "string",
+              "pattern": "^gpu:[1-9][0-9]*$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "slurmConfigSource": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^/.+"
+        },
+        {
+          "type": "object"
+        }
+      ]
+    },
+    "slurmConfigSources": {
+      "type": "object",
+      "properties": {
+        "slurm": {
+          "$ref": "#/definitions/slurmConfigSource"
+        },
+        "cgroup": {
+          "$ref": "#/definitions/slurmConfigSource"
+        },
+        "slurmdbd": {
+          "$ref": "#/definitions/slurmConfigSource"
+        },
+        "gres": {
+          "$ref": "#/definitions/slurmConfigSource"
+        },
+        "acct_gather": {
+          "$ref": "#/definitions/slurmConfigSource"
+        },
+        "helpers": {
+          "$ref": "#/definitions/slurmConfigSource"
+        },
+        "job_container": {
+          "$ref": "#/definitions/slurmConfigSource"
+        },
+        "mpi": {
+          "$ref": "#/definitions/slurmConfigSource"
+        },
+        "oci": {
+          "$ref": "#/definitions/slurmConfigSource"
+        },
+        "topology": {
+          "$ref": "#/definitions/slurmConfigSource"
+        },
+        "burst_buffer": {
+          "$ref": "#/definitions/slurmConfigSource"
+        }
+      },
+      "additionalProperties": false
+    },
+    "slurmCluster": {
+      "type": "object",
+      "required": [
+        "cluster_name"
+      ],
+      "properties": {
+        "cluster_name": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "nfs_storage_name": {
+          "$ref": "#/definitions/storageName"
+        },
+        "vast_storage_name": {
+          "$ref": "#/definitions/storageName"
+        },
+        "skip_merge": {
+          "type": "boolean"
+        },
+        "node_discovery_mode": {
+          "type": "string",
+          "enum": [
+            "heterogeneous",
+            "homogeneous"
+          ]
+        },
+        "node_hardware_defaults": {
+          "$ref": "#/definitions/hardwareDefaults"
+        },
+        "config_sources": {
+          "$ref": "#/definitions/slurmConfigSources"
+        }
+      },
+      "additionalProperties": false
+    },
+    "serviceK8sCluster": {
+      "type": "object",
+      "required": [
+        "cluster_name",
+        "deployment",
+        "etcd_on_local_disk",
+        "k8s_cni",
+        "pod_external_ip_range",
+        "k8s_service_addresses",
+        "k8s_pod_network_cidr",
+        "k8s_crio_storage_size"
+      ],
+      "properties": {
+        "cluster_name": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "deployment": {
+          "type": "boolean"
+        },
+        "etcd_on_local_disk": {
+          "type": "boolean"
+        },
+        "k8s_cni": {
+          "type": "string",
+          "enum": [
+            "calico",
+            "flannel"
+          ]
+        },
+        "pod_external_ip_range": {
+          "$ref": "#/definitions/ipv4RangeOrCidr"
+        },
+        "k8s_service_addresses": {
+          "$ref": "#/definitions/ipv4Cidr"
+        },
+        "k8s_pod_network_cidr": {
+          "$ref": "#/definitions/ipv4Cidr"
+        },
+        "nfs_storage_name": {
+          "$ref": "#/definitions/storageName"
+        },
+        "k8s_crio_storage_size": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*G$"
+        },
+        "enable_powerscale_csi": {
+          "type": "boolean",
+          "default": false
+        },
+        "csi_powerscale_driver_secret_file_path": {
+          "$ref": "#/definitions/optionalAbsolutePath"
+        },
+        "csi_powerscale_driver_values_file_path": {
+          "$ref": "#/definitions/optionalAbsolutePath"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "enable_powerscale_csi"
+            ],
+            "properties": {
+              "enable_powerscale_csi": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "csi_powerscale_driver_secret_file_path",
+              "csi_powerscale_driver_values_file_path"
+            ],
+            "properties": {
+              "csi_powerscale_driver_secret_file_path": {
+                "type": "string",
+                "pattern": "^/.+"
+              },
+              "csi_powerscale_driver_values_file_path": {
+                "type": "string",
+                "pattern": "^/.+"
+              }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

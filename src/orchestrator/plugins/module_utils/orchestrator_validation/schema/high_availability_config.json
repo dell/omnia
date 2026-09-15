@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Kubernetes high availability configuration",
+  "type": "object",
+  "required": [
+    "service_k8s_cluster_ha"
+  ],
+  "properties": {
+    "service_k8s_cluster_ha": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "cluster_name",
+          "enable_k8s_ha",
+          "virtual_ip_address"
+        ],
+        "properties": {
+          "cluster_name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": ".*\\S.*"
+          },
+          "enable_k8s_ha": {
+            "type": "boolean"
+          },
+          "virtual_ip_address": {
+            "type": "string",
+            "format": "ipv4"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

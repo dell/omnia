@@ -42,7 +42,7 @@
   gather_facts: false
   roles:
     - role: validate_orchestrator_input
-      when: not config_file_status | default(false) | bool
+      when: not _orchestrator_input_validated | default(false) | bool
 
 - name: Authenticate with OpenCHAMI
   hosts: oim
