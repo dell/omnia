@@ -1,23 +1,29 @@
-# Orchestrator — `test_config.yml` Reference
+# Orchestrator `test_config.yml` reference
 
-## Fields
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `oim_server_ip` | string | `""` | Empty runs on the local OIM; otherwise use SSH/Testinfra |
+| `oim_ssh_user` | string | `root` | Remote SSH user |
+| `oim_ssh_port` | integer | `22` | Remote SSH port |
+| `clone_path` | absolute path | `/omnia` | Remote checkout used to execute playbooks |
+| `dataset` | string | `""` | Generated folder below `datasets/`; empty uses source fallbacks |
+| `project_name` | string | `project_default` | Target Omnia project |
+| `sync_orchestrator_input` | boolean | `false` | Sync dataset `input/` |
+| `sync_repo_manager_output` | boolean | `false` | Sync `repo_manager_output/repo_status.yml` |
+| `sync_image_build_manager_output` | boolean | `false` | Sync `image_build_manager_output/build_status.yml` |
+| `shared_path` | absolute path | `/opt/omnia/orchestrator` | Target Orchestrator data root |
+| `catalog_path` | path | `""` | Optional explicit catalog for feature detection |
+| `report_path` | path | `/opt/omnia/reports` | Remote-mode report destination |
+| `report_name` | string | `orchestrator_test_report` | Report basename |
+| `report_id` | string | `""` | Optional stable report identifier |
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `oim_server_ip` | string | No | `""` | Target server IP. Empty = local execution |
-| `oim_ssh_user` | string | No | `root` | SSH username for remote mode |
-| `oim_ssh_port` | int | No | `22` | SSH port for remote mode |
-| `clone_path` | string | Yes | `/root/omnia` | Repo path on target |
-| `dataset` | string | Yes | `data_set_01` | Dataset folder under `datasets/` |
-| `project_name` | string | Yes | `project_default` | Omnia project name on target |
-| `sync_orchestrator_input` | bool | No | `true` | Sync dataset input to target |
-| `sync_repo_manager_output` | bool | No | `false` | Sync repo_status.yml to target |
-| `shared_path` | string | No | `/opt/omnia/orchestrator` | Domain data path |
-| `report_path` | string | No | `/opt/omnia/reports` | Report output directory |
-| `report_name` | string | No | `orchestrator_test_report` | Report file name |
-| `report_id` | string | No | `""` | Auto-generated if empty |
+Generate a dataset with the PR #5220 generator before selecting it:
 
-## Execution Modes
+```bash
+cd test/orchestrator/datasets/generator
+./generate_dataset.py slurm_only slurm_only
+```
 
-- **Local mode**: Leave `oim_server_ip` empty. Tests run on the local machine.
-- **Remote mode**: Set `oim_server_ip` to the target OIM server. Tests connect via SSH/Testinfra.
+Synchronization is opt-in. With every sync flag false, verification reads the
+state already present on the target and does not overwrite runtime inputs or
+upstream handoffs.

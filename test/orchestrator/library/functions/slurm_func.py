@@ -23,11 +23,12 @@ All verification functions return a dict with keys:
   success (bool), details (str), error (str), and optionally skipped (bool).
 """
 
+import base64
 import time
 import re
 from typing import Any, Dict, List, Optional
 
-from omnia_auto import load_test_config, run_on_host
+from omnia_auto import load_test_config, run_on_host, run_ssh_command
 from ..vars.common_vars import CMDS
 from ..vars.slurm_vars import (
     SLURM_SERVICES,
@@ -1477,29 +1478,35 @@ def check_gpu_available(host) -> Dict[str, Any]:
             "gpu_nodes": []
         }
 
-    # Check for GPU configuration in slurm.conf
-    check_cmd = f"ssh -o StrictHostKeyChecking=no {control_ip} 'grep -i gres /etc/slurm/slurm.conf' 2>/dev/null"
-    result = run_on_host(host, check_cmd)
+    # Query Slurm's resolved runtime GRES values.  A broad grep of slurm.conf
+    # can match comments or a bare ``GresTypes`` declaration and incorrectly
+    # claim that GPU nodes exist.
+    sinfo_result = run_ssh_command(
+        host,
+        control_ip,
+        "sinfo -h -o '%N|%G'",
+    )
+    gpu_nodes = []
+    if sinfo_result.rc == 0:
+        for line in sinfo_result.stdout.splitlines():
+            node_name, separator, gres = line.partition("|")
+            normalized_gres = gres.strip().lower()
+            if (
+                separator
+                and normalized_gres not in {"", "(null)", "n/a"}
+                and re.search(r"(?:^|,)gpu(?::|=)", normalized_gres)
+            ):
+                gpu_nodes.append(node_name.strip())
 
-    if result.rc == 0 and result.stdout.strip():
-        gpu_lines = [line.strip() for line in result.stdout.split('\n') if line.strip()]
+    if gpu_nodes:
         return {
             "success": True,
-            "details": f"GPU resources configured in slurm.conf: {len(gpu_lines)} GRES entries",
+            "details": (
+                "GPU resources reported by Slurm on nodes: "
+                + ", ".join(gpu_nodes)
+            ),
             "error": "",
-            "gpu_nodes": gpu_lines
-        }
-
-    # Check sinfo for GPU partitions
-    sinfo_cmd = f"ssh -o StrictHostKeyChecking=no {control_ip} 'sinfo -o \"%P %G\"' 2>/dev/null"
-    sinfo_result = run_on_host(host, sinfo_cmd)
-
-    if "gpu" in sinfo_result.stdout.lower():
-        return {
-            "success": True,
-            "details": "GPU resources found in SLURM partition configuration",
-            "error": "",
-            "gpu_nodes": []
+            "gpu_nodes": gpu_nodes
         }
 
     return {
@@ -1560,34 +1567,30 @@ def check_gpu_job_execution(host) -> Dict[str, Any]:
             "job_id": None
         }
 
-    # Submit a simple GPU job
-    gpu_job_cmd = f"ssh -o StrictHostKeyChecking=no {control_ip} 'sbatch --gres=gpu:1 --wrap=\"nvidia-smi\" --output=/tmp/gpu_test.out' 2>&1"
-    result = run_on_host(host, gpu_job_cmd)
+    # Execute synchronously so a successful submission cannot hide a failed
+    # allocation, driver problem, or workload failure.
+    result = run_ssh_command(
+        host,
+        control_ip,
+        "timeout 180 srun --nodes=1 --ntasks=1 --gres=gpu:1 nvidia-smi -L",
+    )
 
-    if result.rc != 0:
+    if result.rc != 0 or "GPU" not in result.stdout:
         return {
             "success": False,
-            "details": f"GPU job submission failed: {result.stdout}",
-            "error": "GPU job submission failed",
+            "details": (
+                f"GPU workload failed (rc={result.rc}): "
+                f"{result.stdout} {result.stderr}"
+            ),
+            "error": "GPU workload did not complete successfully",
             "job_id": None
         }
-
-    job_id_match = re.search(r'Submitted batch job (\d+)', result.stdout)
-    if not job_id_match:
-        return {
-            "success": False,
-            "details": f"Could not extract job ID from GPU job submission: {result.stdout}",
-            "error": "Job ID extraction failed",
-            "job_id": None
-        }
-
-    job_id = job_id_match.group(1)
 
     return {
         "success": True,
-        "details": f"GPU job {job_id} submitted successfully",
+        "details": "Synchronous Slurm GPU workload completed successfully",
         "error": "",
-        "job_id": job_id
+        "job_id": "synchronous"
     }
 
 
@@ -1763,11 +1766,35 @@ int main(int argc, char** argv) {
 }
 """
 
-    # This is a simplified test - in reality you'd need to compile and run the MPI program
+    encoded_program = base64.b64encode(mpi_program.encode("utf-8")).decode(
+        "ascii"
+    )
+    remote_script = f"""set -euo pipefail
+test -d /hpc_tools
+workdir=$(mktemp -d /hpc_tools/.omnia_mpi_test.XXXXXX)
+trap 'rm -r -- "$workdir"' EXIT
+printf '%s' '{encoded_program}' | base64 --decode > "$workdir/hello_mpi.c"
+mpicc -O2 -o "$workdir/hello_mpi" "$workdir/hello_mpi.c"
+timeout 180 srun --nodes=1 --ntasks=2 "$workdir/hello_mpi"
+"""
+    result = run_ssh_command(host, login_ip, remote_script)
+    rank_lines = [
+        line for line in result.stdout.splitlines()
+        if line.startswith("Hello from rank ")
+    ]
+    if result.rc != 0 or len(rank_lines) != 2:
+        return {
+            "success": False,
+            "details": (
+                f"MPI workload failed (rc={result.rc}): "
+                f"{result.stdout} {result.stderr}"
+            ),
+            "error": "MPI compile or Slurm execution failed",
+            "job_id": None,
+        }
     return {
         "success": True,
-        "details": "MPI job execution test structure verified (full execution requires compilation environment)",
+        "details": "MPI program compiled and completed as a two-rank Slurm job",
         "error": "",
-        "job_id": None
+        "job_id": "synchronous",
     }
-

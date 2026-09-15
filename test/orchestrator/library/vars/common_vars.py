@@ -23,6 +23,7 @@ Only module-specific constants remain here.
 """
 
 import os
+import re
 from typing import Dict, List
 
 # Module root: test/<domain>/ directory (where conftest.py lives)
@@ -40,6 +41,29 @@ MONOREPO_ROOT = os.path.dirname(REPO_ROOT)
 SRC_ORCHESTRATOR_DIR = os.path.join(
     MONOREPO_ROOT, "src", "orchestrator"
 )
+SRC_INPUT_DIR = os.path.join(SRC_ORCHESTRATOR_DIR, "input")
+SRC_REPO_OUTPUT_DIR = os.path.join(
+    SRC_ORCHESTRATOR_DIR, "samples", "repo_manager_output"
+)
+SRC_IMAGE_BUILD_OUTPUT_DIR = os.path.join(
+    SRC_ORCHESTRATOR_DIR, "samples", "image_build_manager_output"
+)
+DATASETS_DIR = os.path.join(MODULE_ROOT, "datasets")
+SCHEMA_DIR = os.path.join(
+    SRC_ORCHESTRATOR_DIR,
+    "plugins",
+    "module_utils",
+    "orchestrator_validation",
+    "schema",
+)
+
+DATASET_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+REQUIRED_DATASET_INPUT_FILES: List[str] = [
+    "orchestrator_config.yml",
+    "network_spec.yml",
+]
+REQUIRED_REPO_OUTPUT_FILES: List[str] = ["repo_status.yml"]
+REQUIRED_IMAGE_BUILD_OUTPUT_FILES: List[str] = ["build_status.yml"]
 
 # Domain name used for remote path resolution
 DOMAIN_NAME = "orchestrator"
@@ -62,17 +86,21 @@ PLAYBOOK_WORKDIR = "src/orchestrator/playbooks"
 
 # Valid playbook tags (mapped to sub-playbooks)
 PLAYBOOK_TAGS: List[str] = [
-    "prepare",
+    "always",
+    "precheck",
     "validate",
     "credentials",
-    "deploy_openchami",
-    "provision_kubernetes",
-    "provision_slurm",
-    "provision_os",
-    "provision_custom",
+    "prepare",
+    "deploy",
+    "provision",
+    "execute",
+    "validate-deployment",
+    "pxeboot",
     "cleanup",
+    "cleanup_credentials",
     "upgrade",
     "rollback",
+    "never",
 ]
 
 # =============================================================================
@@ -84,10 +112,13 @@ OUTPUT_PATH_TEMPLATE = "/opt/omnia/orchestrator/output/{project}"
 REPO_MANAGER_OUTPUT_TEMPLATE = (
     "/opt/omnia/repo_manager/output/{project}/repo_status.yml"
 )
+IMAGE_BUILD_MANAGER_OUTPUT_TEMPLATE = (
+    "/opt/omnia/image_build_manager/output/{project}/build_status.yml"
+)
 
 # Credentials
-CREDENTIALS_FILE_NAME = "orchestrator_credentials.yml"
-CREDENTIALS_KEY_NAME = ".orchestrator_credentials_key"
+CREDENTIALS_FILE_NAME = "omnia_config_credentials.yml"
+CREDENTIALS_KEY_NAME = ".omnia_config_credentials_key"
 
 # =============================================================================
 # OpenCHAMI containers (fabrica-based architecture via Quadlet)
@@ -182,8 +213,10 @@ CMDS: Dict[str, str] = {
 
     # --- Network ---
     "ping_check": "ping -c 1 -W 2 {host} 2>/dev/null",
+    "hostname_fqdn": "hostname -f 2>/dev/null",
     "curl_check": (
-        "curl -sk --connect-timeout 5 https://{host}:{port} 2>/dev/null"
+        "curl -sk --fail --connect-timeout 5"
+        " https://{host}:{port}{path} 2>/dev/null"
     ),
 
     # --- YAML ---

@@ -26,6 +26,9 @@ from ..vars.common_vars import (
     PULP_CONTAINER_NAME,
     PULP_PORT,
     PULP_CLI_SYMLINK,
+    _get_input_path,
+    _get_output_path,
+    _get_base_path,
     _get_pulp_certs_dir,
     PULP_CERTS_DIR,
     USER_REGISTRY_TIMEOUT,
@@ -43,66 +46,9 @@ def run_playbook(tag=None, verbosity=None, **kwargs):
     )
 
 
-def _get_input_path() -> str:
-    """Return the repo_manager input path for the configured project.
-    
-    For local execution with dataset configured, returns the local dataset path.
-    For remote execution or no dataset, returns the standard system path.
-    """
-    from omnia_auto import is_local_execution, get_module_root
-    
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    
-    # Apply environment override for dataset
-    dataset = config.get("dataset", "")
-    if not dataset:
-        dataset = os.environ.get("OMNIA_DATASET_OVERRIDE", "")
-    
-    # If local execution and dataset is configured, use local dataset path
-    if is_local_execution() and dataset:
-        try:
-            datasets_root = os.path.join(get_module_root(), "datasets")
-            dataset_path = os.path.join(datasets_root, dataset, "input")
-            if os.path.exists(dataset_path):
-                return dataset_path
-        except (ValueError, OSError):
-            # Fall back to system path if dataset resolution fails
-            pass
-    
-    # Standard system path
-    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
-    return f"{shared_path}/input/{project}"
-
-
 def _get_credentials_path() -> str:
-    """Return the repo_manager credentials path for the configured project.
-    
-    For local execution with dataset configured, credentials are expected to be in the system path
-    (not in datasets for security reasons).
-    For remote execution or no dataset, returns the standard system path.
-    """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    
-    # Credentials should always be in system path (not in datasets for security)
-    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
-    return f"{shared_path}/input/{project}"
-
-
-def _get_output_path() -> str:
-    """Return the repo_manager output path for the configured project."""
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
-    return f"{shared_path}/output/{project}"
-
-
-def _get_base_path() -> str:
-    """Return the repo_manager base data path."""
-    config = load_test_config()
-    shared_path = config.get("shared_path", "/opt/omnia/repo_manager")
-    return shared_path
+    """Return the repo_manager credentials path for the configured project."""
+    return _get_input_path()
 
 
 def _cmd_file_exists(host, path: str) -> str:
@@ -342,8 +288,8 @@ def check_pulp_container_running(host) -> Dict[str, Any]:
 
 def check_pulp_status_healthy(host) -> Dict[str, Any]:
     """Verify Pulp status command succeeds and reports healthy."""
-    config = load_test_config()
-    pulp_cert_path = config.get("pulp_cert_path", "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt")
+    from library.vars.common_vars import _get_pulp_certs_dir
+    pulp_cert_path = f"{_get_pulp_certs_dir()}/pulp_webserver.crt"
     cmd = f"PULP_CA_BUNDLE={pulp_cert_path} " + CMDS["pulp_status"]
     result = run_on_host(host, cmd)
     if result.rc == 0 and result.stdout.strip():
@@ -601,8 +547,8 @@ def check_pulp_directories_removed(host) -> Dict[str, Any]:
 
 def check_pulp_cli_repository_list(host) -> Dict[str, Any]:
     """Verify Pulp CLI can list RPM repositories."""
-    config = load_test_config()
-    pulp_cert_path = config.get("pulp_cert_path", "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt")
+    from library.vars.common_vars import _get_pulp_certs_dir
+    pulp_cert_path = f"{_get_pulp_certs_dir()}/pulp_webserver.crt"
     cmd = f"PULP_CA_BUNDLE={pulp_cert_path} pulp rpm repository list"
     result = run_on_host(host, cmd)
     if result.rc == 0:
@@ -635,8 +581,8 @@ def check_pulp_cli_repository_list(host) -> Dict[str, Any]:
 
 def check_pulp_api_detailed_status(host) -> Dict[str, Any]:
     """Verify Pulp API detailed health (DB, workers, content apps, storage)."""
-    config = load_test_config()
-    pulp_cert_path = config.get("pulp_cert_path", "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt")
+    from library.vars.common_vars import _get_pulp_certs_dir
+    pulp_cert_path = f"{_get_pulp_certs_dir()}/pulp_webserver.crt"
     cmd = f"PULP_CA_BUNDLE={pulp_cert_path} pulp status"
     result = run_on_host(host, cmd)
     if result.rc != 0:
@@ -689,9 +635,8 @@ def check_pulp_api_detailed_status(host) -> Dict[str, Any]:
 def check_software_download_status(host) -> Dict[str, Any]:
     """Verify software download status per architecture."""
     # Check status.csv files in the log directory
-    config = load_test_config()
-    repo_manager_log_path = config.get("repo_manager_log_path", "/opt/omnia/repo_manager/log")
-    log_path = f"{repo_manager_log_path}/rhel/10.0"
+    from library.vars.common_vars import _get_log_path
+    log_path = f"{_get_log_path()}/rhel/10.0"
     cmd = f"find {log_path} -name 'status.csv' -type f"
     result = run_on_host(host, cmd)
 
@@ -730,9 +675,8 @@ def check_software_download_status(host) -> Dict[str, Any]:
 def check_per_software_package_status(host) -> Dict[str, Any]:
     """Verify per-software status.csv for individual package download results."""
     # Check status.csv files in the log directory for all software groups
-    config = load_test_config()
-    repo_manager_log_path = config.get("repo_manager_log_path", "/opt/omnia/repo_manager/log")
-    log_path = f"{repo_manager_log_path}/rhel/10.0"
+    from library.vars.common_vars import _get_log_path
+    log_path = f"{_get_log_path()}/rhel/10.0"
     cmd = f"find {log_path} -name 'status.csv' -type f"
     result = run_on_host(host, cmd)
 
@@ -858,9 +802,8 @@ def check_pulp_distributions_published(host) -> Dict[str, Any]:
 def check_container_repos_synced(host) -> Dict[str, Any]:
     """Verify all container image repositories are synced."""
     # Check status.csv files for container image downloads
-    config = load_test_config()
-    repo_manager_log_path = config.get("repo_manager_log_path", "/opt/omnia/repo_manager/log")
-    log_path = f"{repo_manager_log_path}/rhel/10.0"
+    from library.vars.common_vars import _get_log_path
+    log_path = f"{_get_log_path()}/rhel/10.0"
     cmd = f"find {log_path} -name 'status.csv' -type f"
     result = run_on_host(host, cmd)
 
@@ -997,13 +940,10 @@ def check_pulp_content_accessible(host) -> Dict[str, Any]:
 def check_software_packages_in_pulp(host) -> Dict[str, Any]:
     """Verify all RPM packages from software_config.json are present in Pulp."""
     # Check if software_config.json exists in multiple possible locations
-    config = load_test_config()
-    omnia_data_path = config.get("omnia_data_path", "/opt/omnia")
+    from library.vars.common_vars import _get_log_path
     input_path = _get_input_path()
     possible_paths = [
         f"{input_path}/software_config.json",
-        f"{omnia_data_path}/repo_manager/input/project_default/software_config.json",
-        f"{omnia_data_path}/repo_manager/input/software_config.json",
     ]
 
     config_path = None
@@ -1015,8 +955,7 @@ def check_software_packages_in_pulp(host) -> Dict[str, Any]:
 
     if not config_path:
         # If software_config.json doesn't exist, check if we have status.csv files with package info
-        repo_manager_log_path = config.get("repo_manager_log_path", "/opt/omnia/repo_manager/log")
-        log_path = f"{repo_manager_log_path}/rhel/10.0"
+        log_path = f"{_get_log_path()}/rhel/10.0"
         cmd = f"find {log_path} -name 'status.csv' -type f"
         result = run_on_host(host, cmd)
 
@@ -1318,8 +1257,8 @@ def check_pulp_remote_policy(host, repo_name: str, arch: str = "x86_64", os_vers
     # Construct the full remote name (actual naming convention includes "rhel")
     full_remote_name = f"{arch}_rhel_{os_version}_{repo_name}"
 
-    config = load_test_config()
-    pulp_cert_path = config.get("pulp_cert_path", "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt")
+    from library.vars.common_vars import _get_pulp_certs_dir
+    pulp_cert_path = f"{_get_pulp_certs_dir()}/pulp_webserver.crt"
 
     # Use Pulp CLI to get the actual remote policy
     cmd = f"PULP_CA_BUNDLE={pulp_cert_path} pulp rpm remote show --name {full_remote_name}"
@@ -1354,9 +1293,9 @@ def check_pulp_repository_exists(host, repo_name: str, arch: str = "x86_64", os_
     """Check if a Pulp repository exists via Pulp CLI (integration test)."""
     # Construct the full repository name (actual naming convention includes "rhel")
     full_repo_name = f"{arch}_rhel_{os_version}_{repo_name}"
-    
-    config = load_test_config()
-    pulp_cert_path = config.get("pulp_cert_path", "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt")
+
+    from library.vars.common_vars import _get_pulp_certs_dir
+    pulp_cert_path = f"{_get_pulp_certs_dir()}/pulp_webserver.crt"
 
     # Use Pulp CLI to check if repository exists
     cmd = f"PULP_CA_BUNDLE={pulp_cert_path} pulp rpm repository show --name {full_repo_name}"
@@ -1459,8 +1398,8 @@ def verify_policy_resolution(host, repo_name: str, arch: str = "x86_64", os_vers
 
 def check_catalog_file_exists(host) -> Dict[str, Any]:
     """Verify catalog JSON file exists."""
-    config = load_test_config()
-    catalog_path = config.get("catalog_file_path", "/opt/omnia/catalog/catalog_rhel.json")
+    from library.vars.common_vars import _get_catalog_path
+    catalog_path = _get_catalog_path()
     result = _cmd_file_exists(host, catalog_path)
     if result.rc == 0 and "exists" in result.stdout:
         return {
@@ -1477,8 +1416,8 @@ def check_catalog_file_exists(host) -> Dict[str, Any]:
 
 def check_catalog_structure(host) -> Dict[str, Any]:
     """Verify catalog JSON has valid structure (catalog root key)."""
-    config = load_test_config()
-    catalog_path = config.get("catalog_file_path", "/opt/omnia/catalog/catalog_rhel.json")
+    from library.vars.common_vars import _get_catalog_path
+    catalog_path = _get_catalog_path()
     cmd = "python3 -c \"import json; data = json.load(open('" + catalog_path + "')); print('valid' if 'catalog' in data else 'invalid')\""
     result = run_on_host(host, cmd)
     
@@ -1497,8 +1436,8 @@ def check_catalog_structure(host) -> Dict[str, Any]:
 
 def check_catalog_functional_layers(host) -> Dict[str, Any]:
     """Verify catalog has functional layers."""
-    config = load_test_config()
-    catalog_path = config.get("catalog_file_path", "/opt/omnia/catalog/catalog_rhel.json")
+    from library.vars.common_vars import _get_catalog_path
+    catalog_path = _get_catalog_path()
     cmd = "python3 -c \"import json; data = json.load(open('" + catalog_path + "')); fl = data.get('catalog', {}).get('functionallayer', []); print(len(fl))\""
     result = run_on_host(host, cmd)
     
@@ -1531,8 +1470,8 @@ def check_catalog_functional_layers(host) -> Dict[str, Any]:
 
 def check_catalog_groups(host) -> Dict[str, Any]:
     """Verify catalog has groups."""
-    config = load_test_config()
-    catalog_path = config.get("catalog_file_path", "/opt/omnia/catalog/catalog_rhel.json")
+    from library.vars.common_vars import _get_catalog_path
+    catalog_path = _get_catalog_path()
     cmd = "python3 -c \"import json; data = json.load(open('" + catalog_path + "')); groups = data.get('catalog', {}).get('groups', {}); print(len(groups))\""
     result = run_on_host(host, cmd)
     
@@ -1565,8 +1504,8 @@ def check_catalog_groups(host) -> Dict[str, Any]:
 
 def check_catalog_packages(host) -> Dict[str, Any]:
     """Verify catalog has packages."""
-    config = load_test_config()
-    catalog_path = config.get("catalog_file_path", "/opt/omnia/catalog/catalog_rhel.json")
+    from library.vars.common_vars import _get_catalog_path
+    catalog_path = _get_catalog_path()
     cmd = "python3 -c \"import json; data = json.load(open('" + catalog_path + "')); packages = data.get('catalog', {}).get('packages', {}); print(len(packages))\""
     result = run_on_host(host, cmd)
     
@@ -1599,8 +1538,8 @@ def check_catalog_packages(host) -> Dict[str, Any]:
 
 def check_catalog_has_group(host, group_name: str) -> Dict[str, Any]:
     """Verify catalog contains a specific group."""
-    config = load_test_config()
-    catalog_path = config.get("catalog_file_path", "/opt/omnia/catalog/catalog_rhel.json")
+    from library.vars.common_vars import _get_catalog_path
+    catalog_path = _get_catalog_path()
     cmd = "python3 -c \"import json; data = json.load(open('" + catalog_path + "')); groups = data.get('catalog', {}).get('groups', {}); print('found' if '" + group_name + "' in groups else 'not_found')\""
     result = run_on_host(host, cmd)
     
@@ -1619,8 +1558,8 @@ def check_catalog_has_group(host, group_name: str) -> Dict[str, Any]:
 
 def check_catalog_has_package(host, package_key: str) -> Dict[str, Any]:
     """Verify catalog contains a specific package."""
-    config = load_test_config()
-    catalog_path = config.get("catalog_file_path", "/opt/omnia/catalog/catalog_rhel.json")
+    from library.vars.common_vars import _get_catalog_path
+    catalog_path = _get_catalog_path()
     cmd = "python3 -c \"import json; data = json.load(open('" + catalog_path + "')); packages = data.get('catalog', {}).get('packages', {}); print('found' if '" + package_key + "' in packages else 'not_found')\""
     result = run_on_host(host, cmd)
     
@@ -1639,8 +1578,8 @@ def check_catalog_has_package(host, package_key: str) -> Dict[str, Any]:
 
 def check_catalog_package_type(host, package_key: str, expected_type: str) -> Dict[str, Any]:
     """Verify a package has the expected type (rpm, tarball, image)."""
-    config = load_test_config()
-    catalog_path = config.get("catalog_file_path", "/opt/omnia/catalog/catalog_rhel.json")
+    from library.vars.common_vars import _get_catalog_path
+    catalog_path = _get_catalog_path()
     cmd = "python3 -c \"import json; data = json.load(open('" + catalog_path + "')); pkg = data.get('catalog', {}).get('packages', {}).get('" + package_key + "', {}); print(pkg.get('packagetype', 'unknown'))\""
     result = run_on_host(host, cmd)
     
@@ -1666,10 +1605,7 @@ def check_catalog_package_type(host, package_key: str, expected_type: str) -> Di
 
 def check_catalog_input_file_exists(host) -> Dict[str, Any]:
     """Verify catalog input file exists for testing."""
-    config = load_test_config()
-    omnia_data_path = config.get("omnia_data_path", "/opt/omnia")
-    project = config.get("project_name", "project_default")
-    input_path = f"{omnia_data_path}/repo_manager/input/{project}"
+    input_path = _get_input_path()
     result = _cmd_dir_exists(host, input_path)
     if result.rc == 0 and "exists" in result.stdout:
         return {
@@ -1686,9 +1622,8 @@ def check_catalog_input_file_exists(host) -> Dict[str, Any]:
 
 def check_catalog_log_file_exists(host) -> Dict[str, Any]:
     """Verify catalog log file exists."""
-    config = load_test_config()
-    repo_manager_log_path = config.get("repo_manager_log_path", "/opt/omnia/repo_manager/log")
-    log_path = f"{repo_manager_log_path}/catalog/catalog_manager.log"
+    from library.vars.common_vars import _get_log_path
+    log_path = f"{_get_log_path()}/catalog/catalog_manager.log"
     result = _cmd_file_exists(host, log_path)
     if result.rc == 0 and "exists" in result.stdout:
         return {

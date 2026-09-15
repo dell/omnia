@@ -26,6 +26,11 @@
       "description": "Global caching policy that controls Pulp download behavior",
       "default": true
     },
+    "standard": {
+      "type": "boolean",
+      "description": "Use standard RHEL subscription repositories instead of EUS-first discovery",
+      "default": false
+    },
     "registries": {
       "type": ["object", "null"],
       "description": "Container registry configurations keyed by registry name",
@@ -142,6 +147,10 @@
         "caching": {
           "type": "boolean",
           "description": "Enable local caching (default: true)"
+        },
+        "standard": {
+          "type": "boolean",
+          "description": "Override standard versus EUS-first subscription discovery for this repository"
         },
         "sslcacert": {
           "type": ["string", "null"],

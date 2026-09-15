@@ -55,14 +55,14 @@ ansible-playbook playbooks/utils.yml --tags rollback         # placeholder
 | `collect` | Yes | Full remote log-collection flow | Yes |
 | `install_os` | Yes | Full OS-install flow | Yes |
 | `backup_oim_logs` | Yes | Full local/NFS backup flow | Yes |
-| `cleanup` | Yes | Collected-log and OS-install cleanup | Yes |
+| `cleanup` | Yes | Collected-log, OS-install, and OIM-log-backup cleanup | Yes |
 | `cleanup_logs` | Yes | Collected-log retention cleanup | Yes |
 | `cleanup_install_os` | Yes | OS-install temporary/credential cleanup | Yes |
 | `cleanup_backup_oim_logs` | Yes | Remove all backup run directories | Yes |
 | `upgrade` / `rollback` | Yes | Placeholder message only | Yes |
 
-`cleanup_backup_oim_logs` is intentionally separate from the combined `cleanup`
-tag.
+`cleanup_backup_oim_logs` selects only the OIM-log-backup cleanup; the combined
+`cleanup` tag includes it with the other utility cleanup flows.
 
 ---
 
@@ -158,7 +158,7 @@ mounted at `/tmp/omnia_backup_oim_logs_nfs`.
 | Flow | Behavior |
 |------|----------|
 | `cleanup_logs` | Selects tar.gz files older than `log_retention_days` (default 7), then removes every matching `omnia_logs_*` run directory and temporary `k8s`/`slurm` workspace; current run-directory deletion is not age-filtered |
-| `cleanup_install_os` | Removes `/tmp/install_os`, unmounts/removes `/tmp/install_os_nfs`, and interactively decides whether to remove generated credentials unless `cleanup_credentials` is supplied |
+| `cleanup_install_os` | Removes `/tmp/install_os`, unmounts/removes `/tmp/install_os_nfs`, and removes generated credentials by default; set `cleanup_credentials=false` to preserve them |
 | `cleanup_backup_oim_logs` | Resolves the same local/NFS destination as backup and removes every `omnia_oim_logs_*` run directory; no retention policy |
 | `cleanup` | Runs `cleanup_logs` and `cleanup_install_os`; it does not run OIM log-backup cleanup |
 

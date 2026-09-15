@@ -11,12 +11,21 @@ settings_py_path: "{{ pulp_settings_dir }}/settings.py"
 pulp_config_filepath: "{{ pulp_ha_dir }}/cli.toml"
 config_default_dir: "{{ pulp_system_cli_config_file | dirname }}"
 config_default_loc: "{{ pulp_system_cli_config_file }}"
+deploy_pulp_nginx_override_dir: "{{ pulp_settings_dir }}/nginx"
+deploy_pulp_nginx_timeout_file: >-
+  {{ deploy_pulp_nginx_override_dir }}/omnia_proxy_timeouts.conf
+deploy_pulp_nginx_timeout_container_file: >-
+  /etc/nginx/pulp/omnia_proxy_timeouts.conf
 
 pulp_dir_permissions: "0755"
 pulp_public_dir_permissions: "0755"
 logs_dir_permission: "0755"
 pulp_pgsql_dir_permissions: "0700"
-pulp_settings_permissions: "0600"
+# The pinned Pulp image runs application processes with GID 700. Keep the
+# secret-bearing settings root-owned while granting that service group read-only
+# access.
+pulp_settings_group: "700"
+pulp_settings_permissions: "0640"
 pulp_secret_permissions: "0600"
 pulp_cli_permissions: "0600"
 pulp_certificate_permissions: "0644"
@@ -28,6 +37,7 @@ pulp_container_https_port: "{{ pulp_deployment_defaults.https.container_port }}"
 pulp_publish_port: "{{ pulp_server_port }}:{{ pulp_container_https_port }}"
 pulp_base_url: "https://{{ pulp_server_ip }}:{{ pulp_server_port }}"
 pulp_status_url: "{{ pulp_base_url }}/pulp/api/v3/status/"
+pulp_registry_url: "{{ pulp_base_url }}/v2/"
 
 pull_image_retries: 5
 pull_image_delay: 10
@@ -91,6 +101,9 @@ pulp_directories_https:
   - path: "{{ pulp_certs_dir }}"
     mode: "{{ pulp_dir_permissions }}"
     create: true
+  - path: "{{ deploy_pulp_nginx_override_dir }}"
+    mode: "{{ pulp_dir_permissions }}"
+    create: true
   - path: "{{ pulp_content_dir }}"
     mode: "{{ pulp_public_dir_permissions }}"
     create: "{{ 'content_path' not in pulp_storage_paths.user_provided }}"
@@ -134,6 +147,10 @@ volumes_https:
     {{ pulp_ha_dir ~ ':' ~
        pulp_deployment_defaults.container_mounts.cli_config_path ~
        selinux_option }}
+  - >-
+    {{ deploy_pulp_nginx_timeout_file ~ ':' ~
+       deploy_pulp_nginx_timeout_container_file ~
+       (':ro,z' if selinux_option | default('') == ':z' else ':ro') }}
 
 cert_validity_days: >-
   {{ pulp_deployment_defaults.https.certificate_validity_days }}
@@ -175,6 +192,12 @@ deploy_pulp_validate_pulp_host_storage_paths_are_unique_msg: >-
   Each Pulp storage purpose must use a distinct host directory. Review
   pulp_storage_paths in vars/default.yml.
 
+deploy_pulp_validate_capacity_and_timeout_configuration_msg: >-
+  Invalid local Pulp capacity or timeout configuration. Worker counts must be
+  positive, nginx connect timeout must be positive and shorter than its proxy
+  timeout, and the required timeout order is Gunicorn < nginx proxy < Repo
+  Manager Pulp query timeout.
+
 deploy_pulp_validate_persistent_pulp_secret_key_msg: >-
   The persistent Pulp secret key is empty or invalid. Restore
   {{ pulp_secret_key_file }} from backup before redeploying.
@@ -205,6 +228,15 @@ deploy_pulp_require_a_running_pulp_container_msg: >-
 deploy_pulp_validate_pulp_internal_service_health_msg: >-
   Pulp HTTPS is reachable, but its database, workers, or content apps are
   unhealthy. Inspect podman logs {{ pulp_container_name }}.
+
+deploy_pulp_validate_public_content_origin_msg: >-
+  Pulp is running, but its published content origin does not match the
+  configured HTTPS endpoint {{ pulp_base_url }}. Inspect the effective Pulp
+  settings and restart {{ pulp_container_name }}.service.
+
+deploy_pulp_validate_container_registry_health_msg: >-
+  Pulp HTTPS is reachable, but its OCI registry endpoint /v2/ is not healthy.
+  Inspect podman logs {{ pulp_container_name }} before provisioning nodes.
 
 deploy_pulp_validate_configured_omnia_virtual_environment_path_msg: >-
   OMNIA_VENV_PATH must be an absolute path when it is configured.

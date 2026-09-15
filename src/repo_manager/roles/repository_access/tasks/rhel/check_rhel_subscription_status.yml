@@ -51,6 +51,10 @@
         )
       }}
 
+- name: Initialize RHEL subscription repository inventory
+  ansible.builtin.set_fact:
+    subscription_repository_ids: []
+
 - name: Debug subscription status
   ansible.builtin.debug:
     msg: "Subscription enabled? {{ subscription_status }}"
@@ -58,6 +62,36 @@
 - name: Prepare host subscription access
   when: subscription_status | bool
   block:
+    - name: List entitled RHEL repositories
+      ansible.builtin.command:
+        argv:
+          - subscription-manager
+          - repos
+          - --list
+      register: subscription_manager_repositories
+      changed_when: false
+      failed_when: false
+
+    - name: Read generated RHEL repository inventory
+      ansible.builtin.slurp:
+        src: "{{ redhat_repo_file }}"
+      register: redhat_repo_inventory
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Publish entitled RHEL repository identifiers
+      ansible.builtin.set_fact:
+        subscription_repository_ids: >-
+          {%- set listed_ids =
+            subscription_manager_repositories.stdout | default('') |
+            regex_findall('(?m)^\\s*Repo ID:\\s*(\\S+)\\s*$') | list -%}
+          {%- set section_ids =
+            redhat_repo_inventory.content | default('') | b64decode |
+            regex_findall('(?m)^\\s*\\[([^\\]]+)\\]\\s*$') | list -%}
+          {{ (listed_ids + section_ids) | unique | list }}
+      no_log: true
+
     - name: List available subscription-manager releases
       ansible.builtin.command: subscription-manager release --list
       register: available_releases

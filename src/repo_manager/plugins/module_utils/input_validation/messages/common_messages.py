@@ -57,11 +57,10 @@ MISSING_ARCH_SOURCE_MSG = (
     "Catalog-selected package '{package_name}' has no source for architecture "
     "'{arch}' or an explicit 'noarch' source"
 )
-RPM_REPO_STREAMED_POLICY_MSG = (
+RPM_REPO_NEVER_POLICY_MSG = (
     "Catalog package '{package_name}' uses packagetype 'rpm_repo' from repository "
-    "'{reponame}' for architecture '{arch}', but its effective Pulp policy is "
-    "'streamed'. rpm_repo requires retained package payloads. Enable caching for "
-    "this repository (caching: true) or select a non-streamed policy."
+    "'{reponame}' for architecture '{arch}', but its effective repository policy "
+    "is 'never'. Select 'always' or 'partial' for an rpm_repo package."
 )
 
 

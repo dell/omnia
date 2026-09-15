@@ -45,6 +45,7 @@
 
 - name: Create runtime directories
   ansible.builtin.include_tasks: create_directories.yml
+  when: not (telemetry_cleanup_context | default(false) | bool)
 
 - name: Display usage information
   ansible.builtin.include_tasks: display_usage.yml

@@ -18,6 +18,12 @@
   ansible.builtin.set_fact:
     omnia_run_tags: "{{ ansible_run_tags | default([]) | list }}"
 
+- name: Resolve Orchestrator cleanup context
+  ansible.builtin.set_fact:
+    _orchestrator_cleanup_context: >-
+      {{ (omnia_run_tags | intersect(['cleanup', 'cleanup_credentials'])
+          | length) > 0 }}
+
 - name: Validate tags are supported
   ansible.builtin.fail:
     msg: >-
@@ -98,7 +104,9 @@
   register: orchestrator_input_stat
 
 - name: Initialize missing project inputs from source templates
-  when: not orchestrator_input_stat.stat.exists
+  when:
+    - not orchestrator_input_stat.stat.exists
+    - not (_orchestrator_cleanup_context | bool)
   block:
     - name: Check whether source input templates exist
       ansible.builtin.stat:
@@ -173,6 +181,7 @@
       restore the project input before this flow.
   when:
     - not (_orchestrator_config_stat.stat.exists | default(false))
+    - not (_orchestrator_cleanup_context | bool)
 
 - name: Load orchestrator config
   ansible.builtin.include_vars:
@@ -182,8 +191,10 @@
 
 - name: Publish orchestrator configuration
   ansible.builtin.set_fact:
-    _orch_config: "{{ _loaded_orchestrator_config }}"
-  when: _orchestrator_config_stat.stat.exists | default(false)
+    _orch_config: >-
+      {{ _loaded_orchestrator_config
+         if (_orchestrator_config_stat.stat.exists | default(false))
+         else {} }}
 
 - name: Check whether Omnia configuration exists
   ansible.builtin.stat:
@@ -293,6 +304,7 @@
   when:
     - not _repo_status_required | bool
     - not _repo_status_stat.stat.exists
+    - not (_orchestrator_cleanup_context | bool)
 
 - name: Set default repo_manager facts when not required
   ansible.builtin.set_fact:
@@ -356,6 +368,7 @@
   when:
     - not (_repo_status_required | bool)
     - not _repo_status_stat.stat.exists
+    - not (_orchestrator_cleanup_context | bool)
 
 # Step 8: Load catalog file for feature detection and OS metadata
 - name: Resolve catalog file path
@@ -496,6 +509,7 @@
   when:
     - not (_catalog_required | bool)
     - not _catalog_stat.stat.exists
+    - not (_orchestrator_cleanup_context | bool)
 
 - name: Set default catalog facts for a catalog-independent flow
   ansible.builtin.set_fact:

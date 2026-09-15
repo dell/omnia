@@ -27,7 +27,25 @@ Usage (via run_validation.sh or run_validation CLI)::
 """
 
 import os
+import re
 import sys
+
+import yaml
+
+
+def _load_configured_report_id(script_dir):
+    """Return a validated report_id from test_config.yml, if configured."""
+    config_path = os.path.join(script_dir, "test_config.yml")
+    try:
+        with open(config_path, encoding="utf-8") as config_stream:
+            config = yaml.safe_load(config_stream) or {}
+    except (OSError, yaml.YAMLError):
+        return ""
+
+    report_id = str(config.get("report_id", "")).strip()
+    if report_id and re.fullmatch(r"[A-Za-z0-9_-]+", report_id):
+        return report_id
+    return ""
 
 
 def main():
@@ -35,12 +53,23 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, script_dir)
 
+    # ValidationRunner already preserves REPORT_ID across lifecycle stages.
+    # Seed it from test_config.yml so separate cleanup and lifecycle commands
+    # can intentionally append to one report.
+    if not os.environ.get("REPORT_ID"):
+        configured_report_id = _load_configured_report_id(script_dir)
+        if configured_report_id:
+            os.environ["REPORT_ID"] = configured_report_id
+
     from library.vars.domain_vars import (
         DOMAIN_NAME,
+        ENABLE_UT,
         FVT_TAGS,
         MARKERS,
         SUITES,
         EXCLUDE_TAGS,
+        ALL_EXEC_TAGS,
+        ALL_EXEC_MARKER,
     )
     from omnia_auto.functions.validation_runner import ValidationRunner
 
@@ -52,6 +81,9 @@ def main():
             "markers": MARKERS,
             "suites": SUITES,
             "exclude_tags": EXCLUDE_TAGS,
+            "all_exec_tags": ALL_EXEC_TAGS,
+            "all_exec_marker": ALL_EXEC_MARKER,
+            "enable_ut": ENABLE_UT,
         },
     )
     sys.exit(runner.main(sys.argv[1:]))

@@ -37,6 +37,8 @@
     overall_status_dict: {}
     sub_final_repo_urls: {}
     context_start_epoch: "{{ lookup('pipe', 'date +%s') | int }}"
+    context_log_path: >-
+      {{ repo_manager_log_dir }}/{{ execution_context.os_type }}/{{ execution_context.os_version }}/standard.log
 
 - name: Display catalog context start
   ansible.builtin.debug:
@@ -44,9 +46,6 @@
       - "========== CATALOG CONTEXT START =========="
       - "OS: {{ cluster_os_type }} {{ cluster_os_version }}"
       - "Architectures: {{ selected_architectures | join(', ') }}"
-      - >-
-        Log: {{ repo_manager_log_dir ~ '/' ~ cluster_os_type ~ '/' ~
-        cluster_os_version ~ '/standard.log' }}
       - "==========================================="
 
 - name: Execute active catalog context
@@ -71,46 +70,85 @@
         tasks_from: display_repository_download_summary.yml
       when: final_status | default('') | lower == 'success'
 
+    - name: Check whether the successful catalog context log exists
+      ansible.builtin.stat:
+        path: "{{ context_log_path }}"
+        follow: false
+        get_attributes: false
+        get_checksum: false
+        get_mime: false
+      register: catalog_context_log_status
+
     - name: Record successful catalog context
       ansible.builtin.set_fact:
         catalog_execution_results: >-
           {{
-            catalog_execution_results + [{
-              'context_id': execution_context.context_id,
-              'os_type': cluster_os_type,
-              'os_version': cluster_os_version,
-              'architectures': selected_architectures,
-              'status': final_status | default('failed') | lower,
-              'duration_seconds':
-                (lookup('pipe', 'date +%s') | int) -
-                (context_start_epoch | int),
-              'log_path': repo_manager_log_dir ~ '/' ~ cluster_os_type ~ '/' ~
-                cluster_os_version ~ '/standard.log'
-            }]
+            catalog_execution_results + [
+              catalog_context_result_base | combine(
+                {'log_path': context_log_path}
+                if (
+                  catalog_context_log_status.stat.exists | default(false) and
+                  catalog_context_log_status.stat.isreg | default(false)
+                )
+                else {}
+              )
+            ]
           }}
+      vars:
+        catalog_context_result_base:
+          context_id: "{{ execution_context.context_id }}"
+          os_type: "{{ cluster_os_type }}"
+          os_version: "{{ cluster_os_version }}"
+          architectures: "{{ selected_architectures }}"
+          status: "{{ final_status | default('failed') | lower }}"
+          duration_seconds: >-
+            {{ (lookup('pipe', 'date +%s') | int) -
+               (context_start_epoch | int) }}
 
     - name: Update catalog execution summary after context success
       ansible.builtin.include_tasks: persist_catalog_execution_summary.yml
 
   rescue:
+    - name: Check whether the failed catalog context log exists
+      ansible.builtin.stat:
+        path: "{{ context_log_path }}"
+        follow: false
+        get_attributes: false
+        get_checksum: false
+        get_mime: false
+      register: catalog_context_log_status
+
     - name: Record failed catalog context
       ansible.builtin.set_fact:
         catalog_execution_results: >-
           {{
-            catalog_execution_results + [{
-              'context_id': execution_context.context_id,
-              'os_type': cluster_os_type,
-              'os_version': cluster_os_version,
-              'architectures': selected_architectures,
-              'status': 'failed',
-              'duration_seconds':
-                (lookup('pipe', 'date +%s') | int) -
-                (context_start_epoch | int),
-              'log_path': repo_manager_log_dir ~ '/' ~ cluster_os_type ~ '/' ~
-                cluster_os_version ~ '/standard.log',
-              'error': ansible_failed_result.msg | default('Unknown error')
-            }]
+            catalog_execution_results + [
+              catalog_context_result_base | combine(
+                {'log_path': context_log_path}
+                if (
+                  catalog_context_log_status.stat.exists | default(false) and
+                  catalog_context_log_status.stat.isreg | default(false)
+                )
+                else {}
+              )
+            ]
           }}
+      vars:
+        catalog_context_result_base:
+          context_id: "{{ execution_context.context_id }}"
+          os_type: "{{ cluster_os_type }}"
+          os_version: "{{ cluster_os_version }}"
+          architectures: "{{ selected_architectures }}"
+          status: failed
+          duration_seconds: >-
+            {{ (lookup('pipe', 'date +%s') | int) -
+               (context_start_epoch | int) }}
+          error: >-
+            {{ repository_metadata_failure_message
+               if (repository_metadata_failure_message |
+                   default('') | length > 0)
+               else (ansible_failed_result.msg |
+                     default('Catalog context execution failed.', true)) }}
 
     - name: Update catalog execution summary after context failure
       ansible.builtin.include_tasks: persist_catalog_execution_summary.yml
