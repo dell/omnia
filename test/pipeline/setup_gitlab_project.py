@@ -271,24 +271,6 @@ def load_pipeline_config(config_path):
     variables = {}
     variables["CLUSTERS"] = ",".join(cluster_names)
 
-    # -- Global Omnia repository configuration
-    omnia_cfg = global_cfg.get("omnia", {}) or {}
-    if omnia_cfg.get("repo"):
-        variables["OMNIA_REPO"] = omnia_cfg["repo"]
-    if omnia_cfg.get("branch"):
-        variables["OMNIA_BRANCH"] = omnia_cfg["branch"]
-    if omnia_cfg.get("install_path"):
-        variables["OMNIA_INSTALL_PATH"] = omnia_cfg["install_path"]
-
-    # -- Global OpenBao / Vault configuration
-    vault_cfg = global_cfg.get("vault", {}) or {}
-    if vault_cfg.get("server_url"):
-        variables["BAO_SERVER_URL"] = vault_cfg["server_url"]
-    if vault_cfg.get("auth_role"):
-        variables["BAO_AUTH_ROLE"] = vault_cfg["auth_role"]
-    if vault_cfg.get("secret_path"):
-        variables["BAO_DATA_PATH"] = vault_cfg["secret_path"]
-
     # -- Global email configuration
     email_cfg = global_cfg.get("email", {}) or {}
     if email_cfg.get("recipients"):
@@ -314,6 +296,24 @@ def load_pipeline_config(config_path):
             variables[f"{prefix}_TARGET_IP"] = conn["target_ip"]
         if conn.get("target_user"):
             variables[f"{prefix}_TARGET_USER"] = conn["target_user"]
+
+        # -- Per-cluster Omnia repository configuration
+        cluster_omnia = cluster_cfg.get("omnia", {}) or {}
+        if cluster_omnia.get("repo"):
+            variables[f"{prefix}_OMNIA_REPO"] = cluster_omnia["repo"]
+        if cluster_omnia.get("branch"):
+            variables[f"{prefix}_OMNIA_BRANCH"] = cluster_omnia["branch"]
+        if cluster_omnia.get("install_path"):
+            variables[f"{prefix}_OMNIA_INSTALL_PATH"] = cluster_omnia["install_path"]
+
+        # -- Per-cluster OpenBao / Vault configuration
+        cluster_vault = cluster_cfg.get("vault", {}) or {}
+        if cluster_vault.get("server_url"):
+            variables[f"{prefix}_BAO_SERVER_URL"] = cluster_vault["server_url"]
+        if cluster_vault.get("auth_role"):
+            variables[f"{prefix}_BAO_AUTH_ROLE"] = cluster_vault["auth_role"]
+        if cluster_vault.get("secret_path"):
+            variables[f"{prefix}_BAO_DATA_PATH"] = cluster_vault["secret_path"]
 
         # -- Pipeline behaviour
         pipeline = cluster_cfg.get("pipeline", {}) or {}
@@ -357,48 +357,19 @@ def load_pipeline_config(config_path):
             if val is not None:
                 variables[f"{prefix}_{var_suffix}"] = str(val)
 
-        # -- Credential file paths (stored as File type variables)
-        # Domain credentials are managed by OpenBao — only test_creds uses CI/CD File Variables
-        creds = cluster_cfg.get("credentials", {}) or {}
-        cred_map = {
-            "test_creds": "TEST_CREDS",
-        }
-        for cfg_key, var_suffix in cred_map.items():
-            val = creds.get(cfg_key)
-            if val and os.path.isfile(val):
-                variables[f"{prefix}_{var_suffix}"] = val
-
     return cluster_names, variables
-
-
-# Credential variable suffixes — these use File type in GitLab
-# Domain creds are managed by OpenBao; only test_creds uses CI/CD File Variables
-_FILE_TYPE_VARS = {
-    "TEST_CREDS",
-}
 
 
 def apply_config_variables(client, project_id, variables):
     """Apply CI/CD variables from the parsed config to a GitLab project.
 
-    File-type credential variables are uploaded with their file content.
-    All other variables are set as regular env_var type.
+    All variables are set as regular env_var type.
+    Domain credentials are managed by OpenBao (not CI/CD variables).
     """
     print("\nApplying CI/CD variables from config...")
     for var_name, value in sorted(variables.items()):
-        # Determine if this is a file-type credential variable
-        is_file_var = any(var_name.endswith(f"_{s}") for s in _FILE_TYPE_VARS)
-
-        if is_file_var and os.path.isfile(value):
-            file_content = Path(value).read_text(encoding="utf-8")
-            status = client.set_variable(
-                project_id, var_name, file_content,
-                var_type="file", masked=False,
-            )
-            print(f"  {status}: {var_name} (file: {value})")
-        else:
-            status = client.set_variable(project_id, var_name, value)
-            print(f"  {status}: {var_name} = {value}")
+        status = client.set_variable(project_id, var_name, value)
+        print(f"  {status}: {var_name} = {value}")
 
 
 # ---------------------------------------------------------------------------
@@ -770,6 +741,12 @@ def generate_cluster_trigger_job(cluster_name):
     strategy: depend
   variables:
     CLUSTER: "{prefix}"
+    OMNIA_REPO: "${{{upper_prefix}_OMNIA_REPO}}"
+    OMNIA_BRANCH: "${{{upper_prefix}_OMNIA_BRANCH}}"
+    OMNIA_INSTALL_PATH: "${{{upper_prefix}_OMNIA_INSTALL_PATH}}"
+    BAO_SERVER_URL: "${{{upper_prefix}_BAO_SERVER_URL}}"
+    BAO_AUTH_ROLE: "${{{upper_prefix}_BAO_AUTH_ROLE}}"
+    BAO_DATA_PATH: "${{{upper_prefix}_BAO_DATA_PATH}}"
     PIPELINE_MODE: "${{{upper_prefix}_PIPELINE_MODE}}"
     DOMAINS: "${{{upper_prefix}_DOMAINS}}"
     ENABLE_SETUP: "${{{upper_prefix}_ENABLE_SETUP}}"
@@ -796,7 +773,13 @@ def generate_cluster_trigger_job(cluster_name):
 def generate_cluster_variables(cluster_name):
     """Generate cluster-level variables for .gitlab-ci.yml."""
     upper_prefix = cluster_name.upper()
-    return f"""  {upper_prefix}_PIPELINE_MODE: "default"
+    return f"""  {upper_prefix}_OMNIA_REPO: "${{OMNIA_REPO}}"
+  {upper_prefix}_OMNIA_BRANCH: "${{OMNIA_BRANCH}}"
+  {upper_prefix}_OMNIA_INSTALL_PATH: "${{OMNIA_INSTALL_PATH}}"
+  {upper_prefix}_BAO_SERVER_URL: "${{BAO_SERVER_URL}}"
+  {upper_prefix}_BAO_AUTH_ROLE: "${{BAO_AUTH_ROLE}}"
+  {upper_prefix}_BAO_DATA_PATH: "${{BAO_DATA_PATH}}"
+  {upper_prefix}_PIPELINE_MODE: "default"
   {upper_prefix}_DOMAINS: "default"
   {upper_prefix}_ENABLE_SETUP: "false"
   {upper_prefix}_TEST_MODE: "false"
