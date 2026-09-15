@@ -53,7 +53,7 @@ openchami_config:
     - "/etc/openchami"
     - "/etc/ochami"
   workdir: "{{ omnia_data_path }}/openchami/workdir"
-  log_dir: "{{ omnia_data_path }}/orchestrator/log/openchami"
+  log_dir: "{{ orchestrator_data_path }}/log/openchami"
   inventory_dirs:
     - "{{ omnia_data_path }}/openchami/inventory"
   output_dir: "{{ orchestrator_output_dir }}"

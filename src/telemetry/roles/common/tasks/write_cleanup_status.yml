@@ -15,13 +15,16 @@
 # Writes the final cleanup result after all runtime failures have been
 # converted into localhost-owned component facts.
 
+# The fallback is intentionally kept as one Jinja expression to preserve filter precedence.
+# yamllint disable rule:line-length
 - name: Set cleanup output path
   ansible.builtin.set_fact:
     _output_base: >-
       {{
         output_project_dir
-        | default('/opt/omnia/telemetry/output/' + (project_name | default('project_default')))
+        | default((telemetry_data_path | default(omnia_data_path | default('/opt/omnia') + '/telemetry')) + '/output/' + (project_name | default(lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true))))
       }}
+# yamllint enable rule:line-length
 
 - name: Ensure cleanup output directory exists
   ansible.builtin.file:
@@ -53,12 +56,6 @@
           ((_cleanup_unreachable_nodes | default({})).ldms | default([]))
           | unique | sort
         }}
-    _cleanup_delete_volume: >-
-      {{
-        _cleanup_delete_volume
-        | default(Delete_volume | default(delete_volume | default(false)))
-        | bool
-      }}
 
 - name: Build per-capability cleanup results
   ansible.builtin.set_fact:
@@ -157,27 +154,18 @@
       idrac: >-
         {{
           'skipped' if _cleanup_components.idrac == 'skipped'
-          else (
-            'preserved' if not (_cleanup_delete_volume | bool)
-            else ('cleaned' if _cleanup_components.idrac == 'cleaned' else 'failed')
-          )
+          else ('cleaned' if _cleanup_components.idrac == 'cleaned' else 'failed')
         }}
       ldms: >-
         {{
           'skipped' if _cleanup_components.ldms == 'skipped'
-          else (
-            'preserved' if not (_cleanup_delete_volume | bool)
-            else ('cleaned' if _cleanup_components.ldms == 'cleaned' else 'failed')
-          )
+          else ('cleaned' if _cleanup_components.ldms == 'cleaned' else 'failed')
         }}
       ome: skipped
       powerscale: >-
         {{
           'skipped' if _cleanup_components.powerscale == 'skipped'
-          else (
-            'preserved' if not (_cleanup_delete_volume | bool)
-            else ('cleaned' if _cleanup_components.powerscale == 'cleaned' else 'failed')
-          )
+          else ('cleaned' if _cleanup_components.powerscale == 'cleaned' else 'failed')
         }}
       ufm: skipped
       vast: skipped
@@ -185,7 +173,7 @@
         {{
           'skipped' if _cleanup_components.kafka == 'skipped'
           else (
-            'preserved' if not (_cleanup_delete_volume | bool)
+            'preserved' if not (_cleanup_delete_sinks_volume_enabled | bool)
             else ('cleaned' if _cleanup_components.kafka == 'cleaned' else 'failed')
           )
         }}
@@ -193,7 +181,7 @@
         {{
           'skipped' if _cleanup_components.victoria_metrics == 'skipped'
           else (
-            'preserved' if not (_cleanup_delete_volume | bool)
+            'preserved' if not (_cleanup_delete_sinks_volume_enabled | bool)
             else ('cleaned' if _cleanup_components.victoria_metrics == 'cleaned' else 'failed')
           )
         }}
@@ -201,7 +189,7 @@
         {{
           'skipped' if _cleanup_components.victoria_logs == 'skipped'
           else (
-            'preserved' if not (_cleanup_delete_volume | bool)
+            'preserved' if not (_cleanup_delete_sinks_volume_enabled | bool)
             else ('cleaned' if _cleanup_components.victoria_logs == 'cleaned' else 'failed')
           )
         }}
@@ -218,7 +206,7 @@
           _cleanup_volume_verification_failed | default(false) | bool
           or 'failed' in _volume_values
           or (
-            _cleanup_delete_volume | bool
+            _cleanup_delete_sinks_volume_enabled | bool
             and _cleanup_status == 'failed'
             and 'cleaned' in _volume_values
           )
@@ -253,7 +241,7 @@
     msg:
       - "======================================================"
       - "Telemetry Cleanup Status: {{ _cleanup_status | upper | trim }}"
-      - "Persistent volumes: {{ _cleanup_volume_status | upper | trim }}"
+      - "Volumes: {{ _cleanup_volume_status | upper | trim }}"
       - "======================================================"
       - "Output: {{ _output_base }}/telemetry_status.yml"
       - ""

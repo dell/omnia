@@ -114,9 +114,29 @@ def validate_test_config() -> Dict[str, Any]:
     ):
         errors.append("project_name must be a safe non-empty directory name")
 
-    for field in ("sync_build_stream_input", "allow_pipeline_cancel"):
+    boolean_fields = (
+        "sync_build_stream_input",
+        "allow_pipeline_cancel",
+        "nft_allow_pipeline_cancel",
+        "nft_allow_service_restart",
+        "nft_allow_active_stage_restart",
+        "nft_allow_watcher_restart",
+        "nft_allow_security_mutation",
+    )
+    for field in boolean_fields:
         if field in config and not isinstance(config[field], bool):
             errors.append(f"{field} must be true or false (without quotes)")
+
+    timeout = config.get("nft_recovery_timeout_seconds", 120)
+    if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout < 10:
+        errors.append("nft_recovery_timeout_seconds must be an integer >= 10")
+    pipeline_timeout = config.get("nft_pipeline_timeout_seconds", 300)
+    if (
+        not isinstance(pipeline_timeout, int)
+        or isinstance(pipeline_timeout, bool)
+        or pipeline_timeout < 30
+    ):
+        errors.append("nft_pipeline_timeout_seconds must be an integer >= 30")
 
     dataset = os.environ.get("OMNIA_DATASET_OVERRIDE", "") or config["dataset"]
     errors.extend(_validate_dataset(dataset))

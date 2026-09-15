@@ -46,7 +46,7 @@
     _cleanup_volume_verification_failed: >-
       {{
         (_cleanup_volume_verification_failed | default(false) | bool)
-        or (_cleanup_delete_volume | bool)
+        or (_cleanup_delete_sinks_volume | bool)
       }}
     _cleanup_failures: >-
       {{

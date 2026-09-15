@@ -28,6 +28,7 @@
 # Top-level categories match the run_validation.sh first argument:
 #
 #   fvt_build_stream  -- Functional Verification Tests (playbook tags)
+#   nft_build_stream  -- Resilience and security tests
 #
 # FVT scenarios (nested under fvt_build_stream):
 #   Each scenario maps to an FVT subdirectory.  Fields:
@@ -50,6 +51,7 @@
 # Available markers:
 #   Quality:       sanity
 #   Execution:     deploy
+#   NFT:           resilience, security, disruptive
 #
 # -----------------------------------------------------------------------------
 # Available FVT Suites (subfolders under fvt/<tag>/)
@@ -100,3 +102,11 @@ fvt_build_stream:
     marker: "sanity"
     dataset: ""
     sync_input: false
+
+# =============================================================================
+# NFT -- Non-Functional Tests
+# =============================================================================
+nft_build_stream:
+  run: false
+  command: "test"
+  marker: ""

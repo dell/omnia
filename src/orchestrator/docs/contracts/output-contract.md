@@ -8,79 +8,103 @@ This document defines all output artifacts produced by the `orchestrator` domain
 
 ## 1. functional_groups_config.yml
 
-**Purpose**: Maps PXE mapping file entries into functional groups used by BSS, cloud-init, and service configuration roles.
+**Purpose**: Maps PXE mapping file entries into functional groups used by
+OpenCHAMI Boot Service, Metadata Service, and node service configuration roles.
 
 **Location**:
-`$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/.data/functional_groups_config.yml`
+`$ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/.data/functional_groups_config.yml`
+
+When `ORCHESTRATOR_DATA_PATH` is unset, it resolves to
+`$OMNIA_DATA_PATH/orchestrator`.
 
 **Producer**: `orchestrator_functional_groups` role during `precheck`, `prepare`,
 `provision`, and `execute`.
 
 **Consumers**:
-- `configure_ochami` — BSS boot params per functional group
+- `provision_common` and category provisioning plays — Boot Service and Metadata Service data per functional group
 - `orchestrator_validations` — image validation per functional group
-- `telemetry`, `slurm_config`, `k8s_config` — service deployment scoping
+- Orchestrator provisioning plays — category and cluster deployment scoping
+- `generate_inventories` — group-to-node metadata for published inventories
 
 ### Structure
 
 ```yaml
+groups:
+  rack01:
+    parent: ""
+  rack02:
+    parent: "ABCD12"
+
 functional_groups:
-  - name: "slurm_control_node_x86_64"
-    nodes:
-      - hostname: "node001"
-        admin_ip: "10.5.0.101"
-        admin_mac: "aa:bb:cc:dd:ee:01"
-        bmc_ip: "10.3.0.101"
-        service_tag: "ABC1234"
-  - name: "slurm_node_x86_64"
-    nodes:
-      - hostname: "node002"
-        admin_ip: "10.5.0.102"
-        ...
+  - name: "slurm_control_node_rhel_10_0_x86_64"
+    cluster_name: "slurm_cluster"
+    group:
+      - rack01
+  - name: "slurm_node_rhel_10_0_x86_64"
+    cluster_name: "slurm_cluster"
+    group:
+      - rack02
 ```
+
+`groups` maps each PXE mapping `GROUP_NAME` to its optional
+`PARENT_SERVICE_TAG` value.
+Each `functional_groups[].group` list contains group names, not individual node
+records. Node addresses and service tags remain in the PXE mapping and the
+generated inventory artifacts.
 
 ---
 
 ## 2. OpenCHAMI Configuration Artifacts
 
-Produced by `configure_ochami` role on the OIM host.
+Produced by `provision_common` and the category provisioning plays on the OIM
+host. These flows reuse templates and task files housed under
+`configure_ochami`.
 
-### 2.1 BSS Boot Parameters
+### 2.1 Boot Service Parameters
 
-**Location**: Configured via OpenCHAMI BSS API (not file-based)
+**Location**: Configured through the OpenCHAMI Boot Service API (not file-based).
+Some compatibility paths in the `ochami` client still expose these operations
+under the `ochami bss` command group; this does not represent a separately
+deployed BSS service.
 
 | Parameter | Source | Description |
 |-----------|--------|-------------|
 | `kernel` | `s3_configurations.endpoint_url` + `build_status.kernel` | S3 URL to vmlinuz |
 | `initrd` | `s3_configurations.endpoint_url` + `build_status.initrd` | S3 URL to initramfs |
 | Root image in `params` | `s3_configurations.endpoint_url` + `build_status.image` | S3 URL to rootfs |
-| `params` | BSS template (`boot-svc.yaml.j2`) | Boot parameters including root image, cloud-init, network |
+| `params` | Boot Service template (`boot-svc.yaml.j2`) | Boot parameters including root image, cloud-init, network |
 
-### 2.2 Cloud-Init Configurations
+### 2.2 Metadata Service Configurations
+
+The generated payloads below are published to Metadata Service, which renders
+the cloud-init data requested by provisioned nodes.
 
 | File | Scope | Description |
 |------|-------|-------------|
-| `cloud-init-default.yaml` | Global | Default cloud-init for all nodes |
-| `cloud-init-group-*.yaml` | Per functional group | Group-specific packages, mounts, services |
-| `cloud-init-node-*.yaml` | Per node | Node-specific hostname, network, SSH keys |
+| `ms-defaults.yaml` | Cluster | Cluster identity, SSH keys, and default metadata |
+| `ms-group-common.yaml` | Shared groups | Metadata shared by all applicable nodes |
+| `ms-group-<functional-group>.yaml` | Per functional group | Group-specific packages, mounts, and services |
+
+These working files are generated under
+`$OMNIA_DATA_PATH/openchami/workdir/metadata-service/`. Per-node hostnames are
+published through the Metadata Service `instanceinfos` API from the generated
+`hostname_<category>.yaml` artifacts.
 
 ---
 
 ## 3. Node Orchestration Files
 
-### 3.1 nodes.yaml
+**Location**: `$OMNIA_DATA_PATH/openchami/workdir/nodes/`
 
-**Location**: Generated on OIM by `configure_ochami`
+These are internal OpenCHAMI working artifacts rather than public
+cross-domain contracts.
 
-**Purpose**: Master node inventory for OpenCHAMI SMD registration
-
-### 3.2 hostname.yaml
-
-**Purpose**: Hostname assignments for xname-to-hostname mapping
-
-### 3.3 groups.yaml
-
-**Purpose**: Functional group definitions for OpenCHAMI
+| Pattern | Purpose |
+|---|---|
+| `nodes_<category>.yaml` | Per-category node payload used for SMD registration and service configuration. |
+| `hostname_<category>.yaml` | Per-category xname-to-hostname mapping. |
+| `groups-<functional-group>.yml` | SMD membership payload for a functional group. |
+| `groups-common-<group>.yml` | SMD payload for shared/common groups. |
 
 ---
 
@@ -88,11 +112,11 @@ Produced by `configure_ochami` role on the OIM host.
 
 Provisioning and PXE boot publish versioned, phase-specific reports under:
 
-`$OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/`
+`$ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/`
 
 | File | Producer | Contract |
 |------|----------|----------|
-| `provisioning_report.yml` | Provision validation | SMD, BSS, Metadata Service, interface, and hostname registration results |
+| `provisioning_report.yml` | Provision validation | SMD, Boot Service, Metadata Service, interface, and hostname registration results |
 | `pxeboot_status.yml` | PXE boot | PXE initiation and optional fresh-boot/cloud-init verification for every selected node |
 | `failed_nodes.json` | PXE boot | Compatibility failure-only view of the PXE report; written even when no node fails |
 | `orchestrator_status.yml` | Provision and PXE boot | Stable aggregate view containing the latest provisioning and PXE phase states |
@@ -105,7 +129,7 @@ adds the PXE result.
 ### 4.1 Provisioning report
 
 `provisioning_report.yml` reports whether the expected nodes, administrative
-interfaces, BSS boot configurations, and Metadata Service configurations were
+interfaces, Boot Service configurations, and Metadata Service configurations were
 registered. Provisioning success does not mean that a node has booted or that
 cloud-init completed; those conditions belong to the PXE phase.
 
@@ -170,13 +194,21 @@ correlation remains `unknown`.
 
 ---
 
-## 5. Ansible Inventory
+## 5. Published Inventories
 
-**Location**: `$OMNIA_DATA_PATH/hosts`
+**Location**:
+`$ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/`
 
-**Producer**: `passwordless_ssh` role
+**Producer**: `generate_inventories` role after successful provisioning
 
-**Purpose**: Dynamic Ansible inventory for service configuration plays
+| File | Purpose |
+|---|---|
+| `orchestrator_inventory.yaml` | Ansible inventory grouped by functional group, including administrative addresses and optional Kubernetes VIP data. |
+| `bmc_group_data.csv` | BMC inventory exported with BMC address, group name, and parent-group data. |
+
+Telemetry may consume `orchestrator_inventory.yaml` through its
+`cluster_inventory` input. It does not consume the internal
+`functional_groups_config.yml` file.
 
 ---
 
@@ -186,17 +218,23 @@ The orchestrator deploys the following on OIM and compute nodes:
 
 ### 6.1 OpenCHAMI (on OIM)
 
+OpenCHAMI 0.2.0 uses the Fabrica-managed units below. It does not deploy
+standalone BSS, cloud-init-server, Hydra, or OPAAL services; Boot Service and
+Metadata Service provide the corresponding boot and node-metadata functions.
+
 | Service | Description |
 |---------|-------------|
 | `openchami.target` | Systemd target for all OpenCHAMI services |
-| SMD | State Management Daemon — node inventory |
-| BSS | Boot Script Service — PXE boot parameters |
-| cloud-init-server | Cloud-init metadata service |
-| CoreDHCP | DHCP server for PXE boot |
-| CoreDNS | DNS server (when `dns_enabled`) |
-| HAProxy | TLS termination proxy |
-| Hydra | OAuth2 provider |
-| PostgreSQL | Database backend |
+| `openchami-internal-network.service`, `openchami-external-network.service`, `openchami-cert-internal-network.service`, and `openchami-jwt-internal-network.service` | Podman network units used by the Fabrica services |
+| `smd.service` and `smd-init.service` | State Management Database API and initialization |
+| `boot-service.service` | PXE boot configurations |
+| `metadata-service.service` | Node metadata and cloud-init rendering |
+| `tokensmith.service` | OpenCHAMI access-token service |
+| `step-ca.service`, `acme-register.service`, `acme-deploy.service`, and `openchami-cert-trust.service` | Local CA and certificate lifecycle installed by the OpenCHAMI 0.2.0 package |
+| `coresmd-coredhcp.service` | DHCP service backed by SMD data |
+| `coresmd-coredns.service` | DNS service backed by SMD data |
+| `haproxy.service` | TLS termination and API routing |
+| `postgres.service` | Database backend for SMD |
 
 ### 6.2 Node Services (on compute nodes via cloud-init)
 
@@ -204,8 +242,7 @@ The orchestrator deploys the following on OIM and compute nodes:
 |---------|-----------|-------------|
 | Kubernetes | `k8s_config` role | K8s cluster setup |
 | Slurm | `slurm_config` role | Slurm scheduler |
-| OpenLDAP | `openldap` role | Directory service |
-| Telemetry | `telemetry` role | Monitoring stack |
+| OpenLDAP client | OpenLDAP is enabled | Directory-service client configuration |
 | Storage mounts | `mount_config` role | NFS/CIFS/local mounts |
 
 ---
@@ -215,7 +252,7 @@ The orchestrator deploys the following on OIM and compute nodes:
 Running full Orchestrator cleanup removes:
 
 - OpenCHAMI containers and systemd units
-- BSS/cloud-init configurations
+- Boot Service and Metadata Service configurations
 - Generated functional groups
 - Ansible inventory
 - Orchestrator credentials and their vault key by default
@@ -229,7 +266,7 @@ cleanup. Use `--tags cleanup_credentials` for credential-only cleanup.
 
 | Consumer Domain | What It Reads | Purpose |
 |----------------|---------------|---------|
-| Compute nodes (PXE) | BSS boot params + cloud-init | Boot and configure nodes |
-| `telemetry` role | `functional_groups_config.yml` | Deploy telemetry per group |
-| `slurm_config` role | `functional_groups_config.yml`, `nodes.yaml` | Configure Slurm partitions |
-| `k8s_config` role | `functional_groups_config.yml`, `nodes.yaml` | Configure K8s clusters |
+| Compute nodes (PXE) | Boot Service parameters and Metadata Service data | Boot and configure nodes |
+| Orchestrator provisioning and validation roles | `functional_groups_config.yml`, category node files | Scope provisioning and validate registered nodes and images. |
+| `generate_inventories` | `functional_groups_config.yml`, PXE mapping data, SMD data | Publish `orchestrator_inventory.yaml` and `bmc_group_data.csv`. |
+| Telemetry | `orchestrator_inventory.yaml` when configured | Resolve the service Kubernetes VIP and source-node groups. |

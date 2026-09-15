@@ -58,6 +58,10 @@ ALL_EXEC_MARKER: str = "sanity"
 MARKERS: List[str] = [
     "sanity",
     "deploy",
+    "nft",
+    "resilience",
+    "security",
+    "disruptive",
 ]
 
 # =====================================================================
