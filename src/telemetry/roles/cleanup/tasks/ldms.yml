@@ -231,52 +231,66 @@
 - name: LDMS | Delete StatefulSets
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete statefulset {{ item }}
-    --ignore-not-found=true --wait=false --timeout=30s --request-timeout=15s
+    --ignore-not-found=true --wait=false  
   loop: "{{ ldms_statefulset_resources }}"
+  register: _ldms_statefulset_delete
+  changed_when: _ldms_statefulset_delete.rc == 0 and 'deleted' in _ldms_statefulset_delete.stdout
   failed_when: false
 
 - name: LDMS | Delete Services
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete service {{ item }}
-    --ignore-not-found=true --wait=false --timeout=30s --request-timeout=15s
+    --ignore-not-found=true --wait=false  
   loop: "{{ ldms_service_resources }}"
+  register: _ldms_service_delete
+  changed_when: _ldms_service_delete.rc == 0 and 'deleted' in _ldms_service_delete.stdout
   failed_when: false
 
 - name: LDMS | Delete named ConfigMaps
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete configmap {{ item }}
-    --ignore-not-found=true --wait=false --timeout=30s
+    --ignore-not-found=true --wait=false 
   loop: "{{ ldms_configmap_resources }}"
+  register: _ldms_configmap_delete
+  changed_when: _ldms_configmap_delete.rc == 0 and 'deleted' in _ldms_configmap_delete.stdout
   failed_when: false
 
 - name: LDMS | Delete ConfigMaps by label
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete configmap -l {{ ldms_configmap_label }}
-    --ignore-not-found=true --wait=false --timeout=30s --request-timeout=15s
+    --ignore-not-found=true --wait=false  
+  register: _ldms_configmap_label_delete
+  changed_when: _ldms_configmap_label_delete.rc == 0 and 'deleted' in _ldms_configmap_label_delete.stdout
   failed_when: false
 
 - name: LDMS | Delete Secrets
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false --timeout=30s --request-timeout=15s
+    --ignore-not-found=true --wait=false  
   loop: "{{ ldms_secret_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
+  register: _ldms_secret_delete
+  changed_when: _ldms_secret_delete.rc == 0 and 'deleted' in _ldms_secret_delete.stdout
   failed_when: false
 
 - name: LDMS | Delete PVCs
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pvc -l {{ ldms_pvc_label }}
-    --ignore-not-found=true --wait=false --timeout=30s --request-timeout=15s
+    --ignore-not-found=true --wait=false  
+  register: _ldms_pvc_delete
   when: _cleanup_delete_volume_enabled | bool
+  changed_when: _ldms_pvc_delete.rc == 0 and 'deleted' in _ldms_pvc_delete.stdout
   failed_when: false
 
 - name: LDMS | Force delete pods
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pod -l {{ item }}
-    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true --timeout=15s --request-timeout=10s
+    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true  
   loop: "{{ ldms_pod_labels }}"
+  register: _ldms_pod_delete
   when: _cleanup_delete_volume_enabled | bool
+  changed_when: _ldms_pod_delete.rc == 0 and 'deleted' in _ldms_pod_delete.stdout
   failed_when: false
 
 - name: LDMS | Wait for pods to terminate
@@ -306,7 +320,7 @@
 - name: LDMS | Delete Vector-LDMS bridge resources
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false --timeout=30s
+    --ignore-not-found=true --wait=false 
   loop: "{{ vector_ldms_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
@@ -315,7 +329,7 @@
 - name: LDMS | Force delete Vector-LDMS pods
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pod -l {{ vector_ldms_pod_label }}
-    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true --timeout=15s
+    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true 
   failed_when: false
 
 - name: LDMS | K8s cleanup complete

@@ -28,7 +28,7 @@
 - name: Force delete remaining source pods before drain check
   ansible.builtin.command: >
     kubectl -n telemetry delete pod -l {{ item }}
-    --grace-period=0 --force --ignore-not-found=true --timeout=15s
+    --grace-period=0 --force --ignore-not-found=true 
   loop:
     - app=idrac-telemetry
     - app=nersc-ldms
@@ -43,7 +43,9 @@
     - app=powervault-telemetry
   loop_control:
     label: "{{ item }}"
+  register: _source_pod_delete_before
   when: hostvars['localhost']['_cleanup_all'] | bool
+  changed_when: _source_pod_delete_before.rc == 0 and 'deleted' in _source_pod_delete_before.stdout
   failed_when: false
 
 - name: Wait for source pods to terminate before sink cleanup
@@ -75,7 +77,7 @@
 - name: Force delete any remaining source pods after drain check
   ansible.builtin.command: >
     kubectl -n telemetry delete pod -l {{ item }}
-    --grace-period=0 --force --ignore-not-found=true --timeout=10s
+    --grace-period=0 --force --ignore-not-found=true 
   loop:
     - app=idrac-telemetry
     - app=nersc-ldms
@@ -90,7 +92,9 @@
     - app=powervault-telemetry
   loop_control:
     label: "{{ item }}"
+  register: _source_pod_delete_after
   when: hostvars['localhost']['_cleanup_all'] | bool
+  changed_when: _source_pod_delete_after.rc == 0 and 'deleted' in _source_pod_delete_after.stdout
   failed_when: false
 
 - name: Mark source drain as cleaned
