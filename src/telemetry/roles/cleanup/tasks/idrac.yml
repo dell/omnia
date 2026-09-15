@@ -16,18 +16,18 @@
 - name: IDRAC | Delete resources
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false  
+    --ignore-not-found=true --wait=false
   loop: "{{ idrac_resources + idrac_secret_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   register: _idrac_delete
-  changed_when: _idrac_delete.rc == 0 and 'deleted' in _idrac_delete.stdout
+  changed_when: _idrac_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
   failed_when: false
 
 - name: IDRAC | Delete ConfigMaps by label
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete configmap -l {{ idrac_configmap_label }}
-    --ignore-not-found=true --wait=false  
+    --ignore-not-found=true --wait=false
   register: _idrac_configmap_delete
   changed_when: _idrac_configmap_delete.rc == 0 and 'deleted' in _idrac_configmap_delete.stdout
   failed_when: false
@@ -35,7 +35,7 @@
 - name: IDRAC | Delete PVCs
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pvc -l {{ idrac_pvc_label }}
-    --ignore-not-found=true --wait=false  
+    --ignore-not-found=true --wait=false
   register: _idrac_pvc_delete
   when: _cleanup_delete_volume_enabled | bool
   changed_when: _idrac_pvc_delete.rc == 0 and 'deleted' in _idrac_pvc_delete.stdout
@@ -44,17 +44,17 @@
 - name: IDRAC | Delete named PVCs
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pvc {{ item }}
-    --ignore-not-found=true --wait=false  
+    --ignore-not-found=true --wait=false
   loop: "{{ idrac_pvc_resources }}"
   register: _idrac_named_pvc_delete
   when: _cleanup_delete_volume_enabled | bool
-  changed_when: _idrac_named_pvc_delete.rc == 0 and 'deleted' in _idrac_named_pvc_delete.stdout
+  changed_when: _idrac_named_pvc_delete.results | selectattr('rc', 'equalto', 0) | list | length > 0
   failed_when: false
 
 - name: IDRAC | Force delete pods
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pod -l {{ idrac_pod_label }}
-    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true  
+    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
   register: _idrac_pod_delete
   when: _cleanup_delete_volume_enabled | bool
   changed_when: _idrac_pod_delete.rc == 0 and 'deleted' in _idrac_pod_delete.stdout
@@ -67,8 +67,8 @@
   register: _idrac_pod_wait
   changed_when: false
   until: _idrac_pod_wait.stdout | trim | length == 0
-  retries: 6
-  delay: 5
+  retries: "{{ cleanup_custom_resource_retries }}"
+  delay: "{{ cleanup_custom_resource_delay }}"
   failed_when: false
 
 - name: IDRAC | Wait for label-selected PVCs to terminate
@@ -78,8 +78,8 @@
   register: _idrac_pvc_label_wait
   changed_when: false
   until: _idrac_pvc_label_wait.stdout | trim | length == 0
-  retries: 6
-  delay: 5
+  retries: "{{ cleanup_custom_resource_retries }}"
+  delay: "{{ cleanup_custom_resource_delay }}"
   when: _cleanup_delete_volume_enabled | bool
   failed_when: false
 
@@ -91,8 +91,8 @@
   register: _idrac_pvc_name_wait
   changed_when: false
   until: _idrac_pvc_name_wait.stdout | trim | length == 0
-  retries: 6
-  delay: 5
+  retries: "{{ cleanup_custom_resource_retries }}"
+  delay: "{{ cleanup_custom_resource_delay }}"
   when: _cleanup_delete_volume_enabled | bool
   failed_when: false
 
