@@ -391,7 +391,7 @@
   ansible.builtin.command: >
     kubectl wait kafka/kafka -n {{ telemetry_namespace }}
     --for=condition=ReconciliationPaused=True
-
+    --timeout={{ cleanup_kafka_wait_timeout }}
   changed_when: false
   when:
     - not (_cleanup_delete_volume_enabled | bool)
