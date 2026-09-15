@@ -40,6 +40,7 @@
       - --output=jsonpath={.status.availableReplicas}
   register: _kafka_topic_operator_replicas
   changed_when: false
+  when: not (_cleanup_preserve_sink_volumes | bool)
 
 - name: Kafka | Record Topic Operator availability
   ansible.builtin.set_fact:
