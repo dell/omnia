@@ -21,7 +21,7 @@ kafka_cluster_ca_secret: "kafka-cluster-ca-cert"
 kafka_client_secret: "kafkapump"
 
 # Output paths
-kafka_output_dir: "{{ output_project_dir | default('/opt/omnia/telemetry/output/project_default') }}/external_kafka"
+kafka_output_dir: "{{ output_project_dir | default(omnia_data_path + '/telemetry/output/' + (project_name | default('project_default'))) }}/external_kafka"
 kafka_output_file: "{{ kafka_output_dir }}/external_kafka_connect_details.yml"
 
 # Error messages

@@ -20,7 +20,7 @@
     _output_base: >-
       {{
         output_project_dir
-        | default('/opt/omnia/telemetry/output/' + (project_name | default('project_default')))
+        | default(omnia_data_path + '/telemetry/output/' + (project_name | default('project_default')))
       }}
 
 - name: Ensure cleanup output directory exists

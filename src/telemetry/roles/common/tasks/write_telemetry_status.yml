@@ -24,7 +24,7 @@
 
 - name: Set output paths
   ansible.builtin.set_fact:
-    _output_base: "{{ output_project_dir | default('/opt/omnia/telemetry/output/' + (project_name | default('project_default'))) }}"
+    _output_base: "{{ output_project_dir | default(omnia_data_path + '/telemetry/output/' + (project_name | default('project_default'))) }}"
 
 - name: Ensure output directory exists
   ansible.builtin.file:
