@@ -28,6 +28,8 @@ MAIN_FVT_OMNIA_CLI_V010: Verify omnia-cli telemetry runs
 MAIN_FVT_OMNIA_CLI_V011: Verify omnia-cli build-stream runs
 """
 
+import re
+
 import pytest
 
 from library.vars import TEST_CASES as TC
@@ -70,17 +72,42 @@ def test_cli_check_runs(host):
     tc = TC["cli_check_runs"]
     tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cli_cmd(host, "omnia_cli_check")
-    tl.bind_result(result)
 
-    if result["success"]:
-        tl.passed(LOG["cli_check_ok"])
+    # ``omnia-cli check`` returns the number of validation issues it finds.
+    # Staged customer inputs may therefore produce an expected non-zero exit
+    # code (for example, when their admin IP has not yet been customized).
+    output = result["output"]
+    issue_match = re.search(r"(\d+) issue\(s\) found\.", output)
+    reported_issues = int(issue_match.group(1)) if issue_match else None
+    ran_ok = (
+        (result["rc"] == 0 and "No issues found." in output)
+        or (
+            reported_issues is not None
+            and result["rc"] == reported_issues
+        )
+    )
+    fields = {
+        "Command": result["command"],
+        "Expected": "return code 0 or the reported issue count",
+        "Return code": result["rc"],
+        "Reported issues": (
+            reported_issues if reported_issues is not None else "none"
+        ),
+    }
+
+    if ran_ok:
+        tl.passed_fields(LOG["cli_check_ok"], fields)
     else:
-        tl.failed(
-            f"omnia-cli check failed (rc={result['rc']})"
+        tl.failed_fields(
+            "omnia-cli check did not return a consistent validation "
+            f"summary (rc={result['rc']})",
+            fields,
         )
 
-    assert result["success"], ASSERT["cli_status_failed"].format(
-        rc=result["rc"],
+    assert ran_ok, (
+        "omnia-cli check did not complete normally: expected rc=0 with "
+        "'No issues found.' or rc matching the reported issue count; "
+        f"got rc={result['rc']}"
     )
 
 

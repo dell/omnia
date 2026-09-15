@@ -255,7 +255,7 @@ powervault_config:
     mount_params: "powervault_iscsi"
     node_key: "local_hostname"
     node_mount_point:
-      - "/var/lib/mysql" 
+      - "/var/lib/mysql"
       - "/var/spool/slurm"
     functional_group_prefix: ["slurm_control_node"]
 

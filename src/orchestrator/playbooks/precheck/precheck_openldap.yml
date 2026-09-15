@@ -14,17 +14,16 @@
 ---
 
 # Precheck OpenLDAP --- Validate all OpenLDAP/authentication-related variables
-# Can be run standalone or imported by orchestrator.yml
+# Imported by the canonical orchestrator.yml entry point. Direct execution
+# requires orchestrator_setup facts to be supplied first.
 #
 # This playbook validates inputs without modifying the system.
 # Skipped entirely when openldap_support is false.
 #
 # Checks performed:
 #   1. Assert openldap_support feature flag is defined
-#   2. Assert LDAP credentials are available (when enabled)
-#   3. Assert container image settings are valid
-#   4. Assert domain_name is configured for LDAP base DN derivation
-#   5. Assert required ports are not blocked
+#   2. Assert domain_name is configured for LDAP base DN derivation
+#   3. Warn when the credential file is absent; prepare will collect it
 
 - name: Validate OpenLDAP prerequisites
   hosts: localhost

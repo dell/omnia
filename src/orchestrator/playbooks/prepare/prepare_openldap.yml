@@ -14,7 +14,8 @@
 ---
 
 # Prepare OpenLDAP --- Validate credentials and prepare configuration
-# Can be run standalone or imported by orchestrator.yml
+# Optional component-level entry point. The canonical orchestrator.yml route
+# performs the same idempotent preparation inside the deploy_openldap role.
 #
 # This playbook performs OpenLDAP preparation steps required before deployment.
 # No deployment or installation actions are performed here.

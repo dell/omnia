@@ -23,7 +23,16 @@ from jsonschema.exceptions import SchemaError
 from jsonschema.validators import validator_for
 
 from ..messages import orchestrator_messages as msg
-from ..validators import network_spec_validator, orchestrator_config_validator
+from ..validators import (
+    additional_cloud_init_validator,
+    high_availability_validator,
+    network_spec_validator,
+    omnia_config_validator,
+    orchestrator_config_validator,
+    pxe_mapping_validator,
+    security_config_validator,
+    storage_config_validator,
+)
 
 
 def _schema_error_path(file_label: str, validation_error: Any) -> str:
@@ -110,21 +119,90 @@ def logic_network(
     return network_spec_validator.validate(network_data, logger)
 
 
-def logic_storage(
+def logic_omnia(
+    config_data: Any,
     input_project_dir: str,
-    storage_data: Any,
     logger: Logger | None = None,
+    file_statuses: dict[str, bool] | None = None,
+    auxiliary_errors: list[str] | None = None,
 ) -> list[str]:
-    """Dispatch storage-reference validation.
+    """Dispatch ``omnia_config.yml`` L2 validation.
 
     Args:
+        config_data: Parsed ``omnia_config.yml`` data.
         input_project_dir: Current project input directory.
-        storage_data: Parsed ``storage_config.yml`` data, when present.
         logger: Optional validation logger.
 
     Returns:
-        Storage-reference validation errors.
+        L2 validation errors.
     """
-    return orchestrator_config_validator.validate_storage_references(
-        input_project_dir, storage_data, logger
+    return omnia_config_validator.validate(
+        config_data,
+        input_project_dir,
+        logger,
+        file_statuses,
+        auxiliary_errors,
     )
+
+
+def logic_pxe_mapping(
+    config_data: dict[str, Any],
+    input_project_dir: str,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Dispatch PXE mapping L2 validation."""
+    return pxe_mapping_validator.validate(
+        config_data, input_project_dir, logger
+    )
+
+
+def logic_additional_cloud_init(
+    config_data: dict[str, Any],
+    input_project_dir: str,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Dispatch additional cloud-init L2 validation."""
+    return additional_cloud_init_validator.validate(
+        config_data, input_project_dir, logger
+    )
+
+
+def logic_high_availability(
+    config_data: Any,
+    input_project_dir: str,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Dispatch Kubernetes high-availability L2 validation."""
+    return high_availability_validator.validate(
+        config_data, input_project_dir, logger
+    )
+
+
+def logic_security(
+    config_data: Any,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Dispatch ``security_config.yml`` L2 validation."""
+    return security_config_validator.validate(config_data, logger)
+
+
+def logic_storage(
+    config_data: Any,
+    orchestrator_data: dict[str, Any],
+    omnia_data: dict[str, Any],
+    input_project_dir: str,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Dispatch ``storage_config.yml`` L2 validation."""
+    return storage_config_validator.validate(
+        config_data,
+        orchestrator_data,
+        omnia_data,
+        input_project_dir,
+        logger,
+    )
+
+
+def high_availability_applicable(input_project_dir: str) -> bool:
+    """Return whether high-availability input applies to this project."""
+    return high_availability_validator.is_applicable(input_project_dir)

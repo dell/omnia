@@ -14,7 +14,7 @@ modprobe ib_ipoib || true
 modprobe ib_umad || true
 modprobe ib_uverbs || true
 
-NETMASK_BITS="{{ hostvars['localhost']['admin_netmask_bits'] }}"
+NETMASK_BITS="{{ hostvars['localhost']['ib_network_netmask_bits'] | default('') }}"
 
 # Get current node's IP from cloud-init metadata
 ADMIN_NIC_IP="{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}"
@@ -44,6 +44,11 @@ IB_IP="${ADMIN_IB_IP_MAP[$ADMIN_NIC_IP]:-}"
 if [ -z "$IB_NIC_NAME" ]; then
     echo "INFO: IB_NIC_NAME is empty - skipping IB network configuration"
     exit 0
+fi
+
+if [ -z "$NETMASK_BITS" ]; then
+    echo "ERROR: IB network netmask_bits is not configured in network_spec.yml"
+    exit 1
 fi
 
 echo "Target IB NIC name: $IB_NIC_NAME"

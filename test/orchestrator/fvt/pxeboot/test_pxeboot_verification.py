@@ -27,9 +27,6 @@ from library.functions import TestLogger, load_test_config
 from library.vars.common_vars import INPUT_PATH_TEMPLATE, OUTPUT_PATH_TEMPLATE
 
 
-pytestmark = pytest.mark.destructive
-
-
 def _get_k8s_control_plane_ips() -> List[str]:
     """Extract Kubernetes control plane IPs from PXE mapping file.
 
@@ -50,9 +47,9 @@ def _get_k8s_control_plane_ips() -> List[str]:
         for line in lines[1:]:  # Skip header
             if line.strip() and not line.startswith('#'):
                 parts = line.strip().split(',')
-                if len(parts) >= 6:
+                if len(parts) >= 7:
                     fg_name = parts[0].strip()
-                    admin_ip = parts[5].strip()
+                    admin_ip = parts[6].strip()
                     # Check if this is a Kubernetes control plane node
                     if 'kube_control_plane' in fg_name.lower() and admin_ip:
                         control_plane_ips.append(admin_ip)
@@ -82,9 +79,9 @@ def _get_slurm_control_ips() -> List[str]:
         for line in lines[1:]:  # Skip header
             if line.strip() and not line.startswith('#'):
                 parts = line.strip().split(',')
-                if len(parts) >= 6:
+                if len(parts) >= 7:
                     fg_name = parts[0].strip()
-                    admin_ip = parts[5].strip()
+                    admin_ip = parts[6].strip()
                     # Check if this is a Slurm control or login node
                     if any(keyword in fg_name.lower() for keyword in
                            ['slurm_control', 'slurm_login']) and admin_ip:
@@ -153,11 +150,13 @@ def test_kubernetes_nodes_provisioned(host) -> None:
             tl.passed(f"Kubernetes nodes provisioned via PXE boot",
                      f"Found {len(nodes)} Kubernetes nodes on {control_ip}")
         else:
-            tl.passed("kubectl found but no nodes returned",
-                     "Kubernetes may not have completed provisioning yet")
+            tl.failed("kubectl found but no nodes returned",
+                     f"Kubernetes may not have completed provisioning yet on {control_ip}")
+            assert False, "kubectl found but no nodes returned"
     else:
-        tl.passed(f"kubectl not found on control plane {control_ip}",
-                 "Kubernetes may not have been installed yet")
+        tl.failed(f"kubectl not found on control plane {control_ip}",
+                 "Kubernetes should be installed on control plane nodes")
+        assert False, f"kubectl not found on control plane {control_ip}"
 
 
 @pytest.mark.functional
@@ -193,14 +192,17 @@ def test_kubernetes_nodes_ready(host) -> None:
                 tl.passed(f"Kubernetes nodes in Ready state",
                          f"Found {len(ready_nodes)} Ready nodes out of {len(nodes)} on {control_ip}")
             else:
-                tl.passed("No Kubernetes nodes in Ready state",
-                         "Nodes may still be provisioning")
+                tl.failed("No Kubernetes nodes in Ready state",
+                         f"Nodes may still be provisioning on {control_ip}")
+                assert False, "No Kubernetes nodes in Ready state"
         else:
-            tl.passed("kubectl found but no nodes returned",
-                     "Kubernetes may not have completed provisioning yet")
+            tl.failed("kubectl found but no nodes returned",
+                     f"Kubernetes may not have completed provisioning yet on {control_ip}")
+            assert False, "kubectl found but no nodes returned"
     else:
-        tl.passed(f"kubectl not found on control plane {control_ip}",
-                 "Kubernetes may not have been installed yet")
+        tl.failed(f"kubectl not found on control plane {control_ip}",
+                 "Kubernetes should be installed on control plane nodes")
+        assert False, f"kubectl not found on control plane {control_ip}"
 
 
 @pytest.mark.functional
@@ -229,17 +231,19 @@ def test_slurm_nodes_provisioned(host) -> None:
 
     if result["rc"] == 0:
         # sinfo found, check nodes
-        node_result = _run_ssh_command(host, slurm_ip, "sinfo --no-headers 2>/dev/null")
+        node_result = _run_ssh_command(host, slurm_ip, "sinfo -h 2>/dev/null")
         if node_result["rc"] == 0 and node_result["stdout"].strip():
             partitions = [line.strip() for line in node_result["stdout"].strip().split('\n') if line.strip()]
             tl.passed(f"Slurm nodes provisioned via PXE boot",
                      f"Found {len(partitions)} Slurm partitions on {slurm_ip}")
         else:
-            tl.passed("sinfo found but no partitions returned",
-                     "Slurm may not have completed provisioning yet")
+            tl.failed("sinfo found but no partitions returned",
+                     f"Slurm may not have completed provisioning yet on {slurm_ip}")
+            assert False, "sinfo found but no partitions returned"
     else:
-        tl.passed(f"sinfo not found on Slurm node {slurm_ip}",
-                 "Slurm may not have been installed yet")
+        tl.failed(f"sinfo not found on Slurm node {slurm_ip}",
+                 "Slurm should be installed on Slurm control/login nodes")
+        assert False, f"sinfo not found on Slurm node {slurm_ip}"
 
 
 @pytest.mark.functional
@@ -266,7 +270,7 @@ def test_slurm_nodes_idle(host) -> None:
     result = _run_ssh_command(host, slurm_ip, "which sinfo")
 
     if result["rc"] == 0:
-        node_result = _run_ssh_command(host, slurm_ip, "sinfo --no-headers -N -o State 2>/dev/null")
+        node_result = _run_ssh_command(host, slurm_ip, "sinfo -h -N -o '%T' 2>/dev/null")
         if node_result["rc"] == 0 and node_result["stdout"].strip():
             states = [line.strip() for line in node_result["stdout"].strip().split('\n') if line.strip()]
             idle_nodes = [s for s in states if 'idle' in s.lower()]
@@ -275,14 +279,17 @@ def test_slurm_nodes_idle(host) -> None:
                 tl.passed(f"Slurm nodes in Idle state",
                          f"Found {len(idle_nodes)} Idle nodes out of {len(states)} on {slurm_ip}")
             else:
-                tl.passed("No Slurm nodes in Idle state",
-                         "Nodes may still be provisioning")
+                tl.failed("No Slurm nodes in Idle state",
+                         f"Nodes may still be provisioning on {slurm_ip}")
+                assert False, "No Slurm nodes in Idle state"
         else:
-            tl.passed("sinfo found but no states returned",
-                     "Slurm may not have completed provisioning yet")
+            tl.failed("sinfo found but no states returned",
+                     f"Slurm may not have completed provisioning yet on {slurm_ip}")
+            assert False, "sinfo found but no states returned"
     else:
-        tl.passed(f"sinfo not found on Slurm node {slurm_ip}",
-                 "Slurm may not have been installed yet")
+        tl.failed(f"sinfo not found on Slurm node {slurm_ip}",
+                 "Slurm should be installed on Slurm control/login nodes")
+        assert False, f"sinfo not found on Slurm node {slurm_ip}"
 
 
 @pytest.mark.functional

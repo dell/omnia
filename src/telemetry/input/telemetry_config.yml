@@ -112,7 +112,9 @@ telemetry_sources:
 
     # Collection targets define where iDRAC data is sent BEFORE Vector processing
     # Supported values: "victoria_metrics", "kafka"
+    # At least one target is required when iDRAC telemetry is enabled
     # Multiple targets: ["victoria_metrics", "kafka"]
+    # Single target: ["kafka"] or ["victoria_metrics"]
     # Default: ["victoria_metrics", "kafka"]
     collection_targets:
       - "victoria_metrics"
@@ -150,6 +152,11 @@ telemetry_sources:
     logs_enabled: true
 
     # PowerScale uses vmagent(shared) (no Kafka, no Vector)
+    # victoria_metrics is required if metrics_enabled: true
+    # victoria_logs is required if logs_enabled: true
+    # Supported values: "victoria_metrics", "victoria_logs"
+    # Multiple targets: ["victoria_metrics", "victoria_logs"]
+    # Single target: ["victoria_metrics"] (if only metrics) or ["victoria_logs"] (if only logs)
     collection_targets:
       - "victoria_metrics"
       - "victoria_logs"
@@ -173,6 +180,11 @@ telemetry_sources:
     logs_enabled: false
 
     # UFM uses vmagent(shared) for metrics and VLAgent for logs
+    # victoria_metrics is required if metrics_enabled: true
+    # victoria_logs is required if logs_enabled: true
+    # Supported values: "victoria_metrics", "victoria_logs"
+    # Multiple targets: ["victoria_metrics", "victoria_logs"]
+    # Single target: ["victoria_metrics"] (if only metrics) or ["victoria_logs"] (if only logs)
     collection_targets:
       - "victoria_metrics"
       - "victoria_logs"
@@ -196,6 +208,11 @@ telemetry_sources:
     logs_enabled: false
 
     # VAST uses vmagent(shared) for metrics and VLAgent for logs
+    # victoria_metrics is required if metrics_enabled: true
+    # victoria_logs is required if logs_enabled: true
+    # Supported values: "victoria_metrics", "victoria_logs"
+    # Multiple targets: ["victoria_metrics", "victoria_logs"]
+    # Single target: ["victoria_metrics"] (if only metrics) or ["victoria_logs"] (if only logs)
     collection_targets:
       - "victoria_metrics"
       - "victoria_logs"

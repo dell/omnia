@@ -32,7 +32,7 @@ telemetry_packages_file: "{{ input_project_dir }}/telemetry_packages.yml"
 # Cluster inventory file (specified in telemetry_config.yml as cluster_inventory)
 # This file contains both Kubernetes and Slurm inventory from orchestrator
 # User should specify the path in telemetry_config.yml, e.g.:
-#   cluster_inventory: "/opt/omnia/input/project_default/orchestrator_inventory.yml"
+#   cluster_inventory: "{{ omnia_data_path }}/telemetry/input/{{ project_name | default('project_default') }}/orchestrator_inventory.yml"
 
 # Verification timeouts (shared defaults)
 deploy_timeout: "600s"
