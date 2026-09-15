@@ -1,0 +1,94 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# =============================================================================
+# resolve_backup_destination.yml - Resolve active config path + backup dest
+# =============================================================================
+# Active Slurm config path lives on the NFS share defined in storage_config.yml
+# (already mounted on the OIM per mount_on_oim: true) and is not relocated.
+#
+# The backup DESTINATION follows the same precedence and NFS-export support as
+# oim_log_backup:
+#   1. -e slurm_backup_path=<path>            (CLI extra-var)
+#   2. slurm_backup_path: in slurm_config_util_config.yml
+#   3. OMNIA_BACKUP_PATH environment variable
+#   4. Default: OMNIA_DATA_PATH/utils/output/OMNIA_PROJECT_NAME/slurm_config_util
+#
+# A destination may be a raw NFS export ("<server>:/<path>"), which is detected
+# and mounted at a fixed local mountpoint before any backup/rollback IO.
+
+- name: Set active Slurm config path on the NFS share
+  ansible.builtin.set_fact:
+    slurm_config_path_effective: "{{ slurm_config_path_override or (share_path + '/' + slurm_share_dir_name_effective) }}"
+    slurm_config_directories_effective: "{{ slurm_config_directories }}"
+
+- name: Resolve backup destination (CLI extra-var > config file > OMNIA_BACKUP_PATH > default)
+  ansible.builtin.set_fact:
+    slurm_backup_path_resolved: >-
+      {{
+        (slurm_backup_path | default('', true))
+        if (slurm_backup_path | default('', true) | length > 0)
+        else (
+          (slurm_util_config.slurm_backup_path | default('', true))
+          if (_slurm_config_stat.stat.exists and (slurm_util_config.slurm_backup_path | default('', true) | length > 0))
+          else (
+            (lookup('env', 'OMNIA_BACKUP_PATH') | default('', true))
+            if (lookup('env', 'OMNIA_BACKUP_PATH') | default('', true) | length > 0)
+            else slurm_backup_default_dir
+          )
+        )
+      }}
+
+- name: Detect raw NFS export syntax ("<server>:/<path>") for backup destination
+  ansible.builtin.set_fact:
+    slurm_backup_is_nfs_export: "{{ slurm_backup_path_resolved is match('^[^/]+:/.+') }}"
+
+- name: Mount NFS export for backup destination
+  when: slurm_backup_is_nfs_export
+  block:
+    - name: Split NFS export into server and remote path
+      ansible.builtin.set_fact:
+        slurm_backup_nfs_server: "{{ slurm_backup_path_resolved.split(':', 1)[0] }}"
+        slurm_backup_nfs_remote_path: "{{ slurm_backup_path_resolved.split(':', 1)[1] }}"
+
+    - name: Ensure local NFS mountpoint exists
+      ansible.builtin.file:
+        path: "{{ slurm_backup_nfs_mountpoint }}"
+        state: directory
+        mode: "0755"
+
+    - name: Mount backup NFS export
+      ansible.builtin.mount:
+        src: "{{ slurm_backup_nfs_server }}:{{ slurm_backup_nfs_remote_path }}"
+        path: "{{ slurm_backup_nfs_mountpoint }}"
+        fstype: nfs
+        state: mounted
+
+- name: Set backup workspace (local path, or mounted NFS mountpoint)
+  ansible.builtin.set_fact:
+    slurm_backups_root_effective: "{{ slurm_backup_nfs_mountpoint if slurm_backup_is_nfs_export else slurm_backup_path_resolved }}"
+
+- name: Ensure backup workspace directory exists
+  ansible.builtin.file:
+    path: "{{ slurm_backups_root_effective }}"
+    state: directory
+    mode: "0755"
+
+- name: Display resolved paths
+  ansible.builtin.debug:
+    msg:
+      - "Active Slurm config path : {{ slurm_config_path_effective }}"
+      - "Backup destination       : {{ slurm_backups_root_effective }}"
+      - "Slurm controller         : {{ slurm_controller_hostname }} ({{ slurm_controller_ip }})"

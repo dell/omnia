@@ -381,6 +381,106 @@ TEST_CASES = {
     },
 
     # ══════════════════════════════════════════════════════════════════════════
+    # SLURM_CONFIG_UTIL SCENARIO - Deploy Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "deploy_slurm_config_backup": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_E001",
+        "title": "Deploy slurm_config_util.yml (slurm_config_backup tag)",
+    },
+    "deploy_slurm_cleanup": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_E002",
+        "title": "Deploy slurm_config_util.yml (slurm_cleanup tag)",
+    },
+    "deploy_slurm_config_rollback": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_E003",
+        "title": "Deploy slurm_config_util.yml (slurm_config_rollback tag)",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # SLURM_CONFIG_UTIL SCENARIO - Verification Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "slurm_config_util_config_file_valid": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V001",
+        "title": "Verify slurm_config_util_config.yml has valid YAML structure (when present)",
+    },
+    "slurm_config_util_env_vars_loaded": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V002",
+        "title": "Verify OMNIA_DATA_PATH loaded from environment",
+    },
+    "slurm_config_backup_output_dir_exists": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V003",
+        "title": "Verify Slurm config backup output directory exists",
+    },
+    "slurm_config_backup_run_dir_created": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V004",
+        "title": "Verify a timestamped backup run directory was created",
+    },
+    "slurm_config_backup_metadata_exists": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V005",
+        "title": "Verify metadata.json exists in the backup run directory",
+    },
+    "slurm_config_backup_metadata_valid": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V006",
+        "title": "Verify metadata.json has valid structure with checksums",
+    },
+    "slurm_config_backup_directories_present": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V007",
+        "title": "Verify backup contains etc/slurm, etc/munge, etc/my.cnf.d",
+    },
+    "slurm_cleanup_removes_config": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V008",
+        "title": "Verify slurm_cleanup removes the active Slurm config directory",
+    },
+    "slurm_config_rollback_restores_config": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V009",
+        "title": "Verify config_rollback restores files from the selected backup",
+    },
+    "slurm_config_rollback_fixes_permissions": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V010",
+        "title": "Verify config_rollback fixes slurmdbd.conf/munge.key permissions",
+    },
+    "slurm_config_util_cli_backup_path": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V011",
+        "title": "Verify -e slurm_backup_path CLI override is honored",
+    },
+    "slurm_config_util_csv_pxe_mapping": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_V012",
+        "title": "Verify CSV-format pxe_mapping_path is parsed correctly",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CLEANUP_SLURM_CONFIG_BACKUPS SCENARIO
+    # ══════════════════════════════════════════════════════════════════════════
+    "deploy_cleanup_slurm_config_backups": {
+        "id": "UTILS_FVT_CLEANUP_SLURM_CONFIG_BACKUPS_E001",
+        "title": "Deploy utils.yml (cleanup_slurm_config_backups)",
+    },
+    "cleanup_slurm_config_backups_workspace_removed": {
+        "id": "UTILS_FVT_CLEANUP_SLURM_CONFIG_BACKUPS_V001",
+        "title": "Verify Slurm config backup workspace run directories are removed",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # NEGATIVE TEST CASES - SLURM_CONFIG_UTIL
+    # ══════════════════════════════════════════════════════════════════════════
+    "slurm_config_backup_missing_omnia_config_fails": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_NEG001",
+        "title": "Verify slurm_config_backup fails when omnia_config.yml is missing",
+    },
+    "slurm_config_backup_empty_slurm_cluster_fails": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_NEG002",
+        "title": "Verify slurm_config_backup fails when slurm_cluster is empty",
+    },
+    "slurm_cleanup_wrong_token_aborts": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_NEG003",
+        "title": "Verify slurm_cleanup aborts when confirmation token does not match",
+    },
+    "slurm_config_rollback_no_backups_fails": {
+        "id": "UTILS_FVT_SLURM_CONFIG_UTIL_NEG004",
+        "title": "Verify config_rollback fails when no backups are available",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
     # NEGATIVE TEST CASES - COLLECT
     # ══════════════════════════════════════════════════════════════════════════
     "collect_missing_input_fails": {
