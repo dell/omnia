@@ -23,9 +23,6 @@ import pytest
 from library.functions import TestLogger, run_playbook
 
 
-pytestmark = pytest.mark.destructive
-
-
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
