@@ -684,6 +684,11 @@ class ValidationRunner:
 
         test_paths = self._build_verify_paths(tag, suite)
         if not test_paths:
+            # If running a specific tag in lifecycle mode and no test paths found,
+            # skip gracefully (tag may have only deploy tests)
+            if tag:
+                _info(f"No verification tests found for {tag}; skipping.")
+                return 0
             _err("No eligible FVT directories were found; refusing broad pytest discovery")
             return 2
         marker_expression = "not deploy"
@@ -713,6 +718,11 @@ class ValidationRunner:
         rc = self._invoke_pytest_with_summary(
             test_paths, marker_args, verbose,
         )
+        # Exit code 5 means no tests were collected (all deselected by markers)
+        # When running a specific tag in lifecycle mode, treat this as success
+        if rc == 5 and tag:
+            _info(f"No verification tests found for {tag}; skipping.")
+            return 0
         if rc == 0:
             _ok("Verification completed.")
         else:
