@@ -36,6 +36,7 @@ from library.functions.cleanup_func import (
     verify_no_pods_remaining,
     verify_no_pvcs_remaining,
     verify_pvcs_preserved,
+    verify_source_pvcs_deleted,
 )
 
 
@@ -74,6 +75,28 @@ def test_no_pvcs_after_full_cleanup(host, delete_victoria_volume):
       - With delete_victoria_volume=true: zero PVCs must remain (all deleted).
       - With delete_victoria_volume=false: VictoriaMetrics and VictoriaLogs PVCs must be preserved, other PVCs deleted.
     """
+    # First, verify source PVCs are always deleted (regardless of flag)
+    tc_source = TC["no_pvcs_after_full_cleanup"]
+    tl_source = TestLogger("Verify source PVCs deleted", tc_source["id"] + "-source")
+
+    result_source = verify_source_pvcs_deleted(host)
+
+    if result_source["success"]:
+        tl_source.passed(
+            LOG_MSGS["no_pvcs_remaining"],
+            result_source["details"],
+        )
+    else:
+        tl_source.failed(
+            LOG_MSGS["pvcs_remaining"].format(count=result_source["count"]),
+            result_source["details"],
+        )
+
+    assert result_source["success"], (
+        f"Source PVCs were not deleted: {result_source['error']}"
+    )
+
+    # Then, verify Victoria PVCs based on the flag
     if delete_victoria_volume:
         tc = TC["no_pvcs_after_full_cleanup"]
         tl = TestLogger(tc["title"], tc["id"])

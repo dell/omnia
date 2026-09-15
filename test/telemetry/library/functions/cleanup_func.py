@@ -437,6 +437,59 @@ def verify_no_pvcs_remaining(host, namespace=None) -> Dict[str, Any]:
     }
 
 
+def verify_source_pvcs_deleted(host, namespace=None) -> Dict[str, Any]:
+    """Verify source PVCs are deleted after cleanup (always expected).
+
+    Source PVCs (iDRAC, LDMS, Kafka, PowerScale, UFM, VAST) should always be
+    deleted regardless of the delete_victoria_volume flag. This function
+    verifies that no source PVCs remain.
+
+    Args:
+        host: testinfra host connected to kube_vip.
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        dict with keys: success (bool), details (str), error (str),
+                        count (int).
+    """
+    ns = namespace or TELEMETRY_NAMESPACE
+
+    # Check for source PVCs (should always be deleted)
+    source_pvc_count = 0
+    source_pvc_details = []
+    for prefix in ["mysqldb", "ldms", "kafka", "powerscale", "ufm", "vast"]:
+        cmd = CMDS["kubectl_get_pvc_count"].format(namespace=ns, prefix=prefix)
+        result = run_on_kube_vip(host, cmd)
+        if result.rc == 0:
+            count = int(result.stdout.strip())
+            if count > 0:
+                source_pvc_count += count
+                source_pvc_details.append(f"{prefix} ({count})")
+
+    if source_pvc_count == 0:
+        return {
+            "success": True,
+            "details": (
+                f"No source PVCs found in namespace '{ns}' "
+                f"(all source PVCs deleted as expected)"
+            ),
+            "error": "",
+            "count": 0,
+        }
+    return {
+        "success": False,
+        "details": (
+            f"{source_pvc_count} source PVC(s) still present in namespace '{ns}': "
+            f"{', '.join(source_pvc_details)}"
+        ),
+        "error": (
+            f"Source PVCs were not deleted; found {source_pvc_count} source PVC(s) "
+            f"that should have been deleted: {', '.join(source_pvc_details)}"
+        ),
+        "count": source_pvc_count,
+    }
+
+
 def verify_pvcs_preserved(host, namespace=None) -> Dict[str, Any]:
     """Verify VictoriaMetrics and VictoriaLogs PVCs are preserved after cleanup (delete_victoria_volume=false).
 
