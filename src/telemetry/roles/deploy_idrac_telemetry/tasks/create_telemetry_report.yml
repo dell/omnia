@@ -39,12 +39,14 @@
     disabled_telemetry_count: 0
     disabled_telemetry_ips: []
     telemetry_config: "{{ hostvars['localhost']['telemetry_config'] | default({}) }}"
+    _report_output_dir: >-
+      {{ output_project_dir | default(omnia_data_path + '/telemetry/output/' + (project_name | default('project_default'))) }}
 
 - name: Create and update telemetry report from template
   ansible.builtin.template:
     src: "{{ telemetry_report_template }}"
-    dest: "{{ telemetry_report_path }}"
-    mode: "{{ filemode }}"
+    dest: "{{ _report_output_dir }}/idrac_telemetry_report.yml"
+    mode: "0644"
     force: true
   delegate_to: localhost
 

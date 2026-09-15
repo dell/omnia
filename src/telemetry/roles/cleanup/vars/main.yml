@@ -19,14 +19,17 @@
 
 # --- Shared cleanup settings ---
 telemetry_namespace: "telemetry"
-# Preserve persistent telemetry data unless the user explicitly requests deletion.
-# Both -e delete_volume=true and -e Delete_volume=true are accepted.
-_cleanup_delete_volume_enabled: >-
+# Preserve VictoriaMetrics and VictoriaLogs volumes unless the user explicitly requests deletion.
+# Both -e delete_victoria_volume=true and -e Delete_victoria_volume=true are accepted.
+# Other source volumes (iDRAC, LDMS, etc.) are always deleted regardless of this flag.
+_cleanup_delete_victoria_volume_enabled: >-
   {{
-    (hostvars['localhost'] | default({}))['_cleanup_delete_volume']
-    | default(Delete_volume | default(delete_volume | default(false)))
+    (hostvars['localhost'] | default({}))['_cleanup_delete_victoria_volume']
+    | default(Delete_victoria_volume | default(delete_victoria_volume | default(false)))
     | bool
   }}
+_cleanup_preserve_victoria_volumes: >-
+  {{ not (_cleanup_delete_victoria_volume_enabled | bool) }}
 cleanup_resource_grace_period: 0
 cleanup_post_delete_pause: 5
 cleanup_helm_timeout: "5m"

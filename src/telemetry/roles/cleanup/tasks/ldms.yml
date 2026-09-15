@@ -279,7 +279,6 @@
     kubectl -n {{ telemetry_namespace }} delete pvc -l {{ ldms_pvc_label }}
     --ignore-not-found=true --wait=false
   register: _ldms_pvc_delete
-  when: _cleanup_delete_volume_enabled | bool
   changed_when: _ldms_pvc_delete.rc == 0 and 'deleted' in _ldms_pvc_delete.stdout
   failed_when: false
 
@@ -289,7 +288,6 @@
     --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
   loop: "{{ ldms_pod_labels }}"
   register: _ldms_pod_delete
-  when: _cleanup_delete_volume_enabled | bool
   changed_when: _ldms_pod_delete.rc == 0 and 'deleted' in _ldms_pod_delete.stdout
   failed_when: false
 
@@ -314,7 +312,6 @@
   until: _ldms_pvc_wait.stdout | trim | length == 0
   retries: "{{ cleanup_custom_resource_retries }}"
   delay: "{{ cleanup_custom_resource_delay }}"
-  when: _cleanup_delete_volume_enabled | bool
   failed_when: false
 
 - name: LDMS | Delete Vector-LDMS bridge resources

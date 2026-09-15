@@ -85,7 +85,7 @@
     label: "{{ item.type }}/{{ item.name }}"
   register: _powerscale_named_delete
   when:
-    - item.type != 'pvc' or _cleanup_delete_volume_enabled | bool
+    - item.type != 'pvc' or true
     - item.type != 'vmservicescrape'
   changed_when: _powerscale_named_delete.rc == 0
   failed_when: false
@@ -135,7 +135,7 @@
     kubectl -n {{ telemetry_namespace }} delete pod -l {{ item }}
     --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
   loop: "{{ powerscale_pod_labels }}"
-  when: _cleanup_delete_volume_enabled | bool
+  when: true
   failed_when: false
 
 - name: PowerScale | Wait for pods to terminate
@@ -162,7 +162,7 @@
   until: _powerscale_pvc_wait.stdout | trim | length == 0
   retries: "{{ cleanup_custom_resource_retries }}"
   delay: "{{ cleanup_custom_resource_delay }}"
-  when: _cleanup_delete_volume_enabled | bool
+  when: true
   failed_when: false
 
 - name: PowerScale | Cleanup complete
