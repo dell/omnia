@@ -110,7 +110,7 @@ def test_slurm_config_util_env_vars_loaded(host):
 
 
 # =============================================================================
-# PLAYBOOK DEPLOYMENT + VERIFICATION: config_backup
+# PLAYBOOK DEPLOYMENT + VERIFICATION: slurm_config_backup
 # =============================================================================
 
 @pytest.mark.deploy
@@ -118,7 +118,7 @@ def test_slurm_config_util_env_vars_loaded(host):
 @pytest.mark.slurm_config_util
 @pytest.mark.order(82)
 def test_deploy_slurm_config_backup(host):
-    """Deploy slurm_config_util.yml --tags config_backup.
+    """Deploy slurm_config_util.yml --tags slurm_config_backup.
 
     Requires a deployed Slurm cluster; skips cleanly when the orchestrator
     input files (omnia_config.yml / storage_config.yml) are not present.
@@ -128,7 +128,7 @@ def test_deploy_slurm_config_backup(host):
 
     result = run_playbook(
         playbook=PLAYBOOK_SLURM_CONFIG_UTIL,
-        tag="config_backup",
+        tag="slurm_config_backup",
         extra_vars={"backup_base_name": "fvt_backup"},
     )
 
@@ -144,7 +144,7 @@ def test_deploy_slurm_config_backup(host):
             details or "See playbook output above",
         )
 
-    _assert_playbook_ok(host, result, "config_backup")
+    _assert_playbook_ok(host, result, "slurm_config_backup")
 
 
 @pytest.mark.functional
@@ -278,15 +278,21 @@ def test_slurm_config_backup_directories_present(host):
 @pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.slurm_config_util
+@pytest.mark.destructive
 @pytest.mark.order(88)
 def test_deploy_slurm_cleanup(host):
-    """Deploy slurm_config_util.yml --tags slurm_cleanup (auto pre-backup + confirm)."""
+    """Deploy slurm_config_util.yml --tags slurm_config_cleanup (auto pre-backup + confirm).
+
+    Opt-in only (--marker destructive): this deletes the entire live Slurm
+    config share (all controllers), which is a decommission-style operation,
+    not something to run as part of routine deploy+verify FVT passes.
+    """
     tc = TC["deploy_slurm_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
 
     result = run_playbook(
         playbook=PLAYBOOK_SLURM_CONFIG_UTIL,
-        tag="slurm_cleanup",
+        tag="slurm_config_cleanup",
         extra_vars={
             "pre_cleanup_backup_choice_input": "y",
             "backup_base_name": "fvt_pre_cleanup",
@@ -302,7 +308,7 @@ def test_deploy_slurm_cleanup(host):
         tl.failed(LOG["playbook_failed"].format(rc=result["rc"], duration=result["duration"]))
 
     tl.passed(LOG["playbook_success"].format(duration=result["duration"]))
-    _assert_playbook_ok(host, result, "slurm_cleanup")
+    _assert_playbook_ok(host, result, "slurm_config_cleanup")
 
 
 # =============================================================================
@@ -314,13 +320,13 @@ def test_deploy_slurm_cleanup(host):
 @pytest.mark.slurm_config_util
 @pytest.mark.order(89)
 def test_deploy_slurm_config_rollback(host):
-    """Deploy slurm_config_util.yml --tags config_rollback (restores latest backup)."""
+    """Deploy slurm_config_util.yml --tags slurm_config_rollback (restores latest backup)."""
     tc = TC["deploy_slurm_config_rollback"]
     tl = TestLogger(tc["title"], tc["id"])
 
     result = run_playbook(
         playbook=PLAYBOOK_SLURM_CONFIG_UTIL,
-        tag="config_rollback",
+        tag="slurm_config_rollback",
         extra_vars={
             "backup_choice_input": "1",
             "pre_rollback_backup_choice_input": "n",
@@ -335,7 +341,7 @@ def test_deploy_slurm_config_rollback(host):
         tl.failed(LOG["playbook_failed"].format(rc=result["rc"], duration=result["duration"]))
 
     tl.passed(LOG["playbook_success"].format(duration=result["duration"]))
-    _assert_playbook_ok(host, result, "config_rollback")
+    _assert_playbook_ok(host, result, "slurm_config_rollback")
 
 
 @pytest.mark.functional
@@ -367,7 +373,7 @@ def test_slurm_config_backup_missing_omnia_config_fails(host):
 
     result = run_playbook(
         playbook=PLAYBOOK_SLURM_CONFIG_UTIL,
-        tag="config_backup",
+        tag="slurm_config_backup",
         extra_vars={"omnia_config_path": "/tmp/omnia_fvt_nonexistent_omnia_config.yml"},
     )
 
@@ -389,7 +395,7 @@ def test_slurm_cleanup_wrong_token_aborts(host):
 
     result = run_playbook(
         playbook=PLAYBOOK_SLURM_CONFIG_UTIL,
-        tag="slurm_cleanup",
+        tag="slurm_config_cleanup",
         extra_vars={
             "pre_cleanup_backup_choice_input": "n",
             "cleanup_confirm_input": "WRONG_TOKEN",

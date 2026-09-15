@@ -385,7 +385,7 @@ TEST_CASES = {
     # ══════════════════════════════════════════════════════════════════════════
     "deploy_slurm_config_backup": {
         "id": "UTILS_FVT_SLURM_CONFIG_UTIL_E001",
-        "title": "Deploy slurm_config_util.yml (config_backup tag)",
+        "title": "Deploy slurm_config_util.yml (slurm_config_backup tag)",
     },
     "deploy_slurm_cleanup": {
         "id": "UTILS_FVT_SLURM_CONFIG_UTIL_E002",
@@ -393,7 +393,7 @@ TEST_CASES = {
     },
     "deploy_slurm_config_rollback": {
         "id": "UTILS_FVT_SLURM_CONFIG_UTIL_E003",
-        "title": "Deploy slurm_config_util.yml (config_rollback tag)",
+        "title": "Deploy slurm_config_util.yml (slurm_config_rollback tag)",
     },
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -449,14 +449,14 @@ TEST_CASES = {
     },
 
     # ══════════════════════════════════════════════════════════════════════════
-    # CLEANUP_SLURM_CONFIG_UTIL SCENARIO
+    # CLEANUP_SLURM_CONFIG_BACKUPS SCENARIO
     # ══════════════════════════════════════════════════════════════════════════
-    "deploy_cleanup_slurm_config_util": {
-        "id": "UTILS_FVT_CLEANUP_SLURM_CONFIG_UTIL_E001",
-        "title": "Deploy utils.yml (cleanup_slurm_config_util)",
+    "deploy_cleanup_slurm_config_backups": {
+        "id": "UTILS_FVT_CLEANUP_SLURM_CONFIG_BACKUPS_E001",
+        "title": "Deploy utils.yml (cleanup_slurm_config_backups)",
     },
-    "cleanup_slurm_config_util_workspace_removed": {
-        "id": "UTILS_FVT_CLEANUP_SLURM_CONFIG_UTIL_V001",
+    "cleanup_slurm_config_backups_workspace_removed": {
+        "id": "UTILS_FVT_CLEANUP_SLURM_CONFIG_BACKUPS_V001",
         "title": "Verify Slurm config backup workspace run directories are removed",
     },
 
@@ -465,11 +465,11 @@ TEST_CASES = {
     # ══════════════════════════════════════════════════════════════════════════
     "slurm_config_backup_missing_omnia_config_fails": {
         "id": "UTILS_FVT_SLURM_CONFIG_UTIL_NEG001",
-        "title": "Verify config_backup fails when omnia_config.yml is missing",
+        "title": "Verify slurm_config_backup fails when omnia_config.yml is missing",
     },
     "slurm_config_backup_empty_slurm_cluster_fails": {
         "id": "UTILS_FVT_SLURM_CONFIG_UTIL_NEG002",
-        "title": "Verify config_backup fails when slurm_cluster is empty",
+        "title": "Verify slurm_config_backup fails when slurm_cluster is empty",
     },
     "slurm_cleanup_wrong_token_aborts": {
         "id": "UTILS_FVT_SLURM_CONFIG_UTIL_NEG003",

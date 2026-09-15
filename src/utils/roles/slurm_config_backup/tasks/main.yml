@@ -18,16 +18,9 @@
   ansible.builtin.include_role:
     name: slurm_config_common
 
-- name: Prompt for backup base name
-  ansible.builtin.pause:
-    prompt: "Enter backup base name (leave empty for timestamp-only)"
-  register: backup_base_name_input
-  when: backup_base_name is not defined
-
 - name: Set backup id
   ansible.builtin.set_fact:
-    backup_timestamp: "{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '-') }}"
-    backup_base_name_effective: "{{ backup_base_name | default(backup_base_name_input.user_input | default(''), true) }}"
+    backup_timestamp: "{{ ansible_date_time.date | replace('-', '') }}-{{ ansible_date_time.time | replace(':', '') }}"
 
 - name: Set backup name suffix
   ansible.builtin.set_fact:

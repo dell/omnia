@@ -61,6 +61,9 @@
     slurm_config_path_override: >-
       {{ slurm_config_path | default('', true)
          or (slurm_util_config.slurm_config_path | default('', true) if _slurm_config_stat.stat.exists else '') }}
+    backup_base_name_effective: >-
+      {{ backup_base_name | default('slurm_config', true)
+         or (slurm_util_config.backup_base_name | default('slurm_config', true) if _slurm_config_stat.stat.exists else 'slurm_config') }}
 
 - name: Validate omnia_config.yml exists
   ansible.builtin.stat:

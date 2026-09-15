@@ -83,7 +83,7 @@ PLAYBOOK_COLLECT = "playbooks/collect.yml"
 PLAYBOOK_INSTALL_OS = "playbooks/install_os.yml"
 PLAYBOOK_BACKUP_OIM_LOGS = "playbooks/backup_oim_logs/backup_oim_logs.yml"
 PLAYBOOK_SLURM_CONFIG_UTIL = "playbooks/slurm_config_util/slurm_config_util.yml"
-PLAYBOOK_CLEANUP_SLURM_CONFIG_UTIL = "playbooks/slurm_config_util/cleanup_slurm_config_util.yml"
+PLAYBOOK_CLEANUP_SLURM_CONFIG_BACKUPS = "playbooks/slurm_config_util/cleanup_slurm_config_backups.yml"
 PLAYBOOK_WORKDIR = "src/utils"
 
 # Valid playbook tags for collect.yml
@@ -134,10 +134,10 @@ UTILS_PLAYBOOK_TAGS = [
     "cleanup_logs",
     "cleanup_install_os",
     "cleanup_backup_oim_logs",
-    "config_backup",
-    "slurm_cleanup",
-    "config_rollback",
-    "cleanup_slurm_config_util",
+    "slurm_config_backup",
+    "slurm_config_cleanup",
+    "slurm_config_rollback",
+    "cleanup_slurm_config_backups",
 ]
 
 # Domains backed up by backup_oim_logs.yml when no config file selection is supplied

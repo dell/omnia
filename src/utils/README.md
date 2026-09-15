@@ -47,9 +47,9 @@ ansible-playbook playbooks/utils.yml --tags precheck
 ansible-playbook playbooks/utils.yml --tags collect
 ansible-playbook playbooks/utils.yml --tags install_os
 ansible-playbook playbooks/utils.yml --tags backup_oim_logs
-ansible-playbook playbooks/utils.yml --tags config_backup
-ansible-playbook playbooks/utils.yml --tags slurm_cleanup
-ansible-playbook playbooks/utils.yml --tags config_rollback
+ansible-playbook playbooks/utils.yml --tags slurm_config_backup
+ansible-playbook playbooks/utils.yml --tags slurm_config_cleanup
+ansible-playbook playbooks/utils.yml --tags slurm_config_rollback
 ```
 
 For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
@@ -67,14 +67,14 @@ For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
 | `collect` | Collect configured Kubernetes, Slurm, and login-node logs | `collect_pxe.yml` |
 | `install_os` | Run the OS installation playbook | `install_os_config.yml`; credentials are collected as needed |
 | `backup_oim_logs` | Archive OIM log directories for selected Omnia domains | Optional `backup_oim_logs_config.yml` |
-| `config_backup` | Back up the active Slurm controller configuration from the NFS share | `omnia_config.yml`, `storage_config.yml`, PXE mapping |
-| `slurm_cleanup` | Delete the active Slurm configuration from the NFS share (with optional pre-backup) | Same as `config_backup` |
-| `config_rollback` | Restore a Slurm configuration backup and run `scontrol reconfigure` | Same as `config_backup`; requires an existing backup |
+| `slurm_config_backup` | Back up the active Slurm controller configuration from the NFS share | `omnia_config.yml`, `storage_config.yml`, PXE mapping |
+| `slurm_config_cleanup` | Delete the active Slurm configuration from the NFS share (with optional pre-backup) | Same as `slurm_config_backup` |
+| `slurm_config_rollback` | Restore a Slurm configuration backup and run `scontrol reconfigure` | Same as `slurm_config_backup`; requires an existing backup |
 | `cleanup` | Clean all utility artifacts and remove OS-install credentials by default | None |
 | `cleanup_logs` | Apply retention cleanup to collected log bundles | None |
 | `cleanup_install_os` | Remove temporary OS-installation artifacts and credentials by default | None |
 | `cleanup_backup_oim_logs` | Remove all OIM log-backup run directories | Optional backup-path override |
-| `cleanup_slurm_config_util` | Remove all Slurm config-backup run directories | Optional backup-path override |
+| `cleanup_slurm_config_backups` | Remove all Slurm config-backup run directories | Optional backup-path override |
 | `upgrade` / `rollback` | Reserved placeholders; no lifecycle action is implemented | None |
 
 Run exactly one public tag at a time. With no tag, `utils.yml` runs the common
@@ -89,7 +89,7 @@ The imported playbooks expose additional stage tags when run directly:
 | `playbooks/collect.yml` | `setup`, `prepare`, `k8s`, `slurm`, `bundle`; no tag runs the complete flow |
 | `playbooks/install_os.yml` | `credentials`, `build_iso`, `deploy`, `generate_ks`; no tag runs end to end |
 | `playbooks/backup_oim_logs/backup_oim_logs.yml` | `setup`, `bundle`; no tag runs both stages |
-| `playbooks/slurm_config_util/slurm_config_util.yml` | `config_backup`, `slurm_cleanup`, `config_rollback` (each self-contained; run one at a time) |
+| `playbooks/slurm_config_util/slurm_config_util.yml` | `slurm_config_backup`, `slurm_config_cleanup`, `slurm_config_rollback` (each self-contained; run one at a time) |
 
 ### Cleanup and Reset
 
@@ -170,7 +170,7 @@ ansible-playbook playbooks/utils.yml --tags cleanup_backup_oim_logs
 
 ### Slurm Configuration Utilities
 
-`config_backup`, `slurm_cleanup`, and `config_rollback` manage the active
+`slurm_config_backup`, `slurm_config_cleanup`, and `slurm_config_rollback` manage the active
 Slurm controller configuration (`etc/slurm`, `etc/munge`, `etc/my.cnf.d`)
 stored on the Slurm NFS share (`storage_config.yml` → `slurm_cluster[].nfs_storage_name`).
 Each tag resolves the controller from the PXE mapping (YAML `nodes_slurm.yaml`
@@ -186,20 +186,20 @@ Backup-destination precedence, highest to lowest (same as `backup_oim_logs`):
 
 ```bash
 # Backup: prompts for an optional backup name
-ansible-playbook playbooks/utils.yml --tags config_backup
+ansible-playbook playbooks/utils.yml --tags slurm_config_backup
 
 # Cleanup: prompts for a pre-cleanup backup, then requires the confirmation token
-ansible-playbook playbooks/utils.yml --tags slurm_cleanup
+ansible-playbook playbooks/utils.yml --tags slurm_config_cleanup
 
 # Rollback: lists available backups (latest first), validates, restores,
 # fixes slurmdbd.conf/munge.key permissions, and runs `scontrol reconfigure`
-ansible-playbook playbooks/utils.yml --tags config_rollback
+ansible-playbook playbooks/utils.yml --tags slurm_config_rollback
 
 # NFS backup destination override
-ansible-playbook playbooks/utils.yml --tags config_backup \
+ansible-playbook playbooks/utils.yml --tags slurm_config_backup \
   -e 'slurm_backup_path=172.96.20.223:/mnt/backup_dir'
 
-ansible-playbook playbooks/utils.yml --tags cleanup_slurm_config_util
+ansible-playbook playbooks/utils.yml --tags cleanup_slurm_config_backups
 ```
 
 ---

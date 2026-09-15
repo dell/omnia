@@ -229,6 +229,64 @@
   changed_when: true
   failed_when: false
 
+# Restoring config directories re-creates them on the NFS share, which can
+# leave the controller's existing NFS mounts of those same paths (e.g.
+# /etc/slurm, /etc/munge) pointing at a stale file handle. Probe each mount
+# on the controller and remount only the ones that have actually gone stale
+# before relying on them below.
+- name: Probe controller Slurm config mounts after restore
+  ansible.builtin.stat:
+    path: "/{{ item }}"
+  loop: "{{ slurm_config_directories_effective }}"
+  delegate_to: slurm_controller
+  register: controller_mount_probe
+  ignore_errors: true
+
+- name: Identify stale NFS mounts on controller after restore
+  ansible.builtin.set_fact:
+    controller_stale_mounts: "{{ controller_mount_probe.results | selectattr('failed', 'true') | map(attribute='item') | list }}"
+
+- name: Report stale NFS mounts detected on controller
+  ansible.builtin.debug:
+    msg: "Detected stale NFS mount(s) on controller after restore, remounting: {{ controller_stale_mounts }}"
+  when: controller_stale_mounts | length > 0
+
+- name: Unmount stale controller directories
+  ansible.builtin.command:
+    cmd: "umount -l /{{ item }}"
+  loop: "{{ controller_stale_mounts }}"
+  delegate_to: slurm_controller
+  changed_when: true
+  when: controller_stale_mounts | length > 0
+
+- name: Remount controller directories
+  ansible.builtin.command:
+    cmd: "mount /{{ item }}"
+  loop: "{{ controller_stale_mounts }}"
+  delegate_to: slurm_controller
+  changed_when: true
+  when: controller_stale_mounts | length > 0
+
+- name: Re-probe previously stale controller mounts
+  ansible.builtin.stat:
+    path: "/{{ item }}"
+  loop: "{{ controller_stale_mounts }}"
+  delegate_to: slurm_controller
+  register: controller_mount_reverify
+  ignore_errors: true
+  when: controller_stale_mounts | length > 0
+
+- name: Fail if controller mounts remain stale after remount attempt
+  ansible.builtin.fail:
+    msg: >-
+      Unable to recover NFS mount(s) {{ controller_stale_mounts }} on the Slurm controller
+      after rollback restore (still stale after remount). Manually run
+      'umount -l /<path> && mount /<path>' on the controller for the affected path(s), then
+      re-run rollback.
+  when:
+    - controller_stale_mounts | length > 0
+    - controller_mount_reverify.results | default([]) | selectattr('failed', 'true') | list | length > 0
+
 - name: Check slurmdbd.conf permissions after restore
   ansible.builtin.stat:
     path: /etc/slurm/slurmdbd.conf

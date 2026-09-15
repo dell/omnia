@@ -9,9 +9,10 @@ Includes `slurm_config_common` to resolve the controller and backup
 destination, lists available backups (latest first), validates backup
 integrity (`slurm.conf`, `slurmdbd.conf`, `cgroup.conf`, `gres.conf`,
 `munge.key`), optionally creates a safety backup, restores the config
-directories, fixes file permissions on the controller
-(`slurmdbd.conf`: `0600`, `munge.key`: `0400`), restarts `slurmdbd` if its
-config changed, and runs `scontrol reconfigure`.
+directories, detects and remounts any controller NFS mounts (`/etc/slurm`,
+`/etc/munge`, `/etc/my.cnf.d`) left stale by that restore, fixes file
+permissions on the controller (`slurmdbd.conf`: `0600`, `munge.key`: `0400`),
+restarts `slurmdbd` if its config changed, and runs `scontrol reconfigure`.
 
 ## Role Variables
 
@@ -36,6 +37,8 @@ rollback_backup_list_limit: 20            # max backups shown (latest first)
 
 - Fails fast if the selected backup is missing `slurm.conf`.
 - Warns (with continue prompt) for other missing files/directories.
+- If a controller NFS mount is still stale after the automatic remount
+  attempt, the task fails with guidance to remount manually and re-run.
 - If `slurmctld` is not running, or `scontrol reconfigure` fails, the task
   fails with recovery guidance — the on-disk restore has already completed.
 
@@ -55,7 +58,7 @@ rollback_backup_list_limit: 20            # max backups shown (latest first)
 
 ```bash
 cd src/utils
-ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags config_rollback
+ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags slurm_config_rollback
 ```
 
 ## License

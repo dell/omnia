@@ -16,7 +16,7 @@
 # =========================================================================
 # Standalone cleanup playbook for Slurm config backup artifacts.
 # This playbook is ONLY invoked via utils.yml with the
-# cleanup_slurm_config_util tag. It removes every backup run directory
+# cleanup_slurm_config_backups tag. It removes every backup run directory
 # under the resolved backup destination - there is no retention policy.
 # =========================================================================
 
@@ -131,4 +131,4 @@
         name: utils_status_writer
       vars:
         utils_domain_status: "{{ 'success' if ansible_failed_result is not defined else 'failure' }}"
-        utils_playbook_name: "cleanup_slurm_config_util.yml"
+        utils_playbook_name: "cleanup_slurm_config_backups.yml"

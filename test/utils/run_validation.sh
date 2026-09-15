@@ -22,11 +22,13 @@
 #   ./run_validation.sh <scenario> <command> [options]
 #
 # Scenarios:
-#   precheck            - Environment and connectivity checks
-#   collect             - Log collector tests
-#   install_os          - OS installation tests
-#   backup_oim_logs     - OIM log backup tests
-#   cleanup_backup_oim_logs - OIM log backup cleanup tests
+#   precheck                  - Environment and connectivity checks
+#   collect                   - Log collector tests
+#   install_os                - OS installation tests
+#   backup_oim_logs           - OIM log backup tests
+#   slurm_config_util         - Slurm config backup/cleanup/rollback tests
+#   cleanup_backup_oim_logs   - OIM log backup cleanup tests
+#   cleanup_slurm_config_backups - Slurm config backup cleanup tests
 #
 # Commands:
 #   deploy        - Run playbook deployment tests only
@@ -42,6 +44,8 @@
 #   ./run_validation.sh collect test
 #   ./run_validation.sh collect test --marker sanity
 #   ./run_validation.sh precheck verify
+#   ./run_validation.sh slurm_config_util test
+#   ./run_validation.sh cleanup_slurm_config_backups test
 #   ./run_validation.sh --config
 # =============================================================================
 
@@ -70,15 +74,17 @@ usage() {
     echo "Usage: $0 <scenario> <command> [options]"
     echo ""
     echo "Scenarios:"
-    echo "  precheck           Environment and connectivity checks"
-    echo "  setup              Domain setup tests"
-    echo "  collect            Log collector tests"
-    echo "  install_os         OS installation tests"
-    echo "  backup_oim_logs    OIM log backup tests"
-    echo "  cleanup            Combined cleanup tests"
-    echo "  cleanup_logs       Log cleanup tests"
-    echo "  cleanup_install_os Install OS cleanup tests"
-    echo "  cleanup_backup_oim_logs OIM log backup cleanup tests"
+    echo "  precheck                  Environment and connectivity checks"
+    echo "  setup                     Domain setup tests"
+    echo "  collect                   Log collector tests"
+    echo "  install_os                OS installation tests"
+    echo "  backup_oim_logs           OIM log backup tests"
+    echo "  slurm_config_util         Slurm config backup/cleanup/rollback tests"
+    echo "  cleanup                   Combined cleanup tests"
+    echo "  cleanup_logs              Log cleanup tests"
+    echo "  cleanup_install_os       Install OS cleanup tests"
+    echo "  cleanup_backup_oim_logs   OIM log backup cleanup tests"
+    echo "  cleanup_slurm_config_backups Slurm config backup cleanup tests"
     echo ""
     echo "Commands:"
     echo "  deploy        Run playbook deployment tests only"
@@ -95,6 +101,8 @@ usage() {
     echo "  $0 collect test --marker sanity"
     echo "  $0 precheck verify"
     echo "  $0 setup test"
+    echo "  $0 slurm_config_util test"
+    echo "  $0 cleanup_slurm_config_backups test"
     echo "  $0 cleanup test"
     echo "  $0 --config"
     exit 1
@@ -214,7 +222,8 @@ fi
 # Validate scenario
 VALID_SCENARIOS=(
     "precheck" "setup" "collect" "install_os" "backup_oim_logs"
-    "cleanup" "cleanup_logs" "cleanup_install_os" "cleanup_backup_oim_logs"
+    "slurm_config_util" "cleanup" "cleanup_logs" "cleanup_install_os"
+    "cleanup_backup_oim_logs" "cleanup_slurm_config_backups"
 )
 if [[ ! " ${VALID_SCENARIOS[*]} " =~ " ${SCENARIO} " ]]; then
     log_error "Invalid scenario: ${SCENARIO}"
@@ -242,6 +251,8 @@ elif [[ "${SCENARIO}" == "cleanup_install_os" ]]; then
     TEST_PATH="fvt/cleanup/cleanup_install_os/"
 elif [[ "${SCENARIO}" == "cleanup_backup_oim_logs" ]]; then
     TEST_PATH="fvt/cleanup/cleanup_backup_oim_logs/"
+elif [[ "${SCENARIO}" == "cleanup_slurm_config_backups" ]]; then
+    TEST_PATH="fvt/cleanup/cleanup_slurm_config_backups/"
 else
     TEST_PATH="fvt/${SCENARIO}/"
 fi

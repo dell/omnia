@@ -13,9 +13,9 @@
 # limitations under the License.
 
 """
-Cleanup Slurm Config Util Scenario - Test Automation.
+Cleanup Slurm Config Backups Scenario - Test Automation.
 
-Tests for utils.yml --tags cleanup_slurm_config_util functionality.
+Tests for utils.yml --tags cleanup_slurm_config_backups functionality.
 Validates that the tag removes every backup run directory from the Slurm
 config backup workspace. There is no retention policy - cleanup is a full wipe.
 """
@@ -39,14 +39,14 @@ from library.messages import TEST_LOG_MSGS as LOG, TEST_ASSERT_MSGS as ASSERT
 
 @pytest.mark.deploy
 @pytest.mark.sanity
-@pytest.mark.cleanup_slurm_config_util
+@pytest.mark.cleanup_slurm_config_backups
 @pytest.mark.order(0)
-def test_deploy_cleanup_slurm_config_util(host):
-    """Deploy utils.yml with cleanup_slurm_config_util tag."""
-    tc = TC["deploy_cleanup_slurm_config_util"]
+def test_deploy_cleanup_slurm_config_backups(host):
+    """Deploy utils.yml with cleanup_slurm_config_backups tag."""
+    tc = TC["deploy_cleanup_slurm_config_backups"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    result = run_playbook(playbook=PLAYBOOK_UTILS, tag="cleanup_slurm_config_util")
+    result = run_playbook(playbook=PLAYBOOK_UTILS, tag="cleanup_slurm_config_backups")
 
     if result["success"]:
         tl.passed(LOG["playbook_success"].format(duration=result["duration"]))
@@ -59,7 +59,7 @@ def test_deploy_cleanup_slurm_config_util(host):
     config = load_test_config()
     assert result["success"], ASSERT["playbook_failed"].format(
         playbook=PLAYBOOK_UTILS,
-        tag="cleanup_slurm_config_util",
+        tag="cleanup_slurm_config_backups",
         rc=result["rc"],
         duration=result["duration"],
         input_path="N/A",
@@ -69,11 +69,11 @@ def test_deploy_cleanup_slurm_config_util(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.cleanup_slurm_config_util
+@pytest.mark.cleanup_slurm_config_backups
 @pytest.mark.order(1)
-def test_cleanup_slurm_config_util_workspace_removed(host):
+def test_cleanup_slurm_config_backups_workspace_removed(host):
     """Verify no backup run directories remain after cleanup."""
-    tc = TC["cleanup_slurm_config_util_workspace_removed"]
+    tc = TC["cleanup_slurm_config_backups_workspace_removed"]
     tl = TestLogger(tc["title"], tc["id"])
 
     output_path = get_slurm_config_util_output_path(host)

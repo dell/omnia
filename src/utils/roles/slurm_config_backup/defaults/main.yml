@@ -1,3 +1,8 @@
 ---
-# Optional: skip the interactive prompt by pre-setting this var
-# backup_base_name: ""
+# Optional base name for backup directories (prepended to timestamp).
+# Default: "slurm_config" creates "slurm_config_2026-09-14_20-05-08"
+# Can be set via:
+#   1. CLI extra-var: -e "backup_base_name=my_backup"
+#   2. Config file: backup_base_name in slurm_config_util_config.yml
+#   3. This defaults file (not recommended - use config file instead)
+backup_base_name: "slurm_config"

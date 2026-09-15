@@ -48,6 +48,10 @@ nfs_storage_name: ""
 # path OMNIA_DATA_PATH/utils/output/OMNIA_PROJECT_NAME/slurm_config_util.
 slurm_backup_path: ""
 
+# Optional base name for backup directories (prepended to timestamp).
+# Default: "slurm_config" creates "slurm_config_2026-09-14_20-05-08"
+backup_base_name: "slurm_config"
+
 # --- Behavioral settings -----------------------------------------------------
 # Confirmation token required to proceed with slurm_cleanup
 slurm_cleanup_confirm_token: "YES"

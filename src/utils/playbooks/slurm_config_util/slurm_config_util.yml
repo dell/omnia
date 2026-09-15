@@ -17,9 +17,9 @@
 #
 # Usage (run ONE tag at a time - no comma-separated tags):
 #   cd src/utils
-#   ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags config_backup
-#   ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags slurm_cleanup
-#   ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags config_rollback
+#   ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags slurm_config_backup
+#   ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags slurm_config_cleanup
+#   ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags slurm_config_rollback
 #
 # Optional overrides:
 #   -e slurm_backup_path=<local path or "<server>:/<export>">
@@ -32,7 +32,7 @@
   gather_facts: true
   tags:
     - never
-    - config_backup
+    - slurm_config_backup
   pre_tasks:
     - name: Record execution start time
       ansible.builtin.set_fact:
@@ -58,7 +58,7 @@
   gather_facts: true
   tags:
     - never
-    - slurm_cleanup
+    - slurm_config_cleanup
   pre_tasks:
     - name: Record execution start time
       ansible.builtin.set_fact:
@@ -84,7 +84,7 @@
   gather_facts: true
   tags:
     - never
-    - config_rollback
+    - slurm_config_rollback
   pre_tasks:
     - name: Record execution start time
       ansible.builtin.set_fact:
