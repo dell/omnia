@@ -71,6 +71,137 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from ansible.module_utils.basic import AnsibleModule
 
+DOCUMENTATION = r'''
+---
+module: bulk_discover_node_specs
+short_description: Discover hardware specifications from multiple iDRACs
+description:
+  - Queries Dell iDRAC Redfish endpoints concurrently to discover CPU, memory, and GPU details.
+  - In heterogeneous mode, discovers every host supplied in O(nodes).
+  - In homogeneous mode, discovers one reachable sample from each group in O(groups) and applies
+    those specifications to every host in that group.
+  - Exactly one of O(nodes) and O(groups) must be supplied.
+options:
+  nodes:
+    description:
+      - Hostnames to discover individually in heterogeneous mode.
+      - Mutually exclusive with O(groups).
+    type: list
+    elements: str
+  groups:
+    description:
+      - Mapping of hardware-group names to lists of hostnames for homogeneous discovery.
+      - Mutually exclusive with O(nodes).
+    type: dict
+  bmc_ip_map:
+    description:
+      - Mapping of each hostname to its iDRAC IP address or resolvable hostname.
+    type: dict
+    required: true
+  bmc_username:
+    description:
+      - Username used to authenticate to the iDRAC Redfish API.
+    type: str
+    required: true
+  bmc_password:
+    description:
+      - Password used to authenticate to the iDRAC Redfish API.
+    type: str
+    required: true
+  max_parallel:
+    description:
+      - Maximum number of concurrent node or group discovery workers.
+    type: int
+    default: 20
+  connect_timeout:
+    description:
+      - Timeout, in seconds, for each Redfish request.
+    type: int
+    default: 60
+  defaults:
+    description:
+      - Hardware values used when a Redfish property is unavailable.
+      - Supported keys are C(real_memory), C(corespersocket), C(threadspercore), and C(sockets).
+    type: dict
+    default: {}
+author:
+  - Dell Omnia Team
+'''
+
+EXAMPLES = r'''
+- name: Discover every compute node independently
+  omnia.orchestrator.bulk_discover_node_specs:
+    nodes: "{{ compute_nodes }}"
+    bmc_ip_map: "{{ bmc_ip_map }}"
+    bmc_username: "{{ bmc_username }}"
+    bmc_password: "{{ bmc_password }}"
+    max_parallel: 20
+    connect_timeout: 60
+    defaults:
+      real_memory: 864
+      corespersocket: 72
+      threadspercore: 1
+  register: node_discovery
+
+- name: Discover one representative node per homogeneous hardware group
+  omnia.orchestrator.bulk_discover_node_specs:
+    groups: "{{ hardware_groups }}"
+    bmc_ip_map: "{{ bmc_ip_map }}"
+    bmc_username: "{{ bmc_username }}"
+    bmc_password: "{{ bmc_password }}"
+    defaults:
+      real_memory: 864
+      corespersocket: 72
+      threadspercore: 1
+      sockets: 2
+  register: group_discovery
+'''
+
+RETURN = r'''
+node_params:
+  description: Discovered or defaulted Slurm node parameters for the requested hosts.
+  type: list
+  elements: dict
+  returned: always
+  sample:
+    - NodeName: node01
+      Sockets: 2
+      CoresPerSocket: 32
+      ThreadsPerCore: 2
+      RealMemory: 524288
+      Gres: gpu:4
+gpu_params:
+  description: Mapping of hostnames to Redfish GPU records for hosts with detected GPUs.
+  type: dict
+  returned: always
+failed_nodes:
+  description: Hostnames that could not be discovered in heterogeneous mode.
+  type: list
+  elements: str
+  returned: always
+total_nodes:
+  description: Total number of hosts requested.
+  type: int
+  returned: always
+discovered_count:
+  description: Number of hosts whose specifications were discovered successfully.
+  type: int
+  returned: always
+failed_groups:
+  description: Hardware groups for which no sample iDRAC responded.
+  type: list
+  elements: str
+  returned: when O(groups) is supplied
+total_groups:
+  description: Total number of hardware groups requested.
+  type: int
+  returned: when O(groups) is supplied
+group_sample_nodes:
+  description: Mapping of hardware-group names to the sample host used for discovery.
+  type: dict
+  returned: when O(groups) is supplied
+'''
+
 
 # ─── Redfish API helpers ───────────────────────────────────────────────────
 

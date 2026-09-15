@@ -59,7 +59,8 @@
 
     - name: Parse additional metadata-service config YAML
       ansible.builtin.set_fact:
-        _aci_config: "{{ _aci_file_content.content | b64decode | from_yaml | default({}) }}"
+        _aci_config: >-
+          {{ _aci_file_content.content | b64decode | from_yaml | default({}, true) }}
 
     - name: Extract common and groups data
       ansible.builtin.set_fact:

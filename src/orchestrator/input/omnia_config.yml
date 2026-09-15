@@ -99,7 +99,7 @@
 # <filepath> Supply the absolute path to a custom configuration file
 #            This path can be any path inside the omnia_core container.
 #            The default input path is under
-#            "$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME".
+#            "$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME".
 #            can also be used to place the custom conf files
 # The conf files supported by slurm are
 # slurm
@@ -136,9 +136,9 @@
 #   OR
 #
 # config_sources:
-#   slurm: <OMNIA_DATA_PATH>/orchestrator/input/<project>/slurm.conf
-#   cgroup: <OMNIA_DATA_PATH>/orchestrator/input/<project>/cgroup.conf
-#   slurmdbd: <OMNIA_DATA_PATH>/orchestrator/input/<project>/slurmdbd.conf
+#   slurm: <ORCHESTRATOR_DATA_PATH>/input/<project>/slurm.conf
+#   cgroup: <ORCHESTRATOR_DATA_PATH>/input/<project>/cgroup.conf
+#   slurmdbd: <ORCHESTRATOR_DATA_PATH>/input/<project>/slurmdbd.conf
 
 slurm_cluster:
   - cluster_name: slurm_cluster

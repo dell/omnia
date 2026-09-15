@@ -54,6 +54,7 @@
            | map(attribute='nfs_storage_name') | select('defined') | list)
           + (cleanup_storage_omnia_config.slurm_cluster | default([])
              | map(attribute='vast_storage_name') | select('defined')
+             | map('default', '', true) | map('trim')
              | reject('equalto', '') | list)) | unique | list }}
     cleanup_k8s_storage_names: >-
       {{ cleanup_storage_omnia_config.service_k8s_cluster | default([])

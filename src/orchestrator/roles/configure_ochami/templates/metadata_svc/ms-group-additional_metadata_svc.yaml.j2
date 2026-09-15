@@ -13,26 +13,26 @@
 {% if ms_additional_data.write_files is defined and ms_additional_data.write_files | length > 0 %}
       write_files:
 {% for wf in ms_additional_data.write_files %}
-        - path: {{ wf.path }}
+        - path: {{ wf.path | to_json }}
 {% if wf.permissions is defined %}
-          permissions: '{{ wf.permissions }}'
+          permissions: {{ wf.permissions | to_json }}
 {% endif %}
 {% if wf.owner is defined %}
-          owner: {{ wf.owner }}
+          owner: {{ wf.owner | to_json }}
 {% endif %}
 {% if wf.append is defined %}
           append: {{ wf.append | lower }}
 {% endif %}
 {% if wf.encoding is defined %}
-          encoding: {{ wf.encoding }}
+          encoding: {{ wf.encoding | to_json }}
 {% endif %}
           content: |
-            {{ wf.content | indent(12) }}
+            {{ wf.content | default('') | indent(12) }}
 {% endfor %}
 {% endif %}
 {% if ms_additional_data.runcmd is defined and ms_additional_data.runcmd | length > 0 %}
       runcmd:
 {% for cmd in ms_additional_data.runcmd %}
-        - {{ cmd }}
+        - {{ cmd | to_json }}
 {% endfor %}
 {% endif %}
