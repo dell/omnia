@@ -332,7 +332,8 @@ TEST_ASSERT_MSGS = {
         "MySQL data missing in {count} iDRAC pod(s)\n"
         "HOW TO FIX:\n"
         "  1. kubectl exec <pod> -n telemetry -c mysqldb -- "
-        "mysql -e 'SELECT * FROM idrac_telemetry.services'\n"
+        "sh -c 'MYSQL_PWD=\"$MYSQL_PASSWORD\" mysql -u\"$MYSQL_USER\" "
+        "\"$MYSQL_DATABASE\" -e \"SELECT * FROM services\"'\n"
         "  2. Check idrac-telemetry-receiver logs\n"
     ),
 

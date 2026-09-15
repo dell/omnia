@@ -16,9 +16,9 @@
 Telemetry Deploy — Kafka Sink Verification Tests.
 
 Test cases:
-    TC_SK_001: Verify Kafka broker/controller pods running
-    TC_SK_002: Verify Kafka cluster Ready condition
-    TC_SK_003: Verify Kafka bridge pod running
+    TEL_FVT_DEPLOY_V001: Verify Kafka broker/controller pods running
+    TEL_FVT_DEPLOY_V002: Verify Kafka cluster Ready condition
+    TEL_FVT_DEPLOY_V003: Verify Kafka bridge pod running
 """
 
 import pytest
@@ -43,7 +43,7 @@ from library.functions.k8s_func import (
 @pytest.mark.sanity
 @pytest.mark.order(10)
 def test_kafka_pods(host):
-    """TC_SK_001: Verify Kafka broker/controller pods running."""
+    """TEL_FVT_DEPLOY_V001: Verify Kafka broker/controller pods running."""
     tc = TC["kafka_pods"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -84,7 +84,7 @@ def test_kafka_pods(host):
 @pytest.mark.sanity
 @pytest.mark.order(11)
 def test_kafka_ready(host):
-    """TC_SK_002: Verify Kafka cluster Ready condition."""
+    """TEL_FVT_DEPLOY_V002: Verify Kafka cluster Ready condition."""
     tc = TC["kafka_ready"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -113,7 +113,7 @@ def test_kafka_ready(host):
 @pytest.mark.sanity
 @pytest.mark.order(12)
 def test_kafka_bridge(host):
-    """TC_SK_003: Verify Kafka bridge pod running."""
+    """TEL_FVT_DEPLOY_V003: Verify Kafka bridge pod running."""
     tc = TC["kafka_bridge"]
     tl = TestLogger(tc["title"], tc["id"])
 
