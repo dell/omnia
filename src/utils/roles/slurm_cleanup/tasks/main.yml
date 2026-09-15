@@ -1,55 +1,66 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 ---
 
-- name: Set slurm_config_path
-  ansible.builtin.set_fact:
-    slurm_config_path: "{{ share_path }}/{{ slurm_share_dir_name }}"
-  tags: slurm_cleanup
+- name: Resolve shared Slurm config facts
+  ansible.builtin.include_role:
+    name: slurm_config_common
 
 - name: Prompt for pre-cleanup backup
   ansible.builtin.pause:
     prompt: "Before cleanup, take a config backup? (y/n)"
   register: pre_cleanup_backup
-  tags: slurm_cleanup
+  when: pre_cleanup_backup_choice_input is not defined
 
 - name: Set pre-cleanup backup choice
   ansible.builtin.set_fact:
-    pre_cleanup_backup_choice: "{{ pre_cleanup_backup.user_input | default('') | trim | lower }}"
-  tags: slurm_cleanup
+    pre_cleanup_backup_choice: >-
+      {{ (pre_cleanup_backup_choice_input | default(pre_cleanup_backup.user_input | default(''), true)) | trim | lower }}
 
 - name: Fail if pre-cleanup backup choice is empty
   ansible.builtin.fail:
     msg: "No input provided for pre-cleanup backup prompt. Cleanup aborted."
   when: pre_cleanup_backup_choice | length == 0
-  tags: slurm_cleanup
 
 - name: Validate pre-cleanup backup choice
   ansible.builtin.fail:
-    msg: "Invalid input '{{ pre_cleanup_backup.user_input | default('') }}'. Enter 'y' or 'n'."
+    msg: "Invalid input '{{ pre_cleanup_backup_choice }}'. Enter 'y' or 'n'."
   when: pre_cleanup_backup_choice not in ['y', 'yes', 'n', 'no']
-  tags: slurm_cleanup
 
 - name: Run config backup before cleanup
   ansible.builtin.include_role:
     name: slurm_config_backup
-    apply:
-      tags: slurm_cleanup
   when: pre_cleanup_backup_choice in ['y', 'yes']
-  tags: slurm_cleanup
 
 - name: Confirm cleanup
   ansible.builtin.pause:
-    prompt: "This will delete {{ slurm_config_path }}. Type {{ slurm_cleanup_confirm_token }} to continue"
+    prompt: >-
+      This will delete {{ slurm_config_path_effective }}. Type {{ slurm_cleanup_confirm_token_effective }} to continue
   register: cleanup_confirm
-  tags: slurm_cleanup
+  when: cleanup_confirm_input is not defined
 
 - name: Fail if cleanup not confirmed
   ansible.builtin.fail:
     msg: "Cleanup aborted"
-  when: cleanup_confirm.user_input != slurm_cleanup_confirm_token
-  tags: slurm_cleanup
+  when: (cleanup_confirm_input | default(cleanup_confirm.user_input | default(''), true)) != slurm_cleanup_confirm_token_effective
 
 - name: Delete slurm share directory
   ansible.builtin.file:
-    path: "{{ slurm_config_path }}"
+    path: "{{ slurm_config_path_effective }}"
     state: absent
-  tags: slurm_cleanup
+
+- name: Display cleanup summary
+  ansible.builtin.debug:
+    msg: "Slurm config directory removed: {{ slurm_config_path_effective }}"

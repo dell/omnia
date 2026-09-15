@@ -15,13 +15,16 @@
 # Writes the final cleanup result after all runtime failures have been
 # converted into localhost-owned component facts.
 
+# The fallback is intentionally kept as one Jinja expression to preserve filter precedence.
+# yamllint disable rule:line-length
 - name: Set cleanup output path
   ansible.builtin.set_fact:
     _output_base: >-
       {{
         output_project_dir
-        | default(omnia_data_path + '/telemetry/output/' + (project_name | default('project_default')))
+        | default((telemetry_data_path | default(omnia_data_path | default('/opt/omnia') + '/telemetry')) + '/output/' + (project_name | default(lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true))))
       }}
+# yamllint enable rule:line-length
 
 - name: Ensure cleanup output directory exists
   ansible.builtin.file:

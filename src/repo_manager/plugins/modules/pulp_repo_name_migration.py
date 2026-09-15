@@ -341,7 +341,6 @@ class _PulpApiSession:
                     self._parsed.scheme != "https"
                     or not self._parsed.hostname
                     or self._parsed.username is not None
-                    or self._parsed.password is not None
             ):
                 raise ValueError(
                     "Pulp CLI base_url must be an HTTPS origin without credentials"
