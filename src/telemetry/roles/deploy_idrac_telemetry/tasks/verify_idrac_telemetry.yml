@@ -48,7 +48,11 @@
   changed_when: false
   retries: "{{ pod_ready_retries }}"
   delay: "{{ pod_ready_delay }}"
-  until: "'false' not in container_status.stdout"
+  until: |
+    {% set core_containers = ['idrac-telemetry-receiver', 'mysqldb', 'activemq'] %}
+    {% set running_containers = container_status.stdout_lines | select('search', '=true') | map('regex_replace', '=true', '') | list %}
+    {% set all_core_running = core_containers | length == (running_containers | intersect(core_containers) | length) %}
+    {{ all_core_running }}
 
 - name: Display container status
   ansible.builtin.debug:
@@ -64,7 +68,7 @@
   changed_when: false
   when:
     - telemetry_config.telemetry_sources.idrac.collection_targets is defined
-    - 'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))
+    - "'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))"
 
 - name: Verify VictoriaMetrics has iDRAC metrics (via victoriapump scrape target)
   ansible.builtin.command: >
@@ -78,7 +82,7 @@
   delay: 15
   when:
     - telemetry_config.telemetry_sources.idrac.collection_targets is defined
-    - 'victoria_metrics' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))
+    - "'victoria_metrics' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))"
 
 - name: Log VictoriaMetrics iDRAC scrape status
   ansible.builtin.debug:
@@ -90,7 +94,7 @@
       {% endif %}
   when:
     - telemetry_config.telemetry_sources.idrac.collection_targets is defined
-    - 'victoria_metrics' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))
+    - "'victoria_metrics' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))"
 
 - name: Display verification summary
   ansible.builtin.debug:
