@@ -1577,7 +1577,7 @@ def check_catalog_has_package(host, package_key: str) -> Dict[str, Any]:
 
 
 def check_catalog_package_type(host, package_key: str, expected_type: str) -> Dict[str, Any]:
-    """Verify a package has the expected type (rpm, tarball, image)."""
+    """Verify a package has the expected type (rpm, tarball, image, rpm_repo, git, manifest, pip_module)."""
     from library.vars.common_vars import _get_catalog_path
     catalog_path = _get_catalog_path()
     cmd = "python3 -c \"import json; data = json.load(open('" + catalog_path + "')); pkg = data.get('catalog', {}).get('packages', {}).get('" + package_key + "', {}); print(pkg.get('packagetype', 'unknown'))\""
