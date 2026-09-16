@@ -19,22 +19,22 @@ Verifies that telemetry_config.yml on the target is valid and parseable.
 """
 
 import pytest
-
 from library.functions import TestLogger
-
-from library.messages.telemetry_msgs import (
-    TEST_LOG_MSGS as LOG_MSGS,
-)
 from library.functions.telemetry_func import (
     load_telemetry_config_from_target,
 )
+from library.messages.telemetry_msgs import (
+    TEST_LOG_MSGS as LOG_MSGS,
+)
+from library.vars.test_case_vars import TEST_CASES as TC
 
 
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_telemetry_config_parseable(host):
-    """Verify telemetry_config.yml on target is valid YAML."""
-    tl = TestLogger("Verify telemetry config parseable", "TC_VL_002")
+    """TEL_FVT_VALIDATE_V001: Verify telemetry config is valid YAML."""
+    tc = TC["telemetry_config_parseable"]
+    tl = TestLogger(tc["title"], tc["id"])
 
     tl.check("Loading telemetry_config.yml from target")
     config = load_telemetry_config_from_target(host)

@@ -56,9 +56,10 @@ _ERROR_CONTEXT_PATTERN = re.compile(
     r"\[ERROR\]:\s*Task failed:|"
     r"\[ERROR\]:\s*Action failed:|"
     r"Origin:\s+\S+\.ya?ml:\d+:\d+|"
-    r"\s+\^\s+column\s+\d+"
+    r"^\s*\d{3,6}\s+[\-\s]+|"
+    r"\s+\^\s+column\s+\d+",
+    re.MULTILINE,
 )
-
 
 class CallbackModule(DefaultCallback):  # pylint: disable=too-many-ancestors
     """
@@ -89,6 +90,15 @@ class CallbackModule(DefaultCallback):  # pylint: disable=too-many-ancestors
         def filtered_display(msg, *args, **kwargs):
             msg_str = str(msg)
             if _ERROR_CONTEXT_PATTERN.search(msg_str):
+                # Strip only the context-block lines; keep everything else
+                # so real error messages (fatal:, module failures, etc.)
+                # are still displayed to the user.
+                kept = [
+                    line for line in msg_str.splitlines()
+                    if not _ERROR_CONTEXT_PATTERN.search(line)
+                ]
+                if kept:
+                    original_display("\n".join(kept), *args, **kwargs)
                 return
             original_display(msg, *args, **kwargs)
 

@@ -16,7 +16,7 @@
 Telemetry Cleanup — Playbook Execution.
 
 Test cases:
-    TC_CL_001: Deploy telemetry (--tags cleanup)
+    TEL_FVT_CLEANUP_E001: Deploy telemetry (--tags cleanup)
 """
 
 import pytest
@@ -34,8 +34,13 @@ from library.functions import run_playbook
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
+<<<<<<< Updated upstream
 def test_deploy_cleanup(host, delete_sinks_volume):
     """TC_CL_001: Deploy telemetry (--tags cleanup)."""
+=======
+def test_deploy_cleanup(host, delete_volume):
+    """TEL_FVT_CLEANUP_E001: Deploy telemetry (--tags cleanup)."""
+>>>>>>> Stashed changes
     tc = TC["deploy_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
 

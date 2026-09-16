@@ -19,8 +19,8 @@ Verifies that no pods or PVCs remain in the telemetry namespace after
 a full cleanup has completed.
 
 Test cases:
-    TC_CL_012: Verify no pods remain after full cleanup
-    TC_CL_013: Verify no PVCs remain after full cleanup
+    TEL_FVT_CLEANUP_V013: Verify no pods remain after full cleanup
+    TEL_FVT_CLEANUP_V014: Verify no PVCs remain after full cleanup
 """
 
 import pytest
@@ -44,7 +44,7 @@ from library.functions.cleanup_func import (
 @pytest.mark.sanity
 @pytest.mark.order(61)
 def test_no_pods_after_full_cleanup(host):
-    """TC_CL_012: Verify no pods remain in telemetry namespace.
+    """TEL_FVT_CLEANUP_V012: Verify no pods remain in telemetry namespace.
 
     After a full cleanup (--tags cleanup), the telemetry namespace
     should contain zero pods.
@@ -69,8 +69,13 @@ def test_no_pods_after_full_cleanup(host):
 
 @pytest.mark.sanity
 @pytest.mark.order(62)
+<<<<<<< Updated upstream
 def test_no_pvcs_after_full_cleanup(host, delete_sinks_volume):
     """TC_CL_012: Verify PVC state after full cleanup.
+=======
+def test_no_pvcs_after_full_cleanup(host, delete_volume):
+    """TEL_FVT_CLEANUP_V013/TEL_FVT_CLEANUP_V014: Verify cleanup PVC state.
+>>>>>>> Stashed changes
 
     After a full cleanup (--tags cleanup):
       - With delete_sinks_volume=true: zero PVCs must remain (all deleted).

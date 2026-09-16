@@ -30,7 +30,9 @@
   changed_when: false
   retries: "{{ pod_ready_retries }}"
   delay: "{{ pod_ready_delay }}"
-  until: (sts_ready.stdout | default('0') | int) >= 1
+  until: >-
+    (sts_ready.stdout | default('0') | int)
+    >= (idrac_replica_count | default(1) | int)
 
 - name: Get pod name for iDRAC telemetry
   ansible.builtin.command: >
@@ -96,11 +98,18 @@
     - telemetry_config.telemetry_sources.idrac.collection_targets is defined
     - "'victoria_metrics' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))"
 
+- name: Build iDRAC StatefulSet readiness summary
+  ansible.builtin.set_fact:
+    idrac_statefulset_summary: >-
+      {{ idrac_telemetry_k8s_name }}
+      ({{ sts_ready.stdout | default('0') }}/
+      {{- idrac_replica_count | default(1) }} ready)
+
 - name: Display verification summary
   ansible.builtin.debug:
     msg: |
       ====== iDRAC Telemetry Verification Summary ======
-      StatefulSet:     {{ idrac_telemetry_k8s_name }} ({{ sts_ready.stdout | default('0') }}/1 ready)
+      StatefulSet:     {{ idrac_statefulset_summary }}
       Pod:             {{ idrac_pod_name.stdout }}
       Containers:
       {{ container_status.stdout | default('  (unknown)') }}
