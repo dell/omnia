@@ -435,11 +435,22 @@ def test_additional_metadata_groups_are_scoped_to_current_category():
         / "roles/configure_ochami/tasks/configure_metadata_svc_additional.yml"
     )
     ochami = _read(ORCHESTRATOR_ROOT / "roles/configure_ochami/tasks/main.yml")
+    group_template = _read(
+        ORCHESTRATOR_ROOT
+        / "roles/configure_ochami/templates/nodes/groups_additional_fg.yaml.j2"
+    )
 
-    assert provisioning.count("intersect(target_fg_names | default([]))") == 1
+    assert "intersect(" in provisioning
+    assert "^service_kube_control_plane_first_" in provisioning
+    assert "service_kube_control_plane_" in provisioning
     assert provisioning.count("additional_metadata_svc_effective_fg_names") == 2
     assert "additional_metadata_svc_effective_fg_names" in additional_metadata
     assert "additional_metadata_svc_effective_fg_names" in ochami
     assert "default(additional_metadata_svc_fg_names | default([]))" in (
         additional_metadata
+    )
+    assert "normalized_target_functional_group" in group_template
+    assert (
+        "normalized_node_functional_group == normalized_target_functional_group"
+        in group_template
     )

@@ -21,13 +21,17 @@ MODULE_UTILS = Path(SRC_ORCHESTRATOR_DIR) / "plugins" / "module_utils"
 if str(MODULE_UTILS) not in ansible.module_utils.__path__:
     ansible.module_utils.__path__.insert(0, str(MODULE_UTILS))
 
+# The project module-utils path must be registered before these imports.
+# pylint: disable=wrong-import-position
 from ansible.module_utils.orchestrator_validation.core import (  # noqa: E402
     validation_engine,
 )
 from ansible.module_utils.orchestrator_validation.validators import (  # noqa: E402
     additional_cloud_init_validator,
     orchestrator_config_validator,
+    pxe_mapping_validator,
 )
+# pylint: enable=wrong-import-position
 
 
 pytestmark = pytest.mark.negative
@@ -91,23 +95,24 @@ def test_pxe_mapping_missing_required_header_is_rejected(tmp_path):
     """ORCH_FVT_NEGATIVE_V005: PXE mapping without required columns fails validation."""
     mapping = tmp_path / "pxe_mapping_file.csv"
     _write_mapping(mapping, ["HOSTNAME", "ADMIN_IP"], [["node01", "192.0.2.10"]])
-    errors = []
-    orchestrator_config_validator._validate_pxe_mapping_file(  # pylint: disable=protected-access
-        {"pxe_mapping_file_path": str(mapping)}, str(tmp_path), errors, LOGGER
+    errors = pxe_mapping_validator.validate(
+        {"pxe_mapping_file_path": str(mapping)}, str(tmp_path), LOGGER
     )
-    assert errors and "missing required column" in errors[0].lower()
+    assert errors and "expected exactly" in errors[0].lower()
 
 
 @pytest.mark.order(6)
 def test_duplicate_pxe_identity_is_rejected(tmp_path):
     """ORCH_FVT_NEGATIVE_V006: Duplicate PXE service tags, hosts, or IPs fail validation."""
-    headers = orchestrator_config_validator.REQUIRED_HEADERS
-    row = ["os_x86_64", "group", "ABC123", "", "node01", "mac1", "192.0.2.10", "mac2", "192.0.2.20"]
+    headers = pxe_mapping_validator.CANONICAL_HEADERS
+    row = [
+        "os_x86_64", "grp1", "ABC123", "", "node01",
+        "00:11:22:33:44:55", "192.0.2.10", "", "192.0.2.20", "", "",
+    ]
     mapping = tmp_path / "pxe_mapping_file.csv"
     _write_mapping(mapping, headers, [row, row])
-    errors = []
-    orchestrator_config_validator._validate_pxe_mapping_file(  # pylint: disable=protected-access
-        {"pxe_mapping_file_path": str(mapping)}, str(tmp_path), errors, LOGGER
+    errors = pxe_mapping_validator.validate(
+        {"pxe_mapping_file_path": str(mapping)}, str(tmp_path), LOGGER
     )
     assert any("duplicate" in error.lower() for error in errors)
 
@@ -115,13 +120,15 @@ def test_duplicate_pxe_identity_is_rejected(tmp_path):
 @pytest.mark.order(7)
 def test_invalid_pxe_admin_ip_is_rejected(tmp_path):
     """ORCH_FVT_NEGATIVE_V007: Invalid administrative addresses fail PXE validation."""
-    headers = orchestrator_config_validator.REQUIRED_HEADERS
-    row = ["os_x86_64", "group", "ABC123", "", "node01", "mac1", "999.2.3.4", "mac2", "192.0.2.20"]
+    headers = pxe_mapping_validator.CANONICAL_HEADERS
+    row = [
+        "os_x86_64", "grp1", "ABC123", "", "node01",
+        "00:11:22:33:44:55", "999.2.3.4", "", "192.0.2.20", "", "",
+    ]
     mapping = tmp_path / "pxe_mapping_file.csv"
     _write_mapping(mapping, headers, [row])
-    errors = []
-    orchestrator_config_validator._validate_pxe_mapping_file(  # pylint: disable=protected-access
-        {"pxe_mapping_file_path": str(mapping)}, str(tmp_path), errors, LOGGER
+    errors = pxe_mapping_validator.validate(
+        {"pxe_mapping_file_path": str(mapping)}, str(tmp_path), LOGGER
     )
     assert any("999.2.3.4" in error for error in errors)
 

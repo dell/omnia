@@ -45,7 +45,15 @@
       ansible.builtin.set_fact:
         additional_metadata_svc_effective_fg_names: >-
           {{ additional_metadata_svc_fg_names | default([])
-             | intersect(target_fg_names | default([])) }}
+             | intersect(
+                 ((target_fg_names | default([]))
+                  + (target_fg_names | default([])
+                     | map('regex_replace',
+                           '^service_kube_control_plane_first_',
+                           'service_kube_control_plane_')
+                     | list))
+                 | unique | list
+               ) }}
 
     - name: Create SMD group for additional_metadata_svc common
       ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/create_groups_common.yml"
