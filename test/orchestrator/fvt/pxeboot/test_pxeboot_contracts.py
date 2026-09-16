@@ -70,9 +70,9 @@ def _assert_count_contract(data, label):
 
 @pytest.mark.sanity
 @pytest.mark.buildstream
-@pytest.mark.order(24)
+@pytest.mark.order(22)
 def test_set_pxe_boot_config_exists_or_defaults_apply(host):
-    """ORCH_FVT_PXEBOOT_V024: Optional PXE settings exist or defaults apply."""
+    """ORCH_FVT_PXEBOOT_V022: Optional PXE settings exist or defaults apply."""
     _require_pxe_enabled(host)
     input_dir, _ = _paths()
     custom = host.file(posixpath.join(input_dir, "set_pxe_boot_config.yml"))
@@ -83,9 +83,9 @@ def test_set_pxe_boot_config_exists_or_defaults_apply(host):
 
 @pytest.mark.sanity
 @pytest.mark.buildstream
-@pytest.mark.order(25)
+@pytest.mark.order(23)
 def test_bmc_credential_artifacts_exist(host):
-    """ORCH_FVT_PXEBOOT_V025: Enabled PXE has encrypted credential artifacts."""
+    """ORCH_FVT_PXEBOOT_V023: Enabled PXE has encrypted credential artifacts."""
     _require_pxe_enabled(host)
     input_dir, _ = _paths()
     for filename in ("orchestrator_credentials.yml", ".orchestrator_credentials_key"):
@@ -94,9 +94,9 @@ def test_bmc_credential_artifacts_exist(host):
 
 
 @pytest.mark.functional
-@pytest.mark.order(26)
+@pytest.mark.order(24)
 def test_bmc_credential_permissions(host):
-    """ORCH_FVT_PXEBOOT_V026: BMC credentials are inaccessible to other users."""
+    """ORCH_FVT_PXEBOOT_V024: BMC credentials are inaccessible to other users."""
     _require_pxe_enabled(host)
     input_dir, _ = _paths()
     for filename in ("orchestrator_credentials.yml", ".orchestrator_credentials_key"):
@@ -108,9 +108,9 @@ def test_bmc_credential_permissions(host):
 
 
 @pytest.mark.functional
-@pytest.mark.order(27)
+@pytest.mark.order(25)
 def test_idrac_redfish_endpoints_reachable(host):
-    """ORCH_FVT_PXEBOOT_V027: Every mapped BMC exposes a Redfish endpoint."""
+    """ORCH_FVT_PXEBOOT_V025: Every mapped BMC exposes a Redfish endpoint."""
     failures = []
     for row in _mapping(host):
         address = str(ip_address(row["BMC_IP"].strip()))
@@ -126,18 +126,18 @@ def test_idrac_redfish_endpoints_reachable(host):
 
 @pytest.mark.sanity
 @pytest.mark.buildstream
-@pytest.mark.order(28)
+@pytest.mark.order(26)
 def test_pxeboot_status_output_exists(host):
-    """ORCH_FVT_PXEBOOT_V028: PXE execution writes pxeboot_status.yml."""
+    """ORCH_FVT_PXEBOOT_V026: PXE execution writes pxeboot_status.yml."""
     _require_pxe_enabled(host)
     _, output_dir = _paths()
     assert host.file(posixpath.join(output_dir, "pxeboot_status.yml")).is_file
 
 
 @pytest.mark.functional
-@pytest.mark.order(29)
+@pytest.mark.order(27)
 def test_pxeboot_status_output_format(host):
-    """ORCH_FVT_PXEBOOT_V029: PXE status represents selected nodes consistently."""
+    """ORCH_FVT_PXEBOOT_V027: PXE status represents selected nodes consistently."""
     _require_pxe_enabled(host)
     _, output_dir = _paths()
     data = _yaml(host, posixpath.join(output_dir, "pxeboot_status.yml"))

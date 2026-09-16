@@ -25,6 +25,7 @@ from ansible.module_utils.orchestrator_validation.core import (  # noqa: E402
     validation_engine,
 )
 from ansible.module_utils.orchestrator_validation.validators import (  # noqa: E402
+    additional_cloud_init_validator,
     orchestrator_config_validator,
 )
 
@@ -76,10 +77,11 @@ def test_missing_networks_key_is_rejected():
 @pytest.mark.order(4)
 def test_missing_additional_cloud_init_file_is_rejected(tmp_path):
     """ORCH_FVT_NEGATIVE_V004: Configured but missing cloud-init input fails L2 validation."""
-    errors = []
     missing = tmp_path / "missing-cloud-init.yml"
-    orchestrator_config_validator._validate_additional_cloud_init_config(  # pylint: disable=protected-access
-        {"additional_cloud_init_config_file": str(missing)}, errors, LOGGER
+    errors = additional_cloud_init_validator.validate(
+        {"additional_cloud_init_config_file": str(missing)},
+        str(tmp_path),
+        LOGGER,
     )
     assert len(errors) == 1 and str(missing) in errors[0]
 
@@ -164,13 +166,10 @@ def test_non_positive_lease_time_is_rejected():
 
 
 @pytest.mark.order(11)
-def test_invalid_kernel_override_is_rejected():
-    """ORCH_FVT_NEGATIVE_V011: Malformed kernel-version overrides fail validation."""
-    errors = []
-    orchestrator_config_validator._validate_kernel_version_override(  # pylint: disable=protected-access
-        {"kernel_version_override": "latest"}, errors, LOGGER
-    )
-    assert errors and "latest" in errors[0]
+def test_retired_kernel_override_is_absent_from_schema():
+    """ORCH_FVT_NEGATIVE_V011: Retired kernel override is absent from input schema."""
+    removed_input = "kernel_version_" + "override"
+    assert removed_input not in _schema("orchestrator_config.json")["properties"]
 
 
 @pytest.mark.order(12)
