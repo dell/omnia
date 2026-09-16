@@ -679,6 +679,7 @@ cleanup_orchestrator:
         $SSH_CMD $TARGET "
           source $OMNIA_DATA_PATH/activate-omnia.sh
           cd $OMNIA_INSTALL_PATH/src/orchestrator/playbooks/
+          export SKIP_APPROVAL=true
           ansible-playbook orchestrator.yml --tags cleanup $ANSIBLE_VERBOSITY
         "
       fi
@@ -840,7 +841,7 @@ setup_main:
   rules:
     - if: '$SKIP_STAGES =~ /setup_main/'
       when: never
-    - if: '$PIPELINE_MODE == "default" && $DOMAINS == "default"'
+    - if: '$PIPELINE_MODE == "default" || ($PIPELINE_MODE == "deploy" && $ENABLE_SETUP == "true")'
       when: on_success
   needs:
     - job: initialization
