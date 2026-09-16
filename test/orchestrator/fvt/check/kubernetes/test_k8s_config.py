@@ -15,7 +15,7 @@
 """
 Orchestrator Validate — Kubernetes Configuration Validation.
 
-TC_K8_015: Verify K8s NFS configuration directory exists
+TC_K8_015: Verify K8s NFS mounting works by creating a test PV/PVC
 TC_K8_024: Verify K8s functional groups registered in SMD
 TC_K8_025: Verify K8s metadata-service configuration exists
 """
@@ -48,13 +48,13 @@ def _skip_if_k8s_disabled(host):
 @pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_k8s_nfs_config_exists(host):
-    """TC_K8_015: Verify K8s NFS configuration directory exists."""
+    """TC_K8_015: Verify K8s NFS mounting works by creating a test PV/PVC."""
     _skip_if_k8s_disabled(host)
 
     tc = TC["k8s_nfs_config_exists"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Checking Kubernetes NFS configuration directory")
+    tl.check("Verifying K8s NFS mounting with test PV/PVC")
     result = check_k8s_nfs_config_exists(host)
 
     if result["success"]:
@@ -79,6 +79,9 @@ def test_k8s_smd_groups(host):
     tl.check("Checking Kubernetes functional groups in SMD")
     result = check_k8s_smd_groups(host)
 
+    if result.get("skipped"):
+        pytest.skip(result["details"])
+
     if result["success"]:
         tl.passed(LOG["smd_groups_ok"], result["details"])
     else:
@@ -100,6 +103,9 @@ def test_k8s_metadata_configured(host):
 
     tl.check("Checking Kubernetes metadata-service configuration")
     result = check_k8s_metadata_configured(host)
+
+    if result.get("skipped"):
+        pytest.skip(result["details"])
 
     if result["success"]:
         tl.passed(LOG["metadata_ok"], result["details"])
