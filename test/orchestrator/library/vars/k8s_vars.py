@@ -406,3 +406,58 @@ TEST_CASES: Dict[str, dict] = {
         "title": "Verify nfs-client.target is active on all K8s nodes",
     },
 }
+
+# =============================================================================
+# Kubernetes YAML Templates
+# =============================================================================
+
+# PersistentVolume YAML template
+PV_YAML_TEMPLATE = """apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {pv_name}
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: {nfs_server}
+    path: {nfs_path}
+"""
+
+# PersistentVolumeClaim YAML template
+PVC_YAML_TEMPLATE = """apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {pvc_name}
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  volumeName: {pv_name}
+  storageClassName: ""
+"""
+
+# Pod YAML template for NFS testing
+POD_YAML_TEMPLATE = """apiVersion: v1
+kind: Pod
+metadata:
+  name: {pod_name}
+spec:
+  containers:
+  - name: test-container
+    image: {image}
+    command: ["sh", "-c", "echo 'NFS test' > /mnt/test.txt && cat /mnt/test.txt && sleep 5"]
+    volumeMounts:
+    - mountPath: "/mnt"
+      name: nfs-volume
+  volumes:
+  - name: nfs-volume
+    persistentVolumeClaim:
+      claimName: {pvc_name}
+  restartPolicy: Never
+"""

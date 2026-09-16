@@ -40,7 +40,11 @@ from ..vars.k8s_vars import (
     K8S_FIREWALL_PORTS_CONTROL_PLANE,
     K8S_FIREWALL_PORTS_WORKER,
     K8S_SYSTEMD_TARGETS,
+    POD_YAML_TEMPLATE,
+    PVC_YAML_TEMPLATE,
+    PV_YAML_TEMPLATE,
 )
+from ..vars.common_vars import INPUT_PATH_TEMPLATE
 from ..vars.common_vars import INPUT_PATH_TEMPLATE
 
 
@@ -1126,36 +1130,18 @@ def check_k8s_nfs_config_exists(host) -> Dict[str, Any]:
     run_on_host(host, cleanup_cmd)
     time.sleep(2)
     
-    # Create PV YAML
-    pv_yaml = f"""apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: {pv_name}
-spec:
-  capacity:
-    storage: 1Gi
-  accessModes:
-    - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
-  nfs:
-    server: {nfs_server}
-    path: {nfs_path}
-"""
+    # Create PV YAML from template
+    pv_yaml = PV_YAML_TEMPLATE.format(
+        pv_name=pv_name,
+        nfs_server=nfs_server,
+        nfs_path=nfs_path
+    )
     
-    # Create PVC YAML
-    pvc_yaml = f"""apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {pvc_name}
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 1Gi
-  volumeName: {pv_name}
-  storageClassName: ""
-"""
+    # Create PVC YAML from template
+    pvc_yaml = PVC_YAML_TEMPLATE.format(
+        pvc_name=pvc_name,
+        pv_name=pv_name
+    )
     
     # Create PV YAML file using mktemp for security
     mktemp_cmd = _ssh_cmd(cp_ip, "mktemp -t")
@@ -1265,24 +1251,12 @@ spec:
     registry = _get_local_registry(host)
     image = f"{registry}/library/busybox:1.36" if registry else "busybox:1.36"
     
-    pod_yaml = f"""apiVersion: v1
-kind: Pod
-metadata:
-  name: {pod_name}
-spec:
-  containers:
-  - name: test-container
-    image: {image}
-    command: ["sh", "-c", "echo 'NFS test' > /mnt/test.txt && cat /mnt/test.txt && sleep 5"]
-    volumeMounts:
-    - mountPath: "/mnt"
-      name: nfs-volume
-  volumes:
-  - name: nfs-volume
-    persistentVolumeClaim:
-      claimName: {pvc_name}
-  restartPolicy: Never
-"""
+    # Create pod YAML from template
+    pod_yaml = POD_YAML_TEMPLATE.format(
+        pod_name=pod_name,
+        image=image,
+        pvc_name=pvc_name
+    )
     
     # Create pod YAML file using mktemp for security
     mktemp_cmd = _ssh_cmd(cp_ip, "mktemp -t")
