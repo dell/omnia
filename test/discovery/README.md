@@ -24,6 +24,9 @@ vi test_config.yml             # Set oim_server_ip, dataset, etc.
 # Validate inputs exist on target
 ./run_validation.sh fvt_discovery validate verify --marker sanity
 
+# Run the Discovery prerequisite precheck
+./run_validation.sh fvt_discovery precheck test --marker sanity
+
 # Full discovery run + verify outputs
 ./run_validation.sh fvt_discovery discovery test
 
@@ -41,6 +44,7 @@ vi test_config.yml             # Set oim_server_ip, dataset, etc.
 
 | Scenario | Description |
 |----------|-------------|
+| `precheck` | Validate the data path and conditional OME TCP/443 reachability |
 | `validate` | Verify input files (discovery_config.yml, network_spec.yml) |
 | `discovery` | Full end-to-end: deploy discovery.yml + verify outputs |
 

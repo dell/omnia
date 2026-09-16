@@ -54,13 +54,18 @@ options:
     description: Path to the directory containing JSON schema files.
     required: true
     type: str
+  log_dir:
+    description: Directory where the validation log is written.
+    required: false
+    type: str
 '''
 
 EXAMPLES = r'''
 - name: Validate discovery configuration files
   validate_discovery_config:
-    input_project_dir: /opt/omnia/input/project_default
+    input_project_dir: "{{ discovery_data_path }}/input/{{ discovery_project_name }}"
     schema_dir: "{{ role_path }}/../../plugins/module_utils/discovery_validation/schema"
+    log_dir: "{{ discovery_data_path }}/log/{{ discovery_project_name }}"
   register: validation_result
 '''
 
@@ -75,7 +80,11 @@ validation_errors:
   returned: failure
 '''
 
-VALIDATION_LOG_PATH = "/opt/omnia/log/core/playbooks/"
+VALIDATION_LOG_PATH = os.path.join(
+    os.environ.get("DISCOVERY_DATA_PATH")
+    or os.path.join(os.environ.get("OMNIA_DATA_PATH", "/opt/omnia"), "discovery"),
+    "log",
+)
 
 # Files to validate and their corresponding schema names
 VALIDATION_FILES = [
@@ -87,10 +96,10 @@ VALIDATION_FILES = [
 ]
 
 
-def create_logger(project_name):
+def create_logger(project_name, log_dir=VALIDATION_LOG_PATH):
     """Create a logger for discovery validation."""
     log_file = os.path.join(
-        VALIDATION_LOG_PATH, f"discovery_validation_{project_name}.log"
+        log_dir, f"discovery_validation_{project_name}.log"
     )
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
     logging.basicConfig(
@@ -184,18 +193,20 @@ def validate_against_schema(data, schema, file_label, errors, logger):
 
 def run_module():
     """Main entry point for the Ansible module."""
-    module_args = dict(
-        input_project_dir=dict(type="str", required=True),
-        schema_dir=dict(type="str", required=True),
-    )
+    module_args = {
+        "input_project_dir": {"type": "str", "required": True},
+        "schema_dir": {"type": "str", "required": True},
+        "log_dir": {"type": "str", "required": False, "default": ""},
+    }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
     input_project_dir = module.params["input_project_dir"]
     schema_dir = module.params["schema_dir"]
+    log_dir = module.params["log_dir"] or VALIDATION_LOG_PATH
     project_name = os.path.basename(input_project_dir)
 
-    logger, log_file = create_logger(project_name)
+    logger, log_file = create_logger(project_name, log_dir)
     logger.info("=== Discovery Validation Start ===")
 
     all_errors = []

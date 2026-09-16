@@ -12,11 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# precheck_discovery.yml -- Discovery prerequisite validation.
-
-- name: Validate Discovery prerequisites
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - precheck_environment
+galaxy_info:
+  role_name: precheck_environment
+  namespace: omnia
+  author: Dell Technologies
+  description: Validate the Discovery data path and conditional OME endpoint readiness
+  license: Apache-2.0
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+dependencies: []

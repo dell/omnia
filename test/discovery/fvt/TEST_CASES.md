@@ -19,7 +19,7 @@
 
 | TC ID | Test Function | Description | Marker |
 |-------|---------------|-------------|--------|
-| TC_PC_000 | `test_deploy_precheck` | Deploy discovery.yml --tags precheck | deploy, sanity |
+| TC_PC_000 | `test_deploy_precheck` | Validate data path and conditional OME TCP/443 reachability | deploy, sanity |
 
 ---
 

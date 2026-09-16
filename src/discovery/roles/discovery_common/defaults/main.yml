@@ -12,11 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# precheck_discovery.yml -- Discovery prerequisite validation.
 
-- name: Validate Discovery prerequisites
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - precheck_environment
+# Connection timing controls are internal role defaults, not additional fields
+# in discovery_config.yml.
+discovery_ome_connect_timeout: 5
+discovery_ome_connectivity_timeout: 30

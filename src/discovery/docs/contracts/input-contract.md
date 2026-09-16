@@ -1,8 +1,11 @@
 # Discovery — Input Contract
 
-> **Last Updated**: Sep 9, 2026 | **Domain**: `discovery`
+> **Last Updated**: Sep 11, 2026 | **Domain**: `discovery`
 
 This document defines all input files consumed by the `discovery` domain.
+
+`DISCOVERY_DATA_PATH` defaults to `$OMNIA_DATA_PATH/discovery` when the
+component override is unset or empty.
 
 ---
 
@@ -10,7 +13,7 @@ This document defines all input files consumed by the `discovery` domain.
 
 **Purpose**: Configures the discovery mechanism and OME connection.
 
-**Location**: `$OMNIA_DATA_PATH/discovery/input/<project_name>/discovery_config.yml`
+**Location**: `$DISCOVERY_DATA_PATH/input/<project_name>/discovery_config.yml`
 
 **Owner**: User (manually created)
 
@@ -26,7 +29,11 @@ This document defines all input files consumed by the `discovery` domain.
 - File must exist and be valid YAML
 - `enable_bmc_discovery` must be `true` when `discovery_mechanism=ome`
 - `ome_ip` must be a valid IPv4 address when OME discovery is enabled
-- OME must be reachable on port 443
+- When BMC discovery is enabled, `precheck` verifies TCP connectivity from the
+  OIM host to `ome_ip` on port 443. It does not authenticate, validate the TLS
+  certificate, or call the OME API.
+- The execute flow repeats the same connectivity check before calling the OME
+  API and collecting inventory.
 
 ---
 
@@ -34,7 +41,7 @@ This document defines all input files consumed by the `discovery` domain.
 
 **Purpose**: Defines network topology for IP derivation in PXE mapping.
 
-**Location**: `$OMNIA_DATA_PATH/discovery/input/<project_name>/network_spec.yml`
+**Location**: `$DISCOVERY_DATA_PATH/input/<project_name>/network_spec.yml`
 
 **Owner**: User (manually created)
 
@@ -58,7 +65,7 @@ This document defines all input files consumed by the `discovery` domain.
 
 **Purpose**: Stores OME credentials (vault-encrypted).
 
-**Location**: `$OMNIA_DATA_PATH/discovery/input/<project_name>/discovery_credentials.yml`
+**Location**: `$DISCOVERY_DATA_PATH/input/<project_name>/discovery_credentials.yml`
 
 **Owner**: `discovery_credentials` role (auto-created, user-prompted)
 
@@ -71,7 +78,7 @@ This document defines all input files consumed by the `discovery` domain.
 
 ### Vault Key
 
-- **Key file**: `$OMNIA_DATA_PATH/discovery/input/<project_name>/.discovery_credentials_key`
+- **Key file**: `$DISCOVERY_DATA_PATH/input/<project_name>/.discovery_credentials_key`
 - Auto-generated if missing (32-char random ASCII)
 
 ### Validation Rules
