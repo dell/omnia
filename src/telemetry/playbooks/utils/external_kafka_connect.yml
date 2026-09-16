@@ -38,4 +38,6 @@
   connection: ssh
   gather_facts: false
   roles:
-    - external_kafka_connect
+    - role: external_kafka_connect
+      vars:
+        output_project_dir: "{{ hostvars['localhost']['output_project_dir'] }}"

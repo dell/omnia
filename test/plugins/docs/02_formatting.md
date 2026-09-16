@@ -265,6 +265,14 @@ A `TestLogger` must have been created and used first.
 
 ---
 
+## `clear_test_context()`
+
+Clears output, test-case ID, and structured fields retained by the previous
+`TestLogger`. Call it at the start of each pytest test protocol so an early
+skip cannot inherit another test's output.
+
+---
+
 ## `add_session_result(test_name, status, duration, tc_id="")`
 
 Accumulate a test result for the end-of-session summary table.
