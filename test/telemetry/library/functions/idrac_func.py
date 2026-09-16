@@ -346,6 +346,16 @@ def verify_mysql_data_in_pods(host):
     pod_results = []
     all_have_data = True
 
+    # Check if any BMC IPs are configured at all
+    total_assigned_ips = sum(len(ips) for ips in pod_inventory.values())
+    if total_assigned_ips == 0:
+        return {
+            "success": False,
+            "pod_results": [],
+            "total_pods": len(pods),
+            "error": "No BMC IPs configured in bmc_group_data.csv - iDRAC telemetry requires at least one BMC IP",
+        }
+
     for pod_name in sorted(pods):
         query_result = get_mysql_ips_from_pod(host, pod_name)
         mysql_ips = query_result["mysql_ips"]
@@ -410,6 +420,16 @@ def verify_receiver_collecting(host):
     expected_idle_pods, pod_inventory = _expected_idle_pods(host)
     pod_results = []
     all_collecting = True
+
+    # Check if any BMC IPs are configured at all
+    total_assigned_ips = sum(len(ips) for ips in pod_inventory.values())
+    if total_assigned_ips == 0:
+        return {
+            "success": False,
+            "pod_results": [],
+            "total_pods": len(pods),
+            "error": "No BMC IPs configured in bmc_group_data.csv - iDRAC telemetry requires at least one BMC IP",
+        }
 
     for pod_name in sorted(pods):
         # Get last 200 lines of receiver logs

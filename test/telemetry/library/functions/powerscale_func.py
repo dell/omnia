@@ -466,38 +466,34 @@ def verify_feature_flags(host):
 
 
 def verify_health_metrics(host):
-    """Verify PowerScale health metrics are being collected.
+    """Verify PowerScale CSI volume exporter health metrics are being collected.
 
     Returns:
-        dict with keys: success, metrics_found, details, error.
+        dict with keys: success, metrics_found, missing_metrics, details, error.
     """
-    # Health event metrics from CSI Volume Exporter (health monitor)
-    # Note: These are only available when CSI Volume Exporter is deployed
-    health_metrics = [
-        "powerscale_volume_health_abnormal",
-        "powerscale_volume_abnormal_events_total",
-        "powerscale_node_failure_events_total",
-        "powerscale_node_ready",
-    ]
+    # All CSI Volume Exporter health monitor metrics must be collected
+    # If any of these metrics are missing, the verification fails
+    health_metrics = POWERSCALE_CSI_EXPORTER_METRICS
 
     result = verify_powerscale_metrics(host, health_metrics)
-    details = f"Found {len(result['found'])}/{len(health_metrics)} health metrics"
+    details = f"Found {len(result['found'])}/{len(health_metrics)} CSI health metrics"
 
-    # If no health metrics found, it's likely because CSI Volume Exporter
-    # is not deployed (health monitor not available). Return success with warning.
-    if len(result["found"]) == 0:
+    # Fail if any metrics are missing - CSI volume exporter must be working
+    if len(result["missing"]) > 0:
         return {
-            "success": True,
-            "metrics_found": [],
-            "details": "Health monitor not deployed - health metrics not available",
-            "error": "",
+            "success": False,
+            "metrics_found": result["found"],
+            "missing_metrics": result["missing"],
+            "details": f"CSI health metrics verification failed. Missing: {result['missing']}",
+            "error": f"CSI volume exporter not collecting required metrics: {result['missing']}",
         }
 
     return {
-        "success": result["success"],
+        "success": True,
         "metrics_found": result["found"],
+        "missing_metrics": [],
         "details": details,
-        "error": result.get("error", ""),
+        "error": "",
     }
 
 
