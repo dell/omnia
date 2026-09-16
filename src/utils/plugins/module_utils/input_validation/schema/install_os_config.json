@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Install OS Configuration Schema",
+  "description": "Schema for install_os_config.yml - OS installation configuration",
+  "type": "object",
+  "properties": {
+    "source_iso_path": {
+      "type": "string",
+      "description": "Path to the source RHEL/distro ISO on the local filesystem"
+    },
+    "source_iso_checksum": {
+      "type": "string",
+      "description": "SHA-256 checksum for source ISO verification (optional)"
+    },
+    "custom_iso_path": {
+      "type": "string",
+      "description": "NFS path where the custom ISO and artifacts are stored"
+    },
+    "kickstart_delivery_method": {
+      "type": "string",
+      "enum": ["embedded", "nfs"],
+      "description": "Kickstart delivery method"
+    },
+    "kickstart_file": {
+      "type": "string",
+      "description": "User-provided kickstart file path (optional)"
+    },
+    "kickstart_template": {
+      "type": "string",
+      "description": "Kickstart template name"
+    },
+    "target_bmc_ip": {
+      "type": "string",
+      "description": "iDRAC/BMC IP address for deploy mode"
+    },
+    "target_hostname": {
+      "type": "string",
+      "description": "Hostname for the installed OS"
+    },
+    "target_admin_ip": {
+      "type": "string",
+      "description": "Admin network IP address for the installed OS"
+    },
+    "target_architecture": {
+      "type": "string",
+      "enum": ["x86_64", "aarch64"],
+      "description": "Target architecture"
+    },
+    "network_device": {
+      "type": "string",
+      "description": "Network device name"
+    },
+    "netmask": {
+      "type": "string",
+      "description": "Network configuration netmask"
+    },
+    "gateway": {
+      "type": "string",
+      "description": "Network configuration gateway"
+    },
+    "dns_server": {
+      "type": "string",
+      "description": "Network configuration DNS server"
+    },
+    "ssh_public_key_path": {
+      "type": "string",
+      "description": "SSH public key path for passwordless authentication"
+    },
+    "install_disk": {
+      "type": "string",
+      "description": "Target install disk"
+    },
+    "timezone": {
+      "type": "string",
+      "description": "Timezone for installed OS"
+    },
+    "rebuild_iso": {
+      "type": "boolean",
+      "description": "Force rebuild of custom ISO if it already exists"
+    },
+    "force_reinstall": {
+      "type": "boolean",
+      "description": "Force reinstall even if target node is already reachable via SSH"
+    },
+    "ssh_verify_enabled": {
+      "type": "boolean",
+      "description": "SSH verification after OS install"
+    },
+    "ssh_verify_retries": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of SSH verification retries"
+    },
+    "ssh_verify_delay": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Delay between SSH verification retries in seconds"
+    }
+  }
+}
