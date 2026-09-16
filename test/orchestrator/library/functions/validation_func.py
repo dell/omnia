@@ -264,7 +264,7 @@ def validate_test_config() -> Dict[str, Any]:
     errors: List[str] = []
     warnings: List[str] = []
 
-    for field in ("clone_path", "project_name", "report_path", "report_name"):
+    for field in ("clone_path", "report_path", "report_name"):
         value = config.get(field)
         if not isinstance(value, str) or not value.strip():
             errors.append(f"'{field}' is required and cannot be empty")
