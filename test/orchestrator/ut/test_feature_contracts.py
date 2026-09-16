@@ -361,3 +361,96 @@ def test_pxeboot_retry_supports_filtered_inventory_and_status_artifacts():
     assert "failed_nodes.json" in pxeboot
     assert "pxeboot_inventory" in pxeboot
     assert "inventory_source" in pxeboot
+
+
+def test_kernel_selection_contract_is_build_status_only():
+    """ORCH_UT_096: Kernel selection has no independent input override."""
+    config = _read(ORCHESTRATOR_ROOT / "input/orchestrator_config.yml")
+    schema = json.loads(
+        _read(
+            ORCHESTRATOR_ROOT
+            / "plugins/module_utils/orchestrator_validation/schema/orchestrator_config.json"
+        )
+    )
+    setup = _read(ORCHESTRATOR_ROOT / "roles/orchestrator_setup/tasks/main.yml")
+    validation = _read(
+        ORCHESTRATOR_ROOT / "roles/orchestrator_validations/tasks/validate_image.yml"
+    )
+
+    removed_input = "kernel_version_" + "override"
+    assert removed_input not in config
+    assert removed_input not in schema["properties"]
+    assert removed_input not in setup
+    assert removed_input not in validation
+    assert 'kernel: "{{ _fg_image_entry.kernel | default(\'\') }}"' in validation
+    assert 'initrd: "{{ _fg_image_entry.initrd | default(\'\') }}"' in validation
+    assert 'image: "{{ _fg_image_entry.image | default(\'\') }}"' in validation
+
+
+def test_build_status_boot_artifacts_flow_to_boot_services():
+    """ORCH_UT_097: Validated manifest paths drive every boot-service flow."""
+    validation = _read(
+        ORCHESTRATOR_ROOT / "roles/orchestrator_validations/tasks/validate_image.yml"
+    )
+    common_boot = _read(
+        ORCHESTRATOR_ROOT / "roles/provision_common/tasks/configure_boot_svc.yml"
+    )
+    legacy_boot = _read(
+        ORCHESTRATOR_ROOT / "roles/provision_common/tasks/configure_bss.yml"
+    )
+    ochami_boot = _read(
+        ORCHESTRATOR_ROOT / "roles/configure_ochami/tasks/configure_boot_svc_group.yml"
+    )
+
+    assert "Store validated kernel, initrd and image for functional group" in validation
+    for artifact in ("kernel", "initrd", "image"):
+        assert f"'{artifact}': {artifact}" in validation
+        assert f"validated_images[fg_name].{artifact}" in common_boot
+        assert f"validated_images[functional_group_name].{artifact}" in ochami_boot
+    assert "validated_images[fg_name].kernel" in legacy_boot
+    assert "validated_images[fg_name].initrd" in legacy_boot
+
+
+def test_additional_metadata_groups_wait_for_smd_registration():
+    """ORCH_UT_098: Additional metadata groups require visible SMD nodes."""
+    registration = _read(
+        ORCHESTRATOR_ROOT / "roles/provision_common/tasks/register_nodes.yml"
+    )
+    wait_task = "Wait until target nodes are registered in SMD"
+    group_task = "Create SMD groups for each target functional group"
+
+    assert wait_task in registration
+    assert registration.index(wait_task) < registration.index(group_task)
+    assert "difference(openchami_smd_status.stdout_lines" in registration
+    assert "retries: \"{{ service_retries }}\"" in registration
+
+
+def test_additional_metadata_groups_are_scoped_to_current_category():
+    """ORCH_UT_099: Category provisioning cannot publish future FG groups."""
+    provisioning = _read(
+        ORCHESTRATOR_ROOT / "roles/provision_common/tasks/main.yml"
+    )
+    additional_metadata = _read(
+        ORCHESTRATOR_ROOT
+        / "roles/configure_ochami/tasks/configure_metadata_svc_additional.yml"
+    )
+    ochami = _read(ORCHESTRATOR_ROOT / "roles/configure_ochami/tasks/main.yml")
+    group_template = _read(
+        ORCHESTRATOR_ROOT
+        / "roles/configure_ochami/templates/nodes/groups_additional_fg.yaml.j2"
+    )
+
+    assert "intersect(" in provisioning
+    assert "^service_kube_control_plane_first_" in provisioning
+    assert "service_kube_control_plane_" in provisioning
+    assert provisioning.count("additional_metadata_svc_effective_fg_names") == 2
+    assert "additional_metadata_svc_effective_fg_names" in additional_metadata
+    assert "additional_metadata_svc_effective_fg_names" in ochami
+    assert "default(additional_metadata_svc_fg_names | default([]))" in (
+        additional_metadata
+    )
+    assert "normalized_target_functional_group" in group_template
+    assert (
+        "normalized_node_functional_group == normalized_target_functional_group"
+        in group_template
+    )

@@ -489,13 +489,13 @@ def test_orchestrator_status_output_format():
         tl.failed("PXE boot configuration validation failed", msg)
         assert False, msg
 
-# Removed test_pxe_boot_playbook_execution (ORCH_FVT_PXEBOOT_V014)
+# Removed test_pxe_boot_playbook_execution.
 # This test was checking if the playbook file exists in source code,
 # which is not a functional verification. Functional verification should
 # verify that PXE boot actually worked (nodes provisioned, services running),
 # not whether source code files exist.
 
-# Removed test_idrac_role_exists (ORCH_FVT_PXEBOOT_V015)
+# Removed test_idrac_role_exists.
 # This test was checking if the role file exists in source code,
 # which is not a functional verification. Functional verification should
 # verify that PXE boot actually worked, not whether source code files exist.
