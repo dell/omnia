@@ -51,9 +51,8 @@ class MirrorStateTests(unittest.TestCase):
         )
         self.assertEqual(result["MirrorIndex"]["packages"], {})
 
-    @unittest.expectedFailure
     def test_corrupt_index_is_not_treated_as_confirmed_absence(self):
-        """Known gap: corrupt state must fail rather than schedule everything as new."""
+        """Corrupt state fails rather than scheduling everything as new."""
         with tempfile.TemporaryDirectory() as work_dir:
             index_path = Path(work_dir) / "pulp_mirror_index.json"
             index_path.write_text('{"MirrorIndex":', encoding="utf-8")
@@ -149,9 +148,8 @@ class MirrorStateTests(unittest.TestCase):
                 '{"previous": true}\n',
             )
 
-    @unittest.expectedFailure
     def test_failed_mirror_replacement_removes_temporary_file(self):
-        """Known gap: interrupted mirror writes must not leave PID temp files."""
+        """Interrupted mirror writes do not leave PID temp files."""
         with tempfile.TemporaryDirectory() as work_dir:
             index_path = Path(work_dir) / "pulp_mirror_index.json"
             index_path.write_text('{"previous": true}\n', encoding="utf-8")

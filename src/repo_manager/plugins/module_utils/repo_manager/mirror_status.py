@@ -128,7 +128,11 @@ def load_mirror_index(mirror_index_path, logger):
         logger: Logger instance.
 
     Returns:
-        dict: Mirror index data, or empty structure if file doesn't exist or is corrupted.
+        dict: Mirror index data, or an empty structure if the file doesn't exist.
+
+    Raises:
+        ValueError: If an existing index is corrupt or structurally invalid.
+        OSError: If an existing index cannot be read.
     """
     if not os.path.isfile(mirror_index_path):
         logger.info("Mirror index not found at %s, starting fresh", mirror_index_path)
@@ -138,18 +142,26 @@ def load_mirror_index(mirror_index_path, logger):
         with open(mirror_index_path, 'r', encoding='utf-8') as fh:
             data = json.load(fh)
 
+        if not isinstance(data, dict):
+            raise ValueError("mirror index root must be a mapping")
+        mirror_root = data.get("MirrorIndex")
+        if not isinstance(mirror_root, dict):
+            raise ValueError("mirror index must contain a MirrorIndex mapping")
+        packages = mirror_root.get("packages")
+        if not isinstance(packages, dict):
+            raise ValueError("MirrorIndex.packages must be a mapping")
+
         logger.info("Loaded mirror index from %s with %d packages",
-                    mirror_index_path,
-                    len(data.get("MirrorIndex", {}).get("packages", {})))
+                    mirror_index_path, len(packages))
         return data
-    except (json.JSONDecodeError, ValueError):
-        logger.error("Mirror index file is corrupted")
-        logger.info("Starting fresh with empty mirror index")
-        return _empty_mirror_index()
-    except Exception:
-        logger.error("Unable to load the mirror index")
-        logger.info("Starting fresh with empty mirror index")
-        return _empty_mirror_index()
+    except (json.JSONDecodeError, ValueError) as exc:
+        logger.error("Mirror index file is corrupted: %s", mirror_index_path)
+        raise ValueError(
+            f"Mirror index is corrupt or invalid: {mirror_index_path}"
+        ) from exc
+    except OSError:
+        logger.error("Unable to load the mirror index: %s", mirror_index_path)
+        raise
 
 
 def save_mirror_index(mirror_index_path, mirror_data, logger):
@@ -180,9 +192,15 @@ def save_mirror_index(mirror_index_path, mirror_data, logger):
     # Atomic write: write to temp file then replace
     # Use unique temp filename per process to avoid race conditions in parallel execution
     temp_path = f"{mirror_index_path}.tmp.{os.getpid()}"
-    with open(temp_path, 'w', encoding='utf-8') as fh:
-        json.dump(mirror_data, fh, indent=2)
-    os.replace(temp_path, mirror_index_path)
+    try:
+        with open(temp_path, 'w', encoding='utf-8') as fh:
+            json.dump(mirror_data, fh, indent=2)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(temp_path, mirror_index_path)
+    finally:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
 
     logger.info("Saved mirror index to %s: %d packages (mirrored=%d, failed=%d, pending=%d)",
                 mirror_index_path, summary["total_unique"],

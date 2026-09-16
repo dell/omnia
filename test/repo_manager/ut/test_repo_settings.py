@@ -49,9 +49,8 @@ class RepoSettingsTests(unittest.TestCase):
         self.assertEqual(value, 4)
         self.assertIsInstance(value, int)
 
-    @unittest.expectedFailure
     def test_invalid_integer_environment_override_is_rejected(self):
-        """Known gap: malformed numeric inputs must not become strings."""
+        """Malformed numeric inputs are rejected at the configuration boundary."""
         with patch.dict(
             repo_settings.os.environ, {"RM_TEST_THREADS": "four"}, clear=True
         ):
@@ -60,9 +59,8 @@ class RepoSettingsTests(unittest.TestCase):
                     "parallel_config.default_nthreads", 3, "RM_TEST_THREADS"
                 )
 
-    @unittest.expectedFailure
     def test_false_boolean_environment_override_is_typed(self):
-        """Known gap: the bool/int subclass ordering currently returns a string."""
+        """A false boolean override remains a boolean value."""
         with patch.dict(
             repo_settings.os.environ, {"RM_TEST_BOOL": "false"}, clear=True
         ):
@@ -71,9 +69,8 @@ class RepoSettingsTests(unittest.TestCase):
             )
         self.assertIs(value, False)
 
-    @unittest.expectedFailure
     def test_true_boolean_environment_override_is_typed(self):
-        """Known gap: valid true values must return bool rather than text."""
+        """A true boolean override remains a boolean value."""
         with patch.dict(
             repo_settings.os.environ, {"RM_TEST_BOOL": "true"}, clear=True
         ):
@@ -82,9 +79,8 @@ class RepoSettingsTests(unittest.TestCase):
             )
         self.assertIs(value, True)
 
-    @unittest.expectedFailure
     def test_invalid_boolean_environment_override_is_rejected(self):
-        """Known gap: arbitrary boolean spellings must fail closed."""
+        """Arbitrary boolean spellings fail closed."""
         with patch.dict(
             repo_settings.os.environ, {"RM_TEST_BOOL": "sometimes"}, clear=True
         ):

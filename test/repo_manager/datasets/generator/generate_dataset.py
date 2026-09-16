@@ -34,6 +34,7 @@ Examples:
 """
 
 import argparse
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -58,6 +59,19 @@ DATASETS_DIR = GENERATOR_DIR.parent
 # src/ paths (4 levels up from generator/ → test/repo_manager/datasets/generator → repo root)
 REPO_ROOT = GENERATOR_DIR.parents[3]
 SRC_INPUT_DIR = REPO_ROOT / "src" / "repo_manager" / "input"
+SOURCE_INPUT_FILES = (
+    "repo_manager_config.yml",
+    "repo_manager_endpoint_config.yml",
+)
+_SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+_SENSITIVE_KEY_PARTS = {
+    "access_id",
+    "access_key",
+    "credential",
+    "password",
+    "secret",
+    "token",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -85,6 +99,45 @@ def _error(msg):
     print(f"  {_RED}[ERROR]{_NC} {msg}")
 
 
+def _validate_name(value, label):
+    """Validate a dataset/profile name used to construct a local path."""
+    if not isinstance(value, str) or not _SAFE_NAME.fullmatch(value):
+        raise ValueError(
+            f"{label} must start with an alphanumeric character and contain "
+            "only letters, numbers, dots, underscores, or hyphens"
+        )
+    if value in (".", ".."):
+        raise ValueError(f"{label} cannot be '.' or '..'")
+    return value
+
+
+def _dataset_path(dataset_name):
+    """Resolve a dataset name while guaranteeing containment in datasets/."""
+    dataset_name = _validate_name(dataset_name, "dataset name")
+    datasets_root = DATASETS_DIR.resolve()
+    candidate = (datasets_root / dataset_name).resolve()
+    if candidate.parent != datasets_root:
+        raise ValueError("dataset path must remain directly under datasets/")
+    return candidate
+
+
+def _validate_override_key(key, variables):
+    """Allow only declared, non-secret profile variables on the command line."""
+    if not isinstance(key, str) or not _SAFE_NAME.fullmatch(key):
+        raise ValueError(f"invalid variable override key: {key}")
+    normalized_parts = set(re.split(r"[._-]+", key.lower()))
+    normalized_key = key.lower()
+    if (
+            normalized_parts & _SENSITIVE_KEY_PARTS
+            or any(part in normalized_key for part in _SENSITIVE_KEY_PARTS)):
+        raise ValueError(
+            f"sensitive variable override is not permitted: {key}"
+        )
+    if key not in variables:
+        raise ValueError(f"unknown variable override: {key}")
+    return key
+
+
 def _load_profile(profile_name):
     """Load and merge profile YAML files.
 
@@ -94,6 +147,7 @@ def _load_profile(profile_name):
     Returns:
         dict: Merged profile variables
     """
+    profile_name = _validate_name(profile_name, "profile name")
     # Always load defaults first
     defaults_path = PROFILES_DIR / "defaults.yml"
     if not defaults_path.exists():
@@ -190,10 +244,14 @@ def _copy_from_src(dataset_dir):
     input_dir = dataset_dir / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
 
-    for src_file in SRC_INPUT_DIR.glob("*.yml"):
-        dest_file = input_dir / src_file.name
+    for filename in SOURCE_INPUT_FILES:
+        src_file = SRC_INPUT_DIR / filename
+        if not src_file.is_file():
+            _error(f"Required source input file not found: {src_file}")
+            raise FileNotFoundError(src_file)
+        dest_file = input_dir / filename
         shutil.copy2(src_file, dest_file)
-        _info(f"Copied: {src_file.name}")
+        _info(f"Copied: {filename}")
 
 
 def _generate_readme(dataset_name, profile_name, dataset_dir):
@@ -298,7 +356,12 @@ def main():
     if not args.from_src and not args.profile:
         parser.error("profile is required (unless using --from-src)")
 
-    dataset_dir = DATASETS_DIR / args.dataset_name
+    try:
+        dataset_dir = _dataset_path(args.dataset_name)
+        if args.profile:
+            _validate_name(args.profile, "profile name")
+    except ValueError as exc:
+        parser.error(str(exc))
 
     # Check if dataset already exists
     if dataset_dir.exists() and not args.force:
@@ -332,6 +395,11 @@ def main():
                     _error(f"Invalid variable override: {var_override}")
                     return 1
                 key, value = var_override.split("=", 1)
+                try:
+                    _validate_override_key(key, variables)
+                except ValueError as exc:
+                    _error(str(exc))
+                    return 1
                 # Try to parse as YAML for proper type handling
                 try:
                     parsed_value = yaml.safe_load(value)

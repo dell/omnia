@@ -70,14 +70,23 @@ def get_config_value(config_key, default_value, env_var=None):
     # Try environment variable first
     if env_var and env_var in os.environ:
         value = os.environ[env_var]
-        # Convert to appropriate type
+        # bool is a subclass of int, so it must be handled first. Invalid
+        # operator overrides are configuration errors; silently returning the
+        # original string would defer failure to an unrelated runtime path.
+        if isinstance(default_value, bool):
+            normalized = value.strip().lower()
+            if normalized in ('true', '1', 'yes'):
+                return True
+            if normalized in ('false', '0', 'no'):
+                return False
+            raise ValueError(
+                f"{env_var} must be one of true, false, 1, 0, yes, or no"
+            )
         if isinstance(default_value, int):
             try:
                 return int(value)
-            except ValueError:
-                pass
-        elif isinstance(default_value, bool):
-            return value.lower() in ('true', '1', 'yes')
+            except ValueError as exc:
+                raise ValueError(f"{env_var} must be an integer") from exc
         return value
 
     # Try YAML config

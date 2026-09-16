@@ -41,6 +41,35 @@ repository_creation_lock = multiprocessing.Lock()
 _container_distribution_locks = {}
 _container_dist_locks_lock = multiprocessing.Lock()
 
+_NOT_FOUND_MARKERS = (
+    "404",
+    "could not find",
+    "does not exist",
+    "matches the given query",
+    "no object found",
+    "no result found",
+    "not found",
+)
+
+
+def _pulp_show_state(command, logger):
+    """Return ``present``, ``absent``, or ``unknown`` for a Pulp show query."""
+    result = execute_command(
+        command, logger, type_json=True, enhanced_error_info=True
+    )
+    if (
+            isinstance(result, dict)
+            and result.get("success", result.get("returncode", 0) == 0)
+            and isinstance(result.get("stdout"), dict)):
+        return "present", result["stdout"]
+
+    if isinstance(result, dict):
+        output = f"{result.get('stdout', '')}\n{result.get('stderr', '')}".lower()
+        if any(marker in output for marker in _NOT_FOUND_MARKERS):
+            return "absent", None
+
+    return "unknown", None
+
 
 def get_container_distribution_lock(dist_name):
     """
@@ -72,16 +101,22 @@ def create_container_repository(repo_name, logger):
     """
     try:
         repo_name = validate_repository_id(repo_name)
-        if not execute_command(
-                pulp_container_commands["show_repository"] % repo_name,
-                logger):
+        state, _ = _pulp_show_state(
+            pulp_container_commands["show_repository"] % repo_name, logger
+        )
+        if state == "absent":
             command = pulp_container_commands["create_repository"] % repo_name
             result = execute_command(command, logger)
             logger.info(f"Repository created successfully: {repo_name}")
             return result
-        else:
+        if state == "present":
             logger.info(f"Repository {repo_name} already exists.")
             return True
+        logger.error(
+            "Unable to determine whether container repository '%s' exists; "
+            "refusing to create it", repo_name
+        )
+        return False
     except Exception:
         logger.error("Failed to create the container repository")
         return False
@@ -101,21 +136,25 @@ def extract_existing_tags(remote_name, logger):
         result = execute_command(command, logger, type_json=True)
 
         if not result or not isinstance(result, dict) or "stdout" not in result:
-            logger.error("Failed to fetch remote tags.")
-            return []
+            raise ValueError(f"Unable to query tags for container remote '{remote_name}'")
 
         remotes = result["stdout"]
         if not isinstance(remotes, list) or len(remotes) == 0:
-            logger.error("Unexpected data format for remote tags.")
-            return []
+            raise ValueError(
+                f"Unexpected tag response for container remote '{remote_name}'"
+            )
 
         # pulp-cli exposes ContainerRemote.include_tags as ``includes``.
         # Keep the old key as a compatibility alias for older responses.
         return remotes[0].get("includes", remotes[0].get("include_tags", []))
 
-    except Exception:
+    except ValueError:
+        raise
+    except Exception as exc:
         logger.error("Failed to extract container remote tags")
-        return []
+        raise ValueError(
+            f"Unable to query tags for container remote '{remote_name}'"
+        ) from exc
 
 
 def create_container_distribution(repo_name, package_content, logger):
@@ -138,18 +177,25 @@ def create_container_distribution(repo_name, package_content, logger):
         dist_lock = get_container_distribution_lock(repo_name)
 
         with dist_lock:
-            if not execute_command(
-                    pulp_container_commands["show_distribution"] % repo_name,
-                    logger):
+            state, _ = _pulp_show_state(
+                pulp_container_commands["show_distribution"] % repo_name,
+                logger,
+            )
+            if state == "absent":
                 command = pulp_container_commands["distribution_create"] % (
                     repo_name, repo_name, package_content,
                 )
                 return execute_command(command, logger)
-            else:
+            if state == "present":
                 command = pulp_container_commands["distribution_update"] % (
                     repo_name, repo_name, package_content,
                 )
                 return execute_command(command, logger)
+            logger.error(
+                "Unable to determine whether container distribution '%s' "
+                "exists; refusing to mutate it", repo_name
+            )
+            return False
     except Exception:
         logger.error("Failed to create the container distribution")
         return False

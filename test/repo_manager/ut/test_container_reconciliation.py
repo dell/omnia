@@ -27,9 +27,12 @@ class ContainerReconciliationTests(unittest.TestCase):
             download_image,
             "execute_command",
             side_effect=[
-                {"stdout": {"latest_version_href": "/repos/1/versions/2/"}},
+                {"stdout": {
+                    "pulp_href": "/repos/1/",
+                    "latest_version_href": "/repos/1/versions/2/",
+                }},
                 {"stdout": {"results": [{"name": "1.0"}]}},
-                {"stdout": {"name": "repo"}},
+                {"stdout": {"name": "repo", "repository": "/repos/1/"}},
             ],
         ) as execute:
             ready = download_image._image_already_synced("repo", "1.0", self.logger)
@@ -63,14 +66,16 @@ class ContainerReconciliationTests(unittest.TestCase):
             ready = download_image._image_already_synced("repo", "1.0", self.logger)
         self.assertFalse(ready)
 
-    @unittest.expectedFailure
     def test_distribution_must_reference_current_repository_state(self):
-        """Known gap: existence alone does not prove the distribution is current."""
+        """Existence alone does not prove the distribution is current."""
         with patch.object(
             download_image,
             "execute_command",
             side_effect=[
-                {"stdout": {"latest_version_href": "/repos/1/versions/2/"}},
+                {"stdout": {
+                    "pulp_href": "/repos/1/",
+                    "latest_version_href": "/repos/1/versions/2/",
+                }},
                 {"stdout": {"results": [{"name": "1.0"}]}},
                 {"stdout": {"name": "repo", "repository": "/repos/other/"}},
             ],
@@ -80,9 +85,8 @@ class ContainerReconciliationTests(unittest.TestCase):
             )
         self.assertFalse(ready)
 
-    @unittest.expectedFailure
     def test_repository_query_error_is_not_treated_as_absent(self):
-        """Known gap: unknown repository state must not trigger create."""
+        """Unknown repository state must not trigger create."""
         with patch.object(
             container_repo_utils,
             "execute_command",
@@ -94,9 +98,29 @@ class ContainerReconciliationTests(unittest.TestCase):
         self.assertFalse(result)
         execute.assert_called_once()
 
-    @unittest.expectedFailure
+    def test_confirmed_absent_repository_is_created(self):
+        """A definitive Pulp not-found response permits exact creation."""
+        with patch.object(
+            container_repo_utils,
+            "execute_command",
+            side_effect=[
+                {
+                    "success": False,
+                    "returncode": 1,
+                    "stdout": None,
+                    "stderr": "No object found with name=repo",
+                },
+                {"success": True, "returncode": 0},
+            ],
+        ) as execute:
+            result = container_repo_utils.create_container_repository(
+                "repo", self.logger
+            )
+        self.assertTrue(result)
+        self.assertEqual(execute.call_count, 2)
+
     def test_distribution_query_error_does_not_trigger_mutation(self):
-        """Known gap: an unknown distribution state must fail without create/update."""
+        """An unknown distribution state fails without create/update."""
         with patch.object(
             container_repo_utils,
             "execute_command",
@@ -108,9 +132,29 @@ class ContainerReconciliationTests(unittest.TestCase):
         self.assertFalse(result)
         execute.assert_called_once()
 
-    @unittest.expectedFailure
+    def test_confirmed_absent_distribution_is_created(self):
+        """A definitive missing distribution is created exactly once."""
+        with patch.object(
+            container_repo_utils,
+            "execute_command",
+            side_effect=[
+                {
+                    "success": False,
+                    "returncode": 1,
+                    "stdout": None,
+                    "stderr": "404 Not Found",
+                },
+                {"success": True, "returncode": 0},
+            ],
+        ) as execute:
+            result = container_repo_utils.create_container_distribution(
+                "repo", "library/repo", self.logger
+            )
+        self.assertTrue(result)
+        self.assertEqual(execute.call_count, 2)
+
     def test_remote_tag_query_error_does_not_become_empty_tag_set(self):
-        """Known gap: unknown tags must not overwrite the existing tag union."""
+        """Unknown tags must not overwrite the existing tag union."""
         with patch.object(
             container_repo_utils, "execute_command", return_value=None
         ):

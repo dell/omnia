@@ -107,6 +107,7 @@ from omnia_auto import (  # pylint: disable=wrong-import-position
 
 # --- Module-specific functions ---
 from library.functions import host_func  # pylint: disable=wrong-import-position
+from library.vars import UT_TEST_CASE_IDS  # pylint: disable=wrong-import-position
 
 
 # =============================================================================
@@ -178,16 +179,13 @@ def pytest_sessionstart(session):
 @pytest.fixture(scope="session", autouse=True)
 def test_report():
     """Create a session-wide test report."""
-    if os.environ.get("OMNIA_COMMAND_TYPE") == "ut":
-        yield None
-        return
     config = load_test_config()
     report_path = config.get("report_path", "/opt/omnia/reports")
     oim_ip = config.get("oim_server_ip", "")
     if not oim_ip:
         oim_ip = "localhost"
     report_id = os.environ.get("REPORT_ID")
-    base_name = str(config.get("report_name", "repo_manager_test_report"))
+    base_name = _category_report_base_name(config)
     report_name = build_report_name(
         domain_name="repo_manager",
         base_name=base_name,
@@ -201,6 +199,19 @@ def test_report():
     )
     set_current_report(report)
     yield report
+
+
+def _category_report_base_name(config):
+    """Return an isolated local report name for FVT, NFT, or UT."""
+    configured_name = str(
+        config.get("report_name", "repo_manager_test_report")
+    )
+    command_type = os.environ.get("OMNIA_COMMAND_TYPE", "").lower()
+    category = command_type if command_type in {"nft", "ut"} else "fvt"
+    if configured_name.endswith("_test_report"):
+        prefix = configured_name.removesuffix("_test_report")
+        return f"{prefix}_{category}_report"
+    return f"{configured_name}_{category}"
 
 
 # =============================================================================
@@ -227,6 +238,10 @@ def pytest_configure(config):
     )
     markers = {
         "order(n)": "Specify test execution order (lower first)",
+        "nft": "Non-functional verification",
+        "performance": "Performance and response-time verification",
+        "idempotency": "Repeated execution stability verification",
+        "security": "Security and permission verification",
         "sanity": "Baseline verification (must-pass)",
         "functional": "Functional verification",
         "positive": "Positive test cases",
@@ -284,6 +299,27 @@ def pytest_sessionfinish(session, exitstatus):
     print_summary_table()
 
 
+def _ut_test_node_key(item):
+    """Return the stable registry key for a Repo Manager UT item."""
+    normalized_node_id = item.nodeid.replace("\\", "/")
+    if "ut/" not in normalized_node_id:
+        return ""
+    return normalized_node_id.split("ut/", 1)[1].split("[", 1)[0]
+
+
+def _registered_test_case_id(item):
+    """Resolve a stable UT, NFT, or FVT ID without global logger state."""
+    ut_tc_id = UT_TEST_CASE_IDS.get(_ut_test_node_key(item), "")
+    if ut_tc_id:
+        return ut_tc_id
+
+    doc = getattr(item.obj, "__doc__", "") or ""
+    match = re.match(r"^\s*(RM_(?:UT|FVT|NFT)_[A-Z0-9_]+):", doc)
+    if match:
+        return match.group(1)
+    return get_last_tc_id()
+
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """Capture test results and output for the HTML report + summary."""
@@ -321,11 +357,16 @@ def pytest_runtest_makereport(item, call):
             + f"SKIPPED: {skip_reason}"
         )
 
-    tc_id = get_last_tc_id()
-    if not tc_id:
-        doc = getattr(item.obj, "__doc__", "") or ""
-        if doc.strip().startswith("TC_"):
-            tc_id = doc.strip().split(":", 1)[0].strip()
+    tc_id = _registered_test_case_id(item)
+    if tc_id.startswith("RM_UT_") and not details:
+        description = " ".join(
+            (getattr(item.obj, "__doc__", "") or item.name).split()
+        )
+        details = (
+            f"Test case: {tc_id}\n"
+            f"Node: {item.nodeid}\n"
+            f"Description: {description}"
+        )
 
     add_session_result(
         test_name=item.name,

@@ -105,7 +105,10 @@ def _image_already_synced(repository_name, tag, logger):
 
         if result and "stdout" in result:
             repo_data = result["stdout"]
+            if not isinstance(repo_data, dict):
+                return False
             version_href = repo_data.get("latest_version_href")
+            repository_href = repo_data.get("pulp_href")
 
             # If repository has no content (version 0), tag doesn't exist
             if not version_href or version_href.endswith("/versions/0/"):
@@ -131,6 +134,27 @@ def _image_already_synced(repository_name, tag, logger):
                         logger.warning(
                             f"Tag '{tag}' exists in repository {repository_name} but "
                             f"distribution is missing. Image cannot be pulled - will re-sync."
+                        )
+                        return False
+
+                    dist_data = dist_result["stdout"]
+                    if not isinstance(dist_data, dict):
+                        return False
+                    served_reference = (
+                        dist_data.get("repository_version")
+                        or dist_data.get("repository")
+                    )
+                    expected_references = {
+                        reference for reference in (repository_href, version_href)
+                        if reference
+                    }
+                    if (
+                            not served_reference
+                            or served_reference not in expected_references):
+                        logger.warning(
+                            "Distribution '%s' is not serving the current "
+                            "repository state; synchronization is required.",
+                            repository_name,
                         )
                         return False
 

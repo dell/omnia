@@ -52,7 +52,10 @@ def _get_log_path() -> str:
 
 
 def _get_catalog_path() -> str:
-    """Return the catalog file path."""
+    """Return the catalog file path selected for this validation run."""
+    configured_path = os.environ.get("CATALOG_FILE_PATH", "").strip()
+    if configured_path:
+        return configured_path
     data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia")
     return f"{data_path.rstrip('/')}/catalog/catalog_rhel.json"
 
@@ -76,7 +79,6 @@ PULP_CLI_SYMLINK = "/usr/local/bin/pulp"
 PULP_CERTS_DIR = None  # Set dynamically using shared_path
 PULP_SYSTEMD_UNIT = "/etc/containers/systemd/pulp.container"
 PULP_YUM_REPO_FILE = "/etc/yum.repos.d/pulp.repo"
-USER_REGISTRY_TIMEOUT = 10
 
 # --- User registry configuration ---
 USER_REGISTRY_TIMEOUT = 5  # Socket timeout in seconds for registry reachability checks
@@ -85,10 +87,16 @@ USER_REGISTRY_TIMEOUT = 5  # Socket timeout in seconds for registry reachability
 CMDS = {
     "file_exists": "test -f {path} && echo 'exists' || echo 'missing'",
     "dir_exists": "test -d {path} && echo 'exists' || echo 'missing'",
-    "container_running": "podman container exists {name} && podman inspect --format='{{{{.State.Status}}}}' {name} || echo 'missing'",
+    "container_running": (
+        "podman container exists {name} && podman inspect "
+        "--format='{{{{.State.Status}}}}' {name} || echo 'missing'"
+    ),
     "pulp_status": "/usr/local/bin/pulp status",
     "pulp_version": "/usr/local/bin/pulp --version",
-    "curl_endpoint": "curl -k -s -o /dev/null -w '%{{http_code}}' https://{ip}:{port}/pulp/api/v3/status/ || echo '000'",
+    "curl_endpoint": (
+        "curl -k -s -o /dev/null -w '%{{http_code}}' "
+        "https://{ip}:{port}/pulp/api/v3/status/ || echo '000'"
+    ),
     "list_repos": "/usr/local/bin/pulp rpm repository list --format json",
     "symlink_exists": "test -L {path} && echo 'exists' || echo 'missing'",
 }
