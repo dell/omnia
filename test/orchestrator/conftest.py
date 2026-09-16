@@ -330,10 +330,8 @@ def pytest_sessionstart(session):
         base_name=base_name,
     )
     report_path = str(config.get("report_path", "/opt/omnia/reports"))
-    if (
-        os.environ.get("OMNIA_COMMAND_TYPE") == "ut"
-        or is_local_execution()
-    ):
+    # Only override to local reports for unit tests, not for local FVT execution
+    if os.environ.get("OMNIA_COMMAND_TYPE") == "ut":
         report_path = os.path.join(_TEST_DIR, "reports")
     report = TestReport(
         module_name=module_name,

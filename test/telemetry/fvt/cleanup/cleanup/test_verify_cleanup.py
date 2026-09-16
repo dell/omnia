@@ -16,14 +16,24 @@
 Telemetry Cleanup — Verification Tests.
 
 Test cases:
+<<<<<<< Updated upstream
     TC_CL_002: Verify telemetry pods removed after cleanup
-    TC_CL_003: Verify Kafka topics removed after cleanup (Delete_volume=true only)
+    TC_CL_003: Verify Kafka topics removed after cleanup (delete_sinks_volume=true only)
+=======
+    TEL_FVT_CLEANUP_V001: Verify telemetry pods removed after cleanup
+    TEL_FVT_CLEANUP_V002: Verify Kafka topics removed after cleanup (Delete_volume=true only)
+>>>>>>> Stashed changes
 
 KafkaTopic CRDs are only deleted by the cleanup role when
-``Delete_volume=true`` (see ``src/telemetry/roles/cleanup/tasks/kafka.yml``
+``delete_sinks_volume=true`` (see ``src/telemetry/roles/cleanup/tasks/kafka.yml``
 — "Kafka | Delete KafkaTopic CRDs"). With the default
-``Delete_volume=false``, topic metadata is intentionally kept alongside
+<<<<<<< Updated upstream
+``delete_sinks_volume=false``, topic metadata is intentionally kept alongside
 the retained Kafka PVCs, so TC_CL_003 is skipped in that mode.
+=======
+``Delete_volume=false``, topic metadata is intentionally kept alongside
+the retained Kafka PVCs, so TEL_FVT_CLEANUP_V002 is skipped in that mode.
+>>>>>>> Stashed changes
 """
 
 import pytest
@@ -43,7 +53,7 @@ from library.vars.common_vars import CMDS
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_cleanup_pods_removed(host):
-    """TC_CL_002: Verify telemetry pods removed after cleanup."""
+    """TEL_FVT_CLEANUP_V001: Verify telemetry pods removed after cleanup."""
     tc = TC["cleanup_pods_removed"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -76,15 +86,20 @@ def test_cleanup_pods_removed(host):
 
 @pytest.mark.sanity
 @pytest.mark.order(2)
+<<<<<<< Updated upstream
+def test_cleanup_topics_removed(host, delete_sinks_volume):
+    """TC_CL_003: Verify Kafka topics removed (delete_sinks_volume=true only).
+=======
 def test_cleanup_topics_removed(host, delete_volume):
-    """TC_CL_003: Verify Kafka topics removed (Delete_volume=true only).
+    """TEL_FVT_CLEANUP_V002: Verify Kafka topics removed (Delete_volume=true only).
+>>>>>>> Stashed changes
 
-    Skipped when ``Delete_volume=false`` (default) because KafkaTopic
+    Skipped when ``delete_sinks_volume=false`` (default) because KafkaTopic
     CRDs are intentionally preserved alongside retained Kafka PVCs.
     """
-    if not delete_volume:
+    if not delete_sinks_volume:
         pytest.skip(
-            "Delete_volume=false — KafkaTopic CRDs are preserved "
+            "delete_sinks_volume=false — KafkaTopic CRDs are preserved "
             "alongside retained PVCs; skipping topic deletion check"
         )
 

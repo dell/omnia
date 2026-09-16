@@ -105,15 +105,7 @@
           reported releases: {{ available_releases.stdout |
           default('none reported', true) }}
 
-    - name: Ensure shared path exists
-      ansible.builtin.file:
-        path: "{{ rhel_repo_cert_dir }}"
-        state: directory
-        owner: root
-        group: root
-        mode: "0700"
-
-    - name: Remove stale files from rhel_repo_cert_dir before fresh copy
+    - name: Remove stale RHEL subscription staging path before fresh copy
       ansible.builtin.file:
         path: "{{ rhel_repo_cert_dir }}"
         state: absent
@@ -139,7 +131,7 @@
     - name: Copy entitlement certs to shared path
       ansible.builtin.copy:
         src: "{{ item }}"
-        dest: "{{ rhel_repo_cert_dir }}"
+        dest: "{{ rhel_repo_cert_dir }}/{{ item | basename }}"
         owner: root
         group: root
         mode: >-

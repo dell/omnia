@@ -187,7 +187,7 @@ def _get_ome_config(host=None):
 
 
 # =========================================================================
-# TC_SR_070: Verify Vector-OME bridge deployment ready
+# TEL_FVT_DEPLOY_V070: Verify Vector-OME bridge deployment ready
 #   Runs when either Vector-OME bridge channel is enabled
 # =========================================================================
 
@@ -233,7 +233,7 @@ def test_ome_vector_bridge(host):
 
 
 # =========================================================================
-# TC_SR_071: Verify OME KafkaUser CR exists
+# TEL_FVT_DEPLOY_V071: Verify OME KafkaUser CR exists
 #   Runs when either Vector-OME bridge channel is enabled
 # =========================================================================
 
@@ -270,7 +270,7 @@ def test_ome_kafka_user(host):
 
 
 # =========================================================================
-# TC_SR_072: Verify external Kafka connection artifacts
+# TEL_FVT_DEPLOY_V072: Verify external Kafka connection artifacts
 #   Only runs when configure_ome=true
 #   Runs external_kafka playbook first, then checks certs and endpoints
 # =========================================================================
@@ -320,6 +320,12 @@ def test_ome_external_kafka_certs(host):
             ].format(
                 error=pb_result["error"],
             )
+
+        tl.info(
+            OME_LOG_MSGS["ome_playbook_completed"].format(
+                duration=f"{pb_result['duration']:.1f}s",
+            )
+        )
 
         # Re-check all generated artifacts after the playbook.
         result = verify_external_kafka_certs(host)
@@ -371,7 +377,7 @@ def test_ome_external_kafka_certs(host):
 
 
 # =========================================================================
-# TC_SR_073: Verify user.pfx certificate created for OME mTLS
+# TEL_FVT_DEPLOY_V073: Verify user.pfx certificate created for OME mTLS
 #   Only runs when configure_ome=true, after certs are verified
 # =========================================================================
 
@@ -412,7 +418,7 @@ def test_ome_pfx_conversion(host):
 
 
 # =========================================================================
-# TC_SR_074: Verify TLS certificates uploaded to OME
+# TEL_FVT_DEPLOY_V074: Verify TLS certificates uploaded to OME
 #   Only runs when configure_ome=true and ome_ip is set
 #   Uploads both server cert (CA) and client cert (PFX)
 # =========================================================================
@@ -530,7 +536,7 @@ def test_ome_upload_certs(host):
 
 
 # =========================================================================
-# TC_SR_075: Verify OME Kafka forwarder connectivity status
+# TEL_FVT_DEPLOY_V075: Verify OME Kafka forwarder connectivity status
 #   Only runs when configure_ome=true and ome_ip is set
 #   If not connected, attempts to configure and test the connection
 # =========================================================================
@@ -547,7 +553,7 @@ def test_ome_kafka_connectivity(host):
     attempts to test and save the forwarder settings.
 
     Requires ome_ip and OME credentials in test config/creds.
-    Skipped if certificate upload failed (TC_SR_054).
+    Skipped if certificate upload failed (TEL_FVT_DEPLOY_V074).
     """
     context = _skip_if_ome_source_disabled(host)
     _skip_if_configure_ome_false()
@@ -730,7 +736,7 @@ def test_ome_kafka_connectivity(host):
 
 
 # =========================================================================
-# TC_SR_056: Verify uploaded certificate matches generated certificate
+# TEL_FVT_DEPLOY_V076: Verify uploaded certificate matches generated certificate
 #   Compares the cert details from OME with the generated cert
 # =========================================================================
 
@@ -797,7 +803,7 @@ def test_ome_cert_verify(host):
 
 
 # =========================================================================
-# TC_SR_057: Verify enabled OME Kafka topics exist
+# TEL_FVT_DEPLOY_V077: Verify enabled OME Kafka topics exist
 #   Checks only topic families enabled by the OME source flags
 # =========================================================================
 
@@ -869,7 +875,7 @@ def test_ome_kafka_topics(host):
 
 
 # =========================================================================
-# TC_SR_058 - TC_SR_062: Verify OME data per Kafka topic
+# TEL_FVT_DEPLOY_V078 - TEL_FVT_DEPLOY_V082: Verify OME data per Kafka topic
 #   One test case per OME topic so a single stalled data stream is
 #   reported independently of the others.
 # =========================================================================
@@ -1091,7 +1097,7 @@ def test_ome_auditlogs_data(host):
 
 
 # =========================================================================
-# TC_SR_064 - TC_SR_066: Verify OME metrics per VictoriaMetrics topic
+# TEL_FVT_DEPLOY_V083 - TEL_FVT_DEPLOY_V085: Verify OME metrics per VictoriaMetrics topic
 #   Metric names are generated from OME payloads, so each source topic is
 #   validated independently and every discovered metric is reported.
 # =========================================================================
@@ -1170,7 +1176,7 @@ def test_ome_health_metrics_in_victoria(host):
 
 
 # =========================================================================
-# TC_SR_067 - TC_SR_068: Verify OME logs per VictoriaLogs topic
+# TEL_FVT_DEPLOY_V086 - TEL_FVT_DEPLOY_V087: Verify OME logs per VictoriaLogs topic
 #   OME alerts and auditlogs are event-driven and validated independently.
 # =========================================================================
 

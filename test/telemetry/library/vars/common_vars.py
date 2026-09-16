@@ -551,6 +551,10 @@ CMDS = {
         "kubectl get {resource} -n {namespace}"
         " --no-headers --ignore-not-found 2>/dev/null | wc -l"
     ),
+    "kubectl_get_pvc_count": (
+        "kubectl get pvc -n {namespace}"
+        " --no-headers --ignore-not-found 2>/dev/null | grep {prefix} | wc -l"
+    ),
     "kubectl_get_ns": (
         "kubectl get namespace {namespace}"
         " --no-headers --ignore-not-found 2>/dev/null"

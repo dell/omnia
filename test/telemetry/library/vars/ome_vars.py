@@ -108,7 +108,7 @@ OME_TEST_KAFKA_BRIDGE_HOST = "kafka-bridge.example.test"
 OME_TEST_KAFKA_BRIDGE_BOOTSTRAP = (
     f"{OME_TEST_KAFKA_BRIDGE_HOST}:{KAFKA_BRIDGE_DEFAULT_PORT}"
 )
-OME_TEST_KAFKA_BRIDGE_ENDPOINT = f"http://{OME_TEST_KAFKA_BRIDGE_BOOTSTRAP}"
+OME_TEST_KAFKA_BRIDGE_ENDPOINT = f"https://{OME_TEST_KAFKA_BRIDGE_BOOTSTRAP}"
 
 
 # =============================================================================

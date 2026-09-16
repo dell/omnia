@@ -43,7 +43,7 @@
       changed_when: false
       until: >-
         not (hostvars['localhost']['_cleanup_all'] | bool)
-        or not (hostvars['localhost']['_cleanup_delete_volume'] | bool)
+        or not (hostvars['localhost']['_cleanup_delete_sinks_volume'] | bool)
         or remaining_pvcs.stdout_lines | default([])
            | map('trim') | reject('equalto', '') | list | length == 0
       retries: 12
@@ -107,7 +107,7 @@
           {{ _remaining_pvc_count }} PVC(s) in the telemetry namespace.
       when:
         - hostvars['localhost']['_cleanup_all'] | bool
-        - hostvars['localhost']['_cleanup_delete_volume'] | bool
+        - hostvars['localhost']['_cleanup_delete_sinks_volume'] | bool
 
     - name: Final verification | Confirm full cleanup removed resources
       vars:
@@ -172,7 +172,7 @@
           {{
             hostvars['localhost']['_cleanup_volume_verification_failed'] | default(false) | bool
             or (
-              hostvars['localhost']['_cleanup_delete_volume'] | bool
+              hostvars['localhost']['_cleanup_delete_sinks_volume'] | bool
               and (ansible_failed_task.name | default('')) in
                 [
                   'Final verification | Count remaining PVCs',

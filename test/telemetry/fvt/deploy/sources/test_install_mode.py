@@ -31,12 +31,12 @@ Offline mode characteristics:
     - Container images from local registry
 
 Test cases:
-    TC_SR_100: Verify install_mode configuration is valid
-    TC_SR_101: Verify Python packages installed correctly for current mode
-    TC_SR_102: Verify iDRAC deployment succeeded in current mode
-    TC_SR_103: Verify iDRAC pods running in current mode
-    TC_SR_104: Verify PowerScale dependencies available for current mode
-    TC_SR_105: Verify PowerScale deployment succeeded in current mode
+    TEL_FVT_DEPLOY_V110: Verify install_mode configuration is valid
+    TEL_FVT_DEPLOY_V111: Verify Python packages installed correctly for current mode
+    TEL_FVT_DEPLOY_V112: Verify iDRAC deployment succeeded in current mode
+    TEL_FVT_DEPLOY_V113: Verify iDRAC pods running in current mode
+    TEL_FVT_DEPLOY_V114: Verify PowerScale dependencies available for current mode
+    TEL_FVT_DEPLOY_V115: Verify PowerScale deployment succeeded in current mode
 """
 
 import pytest
@@ -124,14 +124,14 @@ def _skip_if_powerscale_disabled(host):
 
 
 # =========================================================================
-# TC_SR_100: Verify install_mode configuration is valid
+# TEL_FVT_DEPLOY_V110: Verify install_mode configuration is valid
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(100)
 def test_install_mode_config(host):
-    """TC_SR_100: Verify telemetry_packages.yml has a valid install_mode."""
+    """TEL_FVT_DEPLOY_V110: Verify telemetry_packages.yml has a valid install_mode."""
     tc = TC["install_mode_config"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -172,14 +172,14 @@ def test_install_mode_config(host):
 
 
 # =========================================================================
-# TC_SR_101: Verify Python packages installed correctly for current mode
+# TEL_FVT_DEPLOY_V111: Verify Python packages installed correctly for current mode
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(101)
 def test_python_packages_installed(host):
-    """TC_SR_101: Verify Python packages installed for the current mode."""
+    """TEL_FVT_DEPLOY_V111: Verify Python packages installed for the current mode."""
     _skip_if_idrac_disabled(host)
     tc = TC["install_mode_python_packages"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -213,14 +213,14 @@ def test_python_packages_installed(host):
 
 
 # =========================================================================
-# TC_SR_102: Verify iDRAC deployment succeeded in current mode
+# TEL_FVT_DEPLOY_V112: Verify iDRAC deployment succeeded in current mode
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(102)
 def test_idrac_deployment(host):
-    """TC_SR_102: Verify iDRAC deployment succeeded in the current mode."""
+    """TEL_FVT_DEPLOY_V112: Verify iDRAC deployment succeeded in the current mode."""
     _skip_if_idrac_disabled(host)
     tc = TC["install_mode_idrac_deployment"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -258,14 +258,14 @@ def test_idrac_deployment(host):
 
 
 # =========================================================================
-# TC_SR_103: Verify iDRAC pods running in current mode
+# TEL_FVT_DEPLOY_V113: Verify iDRAC pods running in current mode
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(103)
 def test_idrac_pods(host):
-    """TC_SR_103: Verify iDRAC pods running in the current mode."""
+    """TEL_FVT_DEPLOY_V113: Verify iDRAC pods running in the current mode."""
     _skip_if_idrac_disabled(host)
     tc = TC["install_mode_idrac_pods"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -306,14 +306,14 @@ def test_idrac_pods(host):
 
 
 # =========================================================================
-# TC_SR_104: Verify PowerScale dependencies available for current mode
+# TEL_FVT_DEPLOY_V114: Verify PowerScale dependencies available for current mode
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(104)
 def test_powerscale_dependencies(host):
-    """TC_SR_104: Verify PowerScale dependencies for the current mode."""
+    """TEL_FVT_DEPLOY_V114: Verify PowerScale dependencies for the current mode."""
     _skip_if_powerscale_disabled(host)
     tc = TC["install_mode_powerscale_deps"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -378,14 +378,14 @@ def test_powerscale_dependencies(host):
 
 
 # =========================================================================
-# TC_SR_105: Verify PowerScale deployment succeeded in current mode
+# TEL_FVT_DEPLOY_V115: Verify PowerScale deployment succeeded in current mode
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(105)
 def test_powerscale_deployment(host):
-    """TC_SR_105: Verify PowerScale deployment succeeded in the current mode."""
+    """TEL_FVT_DEPLOY_V115: Verify PowerScale deployment succeeded in the current mode."""
     _skip_if_powerscale_disabled(host)
     tc = TC["install_mode_powerscale_deployment"]
     tl = TestLogger(tc["title"], tc["id"])
