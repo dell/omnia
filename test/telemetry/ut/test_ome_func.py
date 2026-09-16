@@ -36,6 +36,7 @@ from library.vars import (
     OME_TEST_KAFKA_BRIDGE_ENDPOINT,
     OME_TEST_KAFKA_BRIDGE_HOST,
 )
+from library.vars.ome_vars import OME_CMD_TEMPLATES
 
 
 class _FakeClock:
@@ -70,6 +71,25 @@ def test_ome_polling_timeouts():
     assert OME_KAFKA_TOPIC_POLL_INTERVAL_SECONDS == 2
     assert OME_KAFKA_DATA_TIMEOUT_SECONDS == 120
     assert OME_KAFKA_DATA_POLL_INTERVAL_SECONDS == 2
+
+
+@pytest.mark.parametrize(
+    "command_name",
+    [
+        "rest_list_topics",
+        "rest_create_consumer",
+        "rest_subscribe_topic",
+        "rest_consume_records",
+        "rest_delete_consumer",
+    ],
+)
+def test_ome_rest_commands_use_tls_bridge(command_name):
+    """Use TLS for the REST listener configured by the KafkaBridge CR."""
+    command = OME_CMD_TEMPLATES[command_name]
+
+    assert "https://{bridge_ip}:{port}/" in command
+    assert "http://{bridge_ip}:{port}/" not in command
+    assert "curl -kfsS --max-time 15" in command
 
 
 @pytest.mark.parametrize(

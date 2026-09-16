@@ -96,7 +96,7 @@ sync_telemetry_input: false
 # tests. Leave empty to skip OME connectivity tests.
 # The OME REST API at /api/DataForwardingService/Forwarders is used to verify
 # the Kafka forwarding pipeline is connected.
-ome_ip: ""
+ome_ip: "192.168.11.8"
 
 # When true, the OME test suite will:
 #   1. Run the external_kafka_connect playbook to extract TLS certs
@@ -125,15 +125,15 @@ force_external_victoria_playbook: false
 # SFM (SmartFabric Manager) integration is opt-in. When enabled, the SFM
 # automation uses the API endpoint for observability configuration and the SSH
 # endpoint for host-side validation. Credentials are stored in test_creds.yml.
-configure_sfm: false
+configure_sfmi: true
 
 # SFM API endpoint used to upload the VictoriaMetrics CA certificate and
 # configure Prometheus remote write.
-sfm_api_ip: ""
+sfm_api_ip: "172.20.21.232"
 sfm_api_port: 443
 
 # SFM SSH endpoint used for remote host and service checks.
-sfm_ssh_ip: ""
+sfm_ssh_ip: "192.168.13.16"
 sfm_ssh_port: 22
 
 # =============================================================================
