@@ -752,7 +752,7 @@ TEST_ASSERT_MSGS = {
         "  1. Check LDMS sampler running on compute nodes: systemctl status ldmsd\n"
         "  2. Check LDMS aggregator logs: kubectl logs nersc-ldms-aggr-0 -n telemetry\n"
         "  3. Check LDMS store logs: kubectl logs nersc-ldms-store-0 -n telemetry\n"
-        "  4. Verify Kafka ldms topic has data: curl http://<bridge>:8080/topics\n"
+        "  4. Verify Kafka ldms topic has data: curl -k https://<bridge>:8080/topics\n"
     ),
     "ldms_plugins_missing": (
         "LDMS plugins missing for host {hostname}: {plugins}\n"
