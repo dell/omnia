@@ -118,7 +118,7 @@ cleanup_initializer_artifacts() {
     local logical_log_root
     logical_log_root="$(realpath -ms -- "$DOMAIN_INIT_LOG_ROOT")"
     local domain_data_dir="${data_root}/${DOMAIN_NAME}"
-    local cleanup_paths=("${domain_data_dir}/input" "${domain_data_dir}/log" "${log_root}/${DOMAIN_NAME}")
+    local cleanup_paths=("${domain_data_dir}/input" "${domain_data_dir}/log" "${domain_data_dir}/output" "${log_root}/${DOMAIN_NAME}")
     case "$data_root" in
         ""|/|/boot|/dev|/etc|/home|/media|/mnt|/opt|/proc|/root|/run|/srv|/sys|/tmp|/usr|/var)
             echo -e "${RED}[${DOMAIN_NAME}] Refusing cleanup for unsafe OMNIA_DATA_PATH: ${OMNIA_DATA_PATH}${NC}" >&2
