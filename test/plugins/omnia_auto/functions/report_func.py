@@ -567,26 +567,7 @@ class TestReport:
 
         if existing_mod_idx is not None:
             mod = run["modules"][existing_mod_idx]
-            # A verification retry belongs to the same logical test run.
-            # Replace its earlier result instead of counting both the stale
-            # failure and the recovered result in the combined report.
-            result_indexes = {
-                (
-                    result.get("tc_id") or "",
-                    result.get("test_name") or "",
-                ): index
-                for index, result in enumerate(mod["results"])
-            }
-            for result in self.results:
-                result_key = (
-                    result.get("tc_id") or "",
-                    result.get("test_name") or "",
-                )
-                if result_key in result_indexes:
-                    mod["results"][result_indexes[result_key]] = result
-                else:
-                    result_indexes[result_key] = len(mod["results"])
-                    mod["results"].append(result)
+            mod["results"].extend(self.results)
             mod["playbook_logs"] = self.playbook_logs
             mod["command_type"] = self.command_type
             if self.playbook_logs:
