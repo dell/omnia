@@ -62,6 +62,26 @@ The resolved component root contains `input/<project>`, `output/<project>`, and
 lookup, output generation, and Discovery cleanup all use the same resolved
 root.
 
+### Playbook flows
+
+Discovery uses OME as its only backend. No discovery-mechanism extra variable
+is required.
+
+```bash
+# Validate the Discovery input only; do not load credentials.
+ansible-playbook playbooks/discovery.yml --tags validate
+
+# Load stored credentials or collect any missing OME username/password.
+ansible-playbook playbooks/discovery.yml --tags credentials
+
+# Validate input, collect missing credentials, and run OME discovery.
+ansible-playbook playbooks/discovery.yml --tags execute
+```
+
+Running the playbook without a tag performs the same full flow as `execute`.
+The supported prerequisite-only tag is `precheck`; `discovery` is not an
+execution-tag alias.
+
 ```yaml
 - name: Run discovery
   hosts: localhost

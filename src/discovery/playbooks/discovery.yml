@@ -29,7 +29,7 @@
 #   ansible-playbook discovery.yml --tags precheck
 #                                                                  # Data-path and OME endpoint precheck
 #   ansible-playbook discovery.yml --tags validate                 # Validate config only (no credentials)
-#   ansible-playbook discovery.yml --tags credentials              # Collect/update OME credentials only
+#   ansible-playbook discovery.yml --tags credentials              # Load or collect missing OME credentials only
 #   ansible-playbook discovery.yml --tags prepare                  # Prepare discovery environment (placeholder)
 #   ansible-playbook discovery.yml --tags execute                  # Run OME discovery
 #   ansible-playbook discovery.yml --tags cleanup                  # Cleanup outputs and credentials
@@ -41,9 +41,9 @@
 #
 # Tags (pick one; cleanup + cleanup_credentials is the only supported pair):
 #   (none)       -- Default flow: always + validate + credentials + execute (OME)
-#   precheck     -- Validate the data path and, when enabled, OME TCP/443 reachability
+#   precheck     -- Validate the data path and OME TCP/443 reachability
 #   validate     -- Validate discovery_config.yml input (skips credentials)
-#   credentials  -- Collect/update OME credentials only (no discovery)
+#   credentials  -- Load or collect missing OME credentials only (no execution)
 #   prepare      -- Prepare discovery environment (placeholder -- future release)
 #   execute      -- Run BMC discovery via OME (with credentials)
 #   cleanup      -- Cleanup discovery outputs and credentials
@@ -125,7 +125,6 @@
   ansible.builtin.import_playbook: execute/execute_discovery.yml
   tags:
     - execute
-    - discovery
 
 # =========================================================================
 # FLOW: cleanup -- Remove discovery outputs and credentials (opt-in only)

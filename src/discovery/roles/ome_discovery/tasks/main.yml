@@ -36,7 +36,7 @@
       ansible.builtin.copy:
         content: |
           overall_status: "success"
-          discovery_mechanism: "{{ discovery_mechanism | default('ome') }}"
+          discovery_mechanism: "ome"
           bmc_pxe_mapping_file: "{{ pxe_mapping_output_file | default('') }}"
           servers_discovered: {{ discovered_servers | default([]) | length }}
           timestamp: "{{ ansible_date_time.iso8601 | default('unknown') }}"
@@ -50,7 +50,7 @@
       ansible.builtin.copy:
         content: |
           overall_status: "failed"
-          discovery_mechanism: "{{ discovery_mechanism | default('ome') }}"
+          discovery_mechanism: "ome"
           bmc_pxe_mapping_file: "{{ pxe_mapping_output_file | default('') }}"
           servers_discovered: {{ discovered_servers | default([]) | length }}
           failed_task: "{{ ansible_failed_task.name | default('unknown') }}"

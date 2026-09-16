@@ -25,6 +25,3 @@
 # the Discovery credentials flow.
 # Example: "192.168.1.100"
 ome_ip: ""
-
-#### Magellan Discovery
-# Reserved for future Magellan discovery configuration parameters.

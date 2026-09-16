@@ -122,7 +122,7 @@ discovery.yml (no --tags)
 │   ├── Prompt for missing OME credentials
 │   └── Encrypt credential files
 │
-├─ [execute/discovery] Step 3: execute_discovery.yml
+├─ [execute] Step 3: execute_discovery.yml
 │   ├── Validate OME inputs (ome_ip)
 │   └── Include ome_discovery role
 │       ├── check_ome_connectivity.yml  — wait for OME TCP/443
@@ -148,7 +148,6 @@ discovery.yml --tags <tag>
 │   └── Wait for OME TCP/443
 ├─ [prepare]    prepare/prepare_discovery.yml      (placeholder)
 ├─ [execute]    execute/execute_discovery.yml       (OME discovery)
-├─ [discovery]  execute/execute_discovery.yml       (alias for execute)
 ├─ [cleanup]    cleanup/cleanup_discovery.yml
 │   ├── Empty the project output directory but keep the directory
 │   └── Remove credentials by default (optional preservation)
@@ -327,10 +326,9 @@ credential deletion explicit. Running without tags executes: setup → validate
 | *(none)* | ✅ Active | — | Default flow (validate + credentials + execute) |
 | `precheck` | ✅ Active | `precheck/precheck_discovery.yml` | Validate data path and OME TCP/443 connectivity |
 | `validate` | ✅ Active | `validate/validate_discovery.yml` | Validate config only (skips credentials) |
-| `credentials` | ✅ Active | `credentials/discovery_credentials.yml` | Validate config, then collect/update OME credentials |
+| `credentials` | ✅ Active | `credentials/discovery_credentials.yml` | Validate config, then load stored or collect missing OME credentials |
 | `prepare` | Placeholder | `prepare/prepare_discovery.yml` | Prepare discovery environment |
 | `execute` | ✅ Active | `execute/execute_discovery.yml` | Run BMC discovery via OME |
-| `discovery` | ✅ Active | `execute/execute_discovery.yml` | Alias for execute (backward compat) |
 | `cleanup` | ✅ Active | `cleanup/cleanup_discovery.yml` | Cleanup project outputs and credentials |
 | `cleanup_credentials` | ✅ Active | `cleanup/cleanup_discovery.yml` | Cleanup credentials only |
 | `upgrade` | Placeholder | `upgrade/upgrade_discovery.yml` | Upgrade flow |
@@ -410,5 +408,7 @@ grep -c 'playbooks/utils' src/discovery/**/*.yml              # expect: 0
   contract because the Discovery domain is OME-only and execution was never
   gated by that switch. Existing files containing the old key remain readable,
   but the key has no effect.
+- OME is the only Discovery backend. Users do not set a
+  `discovery_mechanism` extra variable; use the `execute` tag to run discovery.
 - Use the top-level `discovery.yml` entrypoint for tag-based workflows.
 - All `../playbooks/utils/` references are eliminated.

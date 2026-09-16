@@ -39,8 +39,6 @@
   hosts: localhost
   connection: local
   gather_facts: true
-  vars:
-    discovery_mechanism: "ome"
   tasks:
     - name: Include OME discovery role
       ansible.builtin.include_role:

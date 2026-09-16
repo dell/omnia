@@ -121,10 +121,7 @@
       - ""
       - "5. Review the remaining Orchestrator inputs."
       - ""
-      - "6. If the base infrastructure is not prepared, run:"
-      - "     ./src/main/omnia.sh --prepare-base"
-      - ""
-      - "7. Run Orchestrator from the Omnia source root:"
+      - "6. Run Orchestrator from the Omnia source root:"
       - "     ./src/main/omnia.sh --run orchestrator"
       - "============================================================"
 

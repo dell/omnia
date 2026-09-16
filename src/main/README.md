@@ -306,7 +306,7 @@ completion and accepted by the top-level playbooks:
 | Domain | Supported tags |
 |--------|----------------|
 | `build_stream` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `build`, `cleanup`, `upgrade`, `rollback` |
-| `discovery` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `discovery`, `cleanup`, `cleanup_credentials`, `upgrade`, `rollback` |
+| `discovery` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `cleanup`, `cleanup_credentials`, `upgrade`, `rollback` |
 | `image_build_manager` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `build`, `cleanup`, `cleanup_images`, `upgrade`, `rollback` |
 | `orchestrator` | `precheck`, `validate`, `credentials`, `prepare`, `deploy`, `provision`, `execute`, `validate-deployment`, `pxeboot`, `cleanup`, `cleanup_credentials`, `upgrade`, `rollback` |
 | `repo_manager` | `precheck`, `credentials`, `prepare`, `deploy`, `execute`, `download`, `status`, `cleanup`, `cleanup_pulp`, `cleanup_repos`, `upgrade`, `rollback`, `catalog_generate`, `catalog_add`, `catalog_delete`, `catalog_validate` |
