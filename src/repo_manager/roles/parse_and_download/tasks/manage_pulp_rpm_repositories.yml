@@ -44,6 +44,10 @@
   register: result
   no_log: true
 
+- name: Display Pulp task monitoring URL
+  ansible.builtin.debug:
+    msg: "Pulp task progress URL: https://{{ pulp_server_ip }}:{{ pulp_server_port }}/pulp/api/v3/tasks/?state=running"
+
 - name: Process URL mirrors from repo_manager_config
   process_rpm_config:
     local_config: "{{ result.local_config }}"
