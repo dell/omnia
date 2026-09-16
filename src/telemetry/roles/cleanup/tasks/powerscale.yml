@@ -53,7 +53,9 @@
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pod -l app.kubernetes.io/name=karavi-metrics-powerscale
     --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
+  register: _powerscale_helm_pod_delete
   when: powerscale_helm_release in _powerscale_helm_releases.stdout_lines
+  changed_when: _powerscale_helm_pod_delete.rc == 0 and 'deleted' in _powerscale_helm_pod_delete.stdout
   failed_when: false
 
 - name: PowerScale | Force delete CSI volume exporter pods
@@ -112,6 +114,8 @@
   loop:
     - deployment
     - pod
+  register: _powerscale_cert_delete
+  changed_when: _powerscale_cert_delete.rc == 0
   failed_when: false
 
 - name: PowerScale | Delete cluster-scoped resources
@@ -121,6 +125,8 @@
   loop: "{{ powerscale_cluster_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
+  register: _powerscale_cluster_delete
+  changed_when: _powerscale_cluster_delete.rc == 0
   failed_when: false
 
 - name: PowerScale | Remove generated manifest
@@ -133,6 +139,8 @@
     kubectl -n {{ telemetry_namespace }} delete pod -l {{ item }}
     --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
   loop: "{{ powerscale_pod_labels }}"
+  register: _powerscale_force_pod_delete
+  changed_when: _powerscale_force_pod_delete.rc == 0
   failed_when: false
 
 - name: PowerScale | Wait for pods to terminate

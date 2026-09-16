@@ -1,0 +1,51 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Validate OME endpoint configuration
+  ansible.builtin.assert:
+    that:
+      - >-
+        ome_ip is defined and
+        ome_ip is string and
+        (ome_ip | trim | length > 0)
+    fail_msg: "{{ discovery_ome_ip_required_msg }}"
+    quiet: true
+
+- name: Probe OME HTTPS port
+  ansible.builtin.wait_for:
+    host: "{{ ome_ip | trim }}"
+    port: "{{ discovery_ome_https_port | int }}"
+    state: started
+    connect_timeout: "{{ discovery_ome_connect_timeout | int }}"
+    timeout: "{{ discovery_ome_connectivity_timeout | int }}"
+  register: discovery_ome_connectivity_result
+  changed_when: false
+  failed_when: false
+
+- name: Confirm OME HTTPS endpoint connectivity
+  ansible.builtin.assert:
+    that:
+      - discovery_ome_connectivity_result.state | default('') == 'started'
+    fail_msg: "{{ discovery_ome_connectivity_failure_msg }}"
+    quiet: true
+
+- name: Record reachable OME endpoint
+  ansible.builtin.set_fact:
+    discovery_ome_connectivity_status: >-
+      {{ discovery_ome_connectivity_success_status }}
+
+- name: Display OME endpoint connectivity result
+  ansible.builtin.debug:
+    msg: "{{ discovery_ome_connectivity_success_msg }}"

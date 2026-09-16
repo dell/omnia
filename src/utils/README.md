@@ -254,14 +254,6 @@ See `docs/contracts/` for field-level contracts.
 | `slurm_config_rollback` | Restore a Slurm configuration backup and reconfigure `slurmctld` |
 | `utils_status_writer` | Write and validate `utils_status.yml` |
 
-### Reusable Roles Not Exposed by `utils.yml`
-
-| Role | Purpose |
-|------|---------|
-| `create_container_group` | Build container inventory groups |
-| `fetch_arm_params` | Load ARM-oriented configuration parameters |
-| `validate_arm_config` | Validate ARM configuration |
-
 ---
 
 ## Modules and Plugins

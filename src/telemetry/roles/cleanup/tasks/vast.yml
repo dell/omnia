@@ -43,8 +43,7 @@
   when:
     - item.type == 'vmservicescrape'
     - _vast_victoria_api_resources.stdout_lines is defined
-    - 'vmservicescrapes.operator.victoriametrics.com' in
-      _vast_victoria_api_resources.stdout_lines
+    - "'vmservicescrapes.operator.victoriametrics.com' in _vast_victoria_api_resources.stdout_lines"
   changed_when: _vast_crd_delete.rc == 0
   failed_when: false
 

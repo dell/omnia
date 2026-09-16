@@ -14,17 +14,19 @@
 ---
 
 # --- Upgrade guard ---
-upgrade_lock_file: /opt/omnia/.data/upgrade_in_progress.lock
+upgrade_lock_file: "{{ omnia_data_path }}/.data/upgrade_in_progress.lock"
 upgrade_in_progress_msg: >-
   Upgrade is not completed fully.
-  Please run upgrade.yml to complete upgrade before running any other playbook using the below command:
+  Please run upgrade.yml to complete upgrade before running any other playbook
+  using the command below:
   "ansible-playbook /omnia/src/playbooks/upgrade/upgrade.yml"
-  If you don't require input files to be migrated, reconfigure the default input files, remove the lock file using the following command
-  "rm /opt/omnia/.data/upgrade_in_progress.lock" and then proceed.
+  If you don't require input files to be migrated, reconfigure the default
+  input files and remove the lock file using the following command:
+  "rm {{ upgrade_lock_file }}" and then proceed.
 
 # --- Base paths ---
-# Domain-scoped paths: /opt/omnia/discovery/input/<project>/
-# (resolved from OMNIA_DATA_PATH env var in tasks/main.yml)
+# Domain-scoped paths: <DISCOVERY_DATA_PATH>/input/<project>/
+# DISCOVERY_DATA_PATH falls back to <OMNIA_DATA_PATH>/discovery.
 
 # --- Tag validation ---
 supported_tags:
@@ -33,7 +35,6 @@ supported_tags:
   - credentials
   - prepare
   - execute
-  - discovery
   - cleanup
   - cleanup_credentials
   - upgrade
@@ -47,32 +48,26 @@ skip_credential_tags:
 
 invalid_tag_combinations:
   - [execute, cleanup]
-  - [discovery, cleanup]
   - [prepare, cleanup]
   - [execute, cleanup_credentials]
-  - [discovery, cleanup_credentials]
   - [prepare, cleanup_credentials]
   - [prepare, upgrade]
   - [execute, upgrade]
-  - [discovery, upgrade]
   - [cleanup, upgrade]
   - [cleanup_credentials, upgrade]
   - [prepare, rollback]
   - [execute, rollback]
-  - [discovery, rollback]
   - [cleanup, rollback]
   - [cleanup_credentials, rollback]
   - [upgrade, rollback]
   - [precheck, prepare]
   - [precheck, execute]
-  - [precheck, discovery]
   - [precheck, cleanup]
   - [precheck, cleanup_credentials]
   - [precheck, upgrade]
   - [precheck, rollback]
   - [credentials, prepare]
   - [credentials, execute]
-  - [credentials, discovery]
   - [credentials, cleanup]
   - [credentials, cleanup_credentials]
   - [credentials, upgrade]
@@ -105,6 +100,7 @@ network_spec_file: "network_spec.yml"
 input_dir_missing_msg: >-
   Discovery input directory does not exist.
   Please create it and populate with discovery_config.yml and network_spec.yml.
-config_load_fail_msg: >-
-  Failed to load discovery configuration.
-  Please verify discovery_config.yml syntax.
+config_load_fail_msg: |-
+  Discovery configuration file is missing or is not a regular file.
+  Configuration file: {{ discovery_input_dir }}/{{ discovery_config_file }}
+  Action: Restore discovery_config.yml and verify its YAML syntax.

@@ -29,7 +29,7 @@ discovery_project_name: "{{ hostvars['localhost']['discovery_project_name'] }}"
 
 # PXE mapping headers
 pxe_mapping_headers:  # yamllint disable-line rule:line-length
-  "FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,BMC_HOSTNAME,IB_NIC_NAME,IB_IP"
+  "FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP"
 
 # Messages
 ome_credentials_prompt_msg: |

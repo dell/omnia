@@ -1,10 +1,15 @@
 # validate_discovery_input
 
-Ansible role for the Omnia discovery collection.
+Validates `discovery_config.yml` using the Discovery schema and cross-field
+rules. Detailed validation output is written to
+`<DISCOVERY_DATA_PATH>/log/<project>/discovery_validation_<project>.log`.
 
 ## Role Variables
 
-See `vars/main.yml` and `defaults/main.yml` for available variables.
+- `input_project_dir`: Active Discovery input project directory.
+- `discovery_schema_dir`: Directory containing the Discovery JSON schema.
+- `log_dir`: Active Discovery project runtime-log directory, derived by
+  `discovery_setup`.
 
 ## License
 
