@@ -74,6 +74,17 @@ class GeneratorError(Exception):
     """A user-correctable dataset generation error."""
 
 
+class _IndentedSafeDumper(yaml.SafeDumper):
+    """Emit block sequences indented beneath their mapping keys."""
+
+    def increase_indent(
+        self, flow: bool = False, indentless: bool = False
+    ) -> None:
+        """Disable PyYAML's indentless block-sequence output style."""
+        del indentless
+        super().increase_indent(flow, indentless=False)
+
+
 def _info(message: str) -> None:
     """Print an informational message."""
     print(f"  {_BLUE}[...]{_NC} {message}")
@@ -318,7 +329,12 @@ def _generate_manifest(
         ],
         "artifacts": artifacts,
     }
-    content = yaml.safe_dump(manifest, sort_keys=True, default_flow_style=False)
+    content = yaml.dump(
+        manifest,
+        Dumper=_IndentedSafeDumper,
+        sort_keys=True,
+        default_flow_style=False,
+    )
     (dataset_dir / "dataset_manifest.yml").write_text(
         "---\n" + content, encoding="utf-8"
     )

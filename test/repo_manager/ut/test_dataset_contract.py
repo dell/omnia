@@ -111,9 +111,11 @@ class DatasetContractTests(unittest.TestCase):
             with patch.object(generator, "DATASETS_DIR", root):
                 self.assertEqual(generator.main(["manifest_case", "defaults"]), 0)
             output = root / "manifest_case"
-            manifest = yaml.safe_load(
-                (output / "dataset_manifest.yml").read_text(encoding="utf-8")
-            )
+            manifest_path = output / "dataset_manifest.yml"
+            manifest_text = manifest_path.read_text(encoding="utf-8")
+            manifest = yaml.safe_load(manifest_text)
+            self.assertIn("external_inputs:\n  - ", manifest_text)
+            self.assertNotIn("external_inputs:\n- ", manifest_text)
             self.assertEqual(manifest["generator_version"], 2)
             self.assertTrue(manifest["source_documents"])
             self.assertEqual(

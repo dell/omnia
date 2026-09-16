@@ -4,7 +4,7 @@ artifacts:
   input/repo_manager_endpoint_config.yml: 7d7fb4f7354b04dc8c647c4cb92c409ebb0a4dc8b8963078b434743fdfd0fd7b
 dataset: data_set_01
 external_inputs:
-- Encrypted Repo Manager credentials configured on the execution OIM
+  - Encrypted Repo Manager credentials configured on the execution OIM
 generator_version: 2
 mode: profile
 overrides: {}
