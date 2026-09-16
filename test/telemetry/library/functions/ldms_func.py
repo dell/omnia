@@ -581,6 +581,118 @@ def get_kafka_bridge_port(host) -> str:
 
 
 # =========================================================================
+# Kafka Consumer Lifecycle Helpers
+# =========================================================================
+
+# Retry settings for Kafka bridge consumer creation
+_CONSUMER_CREATE_MAX_RETRIES = 3
+_CONSUMER_CREATE_RETRY_DELAY = 5  # seconds
+
+
+def _create_kafka_consumer_with_retry(
+    host, bridge_ip, port, consumer_group, consumer_name, offset,
+):
+    """Create a Kafka REST bridge consumer with retry logic.
+
+    The Kafka bridge may not be ready immediately after pod startup;
+    retrying avoids transient failures.
+
+    Returns:
+        Dict with success, error.
+    """
+    last_error = ""
+    for attempt in range(1, _CONSUMER_CREATE_MAX_RETRIES + 1):
+        create_cmd = LDMS_CMD_TEMPLATES["rest_create_consumer"].format(
+            bridge_ip=bridge_ip,
+            port=port,
+            consumer_group=consumer_group,
+            consumer_name=consumer_name,
+            offset=offset,
+        )
+        result = run_on_kube_vip(host, create_cmd)
+        if result.rc == 0 and "error_code" not in result.stdout:
+            return {"success": True}
+        last_error = (
+            f"rc={result.rc}, stdout={result.stdout.strip()}, "
+            f"stderr={result.stderr.strip()}"
+        )
+        if attempt < _CONSUMER_CREATE_MAX_RETRIES:
+            time.sleep(_CONSUMER_CREATE_RETRY_DELAY)
+
+    return {
+        "success": False,
+        "error": (
+            f"Failed to create Kafka consumer after "
+            f"{_CONSUMER_CREATE_MAX_RETRIES} attempts: {last_error}"
+        ),
+    }
+
+
+def _subscribe_kafka_consumer_with_retry(
+    host, bridge_ip, port, consumer_group, consumer_name, topic,
+):
+    """Subscribe a Kafka REST bridge consumer to a topic with retry logic.
+
+    Returns:
+        Dict with success, error.
+    """
+    last_error = ""
+    for attempt in range(1, _CONSUMER_CREATE_MAX_RETRIES + 1):
+        subscribe_cmd = LDMS_CMD_TEMPLATES["rest_subscribe_topic"].format(
+            bridge_ip=bridge_ip,
+            port=port,
+            consumer_group=consumer_group,
+            consumer_name=consumer_name,
+            topic=topic,
+        )
+        result = run_on_kube_vip(host, subscribe_cmd)
+        if result.rc == 0 and "error_code" not in result.stdout:
+            return {"success": True}
+        last_error = (
+            f"rc={result.rc}, stdout={result.stdout.strip()}, "
+            f"stderr={result.stderr.strip()}"
+        )
+        if attempt < _CONSUMER_CREATE_MAX_RETRIES:
+            time.sleep(_CONSUMER_CREATE_RETRY_DELAY)
+
+    return {
+        "success": False,
+        "error": (
+            f"Failed to subscribe Kafka consumer after "
+            f"{_CONSUMER_CREATE_MAX_RETRIES} attempts: {last_error}"
+        ),
+    }
+
+
+def _build_error_result(
+    bridge_ip, domain_name, hostnames, plugins, expected_instances, error,
+):
+    """Build a complete error result dict with all standard fields populated.
+
+    Ensures the test output always shows meaningful values even when
+    the verification fails early (e.g. consumer creation failure).
+    """
+    return {
+        "success": False,
+        "skipped": False,
+        "bridge_ip": bridge_ip,
+        "domain_name": domain_name,
+        "expected_hostnames": hostnames,
+        "expected_plugins": plugins,
+        "expected_instance_count": len(expected_instances),
+        "total_records_read": 0,
+        "found_instances": [],
+        "found_instance_count": 0,
+        "missing_instances": sorted(expected_instances),
+        "found_hostnames": [],
+        "missing_hostnames": list(hostnames),
+        "hostname_results": [],
+        "results_by_group": {},
+        "error": error,
+    }
+
+
+# =========================================================================
 # LDMS Kafka Data Verification
 # =========================================================================
 
@@ -670,36 +782,26 @@ def verify_ldms_data_in_kafka(
 
     try:
         # Step 1: Create a unique consumer at the current end of the topic.
-        create_cmd = LDMS_CMD_TEMPLATES["rest_create_consumer"].format(
-            bridge_ip=bridge_ip,
-            port=port,
-            consumer_group=consumer_group,
-            consumer_name=consumer_name,
-            offset=LDMS_KAFKA_OFFSET_LATEST,
+        create_result = _create_kafka_consumer_with_retry(
+            host, bridge_ip, port, consumer_group, consumer_name,
+            LDMS_KAFKA_OFFSET_LATEST,
         )
-        result = run_on_kube_vip(host, create_cmd)
-        if result.rc != 0 or "error_code" in result.stdout:
-            return {
-                "success": False,
-                "bridge_ip": bridge_ip,
-                "error": f"Failed to create consumer: {result.stdout}",
-            }
+        if not create_result["success"]:
+            return _build_error_result(
+                bridge_ip, domain_name, hostnames, plugins,
+                expected_instances, create_result["error"],
+            )
 
         # Step 2: Subscribe to ldms topic
-        subscribe_cmd = LDMS_CMD_TEMPLATES["rest_subscribe_topic"].format(
-            bridge_ip=bridge_ip,
-            port=port,
-            consumer_group=consumer_group,
-            consumer_name=consumer_name,
-            topic=LDMS_KAFKA_TOPIC,
+        sub_result = _subscribe_kafka_consumer_with_retry(
+            host, bridge_ip, port, consumer_group, consumer_name,
+            LDMS_KAFKA_TOPIC,
         )
-        result = run_on_kube_vip(host, subscribe_cmd)
-        if result.rc != 0 or "error_code" in result.stdout:
-            return {
-                "success": False,
-                "bridge_ip": bridge_ip,
-                "error": f"Failed to subscribe consumer: {result.stdout}",
-            }
+        if not sub_result["success"]:
+            return _build_error_result(
+                bridge_ip, domain_name, hostnames, plugins,
+                expected_instances, sub_result["error"],
+            )
 
         # Step 3: Consume records with timeout
         consume_cmd = LDMS_CMD_TEMPLATES["rest_consume_records"].format(
@@ -934,36 +1036,26 @@ def verify_ldms_earliest_data_in_kafka(
 
     try:
         # Step 1: Create a unique group whose uncommitted offsets start earliest.
-        create_cmd = LDMS_CMD_TEMPLATES["rest_create_consumer"].format(
-            bridge_ip=bridge_ip,
-            port=port,
-            consumer_group=consumer_group,
-            consumer_name=consumer_name,
-            offset=LDMS_KAFKA_OFFSET_EARLIEST,
+        create_result = _create_kafka_consumer_with_retry(
+            host, bridge_ip, port, consumer_group, consumer_name,
+            LDMS_KAFKA_OFFSET_EARLIEST,
         )
-        result = run_on_kube_vip(host, create_cmd)
-        if result.rc != 0 or "error_code" in result.stdout:
-            return {
-                "success": False,
-                "bridge_ip": bridge_ip,
-                "error": f"Failed to create consumer: {result.stdout}",
-            }
+        if not create_result["success"]:
+            return _build_error_result(
+                bridge_ip, domain_name, hostnames, plugins,
+                expected_instances, create_result["error"],
+            )
 
         # Step 2: Subscribe so Kafka dynamically assigns every topic partition.
-        subscribe_cmd = LDMS_CMD_TEMPLATES["rest_subscribe_topic"].format(
-            bridge_ip=bridge_ip,
-            port=port,
-            consumer_group=consumer_group,
-            consumer_name=consumer_name,
-            topic=LDMS_KAFKA_TOPIC,
+        sub_result = _subscribe_kafka_consumer_with_retry(
+            host, bridge_ip, port, consumer_group, consumer_name,
+            LDMS_KAFKA_TOPIC,
         )
-        result = run_on_kube_vip(host, subscribe_cmd)
-        if result.rc != 0 or "error_code" in result.stdout:
-            return {
-                "success": False,
-                "bridge_ip": bridge_ip,
-                "error": f"Failed to subscribe consumer: {result.stdout}",
-            }
+        if not sub_result["success"]:
+            return _build_error_result(
+                bridge_ip, domain_name, hostnames, plugins,
+                expected_instances, sub_result["error"],
+            )
 
         # Step 3: Consume until every expected hostname/plugin is represented.
         consume_cmd = LDMS_CMD_TEMPLATES["rest_consume_records"].format(
