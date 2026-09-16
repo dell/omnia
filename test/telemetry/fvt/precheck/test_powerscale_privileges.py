@@ -16,7 +16,7 @@
 Telemetry Precheck — PowerScale Privilege Validation.
 
 Test cases:
-    TC_PC_005: Verify PowerScale user has required privileges
+    TEL_FVT_PRECHECK_V004: Verify PowerScale user has required privileges
 """
 
 import pytest
@@ -45,7 +45,7 @@ def _skip_if_powerscale_disabled(host):
 @pytest.mark.sanity
 @pytest.mark.order(5)
 def test_powerscale_privileges(host):
-    """TC_PC_005: Verify PowerScale user has required privileges."""
+    """TEL_FVT_PRECHECK_V004: Verify PowerScale user has required privileges."""
     _skip_if_powerscale_disabled(host)
     tc = TC["powerscale_privileges"]
     tl = TestLogger(tc["title"], tc["id"])

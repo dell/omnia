@@ -78,7 +78,11 @@ OME_LOG_MSGS: Dict[str, str] = {
     "ome_pfx_failed": "Failed to create user.pfx: {error}",
     "ome_certs_uploaded": "TLS certificates uploaded to OME at {ome_ip}",
     "ome_certs_upload_failed": "Failed to upload certs to OME: {error}",
-    "ome_playbook_running": "Running external_kafka playbook ({reason})",
+    "ome_playbook_running": (
+        "Running external_kafka playbook quietly ({reason}); "
+        "details are shown only on failure"
+    ),
+    "ome_playbook_completed": "External Kafka export completed in {duration}",
     "ome_kafka_artifacts_checking": (
         "Checking external Kafka certificates and endpoints"
     ),

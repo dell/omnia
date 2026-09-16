@@ -17,6 +17,7 @@
 import json
 from types import SimpleNamespace
 
+import omnia_auto
 import pytest
 
 from library.functions import ome_func
@@ -569,7 +570,56 @@ def test_external_kafka_details_accept_distinct_native_and_rest_endpoints(
     result = ome_func.verify_external_kafka_connection_details(object())
 
     assert result["success"] is True
+    assert result["expected_bridge"] == (
+        f"https://{OME_TEST_KAFKA_BRIDGE_HOST}:8080"
+    )
     assert not result["mismatches"]
+
+
+def test_external_kafka_playbook_suppresses_live_output(monkeypatch, capsys):
+    """Keep nested Ansible output out of the test UI while retaining it."""
+    def fake_run_playbook(**_kwargs):
+        print("PLAY [External Kafka]")
+        print("PLAY RECAP")
+        return {
+            "success": True,
+            "output": "PLAY [External Kafka]\nPLAY RECAP",
+            "error": "",
+            "duration": 2.1,
+        }
+
+    monkeypatch.setattr(
+        omnia_auto,
+        "run_playbook",
+        fake_run_playbook,
+    )
+
+    result = ome_func.run_external_kafka_playbook()
+
+    assert capsys.readouterr().out == ""
+    assert result["success"] is True
+    assert result["output"] == "PLAY [External Kafka]\nPLAY RECAP"
+
+
+def test_external_kafka_playbook_reports_only_failure_tail(monkeypatch):
+    """Expose concise diagnostics when the quiet nested playbook fails."""
+    output = "\n".join(f"line {number}" for number in range(25))
+    monkeypatch.setattr(
+        omnia_auto,
+        "run_playbook",
+        lambda **_kwargs: {
+            "success": False,
+            "output": output,
+            "error": "playbook failed",
+            "duration": 2.1,
+        },
+    )
+
+    result = ome_func.run_external_kafka_playbook()
+
+    assert "Last playbook output:\nline 5" in result["error"]
+    assert "line 4" not in result["error"]
+    assert result["error"].endswith("line 24")
 
 
 def test_ome_topics_retry_until_all_topics_exist(monkeypatch):

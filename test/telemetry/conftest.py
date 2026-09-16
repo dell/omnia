@@ -78,9 +78,110 @@ from library.functions.validation_func import (  # noqa: E402
 )
 from library.vars import TEST_CASES  # noqa: E402
 
-# Build test-function-name -> TC ID map for summary table fallback
+# Build test-function-name -> TC ID map for deterministic report resolution.
 _TC_ID_MAP = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()}
-_TC_ID_MAP["test_deploy_telemetry"] = TEST_CASES["deploy_telemetry"]["id"]
+_TC_ID_MAP.update(
+    {
+        "test_all_telemetry_pods_running": TEST_CASES["all_pods_running"]["id"],
+        "test_python_packages_installed": TEST_CASES[
+            "install_mode_python_packages"
+        ]["id"],
+        "test_idrac_deployment": TEST_CASES["install_mode_idrac_deployment"][
+            "id"
+        ],
+        "test_idrac_pods": TEST_CASES["install_mode_idrac_pods"]["id"],
+        "test_powerscale_dependencies": TEST_CASES[
+            "install_mode_powerscale_deps"
+        ]["id"],
+        "test_powerscale_deployment": TEST_CASES[
+            "install_mode_powerscale_deployment"
+        ]["id"],
+        "test_ome_telemetry_metrics_in_victoria": TEST_CASES[
+            "ome_telemetry_metrics_in_vm"
+        ]["id"],
+        "test_ome_inventory_metrics_in_victoria": TEST_CASES[
+            "ome_inventory_metrics_in_vm"
+        ]["id"],
+        "test_ome_health_metrics_in_victoria": TEST_CASES[
+            "ome_health_metrics_in_vm"
+        ]["id"],
+        "test_ome_alerts_logs_in_victoria": TEST_CASES[
+            "ome_alerts_logs_in_vl"
+        ]["id"],
+        "test_ome_auditlogs_logs_in_victoria": TEST_CASES[
+            "ome_auditlogs_logs_in_vl"
+        ]["id"],
+        "test_ufm_external_service": TEST_CASES["ufm_external_svc"]["id"],
+        "test_vast_external_service": TEST_CASES["vast_external_svc"]["id"],
+        "test_deploy_idempotency": TEST_CASES["nft_deploy_idempotent"]["id"],
+        "test_cleanup_idempotency": TEST_CASES["nft_cleanup_idempotent"]["id"],
+        "test_cleanup_idempotency_no_pods": TEST_CASES[
+            "nft_cleanup_no_pods"
+        ]["id"],
+        "test_validate_performance": TEST_CASES["nft_validate_perf"]["id"],
+        "test_deploy_performance": TEST_CASES["nft_deploy_perf"]["id"],
+        "test_cleanup_performance": TEST_CASES["nft_cleanup_perf"]["id"],
+        "test_sink_pod_deletion_recovery": TEST_CASES[
+            "nft_sink_pod_recovery"
+        ]["id"],
+        "test_source_pod_deletion_recovery": TEST_CASES[
+            "nft_source_pod_recovery"
+        ]["id"],
+        "test_sts_storage_pod_recovery": TEST_CASES["nft_sts_pod_recovery"][
+            "id"
+        ],
+        "test_pvc_persistence_after_pod_deletion": TEST_CASES[
+            "nft_pvc_persistence"
+        ]["id"],
+        "test_service_endpoints_after_restart": TEST_CASES[
+            "nft_service_endpoints"
+        ]["id"],
+        "test_data_queryable_after_sink_restart": TEST_CASES[
+            "nft_data_after_restart"
+        ]["id"],
+        "test_node_reboot_recovery": TEST_CASES["nft_node_reboot"]["id"],
+        "test_full_lifecycle": TEST_CASES["nft_full_lifecycle"]["id"],
+        "test_operator_pod_recovery": TEST_CASES["nft_operator_recovery"][
+            "id"
+        ],
+    }
+)
+
+
+def _delete_volume_enabled(config):
+    """Resolve the cleanup volume mode without requesting a fixture."""
+    cli_value = config.getoption("--delete-volume")
+    if cli_value is not None:
+        return cli_value.lower() in ("true", "1", "yes")
+    return os.environ.get("DELETE_VOLUME", "").lower() in ("true", "1", "yes")
+
+
+def _registered_test_case_id(item):
+    """Resolve a testcase ID from the item rather than stale logger state."""
+    if item.name == "test_deploy_telemetry":
+        deploy_tag = os.environ.get("OMNIA_DEPLOY_TAG", "")
+        deploy_key = "deploy_deploy" if deploy_tag else "deploy_telemetry"
+        return TEST_CASES[deploy_key]["id"]
+
+    if item.name in {
+        "test_no_pvcs_after_full_cleanup",
+        "test_cleanup_idempotency_no_pvcs",
+    }:
+        if item.name == "test_no_pvcs_after_full_cleanup":
+            case_key = (
+                "no_pvcs_after_full_cleanup"
+                if _delete_volume_enabled(item.config)
+                else "pvcs_preserved_after_cleanup"
+            )
+        else:
+            case_key = (
+                "nft_cleanup_no_pvcs"
+                if _delete_volume_enabled(item.config)
+                else "nft_cleanup_pvcs_preserved"
+            )
+        return TEST_CASES[case_key]["id"]
+
+    return _TC_ID_MAP.get(item.name, "")
 
 
 # =============================================================================
@@ -365,7 +466,10 @@ def pytest_runtest_makereport(item, call):
         "SKIPPED" if result.skipped else "FAILED"
     )
 
-    output = get_test_output(item.name)
+    registered_tc_id = _registered_test_case_id(item)
+    logger_tc_id = get_last_tc_id()
+    tc_id = registered_tc_id or logger_tc_id
+    output = get_test_output(item.name) if logger_tc_id == tc_id else ""
     details = output if output else ""
     skip_reason = ""
 
@@ -384,10 +488,6 @@ def pytest_runtest_makereport(item, call):
             + f"SKIPPED: {skip_reason}"
         )
 
-    tc_id = get_last_tc_id()
-    if not tc_id:
-        tc_id = _TC_ID_MAP.get(item.name, "")
-
     add_session_result(
         test_name=item.name,
         status=status,
@@ -398,6 +498,7 @@ def pytest_runtest_makereport(item, call):
     report = get_current_report()
     if report:
         report.add_result({
+            "tc_id": tc_id,
             "test_name": item.name,
             "status": status,
             "duration": getattr(result, "duration", 0),
