@@ -195,4 +195,3 @@ cluster1:
 
     # Telemetry test command
     telemetry: "./run_validation.sh fvt_telemetry verify"
-
