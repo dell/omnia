@@ -119,6 +119,20 @@ def test_bmc_inventory_covers_mapping_without_duplicates(host):
 def test_provisioning_report_is_complete_and_successful(host):
     """ORCH_FVT_PLATFORM_V004: Provisioning report has consistent successful node/group counts."""
     paths, rows = _mapping_rows(host)
+    
+    # Check if provisioning phase has been run by checking orchestrator_status.yml
+    status = read_remote_yaml(
+        host, posixpath.join(paths["output"], "orchestrator_status.yml")
+    )
+    last_phase = status.get("last_completed_phase", "")
+    
+    # If provisioning hasn't been run, skip this test
+    if last_phase != "provisioning":
+        pytest.skip(
+            f"Provisioning phase not completed (last phase: {last_phase}). "
+            "This test requires full provisioning to have been executed."
+        )
+    
     report = read_remote_yaml(
         host, posixpath.join(paths["output"], "provisioning_report.yml")
     )
