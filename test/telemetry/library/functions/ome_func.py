@@ -1731,6 +1731,10 @@ def verify_ome_data_in_kafka(
                 "records_found": 0,
                 "sample_records": [],
                 "bridge_ip": bridge_ip,
+                "port": port,
+                "topic": topic,
+                "attempts": 0,
+                "elapsed_seconds": 0.0,
             }
 
         # Step 2: Subscribe to topic
@@ -1753,6 +1757,10 @@ def verify_ome_data_in_kafka(
                 "records_found": 0,
                 "sample_records": [],
                 "bridge_ip": bridge_ip,
+                "port": port,
+                "topic": topic,
+                "attempts": 0,
+                "elapsed_seconds": 0.0,
             }
 
         # Step 3: Consume records with timeout

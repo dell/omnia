@@ -56,6 +56,7 @@ from omnia_auto import (  # noqa: E402
     get_current_report,
     get_test_output,
     get_last_tc_id,
+    clear_test_context,
     encrypt_test_credentials,
     build_report_name,
     log,
@@ -261,6 +262,7 @@ def pytest_configure(config):
         "order(n)": "Specify test execution order (lower first)",
         "sanity": "Baseline verification (must-pass)",
         "functional": "Functional verification",
+        "precheck": "Pre-deployment environment checks",
         "regression": "Regression tests",
         "deploy": "Playbook deployment tests",
         "sink": "Sink (VictoriaMetrics/VictoriaLogs/Kafka) tests",
@@ -306,7 +308,8 @@ def pytest_collection_modifyitems(session, config, items):
     mode, markers = _parse_marker_expression(marker_expr)
 
     if mode != "none" and markers:
-        filtered = []
+        selected = []
+        deselected = []
         for item in items:
             if mode == "and":
                 match = all(_item_has_marker(item, m) for m in markers)
@@ -315,14 +318,13 @@ def pytest_collection_modifyitems(session, config, items):
             else:
                 match = _item_has_marker(item, markers[0])
 
-            if not match:
-                reason = (
-                    f"Marker filter: "
-                    f"{'+'.join(markers) if mode == 'and' else ','.join(markers)}"
-                )
-                item.add_marker(pytest.mark.skip(reason=reason))
-            filtered.append(item)
-        items[:] = filtered
+            if match:
+                selected.append(item)
+            else:
+                deselected.append(item)
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
+        items[:] = selected
 
     def _get_order(item):
         marker = item.get_closest_marker("order")
@@ -331,6 +333,12 @@ def pytest_collection_modifyitems(session, config, items):
         return 999
 
     items.sort(key=_get_order)
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_protocol():
+    """Reset TestLogger state before each test, including setup skips."""
+    clear_test_context()
 
 
 # =============================================================================
@@ -459,7 +467,9 @@ def pytest_runtest_makereport(item, call):
     if result.when not in {"call", "setup"}:
         return
 
-    if result.when == "setup" and not result.skipped:
+    # Successful setup is not a test result. Setup failures and skips must be
+    # retained so the affected test and its TC ID remain visible in reports.
+    if result.when == "setup" and result.passed:
         return
 
     status = "PASSED" if result.passed else (
@@ -476,11 +486,18 @@ def pytest_runtest_makereport(item, call):
     if result.skipped:
         if hasattr(result, "wasxfail"):
             status = "SKIPPED"
-        rep_text = str(result.longrepr) if result.longrepr else ""
-        if "Skipped:" in rep_text:
-            skip_reason = rep_text.split("Skipped:", 1)[-1].strip()
-        elif "SKIP" in rep_text:
-            skip_reason = rep_text.split("SKIP", 1)[-1].strip()
+        if isinstance(result.longrepr, tuple) and len(result.longrepr) >= 3:
+            skip_reason = str(result.longrepr[2]).strip()
+        elif result.longrepr:
+            skip_reason = str(result.longrepr).strip()
+        reason_prefixes = ("Skipped:", "SKIPPED:", "SKIP:")
+        while any(skip_reason.startswith(prefix) for prefix in reason_prefixes):
+            for prefix in reason_prefixes:
+                if skip_reason.startswith(prefix):
+                    skip_reason = skip_reason[len(prefix):].strip()
+                    break
+        if not skip_reason and hasattr(result, "wasxfail"):
+            skip_reason = str(result.wasxfail).strip()
 
     if status == "SKIPPED" and skip_reason:
         details = (
