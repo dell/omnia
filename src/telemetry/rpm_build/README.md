@@ -18,7 +18,7 @@ Build custom RPM packages for Omnia components. Currently supports LDMS (OVIS) R
 ## Directory Layout
 
 ```
-src/rpm_build/
+src/telemetry/rpm_build/
 ├── build_rpm.sh                             # Entry point — clones OVIS, dispatches build
 ├── README.md                                # This file
 └── ldms/

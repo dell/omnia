@@ -126,7 +126,7 @@ autoreconf --install
 echo "[>>] autogen"
 ./autogen.sh
 echo "[>>] configure"
-../scripts/configure.sh
+/builds/scripts/configure.sh
 echo "[>>] make"
 make -j 10
 echo "[>>] make install"
@@ -196,7 +196,7 @@ fpm \
 --depends python3-Cython \
 --depends python3-devel \
 --directories=/opt/ovis-ldms \
---post-uninstall ../scripts/rpm_postuninstall.txt \
+--post-uninstall /builds/scripts/rpm_postuninstall.txt \
 --license "GPLv2 or BSD" \
 --rpm-group root \
 --description "This package provides the LDMS commands and libraries.\n* ldmsd: the LDMS daemon, which can run as sampler or aggregator (or both).\n* ldms_ls: the tool to list metric information of an ldmsd.\n* ldmsctl: the tool to control an ldmsd." \

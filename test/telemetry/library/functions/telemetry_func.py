@@ -27,6 +27,7 @@ Module-specific functions live in separate files:
 """
 
 import json
+import urllib.parse
 
 import yaml
 
@@ -432,8 +433,9 @@ def query_vm_instant(host, query):
     ip, port = get_vmselect_endpoint(host)
     if not ip or not port:
         return []
+    encoded_query = urllib.parse.quote(query)
     cmd = CMDS["vm_query_instant"].format(
-        vmselect_ip=ip, vmselect_port=port, query=query,
+        vmselect_ip=ip, vmselect_port=port, query=encoded_query,
     )
     result = run_on_kube_vip(host, cmd)
     if result.rc != 0 or not result.stdout.strip():
@@ -463,8 +465,6 @@ def verify_idrac_vm_data(host, service_tags):
         dict with keys: success, service_tag_results, found_tags,
         missing_tags, vmselect_ip, vmselect_port.
     """
-    import urllib.parse
-
     ip, port = get_vmselect_endpoint(host)
     if not ip or not port:
         return {"success": False, "error": "vmselect endpoint not found"}
