@@ -674,12 +674,12 @@ cleanup_orchestrator:
       OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
       OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute cleanup_orchestrator.yml --tags cleanup on $TARGET"
+        echo "DRY_RUN: Would execute orchestrator.yml --tags cleanup on $TARGET"
       else
         $SSH_CMD $TARGET "
           source $OMNIA_DATA_PATH/activate-omnia.sh
-          cd $OMNIA_INSTALL_PATH/src/orchestrator/playbooks/cleanup
-          ansible-playbook cleanup_orchestrator.yml --tags cleanup $ANSIBLE_VERBOSITY
+          cd $OMNIA_INSTALL_PATH/src/orchestrator/playbooks/
+          ansible-playbook orchestrator.yml --tags cleanup $ANSIBLE_VERBOSITY
         "
       fi
 
@@ -791,15 +791,15 @@ cleanup_omnia:
       OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       echo "  OMNIA_DATA_PATH = $OMNIA_DATA_PATH"
 
-    - echo "Running omnia.sh --cleanup --all"
+    - echo "Running omnia.sh --cleanup --all --skip-approval"
     - |
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute omnia.sh --cleanup --all on $TARGET"
+        echo "DRY_RUN: Would execute omnia.sh --cleanup --all --skip-approval on $TARGET"
       else
         $SSH_CMD $TARGET "
           source $OMNIA_DATA_PATH/activate-omnia.sh 2>/dev/null || true
           cd $OMNIA_INSTALL_PATH/src/main
-          echo 'yes' | ./omnia.sh --cleanup --all
+          echo 'yes' | ./omnia.sh --cleanup --all --skip-approval
         "
       fi
 
