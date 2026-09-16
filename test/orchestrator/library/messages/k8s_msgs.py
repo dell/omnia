@@ -326,7 +326,7 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551 K8s functional groups not found in SMD.\n"
         "\u2551\n"
         "\u2551 HOW TO FIX:\n"
-        "\u2551   1. Check SMD API: curl -sk https://localhost:8443/hsm/v2/groups\n"
+        "\u2551   1. Check SMD API: curl -sk https://$(hostname -f):8443/hsm/v2/groups\n"
         "\u2551   2. Re-run provisioning: --tags provision_kubernetes\n"
         "\u2551   3. Check orchestrator logs for SMD registration errors\n"
         "\u255a" + _BORDER + "\u255d\n"
@@ -388,7 +388,7 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Check API server: kubectl get pods -n kube-system | grep apiserver\n"
         "\u2551   2. Verify kubeconfig: kubectl config view\n"
-        "\u2551   3. Check network: curl -k https://localhost:6443/healthz\n"
+        "\u2551   3. Check network: curl -k https://$(hostname -f):6443/healthz\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
     "dns_resolution_failed": (

@@ -78,7 +78,11 @@ OME_LOG_MSGS: Dict[str, str] = {
     "ome_pfx_failed": "Failed to create user.pfx: {error}",
     "ome_certs_uploaded": "TLS certificates uploaded to OME at {ome_ip}",
     "ome_certs_upload_failed": "Failed to upload certs to OME: {error}",
-    "ome_playbook_running": "Running external_kafka playbook ({reason})",
+    "ome_playbook_running": (
+        "Running external_kafka playbook quietly ({reason}); "
+        "details are shown only on failure"
+    ),
+    "ome_playbook_completed": "External Kafka export completed in {duration}",
     "ome_kafka_artifacts_checking": (
         "Checking external Kafka certificates and endpoints"
     ),
@@ -238,7 +242,7 @@ OME_ASSERT_MSGS: Dict[str, str] = {
         "HOW TO FIX:\n"
         "  1. Verify OME Kafka forwarder status: Connected\n"
         "  2. Check OME Transfer Status shows recent activity\n"
-        "  3. curl http://<bridge-ip>:8080/topics to list topics\n"
+        "  3. curl -k https://<bridge-ip>:8080/topics to list topics\n"
     ),
 
     # Victoria sink data

@@ -1,0 +1,62 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Display validation start
+  ansible.builtin.debug:
+    msg: "{{ build_stream_validation_start_msg }}"
+
+- name: Check build_stream_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}/build_stream_config.yml"
+  register: build_stream_config_stat
+
+- name: Fail if build_stream_config.yml is missing
+  ansible.builtin.fail:
+    msg: "{{ build_stream_config_missing_msg }}"
+  when: not build_stream_config_stat.stat.exists
+
+- name: Run BuildStream configuration validation
+  validate_build_stream_config:
+    input_project_dir: "{{ input_project_dir }}"
+    schema_dir: "{{ build_stream_schema_dir }}"
+    log_dir: "{{ build_stream_validation_log_dir }}"
+  register: build_stream_validation_result
+
+- name: Display validation log path
+  ansible.builtin.debug:
+    msg: "Validation log: {{ build_stream_validation_result.log_file }}"
+
+- name: Display valid files
+  ansible.builtin.debug:
+    msg: "Valid: {{ build_stream_validation_result.valid_files }}"
+  when: build_stream_validation_result.valid_files | length > 0
+
+- name: Display validation errors
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  loop: "{{ build_stream_validation_result.errors }}"
+  when: build_stream_validation_result.validation_failed
+
+- name: Fail on validation errors
+  ansible.builtin.fail:
+    msg: >-
+      {{ build_stream_validation_fail_msg }}
+      Errors: {{ build_stream_validation_result.errors }}
+  when: build_stream_validation_result.validation_failed
+
+- name: Validation passed
+  ansible.builtin.debug:
+    msg: "{{ build_stream_validation_pass_msg }}"
+  when: not build_stream_validation_result.validation_failed

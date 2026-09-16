@@ -56,6 +56,7 @@ from omnia_auto import (  # noqa: E402
     get_current_report,
     get_test_output,
     get_last_tc_id,
+    clear_test_context,
     encrypt_test_credentials,
     build_report_name,
     log,
@@ -78,9 +79,110 @@ from library.functions.validation_func import (  # noqa: E402
 )
 from library.vars import TEST_CASES  # noqa: E402
 
-# Build test-function-name -> TC ID map for summary table fallback
+# Build test-function-name -> TC ID map for deterministic report resolution.
 _TC_ID_MAP = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()}
-_TC_ID_MAP["test_deploy_telemetry"] = TEST_CASES["deploy_telemetry"]["id"]
+_TC_ID_MAP.update(
+    {
+        "test_all_telemetry_pods_running": TEST_CASES["all_pods_running"]["id"],
+        "test_python_packages_installed": TEST_CASES[
+            "install_mode_python_packages"
+        ]["id"],
+        "test_idrac_deployment": TEST_CASES["install_mode_idrac_deployment"][
+            "id"
+        ],
+        "test_idrac_pods": TEST_CASES["install_mode_idrac_pods"]["id"],
+        "test_powerscale_dependencies": TEST_CASES[
+            "install_mode_powerscale_deps"
+        ]["id"],
+        "test_powerscale_deployment": TEST_CASES[
+            "install_mode_powerscale_deployment"
+        ]["id"],
+        "test_ome_telemetry_metrics_in_victoria": TEST_CASES[
+            "ome_telemetry_metrics_in_vm"
+        ]["id"],
+        "test_ome_inventory_metrics_in_victoria": TEST_CASES[
+            "ome_inventory_metrics_in_vm"
+        ]["id"],
+        "test_ome_health_metrics_in_victoria": TEST_CASES[
+            "ome_health_metrics_in_vm"
+        ]["id"],
+        "test_ome_alerts_logs_in_victoria": TEST_CASES[
+            "ome_alerts_logs_in_vl"
+        ]["id"],
+        "test_ome_auditlogs_logs_in_victoria": TEST_CASES[
+            "ome_auditlogs_logs_in_vl"
+        ]["id"],
+        "test_ufm_external_service": TEST_CASES["ufm_external_svc"]["id"],
+        "test_vast_external_service": TEST_CASES["vast_external_svc"]["id"],
+        "test_deploy_idempotency": TEST_CASES["nft_deploy_idempotent"]["id"],
+        "test_cleanup_idempotency": TEST_CASES["nft_cleanup_idempotent"]["id"],
+        "test_cleanup_idempotency_no_pods": TEST_CASES[
+            "nft_cleanup_no_pods"
+        ]["id"],
+        "test_validate_performance": TEST_CASES["nft_validate_perf"]["id"],
+        "test_deploy_performance": TEST_CASES["nft_deploy_perf"]["id"],
+        "test_cleanup_performance": TEST_CASES["nft_cleanup_perf"]["id"],
+        "test_sink_pod_deletion_recovery": TEST_CASES[
+            "nft_sink_pod_recovery"
+        ]["id"],
+        "test_source_pod_deletion_recovery": TEST_CASES[
+            "nft_source_pod_recovery"
+        ]["id"],
+        "test_sts_storage_pod_recovery": TEST_CASES["nft_sts_pod_recovery"][
+            "id"
+        ],
+        "test_pvc_persistence_after_pod_deletion": TEST_CASES[
+            "nft_pvc_persistence"
+        ]["id"],
+        "test_service_endpoints_after_restart": TEST_CASES[
+            "nft_service_endpoints"
+        ]["id"],
+        "test_data_queryable_after_sink_restart": TEST_CASES[
+            "nft_data_after_restart"
+        ]["id"],
+        "test_node_reboot_recovery": TEST_CASES["nft_node_reboot"]["id"],
+        "test_full_lifecycle": TEST_CASES["nft_full_lifecycle"]["id"],
+        "test_operator_pod_recovery": TEST_CASES["nft_operator_recovery"][
+            "id"
+        ],
+    }
+)
+
+
+def _delete_volume_enabled(config):
+    """Resolve the cleanup volume mode without requesting a fixture."""
+    cli_value = config.getoption("--delete-volume")
+    if cli_value is not None:
+        return cli_value.lower() in ("true", "1", "yes")
+    return os.environ.get("DELETE_VOLUME", "").lower() in ("true", "1", "yes")
+
+
+def _registered_test_case_id(item):
+    """Resolve a testcase ID from the item rather than stale logger state."""
+    if item.name == "test_deploy_telemetry":
+        deploy_tag = os.environ.get("OMNIA_DEPLOY_TAG", "")
+        deploy_key = "deploy_deploy" if deploy_tag else "deploy_telemetry"
+        return TEST_CASES[deploy_key]["id"]
+
+    if item.name in {
+        "test_no_pvcs_after_full_cleanup",
+        "test_cleanup_idempotency_no_pvcs",
+    }:
+        if item.name == "test_no_pvcs_after_full_cleanup":
+            case_key = (
+                "no_pvcs_after_full_cleanup"
+                if _delete_volume_enabled(item.config)
+                else "pvcs_preserved_after_cleanup"
+            )
+        else:
+            case_key = (
+                "nft_cleanup_no_pvcs"
+                if _delete_volume_enabled(item.config)
+                else "nft_cleanup_pvcs_preserved"
+            )
+        return TEST_CASES[case_key]["id"]
+
+    return _TC_ID_MAP.get(item.name, "")
 
 
 # =============================================================================
@@ -88,7 +190,7 @@ _TC_ID_MAP["test_deploy_telemetry"] = TEST_CASES["deploy_telemetry"]["id"]
 # =============================================================================
 
 def pytest_addoption(parser):
-    """Add --marker and --delete-volume options."""
+    """Add --marker and --delete-sinks-volume options."""
     parser.addoption(
         "--marker",
         action="store",
@@ -100,14 +202,15 @@ def pytest_addoption(parser):
         ),
     )
     parser.addoption(
-        "--delete-volume",
+        "--delete-sinks-volume",
         action="store",
         default=None,
         help=(
-            "Control PVC/volume deletion during cleanup. "
-            "When 'true', cleanup deletes PVCs (Delete_volume=true). "
-            "When 'false' or omitted (default), PVCs are preserved. "
-            "Also accepts DELETE_VOLUME environment variable."
+            "Control sink (Kafka, VictoriaMetrics, VictoriaLogs) PVC/volume deletion during cleanup. "
+            "When 'true', cleanup deletes all PVCs including sink volumes. "
+            "When 'false' or omitted (default), sink PVCs are preserved. "
+            "Source volumes (iDRAC, LDMS, PowerScale, etc.) are always deleted. "
+            "Also accepts DELETE_SINKS_VOLUME environment variable."
         ),
     )
 
@@ -159,6 +262,7 @@ def pytest_configure(config):
         "order(n)": "Specify test execution order (lower first)",
         "sanity": "Baseline verification (must-pass)",
         "functional": "Functional verification",
+        "precheck": "Pre-deployment environment checks",
         "regression": "Regression tests",
         "deploy": "Playbook deployment tests",
         "sink": "Sink (VictoriaMetrics/VictoriaLogs/Kafka) tests",
@@ -204,7 +308,8 @@ def pytest_collection_modifyitems(session, config, items):
     mode, markers = _parse_marker_expression(marker_expr)
 
     if mode != "none" and markers:
-        filtered = []
+        selected = []
+        deselected = []
         for item in items:
             if mode == "and":
                 match = all(_item_has_marker(item, m) for m in markers)
@@ -213,14 +318,13 @@ def pytest_collection_modifyitems(session, config, items):
             else:
                 match = _item_has_marker(item, markers[0])
 
-            if not match:
-                reason = (
-                    f"Marker filter: "
-                    f"{'+'.join(markers) if mode == 'and' else ','.join(markers)}"
-                )
-                item.add_marker(pytest.mark.skip(reason=reason))
-            filtered.append(item)
-        items[:] = filtered
+            if match:
+                selected.append(item)
+            else:
+                deselected.append(item)
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
+        items[:] = selected
 
     def _get_order(item):
         marker = item.get_closest_marker("order")
@@ -231,15 +335,32 @@ def pytest_collection_modifyitems(session, config, items):
     items.sort(key=_get_order)
 
 
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_protocol():
+    """Reset TestLogger state before each test, including setup skips."""
+    clear_test_context()
+
+
 # =============================================================================
 # SESSION STARTUP
 # =============================================================================
 
 def _apply_dataset_overrides(config):
-    """Apply dataset/sync overrides from environment variables."""
+    """Apply dataset/sync overrides from environment variables.
+
+    Environment variables (set by run_validation.sh --config mode):
+      OMNIA_DATASET_OVERRIDE      — override config["dataset"]
+      OMNIA_SYNC_INPUT_OVERRIDE   — override config["sync_telemetry_input"]
+
+    Args:
+        config: Test configuration dict from load_test_config().
+
+    Returns:
+        dict: Updated config dict (mutated in place).
+    """
     ds_override = os.environ.get("OMNIA_DATASET_OVERRIDE", "")
     if ds_override:
-        log(f"Dataset override: {config.get('dataset')} -> {ds_override}", "INFO")
+        log(f"Dataset override: {config.get('dataset')} → {ds_override}", "INFO")
         config["dataset"] = ds_override
 
     si_override = os.environ.get("OMNIA_SYNC_INPUT_OVERRIDE", "")
@@ -290,7 +411,7 @@ def pytest_sessionstart(session):
             log(f"Project sync failed: {sync_result['error']}", "WARN")
 
     if config.get("sync_telemetry_input", False):
-        sync_result = sync_telemetry_input(host)
+        sync_result = sync_telemetry_input(host, config)
         if sync_result["success"]:
             log(sync_result["details"], "OK")
         else:
@@ -346,35 +467,43 @@ def pytest_runtest_makereport(item, call):
     if result.when not in {"call", "setup"}:
         return
 
-    if result.when == "setup" and not result.skipped:
+    # Successful setup is not a test result. Setup failures and skips must be
+    # retained so the affected test and its TC ID remain visible in reports.
+    if result.when == "setup" and result.passed:
         return
 
     status = "PASSED" if result.passed else (
         "SKIPPED" if result.skipped else "FAILED"
     )
 
-    output = get_test_output(item.name)
+    registered_tc_id = _registered_test_case_id(item)
+    logger_tc_id = get_last_tc_id()
+    tc_id = registered_tc_id or logger_tc_id
+    output = get_test_output(item.name) if logger_tc_id == tc_id else ""
     details = output if output else ""
     skip_reason = ""
 
     if result.skipped:
         if hasattr(result, "wasxfail"):
             status = "SKIPPED"
-        rep_text = str(result.longrepr) if result.longrepr else ""
-        if "Skipped:" in rep_text:
-            skip_reason = rep_text.split("Skipped:", 1)[-1].strip()
-        elif "SKIP" in rep_text:
-            skip_reason = rep_text.split("SKIP", 1)[-1].strip()
+        if isinstance(result.longrepr, tuple) and len(result.longrepr) >= 3:
+            skip_reason = str(result.longrepr[2]).strip()
+        elif result.longrepr:
+            skip_reason = str(result.longrepr).strip()
+        reason_prefixes = ("Skipped:", "SKIPPED:", "SKIP:")
+        while any(skip_reason.startswith(prefix) for prefix in reason_prefixes):
+            for prefix in reason_prefixes:
+                if skip_reason.startswith(prefix):
+                    skip_reason = skip_reason[len(prefix):].strip()
+                    break
+        if not skip_reason and hasattr(result, "wasxfail"):
+            skip_reason = str(result.wasxfail).strip()
 
     if status == "SKIPPED" and skip_reason:
         details = (
             (details + "\n" if details else "")
             + f"SKIPPED: {skip_reason}"
         )
-
-    tc_id = get_last_tc_id()
-    if not tc_id:
-        tc_id = _TC_ID_MAP.get(item.name, "")
 
     add_session_result(
         test_name=item.name,
@@ -386,6 +515,7 @@ def pytest_runtest_makereport(item, call):
     report = get_current_report()
     if report:
         report.add_result({
+            "tc_id": tc_id,
             "test_name": item.name,
             "status": status,
             "duration": getattr(result, "duration", 0),
@@ -420,22 +550,22 @@ def host():
 
 
 @pytest.fixture(scope="session")
-def delete_volume(request):
-    """Resolve Delete_volume flag from CLI option or environment variable.
+def delete_sinks_volume(request):
+    """Resolve delete_sinks_volume flag from CLI option or environment variable.
 
     Priority order:
-      1. --delete-volume CLI option (if provided)
-      2. DELETE_VOLUME environment variable (if set)
-      3. Default: false (PVCs preserved)
+      1. --delete-sinks-volume CLI option (if provided)
+      2. DELETE_SINKS_VOLUME environment variable (if set)
+      3. Default: false (Kafka and VictoriaMetrics/VictoriaLogs PVCs preserved)
 
     Returns:
-        bool: True if Delete_volume=true, False otherwise.
+        bool: True if delete_sinks_volume=true, False otherwise.
     """
-    cli_value = request.config.getoption("--delete-volume")
+    cli_value = request.config.getoption("--delete-sinks-volume")
     if cli_value is not None:
         return cli_value.lower() in ("true", "1", "yes")
 
-    env_value = os.environ.get("DELETE_VOLUME")
+    env_value = os.environ.get("DELETE_SINKS_VOLUME")
     if env_value is not None:
         return env_value.lower() in ("true", "1", "yes")
 

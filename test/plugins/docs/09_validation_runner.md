@@ -29,6 +29,9 @@ def main() -> int:
                 "deploy": ["sources", "sinks"],
             },
             "exclude_tags": ["cleanup"],
+            "suite_exec_owners": {
+                "deploy": ["sources", "sinks"],
+            },
             "enable_ut": True,
         },
     )
@@ -49,6 +52,11 @@ if __name__ == "__main__":
 | `exclude_tags` | list of strings | FVT tags omitted from an unqualified all-tag verification |
 | `all_exec_tags` | list of strings | Ordered tags for an unqualified lifecycle execution |
 | `all_exec_marker` | string | Default marker for that lifecycle execution |
+| `all_verify_exclude_markers` | list of strings | Markers omitted from aggregate verification |
+| `required_suite_tags` | list of strings | Tags that require an explicit suite for execution |
+| `verify_only_tags` | list of strings | Tags that reject `exec` and `test` |
+| `verify_only_suites` | mapping | Suites that reject `exec` and `test` within a tag |
+| `suite_exec_owners` | mapping | Suites whose deploy-marked test replaces, rather than joins, root deploy tests |
 | `enable_ut` | bool | Enable the `ut_<domain>` category; defaults to `True` |
 
 ## Command shape
@@ -79,6 +87,8 @@ The batch file uses category keys derived from the configured domain:
 ```yaml
 skip_on_failure: false
 sync_input_override: false
+sync_output_override: false
+sync_image_output_override: false
 
 fvt_example:
   deploy:
@@ -87,7 +97,9 @@ fvt_example:
     marker: "sanity"
     suite: "sources"
     dataset: ""
+    sync_input: false
     sync_output: false
+    sync_image_output: false
 
 nft_example:
   run: false

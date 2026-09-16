@@ -60,8 +60,8 @@
       ldms: []
     _cleanup_verification_attempted: false
     _cleanup_volume_verification_failed: false
-    _cleanup_delete_volume: >-
-      {{ Delete_volume | default(delete_volume | default(false)) | bool }}
+    _cleanup_delete_sinks_volume: >-
+      {{ Delete_sinks_volume | default(delete_sinks_volume | default(false)) | bool }}
 
 - name: Prepare telemetry cleanup
   block:
@@ -77,31 +77,53 @@
       ansible.builtin.assert:
         that:
           - >-
-            Delete_volume is not defined
-            or (Delete_volume | string | lower) in _cleanup_boolean_values
+            Delete_sinks_volume is not defined
+            or (Delete_sinks_volume | string | lower) in _cleanup_boolean_values
           - >-
-            delete_volume is not defined
-            or (delete_volume | string | lower) in _cleanup_boolean_values
+            delete_sinks_volume is not defined
+            or (delete_sinks_volume | string | lower) in _cleanup_boolean_values
           - >-
-            Delete_volume is not defined
-            or delete_volume is not defined
-            or (Delete_volume | bool) == (delete_volume | bool)
+            Delete_sinks_volume is not defined
+            or delete_sinks_volume is not defined
+            or (Delete_sinks_volume | bool) == (delete_sinks_volume | bool)
         fail_msg: >-
-          Set only one matching boolean value for Delete_volume or delete_volume.
+          Set only one matching boolean value for Delete_sinks_volume or delete_sinks_volume.
           Accepted values are true, false, yes, no, 1, and 0.
+
+    # Remove local credentials after local option validation but before a
+    # configuration or remote prerequisite can fail. Component cleanup uses
+    # deployed Kubernetes resources, not this stored credential file.
+    - name: Cleanup credentials for complete cleanup
+      ansible.builtin.include_tasks: cleanup_credentials.yml
+      when: _cleanup_all | bool
 
     - name: Load telemetry configuration
       ansible.builtin.include_role:
         name: common
         tasks_from: load_telemetry_config
 
-    - name: Validate kube_vip is set
+    - name: Validate cluster inventory exists and is accessible
+      ansible.builtin.assert:
+        that:
+          - cluster_inv is defined
+          - cluster_inv.all is defined
+          - cluster_inv.all.children is defined
+          - cluster_inv.all.children.kube_vip_group is defined
+          - cluster_inv.all.children.kube_vip_group.hosts is defined
+          - cluster_inv.all.children.kube_vip_group.hosts | length > 0
+        fail_msg: >
+          cluster_inventory is required and must contain kube_vip_group with hosts.
+          Ensure the cluster_inventory file specified in telemetry_config.yml exists
+          and contains the structure: all.children.kube_vip_group.hosts.<hostname>
+
+    - name: Validate kube_vip is set in cluster inventory
       ansible.builtin.assert:
         that:
           - kube_vip is defined
           - kube_vip | length > 0
         fail_msg: >
-          kube_vip is required. Add 'kube_vip: <VIP_IP>' to telemetry_config.yml.
+          kube_vip is required in cluster_inventory. Ensure kube_vip_group.hosts.<hostname>
+          contains ansible_host or hostname set to the VIP IP in the cluster_inventory file.
 
     - name: Add kube_vip to in-memory inventory
       ansible.builtin.add_host:

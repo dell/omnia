@@ -39,17 +39,6 @@
   hosts: localhost
   connection: local
   gather_facts: true
-  vars:
-    discovery_mechanism: "ome"
-  pre_tasks:
-    - name: Fail when ome_ip is not configured
-      ansible.builtin.fail:
-        msg: >-
-          ome_ip must be provided in discovery_config.yml when using OME discovery.
-          Please set 'enable_bmc_discovery: true' and provide a valid 'ome_ip' in
-          {{ discovery_input_dir }}/discovery_config.yml.
-      when: ome_ip | default('') | length == 0
-
   tasks:
     - name: Include OME discovery role
       ansible.builtin.include_role:

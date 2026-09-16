@@ -18,10 +18,10 @@
 # performed earlier in the L2 validation flow (orchestrator validation).
 # This file only parses the YAML and sets enabled/data facts.
 
-- name: Read additional_metadata_svc_config_file path
+- name: Read additional_cloud_init_config_file path
   ansible.builtin.set_fact:
     additional_metadata_svc_file_path: >-
-      {{ hostvars['localhost']['additional_metadata_svc_config_file'] | default('') | trim }}
+      {{ hostvars['localhost']['additional_cloud_init_config_file'] | default('') | trim }}
 
 - name: Set defaults when additional metadata-service is disabled
   ansible.builtin.set_fact:
@@ -59,7 +59,8 @@
 
     - name: Parse additional metadata-service config YAML
       ansible.builtin.set_fact:
-        _aci_config: "{{ _aci_file_content.content | b64decode | from_yaml | default({}) }}"
+        _aci_config: >-
+          {{ _aci_file_content.content | b64decode | from_yaml | default({}, true) }}
 
     - name: Extract common and groups data
       ansible.builtin.set_fact:

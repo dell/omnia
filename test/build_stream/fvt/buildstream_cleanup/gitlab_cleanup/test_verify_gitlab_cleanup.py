@@ -13,13 +13,9 @@
 # limitations under the License.
 
 """
-GitLab Cleanup — Verification (under buildstream_cleanup scenario).
+GitLab Cleanup — Comprehensive Verification.
 
-cleanup_build_stream.yml internally calls cleanup_gitlab.yml (Step 1),
-so these GitLab cleanup tests are included in the buildstream_cleanup
-scenario to verify the GitLab portion of the full domain cleanup.
-
-Validates:
+Validates that --tags gitlab_cleanup removed all GitLab artifacts:
   GitLab packages uninstalled (gitlab-ce)
   gitlab-runner container removed
   gitlab-runner quadlet file removed

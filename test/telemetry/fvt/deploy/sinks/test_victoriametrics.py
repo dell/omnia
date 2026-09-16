@@ -16,8 +16,8 @@
 Telemetry Deploy — VictoriaMetrics Sink Verification Tests.
 
 Test cases:
-    TC_SK_004: Verify VictoriaMetrics cluster pods running
-    TC_SK_005: Verify VMAgent pods running
+    TEL_FVT_DEPLOY_V004: Verify VictoriaMetrics cluster pods running
+    TEL_FVT_DEPLOY_V005: Verify VMAgent pods running
 """
 
 import pytest
@@ -39,7 +39,7 @@ from library.functions.k8s_func import verify_pods_by_prefix
 @pytest.mark.sanity
 @pytest.mark.order(20)
 def test_vm_cluster_pods(host):
-    """TC_SK_004: Verify VictoriaMetrics cluster pods running."""
+    """TEL_FVT_DEPLOY_V004: Verify VictoriaMetrics cluster pods running."""
     tc = TC["vm_cluster_pods"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -79,7 +79,7 @@ def test_vm_cluster_pods(host):
 @pytest.mark.sanity
 @pytest.mark.order(21)
 def test_vmagent_pods(host):
-    """TC_SK_005: Verify VMAgent pods running."""
+    """TEL_FVT_DEPLOY_V005: Verify VMAgent pods running."""
     tc = TC["vmagent_pods"]
     tl = TestLogger(tc["title"], tc["id"])
 

@@ -29,6 +29,15 @@
     _fg_arch: "{{ functional_group_name | regex_search('(x86_64|aarch64)$') | default('x86_64') }}"
     _fg_prefix: "{{ functional_group_name | regex_replace('_(x86_64|aarch64)$', '') }}"
 
+- name: Compute base image prefix for a primary control-plane FG
+  ansible.builtin.set_fact:
+    _fg_image_prefix_without_primary: >-
+      {{ _fg_prefix
+         | regex_replace(
+           '_first(?=_rhel(_[0-9]+)+$|$)',
+           ''
+         ) }}
+
 - name: Initialize kernel, initrd and image
   ansible.builtin.set_fact:
     kernel: ""
@@ -131,7 +140,7 @@
     _fg_image_entry: >-
       {{ _all_fg_entries
          | selectattr('functional_group', 'search',
-             '^' + _fg_prefix | regex_replace('_first$', '') + '_.*' + _fg_arch + '$')
+             '^' + _fg_image_prefix_without_primary + '_.*' + _fg_arch + '$')
          | list | first | default({}) }}
   when:
     - _all_fg_entries | default([]) | length > 0
@@ -145,21 +154,6 @@
     image: "{{ _fg_image_entry.image | default('') }}"
   when: _fg_image_entry | default({}) | length > 0
 
-- name: Apply kernel_version_override filter
-  when:
-    - hostvars['localhost']['kernel_version_override'] | default('') | length > 0
-    - kernel | length > 0
-  block:
-    - name: Check if kernel matches override version
-      ansible.builtin.set_fact:
-        _kernel_matches_override: "{{ hostvars['localhost']['kernel_version_override'] in kernel }}"
-
-    - name: Clear kernel/initrd if override version does not match
-      ansible.builtin.set_fact:
-        kernel: ""
-        initrd: ""
-      when: not _kernel_matches_override | bool
-
 - name: Fail if boot artifact paths are missing from build status
   ansible.builtin.fail:
     msg: >-
@@ -167,7 +161,6 @@
       Manifest values: kernel='{{ kernel | default('') }}',
       initrd='{{ initrd | default('') }}', image='{{ image | default('') }}'.
   when:
-    - hostvars['localhost']['kernel_version_override'] | default('') | length == 0
     - kernel | length < 1 or initrd | length < 1 or image | length < 1
 
 - name: Define boot artifacts for endpoint verification
@@ -249,13 +242,3 @@
     - >-
       _orchestrator_validations_boot_artifact_failures
       | default([]) | length == 0
-
-- name: Fail if kernel override did not match any image
-  ansible.builtin.fail:
-    msg: >-
-      {{ kernel_override_no_match_msg }}
-      Specified: '{{ hostvars['localhost']['kernel_version_override'] }}'.
-      Verify the kernel version exists in build_status.yml.
-  when:
-    - hostvars['localhost']['kernel_version_override'] | default('') | length > 0
-    - kernel | length < 1 or initrd | length < 1

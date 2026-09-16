@@ -18,25 +18,42 @@
     kubectl api-resources --namespaced=true --api-group=operator.victoriametrics.com --output=name
   register: _ufm_victoria_api_resources
   changed_when: false
+  failed_when: false
 
-- name: "UFM | Delete resources"
+- name: "UFM | Delete resources (non-CRD)"
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
     --ignore-not-found=true --wait=false
   loop: "{{ ufm_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
-  changed_when: false
-  when: >-
-    item.type != 'vmservicescrape'
-    or 'vmservicescrapes.operator.victoriametrics.com'
-       in _ufm_victoria_api_resources.stdout_lines
+  register: _ufm_delete
+  when: item.type != 'vmservicescrape'
+  changed_when: _ufm_delete.rc == 0
+  failed_when: false
+
+- name: "UFM | Delete resources (CRD)"
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+    --ignore-not-found=true --wait=false
+  loop: "{{ ufm_resources }}"
+  loop_control:
+    label: "{{ item.type }}/{{ item.name }}"
+  register: _ufm_crd_delete
+  when:
+    - item.type == 'vmservicescrape'
+    - _ufm_victoria_api_resources.stdout_lines is defined
+    - "'vmservicescrapes.operator.victoriametrics.com' in _ufm_victoria_api_resources.stdout_lines"
+  changed_when: _ufm_crd_delete.rc == 0
+  failed_when: false
 
 - name: "UFM | Force delete pods"
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pod -l {{ ufm_pod_label }}
     --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
-  changed_when: false
+  register: _ufm_pod_delete
+  changed_when: _ufm_pod_delete.rc == 0 and 'deleted' in _ufm_pod_delete.stdout
+  failed_when: false
 
 - name: "UFM | Remove generated manifests"
   ansible.builtin.file:

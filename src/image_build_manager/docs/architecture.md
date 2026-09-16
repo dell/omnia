@@ -161,7 +161,8 @@ When `aarch64_inventory_host_ip` is set in `image_build_config.yml`:
 - Remove local build artifacts, credentials, and data. PowerScale object data
   is not removed by full cleanup.
 - Remove firewall ports and systemd entries
-- Remove the domain output and log roots, including data for every project
+- Remove all domain output and log contents, including data for every project,
+  while preserving the empty root directories
 
 ### Step 7: Cleanup Images (tag: cleanup_images, opt-in only)
 

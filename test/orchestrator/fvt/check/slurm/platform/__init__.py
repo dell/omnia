@@ -1,0 +1,1 @@
+"""Generic provisioning artifact verification."""

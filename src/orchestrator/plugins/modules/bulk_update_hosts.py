@@ -36,6 +36,93 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from ansible.module_utils.basic import AnsibleModule
 
+DOCUMENTATION = r'''
+---
+module: bulk_update_hosts
+short_description: Update managed hosts-file entries over parallel SSH connections
+description:
+  - Connects to multiple hosts over SSH and updates the Omnia-managed block in C(/etc/hosts).
+  - Removes stale entries for managed IP addresses, hostnames, and explicitly removed nodes.
+  - Runs host updates concurrently and reports success or failure for each target.
+options:
+  hosts:
+    description:
+      - IP addresses or resolvable hostnames of the remote systems to update.
+    type: list
+    elements: str
+    required: true
+  ip_name_map:
+    description:
+      - Mapping of hostnames to IP addresses written to the managed hosts-file block.
+    type: dict
+    required: true
+  ssh_key_path:
+    description:
+      - Path to the private SSH key used to connect as C(root).
+    type: str
+    required: true
+  nodes_to_remove:
+    description:
+      - Additional hostnames whose existing hosts-file entries should be removed.
+    type: list
+    elements: str
+    default: []
+  ssh_max_parallel:
+    description:
+      - Maximum number of concurrent SSH workers.
+    type: int
+    default: 20
+  ssh_connect_timeout:
+    description:
+      - SSH connection timeout, in seconds.
+    type: int
+    default: 10
+author:
+  - Dell Omnia Team
+'''
+
+EXAMPLES = r'''
+- name: Update the Omnia-managed hosts-file block on reachable nodes
+  omnia.orchestrator.bulk_update_hosts:
+    hosts: "{{ reachable_hosts }}"
+    ip_name_map: "{{ ip_name_map }}"
+    ssh_key_path: "{{ ssh_private_key_path }}"
+    nodes_to_remove: "{{ removed_nodes | default([]) }}"
+    ssh_max_parallel: 20
+    ssh_connect_timeout: 10
+  register: hosts_update
+
+- name: Report nodes that could not be updated
+  ansible.builtin.debug:
+    var: hosts_update.hosts_failed
+'''
+
+RETURN = r'''
+hosts_updated:
+  description: Hosts whose managed hosts-file block was updated successfully.
+  type: list
+  elements: str
+  returned: always
+hosts_failed:
+  description: Hosts whose update failed.
+  type: list
+  elements: str
+  returned: always
+total_hosts:
+  description: Total number of target hosts supplied to the module.
+  type: int
+  returned: always
+per_host_results:
+  description: Per-host execution status and captured standard output and standard error.
+  type: dict
+  returned: always
+  sample:
+    192.0.2.10:
+      success: true
+      stdout: ''
+      stderr: ''
+'''
+
 
 # ─── Hosts-file content generation ──────────────────────────────────────────
 
@@ -74,7 +161,7 @@ def _build_cleanup_sed(ip_name_map, nodes_to_remove):
             f"sed -i -E '/^({ip_pattern})[[:space:]]/d' /etc/hosts 2>/dev/null || true"
         )
     if all_names:
-        name_pattern = "|".join(all_names)
+        name_pattern = "|".join(_regex_escape(name) for name in all_names)
         cmds.append(
             f"sed -i -E '/[[:space:]]({name_pattern})$/d' /etc/hosts 2>/dev/null || true"
         )

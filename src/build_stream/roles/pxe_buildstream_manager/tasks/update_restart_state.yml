@@ -83,6 +83,7 @@
     content: "{{ failed_nodes_report | to_nice_json }}"
     dest: "{{ restart_state_dir }}/{{ job_id }}/failed_nodes.json"
     mode: "0644"
+    setype: container_file_t
   vars:
     failed_list: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'failed') | list }}"
     failed_nodes_report:
@@ -131,6 +132,7 @@
             content: "{{ updated_failed_nodes | to_nice_json }}"
             dest: "{{ restart_state_dir }}/{{ job_id }}/failed_nodes.json"
             mode: "0644"
+            setype: container_file_t
 
         - name: Log manually booted nodes removal
           ansible.builtin.debug:

@@ -16,8 +16,8 @@
 Telemetry Precheck — Playbook Execution.
 
 Test cases:
-    TC_PC_001: Deploy telemetry (--tags precheck)
-    TC_PC_005: Verify PowerScale user has required privileges
+    TEL_FVT_PRECHECK_E001: Deploy telemetry (--tags precheck)
+    TEL_FVT_PRECHECK_V004: Verify PowerScale user has required privileges
 """
 
 import pytest
@@ -35,7 +35,7 @@ from library.functions import run_playbook
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_precheck(host):
-    """TC_PC_001: Deploy telemetry (--tags precheck)."""
+    """TEL_FVT_PRECHECK_E001: Deploy telemetry (--tags precheck)."""
     tc = TC["deploy_precheck"]
     tl = TestLogger(tc["title"], tc["id"])
 

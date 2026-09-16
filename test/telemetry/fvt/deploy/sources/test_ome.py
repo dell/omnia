@@ -93,7 +93,14 @@ _ome_certs_uploaded = None  # None=not run, True=success, False=failed
 _ome_certs_error = ""
 
 
-def _skip_if_ome_source_disabled(host, channel=None):
+def _skip_with_log(test_log, message, details=None):
+    """Record a visible skip result before handing control to pytest."""
+    if test_log:
+        test_log.skipped(message, details)
+    pytest.skip(message)
+
+
+def _skip_if_ome_source_disabled(host, channel=None, test_log=None):
     """Skip unless either source or one requested source channel is enabled."""
     context = get_ome_pipeline_context(host)
     if channel:
@@ -105,11 +112,11 @@ def _skip_if_ome_source_disabled(host, channel=None):
         enabled = context["source_enabled"]
         message = OME_LOG_MSGS["ome_source_disabled"]
     if not enabled:
-        pytest.skip(message)
+        _skip_with_log(test_log, message)
     return context
 
 
-def _skip_if_ome_bridge_disabled(host, channel=None):
+def _skip_if_ome_bridge_disabled(host, channel=None, test_log=None):
     """Skip unless either bridge or one requested bridge channel is enabled."""
     context = get_ome_pipeline_context(host)
     if channel:
@@ -121,21 +128,27 @@ def _skip_if_ome_bridge_disabled(host, channel=None):
         enabled = context["bridge_enabled"]
         message = OME_LOG_MSGS["ome_bridge_disabled"]
     if not enabled:
-        pytest.skip(message)
+        _skip_with_log(test_log, message)
     return context
 
 
-def _skip_if_certs_not_uploaded():
+def _skip_if_certs_not_uploaded(test_log=None):
     """Skip test if certificate upload failed."""
     if _ome_certs_uploaded is False:
-        pytest.skip(f"Skipped: cert upload failed - {_ome_certs_error}")
+        _skip_with_log(
+            test_log,
+            f"cert upload failed - {_ome_certs_error}",
+        )
 
 
-def _skip_if_configure_ome_false():
+def _skip_if_configure_ome_false(test_log=None):
     """Skip test if configure_ome is false in test_config."""
     test_cfg = load_test_config()
     if not test_cfg.get("configure_ome", False):
-        pytest.skip("configure_ome=false in test_config.yml")
+        _skip_with_log(
+            test_log,
+            "configure_ome=false in test_config.yml",
+        )
 
 
 def _get_ome_credentials():
@@ -187,7 +200,7 @@ def _get_ome_config(host=None):
 
 
 # =========================================================================
-# TC_SR_070: Verify Vector-OME bridge deployment ready
+# TEL_FVT_DEPLOY_V070: Verify Vector-OME bridge deployment ready
 #   Runs when either Vector-OME bridge channel is enabled
 # =========================================================================
 
@@ -197,9 +210,9 @@ def _get_ome_config(host=None):
 @pytest.mark.order(80)
 def test_ome_vector_bridge(host):
     """Verify Vector-OME bridge deployment ready."""
-    _skip_if_ome_bridge_disabled(host)
     tc = TC["ome_vector_bridge"]
     tl = TestLogger(tc["title"], tc["id"])
+    _skip_if_ome_bridge_disabled(host, test_log=tl)
 
     tl.check("Verifying Vector-OME bridge deployment")
     result = verify_deploy_ready(host, VECTOR_OME_APP_NAME)
@@ -233,7 +246,7 @@ def test_ome_vector_bridge(host):
 
 
 # =========================================================================
-# TC_SR_071: Verify OME KafkaUser CR exists
+# TEL_FVT_DEPLOY_V071: Verify OME KafkaUser CR exists
 #   Runs when either Vector-OME bridge channel is enabled
 # =========================================================================
 
@@ -243,9 +256,9 @@ def test_ome_vector_bridge(host):
 @pytest.mark.order(81)
 def test_ome_kafka_user(host):
     """Verify OME KafkaUser CR exists."""
-    _skip_if_ome_bridge_disabled(host)
     tc = TC["ome_kafka_user"]
     tl = TestLogger(tc["title"], tc["id"])
+    _skip_if_ome_bridge_disabled(host, test_log=tl)
 
     tl.check("Checking OME KafkaUser CR")
     result = verify_ome_kafka_user_cr(host)
@@ -270,7 +283,7 @@ def test_ome_kafka_user(host):
 
 
 # =========================================================================
-# TC_SR_072: Verify external Kafka connection artifacts
+# TEL_FVT_DEPLOY_V072: Verify external Kafka connection artifacts
 #   Only runs when configure_ome=true
 #   Runs external_kafka playbook first, then checks certs and endpoints
 # =========================================================================
@@ -285,10 +298,10 @@ def test_ome_external_kafka_certs(host):
     If artifacts are missing or invalid, or the force flag is true, runs the
     external_kafka playbook to export them from the Kubernetes cluster.
     """
-    _skip_if_ome_source_disabled(host)
-    _skip_if_configure_ome_false()
     tc = TC["ome_external_kafka_certs"]
     tl = TestLogger(tc["title"], tc["id"])
+    _skip_if_ome_source_disabled(host, test_log=tl)
+    _skip_if_configure_ome_false(tl)
 
     test_cfg = load_test_config()
     force_playbook = test_cfg.get("force_external_kafka_playbook", False)
@@ -320,6 +333,12 @@ def test_ome_external_kafka_certs(host):
             ].format(
                 error=pb_result["error"],
             )
+
+        tl.info(
+            OME_LOG_MSGS["ome_playbook_completed"].format(
+                duration=f"{pb_result['duration']:.1f}s",
+            )
+        )
 
         # Re-check all generated artifacts after the playbook.
         result = verify_external_kafka_certs(host)
@@ -371,7 +390,7 @@ def test_ome_external_kafka_certs(host):
 
 
 # =========================================================================
-# TC_SR_073: Verify user.pfx certificate created for OME mTLS
+# TEL_FVT_DEPLOY_V073: Verify user.pfx certificate created for OME mTLS
 #   Only runs when configure_ome=true, after certs are verified
 # =========================================================================
 
@@ -381,10 +400,10 @@ def test_ome_external_kafka_certs(host):
 @pytest.mark.order(83)
 def test_ome_pfx_conversion(host):
     """Verify user.pfx certificate created for OME mTLS."""
-    _skip_if_ome_source_disabled(host)
-    _skip_if_configure_ome_false()
     tc = TC["ome_pfx_conversion"]
     tl = TestLogger(tc["title"], tc["id"])
+    _skip_if_ome_source_disabled(host, test_log=tl)
+    _skip_if_configure_ome_false(tl)
 
     # Get pfx_secret from credentials
     ome_cfg = _get_ome_config()
@@ -412,8 +431,8 @@ def test_ome_pfx_conversion(host):
 
 
 # =========================================================================
-# TC_SR_074: Verify TLS certificates uploaded to OME
-#   Only runs when configure_ome=true and ome_ip is set
+# TEL_FVT_DEPLOY_V074: Verify TLS certificates uploaded to OME
+#   Fails clearly when configure_ome=true but OME access is not configured
 #   Uploads both server cert (CA) and client cert (PFX)
 # =========================================================================
 
@@ -436,10 +455,10 @@ def test_ome_upload_certs(host):
     """
     global _ome_certs_uploaded, _ome_certs_error
 
-    _skip_if_ome_source_disabled(host)
-    _skip_if_configure_ome_false()
     tc = TC["ome_upload_certs"]
     tl = TestLogger(tc["title"], tc["id"])
+    _skip_if_ome_source_disabled(host, test_log=tl)
+    _skip_if_configure_ome_false(tl)
 
     ome_ip, ome_user, ome_secret = _get_ome_credentials()
     ome_cfg = _get_ome_config()
@@ -448,13 +467,18 @@ def test_ome_upload_certs(host):
     if not ome_ip:
         _ome_certs_uploaded = False
         _ome_certs_error = "OME IP not configured"
-        pytest.skip("OME IP not configured in test_config.yml")
+        message = "OME IP not configured in test_config.yml"
+        tl.failed(message, "Set ome_ip to the OME appliance API address")
+        pytest.fail(message)
     if not ome_secret:
         _ome_certs_uploaded = False
         _ome_certs_error = "OME credentials not configured"
-        pytest.skip(
-            "OME credentials not configured in test_creds.yml"
+        message = "OME credentials not configured in test_creds.yml"
+        tl.failed(
+            message,
+            "Run: bash setup_env.sh --set-creds",
         )
+        pytest.fail(message)
 
     # Upload server certificate (CA)
     tl.check(f"Uploading server certificate (CA) to OME at {ome_ip}")
@@ -530,7 +554,7 @@ def test_ome_upload_certs(host):
 
 
 # =========================================================================
-# TC_SR_075: Verify OME Kafka forwarder connectivity status
+# TEL_FVT_DEPLOY_V075: Verify OME Kafka forwarder connectivity status
 #   Only runs when configure_ome=true and ome_ip is set
 #   If not connected, attempts to configure and test the connection
 # =========================================================================
@@ -547,31 +571,29 @@ def test_ome_kafka_connectivity(host):
     attempts to test and save the forwarder settings.
 
     Requires ome_ip and OME credentials in test config/creds.
-    Skipped if certificate upload failed (TC_SR_054).
+    Skipped if certificate upload failed (TEL_FVT_DEPLOY_V074).
     """
-    context = _skip_if_ome_source_disabled(host)
-    _skip_if_configure_ome_false()
-    _skip_if_certs_not_uploaded()
     tc = TC["ome_kafka_connectivity"]
     tl = TestLogger(tc["title"], tc["id"])
+    context = _skip_if_ome_source_disabled(host, test_log=tl)
+    _skip_if_configure_ome_false(tl)
+    _skip_if_certs_not_uploaded(tl)
 
     ome_ip, ome_user, ome_secret = _get_ome_credentials()
     ome_identifier = context["identifier"]
 
     if not ome_ip:
-        tl.skipped(
+        _skip_with_log(
+            tl,
             "OME IP not configured in test_config.yml",
             "Set ome_ip in test_config.yml",
         )
-        pytest.skip("OME IP not configured in test_config.yml")
 
     if not ome_secret:
-        tl.skipped(
+        _skip_with_log(
+            tl,
             "OME credentials not configured in test_creds.yml",
             "Run: bash setup_env.sh --set-creds",
-        )
-        pytest.skip(
-            "OME credentials not configured in test_creds.yml"
         )
 
     # Check both live connectivity and the saved native Kafka endpoint.
@@ -730,7 +752,7 @@ def test_ome_kafka_connectivity(host):
 
 
 # =========================================================================
-# TC_SR_056: Verify uploaded certificate matches generated certificate
+# TEL_FVT_DEPLOY_V076: Verify uploaded certificate matches generated certificate
 #   Compares the cert details from OME with the generated cert
 # =========================================================================
 
@@ -744,16 +766,16 @@ def test_ome_cert_verify(host):
     Compares the certificate details returned by OME with the
     certificate that was generated by the external_kafka playbook.
     """
-    _skip_if_ome_source_disabled(host)
-    _skip_if_configure_ome_false()
-    _skip_if_certs_not_uploaded()
     tc = TC["ome_cert_verify"]
     tl = TestLogger(tc["title"], tc["id"])
+    _skip_if_ome_source_disabled(host, test_log=tl)
+    _skip_if_configure_ome_false(tl)
+    _skip_if_certs_not_uploaded(tl)
 
     ome_ip, ome_user, ome_secret = _get_ome_credentials()
 
     if not ome_ip or not ome_secret:
-        pytest.skip("OME credentials not configured")
+        _skip_with_log(tl, "OME credentials not configured")
 
     tl.check("Comparing OME certificate with locally generated user.crt")
     result = compare_ome_cert_with_local(host, ome_ip, ome_user, ome_secret)
@@ -797,7 +819,7 @@ def test_ome_cert_verify(host):
 
 
 # =========================================================================
-# TC_SR_057: Verify enabled OME Kafka topics exist
+# TEL_FVT_DEPLOY_V077: Verify enabled OME Kafka topics exist
 #   Checks only topic families enabled by the OME source flags
 # =========================================================================
 
@@ -810,11 +832,11 @@ def test_ome_kafka_topics(host):
 
     Checks only the metric and log topic families enabled for the OME source.
     """
-    context = _skip_if_ome_source_disabled(host)
-    _skip_if_configure_ome_false()
-    _skip_if_certs_not_uploaded()
     tc = TC["ome_kafka_topics"]
     tl = TestLogger(tc["title"], tc["id"])
+    context = _skip_if_ome_source_disabled(host, test_log=tl)
+    _skip_if_configure_ome_false(tl)
+    _skip_if_certs_not_uploaded(tl)
 
     tl.check(OME_LOG_MSGS["ome_topics_checking"].format(
         timeout=OME_KAFKA_TOPIC_TIMEOUT_SECONDS,
@@ -869,7 +891,7 @@ def test_ome_kafka_topics(host):
 
 
 # =========================================================================
-# TC_SR_058 - TC_SR_062: Verify OME data per Kafka topic
+# TEL_FVT_DEPLOY_V078 - TEL_FVT_DEPLOY_V082: Verify OME data per Kafka topic
 #   One test case per OME topic so a single stalled data stream is
 #   reported independently of the others.
 # =========================================================================
@@ -883,12 +905,14 @@ def _verify_topic_data(host, tc_key, topic, channel):
         topic: Canonical Kafka topic name to consume from.
         channel: OME source channel required by the topic.
     """
-    context = _skip_if_ome_source_disabled(host, channel)
-    _skip_if_configure_ome_false()
-    _skip_if_certs_not_uploaded()
-    topic = f"{context['identifier']}.{topic.rsplit('.', maxsplit=1)[-1]}"
     tc = TC[tc_key]
     tl = TestLogger(tc["title"], tc["id"])
+    context = _skip_if_ome_source_disabled(
+        host, channel, test_log=tl,
+    )
+    _skip_if_configure_ome_false(tl)
+    _skip_if_certs_not_uploaded(tl)
+    topic = f"{context['identifier']}.{topic.rsplit('.', maxsplit=1)[-1]}"
 
     tl.check(OME_LOG_MSGS["ome_data_verifying"].format(
         topic=topic,
@@ -1091,19 +1115,19 @@ def test_ome_auditlogs_data(host):
 
 
 # =========================================================================
-# TC_SR_064 - TC_SR_066: Verify OME metrics per VictoriaMetrics topic
+# TEL_FVT_DEPLOY_V083 - TEL_FVT_DEPLOY_V085: Verify OME metrics per VictoriaMetrics topic
 #   Metric names are generated from OME payloads, so each source topic is
 #   validated independently and every discovered metric is reported.
 # =========================================================================
 
 def _verify_victoria_metric_topic(host, tc_key, topic):
     """Run the OME VictoriaMetrics check for one metric-bearing topic."""
-    _skip_if_ome_source_disabled(host, "metrics")
-    _skip_if_ome_bridge_disabled(host, "metrics")
-    _skip_if_configure_ome_false()
-    _skip_if_certs_not_uploaded()
     tc = TC[tc_key]
     tl = TestLogger(tc["title"], tc["id"])
+    _skip_if_ome_source_disabled(host, "metrics", test_log=tl)
+    _skip_if_ome_bridge_disabled(host, "metrics", test_log=tl)
+    _skip_if_configure_ome_false(tl)
+    _skip_if_certs_not_uploaded(tl)
 
     tl.check(
         OME_LOG_MSGS["ome_vm_data_verifying"].format(
@@ -1170,18 +1194,18 @@ def test_ome_health_metrics_in_victoria(host):
 
 
 # =========================================================================
-# TC_SR_067 - TC_SR_068: Verify OME logs per VictoriaLogs topic
+# TEL_FVT_DEPLOY_V086 - TEL_FVT_DEPLOY_V087: Verify OME logs per VictoriaLogs topic
 #   OME alerts and auditlogs are event-driven and validated independently.
 # =========================================================================
 
 def _verify_victoria_log_topic(host, tc_key, topic):
     """Run the OME VictoriaLogs check for one log-bearing topic."""
-    _skip_if_ome_source_disabled(host, "logs")
-    _skip_if_ome_bridge_disabled(host, "logs")
-    _skip_if_configure_ome_false()
-    _skip_if_certs_not_uploaded()
     tc = TC[tc_key]
     tl = TestLogger(tc["title"], tc["id"])
+    _skip_if_ome_source_disabled(host, "logs", test_log=tl)
+    _skip_if_ome_bridge_disabled(host, "logs", test_log=tl)
+    _skip_if_configure_ome_false(tl)
+    _skip_if_certs_not_uploaded(tl)
 
     tl.check(
         OME_LOG_MSGS["ome_vl_data_verifying"].format(

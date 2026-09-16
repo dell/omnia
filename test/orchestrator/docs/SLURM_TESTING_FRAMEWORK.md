@@ -1,84 +1,47 @@
-# SLURM Testing Framework
+# Slurm testing framework
 
-## Overview
+Slurm follows the same platform split introduced for Kubernetes in PR #5220:
 
-The SLURM testing framework provides comprehensive testing capabilities for SLURM clusters in the Omnia Orchestrator environment.
+- `fvt/provision/slurm/` owns the public `provision` lifecycle execution.
+- `fvt/check/slurm/` owns recursive post-deployment verification.
+- the generated dataset profile is `slurm_only`.
 
-## Running SLURM Tests
+## Complete run
 
 ```bash
-# Run all SLURM tests
-./run_validation.sh fvt_orchestrator slurm verify --marker sanity
-
-# Run specific SLURM test
-./run_validation.sh fvt_orchestrator slurm test --marker slurm
-
-# Run with verbose output
-./run_validation.sh fvt_orchestrator slurm verify --marker slurm --verbose
+cd test/orchestrator/datasets/generator
+./generate_dataset.py slurm_only slurm_only
+cd ../..
+./run_validation.sh fvt_orchestrator provision exec --suite slurm
+./run_validation.sh fvt_orchestrator check verify --suite slurm
 ```
 
-## Test Categories
+The check suite covers:
 
-### Sanity Tests
-- SLURM service health checks (slurmctld, slurmd, slurmdbd, munge)
-- Directory and file verification
-- Node registration and partition checks
+- Slurm services, configuration, nodes, partitions, SSH, and jobs;
+- additional cloud-init rendering;
+- HPC benchmark staging and optional executable smoke tests;
+- Apptainer installation, registry mirror, assets, and optional SIF smoke;
+- GPU/CUDA/GRES/DCGM and optional GPU job execution;
+- generated platform and provisioning artifacts;
+- network, module, and role contracts;
+- configured VAST and PowerVault storage.
 
-### Functional Tests
-- Job submission and execution
-- Node state verification
-- SSH connectivity between node types
+Feature tests skip only when the corresponding optional configuration or
+runtime artifact is absent. Required configured state fails with a specific
+node or artifact in the assertion.
 
-### Hardware Tests (Optional)
-- GPU availability and job execution
-- InfiniBand verification
-- MPI job execution
+Use marker filters for focused verification:
 
-## Configuration Requirements
-
-### test_config.yml
-
-```yaml
-# PXE mapping configuration (for node discovery)
-pxe_mapping_path: "/opt/omnia/orchestrator/input/project_default/pxe_mapping_file.csv"
-
-# LDAP credentials (for authentication tests - optional)
-ldap_credentials:
-  username: "ldapuser"
-  password: "encrypted_password_here"
+```bash
+./run_validation.sh fvt_orchestrator check verify --suite slurm --marker sanity
+./run_validation.sh fvt_orchestrator check verify --suite slurm --marker functional
+./run_validation.sh fvt_orchestrator check verify --suite slurm --marker hpc_benchmarks
+./run_validation.sh fvt_orchestrator check verify --suite slurm --marker apptainer
+./run_validation.sh fvt_orchestrator check verify --suite slurm --marker gpu
+./run_validation.sh fvt_orchestrator check verify --suite slurm --marker vast
+./run_validation.sh fvt_orchestrator check verify --suite slurm --marker powervault
 ```
 
-### PXE Mapping Format
-
-```csv
-hostname,admin_ip,bmc_ip,mac_address,functional_group,ip_address
-node1,10.0.0.1,10.0.1.1,00:11:22:33:44:55,slurm_control,10.0.0.1
-node2,10.0.0.2,10.0.1.2,00:11:22:33:44:56,slurm,10.0.0.2
-```
-
-## Test Markers
-
-- `sanity`: Quick sanity tests
-- `slurm`: All SLURM-related tests
-- `functional`: Functional verification tests
-- `deploy`: Playbook deployment tests
-
-## Troubleshooting
-
-### SLURM Service Not Running
-- Check if SLURM is deployed: `./run_validation.sh fvt_orchestrator provision test`
-- Verify service status: `systemctl status slurmctld slurmd`
-
-### Node Discovery Issues
-- Ensure PXE mapping file exists at configured path
-- Verify CSV format matches expected structure
-- Check functional_group column contains valid SLURM node types
-
-### Job Execution Failures
-- Verify all nodes are in idle state: `sinfo`
-- Check SSH connectivity between node types
-- Ensure munge authentication is working
-
-## Test Case Registry
-
-See [fvt/TEST_CASES.md](fvt/TEST_CASES.md) for the complete list of SLURM test cases.
+VAST and PowerVault I/O round trips are marked destructive and require a
+separate explicit `--marker destructive` run.

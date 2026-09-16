@@ -21,10 +21,12 @@ Verifies that running orchestrator playbooks multiple times produces no side eff
   - Cleanup is idempotent (safe to cleanup twice)
 
 Test cases:
-    NFT_OR_005: Prepare idempotency (OpenCHAMI containers stable)
-    NFT_OR_006: Validate idempotency (config validation safe to re-run)
-    NFT_OR_007: Cleanup idempotency (safe to cleanup twice)
+    ORCH_NFT_005: Prepare idempotency (OpenCHAMI containers stable)
+    ORCH_NFT_006: Validate idempotency (config validation safe to re-run)
+    ORCH_NFT_007: Cleanup idempotency (safe to cleanup twice)
 """
+
+import re
 
 import pytest
 
@@ -38,18 +40,28 @@ from library.functions import (
 from library.vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
 
 
+def _changed_count(result):
+    """Return the total changed count from the final Ansible recap."""
+    counts = [int(value) for value in re.findall(
+        r"\bchanged=(\d+)\b", result.get("output", "")
+    )]
+    assert counts, "Ansible output did not contain a changed= recap"
+    return sum(counts)
+
+
 @pytest.mark.nft
 @pytest.mark.idempotency
+@pytest.mark.destructive
 @pytest.mark.order(1)
 def test_prepare_idempotent(host):
-    """NFT_OR_005: Verify running prepare twice does not recreate containers unnecessarily.
+    """ORCH_NFT_005: Verify running prepare twice does not recreate containers unnecessarily.
 
     Runs prepare playbook twice and verifies that:
     1. Both runs complete successfully (rc=0)
     2. OpenCHAMI containers remain running after second run
     3. OpenCHAMI services remain active after second run
     """
-    tl = TestLogger("NFT: Prepare idempotency", "NFT_OR_005")
+    tl = TestLogger("NFT: Prepare idempotency", "ORCH_NFT_005")
 
     # First run
     tl.check("First prepare run")
@@ -106,6 +118,9 @@ def test_prepare_idempotent(host):
     assert result2["success"], (
         f"Second prepare run failed (rc={result2['rc']})"
     )
+    assert _changed_count(result2) == 0, (
+        "Second prepare run reported changed tasks"
+    )
     assert containers2["success"], "OpenCHAMI containers not running after second run"
 
 
@@ -113,13 +128,13 @@ def test_prepare_idempotent(host):
 @pytest.mark.idempotency
 @pytest.mark.order(2)
 def test_validate_idempotent(host):
-    """NFT_OR_006: Verify validate can be run multiple times safely.
+    """ORCH_NFT_006: Verify validate can be run multiple times safely.
 
     Runs validate playbook twice and verifies that:
     1. Both runs complete successfully (rc=0)
     2. No errors occur on subsequent runs
     """
-    tl = TestLogger("NFT: Validate idempotency", "NFT_OR_006")
+    tl = TestLogger("NFT: Validate idempotency", "ORCH_NFT_006")
 
     # First run
     tl.check("First validate run")
@@ -160,20 +175,24 @@ def test_validate_idempotent(host):
     assert result2["success"], (
         f"Second validate run failed (rc={result2['rc']})"
     )
+    assert _changed_count(result2) == 0, (
+        "Second validate run reported changed tasks"
+    )
 
 
 @pytest.mark.nft
 @pytest.mark.idempotency
+@pytest.mark.destructive
 @pytest.mark.order(3)
 def test_cleanup_idempotent(host):
-    """NFT_OR_007: Verify cleanup can be run multiple times safely.
+    """ORCH_NFT_007: Verify cleanup can be run multiple times safely.
 
     Runs cleanup playbook twice and verifies that:
     1. Both runs complete successfully (rc=0)
     2. Containers remain removed after second run
     3. Services remain stopped after second run
     """
-    tl = TestLogger("NFT: Cleanup idempotency", "NFT_OR_007")
+    tl = TestLogger("NFT: Cleanup idempotency", "ORCH_NFT_007")
 
     # First run
     tl.check("First cleanup run")
@@ -234,6 +253,9 @@ def test_cleanup_idempotent(host):
 
     assert result2["success"], (
         f"Second cleanup run failed (rc={result2['rc']})"
+    )
+    assert _changed_count(result2) == 0, (
+        "Second cleanup run reported changed tasks"
     )
     assert containers2["success"], "Containers not removed after second run"
     assert services2["success"], "Services not stopped after second run"

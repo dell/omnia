@@ -19,21 +19,45 @@ from __future__ import annotations
 import json
 import logging
 import os
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
 import yaml
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    high_availability_applicable,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     logic as validate_orchestrator_config_l2,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic_additional_cloud_init as validate_additional_cloud_init,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic_high_availability as validate_high_availability,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     logic_network as validate_network_spec,
-    logic_storage as validate_storage_references,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic_omnia as validate_omnia_config,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic_pxe_mapping as validate_pxe_mapping,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic_security as validate_security_config,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic_storage as validate_storage_config,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     schema as validate_against_schema,
 )
 from ansible.module_utils.orchestrator_validation.messages import (
     orchestrator_messages as msg,
 )
-
 
 DOCUMENTATION = r'''
 ---
@@ -42,7 +66,10 @@ short_description: Validate Orchestrator configuration files
 version_added: "2.3.0"
 description:
   - Performs complete JSON Schema and cross-field validation.
-  - Validates orchestrator_config.yml and network_spec.yml.
+  - Validates orchestrator_config.yml, omnia_config.yml, network_spec.yml,
+    security_config.yml, and storage_config.yml.
+  - Validates high_availability_config.yml when Kubernetes is selected.
+  - Validates PXE mapping and additional cloud-init cross-file contracts.
   - Validates storage_config.yml when present and requires it when referenced.
 options:
   input_project_dir:
@@ -66,7 +93,7 @@ EXAMPLES = r'''
 - name: Validate Orchestrator configuration files
   omnia.orchestrator.validate_orchestrator_config:
     input_project_dir: >-
-      {{ omnia_data_path }}/orchestrator/input/{{ project_name }}
+      {{ orchestrator_data_path }}/input/{{ project_name }}
     schema_dir: >-
       {{ role_path }}/../../plugins/module_utils/orchestrator_validation/schema
     log_dir: "{{ omnia_data_path }}/log/core/playbooks"
@@ -117,11 +144,26 @@ VALIDATION_FILES = (
         "required": True,
     },
     {
+        "config_file": "omnia_config.yml",
+        "schema_file": "omnia_config.json",
+        "required": True,
+    },
+    {
         "config_file": "storage_config.yml",
         "schema_file": "storage_config.json",
         "required": False,
     },
+    {
+        "config_file": "security_config.yml",
+        "schema_file": "security_config.json",
+        "required": True,
+    },
 )
+HA_VALIDATION_FILE = {
+    "config_file": "high_availability_config.yml",
+    "schema_file": "high_availability_config.json",
+    "required": True,
+}
 VAULT_HEADER = "$ANSIBLE_VAULT"
 
 
@@ -135,13 +177,16 @@ class _ValidationState:
     loaded_data: dict[str, Any] = field(default_factory=dict)
 
     def mark_file(self, path: str, is_valid: bool) -> None:
-        """Record a path once in the appropriate result collection."""
-        target = self.valid_files if is_valid else self.invalid_files
-        other = self.invalid_files if is_valid else self.valid_files
-        if path in other:
-            other.remove(path)
-        if path not in target:
-            target.append(path)
+        """Record file status while preserving any earlier failure."""
+        path = os.path.realpath(path)
+        if is_valid:
+            if path not in self.invalid_files and path not in self.valid_files:
+                self.valid_files.append(path)
+            return
+        if path in self.valid_files:
+            self.valid_files.remove(path)
+        if path not in self.invalid_files:
+            self.invalid_files.append(path)
 
 
 def create_logger(project_name: str, log_dir: str) -> tuple[logging.Logger, str]:
@@ -264,15 +309,61 @@ def _run_l2_validation(
     """Run semantic validation and update per-file status."""
     orchestrator_data = state.loaded_data.get("orchestrator_config.json")
     if isinstance(orchestrator_data, dict):
-        errors = validate_orchestrator_config_l2(
+        config_errors = validate_orchestrator_config_l2(
             orchestrator_data, input_project_dir, logger
         )
-        if errors:
-            state.errors.extend(errors)
+        if config_errors:
+            state.errors.extend(config_errors)
             state.mark_file(
-                os.path.join(input_project_dir, "orchestrator_config.yml"), False
+                os.path.join(input_project_dir, "orchestrator_config.yml"),
+                False,
             )
-            logger.error(msg.l2_validation_errors_msg("orchestrator_config", errors))
+            logger.error(
+                msg.l2_validation_errors_msg(
+                    "orchestrator_config", config_errors
+                )
+            )
+
+        mapping_errors = validate_pxe_mapping(
+            orchestrator_data, input_project_dir, logger
+        )
+        configured_mapping_path = orchestrator_data.get(
+            "pxe_mapping_file_path", ""
+        )
+        mapping_path = os.path.realpath(
+            configured_mapping_path
+            or os.path.join(input_project_dir, "pxe_mapping_file.csv")
+        )
+        state.mark_file(mapping_path, not mapping_errors)
+        if mapping_errors:
+            state.errors.extend(mapping_errors)
+            logger.error(
+                msg.l2_validation_errors_msg(
+                    "pxe_mapping_file", mapping_errors
+                )
+            )
+
+        cloud_init_errors = validate_additional_cloud_init(
+            orchestrator_data, input_project_dir, logger
+        )
+        configured_cloud_init_path = orchestrator_data.get(
+            "additional_cloud_init_config_file", ""
+        )
+        if (
+            isinstance(configured_cloud_init_path, str)
+            and configured_cloud_init_path.strip()
+        ):
+            cloud_init_path = os.path.realpath(
+                configured_cloud_init_path.strip()
+            )
+            state.mark_file(cloud_init_path, not cloud_init_errors)
+        if cloud_init_errors:
+            state.errors.extend(cloud_init_errors)
+            logger.error(
+                msg.l2_validation_errors_msg(
+                    "additional_cloud_init", cloud_init_errors
+                )
+            )
 
     network_data = state.loaded_data.get("network_spec.json")
     if isinstance(network_data, dict):
@@ -284,16 +375,90 @@ def _run_l2_validation(
             )
             logger.error(msg.l2_validation_errors_msg("network_spec", errors))
 
-    storage_errors = validate_storage_references(
-        input_project_dir,
-        state.loaded_data.get("storage_config.json"),
-        logger,
-    )
-    if storage_errors:
-        state.errors.extend(storage_errors)
-        state.mark_file(
-            os.path.join(input_project_dir, "storage_config.yml"), False
+    security_data = state.loaded_data.get("security_config.json")
+    if isinstance(security_data, dict):
+        errors = validate_security_config(security_data, logger)
+        if errors:
+            state.errors.extend(errors)
+            state.mark_file(
+                os.path.join(input_project_dir, "security_config.yml"), False
+            )
+            logger.error(
+                msg.l2_validation_errors_msg("security_config", errors)
+            )
+
+    omnia_data = state.loaded_data.get("omnia_config.json")
+    storage_data = state.loaded_data.get("storage_config.json")
+    if isinstance(storage_data, dict):
+        errors = validate_storage_config(
+            storage_data,
+            orchestrator_data if isinstance(orchestrator_data, dict) else {},
+            omnia_data if isinstance(omnia_data, dict) else {},
+            input_project_dir,
+            logger,
         )
+        if errors:
+            state.errors.extend(errors)
+            state.mark_file(
+                os.path.join(input_project_dir, "storage_config.yml"), False
+            )
+            logger.error(
+                msg.l2_validation_errors_msg("storage_config", errors)
+            )
+
+    if isinstance(omnia_data, dict):
+        auxiliary_file_statuses: dict[str, bool] = {}
+        auxiliary_errors: list[str] = []
+        errors = validate_omnia_config(
+            omnia_data,
+            input_project_dir,
+            logger,
+            auxiliary_file_statuses,
+            auxiliary_errors,
+        )
+        for path, is_valid in auxiliary_file_statuses.items():
+            state.mark_file(path, is_valid)
+        state.errors.extend(errors)
+        remaining_auxiliary_errors = Counter(auxiliary_errors)
+        intrinsic_errors = []
+        for error in errors:
+            if remaining_auxiliary_errors[error]:
+                remaining_auxiliary_errors[error] -= 1
+            else:
+                intrinsic_errors.append(error)
+        if intrinsic_errors:
+            state.mark_file(
+                os.path.join(input_project_dir, "omnia_config.yml"), False
+            )
+            logger.error(
+                msg.l2_validation_errors_msg(
+                    "omnia_config", intrinsic_errors
+                )
+            )
+        if auxiliary_errors:
+            logger.error(
+                msg.l2_validation_errors_msg(
+                    "omnia_config auxiliary inputs", auxiliary_errors
+                )
+            )
+
+    ha_path = os.path.realpath(
+        os.path.join(input_project_dir, "high_availability_config.yml")
+    )
+    if isinstance(omnia_data, dict) and ha_path not in state.invalid_files:
+        errors = validate_high_availability(
+            state.loaded_data.get("high_availability_config.json"),
+            input_project_dir,
+            logger,
+        )
+        if errors:
+            state.errors.extend(errors)
+            state.mark_file(ha_path, False)
+            logger.error(
+                msg.l2_validation_errors_msg(
+                    "high_availability_config", errors
+                )
+            )
 
 
 def run_module() -> None:
@@ -320,6 +485,14 @@ def run_module() -> None:
     for file_config in VALIDATION_FILES:
         _validate_file(
             file_config, input_project_dir, schema_dir, state, logger
+        )
+    if high_availability_applicable(input_project_dir):
+        _validate_file(
+            HA_VALIDATION_FILE,
+            input_project_dir,
+            schema_dir,
+            state,
+            logger,
         )
     _run_l2_validation(input_project_dir, state, logger)
     logger.info(msg.VALIDATION_END_MSG)

@@ -21,7 +21,16 @@ kafka_cluster_ca_secret: "kafka-cluster-ca-cert"
 kafka_client_secret: "kafkapump"
 
 # Output paths
-kafka_output_dir: "{{ output_project_dir | default('/opt/omnia/telemetry/output/project_default') }}/external_kafka"
+# This role runs on kube_vip_group, while telemetry_setup derives the project
+# paths on localhost. Read the controller-side fact explicitly so a custom
+# OMNIA_DATA_PATH does not fall back to /opt/omnia in the remote host context.
+# yamllint disable rule:line-length
+kafka_output_dir: >-
+  {{
+    hostvars['localhost']['output_project_dir']
+    | default(output_project_dir | default((lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) | regex_replace('/$', '')) + '/telemetry/output/' + (lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true))), true)
+  }}/external_kafka
+# yamllint enable rule:line-length
 kafka_output_file: "{{ kafka_output_dir }}/external_kafka_connect_details.yml"
 
 # Error messages

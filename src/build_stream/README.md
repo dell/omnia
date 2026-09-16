@@ -214,6 +214,24 @@ build_stream/                              # Omnia Build Stream domain
 └── scripts/                         # JWT key generation, etc.
 ```
 
+## Cleanup and Reset
+
+Run the public `cleanup` tag before requesting an Omnia-wide reset. It removes
+the BuildStream and GitLab services, generated artifacts, and BuildStream-owned
+credential files and vault keys:
+
+```bash
+cd src/main
+sudo ./omnia.sh --run build_stream --tags cleanup
+```
+
+`src/build_stream/domain-init.sh --cleanup` is a non-interactive initializer
+helper. It removes only `$OMNIA_DATA_PATH/build_stream/input`, the domain runtime
+log directory, and `/var/log/omnia/build_stream`; it does not clean deployed
+services or output. After all domain cleanup tags have completed, use
+`sudo ./omnia.sh --cleanup --all` for the guarded global reset. Both global
+cleanup modes prompt for `yes`; trusted automation can add `--skip-approval`.
+
 ## Development
 
 ### API Development

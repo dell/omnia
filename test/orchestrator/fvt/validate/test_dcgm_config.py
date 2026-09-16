@@ -18,6 +18,7 @@ Tests that dcgm_enabled is properly defined in schema and defaults to true
 
 import json
 import os
+import pytest
 import yaml
 
 
@@ -37,8 +38,11 @@ _INPUT_CONFIG_PATH = os.path.join(
 )
 
 
+@pytest.mark.gpu
+@pytest.mark.sanity
+@pytest.mark.order(90)
 def test_dcgm_enabled_in_schema():
-    """Test that dcgm_enabled is defined in orchestrator_config.json schema"""
+    """ORCH_FVT_VALIDATE_V004: DCGM is defined in the Orchestrator JSON schema."""
     with open(_SCHEMA_PATH, encoding="utf-8") as f:
         schema = json.load(f)
 
@@ -53,8 +57,11 @@ def test_dcgm_enabled_in_schema():
     )
 
 
+@pytest.mark.gpu
+@pytest.mark.sanity
+@pytest.mark.order(91)
 def test_dcgm_enabled_in_input_file():
-    """Test that dcgm_enabled is defined in orchestrator_config.yml input file"""
+    """ORCH_FVT_VALIDATE_V005: DCGM is defined in the shipped Orchestrator input."""
     with open(_INPUT_CONFIG_PATH, encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
@@ -66,8 +73,11 @@ def test_dcgm_enabled_in_input_file():
     )
 
 
+@pytest.mark.gpu
+@pytest.mark.functional
+@pytest.mark.order(92)
 def test_dcgm_enabled_boolean_values():
-    """Test that dcgm_enabled accepts boolean values"""
+    """ORCH_FVT_VALIDATE_V006: DCGM configuration accepts both boolean values."""
     with open(_INPUT_CONFIG_PATH, encoding="utf-8") as f:
         config = yaml.safe_load(f)
 

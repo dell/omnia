@@ -10,21 +10,26 @@ This document defines all input files consumed by the `orchestrator` domain.
 
 **Purpose**: Per-domain input configuration for orchestrator.
 
-**Location**: `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/orchestrator_config.yml`
+**Location**: `$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/orchestrator_config.yml`
+
+When `ORCHESTRATOR_DATA_PATH` is unset, it resolves to
+`$OMNIA_DATA_PATH/orchestrator`.
 
 **Owner**: User (manually configured)
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `pxe_mapping_file_path` | string | Yes (may be empty) | Current project input directory | Optional override for the PXE mapping CSV path |
-| `image_build_manager_output_path` | string | No | `$OMNIA_DATA_PATH/image_build_manager/output/$OMNIA_PROJECT_NAME/build_status.yml` | Path to `build_status.yml` |
-| `language` | string | No | `"en-US"` | Language for provisioned nodes |
-| `default_lease_time` | int | No | `86400` | DHCP lease time (seconds) |
+| `pxe_mapping_file_path` | string | Yes (may be empty) | Current Orchestrator project input directory | Optional override for the PXE mapping CSV path |
+| `image_build_manager_output_path` | string | No | `$IMAGE_BUILD_MANAGER_DATA_PATH/output/$OMNIA_PROJECT_NAME/build_status.yml` | Path to `build_status.yml` |
+| `language` | string | Yes | `"en_US.UTF-8"` | Supported locale for provisioned nodes |
+| `default_lease_time` | string or int | Yes | `86400` | Positive DHCP lease time in seconds |
 | `dns_enabled` | bool | No | `false` | Enable CoreDNS configuration |
-| `kernel_version_override` | string | No | `""` | Specific kernel version for boot images |
 | `additional_cloud_init_config_file` | string | No | `""` | Extra cloud-init config path |
-| `repo_manager_output_path` | string | No | `$OMNIA_DATA_PATH/repo_manager/output/$OMNIA_PROJECT_NAME/repo_status.yml` | Path to `repo_status.yml` from repo_manager |
-| `catalog_file_path` | string | No | `$CATALOG_FILE_PATH`, then `$OMNIA_DATA_PATH/catalog/catalog_rhel.json` | Optional override for the catalog JSON path |
+| `boot_kernel_params` | string | No | `""` | Additional kernel command-line parameters applied to every functional group |
+| `catalog_file_path` | string | No | `$CATALOG_FILE_PATH`, then `$OMNIA_DATA_PATH/catalog/catalog_rhel.json` | Catalog JSON path override |
+| `enable_pxe_boot` | bool | No | `true` | Enable iDRAC-based PXE boot for physical servers |
+| `repo_manager_output_path` | string | No | `$REPO_MANAGER_DATA_PATH/output/$OMNIA_PROJECT_NAME/repo_status.yml` | Path to `repo_status.yml` from Repository Manager |
+| `dcgm_enabled` | bool | No | `true` | Enable NVIDIA DCGM installation on supported GPU nodes |
 
 ### Catalog availability
 
@@ -47,7 +52,7 @@ determine which credentials are mandatory.
 
 **Purpose**: Primary data contract between Discovery and Orchestrator domains.
 
-**Location**: `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv`
+**Location**: `$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv`
 
 **Producer**: `discovery` domain (output: `bmc_pxe_mapping_file.csv`)
 
@@ -55,17 +60,23 @@ determine which credentials are mandatory.
 
 | Column | Type | Required | Description |
 |--------|------|----------|-------------|
-| `FUNCTIONAL_GROUP_NAME` | string | Yes | Node role (e.g., `slurm_node_aarch64`) |
+| `FUNCTIONAL_GROUP_NAME` | string | Yes | Node role (for example, `slurm_node_rhel_10_0_aarch64`) |
 | `GROUP_NAME` | string | Yes | Scalable Unit / logical group |
-| `SERVICE_TAG` | string | Yes | Dell server service tag |
-| `PARENT_SERVICE_TAG` | string | No | Parent node service tag |
+| `SERVICE_TAG` | string | No | Dell server service tag; validated when supplied |
+| `PARENT_SERVICE_TAG` | string | No | Parent service tag used by associated-node workflows; Discovery populates it for Slurm compute nodes when a service worker is available |
 | `HOSTNAME` | string | Yes | Assigned hostname |
-| `ADMIN_MAC` | string | Yes | Admin NIC MAC address |
+| `ADMIN_MAC` | string | Yes | Unique admin NIC MAC address |
 | `ADMIN_IP` | string | Yes | Admin network IP |
 | `BMC_MAC` | string | No | BMC/iDRAC MAC address |
 | `BMC_IP` | string | No | BMC/iDRAC IP address |
 | `IB_NIC_NAME` | string | No | InfiniBand NIC FQDD |
 | `IB_IP` | string | No | InfiniBand IP |
+
+The header must contain these exact 11 uppercase column names in the order
+shown, including `IB_NIC_NAME` and `IB_IP`. Optional values remain present as
+empty CSV cells. `SERVICE_TAG` and `PARENT_SERVICE_TAG` values are optional.
+Both legacy mappings and Discovery-generated mappings are accepted; Discovery
+may place a `service_kube_node` and its Slurm nodes in the same `GROUP_NAME`.
 
 ---
 
@@ -73,7 +84,7 @@ determine which credentials are mandatory.
 
 **Purpose**: Full network specification for DHCP/PXE/DNS configuration.
 
-**Location**: `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/network_spec.yml`
+**Location**: `$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/network_spec.yml`
 
 **Owner**: User (manually configured)
 
@@ -118,6 +129,13 @@ determine which credentials are mandatory.
 `src/orchestrator/samples/image_build_manager_output/build_status.yml`.
 Image Build Manager's generated file remains authoritative.
 
+For every functional group, Orchestrator uses the `kernel`, `initrd`, and
+`image` paths in this file as one atomic boot-artifact set. There is no
+separate kernel-version override in `orchestrator_config.yml`. To upgrade a
+kernel, rebuild the affected functional-group image with Image Build Manager
+so that it publishes the new paths to `build_status.yml`, then rerun the
+Orchestrator provision flow.
+
 ### Structure
 
 ```yaml
@@ -130,10 +148,10 @@ s3_configurations:
 
 functional_group_images:
   - x86_64:
-    - functional_group: "slurm_control_node_x86_64"
-      kernel: "boot-images/efi-images/slurm_control_node_x86_64/rhel-.../vmlinuz"
-      initrd: "boot-images/efi-images/slurm_control_node_x86_64/rhel-.../initramfs.img"
-      image: "boot-images/slurm_control_node_x86_64/rhel-..."
+    - functional_group: "slurm_control_node_rhel_10_0_x86_64"
+      kernel: "boot-images/efi-images/slurm_control_node_rhel_10_0_x86_64/example-imgbld/vmlinuz-<kernel-version>"
+      initrd: "boot-images/efi-images/slurm_control_node_rhel_10_0_x86_64/example-imgbld/initramfs-<kernel-version>.img"
+      image: "boot-images/slurm_control_node_rhel_10_0_x86_64/example-imgbld/<rootfs-filename>"
 ```
 
 ### Validation Rules
@@ -151,7 +169,7 @@ functional_group_images:
 
 | Fact | Source | Description |
 |------|--------|-------------|
-| `s3_configurations.endpoint_url` | `s3_configurations.endpoint_url` | S3 endpoint URL for BSS template |
+| `s3_configurations.endpoint_url` | `s3_configurations.endpoint_url` | S3 endpoint URL for Boot Service configuration |
 | `s3_configurations.bucket` | `s3_configurations.bucket` | S3 bucket name (default: `boot-images`) |
 | `build_status` | Full `_build_status` dict | Complete build status for image validation |
 
@@ -174,7 +192,9 @@ fail before provisioning begins.
 
 **Producer**: `repo_manager` domain (`generate_local_repo_access` module)
 
-**Consumer**: `orchestrator_setup` (loads as Step 7), then consumed by `k8s_config`, `slurm_config`, `configure_ochami` cloud-init templates
+**Consumer**: `orchestrator_setup` (loads as Step 7), then consumed by
+`k8s_config`, `slurm_config`, and `provision_common` Boot/Metadata Service
+templates
 
 **Reference sample**:
 `src/orchestrator/samples/repo_manager_output/repo_status.yml`.
@@ -233,12 +253,13 @@ offline_iso_path: "https://<admin_ip>:2225/pulp/content/.../iso/"
 
 ### Validation Rules
 
-For flows that consume repository content (`precheck`, `prepare`, `deploy`,
-`provision`, `execute`, `pxeboot`, and `upgrade`), Orchestrator requires the
-file to exist, requires `overall_status: success`, validates its core mapping
-and certificate fields, and verifies that the public certificate exists.
-Cleanup, credential-only, input-validation, rollback, and deployment-health
-flows remain runnable without `repo_status.yml`.
+For flows that consume repository content (the default/full lifecycle,
+`precheck`, `provision`, `execute`, `pxeboot`, and `upgrade`), Orchestrator
+requires the file to exist, requires `overall_status: success`, validates its
+core mapping and certificate fields, and verifies that the public certificate
+exists. `prepare` and `deploy` can reconcile the OIM services without this
+file. Cleanup, credential-only, input-validation, rollback, and
+deployment-health flows also remain runnable without `repo_status.yml`.
 
 ### Facts Set from repo_status.yml
 
@@ -260,11 +281,11 @@ flows remain runnable without `repo_status.yml`.
 
 **Purpose**: Vault-encrypted credentials for provisioning and services.
 
-**Location**: `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/orchestrator_credentials.yml`
+**Location**: `$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/orchestrator_credentials.yml`
 
 **Owner**: `orchestrator_credentials` role (auto-generated on first run via interactive prompts)
 
-**Vault Key**: `$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/.orchestrator_credentials_key`
+**Vault Key**: `$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/.orchestrator_credentials_key`
 
 A full Orchestrator cleanup removes both the encrypted credential file and its
 vault key by default. Pass `-e cleanup_credentials=false` with the `cleanup`
@@ -284,17 +305,19 @@ credential-only cleanup.
 
 ---
 
-## 7. Shared Inputs (from project root)
+## 7. Other project inputs
 
-These files are read from `input/project_default/` (project root, not orchestrator subdir):
+These files are read from the same Orchestrator project input directory:
+`$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/`.
 
 | File | Description |
 |------|-------------|
-| `software_config.json` | Cluster OS type, version, and software stack |
 | `omnia_config.yml` | K8s/Slurm cluster definitions |
 | `storage_config.yml` | Storage mount configuration |
 | `security_config.yml` | Security settings |
-| `telemetry_config.yml` | Telemetry configuration |
+| `network_spec.yml` | Administrative and InfiniBand network definitions |
+| `high_availability_config.yml` | Kubernetes control-plane VIP settings when HA is configured |
+| `set_pxe_boot_config.yml` | PXE boot retry and post-boot verification settings |
 
 `storage_config.yml` is conditionally required. When `omnia_config.yml`
 contains a non-empty `nfs_storage_name` or `vast_storage_name` in a Slurm or
@@ -302,6 +325,11 @@ service Kubernetes cluster definition, the file must exist and define a mount
 with every referenced name. When no storage name is referenced, the file may
 be absent. If present, it is always schema validated. Network reachability of
 referenced NFS servers is checked later during precheck.
+
+The standard optional Slurm VAST mount uses the existing `vast_storage` name.
+It is included only when the active `slurm_cluster` entry has a non-empty
+`vast_storage_name` referencing it; no additional storage role field is
+required.
 
 ### PowerScale CSI selection
 

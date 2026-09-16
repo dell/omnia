@@ -71,7 +71,7 @@ EXAMPLES = r'''
 - name: Validate telemetry input files
   omnia.telemetry.validate_input:
     omnia_base_dir: "/opt/omnia/telemetry/input"
-    project_name: "project_default"
+    project_name: "{{ project_name }}"
     tag_names:
       - telemetry
     module_utils_path: "/opt/omnia/src/telemetry/plugins/module_utils"
@@ -79,11 +79,11 @@ EXAMPLES = r'''
 - name: Validate with CSV structure check
   omnia.telemetry.validate_input:
     omnia_base_dir: "/opt/omnia/telemetry/input"
-    project_name: "project_default"
+    project_name: "{{ project_name }}"
     tag_names:
       - telemetry
     module_utils_path: "/opt/omnia/src/telemetry/plugins/module_utils"
-    csv_file_path: "/opt/omnia/telemetry/input/project_default/pxe_mapping.csv"
+    csv_file_path: "{{ input_project_dir }}/pxe_mapping.csv"
 '''
 
 RETURN = r'''
@@ -100,12 +100,12 @@ error_msg:
   sample:
     - "Input validation completed for: telemetry input configuration(s)."
     - "Tag(s) run: ['telemetry']. "
-    - "Look at the logs for more details: filename=/var/log/omnia/telemetry/validate_telemetry_input.log"
+    - "Look at the logs for more details: filename=/opt/omnia/telemetry/log/project_default/validate_telemetry_input.log"
 log_file:
   description: Path to the validation log file.
   type: str
   returned: always
-  sample: "/var/log/omnia/telemetry/validate_telemetry_input.log"
+  sample: "/opt/omnia/telemetry/log/project_default/validate_telemetry_input.log"
 errors:
   description: List of error messages from failed validations.
   type: list
@@ -218,7 +218,11 @@ def createlogger(project_name, tag_name=None):
     """
     log_filename = "validate_telemetry_input.log"
 
-    log_file_path = os.path.join(config.INPUT_VALIDATOR_LOG_PATH, log_filename)
+    log_file_path = os.path.join(
+        config.INPUT_VALIDATOR_LOG_PATH,
+        project_name,
+        log_filename
+    )
     os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
     logging.basicConfig(
         filename=log_file_path,
@@ -394,8 +398,11 @@ def main():
 
     logger.error(en_us_validation_msg.get_footer())
 
-    log_file_name = os.path.join(config.INPUT_VALIDATOR_LOG_PATH,
-                                 "validate_telemetry_input.log")
+    log_file_name = os.path.join(
+        config.INPUT_VALIDATOR_LOG_PATH,
+        project_name,
+        "validate_telemetry_input.log"
+    )
 
     status_bool = all(vstatus)
     status_str = "completed" if status_bool else "failed"

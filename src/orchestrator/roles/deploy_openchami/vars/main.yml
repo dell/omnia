@@ -17,7 +17,8 @@
 openchami_share_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/openchami"
 dir_permissions_755: "0755"
 file_permissions_644: "0644"
-openchami_log_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/orchestrator/log/openchami"
+openchami_log_dir: >-
+  {{ hostvars['localhost']['orchestrator_data_path'] }}/log/openchami
 openchami_config_vars_path: "{{ openchami_share_dir }}/configs_vars.yaml"
 openchami_config_vars_template: "{{ role_path }}/templates/configs.yaml.j2"
 openchami_install_fail_msg: "Failed to install OpenCHAMI"

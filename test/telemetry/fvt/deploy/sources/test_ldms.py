@@ -26,11 +26,15 @@ LDMS Architecture:
         Kafka 'ldms' -> Vector-LDMS -> VictoriaMetrics
 
 Test cases:
-    TC_SR_020: Verify LDMS aggregator pod running
-    TC_SR_021: Verify LDMS store pod running
-    TC_SR_022: Verify Vector-LDMS bridge deployment ready
-    TC_SR_023: Verify LDMS Kafka topic exists
-    TC_SR_024: Verify LDMS data in Kafka topic
+    TEL_FVT_DEPLOY_V020: Verify LDMS aggregator pod running
+    TEL_FVT_DEPLOY_V021: Verify LDMS store pod running
+    TEL_FVT_DEPLOY_V022: Verify Vector-LDMS bridge deployment ready
+    TEL_FVT_DEPLOY_V023: Verify LDMS package installed on Slurm nodes
+    TEL_FVT_DEPLOY_V024: Verify LDMS sampler service running on Slurm nodes
+    TEL_FVT_DEPLOY_V025: Verify LDMS sampler plugins configured on Slurm nodes
+    TEL_FVT_DEPLOY_V026: Verify LDMS Kafka topic exists
+    TEL_FVT_DEPLOY_V027: Verify earliest LDMS data in Kafka topic
+    TEL_FVT_DEPLOY_V028: Verify latest LDMS data in Kafka topic
 """
 
 import pytest
@@ -65,7 +69,7 @@ def _skip_if_ldms_disabled(host):
 
 
 # =========================================================================
-# TC_SR_020: Verify LDMS aggregator pod running
+# TEL_FVT_DEPLOY_V020: Verify LDMS aggregator pod running
 # =========================================================================
 
 @pytest.mark.source
@@ -73,7 +77,7 @@ def _skip_if_ldms_disabled(host):
 @pytest.mark.ldms
 @pytest.mark.order(50)
 def test_ldms_aggr_pod(host):
-    """TC_SR_020: Verify LDMS aggregator pod running."""
+    """TEL_FVT_DEPLOY_V020: Verify LDMS aggregator pod running."""
     _skip_if_ldms_disabled(host)
     tc = TC["ldms_aggr_pod"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -132,7 +136,7 @@ def test_ldms_aggr_pod(host):
 
 
 # =========================================================================
-# TC_SR_021: Verify LDMS store pod running
+# TEL_FVT_DEPLOY_V021: Verify LDMS store pod running
 # =========================================================================
 
 @pytest.mark.source
@@ -140,7 +144,7 @@ def test_ldms_aggr_pod(host):
 @pytest.mark.ldms
 @pytest.mark.order(51)
 def test_ldms_store_pod(host):
-    """TC_SR_021: Verify LDMS store pod running."""
+    """TEL_FVT_DEPLOY_V021: Verify LDMS store pod running."""
     _skip_if_ldms_disabled(host)
     tc = TC["ldms_store_pod"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -181,7 +185,7 @@ def test_ldms_store_pod(host):
 
 
 # =========================================================================
-# TC_SR_022: Verify Vector-LDMS bridge deployment ready
+# TEL_FVT_DEPLOY_V022: Verify Vector-LDMS bridge deployment ready
 # =========================================================================
 
 @pytest.mark.source
@@ -189,7 +193,7 @@ def test_ldms_store_pod(host):
 @pytest.mark.ldms
 @pytest.mark.order(52)
 def test_ldms_vector_bridge(host):
-    """TC_SR_022: Verify Vector-LDMS bridge deployment ready."""
+    """TEL_FVT_DEPLOY_V022: Verify Vector-LDMS bridge deployment ready."""
     _skip_if_ldms_disabled(host)
     tc = TC["ldms_vector_bridge"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -224,7 +228,7 @@ def test_ldms_vector_bridge(host):
 
 
 # =========================================================================
-# TC_SR_023: Verify LDMS package installed on Slurm nodes
+# TEL_FVT_DEPLOY_V023: Verify LDMS package installed on Slurm nodes
 # =========================================================================
 
 @pytest.mark.source
@@ -232,7 +236,7 @@ def test_ldms_vector_bridge(host):
 @pytest.mark.ldms
 @pytest.mark.order(53)
 def test_ldms_package_installed(host):
-    """TC_SR_023: Verify LDMS package installed on Slurm nodes.
+    """TEL_FVT_DEPLOY_V023: Verify LDMS package installed on Slurm nodes.
 
     Checks that ovis-ldms package (ldmsd binary) is installed on all nodes
     in the LDMS functional groups.
@@ -297,7 +301,7 @@ def test_ldms_package_installed(host):
 
 
 # =========================================================================
-# TC_SR_024: Verify LDMS sampler service running on Slurm nodes
+# TEL_FVT_DEPLOY_V024: Verify LDMS sampler service running on Slurm nodes
 # =========================================================================
 
 @pytest.mark.source
@@ -305,7 +309,7 @@ def test_ldms_package_installed(host):
 @pytest.mark.ldms
 @pytest.mark.order(54)
 def test_ldms_sampler_service(host):
-    """TC_SR_023: Verify LDMS sampler service running on Slurm nodes.
+    """TEL_FVT_DEPLOY_V024: Verify LDMS sampler service running on Slurm nodes.
 
     Checks that ldmsd.sampler.service is active on all nodes in the
     LDMS functional groups (slurm_control_node, slurm_node, etc.).
@@ -366,7 +370,7 @@ def test_ldms_sampler_service(host):
 
 
 # =========================================================================
-# TC_SR_024: Verify LDMS sampler plugins configured on Slurm nodes
+# TEL_FVT_DEPLOY_V025: Verify LDMS sampler plugins configured on Slurm nodes
 # =========================================================================
 
 @pytest.mark.source
@@ -374,7 +378,7 @@ def test_ldms_sampler_service(host):
 @pytest.mark.ldms
 @pytest.mark.order(55)
 def test_ldms_sampler_plugins(host):
-    """TC_SR_024: Verify LDMS sampler plugins configured on Slurm nodes.
+    """TEL_FVT_DEPLOY_V025: Verify LDMS sampler plugins configured on Slurm nodes.
 
     Verifies that sampler.conf on each Slurm node has exactly the plugins
     defined in telemetry_config.yml ldms_configurations.sampler_plugins.
@@ -441,7 +445,7 @@ def test_ldms_sampler_plugins(host):
 
 
 # =========================================================================
-# TC_SR_025: Verify LDMS Kafka topic exists
+# TEL_FVT_DEPLOY_V026: Verify LDMS Kafka topic exists
 # =========================================================================
 
 @pytest.mark.source
@@ -449,7 +453,7 @@ def test_ldms_sampler_plugins(host):
 @pytest.mark.ldms
 @pytest.mark.order(56)
 def test_ldms_kafka_topic(host):
-    """TC_SR_026: Verify LDMS Kafka topic exists."""
+    """TEL_FVT_DEPLOY_V026: Verify LDMS Kafka topic exists."""
     _skip_if_ldms_disabled(host)
     tc = TC["ldms_kafka_topic"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -544,7 +548,7 @@ def _build_ldms_host_lines(host_result):
 
 
 # =========================================================================
-# TC_SR_027: Verify earliest LDMS data in Kafka topic
+# TEL_FVT_DEPLOY_V027: Verify earliest LDMS data in Kafka topic
 # =========================================================================
 
 @pytest.mark.source
@@ -552,7 +556,7 @@ def _build_ldms_host_lines(host_result):
 @pytest.mark.ldms
 @pytest.mark.order(57)
 def test_ldms_earliest_data(host):
-    """TC_SR_027: Verify earliest LDMS data in Kafka topic.
+    """TEL_FVT_DEPLOY_V027: Verify earliest LDMS data in Kafka topic.
 
     Uses 'earliest' offset (--from-beginning) to get the oldest data from
     the beginning of the topic. Shows when each hostname first started
@@ -585,6 +589,14 @@ def test_ldms_earliest_data(host):
         f"Found hostnames: {result.get('found_hostnames', [])}",
         f"Missing hostnames: {result.get('missing_hostnames', [])}",
         f"Missing instances: {result.get('missing_instances', [])}",
+    ])
+
+    # Show error message if present (e.g. consumer creation failure)
+    error_msg = result.get("error", "")
+    if error_msg:
+        details_lines.extend(["", f"Error: {error_msg}"])
+
+    details_lines.extend([
         "",
         "Earliest data per hostname (by functional group):",
     ])
@@ -611,7 +623,7 @@ def test_ldms_earliest_data(host):
 
 
 # =========================================================================
-# TC_SR_028: Verify latest LDMS data in Kafka topic
+# TEL_FVT_DEPLOY_V028: Verify latest LDMS data in Kafka topic
 # =========================================================================
 
 @pytest.mark.source
@@ -619,7 +631,7 @@ def test_ldms_earliest_data(host):
 @pytest.mark.ldms
 @pytest.mark.order(58)
 def test_ldms_kafka_data(host):
-    """TC_SR_028: Verify latest LDMS data in Kafka topic.
+    """TEL_FVT_DEPLOY_V028: Verify latest LDMS data in Kafka topic.
 
     Uses 'latest' offset to get the most recent data from the topic.
     Verifies that data from all LDMS-enabled nodes with all configured
@@ -656,6 +668,14 @@ def test_ldms_kafka_data(host):
         f"{result.get('ignored_stale_record_count', 0)}",
         "Ignored invalid timestamps: "
         f"{result.get('invalid_timestamp_record_count', 0)}",
+    ])
+
+    # Show error message if present (e.g. consumer creation failure)
+    error_msg = result.get("error", "")
+    if error_msg:
+        details_lines.extend(["", f"Error: {error_msg}"])
+
+    details_lines.extend([
         "",
         "Latest data per hostname (by functional group):",
     ])

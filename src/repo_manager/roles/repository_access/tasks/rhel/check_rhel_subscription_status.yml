@@ -51,6 +51,10 @@
         )
       }}
 
+- name: Initialize RHEL subscription repository inventory
+  ansible.builtin.set_fact:
+    subscription_repository_ids: []
+
 - name: Debug subscription status
   ansible.builtin.debug:
     msg: "Subscription enabled? {{ subscription_status }}"
@@ -58,6 +62,36 @@
 - name: Prepare host subscription access
   when: subscription_status | bool
   block:
+    - name: List entitled RHEL repositories
+      ansible.builtin.command:
+        argv:
+          - subscription-manager
+          - repos
+          - --list
+      register: subscription_manager_repositories
+      changed_when: false
+      failed_when: false
+
+    - name: Read generated RHEL repository inventory
+      ansible.builtin.slurp:
+        src: "{{ redhat_repo_file }}"
+      register: redhat_repo_inventory
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Publish entitled RHEL repository identifiers
+      ansible.builtin.set_fact:
+        subscription_repository_ids: >-
+          {%- set listed_ids =
+            subscription_manager_repositories.stdout | default('') |
+            regex_findall('(?m)^\\s*Repo ID:\\s*(\\S+)\\s*$') | list -%}
+          {%- set section_ids =
+            redhat_repo_inventory.content | default('') | b64decode |
+            regex_findall('(?m)^\\s*\\[([^\\]]+)\\]\\s*$') | list -%}
+          {{ (listed_ids + section_ids) | unique | list }}
+      no_log: true
+
     - name: List available subscription-manager releases
       ansible.builtin.command: subscription-manager release --list
       register: available_releases
@@ -71,15 +105,7 @@
           reported releases: {{ available_releases.stdout |
           default('none reported', true) }}
 
-    - name: Ensure shared path exists
-      ansible.builtin.file:
-        path: "{{ rhel_repo_cert_dir }}"
-        state: directory
-        owner: root
-        group: root
-        mode: "0700"
-
-    - name: Remove stale files from rhel_repo_cert_dir before fresh copy
+    - name: Remove stale RHEL subscription staging path before fresh copy
       ansible.builtin.file:
         path: "{{ rhel_repo_cert_dir }}"
         state: absent
@@ -105,7 +131,7 @@
     - name: Copy entitlement certs to shared path
       ansible.builtin.copy:
         src: "{{ item }}"
-        dest: "{{ rhel_repo_cert_dir }}"
+        dest: "{{ rhel_repo_cert_dir }}/{{ item | basename }}"
         owner: root
         group: root
         mode: >-

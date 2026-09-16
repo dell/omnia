@@ -69,7 +69,7 @@ author:
 
 EXAMPLES = r"""
 - name: Validate system environment
-  omnia.image_build.validate_system_environment:
+  omnia.orchestrator.validate_system_environment:
     required_vars:
       - SYSTEM_ADMIN_NIC_IPV4
       - SYSTEM_HOSTNAME

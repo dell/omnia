@@ -4,7 +4,7 @@ Ansible role for the Omnia orchestrator collection.
 
 ## Role Variables
 
-See `vars/main.yml` and `defaults/main.yml` for available variables.
+See `vars/main.yml` for available variables.
 
 ## License
 

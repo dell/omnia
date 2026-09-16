@@ -1,8 +1,13 @@
-- label: {{ additional_cloud_init_fg_smd_group_name }}
+- label: {{ additional_metadata_svc_fg_smd_group_name }}
   members:
     ids:
+{% set normalized_target_functional_group = functional_group_name
+  | regex_replace('^service_kube_control_plane_first_', 'service_kube_control_plane_') %}
 {% for item in smd_group_nodes | sort(attribute='value.XNAME') %}
-{% if item.value.FUNCTIONAL_GROUP_NAME | replace('_first_', '_') == functional_group_name %}
+{% set node_functional_group = item.value.FUNCTIONAL_GROUP_NAME %}
+{% set normalized_node_functional_group = node_functional_group
+  | regex_replace('^service_kube_control_plane_first_', 'service_kube_control_plane_') %}
+{% if normalized_node_functional_group == normalized_target_functional_group %}
       - {{ item.value.XNAME }}
 {% endif %}
 {% endfor %}
