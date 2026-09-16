@@ -21,9 +21,13 @@
   ansible.builtin.set_fact:
     _backup_oim_logs_config_path: >-
       {{ input_project_dir
-         | default(lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true)
-                   + '/utils/input/'
-                   + lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true))
+         | default(
+             lookup('env', 'OMNIA_DATA_PATH')
+             | default('/opt/omnia', true)
+             + '/utils/input/'
+             + lookup('env', 'OMNIA_PROJECT_NAME')
+             | default('project_default', true)
+           )
       }}/backup_oim_logs_config.yml
 
 # Step 2: Check config file exists (optional file)
@@ -51,7 +55,9 @@
         - telemetry
         - build_stream
         - utils
-      backup_path: "{{ lookup('env', 'OMNIA_BACKUP_PATH') | default('/opt/omnia/backups', true) }}"
+      backup_path: >-
+        {{ lookup('env', 'OMNIA_BACKUP_PATH')
+           | default('/opt/omnia/backups', true) }}
   when: not (_config_file_stat.stat.exists | default(false))
 
 # Step 5: Validate domains is a list
@@ -84,7 +90,11 @@
 
 - name: Fail if invalid domain names found
   ansible.builtin.fail:
-    msg: "Invalid domain names in backup_oim_logs_config.yml: {{ _invalid_domains }}. Valid domains are: repo_manager, image_build_manager, orchestrator, discovery, telemetry, build_stream, utils"
+    msg: >-
+      Invalid domain names in backup_oim_logs_config.yml:
+      {{ _invalid_domains }}. Valid domains are: repo_manager,
+      image_build_manager, orchestrator, discovery, telemetry,
+      build_stream, utils
   when: _invalid_domains | length > 0
 
 # Step 7: Validate backup_path (optional)
@@ -100,4 +110,7 @@
 # Step 8: Log validation success
 - name: Log validated configuration summary
   ansible.builtin.debug:
-    msg: "Backup configuration validated: {{ backup_oim_logs_config.domains | length }} domains to backup, path: {{ backup_oim_logs_config.backup_path | default('default') }}"
+    msg: >-
+      Backup configuration validated:
+      {{ backup_oim_logs_config.domains | length }} domains to backup,
+      path: {{ backup_oim_logs_config.backup_path | default('default') }}

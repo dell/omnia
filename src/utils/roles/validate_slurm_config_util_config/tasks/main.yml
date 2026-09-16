@@ -21,9 +21,13 @@
   ansible.builtin.set_fact:
     _slurm_config_util_config_path: >-
       {{ input_project_dir
-         | default(lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true)
-                   + '/utils/input/'
-                   + lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true))
+         | default(
+             lookup('env', 'OMNIA_DATA_PATH')
+             | default('/opt/omnia', true)
+             + '/utils/input/'
+             + lookup('env', 'OMNIA_PROJECT_NAME')
+             | default('project_default', true)
+           )
       }}/slurm_config_util_config.yml
 
 # Step 2: Check config file exists (optional file)
@@ -44,18 +48,23 @@
   ansible.builtin.set_fact:
     slurm_config_util_config:
       omnia_config_path: >-
-        {{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true)
-         + '/utils/input/'
-         + lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true)
-         + '/omnia_config.yml' }}
+        {{ lookup('env', 'OMNIA_DATA_PATH')
+           | default('/opt/omnia', true)
+           + '/utils/input/'
+           + lookup('env', 'OMNIA_PROJECT_NAME')
+           | default('project_default', true)
+           + '/omnia_config.yml' }}
       storage_config_path: >-
-        {{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true)
-         + '/utils/input/'
-         + lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true)
-         + '/storage_config.yml' }}
+        {{ lookup('env', 'OMNIA_DATA_PATH')
+           | default('/opt/omnia', true)
+           + '/utils/input/'
+           + lookup('env', 'OMNIA_PROJECT_NAME')
+           | default('project_default', true)
+           + '/storage_config.yml' }}
       pxe_mapping_path: >-
-        {{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true)
-         + '/openchami/workdir/nodes/nodes_slurm.yaml' }}
+        {{ lookup('env', 'OMNIA_DATA_PATH')
+           | default('/opt/omnia', true)
+           + '/openchami/workdir/nodes/nodes_slurm.yaml' }}
       slurm_cleanup_confirm_token: "YES"
   when: not (_config_file_stat.stat.exists | default(false))
 

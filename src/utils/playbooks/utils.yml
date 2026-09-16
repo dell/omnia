@@ -106,7 +106,10 @@
       ansible.builtin.include_role:
         name: validate_slurm_config_util_config
       when:
-        - "'slurm_config_backup' in ansible_run_tags or 'slurm_config_cleanup' in ansible_run_tags or 'slurm_config_rollback' in ansible_run_tags"
+        - >-
+          'slurm_config_backup' in ansible_run_tags or
+          'slurm_config_cleanup' in ansible_run_tags or
+          'slurm_config_rollback' in ansible_run_tags
         - "not (skip_validation | default(false) | bool)"
   tags:
     - always
