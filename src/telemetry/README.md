@@ -33,11 +33,11 @@ set -a; source src/main/omnia.env; set +a
 cd src/telemetry
 ansible-playbook playbooks/telemetry.yml --tags deploy
 
-# Cleanup preserves PVCs and required Kafka identity metadata by default
+# Cleanup preserves sink PVCs by default, deletes source PVCs
 ansible-playbook playbooks/telemetry.yml --tags cleanup
 
-# Explicitly delete PVCs during cleanup
-ansible-playbook playbooks/telemetry.yml --tags cleanup -e Delete_volume=true
+# Explicitly delete sink PVCs during cleanup
+ansible-playbook playbooks/telemetry.yml --tags cleanup -e delete_sinks_volume=true
 
 # Default (no tags) = validate + deploy (safe — cleanup never runs by default)
 ansible-playbook playbooks/telemetry.yml
@@ -73,7 +73,7 @@ ansible-playbook playbooks/telemetry.yml
 | `precheck` | No | Validate K8s prerequisites (kube_vip, nodes, pods) |
 | `validate` | Yes | L1 schema + L2 logic validation of all input files |
 | `deploy` / `execute` | Yes | Deploy sinks + sources + kustomize apply |
-| `cleanup` | No | Remove telemetry runtime resources; preserve PVCs and Kafka identity metadata by default |
+| `cleanup` | No | Remove telemetry runtime resources; delete source volumes, preserve sink volumes by default |
 | `upgrade` | No | Upgrade telemetry (placeholder) |
 | `rollback` | No | Rollback telemetry (placeholder) |
 
@@ -81,7 +81,7 @@ ansible-playbook playbooks/telemetry.yml
 
 | Tag | Scope |
 |-----|-------|
-| `cleanup_kafka` | Kafka runtime + Strimzi operator; preserve data/identity metadata unless volume deletion is requested |
+| `cleanup_kafka` | Kafka runtime + Strimzi operator; preserve sink volumes by default |
 | `cleanup_victoria_metrics` | VictoriaMetrics + vmagent-vector |
 | `cleanup_victoria_logs` | VictoriaLogs + vlagent-vector |
 | `cleanup_idrac` | iDRAC telemetry (receiver, pumps, DB) |
@@ -110,8 +110,9 @@ sudo ./omnia.sh --cleanup --all
 `src/telemetry/domain-init.sh --cleanup` is non-interactive and removes only
 initializer-owned staged input and domain log paths; it does not remove
 Kubernetes resources or persistent volumes. Both global cleanup modes prompt
-for `yes`; trusted automation can add `--skip-approval`. Persistent volumes are
-preserved unless the telemetry cleanup is run with `-e Delete_volume=true`.
+for `yes`; trusted automation can add `--skip-approval`. Source volumes are
+deleted by default; sink volumes are preserved unless the telemetry cleanup is
+run with `-e delete_sinks_volume=true`.
 
 ## Telemetry Components
 
@@ -207,6 +208,14 @@ telemetry/
 ├── input/                         # Default input configuration files
 ├── output/                        # Runtime output (status files)
 ├── containers/                    # Container build files (LDMS)
+├── rpm_build/                     # RPM build scripts (LDMS)
+│   ├── build_rpm.sh              # Entry point — clones OVIS, dispatches build
+│   ├── README.md                 # RPM build documentation
+│   └── ldms/                     # LDMS build scripts
+│       ├── start_build_container.rockylinux10.bash  # Podman container for RPM build
+│       ├── build_ldms.rockylinux10.bash              # LDMS build script (inside container)
+│       ├── configure.sh                              # LDMS configure options
+│       └── rpm_postuninstall.txt                     # RPM post-uninstall scriptlet
 └── docs/                          # Domain documentation
 ```
 
