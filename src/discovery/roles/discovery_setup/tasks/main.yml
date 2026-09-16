@@ -184,11 +184,6 @@
     file: "{{ discovery_input_dir }}/{{ discovery_config_file }}"
   when: not discovery_cleanup_requested | bool
 
-- name: Set enable_bmc_discovery for credential utility
-  ansible.builtin.set_fact:
-    enable_bmc_discovery: "{{ true if (discovery_mechanism | default('')) == 'ome' else (enable_bmc_discovery | default(false) | bool) }}"
-    cacheable: true
-
 # Step 7: Include common vars
 - name: Include common vars
   ansible.builtin.include_vars: "{{ role_path }}/../../vars/common_vars.yml"

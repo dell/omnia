@@ -26,7 +26,7 @@ discovery_ome_ip_required_msg: |-
   OME endpoint configuration is incomplete.
   Required value: ome_ip
   Configuration file: {{ discovery_ome_config_path }}
-  Action: Set ome_ip when BMC discovery is enabled.
+  Action: Set ome_ip to the reachable OME appliance IPv4 address.
 
 discovery_ome_connectivity_failure_msg: |-
   OME endpoint connectivity check failed.

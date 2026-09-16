@@ -1,6 +1,6 @@
 # Discovery — Output Contract
 
-> **Last Updated**: Sep 9, 2026 | **Domain**: `discovery`
+> **Last Updated**: Sep 16, 2026 | **Domain**: `discovery`
 
 This document defines all output artifacts produced by the `discovery` domain.
 

@@ -18,6 +18,3 @@ discovery_precheck_system_env_warning_msg: >-
   Omnia's system environment file was not found at
   {{ discovery_precheck_system_env_file }}. Discovery can continue using the
   current process environment, but running omnia.sh setup is recommended.
-
-discovery_precheck_ome_disabled_status: >-
-  skipped (enable_bmc_discovery=false)

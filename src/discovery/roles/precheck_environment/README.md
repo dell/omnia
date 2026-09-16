@@ -13,9 +13,8 @@ configuration.
   warning because Discovery also supports an explicitly exported environment.
 - Validates the resolved `DISCOVERY_DATA_PATH` without creating it. The
   component path defaults to `$OMNIA_DATA_PATH/discovery`.
-- When `enable_bmc_discovery` is `true`, verifies that the configured OME IP is
-  reachable from the OIM host on TCP port 443.
-- Skips the OME connectivity check when BMC discovery is disabled.
+- Verifies that the configured OME IP is reachable from the OIM host on TCP
+  port 443.
 - Displays the resolved Discovery project and a consolidated result.
 
 ## Usage

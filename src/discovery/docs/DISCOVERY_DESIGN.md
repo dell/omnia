@@ -1,14 +1,14 @@
 # Discovery Domain — Design Document
 
-> **Last Updated**: Sep 11, 2026 | **Domain**: `discovery`
+> **Last Updated**: Sep 16, 2026 | **Domain**: `discovery`
 
 ---
 
 ## 1. Purpose
 
-The Discovery domain discovers hardware (servers) via management platforms
-(e.g., Dell OpenManage Enterprise) and produces a PXE mapping file that serves
-as the primary data contract between Discovery and the Orchestrator domain.
+The Discovery domain discovers hardware through Dell OpenManage Enterprise
+(OME) and produces a PXE mapping file that serves as the primary data contract
+between Discovery and the Orchestrator domain.
 
 ---
 
@@ -80,7 +80,7 @@ src/discovery/
 │   └── network_spec.yml             # Network spec template
 ├── roles/
 │   ├── discovery_setup/             # Path init, config loading, tag validation
-│   ├── precheck_environment/        # Data-path and conditional OME endpoint checks
+│   ├── precheck_environment/        # Data-path and OME endpoint checks
 │   ├── validate_discovery_input/    # L1/L2 input validation
 │   ├── discovery_credentials/       # Credential management (decrypt/prompt/encrypt)
 │   ├── discovery_cleanup/           # Output and credential cleanup
@@ -111,11 +111,10 @@ discovery.yml (no --tags)
 │   ├── Verify discovery input directory exists
 │   ├── Create discovery output directory
 │   ├── Load discovery_config.yml
-│   ├── Set enable_bmc_discovery flag
 │   └── Mark setup as done (discovery_setup_done=true)
 │
 ├─ [always] Step 1: validate_discovery_input role
-│   └── Run validate_input module (L1 schema + L2 logic)
+│   └── Run validate_discovery_config module (L1 schema + L2 logic)
 │
 ├─ [always] Step 2: discovery_credentials role
 │   ├── Validate credential file existence
@@ -146,7 +145,7 @@ discovery.yml --tags <tag>
 │
 ├─ [precheck]   precheck/precheck_discovery.yml
 │   ├── Validate the resolved Discovery data path
-│   └── When BMC discovery is enabled, wait for OME TCP/443
+│   └── Wait for OME TCP/443
 ├─ [prepare]    prepare/prepare_discovery.yml      (placeholder)
 ├─ [execute]    execute/execute_discovery.yml       (OME discovery)
 ├─ [discovery]  execute/execute_discovery.yml       (alias for execute)
@@ -159,9 +158,9 @@ discovery.yml --tags <tag>
 └─ [rollback]   rollback/rollback_discovery.yml    (placeholder)
 ```
 
-Sub-playbooks include a standalone setup guard — if `discovery_setup_done` is
-not set, they run `discovery_setup` themselves. This lets each sub-playbook
-work both as an import from `discovery.yml` and as a standalone entry point.
+The validation, credential, execute, and cleanup sub-playbooks contain a setup
+guard for direct invocation. The precheck flow consumes setup facts and is run
+through the supported top-level `discovery.yml --tags precheck` entrypoint.
 
 ---
 
@@ -174,14 +173,13 @@ work both as an import from `discovery.yml` and as a standalone entry point.
 | Task | Description |
 |------|-------------|
 | Tag validation | Reject unsupported tags, detect invalid combinations |
-| Skip-credentials flag | Set `skip_discovery_credentials` for precheck/validate/cleanup |
+| Skip-credentials flag | Set `skip_discovery_credentials` for precheck/validate/cleanup/cleanup_credentials |
 | Upgrade guard | Block if upgrade lock file exists |
 | Set project name | `project_name` → `discovery_project_name` |
 | Set input/output dirs | `discovery_input_dir`, `discovery_output_dir`, `input_project_dir` |
 | Verify input dir | Auto-copy from source if runtime input dir missing |
 | Create output dir | Ensure output directory exists |
 | Load config | Include `discovery_config.yml` |
-| Set flags | `enable_bmc_discovery` based on mechanism |
 | Mark done | `discovery_setup_done=true` (prevents re-run in imported sub-playbooks) |
 
 For `cleanup` and `cleanup_credentials`, setup resolves tag and environment
@@ -202,9 +200,8 @@ credentials or calling the OME API:
 
 - reports whether `/etc/omnia/omnia.env` is installed;
 - validates the resolved `DISCOVERY_DATA_PATH`;
-- when `enable_bmc_discovery=true`, calls the shared OME endpoint task to
-  verify TCP connectivity from the OIM host to `ome_ip` on port 443;
-- skips the network probe when BMC discovery is disabled.
+- calls the shared OME endpoint task to verify TCP connectivity from the OIM
+  host to `ome_ip` on port 443.
 
 Port 443 is an internal constant rather than a new user input because the OME
 inventory client uses `https://<ome_ip>` on the standard HTTPS port. Only the
@@ -257,9 +254,9 @@ Owns the Discovery cleanup boundary:
 
 | Former Dependency | Replacement |
 |-------------------|-------------|
-| `../common/callback_plugins` | `callback_plugins/omnia_default.py` |
-| `../common/library/modules` | `library/modules/` |
-| `../common/library/module_utils` | `library/module_utils/` |
+| `../common/callback_plugins` | `plugins/callback/omnia_default.py` |
+| `../common/library/modules` | `plugins/modules/` |
+| `../common/library/module_utils` | `plugins/module_utils/` |
 | `../playbooks/input_validation/validate_config.yml` | `validate_discovery_input` role |
 | `../playbooks/utils/credential_utility/get_config_credentials.yml` | `discovery_credentials` role |
 
@@ -302,7 +299,7 @@ No wholesale copy of the central `input_validation/` framework.
 ```yaml
 - name: Run discovery configuration validation
   validate_discovery_config:
-    input_project_dir: "{{ input_dir }}"
+    input_project_dir: "{{ input_project_dir }}"
     schema_dir: "{{ discovery_schema_dir }}"
     log_dir: "{{ log_dir }}"
   register: result
@@ -313,23 +310,24 @@ Return keys: `validation_failed`, `errors`, `valid_files`, `invalid_files`, `log
 `discovery_setup` derives `log_dir` as
 `$DISCOVERY_DATA_PATH/log/$OMNIA_PROJECT_NAME`. This project-scoped
 directory contains Discovery validation/runtime logs. Ansible execution logs
-remain separate under `/var/log/omnia/discovery/` as configured by
-`ansible.cfg`.
+remain separate under `/var/log/omnia/discovery/` as configured by each
+entrypoint's `ansible.cfg`; the main entrypoint uses `discovery.log`.
 
 ---
 
 ## 9. Tag Support
 
-Tags are mutually exclusive except that `cleanup` and `cleanup_credentials`
-may be combined to make credential deletion explicit. Running without tags
-executes: setup → validate → credentials → execute.
+Run one functional tag at a time. The setup role rejects conflicting tag
+combinations; `cleanup` and `cleanup_credentials` may be combined to make
+credential deletion explicit. Running without tags executes: setup → validate
+→ credentials → execute.
 
 | Tag | Status | Sub-Playbook | Description |
 |-----|--------|--------------|-------------|
 | *(none)* | ✅ Active | — | Default flow (validate + credentials + execute) |
-| `precheck` | ✅ Active | `precheck/precheck_discovery.yml` | Validate data path and conditional OME TCP/443 connectivity |
+| `precheck` | ✅ Active | `precheck/precheck_discovery.yml` | Validate data path and OME TCP/443 connectivity |
 | `validate` | ✅ Active | `validate/validate_discovery.yml` | Validate config only (skips credentials) |
-| `credentials` | ✅ Active | `credentials/discovery_credentials.yml` | Collect/update OME credentials only |
+| `credentials` | ✅ Active | `credentials/discovery_credentials.yml` | Validate config, then collect/update OME credentials |
 | `prepare` | Placeholder | `prepare/prepare_discovery.yml` | Prepare discovery environment |
 | `execute` | ✅ Active | `execute/execute_discovery.yml` | Run BMC discovery via OME |
 | `discovery` | ✅ Active | `execute/execute_discovery.yml` | Alias for execute (backward compat) |
@@ -404,9 +402,13 @@ grep -c 'playbooks/utils' src/discovery/**/*.yml              # expect: 0
 
 ---
 
-## 12. Backward Compatibility
+## 12. Compatibility and Migration
 
-- No breaking changes for users who don't use the new domain structure.
-- `discovery_config.yml` is **required** — no legacy fallback.
-- Sub-playbooks work independently with standalone setup guards.
-- All `../playbooks/utils/` references eliminated.
+- `discovery_config.yml` is **required** and `ome_ip` must contain a valid,
+  non-loopback IPv4 address.
+- The legacy `enable_bmc_discovery` switch is no longer part of the input
+  contract because the Discovery domain is OME-only and execution was never
+  gated by that switch. Existing files containing the old key remain readable,
+  but the key has no effect.
+- Use the top-level `discovery.yml` entrypoint for tag-based workflows.
+- All `../playbooks/utils/` references are eliminated.

@@ -21,7 +21,7 @@ ansible-galaxy collection install omnia.discovery
 | Role | Description |
 |------|-------------|
 | `omnia.discovery.discovery_setup` | Setup project dirs, config loading, tag validation |
-| `omnia.discovery.precheck_environment` | Validate the data path and conditional OME HTTPS endpoint readiness |
+| `omnia.discovery.precheck_environment` | Validate the data path and OME HTTPS endpoint readiness |
 | `omnia.discovery.validate_discovery_input` | L1 schema + L2 logic validation |
 | `omnia.discovery.discovery_credentials` | Credential prompting, encryption, vault |
 | `omnia.discovery.discovery_common` | Shared task library (vault and OME endpoint helpers) |
@@ -79,10 +79,9 @@ API:
 ansible-playbook playbooks/discovery.yml --tags precheck
 ```
 
-The precheck validates the resolved `DISCOVERY_DATA_PATH`. When
-`enable_bmc_discovery` is `true`, it also verifies TCP connectivity from the
-OIM host to `ome_ip` on the standard OME HTTPS port, 443. The same endpoint
-check runs again before every OME discovery execution.
+The precheck validates the resolved `DISCOVERY_DATA_PATH` and verifies TCP
+connectivity from the OIM host to `ome_ip` on the standard OME HTTPS port,
+443. The same endpoint check runs again before every OME discovery execution.
 
 Discovery reads project data from `DISCOVERY_DATA_PATH`. When that variable is
 unset or empty, it defaults to `$OMNIA_DATA_PATH/discovery`.
@@ -135,7 +134,9 @@ automation can add `--skip-approval`.
 
 Discovery keeps execution and runtime logs separate:
 
-- Ansible execution logs: `/var/log/omnia/discovery/*.log`
+- Ansible execution logs: `/var/log/omnia/discovery/*.log`; the main entrypoint
+  uses `discovery.log`, while supported direct sub-playbooks use their own log
+  files.
 - Validation/runtime logs:
   `<DISCOVERY_DATA_PATH>/log/<project>/`
 

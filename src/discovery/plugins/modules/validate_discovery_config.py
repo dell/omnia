@@ -31,6 +31,7 @@ Usage in a playbook:
 import json
 import logging
 import os
+import re
 
 import yaml
 from ansible.module_utils.basic import AnsibleModule
@@ -143,9 +144,10 @@ def load_json(path):
 def validate_against_schema(data, schema, file_label, errors, logger):
     """
     Validate data against a JSON schema (L1).
-    Uses basic type/required/enum checks without jsonschema dependency.
+    Enforces required, type, enum, and string constraints without a jsonschema
+    dependency.
     """
-    if not schema or not data:
+    if not schema:
         return
 
     schema_type = schema.get("type")
@@ -170,11 +172,50 @@ def validate_against_schema(data, schema, file_label, errors, logger):
             continue
         value = data[prop_name]
 
+        expected_type = prop_schema.get("type")
+        type_matches = {
+            "string": isinstance(value, str),
+            "boolean": isinstance(value, bool),
+            "object": isinstance(value, dict),
+            "array": isinstance(value, list),
+            "integer": isinstance(value, int) and not isinstance(value, bool),
+            "number": isinstance(value, (int, float))
+            and not isinstance(value, bool),
+        }.get(expected_type, True)
+        if not type_matches:
+            msg = (
+                f"{file_label}: Property '{prop_name}' must be of type "
+                f"'{expected_type}'"
+            )
+            errors.append(msg)
+            logger.error(msg)
+            continue
+
         if "enum" in prop_schema and value not in prop_schema["enum"]:
             msg = (f"{file_label}: Property '{prop_name}' has invalid value "
                    f"'{value}'. Allowed: {prop_schema['enum']}")
             errors.append(msg)
             logger.error(msg)
+
+        if isinstance(value, str):
+            invalid_length = (
+                len(value) < prop_schema.get("minLength", 0)
+                or (
+                    "maxLength" in prop_schema
+                    and len(value) > prop_schema["maxLength"]
+                )
+            )
+            invalid_pattern = (
+                "pattern" in prop_schema
+                and re.search(prop_schema["pattern"], value) is None
+            )
+            if invalid_length or invalid_pattern:
+                msg = prop_schema.get(
+                    "errorMessage",
+                    f"{file_label}: Property '{prop_name}' has an invalid value",
+                )
+                errors.append(msg)
+                logger.error(msg)
 
         # Recurse into nested objects
         if prop_schema.get("type") == "object" and isinstance(value, dict):
@@ -263,7 +304,7 @@ def run_module():
             config_data = data
 
     # --- L2: Cross-field logic validation ---
-    if config_data:
+    if isinstance(config_data, dict):
         l2_errors = validate_discovery_config(config_data, logger)
         if l2_errors:
             all_errors.extend(l2_errors)

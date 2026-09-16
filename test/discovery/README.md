@@ -44,13 +44,17 @@ vi test_config.yml             # Set oim_server_ip, dataset, etc.
 
 | Scenario | Description |
 |----------|-------------|
-| `precheck` | Validate the data path and conditional OME TCP/443 reachability |
+| `precheck` | Validate the data path and OME TCP/443 reachability |
 | `validate` | Verify input files (discovery_config.yml, network_spec.yml) |
+| `credentials` | Create or update encrypted OME credentials |
+| `execute` | Run the tagged OME discovery flow and verify outputs |
 | `discovery` | Full end-to-end: deploy discovery.yml + verify outputs |
+| `cleanup` | Run cleanup and verify output/credential behavior |
 
 ## Test Cases
 
-See [fvt/TEST_CASES.md](fvt/TEST_CASES.md) for the complete test case registry.
+See [fvt/TEST_CASES.md](fvt/TEST_CASES.md) for the maintained test case
+registry.
 
 ## Directory Structure
 
@@ -81,12 +85,14 @@ test/discovery/
 │
 └── fvt/                        # Functional Verification Tests
     ├── TEST_CASES.md
-    ├── validate/               # Validate scenario
-    │   └── status/
-    │       └── test_status.py
-    └── discovery/              # Full end-to-end
-        └── output/
-            └── test_output.py
+    ├── cleanup/                # Cleanup behavior and status checks
+    ├── credentials/            # Credential flow checks
+    ├── discovery/              # Full end-to-end flow and outputs
+    ├── execute/                # Tagged execute flow and outputs
+    ├── precheck/               # Discovery prerequisite checks
+    └── validate/               # Validate scenario
+        └── status/
+            └── test_status.py
 ```
 
 ## Using the omnia-auto Pip Package

@@ -37,15 +37,10 @@
   register: discovery_precheck_validation
   changed_when: false
 
-- name: Initialize OME connectivity status
-  ansible.builtin.set_fact:
-    discovery_ome_connectivity_status: "{{ discovery_precheck_ome_disabled_status }}"
-
-- name: Verify the OME HTTPS endpoint when BMC discovery is enabled
+- name: Verify the OME HTTPS endpoint
   ansible.builtin.include_role:
     name: discovery_common
     tasks_from: check_ome_connectivity.yml
-  when: enable_bmc_discovery | default(false) | bool
 
 - name: Build Discovery environment validation summary
   ansible.builtin.set_fact:
