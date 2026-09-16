@@ -23,6 +23,8 @@ fvt_repo_manager:
     command: "test"
     suite: ""
     marker: "sanity"
+    dataset: ""
+    sync_input: false
 ```
 
 - `run` must be an unquoted YAML boolean.
@@ -30,6 +32,12 @@ fvt_repo_manager:
 - `suite` is an immediate subdirectory below the selected FVT tag.
 - `marker` is one marker, an AND expression using `+`, or an OR expression
   using `,`.
+- `dataset` overrides the selection in `test_config.yml` for that scenario.
+- `sync_input` overrides `sync_repo_manager_input` for that scenario.
+
+Optional top-level `dataset_override` and `sync_input_override` values take
+precedence over every enabled scenario. Boolean values must be unquoted YAML
+booleans; invalid values fail before scenario execution.
 
 ## Repo Manager lifecycle
 
