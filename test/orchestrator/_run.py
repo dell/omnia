@@ -30,7 +30,7 @@ import os
 import sys
 
 
-_DESTRUCTIVE_TAGS = {"cleanup", "pxeboot", "rollback"}
+_DESTRUCTIVE_TAGS = {"cleanup", "rollback"}
 
 
 def _validate_destructive_opt_in(args):

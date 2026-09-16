@@ -30,7 +30,9 @@
   changed_when: false
   retries: "{{ pod_ready_retries }}"
   delay: "{{ pod_ready_delay }}"
-  until: (sts_ready.stdout | default('0') | int) >= 1
+  until: >-
+    (sts_ready.stdout | default('0') | int)
+    >= (idrac_replica_count | default(1) | int)
 
 - name: Get pod name for iDRAC telemetry
   ansible.builtin.command: >
@@ -48,7 +50,11 @@
   changed_when: false
   retries: "{{ pod_ready_retries }}"
   delay: "{{ pod_ready_delay }}"
-  until: "'false' not in container_status.stdout"
+  until: |
+    {% set core_containers = ['idrac-telemetry-receiver', 'mysqldb', 'activemq'] %}
+    {% set running_containers = container_status.stdout_lines | select('search', '=true') | map('regex_replace', '=true', '') | list %}
+    {% set all_core_running = core_containers | length == (running_containers | intersect(core_containers) | length) %}
+    {{ all_core_running }}
 
 - name: Display container status
   ansible.builtin.debug:
@@ -62,6 +68,9 @@
     --timeout={{ idrac_verify_timeout }}
   register: kafka_topic_ready
   changed_when: false
+  when:
+    - telemetry_config.telemetry_sources.idrac.collection_targets is defined
+    - "'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))"
 
 - name: Verify VictoriaMetrics has iDRAC metrics (via victoriapump scrape target)
   ansible.builtin.command: >
@@ -73,6 +82,9 @@
   failed_when: false
   retries: 3
   delay: 15
+  when:
+    - telemetry_config.telemetry_sources.idrac.collection_targets is defined
+    - "'victoria_metrics' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))"
 
 - name: Log VictoriaMetrics iDRAC scrape status
   ansible.builtin.debug:
@@ -82,15 +94,33 @@
       {% else %}
       VictoriaPump metrics endpoint not yet available. Data may take a few minutes to flow.
       {% endif %}
+  when:
+    - telemetry_config.telemetry_sources.idrac.collection_targets is defined
+    - "'victoria_metrics' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))"
+
+- name: Build iDRAC StatefulSet readiness summary
+  ansible.builtin.set_fact:
+    idrac_statefulset_summary: >-
+      {{ idrac_telemetry_k8s_name }}
+      ({{ sts_ready.stdout | default('0') }}/
+      {{- idrac_replica_count | default(1) }} ready)
 
 - name: Display verification summary
   ansible.builtin.debug:
     msg: |
       ====== iDRAC Telemetry Verification Summary ======
-      StatefulSet:     {{ idrac_telemetry_k8s_name }} ({{ sts_ready.stdout | default('0') }}/1 ready)
+      StatefulSet:     {{ idrac_statefulset_summary }}
       Pod:             {{ idrac_pod_name.stdout }}
       Containers:
       {{ container_status.stdout | default('  (unknown)') }}
+      {% if 'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) %}
       Kafka topic:     {{ kafka.topics.idrac.name }} {{ 'READY' if kafka_topic_ready.rc | default(1) == 0 else 'NOT READY' }}
+      {% else %}
+      Kafka topic:     DISABLED (not in collection_targets)
+      {% endif %}
+      {% if 'victoria_metrics' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) %}
       VictoriaPump:    {{ 'ACTIVE' if victoria_metrics_check.rc | default(1) == 0 else 'PENDING' }}
+      {% else %}
+      VictoriaPump:    DISABLED (not in collection_targets)
+      {% endif %}
       ===================================================

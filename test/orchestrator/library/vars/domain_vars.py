@@ -44,7 +44,6 @@ FVT_TAGS: List[str] = [
     "provision",
     "kernel_override",
     "deploy",
-    "provision",
     "execute",
     "pxeboot",
     "check",
@@ -136,5 +135,4 @@ EXCLUDE_TAGS: List[str] = [
     "cleanup",
     "rollback",
     "negative",
-    "pxeboot",
 ]

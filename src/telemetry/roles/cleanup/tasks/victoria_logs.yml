@@ -103,7 +103,7 @@
     --ignore-not-found=true --wait=false
   loop: "{{ victoria_logs.pvc_labels }}"
   changed_when: false
-  when: _cleanup_delete_volume_enabled | bool
+  when: not (_cleanup_preserve_sink_volumes | bool)
 
 - name: VictoriaLogs | Delete named PVCs (vlstorage + vlagent 0-9)
   ansible.builtin.command: >
@@ -113,7 +113,7 @@
   loop_control:
     label: "{{ item.0 }}-{{ item.1 }}"
   changed_when: false
-  when: _cleanup_delete_volume_enabled | bool
+  when: not (_cleanup_preserve_sink_volumes | bool)
 
 # --- vlagent-vector log write-buffer cleanup (VL-side adapter for vector-ome) ---
 - name: VictoriaLogs | Delete vlagent-vector resources
@@ -131,7 +131,7 @@
     --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
   loop: "{{ victoria_logs.pod_labels }}"
   changed_when: false
-  when: _cleanup_delete_volume_enabled | bool
+  when: not (_cleanup_preserve_sink_volumes | bool)
 
 - name: VictoriaLogs | Wait for pods to terminate
   ansible.builtin.command: >
@@ -154,7 +154,7 @@
   until: _victoria_logs_pvc_label_wait.stdout | trim | length == 0
   retries: "{{ cleanup_custom_resource_retries }}"
   delay: "{{ cleanup_custom_resource_delay }}"
-  when: _cleanup_delete_volume_enabled | bool
+  when: not (_cleanup_preserve_sink_volumes | bool)
 
 - name: VictoriaLogs | Wait for named PVCs to terminate
   ansible.builtin.command: >
@@ -168,7 +168,7 @@
   until: _victoria_logs_pvc_name_wait.stdout | trim | length == 0
   retries: "{{ cleanup_custom_resource_retries }}"
   delay: "{{ cleanup_custom_resource_delay }}"
-  when: _cleanup_delete_volume_enabled | bool
+  when: not (_cleanup_preserve_sink_volumes | bool)
 
 # --- Victoria operator cleanup (shared between VM and VL) ---
 # Only delete the operator if VictoriaMetrics is NOT running

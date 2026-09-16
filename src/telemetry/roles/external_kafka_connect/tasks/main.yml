@@ -230,7 +230,7 @@
         bootstrap_port: "{{ _kafka_bootstrap_port }}"
         bridge:
           loadbalancer_service: "{{ kafka_bridge_service_name }}"
-          endpoint: "http://{{ _kafka_bridge_ip }}:{{ _kafka_bridge_port }}"
+          endpoint: "https://{{ _kafka_bridge_ip }}:{{ _kafka_bridge_port }}"
           ip: "{{ _kafka_bridge_ip }}"
           port: "{{ _kafka_bridge_port }}"
         tls:
@@ -259,7 +259,7 @@
           'Connection details written to: ' ~ kafka_output_file,
           '',
           '[OME ENDPOINT] Kafka mTLS bootstrap: ' ~ _kafka_bootstrap_ip ~ ':' ~ _kafka_bootstrap_port,
-          '[VALIDATION ENDPOINT] Kafka HTTP Bridge: http://' ~ _kafka_bridge_ip ~ ':' ~ _kafka_bridge_port,
+          '[VALIDATION ENDPOINT] Kafka HTTP Bridge: https://' ~ _kafka_bridge_ip ~ ':' ~ _kafka_bridge_port,
           '',
           '[TLS FILES] (on this host):',
           '  CA cert (server):  ' ~ kafka_output_dir ~ '/ca.crt',

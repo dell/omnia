@@ -14,7 +14,7 @@ The Build Stream domain provides a FastAPI-based RESTful service that orchestrat
 - **Technology**: FastAPI + PostgreSQL
 - **Purpose**: RESTful API for job orchestration
 - **Endpoints**: Build, Deploy, Boot, Validate, Catalog parsing, Artifact management
-- **Container**: `omnia_build_stream:latest`
+- **Container**: `omnia_build_stream:1.2`
 
 ### 2. Playbook Watcher Service
 - **Technology**: Python + systemd
