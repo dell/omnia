@@ -59,7 +59,6 @@ MARKERS: List[str] = [
     "sanity",
     "manual",
     "deploy",
-    "mode_aware",
     "nft",
     "resilience",
     "security",

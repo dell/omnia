@@ -64,7 +64,6 @@ def _verify(host, state, stage_name, tc_name):
 
 @pytest.mark.manual
 @pytest.mark.deploy
-@pytest.mark.mode_aware
 @pytest.mark.order(0)
 def test_manual_trigger_deploy_pipeline(
     host, deploy_pipeline_state, manual_pipeline_prerequisites,
