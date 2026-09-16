@@ -71,6 +71,7 @@ def test_ome_polling_timeouts():
     assert OME_KAFKA_DATA_TIMEOUT_SECONDS == 120
     assert OME_KAFKA_DATA_POLL_INTERVAL_SECONDS == 2
 
+
 @pytest.mark.parametrize(
     (
         "source_metrics",
