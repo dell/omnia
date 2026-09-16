@@ -26,7 +26,21 @@ import json
 import time
 
 from .telemetry_func import run_on_kube_vip, get_vmselect_endpoint, query_vm_instant
-from ..vars.common_vars import TELEMETRY_NAMESPACE
+from ..vars.common_vars import CMDS, TELEMETRY_NAMESPACE
+
+
+_OPERATOR_RECOVERY_PROBES = {
+    "victoria_metrics": {
+        "pod_prefix": "victoria-metrics-operator",
+        "cr_status_command": "kubectl_get_vmcluster_update_status",
+        "healthy_values": frozenset({"operational", "expanding"}),
+    },
+    "strimzi": {
+        "pod_prefix": "strimzi-cluster-operator",
+        "cr_status_command": "kubectl_get_kafka_ready_status",
+        "healthy_values": frozenset({"True"}),
+    },
+}
 
 
 # -------------------------------------------------------------------------
@@ -486,24 +500,34 @@ def verify_pods_after_reboot(host, timeout=600, poll_interval=15,
 # Operator Recovery
 # -------------------------------------------------------------------------
 
-def verify_operator_recovery(host, operator_prefix, cr_check_cmd,
-                             timeout=300, namespace=None,
-                             cr_healthy_values=None):
+def verify_operator_recovery(host, operator_kind, timeout=300, namespace=None):
     """Delete an operator pod and verify its CRs are still reconciled.
 
     Args:
         host: Testinfra host (OIM).
-        operator_prefix: Pod prefix for the operator (e.g. 'victoria-metrics-operator').
-        cr_check_cmd: Command to check if CRs are healthy after recovery.
+        operator_kind: Allowlisted operator identifier.
         timeout: Max seconds to wait for operator recovery.
         namespace: K8s namespace (default: telemetry).
-        cr_healthy_values: List of acceptable CR status values
-            (e.g. ['operational', 'expanding']). If None, any non-empty
-            output is treated as healthy.
 
     Returns:
         dict with keys: success, deleted, recovery, cr_healthy, details.
+
+    Raises:
+        ValueError: If ``operator_kind`` is not an allowlisted probe.
     """
+    try:
+        probe = _OPERATOR_RECOVERY_PROBES[operator_kind]
+    except (KeyError, TypeError) as exc:
+        allowed = ", ".join(sorted(_OPERATOR_RECOVERY_PROBES))
+        raise ValueError(
+            f"Unsupported operator kind {operator_kind!r}; expected: {allowed}"
+        ) from exc
+
+    operator_prefix = probe["pod_prefix"]
+    cr_check_cmd = CMDS[probe["cr_status_command"]].format(
+        namespace=namespace or TELEMETRY_NAMESPACE,
+    )
+
     # Delete operator pod
     delete_result = delete_pods_by_prefix(host, operator_prefix, namespace)
     if not delete_result["success"]:
@@ -538,10 +562,7 @@ def verify_operator_recovery(host, operator_prefix, cr_check_cmd,
     cr_result = run_on_kube_vip(host, cr_check_cmd)
     cr_output = cr_result.stdout.strip() if cr_result.rc == 0 else ""
 
-    if cr_healthy_values:
-        cr_healthy = cr_output in cr_healthy_values
-    else:
-        cr_healthy = bool(cr_output)
+    cr_healthy = cr_output in probe["healthy_values"]
 
     cr_status_str = cr_output if cr_output else "<empty>"
     details = (

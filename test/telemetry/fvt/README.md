@@ -247,15 +247,8 @@ current pod. Previous certificate imports are retained as rollback material.
 
 | TC ID | Test | Marker | Condition |
 |-------|------|--------|-----------|
-<<<<<<< Updated upstream
-| TC_CL_002 | Verify telemetry pods removed | sanity | always |
-| TC_CL_003 | Verify Kafka topics removed | sanity | `DELETE_SINKS_VOLUME=true` |
-| TC_CL_011 | Verify no pods remain after full cleanup | sanity | always |
-| TC_CL_012 | Verify no PVCs remain after full cleanup | sanity | `DELETE_SINKS_VOLUME=true` |
-| TC_CL_013 | Verify Kafka and VictoriaMetrics/VictoriaLogs PVCs preserved after cleanup | sanity | `DELETE_SINKS_VOLUME` unset/`false` (default) |
-=======
 | TEL_FVT_CLEANUP_V001 | Verify telemetry pods removed | sanity | always |
-| TEL_FVT_CLEANUP_V002 | Verify Kafka topics removed | sanity | `DELETE_VOLUME=true` |
+| TEL_FVT_CLEANUP_V002 | Verify Kafka topics removed | sanity | `DELETE_SINKS_VOLUME=true` |
 | TEL_FVT_CLEANUP_V003 | Verify Kafka pods removed | sanity | always |
 | TEL_FVT_CLEANUP_V004 | Verify VictoriaMetrics pods removed | sanity | always |
 | TEL_FVT_CLEANUP_V005 | Verify VictoriaLogs pods removed | sanity | always |
@@ -266,22 +259,17 @@ current pod. Previous certificate imports are retained as rollback material.
 | TEL_FVT_CLEANUP_V010 | Verify VAST resources removed | sanity | source enabled |
 | TEL_FVT_CLEANUP_V011 | Verify SFM pods removed | sanity | source enabled |
 | TEL_FVT_CLEANUP_V012 | Verify no pods remain after full cleanup | sanity | always |
-| TEL_FVT_CLEANUP_V013 | Verify no PVCs remain after full cleanup | sanity | `DELETE_VOLUME=true` |
-| TEL_FVT_CLEANUP_V014 | Verify PVCs preserved after cleanup | sanity | `DELETE_VOLUME` unset/`false` (default) |
->>>>>>> Stashed changes
+| TEL_FVT_CLEANUP_V013 | Verify no PVCs remain after full cleanup | sanity | `DELETE_SINKS_VOLUME=true` |
+| TEL_FVT_CLEANUP_V014 | Verify PVCs preserved after cleanup | sanity | `DELETE_SINKS_VOLUME` unset/`false` (default) |
 
-**Conditional Cleanup Tests**: When `DELETE_SINKS_VOLUME` is set, the cleanup
-playbook is invoked with `-e Delete_sinks_volume=true` and all cleanup tests run.
-When unset/`false` (default), only the test matching the current
-`delete_sinks_volume` mode is skipped (not failed). See
-`status/test_cleanup_final.py` and the `delete_sinks_volume` fixture defined
-in `conftest.py`.
+**Conditional Cleanup Tests**: When `DELETE_SINKS_VOLUME=true`, the cleanup
+playbook is invoked with `-e Delete_sinks_volume=true`,
+`TEL_FVT_CLEANUP_V013` is reported, and `TEL_FVT_CLEANUP_V002` runs. When the
+variable is unset or `false`, `TEL_FVT_CLEANUP_V014` is reported and
+`TEL_FVT_CLEANUP_V002` is skipped. See `status/test_cleanup_final.py` and the
+`delete_sinks_volume` fixture defined in `conftest.py`.
 
-<<<<<<< Updated upstream
-TC_CL_003 is skipped when `DELETE_SINKS_VOLUME` is unset/`false`: per
-=======
-TEL_FVT_CLEANUP_V002 is skipped when `DELETE_VOLUME` is unset/`false`: per
->>>>>>> Stashed changes
+TEL_FVT_CLEANUP_V002 is skipped when `DELETE_SINKS_VOLUME` is unset/`false`: per
 `src/telemetry/roles/cleanup/tasks/kafka.yml`, KafkaTopic CRDs are only
 deleted when `delete_sinks_volume=true` — otherwise topic metadata is kept
 alongside the retained Kafka PVCs.

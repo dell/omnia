@@ -16,24 +16,15 @@
 Telemetry Cleanup — Verification Tests.
 
 Test cases:
-<<<<<<< Updated upstream
-    TC_CL_002: Verify telemetry pods removed after cleanup
-    TC_CL_003: Verify Kafka topics removed after cleanup (delete_sinks_volume=true only)
-=======
     TEL_FVT_CLEANUP_V001: Verify telemetry pods removed after cleanup
-    TEL_FVT_CLEANUP_V002: Verify Kafka topics removed after cleanup (Delete_volume=true only)
->>>>>>> Stashed changes
+    TEL_FVT_CLEANUP_V002: Verify Kafka topics removed after cleanup
+        (delete_sinks_volume=true only)
 
 KafkaTopic CRDs are only deleted by the cleanup role when
 ``delete_sinks_volume=true`` (see ``src/telemetry/roles/cleanup/tasks/kafka.yml``
 — "Kafka | Delete KafkaTopic CRDs"). With the default
-<<<<<<< Updated upstream
 ``delete_sinks_volume=false``, topic metadata is intentionally kept alongside
-the retained Kafka PVCs, so TC_CL_003 is skipped in that mode.
-=======
-``Delete_volume=false``, topic metadata is intentionally kept alongside
 the retained Kafka PVCs, so TEL_FVT_CLEANUP_V002 is skipped in that mode.
->>>>>>> Stashed changes
 """
 
 import pytest
@@ -86,13 +77,8 @@ def test_cleanup_pods_removed(host):
 
 @pytest.mark.sanity
 @pytest.mark.order(2)
-<<<<<<< Updated upstream
 def test_cleanup_topics_removed(host, delete_sinks_volume):
-    """TC_CL_003: Verify Kafka topics removed (delete_sinks_volume=true only).
-=======
-def test_cleanup_topics_removed(host, delete_volume):
-    """TEL_FVT_CLEANUP_V002: Verify Kafka topics removed (Delete_volume=true only).
->>>>>>> Stashed changes
+    """TEL_FVT_CLEANUP_V002: Verify topics removed when sink deletion is on.
 
     Skipped when ``delete_sinks_volume=false`` (default) because KafkaTopic
     CRDs are intentionally preserved alongside retained Kafka PVCs.
@@ -128,9 +114,6 @@ def test_cleanup_topics_removed(host, delete_volume):
             result.stdout.strip(),
         )
 
-    assert topic_count == 0, (
-        f"{topic_count} Kafka topic(s) still present after cleanup\n"
-        "HOW TO FIX:\n"
-        "  1. kubectl get kafkatopic -n telemetry\n"
-        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+    assert topic_count == 0, ASSERT_MSGS["cleanup_topics_remaining"].format(
+        count=topic_count,
     )
