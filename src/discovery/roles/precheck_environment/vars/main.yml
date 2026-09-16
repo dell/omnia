@@ -12,19 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+discovery_precheck_system_env_file: "/etc/omnia/omnia.env"
 
-# Discovery credential management
-# Handles creation, prompting, and encryption of credential files
-# Discovery only needs OME credentials from discovery_credentials.yml
-
-# Step 1: Validate credential file existence
-- name: Validate credential files
-  ansible.builtin.include_tasks: validate_credentials.yml
-
-# Step 2: Create credential files if missing
-- name: Create missing credential files
-  ansible.builtin.include_tasks: create_credentials.yml
-
-# Step 3: Update credentials — prompt for missing OME creds
-- name: Update credentials
-  ansible.builtin.include_tasks: update_credentials.yml
+discovery_precheck_system_env_warning_msg: >-
+  Omnia's system environment file was not found at
+  {{ discovery_precheck_system_env_file }}. Discovery can continue using the
+  current process environment, but running omnia.sh setup is recommended.
