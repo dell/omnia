@@ -115,11 +115,6 @@
           postgres_user and postgres_password must be set in build_stream credentials.
           Re-run the credential utility to provide these values.
 
-    - name: Set oim_shared_path from OMNIA_DATA_PATH
-      ansible.builtin.set_fact:
-        oim_shared_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
-      when: oim_shared_path is not defined
-
     - name: Set SELinux option
       ansible.builtin.set_fact:
         selinux_option: ":z"

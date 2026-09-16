@@ -26,6 +26,7 @@ import base64
 import datetime
 import os
 import re
+import shlex
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Dict, List, Optional
 
@@ -44,7 +45,6 @@ from library.vars.common_vars import (
     CMDS,
     GITLAB_API_VERSION,
     GITLAB_ROOT_TOKEN_FILE,
-    GITLAB_SSH_PRIVATE_KEY,
     IMAGE_GROUP_STATUS_BUILT,
     JOB_WAIT_TIMEOUT,
     NFS_ARTIFACT_BASE_DEFAULT,
@@ -195,7 +195,7 @@ def check_server_credentials(host) -> Dict[str, Any]:
 
 
 def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
-    """Run a command on the GitLab server via SSH from OIM.
+    """Run a command on GitLab using the domain SSH password.
 
     Args:
         host: Testinfra host connection.
@@ -206,11 +206,20 @@ def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
     """
     gitlab_config = _get_gitlab_config(host)
     gitlab_host = gitlab_config.get("gitlab_host", "")
+    gitlab_user = gitlab_config.get("gitlab_ansible_user", "root") or "root"
     if not gitlab_host:
         return {"success": False, "stdout": "", "error": "gitlab_host not configured"}
 
-    ssh_cmd = CMDS["ssh_to_gitlab"].format(
-        identity_file=GITLAB_SSH_PRIVATE_KEY,
+    ssh_password = load_server_credentials(host).get("gitlab_ssh_password", "")
+    if not ssh_password:
+        return {
+            "success": False,
+            "stdout": "",
+            "error": "gitlab_ssh_password is missing from BuildStream credentials",
+        }
+    ssh_cmd = CMDS["ssh_to_gitlab_password"].format(
+        ssh_password=shlex.quote(ssh_password),
+        gitlab_user=shlex.quote(gitlab_user),
         gitlab_host=gitlab_host,
         cmd=cmd,
     )
@@ -224,7 +233,7 @@ def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
         "stdout": result.stdout or "",
         "error": (
             f"SSH to {gitlab_host} failed (rc={result.rc}); "
-            "verify the Build Stream GitLab SSH key registration"
+            "verify gitlab_ssh_password and sshpass on the BuildStream host"
         ),
     }
 
@@ -530,12 +539,16 @@ def trigger_pipeline_with_variables(
     return result
 
 
-def upload_catalog_file(host, catalog_content: str) -> Dict[str, Any]:
+def upload_catalog_file(
+    host, catalog_content: str, skip_ci: bool = False,
+) -> Dict[str, Any]:
     """Upload catalog file to GitLab to trigger build pipeline.
 
     Args:
         host: Testinfra host connection.
         catalog_content: JSON content of the catalog file.
+        skip_ci: Add ``[skip ci]`` to the commit message. This is used when
+            staging a catalog before an explicitly triggered manual pipeline.
 
     Returns:
         Dict with keys: success, commit_id, file_path, error.
@@ -552,12 +565,15 @@ def upload_catalog_file(host, catalog_content: str) -> Dict[str, Any]:
 
     encoded_content = base64.b64encode(catalog_content.encode()).decode()
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    commit_message = (
+        f"[skip ci] Automation: Stage catalog for manual build ({timestamp})"
+        if skip_ci
+        else f"Automation: Update catalog to trigger build ({timestamp})"
+    )
     data = {
         "branch": api_base["branch"],
         "content": encoded_content,
-        "commit_message": (
-            f"Automation: Update catalog to trigger build ({timestamp})"
-        ),
+        "commit_message": commit_message,
         "encoding": "base64",
     }
     json_data = json.dumps(data)
@@ -1141,6 +1157,21 @@ def _wait_for_new_job(
     return ""
 
 
+def wait_for_new_job(
+    host, old_job_id: str, timeout: int = JOB_WAIT_TIMEOUT,
+    log_callback: Optional[Callable] = None,
+) -> Dict[str, Any]:
+    """Wait for and return the BSM job created by a manual trigger."""
+    job_id = _wait_for_new_job(
+        host, old_job_id, timeout=timeout, log_callback=log_callback,
+    )
+    return {
+        "success": bool(job_id),
+        "job_id": job_id,
+        "error": "No new BSM job was created by the triggered pipeline" if not job_id else "",
+    }
+
+
 # =============================================================================
 # DATABASE QUERY FUNCTIONS
 # =============================================================================
@@ -1473,6 +1504,63 @@ def run_deploy_child_pipeline(  # pylint: disable=too-many-return-statements
 
     result["summary_job_id"] = result["jobs"]["summary"]["id"]
     result["success"] = True
+    return result
+
+
+def discover_cleanup_pipeline(  # pylint: disable=too-many-locals
+    host, job_id: str, image_group_id: str,
+) -> Dict[str, Any]:
+    """Find a completed cleanup child pipeline for a job/image group pair."""
+    result = {
+        "success": False, "parent_pipeline_id": 0,
+        "child_pipeline_id": 0, "summary_job_id": 0, "error": "",
+    }
+    pipelines = list_pipelines(host, per_page=100)
+    if not pipelines["success"]:
+        result["error"] = pipelines["error"]
+        return result
+
+    for root in pipelines["pipelines"]:
+        root_id = int(root.get("id", 0) or 0)
+        if not root_id:
+            continue
+        candidates = []
+        first = get_child_pipeline_id(host, root_id)
+        if first["success"]:
+            first_id = first["child_pipeline_id"]
+            candidates.append(first_id)
+            second = get_child_pipeline_id(host, first_id)
+            if second["success"]:
+                candidates.append(second["child_pipeline_id"])
+
+        for candidate_id in reversed(candidates):
+            jobs_result = get_gitlab_pipeline_jobs(host, candidate_id)
+            if not jobs_result["success"]:
+                continue
+            jobs = jobs_result["jobs"]
+            selected = [
+                job for job in jobs
+                if job["name"] == image_group_id
+                and job["status"] == "success"
+            ]
+            summaries = [job for job in jobs if job["name"] == "summary"]
+            if len(selected) != 1 or len(summaries) != 1:
+                continue
+            trace = get_gitlab_job_trace(host, selected[0]["id"])
+            if not trace["success"] or job_id not in trace["trace"]:
+                continue
+            result.update({
+                "success": True,
+                "parent_pipeline_id": root_id,
+                "child_pipeline_id": candidate_id,
+                "summary_job_id": summaries[0]["id"],
+            })
+            return result
+
+    result["error"] = (
+        "No recent GitLab cleanup pipeline selected image group "
+        f"{image_group_id} for job_id {job_id}"
+    )
     return result
 
 
@@ -1875,9 +1963,24 @@ def verify_registry_images(
         if line.strip()
     ]
 
+    artifact_images = _get_build_status_images(host)
+    if not artifact_images["success"]:
+        result["error"] = artifact_images["error"]
+        return result
+
     for role in roles:
-        role_pattern = f"{REGISTRY_IMAGE_PREFIX}{role}"
-        matched = [r for r in repos if role_pattern in r and job_id in r]
+        image = artifact_images["images"].get(role, {})
+        rootfs_path = image.get("image", "")
+        image_name = (
+            PurePosixPath(rootfs_path).parts[-3]
+            if len(PurePosixPath(rootfs_path).parts) >= 3
+            else ""
+        )
+        matched = [
+            repo for repo in repos
+            if image_name
+            and (repo == image_name or repo.endswith(f"/{image_name}"))
+        ]
         if matched:
             result["found"].append(role)
         else:
@@ -1886,6 +1989,57 @@ def verify_registry_images(
     result["success"] = len(result["missing"]) == 0
     result["details"] = (
         f"Registry: {len(result['found'])}/{len(roles)} roles found"
+    )
+    return result
+
+
+def verify_registry_images_absent(
+    host, job_id: str, roles: List[str],
+) -> Dict[str, Any]:
+    """Verify that cleanup removed registry images owned by the job's group.
+
+    A BuildStream job can reuse artifacts recorded in ``build_status.yml``.
+    Those artifacts belong to an older image group and must not be deleted by
+    cleanup of the current group, so absence is matched using the current
+    image-group ID rather than the shared build-status paths.
+    """
+    result = {
+        "success": False, "found": [], "missing": [],
+        "details": "", "error": "",
+    }
+    hostname_cmd = run_on_host(host, CMDS["hostname_cmd"])
+    if hostname_cmd.rc != 0:
+        result["error"] = "Failed to get hostname"
+        return result
+    registry_url = f"{hostname_cmd.stdout.strip()}:{REGISTRY_PORT}"
+    repos_cmd = run_on_host(
+        host, CMDS["regctl_repo_ls"].format(registry_url=registry_url),
+    )
+    if repos_cmd.rc != 0:
+        result["error"] = f"regctl failed: rc={repos_cmd.rc}"
+        return result
+    repos = [line.strip() for line in repos_cmd.stdout.splitlines() if line.strip()]
+    groups = get_image_groups_for_job(host, job_id)
+    if not groups["success"]:
+        result["error"] = groups["error"]
+        return result
+    if len(groups["image_groups"]) != 1:
+        result["error"] = (
+            f"Expected one image group for job_id {job_id}, "
+            f"found {len(groups['image_groups'])}"
+        )
+        return result
+    image_group_id = groups["image_groups"][0]["id"]
+    for role in roles:
+        if any(
+            image_group_id in repo and role in repo
+            for repo in repos
+        ):
+            result["found"].append(role)
+    result["missing"] = [role for role in roles if role not in result["found"]]
+    result["success"] = not result["found"]
+    result["details"] = (
+        f"Registry: {len(result['missing'])}/{len(roles)} roles removed"
     )
     return result
 
@@ -1923,20 +2077,21 @@ def verify_s3_boot_images(
             if path.startswith("s3://"):
                 s3_paths.append(path)
 
+    artifact_images = _get_build_status_images(host)
+    if not artifact_images["success"]:
+        result["error"] = artifact_images["error"]
+        return result
+
     for role in roles:
-        rootfs = [
-            p for p in s3_paths
-            if p.startswith(f"{S3_BOOT_IMAGES_BUCKET}{role}/") and job_id in p
-        ]
-        efi = [
-            p for p in s3_paths
-            if p.startswith(f"{S3_EFI_IMAGES_PREFIX}{role}/") and job_id in p
-        ]
-        total = len(rootfs) + len(efi)
+        image = artifact_images["images"].get(role, {})
+        expected_paths = {
+            f"s3://{image.get(key, '').lstrip('/')}"
+            for key in ("image", "kernel", "initrd")
+            if image.get(key)
+        }
         if (
-            len(rootfs) >= 1
-            and len(efi) >= 2
-            and total >= BOOT_IMAGE_ARTIFACTS_PER_ROLE
+            len(expected_paths) == BOOT_IMAGE_ARTIFACTS_PER_ROLE
+            and expected_paths.issubset(set(s3_paths))
         ):
             result["found_roles"].append(role)
         else:
@@ -1946,6 +2101,97 @@ def verify_s3_boot_images(
     result["details"] = (
         f"S3: {len(result['found_roles'])}/{len(roles)} roles complete"
     )
+    return result
+
+
+def verify_s3_boot_images_absent(
+    host, job_id: str, roles: List[str],
+) -> Dict[str, Any]:
+    """Verify that cleanup removed S3 objects owned by the job's group.
+
+    Reused image paths can belong to an older image group and remain valid for
+    that owner.  Match the cleanup target's image-group ID so shared artifacts
+    are not reported as stale cleanup output.
+    """
+    result = {
+        "success": False, "found_roles": [], "missing_roles": [],
+        "details": "", "error": "",
+    }
+    cmd = run_on_host(
+        host, CMDS["s3cmd_ls_recursive"].format(bucket=S3_BOOT_IMAGES_BUCKET),
+    )
+    if cmd.rc != 0:
+        result["error"] = f"s3cmd failed: rc={cmd.rc}"
+        return result
+    paths = {
+        line.strip().split()[-1]
+        for line in cmd.stdout.splitlines()
+        if line.strip()
+    }
+    groups = get_image_groups_for_job(host, job_id)
+    if not groups["success"]:
+        result["error"] = groups["error"]
+        return result
+    if len(groups["image_groups"]) != 1:
+        result["error"] = (
+            f"Expected one image group for job_id {job_id}, "
+            f"found {len(groups['image_groups'])}"
+        )
+        return result
+    image_group_id = groups["image_groups"][0]["id"]
+    for role in roles:
+        present = any(
+            image_group_id in path and role in path
+            for path in paths
+        )
+        if present:
+            result["found_roles"].append(role)
+        else:
+            result["missing_roles"].append(role)
+    result["success"] = not result["found_roles"]
+    result["details"] = (
+        f"S3: {len(result['missing_roles'])}/{len(roles)} roles removed"
+    )
+    return result
+
+
+def _get_build_status_images(host) -> Dict[str, Any]:
+    """Return exact artifact paths keyed by functional group.
+
+    Image Build Manager can reuse an existing up-to-date image when
+    ``force_rebuild`` is false.  In that case the artifact name contains the
+    original build job ID, not the current BuildStream job ID.  The generated
+    build_status.yml is the authoritative contract for both newly built and
+    reused images.
+    """
+    result = {"success": False, "images": {}, "error": ""}
+    project_name = PurePosixPath(resolve_build_stream_input_path(host)).name
+    status_path = (
+        f"{resolve_omnia_data_path(host)}/image_build_manager/output/"
+        f"{project_name}/build_status.yml"
+    )
+    try:
+        status = read_remote_yaml(host, status_path)
+    except (OSError, ValueError, TypeError) as exc:
+        result["error"] = f"Unable to read {status_path}: {exc}"
+        return result
+
+    for architecture in status.get("functional_group_images", []):
+        if not isinstance(architecture, dict):
+            continue
+        for images in architecture.values():
+            if not isinstance(images, list):
+                continue
+            for image in images:
+                if isinstance(image, dict) and image.get("functional_group"):
+                    result["images"][image["functional_group"]] = image
+
+    if not result["images"]:
+        result["error"] = (
+            f"No functional-group artifacts found in {status_path}"
+        )
+        return result
+    result["success"] = True
     return result
 
 
@@ -2445,6 +2691,7 @@ def check_s3_boot_images_exist(host) -> Dict[str, Any]:
 def push_catalog_from_examples(  # pylint: disable=too-many-locals
     host, catalog_path: str,
     log_callback: Optional[Callable] = None,
+    skip_ci: bool = False,
 ) -> Dict[str, Any]:
     """Load a selected catalog below ``samples/catalogs`` and push it.
 
@@ -2452,6 +2699,8 @@ def push_catalog_from_examples(  # pylint: disable=too-many-locals
         host: Testinfra host connection.
         catalog_path: POSIX path relative to ``src/main/samples/catalogs``.
         log_callback: Optional logging callback.
+        skip_ci: Stage the catalog without starting a commit-triggered
+            pipeline. The caller can then trigger with ``PIPELINE_TYPE``.
 
     Returns:
         Dict with keys: success, catalog_path, commit_id, error.
@@ -2531,7 +2780,7 @@ def push_catalog_from_examples(  # pylint: disable=too-many-locals
         pass  # push raw content if not valid JSON
 
     _log("Uploading catalog to GitLab (replacing the existing catalog)...")
-    upload = upload_catalog_file(host, content)
+    upload = upload_catalog_file(host, content, skip_ci=skip_ci)
     if not upload["success"]:
         result["error"] = f"Upload failed: {upload['error']}"
         return result

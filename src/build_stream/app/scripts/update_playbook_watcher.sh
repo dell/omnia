@@ -7,9 +7,11 @@ set -e
 echo "=== Updating Playbook Watcher Service ==="
 
 # Define paths
-SERVICE_DIR="/opt/omnia/build_stream/playbook-watcher"
+OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SERVICE_DIR="${OMNIA_DATA_PATH}/build_stream/playbook-watcher"
 SERVICE_NAME="playbook-watcher"
-LOCAL_DIR="/root/Documents/omnia/src/build_stream/playbook-watcher"
+LOCAL_DIR="${SCRIPT_DIR}/../playbook-watcher"
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
@@ -19,8 +21,8 @@ fi
 
 # Create directory if it doesn't exist
 echo "Creating service directory..."
-mkdir -p /opt/omnia/build_stream/playbook-watcher
-mkdir -p /opt/omnia/build_stream/logs
+mkdir -p "${SERVICE_DIR}"
+mkdir -p "${OMNIA_DATA_PATH}/build_stream/logs"
 
 # Copy updated files
 echo "Copying updated service files..."

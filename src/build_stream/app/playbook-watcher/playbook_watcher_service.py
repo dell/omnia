@@ -1355,10 +1355,10 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     #
     # Pipeline-safe environment setup (no interactive prompts, no waiting):
     #   1. cd to test/orchestrator directory
-    #   2. Create venv if it doesn't exist (idempotent)
-    #   3. Activate venv
-    #   4. Install deps only if requirements.txt is newer than venv marker
-    #   5. Run: ./run_validation.sh fvt_orchestrator verify --marker buildstream
+    #   2. Run the framework-supported setup entry point in venv mode
+    #   3. setup_env.sh verifies the installed omnia_auto package byte-for-byte
+    #      against the local wheel, including same-version wheel updates
+    #   4. Run: ./run_validation.sh fvt_orchestrator verify --marker buildstream
     # Resolve from the same OMNIA_SRC_PATH used for normal playbooks.
     # OMNIA_SRC_PATH points to <clone_path>/src.
     clone_path = str(Path(_get_omnia_src_path()).resolve().parent)
@@ -1372,35 +1372,29 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             for char in [";", "|", "&", "$", "`", "\n", "\r"]
         )
     ):
-        log_secure_info(
-            "error",
-            "Invalid clone_path - using default",
-            clone_path[:8]
-        )
-        clone_path = "/root/omnia"
-    test_dir = os.path.join(clone_path, "test", "orchestrator")
+        raise ValueError("OMNIA_SRC_PATH does not resolve to a safe absolute path")
 
-    # Additional validation: ensure test_dir is within expected base path
-    if (
-        not test_dir.startswith("/root/omnia")
-        and not test_dir.startswith("/opt/omnia")
-    ):
-        raise ValueError("test_dir must be within /root/omnia or /opt/omnia")
+    clone_root = Path(clone_path).resolve()
+    test_dir_path = (clone_root / "test" / "orchestrator").resolve()
+
+    # Accept any configured clone location while preventing a symlinked test
+    # directory from escaping the resolved repository root.
+    try:
+        test_dir_path.relative_to(clone_root)
+    except ValueError as exc:
+        raise ValueError(
+            "test_dir must resolve within the configured Omnia repository"
+        ) from exc
+    test_dir = str(test_dir_path)
 
     # Properly escape all path variables using shlex.quote()
     quoted_test_dir = shlex.quote(test_dir)
     setup_and_run = (
         f'set -eo pipefail && '
         f'cd {quoted_test_dir} && '
-        f'{{ [ -d .venv ] || python3 -m venv .venv; }} && '
+        f'echo "Validating test dependencies..." && '
+        f'./setup_env.sh --venv && '
         f'source .venv/bin/activate && '
-        f'if [ ! -f .venv/.deps_installed ] || '
-        f'   [ requirements.txt -nt .venv/.deps_installed ]; then '
-        f'  echo "Installing test dependencies..." && '
-        f'  pip install --disable-pip-version-check --no-input --upgrade pip -q && '
-        f'  pip install --disable-pip-version-check --no-input -r requirements.txt -q && '
-        f'  touch .venv/.deps_installed; '
-        f'fi && '
         # Checkmarx: Hardcoded command arguments to prevent injection from request_data
         # Run the validation through its supported non-interactive entry point.
         f'exec ./run_validation.sh fvt_orchestrator verify --marker buildstream'
@@ -1557,9 +1551,20 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                     job_id
                 )
 
-        # Extract current run from shared test_report.json
-        report_source_path = os.path.join(
+        # Local validation writes reports below the configured repository,
+        # while remote validation writes them below OMNIA_DATA_PATH. Resolve
+        # the generated report from those runtime locations instead of
+        # assuming that OMNIA_DATA_PATH is always used.
+        local_report_path = os.path.join(
+            test_dir, "reports", "orchestrator_test_report.json"
+        )
+        data_report_path = os.path.join(
             OMNIA_DATA_PATH, "reports", "orchestrator_test_report.json"
+        )
+        report_source_path = (
+            local_report_path
+            if os.path.exists(local_report_path)
+            else data_report_path
         )
         log_secure_info(
             'info',
