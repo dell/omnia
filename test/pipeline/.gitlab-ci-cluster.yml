@@ -402,9 +402,7 @@ setup_environment:
   rules:
     - if: '$SKIP_STAGES =~ /setup_environment/'
       when: never
-    - if: '$PIPELINE_MODE == "default"'
-      when: on_success
-    - if: '$ENABLE_SETUP == "true"'
+    - if: '$PIPELINE_MODE == "default" || $PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "cleanup"'
       when: on_success
   needs:
     - job: initialization
@@ -415,7 +413,7 @@ setup_environment:
     - echo "  Mode — ${PIPELINE_MODE}"
     - echo "========================================================"
     - source target.env
-    - export SSHPASS="$TARGET_PASS"
+    - export SSHPASS="$TARGET_PASS"git 
     - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
     - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
     - TARGET="$TARGET_USER@$TARGET_IP"
@@ -841,7 +839,9 @@ setup_main:
   rules:
     - if: '$SKIP_STAGES =~ /setup_main/'
       when: never
-    - if: '$PIPELINE_MODE == "default" || ($PIPELINE_MODE == "deploy" && $ENABLE_SETUP == "true")'
+    - if: '$PIPELINE_MODE == "default"'
+      when: on_success
+    - if: '$ENABLE_SETUP == "true"'
       when: on_success
   needs:
     - job: initialization
@@ -968,8 +968,11 @@ test_main_installation:
     - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true"'
       when: on_success
   needs:
+    - job: initialization
+      artifacts: true
     - job: setup_environment
       artifacts: true
+      optional: true
     - job: setup_main
       artifacts: true
       optional: true
@@ -985,8 +988,6 @@ test_main_installation:
     - job: cleanup_omnia
       artifacts: true
       optional: true
-    - job: initialization
-      artifacts: true
   script:
     - echo "========================================================"
     - echo "  Testing omnia.sh installation on cluster $CLUSTER"
@@ -2268,16 +2269,24 @@ summary:
 
         # Only use patterns that include pipeline ID to avoid picking up old reports
         LATEST_JSON=""
-        # Pattern 1: *_<pipeline_id>_<domain>_report.json (exact match)
-        REPORT_GLOB="*_${CI_PIPELINE_ID}_${domain}_report.json"
+        # Pattern 1: <pipeline_id>_<domain>_report.json (new format)
+        REPORT_GLOB="${CI_PIPELINE_ID}_${domain}_report.json"
         echo "  Trying pattern 1: $REPORT_GLOB"
         LATEST_JSON=$($SSH_CMD $TARGET \
           "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
 
-        # Pattern 2: *_<pipeline_id>*<domain>*report*.json (fallback with pipeline ID)
+        # Pattern 2: *_<pipeline_id>_<domain>_report.json (old format fallback)
+        if [ -z "$LATEST_JSON" ]; then
+          REPORT_GLOB="*_${CI_PIPELINE_ID}_${domain}_report.json"
+          echo "  Trying pattern 2: $REPORT_GLOB"
+          LATEST_JSON=$($SSH_CMD $TARGET \
+            "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+        fi
+
+        # Pattern 3: *_<pipeline_id>*<domain>*report*.json (broad fallback with pipeline ID)
         if [ -z "$LATEST_JSON" ]; then
           REPORT_GLOB="*_${CI_PIPELINE_ID}*${domain}*report*.json"
-          echo "  Trying pattern 2: $REPORT_GLOB"
+          echo "  Trying pattern 3: $REPORT_GLOB"
           LATEST_JSON=$($SSH_CMD $TARGET \
             "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
         fi
