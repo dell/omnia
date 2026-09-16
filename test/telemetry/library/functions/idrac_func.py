@@ -19,6 +19,9 @@ Functions for verifying iDRAC telemetry pods, MySQL data,
 and receiver metrics collection.
 """
 
+import re
+import shlex
+
 from omnia_auto import run_on_host
 
 from ..vars.common_vars import (
@@ -27,6 +30,7 @@ from ..vars.common_vars import (
 )
 from .telemetry_func import (
     _get_input_path,
+    get_output_path,
     load_telemetry_config_from_target,
     run_on_kube_vip,
 )
@@ -95,6 +99,89 @@ def get_bmc_group_data(host, csv_path=None):
             })
 
     return entries
+
+
+def get_idrac_pod_inventory(host):
+    """Map StatefulSet pod ordinals to the BMCs assigned at deployment."""
+    bmc_data = get_bmc_group_data(host)
+    inventory = {f"{IDRAC_POD_PREFIX}-0": []}
+    parent_ips = {}
+
+    for entry in bmc_data:
+        bmc_ip = entry.get("bmc_ip", "")
+        parent = entry.get("parent", "")
+        if not bmc_ip:
+            continue
+        if parent:
+            parent_ips.setdefault(parent, []).append(bmc_ip)
+        else:
+            inventory[f"{IDRAC_POD_PREFIX}-0"].append(bmc_ip)
+
+    for ordinal, parent in enumerate(sorted(parent_ips), start=1):
+        inventory[f"{IDRAC_POD_PREFIX}-{ordinal}"] = parent_ips[parent]
+
+    return inventory
+
+
+def _parse_report_ip_section(report, heading):
+    """Return list items immediately following an iDRAC report heading."""
+    lines = report.splitlines()
+    try:
+        start = next(
+            index for index, line in enumerate(lines)
+            if line.strip() == heading
+        )
+    except StopIteration:
+        return []
+
+    ips = []
+    for line in lines[start + 1:]:
+        stripped = line.strip()
+        if not stripped:
+            if ips:
+                break
+            continue
+        match = re.fullmatch(r"-\s*(\S+)", stripped)
+        if not match:
+            break
+        ips.append(match.group(1))
+    return ips
+
+
+def get_idrac_report_ips(host):
+    """Read activated and unsupported BMC IPs from the project report."""
+    report_path = f"{get_output_path(host)}/idrac_telemetry_report.yml"
+    quoted_path = shlex.quote(report_path)
+    stat_result = run_on_host(
+        host, f"stat -c %Y {quoted_path} 2>/dev/null",
+    )
+    if stat_result.rc != 0 or not stat_result.stdout.strip():
+        return {"activated": [], "unsupported": []}
+
+    result = run_on_host(host, f"cat {quoted_path} 2>/dev/null")
+    if result.rc != 0 or not result.stdout.strip():
+        return {"activated": [], "unsupported": []}
+
+    return {
+        "activated": _parse_report_ip_section(
+            result.stdout, "Telemetry activated IPs List:",
+        ),
+        "unsupported": _parse_report_ip_section(
+            result.stdout, "Telemetry not supported IPs List:",
+        ),
+    }
+
+
+def _expected_idle_pods(host):
+    """Return intentionally idle pods and their assigned inventory."""
+    inventory = get_idrac_pod_inventory(host)
+    unsupported = set(get_idrac_report_ips(host)["unsupported"])
+    expected = {
+        pod_name
+        for pod_name, assigned_ips in inventory.items()
+        if assigned_ips and set(assigned_ips).issubset(unsupported)
+    }
+    return expected, inventory
 
 
 def get_idrac_expected_pod_count(host):
@@ -255,6 +342,7 @@ def verify_mysql_data_in_pods(host):
         }
 
     pods = [p.strip() for p in result.stdout.strip().split("\n") if p.strip()]
+    expected_idle_pods, pod_inventory = _expected_idle_pods(host)
     pod_results = []
     all_have_data = True
 
@@ -262,13 +350,20 @@ def verify_mysql_data_in_pods(host):
         query_result = get_mysql_ips_from_pod(host, pod_name)
         mysql_ips = query_result["mysql_ips"]
         has_data = query_result["success"] and len(mysql_ips) > 0
-        if not has_data:
+        expected_idle = (
+            query_result["success"]
+            and not has_data
+            and pod_name in expected_idle_pods
+        )
+        if not (has_data or expected_idle):
             all_have_data = False
         pod_results.append({
             "pod_name": pod_name,
             "mysql_ips": mysql_ips,
             "ip_count": len(mysql_ips),
             "has_data": has_data,
+            "expected_idle": expected_idle,
+            "assigned_ips": pod_inventory.get(pod_name, []),
             "query_success": query_result["success"],
             "error": query_result["error"],
         })
@@ -312,6 +407,7 @@ def verify_receiver_collecting(host):
         }
 
     pods = [p.strip() for p in result.stdout.strip().split("\n") if p.strip()]
+    expected_idle_pods, pod_inventory = _expected_idle_pods(host)
     pod_results = []
     all_collecting = True
 
@@ -335,18 +431,24 @@ def verify_receiver_collecting(host):
                 # Look for service tag connections
                 if "SSE connected" in line or "ServiceTag" in line:
                     # Extract service tag if present
-                    import re
                     tag_match = re.search(r'ServiceTag[=: ]+(\w+)', line)
                     if tag_match:
                         service_tags.add(tag_match.group(1))
 
         collecting = len(reports) > 0
-        if not collecting:
+        expected_idle = (
+            log_result.rc == 0
+            and not collecting
+            and pod_name in expected_idle_pods
+        )
+        if not (collecting or expected_idle):
             all_collecting = False
 
         pod_results.append({
             "pod_name": pod_name,
             "collecting": collecting,
+            "expected_idle": expected_idle,
+            "assigned_ips": pod_inventory.get(pod_name, []),
             "report_count": len(reports),
             "sample_reports": reports[:3],
             "service_tags": list(service_tags),

@@ -41,6 +41,7 @@ from ..vars.common_vars import (
     CMDS,
     TELEMETRY_NAMESPACE,
     POWERSCALE_SECRET_NAME,
+    POWERSCALE_CSI_EXPORTER_METRICS,
     SVC_VLAGENT,
 )
 from .telemetry_func import (
@@ -735,14 +736,15 @@ def verify_csi_volume_exporter_metrics(host):
     Returns:
         dict with keys: success, metrics_found, details, error.
     """
-    expected_metrics = [
-        "powerscale_volume_count",
-        "powerscale_volume_capacity_bytes",
-        "powerscale_total_capacity_bytes",
-    ]
-
+    # Volume-labelled series only exist when the cluster has PowerScale PVs.
+    # Include exporter-wide families such as powerscale_node_ready so an empty
+    # cluster can still prove that vmagent is scraping the exporter.
+    expected_metrics = POWERSCALE_CSI_EXPORTER_METRICS
     result = verify_powerscale_metrics(host, expected_metrics)
-    details = f"Found {len(result['found'])}/{len(expected_metrics)} CSI volume exporter metrics"
+    details = (
+        f"Found {len(result['found'])}/{len(expected_metrics)} CSI volume "
+        "exporter metric families"
+    )
 
     return {
         "success": result["success"],
@@ -773,7 +775,7 @@ def verify_csi_driver_powerscale_deployment(host):
 
     # isilon-controller uses label: app=isilon-controller
     pods = get_pods_by_label(host, "isilon", "app=isilon-controller")
-    
+
     if not pods:
         return {
             "success": True,  # Not a failure - CSI driver might not be deployed
@@ -782,14 +784,14 @@ def verify_csi_driver_powerscale_deployment(host):
             "details": "CSI driver not deployed (no isilon-controller pods found)",
             "error": "",
         }
-    
+
     running = len([p for p in pods if p.get("ready", False)]) > 0
     total_restarts = sum(p.get("restarts", 0) for p in pods)
-    
+
     # Check for recent restarts (within 1 hour)
     recent_restarts = 0
     one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
-    
+
     for pod in pods:
         last_restart_time = pod.get("last_restart_time")
         if last_restart_time:
@@ -835,7 +837,7 @@ def verify_external_health_monitor_container(host):
 
     # Find isilon-controller pod
     pods = get_pods_by_label(host, "isilon", "app=isilon-controller")
-    
+
     if not pods:
         return {
             "success": True,  # Not a failure - CSI driver might not be deployed
@@ -847,16 +849,16 @@ def verify_external_health_monitor_container(host):
         }
 
     pod_name = pods[0].get("name", "")
-    
+
     # Check if external-health-monitor-controller container is ready
     # We need to check the container status using kubectl
     cmd = f"kubectl get pod {pod_name} -n isilon -o jsonpath='{{.status.containerStatuses[?(@.name==\"external-health-monitor-controller\")].ready}}'"
     result = run_on_kube_vip(host, cmd)
 
     container_ready = result.stdout.strip() == "true"
-    
+
     details = f"Pod: {pod_name}, Container ready: {container_ready}"
-    
+
     return {
         "success": container_ready,
         "pod_found": True,
@@ -882,7 +884,7 @@ def verify_csi_exporter_skipped_without_health_monitor(host):
     # Check if health monitor is available
     health_monitor_result = verify_external_health_monitor_container(host)
     health_monitor_available = health_monitor_result.get("pod_found", False) and health_monitor_result["success"]
-    
+
     # Check if CSI volume exporter is deployed
     # Try multiple label selectors
     pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app=csi-volume-exporter")
@@ -890,7 +892,7 @@ def verify_csi_exporter_skipped_without_health_monitor(host):
         # Try alternative label
         pods = get_pods_by_label(host, TELEMETRY_NAMESPACE, "app.kubernetes.io/name=csi-volume-exporter")
     exporter_deployed = len(pods) > 0
-    
+
     # Expected behavior:
     # - If health monitor is NOT available → exporter should NOT be deployed
     # - If health monitor IS available → exporter SHOULD be deployed
@@ -898,13 +900,13 @@ def verify_csi_exporter_skipped_without_health_monitor(host):
         expected_behavior = exporter_deployed
     else:
         expected_behavior = not exporter_deployed
-    
+
     details = (
         f"Health monitor available: {health_monitor_available}, "
         f"Exporter deployed: {exporter_deployed}, "
         f"Expected behavior: {expected_behavior}"
     )
-    
+
     return {
         "success": expected_behavior,
         "exporter_deployed": exporter_deployed,
@@ -926,16 +928,16 @@ def verify_health_monitor_warning_message(host):
     # Check if health monitor is available
     health_monitor_result = verify_external_health_monitor_container(host)
     health_monitor_available = health_monitor_result.get("pod_found", False) and health_monitor_result["success"]
-    
+
     # Warning should be displayed when health monitor is not available
     # If health monitor IS available, warning should NOT be displayed
     warning_expected = not health_monitor_available
-    
+
     details = (
         f"Health monitor available: {health_monitor_available}, "
         f"Warning expected: {warning_expected}"
     )
-    
+
     return {
         "success": True,  # This is always informational
         "warning_expected": warning_expected,
@@ -1193,7 +1195,7 @@ def verify_cert_manager_tls_certs(host):
         cmd = f"kubectl get secret otel-collector-tls -n telemetry -o jsonpath='{{.data.tls\\.crt}}' | base64 -d | openssl x509 -noout -dates 2>/dev/null || echo 'invalid'"
         result = run_on_kube_vip(host, cmd)
         cert_output = result.stdout.strip()
-        
+
         # Check if certificate is valid (has dates)
         cert_valid = "notBefore" in cert_output and "notAfter" in cert_output
         cert_details = cert_output if cert_valid else "Certificate invalid or expired"
@@ -1215,4 +1217,3 @@ def verify_cert_manager_tls_certs(host):
         "details": details,
         "error": "" if all_valid else "cert-manager TLS certificate validation failed",
     }
-
