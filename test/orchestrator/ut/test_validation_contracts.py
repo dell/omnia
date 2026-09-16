@@ -11,7 +11,7 @@ import pytest
 
 from ut import source_loader  # noqa: F401  # initializes module_utils path
 from ansible.module_utils.orchestrator_validation.validators import (
-    orchestrator_config_validator,
+    additional_cloud_init_validator,
 )
 
 
@@ -20,11 +20,7 @@ LOGGER = logging.getLogger("orchestrator-validation-test")
 
 
 def _validate_cloud_init(config):
-    errors = []
-    orchestrator_config_validator._validate_additional_cloud_init_config(  # pylint: disable=protected-access
-        config, errors, LOGGER
-    )
-    return errors
+    return additional_cloud_init_validator.validate(config, "", LOGGER)
 
 
 def test_empty_additional_cloud_init_path_is_valid():

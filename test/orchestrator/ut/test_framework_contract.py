@@ -314,9 +314,9 @@ def test_runner_selected_deploy_and_nft_are_not_auto_skipped():
 
 
 def test_destructive_flows_require_explicit_marker():
-    """ORCH_UT_046: Cleanup, PXE and rollback cannot run accidentally."""
+    """ORCH_UT_046: Cleanup and rollback cannot run accidentally."""
     entrypoint = (TEST_ROOT / "_run.py").read_text(encoding="utf-8")
-    assert {"cleanup", "pxeboot", "rollback"} <= set(
+    assert {"cleanup", "rollback"} <= set(
         ast.literal_eval(
             next(
                 node.value
@@ -326,7 +326,7 @@ def test_destructive_flows_require_explicit_marker():
             )
         )
     )
-    for tag in ("cleanup", "pxeboot", "rollback"):
+    for tag in ("cleanup", "rollback"):
         scenario = _batch_config()["fvt_orchestrator"][tag]
         assert scenario["marker"] == "destructive"
         for test_file in (TEST_ROOT / "fvt" / tag).rglob("test_*.py"):

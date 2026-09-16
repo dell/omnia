@@ -102,13 +102,28 @@
         name: common
         tasks_from: load_telemetry_config
 
-    - name: Validate kube_vip is set
+    - name: Validate cluster inventory exists and is accessible
+      ansible.builtin.assert:
+        that:
+          - cluster_inv is defined
+          - cluster_inv.all is defined
+          - cluster_inv.all.children is defined
+          - cluster_inv.all.children.kube_vip_group is defined
+          - cluster_inv.all.children.kube_vip_group.hosts is defined
+          - cluster_inv.all.children.kube_vip_group.hosts | length > 0
+        fail_msg: >
+          cluster_inventory is required and must contain kube_vip_group with hosts.
+          Ensure the cluster_inventory file specified in telemetry_config.yml exists
+          and contains the structure: all.children.kube_vip_group.hosts.<hostname>
+
+    - name: Validate kube_vip is set in cluster inventory
       ansible.builtin.assert:
         that:
           - kube_vip is defined
           - kube_vip | length > 0
         fail_msg: >
-          kube_vip is required. Add 'kube_vip: <VIP_IP>' to telemetry_config.yml.
+          kube_vip is required in cluster_inventory. Ensure kube_vip_group.hosts.<hostname>
+          contains ansible_host or hostname set to the VIP IP in the cluster_inventory file.
 
     - name: Add kube_vip to in-memory inventory
       ansible.builtin.add_host:

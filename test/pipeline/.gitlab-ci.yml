@@ -101,31 +101,10 @@ stages:
   - trigger
 
 # ---------------------------------------------------------------------------
-# NOTE: All other variables (SSH_CONNECT_TIMEOUT, OMNIA_REPO, OMNIA_BRANCH,
+# NOTE: All cluster-level variables (CLUSTER1_OMNIA_REPO, CLUSTER1_TARGET_IP,
 # CLUSTERS, etc.) are configured in GitLab Project > Settings > CI/CD > Variables
-# and are automatically passed to child pipelines. Do NOT redefine them here.
+# and are automatically available. Do NOT redefine them here.
 # ---------------------------------------------------------------------------
-variables:
-  # ---- Cluster-Level Configuration Variables ----
-  # Each cluster has its own configuration. Set via GitLab UI or CI/CD variables.
-  # Example: CLUSTER1_PIPELINE_MODE=deploy, CLUSTER1_DOMAINS=repo_manager
-  #
-  # Default cluster (cluster1):
-  CLUSTER1_PIPELINE_MODE: "default"
-  CLUSTER1_DOMAINS: "default"
-  CLUSTER1_ENABLE_SETUP: "false"
-  CLUSTER1_TEST_MODE: "false"
-  CLUSTER1_DRY_RUN: "false"
-  CLUSTER1_VERBOSE: "false"
-  CLUSTER1_REPO_MANAGER_TAGS: ""
-  CLUSTER1_IMAGE_BUILD_MANAGER_TAGS: ""
-  CLUSTER1_ORCHESTRATOR_TAGS: ""
-  CLUSTER1_TELEMETRY_TAGS: ""
-  CLUSTER1_TEST_REPO_MANAGER_TAGS: ""
-  CLUSTER1_TEST_IMAGE_BUILD_MANAGER_TAGS: ""
-  CLUSTER1_TEST_ORCHESTRATOR_TAGS: ""
-  CLUSTER1_TEST_TELEMETRY_TAGS: ""
-  CLUSTER1_SKIP_STAGES: ""
 
 # ---------------------------------------------------------------------------
 # Child pipeline trigger — one per cluster.
@@ -143,6 +122,12 @@ trigger_cluster_cluster1:
     strategy: depend
   variables:
     CLUSTER: "cluster1"
+    OMNIA_REPO: "$CLUSTER1_OMNIA_REPO"
+    OMNIA_BRANCH: "$CLUSTER1_OMNIA_BRANCH"
+    OMNIA_INSTALL_PATH: "$CLUSTER1_OMNIA_INSTALL_PATH"
+    BAO_SERVER_URL: "$CLUSTER1_BAO_SERVER_URL"
+    BAO_AUTH_ROLE: "$CLUSTER1_BAO_AUTH_ROLE"
+    BAO_DATA_PATH: "$CLUSTER1_BAO_DATA_PATH"
     PIPELINE_MODE: "$CLUSTER1_PIPELINE_MODE"
     DOMAINS: "$CLUSTER1_DOMAINS"
     ENABLE_SETUP: "$CLUSTER1_ENABLE_SETUP"
@@ -153,10 +138,11 @@ trigger_cluster_cluster1:
     IMAGE_BUILD_MANAGER_TAGS: "$CLUSTER1_IMAGE_BUILD_MANAGER_TAGS"
     ORCHESTRATOR_TAGS: "$CLUSTER1_ORCHESTRATOR_TAGS"
     TELEMETRY_TAGS: "$CLUSTER1_TELEMETRY_TAGS"
-    TEST_REPO_MANAGER_TAGS: "$CLUSTER1_TEST_REPO_MANAGER_TAGS"
-    TEST_IMAGE_BUILD_MANAGER_TAGS: "$CLUSTER1_TEST_IMAGE_BUILD_MANAGER_TAGS"
-    TEST_ORCHESTRATOR_TAGS: "$CLUSTER1_TEST_ORCHESTRATOR_TAGS"
-    TEST_TELEMETRY_TAGS: "$CLUSTER1_TEST_TELEMETRY_TAGS"
+    TEST_MAIN_CMD: "$CLUSTER1_TEST_MAIN_CMD"
+    TEST_REPO_MANAGER_CMD: "$CLUSTER1_TEST_REPO_MANAGER_CMD"
+    TEST_IMAGE_BUILD_MANAGER_CMD: "$CLUSTER1_TEST_IMAGE_BUILD_MANAGER_CMD"
+    TEST_ORCHESTRATOR_CMD: "$CLUSTER1_TEST_ORCHESTRATOR_CMD"
+    TEST_TELEMETRY_CMD: "$CLUSTER1_TEST_TELEMETRY_CMD"
     SKIP_STAGES: "$CLUSTER1_SKIP_STAGES"
   allow_failure: true
   rules:

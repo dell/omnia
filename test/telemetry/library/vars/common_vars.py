@@ -496,8 +496,8 @@ CMDS = {
     ),
     # --- iDRAC VictoriaMetrics data ---
     "vm_query_idrac_service_tag": (
-        "curl -s --max-time 15"
-        " 'http://{vmselect_ip}:{vmselect_port}"
+        "curl -sk --max-time 15"
+        " 'https://{vmselect_ip}:{vmselect_port}"
         "/select/0/prometheus/api/v1/query?query={encoded_query}'"
     ),
 

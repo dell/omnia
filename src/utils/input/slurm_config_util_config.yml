@@ -20,18 +20,21 @@
 
 # --- Input file overrides ---------------------------------------------------
 # Path to omnia_config.yml (contains slurm_cluster / nfs_storage_name)
-# Default: OMNIA_DATA_PATH/orchestrator/input/OMNIA_PROJECT_NAME/omnia_config.yml
+# Default: OMNIA_DATA_PATH/utils/input/OMNIA_PROJECT_NAME/omnia_config.yml
 omnia_config_path: ""
 
 # Path to storage_config.yml (contains NFS mount definitions)
-# Default: OMNIA_DATA_PATH/orchestrator/input/OMNIA_PROJECT_NAME/storage_config.yml
+# Default: OMNIA_DATA_PATH/utils/input/OMNIA_PROJECT_NAME/storage_config.yml
 storage_config_path: ""
 
-# Path to the PXE/node mapping file. Accepts either:
-#   - YAML (openchami-generated): .../openchami/workdir/nodes/nodes_slurm.yaml
-#   - CSV (pre-provisioning inventory): .../orchestrator/input/<project>/pxe_mapping_file.csv
-# Format is auto-detected from the file extension.
-# Default: OMNIA_DATA_PATH/openchami/workdir/nodes/nodes_slurm.yaml
+# Path to the PXE/node mapping file. This file identifies the Slurm controller(s)
+# and provides node-to-IP mappings. Two formats are supported:
+#   - YAML format (default): nodes_slurm.yaml (OpenChami-generated)
+#       Example: OMNIA_DATA_PATH/openchami/workdir/nodes/nodes_slurm.yaml
+#   - CSV format: pxe_mapping_file.csv (orchestrator-generated)
+#       Example: OMNIA_DATA_PATH/orchestrator/input/<project>/pxe_mapping_file.csv
+# Format is auto-detected from the file extension (.csv = CSV, otherwise YAML).
+# Default: OMNIA_DATA_PATH/utils/input/OMNIA_PROJECT_NAME/nodes_slurm.yaml
 pxe_mapping_path: ""
 
 # --- NFS share directory names (under the Slurm NFS mount) ------------------

@@ -589,6 +589,14 @@ def test_ldms_earliest_data(host):
         f"Found hostnames: {result.get('found_hostnames', [])}",
         f"Missing hostnames: {result.get('missing_hostnames', [])}",
         f"Missing instances: {result.get('missing_instances', [])}",
+    ])
+
+    # Show error message if present (e.g. consumer creation failure)
+    error_msg = result.get("error", "")
+    if error_msg:
+        details_lines.extend(["", f"Error: {error_msg}"])
+
+    details_lines.extend([
         "",
         "Earliest data per hostname (by functional group):",
     ])
@@ -660,6 +668,14 @@ def test_ldms_kafka_data(host):
         f"{result.get('ignored_stale_record_count', 0)}",
         "Ignored invalid timestamps: "
         f"{result.get('invalid_timestamp_record_count', 0)}",
+    ])
+
+    # Show error message if present (e.g. consumer creation failure)
+    error_msg = result.get("error", "")
+    if error_msg:
+        details_lines.extend(["", f"Error: {error_msg}"])
+
+    details_lines.extend([
         "",
         "Latest data per hostname (by functional group):",
     ])
