@@ -14,22 +14,13 @@
 ---
 
 # --- Upgrade guard ---
-upgrade_lock_path: /opt/omnia/.data/upgrade_in_progress.lock
+upgrade_lock_path: "{{ omnia_data_path }}/.data/upgrade_in_progress.lock"
 upgrade_in_progress_msg: >-
   Upgrade is not completed fully.
   Please run upgrade.yml to complete upgrade before running any other playbook using the below command:
   "ansible-playbook /omnia/src/playbooks/upgrade/upgrade.yml"
   If you don't require input files to be migrated, reconfigure the default input files, remove the lock file using the following command
-  "rm /opt/omnia/.data/upgrade_in_progress.lock" and then proceed.
-
-# --- Paths ---
-# omnia_data_path is set from OMNIA_DATA_PATH env or defaults to /opt/omnia
-omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
-
-# Input / output directories (resolved directly from omnia_data_path)
-input_project_dir: "{{ omnia_data_path }}/build_stream/input/project_default"
-output_project_dir: "{{ omnia_data_path }}/build_stream/output/project_default"
-oim_shared_path: "{{ omnia_data_path }}"
+  "rm {{ upgrade_lock_path }}" and then proceed.
 
 project_dir_not_exist_fail_msg: >-
   The project directory at {{ input_project_dir }} does not exist.

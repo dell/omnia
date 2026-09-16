@@ -134,6 +134,31 @@ def test_empty_dataset_uses_current_source_fallbacks(monkeypatch):
     ) == os.path.realpath(host_func.SRC_INPUT_DIR)
 
 
+def test_project_name_is_resolved_from_environment(monkeypatch):
+    """ORCH_UT_095: Removed YAML project keys use the Omnia environment contract."""
+    config = _base_config()
+    config.pop("project_name")
+    monkeypatch.setenv("OMNIA_PROJECT_NAME", "project_from_environment")
+    monkeypatch.setattr(validation_func, "load_test_config", lambda: config)
+
+    result = validation_func.validate_test_config()
+
+    assert result["valid"], result["errors"]
+
+
+def test_empty_environment_project_name_fails_closed(monkeypatch):
+    """ORCH_UT_096: An explicitly empty Omnia project is never accepted."""
+    config = _base_config()
+    config.pop("project_name")
+    monkeypatch.setenv("OMNIA_PROJECT_NAME", "")
+    monkeypatch.setattr(validation_func, "load_test_config", lambda: config)
+
+    result = validation_func.validate_test_config()
+
+    assert not result["valid"]
+    assert "OMNIA_PROJECT_NAME is required" in "\n".join(result["errors"])
+
+
 def test_named_dataset_subdirectory_resolves_inside_dataset_root(
     monkeypatch, tmp_path
 ):

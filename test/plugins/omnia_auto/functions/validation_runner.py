@@ -691,7 +691,11 @@ class ValidationRunner:
                 return 0
             _err("No eligible FVT directories were found; refusing broad pytest discovery")
             return 2
-        marker_expression = "not deploy"
+        # ``mode_aware`` cases perform the action during exec and validate the
+        # already-created state during verify.  Include them in both phases;
+        # the report layer upserts the shared TC ID so ``test`` does not
+        # duplicate the logical case.
+        marker_expression = "not deploy or mode_aware"
         if not tag:
             try:
                 excluded_markers = [

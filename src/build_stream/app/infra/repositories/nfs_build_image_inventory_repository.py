@@ -14,13 +14,17 @@
 
 """NFS-based implementation of BuildImageInventoryRepository."""
 
-from api.logging_utils import log_secure_info
+import os
 from pathlib import Path
+
+from api.logging_utils import log_secure_info
 
 from core.build_image.value_objects import InventoryHost
 
 
-DEFAULT_INVENTORY_DIR = "/opt/omnia/build_stream_inv"
+DEFAULT_INVENTORY_DIR = str(
+    Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia")) / "build_stream_inv"
+)
 DEFAULT_INVENTORY_FILENAME = "inv"
 
 

@@ -57,9 +57,9 @@
 # Available FVT Suites (subfolders under fvt/<tag>/)
 # -----------------------------------------------------------------------------
 #   buildstream_install:  health, buildstream_install
-#   buildstream_cleanup:  gitlab_cleanup, buildstream_cleanup
-#   build_pipeline:       build_pipeline
-#   deploy_pipeline:      deploy_pipeline
+#   buildstream_cleanup:  gitlab_cleanup, buildstream_cleanup, cleanup_pipeline
+#   build_pipeline:       build_pipeline, manual
+#   deploy_pipeline:      deploy_pipeline, manual
 #
 # =============================================================================
 
