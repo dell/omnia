@@ -2210,29 +2210,74 @@ summary:
       fi
       for domain in $REPORT_DOMAINS; do
         REMOTE_PATH=$(python3 -c "import json; print(json.load(open('pipeline_reports/domain_report_paths.json')).get('$domain', '/opt/omnia/reports'))")
-        REPORT_GLOB="*_${CI_PIPELINE_ID}_${domain}_report.json"
         echo "  Domain: $domain, Remote path: $REMOTE_PATH"
-        echo "  Looking for reports matching: $REPORT_GLOB"
+
+        # Debug: list all report files in the remote directory
+        echo "  Available report files in $REMOTE_PATH:"
+        $SSH_CMD $TARGET "ls -1t $REMOTE_PATH/*_report.json 2>/dev/null | head -20" || true
+
+        # Try multiple glob patterns (most specific to broadest)
+        LATEST_JSON=""
+        # Pattern 1: *_<pipeline_id>_<domain>_report.json (exact match)
+        REPORT_GLOB="*_${CI_PIPELINE_ID}_${domain}_report.json"
+        echo "  Trying pattern 1: $REPORT_GLOB"
         LATEST_JSON=$($SSH_CMD $TARGET \
           "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+
+        # Pattern 2: *_<domain>_report.json (any pipeline ID — pick latest)
+        if [ -z "$LATEST_JSON" ]; then
+          REPORT_GLOB="*_${domain}_report.json"
+          echo "  Trying pattern 2: $REPORT_GLOB"
+          LATEST_JSON=$($SSH_CMD $TARGET \
+            "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+        fi
+
+        # Pattern 3: <domain>_test_report.json (repo_manager style)
+        if [ -z "$LATEST_JSON" ]; then
+          REPORT_GLOB="${domain}_test_report.json"
+          echo "  Trying pattern 3: $REPORT_GLOB"
+          LATEST_JSON=$($SSH_CMD $TARGET \
+            "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+        fi
+
+        # Pattern 4: <domain>_report.json (no prefix)
+        if [ -z "$LATEST_JSON" ]; then
+          REPORT_GLOB="${domain}_report.json"
+          echo "  Trying pattern 4: $REPORT_GLOB"
+          LATEST_JSON=$($SSH_CMD $TARGET \
+            "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+        fi
+
+        # Pattern 5: *<domain>*report*.json (broadest match — pick latest)
+        if [ -z "$LATEST_JSON" ]; then
+          REPORT_GLOB="*${domain}*report*.json"
+          echo "  Trying pattern 5: $REPORT_GLOB"
+          LATEST_JSON=$($SSH_CMD $TARGET \
+            "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+        fi
+
         if [ -n "$LATEST_JSON" ]; then
           echo "  Found JSON: $LATEST_JSON"
           $SCP_CMD "$TARGET:$LATEST_JSON" "$LOCAL_REPORTS_PATH/" || true
+          # Look for matching HTML report
           LATEST_HTML="${LATEST_JSON%.json}.html"
           if $SSH_CMD $TARGET "test -f $LATEST_HTML"; then
             echo "  Found HTML: $LATEST_HTML"
             $SCP_CMD "$TARGET:$LATEST_HTML" "$LOCAL_REPORTS_PATH/" || true
           fi
         else
-          echo "  No report found for domain: $domain"
+          echo "  WARNING: No report found for domain: $domain (tried all patterns)"
         fi
       done
-      echo "  Fresh reports copied to $LOCAL_REPORTS_PATH/"
+      echo "  Reports copied to $LOCAL_REPORTS_PATH/"
       ls -la "$LOCAL_REPORTS_PATH/" 2>/dev/null
 
     - export PIPELINE_MODE
     - export DOMAINS
     - export TEST_REPORTS_PATH="pipeline_reports/test_reports/$CI_JOB_ID"
+    - export CLUSTER="${CLUSTER}"
+    - export CLUSTER_NAME="${CLUSTER_NAME}"
+    - export TARGET_IP="${TARGET_IP}"
 
     - echo "Sending email notification..."
     - python3 send_email.py || echo "Email notification failed (non-fatal)"

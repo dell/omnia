@@ -119,7 +119,7 @@ cluster1:
     #   "orchestrator"  = Deploy only orchestrator
     #   "repo_manager|orchestrator"  = Deploy repo_manager OR orchestrator (regex pattern)
     # Default: "default"
-    domains: "repo_manager"
+    domains: "default"
 
     # Force environment setup even in deploy/cleanup modes
     # Normally, setup_environment only runs in "default" mode

@@ -347,6 +347,7 @@ def load_pipeline_config(config_path):
         # -- Test commands
         test_cmds = cluster_cfg.get("test_commands", {}) or {}
         test_cmd_map = {
+            "test_main": "TEST_MAIN_CMD",
             "repo_manager": "TEST_REPO_MANAGER_CMD",
             "image_build_manager": "TEST_IMAGE_BUILD_MANAGER_CMD",
             "orchestrator": "TEST_ORCHESTRATOR_CMD",
