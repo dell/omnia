@@ -9,10 +9,10 @@ domain_name: "utils"
 # Optional config file (path overrides + behavioral settings)
 slurm_config_util_config_file: "{{ omnia_data_path }}/{{ domain_name }}/input/{{ project_name }}/slurm_config_util_config.yml"
 
-# Default locations for the orchestrator-owned input files this utility reads
-default_omnia_config_path: "{{ omnia_data_path }}/orchestrator/input/{{ project_name }}/omnia_config.yml"
-default_storage_config_path: "{{ omnia_data_path }}/orchestrator/input/{{ project_name }}/storage_config.yml"
-default_pxe_mapping_path: "{{ omnia_data_path }}/openchami/workdir/nodes/nodes_slurm.yaml"
+# Default locations for the input files this utility reads
+default_omnia_config_path: "{{ omnia_data_path }}/utils/input/{{ project_name }}/omnia_config.yml"
+default_storage_config_path: "{{ omnia_data_path }}/utils/input/{{ project_name }}/storage_config.yml"
+default_pxe_mapping_path: "{{ omnia_data_path }}/utils/input/{{ project_name }}/nodes_slurm.yaml"  # YAML format; CSV also supported
 
 # Default backup destination (used when no override is supplied) - same
 # precedence pattern as backup_oim_logs

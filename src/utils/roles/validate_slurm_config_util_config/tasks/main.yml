@@ -64,7 +64,10 @@
       pxe_mapping_path: >-
         {{ lookup('env', 'OMNIA_DATA_PATH')
            | default('/opt/omnia', true)
-           + '/openchami/workdir/nodes/nodes_slurm.yaml' }}
+           + '/utils/input/'
+           + lookup('env', 'OMNIA_PROJECT_NAME')
+           | default('project_default', true)
+           + '/nodes_slurm.yaml' }}  # YAML format; CSV also supported
       slurm_cleanup_confirm_token: "YES"
   when: not (_config_file_stat.stat.exists | default(false))
 
