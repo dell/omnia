@@ -53,7 +53,6 @@
 #
 # NOTE: This utils domain does not support the following standard lifecycle tags
 # as it is a utility domain rather than a full deployment domain:
-#   - validate        (not applicable - utilities have their own validation)
 #   - credentials     (not applicable - utilities handle credentials internally)
 #   - prepare         (not applicable - utilities don't require infrastructure setup)
 #   - execute         (not applicable - utilities run directly without orchestration)
@@ -73,6 +72,45 @@
         cacheable: true
   roles:
     - utils_setup
+
+# =========================================================================
+# Step 1: Input validation (schema + logic) — tag-aware validation
+# =========================================================================
+- name: Validate utils configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Run collect configuration validation
+      ansible.builtin.include_role:
+        name: validate_collect_config
+      when:
+        - "'collect' in ansible_run_tags"
+        - "not (skip_validation | default(false) | bool)"
+
+    - name: Run install_os configuration validation
+      ansible.builtin.include_role:
+        name: validate_install_os_config
+      when:
+        - "'install_os' in ansible_run_tags"
+        - "not (skip_validation | default(false) | bool)"
+
+    - name: Run backup_oim_logs configuration validation
+      ansible.builtin.include_role:
+        name: validate_backup_oim_logs_config
+      when:
+        - "'backup_oim_logs' in ansible_run_tags"
+        - "not (skip_validation | default(false) | bool)"
+
+    - name: Run slurm_config_util configuration validation
+      ansible.builtin.include_role:
+        name: validate_slurm_config_util_config
+      when:
+        - "'slurm_config_backup' in ansible_run_tags or 'slurm_config_cleanup' in ansible_run_tags or 'slurm_config_rollback' in ansible_run_tags"
+        - "not (skip_validation | default(false) | bool)"
+  tags:
+    - always
+    - validate
 
 # =========================================================================
 # FLOW: precheck - Environment validation (opt-in only)
