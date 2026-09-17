@@ -87,6 +87,7 @@ from .telemetry_func import (
     _get_svc_endpoint,
     get_vlselect_endpoint,
     get_vmselect_endpoint,
+    is_sink_enabled_for_source,
     load_telemetry_config_from_target,
     run_on_kube_vip,
 )
@@ -898,6 +899,15 @@ def _vast_log_details(entries, trigger_epoch, query_start, attempt):
 
 def verify_fresh_vast_test_event(host):
     """Verify the VAST test event from this run reached VictoriaLogs."""
+    # Skip if VAST source does not target victoria_logs sink
+    if not is_sink_enabled_for_source(host, "vast", "victoria_logs"):
+        return _result(
+            True,
+            details={"reason": "VAST source does not target VictoriaLogs sink"},
+            skipped=True,
+            count=0,
+        )
+    
     try:
         trigger_epoch, state_path = _validated_trigger_state(host)
     except _VastTriggerStateUnavailable as exc:
