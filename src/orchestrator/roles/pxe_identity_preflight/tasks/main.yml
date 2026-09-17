@@ -1,0 +1,192 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Validate PXE identity preflight inputs
+  ansible.builtin.assert:
+    that:
+      - pxe_identity_target_nodes | default([]) | length > 0
+      - pxe_identity_all_nodes | default([]) | length > 0
+    fail_msg: PXE identity preflight requires target and full mapping records.
+
+- name: Load OpenCHAMI API identity
+  ansible.builtin.include_vars:
+    file: "{{ openchami_config_vars_path }}"
+    name: _pxe_openchami_config
+
+- name: Resolve OpenCHAMI API URL
+  ansible.builtin.set_fact:
+    _pxe_identity_base_url: >-
+      https://{{ _pxe_openchami_config.cluster_name }}.{{
+      _pxe_openchami_config.cluster_domain }}:8443
+
+- name: Generate OpenCHAMI access token
+  ansible.builtin.command: bash -lc gen_access_token
+  register: _pxe_identity_token
+  changed_when: false
+  no_log: true
+
+- name: Require OpenCHAMI access token
+  ansible.builtin.assert:
+    that:
+      - _pxe_identity_token.rc == 0
+      - _pxe_identity_token.stdout | trim | length > 0
+    fail_msg: Unable to authenticate with OpenCHAMI for PXE identity preflight.
+  no_log: true
+
+- name: Query SMD Ethernet interfaces
+  ansible.builtin.uri:
+    url: "{{ _pxe_identity_base_url }}/hsm/v2/Inventory/EthernetInterfaces"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ _pxe_identity_token.stdout | trim }}"
+    status_code: 200
+    validate_certs: false
+    return_content: true
+  register: _pxe_identity_interfaces
+  no_log: true
+
+- name: Query Boot Service nodes
+  ansible.builtin.uri:
+    url: "{{ _pxe_identity_base_url }}/boot-service/nodes"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ _pxe_identity_token.stdout | trim }}"
+    status_code: 200
+    validate_certs: false
+    return_content: true
+  register: _pxe_identity_boot_nodes
+  no_log: true
+
+- name: Build guarded PXE identity reconciliation plan
+  plan_pxe_identity_reconciliation:
+    target_nodes: "{{ pxe_identity_target_nodes }}"
+    all_nodes: "{{ pxe_identity_all_nodes }}"
+    interfaces: "{{ _pxe_identity_interfaces.json | default([]) }}"
+    boot_nodes: "{{ _pxe_identity_boot_nodes.json | default([]) }}"
+  register: _pxe_identity_plan
+
+- name: Reject ambiguous PXE identity state
+  ansible.builtin.assert:
+    that:
+      - _pxe_identity_plan.errors | length == 0
+    fail_msg: >-
+      Refusing to restart nodes because OpenCHAMI identity state is ambiguous:
+      {{ _pxe_identity_plan.errors }}
+
+- name: Report planned PXE identity repairs
+  ansible.builtin.debug:
+    msg:
+      stale_smd_interface_ids: "{{ _pxe_identity_plan.stale_interface_ids }}"
+      boot_service_updates: "{{ _pxe_identity_plan.boot_node_updates }}"
+  when: >-
+    (_pxe_identity_plan.stale_interface_ids | length > 0)
+    or (_pxe_identity_plan.boot_node_updates | length > 0)
+
+- name: Delete stale SMD Node interfaces
+  ansible.builtin.uri:
+    url: >-
+      {{ _pxe_identity_base_url
+         }}/hsm/v2/Inventory/EthernetInterfaces/{{ item }}
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ _pxe_identity_token.stdout | trim }}"
+    status_code: [200, 204, 404]
+    validate_certs: false
+  loop: "{{ _pxe_identity_plan.stale_interface_ids }}"
+  loop_control:
+    label: "{{ item }}"
+  no_log: true
+
+- name: Verify stale SMD Node interfaces are absent
+  ansible.builtin.uri:
+    url: >-
+      {{ _pxe_identity_base_url
+         }}/hsm/v2/Inventory/EthernetInterfaces/{{ item }}
+    method: GET
+    headers:
+      Authorization: "Bearer {{ _pxe_identity_token.stdout | trim }}"
+    status_code: [200, 404]
+    validate_certs: false
+  loop: "{{ _pxe_identity_plan.stale_interface_ids }}"
+  loop_control:
+    label: "{{ item }}"
+  register: _pxe_identity_delete_verify
+  retries: 5
+  delay: 2
+  until: _pxe_identity_delete_verify.status | default(0) == 404
+  no_log: true
+
+- name: Set expected Boot Service boot MAC
+  ansible.builtin.uri:
+    url: >-
+      {{ _pxe_identity_base_url
+         }}/boot-service/nodes/{{ item.uid }}
+    method: PATCH
+    headers:
+      Authorization: "Bearer {{ _pxe_identity_token.stdout | trim }}"
+    body_format: json
+    body:
+      spec:
+        bootMac: "{{ item.expected_mac }}"
+    status_code: [200, 204]
+    validate_certs: false
+  loop: "{{ _pxe_identity_plan.boot_node_updates }}"
+  loop_control:
+    label: "{{ item.xname }} -> {{ item.expected_mac }}"
+  no_log: true
+
+- name: Read back Boot Service nodes
+  ansible.builtin.uri:
+    url: "{{ _pxe_identity_base_url }}/boot-service/nodes"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ _pxe_identity_token.stdout | trim }}"
+    status_code: 200
+    validate_certs: false
+    return_content: true
+  register: _pxe_identity_boot_nodes_verify
+  no_log: true
+
+- name: Query final SMD Ethernet interfaces
+  ansible.builtin.uri:
+    url: "{{ _pxe_identity_base_url }}/hsm/v2/Inventory/EthernetInterfaces"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ _pxe_identity_token.stdout | trim }}"
+    status_code: 200
+    validate_certs: false
+    return_content: true
+  register: _pxe_identity_final_interfaces
+  no_log: true
+
+- name: Analyze final PXE identity state
+  plan_pxe_identity_reconciliation:
+    target_nodes: "{{ pxe_identity_target_nodes }}"
+    all_nodes: "{{ pxe_identity_all_nodes }}"
+    interfaces: "{{ _pxe_identity_final_interfaces.json | default([]) }}"
+    boot_nodes: "{{ _pxe_identity_boot_nodes_verify.json | default([]) }}"
+  register: _pxe_identity_final_plan
+
+- name: Require exact PXE identity state before restart
+  ansible.builtin.assert:
+    that:
+      - _pxe_identity_final_plan.errors | length == 0
+      - _pxe_identity_final_plan.stale_interface_ids | length == 0
+      - _pxe_identity_final_plan.boot_node_updates | length == 0
+    fail_msg: >-
+      OpenCHAMI PXE identity reconciliation did not converge. Errors={{
+      _pxe_identity_final_plan.errors }}; stale interfaces={{
+      _pxe_identity_final_plan.stale_interface_ids }}; Boot Service updates={{
+      _pxe_identity_final_plan.boot_node_updates }}.
