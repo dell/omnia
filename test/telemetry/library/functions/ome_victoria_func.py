@@ -40,7 +40,7 @@ from .ome_func import get_ome_pipeline_context
 from .telemetry_func import (
     get_vlselect_endpoint,
     get_vmselect_endpoint,
-    is_sink_enabled,
+    is_sink_enabled_for_source,
     run_on_kube_vip,
 )
 
@@ -620,11 +620,11 @@ def verify_ome_metrics_in_victoria(host, topic):
             ),
         )
     try:
-        # Check if victoria_metrics sink is enabled
-        if not is_sink_enabled(host, "victoria_metrics"):
+        # Check if OME source targets victoria_metrics sink
+        if not is_sink_enabled_for_source(host, "ome", "victoria_metrics"):
             return _result(
                 True,
-                details="VictoriaMetrics sink is not enabled in telemetry configuration",
+                details="OME source does not target VictoriaMetrics sink",
                 skipped=True,
             )
         context = _pipeline_context(host, "metrics")
@@ -654,11 +654,11 @@ def verify_ome_logs_in_victoria(host, topic):
             ),
         )
     try:
-        # Check if victoria_logs sink is enabled
-        if not is_sink_enabled(host, "victoria_logs"):
+        # Check if OME source targets victoria_logs sink
+        if not is_sink_enabled_for_source(host, "ome", "victoria_logs"):
             return _result(
                 True,
-                details="VictoriaLogs sink is not enabled in telemetry configuration",
+                details="OME source does not target VictoriaLogs sink",
                 skipped=True,
             )
         context = _pipeline_context(host, "logs")

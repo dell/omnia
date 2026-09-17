@@ -295,6 +295,37 @@ def is_sink_enabled(host, sink_name):
     return False
 
 
+def is_sink_enabled_for_source(host, source_name, sink_name):
+    """Check if a specific source targets a specific sink.
+
+    Checks if the given source has the sink in its collection_targets
+    and is enabled (either metrics_enabled or logs_enabled).
+
+    Args:
+        host: Testinfra host connection to the OIM.
+        source_name: Source name (e.g. 'ome', 'sfm', 'vast', 'powerscale').
+        sink_name: Sink name (e.g. 'victoria_metrics', 'victoria_logs', 'kafka').
+
+    Returns:
+        bool: True if the source is enabled and targets this sink.
+    """
+    config = load_telemetry_config_from_target(host)
+    sources = read_yaml_key(config, "telemetry_sources", default={})
+    src_cfg = sources.get(source_name, {})
+    
+    if not isinstance(src_cfg, dict):
+        return False
+    
+    # Check both metrics_enabled and logs_enabled for the specific source
+    metrics_enabled = src_cfg.get("metrics_enabled", False)
+    logs_enabled = src_cfg.get("logs_enabled", False)
+    if not (metrics_enabled or logs_enabled):
+        return False
+    
+    targets = src_cfg.get("collection_targets", [])
+    return sink_name in targets
+
+
 def check_target_connectivity(host):
     """Verify OIM target host is reachable.
 
