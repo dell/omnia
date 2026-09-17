@@ -1126,15 +1126,30 @@ def validate_telemetry_packages(
                     telemetry_config.get("cluster_inventory", "")
                     if isinstance(telemetry_config, dict) else ""
                 )
+                
+                # Resolve cluster_inventory path: use configured value or default
+                cluster_inv_path = None
+                if isinstance(cluster_inventory, str) and cluster_inventory.strip():
+                    # Configured value
+                    cluster_inv_path = cluster_inventory.strip()
+                else:
+                    # Empty or not set: use default orchestrator output path
+                    # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
+                    omnia_data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia").rstrip("/")
+                    project_name = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+                    cluster_inv_path = f"{omnia_data_path}/orchestrator/output/{project_name}/orchestrator_inventory.yml"
+                    logger.info(
+                        "cluster_inventory is empty; using default path: %s",
+                        cluster_inv_path,
+                    )
+                
                 if (
                     (
                         not isinstance(kube_vip, str)
                         or not kube_vip.strip()
                     )
-                    and isinstance(cluster_inventory, str)
-                    and cluster_inventory.strip()
+                    and cluster_inv_path
                 ):
-                    cluster_inv_path = cluster_inventory.strip()
                     if not os.path.isabs(cluster_inv_path):
                         cluster_inv_full_path = os.path.join(
                             input_dir, cluster_inv_path,
