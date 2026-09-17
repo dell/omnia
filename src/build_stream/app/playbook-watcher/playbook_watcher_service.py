@@ -454,6 +454,25 @@ def sanitize_path(value: str, allowed_base: str) -> str:
     return "".join(rebuilt)
 
 
+_VALIDATE_CONFIG_PARTS = ("build_stream", "validate", "config.yml")
+_LEGACY_VALIDATE_CONFIG_PARTS = ("automation", "omnia_test_config.yml")
+
+
+def normalize_validate_config_path(value: str) -> str:
+    """Map the API container path to the watcher's Omnia data root.
+
+    The API and host watcher can see the shared data under different absolute
+    mount points. Validate the fixed relative contract from the request, then
+    rebuild the path from the watcher's ``OMNIA_DATA_PATH``.
+    """
+    safe_path = Path(sanitize_path(value, "/"))
+    is_current_path = safe_path.parts[-3:] == _VALIDATE_CONFIG_PARTS
+    is_legacy_path = safe_path.parts[-2:] == _LEGACY_VALIDATE_CONFIG_PARTS
+    if not safe_path.is_absolute() or not (is_current_path or is_legacy_path):
+        raise ValueError("Unexpected validation configuration path")
+    return str(Path(OMNIA_DATA_PATH).joinpath(*_VALIDATE_CONFIG_PARTS))
+
+
 def sanitize_extra_vars(extra_vars: Any, job_id: str) -> dict:
     """Sanitize extra_vars dictionary values to break taint chain.
 
@@ -770,9 +789,12 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
                     )
                     return None
 
-            # Validate config_path is within allowed directory
-            allowed_base = os.path.join(OMNIA_DATA_PATH, "")
-            if not config_path.startswith(allowed_base) or ".." in config_path:
+            # Normalize the API container path to the host-side Omnia root.
+            try:
+                request_data["config_path"] = normalize_validate_config_path(
+                    config_path
+                )
+            except ValueError:
                 log_secure_info("error", "Invalid config_path", config_path[:8])
                 return None
         else:
@@ -1247,7 +1269,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
 def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     """Execute test automation via run_validation.sh and capture results.
 
-    Runs: ./run_validation.sh fvt_orchestrator verify --marker buildstream
+    Runs: ./run_validation.sh fvt_orchestrator check verify --marker buildstream
 
     Args:
         request_data: Parsed request dictionary with test_automation fields
@@ -1268,10 +1290,9 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("Invalid stage_type format")
     stage_type = sanitize_stage_name(request_data["stage_type"])
 
-    # Sanitize config_path: re-derive from safe alphabet + validate prefix
-    config_path = sanitize_path(
-        str(request_data["config_path"]),
-        OMNIA_DATA_PATH,
+    # Rebuild the API container path below the host-side OMNIA_DATA_PATH.
+    config_path = normalize_validate_config_path(
+        str(request_data["config_path"])
     )
 
     # Sanitize attempt: coerce to int in bounded range
@@ -1307,7 +1328,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     del request_data  # Sever the taint chain to subprocess.run()
 
     # Hardcoded values — not configurable in this release
-    scenario_name = "validate"        # Hardcoded, not from request
+    scenario_name = "check"           # Hardcoded, not from request
     test_suite = "buildstream"        # Hardcoded marker name, not from request
     timeout_minutes = 150             # Hardcoded default
 
@@ -1351,14 +1372,15 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
 
     # Build test command - execute run_validation.sh on OIM host
     # run_validation.sh delegates to _run.py which runs pytest with markers
-    # Usage: ./run_validation.sh fvt_orchestrator verify --marker buildstream
+    # Usage: ./run_validation.sh fvt_orchestrator check verify
+    #        --marker buildstream
     #
     # Pipeline-safe environment setup (no interactive prompts, no waiting):
     #   1. cd to test/orchestrator directory
     #   2. Run the framework-supported setup entry point in venv mode
     #   3. setup_env.sh verifies the installed omnia_auto package byte-for-byte
     #      against the local wheel, including same-version wheel updates
-    #   4. Run: ./run_validation.sh fvt_orchestrator verify --marker buildstream
+    #   4. Run the BuildStream post-deployment checks for Slurm/Kubernetes
     # Resolve from the same OMNIA_SRC_PATH used for normal playbooks.
     # OMNIA_SRC_PATH points to <clone_path>/src.
     clone_path = str(Path(_get_omnia_src_path()).resolve().parent)
@@ -1397,7 +1419,8 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         f'source .venv/bin/activate && '
         # Checkmarx: Hardcoded command arguments to prevent injection from request_data
         # Run the validation through its supported non-interactive entry point.
-        f'exec ./run_validation.sh fvt_orchestrator verify --marker buildstream'
+        f'exec ./run_validation.sh fvt_orchestrator check verify '
+        f'--marker buildstream'
     )
 
     cmd = ["bash", "-c", setup_and_run]
@@ -1551,20 +1574,13 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                     job_id
                 )
 
-        # Local validation writes reports below the configured repository,
-        # while remote validation writes them below OMNIA_DATA_PATH. Resolve
-        # the generated report from those runtime locations instead of
-        # assuming that OMNIA_DATA_PATH is always used.
-        local_report_path = os.path.join(
-            test_dir, "reports", "orchestrator_test_report.json"
-        )
-        data_report_path = os.path.join(
-            OMNIA_DATA_PATH, "reports", "orchestrator_test_report.json"
-        )
-        report_source_path = (
-            local_report_path
-            if os.path.exists(local_report_path)
-            else data_report_path
+        # The Orchestrator FVT contract writes a report named from REPORT_ID
+        # under /opt/omnia/reports. Resolve the exact attempt report so a
+        # retry cannot consume the stale aggregate from an earlier attempt.
+        report_source_path = os.path.join(
+            "/opt/omnia",
+            "reports",
+            f"{report_id}_orchestrator_report.json" if report_id else "",
         )
         log_secure_info(
             'info',
