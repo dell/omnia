@@ -403,6 +403,12 @@ TEST_ASSERT_MSGS = {
         "  1. kubectl get pods -n telemetry\n"
         "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
     ),
+    "cleanup_topics_remaining": (
+        "{count} Kafka topic(s) still present after cleanup\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get kafkatopic -n telemetry\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+    ),
 
     # Cleanup - Sources
     "idrac_not_cleaned": (

@@ -77,7 +77,7 @@ from library.functions.validation_func import (  # noqa: E402
     validate_all,
     ConfigValidationError,
 )
-from library.vars import TEST_CASES  # noqa: E402
+from library.vars import TEST_CASES, UT_TEST_CASE_IDS  # noqa: E402
 
 # Build test-function-name -> TC ID map for deterministic report resolution.
 _TC_ID_MAP = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()}
@@ -149,16 +149,32 @@ _TC_ID_MAP.update(
 )
 
 
-def _delete_volume_enabled(config):
-    """Resolve the cleanup volume mode without requesting a fixture."""
-    cli_value = config.getoption("--delete-volume")
+def _ut_test_node_key(item):
+    """Return the stable registry key for a Telemetry UT item."""
+    normalized_node_id = item.nodeid.replace("\\", "/")
+    if "ut/" not in normalized_node_id:
+        return ""
+    return normalized_node_id.split("ut/", 1)[1].split("[", 1)[0]
+
+
+def _delete_sinks_volume_enabled(config):
+    """Resolve the sink cleanup-volume mode without requesting a fixture."""
+    cli_value = config.getoption("--delete-sinks-volume")
     if cli_value is not None:
         return cli_value.lower() in ("true", "1", "yes")
-    return os.environ.get("DELETE_VOLUME", "").lower() in ("true", "1", "yes")
+    return os.environ.get("DELETE_SINKS_VOLUME", "").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
 
 
 def _registered_test_case_id(item):
     """Resolve a testcase ID from the item rather than stale logger state."""
+    ut_tc_id = UT_TEST_CASE_IDS.get(_ut_test_node_key(item), "")
+    if ut_tc_id:
+        return ut_tc_id
+
     if item.name == "test_deploy_telemetry":
         deploy_tag = os.environ.get("OMNIA_DEPLOY_TAG", "")
         deploy_key = "deploy_deploy" if deploy_tag else "deploy_telemetry"
@@ -171,13 +187,13 @@ def _registered_test_case_id(item):
         if item.name == "test_no_pvcs_after_full_cleanup":
             case_key = (
                 "no_pvcs_after_full_cleanup"
-                if _delete_volume_enabled(item.config)
+                if _delete_sinks_volume_enabled(item.config)
                 else "pvcs_preserved_after_cleanup"
             )
         else:
             case_key = (
                 "nft_cleanup_no_pvcs"
-                if _delete_volume_enabled(item.config)
+                if _delete_sinks_volume_enabled(item.config)
                 else "nft_cleanup_pvcs_preserved"
             )
         return TEST_CASES[case_key]["id"]
@@ -476,10 +492,15 @@ def pytest_runtest_makereport(item, call):
         "SKIPPED" if result.skipped else "FAILED"
     )
 
+    ut_tc_id = UT_TEST_CASE_IDS.get(_ut_test_node_key(item), "")
     registered_tc_id = _registered_test_case_id(item)
     logger_tc_id = get_last_tc_id()
     tc_id = registered_tc_id or logger_tc_id
-    output = get_test_output(item.name) if logger_tc_id == tc_id else ""
+    output = (
+        get_test_output(item.name)
+        if not ut_tc_id and logger_tc_id == tc_id
+        else ""
+    )
     details = output if output else ""
     skip_reason = ""
 

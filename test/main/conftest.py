@@ -229,6 +229,7 @@ def pytest_sessionstart(session):
     report_name = build_report_name(
         domain_name="main",
         base_name=base_name,
+        report_id=report_id,
     )
     report = TestReport(
         module_name=module_name,

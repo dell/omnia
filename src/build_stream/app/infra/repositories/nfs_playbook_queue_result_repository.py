@@ -25,7 +25,9 @@ from api.logging_utils import log_secure_info
 from core.localrepo.entities import PlaybookResult
 
 
-DEFAULT_QUEUE_BASE = "/opt/omnia/playbook_queue"
+DEFAULT_QUEUE_BASE = str(
+    Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia")) / "playbook_queue"
+)
 RESULTS_DIR_NAME = "results"
 ARCHIVE_DIR_NAME = "archive/results"
 

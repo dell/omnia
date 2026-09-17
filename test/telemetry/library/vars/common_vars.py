@@ -421,6 +421,17 @@ CMDS = {
         " -o jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'"
         " 2>/dev/null"
     ),
+    "kubectl_get_kafka_ready_status": (
+        "kubectl get kafka kafka -n {namespace}"
+        " -o jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'"
+        " 2>/dev/null"
+    ),
+
+    # --- VictoriaMetrics ---
+    "kubectl_get_vmcluster_update_status": (
+        "kubectl get vmcluster -n {namespace}"
+        " -o jsonpath='{{.items[0].status.updateStatus}}' 2>/dev/null"
+    ),
 
     # --- KafkaUser ---
     "kubectl_get_kafkauser": (
@@ -544,6 +555,11 @@ CMDS = {
         " ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no"
         " {user}@{host}"
         " '{isi_cmd}'"
+    ),
+    "powerscale_get_privileges": "isi auth privileges",
+    "powerscale_get_privileges_password": (
+        "sshpass -p %s ssh -o StrictHostKeyChecking=accept-new"
+        " -o PubkeyAuthentication=no -o ConnectTimeout=10 -- %s %s"
     ),
 
     # --- Cleanup verification ---
