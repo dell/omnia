@@ -40,6 +40,7 @@
   ansible.builtin.systemd:
     name: "{{ openchami_unit_check.openchami_unit_name }}"
     state: stopped
+  register: cleanup_openchami_stop_results
   loop: "{{ cleanup_openchami_unit_checks.results }}"
   loop_control:
     loop_var: openchami_unit_check
@@ -49,15 +50,27 @@
 
 - name: Disable OpenCHAMI services
   ansible.builtin.systemd:
-    name: "{{ item }}"
+    name: "{{ openchami_unit_check.openchami_unit_name }}"
     enabled: false
-  loop: "{{ openchami_config.disable_units }}"
+  loop: "{{ cleanup_openchami_unit_checks.results }}"
+  loop_control:
+    loop_var: openchami_unit_check
+    label: "{{ openchami_unit_check.openchami_unit_name }}"
+  when:
+    - openchami_unit_check.openchami_unit_name in openchami_config.disable_units
+    - openchami_unit_check.status.LoadState | default('not-found') != 'not-found'
   tags: openchami
 
 - name: Wait for services to stop
   ansible.builtin.pause:
     seconds: 5
-  when: not (dry_run | default(false) | bool)
+  when:
+    - not (dry_run | default(false) | bool)
+    - >-
+      cleanup_openchami_stop_results.results | default([])
+      | selectattr('changed', 'defined')
+      | selectattr('changed', 'equalto', true)
+      | list | length > 0
   tags: openchami
 
 - name: Check whether Podman is available for OpenCHAMI cleanup
@@ -161,6 +174,7 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
+  register: cleanup_openchami_config_dir_removal
   loop: "{{ openchami_config.config_dirs }}"
   tags: openchami
 
@@ -176,10 +190,21 @@
     state: absent
   tags: openchami
 
+- name: Check resolv.conf attributes
+  ansible.builtin.stat:
+    path: /etc/resolv.conf
+    get_attributes: true
+  register: cleanup_openchami_resolv_conf
+  tags: openchami
+
 - name: Unlock resolv.conf
   ansible.builtin.file:
     path: /etc/resolv.conf
     attributes: "-i"
+  register: cleanup_openchami_resolv_conf_unlock
+  when:
+    - cleanup_openchami_resolv_conf.stat.exists
+    - "'i' in (cleanup_openchami_resolv_conf.stat.attr_flags | default(''))"
   tags: openchami
 
 - name: Check whether NetworkManager CLI is available
@@ -194,8 +219,15 @@
   ansible.builtin.command:
     cmd: nmcli general reload dns-rc
   register: cleanup_openchami_nmcli_reload
-  changed_when: cleanup_openchami_nmcli_reload.rc == 0
-  when: cleanup_openchami_nmcli_check.rc == 0
+  changed_when: false
+  when:
+    - cleanup_openchami_nmcli_check.rc == 0
+    - >-
+      cleanup_openchami_resolv_conf_unlock is changed or
+      (cleanup_openchami_config_dir_removal.results | default([])
+       | selectattr('changed', 'defined')
+       | selectattr('changed', 'equalto', true)
+       | list | length > 0)
   tags: openchami
 
 - name: Remove generated inventories

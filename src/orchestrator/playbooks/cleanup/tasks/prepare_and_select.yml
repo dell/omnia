@@ -137,20 +137,164 @@
     enabled_components: "{{ target_components }}"
   when: effective_tags | length > 0 and effective_tags[0] != 'all'
 
+- name: Check Omnia configuration for full cleanup selection
+  ansible.builtin.stat:
+    path: "{{ omnia_project_input_dir }}/omnia_config.yml"
+  register: cleanup_selection_omnia_config_file
+  when: effective_tags | length == 0 or effective_tags[0] == 'all'
+
+- name: Check storage configuration for full cleanup selection
+  ansible.builtin.stat:
+    path: "{{ omnia_project_input_dir }}/storage_config.yml"
+  register: cleanup_selection_storage_config_file
+  when: effective_tags | length == 0 or effective_tags[0] == 'all'
+
 - name: Load Omnia configuration for full cleanup selection
   ansible.builtin.include_vars:
     file: "{{ omnia_project_input_dir }}/omnia_config.yml"
     name: cleanup_selection_omnia_config
-  when: effective_tags | length == 0 or effective_tags[0] == 'all'
+  when:
+    - effective_tags | length == 0 or effective_tags[0] == 'all'
+    - cleanup_selection_omnia_config_file.stat.exists
 
-- name: Detect whether Kubernetes is configured
+- name: Load storage configuration for full cleanup selection
+  ansible.builtin.include_vars:
+    file: "{{ omnia_project_input_dir }}/storage_config.yml"
+    name: cleanup_selection_storage_config
+  when:
+    - effective_tags | length == 0 or effective_tags[0] == 'all'
+    - cleanup_selection_storage_config_file.stat.exists
+
+- name: Resolve shared-storage references for full cleanup selection
   ansible.builtin.set_fact:
-    cleanup_k8s_configured: >-
-      {{ (cleanup_selection_omnia_config.service_k8s_cluster
-          | default([], true) | length) > 0 }}
+    cleanup_selection_mounts: >-
+      {{ (cleanup_selection_storage_config | default({})).mounts
+         | default([], true) }}
+    cleanup_slurm_storage_name: >-
+      {{ ((cleanup_selection_omnia_config | default({})).slurm_cluster
+          | default([], true) | first | default({})).nfs_storage_name
+          | default('', true) }}
+    cleanup_k8s_storage_name: >-
+      {{ ((cleanup_selection_omnia_config | default({})).service_k8s_cluster
+          | default([], true) | first | default({})).nfs_storage_name
+          | default('', true) }}
   when: effective_tags | length == 0 or effective_tags[0] == 'all'
 
-- name: Exclude unconfigured Kubernetes from full cleanup
+- name: Match configured shared-storage entries
+  ansible.builtin.set_fact:
+    cleanup_slurm_storage_matches: >-
+      {{ cleanup_selection_mounts
+         | selectattr('name', 'equalto', cleanup_slurm_storage_name)
+         | list }}
+    cleanup_k8s_storage_matches: >-
+      {{ cleanup_selection_mounts
+         | selectattr('name', 'equalto', cleanup_k8s_storage_name)
+         | list }}
+  when: effective_tags | length == 0 or effective_tags[0] == 'all'
+
+- name: Resolve configured shared-storage endpoints
+  ansible.builtin.set_fact:
+    cleanup_slurm_configured: >-
+      {{ cleanup_slurm_storage_name | length > 0 and
+         cleanup_slurm_storage_matches | length == 1 }}
+    cleanup_k8s_configured: >-
+      {{ ((cleanup_selection_omnia_config | default({})).service_k8s_cluster
+          | default([], true) | length) > 0 and
+         cleanup_k8s_storage_name | length > 0 and
+         cleanup_k8s_storage_matches | length == 1 }}
+    cleanup_slurm_storage_source: >-
+      {{ (cleanup_slurm_storage_matches | first | default({})).source
+         | default('', true) }}
+    cleanup_slurm_mount_point: >-
+      {{ (cleanup_slurm_storage_matches | first | default({})).mount_point
+         | default('', true) }}
+    cleanup_k8s_storage_source: >-
+      {{ (cleanup_k8s_storage_matches | first | default({})).source
+         | default('', true) }}
+    cleanup_k8s_mount_point: >-
+      {{ (cleanup_k8s_storage_matches | first | default({})).mount_point
+         | default('', true) }}
+  when: effective_tags | length == 0 or effective_tags[0] == 'all'
+
+- name: Resolve shared-storage server and export paths
+  ansible.builtin.set_fact:
+    cleanup_slurm_storage_server: >-
+      {{ cleanup_slurm_storage_source.split(':')[0]
+         if ':' in cleanup_slurm_storage_source else '' }}
+    cleanup_slurm_export_path: >-
+      {{ cleanup_slurm_storage_source.split(':')[1]
+         if ':' in cleanup_slurm_storage_source else '' }}
+    cleanup_k8s_storage_server: >-
+      {{ cleanup_k8s_storage_source.split(':')[0]
+         if ':' in cleanup_k8s_storage_source else '' }}
+    cleanup_k8s_export_path: >-
+      {{ cleanup_k8s_storage_source.split(':')[1]
+         if ':' in cleanup_k8s_storage_source else '' }}
+  when: effective_tags | length == 0 or effective_tags[0] == 'all'
+
+- name: Read local OIM addresses for shared-storage detection
+  ansible.builtin.command:
+    cmd: hostname --all-ip-addresses
+  register: cleanup_selection_local_addresses
+  changed_when: false
+  when: effective_tags | length == 0 or effective_tags[0] == 'all'
+
+- name: Collect shared-storage deployment evidence
+  ansible.builtin.set_fact:
+    cleanup_active_mount_pairs: >-
+      {{ lookup('file', '/proc/mounts').splitlines()
+         | map('regex_replace', '^(\S+)\s+(\S+)\s+.*$', '\1 \2')
+         | list }}
+    cleanup_fstab_pairs: >-
+      {{ lookup('file', '/etc/fstab', errors='ignore').splitlines()
+         | reject('match', '^\s*(#|$)')
+         | map('regex_replace', '^(\S+)\s+(\S+)\s+.*$', '\1 \2')
+         | list }}
+    cleanup_local_export_paths: >-
+      {{ lookup('file', '/etc/exports', errors='ignore').splitlines()
+         | reject('match', '^\s*(#|$)')
+         | map('regex_replace', '^\s*(\S+).*$', '\1')
+         | list }}
+    cleanup_local_nfs_hosts: >-
+      {{ (['localhost', '127.0.0.1', '::1',
+           inventory_hostname | default(''), ansible_host | default(''),
+           host_name | default(''), oim_node_name | default(''),
+           ansible_hostname | default(''), ansible_fqdn | default('')]
+          + (cleanup_selection_local_addresses.stdout | default('')).split())
+         | reject('equalto', '') | unique | list }}
+  when: effective_tags | length == 0 or effective_tags[0] == 'all'
+
+- name: Detect deployed shared-storage components
+  ansible.builtin.set_fact:
+    cleanup_slurm_deployed: >-
+      {{ cleanup_slurm_configured | bool and
+         ((cleanup_slurm_storage_source ~ ' ' ~ cleanup_slurm_mount_point)
+          in cleanup_active_mount_pairs or
+          (cleanup_slurm_storage_source ~ ' ' ~ cleanup_slurm_mount_point)
+          in cleanup_fstab_pairs or
+          (cleanup_slurm_storage_server in cleanup_local_nfs_hosts and
+           cleanup_slurm_export_path in cleanup_local_export_paths)) }}
+    cleanup_k8s_deployed: >-
+      {{ cleanup_k8s_configured | bool and
+         ((cleanup_k8s_storage_source ~ ' ' ~ cleanup_k8s_mount_point)
+          in cleanup_active_mount_pairs or
+          (cleanup_k8s_storage_source ~ ' ' ~ cleanup_k8s_mount_point)
+          in cleanup_fstab_pairs or
+          (cleanup_k8s_storage_server in cleanup_local_nfs_hosts and
+           cleanup_k8s_export_path in cleanup_local_export_paths)) }}
+  when: effective_tags | length == 0 or effective_tags[0] == 'all'
+
+- name: Exclude undeployed Slurm from full cleanup
+  ansible.builtin.set_fact:
+    enabled_components: >-
+      {{ enabled_components | dict2items
+         | rejectattr('key', 'equalto', 'slurm') | items2dict }}
+  when:
+    - effective_tags | length == 0 or effective_tags[0] == 'all'
+    - enabled_components.slurm is defined
+    - not cleanup_slurm_deployed | bool
+
+- name: Exclude undeployed Kubernetes from full cleanup
   ansible.builtin.set_fact:
     enabled_components: >-
       {{ enabled_components | dict2items
@@ -158,7 +302,7 @@
   when:
     - effective_tags | length == 0 or effective_tags[0] == 'all'
     - enabled_components.k8s is defined
-    - not cleanup_k8s_configured | bool
+    - not cleanup_k8s_deployed | bool
 
 - name: Validate shared-data cleanup selection values
   ansible.builtin.assert:
@@ -242,17 +386,26 @@
     msg:
       - "Shared-data cleanup decisions:"
       - >-
-        Slurm: {{ 'not selected; skipped'
+        Slurm: {{ 'not configured; skipped'
+        if cleanup_slurm_configured is defined and
+           not cleanup_slurm_configured | bool
+        else 'configured but not deployed on the OIM; skipped'
+        if cleanup_slurm_deployed is defined and
+           not cleanup_slurm_deployed | bool
+        else 'not selected; skipped'
         if enabled_components.slurm is not defined
         else 'delete data, unmount, and remove fstab entries'
         if cleanup_slurm_approved | bool
         else 'preserve data, then unmount and remove fstab entries' }}
       - >-
-        Kubernetes: {{ 'not selected; skipped'
-        if enabled_components.k8s is not defined
-        else 'not configured; skipped'
+        Kubernetes: {{ 'not configured; skipped'
         if cleanup_k8s_configured is defined and
            not cleanup_k8s_configured | bool
+        else 'configured but not deployed on the OIM; skipped'
+        if cleanup_k8s_deployed is defined and
+           not cleanup_k8s_deployed | bool
+        else 'not selected; skipped'
+        if enabled_components.k8s is not defined
         else 'delete data, unmount, and remove fstab entries'
         if cleanup_k8s_approved | bool
         else 'preserve data, then unmount and remove fstab entries' }}
@@ -261,7 +414,11 @@
         if enabled_components.credentials is defined
         else 'preserve credential file and vault key' }}
   when:
-    - enabled_components.slurm is defined or enabled_components.k8s is defined
+    - >-
+      effective_tags | length == 0 or
+      effective_tags[0] == 'all' or
+      enabled_components.slurm is defined or
+      enabled_components.k8s is defined
 
 - name: Set execution order (priority descending)
   ansible.builtin.set_fact:
