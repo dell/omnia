@@ -10,6 +10,7 @@
 import ast
 import importlib
 import importlib.util
+import os
 import sys
 import types
 import unittest
@@ -117,6 +118,15 @@ def _validation_runner(script_dir=TEST_ROOT):
         "markers": _literal_assignment("MARKERS"),
         "suites": _literal_assignment("SUITES"),
         "exclude_tags": _literal_assignment("EXCLUDE_TAGS"),
+        "all_exec_tags": _literal_assignment("ALL_EXEC_TAGS"),
+        "all_exec_marker": _literal_assignment("ALL_EXEC_MARKER"),
+        "all_verify_exclude_markers": _literal_assignment(
+            "ALL_VERIFY_EXCLUDE_MARKERS"
+        ),
+        "required_suite_tags": _literal_assignment("REQUIRED_SUITE_TAGS"),
+        "verify_only_tags": _literal_assignment("VERIFY_ONLY_TAGS"),
+        "verify_only_suites": _literal_assignment("VERIFY_ONLY_SUITES"),
+        "suite_exec_owners": _literal_assignment("SUITE_EXEC_OWNERS"),
     }
     return shared_runner.ValidationRunner(
         domain="repo_manager",
@@ -136,6 +146,13 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
         self.assertEqual(configured, set(fvt_tags))
         for tag in fvt_tags:
             self.assertTrue((TEST_ROOT / "fvt" / tag).is_dir(), tag)
+
+    def test_nonfunctional_category_is_registered_and_present(self):
+        """The advertised NFT category owns real tests and marker metadata."""
+        self.assertIn("nft", _literal_assignment("MARKERS"))
+        nft_path = TEST_ROOT / "nft"
+        self.assertTrue(nft_path.is_dir())
+        self.assertTrue(any(nft_path.glob("test_*.py")))
 
     def test_declared_suites_are_real_immediate_directories(self):
         """Every advertised suite resolves directly beneath its FVT tag."""
@@ -191,13 +208,37 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
 
     def test_verify_only_targets_are_not_configured_for_execution(self):
         """Targets without deploy triggers fail closed at configuration time."""
-        # negative and user_registry are verify-only (no deploy tests)
+        # policy, negative, and user_registry are verify-only (no deploy tests)
         # They should not be configured with command: "test" or "exec"
         config = _batch_config()
-        verify_only_scenarios = ["negative", "user_registry"]
+        verify_only_scenarios = ["policy", "negative", "user_registry"]
         for scenario in verify_only_scenarios:
             self.assertIn(scenario, config["fvt_repo_manager"])
             self.assertEqual(config["fvt_repo_manager"][scenario]["command"], "verify")
+        self.assertEqual(
+            set(_literal_assignment("VERIFY_ONLY_TAGS")),
+            set(verify_only_scenarios),
+        )
+
+    def test_report_names_are_isolated_by_category(self):
+        """FVT, NFT, and UT runs cannot overwrite one another's reports."""
+        conftest_module = sys.modules["conftest"]
+        config = {"report_name": "repo_manager_test_report"}
+        expected_names = {
+            "exec": "repo_manager_fvt_report",
+            "verify": "repo_manager_fvt_report",
+            "nft": "repo_manager_nft_report",
+            "ut": "repo_manager_ut_report",
+        }
+        for command_type, expected_name in expected_names.items():
+            with self.subTest(command_type=command_type), patch.dict(
+                os.environ,
+                {"OMNIA_COMMAND_TYPE": command_type},
+            ):
+                self.assertEqual(
+                    conftest_module._category_report_base_name(config),
+                    expected_name,
+                )
 
     def test_catalog_lifecycle_requires_one_real_suite(self):
         """Catalog lifecycle execution cannot fan out across operations."""
@@ -240,7 +281,19 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
         """Repo Manager passes every domain lifecycle rule to the runner."""
         # Verify that _run.py passes all required domain config keys
         run_source = (TEST_ROOT / "_run.py").read_text(encoding="utf-8")
-        required_keys = ["tags", "markers", "suites", "exclude_tags"]
+        required_keys = [
+            "tags",
+            "markers",
+            "suites",
+            "exclude_tags",
+            "all_exec_tags",
+            "all_exec_marker",
+            "all_verify_exclude_markers",
+            "required_suite_tags",
+            "verify_only_tags",
+            "verify_only_suites",
+            "suite_exec_owners",
+        ]
         for key in required_keys:
             self.assertIn(key, run_source, f"Missing {key} in domain_config")
         # Verify domain_vars is imported
@@ -256,6 +309,12 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
         conftest_source = (TEST_ROOT / "conftest.py").read_text(encoding="utf-8")
         self.assertIn('os.path.join(_TEST_DIR, "ut")', conftest_source)
         self.assertIn("sys.path.insert(0, _UT_DIR)", conftest_source)
+
+    def test_shell_entrypoint_prefers_the_local_virtual_environment(self):
+        """The public wrapper uses installed local dependencies when available."""
+        wrapper = (TEST_ROOT / "run_validation.sh").read_text(encoding="utf-8")
+        self.assertIn('"${VIRTUAL_ENV}/bin/python3"', wrapper)
+        self.assertIn('"${SCRIPT_DIR}/.venv/bin/python3"', wrapper)
 
     def test_catalog_lifecycle_without_exact_suite_fails_closed(self):
         """Ambiguous or verify-only catalog execution is rejected."""
@@ -311,35 +370,46 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
 
     def test_untagged_execution_uses_ordered_lifecycle_paths(self):
         """The real runner receives each safe lifecycle directory in order."""
-        # When _all_exec_tags is configured, the runner should execute
-        # lifecycle tags in the correct order
-        # This is verified by checking the runner's _run_exec implementation
         runner = _validation_runner()
-        # The runner should have _all_exec_tags capability
-        self.assertTrue(hasattr(runner, "_run_exec"))
-        # Verify that lifecycle tags are defined in domain_vars
         lifecycle_tags = ["precheck", "prepare", "execute", "status"]
-        fvt_tags = _literal_assignment("FVT_TAGS")
-        for tag in lifecycle_tags:
-            self.assertIn(tag, fvt_tags, f"Missing lifecycle tag: {tag}")
+        self.assertEqual(runner._all_exec_tags, lifecycle_tags)
+        self.assertTrue(
+            set(lifecycle_tags).isdisjoint(_literal_assignment("EXCLUDE_TAGS"))
+        )
 
     def test_untagged_verification_excludes_negative_markers(self):
         """Aggregate verification cannot collect co-located negative cases."""
-        # When running verification without specific markers, negative tests
-        # should be excluded by default
-        # This is verified by checking EXCLUDE_TAGS in domain_vars
-        exclude_tags = _literal_assignment("EXCLUDE_TAGS")
-        # Negative tests should be excluded from "all" verification
-        # The negative tag itself is not in EXCLUDE_TAGS, but negative tests
-        # are marked with @pytest.mark.negative
-        # The verification should filter these out unless explicitly requested
-        self.assertIn("negative", _literal_assignment("MARKERS"))
+        excluded = _literal_assignment("ALL_VERIFY_EXCLUDE_MARKERS")
+        self.assertIn("negative", excluded)
+        self.assertIn("destructive", excluded)
 
     def test_unit_category_is_registered_in_batch_config(self):
-        """The shared runner can execute deterministic tests directly."""
+        """The runner registers every deterministic test with a stable ID."""
         config = _batch_config()
         self.assertIn("ut_repo_manager", config)
         self.assertTrue((TEST_ROOT / "ut").is_dir())
+
+        expected_nodes = set()
+        for path in (TEST_ROOT / "ut").glob("test_*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in tree.body:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    if node.name.startswith("test_"):
+                        expected_nodes.add(f"{path.name}::{node.name}")
+                    continue
+                if not isinstance(node, ast.ClassDef):
+                    continue
+                for method in node.body:
+                    if isinstance(
+                        method, (ast.FunctionDef, ast.AsyncFunctionDef)
+                    ) and method.name.startswith("test_"):
+                        expected_nodes.add(
+                            f"{path.name}::{node.name}::{method.name}"
+                        )
+
+        registered_ids = sys.modules["conftest"].UT_TEST_CASE_IDS
+        self.assertEqual(set(registered_ids), expected_nodes)
+        self.assertEqual(len(set(registered_ids.values())), len(registered_ids))
 
     def test_playbook_wrapper_uses_supported_verbosity_keyword(self):
         """The domain wrapper matches the shared runner API."""
@@ -384,6 +454,27 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
         ]
         self.assertEqual(names.count("pytest_sessionfinish"), 1)
         self.assertEqual(names.count("pytest_runtest_makereport"), 1)
+
+    def test_declared_tc_id_wins_over_nested_logger_state(self):
+        """A test's registered ID cannot be replaced by nested logger state."""
+        conftest_module = sys.modules["conftest"]
+
+        def sample_test():
+            """RM_FVT_SAMPLE_E001: Example deployment trigger."""
+
+        item = types.SimpleNamespace(
+            obj=sample_test,
+            nodeid="fvt/sample/test_example.py::sample_test",
+        )
+        with patch.object(
+            conftest_module,
+            "get_last_tc_id",
+            return_value="STALE_NESTED_ID",
+        ):
+            self.assertEqual(
+                conftest_module._registered_test_case_id(item),
+                "RM_FVT_SAMPLE_E001",
+            )
 
     def test_full_cleanup_fvt_matches_preserved_cli_contract(self):
         """Full cleanup no longer depends on obsolete input or CLI deletion."""
