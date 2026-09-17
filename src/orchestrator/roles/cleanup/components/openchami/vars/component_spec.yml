@@ -57,6 +57,9 @@ openchami_config:
     - "boot-service-data"
     - "metadata-service-data"
     - "postgres-data"
+  packages:
+    - "openchami"
+    - "ochami"
   config_dirs:
     - "/etc/openchami"
     - "/etc/ochami"

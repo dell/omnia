@@ -248,6 +248,17 @@
   when: dry_run | default(false) | bool
   tags: openchami
 
+- name: Remove OpenCHAMI RPM packages
+  ansible.builtin.dnf:
+    name: "{{ openchami_config.packages }}"
+    state: absent
+  tags: openchami
+
+- name: Reload systemd after removing OpenCHAMI RPM packages
+  ansible.builtin.systemd:
+    daemon_reload: true
+  tags: openchami
+
 - name: Remove OpenCHAMI config directories
   ansible.builtin.file:
     path: "{{ item }}"
@@ -319,6 +330,6 @@
   ansible.builtin.debug:
     msg: >-
       OpenCHAMI cleanup completed: target and services stopped, containers
-      and persistent data volumes removed, and generated configuration, work,
-      log, and inventory paths removed.
+      and persistent data volumes removed, RPM packages uninstalled, and
+      generated configuration, work, log, and inventory paths removed.
   tags: openchami
