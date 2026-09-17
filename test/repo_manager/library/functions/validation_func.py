@@ -178,13 +178,20 @@ def validate_test_config(
 
     for field in (
         "clone_path",
-        "project_name",
         "report_path",
         "report_name",
     ):
         value = config.get(field)
         if not isinstance(value, str) or not value.strip():
             errors.append(f"'{field}' is required and cannot be empty")
+
+    # project_name is optional in test_config.yml - read from OMNIA_PROJECT_NAME env var
+    project_name = config.get("project_name") or os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+    if project_name and (
+        not re.fullmatch(r"[A-Za-z0-9._-]+", project_name)
+        or project_name in {".", ".."}
+    ):
+        errors.append("project_name must be a safe directory name")
 
     if "oim_server_ip" not in config:
         errors.append("'oim_server_ip' is required (use an empty string locally)")
@@ -194,13 +201,6 @@ def validate_test_config(
     clone_path = str(config.get("clone_path", ""))
     if clone_path and not os.path.isabs(clone_path):
         errors.append(f"clone_path must be absolute: {clone_path}")
-
-    project_name = str(config.get("project_name", ""))
-    if project_name and (
-        not re.fullmatch(r"[A-Za-z0-9._-]+", project_name)
-        or project_name in {".", ".."}
-    ):
-        errors.append("project_name must be a safe directory name")
 
     report_path = str(config.get("report_path", ""))
     if " " in report_path:
