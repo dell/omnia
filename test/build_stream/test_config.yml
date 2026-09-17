@@ -92,13 +92,12 @@ sync_build_stream_input: false
 # =============================================================================
 # REPORT CONFIGURATION
 # =============================================================================
-# Directory where test reports (JSON + HTML) are saved. Environment variables
-# are expanded before use, so the default follows OMNIA_DATA_PATH.
+# Directory where test reports (JSON + HTML) are saved.
 # Can be:
-#   - An environment-derived absolute path: ${OMNIA_DATA_PATH}/reports
-#   - Another absolute path: /var/reports/build_stream
+#   - A folder name (relative to test/): reports
+#   - An absolute path: /var/reports/build_stream
 # No spaces allowed in the path.
-report_path: "${OMNIA_DATA_PATH}/reports"
+report_path: /opt/omnia/reports
 
 # Base name for report files (without extension).
 # Generates: build_stream_test_report.json, build_stream_test_report.html
