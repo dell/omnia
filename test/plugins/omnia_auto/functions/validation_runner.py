@@ -658,6 +658,30 @@ class ValidationRunner:
     ) -> int:
         """Run verification tests only."""
         os.environ["OMNIA_COMMAND_TYPE"] = "verify"
+        if not tag and self._all_exec_tags:
+            selected_marker = marker or self._all_exec_marker
+            try:
+                available_tags = self._get_fvt_tags()
+                selected_tags = [
+                    _canonical_choice(
+                        str(verify_tag), available_tags, "all-verify tag",
+                    )
+                    for verify_tag in self._all_exec_tags
+                ]
+            except ValueError as exc:
+                _err(str(exc))
+                return 2
+            _info("Running verification in lifecycle order...")
+            for verify_tag in selected_tags:
+                rc = self._run_verify(
+                    verify_tag, "", selected_marker, verbose,
+                )
+                if rc != 0:
+                    _fail(f"Lifecycle verification failed at {verify_tag}.")
+                    return rc
+            _ok("Lifecycle verification completed.")
+            return 0
+
         test_paths = self._build_verify_paths(tag, suite)
         if not test_paths:
             # If running a specific tag in lifecycle mode and no test paths found,

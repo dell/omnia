@@ -9,6 +9,7 @@ import ast
 from collections import defaultdict
 from pathlib import Path
 import re
+import runpy
 
 import pytest
 import yaml
@@ -187,6 +188,21 @@ def test_untagged_lifecycle_is_explicit_and_non_destructive():
 
 def test_untagged_verify_collects_every_safe_fvt_tag(monkeypatch):
     """ORCH_UT_106: Plain verify runs all safe checks without a sanity filter."""
+    lifecycle = _literal_assignment("ALL_EXEC_TAGS")
+    entrypoint = runpy.run_path(str(TEST_ROOT / "_run.py"))
+    select_tags = entrypoint["_runner_all_exec_tags"]
+    verify_tags = select_tags(
+        ["fvt_orchestrator", "verify"], lifecycle,
+    )
+    assert verify_tags == []
+    assert select_tags(
+        ["fvt_orchestrator", "verify", "--marker", "functional"],
+        lifecycle,
+    ) == []
+    assert select_tags(["fvt_orchestrator", "test"], lifecycle) == lifecycle
+    assert select_tags(
+        ["fvt_orchestrator", "check", "verify"], lifecycle,
+    ) == lifecycle
     runner = ValidationRunner(
         domain="orchestrator",
         script_dir=str(TEST_ROOT),
@@ -195,7 +211,7 @@ def test_untagged_verify_collects_every_safe_fvt_tag(monkeypatch):
             "markers": _literal_assignment("MARKERS"),
             "suites": _literal_assignment("SUITES"),
             "exclude_tags": _literal_assignment("EXCLUDE_TAGS"),
-            "all_exec_tags": _literal_assignment("ALL_EXEC_TAGS"),
+            "all_exec_tags": verify_tags,
             "all_exec_marker": _literal_assignment("ALL_EXEC_MARKER"),
             "all_verify_exclude_markers": _literal_assignment(
                 "ALL_VERIFY_EXCLUDE_MARKERS"
