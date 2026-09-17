@@ -348,9 +348,7 @@ def pytest_sessionstart(session):
     )
     report = TestReport(
         module_name=module_name,
-        report_path=str(
-            config.get("report_path", "/opt/omnia/reports")
-        ),
+        report_path=os.path.expandvars(str(config["report_path"])),
         report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
         report_id=report_id,
