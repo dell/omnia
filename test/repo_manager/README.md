@@ -16,6 +16,18 @@ source setup_env.sh            # One-time: create .venv, install deps
 vi test_config.yml             # Set oim_server_ip, dataset, etc.
 ```
 
+Named datasets are validated before any target synchronization. Generate or
+check deterministic datasets with:
+
+```bash
+cd datasets/generator
+python generate_dataset.py create my_dataset --profile defaults
+python generate_dataset.py my_dataset defaults --check
+```
+
+Generated datasets include provenance and artifact hashes. Repo Manager
+credentials are intentionally excluded and remain encrypted on the target.
+
 ## Running Tests
 
 ```bash
@@ -108,6 +120,7 @@ test/repo_manager/
 ├── datasets/                   # Test input datasets
 │   ├── data_set_01/
 │   │   ├── input/              # repo_manager_config, endpoint config
+│   │   ├── dataset_manifest.yml # Deterministic provenance and hashes
 │   │   └── README.md
 │   ├── generator/               # Dataset generation tools
 │   │   ├── generate_dataset.py # Generator script

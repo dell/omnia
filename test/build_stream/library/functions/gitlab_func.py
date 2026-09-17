@@ -20,6 +20,7 @@ pipeline files, and CI/CD variables.
 """
 
 import json
+import shlex
 from typing import Any, Dict, List
 
 from omnia_auto import read_remote_yaml, run_on_host
@@ -35,7 +36,6 @@ from library.vars.common_vars import (
     GITLAB_PIPELINE_VARIABLES,
     GITLAB_RB_PATH,
     GITLAB_ROOT_TOKEN_FILE,
-    GITLAB_SSH_PRIVATE_KEY,
     GITLAB_RUNNER_CONTAINER,
     GITLAB_RUNNER_QUADLET_DIR,
     GITLAB_RUNNER_QUADLET_FILE,
@@ -74,7 +74,7 @@ def _get_gitlab_config(host) -> Dict[str, str]:
 def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
     """Run a command on the GitLab server via SSH from OIM.
 
-    Uses the key-based SSH relationship configured by Build Stream.
+    Uses ``gitlab_ssh_password`` from the BuildStream credentials.
 
     Args:
         host: Testinfra host connection.
@@ -85,6 +85,7 @@ def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
     """
     gitlab_config = _get_gitlab_config(host)
     gitlab_host = gitlab_config.get("gitlab_host", "")
+    gitlab_user = gitlab_config.get("gitlab_ansible_user", "root") or "root"
 
     if not gitlab_host:
         config_path = gitlab_config.get("_config_path", "unknown")
@@ -97,9 +98,19 @@ def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
             ),
         }
 
-    # BatchMode prevents an accidental interactive password prompt.
-    ssh_cmd = CMDS["ssh_to_gitlab"].format(
-        identity_file=GITLAB_SSH_PRIVATE_KEY,
+    # sshpass reads SSHPASS from the environment, avoiding a password in the
+    # process argument list and preventing an interactive prompt.
+    from library.functions.pipeline_func import load_server_credentials
+    ssh_password = load_server_credentials(host).get("gitlab_ssh_password", "")
+    if not ssh_password:
+        return {
+            "success": False,
+            "stdout": "",
+            "error": "gitlab_ssh_password is missing from BuildStream credentials",
+        }
+    ssh_cmd = CMDS["ssh_to_gitlab_password"].format(
+        ssh_password=shlex.quote(ssh_password),
+        gitlab_user=shlex.quote(gitlab_user),
         gitlab_host=gitlab_host,
         cmd=cmd,
     )
@@ -117,7 +128,7 @@ def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
         "stdout": result.stdout if result.stdout else "",
         "error": (
             f"SSH to {gitlab_host} failed (rc={result.rc}). "
-            "Verify the Build Stream GitLab SSH key registration."
+            "Verify gitlab_ssh_password and sshpass on the BuildStream host."
         ),
     }
 
