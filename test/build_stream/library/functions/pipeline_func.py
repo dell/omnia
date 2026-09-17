@@ -47,7 +47,6 @@ from library.vars.common_vars import (
     GITLAB_SSH_PRIVATE_KEY,
     IMAGE_GROUP_STATUS_BUILT,
     JOB_WAIT_TIMEOUT,
-    NFS_ARTIFACT_BASE_DEFAULT,
     PIPELINE_POLL_INTERVAL,
     PIPELINE_POLL_TIMEOUT,
     POSTGRES_CONTAINER_NAME,
@@ -66,6 +65,7 @@ from library.vars.common_vars import (
 from ._config_helpers import (
     resolve_build_stream_input_path,
     resolve_omnia_data_path,
+    resolve_omnia_path,
 )
 
 
@@ -101,7 +101,8 @@ _server_creds_cache: Dict[str, str] = {}
 def load_server_credentials(host) -> Dict[str, str]:
     """Load credentials from build_stream_credentials.yml on the target host.
 
-    Reads from /opt/omnia/build_stream/input/<project>/build_stream_credentials.yml.
+    Reads credentials from the Build Stream input directory resolved from
+    ``OMNIA_DATA_PATH`` and ``OMNIA_PROJECT_NAME`` on the execution OIM.
     Handles both plain-text and ansible-vault encrypted files.
 
     Args:
@@ -2167,7 +2168,7 @@ def verify_build_image_meta(host, job_id: str) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, path, details, error.
     """
-    artifact_base = NFS_ARTIFACT_BASE_DEFAULT
+    artifact_base = resolve_omnia_path(host, "build_stream_root")
     meta_path = f"{artifact_base}/artifacts/{job_id}/build_image_meta.json"
 
     cmd = CMDS["file_exists"].format(path=meta_path)
@@ -2250,8 +2251,9 @@ def get_pipeline_summary(
 def check_repo_status(host) -> Dict[str, Any]:
     """Verify repo_status.yml overall_status is success.
 
-    Reads /opt/omnia/repo_manager/output/project_default/repo_status.yml
-    and checks that the overall_status key equals 'success'.
+    Reads the Repo Manager status file below the ``OMNIA_DATA_PATH`` and
+    ``OMNIA_PROJECT_NAME`` configured on the execution OIM and checks that
+    the ``overall_status`` key equals ``success``.
 
     Args:
         host: Testinfra host connection.

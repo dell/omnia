@@ -24,6 +24,10 @@ from typing import Any, Dict, Optional
 from omnia_auto import run_on_host
 
 from library.functions import pipeline_func
+from library.functions._config_helpers import (
+    resolve_omnia_data_path,
+    resolve_omnia_path,
+)
 from library.functions.build_stream_func import check_build_stream_health
 from library.vars.common_vars import CMDS
 
@@ -340,9 +344,10 @@ def stop_service(host, service: str) -> Dict[str, Any]:
 def wait_for_queue_entry(host, job_id: str, timeout: int) -> Dict[str, Any]:
     """Wait for the exact NFT job request and return its queue filename."""
     deadline = time.monotonic() + timeout
+    queue_path = resolve_omnia_path(host, "playbook_queue")
     command = (
-        "find /opt/omnia/playbook_queue/requests "
-        "/opt/omnia/playbook_queue/processing -maxdepth 1 -type f "
+        f"find {shlex.quote(f'{queue_path}/requests')} "
+        f"{shlex.quote(f'{queue_path}/processing')} -maxdepth 1 -type f "
         f"-name {shlex.quote(f'{job_id}_*.json')} "
         "-printf '%f\\n' 2>/dev/null | sort -u"
     )
@@ -361,7 +366,9 @@ def wait_for_queue_entry(host, job_id: str, timeout: int) -> Dict[str, Any]:
 def wait_for_queue_claimed(host, entry: str, timeout: int) -> Dict[str, Any]:
     """Wait until the restarted watcher removes one request from pending."""
     deadline = time.monotonic() + timeout
-    pending_path = f"/opt/omnia/playbook_queue/requests/{entry}"
+    pending_path = (
+        f"{resolve_omnia_path(host, 'playbook_queue', 'requests')}/{entry}"
+    )
     while time.monotonic() < deadline:
         pending = run_on_host(host, f"test -e {shlex.quote(pending_path)}")
         if pending.rc != 0:
@@ -373,17 +380,20 @@ def wait_for_queue_claimed(host, entry: str, timeout: int) -> Dict[str, Any]:
 def artifact_path_absent(host, job_id: str, filename: str) -> bool:
     """Confirm one rejected upload did not appear in the job artifact directory."""
     safe_filename = shlex.quote(filename)
+    artifact_path = resolve_omnia_path(
+        host, "build_stream_root", "artifacts", job_id
+    )
     command = (
-        "test ! -e /opt/omnia/build_stream_root/artifacts/"
-        f"{shlex.quote(job_id)}/{safe_filename}"
+        f"test ! -e {shlex.quote(artifact_path)}/{safe_filename}"
     )
     return run_on_host(host, command).rc == 0
 
 
 def forbidden_upload_absent(host, basename: str) -> bool:
     """Confirm a rejected traversal upload created no file under Omnia data."""
+    omnia_data_path = resolve_omnia_data_path(host)
     command = (
-        "find /opt/omnia -xdev -type f "
+        f"find {shlex.quote(omnia_data_path)} -xdev -type f "
         f"-name {shlex.quote(basename)} -print -quit 2>/dev/null"
     )
     result = run_on_host(host, command)
