@@ -48,6 +48,7 @@ DOMAIN_NAME = "build_stream"
 
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
 ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
+ENV_OMNIA_VENV_PATH = "OMNIA_VENV_PATH"
 
 # =============================================================================
 # PLAYBOOK CONFIGURATION
@@ -73,7 +74,6 @@ IPV4_PATTERN = re.compile(
 
 REQUIRED_CONFIG_FIELDS = [
     "dataset",
-    "project_name",
     "sync_build_stream_input",
     "report_path",
     "report_name",
@@ -133,26 +133,6 @@ EXPECTED_PLAYBOOK_ENTRIES: List[str] = [
     "repo_manager.yml",
     "image_build_manager.yml",
 ]
-
-# =============================================================================
-# SHARED VENV (2.3 — no omnia_core container)
-# =============================================================================
-
-OMNIA_VENV_PATH_DEFAULT = "/opt/omnia/venv"
-
-# =============================================================================
-# NFS / PLAYBOOK WATCHER
-# =============================================================================
-
-NFS_QUEUE_DIR_DEFAULT = "/opt/omnia/playbook_queue"
-NFS_ARTIFACT_BASE_DEFAULT = "/opt/omnia/build_stream_root"
-
-# =============================================================================
-# TLS CERTIFICATE PATHS
-# =============================================================================
-
-BSM_TLS_CERT_PATH = "/opt/omnia/build_stream_ssl/ssl/bs_cert.pem"
-BSM_TLS_KEY_PATH = "/opt/omnia/build_stream_ssl/ssl/bs_key.pem"
 
 # =============================================================================
 # SERVER CREDENTIALS (source of truth on target host)
@@ -270,17 +250,6 @@ QUADLET_DIR = "/etc/containers/systemd"
 OMNIA_TARGET_PATH = "/etc/systemd/system/omnia.target"
 PLAYBOOK_WATCHER_SERVICE_FILE = "/etc/systemd/system/playbook_watcher.service"
 PLAYBOOK_WATCHER_SERVICE_NAME = "playbook_watcher.service"
-
-# Directories removed during build_stream cleanup
-BUILDSTREAM_CLEANUP_DIRECTORIES: List[str] = [
-    "/opt/omnia/build_stream/log",
-    "/opt/omnia/build_stream/playbook_queue",
-    "/opt/omnia/build_stream_ssl",
-    "/opt/omnia/build_stream_root",
-    "/opt/omnia/build_stream_inv",
-    "/opt/omnia/build_stream_enabled",
-    "/opt/omnia/build_stream",
-]
 
 # Credential files removed during cleanup
 BUILDSTREAM_CREDENTIAL_FILES: List[str] = [

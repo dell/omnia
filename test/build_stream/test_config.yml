@@ -53,7 +53,8 @@ oim_ssh_port: 22
 # The local omnia monorepo is synced (rsync) to clone_path on the target.
 # Playbook runs from <clone_path>/build_stream/
 #
-# clone_path:   Absolute path on the TARGET SERVER where the project code is synced.
+# clone_path:   Absolute path on the TARGET SERVER where the project code is
+#               synced.
 #               Only used in remote mode. In local mode, the playbook path is
 #               resolved automatically from the source tree.
 clone_path: "/omnia"
@@ -73,10 +74,8 @@ clone_path: "/omnia"
 #     input/build_stream_config.yml
 dataset: ""
 
-# Project name on the target server.
-# Must match OMNIA_PROJECT_NAME env var on the target (default: project_default).
-# Input read from: /opt/omnia/build_stream/input/<project_name>/
-project_name: "project_default"
+# The target project is always read from OMNIA_PROJECT_NAME on the execution
+# OIM. It is intentionally not duplicated in this test configuration.
 
 # =============================================================================
 # SYNC — BUILD STREAM INPUT
@@ -93,12 +92,13 @@ sync_build_stream_input: false
 # =============================================================================
 # REPORT CONFIGURATION
 # =============================================================================
-# Directory where test reports (JSON + HTML) are saved.
+# Directory where test reports (JSON + HTML) are saved. Environment variables
+# are expanded before use, so the default follows OMNIA_DATA_PATH.
 # Can be:
-#   - A folder name (relative to test/): reports
-#   - An absolute path: /var/reports/build_stream
+#   - An environment-derived absolute path: ${OMNIA_DATA_PATH}/reports
+#   - Another absolute path: /var/reports/build_stream
 # No spaces allowed in the path.
-report_path: /opt/omnia/reports
+report_path: "${OMNIA_DATA_PATH}/reports"
 
 # Base name for report files (without extension).
 # Generates: build_stream_test_report.json, build_stream_test_report.html
