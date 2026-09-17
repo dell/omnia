@@ -2251,15 +2251,6 @@ summary:
       PY
 
       for domain in $REPORT_DOMAINS; do
-        # Check if test stage for this domain executed
-        TEST_EXECUTED=$(python3 -c "import json; print('true' if \
-          json.load(open('pipeline_reports/test_stages_executed.json')).get('$domain', False) else 'false')")
-
-        if [ "$TEST_EXECUTED" != "true" ]; then
-          echo "  Skipping $domain: test stage did not execute successfully"
-          continue
-        fi
-
         REMOTE_PATH=$(python3 -c "import json; print(json.load(open('pipeline_reports/domain_report_paths.json')).get('$domain', '/opt/omnia/reports'))")
         echo "  Domain: $domain, Remote path: $REMOTE_PATH"
 
