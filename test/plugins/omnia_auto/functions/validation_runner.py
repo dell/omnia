@@ -227,9 +227,10 @@ def _skip(tag: str) -> None:
     )
 
 
-def _timestamp() -> str:
-    """ISO-ish timestamp for report IDs."""
-    return datetime.now().strftime("%Y%m%d%H%M%S")
+def _generate_random_id() -> str:
+    """Generate a random ID for report identification."""
+    import uuid
+    return str(uuid.uuid4())[:8]  # Use first 8 characters of UUID for shorter ID
 
 
 def _count_test_files(directory: str) -> int:
@@ -550,10 +551,10 @@ class ValidationRunner:
         verbose: str = "", debug: str = "",
     ) -> int:
         """Execute an FVT scenario."""
-        report_id = os.environ.get(
-            "REPORT_ID", _timestamp(),
-        )
-        os.environ["REPORT_ID"] = report_id
+        # Generate random ID for CLI runs to avoid appending to same report
+        # For CI runs, use the pipeline_id that was already set
+        if not os.environ.get("REPORT_ID"):
+            os.environ["REPORT_ID"] = _generate_random_id()
         if debug:
             os.environ["OMNIA_DEBUG"] = "true"
 
@@ -986,8 +987,10 @@ class ValidationRunner:
             _err(f"Invalid batch config: {exc}")
             return 2
 
-        report_id = _timestamp()
-        os.environ["REPORT_ID"] = report_id
+        # Generate random ID for CLI runs to avoid appending to same report
+        # For CI runs, use the pipeline_id that was already set
+        if not os.environ.get("REPORT_ID"):
+            os.environ["REPORT_ID"] = _generate_random_id()
 
         fd, results_file = tempfile.mkstemp(
             prefix="omnia_results_", suffix=".json",

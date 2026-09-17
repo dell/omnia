@@ -61,11 +61,10 @@ def build_report_name(base_name: str = "", report_id: Optional[str] = None) -> s
         ``<pipeline_id>_<base_name>``
 
     When running locally (CLI):
-        ``<base_name>``
+        ``<report_id>_<base_name>`` where report_id is a random UUID
 
     If report_id is explicitly provided (from env or param):
-        ``<report_id>_<domain>_report`` (override for grouping runs)
-        where domain is extracted from base_name (e.g., "repo_manager" from "repo_manager_test_report")
+        ``<report_id>_<base_name>`` (override for grouping runs)
 
     Args:
         base_name: Report name from test_config.yml (e.g., ``repo_manager_test_report``).
@@ -78,23 +77,16 @@ def build_report_name(base_name: str = "", report_id: Optional[str] = None) -> s
         report_id = os.environ.get("REPORT_ID")
     pipeline_id = os.environ.get("CI_PIPELINE_ID")
 
-    # Extract domain from base_name for REPORT_ID override case
-    # Pattern: remove "_test_report" or "_report" suffix
-    domain = base_name
-    if base_name:
-        for suffix in ["_test_report", "_report"]:
-            if base_name.endswith(suffix):
-                domain = base_name[:-len(suffix)]
-                break
-
     if report_id:
         # Use REPORT_ID if set (ensures consistent naming within a pipeline run)
-        return f"{report_id}_{domain}_report"
+        return f"{report_id}_{base_name}"
     elif pipeline_id:
         # For CI runs: prefix with pipeline_id, use base_name from config
         return f"{pipeline_id}_{base_name}"
-    # For CLI runs: use base_name from config without timestamp
-    return base_name
+    # For CLI runs without REPORT_ID: generate random ID to avoid appending
+    import uuid
+    random_id = str(uuid.uuid4())[:8]
+    return f"{random_id}_{base_name}"
 
 
 # ── Sensitive Data Redaction ─────────────────────────────────────────────────

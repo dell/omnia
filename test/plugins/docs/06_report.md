@@ -43,11 +43,10 @@ Build a pipeline-aware report filename.
 | Context | Format | Example |
 |---------|--------|---------|
 | GitLab CI (`CI_PIPELINE_ID` set) | `<pipeline_id>_<base_name>` | `12345_repo_manager_test_report` |
-| Local run (with `base_name`) | `<base_name>` | `repo_manager_test_report` |
-| Local run (without `base_name`) | `report` | `report` |
+| Local run (CLI) | `<random_id>_<base_name>` | `a1b2c3d4_repo_manager_test_report` |
+| With `REPORT_ID` set | `<report_id>_<base_name>` | `custom_id_repo_manager_test_report` |
 
-If `REPORT_ID` is set (via env or param): `<report_id>_<domain>_report`
-where domain is extracted from base_name (e.g., "repo_manager" from "repo_manager_test_report")
+The random ID (8-character UUID) ensures each CLI run creates a new report file instead of appending to an existing one.
 
 ### Usage in conftest.py
 
