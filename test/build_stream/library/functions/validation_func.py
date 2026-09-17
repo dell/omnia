@@ -106,14 +106,6 @@ def validate_test_config() -> Dict[str, Any]:
     if oim_ip and not IPV4_PATTERN.fullmatch(str(oim_ip)):
         errors.append(f"oim_server_ip: invalid IPv4 format {oim_ip!r}")
 
-    project_name = config["project_name"]
-    if (
-        not isinstance(project_name, str)
-        or not re.fullmatch(r"[A-Za-z0-9._-]+", project_name)
-        or project_name in {".", ".."}
-    ):
-        errors.append("project_name must be a safe non-empty directory name")
-
     boolean_fields = (
         "sync_build_stream_input",
         "allow_pipeline_cancel",
@@ -141,7 +133,14 @@ def validate_test_config() -> Dict[str, Any]:
     dataset = os.environ.get("OMNIA_DATASET_OVERRIDE", "") or config["dataset"]
     errors.extend(_validate_dataset(dataset))
 
-    if " " in str(config["report_path"]):
+    report_path = os.path.expandvars(str(config["report_path"]).strip())
+    if not report_path or "$" in report_path:
+        errors.append(
+            "report_path contains an unresolved environment variable"
+        )
+    elif not os.path.isabs(report_path):
+        errors.append("report_path must resolve to an absolute path")
+    if " " in report_path:
         errors.append("report_path must not contain spaces")
     if not re.fullmatch(r"[A-Za-z0-9_-]+", str(config["report_name"])):
         errors.append(
