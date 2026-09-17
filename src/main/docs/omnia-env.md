@@ -164,7 +164,7 @@ RHEL version being built while keeping the configured path:
 
 ```bash
 ./omnia.sh --list-catalogs
-./omnia.sh --update-catalog 10.0/slurm_x86_64_no_vast.json
+./omnia.sh --select-catalog 10.0/slurm_x86_64_no_vast.json
 # Or select the matching 10.2 catalog when building RHEL 10.2.
 ```
 

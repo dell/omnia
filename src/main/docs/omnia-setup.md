@@ -11,8 +11,8 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 | `--run, -r <domain> [--tags <tags>]` | Activate venv and run a domain's playbook |
 | `--prepare-base` | Prepare Repo Manager, Image Build Manager, and Orchestrator in dependency order |
 | `--check-deps` | Audit all domains for pip/Galaxy version mismatches |
-| `--list-catalogs` | List bundled catalog selectors and source paths |
-| `--update-catalog [selection]` | Prompt for or select a bundled catalog and atomically activate it at `CATALOG_FILE_PATH` |
+| `--list-catalogs` | List bundled catalogs with selectors, descriptions, content-derived summaries, and source paths |
+| `--select-catalog [selection]` | Prompt for or select a described bundled catalog and atomically activate it at `CATALOG_FILE_PATH` |
 | `--cleanup` | Remove the venv, system env, omnia-cli, shared Bash completion, activation script, and dependency cache. Runtime data is preserved. |
 | `--cleanup --all` | Guarded full reset. Refuses to start while a domain contains uncleared state. `log`/`output` trees containing only empty directories and known Build Stream initializer files are allowed, then initializer input/log paths and all remaining Omnia data are removed. |
 | `--help, -h` | Show help message |
@@ -48,8 +48,10 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 10. **Displays summary** — Shows venv path, Python version, installed Ansible and collections
 
 Setup does not overwrite an active catalog. Use `--list-catalogs` and
-`--update-catalog` to choose a bundled catalog based on the target RHEL
-version, workload, architecture, and VAST requirement. The update command
+`--select-catalog` to choose a bundled catalog based on the target RHEL
+version, workload, architecture, and VAST requirement. Both flows display the
+catalog's embedded name and description and derive those key characteristics
+and the functional-layer count from its JSON content. The selection command
 validates JSON, confirms replacement, preserves a timestamped backup, and
 atomically replaces `CATALOG_FILE_PATH`. For a small x86_64 Slurm-only test
 without VAST, select `10.0/slurm_x86_64_no_vast.json` or the matching `10.2`
@@ -75,7 +77,7 @@ generated `${OMNIA_DATA_PATH:-/opt/omnia}/activate-omnia.sh` helper.
 ./omnia.sh -i repo_manager,telemetry  # Init specific domains
 ./omnia.sh --check-deps            # Audit dependency version mismatches
 ./omnia.sh --list-catalogs         # List bundled catalog selectors
-./omnia.sh --update-catalog        # Select and activate a bundled catalog
+./omnia.sh --select-catalog        # Select and activate a bundled catalog
 ./omnia.sh --cleanup               # Remove environment + CLI integration; preserve runtime data
 ./omnia.sh --cleanup --all         # Guarded full reset
 ```

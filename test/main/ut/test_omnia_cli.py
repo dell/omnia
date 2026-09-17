@@ -747,7 +747,7 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         )
         script = (
             f'source "{OMNIA_SH}"; '
-            "update_catalog 10.0/slurm_x86_64_no_vast.json; copy_catalog"
+            "select_catalog 10.0/slurm_x86_64_no_vast.json; copy_catalog"
         )
 
         result = subprocess.run(
@@ -760,8 +760,92 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(catalog_target.read_bytes(), selected_source.read_bytes())
-        self.assertIn("Catalog updated successfully", result.stdout)
+        self.assertIn("Catalog selected and activated successfully", result.stdout)
         self.assertIn("Preserving existing active catalog", result.stdout)
+        self.assertIn(
+            "Name:        Omnia Slurm Catalog - RHEL 10.0 x86_64 (No VAST)",
+            result.stdout,
+        )
+        self.assertIn(
+            "Description: Slurm HPC catalog for RHEL 10.0 x86_64",
+            result.stdout,
+        )
+        self.assertIn("Workloads: Slurm", result.stdout)
+        self.assertIn("Architectures: x86_64", result.stdout)
+        self.assertIn("VAST client: not included", result.stdout)
+        self.assertIn("Functional layers: 4", result.stdout)
+
+    def test_select_catalog_public_option_activates_exact_selector(self):
+        catalog_target = self.data_path / "catalog" / "catalog_rhel.json"
+        selected_source = (
+            REPO_ROOT
+            / "src/main/samples/catalogs/10.2/service_k8s_x86_64.json"
+        )
+        env = os.environ.copy()
+        env.update(
+            {
+                "OMNIA_DATA_PATH": str(self.data_path),
+                "CATALOG_FILE_PATH": str(catalog_target),
+            }
+        )
+
+        script = (
+            f'source "{OMNIA_SH}"; '
+            "source_omnia_env() { :; }; "
+            'main "$@"'
+        )
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                script,
+                "omnia.sh",
+                "--select-catalog",
+                "10.2/service_k8s_x86_64.json",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(catalog_target.read_bytes(), selected_source.read_bytes())
+        output = ANSI_ESCAPE.sub("", result.stdout)
+        self.assertIn("Selected catalog: 10.2/service_k8s_x86_64.json", output)
+        self.assertIn("Workloads: service Kubernetes", output)
+
+    def test_catalog_list_describes_and_analyzes_each_variant(self):
+        script = f'source "{OMNIA_SH}"; list_catalogs'
+
+        result = subprocess.run(
+            ["bash", "-c", script],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        catalog_sources = [REPO_ROOT / "src/main/samples/catalog_rhel.json"]
+        catalog_sources.extend(
+            sorted((REPO_ROOT / "src/main/samples/catalogs").rglob("*.json"))
+        )
+        self.assertEqual(
+            result.stdout.count("Description:"), len(catalog_sources)
+        )
+        self.assertEqual(result.stdout.count("Analysis:"), len(catalog_sources))
+        self.assertNotIn("unavailable", result.stdout.lower())
+        self.assertIn("1) default", result.stdout)
+        self.assertIn(
+            "Description: Full mixed deployment catalog for RHEL 10.0",
+            result.stdout,
+        )
+        self.assertIn("RHEL 10.0", result.stdout)
+        self.assertIn("Workloads: Slurm + service Kubernetes", result.stdout)
+        self.assertIn("Architectures: x86_64 + aarch64", result.stdout)
+        self.assertIn("VAST client: not included", result.stdout)
+        self.assertIn("10.2/slurm_x86_64.json", result.stdout)
+        self.assertIn("VAST client: included", result.stdout)
 
     def test_catalog_replacement_requires_confirmation_and_keeps_backup(self):
         catalog_target = self.data_path / "catalog" / "catalog_rhel.json"
@@ -777,7 +861,7 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         )
         script = (
             f'source "{OMNIA_SH}"; '
-            "update_catalog 10.0/slurm_x86_64_no_vast.json"
+            "select_catalog 10.0/slurm_x86_64_no_vast.json"
         )
 
         result = subprocess.run(

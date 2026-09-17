@@ -341,7 +341,7 @@ _omnia_sh_completions() {
     _omnia_init_completion || return
 
     local commands="--setup-venv -s --init -i --prepare-base --run -r \
---list-catalogs --update-catalog --check-deps --cleanup --help -h"
+--list-catalogs --select-catalog --check-deps --cleanup --help -h"
     local setup_options="--deps-only --force-deps --force-env --skip --dry-run \
 --skip-catalog --skip-omnia-cli"
     local init_options="--deps-only --force-deps --skip --dry-run"
@@ -375,8 +375,8 @@ _omnia_sh_completions() {
             --list-catalogs)
                 command="list-catalogs"
                 ;;
-            --update-catalog)
-                command="update-catalog"
+            --select-catalog)
+                command="select-catalog"
                 ;;
             --check-deps)
                 command="check"
@@ -418,7 +418,7 @@ _omnia_sh_completions() {
             _omnia_complete_words "$(_omnia_extra_vars_for_domain "$run_domain")" "$cur"
             return
             ;;
-        --update-catalog)
+        --select-catalog)
             _omnia_complete_words "$(_omnia_catalog_choices)" "$cur"
             return
             ;;
@@ -453,7 +453,7 @@ _omnia_sh_completions() {
                 _omnia_complete_words "--tags -t --extra-vars -e" "$cur"
             fi
             ;;
-        update-catalog)
+        select-catalog)
             _omnia_complete_words "$(_omnia_catalog_choices)" "$cur"
             ;;
         list-catalogs)

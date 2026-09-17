@@ -94,12 +94,17 @@ All Slurm catalogs include these driver groups where applicable:
 ./omnia.sh --list-catalogs
 
 # Select interactively or provide an exact selector:
-sudo ./omnia.sh --update-catalog
-sudo ./omnia.sh --update-catalog 10.2/slurm_service_k8s_x86_64.json
+sudo ./omnia.sh --select-catalog
+sudo ./omnia.sh --select-catalog 10.2/slurm_service_k8s_x86_64.json
 
 # The selected file is copied to CATALOG_FILE_PATH. Image Build Manager uses it
 # when functional_groups_source is "catalog".
 ```
+
+The list and selection commands read each JSON file and display its catalog name,
+description, RHEL version, workloads, architectures, VAST client inclusion,
+and functional-layer count. This makes catalog selection independent of the
+file name alone.
 
 ## Catalog JSON Structure
 

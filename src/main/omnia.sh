@@ -1274,6 +1274,123 @@ _catalog_selector() {
     fi
 }
 
+_catalog_metadata() {
+    local source="$1"
+
+    if ! command -v python3 >/dev/null 2>&1; then
+        printf '%s\n' \
+            "$(basename "$source")" \
+            "Catalog description unavailable because python3 is not installed." \
+            "Catalog analysis unavailable because python3 is not installed."
+        return 0
+    fi
+
+    python3 - "$source" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+
+source = Path(sys.argv[1])
+
+
+def one_line(value, fallback):
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    return text or fallback
+
+
+try:
+    with source.open(encoding="utf-8") as stream:
+        document = json.load(stream)
+    catalog = document.get("catalog", {})
+    layers = catalog.get("functionallayer", [])
+    if not isinstance(layers, list):
+        layers = []
+
+    layer_names = [
+        str(layer.get("name", ""))
+        for layer in layers
+        if isinstance(layer, dict)
+    ]
+    components = [
+        str(component)
+        for layer in layers
+        if isinstance(layer, dict)
+        for component in layer.get("components", [])
+    ]
+    groups = catalog.get("groups", {})
+    group_names = list(groups) if isinstance(groups, dict) else []
+
+    workloads = []
+    if any(name.startswith("slurm_") for name in layer_names):
+        workloads.append("Slurm")
+    if any(
+        name.startswith(("service_kube_", "service_k8s_"))
+        for name in layer_names
+    ):
+        workloads.append("service Kubernetes")
+    if not workloads:
+        workloads.append("base OS only")
+
+    versions = {
+        (int(match.group(1)), int(match.group(2)))
+        for name in layer_names
+        for match in [re.search(r"_rhel_(\d+)_(\d+)(?:_|$)", name)]
+        if match
+    }
+    version_text = " + ".join(
+        f"{major}.{minor}" for major, minor in sorted(versions)
+    ) or "not detected"
+
+    architectures = [
+        architecture
+        for architecture in ("x86_64", "aarch64")
+        if any(architecture in name for name in layer_names)
+    ]
+    architecture_text = " + ".join(architectures) or "not detected"
+    vast_included = any(
+        "vast" in value.lower() for value in group_names + components
+    )
+
+    name = one_line(catalog.get("name"), source.name)
+    description = one_line(
+        catalog.get("description"), "No catalog description is defined."
+    )
+    analysis = " | ".join(
+        (
+            f"RHEL {version_text}",
+            f"Workloads: {' + '.join(workloads)}",
+            f"Architectures: {architecture_text}",
+            f"VAST client: {'included' if vast_included else 'not included'}",
+            f"Functional layers: {len(layers)}",
+        )
+    )
+except (AttributeError, OSError, ValueError, TypeError) as error:
+    name = source.name
+    description = one_line(
+        f"Unable to read catalog metadata: {error}",
+        "Unable to read catalog metadata.",
+    )
+    analysis = "Catalog analysis unavailable."
+
+print(name)
+print(description)
+print(analysis)
+PY
+}
+
+_print_catalog_details() {
+    local source="$1"
+    local prefix="${2:-  }"
+    local details=()
+    mapfile -t details < <(_catalog_metadata "$source")
+
+    printf '%sName:        %s\n' "$prefix" "${details[0]:-$(basename "$source")}"
+    printf '%sDescription: %s\n' "$prefix" "${details[1]:-No catalog description is defined.}"
+    printf '%sAnalysis:    %s\n' "$prefix" "${details[2]:-Catalog analysis unavailable.}"
+}
+
 list_catalogs() {
     local sources=()
     mapfile -t sources < <(_catalog_sources)
@@ -1292,10 +1409,11 @@ list_catalogs() {
     for source in "${sources[@]}"; do
         idx=$((idx + 1))
         selector=$(_catalog_selector "$source")
-        printf '  %2d) %-58s %s\n' "$idx" "$selector" "$source"
+        printf '  %2d) %s\n' "$idx" "$selector"
+        _print_catalog_details "$source" "      "
+        printf '      Source:      %s\n\n' "$source"
     done
-    echo ""
-    echo -e "${DIM}Use the selector or number with: ./omnia.sh --update-catalog <selection>${NC}"
+    echo -e "${DIM}Use the selector or number with: ./omnia.sh --select-catalog <selection>${NC}"
 }
 
 _resolve_catalog_source() {
@@ -1339,7 +1457,7 @@ _validate_catalog_json() {
     fi
 }
 
-update_catalog() {
+select_catalog() {
     local selection="${1:-}"
     load_env
 
@@ -1355,7 +1473,7 @@ update_catalog() {
 
     case "$selection" in
         q|Q|quit|cancel)
-            echo -e "${DIM}Catalog update cancelled.${NC}"
+            echo -e "${DIM}Catalog selection cancelled.${NC}"
             return 0
             ;;
     esac
@@ -1389,6 +1507,11 @@ update_catalog() {
         return 1
     fi
 
+    echo -e "${BLUE}Selected catalog:${NC} $(_catalog_selector "$catalog_source")"
+    _print_catalog_details "$catalog_source" "  "
+    echo -e "${BLUE}Source:${NC}           ${catalog_source}"
+    echo -e "${BLUE}Active target:${NC}    ${catalog_target}"
+
     mkdir -p "$target_dir"
 
     if [ -f "$catalog_target" ] && cmp -s "$catalog_source" "$catalog_target"; then
@@ -1396,10 +1519,6 @@ update_catalog() {
         echo -e "  ${GREEN}${catalog_target}${NC}"
         return 0
     fi
-
-    echo -e "${BLUE}Selected catalog:${NC} $(_catalog_selector "$catalog_source")"
-    echo -e "${BLUE}Source:${NC}           ${catalog_source}"
-    echo -e "${BLUE}Active target:${NC}    ${catalog_target}"
 
     local backup_file=""
     if [ -f "$catalog_target" ]; then
@@ -1413,7 +1532,7 @@ update_catalog() {
         case "$answer" in
             yes|YES|Yes|y|Y) ;;
             *)
-                echo -e "${DIM}Catalog update cancelled.${NC}"
+                echo -e "${DIM}Catalog selection cancelled.${NC}"
                 return 0
                 ;;
         esac
@@ -1434,7 +1553,7 @@ update_catalog() {
         return 1
     fi
 
-    echo -e "${GREEN}Catalog updated successfully.${NC}"
+    echo -e "${GREEN}Catalog selected and activated successfully.${NC}"
     echo -e "  ${GREEN}CATALOG_FILE_PATH=${catalog_target}${NC}"
     if command -v sha256sum >/dev/null 2>&1; then
         echo -e "  ${DIM}SHA256: $(sha256sum "$catalog_target" | awk '{print $1}')${NC}"
@@ -1476,7 +1595,7 @@ copy_catalog() {
 
     echo ""
     echo -e "${DIM}List bundled variants: ./omnia.sh --list-catalogs${NC}"
-    echo -e "${DIM}Select or replace one: ./omnia.sh --update-catalog [selection]${NC}"
+    echo -e "${DIM}Select or replace one: ./omnia.sh --select-catalog [selection]${NC}"
     echo ""
 }
 
@@ -1652,8 +1771,9 @@ EXECUTION COMMANDS:
                         to ansible-playbook.
 
 CATALOG COMMANDS:
-  --list-catalogs       List bundled catalog selectors and source files.
-  --update-catalog [selection]
+  --list-catalogs       List bundled catalogs with descriptions and
+                        content-derived summaries.
+  --select-catalog [selection]
                         Select a bundled catalog interactively, or provide its
                         list number/name, then copy it atomically to
                         CATALOG_FILE_PATH. Existing content is backed up after
@@ -1725,7 +1845,7 @@ OPTIONS:
                         setup steps still run when used with -s.
   --skip-catalog        With -s: skip installation of a missing default catalog.
                         Setup preserves an existing active catalog; use
-                        --update-catalog to intentionally replace it.
+                        --select-catalog to intentionally replace it.
   --skip-omnia-cli      With -s: skip installing omnia-cli and shared bash completion
                         to /usr/local/bin/ and /etc/bash_completion.d/.
   --skip-approval       With --cleanup: skip the confirmation prompt. Intended
@@ -1783,8 +1903,8 @@ EXAMPLES:
 
   # Select the active catalog:
   ./omnia.sh --list-catalogs
-  ./omnia.sh --update-catalog                   # Interactive selection
-  ./omnia.sh --update-catalog 10.0/slurm_x86_64_no_vast.json
+  ./omnia.sh --select-catalog                   # Interactive selection
+  ./omnia.sh --select-catalog 10.0/slurm_x86_64_no_vast.json
 
   # Init specific domains (re-stage input files or reinstall deps):
   ./omnia.sh -i                                # All domains
@@ -1897,8 +2017,8 @@ main() {
                 command="list-catalogs"
                 shift
                 ;;
-            --update-catalog)
-                command="update-catalog"
+            --select-catalog)
+                command="select-catalog"
                 shift
                 if [ $# -gt 0 ] && [[ "$1" != --* ]]; then
                     catalog_selection="$1"
@@ -2024,7 +2144,7 @@ main() {
     fi
     if [ "$SKIP_CATALOG" = true ] && [ "$command" != "setup-venv" ]; then
         echo -e "${RED}ERROR: --skip-catalog requires --setup-venv (-s)${NC}"
-        echo -e "${YELLOW}Use --list-catalogs or --update-catalog to manage the active catalog.${NC}"
+        echo -e "${YELLOW}Use --list-catalogs or --select-catalog to manage the active catalog.${NC}"
         exit 1
     fi
 
@@ -2082,8 +2202,8 @@ main() {
         list-catalogs)
             list_catalogs
             ;;
-        update-catalog)
-            update_catalog "$catalog_selection"
+        select-catalog)
+            select_catalog "$catalog_selection"
             ;;
         cleanup)
             cleanup_omnia "$CLEANUP_ALL" "$CLEANUP_SKIP_APPROVAL"

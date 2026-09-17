@@ -67,7 +67,7 @@ omnia-cli status
 ./omnia.sh -i --dry-run --skip telemetry  # Preview with skip filter
 ./omnia.sh --check-deps            # Audit dependency version mismatches
 ./omnia.sh --list-catalogs         # List bundled catalog choices
-./omnia.sh --update-catalog        # Select and activate a bundled catalog
+./omnia.sh --select-catalog        # Select and activate a bundled catalog
 ./omnia.sh --cleanup               # Remove environment + CLI integration; preserve runtime data
 ./omnia.sh --cleanup --all         # Guarded full reset; blocks on uncleared domain state
 ./omnia.sh --cleanup --skip-approval       # Standard cleanup for trusted automation
@@ -119,12 +119,15 @@ variants and intentionally select one with:
 
 ```bash
 ./omnia.sh --list-catalogs
-./omnia.sh --update-catalog
-./omnia.sh --update-catalog 10.0/slurm_x86_64_no_vast.json
+./omnia.sh --select-catalog
+./omnia.sh --select-catalog 10.0/slurm_x86_64_no_vast.json
 ```
 
-Without a selector, `--update-catalog` prompts with the numbered list. The
-selected JSON is validated and atomically copied to `CATALOG_FILE_PATH`
+Without a selector, `--select-catalog` prompts with the numbered list. The list
+and selection flows show each catalog's embedded name and description plus a
+content-derived summary of its RHEL version, workloads, architectures, VAST
+client inclusion, and functional-layer count. The selected JSON is validated
+and atomically copied to `CATALOG_FILE_PATH`
 (default: `$OMNIA_DATA_PATH/catalog/catalog_rhel.json`). Replacing an existing
 catalog requires confirmation and creates a timestamped backup beside it.
 
