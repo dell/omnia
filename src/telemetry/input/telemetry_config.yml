@@ -395,17 +395,6 @@ idrac_telemetry_configurations:
   # MySQL database storage for iDRAC telemetry
   mysqldb_storage: "1Gi"
 
-  # iDRAC (BMC) IP addresses for OIM servers
-  # Required when iDRAC telemetry is enabled and telemetry data needs to be collected from OIM servers
-  # Supports multiple OIM servers (OIM1, OIM2, etc.)
-  # Example:
-  #   oim_bmc_ips:
-  #     oim1: "192.168.1.100"
-  #     oim2: "192.168.1.101"
-  oim_bmc_ips:
-    oim1: ""
-    oim2: ""
-
 # --------------------------------------------------------------------------
 # LDMS Configuration
 # --------------------------------------------------------------------------
