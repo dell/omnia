@@ -170,6 +170,33 @@ def _resolve_path(relative_path: str) -> str:
     return str(Path(_get_omnia_src_path()) / relative_path)
 
 
+def _resolve_orchestrator_report_dir(test_dir: Path) -> Path:
+    """Resolve the report directory from Orchestrator's test configuration."""
+    config_path = test_dir / "test_config.yml"
+    try:
+        import yaml  # pylint: disable=import-outside-toplevel
+        with open(config_path, "r", encoding="utf-8") as config_file:
+            config = yaml.safe_load(config_file)
+    except (OSError, yaml.YAMLError) as exc:
+        raise ValueError(
+            f"Unable to load Orchestrator test configuration: {config_path}"
+        ) from exc
+
+    if not isinstance(config, dict):
+        raise ValueError("Orchestrator test configuration must be a mapping")
+
+    report_path = config.get("report_path")
+    if not isinstance(report_path, str) or not report_path.strip():
+        raise ValueError(
+            "Orchestrator test configuration must define report_path"
+        )
+
+    report_dir = Path(report_path)
+    if not report_dir.is_absolute():
+        report_dir = test_dir / report_dir
+    return report_dir.resolve()
+
+
 def _load_playbook_paths(config_path: Path) -> dict:
     """Load playbook path mapping from YAML config file.
     Relative paths are resolved against OMNIA_SRC_PATH.
@@ -1408,6 +1435,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "test_dir must resolve within the configured Omnia repository"
         ) from exc
     test_dir = str(test_dir_path)
+    report_dir_path = _resolve_orchestrator_report_dir(test_dir_path)
 
     # Properly escape all path variables using shlex.quote()
     quoted_test_dir = shlex.quote(test_dir)
@@ -1574,13 +1602,12 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                     job_id
                 )
 
-        # The Orchestrator FVT contract writes a report named from REPORT_ID
-        # under /opt/omnia/reports. Resolve the exact attempt report so a
-        # retry cannot consume the stale aggregate from an earlier attempt.
-        report_source_path = os.path.join(
-            "/opt/omnia",
-            "reports",
-            f"{report_id}_orchestrator_report.json" if report_id else "",
+        # Read the report from the directory configured by the Orchestrator
+        # test suite. The attempt-specific name prevents a retry from
+        # consuming a stale aggregate from an earlier attempt.
+        report_source_path = str(
+            report_dir_path
+            / (f"{report_id}_orchestrator_report.json" if report_id else "")
         )
         log_secure_info(
             'info',
