@@ -2212,9 +2212,9 @@ summary:
           report_names[domain] = default_report_names.get(domain, f"{domain}_test_report")
           print(f"  {domain}: (error: {e}, using default) /opt/omnia/reports, name={report_names[domain]}")
 
-      with open("pipeline_reports/domain_report_paths.json", "w", encoding="utf-8") as f:
+      with open("pipeline_reports/report_paths.json", "w", encoding="utf-8") as f:
         json.dump(report_paths, f)
-      with open("pipeline_reports/domain_report_names.json", "w", encoding="utf-8") as f:
+      with open("pipeline_reports/report_names.json", "w", encoding="utf-8") as f:
         json.dump(report_names, f)
       print("Report paths and names saved to pipeline_reports/")
       PY
@@ -2271,8 +2271,8 @@ summary:
       PY
 
       for domain in $REPORT_DOMAINS; do
-        REMOTE_PATH=$(python3 -c "import json; print(json.load(open('pipeline_reports/domain_report_paths.json')).get('$domain', '/opt/omnia/reports'))")
-        REPORT_BASE_NAME=$(python3 -c "import json; d=json.load(open('pipeline_reports/domain_report_names.json')); print(d.get('$domain', '${domain}_test_report'))")
+        REMOTE_PATH=$(python3 -c "import json; print(json.load(open('pipeline_reports/report_paths.json')).get('$domain', '/opt/omnia/reports'))")
+        REPORT_BASE_NAME=$(python3 -c "import json; d=json.load(open('pipeline_reports/report_names.json')); print(d.get('$domain','${domain}_test_report'))")
         echo "  Domain: $domain, Remote path: $REMOTE_PATH, Report name: $REPORT_BASE_NAME"
 
         # Debug: list all report files in the remote directory
