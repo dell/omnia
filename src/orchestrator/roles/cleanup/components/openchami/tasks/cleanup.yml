@@ -36,6 +36,17 @@
     loop_var: openchami_unit_name
   tags: openchami
 
+- name: Cancel pending OpenCHAMI target start before cleanup
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - stop
+      - openchami.target
+  register: cleanup_openchami_target_stop
+  changed_when: false
+  failed_when: cleanup_openchami_target_stop.rc not in [0, 5]
+  tags: openchami
+
 - name: Stop OpenCHAMI services
   ansible.builtin.systemd:
     name: "{{ openchami_unit_check.openchami_unit_name }}"
@@ -151,6 +162,51 @@
     loop_var: volume_unit_check
     label: "{{ volume_unit_check.openchami_volume_service }}"
   when: volume_unit_check.status.LoadState | default('not-found') != 'not-found'
+  tags: openchami
+
+- name: Find containers retaining OpenCHAMI data volumes
+  ansible.builtin.command:
+    argv:
+      - podman
+      - ps
+      - --all
+      - --quiet
+      - --filter
+      - "volume={{ openchami_volume_name }}"
+  register: cleanup_openchami_volume_consumers
+  check_mode: false
+  changed_when: false
+  loop: "{{ openchami_config.data_volumes }}"
+  loop_control:
+    loop_var: openchami_volume_name
+  when: cleanup_openchami_podman_check.rc == 0
+  tags: openchami
+
+- name: Resolve containers retaining OpenCHAMI data volumes
+  ansible.builtin.set_fact:
+    cleanup_openchami_volume_consumer_ids: >-
+      {% set consumer_ids = [] -%}
+      {% for consumer_result in
+         cleanup_openchami_volume_consumers.results | default([]) -%}
+        {% for consumer_id in consumer_result.stdout_lines | default([]) -%}
+          {% if consumer_id | length > 0 -%}
+            {% set _ = consumer_ids.append(consumer_id) -%}
+          {% endif -%}
+        {% endfor -%}
+      {% endfor -%}
+      {{ consumer_ids | unique | list }}
+  tags: openchami
+
+- name: Remove containers retaining OpenCHAMI data volumes
+  ansible.builtin.command:
+    argv: >-
+      {{ ['podman', 'rm', '--force'] +
+         cleanup_openchami_volume_consumer_ids }}
+  register: cleanup_openchami_volume_consumer_removal
+  changed_when: true
+  when:
+    - cleanup_openchami_podman_check.rc == 0
+    - cleanup_openchami_volume_consumer_ids | length > 0
   tags: openchami
 
 - name: Check which OpenCHAMI data volumes exist
