@@ -201,7 +201,6 @@ def test_report():
     report_id = os.environ.get("REPORT_ID")
     base_name = _category_report_base_name(config)
     report_name = build_report_name(
-        domain_name="repo_manager",
         base_name=base_name,
     )
     report = TestReport(

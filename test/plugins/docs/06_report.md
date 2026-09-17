@@ -15,7 +15,7 @@ report files. The HTML report includes:
 - Detailed test results with search/filter/collapse by run_id
 - Skip classification badges (expected / unexpected / framework)
 - Sensitive data redaction (IPs, passwords, secrets, paths)
-- Pipeline-aware report naming (date_time_pipelineId_domain_report)
+- Pipeline-aware report naming (pipelineId_reportName for CI, reportName for CLI)
 - Multiple test run segregation by run_id (collapsible sections)
 
 The JSON report also includes:
@@ -28,14 +28,13 @@ multiple servers and all results accumulate in the same report file.
 
 ---
 
-## `build_report_name(domain_name, base_name="")`
+## `build_report_name(base_name="")`
 
 Build a pipeline-aware report filename.
 
 | Parameter | Type | Required? | What to give | Example |
 |-----------|------|-----------|--------------|---------|
-| `domain_name` | `str` | **Yes** | Domain identifier. | `"repo_manager"` |
-| `base_name` | `str` | No | Fallback name for local runs. | `"repo_manager_fvt"` |
+| `base_name` | `str` | No | Report name from test_config.yml. | `"repo_manager_test_report"` |
 
 **Returns:** Report base filename without extension.
 
@@ -43,12 +42,12 @@ Build a pipeline-aware report filename.
 
 | Context | Format | Example |
 |---------|--------|---------|
-| GitLab CI (`CI_PIPELINE_ID` set) | `YYYYMMDD_HHMMSS_<pipeline_id>_<domain>_report` | `20260909_143022_12345_repo_manager_report` |
-| Local run (with `base_name`) | `<base_name>` | `repo_manager_fvt` |
-| Local run (without `base_name`) | `<domain>_report` | `repo_manager_report` |
+| GitLab CI (`CI_PIPELINE_ID` set) | `<pipeline_id>_<base_name>` | `12345_repo_manager_test_report` |
+| Local run (with `base_name`) | `<base_name>` | `repo_manager_test_report` |
+| Local run (without `base_name`) | `report` | `report` |
 
-Same `pipeline_id` overwrites its report; different pipeline IDs create
-separate files.
+If `REPORT_ID` is set (via env or param): `<report_id>_<domain>_report`
+where domain is extracted from base_name (e.g., "repo_manager" from "repo_manager_test_report")
 
 ### Usage in conftest.py
 
@@ -56,8 +55,7 @@ separate files.
 from omnia_auto import build_report_name, TestReport, set_current_report
 
 report_name = build_report_name(
-    domain_name="repo_manager",
-    base_name=config.get("report_name", "repo_manager_fvt"),
+    base_name=config.get("report_name", "repo_manager_test_report"),
 )
 report = TestReport(
     module_name=module_name,
@@ -292,7 +290,6 @@ def pytest_sessionstart(session):
 
     # Build pipeline-aware report name
     report_name = build_report_name(
-        domain_name="build",
         base_name=config.get("report_name", "image_test_report"),
     )
 

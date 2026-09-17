@@ -227,7 +227,6 @@ def pytest_sessionstart(session):
     report_id = os.environ.get("REPORT_ID")
     base_name = str(config.get("report_name", "test_report"))
     report_name = build_report_name(
-        domain_name="main",
         base_name=base_name,
         report_id=report_id,
     )

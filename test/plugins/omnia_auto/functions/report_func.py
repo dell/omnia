@@ -54,22 +54,21 @@ _ANSI_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 # ── Report Naming ────────────────────────────────────────────────────────────
 
-def build_report_name(domain_name: str, base_name: str = "", report_id: Optional[str] = None) -> str:
+def build_report_name(base_name: str = "", report_id: Optional[str] = None) -> str:
     """Build pipeline-aware report filename.
 
     When running in GitLab CI (CI_PIPELINE_ID is set):
-        - If report_id is provided or set in env: ``<report_id>_<domain>_report``
-        - Otherwise: ``YYYYMMDD_HHMMSS_<pipeline_id>_<domain>_report``
+        ``<pipeline_id>_<base_name>``
 
-    When running locally:
-        ``<base_name>`` or ``<domain>_report``
+    When running locally (CLI):
+        ``<base_name>``
 
-    Same report_id overwrites its report; different IDs create
-    separate files.
+    If report_id is explicitly provided (from env or param):
+        ``<report_id>_<domain>_report`` (override for grouping runs)
+        where domain is extracted from base_name (e.g., "repo_manager" from "repo_manager_test_report")
 
     Args:
-        domain_name: Domain identifier (e.g. ``repo_manager``).
-        base_name: Fallback name for local runs.
+        base_name: Report name from test_config.yml (e.g., ``repo_manager_test_report``).
         report_id: Optional report ID (overrides environment variable).
 
     Returns:
@@ -78,15 +77,24 @@ def build_report_name(domain_name: str, base_name: str = "", report_id: Optional
     if report_id is None:
         report_id = os.environ.get("REPORT_ID")
     pipeline_id = os.environ.get("CI_PIPELINE_ID")
-    
+
+    # Extract domain from base_name for REPORT_ID override case
+    # Pattern: remove "_test_report" or "_report" suffix
+    domain = base_name
+    if base_name:
+        for suffix in ["_test_report", "_report"]:
+            if base_name.endswith(suffix):
+                domain = base_name[:-len(suffix)]
+                break
+
     if report_id:
         # Use REPORT_ID if set (ensures consistent naming within a pipeline run)
-        return f"{report_id}_{domain_name}_report"
+        return f"{report_id}_{domain}_report"
     elif pipeline_id:
-        # Fallback to timestamp + pipeline_id for CI runs without REPORT_ID
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return f"{ts}_{pipeline_id}_{domain_name}_report"
-    return base_name or f"{domain_name}_report"
+        # For CI runs: prefix with pipeline_id, use base_name from config
+        return f"{pipeline_id}_{base_name}"
+    # For CLI runs: use base_name from config without timestamp
+    return base_name
 
 
 # ── Sensitive Data Redaction ─────────────────────────────────────────────────

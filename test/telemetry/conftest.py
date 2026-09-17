@@ -448,7 +448,6 @@ def pytest_sessionstart(session):
     report_id = os.environ.get("REPORT_ID")
     base_name = str(config.get("report_name", "telemetry_test_report"))
     report_name = build_report_name(
-        domain_name="telemetry",
         base_name=base_name,
     )
     report = TestReport(

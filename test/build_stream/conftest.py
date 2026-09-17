@@ -344,7 +344,6 @@ def pytest_sessionstart(session):
         config.get("report_name", "build_stream_test_report")
     )
     report_name = build_report_name(
-        domain_name="build_stream",
         base_name=base_name,
     )
     report = TestReport(
