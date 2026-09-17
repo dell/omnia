@@ -23,8 +23,13 @@ from typing import List, Optional
 
 import pytest
 
-from library.functions import TestLogger, load_test_config
-from library.vars.common_vars import INPUT_PATH_TEMPLATE, OUTPUT_PATH_TEMPLATE
+from library.functions import (
+    TestLogger,
+    load_test_config,
+    resolve_target_input_project_path,
+    resolve_target_output_project_path,
+)
+from library.vars.common_vars import INPUT_PATH_TEMPLATE
 
 
 def _get_k8s_control_plane_ips() -> List[str]:
@@ -59,21 +64,17 @@ def _get_k8s_control_plane_ips() -> List[str]:
         return []
 
 
-def _get_slurm_control_ips() -> List[str]:
+def _get_slurm_control_ips(host) -> List[str]:
     """Extract Slurm control/login node IPs from PXE mapping file.
 
     Returns:
         List of Slurm control/login node IP addresses
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
-    input_path = INPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+    input_path = resolve_target_input_project_path(host)
     mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     try:
-        with open(mapping_path, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
+        lines = host.file(mapping_path).content_string.splitlines()
 
         slurm_ips: List[str] = []
         for line in lines[1:]:  # Skip header
@@ -218,7 +219,7 @@ def test_slurm_nodes_provisioned(host) -> None:
         "ORCH_FVT_PXEBOOT_V016"
     )
 
-    slurm_ips = _get_slurm_control_ips()
+    slurm_ips = _get_slurm_control_ips(host)
 
     if not slurm_ips:
         tl.passed("No Slurm control/login IPs found in PXE mapping",
@@ -259,7 +260,7 @@ def test_slurm_nodes_idle(host) -> None:
         "ORCH_FVT_PXEBOOT_V017"
     )
 
-    slurm_ips = _get_slurm_control_ips()
+    slurm_ips = _get_slurm_control_ips(host)
 
     if not slurm_ips:
         tl.passed("No Slurm control/login IPs found in PXE mapping",
@@ -305,10 +306,7 @@ def test_pxe_boot_status_file(host) -> None:
         "ORCH_FVT_PXEBOOT_V018"
     )
 
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
-    output_path = OUTPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+    output_path = resolve_target_output_project_path(host)
 
     status_path = f"{output_path}/pxe_boot_status.yml"
     status_exists = host.file(status_path).exists
@@ -334,10 +332,7 @@ def test_failed_nodes_file(host) -> None:
         "ORCH_FVT_PXEBOOT_V019"
     )
 
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
-    output_path = OUTPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+    output_path = resolve_target_output_project_path(host)
 
     failed_nodes_path = f"{output_path}/failed_nodes.yml"
     failed_exists = host.file(failed_nodes_path).exists

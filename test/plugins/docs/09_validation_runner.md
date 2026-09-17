@@ -73,6 +73,11 @@ python _run.py ut_example test
 python _run.py --config
 ```
 
+An unqualified FVT `verify` collects every registered tag except those in
+`exclude_tags`. It does not inherit `all_exec_marker`; that marker applies
+only to unqualified lifecycle execution. Aggregate verification also excludes
+the markers listed in `all_verify_exclude_markers`.
+
 FVT commands are `exec`, `verify`, and `test` (`exec` followed by `verify`).
 Options include `--marker`, `--suite`, `--verbose`, and `--debug`. Unsupported
 options, markers, and suites return a nonzero exit code and must not broaden

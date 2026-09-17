@@ -7,6 +7,7 @@
 
 import ast
 from collections import defaultdict
+from pathlib import Path
 import re
 
 import pytest
@@ -182,6 +183,42 @@ def test_untagged_lifecycle_is_explicit_and_non_destructive():
     assert set(lifecycle).isdisjoint(_literal_assignment("EXCLUDE_TAGS"))
     for tag in lifecycle:
         assert _has_deploy_test(TEST_ROOT / "fvt" / tag), tag
+
+
+def test_untagged_verify_collects_every_safe_fvt_tag(monkeypatch):
+    """ORCH_UT_106: Plain verify runs all safe checks without a sanity filter."""
+    runner = ValidationRunner(
+        domain="orchestrator",
+        script_dir=str(TEST_ROOT),
+        domain_config={
+            "tags": _literal_assignment("FVT_TAGS"),
+            "markers": _literal_assignment("MARKERS"),
+            "suites": _literal_assignment("SUITES"),
+            "exclude_tags": _literal_assignment("EXCLUDE_TAGS"),
+            "all_exec_tags": _literal_assignment("ALL_EXEC_TAGS"),
+            "all_exec_marker": _literal_assignment("ALL_EXEC_MARKER"),
+            "all_verify_exclude_markers": _literal_assignment(
+                "ALL_VERIFY_EXCLUDE_MARKERS"
+            ),
+        },
+    )
+    calls = []
+    monkeypatch.setattr(
+        runner,
+        "_invoke_pytest_with_summary",
+        lambda paths, marker_args, verbose: (
+            calls.append((paths, marker_args, verbose)) or 0
+        ),
+    )
+
+    assert runner._run_verify("", "", "", "") == 0
+    assert len(calls) == 1
+    paths, marker_args, _ = calls[0]
+    expected = set(_literal_assignment("FVT_TAGS")) - set(
+        _literal_assignment("EXCLUDE_TAGS")
+    )
+    assert {Path(path).name for path in paths} == expected
+    assert marker_args == "-m 'not deploy and not negative and not destructive'"
 
 
 def test_verify_only_tags_have_no_deploy_tests():

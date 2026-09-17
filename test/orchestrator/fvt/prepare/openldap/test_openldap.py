@@ -20,7 +20,7 @@ pytestmark = [pytest.mark.openldap, pytest.mark.functional]
 
 def _require_openldap(host):
     """Skip only when persisted Orchestrator state says OpenLDAP is disabled."""
-    paths = target_paths()
+    paths = target_paths(host)
     state = read_remote_yaml(
         host, posixpath.join(paths["output"], "orchestrator_state.yml")
     )

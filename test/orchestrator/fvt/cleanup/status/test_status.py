@@ -27,7 +27,9 @@ from library.functions import (
     check_containers_removed,
     check_services_removed,
     check_firewall_ports_closed,
-    load_test_config,
+    resolve_target_input_project_path,
+    resolve_target_output_project_path,
+    resolve_target_shared_path,
 )
 from library.messages import (
     TEST_NAMES,
@@ -98,14 +100,11 @@ def test_firewall_ports_closed(host):
     assert result["success"], result["error"]
 
 
-def _project_paths():
-    """Resolve target paths from the same settings used by the runner."""
-    config = load_test_config()
-    shared_path = config.get("shared_path", "/opt/omnia/orchestrator").rstrip("/")
-    project = config.get("project_name", "project_default")
+def _project_paths(host):
+    """Resolve paths from the target Omnia environment."""
     return {
-        "input": f"{shared_path}/input/{project}",
-        "output": f"{shared_path}/output/{project}",
+        "input": resolve_target_input_project_path(host),
+        "output": resolve_target_output_project_path(host),
     }
 
 
@@ -113,7 +112,7 @@ def _project_paths():
 @pytest.mark.order(4)
 def test_cleanup_preserves_project_input(host):
     """ORCH_FVT_CLEANUP_V004: Default cleanup preserves required project input files."""
-    input_path = _project_paths()["input"]
+    input_path = _project_paths(host)["input"]
     required = ("omnia_config.yml", "orchestrator_config.yml", "network_spec.yml")
     missing = [name for name in required if not host.file(f"{input_path}/{name}").is_file]
     assert not missing, f"Cleanup removed required project inputs: {missing}"
@@ -123,7 +122,7 @@ def test_cleanup_preserves_project_input(host):
 @pytest.mark.order(5)
 def test_cleanup_preserves_credentials_by_default(host):
     """ORCH_FVT_CLEANUP_V005: Plain cleanup does not remove opt-in credential files."""
-    input_path = _project_paths()["input"]
+    input_path = _project_paths(host)["input"]
     required = (
         "omnia_config_credentials.yml",
         ".omnia_config_credentials_key",
@@ -139,7 +138,7 @@ def test_cleanup_preserves_credentials_by_default(host):
 @pytest.mark.order(6)
 def test_cleanup_removes_project_output(host):
     """ORCH_FVT_CLEANUP_V006: Cleanup removes Orchestrator deployment output."""
-    output_path = _project_paths()["output"]
+    output_path = _project_paths(host)["output"]
     assert not host.file(output_path).exists, (
         f"Orchestrator output remains after cleanup: {output_path}"
     )
@@ -149,13 +148,10 @@ def test_cleanup_removes_project_output(host):
 @pytest.mark.order(7)
 def test_cleanup_removes_framework_state(host):
     """ORCH_FVT_CLEANUP_V007: Cleanup removes its transient log and state directories."""
-    shared_path = load_test_config().get(
-        "shared_path", "/opt/omnia/orchestrator"
-    ).rstrip("/")
-    data_path = shared_path.rsplit("/orchestrator", 1)[0]
+    shared_path = resolve_target_shared_path(host)
     stale = [
         path for path in (
-            f"{data_path}/orchestrator/log/cleanup",
+            f"{shared_path}/log/cleanup",
             "/var/lib/omnia/cleanup",
         )
         if host.file(path).exists

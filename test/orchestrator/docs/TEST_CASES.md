@@ -22,6 +22,11 @@ Other FVT areas remain available at their lifecycle paths: `precheck`,
 `rollback`. Source-contract tests are in `playbooks` and invalid-input tests
 are in `negative`.
 
+OpenLDAP prepare verification is feature-gated by deployed Orchestrator state.
+The LDAP-backed Slurm tests use credentials stored only in encrypted
+test_creds.yml; they do not modify Orchestrator source, public inputs,
+slapd.conf, or orchestrator_credentials.yml.
+
 ## ID convention
 
 - Non-Kubernetes FVT: `ORCH_FVT_<AREA>_E###` for execution and

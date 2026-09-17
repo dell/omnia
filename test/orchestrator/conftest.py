@@ -34,6 +34,38 @@ _TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TEST_DIR not in sys.path:
     sys.path.insert(0, _TEST_DIR)
 
+# Match the runtime contract used by newer domain test frameworks. Explicit
+# shell values win; otherwise load the target Omnia environment before any
+# path resolver or playbook wrapper is imported.
+_OMNIA_ENV_FILE = "/etc/omnia/omnia.env"
+if os.path.exists(_OMNIA_ENV_FILE):
+    try:
+        with open(_OMNIA_ENV_FILE, "r", encoding="utf-8") as _env_file:
+            for _line in _env_file:
+                _line = _line.strip()
+                if not _line or _line.startswith("#") or "=" not in _line:
+                    continue
+                _key, _value = _line.split("=", 1)
+                _key = _key.strip()
+                _value = _value.strip()
+                if (
+                    len(_value) >= 2
+                    and _value[0] == _value[-1]
+                    and _value[0] in {"'", '"'}
+                ):
+                    _value = _value[1:-1]
+                _value = re.sub(
+                    r"\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)",
+                    lambda match: os.environ.get(
+                        match.group(1) or match.group(2), match.group(0)
+                    ),
+                    _value,
+                )
+                if _key and _key not in os.environ:
+                    os.environ[_key] = _value
+    except OSError:
+        pass
+
 # --- Initialize omnia_auto BEFORE any imports that use it ---
 import omnia_auto  # noqa: E402
 omnia_auto.configure(
@@ -71,6 +103,9 @@ from library.functions.host_func import (  # noqa: E402
 from library.functions.validation_func import (  # noqa: E402
     validate_all,
     ConfigValidationError,
+)
+from library.functions.project_func import (  # noqa: E402
+    resolve_project_name,
 )
 
 
@@ -266,6 +301,7 @@ def pytest_sessionstart(session):
 
     config = load_test_config()
     config = _apply_dataset_overrides(config)
+    os.environ["OMNIA_PROJECT_NAME"] = resolve_project_name(config)
 
     host = get_testinfra_host()
 

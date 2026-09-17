@@ -15,6 +15,21 @@ source .venv/bin/activate
 Configure the target in `test_config.yml`. Leave `oim_server_ip` empty only
 when running directly on the OIM.
 
+### LDAP-backed Slurm login verification
+
+Deploy and integrate the LDAP server independently; the test framework never
+changes src/orchestrator, security_config.yml, slapd.conf, or
+orchestrator_credentials.yml. Store the LDAP test account only in the
+encrypted framework credential file:
+
+    ./setup_env.sh --set-ldap-test-creds
+    ./run_validation.sh fvt_orchestrator check verify --suite slurm
+
+ORCH_FVT_SLURM_V035 submits a temporary job as that LDAP identity, verifies
+password-based SSH to the allocated compute node while the job is active, and
+always cancels the access-window job. ORCH_FVT_SLURM_V036 verifies job
+submission as the same LDAP identity.
+
 ## Slurm flow aligned with PR #5220
 
 Kubernetes and Slurm use the same two-part structure:

@@ -27,8 +27,8 @@
 #   1. test_creds.yml                — SSH password for OIM server access (local).
 #   2. orchestrator_credentials.yml  — Domain credentials (LDAP, etc.).
 #      Created below ORCHESTRATOR_DATA_PATH when set, otherwise below
-#      $OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/, and
-#      encrypted with ansible-vault.
+#      $OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/, and encrypted
+#      with ansible-vault.
 #
 # SSH CREDENTIALS:
 #   --set-creds          Interactive prompt (2x confirmation). Asks to update if exists.
@@ -39,6 +39,11 @@
 #   --set-domain-creds     Interactive prompt for LDAP creds.
 #   --update-domain-creds  Force-update domain credentials.
 #   --domain-creds-stdin Read a non-interactive JSON object from stdin.
+#
+# LDAP TEST CREDENTIALS:
+#   --set-ldap-test-creds     Prompt for the LDAP test username/password.
+#   --update-ldap-test-creds  Replace the stored LDAP test credentials.
+#   --ldap-test-creds-stdin   Read a username/password JSON object from stdin.
 #
 # Usage:
 #   ./setup_env.sh                        # Baremetal or active venv
@@ -122,7 +127,9 @@ CREDS_FROM_STDIN=false
 SET_DOMAIN_CREDS=false
 UPDATE_DOMAIN_CREDS=false
 DOMAIN_CREDS_FROM_STDIN=false
-TEST_CONFIG="${SCRIPT_DIR}/test_config.yml"
+SET_LDAP_TEST_CREDS=false
+UPDATE_LDAP_TEST_CREDS=false
+LDAP_TEST_CREDS_FROM_STDIN=false
 
 # shellcheck disable=SC2034
 while [[ $# -gt 0 ]]; do
@@ -136,6 +143,9 @@ while [[ $# -gt 0 ]]; do
         --set-domain-creds)    SET_DOMAIN_CREDS=true; shift ;;
         --update-domain-creds) UPDATE_DOMAIN_CREDS=true; shift ;;
         --domain-creds-stdin) DOMAIN_CREDS_FROM_STDIN=true; shift ;;
+        --set-ldap-test-creds) SET_LDAP_TEST_CREDS=true; shift ;;
+        --update-ldap-test-creds) UPDATE_LDAP_TEST_CREDS=true; shift ;;
+        --ldap-test-creds-stdin) LDAP_TEST_CREDS_FROM_STDIN=true; shift ;;
         --creds|--creds=*|--password|--password=*|--set-password|\
         --update-password|--password-stdin)
             fail "Secret-valued command-line flags are no longer supported. Pipe the password to --creds-stdin."
@@ -176,6 +186,15 @@ DOMAIN CREDENTIALS (orchestrator_credentials.yml)
   --domain-creds-stdin   Read a JSON object from standard input. Example:
     credential-json-provider | ./setup_env.sh --domain-creds-stdin
 
+LDAP TEST CREDENTIALS
+─────────────────────────────────────────────────────────────────
+  Stored only in encrypted test_creds.yml. These credentials are consumed by
+  Slurm LDAP login tests and are never written to Orchestrator input files.
+
+  --set-ldap-test-creds     Prompt for username and password.
+  --update-ldap-test-creds  Replace the stored username and password.
+  --ldap-test-creds-stdin   Read a username/password JSON object from standard input.
+
 OTHER OPTIONS
 ─────────────────────────────────────────────────────────────────
   --debug         Verbose pip output.
@@ -187,7 +206,6 @@ HELPEOF
             fail "Unknown option. Use --help for supported arguments." ;;
     esac
 done
-
 _validate_domain_environment() {
     if [ -z "${OMNIA_PROJECT_NAME:-}" ]; then
         fail "OMNIA_PROJECT_NAME is required. Source /etc/omnia/omnia.env."
@@ -243,6 +261,27 @@ if [ "$domain_action_count" -gt 1 ]; then
 fi
 if [ "$CREDS_FROM_STDIN" = true ] \
     && [ "$DOMAIN_CREDS_FROM_STDIN" = true ]; then
+    fail "Only one credential payload can be read from stdin per invocation."
+fi
+
+ldap_test_action_count=0
+for selected in "$LDAP_TEST_CREDS_FROM_STDIN" \
+    "$SET_LDAP_TEST_CREDS" "$UPDATE_LDAP_TEST_CREDS"; do
+    if [ "$selected" = true ]; then
+        ldap_test_action_count=$((ldap_test_action_count + 1))
+    fi
+done
+if [ "$ldap_test_action_count" -gt 1 ]; then
+    fail "Use only one LDAP test credential action per invocation."
+fi
+stdin_action_count=0
+for selected in "$CREDS_FROM_STDIN" "$DOMAIN_CREDS_FROM_STDIN" \
+    "$LDAP_TEST_CREDS_FROM_STDIN"; do
+    if [ "$selected" = true ]; then
+        stdin_action_count=$((stdin_action_count + 1))
+    fi
+done
+if [ "$stdin_action_count" -gt 1 ]; then
     fail "Only one credential payload can be read from stdin per invocation."
 fi
 
@@ -458,6 +497,22 @@ _write_domain_creds_stdin() {
     ok "Domain credentials saved: $_path (encrypted)"
 }
 
+_write_ldap_test_credentials_stdin() {
+    _credential_cli write-fields \
+        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+        --fields-stdin --spec "$LDAP_TEST_CRED_SPEC" \
+        --require-complete >/dev/null
+    ok "LDAP test credentials saved: test_creds.yml (encrypted)"
+}
+
+_prompt_and_write_ldap_test_credentials() {
+    _credential_cli prompt-fields \
+        --creds-path "$CREDS_FILE" \
+        --key-path "$CREDS_KEY" \
+        --spec "$LDAP_TEST_CRED_SPEC" --require-complete </dev/tty
+    ok "LDAP test credentials saved: test_creds.yml (encrypted)"
+}
+
 # Read a field from the domain creds file
 _read_domain_field() {
     local _field="$1"
@@ -495,6 +550,11 @@ _domain_credentials_are_set() {
     _credential_fields_are_set \
         "$(_domain_creds_path)" "$(_domain_creds_key_path)" \
         provision_password
+}
+
+_ldap_test_credentials_are_set() {
+    _credential_fields_are_set \
+        "$CREDS_FILE" "$CREDS_KEY" ldap_username ldap_password
 }
 
 # Ask yes/no
@@ -558,6 +618,11 @@ DOMAIN_CRED_SPEC='[
   {"field":"csi_password","label":"CSI Driver Password","group":"CSI Driver (Powerscale)","secret":true,"confirm":true,"optional":true}
 ]'
 
+LDAP_TEST_CRED_SPEC='[
+  {"field":"ldap_username","label":"LDAP Test Username","group":"LDAP Test Credentials","secret":false},
+  {"field":"ldap_password","label":"LDAP Test Password","group":"LDAP Test Credentials","secret":true,"confirm":true,"min_length":1}
+]'
+
 if [ "$DOMAIN_CREDS_FROM_STDIN" = true ]; then
     info "Reading domain credentials from standard input"
     _write_domain_creds_stdin
@@ -597,11 +662,40 @@ elif [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
+# LDAP test credential dispatch
+# ─────────────────────────────────────────────────────────────────────────────
+if [ "$LDAP_TEST_CREDS_FROM_STDIN" = true ]; then
+    info "Reading LDAP test credentials from standard input"
+    _write_ldap_test_credentials_stdin
+
+elif [ "$UPDATE_LDAP_TEST_CREDS" = true ]; then
+    if ! _ldap_test_credentials_are_set; then
+        fail "No LDAP test credentials are stored. Use --set-ldap-test-creds first."
+    fi
+    _prompt_and_write_ldap_test_credentials
+
+elif [ "$SET_LDAP_TEST_CREDS" = true ]; then
+    if _ldap_test_credentials_are_set; then
+        warn "LDAP test credentials are already stored."
+        if _ask_yes_no "  Do you want to update them?"; then
+            _prompt_and_write_ldap_test_credentials
+        else
+            ok "LDAP test credential update skipped."
+        fi
+    else
+        _prompt_and_write_ldap_test_credentials
+    fi
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
 # No credential flags — status report
 # ─────────────────────────────────────────────────────────────────────────────
 if [ "$CREDS_FROM_STDIN" = false ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = false ] \
    && [ "$DOMAIN_CREDS_FROM_STDIN" = false ] && [ "$SET_DOMAIN_CREDS" = false ] \
-   && [ "$UPDATE_DOMAIN_CREDS" = false ]; then
+   && [ "$UPDATE_DOMAIN_CREDS" = false ] \
+   && [ "$LDAP_TEST_CREDS_FROM_STDIN" = false ] \
+   && [ "$SET_LDAP_TEST_CREDS" = false ] \
+   && [ "$UPDATE_LDAP_TEST_CREDS" = false ]; then
     if _ssh_credentials_are_set; then
         ok "SSH credentials: test_creds.yml (encrypted)"
     else

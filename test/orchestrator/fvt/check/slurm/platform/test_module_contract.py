@@ -25,6 +25,7 @@ import pytest
 
 from library.functions import (
     TestLogger,
+    resolve_target_input_project_path,
     validate_module_structure,
     validate_orchestrator_config_module,
     validate_module_schema,
@@ -41,7 +42,7 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.buildstream
 @pytest.mark.order(1)
-def test_module_structure():
+def test_module_structure(host):
     """ORCH_FVT_MODULES_V001: Test validate_orchestrator_config module structure."""
     module_name = "validate_orchestrator_config"
     tl = TestLogger(
@@ -50,7 +51,7 @@ def test_module_structure():
     )
 
     test_data = {
-        "input_project_dir": "/opt/omnia/orchestrator/input/project_default",
+        "input_project_dir": resolve_target_input_project_path(host),
         "schema_dir": os.path.join(SRC_ORCHESTRATOR_DIR, "plugins", "module_utils", "orchestrator_validation", "schema")
     }
 
