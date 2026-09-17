@@ -413,7 +413,7 @@ setup_environment:
     - echo "  Mode — ${PIPELINE_MODE}"
     - echo "========================================================"
     - source target.env
-    - export SSHPASS="$TARGET_PASS"git 
+    - export SSHPASS="$TARGET_PASS" 
     - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
     - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
     - TARGET="$TARGET_USER@$TARGET_IP"
