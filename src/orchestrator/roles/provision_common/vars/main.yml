@@ -44,6 +44,10 @@ ssh_private_key_path: "{{ ansible_user_dir | default('/root') }}/.ssh/oim_rsa"
 # Service retry settings
 service_retries: 16
 service_retry_interval: 15
+# Boot Service synchronizes SMD nodes every five minutes. Allow one complete
+# interval plus margin when a newly registered node is not present yet.
+provision_common_boot_sync_retries: 25
+provision_common_boot_sync_retry_interval: 15
 
 # Common metadata-service groups
 common_metadata_svc_groups:

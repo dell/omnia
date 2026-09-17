@@ -25,4 +25,5 @@ verify_node_registration_fail_msg: |
   pxe_start_epoch = {{ hostvars['localhost']['pxe_start_epoch'] | default('UNDEFINED') }}
   admin_ip = {{ inventory_hostname | default('UNDEFINED') }}
   bmc_ip = {{ bmc_ip | default('UNDEFINED') }}
+  expected_hostname = {{ hostname_node | default('UNDEFINED') }}
   Ensure facts are set correctly.

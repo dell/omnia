@@ -102,6 +102,12 @@
         - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
         - "'mount_config' in (category_bolt_ons | default([]))"
 
+    - name: Refresh OpenCHAMI token after Slurm bolt-ons
+      ansible.builtin.include_role:
+        name: orchestrator_common
+        tasks_from: refresh_openchami_token.yml
+      when: target_functional_groups | length > 0
+
     - name: Publish Slurm Boot Service and Metadata Service configuration
       ansible.builtin.include_role:
         name: provision_common

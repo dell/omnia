@@ -442,6 +442,11 @@
         - sysctl --system
         - |
           tmpfile=$(mktemp)
+          resolv_target=$(readlink -f /etc/resolv.conf 2>/dev/null || true)
+          [ -n "$resolv_target" ] || resolv_target=/etc/resolv.conf
+          resolv_tmp=$(mktemp "$(dirname "$resolv_target")/.resolv.conf.XXXXXX")
+          trap 'rm -f "$tmpfile" "$resolv_tmp"' EXIT
+
           # Extract the first 'search' line only (ignore duplicates)
           search_line=$(grep '^search' /etc/resolv.conf | head -n1)
           [ -n "$search_line" ] && echo "$search_line" > "$tmpfile"
@@ -454,12 +459,32 @@
           # Add remaining lines except search and empty lines
           grep -v '^search' /etc/resolv.conf | grep -v '^$' >> "$tmpfile"
 
-          # Remove duplicate lines
-          awk '!seen[$0]++' "$tmpfile" > /etc/resolv.conf
-        - |
-          if command -v chattr >/dev/null 2>&1; then
-            chattr +i /etc/resolv.conf || true
+          # Build the replacement before unlocking the live resolver file.
+          awk '!seen[$0]++' "$tmpfile" > "$resolv_tmp"
+          if [ -e "$resolv_target" ]; then
+            chown --reference="$resolv_target" "$resolv_tmp"
+            chmod --reference="$resolv_target" "$resolv_tmp"
+          else
+            chmod 0644 "$resolv_tmp"
           fi
+
+          if command -v chattr >/dev/null 2>&1; then
+            chattr -i "$resolv_target" || true
+          fi
+          if ! mv -f -- "$resolv_tmp" "$resolv_target"; then
+            echo "ERROR: Failed to atomically replace $resolv_target" >&2
+            if command -v chattr >/dev/null 2>&1; then
+              chattr +i "$resolv_target" || true
+            fi
+            rm -f "$tmpfile" "$resolv_tmp"
+            trap - EXIT
+            exit 1
+          fi
+          if command -v chattr >/dev/null 2>&1; then
+            chattr +i "$resolv_target" || true
+          fi
+          rm -f "$tmpfile"
+          trap - EXIT
         - mount -av
         - cp {{ k8s_client_mount_path }}/pulp_webserver.crt /etc/pki/ca-trust/source/anchors
         - update-ca-trust extract
@@ -943,6 +968,35 @@
             echo "Waiting for coredns pods to appear.."
             sleep 30
             kubectl wait --for=condition=Ready pod -l k8s-app=kube-dns -n kube-system --timeout=300s
+{% if hostvars['localhost'].get('enable_powerscale_csi', false) | bool %}
+            # Temporary recovery for csi-metadata-retriever v1.14.0. An
+            # unclean node reboot can leave its Unix socket in the pod's
+            # disk-backed emptyDir, causing every container restart to fail.
+            csi_controller_recreated=false
+            for csi_controller_pod in $(kubectl -n isilon get pods \
+              -l app=isilon-controller -o name 2>/dev/null); do
+              if {
+                kubectl -n isilon logs "$csi_controller_pod" \
+                  -c csi-metadata-retriever 2>&1 || true
+                kubectl -n isilon logs "$csi_controller_pod" \
+                  -c csi-metadata-retriever --previous 2>&1 || true
+              } | grep -Fq \
+                'csi_retriever.sock: bind: address already in use'; then
+                echo "Recovering PowerScale CSI controller from a stale Unix socket."
+                kubectl -n isilon delete "$csi_controller_pod" --wait=false
+                csi_controller_recreated=true
+              fi
+            done
+
+            if [ "$csi_controller_recreated" = "true" ]; then
+              if ! kubectl -n isilon rollout status \
+                deployment/isilon-controller --timeout=300s; then
+                echo "ERROR: PowerScale CSI controller did not recover after stale-socket cleanup."
+                kubectl -n isilon get pods -l app=isilon-controller -o wide || true
+                exit 1
+              fi
+            fi
+{% endif %}
             # Wait for all pods in all namespaces to be ready (status=Running or Completed)
             echo "Waiting for all pods to be Ready (Running/Completed)..."
             while true; do

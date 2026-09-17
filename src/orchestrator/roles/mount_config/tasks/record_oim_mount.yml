@@ -1,0 +1,184 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# The ownership ledger is written only after the configured source is mounted
+# at the exact target and the corresponding fstab entry is present. Ansible's
+# copy module uses an atomic temporary-file rename by default.
+- name: Resolve canonical OIM mount point
+  ansible.builtin.command:
+    argv:
+      - realpath
+      - -m
+      - --
+      - "{{ mount_point }}"
+  register: oim_mount_canonical_path
+  changed_when: false
+
+- name: Verify configured source is active at the OIM mount point
+  ansible.builtin.command:
+    argv:
+      - findmnt
+      - --mountpoint
+      - "{{ oim_mount_canonical_path.stdout }}"
+      - --source
+      - "{{ source }}"
+      - --noheadings
+      - --output
+      - TARGET
+  register: oim_mount_active_check
+  changed_when: false
+
+- name: Verify configured OIM mount is managed in fstab
+  ansible.builtin.command:
+    argv:
+      - findmnt
+      - --fstab
+      - --mountpoint
+      - "{{ oim_mount_canonical_path.stdout }}"
+      - --source
+      - "{{ source }}"
+      - --noheadings
+      - --output
+      - TARGET
+  register: oim_mount_fstab_check
+  changed_when: false
+
+- name: Ensure OIM mount ledger directory exists
+  ansible.builtin.file:
+    path: "{{ oim_mount_ledger_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Check for existing OIM mount ownership ledger
+  ansible.builtin.stat:
+    path: "{{ oim_mount_ledger_path }}"
+  register: oim_mount_ledger_stat
+
+- name: Read existing OIM mount ownership ledger
+  ansible.builtin.slurp:
+    src: "{{ oim_mount_ledger_path }}"
+  register: oim_mount_ledger_raw
+  when: oim_mount_ledger_stat.stat.exists
+
+- name: Parse existing OIM mount ownership ledger
+  ansible.builtin.set_fact:
+    oim_mount_ledger: >-
+      {{ (oim_mount_ledger_raw.content | b64decode | from_yaml)
+         if oim_mount_ledger_stat.stat.exists
+         else {'schema_version': '1.0', 'mounts': []} }}
+
+- name: Validate existing OIM mount ownership ledger
+  ansible.builtin.assert:
+    that:
+      - oim_mount_ledger is mapping
+      - oim_mount_ledger.mounts | default([]) is sequence
+      - oim_mount_ledger.mounts | default([]) is not string
+    fail_msg: >-
+      Refusing to replace malformed OIM mount ownership ledger
+      {{ oim_mount_ledger_path }}. Restore or remove the invalid file before
+      provisioning again.
+
+- name: Resolve complete current ownership for the mounted storage
+  ansible.builtin.set_fact:
+    oim_mount_same_name_entries: >-
+      {{ oim_mount_ledger.mounts | default([])
+         | selectattr('storage_name', 'defined')
+         | selectattr('storage_name', 'equalto', item.name | default(''))
+         | list }}
+    oim_mount_desired_owners: >-
+      {{ ((['slurm']
+            if (item.name | default('')) in
+               ((filter_slurm_nfs | default([]))
+                + (filter_slurm_vast | default([]))) else [])
+          + (['k8s']
+             if (item.name | default('')) in
+                (active_service_k8s_nfs | default([])) else [])
+          + (['storage_mounts']
+             if (item.name | default('')) not in
+                (workload_storage_names | default([])) else []))
+         | unique | sort | list }}
+    oim_mount_storage_category: >-
+      {{ 'vast'
+         if (item.name | default('')) in (filter_slurm_vast | default([]))
+         else 'nfs'
+         if fs_type in ['nfs', 'nfs4', 'auto']
+         else fs_type }}
+
+- name: Reject stale ownership entry for the same storage name
+  vars:
+    oim_mount_conflicting_name_entries: >-
+      {% set conflicts = [] -%}
+      {% for ledger_mount in oim_mount_same_name_entries -%}
+        {% if ledger_mount.mount_point | default('') != oim_mount_canonical_path.stdout
+              or ledger_mount.source | default('') != source -%}
+          {% set _ = conflicts.append(ledger_mount) -%}
+        {% endif -%}
+      {% endfor -%}
+      {{ conflicts }}
+  ansible.builtin.assert:
+    that:
+      - oim_mount_conflicting_name_entries | length == 0
+    fail_msg: >-
+      Refusing to replace mount ownership for storage
+      '{{ item.name | default('') }}'. The ledger contains the same storage name
+      with a different source or mount point. Clean or reconcile the previous
+      attachment before provisioning this one.
+
+- name: Build deduplicated OIM mount ownership entry
+  ansible.builtin.set_fact:
+    oim_mount_ledger_entry:
+      storage_name: "{{ item.name | default('') }}"
+      source: "{{ source }}"
+      mount_point: "{{ oim_mount_canonical_path.stdout }}"
+      fs_type: "{{ fs_type }}"
+      owners: "{{ oim_mount_desired_owners }}"
+      component: >-
+        {{ oim_mount_desired_owners
+           | first | default('storage_mounts', true) }}
+      category: "{{ oim_mount_storage_category }}"
+      usage: >-
+        {{ 'slurm_vast'
+           if (item.name | default('')) in (filter_slurm_vast | default([]))
+           else 'slurm_primary'
+           if 'slurm' in oim_mount_desired_owners
+           else 'k8s_primary'
+           if 'k8s' in oim_mount_desired_owners
+           else 'independent' }}
+      fstab_managed: true
+      mount_options: "{{ mnt_opts }}"
+
+- name: Build updated OIM mount ownership ledger
+  ansible.builtin.set_fact:
+    oim_mount_ledger_updated:
+      schema_version: "1.0"
+      mounts: >-
+        {{ (oim_mount_ledger.mounts | default([])
+            | rejectattr('mount_point', 'defined') | list)
+           + (oim_mount_ledger.mounts | default([])
+              | selectattr('mount_point', 'defined')
+              | rejectattr('mount_point', 'equalto', oim_mount_canonical_path.stdout)
+              | list)
+           + [oim_mount_ledger_entry] }}
+
+- name: Atomically update OIM mount ownership ledger
+  ansible.builtin.copy:
+    content: >-
+      {{ oim_mount_ledger_updated
+         | to_nice_yaml(indent=2, width=4096, sort_keys=false) }}
+    dest: "{{ oim_mount_ledger_path }}"
+    owner: root
+    group: root
+    mode: "0600"

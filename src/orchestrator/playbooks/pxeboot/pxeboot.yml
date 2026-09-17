@@ -48,12 +48,12 @@
   gather_facts: false
   tags: [pxeboot]
   tasks:
-    - name: Run orchestrator_setup if not already initialized
+    - name: Initialize the PXE boot environment
       ansible.builtin.include_role:
         name: orchestrator_setup
       vars:
-        openchami_vars_support: false
-      when: input_project_dir is not defined
+        openchami_vars_support: true
+        oim_group: true
 
     - name: Check if PXE boot is enabled
       ansible.builtin.debug:
@@ -68,6 +68,10 @@
       ansible.builtin.set_fact:
         pxe_boot_skip: "{{ not (enable_pxe_boot | default(true) | bool) }}"
         cacheable: true
+
+    - name: Reset the per-run SMD PXE safety gate
+      ansible.builtin.set_fact:
+        pxe_smd_validation_passed: false
 
     - name: Check for optional PXE boot configuration
       ansible.builtin.stat:
@@ -156,15 +160,14 @@
 # ─────────────────────────────────────────────────────────────────────────
 # Play 1.5: BuildStream — Compute effective inventory for retry support
 #
-# When BuildStream is enabled (bsm_enabled) and a job_id is provided,
-# this play reads restart_state.json and failed_nodes.json to determine
-# which nodes have already been successfully booted.  It generates a
-# filtered CSV containing only the nodes that still need PXE boot and
-# sets the pxeboot_inventory fact so Play 3 uses the filtered inventory.
-#
-# On first run (no restart_state), all nodes are included.
-# On retry, nodes marked status=success in failed_nodes.json (manually
-# booted by the user in GitLab) are excluded.
+# When BuildStream is enabled and a job_id is provided, this play delegates
+# selection to the shared identity-aware planner. New, changed, failed,
+# pending, and unverified identities are selected; only exact prior successes
+# are excluded. A manual success is trusted only with the exact identity
+# signature written for that job. An operator-supplied pxeboot_inventory
+# bypasses BuildStream filtering and remains an exact, force-selected request.
+# A no-target result still enters Play 3 to synchronize the project ledger;
+# credentials and all later BMC-facing plays are skipped.
 # ─────────────────────────────────────────────────────────────────────────
 - name: BuildStream effective inventory computation
   hosts: localhost
@@ -172,6 +175,12 @@
   gather_facts: true
   tags: [pxeboot]
   pre_tasks:
+    - name: Initialize BuildStream automatic inventory state
+      ansible.builtin.set_fact:
+        bsm_auto_inventory_active: false
+        bsm_project_success_results: []
+        bsm_skip_pxe: false
+
     - name: Skip if PXE boot disabled
       ansible.builtin.meta: end_play
       when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
@@ -183,6 +192,17 @@
     - name: Skip if job_id is not provided
       ansible.builtin.meta: end_play
       when: job_id is not defined or (job_id | string | length == 0)
+
+    - name: Preserve an explicit operator-selected PXE inventory
+      ansible.builtin.debug:
+        msg: >-
+          [BSM] Explicit pxeboot_inventory is authoritative. BuildStream
+          automatic target filtering is bypassed for this run.
+      when: pxeboot_inventory | default('', true) | length > 0
+
+    - name: Skip BuildStream filtering for an explicit PXE inventory
+      ansible.builtin.meta: end_play
+      when: pxeboot_inventory | default('', true) | length > 0
   tasks:
     - name: Compute effective inventory for BuildStream retry
       ansible.builtin.include_role:
@@ -201,6 +221,10 @@
     - name: Skip if PXE boot disabled
       ansible.builtin.meta: end_play
       when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
+
+    - name: Skip credentials when BuildStream has no PXE targets
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['bsm_skip_pxe'] | default(false) | bool
   tasks:
     - name: Load and validate BMC credentials
       block:
@@ -265,9 +289,60 @@
               {{ pxeboot_inventory_source }}
           when: pxeboot_using_custom_inventory | bool
 
+        - name: Verify authoritative PXE mapping exists
+          ansible.builtin.stat:
+            path: "{{ pxe_mapping_file_path }}"
+          register: _pxeboot_canonical_mapping_stat
+
+        - name: Require authoritative PXE mapping
+          ansible.builtin.assert:
+            that:
+              - _pxeboot_canonical_mapping_stat.stat.exists
+              - _pxeboot_canonical_mapping_stat.stat.isreg
+            fail_msg: >-
+              The authoritative project mapping was not found at
+              {{ pxe_mapping_file_path }}. Restore pxe_mapping_file.csv before
+              running PXE boot or a custom retry inventory.
+
+        - name: Create a temporary canonical PXE mapping
+          ansible.builtin.tempfile:
+            state: file
+            suffix: .csv
+          register: _pxeboot_runtime_mapping
+
+        - name: Normalize the canonical mapping into the temporary file
+          ansible.builtin.shell: >-
+            set -o pipefail;
+            sed 's/^[[:space:]]*//g' {{ pxe_mapping_file_path | quote }}
+            | sed 's/[[:space:]]*$//g'
+            | sed '/^[[:space:]]*#/d'
+            > {{ _pxeboot_runtime_mapping.path | quote }}
+          args:
+            executable: /bin/bash
+          changed_when: false
+
+        - name: Normalize Kubernetes primary control-plane membership
+          ansible.builtin.include_role:
+            name: orchestrator_common
+            tasks_from: normalize_pxe_functional_groups.yml
+          vars:
+            normalized_pxe_mapping_path: >-
+              {{ _pxeboot_runtime_mapping.path }}
+
+        - name: Generate deterministic xnames in the temporary PXE mapping
+          generate_xname_in_mapping_file:
+            mapping_file_path: "{{ _pxeboot_runtime_mapping.path }}"
+
+        - name: Resolve the effective PXE inventory path
+          ansible.builtin.set_fact:
+            _pxeboot_effective_inventory_path: >-
+              {{ pxeboot_inventory_source
+                 if (pxeboot_using_custom_inventory | bool)
+                 else _pxeboot_runtime_mapping.path }}
+
         - name: Verify inventory CSV exists
           ansible.builtin.stat:
-            path: "{{ pxeboot_inventory_source }}"
+            path: "{{ _pxeboot_effective_inventory_path }}"
           register: _mapping_file_stat
 
         - name: Fail if inventory CSV is missing
@@ -279,7 +354,7 @@
 
         - name: Read inventory CSV by column name
           community.general.read_csv:
-            path: "{{ pxeboot_inventory_source }}"
+            path: "{{ _pxeboot_effective_inventory_path }}"
           register: _pxeboot_csv
 
         - name: Validate inventory contains node records
@@ -328,11 +403,250 @@
               PXE inventory {{ pxeboot_inventory_source }} contains duplicate
               BMC_IP or ADMIN_IP values. Every node must have unique addresses.
 
+        - name: Read canonical PXE mapping for target selection
+          community.general.read_csv:
+            path: "{{ _pxeboot_runtime_mapping.path }}"
+          register: _pxeboot_canonical_csv
+
+        - name: Validate canonical PXE mapping identities
+          ansible.builtin.assert:
+            that:
+              - _pxeboot_canonical_csv.list | default([]) | length > 0
+              - >-
+                (_pxeboot_canonical_csv.list
+                 | map(attribute='ADMIN_IP') | map('trim') | list
+                 | reject('equalto', '') | list | unique | length)
+                == (_pxeboot_canonical_csv.list | length)
+              - >-
+                (_pxeboot_canonical_csv.list
+                 | map(attribute='BMC_IP') | map('trim') | list
+                 | reject('equalto', '') | list | unique | length)
+                == (_pxeboot_canonical_csv.list | length)
+            fail_msg: >-
+              The authoritative mapping {{ pxe_mapping_file_path }} must
+              contain one unique, non-empty ADMIN_IP and BMC_IP per node
+              before it can authorize a custom PXE retry inventory.
+          when: pxeboot_using_custom_inventory | bool
+
+        - name: Initialize canonical PXE identity index
+          ansible.builtin.set_fact:
+            _pxeboot_canonical_by_admin_ip: {}
+            _pxeboot_effective_rows: []
+          when: pxeboot_using_custom_inventory | bool
+
+        - name: Index canonical PXE identities by admin IP
+          ansible.builtin.set_fact:
+            _pxeboot_canonical_by_admin_ip: >-
+              {{ _pxeboot_canonical_by_admin_ip
+                 | combine({item.ADMIN_IP | trim: item}) }}
+          loop: "{{ _pxeboot_canonical_csv.list }}"
+          loop_control:
+            label: "{{ item.ADMIN_IP | trim }}"
+          when: pxeboot_using_custom_inventory | bool
+
+        - name: Validate custom PXE rows against canonical identities
+          ansible.builtin.assert:
+            that:
+              - _custom_admin_ip in _pxeboot_canonical_by_admin_ip
+              - >-
+                item.BMC_IP | trim
+                == _canonical_row.BMC_IP | default('') | trim
+              - >-
+                item.HOSTNAME | default('') | trim in
+                ['', _canonical_row.HOSTNAME | default('') | trim]
+              - >-
+                (item.ADMIN_MAC | default('') | trim | lower
+                 | replace('-', ':')) in
+                ['', (_canonical_row.ADMIN_MAC | default('') | trim | lower
+                      | replace('-', ':'))]
+              - >-
+                (item.BMC_MAC | default('') | trim | lower
+                 | replace('-', ':')) in
+                ['', (_canonical_row.BMC_MAC | default('') | trim | lower
+                      | replace('-', ':'))]
+              - >-
+                item.XNAME | default('') | trim in
+                ['', _canonical_row.XNAME | default('') | trim]
+            fail_msg: >-
+              Custom PXE row for ADMIN_IP {{ _custom_admin_ip }} does not
+              match its authoritative identity in {{ pxe_mapping_file_path }}.
+              BMC_IP must match exactly; any supplied HOSTNAME, ADMIN_MAC,
+              BMC_MAC, or XNAME must also match. Regenerate the retry inventory
+              from the current project mapping.
+          vars:
+            _custom_admin_ip: "{{ item.ADMIN_IP | trim }}"
+            _canonical_row: >-
+              {{ _pxeboot_canonical_by_admin_ip[_custom_admin_ip]
+                 | default({}) }}
+          loop: "{{ _pxeboot_csv.list }}"
+          loop_control:
+            label: "{{ item.ADMIN_IP | trim }}"
+          when: pxeboot_using_custom_inventory | bool
+
+        - name: Enrich custom PXE rows from canonical identities
+          ansible.builtin.set_fact:
+            _pxeboot_effective_rows: >-
+              {{ _pxeboot_effective_rows
+                 + [item | combine(
+                     _pxeboot_canonical_by_admin_ip[item.ADMIN_IP | trim])]
+              }}
+          loop: "{{ _pxeboot_csv.list }}"
+          loop_control:
+            label: "{{ item.ADMIN_IP | trim }}"
+          when: pxeboot_using_custom_inventory | bool
+
+        - name: Use enriched PXE rows for custom retry flow
+          ansible.builtin.set_fact:
+            _pxeboot_csv: >-
+              {{ _pxeboot_csv
+                 | combine({'list': _pxeboot_effective_rows}) }}
+          when: pxeboot_using_custom_inventory | bool
+
+        - name: Set project-scoped PXE target state path
+          ansible.builtin.set_fact:
+            _pxeboot_target_state_path: >-
+              {{ orchestrator_output_dir }}/.data/pxeboot_target_state.yml
+
+        - name: Ensure internal PXE state directory exists
+          ansible.builtin.file:
+            path: "{{ orchestrator_output_dir }}/.data"
+            state: directory
+            mode: "0755"
+
+        - name: Check for previous internal PXE target state
+          ansible.builtin.stat:
+            path: "{{ _pxeboot_target_state_path }}"
+          register: _pxeboot_target_state_stat
+
+        - name: Read previous internal PXE target state
+          ansible.builtin.slurp:
+            src: "{{ _pxeboot_target_state_path }}"
+          register: _pxeboot_target_state_raw
+          when: _pxeboot_target_state_stat.stat.exists
+
+        - name: Check for previous public PXE status
+          ansible.builtin.stat:
+            path: "{{ orchestrator_output_dir }}/pxeboot_status.yml"
+          register: _pxeboot_previous_status_stat
+
+        - name: Read previous public PXE status
+          ansible.builtin.slurp:
+            src: "{{ orchestrator_output_dir }}/pxeboot_status.yml"
+          register: _pxeboot_previous_status_raw
+          when: _pxeboot_previous_status_stat.stat.exists
+
+        - name: Decode previous PXE target state and status
+          ansible.builtin.set_fact:
+            _pxeboot_previous_target_state: >-
+              {{ (_pxeboot_target_state_raw.content | b64decode | from_yaml)
+                 if _pxeboot_target_state_stat.stat.exists else {} }}
+            _pxeboot_previous_public_status: >-
+              {{ (_pxeboot_previous_status_raw.content | b64decode | from_yaml)
+                 if _pxeboot_previous_status_stat.stat.exists else {} }}
+            _pxeboot_selection_previous_state: >-
+              {{ (_pxeboot_target_state_raw.content | b64decode | from_yaml)
+                 if _pxeboot_target_state_stat.stat.exists else {} }}
+            _pxeboot_selection_previous_status: >-
+              {{ (_pxeboot_previous_status_raw.content | b64decode | from_yaml)
+                 if _pxeboot_previous_status_stat.stat.exists else {} }}
+
+        - name: Merge identity-verified BuildStream successes into project state
+          plan_pxe_targets:
+            desired_nodes: "{{ _pxeboot_canonical_csv.list }}"
+            requested_nodes: "{{ _pxeboot_canonical_csv.list }}"
+            custom_selection: false
+            previous_state: "{{ _pxeboot_previous_target_state }}"
+            previous_status: "{{ _pxeboot_previous_public_status }}"
+            run_results: "{{ bsm_project_success_results }}"
+          register: _pxeboot_bsm_seeded_state
+          when: bsm_project_success_results | default([]) | length > 0
+
+        - name: Fail when BuildStream successes do not match project identities
+          ansible.builtin.assert:
+            that:
+              - _pxeboot_bsm_seeded_state.errors | length == 0
+            fail_msg: >-
+              BuildStream PXE success state could not be synchronized safely:
+              {{ _pxeboot_bsm_seeded_state.errors | join('; ') }}.
+              No BMC operation was attempted.
+          when: bsm_project_success_results | default([]) | length > 0
+
+        - name: Use synchronized BuildStream state for project target selection
+          ansible.builtin.set_fact:
+            _pxeboot_selection_previous_state: >-
+              {{ _pxeboot_bsm_seeded_state.state }}
+            _pxeboot_selection_previous_status: {}
+          when: bsm_project_success_results | default([]) | length > 0
+
+        - name: Select new, failed, and unverified PXE targets
+          plan_pxe_targets:
+            desired_nodes: "{{ _pxeboot_canonical_csv.list }}"
+            requested_nodes: "{{ _pxeboot_csv.list }}"
+            custom_selection: "{{ pxeboot_using_custom_inventory | bool }}"
+            previous_state: "{{ _pxeboot_selection_previous_state }}"
+            previous_status: "{{ _pxeboot_selection_previous_status }}"
+          register: _pxeboot_target_plan
+
+        - name: Fail when safe PXE target selection is impossible
+          ansible.builtin.assert:
+            that:
+              - _pxeboot_target_plan.errors | length == 0
+            fail_msg: >-
+              PXE target selection failed before any BMC operation:
+              {{ _pxeboot_target_plan.errors | join('; ') }}
+
+        - name: Use only selected PXE target rows
+          ansible.builtin.set_fact:
+            _pxeboot_csv: >-
+              {{ _pxeboot_csv
+                 | combine({'list': _pxeboot_target_plan.target_nodes}) }}
+
+        - name: Persist pending PXE target state before BMC operations
+          ansible.builtin.copy:
+            content: "{{ _pxeboot_target_plan.state | to_nice_yaml }}"
+            dest: "{{ _pxeboot_target_state_path }}"
+            mode: "0644"
+
+        - name: Report automatic PXE target selection
+          ansible.builtin.debug:
+            msg: >-
+              PXE target selection: {{ _pxeboot_target_plan.target_nodes | length }}
+              node(s) selected and {{ _pxeboot_target_plan.skipped_nodes | length }}
+              previously successful unchanged node(s) skipped.
+          when: not (pxeboot_using_custom_inventory | bool)
+
+        - name: Report explicit PXE target selection
+          ansible.builtin.debug:
+            msg: >-
+              Explicit PXE inventory selected
+              {{ _pxeboot_target_plan.target_nodes | length }} node(s).
+              Automatic success filtering is intentionally bypassed for an
+              explicit pxeboot_inventory.
+          when: pxeboot_using_custom_inventory | bool
+
+        - name: Skip remaining PXE plays when no node requires boot
+          ansible.builtin.set_fact:
+            pxe_boot_no_targets: >-
+              {{ _pxeboot_target_plan.target_nodes | length == 0 }}
+            pxe_boot_skip: >-
+              {{ _pxeboot_target_plan.target_nodes | length == 0 }}
+            cacheable: true
+
+        - name: Report that no node requires PXE boot
+          ansible.builtin.debug:
+            msg: >-
+              No new, failed, pending, or unverified nodes require PXE boot.
+              Previously successful nodes were not restarted.
+          when: pxe_boot_no_targets | bool
+
         - name: Build BMC host group from named CSV fields
           ansible.builtin.add_host:
             hostname: "{{ item.BMC_IP | trim }}"
             groups: bmc
             admin_ip: "{{ item.ADMIN_IP | trim }}"
+            admin_mac: >-
+              {{ item.ADMIN_MAC | default('') | trim | lower
+                 | replace('-', ':') }}
             xname: "{{ item.XNAME | default('') | trim }}"
             hostname_node: "{{ item.HOSTNAME | default('') | trim }}"
             service_tag: "{{ item.SERVICE_TAG | default('') | trim }}"
@@ -345,6 +659,9 @@
             hostname: "{{ item.ADMIN_IP | trim }}"
             groups: node_registration_targets
             bmc_ip: "{{ item.BMC_IP | trim }}"
+            admin_mac: >-
+              {{ item.ADMIN_MAC | default('') | trim | lower
+                 | replace('-', ':') }}
             xname: "{{ item.XNAME | default('') | trim }}"
             hostname_node: "{{ item.HOSTNAME | default('') | trim }}"
             service_tag: "{{ item.SERVICE_TAG | default('') | trim }}"
@@ -357,7 +674,9 @@
             msg: >-
               No BMC hosts found in {{ pxeboot_inventory_source }}.
               Ensure the BMC_IP column is populated.
-          when: ('bmc' not in groups) or (groups['bmc'] | length | int == 0)
+          when:
+            - not (pxe_boot_no_targets | default(false) | bool)
+            - ('bmc' not in groups) or (groups['bmc'] | length | int == 0)
 
         - name: Capture PXE boot start epoch
           ansible.builtin.set_fact:
@@ -370,6 +689,224 @@
             target_node_admin_ips: "{{ _pxeboot_csv.list | map(attribute='ADMIN_IP') | map('trim') | list }}"
             cacheable: true
           when: enable_node_registration | default(true) | bool
+
+        - name: Remove the temporary canonical PXE mapping
+          ansible.builtin.file:
+            path: "{{ _pxeboot_runtime_mapping.path }}"
+            state: absent
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 3.5: Validate live SMD identity state before any BMC reboot
+# ─────────────────────────────────────────────────────────────────────────
+- name: Validate live SMD identities before PXE boot
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  any_errors_fatal: true
+  tags: [pxeboot]
+  pre_tasks:
+    - name: Skip if PXE boot disabled
+      ansible.builtin.meta: end_play
+      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
+  tasks:
+    - name: Authenticate with OpenCHAMI for PXE safety validation
+      ansible.builtin.include_role:
+        name: orchestrator_common
+        tasks_from: openchami_auth.yml
+      vars:
+        oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
+
+    - name: Require unique SMD ownership for every PXE target admin IP
+      ansible.builtin.include_role:
+        name: provision_common
+        tasks_from: validate_smd_identity.yml
+      vars:
+        smd_identity_desired_nodes: >-
+          {{ hostvars['localhost']['_pxeboot_csv'].list | default([]) }}
+        smd_identity_base_url: >-
+          https://{{ hostvars['localhost']['oim_node_name'] }}.{{ hostvars['localhost']['domain_name'] }}:8443
+        smd_identity_validate_certs: false
+
+    - name: Require prepared hostnames before PXE boot
+      ansible.builtin.include_role:
+        name: provision_common
+        tasks_from: validate_smd_hostnames.yml
+      vars:
+        smd_hostname_desired_nodes: >-
+          {{ hostvars['localhost']['_pxeboot_csv'].list | default([]) }}
+        smd_hostname_base_url: >-
+          https://{{ hostvars['localhost']['oim_node_name'] }}.{{ hostvars['localhost']['domain_name'] }}:8443
+        smd_hostname_validate_certs: false
+        smd_hostname_domain_name: "{{ hostvars['localhost']['domain_name'] }}"
+
+    - name: Query live SMD Redfish endpoints for BMC identity validation
+      ansible.builtin.uri:
+        url: >-
+          https://{{ hostvars['localhost']['oim_node_name'] }}.{{ hostvars['localhost']['domain_name'] }}:8443/hsm/v2/Inventory/RedfishEndpoints
+        method: GET
+        status_code: 200
+        validate_certs: false
+        headers:
+          Authorization: "Bearer {{ openchami_access_token }}"
+      register: _pxeboot_redfish_endpoints_response
+      retries: 5
+      delay: 3
+      until: _pxeboot_redfish_endpoints_response.status | default(0) == 200
+      no_log: true
+
+    - name: Normalize live SMD Redfish endpoint records
+      ansible.builtin.set_fact:
+        _pxeboot_redfish_endpoints: >-
+          {{ _pxeboot_redfish_endpoints_response.json
+             if (_pxeboot_redfish_endpoints_response.json | type_debug) == 'list'
+             else (_pxeboot_redfish_endpoints_response.json.RedfishEndpoints
+                   | default([])) }}
+      no_log: true
+
+    - name: Query live SMD component endpoints for node-to-BMC validation
+      ansible.builtin.uri:
+        url: >-
+          https://{{ hostvars['localhost']['oim_node_name'] }}.{{ hostvars['localhost']['domain_name'] }}:8443/hsm/v2/Inventory/ComponentEndpoints
+        method: GET
+        status_code: 200
+        validate_certs: false
+        headers:
+          Authorization: "Bearer {{ openchami_access_token }}"
+      register: _pxeboot_component_endpoints_response
+      retries: 5
+      delay: 3
+      until: _pxeboot_component_endpoints_response.status | default(0) == 200
+      no_log: true
+
+    - name: Normalize live SMD component endpoint records
+      ansible.builtin.set_fact:
+        _pxeboot_component_endpoints: >-
+          {{ _pxeboot_component_endpoints_response.json
+             if (_pxeboot_component_endpoints_response.json | type_debug)
+                == 'list'
+             else (_pxeboot_component_endpoints_response.json.ComponentEndpoints
+                   | default([])) }}
+      no_log: true
+
+    - name: Require one live Redfish endpoint for every PXE BMC IP
+      ansible.builtin.assert:
+        that:
+          - _matching_redfish_endpoints | length == 1
+        fail_msg: >-
+          Refusing PXE boot for {{ item.HOSTNAME | default(item.ADMIN_IP) }}:
+          BMC_IP {{ item.BMC_IP }} has
+          {{ _matching_redfish_endpoints | length }} matching RedfishEndpoint
+          records in OpenCHAMI SMD; exactly one is required.
+      vars:
+        _matching_redfish_endpoints: >-
+          {{ _pxeboot_redfish_endpoints
+             | selectattr('IPAddress', 'defined')
+             | selectattr('IPAddress', 'equalto', item.BMC_IP | trim)
+             | list }}
+      loop: "{{ hostvars['localhost']['_pxeboot_csv'].list | default([]) }}"
+      loop_control:
+        label: "{{ item.BMC_IP | trim }}"
+
+    - name: Require one live component endpoint for every PXE node
+      ansible.builtin.assert:
+        that:
+          - item.XNAME | default('') | trim | length > 0
+          - _matching_component_endpoints | length == 1
+        fail_msg: >-
+          Refusing PXE boot for {{ item.HOSTNAME | default(item.ADMIN_IP) }}:
+          XNAME {{ item.XNAME | default('<missing>') }} has
+          {{ _matching_component_endpoints | length }} matching SMD component
+          endpoints; exactly one is required.
+      vars:
+        _matching_component_endpoints: >-
+          {{ _pxeboot_component_endpoints
+             | selectattr('ID', 'defined')
+             | selectattr('ID', 'equalto', item.XNAME | default('') | trim)
+             | list }}
+      loop: "{{ hostvars['localhost']['_pxeboot_csv'].list | default([]) }}"
+      loop_control:
+        label: "{{ item.XNAME | default(item.ADMIN_IP) | trim }}"
+
+    - name: Bind every PXE BMC IP to the expected SMD node identity
+      ansible.builtin.assert:
+        that:
+          - _desired_node_xname | length > 0
+          - _live_redfish_endpoint.ID | default('') == _desired_bmc_xname
+          - _live_redfish_endpoint.Type | default('') == 'NodeBMC'
+          - >-
+            _live_redfish_endpoint.Name | default('')
+            == item.HOSTNAME | default('') | trim
+          - >-
+            item.BMC_MAC | default('') | trim | length == 0
+            or (_live_redfish_endpoint.MACAddr | default('') | lower
+                | replace('-', ':'))
+               == (item.BMC_MAC | default('') | trim | lower
+                   | replace('-', ':'))
+          - _live_component_endpoint.RedfishEndpointID | default('') == _desired_bmc_xname
+          - _live_component_endpoint.Type | default('') == 'Node'
+          - >-
+            _live_component_endpoint.ComponentEndpointType | default('')
+            == 'ComponentEndpointComputerSystem'
+          - >-
+            _live_component_endpoint.OdataID | default('')
+            is search('/Systems/' + _desired_node_xname + '$')
+          - >-
+            _live_component_endpoint.RedfishSystemInfo.Name | default('')
+            == item.HOSTNAME | default('') | trim
+        fail_msg: >-
+          Refusing PXE boot for {{ item.HOSTNAME | default(item.ADMIN_IP) }}:
+          BMC_IP {{ item.BMC_IP }} is not bound to expected node
+          {{ _desired_node_xname }} in OpenCHAMI SMD. Expected BMC endpoint
+          {{ _desired_bmc_xname }} and the corresponding Redfish System.
+      vars:
+        _desired_node_xname: "{{ item.XNAME | default('') | trim }}"
+        _desired_bmc_xname: >-
+          {{ _desired_node_xname | regex_replace('n[0-9]+$', '') }}
+        _live_redfish_endpoint: >-
+          {{ _pxeboot_redfish_endpoints
+             | selectattr('IPAddress', 'defined')
+             | selectattr('IPAddress', 'equalto', item.BMC_IP | trim)
+             | first }}
+        _live_component_endpoint: >-
+          {{ _pxeboot_component_endpoints
+             | selectattr('ID', 'defined')
+             | selectattr('ID', 'equalto', _desired_node_xname)
+             | first }}
+      loop: "{{ hostvars['localhost']['_pxeboot_csv'].list | default([]) }}"
+      loop_control:
+        label: "{{ item.BMC_IP | trim }}"
+
+    - name: Require unambiguous cloud-init group membership before PXE boot
+      ansible.builtin.include_role:
+        name: provision_common
+        tasks_from: validate_smd_group_membership.yml
+      vars:
+        smd_group_membership_desired_nodes: >-
+          {{ hostvars['localhost']['_pxeboot_csv'].list | default([]) }}
+        smd_group_membership_managed_groups: >-
+          {{ hostvars['localhost']['smd_managed_identity_nodes'] | default([])
+             | map(attribute='FUNCTIONAL_GROUP_NAME')
+             | select | unique | list }}
+        smd_group_membership_base_url: >-
+          https://{{ hostvars['localhost']['oim_node_name'] }}.{{ hostvars['localhost']['domain_name'] }}:8443
+        smd_group_membership_validate_certs: false
+
+    - name: Require Boot Service to resolve every mapped PXE identity
+      ansible.builtin.include_role:
+        name: provision_common
+        tasks_from: validate_boot_service_identity.yml
+      vars:
+        boot_service_identity_desired_nodes: >-
+          {{ hostvars['localhost']['_pxeboot_csv'].list | default([]) }}
+        boot_service_identity_base_url: >-
+          https://{{ hostvars['localhost']['oim_node_name'] }}.{{ hostvars['localhost']['domain_name'] }}:8443
+        boot_service_identity_validate_certs: false
+
+    - name: Mark the SMD PXE safety gate as passed
+      ansible.builtin.set_fact:
+        pxe_smd_validation_passed: true
+      delegate_to: localhost
+      delegate_facts: true
 
 # ─────────────────────────────────────────────────────────────────────────
 # Play 4: Reboot hosts via PXE
@@ -384,6 +921,17 @@
     - name: Skip if PXE boot disabled
       ansible.builtin.meta: end_play
       when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
+
+    - name: Require the SMD PXE safety gate before reboot
+      ansible.builtin.assert:
+        that:
+          - >-
+            hostvars['localhost']['pxe_smd_validation_passed']
+            | default(false) | bool
+        fail_msg: >-
+          Refusing to contact any BMC because the live OpenCHAMI SMD and Boot
+          Service identity, hostname, functional-group membership, bootscript,
+          and BMC-to-node binding checks did not complete successfully.
   roles:
     - role: idrac_pxe_boot
 
@@ -732,6 +1280,31 @@
                 detail: "{{ _detail }}"
                 cloud_init: "{{ _registration_result.get('cloud_init', {}) }}"
 
+        - name: Merge current PXE results into target state
+          plan_pxe_targets:
+            desired_nodes: "{{ _pxeboot_canonical_csv.list }}"
+            requested_nodes: "{{ _pxeboot_csv.list }}"
+            custom_selection: "{{ pxeboot_using_custom_inventory | bool }}"
+            previous_state: "{{ _pxeboot_target_plan.state }}"
+            run_results: "{{ all_nodes_status | default([]) }}"
+          register: _pxeboot_completed_target_state
+
+        - name: Fail when PXE result state cannot be persisted safely
+          ansible.builtin.assert:
+            that:
+              - _pxeboot_completed_target_state.errors | length == 0
+            fail_msg: >-
+              PXE completed, but its target state could not be updated safely:
+              {{ _pxeboot_completed_target_state.errors | join('; ') }}.
+              The selected nodes remain pending and will be retried.
+
+        - name: Persist completed PXE target state
+          ansible.builtin.copy:
+            content: >-
+              {{ _pxeboot_completed_target_state.state | to_nice_yaml }}
+            dest: "{{ _pxeboot_target_state_path }}"
+            mode: "0644"
+
         - name: Compute overall status
           ansible.builtin.set_fact:
             orchestrator_overall_status: >-
@@ -828,6 +1401,7 @@
             - enable_build_stream | default(false) | bool
             - job_id is defined
             - job_id | string | length > 0
+            - bsm_auto_inventory_active | default(false) | bool
           block:
             - name: Run BSM write_node_results
               ansible.builtin.include_role:

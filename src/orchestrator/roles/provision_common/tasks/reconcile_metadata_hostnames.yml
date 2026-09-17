@@ -1,0 +1,196 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Validate metadata hostname reconciliation input
+  ansible.builtin.assert:
+    that:
+      - metadata_hostname_entries is defined
+      - metadata_hostname_entries | type_debug == 'list'
+    fail_msg: >-
+      Metadata hostname reconciliation requires a list of desired entries.
+
+- name: Query existing metadata hostnames
+  ansible.builtin.uri:
+    url: >-
+      https://{{ cluster_name }}.{{ cluster_domain
+      }}:8443/metadata-service/instanceinfos
+    method: GET
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200]
+    validate_certs: false
+    return_content: true
+  register: _metadata_hostname_existing
+  retries: 5
+  delay: 2
+  until: _metadata_hostname_existing.status | default(0) == 200
+  no_log: true
+  when: metadata_hostname_entries | length > 0
+
+- name: Build metadata hostname reconciliation plan
+  plan_smd_hostname:
+    desired_entries: "{{ metadata_hostname_entries }}"
+    instanceinfos: "{{ _metadata_hostname_existing.json | default([]) }}"
+  register: _metadata_hostname_plan
+  when: metadata_hostname_entries | length > 0
+
+- name: Reject unsafe metadata hostname state before mutation
+  ansible.builtin.assert:
+    that:
+      - _metadata_hostname_plan.errors | length == 0
+    fail_msg: >-
+      Refusing metadata hostname reconciliation:
+      {{ _metadata_hostname_plan.errors }}
+  when: metadata_hostname_entries | length > 0
+
+- name: Update stale metadata hostnames
+  ansible.builtin.uri:
+    url: >-
+      https://{{ cluster_name }}.{{ cluster_domain
+      }}:8443/metadata-service/instanceinfos/{{ item.uid }}
+    method: PATCH
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Content-Type: application/merge-patch+json
+    body_format: json
+    body:
+      hostname: "{{ item.hostname }}"
+      local_hostname: "{{ item.hostname }}"
+    status_code: [200]
+    validate_certs: false
+  loop: "{{ _metadata_hostname_plan['update'] | default([]) }}"
+  loop_control:
+    label: "{{ item.xname }}"
+  changed_when: true
+  no_log: true
+  when: metadata_hostname_entries | length > 0
+
+- name: Create missing metadata hostnames
+  ansible.builtin.uri:
+    url: >-
+      https://{{ cluster_name }}.{{ cluster_domain
+      }}:8443/metadata-service/instanceinfos
+    method: POST
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Content-Type: application/json
+    body_format: json
+    body:
+      metadata:
+        name: "{{ item.xname }}"
+      spec:
+        instance_id: "{{ item.xname }}"
+        hostname: "{{ item.hostname }}"
+        local_hostname: "{{ item.hostname }}"
+    status_code: [200, 201]
+    validate_certs: false
+  loop: "{{ _metadata_hostname_plan.create | default([]) }}"
+  loop_control:
+    label: "{{ item.xname }}"
+  changed_when: true
+  no_log: true
+  when: metadata_hostname_entries | length > 0
+
+- name: Record metadata hostnames changed by this run
+  ansible.builtin.set_fact:
+    _metadata_hostname_updated_xnames: >-
+      {{ ((_metadata_hostname_plan['update'] | default([]))
+          + (_metadata_hostname_plan.create | default([])))
+         | map(attribute='xname') | list }}
+  when: metadata_hostname_entries | length > 0
+
+- name: Wait for changed metadata hostnames to converge
+  ansible.builtin.uri:
+    url: >-
+      https://{{ cluster_name }}.{{ cluster_domain
+      }}:8443/metadata-service/instanceinfos
+    method: GET
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200]
+    validate_certs: false
+    return_content: true
+  register: _metadata_hostname_verified
+  loop: >-
+    {{ (_metadata_hostname_plan['update'] | default([]))
+       + (_metadata_hostname_plan.create | default([])) }}
+  loop_control:
+    label: "{{ item.xname }}"
+  retries: 5
+  delay: 2
+  until: >-
+    (_metadata_hostname_verified.json | default([])
+     | selectattr('spec.instance_id', 'defined')
+     | selectattr('spec.instance_id', 'equalto', item.xname)
+     | selectattr('metadata.name', 'defined')
+     | selectattr('metadata.name', 'equalto', item.xname)
+     | selectattr('spec.hostname', 'defined')
+     | selectattr('spec.hostname', 'equalto', item.hostname)
+     | selectattr('spec.local_hostname', 'defined')
+     | selectattr('spec.local_hostname', 'equalto', item.hostname)
+     | list | length) == 1
+  no_log: true
+  when:
+    - metadata_hostname_entries | length > 0
+    - _metadata_hostname_updated_xnames | length > 0
+
+- name: Query final metadata hostname state
+  ansible.builtin.uri:
+    url: >-
+      https://{{ cluster_name }}.{{ cluster_domain
+      }}:8443/metadata-service/instanceinfos
+    method: GET
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200]
+    validate_certs: false
+    return_content: true
+  register: _metadata_hostname_final
+  retries: 5
+  delay: 2
+  until: _metadata_hostname_final.status | default(0) == 200
+  no_log: true
+  when: metadata_hostname_entries | length > 0
+
+- name: Verify final metadata hostname plan is empty
+  plan_smd_hostname:
+    desired_entries: "{{ metadata_hostname_entries }}"
+    instanceinfos: "{{ _metadata_hostname_final.json | default([]) }}"
+  register: _metadata_hostname_final_plan
+  when: metadata_hostname_entries | length > 0
+
+- name: Require exact metadata hostname state
+  ansible.builtin.assert:
+    that:
+      - _metadata_hostname_final_plan.errors | length == 0
+      - _metadata_hostname_final_plan.create | length == 0
+      - _metadata_hostname_final_plan['update'] | length == 0
+    fail_msg: >-
+      Metadata hostname reconciliation failed:
+      errors={{ _metadata_hostname_final_plan.errors }},
+      missing={{ _metadata_hostname_final_plan.create }},
+      stale={{ _metadata_hostname_final_plan['update'] }}
+    success_msg: >-
+      Metadata hostname state matches the desired provisioning mapping.
+  when: metadata_hostname_entries | length > 0
+
+- name: Report hostnames that require PXE boot to take effect
+  ansible.builtin.debug:
+    msg: >-
+      Hostname metadata was updated for {{ _metadata_hostname_updated_xnames }}.
+      PXE boot is required before the running nodes use the new hostnames.
+  when:
+    - metadata_hostname_entries | length > 0
+    - _metadata_hostname_updated_xnames | default([]) | length > 0

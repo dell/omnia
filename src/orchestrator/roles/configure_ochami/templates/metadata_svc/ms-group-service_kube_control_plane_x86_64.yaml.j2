@@ -349,6 +349,10 @@
         - sysctl --system
         - |
           tmpfile=$(mktemp)
+          resolv_target=$(readlink -f /etc/resolv.conf 2>/dev/null || true)
+          [ -n "$resolv_target" ] || resolv_target=/etc/resolv.conf
+          resolv_tmp=$(mktemp "$(dirname "$resolv_target")/.resolv.conf.XXXXXX")
+          trap 'rm -f "$tmpfile" "$resolv_tmp"' EXIT
 
           # Extract the first 'search' line only (ignore duplicates)
           search_line=$(grep '^search' /etc/resolv.conf | head -n1)
@@ -362,12 +366,32 @@
           # Add remaining lines except search and empty lines
           grep -v '^search' /etc/resolv.conf | grep -v '^$' >> "$tmpfile"
 
-          # Remove duplicate lines
-          awk '!seen[$0]++' "$tmpfile" > /etc/resolv.conf
-        - |
-          if command -v chattr >/dev/null 2>&1; then
-            chattr +i /etc/resolv.conf || true
+          # Build the replacement before unlocking the live resolver file.
+          awk '!seen[$0]++' "$tmpfile" > "$resolv_tmp"
+          if [ -e "$resolv_target" ]; then
+            chown --reference="$resolv_target" "$resolv_tmp"
+            chmod --reference="$resolv_target" "$resolv_tmp"
+          else
+            chmod 0644 "$resolv_tmp"
           fi
+
+          if command -v chattr >/dev/null 2>&1; then
+            chattr -i "$resolv_target" || true
+          fi
+          if ! mv -f -- "$resolv_tmp" "$resolv_target"; then
+            echo "ERROR: Failed to atomically replace $resolv_target" >&2
+            if command -v chattr >/dev/null 2>&1; then
+              chattr +i "$resolv_target" || true
+            fi
+            rm -f "$tmpfile" "$resolv_tmp"
+            trap - EXIT
+            exit 1
+          fi
+          if command -v chattr >/dev/null 2>&1; then
+            chattr +i "$resolv_target" || true
+          fi
+          rm -f "$tmpfile"
+          trap - EXIT
         - mount -av
         - cp {{ k8s_client_mount_path }}/pulp_webserver.crt /etc/pki/ca-trust/source/anchors
         - update-ca-trust extract

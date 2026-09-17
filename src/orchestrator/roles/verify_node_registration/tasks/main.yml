@@ -23,11 +23,17 @@
       - hostvars['localhost']['pxe_start_epoch'] | string | length > 0
       - bmc_ip is defined
       - bmc_ip | string | length > 0
+      - hostname_node is defined
+      - hostname_node | string | trim | length > 0
     fail_msg: "{{ verify_node_registration_fail_msg }}"
 
 - name: "[Node-Registration] Poll fresh boot and cloud-init state"
   ansible.builtin.shell: |
     set -o pipefail
+    expected_hostname_b64=${EXPECTED_HOSTNAME_B64:-}
+    expected_admin_mac_b64=${EXPECTED_ADMIN_MAC_B64:-}
+    expected_admin_mac=$(printf '%s' "$expected_admin_mac_b64" |
+      base64 -d 2>/dev/null | tr '[:upper:]' '[:lower:]')
 
     remote_output=$(
       ssh -o StrictHostKeyChecking=no \
@@ -72,7 +78,30 @@
     fi
     cloud_init_detail=$(printf '%s' "$cloud_init_output" |
       tr '\n' ';' | tr -s '[:space:]' ' ' | cut -c1-1000)
+    actual_hostname=$(hostname -s 2>/dev/null || true)
+    ssh_server_ip=$(printf '%s\n' "${SSH_CONNECTION:-}" | awk '{print $3}')
+    admin_interface=''
+    actual_admin_mac=''
+    if [ -n "$ssh_server_ip" ] && command -v ip >/dev/null 2>&1; then
+      admin_interface=$(ip -o -4 addr show 2>/dev/null |
+        awk -v target="$ssh_server_ip" '
+          {
+            address = $4
+            sub(/\/.*/, "", address)
+            if (address == target) {
+              print $2
+              exit
+            }
+          }')
+      admin_interface=${admin_interface%%@*}
+      if [ -n "$admin_interface" ] &&
+        [ -r "/sys/class/net/$admin_interface/address" ]; then
+        actual_admin_mac=$(tr '[:upper:]' '[:lower:]' < "/sys/class/net/$admin_interface/address")
+      fi
+    fi
     printf 'UPTIME_SECS=%s\n' "$uptime_seconds"
+    printf 'ACTUAL_HOSTNAME_B64=%s\n' "$(printf '%s' "$actual_hostname" | base64 | tr -d '\n')"
+    printf 'ACTUAL_ADMIN_MAC_B64=%s\n' "$(printf '%s' "$actual_admin_mac" | base64 | tr -d '\n')"
     printf 'CLOUD_INIT_STATE=%s\n' "${cloud_init_state:-unknown}"
     printf 'CLOUD_INIT_EXTENDED_STATE=%s\n' "${cloud_init_extended_state:-unknown}"
     printf 'CLOUD_INIT_BENIGN_DEGRADED=%s\n' "$cloud_init_benign_degraded"
@@ -81,6 +110,8 @@
     REMOTE_CHECK
     )
     ssh_rc=$?
+    echo "EXPECTED_HOSTNAME_B64=$expected_hostname_b64"
+    echo "EXPECTED_ADMIN_MAC_B64=$expected_admin_mac_b64"
 
     if [ "$ssh_rc" -ne 0 ]; then
       ssh_detail=$(printf '%s' "$remote_output" |
@@ -92,6 +123,12 @@
 
     uptime_seconds=$(printf '%s\n' "$remote_output" |
       sed -n 's/^UPTIME_SECS=//p' | head -n 1)
+    actual_hostname_b64=$(printf '%s\n' "$remote_output" |
+      sed -n 's/^ACTUAL_HOSTNAME_B64=//p' | head -n 1)
+    echo "ACTUAL_HOSTNAME_B64=$actual_hostname_b64"
+    actual_admin_mac_b64=$(printf '%s\n' "$remote_output" |
+      sed -n 's/^ACTUAL_ADMIN_MAC_B64=//p' | head -n 1)
+    echo "ACTUAL_ADMIN_MAC_B64=$actual_admin_mac_b64"
     cloud_init_state=$(printf '%s\n' "$remote_output" |
       sed -n 's/^CLOUD_INIT_STATE=//p' | head -n 1)
     cloud_init_extended_state=$(printf '%s\n' "$remote_output" |
@@ -100,6 +137,9 @@
       sed -n 's/^CLOUD_INIT_BENIGN_DEGRADED=//p' | head -n 1)
     cloud_init_detail=$(printf '%s\n' "$remote_output" |
       sed -n 's/^CLOUD_INIT_DETAIL=//p' | head -n 1)
+    cloud_init_json_b64=$(printf '%s\n' "$remote_output" |
+      sed -n 's/^CLOUD_INIT_JSON_B64=//p' | head -n 1)
+    echo "CLOUD_INIT_JSON_B64=$cloud_init_json_b64"
 
     if ! [[ "$uptime_seconds" =~ ^[0-9]+$ ]]; then
       echo "NODE_STATE=boot_time_unavailable"
@@ -114,21 +154,54 @@
       exit 1
     fi
 
+    verify_expected_identity() {
+      local success_detail=$1
+      if [ -z "$actual_hostname_b64" ]; then
+        echo "NODE_STATE=hostname_unavailable"
+        echo "NODE_DETAIL=Fresh PXE boot completed, but hostname -s returned no value"
+        exit 2
+      fi
+      if [ "$actual_hostname_b64" != "$expected_hostname_b64" ]; then
+        echo "NODE_STATE=hostname_mismatch"
+        echo "NODE_DETAIL=Fresh PXE boot completed, but hostname -s does not match the requested HOSTNAME"
+        exit 2
+      fi
+      if [ -n "$expected_admin_mac" ]; then
+        if [ -z "$actual_admin_mac_b64" ]; then
+          echo "NODE_STATE=admin_mac_unavailable"
+          echo "NODE_DETAIL=Fresh PXE boot completed, but the live ADMIN_MAC could not be determined"
+          exit 2
+        fi
+        actual_admin_mac=$(printf '%s' "$actual_admin_mac_b64" |
+          base64 -d 2>/dev/null | tr '[:upper:]' '[:lower:]')
+        if [ "$actual_admin_mac" != "$expected_admin_mac" ]; then
+          echo "NODE_STATE=admin_mac_mismatch"
+          echo "NODE_DETAIL=Fresh PXE boot completed, but the live ADMIN_MAC does not match the PXE mapping"
+          exit 2
+        fi
+      fi
+      echo "NODE_STATE=success"
+      if [ -n "$expected_admin_mac" ]; then
+        echo "NODE_DETAIL=${success_detail}; hostname and ADMIN_MAC match the PXE mapping"
+      else
+        echo "NODE_DETAIL=${success_detail}; hostname matches the PXE mapping"
+      fi
+      exit 0
+    }
+
     case "${cloud_init_state}:${cloud_init_extended_state}" in
       done:degraded*)
         if [ "$cloud_init_benign_degraded" = "1" ]; then
-          echo "NODE_STATE=success"
-          echo "NODE_DETAIL=Fresh PXE boot completed; only the known OpenCHAMI empty user-data warning was reported"
-          exit 0
+          verify_expected_identity \
+            "Fresh PXE boot completed; only the known OpenCHAMI empty user-data warning was reported"
         fi
         echo "NODE_STATE=cloud_init_error"
         echo "NODE_DETAIL=${cloud_init_detail:-cloud-init completed in a degraded state}"
         exit 2
         ;;
       done:*)
-        echo "NODE_STATE=success"
-        echo "NODE_DETAIL=Fresh PXE boot completed and cloud-init status is done"
-        exit 0
+        verify_expected_identity \
+          "Fresh PXE boot completed and cloud-init status is done"
         ;;
       error:*|degraded:*|disabled:*|not_installed:*)
         echo "NODE_STATE=cloud_init_error"
@@ -143,6 +216,11 @@
     esac
   args:
     executable: /bin/bash
+  environment:
+    EXPECTED_HOSTNAME_B64: "{{ hostname_node | trim | b64encode }}"
+    EXPECTED_ADMIN_MAC_B64: >-
+      {{ admin_mac | default('') | trim | lower
+         | replace('-', ':') | b64encode }}
   register: verify_node_registration_poll_result
   until: verify_node_registration_poll_result.rc in [0, 2]
   retries: "{{ hostvars['localhost']['node_registration_retries'] }}"
@@ -157,6 +235,10 @@
       bmc_ip: "{{ bmc_ip }}"
       xname: "{{ xname | default('') }}"
       hostname: "{{ hostname_node | default('') }}"
+      expected_hostname: "{{ _expected_hostname }}"
+      actual_hostname: "{{ _actual_hostname }}"
+      expected_admin_mac: "{{ _expected_admin_mac }}"
+      actual_admin_mac: "{{ _actual_admin_mac }}"
       service_tag: "{{ service_tag | default('') }}"
       status: "{{ 'success' if verify_node_registration_poll_result.rc == 0 else 'failed' }}"
       state: "{{ _node_state }}"
@@ -175,7 +257,7 @@
       {{ verify_node_registration_poll_result.stdout_lines | default([])
          | select('match', '^NODE_STATE=') | first
          | default('NODE_STATE=unknown') }}
-    _detail_line: >-
+    _reported_detail_line: >-
       {{ verify_node_registration_poll_result.stdout_lines | default([])
          | select('match', '^NODE_DETAIL=') | first
          | default('NODE_DETAIL=No verification detail was returned') }}
@@ -183,9 +265,53 @@
       {{ verify_node_registration_poll_result.stdout_lines | default([])
          | select('match', '^CLOUD_INIT_JSON_B64=') | first
          | default('CLOUD_INIT_JSON_B64=') }}
+    _expected_hostname_b64_line: >-
+      {{ verify_node_registration_poll_result.stdout_lines | default([])
+         | select('match', '^EXPECTED_HOSTNAME_B64=') | first
+         | default('EXPECTED_HOSTNAME_B64=' + (hostname_node | default('') | b64encode)) }}
+    _actual_hostname_b64_line: >-
+      {{ verify_node_registration_poll_result.stdout_lines | default([])
+         | select('match', '^ACTUAL_HOSTNAME_B64=') | first
+         | default('ACTUAL_HOSTNAME_B64=') }}
+    _expected_admin_mac_b64_line: >-
+      {{ verify_node_registration_poll_result.stdout_lines | default([])
+         | select('match', '^EXPECTED_ADMIN_MAC_B64=') | first
+         | default('EXPECTED_ADMIN_MAC_B64=') }}
+    _actual_admin_mac_b64_line: >-
+      {{ verify_node_registration_poll_result.stdout_lines | default([])
+         | select('match', '^ACTUAL_ADMIN_MAC_B64=') | first
+         | default('ACTUAL_ADMIN_MAC_B64=') }}
     _node_state: "{{ _state_line.split('=', 1)[1] }}"
-    _node_detail: "{{ _detail_line.split('=', 1)[1] }}"
+    _reported_detail: "{{ _reported_detail_line.split('=', 1)[1] }}"
     _cloud_init_json_b64: "{{ _cloud_init_json_line.split('=', 1)[1] }}"
+    _expected_hostname_b64: "{{ _expected_hostname_b64_line.split('=', 1)[1] }}"
+    _actual_hostname_b64: "{{ _actual_hostname_b64_line.split('=', 1)[1] }}"
+    _expected_admin_mac_b64: >-
+      {{ _expected_admin_mac_b64_line.split('=', 1)[1] }}
+    _actual_admin_mac_b64: >-
+      {{ _actual_admin_mac_b64_line.split('=', 1)[1] }}
+    _expected_hostname: "{{ _expected_hostname_b64 | b64decode }}"
+    _actual_hostname: >-
+      {{ (_actual_hostname_b64 | b64decode)
+         if _actual_hostname_b64 | length > 0 else '' }}
+    _expected_admin_mac: >-
+      {{ (_expected_admin_mac_b64 | b64decode | lower | replace('-', ':'))
+         if _expected_admin_mac_b64 | length > 0 else '' }}
+    _actual_admin_mac: >-
+      {{ (_actual_admin_mac_b64 | b64decode | lower | replace('-', ':'))
+         if _actual_admin_mac_b64 | length > 0 else '' }}
+    _node_detail: >-
+      {{ ('Fresh PXE boot completed, but hostname -s returned '
+          ~ _actual_hostname ~ '; expected ' ~ _expected_hostname)
+         if _node_state == 'hostname_mismatch'
+         else (('Fresh PXE boot completed, but hostname -s returned no value; '
+                 ~ 'expected ' ~ _expected_hostname)
+                if _node_state == 'hostname_unavailable'
+                else (('Fresh PXE boot completed, but the live ADMIN_MAC '
+                        ~ _actual_admin_mac ~ ' does not match expected '
+                        ~ _expected_admin_mac)
+                       if _node_state == 'admin_mac_mismatch'
+                       else _reported_detail)) }}
     _cloud_init_data: >-
       {{ (_cloud_init_json_b64 | b64decode | from_json)
          if _cloud_init_json_b64 | length > 0 else {} }}
