@@ -61,6 +61,17 @@
   ansible.builtin.include_vars:
     file: "{{ playbook_dir | dirname | dirname }}/roles/cleanup/config/default_cleanup.yml"
 
+- name: Validate credential cleanup selection
+  ansible.builtin.assert:
+    that:
+      - >-
+        cleanup_credentials is not defined or
+        (cleanup_credentials | string | trim | lower) in ['true', 'false']
+    fail_msg: >-
+      cleanup_credentials accepts only true or false. Use
+      -e cleanup_credentials=false to preserve Orchestrator credentials during
+      full cleanup.
+
 # 'cleanup' means "every enabled component". Component names are matched
 # literally, so 'cleanup' is translated to the sentinel 'all' here.
 - name: Set effective tags
@@ -108,6 +119,19 @@
     - ansible_run_tags is defined
     - ansible_run_tags | select('equalto', 'cleanup') | list | length > 0
     - ansible_run_tags | select('equalto', 'cleanup_credentials') | list | length > 0
+
+- name: Preserve credentials when disabled for full cleanup
+  ansible.builtin.set_fact:
+    target_components: >-
+      {{ target_components | dict2items
+         | rejectattr('key', 'equalto', 'credentials') | items2dict }}
+  when:
+    - ansible_run_tags is defined
+    - ansible_run_tags | select('equalto', 'cleanup') | list | length > 0
+    - >-
+      ansible_run_tags | select('equalto', 'cleanup_credentials')
+      | list | length == 0
+    - not (cleanup_credentials | default(true) | bool)
 
 - name: Validate cleanup configuration
   ansible.builtin.assert:

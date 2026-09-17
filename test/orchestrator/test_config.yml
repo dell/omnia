@@ -88,7 +88,8 @@ clone_path: "/omnia"
 #     image_build_manager_output/ (build_status.yml)
 dataset: ""
 
-# Sync orchestrator input files (orchestrator_config.yml, network_spec.yml, etc.)
+# Sync orchestrator input files (orchestrator_config.yml, network_spec.yml,
+# and related inputs).
 sync_orchestrator_input: false
 
 # Sync repo_manager output (repo_status.yml) to target
@@ -99,8 +100,54 @@ sync_image_build_manager_output: false
 
 
 # Catalog file path for feature detection (optional).
-# Example: /root/omnia/src/build_stream/examples/catalog/catalog_rhel_x86_64_with_slurm_only.json
+# Example: src/build_stream/examples/catalog/
+# catalog_rhel_x86_64_with_slurm_only.json
 catalog_path: ""
+
+# =============================================================================
+# EXTERNAL OPENLDAP TEST ENVIRONMENT
+# =============================================================================
+# Optional test-only directory used to validate the omnia_auth meta proxy and
+# Slurm LDAP login/job flows.  This follows the external LDAP workflow in
+# dell/omnia-containers automation-v2.2.0.0.
+#
+# Secrets are never stored here. Configure ldap_username, ldap_password, and
+# external_ldap_admin_password in encrypted test_creds.yml with:
+#   ./setup_env.sh --set-ldap-test-creds
+#
+# After enabling and configuring this section, reconcile the test user and
+# proxy explicitly (normal pytest/runner commands never mutate LDAP state):
+#   .venv/bin/python3 utility/create_ldap_user.py
+external_ldap:
+  enabled: false
+
+  # When true, the utility manages a Bitnami container on the execution OIM.
+  # Leave false when the external directory is managed independently.
+  manage_container: false
+  configure_proxy: true
+
+  # Address reachable from both the OIM and the omnia_auth container.
+  server_ip: ""
+  server_port: 1389
+  secure_port: 1636
+  domain: ""
+  admin_username: admin
+
+  image: "docker.io/bitnamilegacy/openldap:latest"
+  container_name: omnia_external_ldap
+  volume_name: omnia_external_ldap_data
+
+  # Omnia proxy settings. An empty path resolves from OMNIA_DATA_PATH as
+  # <OMNIA_DATA_PATH>/auth/config/slapd.conf.
+  proxy_container_name: omnia_auth
+  proxy_config_path: ""
+
+  # POSIX attributes assigned when the configured test user is first created.
+  uid_number: 2000
+  gid_number: 2000
+  login_shell: /bin/bash
+  home_base: /home
+
 # =============================================================================
 # REPORT CONFIGURATION
 # =============================================================================

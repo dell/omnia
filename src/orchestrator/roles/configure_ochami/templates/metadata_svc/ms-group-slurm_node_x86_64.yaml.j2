@@ -422,8 +422,33 @@
 {% if dns_enabled | default(false) | bool %}
         - |
           # Restore CoreDNS resolv.conf after set-ssh.sh (nmcli con up may overwrite it)
-          printf 'search {{ domain_name }}\nnameserver {{ admin_nic_ip }}\noptions timeout:1 attempts:2\n' > /etc/resolv.conf
-          chattr +i /etc/resolv.conf || true
+          resolv_target=$(readlink -f /etc/resolv.conf 2>/dev/null || true)
+          [ -n "$resolv_target" ] || resolv_target=/etc/resolv.conf
+          resolv_tmp=$(mktemp "$(dirname "$resolv_target")/.resolv.conf.XXXXXX")
+          trap 'rm -f "$resolv_tmp"' EXIT
+          printf 'search {{ domain_name }}\nnameserver {{ admin_nic_ip }}\noptions timeout:1 attempts:2\n' > "$resolv_tmp"
+          if [ -e "$resolv_target" ]; then
+            chown --reference="$resolv_target" "$resolv_tmp"
+            chmod --reference="$resolv_target" "$resolv_tmp"
+          else
+            chmod 0644 "$resolv_tmp"
+          fi
+          if command -v chattr >/dev/null 2>&1; then
+            chattr -i "$resolv_target" || true
+          fi
+          if ! mv -f -- "$resolv_tmp" "$resolv_target"; then
+            echo "ERROR: Failed to atomically replace $resolv_target" >&2
+            if command -v chattr >/dev/null 2>&1; then
+              chattr +i "$resolv_target" || true
+            fi
+            rm -f "$resolv_tmp"
+            trap - EXIT
+            exit 1
+          fi
+          if command -v chattr >/dev/null 2>&1; then
+            chattr +i "$resolv_target" || true
+          fi
+          trap - EXIT
 {% endif %}
 {% if vast_enabled | default(false) | bool %}
         - /usr/local/bin/configure_vast_installation.sh

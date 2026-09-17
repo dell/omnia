@@ -12,7 +12,7 @@ import re
 import pytest
 import yaml
 
-from library.functions import load_test_config
+from library.functions import resolve_target_input_project_path
 
 
 ADMIN_REQUIRED = {
@@ -21,12 +21,8 @@ ADMIN_REQUIRED = {
 }
 
 
-def _input_path():
-    config = load_test_config()
-    shared = config.get("shared_path", "/opt/omnia/orchestrator").rstrip("/")
-    return posixpath.join(
-        shared, "input", config.get("project_name", "project_default")
-    )
+def _input_path(host):
+    return resolve_target_input_project_path(host)
 
 
 def _read(host, path):
@@ -36,7 +32,7 @@ def _read(host, path):
 
 
 def _network_spec(host):
-    path = posixpath.join(_input_path(), "network_spec.yml")
+    path = posixpath.join(_input_path(host), "network_spec.yml")
     try:
         data = yaml.safe_load(_read(host, path))
     except yaml.YAMLError as exc:
@@ -72,7 +68,7 @@ def _network(config):
 @pytest.mark.order(1)
 def test_network_spec_exists(host):
     """ORCH_FVT_NETWORK_V001: network_spec.yml exists on the selected target."""
-    assert host.file(posixpath.join(_input_path(), "network_spec.yml")).is_file
+    assert host.file(posixpath.join(_input_path(host), "network_spec.yml")).is_file
 
 
 @pytest.mark.functional
