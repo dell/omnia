@@ -26,6 +26,7 @@ Provides:
 import sys
 import os
 import re
+import uuid
 
 import pytest
 
@@ -198,7 +199,7 @@ def test_report():
     oim_ip = config.get("oim_server_ip", "")
     if not oim_ip:
         oim_ip = "localhost"
-    report_id = os.environ.get("REPORT_ID")
+    report_id = str(uuid.uuid4())[:8]
     base_name = _category_report_base_name(config)
     report_name = build_report_name(
         base_name=base_name,

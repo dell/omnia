@@ -54,39 +54,28 @@ _ANSI_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 # ── Report Naming ────────────────────────────────────────────────────────────
 
-def build_report_name(base_name: str = "", report_id: Optional[str] = None) -> str:
-    """Build pipeline-aware report filename.
+def build_report_name(base_name: str = "") -> str:
+    """Build report filename.
 
     When running in GitLab CI (CI_PIPELINE_ID is set):
         ``<pipeline_id>_<base_name>``
 
     When running locally (CLI):
-        ``<report_id>_<base_name>`` where report_id is a random UUID
-
-    If report_id is explicitly provided (from env or param):
-        ``<report_id>_<base_name>`` (override for grouping runs)
+        ``<base_name>`` (no prefix)
 
     Args:
         base_name: Report name from test_config.yml (e.g., ``repo_manager_test_report``).
-        report_id: Optional report ID (overrides environment variable).
 
     Returns:
         Report base filename without extension.
     """
-    if report_id is None:
-        report_id = os.environ.get("REPORT_ID")
     pipeline_id = os.environ.get("CI_PIPELINE_ID")
 
-    if report_id:
-        # Use REPORT_ID if set (ensures consistent naming within a pipeline run)
-        return f"{report_id}_{base_name}"
-    elif pipeline_id:
-        # For CI runs: prefix with pipeline_id, use base_name from config
+    if pipeline_id:
+        # For CI runs: prefix with pipeline_id
         return f"{pipeline_id}_{base_name}"
-    # For CLI runs without REPORT_ID: generate random ID to avoid appending
-    import uuid
-    random_id = str(uuid.uuid4())[:8]
-    return f"{random_id}_{base_name}"
+    # For CLI runs: use base_name as-is from test_config.yml
+    return base_name
 
 
 # ── Sensitive Data Redaction ─────────────────────────────────────────────────

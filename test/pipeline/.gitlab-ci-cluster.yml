@@ -1039,7 +1039,7 @@ test_main_installation:
       else
         $SSH_CMD $TARGET "
           export CI_PIPELINE_ID=$CI_PIPELINE_ID
-          export REPORT_ID=$CI_PIPELINE_ID
+          
           cd $OMNIA_INSTALL_PATH/test/main
           source .venv/bin/activate
           $TEST_MAIN_CMD
@@ -1264,7 +1264,7 @@ test_repo_manager:
       else
         $SSH_CMD $TARGET "
           export CI_PIPELINE_ID=$CI_PIPELINE_ID
-          export REPORT_ID=$CI_PIPELINE_ID
+          
           cd $OMNIA_INSTALL_PATH/test/repo_manager
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
@@ -1499,7 +1499,7 @@ test_image_build_manager:
       else
         $SSH_CMD $TARGET "
           export CI_PIPELINE_ID=$CI_PIPELINE_ID
-          export REPORT_ID=$CI_PIPELINE_ID
+          
           cd $OMNIA_INSTALL_PATH/test/image_build_manager
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
@@ -1733,7 +1733,7 @@ test_orchestrator:
       else
         $SSH_CMD $TARGET "
           export CI_PIPELINE_ID=$CI_PIPELINE_ID
-          export REPORT_ID=$CI_PIPELINE_ID
+          
           cd $OMNIA_INSTALL_PATH/test/orchestrator
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
@@ -1966,7 +1966,7 @@ test_telemetry:
       else
         $SSH_CMD $TARGET "
           export CI_PIPELINE_ID=$CI_PIPELINE_ID
-          export REPORT_ID=$CI_PIPELINE_ID
+          
           cd $OMNIA_INSTALL_PATH/test/telemetry
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true

@@ -551,11 +551,10 @@ class ValidationRunner:
         verbose: str = "", debug: str = "",
     ) -> int:
         """Execute an FVT scenario."""
-        # Generate random ID for CLI runs to avoid appending to same report
-        # For CI runs, use the pipeline_id that was already set
-        if not os.environ.get("REPORT_ID"):
-            os.environ["REPORT_ID"] = _generate_random_id()
-        report_id = os.environ.get("REPORT_ID")
+        # Always generate a random REPORT_ID for each run so that
+        # re-runs create separate entries instead of appending
+        report_id = _generate_random_id()
+        os.environ["REPORT_ID"] = report_id
         if debug:
             os.environ["OMNIA_DEBUG"] = "true"
 
@@ -988,11 +987,10 @@ class ValidationRunner:
             _err(f"Invalid batch config: {exc}")
             return 2
 
-        # Generate random ID for CLI runs to avoid appending to same report
-        # For CI runs, use the pipeline_id that was already set
-        if not os.environ.get("REPORT_ID"):
-            os.environ["REPORT_ID"] = _generate_random_id()
-        report_id = os.environ.get("REPORT_ID")
+        # Always generate a random REPORT_ID for each run so that
+        # re-runs create separate entries instead of appending
+        report_id = _generate_random_id()
+        os.environ["REPORT_ID"] = report_id
 
         fd, results_file = tempfile.mkstemp(
             prefix="omnia_results_", suffix=".json",

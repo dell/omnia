@@ -27,6 +27,7 @@ Provides:
 import sys
 import os
 import re
+import uuid
 
 import pytest
 
@@ -322,7 +323,7 @@ def pytest_sessionstart(session):
                 module_name = part
                 break
 
-    report_id = os.environ.get("REPORT_ID")
+    report_id = str(uuid.uuid4())[:8]
     base_name = str(config.get("report_name", "orchestrator_test_report"))
     report_name = build_report_name(
         base_name=base_name,

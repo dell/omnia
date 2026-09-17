@@ -43,10 +43,15 @@ Build a pipeline-aware report filename.
 | Context | Format | Example |
 |---------|--------|---------|
 | GitLab CI (`CI_PIPELINE_ID` set) | `<pipeline_id>_<base_name>` | `12345_repo_manager_test_report` |
-| Local run (CLI) | `<random_id>_<base_name>` | `a1b2c3d4_repo_manager_test_report` |
-| With `REPORT_ID` set | `<report_id>_<base_name>` | `custom_id_repo_manager_test_report` |
+| Local run (CLI) | `<base_name>` | `repo_manager_test_report` |
 
-The random ID (8-character UUID) ensures each CLI run creates a new report file instead of appending to an existing one.
+For CLI runs, the report filename is the plain `report_name` from `test_config.yml` with no prefix.
+
+### Run ID (inside the report)
+
+The Run ID shown inside the HTML report (e.g., "Run ID: a1b2c3d4") is always a randomly
+generated 8-character UUID. This ensures that re-running the same tests creates separate
+entries in the report instead of appending to a previous run.
 
 ### Usage in conftest.py
 

@@ -53,14 +53,6 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, script_dir)
 
-    # ValidationRunner already preserves REPORT_ID across lifecycle stages.
-    # Seed it from test_config.yml so separate cleanup and lifecycle commands
-    # can intentionally append to one report.
-    if not os.environ.get("REPORT_ID"):
-        configured_report_id = _load_configured_report_id(script_dir)
-        if configured_report_id:
-            os.environ["REPORT_ID"] = configured_report_id
-
     from library.vars.domain_vars import (
         DOMAIN_NAME,
         ENABLE_UT,
