@@ -9,9 +9,8 @@ This file contains non-sensitive Build Stream automation settings.
 | `oim_ssh_port` | remote | SSH port |
 | `clone_path` | remote | Absolute non-root destination for the synchronized checkout |
 | `dataset` | yes | Empty for canonical source input, or a generated dataset name |
-| `project_name` | yes | Safe project namespace matching the execution OIM |
 | `sync_build_stream_input` | yes | Whether execution may synchronize selected input |
-| `report_path` | yes | HTML/JSON report directory |
+| `report_path` | yes | Absolute HTML/JSON report directory; environment variables are expanded |
 | `report_name` | yes | Safe report base name |
 | `report_id` | no | Identifier used to group scenario reports |
 | `allow_pipeline_cancel` | yes | Explicit permission to cancel an existing pipeline |
