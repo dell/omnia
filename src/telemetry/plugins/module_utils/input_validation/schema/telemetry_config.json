@@ -8,7 +8,7 @@
       "type": "string",
       "minLength": 1,
       "description": "Path to Ansible inventory file for telemetry deployment. Must contain kube_vip_group with the Kubernetes control plane VIP. Required for LDMS Slurm node discovery and K8s cluster validation.",
-      "errorMessage": "cluster_inventory is required and must be a non-empty file path (e.g., '/omnia/src/telemetry/input/orchestrator_inventory.yml')."
+      "errorMessage": "cluster_inventory is required and must be a non-empty file path (e.g., '/opt/omnia/orchestrator/output/project_default/orchestrator_inventory.yml')."
     },
     "telemetry_sources": {
       "type": "object",

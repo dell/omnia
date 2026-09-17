@@ -78,7 +78,7 @@
           {{ telemetry_config.cluster_inventory }}{%- else -%}
           {{ omnia_data_path | default('/opt/omnia') }}/orchestrator/output/{{
             project_name | default('project_default')
-          }}/orchestrator_inventory.yaml{%- endif %}
+          }}/orchestrator_inventory.yml{%- endif %}
 
     - name: Check if cluster inventory file exists (from telemetry_config)
       ansible.builtin.stat:

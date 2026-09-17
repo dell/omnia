@@ -93,7 +93,7 @@ The `commit-hygiene.yml` workflow enforces the AI Agent Usage Policy from `docs/
 | | Validate `<type>(<scope>): <description>` format | WARN |
 | | Block trivially short commit messages (<10 chars) | ERROR |
 | | Detect LLM-style language in commit messages | WARN |
-| **Copyright Header** | Check Dell Apache 2.0 copyright header in new/changed source files | WARN (advisory) |
+| **Copyright Header** | Audit every added/modified `.yml`, `.yaml`, and `.py` file for the Dell header; copyright year is not validated | WARN (advisory) |
 | **Test Co-Change** | Warn when `src/` changes without `test/` updates | WARN (advisory) |
 
 **Note:** `Co-Authored-By` trailers are acceptable. The check validates the primary Author and Committer fields, not trailers.
