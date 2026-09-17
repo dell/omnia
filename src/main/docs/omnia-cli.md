@@ -41,6 +41,7 @@ omnia-cli version
 | `status [--project <name>]` | Show all domain statuses for a project |
 | `check [--project <name>]` | Validate input files and output existence for all domains |
 | `edit <domain> [file] [--project <name>]` | Show the domain input checklist and edit an input file |
+| `output <domain> [file] [--project <name>]` | List domain output artifacts and view a text output file |
 | `repo_manager [--project <name>]` | Detailed repo_manager diagnostics |
 | `image_build_manager [--project <name>]` | Detailed image_build_manager diagnostics |
 | `orchestrator [--project <name>]` | Orchestrator status |
@@ -71,6 +72,9 @@ omnia-cli version
 
 # Image build status for production
 ./omnia-cli image_build_manager --project prod
+
+# Print Telemetry's latest status output
+./omnia-cli output telemetry telemetry_status.yml
 
 # Show version information
 ./omnia-cli version
@@ -167,6 +171,20 @@ the default is `/var/log/omnia`.
 ./omnia-cli logs discovery -l 100
 ```
 
+### output
+
+List every artifact below a domain's project output directory. In an
+interactive terminal, choose a numbered text file to open with `$PAGER`.
+Providing a relative filename prints text output directly, which is also useful
+for automation. Binary files are identified but not dumped to the terminal.
+Symlinks that resolve outside the selected output directory are rejected.
+
+```bash
+./omnia-cli output telemetry
+./omnia-cli output telemetry telemetry_status.yml
+./omnia-cli output orchestrator provisioning_report.yml --project prod
+```
+
 ### edit
 
 Show a customer input checklist, then list the files available to edit. The
@@ -201,14 +219,16 @@ committed.
 | discovery | `discovery_config.yml`, `network_spec.yml` | OME endpoint and credentials | Replace samples with customer admin/IB networks; `primary_oim_admin_ip` must equal `SYSTEM_ADMIN_NIC_IPV4`; full `discovery` run generates required credentials |
 | telemetry | `telemetry_config.yml`, `telemetry_storage_config.yml`, `telemetry_packages.yml` | Storage sections depend on enabled sinks/bridges; `bmc_group_data.csv` is required for iDRAC telemetry | Full `telemetry` run generates required credentials; cluster inventory normally comes from Orchestrator |
 | build_stream | `build_stream_config.yml` with enable flag, BSM address, and GitLab host | GitLab sizing and project settings have defaults | Run `omnia.sh --prepare-base` first for repo_manager, MinIO, and Registry prerequisites; the full `build_stream` run generates its credentials |
-| utils | No single domain-wide mandatory file; choose a workflow | `collect_pxe.yml` for collect, `install_os_config.yml` for install, optional `backup_oim_logs_config.yml` | The full selected flow generates required install_os credentials |
+| utils | No single domain-wide mandatory file; choose a workflow | `collect_pxe.yml` for collect, `install_os_config.yml` for install, optional `backup_oim_logs_config.yml` and `slurm_config_util_config.yml` | Slurm utilities reference producer-owned Orchestrator/OpenCHAMI artifacts through paths in their Utils config; the full selected flow generates required install_os credentials |
 
 ## Output Directory Resolution
 
-The CLI resolves output directories based on domain type:
-
-- **repo_manager**: `$OMNIA_DATA_PATH/repo_manager/output/<project>/`
-- **Other domains**: `$OMNIA_DATA_PATH/<domain>/output/<project>/`
+The CLI resolves input, output, and runtime-log directories below
+`$OMNIA_DATA_PATH/<domain>/` by default. It honors the domain-specific root
+overrides from `omnia.env`: `REPO_MANAGER_DATA_PATH`,
+`IMAGE_BUILD_MANAGER_DATA_PATH`, `DISCOVERY_DATA_PATH`,
+`ORCHESTRATOR_DATA_PATH`, `TELEMETRY_DATA_PATH`, and
+`BUILD_STREAM_DATA_PATH`.
 
 ## Status File Detection
 

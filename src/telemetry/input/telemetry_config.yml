@@ -85,7 +85,8 @@
 #   - slurm_login_compiler_node: Slurm login compiler nodes (optional for LDMS)
 #
 # Required format: Ansible YAML inventory
-# Example: /opt/omnia/telemetry/input/project_default/orchestrator_inventory.yml
+# Example:
+#   /opt/omnia/orchestrator/output/project_default/orchestrator_inventory.yaml
 cluster_inventory: ""
 
 # ============================================================================

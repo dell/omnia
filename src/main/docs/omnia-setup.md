@@ -6,11 +6,13 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 
 | Command | Description |
 |---------|-------------|
-| `--setup-venv, -s` | Install env system-wide, create/update Python venv, install deps, run domain-init.sh, copy catalog, install omnia-cli |
+| `--setup-venv, -s` | Install env system-wide, create/update Python venv, install deps, run domain-init.sh, install a missing default catalog, and install omnia-cli |
 | `--init, -i [domain,...]` | Run domain-init.sh scripts (all or comma-separated subset) |
 | `--run, -r <domain> [--tags <tags>]` | Activate venv and run a domain's playbook |
 | `--prepare-base` | Prepare Repo Manager, Image Build Manager, and Orchestrator in dependency order |
 | `--check-deps` | Audit all domains for pip/Galaxy version mismatches |
+| `--list-catalogs` | List bundled catalog selectors and source paths |
+| `--update-catalog [selection]` | Prompt for or select a bundled catalog and atomically activate it at `CATALOG_FILE_PATH` |
 | `--cleanup` | Remove the venv, system env, omnia-cli, shared Bash completion, activation script, and dependency cache. Runtime data is preserved. |
 | `--cleanup --all` | Guarded full reset. Refuses to start while a domain contains uncleared state. `log`/`output` trees containing only empty directories and known Build Stream initializer files are allowed, then initializer input/log paths and all remaining Omnia data are removed. |
 | `--help, -h` | Show help message |
@@ -24,7 +26,7 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 | `--force-env` | With `-s`, explicitly replace `/etc/omnia/omnia.env` from the repository copy. |
 | `--skip <domain,...>` | Skip domains with `-s`, `-i`, or `--prepare-base`; only the three base domains are valid with `--prepare-base`. |
 | `--dry-run` | Preview domain initialization with `-s`/`-i`, or base-domain phases with `--prepare-base`; no domains are initialized or prepared. Other `-s` setup steps still run. |
-| `--skip-catalog` | With `-s`: skip the automatic catalog copy. |
+| `--skip-catalog` | With `-s`: skip installation of a missing default catalog. Existing active catalogs are always preserved by setup. |
 | `--skip-omnia-cli` | With `-s`: skip installing omnia-cli and shared `omnia-cli`/`omnia.sh` Bash completion. |
 | `--skip-approval` | With `--cleanup`: skip confirmation for trusted, unattended automation. |
 
@@ -41,17 +43,17 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
    - Installs Galaxy collections from that domain's `requirements.yml` (cached — skipped if unchanged)
    - Creates Ansible log directories
    - Stages input files from flat `src/<domain>/input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
-8. **Copies catalog** — Copies catalog files from `src/main/samples/` to `$OMNIA_DATA_PATH/catalog/` (use `--skip-catalog` to suppress)
+8. **Ensures an active catalog** — Installs the bundled default at `CATALOG_FILE_PATH` only when that path does not exist (use `--skip-catalog` to suppress)
 9. **Installs omnia-cli** — Copies `omnia-cli` to `/usr/local/bin/omnia-cli` and shared completion for `omnia-cli` and `omnia.sh` to `/etc/bash_completion.d/omnia-bash-completion` (use `--skip-omnia-cli` to suppress)
 10. **Displays summary** — Shows venv path, Python version, installed Ansible and collections
 
-After copying the default combined Slurm + service_k8s catalog, setup displays
-the active `CATALOG_FILE_PATH`, the location and dimensions of every shipped
-catalog variant, and commands for either replacing the active catalog or
-keeping a separate filename. For a small x86_64 Slurm-only test without VAST,
-use `samples/catalogs/10.0/slurm_x86_64_no_vast.json` or the matching `10.2`
-variant for the RHEL version being built. Replacing the file at the active
-`CATALOG_FILE_PATH` does not require an environment-file change.
+Setup does not overwrite an active catalog. Use `--list-catalogs` and
+`--update-catalog` to choose a bundled catalog based on the target RHEL
+version, workload, architecture, and VAST requirement. The update command
+validates JSON, confirms replacement, preserves a timestamped backup, and
+atomically replaces `CATALOG_FILE_PATH`. For a small x86_64 Slurm-only test
+without VAST, select `10.0/slurm_x86_64_no_vast.json` or the matching `10.2`
+variant.
 
 Use `--deps-only` to skip input file staging in step 7 (e.g., in CI or if you manage input files externally). Dependencies are still installed.
 
@@ -64,7 +66,7 @@ generated `${OMNIA_DATA_PATH:-/opt/omnia}/activate-omnia.sh` helper.
 ```bash
 ./omnia.sh -s                      # Full setup: venv + deps + input copy + catalog + omnia-cli
 ./omnia.sh -s --deps-only          # Venv + deps only, skip input staging
-./omnia.sh -s --skip-catalog       # Setup without catalog copy
+./omnia.sh -s --skip-catalog       # Do not install a missing default catalog
 ./omnia.sh -s --skip-omnia-cli     # Setup without omnia-cli install
 ./omnia.sh -s --force-deps         # Force reinstall all deps (bypass cache)
 ./omnia.sh -s --force-env          # Explicitly replace the installed env from the repo
@@ -72,6 +74,8 @@ generated `${OMNIA_DATA_PATH:-/opt/omnia}/activate-omnia.sh` helper.
 ./omnia.sh -i telemetry            # Init single domain
 ./omnia.sh -i repo_manager,telemetry  # Init specific domains
 ./omnia.sh --check-deps            # Audit dependency version mismatches
+./omnia.sh --list-catalogs         # List bundled catalog selectors
+./omnia.sh --update-catalog        # Select and activate a bundled catalog
 ./omnia.sh --cleanup               # Remove environment + CLI integration; preserve runtime data
 ./omnia.sh --cleanup --all         # Guarded full reset
 ```

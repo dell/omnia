@@ -193,7 +193,8 @@ def validate_telemetry_config(
             "cluster_inventory",
             "",
             "cluster_inventory is required. Provide the path to the Ansible inventory file "
-            "(e.g., '/omnia/src/telemetry/input/orchestrator_inventory.yml' or 'orchestrator_inventory.yml')"
+            "(e.g., '/opt/omnia/orchestrator/output/project_default/"
+            "orchestrator_inventory.yaml')"
         ))
         logger.error("cluster_inventory is empty or not provided")
 

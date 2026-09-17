@@ -17,8 +17,8 @@
 # SMD is the single source of truth — query once, generate everything.
 #
 # Outputs:
-#   - orchestrator_inventory.yml (all nodes)
-#   - bmc_group_data.yml (all nodes)
+#   - orchestrator_inventory.yaml (all nodes)
+#   - bmc_group_data.csv (all nodes)
 
 - name: Load functional groups configuration
   ansible.builtin.include_vars:

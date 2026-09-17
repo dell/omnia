@@ -151,8 +151,9 @@ intentionally discard the installed values and replace them from
 
 ## Choose a Different Catalog
 
-Setup copies the default `samples/catalog_rhel.json`, which contains packages
-for both Slurm and service_k8s deployments, to `$OMNIA_DATA_PATH/catalog/`.
+Setup installs the default `samples/catalog_rhel.json`, which contains packages
+for both Slurm and service_k8s deployments, only when `CATALOG_FILE_PATH` does
+not already exist. Existing active catalogs are preserved.
 Additional catalogs are available under `samples/catalogs/10.0/` and
 `samples/catalogs/10.2/`, with Slurm-only, service_k8s-only, combined,
 x86_64/aarch64, and `_no_vast` variants. See `samples/README.md` for the full
@@ -162,15 +163,14 @@ For a small x86_64 Slurm-only test without VAST, use the catalog matching the
 RHEL version being built while keeping the configured path:
 
 ```bash
-# RHEL 10.0
-cp samples/catalogs/10.0/slurm_x86_64_no_vast.json "$CATALOG_FILE_PATH"
-
-# RHEL 10.2
-cp samples/catalogs/10.2/slurm_x86_64_no_vast.json "$CATALOG_FILE_PATH"
+./omnia.sh --list-catalogs
+./omnia.sh --update-catalog 10.0/slurm_x86_64_no_vast.json
+# Or select the matching 10.2 catalog when building RHEL 10.2.
 ```
 
-Run only the command matching the target RHEL version. Replacing the active
-catalog this way does not require an environment-file update.
+The update command validates the selected JSON and requests confirmation before
+replacing an existing active catalog. It keeps a timestamped backup and does
+not require an environment-file update.
 
 To retain a separate filename, copy the catalog and update the authoritative
 environment file:
