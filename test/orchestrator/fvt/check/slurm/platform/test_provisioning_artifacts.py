@@ -23,7 +23,7 @@ pytestmark = pytest.mark.functional
 
 
 def _mapping_rows(host):
-    paths = target_paths()
+    paths = target_paths(host)
     config = read_remote_yaml(
         host, posixpath.join(paths["input"], "orchestrator_config.yml")
     )

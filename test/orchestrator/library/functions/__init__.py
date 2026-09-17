@@ -43,6 +43,19 @@ from omnia_auto import (
 )
 from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
 
+# --- Project selection and runtime paths ---
+from .project_func import (
+    resolve_input_project_path,
+    resolve_output_project_path,
+    resolve_project_name,
+    resolve_shared_path,
+    resolve_target_input_project_path,
+    resolve_target_omnia_data_path,
+    resolve_target_output_project_path,
+    resolve_target_project_name,
+    resolve_target_shared_path,
+)
+
 # --- Orchestrator verification ---
 from .orchestrator_func import (
     check_input_config_exists,
