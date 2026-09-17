@@ -24,10 +24,12 @@ All verification functions return a dict with keys:
 """
 
 import re
+import shlex
 import time
 from typing import Any, Dict, List, Optional
 
-from omnia_auto import load_test_config, run_on_host
+from omnia_auto import run_on_host
+from .project_func import resolve_target_input_project_path
 from ..vars.common_vars import CMDS
 from ..vars.k8s_vars import (
     K8S_DIRECTORIES,
@@ -44,6 +46,7 @@ from ..vars.k8s_vars import (
     PVC_YAML_TEMPLATE,
     PV_YAML_TEMPLATE,
 )
+
 from ..vars.common_vars import (
     INPUT_PATH_TEMPLATE,
     SHARED_PATH,
@@ -57,11 +60,9 @@ from ..vars.common_vars import (
 # NODE DISCOVERY FUNCTIONS
 # =============================================================================
 
-def _get_project_path(host) -> str:  # pylint: disable=unused-argument
-    """Get the project input path using domain-scoped INPUT_PATH_TEMPLATE."""
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    return INPUT_PATH_TEMPLATE.format(shared_path=SHARED_PATH).format(project=project)
+def _get_project_path(host) -> str:
+    """Get the target project input path from the Omnia environment."""
+    return resolve_target_input_project_path(host)
 
 
 def _get_local_registry(host) -> str:
@@ -76,7 +77,8 @@ def _get_local_registry(host) -> str:
     # Try to get OIM IP from network_spec.yml
     cmd = (
         f"if [ -f {network_spec_path} ]; then "
-        f"grep 'primary_oim_admin_ip:' {network_spec_path} | "
+        f"grep -E '^[[:space:]]*primary_oim_admin_ip:' "
+        f"{network_spec_path} | head -1 | "
         f"awk '{{print $2}}' | tr -d '\"'; "
         f"fi"
     )
@@ -189,7 +191,7 @@ def _ssh_cmd(ip: str, remote_cmd: str) -> str:
     """Build an SSH command string."""
     return (
         f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 "
-        f"root@{ip} '{remote_cmd}'"
+        f"root@{ip} {shlex.quote(remote_cmd)}"
     )
 
 
