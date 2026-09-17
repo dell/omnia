@@ -12,7 +12,11 @@ import pytest
 from fvt.check.feature_helpers import run_node_command, slurm_data_node_ips
 
 
-pytestmark = [pytest.mark.hpc_benchmarks, pytest.mark.functional]
+pytestmark = [
+    pytest.mark.hpc_benchmarks,
+    pytest.mark.functional,
+    pytest.mark.buildstream,
+]
 
 REQUIRED_BENCHMARKS = {
     "osu-micro-benchmarks",

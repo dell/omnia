@@ -19,6 +19,7 @@ from fvt.check.feature_helpers import (
 pytestmark = [
     pytest.mark.additional_cloud_init,
     pytest.mark.functional,
+    pytest.mark.buildstream,
 ]
 
 ALLOWED_SECTION_KEYS = {"write_files", "runcmd"}
