@@ -115,14 +115,7 @@ waiting_time_30: 30
 
 # BMC group data file path - derived from discovery output or overridden via bmc_group_data_path
 # Default: $OMNIA_DATA_PATH/discovery/output/$OMNIA_PROJECT_NAME/bmc_pxe_mapping_file.csv
-bmc_group_data_filename: >-
-  {{ hostvars['localhost']['bmc_group_data_path']
-     | default(
-         (omnia_data_path | default('/opt/omnia', true) | regex_replace('/$', '')) +
-         '/discovery/output/' +
-         (project_name | default('project_default', true)) +
-         '/bmc_pxe_mapping_file.csv'
-       ) }}
+bmc_group_data_filename: "{{ hostvars['localhost']['bmc_group_data_path'] | default((omnia_data_path | default('/opt/omnia', true) | regex_replace('/$', '')) + '/discovery/output/' + (project_name | default('project_default', true)) + '/bmc_pxe_mapping_file.csv') }}"
 
 # Telemetry report — generated on localhost in the project-scoped output directory.
 # Source deployment tasks run against kube_vip_group, so use localhost's setup
