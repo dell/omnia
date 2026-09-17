@@ -133,7 +133,24 @@ not produce a successful backup contract.
 
 ---
 
-## 4. Utils Domain Status
+## 4. Slurm Configuration Backup
+
+**Default location**:
+`<OMNIA_DATA_PATH>/utils/output/<project>/slurm_config_util/<name>_<timestamp>/`
+
+The root may instead be a configured local directory or NFS export. Each run
+contains a controller-named directory with the backed-up `etc/slurm`,
+`etc/munge`, and `etc/my.cnf.d` trees plus a `metadata.json` manifest. The
+manifest records the backup ID and time, controller, source and backup paths,
+included directories, and SHA256 checksums for the copied files.
+
+Rollback selects from these run directories and validates the required Slurm
+configuration before restoration. Cleanup of stored backups is explicit
+through `cleanup_slurm_config_backups` or the aggregate `cleanup` tag.
+
+---
+
+## 5. Utils Domain Status
 
 **Location**: `<OMNIA_DATA_PATH>/utils/output/<project>/utils_status.yml`
 
@@ -158,13 +175,14 @@ also write status for their own completion path.
 
 ---
 
-## 5. Runtime and Ansible Logs
+## 6. Runtime and Ansible Logs
 
 ```text
 <OMNIA_DATA_PATH>/utils/
 +-- output/<project>/
 |   +-- collect/
 |   +-- backup_oim_logs/
+|   +-- slurm_config_util/
 |   +-- install_os_status.yml
 |   +-- utils_status.yml
 +-- log/<project>/
@@ -180,11 +198,12 @@ Ansible config and log filename.
 
 ---
 
-## 6. Cleanup Effects
+## 7. Cleanup Effects
 
 | Cleanup tag | Contract impact |
 |-------------|-----------------|
 | `cleanup_logs` | Finds archives older than `log_retention_days`, then removes all matching `omnia_logs_*` run directories; run-directory removal is not age-filtered |
 | `cleanup_install_os` | Removes temporary local/NFS mounts and optionally generated credential files; it does not delete user-owned ISO artifacts on the NFS share |
 | `cleanup_backup_oim_logs` | Deletes every `omnia_oim_logs_*` run directory from the resolved destination, including archives and metadata |
-| `cleanup` | Runs collected-log and OS-install cleanup only |
+| `cleanup_slurm_config_backups` | Deletes stored Slurm configuration backup run directories from the resolved local/NFS destination |
+| `cleanup` | Runs collected-log, OS-install, OIM-log-backup, and Slurm-config-backup cleanup |

@@ -25,9 +25,11 @@ from typing import Dict, Any
 import pytest
 import yaml
 
-from library.functions import TestLogger
-from library.vars.common_vars import INPUT_PATH_TEMPLATE, OUTPUT_PATH_TEMPLATE
-from omnia_auto import load_test_config
+from library.functions import (
+    TestLogger,
+    resolve_target_input_project_path,
+    resolve_target_output_project_path,
+)
 
 
 @pytest.mark.functional
@@ -43,16 +45,12 @@ def test_pxe_mapping_processed(host) -> None:
         "ORCH_FVT_PROVISION_V001"
     )
 
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
-
     # Check if temp mapping file was created (provision_preamble.yml creates this)
     temp_mapping = "/tmp/omnia_provision_mapping.csv"
     temp_exists = host.file(temp_mapping).exists
 
     # Also check the original mapping file
-    input_path = INPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+    input_path = resolve_target_input_project_path(host)
     mapping_path = f"{input_path}/pxe_mapping_file.csv"
     original_exists = host.file(mapping_path).exists
 
@@ -79,12 +77,8 @@ def test_functional_groups_config_exists(host) -> None:
         "ORCH_FVT_PROVISION_V002"
     )
 
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
-
     # Check for functional_groups.yml (created during provision)
-    output_path = OUTPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+    output_path = resolve_target_output_project_path(host)
     fg_config_path = f"{output_path}/functional_groups.yml"
     fg_exists = host.file(fg_config_path).exists
 
@@ -189,12 +183,8 @@ def test_orchestrator_state_updated(host) -> None:
         "ORCH_FVT_PROVISION_V005"
     )
 
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
-
     # Check orchestrator_state.yml (updated during provision)
-    output_path = OUTPUT_PATH_TEMPLATE.format(shared_path=shared_path, project=project)
+    output_path = resolve_target_output_project_path(host)
     state_path = f"{output_path}/orchestrator_state.yml"
     state_exists = host.file(state_path).exists
 
