@@ -151,21 +151,42 @@
   when: _stale_boot_configs | default([]) | length > 0
 
 # ── Stale Omnia-owned SMD group memberships ───────────────────────────
-# When a node moves between categories, preserve operator-owned groups and
-# remove only memberships in functional groups recorded in the current or
-# last successfully managed Omnia mapping.
+# The mapping is authoritative per XNAME. Preserve unrelated operator-owned
+# groups, remove only memberships proven to be Omnia-owned, and reject unknown
+# groups that can contribute metadata-service cloud-init content.
 
-- name: Resolve Omnia-managed and protected SMD groups
+- name: Resolve authoritative nodes and historical Omnia-managed SMD groups
   ansible.builtin.set_fact:
+    _smd_membership_desired_nodes: >-
+      {{ hostvars['localhost']['read_mapping_file']['dict']
+         | dict2items | map(attribute='value') | list }}
     _omnia_managed_smd_groups: >-
-      {{ ((hostvars['localhost']['read_mapping_file']['dict']
-            | dict2items | map(attribute='value.FUNCTIONAL_GROUP_NAME') | list)
-          + (hostvars['localhost']['smd_managed_identity_nodes'] | default([])
-             | map(attribute='FUNCTIONAL_GROUP_NAME') | list))
-         | select | unique | list }}
-    _protected_smd_groups: >-
-      {{ (target_fg_names + ['ssh', 'chrony', 'phone_home'])
-         | unique | list }}
+      {{ hostvars['localhost']['smd_managed_identity_nodes'] | default([])
+         | map(attribute='FUNCTIONAL_GROUP_NAME') | select | unique | list }}
+
+- name: Resolve configured auxiliary SMD groups for safe cleanup
+  ansible.builtin.include_tasks: resolve_smd_auxiliary_groups.yml
+
+- name: Fetch metadata-service groups for safe membership planning
+  block:
+    - name: Fetch metadata-service groups for safe membership planning
+      ansible.builtin.uri:
+        url: >-
+          https://{{ _provision_reset_cluster_name }}.{{
+          _provision_reset_cluster_domain }}:8443/metadata-service/groups
+        method: GET
+        headers:
+          Authorization: >-
+            Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}
+        status_code: 200
+        validate_certs: false
+        return_content: true
+      register: existing_groups
+      no_log: true
+  rescue:
+    - name: Fail with metadata-service API error
+      ansible.builtin.fail:
+        msg: "{{ metadata_service_api_fail_msg }}"
 
 - name: Query live SMD groups for stale membership planning
   ansible.builtin.uri:
@@ -186,22 +207,32 @@
   no_log: true
   when: _target_node_xnames | length > 0
 
-- name: Plan stale Omnia-owned SMD memberships
-  plan_smd_group_membership:
+- name: Analyze per-XNAME SMD group memberships
+  analyze_smd_group_membership:
     groups: "{{ _smd_groups_for_membership_plan.json }}"
+    desired_nodes: "{{ _smd_membership_desired_nodes }}"
+    metadata_groups: "{{ existing_groups.json }}"
     target_xnames: "{{ _target_node_xnames }}"
-    managed_groups: "{{ _omnia_managed_smd_groups }}"
-    protected_groups: "{{ _protected_smd_groups }}"
+    managed_groups: >-
+      {{ _omnia_managed_smd_groups
+         + (_smd_managed_auxiliary_groups | default([])) }}
+    allowed_groups: "{{ _smd_allowed_auxiliary_groups }}"
+    allowed_group_prefixes:
+      - "{{ additional_metadata_svc_fg_group_prefix }}"
   register: _stale_smd_membership_plan
   when: _target_node_xnames | length > 0
+  no_log: true
 
 - name: Reject unsafe SMD membership cleanup before mutation
   ansible.builtin.assert:
     that:
       - _stale_smd_membership_plan.errors | length == 0
+      - _stale_smd_membership_plan.conflicts | length == 0
     fail_msg: >-
-      Refusing stale SMD membership cleanup:
-      {{ _stale_smd_membership_plan.errors }}
+      Refusing stale SMD membership cleanup. Input/API errors:
+      {{ _stale_smd_membership_plan.errors }}. Ambiguous cloud-init-bearing
+      memberships: {{ _stale_smd_membership_plan.conflicts }}. Remove or
+      explicitly configure those memberships before provisioning.
   when: _target_node_xnames | length > 0
 
 - name: Remove stale Omnia-owned SMD group memberships
@@ -248,47 +279,68 @@
        .get('members', {})).get('ids', [])))
   no_log: true
 
+- name: Verify stale groups are empty before metadata cleanup
+  ansible.builtin.uri:
+    url: >-
+      https://{{ _provision_reset_cluster_name }}.{{
+      _provision_reset_cluster_domain }}:8443/hsm/v2/groups/{{ item }}
+    method: GET
+    headers:
+      Authorization: >-
+        Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}
+    status_code: [200, 404]
+    validate_certs: false
+  loop: >-
+    {{ _stale_smd_membership_plan.empty_groups_after_removal | default([]) }}
+  loop_control:
+    label: "{{ item }}"
+  register: _empty_stale_smd_groups_verify
+  retries: 5
+  delay: 2
+  until: >-
+    (_empty_stale_smd_groups_verify.status | default(0) == 404)
+    or
+    (((_empty_stale_smd_groups_verify.json | default({}))
+      .get('members', {})).get('ids', []) | length == 0)
+  no_log: true
+
+- name: Delete metadata definitions for verified-empty stale Omnia groups
+  ansible.builtin.uri:
+    url: >-
+      https://{{ _provision_reset_cluster_name }}.{{
+      _provision_reset_cluster_domain
+      }}:8443/metadata-service/groups/{{ item.uid }}
+    method: DELETE
+    headers:
+      Authorization: >-
+        Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}
+    status_code: [200, 204, 404]
+    validate_certs: false
+  loop: >-
+    {{ _stale_smd_membership_plan.metadata_deletions | default([]) }}
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+
 # ── Metadata-service groups (scoped to target FGs) ────────────────────
 # Per-FG group deletion is also handled in configure_metadata_svc.yml
 # (delete-before-set). We scope here to target FGs for defense in depth.
-
-- name: Fetch existing metadata-service groups
-  block:
-    - name: Fetch existing metadata-service groups
-      ansible.builtin.uri:
-        url: >-
-          https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
-          }}:8443/metadata-service/groups
-        method: GET
-        headers:
-          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
-        status_code: [200]
-        validate_certs: false
-        return_content: true
-      register: existing_groups
-      no_log: true
-  rescue:
-    - name: Fail with metadata-service API error
-      ansible.builtin.fail:
-        msg: "{{ metadata_service_api_fail_msg }}"
 
 - name: Delete metadata-service groups for target functional groups only
   ansible.builtin.uri:
     url: >-
       https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
-      }}:8443/metadata-service/groups/{{ item.metadata.uid }}
+      }}:8443/metadata-service/groups/{{ item.uid }}
     method: DELETE
     headers:
       Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
     status_code: [200, 204, 404]
     validate_certs: false
   loop: >-
-    {{ existing_groups.json | default([])
-       | selectattr('metadata.name', 'in', target_fg_names)
-       | list }}
+    {{ _stale_smd_membership_plan.target_metadata_deletions | default([]) }}
   loop_control:
-    label: "{{ item.metadata.name | default(item.metadata.uid) }}"
-  when: existing_groups.json | default([]) | length > 0
+    label: "{{ item.name }}"
+  no_log: true
 
 # ── Metadata-service clusterdefaults ──────────────────────────────────
 # Clusterdefaults is a global singleton shared across all categories.

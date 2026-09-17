@@ -132,6 +132,21 @@
     msg: "WARNING: {{ fg_missing_metadata | length }} functional groups have no metadata-service configuration: {{ fg_missing_metadata }}"
   when: fg_missing_metadata | length > 0
 
+- name: Validate authoritative SMD functional-group membership
+  ansible.builtin.include_role:
+    name: provision_common
+    tasks_from: validate_smd_group_membership.yml
+  vars:
+    smd_group_membership_desired_nodes: >-
+      {{ hostvars['localhost']['read_mapping_file']['dict']
+         | dict2items | map(attribute='value') | list }}
+    smd_group_membership_managed_groups: >-
+      {{ hostvars['localhost']['smd_managed_identity_nodes'] | default([])
+         | map(attribute='FUNCTIONAL_GROUP_NAME') | select | unique | list }}
+    smd_group_membership_base_url: "{{ openchami_base_url }}"
+    smd_group_membership_validate_certs: >-
+      {{ openchami_validate_certs | default(false) }}
+
 # --- Node hostname assignment verification ---
 - name: Query SMD for Ethernet interfaces (hostname assignments)
   ansible.builtin.uri:

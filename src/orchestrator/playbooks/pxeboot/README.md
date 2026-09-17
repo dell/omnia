@@ -10,6 +10,8 @@ verify that every node performed a fresh boot and completed cloud-init.
 - **CSV-based input**: Parses the named fields in `pxe_mapping_file.csv` and validates unique BMC and admin addresses
 - **Orchestrator credential integration**: Reuses BMC credentials from orchestrator credential store
 - **Parallel node verification**: Checks SSH, boot freshness, and cloud-init independently across nodes
+- **Incremental reruns**: Boots only new, changed, previously failed, pending,
+  or unverified nodes while preserving successful unchanged nodes
 - **Structured failures**: Records unreachable, stale-boot, pending, terminal cloud-init, and timeout states
 - **Conditional execution**: Can be enabled/disabled via configuration flag
 - **Tag-based execution**: Run standalone or as part of orchestrator workflow
@@ -59,7 +61,26 @@ cd src/orchestrator/playbooks
 
 # Run orchestrator with pxeboot tag
 ansible-playbook orchestrator.yml --tags pxeboot
+
+# Intentionally target every current mapping row, including prior successes
+ansible-playbook orchestrator.yml --tags pxeboot \
+  -e pxeboot_inventory="$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv"
 ```
+
+Without `pxeboot_inventory`, the project-scoped PXE state skips only nodes
+whose prior verified result is `success` and whose complete mapping identity is
+unchanged. New or changed mapping rows and prior failed, incomplete, or
+unverified rows are selected automatically. If no node needs PXE boot, the
+play exits without contacting or restarting any BMC.
+
+Providing `pxeboot_inventory` is an explicit target selection and bypasses the
+automatic success filter for the rows in that file. BuildStream uses this same
+contract for its job-specific effective inventory.
+
+Identity-matching BuildStream successes, including confirmed manual
+completions, are synchronized into the project PXE ledger before project
+target selection. A BuildStream no-target result still reaches the project
+planner so the shared ledger is written before later BMC plays are skipped.
 
 ## Configuration
 
@@ -114,12 +135,17 @@ The play writes all lifecycle reports under
 `$ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/`, including on a
 successful run:
 
-- `pxeboot_status.yml`: complete PXE and verification result for every node.
+- `pxeboot_status.yml`: complete PXE and verification result for every node
+  selected in the current run.
 - `failed_nodes.json`: failure-only compatibility report; `failed_nodes` is an
   empty array when all nodes succeed.
 - `orchestrator_status.yml`: stable aggregate of provisioning and PXE phase
   status. An existing `provisioning_report.yml` is retained and correlated by
   XNAME only when its `inventory_source` matches the active PXE inventory.
+
+The internal `.data/pxeboot_target_state.yml` ledger records the complete
+mapping identity and last PXE result used for incremental selection. A node is
+not treated as a prior success when any identity field changes.
 
 The aggregate schema is not replaced by a phase-specific schema. Its
 `last_completed_phase` changes to `pxeboot`, and its `phases` map retains the

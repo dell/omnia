@@ -28,6 +28,28 @@
       {{ 'https://' ~ hostvars['localhost']['oim_node_name']
          ~ '.' ~ hostvars['localhost']['domain_name'] ~ ':8443' }}
 
+- name: Query Boot Service nodes for historical boot-interface ownership
+  ansible.builtin.uri:
+    url: "{{ _smd_reconcile_base_url }}/boot-service/nodes"
+    method: GET
+    status_code: 200
+    validate_certs: false
+    headers:
+      Authorization: "Bearer {{ openchami_access_token }}"
+  register: _smd_reconcile_boot_nodes
+  retries: 5
+  delay: 2
+  until: _smd_reconcile_boot_nodes.status | default(0) == 200
+  no_log: true
+
+- name: Require the expected Boot Service node response shape
+  ansible.builtin.assert:
+    that:
+      - (_smd_reconcile_boot_nodes.json | default([]) | type_debug) == 'list'
+    fail_msg: >-
+      Refusing SMD reconciliation because Boot Service /nodes did not return
+      a list of node resources.
+
 - name: Query live SMD Ethernet interfaces for reconciliation
   ansible.builtin.uri:
     url: "{{ _smd_reconcile_base_url }}/hsm/v2/Inventory/EthernetInterfaces"
@@ -41,6 +63,36 @@
   delay: 2
   until: _smd_reconcile_interfaces.status | default(0) == 200
   no_log: true
+
+- name: Resolve stale Boot Service MACs as guarded historical anchors
+  analyze_boot_service_identity:
+    desired_nodes: "{{ _smd_reconcile_desired_nodes }}"
+    managed_nodes: "{{ _smd_reconcile_managed_nodes }}"
+    boot_nodes: "{{ _smd_reconcile_boot_nodes.json | default([]) }}"
+    interfaces: "{{ _smd_reconcile_interfaces.json | default([]) }}"
+    require_present: false
+  register: _smd_reconcile_boot_plan
+
+- name: Reject ambiguous Boot Service identity state before SMD mutation
+  ansible.builtin.assert:
+    that:
+      - _smd_reconcile_boot_plan.errors | length == 0
+      - _smd_reconcile_boot_plan.foreign_mac_owners | length == 0
+    fail_msg: >-
+      Refusing SMD reconciliation because Boot Service identity ownership is
+      ambiguous. Errors={{ _smd_reconcile_boot_plan.errors }};
+      mapped MACs owned by non-mapped XNAMEs={{
+      _smd_reconcile_boot_plan.foreign_mac_owners }}.
+
+- name: Add proven stale boot interfaces to the managed identity anchors
+  ansible.builtin.set_fact:
+    _smd_reconcile_managed_nodes: >-
+      {{ (_smd_reconcile_managed_nodes
+          | rejectattr(
+              'XNAME', 'in',
+              _smd_reconcile_boot_plan.superseded_managed_xnames | default([])
+            ) | list)
+         + (_smd_reconcile_boot_plan.historical_nodes | default([])) }}
 
 - name: Build SMD identity reconciliation plan
   analyze_smd_identity:

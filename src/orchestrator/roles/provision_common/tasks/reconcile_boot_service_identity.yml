@@ -1,0 +1,190 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Boot Service maintains its own node resources and periodically synchronizes
+# them from SMD. Reconcile only the bootMac of uniquely matched XNAMEs after
+# SMD registration; never replace the complete resource or touch another node.
+
+- name: Resolve Boot Service identity-reconciliation inputs
+  ansible.builtin.set_fact:
+    provision_common_boot_identity_desired_nodes: >-
+      {{ boot_service_identity_desired_nodes | default(_category_nodes) }}
+    provision_common_boot_identity_known_xnames: >-
+      {{ boot_service_identity_known_xnames
+         | default(
+             provision_common_boot_identity_desired_nodes
+             | map(attribute='XNAME') | list
+           ) }}
+    provision_common_boot_identity_base_url: >-
+      {{ boot_service_identity_base_url
+         | default(
+             'https://' + cluster_name + '.' + cluster_domain + ':8443'
+           ) }}
+
+- name: Validate Boot Service identity-reconciliation inputs
+  ansible.builtin.assert:
+    that:
+      - provision_common_boot_identity_desired_nodes | length > 0
+      - openchami_access_token | default('') | length > 0
+    fail_msg: >-
+      Boot Service identity reconciliation requires mapped nodes and an
+      authenticated OpenCHAMI connection.
+
+- name: Query Boot Service nodes for targeted bootMac reconciliation
+  ansible.builtin.uri:
+    url: "{{ provision_common_boot_identity_base_url }}/boot-service/nodes"
+    method: GET
+    status_code: 200
+    validate_certs: >-
+      {{ boot_service_identity_validate_certs | default(false) }}
+    headers:
+      Authorization: "Bearer {{ openchami_access_token }}"
+  register: provision_common_boot_identity_nodes_response
+  retries: "{{ provision_common_boot_sync_retries }}"
+  delay: "{{ provision_common_boot_sync_retry_interval }}"
+  until:
+    - provision_common_boot_identity_nodes_response.status | default(0) == 200
+    - >-
+      (provision_common_boot_identity_desired_nodes
+       | map(attribute='XNAME') | map('trim') | list
+       | difference(
+           provision_common_boot_identity_nodes_response.json | default([])
+           | map(attribute='spec.xname', default='') | list
+         ) | length) == 0
+  no_log: true
+
+- name: Require the expected Boot Service node response shape
+  ansible.builtin.assert:
+    that:
+      - >-
+        (provision_common_boot_identity_nodes_response.json
+         | default([]) | type_debug) == 'list'
+    fail_msg: >-
+      Boot Service /nodes did not return a list of node resources; refusing
+      targeted bootMac reconciliation.
+
+- name: Query live SMD interfaces for Boot Service reconciliation
+  ansible.builtin.uri:
+    url: >-
+      {{ provision_common_boot_identity_base_url
+         }}/hsm/v2/Inventory/EthernetInterfaces
+    method: GET
+    status_code: 200
+    validate_certs: >-
+      {{ boot_service_identity_validate_certs | default(false) }}
+    headers:
+      Authorization: "Bearer {{ openchami_access_token }}"
+  register: provision_common_boot_identity_interfaces_response
+  retries: 5
+  delay: 2
+  until: >-
+    provision_common_boot_identity_interfaces_response.status
+    | default(0) == 200
+  no_log: true
+
+- name: Build targeted Boot Service bootMac reconciliation plan
+  analyze_boot_service_identity:
+    desired_nodes: "{{ provision_common_boot_identity_desired_nodes }}"
+    boot_nodes: >-
+      {{ provision_common_boot_identity_nodes_response.json | default([]) }}
+    interfaces: >-
+      {{ provision_common_boot_identity_interfaces_response.json
+         | default([]) }}
+    known_xnames: "{{ provision_common_boot_identity_known_xnames }}"
+    require_present: true
+  register: provision_common_boot_identity_plan
+
+- name: Reject ambiguous Boot Service node ownership before mutation
+  ansible.builtin.assert:
+    that:
+      - provision_common_boot_identity_plan.errors | length == 0
+      - provision_common_boot_identity_plan.foreign_mac_owners | length == 0
+    fail_msg: >-
+      Refusing Boot Service bootMac reconciliation because XNAME ownership is
+      ambiguous. Errors={{ provision_common_boot_identity_plan.errors }};
+      mapped MACs owned by non-mapped XNAMEs={{
+      provision_common_boot_identity_plan.foreign_mac_owners }}. Preserve the
+      record or remove it explicitly after verifying the complete mapping.
+
+- name: Report targeted Boot Service bootMac corrections
+  ansible.builtin.debug:
+    msg: >-
+      Correcting Boot Service node {{ item.xname }} from
+      {{ item.current_mac | default('<missing>') }} to {{ item.desired_mac }}.
+  loop: "{{ provision_common_boot_identity_plan.patch_plan }}"
+  loop_control:
+    label: "{{ item.xname }}"
+
+- name: Patch only the mismatched Boot Service bootMac field
+  ansible.builtin.uri:
+    url: >-
+      {{ provision_common_boot_identity_base_url
+         }}/boot-service/nodes/{{ item.uid }}
+    method: PATCH
+    status_code: 200
+    validate_certs: >-
+      {{ boot_service_identity_validate_certs | default(false) }}
+    headers:
+      Authorization: "Bearer {{ openchami_access_token }}"
+      Content-Type: application/merge-patch+json
+    body_format: json
+    body:
+      bootMac: "{{ item.desired_mac }}"
+  loop: "{{ provision_common_boot_identity_plan.patch_plan }}"
+  loop_control:
+    label: "{{ item.xname }}"
+  register: provision_common_boot_identity_patch_results
+  changed_when: true
+  no_log: true
+
+- name: Read back each corrected Boot Service node
+  ansible.builtin.uri:
+    url: >-
+      {{ provision_common_boot_identity_base_url
+         }}/boot-service/nodes/{{ item.uid }}
+    method: GET
+    status_code: 200
+    validate_certs: >-
+      {{ boot_service_identity_validate_certs | default(false) }}
+    headers:
+      Authorization: "Bearer {{ openchami_access_token }}"
+  loop: "{{ provision_common_boot_identity_plan.patch_plan }}"
+  loop_control:
+    label: "{{ item.xname }}"
+  register: provision_common_boot_identity_readback
+  retries: 5
+  delay: 2
+  until:
+    - >-
+      provision_common_boot_identity_readback.json.spec.xname
+      | default('') == item.xname
+    - >-
+      (provision_common_boot_identity_readback.json.spec.bootMac
+       | default('') | lower
+       | replace('-', ':')) == item.desired_mac
+  no_log: true
+
+- name: Confirm every targeted Boot Service correction was verified
+  ansible.builtin.assert:
+    that:
+      - >-
+        (provision_common_boot_identity_readback.results
+         | default([]) | length)
+        == (provision_common_boot_identity_plan.patch_plan | length)
+      - >-
+        (provision_common_boot_identity_readback.results | default([])
+         | rejectattr('status', 'equalto', 200) | list | length) == 0
+    fail_msg: >-
+      One or more targeted Boot Service bootMac corrections could not be
+      verified by read-back.

@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import csv
 import ipaddress
-import json
 import os
 import re
 from collections import Counter
@@ -75,15 +74,6 @@ OS_VERSION_SUFFIX_PATTERN = re.compile(
 DNS_HOSTNAME_PATTERN = re.compile(
     r"^nid(?:00[1-9]|0[1-9][0-9]|[1-9][0-9]{2})$"
 )
-CATALOG_MANAGED_PREFIXES = (
-    "service_kube_",
-    "slurm_",
-    "login_node_",
-    "login_compiler_node_",
-    "os_",
-)
-
-
 def resolve_mapping_path(
     config_data: dict[str, Any], input_project_dir: str
 ) -> str:
@@ -426,114 +416,6 @@ def _validate_slurm_compiler_architecture(
         )
 
 
-def _resolve_catalog_path(
-    config_data: dict[str, Any], input_project_dir: str
-) -> str:
-    """Resolve the active catalog path using the production precedence."""
-    del input_project_dir
-    configured_path = config_data.get("catalog_file_path")
-    environment_path = os.getenv("CATALOG_FILE_PATH", "")
-    omnia_data_path = os.getenv("OMNIA_DATA_PATH", "") or "/opt/omnia"
-    candidate = configured_path or environment_path or os.path.join(
-        omnia_data_path, "catalog", "catalog_rhel.json"
-    )
-    return os.path.realpath(candidate)
-
-
-def _load_catalog_functional_groups(
-    catalog_path: str,
-) -> tuple[set[str], str | None]:
-    """Return functional-layer names and any catalog read error."""
-    if not os.path.isfile(catalog_path):
-        return set(), "file does not exist"
-    try:
-        with open(catalog_path, "r", encoding="utf-8") as catalog_file:
-            data = json.load(catalog_file)
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        return set(), str(exc)
-
-    if not isinstance(data, dict):
-        return set(), "root must be a JSON object"
-    catalog = data.get("catalog")
-    if not isinstance(catalog, dict):
-        return set(), "catalog must be a JSON object"
-    layers = catalog.get("functionallayer")
-    if not isinstance(layers, list):
-        return set(), "catalog.functionallayer must be an array"
-    functional_groups = {
-        layer["name"].strip()
-        for layer in layers
-        if isinstance(layer, dict)
-        and isinstance(layer.get("name"), str)
-        and layer["name"].strip()
-    }
-    if not functional_groups:
-        return set(), "catalog.functionallayer has no named entries"
-    return functional_groups, None
-
-
-def _catalog_matches(
-    functional_group: str, catalog_functional_groups: set[str]
-) -> bool:
-    """Match role/architecture and any explicit mapping OS/version."""
-    mapping_identity = _functional_group_identity(functional_group)
-    if mapping_identity is None:
-        return False
-
-    mapping_role, mapping_os_version, mapping_architecture = mapping_identity
-    for catalog_group in catalog_functional_groups:
-        catalog_identity = _functional_group_identity(catalog_group)
-        if catalog_identity is None:
-            continue
-        catalog_role, catalog_os_version, catalog_architecture = (
-            catalog_identity
-        )
-        if (
-            mapping_role != catalog_role
-            or mapping_architecture != catalog_architecture
-        ):
-            continue
-        if (
-            mapping_os_version is None
-            or mapping_os_version == catalog_os_version
-        ):
-            return True
-    return False
-
-
-def _validate_catalog_functional_groups(
-    rows: list[tuple[int, dict[str, str]]],
-    config_data: dict[str, Any],
-    input_project_dir: str,
-    errors: list[str],
-    logger: Logger | None,
-) -> None:
-    """Validate mapping groups against the active data-driven catalog."""
-    catalog_path = _resolve_catalog_path(config_data, input_project_dir)
-    catalog_functional_groups, catalog_error = (
-        _load_catalog_functional_groups(catalog_path)
-    )
-    if catalog_error:
-        return
-    if not catalog_functional_groups:
-        return
-    for row_number, row in rows:
-        functional_group = row.get("FUNCTIONAL_GROUP_NAME", "")
-        is_catalog_managed = functional_group.lower().startswith(
-            CATALOG_MANAGED_PREFIXES
-        )
-        if is_catalog_managed and not _catalog_matches(
-            functional_group, catalog_functional_groups
-        ):
-            record_error(
-                errors,
-                logger,
-                msg.pxe_mapping_unknown_catalog_group_msg(
-                    functional_group, row_number, catalog_path
-                ),
-            )
-
-
 def _load_admin_networks(
     input_project_dir: str,
 ) -> list[ipaddress.IPv4Network]:
@@ -659,9 +541,6 @@ def validate(
     _validate_unique_values(rows, errors, logger)
     _validate_group_assignments(rows, errors, logger)
     _validate_slurm_compiler_architecture(rows, errors, logger)
-    _validate_catalog_functional_groups(
-        rows, config_data, input_project_dir, errors, logger
-    )
     _validate_admin_subnet_membership(
         rows, input_project_dir, errors, logger
     )

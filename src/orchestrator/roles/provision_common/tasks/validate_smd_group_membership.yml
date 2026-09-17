@@ -1,0 +1,110 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Required input: smd_group_membership_desired_nodes. This safety gate is
+# intentionally read-only. It accepts common Omnia metadata groups, preserves
+# operator groups without metadata-service data, and rejects every unexpected
+# group that can contribute cloud-init content.
+
+- name: Validate SMD group-membership check inputs
+  ansible.builtin.assert:
+    that:
+      - smd_group_membership_desired_nodes is defined
+      - smd_group_membership_desired_nodes | length > 0
+      - openchami_access_token | default('') | length > 0
+    fail_msg: >-
+      Live SMD group validation requires desired PXE nodes and an
+      authenticated OpenCHAMI connection.
+
+- name: Resolve configured auxiliary groups for SMD validation
+  ansible.builtin.include_tasks: resolve_smd_auxiliary_groups.yml
+
+- name: Query live SMD groups for membership validation
+  ansible.builtin.uri:
+    url: >-
+      {{ smd_group_membership_base_url
+         | default('https://' + hostvars['localhost']['oim_node_name'] + '.'
+                   + hostvars['localhost']['domain_name'] + ':8443')
+      }}/hsm/v2/groups
+    method: GET
+    status_code: 200
+    validate_certs: >-
+      {{ smd_group_membership_validate_certs | default(false) }}
+    headers:
+      Authorization: "Bearer {{ openchami_access_token }}"
+    return_content: true
+  register: _smd_group_membership_groups_response
+  retries: 5
+  delay: 2
+  until: _smd_group_membership_groups_response.status | default(0) == 200
+  no_log: true
+
+- name: Query metadata-service groups for membership validation
+  ansible.builtin.uri:
+    url: >-
+      {{ smd_group_membership_base_url
+         | default('https://' + hostvars['localhost']['oim_node_name'] + '.'
+                   + hostvars['localhost']['domain_name'] + ':8443')
+      }}/metadata-service/groups
+    method: GET
+    status_code: 200
+    validate_certs: >-
+      {{ smd_group_membership_validate_certs | default(false) }}
+    headers:
+      Authorization: "Bearer {{ openchami_access_token }}"
+    return_content: true
+  register: _smd_group_membership_metadata_response
+  retries: 5
+  delay: 2
+  until: _smd_group_membership_metadata_response.status | default(0) == 200
+  no_log: true
+
+- name: Analyze authoritative SMD group membership
+  analyze_smd_group_membership:
+    groups: "{{ _smd_group_membership_groups_response.json }}"
+    desired_nodes: "{{ smd_group_membership_desired_nodes }}"
+    metadata_groups: "{{ _smd_group_membership_metadata_response.json }}"
+    managed_groups: >-
+      {{ (smd_group_membership_managed_groups | default([]))
+         + (_smd_managed_auxiliary_groups | default([])) }}
+    allowed_groups: "{{ _smd_allowed_auxiliary_groups }}"
+    allowed_group_prefixes:
+      - >-
+        {{ additional_metadata_svc_fg_group_prefix
+           | default('additional_metadata_svc_') }}
+  register: _smd_group_membership_validation
+  no_log: true
+
+- name: Fail when SMD can merge conflicting cloud-init groups
+  ansible.builtin.assert:
+    that:
+      - _smd_group_membership_validation.errors | length == 0
+      - _smd_group_membership_validation.missing_memberships | length == 0
+      - _smd_group_membership_validation.missing_metadata_groups | length == 0
+      - _smd_group_membership_validation.removals | length == 0
+      - _smd_group_membership_validation.conflicts | length == 0
+    fail_msg: >-
+      Refusing to continue because live OpenCHAMI group state is not safe for
+      PXE. Input/API errors: {{ _smd_group_membership_validation.errors }}.
+      Missing expected memberships:
+      {{ _smd_group_membership_validation.missing_memberships }}.
+      Missing expected metadata-service groups:
+      {{ _smd_group_membership_validation.missing_metadata_groups }}.
+      Stale Omnia memberships:
+      {{ _smd_group_membership_validation.removals }}.
+      Ambiguous cloud-init memberships:
+      {{ _smd_group_membership_validation.conflicts }}.
+    success_msg: >-
+      Live SMD group validation passed: every PXE target belongs to exactly
+      one primary cloud-init-bearing functional group.

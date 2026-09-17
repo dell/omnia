@@ -302,6 +302,16 @@
     msg: "{{ openchami_smd_status.stdout_lines }}"
     verbosity: 2
 
+- name: Reconcile Boot Service node MACs with the current PXE mapping
+  ansible.builtin.include_tasks: reconcile_boot_service_identity.yml
+  vars:
+    boot_service_identity_desired_nodes: "{{ _category_nodes }}"
+    boot_service_identity_known_xnames: >-
+      {{ hostvars['localhost']['read_mapping_file']['dict']
+         | dict2items | map(attribute='value')
+         | map(attribute='XNAME') | select | list }}
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
 - name: Generate per-category hostname YAML
   ansible.builtin.template:
     src: "{{ openchami_hostname_template }}"
