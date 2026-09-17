@@ -36,19 +36,15 @@
 
 - name: Display cleanup summary
   ansible.builtin.debug:
-    msg: |-
-      Cleanup Summary:
-      ================
-      Status: {{ 'SUCCESS' if cleanup_failures | length == 0 else 'PARTIAL' }}
-      Components selected: {{ cleanup_execution_order | length }}
-      Components passed: {{ cleanup_execution_order | length - cleanup_failures | length }}
-      Components failed: {{ cleanup_failures | length }}
-      {% for result_item in cleanup_results | dict2items %}
-      - {{ result_item.key }}: {{ result_item.value.status | upper }}
-      {% if result_item.value.error | default('') | length > 0 %}
-        Error: {{ result_item.value.error }}
-      {% endif %}
-      {% endfor %}
+    msg:
+      status: >-
+        {{ 'SUCCESS' if cleanup_failures | length == 0 else 'PARTIAL' }}
+      components:
+        selected: "{{ cleanup_execution_order | length }}"
+        passed: >-
+          {{ cleanup_execution_order | length - cleanup_failures | length }}
+        failed: "{{ cleanup_failures | length }}"
+      results: "{{ cleanup_results }}"
 
 - name: Fail when cleanup is incomplete
   ansible.builtin.fail:
