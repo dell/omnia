@@ -104,12 +104,12 @@ report_path: /opt/omnia/reports
 # No spaces allowed. Only letters, numbers, underscores, hyphens.
 report_name: build_stream_test_report
 
-# Custom report ID (optional).
-# When set, reports use this ID instead of a timestamp (YYYYMMDDHHmmSS).
+# Custom run ID (optional).
+# When set, reports use this ID instead of a timestamp (YYYYMMDD_HHMMSS).
 # This groups multiple scenario runs under the same report entry.
 # Leave empty to auto-generate from timestamp.
 # No spaces allowed. Only letters, numbers, underscores, hyphens.
-report_id: ""
+run_id: ""
 
 # =============================================================================
 # BUILD PIPELINE SETTINGS

@@ -2159,7 +2159,7 @@ summary:
       PY
 
     - |
-      echo "Extracting report paths from domain test_config.yml files..."
+      echo "Extracting report paths and names from domain test_config.yml files..."
       python3 - <<'PY'
       import json
       import os
@@ -2174,7 +2174,20 @@ summary:
         import re
         domains = ["main"] + [d.strip() for d in re.split(r"[,|]", domains_env) if d.strip()]
 
+      # Default report_name per domain (matches conftest.py defaults)
+      default_report_names = {
+        "main": "omnia_main_test_report",
+        "repo_manager": "repo_manager_test_report",
+        "image_build_manager": "image_test_report",
+        "orchestrator": "orchestrator_test_report",
+        "telemetry": "telemetry_test_report",
+        "build_stream": "build_stream_test_report",
+        "discovery": "discovery_test_report",
+        "utils": "utils_test_report",
+      }
+
       report_paths = {}
+      report_names = {}
       for domain in domains:
         config_path = f"clusters/{cluster}/inputs/test/{domain}/test_config.yml"
         try:
@@ -2182,21 +2195,28 @@ summary:
             cfg = yaml.safe_load(f)
           if cfg:
             path = cfg.get("report_path", "/opt/omnia/reports")
+            name = cfg.get("report_name", default_report_names.get(domain, f"{domain}_test_report"))
             report_paths[domain] = path
-            print(f"  {domain}: {path}")
+            report_names[domain] = name
+            print(f"  {domain}: path={path}, name={name}")
           else:
             report_paths[domain] = "/opt/omnia/reports"
-            print(f"  {domain}: (default) /opt/omnia/reports")
+            report_names[domain] = default_report_names.get(domain, f"{domain}_test_report")
+            print(f"  {domain}: (default) /opt/omnia/reports, name={report_names[domain]}")
         except FileNotFoundError:
           report_paths[domain] = "/opt/omnia/reports"
-          print(f"  {domain}: (not found, using default) /opt/omnia/reports")
+          report_names[domain] = default_report_names.get(domain, f"{domain}_test_report")
+          print(f"  {domain}: (not found, using default) /opt/omnia/reports, name={report_names[domain]}")
         except Exception as e:
           report_paths[domain] = "/opt/omnia/reports"
-          print(f"  {domain}: (error: {e}, using default) /opt/omnia/reports")
+          report_names[domain] = default_report_names.get(domain, f"{domain}_test_report")
+          print(f"  {domain}: (error: {e}, using default) /opt/omnia/reports, name={report_names[domain]}")
 
       with open("pipeline_reports/domain_report_paths.json", "w", encoding="utf-8") as f:
         json.dump(report_paths, f)
-      print("Report paths saved to pipeline_reports/domain_report_paths.json")
+      with open("pipeline_reports/domain_report_names.json", "w", encoding="utf-8") as f:
+        json.dump(report_names, f)
+      print("Report paths and names saved to pipeline_reports/")
       PY
 
     # Copy test reports from remote target to CI runner
@@ -2252,31 +2272,32 @@ summary:
 
       for domain in $REPORT_DOMAINS; do
         REMOTE_PATH=$(python3 -c "import json; print(json.load(open('pipeline_reports/domain_report_paths.json')).get('$domain', '/opt/omnia/reports'))")
-        echo "  Domain: $domain, Remote path: $REMOTE_PATH"
+        REPORT_BASE_NAME=$(python3 -c "import json; d=json.load(open('pipeline_reports/domain_report_names.json')); print(d.get('$domain', '${domain}_test_report'))")
+        echo "  Domain: $domain, Remote path: $REMOTE_PATH, Report name: $REPORT_BASE_NAME"
 
         # Debug: list all report files in the remote directory
         echo "  Available report files in $REMOTE_PATH:"
-        $SSH_CMD $TARGET "ls -1t $REMOTE_PATH/*_report.json 2>/dev/null | head -20" || true
+        $SSH_CMD $TARGET "ls -1t $REMOTE_PATH/*.json 2>/dev/null | head -20" || true
 
-        # Only use patterns that include pipeline ID to avoid picking up old reports
+        # Search for reports using exact name from test_config.yml
         LATEST_JSON=""
-        # Pattern 1: <pipeline_id>_<domain>_report.json (new format)
-        REPORT_GLOB="${CI_PIPELINE_ID}_${domain}_report.json"
+        # Pattern 1: <pipeline_id>_<report_name>.json (CI naming: exact match)
+        REPORT_GLOB="${CI_PIPELINE_ID}_${REPORT_BASE_NAME}.json"
         echo "  Trying pattern 1: $REPORT_GLOB"
         LATEST_JSON=$($SSH_CMD $TARGET \
           "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
 
-        # Pattern 2: *_<pipeline_id>_<domain>_report.json (old format fallback)
+        # Pattern 2: <report_name>.json (CLI naming: no pipeline prefix)
         if [ -z "$LATEST_JSON" ]; then
-          REPORT_GLOB="*_${CI_PIPELINE_ID}_${domain}_report.json"
+          REPORT_GLOB="${REPORT_BASE_NAME}.json"
           echo "  Trying pattern 2: $REPORT_GLOB"
           LATEST_JSON=$($SSH_CMD $TARGET \
             "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
         fi
 
-        # Pattern 3: *_<pipeline_id>*<domain>*report*.json (broad fallback with pipeline ID)
+        # Pattern 3: *<pipeline_id>*<report_name>*.json (broad fallback)
         if [ -z "$LATEST_JSON" ]; then
-          REPORT_GLOB="*_${CI_PIPELINE_ID}*${domain}*report*.json"
+          REPORT_GLOB="*${CI_PIPELINE_ID}*${REPORT_BASE_NAME}*.json"
           echo "  Trying pattern 3: $REPORT_GLOB"
           LATEST_JSON=$($SSH_CMD $TARGET \
             "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")

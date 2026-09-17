@@ -222,7 +222,7 @@ class TestReport:
         report_path: str,
         report_name: str,
         server_ip: str,
-        report_id: Optional[str] = None,
+        run_id: Optional[str] = None,
         server_hostname: Optional[str] = None,
         suite: Optional[str] = None,
         marker: Optional[str] = None,
@@ -235,7 +235,7 @@ class TestReport:
             report_path: Absolute directory where JSON/HTML are saved.
             report_name: Base filename without extension.
             server_ip: Target server IP address.
-            report_id: Unique run identifier (default: timestamp).
+            run_id: Unique run identifier (default: timestamp).
             server_hostname: Target hostname (resolved from IP if omitted).
             suite: Suite filter label (informational).
             marker: Marker filter label (informational).
@@ -245,7 +245,7 @@ class TestReport:
         self.report_path = _resolve_report_dir(report_path)
         self.report_name = report_name
         self.start_time = datetime.now()
-        self.report_id = report_id or self.start_time.strftime("%Y%m%d%H%M%S%f")[:-3]
+        self.run_id = run_id or self.start_time.strftime("%Y%m%d_%H%M%S")
         self.results: List[Dict[str, Any]] = []
         self.playbook_logs: Optional[str] = None
         self.command_type: Optional[str] = None
@@ -287,7 +287,7 @@ class TestReport:
         )
         print(
             f"\u2502  {'REPORT ID:':<12} "
-            f"{self.report_id:<52} \u2502"
+            f"{self.run_id:<52} \u2502"
         )
         print(f"\u2514{line}\u2518\n")
 
@@ -487,7 +487,7 @@ class TestReport:
             (
                 i
                 for i, r in enumerate(runs)
-                if r.get("report_id") == self.report_id
+                if r.get("run_id") == self.run_id
             ),
             None,
         )
@@ -498,7 +498,7 @@ class TestReport:
             )
         else:
             run_data = {
-                "report_id": self.report_id,
+                "run_id": self.run_id,
                 "start_time": self.start_time.isoformat(),
                 "end_time": end_time.isoformat(),
                 "summary": {
@@ -517,7 +517,7 @@ class TestReport:
             (
                 r
                 for r in runs
-                if r.get("report_id") == self.report_id
+                if r.get("run_id") == self.run_id
             ),
             None,
         )
@@ -680,7 +680,7 @@ class TestReport:
         )
         print(
             f"\u2502  {'Report ID:':<12}"
-            f"{self.report_id:<{content_width - 12}}  \u2502"
+            f"{self.run_id:<{content_width - 12}}  \u2502"
         )
         dur_str = f"{duration:.2f}s"
         print(
@@ -739,7 +739,7 @@ def record_playbook_failure(
     report_path: str,
     report_name: str,
     server_ip: str,
-    report_id: str,
+    run_id: str,
     log_file: Optional[str] = None,
     command_type: str = "deploy",
 ):
@@ -754,7 +754,7 @@ def record_playbook_failure(
         report_path:  Directory for JSON/HTML output.
         report_name:  Base filename without extension.
         server_ip:    Target server IP address.
-        report_id:    Shared report ID (e.g. CI_PIPELINE_ID).
+        run_id:      Shared run ID (e.g. CI_PIPELINE_ID).
         log_file:     Path to playbook log file with execution output.
         command_type:  Command that failed (``deploy``, ``test``, etc.).
     """
@@ -762,7 +762,7 @@ def record_playbook_failure(
     existing = _load_report(report_path, report_name)
     for _srv in existing.get("servers", {}).values():
         for run in _srv.get("runs", []):
-            if run.get("report_id") != report_id:
+            if run.get("run_id") != report_id:
                 continue
             for mod in run.get("modules", []):
                 if (
@@ -776,7 +776,7 @@ def record_playbook_failure(
         report_path=report_path,
         report_name=report_name,
         server_ip=server_ip,
-        report_id=report_id,
+        run_id=run_id,
     )
     report.command_type = command_type
 
