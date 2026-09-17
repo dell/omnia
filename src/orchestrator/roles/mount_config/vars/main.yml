@@ -26,8 +26,6 @@ default_oim_mount_options: "nosuid,rw,sync,hard,intr"
 
 omnia_config_vars: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/omnia_config.yml"
 omnia_run_tags: "{{ hostvars['localhost']['omnia_run_tags'] }}"
-oim_mount_ledger_path: >-
-  {{ hostvars['localhost']['orchestrator_output_dir'] }}/.data/oim_mounts.yml
 
 # Usage: build_host_mount_map.yml
 omnia_shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"

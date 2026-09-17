@@ -75,20 +75,6 @@ distinguished from an independent user-defined mount.
 - `metadata_svc_groups_dict`: Dictionary mapping functional group names to their mounts and runcmd entries
 - `host_mount_map`: Dictionary mapping hostnames to their host-specific mounts and runcmd entries (when PXE mapping provided)
 
-### OIM Mount Ownership Ledger
-
-After an OIM mount is active and its exact source-to-target entry is verified
-in `/etc/fstab`, the role records it in:
-
-`<ORCHESTRATOR_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/.data/oim_mounts.yml`
-
-The project-scoped file is mode `0600` and is deduplicated by canonical mount
-point. Each record contains the storage name, exact source, mount point,
-filesystem type, mount options, workload owners, storage category, and whether
-Omnia manages the fstab entry. Failed or inactive mounts are never recorded.
-Cleanup uses this ledger as positive ownership evidence; it does not infer
-ownership from a mount point alone.
-
 ## Cloud-Init Integration
 
 Both functional group and host-specific mounts are rendered in cloud-init templates:

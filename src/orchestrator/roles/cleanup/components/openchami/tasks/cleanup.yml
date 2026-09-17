@@ -131,6 +131,53 @@
   when: pod_check.rc | default(1) == 0
   tags: openchami
 
+- name: Check OpenCHAMI data volume unit load states
+  ansible.builtin.systemd:
+    name: "{{ openchami_volume_service }}"
+  register: cleanup_openchami_volume_unit_checks
+  changed_when: false
+  failed_when: false
+  loop: "{{ openchami_config.data_volume_services }}"
+  loop_control:
+    loop_var: openchami_volume_service
+  tags: openchami
+
+- name: Stop OpenCHAMI data volume services
+  ansible.builtin.systemd:
+    name: "{{ volume_unit_check.openchami_volume_service }}"
+    state: stopped
+  loop: "{{ cleanup_openchami_volume_unit_checks.results }}"
+  loop_control:
+    loop_var: volume_unit_check
+    label: "{{ volume_unit_check.openchami_volume_service }}"
+  when: volume_unit_check.status.LoadState | default('not-found') != 'not-found'
+  tags: openchami
+
+- name: Check which OpenCHAMI data volumes exist
+  ansible.builtin.command:
+    cmd: podman volume exists {{ openchami_volume_name }}
+  register: cleanup_openchami_volume_checks
+  check_mode: false
+  changed_when: false
+  failed_when: cleanup_openchami_volume_checks.rc not in [0, 1]
+  loop: "{{ openchami_config.data_volumes }}"
+  loop_control:
+    loop_var: openchami_volume_name
+  when: cleanup_openchami_podman_check.rc == 0
+  tags: openchami
+
+- name: Remove OpenCHAMI persistent data volumes
+  ansible.builtin.command:
+    cmd: podman volume rm {{ volume_check.openchami_volume_name }}
+  register: cleanup_openchami_volume_removal
+  changed_when: true
+  loop: "{{ cleanup_openchami_volume_checks.results | default([]) }}"
+  loop_control:
+    loop_var: volume_check
+    label: "{{ volume_check.openchami_volume_name }}"
+  when: volume_check.rc | default(1) == 0
+  tags: openchami
+
 - name: Verify OpenCHAMI systemd units are inactive
   ansible.builtin.systemd:
     name: "{{ openchami_unit_check.openchami_unit_name }}"
@@ -160,6 +207,37 @@
   when:
     - not (dry_run | default(false) | bool)
     - cleanup_openchami_podman_check.rc == 0
+  tags: openchami
+
+- name: Verify OpenCHAMI persistent data volumes were removed
+  ansible.builtin.command:
+    cmd: podman volume exists {{ openchami_volume_name }}
+  register: cleanup_openchami_removed_volume_checks
+  changed_when: false
+  failed_when: cleanup_openchami_removed_volume_checks.rc != 1
+  loop: "{{ openchami_config.data_volumes }}"
+  loop_control:
+    loop_var: openchami_volume_name
+  when:
+    - not (dry_run | default(false) | bool)
+    - cleanup_openchami_podman_check.rc == 0
+  tags: openchami
+
+- name: Verify OpenCHAMI data volume services are inactive
+  ansible.builtin.systemd:
+    name: "{{ volume_unit_check.openchami_volume_service }}"
+  register: cleanup_openchami_inactive_volume_unit_checks
+  changed_when: false
+  failed_when: >-
+    cleanup_openchami_inactive_volume_unit_checks.status.ActiveState
+    | default('inactive') == 'active'
+  loop: "{{ cleanup_openchami_volume_unit_checks.results }}"
+  loop_control:
+    loop_var: volume_unit_check
+    label: "{{ volume_unit_check.openchami_volume_service }}"
+  when:
+    - not (dry_run | default(false) | bool)
+    - volume_unit_check.status.LoadState | default('not-found') != 'not-found'
   tags: openchami
 
 - name: Report deferred OpenCHAMI post-cleanup verification
@@ -241,6 +319,6 @@
   ansible.builtin.debug:
     msg: >-
       OpenCHAMI cleanup completed: target and services stopped, containers
-      removed, and generated configuration, work, log, and inventory paths
-      removed.
+      and persistent data volumes removed, and generated configuration, work,
+      log, and inventory paths removed.
   tags: openchami

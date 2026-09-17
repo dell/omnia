@@ -27,9 +27,6 @@
     dump_freq: "{{ item.dump_freq | default(resolved_mount_profile.dump_freq | default('0')) }}"
     fsck_pass: "{{ item.fsck_pass | default(resolved_mount_profile.fsck_pass | default('0')) }}"
 
-- name: Validate OIM mount ownership identity before mutation
-  ansible.builtin.include_tasks: validate_oim_mount_ledger.yml
-
 - name: Create the directory for mounting on OIM
   ansible.builtin.file:
     path: "{{ mount_point }}"
@@ -58,26 +55,7 @@
       ansible.posix.mount:
         path: "{{ mount_point }}"
         state: absent_from_fstab
-      when: not (oim_mount_preflight_fstab_exact | default(false) | bool)
-
-    - name: Preserve pre-existing exact fstab entry after mount failure
-      ansible.builtin.debug:
-        msg: >-
-          Mount failed, but the pre-existing exact fstab entry for
-          {{ source }} -> {{ mount_point }} was preserved.
-      when: oim_mount_preflight_fstab_exact | default(false) | bool
 
     - name: Fail if OIM mount failed
       ansible.builtin.fail:
         msg: "{{ oim_nfs_fail_msg }}"
-
-- name: Record verified OIM mount ownership
-  ansible.builtin.include_tasks: record_oim_mount.yml
-  when: not ansible_check_mode
-
-- name: Report deferred OIM mount ownership recording in check mode
-  ansible.builtin.debug:
-    msg: >-
-      Check mode: the mount ownership ledger was not updated for
-      {{ source }} -> {{ mount_point }} because the mount was only simulated.
-  when: ansible_check_mode
