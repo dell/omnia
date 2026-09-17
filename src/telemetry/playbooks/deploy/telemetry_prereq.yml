@@ -68,7 +68,8 @@
         fail_msg: >
           kube_vip is required. Ensure you have set cluster_inventory in
           telemetry_config.yml to point to the orchestrator inventory file
-          (e.g., $OMNIA_DATA_PATH/telemetry/input/$OMNIA_PROJECT_NAME/cluster_inventory.yml).
+          (for example, orchestrator_inventory.yml in the active project's
+          Orchestrator output directory),
           or run orchestrator.yml first to generate the inventory files.
 
     - name: Add kube_vip to in-memory inventory
