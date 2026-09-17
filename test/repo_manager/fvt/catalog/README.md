@@ -35,8 +35,13 @@ sync_repo_manager_input: true
 This syncs input files from `<omnia-root>/src/repo_manager/input/` to the
 target system's input directory.
 
-### Option 3: Dataset-Based Testing (Not Currently Available)
-Unlike other test domains (utils, image_build_manager, etc.), repo_manager does not currently have a dataset generator system. Input files must be created manually or synced from source.
+### Option 3: Dataset-Based Repo Manager Configuration
+
+Repo Manager supports generated datasets for
+`repo_manager_config.yml` and `repo_manager_endpoint_config.yml`. Select a
+dataset and enable synchronization in `test_config.yml` or
+`test_run_config.yml`. Catalog operation inputs such as `packages.txt` are
+operation-specific and must still be staged explicitly on the target.
 
 ## Required Input Files
 
@@ -215,9 +220,9 @@ The test framework will automatically sync the input files from source to the ta
 - **Use case**: Set to `true` during development to use source files directly; set to `false` for production testing with pre-staged input files
 
 ### Dataset vs Sync
-- **Dataset system**: Used by other domains (utils, image_build_manager) to generate test data from templates
-- **Sync system**: Used by repo_manager to copy existing input files from source to target
-- **Current status**: Repo_manager uses sync system, not dataset generation
+- **Dataset system**: Generates and validates the two public Repo Manager configuration files
+- **Sync system**: Copies only the public input allowlist from a selected dataset or canonical source
+- **Catalog inputs**: Remain explicit operation fixtures and are not generated as general Repo Manager configuration
 
 ## Test Scenarios
 

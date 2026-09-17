@@ -2,7 +2,7 @@
 
 Test input configuration for the `repo_manager` automation framework.
 
-## Default Mode (Recommended)
+## Default mode
 
 By default (`dataset: ""` in `test_config.yml`), the framework reads input
 files **directly from the deployed system**:
@@ -12,7 +12,9 @@ files **directly from the deployed system**:
 | `repo_manager_config.yml` | `/opt/omnia/repo_manager/input/<project_name>/` |
 | `repo_manager_endpoint_config.yml` | `/opt/omnia/repo_manager/input/<project_name>/` |
 
-This reads the live configuration from the target server.
+Verification reads the live target configuration. When
+`sync_repo_manager_input: true`, an empty dataset selection stages the two
+public files from `src/repo_manager/input/` before syncing them.
 
 ## Custom Datasets
 
@@ -23,6 +25,8 @@ from `datasets/<name>/`. Generate one with the dataset generator:
 cd datasets/generator/
 python generate_dataset.py my_ds defaults
 python generate_dataset.py my_ds --from-src
+python generate_dataset.py my_ds defaults --dry-run
+python generate_dataset.py my_ds defaults --check
 ```
 
 See [`generator/README.md`](generator/README.md) for full usage.
@@ -34,6 +38,7 @@ datasets/<name>/
   input/
     repo_manager_config.yml
     repo_manager_endpoint_config.yml
+  dataset_manifest.yml
   README.md
 ```
 
@@ -47,7 +52,8 @@ dataset: ""                # Use deployed system config (default)
 
 ### Environment variable (one-off)
 ```bash
-OMNIA_DATASET_OVERRIDE=my_custom_ds ./run_validation.sh scenario verify
+OMNIA_DATASET_OVERRIDE=my_custom_ds OMNIA_SYNC_INPUT_OVERRIDE=true \
+  ./run_validation.sh fvt_repo_manager execute test
 ```
 
 **Priority**: env var > `test_config.yml` default.
@@ -56,10 +62,20 @@ OMNIA_DATASET_OVERRIDE=my_custom_ds ./run_validation.sh scenario verify
 
 | Setting | What gets synced |
 |---------|------------------|
-| `sync_repo_manager_input: true` | `input/` → target server |
+| `sync_repo_manager_input: true` | Public `input/` allowlist → target server |
+| `sync_repo_manager_input: false` | Validate the selection but leave target input unchanged |
 
 The framework reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the
 target server to resolve sync destinations.
+
+Startup validation fails before host mutation when the selected dataset is
+missing, incomplete, unsafe, contains invalid YAML, includes a symlink, or
+contains a credential-like input file. Synchronization stages only
+`repo_manager_config.yml` and `repo_manager_endpoint_config.yml`; encrypted
+credentials remain target-managed.
+
+Batch scenarios expose `dataset` and `sync_input` fields. Global
+`dataset_override` and `sync_input_override` settings are also supported.
 
 ## Available Profiles
 

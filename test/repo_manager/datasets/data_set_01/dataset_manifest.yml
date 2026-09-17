@@ -1,0 +1,19 @@
+---
+artifacts:
+  input/repo_manager_config.yml: d94417ae89843f05799a446106a99890bc0647079e57f9d51d586b4d0a76fa0f
+  input/repo_manager_endpoint_config.yml: 7d7fb4f7354b04dc8c647c4cb92c409ebb0a4dc8b8963078b434743fdfd0fd7b
+dataset: data_set_01
+external_inputs:
+  - Encrypted Repo Manager credentials configured on the execution OIM
+generator_version: 2
+mode: profile
+overrides: {}
+profile: defaults
+schema_version: 1
+source_documents:
+  test/repo_manager/datasets/generator/profiles/defaults.yml:
+    sha256: f70e2d8eefd793c00183806eedacaddb08c9fded5ba65fd32891140115922604
+  test/repo_manager/datasets/generator/templates/input/repo_manager_config.yml.j2:
+    sha256: eb7bd4e8155631b69c88719cf585be7ad4c054b609dec659bb503746b12fcf0d
+  test/repo_manager/datasets/generator/templates/input/repo_manager_endpoint_config.yml.j2:
+    sha256: 6366f9f56b6a7ad15d96973f18fb8535b1ca958a75da5444c547076bccf759d3

@@ -33,25 +33,44 @@ from omnia_auto import (
     resolve_domain_input_path,
     ensure_remote_dir,
 )
+from ..vars.common_vars import (
+    DATASET_NAME_PATTERN,
+    DATASETS_DIR,
+    REQUIRED_DATASET_INPUT_FILES,
+    SRC_INPUT_DIR as CANONICAL_SRC_INPUT_DIR,
+)
 
 
 # Constants
 DOMAIN_NAME = "repo_manager"
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
 ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
-SRC_INPUT_DIR = "src/repo_manager/input"
+SRC_INPUT_DIR = CANONICAL_SRC_INPUT_DIR
 
 
 def _resolve_dataset_subdir(config: Dict[str, Any], subdirectory: str, src_fallback: str) -> str:
-    """Resolve dataset subdirectory or fall back to src/."""
+    """Resolve a complete dataset subdirectory or canonical source fallback."""
     dataset = config.get("dataset", "")
     if not dataset:
-        # Fall back to source directory
-        repo_root = os.path.dirname(os.path.dirname(get_module_root()))
-        return os.path.join(repo_root, src_fallback)
+        fallback = src_fallback
+        if not os.path.isabs(fallback):
+            repo_root = os.path.dirname(os.path.dirname(get_module_root()))
+            fallback = os.path.join(repo_root, fallback)
+        resolved_fallback = os.path.realpath(fallback)
+        if not os.path.isdir(resolved_fallback):
+            raise ValueError(
+                f"Source input directory not found: {resolved_fallback}"
+            )
+        return resolved_fallback
 
-    # Resolve dataset path with security checks
-    datasets_root = os.path.realpath(os.path.join(get_module_root(), "datasets"))
+    if (
+        not isinstance(dataset, str)
+        or not DATASET_NAME_PATTERN.fullmatch(dataset)
+        or dataset in {".", "..", "generator"}
+    ):
+        raise ValueError(f"Unsafe dataset name: {dataset!r}")
+
+    datasets_root = os.path.realpath(DATASETS_DIR)
     dataset_path = os.path.join(datasets_root, dataset)
 
     # Security checks
@@ -61,6 +80,8 @@ def _resolve_dataset_subdir(config: Dict[str, Any], subdirectory: str, src_fallb
     resolved_dataset = os.path.realpath(dataset_path)
     if os.path.dirname(resolved_dataset) != datasets_root:
         raise ValueError(f"Dataset escapes datasets directory: {dataset!r}")
+    if not os.path.isdir(resolved_dataset):
+        raise ValueError(f"Dataset directory not found: {resolved_dataset}")
 
     subdir_path = os.path.join(resolved_dataset, subdirectory)
     if os.path.islink(subdir_path):
@@ -73,12 +94,18 @@ def _resolve_dataset_subdir(config: Dict[str, Any], subdirectory: str, src_fallb
         raise ValueError(
             f"Dataset subdirectory escapes its dataset: {dataset}/{subdirectory}"
         )
+    if not os.path.isdir(resolved_subdir):
+        raise ValueError(
+            f"Dataset subdirectory not found: {dataset}/{subdirectory}"
+        )
 
     return resolved_subdir
 
 
 def _reject_symlinks(directory: str) -> None:
     """Reject nested links before copying an input tree into staging."""
+    if not os.path.isdir(directory):
+        raise OSError(f"Input directory not found: {directory}")
     for current_dir, directory_names, file_names in os.walk(directory):
         for entry_name in directory_names + file_names:
             if os.path.islink(os.path.join(current_dir, entry_name)):
@@ -86,6 +113,19 @@ def _reject_symlinks(directory: str) -> None:
                     f"Refusing to sync symlink from dataset: "
                     f"{os.path.join(current_dir, entry_name)}"
                 )
+
+
+def _stage_public_input(source_dir: str, staging_dir: str) -> str:
+    """Stage only the public Repo Manager input allowlist."""
+    _reject_symlinks(source_dir)
+    staged_input = os.path.join(staging_dir, "input")
+    os.makedirs(staged_input, exist_ok=False)
+    for filename in REQUIRED_DATASET_INPUT_FILES:
+        source = os.path.join(source_dir, filename)
+        if not os.path.isfile(source) or os.path.islink(source):
+            raise OSError(f"Required public input file missing or unsafe: {source}")
+        shutil.copy2(source, os.path.join(staged_input, filename))
+    return staged_input
 
 
 def _resolve_input_dir(config: Dict[str, Any]) -> str:
@@ -145,7 +185,21 @@ def sync_repo_manager_input(host, config: Dict[str, Any] | None = None) -> Dict[
 
     conn = connection_params()
 
-    local_input = _resolve_input_dir(config)
+    try:
+        local_input = _resolve_input_dir(config)
+        _reject_symlinks(local_input)
+        for filename in REQUIRED_DATASET_INPUT_FILES:
+            input_file = os.path.join(local_input, filename)
+            if not os.path.isfile(input_file) or os.path.islink(input_file):
+                raise OSError(
+                    f"Required public input file missing or unsafe: {input_file}"
+                )
+    except (OSError, ValueError) as exc:
+        return {
+            "success": False,
+            "details": "",
+            "error": f"Invalid repo_manager input source: {exc}",
+        }
 
     if is_local_execution():
         # Local execution: use local dataset or source files directly
@@ -163,10 +217,8 @@ def sync_repo_manager_input(host, config: Dict[str, Any] | None = None) -> Dict[
     ensure_remote_dir(host, remote_input)
 
     try:
-        _reject_symlinks(local_input)
         with tempfile.TemporaryDirectory(prefix="omnia_rm_input_") as staging_dir:
-            staged_input = os.path.join(staging_dir, "input")
-            shutil.copytree(local_input, staged_input)
+            staged_input = _stage_public_input(local_input, staging_dir)
 
             result = sync_files(
                 mode=conn["mode"],
