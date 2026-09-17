@@ -23,7 +23,7 @@ from typing import Any, Dict, List
 from jsonschema import Draft7Validator
 import yaml
 
-from omnia_auto import load_test_config
+from omnia_auto import get_project_name, load_test_config
 from ..vars.common_vars import (
     DATASET_NAME_PATTERN,
     DATASETS_DIR,
@@ -264,10 +264,14 @@ def validate_test_config() -> Dict[str, Any]:
     errors: List[str] = []
     warnings: List[str] = []
 
-    for field in ("clone_path", "project_name", "report_path", "report_name"):
+    for field in ("clone_path", "report_path", "report_name"):
         value = config.get(field)
         if not isinstance(value, str) or not value.strip():
             errors.append(f"'{field}' is required and cannot be empty")
+
+    project_name = get_project_name()
+    if not isinstance(project_name, str) or not project_name.strip():
+        errors.append("OMNIA_PROJECT_NAME is required and cannot be empty")
 
     clone_path = str(config.get("clone_path", ""))
     if clone_path and not os.path.isabs(clone_path):

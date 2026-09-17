@@ -28,11 +28,13 @@ Handles:
 """
 
 import base64
+from urllib.parse import urlsplit
 
 import yaml
 
 from omnia_auto import (
     run_on_host,
+    run_ssh_command,
     read_remote_yaml,
     read_yaml_key,
 )
@@ -97,6 +99,47 @@ def decode_isilon_creds(host):
         })
 
     return {"success": len(clusters) > 0, "clusters": clusters, "error": ""}
+
+
+def get_powerscale_privileges(host, ps_user, ps_password, ps_host):
+    """Return privileges through key auth, then password auth as fallback.
+
+    The first attempt uses the shared validated passwordless SSH abstraction.
+    The fallback retains password-based deployment coverage and shell-quotes
+    all dynamic arguments.  Testinfra cannot securely stream a password to a
+    command on its secondary target, so the fallback password remains visible
+    to privileged process inspection on the OIM while the command is running.
+    """
+    endpoint = str(ps_host).strip()
+    try:
+        parsed_endpoint = urlsplit(
+            endpoint if "://" in endpoint else f"//{endpoint}"
+        )
+        ssh_target = parsed_endpoint.hostname or endpoint
+    except ValueError:
+        ssh_target = endpoint
+
+    try:
+        result = run_ssh_command(
+            host,
+            target=ssh_target,
+            user=ps_user,
+            command=CMDS["powerscale_get_privileges"],
+        )
+        if result.rc == 0:
+            return result
+    except ValueError:
+        # Preserve the prior command-result/skip behavior for malformed
+        # credentials instead of turning this optional precheck into an error.
+        pass
+
+    return run_on_host(
+        host,
+        CMDS["powerscale_get_privileges_password"],
+        ps_password,
+        f"{ps_user}@{ssh_target}",
+        CMDS["powerscale_get_privileges"],
+    )
 
 
 # -------------------------------------------------------------------------

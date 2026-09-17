@@ -540,18 +540,40 @@ def get_utils_output_path(host) -> str:
     """Get the utils output path on target.
 
     Reads OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from the target's
-    environment to resolve the output path.
+    environment to resolve the base output path.
+
+    Note: This returns the base output directory. Status files like
+    install_os_status.yml and utils_status.yml are written directly here.
 
     Args:
         host: Testinfra host object.
 
     Returns:
-        str: The output path or empty string on failure.
+        str: The base output path or empty string on failure.
     """
     try:
         data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH)
         project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
-        # Output is directly in the collect directory
+        return f"{data_path}/{DOMAIN_NAME}/output/{project}"
+    except Exception:
+        return ""
+
+
+def get_collect_output_path(host) -> str:
+    """Get the collect log collection output path on target.
+
+    Reads OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from the target's
+    environment to resolve the collect output directory.
+
+    Args:
+        host: Testinfra host object.
+
+    Returns:
+        str: The collect output path or empty string on failure.
+    """
+    try:
+        data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH)
+        project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
         return f"{data_path}/{DOMAIN_NAME}/output/{project}/collect"
     except Exception:
         return ""

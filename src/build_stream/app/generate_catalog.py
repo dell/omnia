@@ -765,7 +765,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate catalog_rhel.json from input/config')
     parser.add_argument(
         '--base-dir',
-        default='/opt/omnia/input/project_default/',
+        default=os.path.join(
+            os.getenv('OMNIA_DATA_PATH', '/opt/omnia'),
+            'build_stream',
+            'input',
+            os.getenv('OMNIA_PROJECT_NAME', 'project_default'),
+        ),
         help='Project base directory containing input/ and build_stream/ folders',
     )
     args = parser.parse_args()

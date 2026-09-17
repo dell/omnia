@@ -50,7 +50,6 @@ from library.vars.common_vars import (
     IDRAC_POD_PREFIX,
     VECTOR_LDMS_APP_NAME,
     VECTOR_OME_APP_NAME,
-    TELEMETRY_NAMESPACE,
 )
 from library.messages.telemetry_msgs import (
     TEST_LOG_MSGS as LOG_MSGS,
@@ -556,22 +555,11 @@ def test_operator_pod_recovery(host):
 
     operators = [
         {
-            "prefix": "victoria-metrics-operator",
-            "cr_cmd": (
-                f"kubectl get vmcluster -n {TELEMETRY_NAMESPACE} "
-                f"-o jsonpath='{{.items[0].status.updateStatus}}' 2>/dev/null"
-            ),
-            "cr_healthy_values": ["operational", "expanding"],
+            "kind": "victoria_metrics",
             "name": "VictoriaMetrics Operator",
         },
         {
-            "prefix": "strimzi-cluster-operator",
-            "cr_cmd": (
-                f"kubectl get kafka kafka -n {TELEMETRY_NAMESPACE} "
-                f"-o jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'"
-                f" 2>/dev/null"
-            ),
-            "cr_healthy_values": ["True"],
+            "kind": "strimzi",
             "name": "Strimzi Cluster Operator",
         },
     ]
@@ -582,9 +570,8 @@ def test_operator_pod_recovery(host):
     for op in operators:
         tl.check(f"Testing recovery for {op['name']}")
         result = verify_operator_recovery(
-            host, op["prefix"], op["cr_cmd"],
+            host, op["kind"],
             timeout=OPERATOR_RECOVERY_TIMEOUT,
-            cr_healthy_values=op.get("cr_healthy_values"),
         )
         all_details.append(f"{op['name']}: {result['details']}")
         if not result["success"]:
