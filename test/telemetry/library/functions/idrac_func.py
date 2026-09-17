@@ -73,9 +73,9 @@ def get_bmc_group_data_path(host):
         return f"{_get_input_path(host)}/{configured_path}"
 
     # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv
-    data_path = resolve_domain_data_path(host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH)
+    omnia_data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH) or "/opt/omnia"
     project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME) or "project_default"
-    return f"{data_path}/orchestrator/output/{project}/bmc_group_data.csv"
+    return f"{omnia_data_path}/orchestrator/output/{project}/bmc_group_data.csv"
 
 
 def get_bmc_group_data(host, csv_path=None):

@@ -188,9 +188,9 @@ def get_cluster_inventory_path(host) -> str:
         return result.stdout.strip()
     
     # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
-    data_path = resolve_domain_data_path(host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH)
+    omnia_data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH) or "/opt/omnia"
     project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME) or "project_default"
-    return f"{data_path}/orchestrator/output/{project}/orchestrator_inventory.yml"
+    return f"{omnia_data_path}/orchestrator/output/{project}/orchestrator_inventory.yml"
 
 
 def get_ldms_hostnames_from_inventory(host) -> Dict[str, Any]:

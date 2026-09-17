@@ -156,9 +156,9 @@ def resolve_kube_vip_ip(host):
         inventory_path = result.stdout.strip()
     else:
         # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
-        data_path = resolve_domain_data_path(host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH)
+        omnia_data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH) or "/opt/omnia"
         project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME) or "project_default"
-        inventory_path = f"{data_path}/orchestrator/output/{project}/orchestrator_inventory.yml"
+        inventory_path = f"{omnia_data_path}/orchestrator/output/{project}/orchestrator_inventory.yml"
         log(f"cluster_inventory is empty; using default: {inventory_path}", "INFO")
 
     # Step 2: Parse kube_vip_group from the inventory
