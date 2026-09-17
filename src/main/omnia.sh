@@ -1063,6 +1063,8 @@ validate_full_cleanup_state() {
         echo ""
         echo -e "${YELLOW}No files were removed. Run the matching domain cleanup first, for example:${NC}"
         echo "  ./omnia.sh --run <domain> --tags cleanup"
+        echo -e "${YELLOW}For telemetry, include delete_sinks_volume=true to also remove log, input, and output directories:${NC}"
+        echo "  ./omnia.sh --run telemetry --tags cleanup -e delete_sinks_volume=true"
         echo -e "${YELLOW}Log/output trees containing only empty directories and Build Stream initializer files are allowed.${NC}"
         echo -e "${YELLOW}Remove any intentionally retained paths reported above and retry.${NC}"
         return 1
