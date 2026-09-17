@@ -60,14 +60,24 @@
 - name: Set installation mode variables from loaded telemetry_packages
   ansible.builtin.set_fact:
     install_mode: "{{ _telemetry_packages_raw.install_mode | default('offline') }}"
-    repo_url: "{{ _telemetry_packages_raw.repo_url | default('') }}"
+    repo_url: >-
+      {% set url = _telemetry_packages_raw.repo_url | default('') -%}
+      {% if url | length > 0 -%}
+      {{ url }}{%- elif _telemetry_packages_raw.install_mode | default('offline') == 'offline' -%}
+      {% set nic_ip = lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default(admin_nic_ip | default(''), true) -%}
+      {% if nic_ip | length > 0 -%}
+      https://{{ nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0{%- endif -%}
+      {%- else -%}
+      {{ url }}{%- endif %}
     pip_modules: "{{ _telemetry_packages_raw.pip_modules | default({}) }}"
 
 - name: Validate repo_url is set for offline mode
   ansible.builtin.assert:
     that:
       - repo_url | length > 0
-    fail_msg: "repo_url must be set in telemetry_packages.yml when install_mode is 'offline'"
+    fail_msg: >
+      repo_url must be set in telemetry_packages.yml when install_mode is 'offline',
+      or SYSTEM_ADMIN_NIC_IPV4 must be set to auto-derive the Pulp URL.
   when: install_mode == "offline"
 
 - name: Build pip module URL from repo_url

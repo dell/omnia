@@ -143,6 +143,8 @@ def validate_telemetry_config(
 
     # =========================================================================
     # L2: Validate cluster_inventory — file existence under telemetry input dir
+    # Empty value is allowed — the playbook will resolve a default path:
+    #   $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
     # =========================================================================
     cluster_inventory = data.get("cluster_inventory", "")
     if cluster_inventory:
@@ -189,14 +191,11 @@ def validate_telemetry_config(
             # (e.g., /opt/omnia/orchestrator/orchestrator.yml) - no directory restriction
             logger.info(f"cluster_inventory validated: {cluster_inv_full_path}")
     else:
-        errors.append(create_error_msg(
-            "cluster_inventory",
-            "",
-            "cluster_inventory is required. Provide the path to the Ansible inventory file "
-            "(e.g., '/opt/omnia/orchestrator/output/project_default/"
-            "orchestrator_inventory.yml')"
-        ))
-        logger.error("cluster_inventory is empty or not provided")
+        # Empty cluster_inventory is allowed — playbook resolves default from
+        # $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
+        logger.info(
+            "cluster_inventory is empty — playbook will use default orchestrator output path"
+        )
 
     # =========================================================================
     # L2: Validate kube_vip — extracted from cluster_inventory file
@@ -1315,7 +1314,8 @@ def validate_telemetry_packages(
         logger.info(f"install_mode validation PASSED: {install_mode}")
 
     # =========================================================================
-    # Validate repo_url (required for offline mode)
+    # Validate repo_url (optional for offline mode — auto-derived from
+    # SYSTEM_ADMIN_NIC_IPV4 when empty)
     # =========================================================================
     repo_url = data.get("repo_url", "")
     if install_mode == "offline":
@@ -1329,7 +1329,11 @@ def validate_telemetry_packages(
             else:
                 logger.info(f"repo_url validation PASSED: {repo_url}")
         else:
-            logger.warning("repo_url is empty in offline mode — package downloads may fail")
+            logger.info(
+                "repo_url is empty in offline mode — will auto-derive from "
+                "SYSTEM_ADMIN_NIC_IPV4 at runtime: "
+                "https://<SYSTEM_ADMIN_NIC_IPV4>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0"
+            )
 
     # =========================================================================
     # Validate container_registry format (when provided)
