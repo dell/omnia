@@ -300,6 +300,7 @@
           loop:
             - BMC_IP
             - ADMIN_IP
+            - ADMIN_MAC
             - HOSTNAME
             - SERVICE_TAG
 
@@ -324,9 +325,23 @@
             that:
               - (_pxeboot_csv.list | map(attribute='BMC_IP') | map('trim') | list | unique | length) == (_pxeboot_csv.list | length)
               - (_pxeboot_csv.list | map(attribute='ADMIN_IP') | map('trim') | list | unique | length) == (_pxeboot_csv.list | length)
+              - (_pxeboot_csv.list | map(attribute='ADMIN_MAC') | map('lower') | list | unique | length) == (_pxeboot_csv.list | length)
             fail_msg: >-
               PXE inventory {{ pxeboot_inventory_source }} contains duplicate
-              BMC_IP or ADMIN_IP values. Every node must have unique addresses.
+              BMC_IP, ADMIN_IP, or ADMIN_MAC values. Every node must have a
+              unique provisioning identity.
+
+        - name: Read complete PXE mapping for identity ownership checks
+          community.general.read_csv:
+            path: "{{ pxe_mapping_file_path }}"
+          register: _pxeboot_full_csv
+
+        - name: Reconcile SMD and Boot Service identities before restart
+          ansible.builtin.include_role:
+            name: pxe_identity_preflight
+          vars:
+            pxe_identity_target_nodes: "{{ _pxeboot_csv.list }}"
+            pxe_identity_all_nodes: "{{ _pxeboot_full_csv.list }}"
 
         - name: Build BMC host group from named CSV fields
           ansible.builtin.add_host:
