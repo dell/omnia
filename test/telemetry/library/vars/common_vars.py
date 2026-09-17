@@ -120,6 +120,25 @@ KAFKA_CR_NAME = "kafka"
 KAFKA_EXTERNAL_BOOTSTRAP_SVC = "kafka-kafka-external-bootstrap"
 
 # =============================================================================
+# SOURCE-TO-SINKS MAPPING
+# =============================================================================
+# Maps each telemetry source to the sinks it can target.
+# Used for source-specific sink enablement checks in tests.
+#
+# Format: source_name -> [list of possible sink names]
+# This allows tests to verify if a specific source targets a specific sink.
+
+SOURCE_SINK_MAPPING = {
+    "idrac": ["kafka", "victoria_metrics"],
+    "ldms": ["kafka"],
+    "powerscale": ["victoria_metrics", "victoria_logs"],
+    "ufm": ["victoria_metrics", "victoria_logs"],
+    "vast": ["victoria_metrics", "victoria_logs"],
+    "ome": ["kafka"],  # OME publishes to Kafka; Vector-OME bridge routes to Victoria
+    "sfm": ["victoria_metrics"],  # SFM uses Prometheus Remote Write to victoria_metrics
+}
+
+# =============================================================================
 # SOURCE COMPONENT NAMES
 # =============================================================================
 

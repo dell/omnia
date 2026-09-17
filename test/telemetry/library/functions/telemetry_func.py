@@ -309,6 +309,14 @@ def is_sink_enabled_for_source(host, source_name, sink_name):
     Returns:
         bool: True if the source is enabled and targets this sink.
     """
+    from ..vars.common_vars import SOURCE_SINK_MAPPING
+    
+    # Validate source and sink combination
+    if source_name not in SOURCE_SINK_MAPPING:
+        return False
+    if sink_name not in SOURCE_SINK_MAPPING.get(source_name, []):
+        return False
+    
     config = load_telemetry_config_from_target(host)
     sources = read_yaml_key(config, "telemetry_sources", default={})
     src_cfg = sources.get(source_name, {})
