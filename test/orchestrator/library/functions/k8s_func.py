@@ -46,6 +46,16 @@ from ..vars.k8s_vars import (
     PVC_YAML_TEMPLATE,
     PV_YAML_TEMPLATE,
 )
+
+from ..vars.common_vars import (
+    INPUT_PATH_TEMPLATE,
+    SHARED_PATH,
+    CATALOG_FILE_PATH_TEMPLATE,
+    ENV_CATALOG_FILE_PATH,
+    ENV_OMNIA_DATA_PATH,
+)
+
+
 # =============================================================================
 # NODE DISCOVERY FUNCTIONS
 # =============================================================================
@@ -2067,21 +2077,45 @@ def check_chronyd_running(host) -> Dict[str, Any]:
 
 
 def _get_software_config(host) -> Optional[Dict]:
-    """Read and parse software_config.json from the project input directory.
+    """Read and parse catalog from orchestrator_config.yml catalog_file_path.
 
     Returns:
         Parsed JSON dict, or None if not available.
     """
-    project_path = _get_project_path(host)
-    sw_config_path = f"{project_path}/software_config.json"
-
-    cmd = f"test -f {sw_config_path} && cat {sw_config_path}"
+    import json
+    import os
+    
+    # Priority 1: CATALOG_FILE_PATH environment variable
+    catalog_path = os.environ.get(ENV_CATALOG_FILE_PATH)
+    
+    if not catalog_path:
+        # Priority 2: catalog_file_path from orchestrator_config.yml
+        project_path = _get_project_path(host)
+        orch_config_path = f"{project_path}/orchestrator_config.yml"
+        
+        cmd = f"test -f {orch_config_path} && cat {orch_config_path}"
+        result = run_on_host(host, cmd)
+        
+        if result.rc == 0 and result.stdout.strip():
+            try:
+                import yaml
+                orch_config = yaml.safe_load(result.stdout)
+                catalog_path = orch_config.get("catalog_file_path")
+            except (yaml.YAMLError, ValueError, AttributeError):
+                pass
+    
+    if not catalog_path:
+        # Priority 3: Default template with OMNIA_DATA_PATH
+        omnia_base = os.environ.get(ENV_OMNIA_DATA_PATH, "/opt/omnia")
+        catalog_path = CATALOG_FILE_PATH_TEMPLATE.format(omnia_base=omnia_base)
+    
+    # Read catalog file
+    cmd = f"test -f {catalog_path} && cat {catalog_path}"
     result = run_on_host(host, cmd)
-
+    
     if result.rc != 0 or not result.stdout.strip():
         return None
-
-    import json
+    
     try:
         return json.loads(result.stdout)
     except (json.JSONDecodeError, ValueError):
@@ -2089,39 +2123,56 @@ def _get_software_config(host) -> Optional[Dict]:
 
 
 def _get_service_k8s_version(host) -> Optional[str]:
-    """Extract service_k8s version from software_config.json.
+    """Extract kubectl version from catalog.
 
     Returns:
-        Version string (e.g. '1.34.1') or None.
+        Version string (e.g. '1.35.1') or None.
     """
-    sw_config = _get_software_config(host)
-    if not sw_config:
+    catalog = _get_software_config(host)
+    if not catalog:
         return None
 
-    for sw in sw_config.get("softwares", []):
-        if isinstance(sw, dict) and sw.get("name") == "service_k8s":
-            version = (sw.get("version") or "").strip()
-            if version.startswith("v"):
-                version = version[1:]
-            return version if version else None
+    # Catalog structure: catalog.packages is a dict with package names as keys
+    packages = catalog.get("catalog", {}).get("packages", {})
+    
+    # Look for kubectl package with tag (e.g., "docker.io/alpine/kubectl" with tag "1.35.1")
+    for pkg_key, pkg_value in packages.items():
+        if isinstance(pkg_value, dict):
+            name = pkg_value.get("name", "")
+            tag = pkg_value.get("tag", "")
+            
+            # Match kubectl container image with tag
+            if "kubectl" in name and tag:
+                version = tag.strip()
+                if version.startswith("v"):
+                    version = version[1:]
+                return version if version else None
+            
+            # Match kubectl RPM package (e.g., "kubectl-1.35.1")
+            if name.startswith("kubectl-"):
+                version = name.replace("kubectl-", "").strip()
+                if version.startswith("v"):
+                    version = version[1:]
+                return version if version else None
 
     return None
 
 
 def _is_powerscale_csi_configured(host) -> bool:
-    """Check if csi_driver_powerscale is in software_config.json."""
-    sw_config = _get_software_config(host)
-    if not sw_config:
+    """Check if csi_driver_powerscale is in catalog."""
+    catalog = _get_software_config(host)
+    if not catalog:
         return False
 
+    packages = catalog.get("catalog", {}).get("packages", {})
     return any(
-        isinstance(sw, dict) and sw.get("name") == "csi_driver_powerscale"
-        for sw in sw_config.get("softwares", [])
+        isinstance(pkg_value, dict) and "powerscale" in pkg_value.get("name", "").lower()
+        for pkg_key, pkg_value in packages.items()
     )
 
 
 def check_kubectl_version(host) -> Dict[str, Any]:
-    """Check if kubectl client version matches the expected version from software_config.
+    """Check if kubectl client version matches the expected version from catalog.
 
     Args:
         host: Testinfra host connection
@@ -2134,8 +2185,8 @@ def check_kubectl_version(host) -> Dict[str, Any]:
         return {
             "success": False,
             "skipped": True,
-            "details": "service_k8s version not found in software_config.json",
-            "error": "Cannot determine expected K8s version",
+            "details": "kubectl version not found in catalog",
+            "error": "Cannot determine expected kubectl version from catalog",
             "expected_version": None,
             "actual_versions": [],
         }
@@ -3593,4 +3644,637 @@ def check_k8s_nfs_client_target(host) -> Dict[str, Any]:
         "error": f"Failed: {failed_nodes}",
         "nodes_checked": nodes_checked,
         "failed_nodes": failed_nodes,
+    }
+
+
+# =============================================================================
+# ETCD LOCAL DISK VERIFICATION FUNCTIONS
+# =============================================================================
+
+def check_etcd_on_local_disk_enabled(host) -> Dict[str, Any]:
+    """Check if etcd_on_local_disk is enabled in omnia_config.yml.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, enabled (bool), details, error
+    """
+    project_path = _get_project_path(host)
+    omnia_config_path = f"{project_path}/omnia_config.yml"
+
+    cmd = f"cat {omnia_config_path}"
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0:
+        return {
+            "success": False,
+            "enabled": False,
+            "details": f"Failed to read {omnia_config_path}",
+            "error": result.stderr,
+        }
+
+    try:
+        import yaml
+        omnia_config = yaml.safe_load(result.stdout)
+    except yaml.YAMLError as e:
+        return {
+            "success": False,
+            "enabled": False,
+            "details": f"Failed to parse {omnia_config_path}",
+            "error": str(e),
+        }
+
+    # Check service_k8s_cluster for etcd_on_local_disk setting
+    clusters = omnia_config.get("service_k8s_cluster", [])
+    if not clusters:
+        return {
+            "success": True,
+            "enabled": False,
+            "details": "No service_k8s_cluster found in omnia_config.yml",
+            "error": "",
+        }
+
+    enabled = clusters[0].get("etcd_on_local_disk", False)
+    if isinstance(enabled, str):
+        enabled = enabled.lower() in ("true", "yes", "1")
+
+    return {
+        "success": True,
+        "enabled": enabled,
+        "details": f"etcd_on_local_disk={enabled} in omnia_config.yml",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_boss_card_detection(host) -> Dict[str, Any]:
+    """Verify Dell BOSS card detection via PCI scan on control plane nodes.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, boss_detected (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "boss_detected": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    # Use reference implementation: lspci -nn -d 1028: (Dell vendor ID)
+    boss_model_keywords = ["boss", "BOSS"]
+    boss_found = False
+    details = []
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        cmd = _ssh_cmd(node_ip, "lspci -nn -d 1028:")
+        result = run_on_host(host, cmd)
+
+        if result.rc == 0 and result.stdout.strip():
+            node_boss_found = False
+            for keyword in boss_model_keywords:
+                if keyword.lower() in result.stdout.lower():
+                    boss_found = True
+                    node_boss_found = True
+                    details.append(f"BOSS card detected on {node_ip}: {keyword}")
+                    break
+            if not node_boss_found:
+                details.append(f"Dell hardware but no BOSS card on {node_ip}")
+        else:
+            details.append(f"No Dell hardware/BOSS card detected on {node_ip}")
+
+    return {
+        "success": True,
+        "boss_detected": boss_found,
+        "details": "; ".join(details) if details else "No BOSS card information",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_disk_partitioning(host) -> Dict[str, Any]:
+    """Verify GPT partition exists for etcd data and root disk is excluded.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, partition_exists (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "partition_exists": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    partition_found = False
+    details = []
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Get root disk
+        root_disk_cmd = _ssh_cmd(node_ip, "lsblk -no PKNAME $(findmnt -no SOURCE /) 2>/dev/null | head -1")
+        root_disk_result = run_on_host(host, root_disk_cmd)
+        root_disk = root_disk_result.stdout.strip()
+
+        # Get the disk backing /var/lib/etcd
+        mount_src_cmd = _ssh_cmd(node_ip, "findmnt -no SOURCE /var/lib/etcd 2>/dev/null")
+        mount_src_result = run_on_host(host, mount_src_cmd)
+        mount_src = mount_src_result.stdout.strip()
+
+        if not mount_src:
+            details.append(f"Etcd partition not found on {node_ip}")
+            continue
+
+        # Verify it is not the root disk
+        part_parent_cmd = _ssh_cmd(node_ip, f"lsblk -no PKNAME {mount_src} 2>/dev/null | head -1")
+        part_parent_result = run_on_host(host, part_parent_cmd)
+        part_parent = part_parent_result.stdout.strip()
+
+        if part_parent and root_disk and part_parent == root_disk:
+            details.append(f"Etcd partition on {node_ip} is on root disk (not allowed)")
+            continue
+
+        # Verify GPT partition table
+        parent_disk = f"/dev/{part_parent}" if part_parent else mount_src
+        pttype_cmd = _ssh_cmd(node_ip, f"blkid -o value -s PTTYPE {parent_disk} 2>/dev/null")
+        pttype_result = run_on_host(host, pttype_cmd)
+        pttype = pttype_result.stdout.strip().lower()
+
+        if pttype == "gpt":
+            partition_found = True
+            details.append(f"Etcd GPT partition found on {node_ip}: {mount_src}")
+        else:
+            details.append(f"Etcd partition on {node_ip} but not GPT: {pttype or 'unknown'}")
+
+    return {
+        "success": True,
+        "partition_exists": partition_found,
+        "details": "; ".join(details) if details else "No partition information",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_filesystem_creation(host) -> Dict[str, Any]:
+    """Verify ext4 filesystem on etcd partition.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, filesystem_valid (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "filesystem_valid": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    filesystem_valid = False
+    details = []
+    supported_filesystems = ["ext4"]  # Reference supports ext4
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Get the disk backing /var/lib/etcd
+        mount_src_cmd = _ssh_cmd(node_ip, "findmnt -no SOURCE /var/lib/etcd 2>/dev/null")
+        mount_src_result = run_on_host(host, mount_src_cmd)
+        mount_src = mount_src_result.stdout.strip()
+
+        if not mount_src:
+            details.append(f"Filesystem not found on {node_ip} (no mount source)")
+            continue
+
+        # Get filesystem type
+        fstype_cmd = _ssh_cmd(node_ip, f"blkid -o value -s TYPE {mount_src} 2>/dev/null")
+        fstype_result = run_on_host(host, fstype_cmd)
+        fstype = fstype_result.stdout.strip().lower()
+
+        if fstype in supported_filesystems:
+            filesystem_valid = True
+            details.append(f"Valid filesystem ({fstype}) found on {node_ip}: {mount_src}")
+        else:
+            details.append(f"Invalid filesystem on {node_ip}: {fstype or 'none'}")
+
+    return {
+        "success": True,
+        "filesystem_valid": filesystem_valid,
+        "details": "; ".join(details) if details else "No filesystem information",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_fstab_and_mount(host) -> Dict[str, Any]:
+    """Verify UUID-based fstab entry and active mount for /var/lib/etcd.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, fstab_entry_exists (bool), mount_active (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "fstab_entry_exists": False,
+            "mount_active": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    fstab_entry_exists = False
+    mount_active = False
+    details = []
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Check fstab for UUID-based entry
+        fstab_cmd = _ssh_cmd(node_ip, "grep '/var/lib/etcd' /etc/fstab 2>/dev/null")
+        fstab_result = run_on_host(host, fstab_cmd)
+        fstab_out = fstab_result.stdout.strip()
+
+        has_uuid_entry = False
+        if fstab_out:
+            for line in fstab_out.splitlines():
+                if "UUID=" in line and "/var/lib/etcd" in line:
+                    has_uuid_entry = True
+                    break
+
+        # Check mount is active
+        mount_cmd = _ssh_cmd(node_ip, "mountpoint -q /var/lib/etcd")
+        mount_result = run_on_host(host, mount_cmd)
+        node_mount = mount_result.rc == 0
+
+        if has_uuid_entry:
+            fstab_entry_exists = True
+        if node_mount:
+            mount_active = True
+
+        details.append(f"{node_ip}: UUID-fstab={'exists' if has_uuid_entry else 'missing'}, mount={'active' if node_mount else 'inactive'}")
+
+    return {
+        "success": True,
+        "fstab_entry_exists": fstab_entry_exists,
+        "mount_active": mount_active,
+        "details": "; ".join(details) if details else "No fstab/mount information",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_local_disk_config(host) -> Dict[str, Any]:
+    """Verify etcd uses local disk at /var/lib/etcd (not NFS).
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, using_local_disk (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "using_local_disk": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    using_local_disk = False
+    details = []
+    nfs_mount_type = "nfs"
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Check mount type for /var/lib/etcd
+        cmd = _ssh_cmd(node_ip, "findmnt -no FSTYPE /var/lib/etcd 2>/dev/null")
+        result = run_on_host(host, cmd)
+        fstype = result.stdout.strip().lower()
+
+        if fstype and fstype != nfs_mount_type:
+            using_local_disk = True
+            details.append(f"Local disk mount on {node_ip}: {fstype}")
+        else:
+            reason = f"mount type is '{fstype}'" if fstype else "not mounted"
+            details.append(f"Not using local disk on {node_ip}: {reason}")
+
+    return {
+        "success": True,
+        "using_local_disk": using_local_disk,
+        "details": "; ".join(details) if details else "No mount information",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_fallback_disk_detection(host) -> Dict[str, Any]:
+    """Verify fallback disk detection (non-BOSS disk).
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, fallback_disk_detected (bool)
+    """
+    boss_result = check_k8s_etcd_boss_card_detection(host)
+    
+    if not boss_result["success"]:
+        return {
+            "success": False,
+            "fallback_disk_detected": False,
+            "details": "BOSS card detection failed",
+            "error": boss_result["error"],
+        }
+
+    # If BOSS card is detected, skip fallback disk check
+    if boss_result.get("boss_detected"):
+        return {
+            "success": True,
+            "fallback_disk_detected": False,
+            "details": "BOSS card detected, skipping fallback disk check",
+            "error": "",
+        }
+
+    # Check if etcd is mounted (indicating fallback disk is being used)
+    mount_result = check_k8s_etcd_local_disk_config(host)
+    
+    if mount_result.get("using_local_disk"):
+        return {
+            "success": True,
+            "fallback_disk_detected": True,
+            "details": "Fallback disk detected (etcd mounted on local disk)",
+            "error": "",
+        }
+
+    return {
+        "success": True,
+        "fallback_disk_detected": False,
+        "details": "No fallback disk detected (etcd not mounted locally)",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_first_boot_setup(host) -> Dict[str, Any]:
+    """Verify etcd-disk-setup.sh script exists and executed successfully.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, script_exists (bool), script_executed (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "script_exists": False,
+            "script_executed": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    script_exists = False
+    script_executed = False
+    details = []
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Check if script exists (using reference path)
+        script_path = "/usr/local/bin/etcd-disk-setup.sh"
+        script_cmd = _ssh_cmd(node_ip, f"test -f {script_path}")
+        script_result = run_on_host(host, script_cmd)
+        node_script_exists = script_result.rc == 0
+
+        # Check if script was executed (look for log file using reference path)
+        log_path = "/var/log/etcd-disk-setup.log"
+        log_cmd = _ssh_cmd(node_ip, f"test -f {log_path}")
+        log_result = run_on_host(host, log_cmd)
+        node_script_executed = log_result.rc == 0
+
+        if node_script_exists:
+            script_exists = True
+        if node_script_executed:
+            script_executed = True
+
+        details.append(f"{node_ip}: script={'exists' if node_script_exists else 'missing'}, log={'exists' if node_script_executed else 'missing'}")
+
+    return {
+        "success": True,
+        "script_exists": script_exists,
+        "script_executed": script_executed,
+        "details": "; ".join(details) if details else "No script information",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_ssd_disk_support(host) -> Dict[str, Any]:
+    """Verify SSD disk support for etcd on control plane nodes.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, ssd_detected (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "ssd_detected": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    ssd_detected = False
+    ssd_nodes = []
+    details = []
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Get the source device for /var/lib/etcd
+        mount_src_cmd = _ssh_cmd(node_ip, "findmnt -no SOURCE /var/lib/etcd 2>/dev/null")
+        mount_src_result = run_on_host(host, mount_src_cmd)
+        mount_src = mount_src_result.stdout.strip()
+
+        if not mount_src:
+            details.append(f"No etcd mount on {node_ip}")
+            continue
+
+        # Get parent disk name
+        parent_disk_cmd = _ssh_cmd(node_ip, f"lsblk -no PKNAME {mount_src} 2>/dev/null | head -1")
+        parent_disk_result = run_on_host(host, parent_disk_cmd)
+        parent_disk = parent_disk_result.stdout.strip()
+        if not parent_disk:
+            parent_disk = mount_src.replace("/dev/", "").rstrip("0123456789").rstrip("p")
+
+        # Detect disk type on the etcd disk
+        disk_type_cmd = _ssh_cmd(node_ip, f"lsblk -o NAME,ROTA /dev/{parent_disk} 2>/dev/null | grep -v '^NAME'")
+        disk_type_result = run_on_host(host, disk_type_cmd)
+        
+        if disk_type_result.rc == 0 and disk_type_result.stdout.strip():
+            # ROTA=0 means SSD, ROTA=1 means HDD
+            if "0" in disk_type_result.stdout.split()[-1]:
+                ssd_detected = True
+                ssd_nodes.append(node_ip)
+
+    if ssd_nodes:
+        details = f"SSD disk used for etcd on: {', '.join(ssd_nodes)}"
+    else:
+        details = "No SSD disk used for etcd on any control plane node"
+
+    return {
+        "success": True,
+        "ssd_detected": ssd_detected,
+        "details": details,
+        "error": "",
+    }
+
+
+def check_k8s_etcd_hdd_disk_support(host) -> Dict[str, Any]:
+    """Verify HDD disk support for etcd on control plane nodes.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, hdd_detected (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "hdd_detected": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    hdd_detected = False
+    hdd_nodes = []
+    details = []
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Get the source device for /var/lib/etcd
+        mount_src_cmd = _ssh_cmd(node_ip, "findmnt -no SOURCE /var/lib/etcd 2>/dev/null")
+        mount_src_result = run_on_host(host, mount_src_cmd)
+        mount_src = mount_src_result.stdout.strip()
+
+        if not mount_src:
+            details.append(f"No etcd mount on {node_ip}")
+            continue
+
+        # Get parent disk name
+        parent_disk_cmd = _ssh_cmd(node_ip, f"lsblk -no PKNAME {mount_src} 2>/dev/null | head -1")
+        parent_disk_result = run_on_host(host, parent_disk_cmd)
+        parent_disk = parent_disk_result.stdout.strip()
+        if not parent_disk:
+            parent_disk = mount_src.replace("/dev/", "").rstrip("0123456789").rstrip("p")
+
+        # Detect disk type on the etcd disk
+        disk_type_cmd = _ssh_cmd(node_ip, f"lsblk -o NAME,ROTA /dev/{parent_disk} 2>/dev/null | grep -v '^NAME'")
+        disk_type_result = run_on_host(host, disk_type_cmd)
+        
+        if disk_type_result.rc == 0 and disk_type_result.stdout.strip():
+            # ROTA=0 means SSD, ROTA=1 means HDD
+            if "1" in disk_type_result.stdout.split()[-1]:
+                hdd_detected = True
+                hdd_nodes.append(node_ip)
+
+    if hdd_nodes:
+        details = f"HDD disk used for etcd on: {', '.join(hdd_nodes)}"
+    else:
+        details = "No HDD disk used for etcd on any control plane node"
+
+    return {
+        "success": True,
+        "hdd_detected": hdd_detected,
+        "details": details,
+        "error": "",
+    }
+
+
+def check_k8s_etcd_nvme_disk_support(host) -> Dict[str, Any]:
+    """Verify NVMe disk support for etcd on control plane nodes.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, nvme_detected (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "nvme_detected": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    nvme_detected = False
+    nvme_nodes = []
+    details = []
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Get the source device for /var/lib/etcd
+        mount_src_cmd = _ssh_cmd(node_ip, "findmnt -no SOURCE /var/lib/etcd 2>/dev/null")
+        mount_src_result = run_on_host(host, mount_src_cmd)
+        mount_src = mount_src_result.stdout.strip()
+
+        if not mount_src:
+            details.append(f"No etcd mount on {node_ip}")
+            continue
+
+        # Check if the etcd disk is NVMe
+        if "nvme" in mount_src.lower():
+            nvme_detected = True
+            nvme_nodes.append(node_ip)
+
+    if nvme_nodes:
+        details = f"NVMe disk used for etcd on: {', '.join(nvme_nodes)}"
+    else:
+        details = "No NVMe disk used for etcd on any control plane node"
+
+    return {
+        "success": True,
+        "nvme_detected": nvme_detected,
+        "details": details,
+        "error": "",
     }
