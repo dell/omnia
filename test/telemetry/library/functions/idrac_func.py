@@ -32,7 +32,12 @@ from .telemetry_func import (
     _get_input_path,
     get_output_path,
     load_telemetry_config_from_target,
+    read_remote_env,
+    resolve_domain_data_path,
     run_on_kube_vip,
+    ENV_OMNIA_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
+    DOMAIN_NAME,
 )
 
 # -------------------------------------------------------------------------
@@ -44,7 +49,9 @@ def get_bmc_group_data_path(host):
 
     ``telemetry_config.yml`` is loaded from the environment-derived project
     input directory. An explicit ``bmc_group_data_path`` wins; otherwise the
-    CSV is resolved alongside that deployed configuration.
+    CSV is resolved from the orchestrator output directory.
+
+    Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv
 
     Args:
         host: Testinfra host (OIM).
@@ -65,7 +72,10 @@ def get_bmc_group_data_path(host):
             return configured_path
         return f"{_get_input_path(host)}/{configured_path}"
 
-    return f"{_get_input_path(host)}/bmc_group_data.csv"
+    # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv
+    data_path = resolve_domain_data_path(host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH)
+    project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME) or "project_default"
+    return f"{data_path}/orchestrator/output/{project}/bmc_group_data.csv"
 
 
 def get_bmc_group_data(host, csv_path=None):

@@ -129,9 +129,10 @@ def load_telemetry_config_from_target(host):
 def resolve_kube_vip_ip(host):
     """Resolve the kube_vip IP from OIM's telemetry config.
 
-    Reads cluster_inventory path from telemetry_config.yml, then
-    parses the orchestrator inventory to extract the kube_vip
-    ansible_host IP.
+    Reads cluster_inventory path from telemetry_config.yml (or uses default if empty),
+    then parses the orchestrator inventory to extract the kube_vip ansible_host IP.
+
+    Default cluster_inventory: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
 
     Args:
         host: Testinfra host connection to the OIM.
@@ -150,11 +151,15 @@ def resolve_kube_vip_ip(host):
         config_path=config_path, field="cluster_inventory",
     )
     result = run_on_host(host, cmd)
-    if result.rc != 0 or not result.stdout.strip():
-        log("Cannot read cluster_inventory from telemetry_config.yml", "WARN")
-        return ""
-
-    inventory_path = result.stdout.strip()
+    
+    if result.rc == 0 and result.stdout.strip():
+        inventory_path = result.stdout.strip()
+    else:
+        # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
+        data_path = resolve_domain_data_path(host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH)
+        project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME) or "project_default"
+        inventory_path = f"{data_path}/orchestrator/output/{project}/orchestrator_inventory.yml"
+        log(f"cluster_inventory is empty; using default: {inventory_path}", "INFO")
 
     # Step 2: Parse kube_vip_group from the inventory
     cmd = CMDS["read_kube_vip_ip"].format(inventory_path=inventory_path)
