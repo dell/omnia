@@ -41,7 +41,6 @@ def _base_config():
     return {
         "oim_server_ip": "",
         "clone_path": "/root/omnia",
-        "project_name": "project_default",
         "report_path": "/opt/omnia/reports",
         "report_name": "orchestrator_test_report",
         "dataset": "",
@@ -135,9 +134,9 @@ def test_empty_dataset_uses_current_source_fallbacks(monkeypatch):
 
 
 def test_project_name_is_resolved_from_environment(monkeypatch):
-    """ORCH_UT_095: Removed YAML project keys use the Omnia environment contract."""
+    """ORCH_UT_115: Removed YAML project keys use the Omnia environment contract."""
     config = _base_config()
-    config.pop("project_name")
+    config.pop("project_name", None)
     monkeypatch.setenv("OMNIA_PROJECT_NAME", "project_from_environment")
     monkeypatch.setattr(validation_func, "load_test_config", lambda: config)
 
@@ -147,9 +146,9 @@ def test_project_name_is_resolved_from_environment(monkeypatch):
 
 
 def test_empty_environment_project_name_fails_closed(monkeypatch):
-    """ORCH_UT_096: An explicitly empty Omnia project is never accepted."""
+    """ORCH_UT_116: An explicitly empty Omnia project is never accepted."""
     config = _base_config()
-    config.pop("project_name")
+    config.pop("project_name", None)
     monkeypatch.setenv("OMNIA_PROJECT_NAME", "")
     monkeypatch.setattr(validation_func, "load_test_config", lambda: config)
 

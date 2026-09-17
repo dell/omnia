@@ -1,7 +1,9 @@
 # Omnia Samples
 
-Reference files for Omnia deployment. These are **not** used at runtime — they
-serve as documentation and starting-point examples.
+Reference files for Omnia deployment. Setup installs the default only when the
+active catalog does not exist. The catalog management commands can list and
+activate a bundled variant; playbooks consume the copied runtime file, not the
+sample in the source tree.
 
 ## Catalog Files
 
@@ -88,17 +90,21 @@ All Slurm catalogs include these driver groups where applicable:
 ## Usage
 
 ```bash
-# Copy sample catalog to the convention path for testing:
-sudo mkdir -p /opt/omnia/catalog
-sudo cp samples/catalog_rhel.json /opt/omnia/catalog/
+# From src/main, list the bundled selectors:
+./omnia.sh --list-catalogs
 
-# Or use a specific modular catalog:
-sudo cp samples/catalogs/10.2/slurm_service_k8s_x86_64.json /opt/omnia/catalog/catalog_rhel.json
+# Select interactively or provide an exact selector:
+sudo ./omnia.sh --select-catalog
+sudo ./omnia.sh --select-catalog 10.2/slurm_service_k8s_x86_64.json
 
-# Then configure image_build_config.yml:
-#   catalog_file: "/opt/omnia/catalog/catalog_rhel.json"
-#   functional_groups_source: "catalog"
+# The selected file is copied to CATALOG_FILE_PATH. Image Build Manager uses it
+# when functional_groups_source is "catalog".
 ```
+
+The list and selection commands read each JSON file and display its catalog name,
+description, RHEL version, workloads, architectures, VAST client inclusion,
+and functional-layer count. This makes catalog selection independent of the
+file name alone.
 
 ## Catalog JSON Structure
 

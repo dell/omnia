@@ -22,8 +22,8 @@
 #   ./omnia.sh -r telemetry --tags <tag>
 #
 # Tags (pick ONE — mutually exclusive):
-#   (none)      — Default flow: validate + deploy
-#   precheck    — Validate environment prerequisites (opt-in only)
+#   (none)      — Default flow: validate + precheck + deploy
+#   precheck    — Validate environment prerequisites without deploying
 #   validate    — Input validation + collect credentials (alias: validation)
 #   prepare     — Input validation + collect credentials (alias: validate)
 #   credentials — Collect telemetry credentials only (opt-in only)
@@ -42,12 +42,14 @@
 #
 # Default flow (no tags):
 #   Step 1: Input validation (L1 schema + L2 logic)
-#   Step 2: Full deployment (prerequisites + sinks + sources + kustomize apply)
+#   Step 2: Environment precheck (K8s and enabled Slurm prerequisites)
+#   Step 3: Full deployment (prerequisites + sinks + sources + kustomize apply)
 #
 # Tag safety:
-#   - cleanup, precheck, upgrade, rollback use 'never' tag — NEVER run by default
+#   - cleanup, upgrade, rollback use 'never' tag — NEVER run by default
 #   - Only --tags cleanup (or granular cleanup_*) triggers cleanup
-#   - Running without tags is SAFE: validates, then deploys
+#   - Precheck automatically gates the default, deploy, and execute flows
+#   - Validation, cleanup, rollback, and utility-only flows do not require a healthy cluster
 #
 # Configuration:
 #   telemetry_config.yml → kube_vip, sources, sinks, credentials
@@ -74,13 +76,18 @@
   tags: [validate, validation, prepare]
 
 # =========================================================================
-# FLOW: precheck — Environment validation (opt-in only)
+# Step 2: Precheck — gate every deployment on cluster health
+#
+# The explicit precheck tag still supports a check-only run. Deploy/execute tags
+# ensure that no deployment starts without validating K8s health and, when LDMS
+# is enabled, Slurm node and service health.
 # =========================================================================
 - name: "Precheck | Validate telemetry prerequisites"
   ansible.builtin.import_playbook: precheck/precheck.yml
   tags:
-    - never
     - precheck
+    - deploy
+    - execute
 
 # =========================================================================
 # FLOW: credentials — Collect telemetry credentials (opt-in only)
@@ -95,7 +102,7 @@
     - prepare
 
 # =========================================================================
-# Step 2: Deploy — Full telemetry deployment (default flow)
+# Step 3: Deploy — Full telemetry deployment (default flow)
 # =========================================================================
 - name: "Execute | Deploy all telemetry sources"
   ansible.builtin.import_playbook: deploy/deploy.yml
