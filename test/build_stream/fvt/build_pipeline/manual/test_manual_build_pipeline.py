@@ -110,7 +110,6 @@ def _verify_stage(
 
 @pytest.mark.manual
 @pytest.mark.deploy
-@pytest.mark.mode_aware
 @pytest.mark.order(0)
 def test_manual_trigger_build_pipeline(
     host, pipeline_state, manual_pipeline_prerequisites,

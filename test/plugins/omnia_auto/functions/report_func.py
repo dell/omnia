@@ -54,27 +54,36 @@ _ANSI_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 # ── Report Naming ────────────────────────────────────────────────────────────
 
-def build_report_name(domain_name: str, base_name: str = "") -> str:
+def build_report_name(domain_name: str, base_name: str = "", report_id: Optional[str] = None) -> str:
     """Build pipeline-aware report filename.
 
     When running in GitLab CI (CI_PIPELINE_ID is set):
-        ``YYYYMMDD_HHMMSS_<pipeline_id>_<domain>_report``
+        - If report_id is provided or set in env: ``<report_id>_<domain>_report``
+        - Otherwise: ``YYYYMMDD_HHMMSS_<pipeline_id>_<domain>_report``
 
     When running locally:
         ``<base_name>`` or ``<domain>_report``
 
-    Same pipeline_id overwrites its report; different IDs create
+    Same report_id overwrites its report; different IDs create
     separate files.
 
     Args:
         domain_name: Domain identifier (e.g. ``repo_manager``).
         base_name: Fallback name for local runs.
+        report_id: Optional report ID (overrides environment variable).
 
     Returns:
         Report base filename without extension.
     """
+    if report_id is None:
+        report_id = os.environ.get("REPORT_ID")
     pipeline_id = os.environ.get("CI_PIPELINE_ID")
-    if pipeline_id:
+    
+    if report_id:
+        # Use REPORT_ID if set (ensures consistent naming within a pipeline run)
+        return f"{report_id}_{domain_name}_report"
+    elif pipeline_id:
+        # Fallback to timestamp + pipeline_id for CI runs without REPORT_ID
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"{ts}_{pipeline_id}_{domain_name}_report"
     return base_name or f"{domain_name}_report"
@@ -567,26 +576,7 @@ class TestReport:
 
         if existing_mod_idx is not None:
             mod = run["modules"][existing_mod_idx]
-            # A verification retry belongs to the same logical test run.
-            # Replace its earlier result instead of counting both the stale
-            # failure and the recovered result in the combined report.
-            result_indexes = {
-                (
-                    result.get("tc_id") or "",
-                    result.get("test_name") or "",
-                ): index
-                for index, result in enumerate(mod["results"])
-            }
-            for result in self.results:
-                result_key = (
-                    result.get("tc_id") or "",
-                    result.get("test_name") or "",
-                )
-                if result_key in result_indexes:
-                    mod["results"][result_indexes[result_key]] = result
-                else:
-                    result_indexes[result_key] = len(mod["results"])
-                    mod["results"].append(result)
+            mod["results"].extend(self.results)
             mod["playbook_logs"] = self.playbook_logs
             mod["command_type"] = self.command_type
             if self.playbook_logs:

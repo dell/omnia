@@ -19,8 +19,9 @@ Verifies that no pods or PVCs remain in the telemetry namespace after
 a full cleanup has completed.
 
 Test cases:
-    TEL_FVT_CLEANUP_V013: Verify no pods remain after full cleanup
-    TEL_FVT_CLEANUP_V014: Verify no PVCs remain after full cleanup
+    TEL_FVT_CLEANUP_V012: Verify no pods remain after full cleanup
+    TEL_FVT_CLEANUP_V013: Verify no PVCs remain after full cleanup
+    TEL_FVT_CLEANUP_V014: Verify sink PVCs are preserved after cleanup
 """
 
 import pytest
@@ -34,7 +35,6 @@ from library.messages.telemetry_msgs import (
 )
 from library.functions.cleanup_func import (
     verify_no_pods_remaining,
-    verify_no_pvcs_remaining,
     verify_pvcs_preserved,
     verify_source_pvcs_deleted,
     verify_sink_pvcs_deleted,
@@ -69,66 +69,52 @@ def test_no_pods_after_full_cleanup(host):
 
 @pytest.mark.sanity
 @pytest.mark.order(62)
-<<<<<<< Updated upstream
 def test_no_pvcs_after_full_cleanup(host, delete_sinks_volume):
-    """TC_CL_012: Verify PVC state after full cleanup.
-=======
-def test_no_pvcs_after_full_cleanup(host, delete_volume):
     """TEL_FVT_CLEANUP_V013/TEL_FVT_CLEANUP_V014: Verify cleanup PVC state.
->>>>>>> Stashed changes
 
     After a full cleanup (--tags cleanup):
       - With delete_sinks_volume=true: zero PVCs must remain (all deleted).
-      - With delete_sinks_volume=false: Kafka and VictoriaMetrics/VictoriaLogs PVCs must be preserved, other PVCs deleted.
+      - With delete_sinks_volume=false: sink PVCs must be preserved and
+        source PVCs must be deleted.
     """
-    # First, verify source PVCs are always deleted (regardless of flag)
-    tc_source = TC["no_pvcs_after_full_cleanup"]
-    tl_source = TestLogger("Verify source PVCs deleted", tc_source["id"] + "-source")
+    case_key = (
+        "no_pvcs_after_full_cleanup"
+        if delete_sinks_volume
+        else "pvcs_preserved_after_cleanup"
+    )
+    tc = TC[case_key]
+    tl = TestLogger(tc["title"], tc["id"])
 
+    tl.check("Verifying source PVCs were deleted during cleanup")
     result_source = verify_source_pvcs_deleted(host)
-
-    if result_source["success"]:
-        tl_source.passed(
-            LOG_MSGS["no_pvcs_remaining"],
-            result_source["details"],
-        )
-    else:
-        tl_source.failed(
+    if not result_source["success"]:
+        tl.failed(
             LOG_MSGS["pvcs_remaining"].format(count=result_source["count"]),
             result_source["details"],
         )
-
     assert result_source["success"], (
         f"Source PVCs were not deleted: {result_source['error']}"
     )
 
-    # Then, verify sink PVCs based on the flag
     if delete_sinks_volume:
-        tc_sink = TC["no_pvcs_after_full_cleanup"]
-        tl_sink = TestLogger("Verify sink PVCs deleted", tc_sink["id"] + "-sink")
-
+        tl.check("Verifying sink PVCs were deleted during cleanup")
         result_sink = verify_sink_pvcs_deleted(host)
-
         if result_sink["success"]:
-            tl_sink.passed(
+            tl.passed(
                 LOG_MSGS["no_pvcs_remaining"],
-                result_sink["details"],
+                f"{result_source['details']}\n{result_sink['details']}",
             )
         else:
-            tl_sink.failed(
+            tl.failed(
                 LOG_MSGS["pvcs_remaining"].format(count=result_sink["count"]),
                 result_sink["details"],
             )
-
         assert result_sink["success"], (
             f"Sink PVCs were not deleted: {result_sink['error']}"
         )
     else:
-        tc = TC["pvcs_preserved_after_cleanup"]
-        tl = TestLogger(tc["title"], tc["id"])
-
+        tl.check("Verifying sink PVCs were preserved during cleanup")
         result = verify_pvcs_preserved(host)
-
         if result["success"]:
             tl.passed(LOG_MSGS["pvcs_preserved"], result["details"])
         else:
@@ -136,5 +122,4 @@ def test_no_pvcs_after_full_cleanup(host, delete_volume):
                 LOG_MSGS["pvcs_not_preserved"],
                 result["details"],
             )
-
         assert result["success"], ASSERT_MSGS["pvcs_not_preserved"]

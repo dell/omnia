@@ -84,7 +84,6 @@ def test_image_groups_for_cleanup(host, cleanup_pipeline_state):
 
 @pytest.mark.sanity
 @pytest.mark.deploy
-@pytest.mark.mode_aware
 @pytest.mark.order(4)
 def test_trigger_cleanup_pipeline(host, cleanup_pipeline_state):
     """Trigger cleanup in exec mode or verify its prior completion."""

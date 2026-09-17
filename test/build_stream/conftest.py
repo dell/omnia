@@ -143,10 +143,6 @@ def pytest_configure(config):
         "sanity": "Baseline verification (must-pass)",
         "manual": "Manually-triggered pipeline verification",
         "deploy": "Playbook deployment tests",
-        "mode_aware": (
-            "Run an action in exec mode and verify its existing state in "
-            "verify mode"
-        ),
         "nft": "BuildStream non-functional test",
         "resilience": "Service and pipeline recovery test",
         "security": "Authentication, authorization, and input security test",

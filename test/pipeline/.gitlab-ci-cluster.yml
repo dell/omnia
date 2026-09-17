@@ -679,6 +679,7 @@ cleanup_orchestrator:
         $SSH_CMD $TARGET "
           source $OMNIA_DATA_PATH/activate-omnia.sh
           cd $OMNIA_INSTALL_PATH/src/orchestrator/playbooks/
+          export SKIP_APPROVAL=true
           ansible-playbook orchestrator.yml --tags cleanup $ANSIBLE_VERBOSITY
         "
       fi
@@ -840,7 +841,7 @@ setup_main:
   rules:
     - if: '$SKIP_STAGES =~ /setup_main/'
       when: never
-    - if: '$PIPELINE_MODE == "default" && $DOMAINS == "default"'
+    - if: '$PIPELINE_MODE == "default" || ($PIPELINE_MODE == "deploy" && $ENABLE_SETUP == "true")'
       when: on_success
   needs:
     - job: initialization
@@ -2208,7 +2209,56 @@ summary:
         # Handle both comma and pipe separators for domain lists
         REPORT_DOMAINS="main $(echo "$DOMAINS" | tr ',|' ' ')"
       fi
+
+      # Check which test stages actually executed successfully
+      echo "Checking which test stages executed..."
+      python3 - <<'PY'
+      import json
+      import os
+
+      # Read job statuses
+      job_statuses = []
+      try:
+        with open("pipeline_reports/job_statuses.json", "r") as f:
+          job_statuses = json.load(f)
+      except:
+        pass
+
+      # Determine which test stages succeeded
+      test_stages_executed = {}
+      for job in job_statuses:
+        name = job.get("name", "")
+        status = job.get("status", "")
+        if status == "success" and "test_" in name:
+          # Extract domain from job name
+          if "test_main" in name:
+            test_stages_executed["main"] = True
+          elif "test_repo_manager" in name:
+            test_stages_executed["repo_manager"] = True
+          elif "test_image_build_manager" in name:
+            test_stages_executed["image_build_manager"] = True
+          elif "test_orchestrator" in name:
+            test_stages_executed["orchestrator"] = True
+          elif "test_telemetry" in name:
+            test_stages_executed["telemetry"] = True
+
+      # Save to file for shell script
+      with open("pipeline_reports/test_stages_executed.json", "w") as f:
+        json.dump(test_stages_executed, f)
+
+      print(f"Test stages executed: {list(test_stages_executed.keys())}")
+      PY
+
       for domain in $REPORT_DOMAINS; do
+        # Check if test stage for this domain executed
+        TEST_EXECUTED=$(python3 -c "import json; print('true' if \
+          json.load(open('pipeline_reports/test_stages_executed.json')).get('$domain', False) else 'false')")
+
+        if [ "$TEST_EXECUTED" != "true" ]; then
+          echo "  Skipping $domain: test stage did not execute successfully"
+          continue
+        fi
+
         REMOTE_PATH=$(python3 -c "import json; print(json.load(open('pipeline_reports/domain_report_paths.json')).get('$domain', '/opt/omnia/reports'))")
         echo "  Domain: $domain, Remote path: $REMOTE_PATH"
 
@@ -2216,7 +2266,7 @@ summary:
         echo "  Available report files in $REMOTE_PATH:"
         $SSH_CMD $TARGET "ls -1t $REMOTE_PATH/*_report.json 2>/dev/null | head -20" || true
 
-        # Try multiple glob patterns (most specific to broadest)
+        # Only use patterns that include pipeline ID to avoid picking up old reports
         LATEST_JSON=""
         # Pattern 1: *_<pipeline_id>_<domain>_report.json (exact match)
         REPORT_GLOB="*_${CI_PIPELINE_ID}_${domain}_report.json"
@@ -2224,34 +2274,10 @@ summary:
         LATEST_JSON=$($SSH_CMD $TARGET \
           "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
 
-        # Pattern 2: *_<domain>_report.json (any pipeline ID — pick latest)
+        # Pattern 2: *_<pipeline_id>*<domain>*report*.json (fallback with pipeline ID)
         if [ -z "$LATEST_JSON" ]; then
-          REPORT_GLOB="*_${domain}_report.json"
+          REPORT_GLOB="*_${CI_PIPELINE_ID}*${domain}*report*.json"
           echo "  Trying pattern 2: $REPORT_GLOB"
-          LATEST_JSON=$($SSH_CMD $TARGET \
-            "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
-        fi
-
-        # Pattern 3: <domain>_test_report.json (repo_manager style)
-        if [ -z "$LATEST_JSON" ]; then
-          REPORT_GLOB="${domain}_test_report.json"
-          echo "  Trying pattern 3: $REPORT_GLOB"
-          LATEST_JSON=$($SSH_CMD $TARGET \
-            "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
-        fi
-
-        # Pattern 4: <domain>_report.json (no prefix)
-        if [ -z "$LATEST_JSON" ]; then
-          REPORT_GLOB="${domain}_report.json"
-          echo "  Trying pattern 4: $REPORT_GLOB"
-          LATEST_JSON=$($SSH_CMD $TARGET \
-            "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
-        fi
-
-        # Pattern 5: *<domain>*report*.json (broadest match — pick latest)
-        if [ -z "$LATEST_JSON" ]; then
-          REPORT_GLOB="*${domain}*report*.json"
-          echo "  Trying pattern 5: $REPORT_GLOB"
           LATEST_JSON=$($SSH_CMD $TARGET \
             "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
         fi
@@ -2266,7 +2292,7 @@ summary:
             $SCP_CMD "$TARGET:$LATEST_HTML" "$LOCAL_REPORTS_PATH/" || true
           fi
         else
-          echo "  WARNING: No report found for domain: $domain (tried all patterns)"
+          echo "  WARNING: No report found for domain: $domain (test stage executed but no report generated)"
         fi
       done
       echo "  Reports copied to $LOCAL_REPORTS_PATH/"
