@@ -22,10 +22,28 @@ from .common_vars import (
     CMDS,
 )
 
+from .test_case_vars import TEST_CASES
+from .ut_test_case_vars import UT_TEST_CASE_IDS
+
+from .domain_vars import (
+    DOMAIN_NAME as VALIDATION_DOMAIN,
+    FVT_TAGS,
+    MARKERS,
+    SUITES,
+    EXCLUDE_TAGS,
+)
+
 __all__ = [
     "DOMAIN_NAME",
     "PLAYBOOK_ENTRY_POINT",
     "PLAYBOOK_WORKDIR",
     "PLAYBOOK_TAGS",
     "CMDS",
+    "TEST_CASES",
+    "UT_TEST_CASE_IDS",
+    "VALIDATION_DOMAIN",
+    "FVT_TAGS",
+    "MARKERS",
+    "SUITES",
+    "EXCLUDE_TAGS",
 ]

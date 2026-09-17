@@ -8,9 +8,6 @@ oim_server_ip: ""
 # Path on the remote server where the project repo is synced (remote mode only).
 clone_path: "/root/omnia"
 
-# Omnia project whose Repo Manager input/output paths are validated.
-project_name: "project_default"
-
 # Report output path.
 report_path: "/opt/omnia/reports"
 

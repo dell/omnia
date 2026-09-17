@@ -74,11 +74,11 @@ fi
 _run_validation_completions() {
     local cur="${COMP_WORDS[COMP_CWORD]}"
     local prev="${COMP_WORDS[COMP_CWORD-1]}"
-    local domain="discovery"
-    local tags="validate discovery"
+    local domain="fvt_discovery nft_discovery ut_discovery"
+    local tags="precheck validate credentials execute discovery cleanup"
     local commands="exec verify test list help"
     local options="--suite --marker -v --verbose --debug --config"
-    local markers="sanity functional regression deploy"
+    local markers="sanity functional regression deploy nft"
 
     case "$COMP_CWORD" in
         1)
@@ -127,4 +127,6 @@ _run_validation_completions() {
 complete -F _run_validation_completions ./run_validation.sh
 
 echo -e "${GREEN}Environment ready. Tab-completion enabled.${NC}"
-echo -e "${GREEN}Run: ./run_validation.sh discovery [tag] <command>${NC}"
+echo -e "${GREEN}Run: ./run_validation.sh fvt_discovery [tag] <command>${NC}"
+echo -e "${GREEN}Run: ./run_validation.sh nft_discovery test${NC}"
+echo -e "${GREEN}Run: ./run_validation.sh ut_discovery test${NC}"
