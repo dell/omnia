@@ -70,15 +70,40 @@
     state: directory
     mode: "{{ file_perm_rwx }}"
 
-- name: Restore pg-init script if missing
+- name: Check whether PostgreSQL initialization script exists
+  ansible.builtin.stat:
+    path: "{{ openchami_dir }}/pg-init/multi-psql-db.sh"
+  register: _pg_init_script_stat
+
+- name: Restore PostgreSQL initialization script from OpenCHAMI RPM
   ansible.builtin.shell: |
     set -o pipefail
-    rpm -V openchami 2>/dev/null | grep -q 'missing.*/pg-init/multi-psql-db.sh' && \
-      rpm2cpio {{ openchami_work_dir }}/{{ openchami_rpm_name }} | \
-      cpio -idmu --quiet --directory=/ './etc/openchami/pg-init/multi-psql-db.sh' && \
-      echo "RESTORED" || echo "PRESENT"
-  register: _pg_init_restore
-  changed_when: "'RESTORED' in _pg_init_restore.stdout"
+    rpm2cpio \
+      {{ (openchami_work_dir ~ '/' ~ openchami_rpm_name) | quote }} | \
+      cpio -idmu --quiet --directory=/ \
+        './etc/openchami/pg-init/multi-psql-db.sh'
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when: not (_pg_init_script_stat.stat.exists | default(false) | bool)
+
+- name: Verify PostgreSQL initialization script is usable
+  ansible.builtin.stat:
+    path: "{{ openchami_dir }}/pg-init/multi-psql-db.sh"
+  register: _pg_init_script_verified
+
+- name: Fail when PostgreSQL initialization script is unavailable
+  ansible.builtin.assert:
+    that:
+      - _pg_init_script_verified.stat.exists | default(false) | bool
+      - _pg_init_script_verified.stat.isreg | default(false) | bool
+      - _pg_init_script_verified.stat.readable | default(false) | bool
+      - _pg_init_script_verified.stat.size | default(0) | int > 0
+    fail_msg: >-
+      The OpenCHAMI PostgreSQL initialization script is missing or unreadable.
+      It could not be restored from
+      {{ openchami_work_dir }}/{{ openchami_rpm_name }}. Refusing to start
+      OpenCHAMI because the SMD database and role would not be initialized.
 
 - name: Create tokensmith quadlet override directory
   ansible.builtin.file:
