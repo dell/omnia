@@ -1082,7 +1082,7 @@ validate_full_cleanup_state() {
         if [ "$has_telemetry_blockers" = true ]; then
             local orchestrator_root="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
             echo -e "${YELLOW}If telemetry cleanup skips due to missing kube_vip, ensure cluster_inventory is set in telemetry_config.yml:${NC}"
-            echo "  cluster_inventory: \"${orchestrator_root}/output/${OMNIA_PROJECT_NAME}/orchestrator_inventory.yaml\""
+            echo "  cluster_inventory: \"${orchestrator_root}/output/${OMNIA_PROJECT_NAME}/orchestrator_inventory.yml\""
         fi
         echo ""
         echo -e "${YELLOW}Log/output trees containing only empty directories and Build Stream initializer files are allowed.${NC}"

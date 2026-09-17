@@ -1,6 +1,6 @@
 # generate_inventories
 
-Generates Ansible inventory files from SMD-registered node data. Called after provisioning to produce `orchestrator_inventory.yaml` and `bmc_group_data.csv`.
+Generates Ansible inventory files from SMD-registered node data. Called after provisioning to produce `orchestrator_inventory.yml` and `bmc_group_data.csv`.
 
 ## Requirements
 

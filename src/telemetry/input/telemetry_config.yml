@@ -86,7 +86,7 @@
 #
 # Required format: Ansible YAML inventory
 # Example:
-#   /opt/omnia/orchestrator/output/project_default/orchestrator_inventory.yaml
+#   /opt/omnia/orchestrator/output/project_default/orchestrator_inventory.yml
 cluster_inventory: ""
 
 # ============================================================================

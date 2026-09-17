@@ -17,7 +17,7 @@
 # SMD is the single source of truth — query once, generate everything.
 #
 # Outputs:
-#   - orchestrator_inventory.yaml (all nodes)
+#   - orchestrator_inventory.yml (all nodes)
 #   - bmc_group_data.csv (all nodes)
 
 - name: Load functional groups configuration
@@ -113,8 +113,8 @@
 
 - name: Generate orchestrator inventory file
   ansible.builtin.template:
-    src: "{{ ochami_template_dir }}/nodes/orchestrator_inventory.yaml.j2"
-    dest: "{{ orchestrator_output_dir }}/orchestrator_inventory.yaml"
+    src: "{{ ochami_template_dir }}/nodes/orchestrator_inventory.yml.j2"
+    dest: "{{ orchestrator_output_dir }}/orchestrator_inventory.yml"
     mode: "{{ file_permissions_644 }}"
   vars:
     mapping_nodes_var: "{{ mapping_nodes }}"
@@ -122,11 +122,11 @@
 
 - name: Copy orchestrator inventory to localhost
   ansible.builtin.fetch:
-    src: "{{ orchestrator_output_dir }}/orchestrator_inventory.yaml"
-    dest: "{{ orchestrator_output_dir }}/orchestrator_inventory.yaml"
+    src: "{{ orchestrator_output_dir }}/orchestrator_inventory.yml"
+    dest: "{{ orchestrator_output_dir }}/orchestrator_inventory.yml"
     flat: true
 
 - name: Inventory generation complete
   ansible.builtin.debug:
     msg: >-
-      Generated inventories: orchestrator_inventory.yaml, bmc_group_data.csv
+      Generated inventories: orchestrator_inventory.yml, bmc_group_data.csv

@@ -67,7 +67,7 @@ The telemetry domain may read the following upstream output files:
 
 | Source Domain | File | Purpose |
 |---------------|------|---------|
-| orchestrator | `orchestrator_inventory.yaml` | Kubernetes cluster inventory (kube_vip, slurm nodes) |
+| orchestrator | `orchestrator_inventory.yml` | Kubernetes cluster inventory (kube_vip, slurm nodes) |
 
 ## File Location
 

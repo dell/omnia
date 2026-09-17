@@ -450,7 +450,7 @@ printf '%s\n' "${{COMPREPLY[@]}}"
 
     def test_orchestrator_inventory_can_exist_before_provisioning_status(self):
         output_dir = self.runtime_dir("orchestrator", "output")
-        (output_dir / "orchestrator_inventory.yaml").write_text(
+        (output_dir / "orchestrator_inventory.yml").write_text(
             "---\nall: {}\n", encoding="utf-8"
         )
         (output_dir / "bmc_group_data.csv").write_text(
@@ -460,7 +460,7 @@ printf '%s\n' "${{COMPREPLY[@]}}"
         output = self.run_cli("orchestrator")
 
         self.assertIn("Provisioning/PXE has not produced orchestrator_status.yml", output)
-        self.assertIn("orchestrator_inventory.yaml", output)
+        self.assertIn("orchestrator_inventory.yml", output)
         self.assertIn("bmc_group_data.csv", output)
 
     def test_successful_discovery_requires_its_generated_csv_artifacts(self):

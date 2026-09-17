@@ -360,7 +360,7 @@ _show_expected_domain_outputs() {
         orchestrator)
             echo -e "    ${DIM}orchestrator_state.yml — generated downstream run state${NC}"
             echo -e "    ${DIM}.data/functional_groups_config.yml — generated functional groups${NC}"
-            echo -e "    ${DIM}orchestrator_inventory.yaml and bmc_group_data.csv — generated inventories${NC}"
+            echo -e "    ${DIM}orchestrator_inventory.yml and bmc_group_data.csv — generated inventories${NC}"
             echo -e "    ${DIM}provisioning_report.yml — provision flow report${NC}"
             echo -e "    ${DIM}pxeboot_status.yml and failed_nodes.json — PXE flow reports${NC}"
             echo -e "    ${DIM}orchestrator_status.yml — latest aggregate provision/PXE status${NC}"

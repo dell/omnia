@@ -73,7 +73,7 @@ def test_generated_inventory_preserves_node_identity(host):
     """ORCH_FVT_PLATFORM_V002: Inventory preserves every hostname, IP, BMC and service tag."""
     paths, rows = _mapping_rows(host)
     inventory = read_remote_yaml(
-        host, posixpath.join(paths["output"], "orchestrator_inventory.yaml")
+        host, posixpath.join(paths["output"], "orchestrator_inventory.yml")
     )
     children = inventory.get("all", {}).get("children", {})
     assert isinstance(children, dict)

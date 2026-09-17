@@ -265,7 +265,7 @@ PXE phase writes `orchestrator_status.yml`.
 | repo_manager | `repo_status.yml` |
 | image_build_manager | Latest `build_status.yml` and timestamped `build_status_<version>_<timestamp>.yml` snapshot |
 | discovery | Timestamped `bmc_pxe_mapping_file_<timestamp>.csv`, latest `bmc_pxe_mapping_file.csv` symlink, timestamped `bmc_discovery_report_<timestamp>.csv`, and `discovery_status.yml` |
-| orchestrator | `orchestrator_state.yml`, `.data/functional_groups_config.yml`, `orchestrator_inventory.yaml`, `bmc_group_data.csv`, provision/PXE reports, and aggregate `orchestrator_status.yml` |
+| orchestrator | `orchestrator_state.yml`, `.data/functional_groups_config.yml`, `orchestrator_inventory.yml`, `bmc_group_data.csv`, provision/PXE reports, and aggregate `orchestrator_status.yml` |
 | telemetry | `telemetry_status.yml`, containing the latest deploy or cleanup component results |
 | build_stream | `build_stream_status.yml`, written by an enabled prepare/build flow |
 | utils | `utils_status.yml`, optional `install_os_status.yml`, collected-log bundles, and OIM log-backup bundles |
