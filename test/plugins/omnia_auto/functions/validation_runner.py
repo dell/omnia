@@ -555,6 +555,7 @@ class ValidationRunner:
         # For CI runs, use the pipeline_id that was already set
         if not os.environ.get("REPORT_ID"):
             os.environ["REPORT_ID"] = _generate_random_id()
+        report_id = os.environ.get("REPORT_ID")
         if debug:
             os.environ["OMNIA_DEBUG"] = "true"
 
@@ -991,6 +992,7 @@ class ValidationRunner:
         # For CI runs, use the pipeline_id that was already set
         if not os.environ.get("REPORT_ID"):
             os.environ["REPORT_ID"] = _generate_random_id()
+        report_id = os.environ.get("REPORT_ID")
 
         fd, results_file = tempfile.mkstemp(
             prefix="omnia_results_", suffix=".json",
