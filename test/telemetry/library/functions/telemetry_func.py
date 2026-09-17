@@ -269,11 +269,12 @@ def is_logs_enabled(host, source_name):
 def is_sink_enabled(host, sink_name):
     """Check if a telemetry sink is implicitly enabled.
 
-    A sink is considered enabled if at least one source targets it.
+    A sink is considered enabled if at least one source targets it via
+    either metrics_enabled or logs_enabled collection.
 
     Args:
         host: Testinfra host connection to the OIM.
-        sink_name: Sink name (e.g. 'victoria_metrics', 'kafka').
+        sink_name: Sink name (e.g. 'victoria_metrics', 'victoria_logs', 'kafka').
 
     Returns:
         bool: True if at least one source targets this sink.
@@ -283,7 +284,10 @@ def is_sink_enabled(host, sink_name):
     for src_cfg in sources.values():
         if not isinstance(src_cfg, dict):
             continue
-        if not src_cfg.get("metrics_enabled", False):
+        # Check both metrics_enabled and logs_enabled sources
+        metrics_enabled = src_cfg.get("metrics_enabled", False)
+        logs_enabled = src_cfg.get("logs_enabled", False)
+        if not (metrics_enabled or logs_enabled):
             continue
         targets = src_cfg.get("collection_targets", [])
         if sink_name in targets:

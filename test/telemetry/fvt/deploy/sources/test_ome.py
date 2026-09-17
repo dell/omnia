@@ -46,6 +46,7 @@ from library.functions import (
     get_kafka_external_bootstrap,
     get_ome_kafka_forwarder_config,
     get_ome_pipeline_context,
+    is_sink_enabled,
     load_test_config,
     load_test_credentials,
     run_external_kafka_playbook,
@@ -1136,6 +1137,10 @@ def _verify_victoria_metric_topic(host, test_log, topic):
     _skip_if_ome_bridge_disabled(host, "metrics", test_log=tl)
     _skip_if_configure_ome_false(tl)
     _skip_if_certs_not_uploaded(tl)
+    # Skip if victoria_metrics sink is not enabled
+    if not is_sink_enabled(host, "victoria_metrics"):
+        message = "VictoriaMetrics sink is not enabled in telemetry configuration"
+        _skip_with_log(tl, message)
 
     tl.check(
         OME_LOG_MSGS["ome_vm_data_verifying"].format(
@@ -1219,6 +1224,10 @@ def _verify_victoria_log_topic(host, test_log, topic):
     _skip_if_ome_bridge_disabled(host, "logs", test_log=tl)
     _skip_if_configure_ome_false(tl)
     _skip_if_certs_not_uploaded(tl)
+    # Skip if victoria_logs sink is not enabled
+    if not is_sink_enabled(host, "victoria_logs"):
+        message = "VictoriaLogs sink is not enabled in telemetry configuration"
+        _skip_with_log(tl, message)
 
     tl.check(
         OME_LOG_MSGS["ome_vl_data_verifying"].format(
