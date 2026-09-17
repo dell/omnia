@@ -1530,6 +1530,31 @@ def check_ldap_user_login(
                 "failed_nodes": [allocated_node],
             }
 
+        identity_ready = False
+        for _ in range(30):
+            identity = run_ssh_command(
+                host,
+                node_ip,
+                f"getent passwd {username}",
+                user="root",
+                connect_timeout=10,
+            )
+            if identity.rc == 0 and identity.stdout.strip():
+                identity_ready = True
+                break
+            time.sleep(1)
+        if not identity_ready:
+            return {
+                "success": False,
+                "skipped": False,
+                "details": (
+                    f"LDAP identity {username} did not become visible on "
+                    f"allocated node {allocated_node} within 30 seconds"
+                ),
+                "error": "LDAP identity did not propagate to allocated node",
+                "failed_nodes": [allocated_node],
+            }
+
         try:
             with _target_password_file(host, password) as password_file:
                 command_parts = (

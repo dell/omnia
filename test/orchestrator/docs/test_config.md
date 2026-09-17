@@ -11,6 +11,7 @@
 | `sync_repo_manager_output` | boolean | `false` | Sync `repo_manager_output/repo_status.yml` |
 | `sync_image_build_manager_output` | boolean | `false` | Sync `image_build_manager_output/build_status.yml` |
 | `catalog_path` | path | `""` | Optional explicit catalog for feature detection |
+| `external_ldap` | mapping | disabled | Optional external POSIX directory and `omnia_auth` proxy setup |
 | `report_path` | path | `/opt/omnia/reports` | Remote-mode report destination |
 | `report_name` | string | `orchestrator_test_report` | Report basename |
 | `report_id` | string | `""` | Optional stable report identifier |
@@ -62,3 +63,30 @@ source /etc/omnia/omnia.env
 
 Missing, relative, root-level, or path-like project values fail with an
 actionable error before verification or synchronization proceeds.
+
+## External LDAP test environment
+
+`external_ldap.enabled` is an explicit feature gate. Configure its reachable
+server address, DNS domain, ports, and POSIX UID/GID in `test_config.yml`.
+Passwords are not valid in that public file; store the LDAP test-user password
+and optional external-directory admin password with:
+
+```bash
+./setup_env.sh --set-ldap-test-creds
+```
+
+Set `manage_container: true` when the setup utility should deploy the
+configured Bitnami container on the execution OIM. Leave it false for an
+independently managed directory. `configure_proxy: true` validates and
+atomically installs the meta-proxy configuration at
+`$OMNIA_DATA_PATH/auth/config/slapd.conf` (or `proxy_config_path`), retaining a
+`.pre-external-ldap` backup and restoring it if the service restart fails.
+
+```bash
+.venv/bin/python3 utility/create_ldap_user.py
+./run_validation.sh fvt_orchestrator prepare verify --marker openldap
+```
+
+The destructive `--recreate` option removes only the configured external test
+container and named volume. It is never invoked by pytest or the validation
+runner.

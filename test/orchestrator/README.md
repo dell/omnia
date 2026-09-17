@@ -17,13 +17,27 @@ when running directly on the OIM.
 
 ### LDAP-backed Slurm login verification
 
-Deploy and integrate the LDAP server independently; the test framework never
-changes src/orchestrator, security_config.yml, slapd.conf, or
-orchestrator_credentials.yml. Store the LDAP test account only in the
-encrypted framework credential file:
+The optional setup utility follows the external-directory flow from
+`dell/omnia-containers` branch `automation-v2.2.0.0`: it deploys or reuses a
+Bitnami OpenLDAP directory, creates a POSIX user/group, validates a generated
+`meta` proxy `slapd.conf`, and restarts `omnia_auth`. It never changes
+`src/orchestrator`, public product inputs, or `orchestrator_credentials.yml`.
+Normal pytest and runner commands remain read-only.
+
+Enable and configure `external_ldap` in `test_config.yml`, then run:
 
     ./setup_env.sh --set-ldap-test-creds
+    .venv/bin/python3 utility/create_ldap_user.py
+    ./run_validation.sh fvt_orchestrator prepare verify --marker openldap
     ./run_validation.sh fvt_orchestrator check verify --suite slurm
+
+Use `utility/create_ldap_user.py --recreate` only when the configured test
+container and its named volume may be deleted. Without that flag, setup is
+reconciling: an existing account is preserved and its password is updated to
+match encrypted `test_creds.yml`. To create a different user, update the LDAP
+test credentials and assign unused `uid_number`/`gid_number` values in
+`test_config.yml`, then rerun the utility without `--recreate`; the existing
+directory and its earlier accounts remain intact.
 
 ORCH_FVT_SLURM_V035 submits a temporary job as that LDAP identity, verifies
 password-based SSH to the allocated compute node while the job is active, and

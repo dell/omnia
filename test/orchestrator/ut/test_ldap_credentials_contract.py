@@ -70,6 +70,8 @@ def test_ldap_login_opens_and_closes_a_slurm_job_access_window():
     ]
     assert "--wrap='sleep 120'" in login_block
     assert "state.upper() == \"RUNNING\"" in login_block
+    assert "getent passwd {username}" in login_block
+    assert "LDAP identity did not propagate" in login_block
     assert "with _target_password_file" in login_block
     assert "finally:" in login_block
     assert "scancel {job_id}" in login_block

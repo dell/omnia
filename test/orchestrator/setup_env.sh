@@ -41,7 +41,8 @@
 #   --domain-creds-stdin Read a non-interactive JSON object from stdin.
 #
 # LDAP TEST CREDENTIALS:
-#   --set-ldap-test-creds     Prompt for the LDAP test username/password.
+#   --set-ldap-test-creds     Prompt for the LDAP test user and optional
+#                             external-directory admin password.
 #   --update-ldap-test-creds  Replace the stored LDAP test credentials.
 #   --ldap-test-creds-stdin   Read a username/password JSON object from stdin.
 #
@@ -189,11 +190,16 @@ DOMAIN CREDENTIALS (orchestrator_credentials.yml)
 LDAP TEST CREDENTIALS
 ─────────────────────────────────────────────────────────────────
   Stored only in encrypted test_creds.yml. These credentials are consumed by
-  Slurm LDAP login tests and are never written to Orchestrator input files.
+  Slurm LDAP login tests and the explicit external-directory setup utility.
+  They are never written to Orchestrator input files.
 
-  --set-ldap-test-creds     Prompt for username and password.
-  --update-ldap-test-creds  Replace the stored username and password.
-  --ldap-test-creds-stdin   Read a username/password JSON object from standard input.
+  --set-ldap-test-creds     Prompt for test-user credentials and the optional
+                            external-directory admin password.
+  --update-ldap-test-creds  Update the stored LDAP test credentials.
+  --ldap-test-creds-stdin   Read a credential JSON object from standard input.
+
+  external_ldap_admin_password is required only when running:
+    .venv/bin/python3 utility/create_ldap_user.py
 
 OTHER OPTIONS
 ─────────────────────────────────────────────────────────────────
@@ -620,7 +626,8 @@ DOMAIN_CRED_SPEC='[
 
 LDAP_TEST_CRED_SPEC='[
   {"field":"ldap_username","label":"LDAP Test Username","group":"LDAP Test Credentials","secret":false},
-  {"field":"ldap_password","label":"LDAP Test Password","group":"LDAP Test Credentials","secret":true,"confirm":true,"min_length":1}
+  {"field":"ldap_password","label":"LDAP Test Password","group":"LDAP Test Credentials","secret":true,"confirm":true,"min_length":1},
+  {"field":"external_ldap_admin_password","label":"External LDAP Admin Password","group":"External LDAP Setup (optional)","secret":true,"confirm":true,"optional":true}
 ]'
 
 if [ "$DOMAIN_CREDS_FROM_STDIN" = true ]; then

@@ -13,6 +13,12 @@ import shlex
 import pytest
 
 from fvt.check.feature_helpers import read_remote_yaml, target_paths
+from library.functions.external_ldap_func import (
+    domain_to_dn,
+    load_external_ldap_settings,
+    resolve_proxy_config_path,
+    verify_external_ldap_user_bind,
+)
 
 
 pytestmark = [pytest.mark.openldap, pytest.mark.functional]
@@ -31,6 +37,17 @@ def _require_openldap(host):
     if not enabled:
         pytest.skip("OpenLDAP is disabled by the selected catalog")
     return paths
+
+
+def _require_external_ldap(host):
+    """Return validated settings or skip when the opt-in setup is disabled."""
+    _require_openldap(host)
+    settings = load_external_ldap_settings()
+    if not settings["enabled"]:
+        pytest.skip(
+            "External LDAP verification is disabled in test_config.yml"
+        )
+    return settings
 
 
 @pytest.mark.sanity
@@ -109,3 +126,82 @@ def test_openldap_tls_and_listener_contract(host):
         shlex.quote(certificate),
     )
     assert cert_check.rc == 0, cert_check.stderr
+
+
+@pytest.mark.order(13)
+def test_external_ldap_proxy_configuration(host):
+    """ORCH_FVT_PREPARE_V013: omnia_auth uses the configured, valid meta proxy."""
+    settings = _require_external_ldap(host)
+    config_path = resolve_proxy_config_path(host, settings)
+    deployed = host.file(config_path)
+    assert deployed.is_file, f"External LDAP proxy config is missing: {config_path}"
+    assert deployed.user == "root" and deployed.group == "root", config_path
+    assert deployed.mode == 0o600, (
+        f"External LDAP proxy config mode must be 0600: {deployed.mode!r}"
+    )
+
+    content = deployed.content_string
+    external_dn = domain_to_dn(settings["domain"])
+    expected_uri = (
+        f"ldap://{settings['server_ip']}:{settings['server_port']}/"
+    )
+    assert re.search(r"^database\s+meta\s*$", content, re.MULTILINE)
+    assert "moduleload back_ldap" in content
+    assert "moduleload back_meta" in content
+    assert expected_uri in content
+    assert re.search(
+        rf'^suffixmassage\s+"[^"]+"\s+"{re.escape(external_dn)}"\s*$',
+        content,
+        re.MULTILINE,
+    )
+    assert re.search(r"^idassert-bind\s*$", content, re.MULTILINE)
+    validation = host.run(
+        "podman exec %s slaptest -u -f /etc/openldap/slapd.conf",
+        settings["proxy_container_name"],
+    )
+    assert validation.rc == 0, validation.stderr or validation.stdout
+
+
+@pytest.mark.order(14)
+def test_external_ldap_backend_reachable_from_proxy(host):
+    """ORCH_FVT_PREPARE_V014: External LDAP is reachable from omnia_auth."""
+    settings = _require_external_ldap(host)
+    endpoint = f"ldap://{settings['server_ip']}:{settings['server_port']}"
+    result = host.run(
+        "podman exec %s ldapsearch -x -H %s -b '' -s base "
+        "'(objectClass=*)' dn",
+        settings["proxy_container_name"],
+        endpoint,
+    )
+    assert result.rc == 0, (
+        "External LDAP backend is unreachable from omnia_auth: "
+        f"{result.stderr or result.stdout}"
+    )
+
+
+@pytest.mark.order(15)
+def test_external_ldap_posix_account_binds_through_proxy(host):
+    """ORCH_FVT_PREPARE_V015: Test POSIX account binds through omnia_auth."""
+    _require_external_ldap(host)
+    result = verify_external_ldap_user_bind(host)
+    assert result["username"], "LDAP bind returned no configured username"
+    assert result["dn"], "LDAP bind returned no configured user DN"
+
+
+@pytest.mark.order(16)
+def test_external_ldap_secrets_are_not_in_public_test_config(host):
+    """ORCH_FVT_PREPARE_V016: External LDAP secrets stay in test_creds.yml."""
+    _require_external_ldap(host)
+    module_root = posixpath.dirname(
+        posixpath.dirname(posixpath.dirname(posixpath.dirname(__file__)))
+    )
+    # This check executes where pytest runs; it intentionally verifies the
+    # public framework input rather than reading or logging any secret value.
+    public_config = posixpath.join(module_root, "test_config.yml")
+    with open(public_config, encoding="utf-8") as config_file:
+        content = config_file.read()
+    assert not re.search(
+        r"^\s*(?:ldap_password|external_ldap_admin_password)\s*:",
+        content,
+        re.MULTILINE,
+    ), "LDAP secret fields must not be stored in test_config.yml"
