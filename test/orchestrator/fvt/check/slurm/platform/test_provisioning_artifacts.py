@@ -19,7 +19,7 @@ from fvt.check.feature_helpers import (
 )
 
 
-pytestmark = pytest.mark.functional
+pytestmark = [pytest.mark.functional, pytest.mark.buildstream]
 
 
 def _mapping_rows(host):

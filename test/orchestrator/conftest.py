@@ -212,8 +212,12 @@ def pytest_collection_modifyitems(session, config, items):
                     "Negative tests require the explicit negative tag"
                 ))
     else:
-        # When marker is specified, only apply the marker filtering
+        # When marker is specified, only apply the marker filtering.  A
+        # BuildStream validation is a focused post-provision health report;
+        # unrelated Orchestrator cases must be deselected instead of being
+        # reported as skipped.
         filtered = []
+        deselected = []
         for item in items:
             # The runner already scopes execution to ``-m deploy``.  A feature
             # marker belongs to the verification cases and must not silently
@@ -228,12 +232,17 @@ def pytest_collection_modifyitems(session, config, items):
                 match = _item_has_marker(item, markers[0])
 
             if not match:
+                if "buildstream" in markers:
+                    deselected.append(item)
+                    continue
                 reason = (
                     f"Marker filter: "
                     f"{'+'.join(markers) if mode == 'and' else ','.join(markers)}"
                 )
                 item.add_marker(pytest.mark.skip(reason=reason))
             filtered.append(item)
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
         items[:] = filtered
 
     # Destructive tests always require an explicit opt-in, even when another

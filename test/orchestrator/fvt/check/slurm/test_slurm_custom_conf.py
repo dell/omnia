@@ -74,6 +74,7 @@ def test_custom_slurm_conf_structure(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(11)
 def test_extra_confs_handling(host: Host):
     """ORCH_FVT_SLURM_V046: Validate extra_confs handling in slurm_config.yml."""
@@ -113,6 +114,7 @@ def test_extra_confs_handling(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(12)
 def test_custom_conf_files_exist(host: Host):
     """ORCH_FVT_SLURM_V050: Validate custom conf files exist if configured."""
@@ -161,6 +163,7 @@ def test_custom_conf_files_exist(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(13)
 def test_custom_partition_config(host: Host):
     """ORCH_FVT_SLURM_V043: Validate custom partition configuration in slurm.conf."""
@@ -207,6 +210,7 @@ def test_custom_partition_config(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(14)
 def test_custom_gres_config(host: Host):
     """ORCH_FVT_SLURM_V044: Validate custom GRES (GPU) configuration in slurm.conf."""
@@ -253,6 +257,7 @@ def test_custom_gres_config(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(15)
 def test_custom_node_config(host: Host):
     """ORCH_FVT_SLURM_V045: Validate custom node configuration in slurm.conf."""
@@ -297,6 +302,7 @@ def test_custom_node_config(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(16)
 def test_slurm_conf_merge_functionality(host: Host):
     """ORCH_FVT_SLURM_V047: Validate slurm_conf merge functionality."""
@@ -324,6 +330,7 @@ def test_slurm_conf_merge_functionality(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(17)
 def test_custom_scheduling_params(host: Host):
     """ORCH_FVT_SLURM_V048: Validate custom scheduling parameters in slurm.conf."""
@@ -375,6 +382,7 @@ def test_custom_scheduling_params(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(18)
 def test_slurm_conf_syntax_valid(host: Host):
     """ORCH_FVT_SLURM_V049: Validate slurm.conf syntax is valid."""
@@ -417,6 +425,7 @@ def test_slurm_conf_syntax_valid(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(19)
 def test_slurm_config_integrity(host: Host):
     """ORCH_FVT_SLURM_V051: Validate deployed slurm.conf matches input configuration."""
