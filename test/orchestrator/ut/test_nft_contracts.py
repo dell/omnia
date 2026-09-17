@@ -14,6 +14,9 @@
 
 """Unit tests for orchestrator non-functional test contracts."""
 
+# These contract tests intentionally exercise internal NFT helpers.
+# pylint: disable=protected-access
+
 import pytest
 
 from nft import test_idempotency as idempotency
