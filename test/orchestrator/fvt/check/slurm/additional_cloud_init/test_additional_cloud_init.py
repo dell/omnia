@@ -26,7 +26,7 @@ PROHIBITED_KEYS = {"bootcmd", "network", "network-config", "packages"}
 
 
 def _feature_config(host):
-    paths = target_paths()
+    paths = target_paths(host)
     orchestrator_config = read_remote_yaml(
         host, posixpath.join(paths["input"], "orchestrator_config.yml")
     )

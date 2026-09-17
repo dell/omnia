@@ -22,26 +22,30 @@ All verification functions return a dict with keys:
 import re
 from typing import Any, Dict, List
 
-from omnia_auto import load_test_config, run_on_host
+from omnia_auto import (
+    load_test_config,
+    resolve_domain_data_path,
+    run_on_host,
+)
 from ..vars.common_vars import (
     CMDS,
     ORCHESTRATOR_CONFIG_FILE,
     OMNIA_CONFIG_FILE,
     NETWORK_SPEC_FILE,
     CREDENTIALS_FILE_NAME,
-    INPUT_PATH_TEMPLATE,
-    REPO_MANAGER_OUTPUT_TEMPLATE,
     OPENCHAMI_CONTAINERS,
     SYSTEMD_SERVICES,
     FIREWALL_PORTS,
 )
+from .project_func import (
+    resolve_target_input_project_path,
+    resolve_target_project_name,
+)
 
 
-def _get_input_path() -> str:
-    """Return the orchestrator input path for the configured project."""
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    return INPUT_PATH_TEMPLATE.format(project=project)
+def _get_input_path(host) -> str:
+    """Return the target Orchestrator input path."""
+    return resolve_target_input_project_path(host)
 
 
 def check_input_config_exists(host) -> Dict[str, Any]:
@@ -53,7 +57,7 @@ def check_input_config_exists(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     path = f"{input_path}/{ORCHESTRATOR_CONFIG_FILE}"
     cmd = CMDS["file_exists"].format(path=path)
     result = run_on_host(host, cmd)
@@ -79,7 +83,7 @@ def check_omnia_config_exists(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     path = f"{input_path}/{OMNIA_CONFIG_FILE}"
     cmd = CMDS["file_exists"].format(path=path)
     result = run_on_host(host, cmd)
@@ -105,7 +109,7 @@ def check_network_spec_exists(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     path = f"{input_path}/{NETWORK_SPEC_FILE}"
     cmd = CMDS["file_exists"].format(path=path)
     result = run_on_host(host, cmd)
@@ -131,9 +135,7 @@ def check_credentials_present(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    input_path = INPUT_PATH_TEMPLATE.format(project=project)
+    input_path = _get_input_path(host)
     cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
     cmd = CMDS["file_exists"].format(path=cred_path)
     result = run_on_host(host, cmd)
@@ -159,9 +161,14 @@ def check_repo_status_exists(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    path = REPO_MANAGER_OUTPUT_TEMPLATE.format(project=project)
+    repo_root = resolve_domain_data_path(
+        host,
+        "repo_manager",
+        "OMNIA_DATA_PATH",
+        domain_data_path_var="REPO_MANAGER_DATA_PATH",
+    )
+    project = resolve_target_project_name(host)
+    path = f"{repo_root}/output/{project}/repo_status.yml"
     cmd = CMDS["file_exists"].format(path=path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:

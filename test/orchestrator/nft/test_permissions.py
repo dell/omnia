@@ -30,19 +30,35 @@ Test cases:
 
 import pytest
 
-from library.functions import TestLogger, load_test_config, run_on_host
+from library.functions import (
+    TestLogger,
+    resolve_target_input_project_path,
+    run_on_host,
+)
 from library.vars.common_vars import (
     CREDENTIALS_FILE_NAME,
     CREDENTIALS_KEY_NAME,
-    INPUT_PATH_TEMPLATE,
 )
 
+DEFAULT_LOG_PATH = "/var/log/omnia/orchestrator"
 
-def _get_input_path() -> str:
-    """Return the orchestrator input path for the configured project."""
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    return INPUT_PATH_TEMPLATE.format(project=project)
+
+def _is_world_exposed(directory_permissions: str, file_permissions: str) -> bool:
+    """Return whether a file is world-readable through its parent directory."""
+    try:
+        directory_world_bits = int(directory_permissions[-1], 8)
+        file_world_bits = int(file_permissions[-1], 8)
+    except (IndexError, ValueError):
+        return False
+
+    return bool(
+        directory_world_bits & 0o1 and file_world_bits & 0o4
+    )
+
+
+def _get_input_path(host) -> str:
+    """Return the target Orchestrator input path."""
+    return resolve_target_input_project_path(host)
 
 
 @pytest.mark.nft
@@ -56,7 +72,7 @@ def test_credential_file_permissions(host):
     """
     tl = TestLogger("NFT: Credential file permissions", "ORCH_NFT_008")
 
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
 
     result = run_on_host(
@@ -106,7 +122,7 @@ def test_ssh_key_permissions(host):
     """
     tl = TestLogger("NFT: SSH key permissions", "ORCH_NFT_009")
 
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
 
     # Check for common SSH key files
     ssh_key_patterns = [
@@ -169,7 +185,7 @@ def test_sensitive_log_permissions(host):
     tl = TestLogger("NFT: Sensitive log file permissions", "ORCH_NFT_010")
 
     config = load_test_config()
-    log_path = config.get("log_path", "/var/log/omnia")
+    log_path = config.get("log_path", DEFAULT_LOG_PATH)
 
     # Check log directory permissions
     result = run_on_host(
@@ -183,15 +199,15 @@ def test_sensitive_log_permissions(host):
 
     dir_perms = result.stdout.strip()
     # Log directory should not be world-writable
-    is_safe = dir_perms[2] != "2" and dir_perms[2] != "7"  # No world write
+    is_safe = not bool(int(dir_perms[-1], 8) & 0o2)
 
     # Check log file permissions
     log_result = run_on_host(
         host,
-        f"find {log_path} -name '*.log' -type f -exec stat -c '%a %n' {{}} \\; 2>/dev/null",
+        f"find {log_path} -maxdepth 1 -name '*.log' -type f -exec stat -c '%a %n' {{}} \\; 2>/dev/null",
     )
 
-    world_readable_logs = []
+    world_exposed_logs = []
     if log_result.rc == 0 and log_result.stdout.strip():
         for line in log_result.stdout.strip().split("\n"):
             if not line.strip():
@@ -199,28 +215,27 @@ def test_sensitive_log_permissions(host):
             parts = line.split()
             if len(parts) >= 2:
                 perms, log_file = parts[0], " ".join(parts[1:])
-                # Check if world-readable (last digit is 4, 5, 6, or 7)
-                if len(perms) == 3 and perms[2] in ["4", "5", "6", "7"]:
-                    world_readable_logs.append(f"{log_file} ({perms})")
+                if _is_world_exposed(dir_perms, perms):
+                    world_exposed_logs.append(f"{log_file} ({perms})")
 
-    all_ok = is_safe and not world_readable_logs
+    all_ok = is_safe and not world_exposed_logs
 
     if all_ok:
         tl.passed(
             "Log files have appropriate permissions",
             f"Log directory: {log_path} ({dir_perms})\n"
-            f"No world-readable log files found",
+            f"No world-exposed log files found",
         )
     else:
         issues = []
         if not is_safe:
             issues.append(f"Log directory has world-writable permissions: {dir_perms}")
-        if world_readable_logs:
-            issues.append(f"World-readable log files: {len(world_readable_logs)}")
+        if world_exposed_logs:
+            issues.append(f"World-exposed log files: {len(world_exposed_logs)}")
 
         tl.failed(
             f"Log permission issues found: {len(issues)}",
-            "\n".join(issues) + ("\n" + "\n".join(world_readable_logs) if world_readable_logs else ""),
+            "\n".join(issues) + ("\n" + "\n".join(world_exposed_logs) if world_exposed_logs else ""),
         )
 
     assert all_ok, (
@@ -239,7 +254,7 @@ def test_vault_encryption_verification(host):
     """
     tl = TestLogger("NFT: Ansible vault encryption verification", "ORCH_NFT_011")
 
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     cred_file = f"{input_path}/{CREDENTIALS_FILE_NAME}"
     vault_key_file = f"{input_path}/{CREDENTIALS_KEY_NAME}"
 
