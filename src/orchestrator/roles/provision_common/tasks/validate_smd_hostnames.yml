@@ -1,0 +1,83 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Validate SMD hostname-check inputs
+  ansible.builtin.assert:
+    that:
+      - smd_hostname_desired_nodes is defined
+      - smd_hostname_desired_nodes | length > 0
+      - openchami_access_token | default('') | length > 0
+    fail_msg: >-
+      SMD hostname validation requires desired PXE nodes and an authenticated
+      OpenCHAMI connection.
+
+- name: Query SMD interfaces for hostname validation
+  ansible.builtin.uri:
+    url: >-
+      {{ smd_hostname_base_url
+         | default('https://' + hostvars['localhost']['oim_node_name'] + '.'
+                   + hostvars['localhost']['domain_name'] + ':8443')
+      }}/hsm/v2/Inventory/EthernetInterfaces
+    method: GET
+    status_code: 200
+    validate_certs: "{{ smd_hostname_validate_certs | default(false) }}"
+    headers:
+      Authorization: "Bearer {{ openchami_access_token }}"
+  register: _smd_hostname_interfaces_response
+  no_log: true
+  when: smd_hostname_interfaces is not defined
+
+- name: Query metadata-service hostnames
+  ansible.builtin.uri:
+    url: >-
+      {{ smd_hostname_base_url
+         | default('https://' + hostvars['localhost']['oim_node_name'] + '.'
+                   + hostvars['localhost']['domain_name'] + ':8443')
+      }}/metadata-service/instanceinfos
+    method: GET
+    status_code: 200
+    validate_certs: "{{ smd_hostname_validate_certs | default(false) }}"
+    headers:
+      Authorization: "Bearer {{ openchami_access_token }}"
+  register: _smd_hostname_instanceinfos_response
+  no_log: true
+  when: smd_hostname_instanceinfos is not defined
+
+- name: Analyze prepared SMD hostname state
+  analyze_smd_hostname:
+    desired_nodes: "{{ smd_hostname_desired_nodes }}"
+    interfaces: >-
+      {{ smd_hostname_interfaces
+         if smd_hostname_interfaces is defined
+         else (_smd_hostname_interfaces_response.json | default([])) }}
+    instanceinfos: >-
+      {{ smd_hostname_instanceinfos
+         if smd_hostname_instanceinfos is defined
+         else (_smd_hostname_instanceinfos_response.json | default([])) }}
+    domain_name: >-
+      {{ smd_hostname_domain_name
+         | default(hostvars['localhost']['domain_name'] | default('')) }}
+  register: smd_hostname_validation
+
+- name: Require exact prepared hostname state
+  ansible.builtin.assert:
+    that:
+      - smd_hostname_validation.errors | length == 0
+    fail_msg: >-
+      OpenCHAMI hostname state does not match the PXE mapping. Run the
+      provisioning phase before PXE boot. Errors:
+      {{ smd_hostname_validation.errors }}
+    success_msg: >-
+      SMD and metadata-service hostnames match the desired PXE mapping.

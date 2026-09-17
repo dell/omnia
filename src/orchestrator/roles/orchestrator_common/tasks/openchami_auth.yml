@@ -13,49 +13,22 @@
 #  limitations under the License.
 ---
 
-- name: Include openchami vars variables
-  ansible.builtin.include_vars: "{{ role_path }}/vars/openchami_vars.yml"
-
-- name: Gather facts for services
-  ansible.builtin.service_facts:
-
-- name: Generate access token
-  block:
-    - name: Generate access token
-      ansible.builtin.command: sudo bash -lc 'gen_access_token'
-      register: access_token_result
-      changed_when: false
-      failed_when: false
-      retries: "{{ openchami_auth_retries }}"
-      delay: "{{ openchami_auth_delay }}"
-      until: access_token_result.rc == 0 and access_token_result.stdout not in ["", "null"]
-      no_log: true
-  rescue:
-    - name: Fail with access token generation error
-      ansible.builtin.fail:
-        msg: "{{ access_token_generation_fail_msg }}"
-
-- name: Set ochami_env
-  block:
-    - name: Set ochami_env
-      ansible.builtin.set_fact:
-        ochami_env: "{{ {cluster_env_key: access_token_result.stdout} }}"
-        openchami_access_token: "{{ access_token_result.stdout }}"
-      when: access_token_result.rc == 0
-      no_log: true
-  rescue:
-    - name: Fail with environment variable setting error
-      ansible.builtin.fail:
-        msg: "{{ ochami_env_setting_fail_msg }}"
+- name: Generate a fresh OpenCHAMI token for the service-status check
+  ansible.builtin.include_tasks: refresh_openchami_token.yml
+  vars:
+    openchami_token_api_validation: false
 
 - name: Check ochami smd status
   ansible.builtin.command: ochami smd service status
   register: smd_status_result
   changed_when: false
   failed_when: false
+  environment: "{{ ochami_env }}"
+  when: openchami_access_token | default('') | length > 0
 
 - name: Regenerate certificate
   when:
+    - openchami_access_token | default('') | length > 0
     - smd_status_result.rc != 0
   block:
     - name: Restart acme-deploy service
@@ -70,7 +43,7 @@
           ansible.builtin.fail:
             msg: "{{ cert_restart_fail_msg }}"
 
-    - name: Wait for {{ cert_wait_time }} seconds before checking again # noqa: name[template]
+    - name: Wait before checking OpenCHAMI status again
       ansible.builtin.wait_for:
         timeout: "{{ cert_wait_time }}"
 
@@ -79,8 +52,27 @@
       register: smd_status_recheck
       changed_when: false
       failed_when: false
+      environment: "{{ ochami_env }}"
 
     - name: Display smd status
       ansible.builtin.debug:
         msg: "{{ smd_status_recheck.stdout }}"
         verbosity: 2
+
+- name: Require OpenCHAMI SMD service status
+  ansible.builtin.assert:
+    that:
+      - >-
+        (smd_status_recheck.rc | default(smd_status_result.rc) | int) == 0
+    fail_msg: >-
+      OpenCHAMI authentication succeeded, but the SMD service status check
+      failed after certificate recovery. Check the SMD, HAProxy, local CA,
+      acme-deploy, and Tokensmith services before retrying.
+  when:
+    - openchami_access_token | default('') | length > 0
+    - openchami_token_required | default(true) | bool
+
+- name: Refresh and validate OpenCHAMI authentication after service recovery
+  ansible.builtin.include_tasks: refresh_openchami_token.yml
+  when:
+    - openchami_access_token | default('') | length > 0

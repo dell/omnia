@@ -35,6 +35,7 @@
     headers:
       Authorization: "Bearer {{ openchami_access_token }}"
   register: smd_components
+  no_log: true
 
 # Build expected nodes from the PXE mapping file's XNAME column (not group
 # names).  The previous code used fg_config 'group' attribute which contains
@@ -80,6 +81,7 @@
     headers:
       Authorization: "Bearer {{ openchami_access_token }}"
   register: bss_boot_configs
+  no_log: true
 
 - name: Build list of functional group names with boot configurations
   ansible.builtin.set_fact:
@@ -115,6 +117,7 @@
     headers:
       Authorization: "Bearer {{ openchami_access_token }}"
   register: ms_groups
+  no_log: true
 
 - name: Build list of metadata-service configured group names
   ansible.builtin.set_fact:
@@ -139,16 +142,45 @@
     headers:
       Authorization: "Bearer {{ openchami_access_token }}"
   register: smd_ethernet
+  no_log: true
+
+- name: Validate unique live SMD ownership for every mapped admin IP
+  ansible.builtin.include_role:
+    name: provision_common
+    tasks_from: validate_smd_identity.yml
+  vars:
+    smd_identity_desired_nodes: >-
+      {{ hostvars['localhost']['read_mapping_file']['dict']
+         | dict2items | map(attribute='value') | list }}
+    smd_identity_interfaces: "{{ smd_ethernet.json | default([]) }}"
+    smd_identity_base_url: "{{ openchami_base_url }}"
+    smd_identity_validate_certs: "{{ openchami_validate_certs | default(false) }}"
+
+- name: Validate prepared SMD and metadata-service hostnames
+  ansible.builtin.include_role:
+    name: provision_common
+    tasks_from: validate_smd_hostnames.yml
+  vars:
+    smd_hostname_desired_nodes: >-
+      {{ hostvars['localhost']['read_mapping_file']['dict']
+         | dict2items | map(attribute='value') | list }}
+    smd_hostname_interfaces: "{{ smd_ethernet.json | default([]) }}"
+    smd_hostname_base_url: "{{ openchami_base_url }}"
+    smd_hostname_validate_certs: >-
+      {{ openchami_validate_certs | default(false) }}
+    smd_hostname_domain_name: "{{ hostvars['localhost']['domain_name'] }}"
 
 - name: Build expected and registered administrative MAC address lists
   ansible.builtin.set_fact:
     expected_admin_macs: >-
       {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
-         | map(attribute='value.ADMIN_MAC') | map('lower') | unique | list }}
+         | map(attribute='value.ADMIN_MAC') | map('lower')
+         | map('regex_replace', '-', ':') | unique | list }}
     registered_interface_macs: >-
       {{ smd_ethernet.json | default([])
          | selectattr('MACAddress', 'defined')
-         | map(attribute='MACAddress') | map('lower') | unique | list }}
+         | map(attribute='MACAddress') | map('lower')
+         | map('regex_replace', '-', ':') | unique | list }}
 
 - name: Identify administrative interfaces missing from SMD
   ansible.builtin.set_fact:
@@ -318,3 +350,33 @@
     | length > 0
     or 'all' in (ansible_run_tags | default([]))
     or ansible_run_tags | default([]) | length == 0
+
+# Persist only identities that completed the exact SMD and metadata checks
+# above. A later provisioning run can use this manifest to retire records that
+# Omnia previously managed without treating unrelated SMD inventory as stale.
+- name: Ensure managed SMD identity state directory exists
+  ansible.builtin.file:
+    path: "{{ hostvars['localhost']['orchestrator_output_dir'] }}/.data"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+  when: provisioning_summary.overall_status == 'success'
+
+- name: Persist successfully managed SMD identities
+  ansible.builtin.copy:
+    content: >-
+      {{ {
+           'schema_version': '1.0',
+           'inventory_source': hostvars['localhost']['pxe_mapping_file_path'],
+           'managed_nodes': (
+             hostvars['localhost']['read_mapping_file']['dict']
+             | dict2items | map(attribute='value') | list
+           ),
+           'timestamp': ansible_date_time.iso8601
+         } | to_nice_yaml }}
+    dest: >-
+      {{ hostvars['localhost']['orchestrator_output_dir']
+         }}/.data/smd_managed_identities.yml
+    mode: "0600"
+  delegate_to: localhost
+  when: provisioning_summary.overall_status == 'success'
