@@ -12,16 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Delete scoped Boot Service and group data before category publication.
+# Delete stale shared OpenCHAMI provisioning data before re-registration.
 # Extracted from configure_ochami/tasks/delete_smd_config.yml.
 #
-# SMD identity retirement is deliberately not performed here. The provision
-# preamble reconciles the complete mapping once, proves current/historical
-# ownership through ADMIN_IP and ADMIN_MAC, removes dependencies, and deletes
-# EthernetInterfaces by their SMD IDs. The static discovery command later uses
-# --overwrite to update identities that remain current.
-#
-# IMPORTANT: All remaining deletions are SCOPED to the target category only.
+# IMPORTANT: All deletions are SCOPED to the target category only.
 # Using --all would wipe registrations from other categories that have
 # already been provisioned (e.g. Kubernetes provision followed by Slurm
 # provision would delete the K8s nodes from SMD, causing K8s nodes to
@@ -67,10 +61,45 @@
 - name: Build target xnames and MACs for scoped deletion
   ansible.builtin.set_fact:
     _target_node_xnames: "{{ _category_nodes | map(attribute='XNAME') | list }}"
+    _target_bmc_xnames: "{{ _category_nodes | map(attribute='XNAME') | map('regex_replace', 'n0$', '') | unique | list }}"
     _target_all_macs: >-
       {{ (_category_nodes | map(attribute='ADMIN_MAC') | list
           + _category_nodes | map(attribute='BMC_MAC') | list)
-         | map('lower') | map('regex_replace', '-', ':') | unique | list }}
+         | map('lower') | unique | list }}
+
+- name: Build combined xname list (nodes + BMCs)
+  ansible.builtin.set_fact:
+    _target_all_xnames: "{{ _target_node_xnames + _target_bmc_xnames }}"
+
+# ── SMD component endpoints (scoped to target xnames) ─────────────────
+
+- name: Delete target category component endpoints from SMD
+  ansible.builtin.command: >
+    /usr/bin/ochami smd compep delete --no-confirm
+    {{ _target_all_xnames | join(' ') }}
+  changed_when: true
+  failed_when: false
+  when: _target_all_xnames | length > 0
+
+# ── SMD redfish endpoints (scoped to target BMC xnames) ───────────────
+
+- name: Delete target category redfish endpoints from SMD
+  ansible.builtin.command: >
+    /usr/bin/ochami smd rfe delete --no-confirm
+    {{ _target_bmc_xnames | join(' ') }}
+  changed_when: true
+  failed_when: false
+  when: _target_bmc_xnames | length > 0
+
+# ── SMD interfaces (scoped to target MACs) ────────────────────────────
+
+- name: Delete target category interfaces from SMD
+  ansible.builtin.command: >
+    /usr/bin/ochami smd iface delete --no-confirm
+    {{ _target_all_macs | join(' ') }}
+  changed_when: true
+  failed_when: false
+  when: _target_all_macs | length > 0
 
 # ── Boot-service configurations (scoped to target FGs) ────────────────
 # Boot-service deletion is also performed (properly scoped) in
@@ -150,103 +179,83 @@
   failed_when: false
   when: _stale_boot_configs | default([]) | length > 0
 
-# ── Stale Omnia-owned SMD group memberships ───────────────────────────
-# When a node moves between categories, preserve operator-owned groups and
-# remove only memberships in functional groups recorded in the current or
-# last successfully managed Omnia mapping.
+# ── Stale SMD group memberships (xname overlap from other categories) ──
+# Same problem as boot configs: when a node moves between categories, its
+# xname remains in SMD groups from the previous category. Metadata-service
+# merges cloud-init data from ALL groups, so the node receives configs
+# intended for the previous category (e.g. "wait for Kubernetes API" on
+# a slurm node). Remove target xnames from non-target, non-common SMD groups.
+# Common groups (ssh, chrony, phone_home) are shared across all categories
+# and must NOT be modified here.
 
-- name: Resolve Omnia-managed and protected SMD groups
-  ansible.builtin.set_fact:
-    _omnia_managed_smd_groups: >-
-      {{ ((hostvars['localhost']['read_mapping_file']['dict']
-            | dict2items | map(attribute='value.FUNCTIONAL_GROUP_NAME') | list)
-          + (hostvars['localhost']['smd_managed_identity_nodes'] | default([])
-             | map(attribute='FUNCTIONAL_GROUP_NAME') | list))
-         | select | unique | list }}
-    _protected_smd_groups: >-
-      {{ (target_fg_names + ['ssh', 'chrony', 'phone_home'])
-         | unique | list }}
+- name: Find stale SMD group memberships to remove
+  ansible.builtin.shell: |
+    set -o pipefail
+    /usr/bin/ochami smd group get 2>/dev/null | python3 -c "
+    import sys, json
+    target_fgs = set({{ target_fg_names | to_json }})
+    target_xnames = set({{ _target_node_xnames | to_json }})
+    common_groups = {'ssh', 'chrony', 'phone_home'}
+    skip = target_fgs | common_groups
+    for grp in json.load(sys.stdin):
+        label = grp['label']
+        if label in skip:
+            continue
+        for xname in grp.get('members', {}).get('ids', []):
+            if xname in target_xnames:
+                print(f'{label} {xname}')
+    "
+  args:
+    executable: /bin/bash
+  changed_when: false
+  failed_when: false
+  register: _stale_smd_pairs
+  when: _target_node_xnames | length > 0
 
-- name: Query live SMD groups for stale membership planning
+- name: Remove target node xnames from stale SMD groups
+  ansible.builtin.command: >
+    /usr/bin/ochami smd group member delete --no-confirm {{ item.split()[0] }} {{ item.split()[1] }}
+  changed_when: true
+  failed_when: false
+  loop: "{{ _stale_smd_pairs.stdout_lines | default([]) }}"
+  loop_control:
+    label: "{{ item }} (stale membership)"
+  when: _stale_smd_pairs.stdout_lines | default([]) | length > 0
+
+# ── Metadata-service instanceinfos (scoped to target xnames) ──────────
+
+- name: Fetch existing metadata-service instanceinfos
   ansible.builtin.uri:
     url: >-
-      https://{{ _provision_reset_cluster_name }}.{{
-      _provision_reset_cluster_domain }}:8443/hsm/v2/groups
+      https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+      }}:8443/metadata-service/instanceinfos
     method: GET
     headers:
-      Authorization: >-
-        Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}
-    status_code: 200
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200]
     validate_certs: false
     return_content: true
-  register: _smd_groups_for_membership_plan
-  retries: 5
-  delay: 2
-  until: _smd_groups_for_membership_plan.status | default(0) == 200
-  no_log: true
-  when: _target_node_xnames | length > 0
+  register: existing_instanceinfos
+  failed_when: false
 
-- name: Plan stale Omnia-owned SMD memberships
-  plan_smd_group_membership:
-    groups: "{{ _smd_groups_for_membership_plan.json }}"
-    target_xnames: "{{ _target_node_xnames }}"
-    managed_groups: "{{ _omnia_managed_smd_groups }}"
-    protected_groups: "{{ _protected_smd_groups }}"
-  register: _stale_smd_membership_plan
-  when: _target_node_xnames | length > 0
-
-- name: Reject unsafe SMD membership cleanup before mutation
-  ansible.builtin.assert:
-    that:
-      - _stale_smd_membership_plan.errors | length == 0
-    fail_msg: >-
-      Refusing stale SMD membership cleanup:
-      {{ _stale_smd_membership_plan.errors }}
-  when: _target_node_xnames | length > 0
-
-- name: Remove stale Omnia-owned SMD group memberships
+- name: Delete instanceinfos for target category nodes only
   ansible.builtin.uri:
     url: >-
-      https://{{ _provision_reset_cluster_name }}.{{
-      _provision_reset_cluster_domain }}:8443/hsm/v2/groups/{{
-      item.group }}/members/{{ item.xname }}
+      https://{{ _provision_reset_cluster_name }}.{{ _provision_reset_cluster_domain
+      }}:8443/metadata-service/instanceinfos/{{ item.metadata.uid }}
     method: DELETE
     headers:
-      Authorization: >-
-        Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
     status_code: [200, 204, 404]
     validate_certs: false
-  loop: "{{ _stale_smd_membership_plan.removals | default([]) }}"
+  loop: >-
+    {{ existing_instanceinfos.json | default([])
+       | selectattr('spec.instance_id', 'defined')
+       | selectattr('spec.instance_id', 'in', _target_node_xnames)
+       | list }}
   loop_control:
-    label: "{{ item.group }} -> {{ item.xname }}"
-  register: _stale_smd_membership_delete
-  changed_when: (_stale_smd_membership_delete.status | default(404)) != 404
-  no_log: true
-
-- name: Verify stale Omnia-owned SMD memberships are absent
-  ansible.builtin.uri:
-    url: >-
-      https://{{ _provision_reset_cluster_name }}.{{
-      _provision_reset_cluster_domain }}:8443/hsm/v2/groups/{{ item.group }}
-    method: GET
-    headers:
-      Authorization: >-
-        Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}
-    status_code: [200, 404]
-    validate_certs: false
-  loop: "{{ _stale_smd_membership_plan.removals | default([]) }}"
-  loop_control:
-    label: "{{ item.group }} -> {{ item.xname }}"
-  register: _stale_smd_membership_verify
-  retries: 5
-  delay: 2
-  until: >-
-    (_stale_smd_membership_verify.status | default(0) == 404)
-    or
-    (item.xname not in
-     (((_stale_smd_membership_verify.json | default({}))
-       .get('members', {})).get('ids', [])))
-  no_log: true
+    label: "{{ item.metadata.name | default(item.metadata.uid) }}"
+  when: existing_instanceinfos.json | default([]) | length > 0
 
 # ── Metadata-service groups (scoped to target FGs) ────────────────────
 # Per-FG group deletion is also handled in configure_metadata_svc.yml

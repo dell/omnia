@@ -90,60 +90,6 @@
         state: absent
       when: _preamble_csv_result is not skipped
 
-    # --- Last successfully validated SMD identities ---
-    - name: Resolve managed SMD identity manifest path
-      ansible.builtin.set_fact:
-        _smd_managed_identity_manifest_path: >-
-          {{ orchestrator_output_dir }}/.data/smd_managed_identities.yml
-        smd_managed_identity_nodes: []
-
-    - name: Check for a managed SMD identity manifest
-      ansible.builtin.stat:
-        path: "{{ _smd_managed_identity_manifest_path }}"
-      register: _smd_managed_identity_manifest_stat
-
-    - name: Require the managed SMD identity manifest to be a regular file
-      ansible.builtin.assert:
-        that:
-          - _smd_managed_identity_manifest_stat.stat.isreg
-        fail_msg: >-
-          Refusing SMD reconciliation because
-          {{ _smd_managed_identity_manifest_path }} is not a regular file.
-      when: _smd_managed_identity_manifest_stat.stat.exists
-
-    - name: Load the last successfully managed SMD identities
-      ansible.builtin.include_vars:
-        file: "{{ _smd_managed_identity_manifest_path }}"
-        name: _smd_managed_identity_manifest
-      when: _smd_managed_identity_manifest_stat.stat.exists
-
-    - name: Validate the managed SMD identity manifest contract
-      ansible.builtin.assert:
-        that:
-          - _smd_managed_identity_manifest | type_debug == 'dict'
-          - >-
-            (_smd_managed_identity_manifest.schema_version
-             | default('') | string) == '1.0'
-          - >-
-            _smd_managed_identity_manifest.inventory_source
-            | default('') == pxe_mapping_file_path
-          - >-
-            _smd_managed_identity_manifest.managed_nodes
-            | default(none) | type_debug == 'list'
-        fail_msg: >-
-          Refusing SMD reconciliation because the prior managed-identity
-          manifest is malformed or belongs to a different PXE mapping.
-          Expected schema 1.0 and inventory source
-          {{ pxe_mapping_file_path }} in
-          {{ _smd_managed_identity_manifest_path }}.
-      when: _smd_managed_identity_manifest_stat.stat.exists
-
-    - name: Use the last successfully managed SMD identities
-      ansible.builtin.set_fact:
-        smd_managed_identity_nodes: >-
-          {{ _smd_managed_identity_manifest.managed_nodes }}
-      when: _smd_managed_identity_manifest_stat.stat.exists
-
     # --- Network facts ---
     - name: Load network_spec.yml
       ansible.builtin.include_vars: "{{ input_project_dir }}/network_spec.yml"
@@ -257,9 +203,3 @@
     - name: Initialize cross-category provisioning state
       ansible.builtin.set_fact:
         registered_fg_names: []
-
-    - name: Reconcile live SMD identities with the complete PXE mapping
-      ansible.builtin.include_role:
-        name: provision_common
-        tasks_from: reconcile_smd_identity.yml
-      when: not (upgrade_mode | default(false) | bool)

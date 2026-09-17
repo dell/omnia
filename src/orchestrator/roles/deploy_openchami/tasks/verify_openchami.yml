@@ -23,13 +23,12 @@
     tasks_from: openchami_auth.yml
   vars:
     oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
-    openchami_token_required: false
 
 - name: Verify ochami installation
   environment: "{{ ochami_env }}"
-  when: openchami_access_token | default('') | length > 0
+  when: access_token_result.rc == 0
   block:
-    - name: Verify ochami dependencies  # noqa: command-instead-of-module
+    - name: Verify ochami dependencies # noqa: command-instead-of-module
       ansible.builtin.command:
         systemctl list-dependencies openchami.target
       register: openchami_dependencies

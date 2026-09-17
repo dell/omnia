@@ -89,11 +89,6 @@
          | sort(attribute='XNAME')
          | list }}
 
-- name: Refresh access token before category SMD reconciliation
-  ansible.builtin.include_role:
-    name: orchestrator_common
-    tasks_from: refresh_openchami_token.yml
-
 - name: Reset stale OpenCHAMI data for {{ target_category }}
   ansible.builtin.include_tasks: delete_smd_endpoints.yml
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
@@ -206,9 +201,18 @@
     - openchami_target_status is not success
 
 - name: Refresh access token before SMD discovery
-  ansible.builtin.include_role:
-    name: orchestrator_common
-    tasks_from: refresh_openchami_token.yml
+  ansible.builtin.command: sudo bash -lc 'gen_access_token'
+  register: refreshed_token_result
+  changed_when: false
+  failed_when: false
+  retries: 3
+  delay: 5
+  until: refreshed_token_result.rc == 0 and refreshed_token_result.stdout not in ["", "null"]
+
+- name: Update ochami_env with refreshed token
+  ansible.builtin.set_fact:
+    ochami_env: "{{ {(oim_node_name | upper) + '_ACCESS_TOKEN': refreshed_token_result.stdout} }}"
+  when: refreshed_token_result.rc == 0
 
 - name: Remove obsolete node-registration SMD group
   ansible.builtin.uri:
@@ -221,7 +225,9 @@
     status_code: [200, 404]
     validate_certs: false
   no_log: true
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  when:
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+    - refreshed_token_result.rc == 0
 
 - name: Discover nodes in SMD (upsert with --overwrite)
   block:
@@ -250,19 +256,27 @@
         - smd_service_status is defined
         - smd_service_status is not success
 
-    - name: Refresh access token before retry
-      ansible.builtin.include_role:
-        name: orchestrator_common
-        tasks_from: refresh_openchami_token.yml
-
     - name: Wait for SMD API to be ready
       ansible.builtin.command: /usr/bin/ochami smd service status
-      environment: "{{ ochami_env }}"
       register: smd_api_ready
       retries: "{{ service_retries }}"
       delay: "{{ service_retry_interval }}"
       until: smd_api_ready.rc == 0
       changed_when: false
+
+    - name: Refresh access token before retry
+      ansible.builtin.command: sudo bash -lc 'gen_access_token'
+      register: retry_token_result
+      changed_when: false
+      failed_when: false
+      retries: 3
+      delay: 5
+      until: retry_token_result.rc == 0 and retry_token_result.stdout not in ["", "null"]
+
+    - name: Update ochami_env with refreshed token for retry
+      ansible.builtin.set_fact:
+        ochami_env: "{{ {(oim_node_name | upper) + '_ACCESS_TOKEN': retry_token_result.stdout} }}"
+      when: retry_token_result.rc == 0
 
     - name: Retry SMD node discovery
       ansible.builtin.command: >
@@ -317,14 +331,28 @@
 
 - name: Parse hostname entries
   ansible.builtin.set_fact:
-    hostname_entries: >-
-      {{ (hostname_yaml_raw.content | b64decode | from_yaml)
-         | default([], true) }}
+    hostname_entries: "{{ hostname_yaml_raw.content | b64decode | from_yaml }}"
 
-- name: Reconcile hostnames in metadata-service
-  ansible.builtin.include_tasks: reconcile_metadata_hostnames.yml
-  vars:
-    metadata_hostname_entries: "{{ hostname_entries }}"
+- name: Configure hostnames in metadata-service
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/instanceinfos"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      metadata:
+        name: "{{ item.id }}"
+      spec:
+        instance_id: "{{ item.id }}"
+        hostname: "{{ item['local-hostname'] }}"
+        local_hostname: "{{ item['local-hostname'] }}"
+    status_code: [200, 201, 409]
+    validate_certs: false
+  loop: "{{ hostname_entries }}"
+  loop_control:
+    label: "{{ item.id }}"
 
 - name: Create metadata-service groups dict for target FGs
   ansible.builtin.set_fact:

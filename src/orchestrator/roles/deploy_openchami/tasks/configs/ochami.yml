@@ -70,15 +70,15 @@
     state: directory
     mode: "{{ file_perm_rwx }}"
 
-- name: Restore the PostgreSQL initialization script from the OpenCHAMI RPM
+- name: Restore pg-init script if missing
   ansible.builtin.shell: |
     set -o pipefail
-    rpm2cpio {{ openchami_work_dir }}/{{ openchami_rpm_name }} |
-      cpio -idmu --quiet --directory=/ \
-        './etc/openchami/pg-init/multi-psql-db.sh'
-  args:
-    executable: /bin/bash
-    creates: "{{ openchami_dir }}/pg-init/multi-psql-db.sh"
+    rpm -V openchami 2>/dev/null | grep -q 'missing.*/pg-init/multi-psql-db.sh' && \
+      rpm2cpio {{ openchami_work_dir }}/{{ openchami_rpm_name }} | \
+      cpio -idmu --quiet --directory=/ './etc/openchami/pg-init/multi-psql-db.sh' && \
+      echo "RESTORED" || echo "PRESENT"
+  register: _pg_init_restore
+  changed_when: "'RESTORED' in _pg_init_restore.stdout"
 
 - name: Create tokensmith quadlet override directory
   ansible.builtin.file:
