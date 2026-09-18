@@ -405,6 +405,51 @@ TEST_CASES: Dict[str, dict] = {
         "id": "TC_K8_054",
         "title": "Verify nfs-client.target is active on all K8s nodes",
     },
+    # etcd Local Disk Tests
+    "k8s_etcd_local_disk_enabled": {
+        "id": "TC_K8_057",
+        "title": "Verify etcd_on_local_disk is enabled in omnia_config.yml",
+    },
+    "k8s_etcd_boss_card_detection": {
+        "id": "TC_K8_058",
+        "title": "Verify Dell BOSS card detection",
+    },
+    "k8s_etcd_disk_partitioning": {
+        "id": "TC_K8_059",
+        "title": "Verify disk partitioning for etcd",
+    },
+    "k8s_etcd_filesystem_creation": {
+        "id": "TC_K8_060",
+        "title": "Verify filesystem creation on etcd partition",
+    },
+    "k8s_etcd_fstab_and_mount": {
+        "id": "TC_K8_061",
+        "title": "Verify fstab and mount for etcd",
+    },
+    "k8s_etcd_local_disk_config": {
+        "id": "TC_K8_062",
+        "title": "Verify etcd configuration to use local disk",
+    },
+    "k8s_etcd_fallback_disk_detection": {
+        "id": "TC_K8_063",
+        "title": "Verify fallback disk detection",
+    },
+    "k8s_etcd_first_boot_setup": {
+        "id": "TC_K8_064",
+        "title": "Verify first boot disk setup (etcd-disk-setup.sh)",
+    },
+    "k8s_etcd_ssd_disk_support": {
+        "id": "TC_K8_065",
+        "title": "Verify SSD disk support for etcd",
+    },
+    "k8s_etcd_hdd_disk_support": {
+        "id": "TC_K8_066",
+        "title": "Verify HDD disk support for etcd",
+    },
+    "k8s_etcd_nvme_disk_support": {
+        "id": "TC_K8_067",
+        "title": "Verify NVMe disk support for etcd",
+    },
 }
 
 # =============================================================================

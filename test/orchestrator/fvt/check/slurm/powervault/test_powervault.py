@@ -21,6 +21,7 @@ pytestmark = [
     pytest.mark.storage,
     pytest.mark.powervault,
     pytest.mark.functional,
+    pytest.mark.buildstream,
 ]
 
 

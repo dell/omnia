@@ -558,10 +558,10 @@ def _vast_api_context(host, config, staging_dir):
 
 def _trigger_state_path(create_directory=False):
     """Resolve the safe per-run VAST trigger-state path."""
-    report_id = os.environ.get("REPORT_ID", "").strip()
-    if not re.fullmatch(VAST_REPORT_ID_PATTERN, report_id):
+    run_id = os.environ.get("RUN_ID", "").strip()
+    if not re.fullmatch(VAST_REPORT_ID_PATTERN, run_id):
         raise VastApiError(
-            "REPORT_ID is missing or invalid; use run_validation.sh so the "
+            "RUN_ID is missing or invalid; use run_validation.sh so the "
             "VAST trigger and verification share one run identifier"
         )
     state_dir = os.path.join(MODULE_ROOT, VAST_TRIGGER_STATE_SUBDIR)
@@ -571,7 +571,7 @@ def _trigger_state_path(create_directory=False):
     elif os.path.islink(state_dir):
         raise VastApiError("VAST trigger-state directory must not be a symlink")
     return os.path.join(
-        state_dir, VAST_TRIGGER_STATE_FILE.format(report_id=report_id),
+        state_dir, VAST_TRIGGER_STATE_FILE.format(run_id=run_id),
     )
 
 

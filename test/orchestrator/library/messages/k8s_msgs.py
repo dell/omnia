@@ -163,6 +163,30 @@ TEST_LOG_MSGS: Dict[str, str] = {
     # Systemd Targets
     "nfs_client_target_ok": "nfs-client.target active on all {count} K8s node(s)",
     "nfs_client_target_failed": "nfs-client.target not active on some nodes: {error}",
+
+    # etcd Local Disk
+    "etcd_local_disk_enabled_ok": "etcd_on_local_disk is enabled in omnia_config.yml",
+    "etcd_local_disk_enabled_failed": "etcd_on_local_disk is not enabled in omnia_config.yml",
+    "boss_card_detected_ok": "BOSS card detected on control plane nodes",
+    "boss_card_detection_failed": "BOSS card detection failed",
+    "etcd_partition_ok": "Etcd partition found on control plane nodes",
+    "etcd_partition_failed": "Etcd partition not found on control plane nodes",
+    "etcd_filesystem_ok": "Ext4 filesystem found on etcd partition",
+    "etcd_filesystem_failed": "Ext4 filesystem not found on etcd partition",
+    "etcd_fstab_mount_ok": "fstab entry exists and mount is active for etcd",
+    "etcd_fstab_mount_failed": "fstab entry or mount issue for etcd",
+    "etcd_local_disk_config_ok": "etcd is using local disk (not NFS)",
+    "etcd_local_disk_config_failed": "etcd is not using local disk (using NFS)",
+    "fallback_disk_detected_ok": "Fallback disk detected for etcd",
+    "fallback_disk_detection_failed": "Fallback disk detection failed",
+    "etcd_first_boot_setup_ok": "etcd-disk-setup.sh script exists and was executed",
+    "etcd_first_boot_setup_failed": "etcd-disk-setup.sh script or log missing",
+    "ssd_disk_support_ok": "SSD disk detected for etcd",
+    "ssd_disk_support_failed": "SSD disk support check failed",
+    "hdd_disk_support_ok": "HDD disk detected for etcd",
+    "hdd_disk_support_failed": "HDD disk support check failed",
+    "nvme_disk_support_ok": "NVMe disk detected for etcd",
+    "nvme_disk_support_failed": "NVMe disk support check failed",
 }
 
 # =============================================================================
@@ -761,4 +785,27 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551   4. Check NFS server reachability\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
+    # etcd Local Disk Messages
+    "etcd_local_disk_enabled_ok": "etcd_on_local_disk is enabled in omnia_config.yml",
+    "etcd_local_disk_enabled_failed": "etcd_on_local_disk is not enabled in omnia_config.yml",
+    "boss_card_detected_ok": "BOSS card detected on control plane nodes",
+    "boss_card_detection_failed": "BOSS card detection failed",
+    "etcd_partition_ok": "Etcd partition found on control plane nodes",
+    "etcd_partition_failed": "Etcd partition not found on control plane nodes",
+    "etcd_filesystem_ok": "Ext4 filesystem found on etcd partition",
+    "etcd_filesystem_failed": "Ext4 filesystem not found on etcd partition",
+    "etcd_fstab_mount_ok": "fstab entry exists and mount is active for etcd",
+    "etcd_fstab_mount_failed": "fstab entry or mount issue for etcd",
+    "etcd_local_disk_config_ok": "etcd is using local disk (not NFS)",
+    "etcd_local_disk_config_failed": "etcd is not using local disk (using NFS)",
+    "fallback_disk_detected_ok": "Fallback disk detected for etcd",
+    "fallback_disk_detection_failed": "Fallback disk detection failed",
+    "etcd_first_boot_setup_ok": "etcd-disk-setup.sh script exists and was executed",
+    "etcd_first_boot_setup_failed": "etcd-disk-setup.sh script or log missing",
+    "ssd_disk_support_ok": "SSD disk detected for etcd",
+    "ssd_disk_support_failed": "SSD disk support check failed",
+    "hdd_disk_support_ok": "HDD disk detected for etcd",
+    "hdd_disk_support_failed": "HDD disk support check failed",
+    "nvme_disk_support_ok": "NVMe disk detected for etcd",
+    "nvme_disk_support_failed": "NVMe disk support check failed",
 }

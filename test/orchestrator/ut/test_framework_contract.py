@@ -62,6 +62,24 @@ def _has_marker(function, marker):
     )
 
 
+def _module_markers(tree):
+    """Return marker names inherited through a module-level pytestmark."""
+    markers = set()
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(getattr(target, "id", "") == "pytestmark" for target in node.targets):
+            continue
+        markers.update(
+            child.attr
+            for child in ast.walk(node.value)
+            if isinstance(child, ast.Attribute)
+            and isinstance(child.value, ast.Attribute)
+            and child.value.attr == "mark"
+        )
+    return markers
+
+
 def _has_deploy_test(path):
     for test_file in path.rglob("test_*.py"):
         tree = ast.parse(test_file.read_text(encoding="utf-8"))
@@ -143,6 +161,34 @@ def test_marker_registry_and_batch_filters_cannot_drift():
         if marker
     }
     assert selected <= configured
+
+
+def test_sanity_and_functional_checks_are_available_to_buildstream():
+    """ORCH_UT_125: BuildStream can run every basic Orchestrator check."""
+    missing = []
+    check_root = TEST_ROOT / "fvt" / "check"
+    for test_file in check_root.rglob("test_*.py"):
+        tree = ast.parse(test_file.read_text(encoding="utf-8"))
+        module_markers = _module_markers(tree)
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if not node.name.startswith("test_"):
+                continue
+            is_basic = (
+                "sanity" in module_markers
+                or "functional" in module_markers
+                or _has_marker(node, "sanity")
+                or _has_marker(node, "functional")
+            )
+            has_buildstream = (
+                "buildstream" in module_markers
+                or _has_marker(node, "buildstream")
+            )
+            if is_basic and not has_buildstream:
+                missing.append(f"{test_file.relative_to(TEST_ROOT)}::{node.name}")
+
+    assert missing == [], "Missing buildstream marker:\n" + "\n".join(missing)
 
 
 def test_every_batch_full_flow_has_one_deploy_owner():

@@ -65,12 +65,18 @@ REQUIRED_DATASET_INPUT_FILES: List[str] = [
 REQUIRED_REPO_OUTPUT_FILES: List[str] = ["repo_status.yml"]
 REQUIRED_IMAGE_BUILD_OUTPUT_FILES: List[str] = ["build_status.yml"]
 
+# =============================================================================
+# DOMAIN IDENTITY
+# =============================================================================
+
 # Domain name used for remote path resolution
 DOMAIN_NAME = "orchestrator"
 
 # Environment variable names on the target host
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
+ENV_ORCHESTRATOR_DATA_PATH = "ORCHESTRATOR_DATA_PATH"
 ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
+ENV_CATALOG_FILE_PATH = "CATALOG_FILE_PATH"
 
 # Domain config files (inside the domain input directory)
 ORCHESTRATOR_CONFIG_FILE = "orchestrator_config.yml"
@@ -104,17 +110,31 @@ PLAYBOOK_TAGS: List[str] = [
 ]
 
 # =============================================================================
-# Domain-specific paths
+# SHARED PATH DEFAULTS (runtime output on target host)
 # =============================================================================
-SHARED_PATH = "/opt/omnia/orchestrator"
-INPUT_PATH_TEMPLATE = "/opt/omnia/orchestrator/input/{project}"
-OUTPUT_PATH_TEMPLATE = "/opt/omnia/orchestrator/output/{project}"
-REPO_MANAGER_OUTPUT_TEMPLATE = (
-    "/opt/omnia/repo_manager/output/{project}/repo_status.yml"
-)
-IMAGE_BUILD_MANAGER_OUTPUT_TEMPLATE = (
-    "/opt/omnia/image_build_manager/output/{project}/build_status.yml"
-)
+# Derived from ORCHESTRATOR_DATA_PATH or OMNIA_DATA_PATH env var when available;
+# falls back to /opt/omnia for standard deployments.
+
+SHARED_PATH = (
+    os.environ.get(ENV_ORCHESTRATOR_DATA_PATH)
+    or os.path.join(
+        os.environ.get(ENV_OMNIA_DATA_PATH, "/opt/omnia"),
+        DOMAIN_NAME,
+    )
+).rstrip("/")
+
+# Path templates using {shared_path} and {project} placeholders
+INPUT_PATH_TEMPLATE = "{shared_path}/input/{{project}}"
+OUTPUT_PATH_TEMPLATE = "{shared_path}/output/{{project}}"
+
+# Cross-domain path templates (repo_manager and image_build_manager)
+_OMNIA_BASE_PATH = os.environ.get(ENV_OMNIA_DATA_PATH, "/opt/omnia")
+REPO_MANAGER_OUTPUT_TEMPLATE = _OMNIA_BASE_PATH + "/repo_manager/output/{project}/repo_status.yml"
+IMAGE_BUILD_MANAGER_OUTPUT_TEMPLATE = _OMNIA_BASE_PATH + "/image_build_manager/output/{project}/build_status.yml"
+
+# Catalog file path template (resolved at runtime)
+# Priority: CATALOG_FILE_PATH env var > orchestrator_config.yml > default
+CATALOG_FILE_PATH_TEMPLATE = "{{omnia_base}}/catalog/catalog_rhel_x86_64.json"
 
 # Credentials
 CREDENTIALS_FILE_NAME = "orchestrator_credentials.yml"
