@@ -19,7 +19,7 @@ Parses the INI-like input format:
   [defaults]
   arch=x86_64, os=rhel, os_version=10.0
 
-  [group_key | type=base_os, description=..., os=rhel, os_version=10.0]
+  [group_key | type=baseos, description=..., os=rhel, os_version=10.0]
   pkg_key, rpm, name, reponame
   pkg_key, tarball, name, url
   pkg_key, image, image_path, registry, tag
@@ -218,7 +218,7 @@ def parse_input_file(filepath, default_arch='x86_64', default_os='rhel', default
                     current_section = fl_entry
                     current_section_type = 'functional_layer'
                 else:
-                    # Regular group or base_os group
+                    # Regular group or baseos group
                     if section_key in groups:
                         raise ValueError(f"Line {line_num}: Duplicate group '{section_key}'")
 
@@ -228,7 +228,7 @@ def parse_input_file(filepath, default_arch='x86_64', default_os='rhel', default
                         "description": section_desc,
                         "components": []
                     }
-                    if section_type == 'base_os':
+                    if section_type == 'baseos':
                         group_entry['os'] = meta.get('os', defaults['os'])
                         group_entry['os_version'] = meta.get('os_version', defaults['os_version'])
 

@@ -51,7 +51,7 @@ The text input uses an INI-like structure:
 [defaults]
 arch=x86_64, os=rhel, os_version=10.0
 
-[baseos_group_10.0 | type=base_os, description=base OS packages, os=rhel, os_version=10.0]
+[baseos_group_10.0 | type=baseos, description=base OS packages, os=rhel, os_version=10.0]
 systemd, rpm, systemd, baseos
 wget, rpm, wget, appstream
 
@@ -212,7 +212,7 @@ Validation does not modify the catalog.
     "groups": {
       "baseos_group_10.0": {
         "name": "baseos_group_10.0",
-        "type": "base_os",
+        "type": "baseos",
         "description": "Base OS packages",
         "components": ["systemd"],
         "os": "rhel",

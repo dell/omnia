@@ -456,7 +456,7 @@ def transform(old_catalog: dict) -> Tuple[dict, dict, List[str]]:  # pylint: dis
                 "auto-generated from BaseOS")
         new_groups[group_key] = {
             "name": group_key,
-            "type": "base_os",
+            "type": "baseos",
             "os": os_name,
             "os_version": os_version,
             "description": desc,

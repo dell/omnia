@@ -2,6 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "HPC Catalog Schema",
   "description": "Schema for the omnia services catalog format",
+  "schemaVersion": "2.1",
   "type": "object",
   "required": ["catalog"],
   "additionalProperties": false,
@@ -59,7 +60,7 @@
       "additionalProperties": false,
       "properties": {
         "name": { "type": "string", "minLength": 1 },
-        "type": { "type": "string", "enum": ["base_os", "group"] },
+        "type": { "type": "string", "enum": ["baseos", "group"] },
         "os": { "type": "string" },
         "os_version": { "type": "string" },
         "description": { "type": "string" },
@@ -70,7 +71,7 @@
         }
       },
       "if": {
-        "properties": { "type": { "const": "base_os" } }
+        "properties": { "type": { "const": "baseos" } }
       },
       "then": {
         "required": ["name", "type", "description", "components", "os", "os_version"]

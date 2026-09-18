@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "title": "catalog",
   "description": "Schema for catalog JSON consumed by image_build_manager parse_catalog module. Validates the three-level hierarchy: functionallayer -> groups -> packages.",
   "type": "object",
@@ -46,7 +46,7 @@
         },
         "groups": {
           "type": "object",
-          "description": "Named groups of package references. Groups with type=base_os provide OS metadata.",
+          "description": "Named groups of package references. Groups with type=baseos provide OS metadata.",
           "additionalProperties": {
             "type": "object",
             "properties": {
@@ -56,15 +56,15 @@
               },
               "type": {
                 "type": "string",
-                "description": "Group type: 'base_os' for OS base packages, 'group' for functional groups."
+                "description": "Group type: 'baseos' for OS base packages, 'group' for functional groups."
               },
               "os_version": {
                 "type": "string",
-                "description": "OS version (only for base_os groups, e.g., '10.0')."
+                "description": "OS version (only for baseos groups, e.g., '10.0')."
               },
               "os": {
                 "type": "string",
-                "description": "OS type (only for base_os groups, e.g., 'rhel')."
+                "description": "OS type (only for baseos groups, e.g., 'rhel')."
               },
               "description": {
                 "type": "string",

@@ -105,7 +105,7 @@ def _seed_upstream_artifacts(
         "x86_64/rhel/9.5/functional_layer.json": json.dumps(
             {"FeatureList": []}
         ).encode(),
-        "x86_64/rhel/9.5/base_os.json": json.dumps(
+        "x86_64/rhel/9.5/baseos.json": json.dumps(
             {"FeatureList": []}
         ).encode(),
         "x86_64/rhel/9.5/infrastructure.json": json.dumps(

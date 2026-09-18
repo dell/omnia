@@ -31,7 +31,7 @@ description:
     C(functionallayer) -> C(groups) -> C(packages).
   - Filters packages by C(packagetype) and C(sources[].architecture).
   - Separates base OS packages from compute group packages.
-  - Extracts OS type and version from base_os groups for multi-version builds.
+  - Extracts OS type and version from baseos groups for multi-version builds.
   - Layer classification uses the B(layer name), not component membership.
     Layers whose name starts with the baseos prefix (e.g. C(baseos_rhel_10_0_x86_64))
     are base OS layers; all others are compute layers.
@@ -103,20 +103,20 @@ catalog_identifier:
   type: str
 cluster_os_version:
   description:
-    - Primary OS version extracted from the first base_os group.
-    - Derived from C(os_version) field in groups with C(type=base_os).
-    - Empty string if no base_os group declares an os_version.
+    - Primary OS version extracted from the first baseos group.
+    - Derived from C(os_version) field in groups with C(type=baseos).
+    - Empty string if no baseos group declares an os_version.
   returned: always
   type: str
 cluster_os_type:
   description:
-    - OS type extracted from the first base_os group's C(os) field.
+    - OS type extracted from the first baseos group's C(os) field.
     - E.g. C(rhel), C(ubuntu). Empty string if not declared.
   returned: always
   type: str
 cluster_os_versions:
   description:
-    - List of all unique OS versions found across base_os groups.
+    - List of all unique OS versions found across baseos groups.
     - Supports multi-version image builds.
   returned: always
   type: list
@@ -207,7 +207,7 @@ def _is_baseos_component(
         True if this is a base OS component.
     """
     return (
-        group.get("type") == "base_os"
+        group.get("type") == "baseos"
         or comp_name.startswith(baseos_prefix)
     )
 
@@ -346,7 +346,7 @@ def _extract_baseos_packages(
     build_arch: str,
     package_type: str,
 ) -> tuple[list[str], list[str], str]:
-    """Extract base OS packages by scanning groups with type=base_os directly.
+    """Extract base OS packages by scanning groups with type=baseos directly.
 
     This handles catalogs that have no standalone baseos functional layer
     but embed baseos groups as components within compute layers.
@@ -365,7 +365,7 @@ def _extract_baseos_packages(
     os_type: str = ""
 
     for group_name, group_data in groups.items():
-        if group_data.get("type") != "base_os":
+        if group_data.get("type") != "baseos":
             continue
 
         os_ver = group_data.get("os_version", "")
@@ -473,7 +473,7 @@ def resolve_catalog(
             os_type = data["os_type"]
 
     # Fallback: if no baseos functional layer produced base packages,
-    # scan groups with type=base_os directly.  This handles catalogs
+    # scan groups with type=baseos directly.  This handles catalogs
     # where baseos groups are only referenced as components within
     # compute layers (no standalone baseos_*_{arch} layer exists).
     if not base_packages:
