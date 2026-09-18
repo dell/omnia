@@ -193,7 +193,7 @@ class TestCatalogRolesServiceGetRoles:
 
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
-            zf.writestr("x86_64/rhel/9.5/base_os.json", json.dumps({}))
+            zf.writestr("x86_64/rhel/9.5/baseos.json", json.dumps({}))
         zip_bytes = buf.getvalue()
 
         metadata_repo = MagicMock()

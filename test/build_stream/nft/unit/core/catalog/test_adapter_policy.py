@@ -130,7 +130,7 @@ class TestValidatePolicyConfig(unittest.TestCase):
                 "openldap.json": {
                     "sources": [
                         {
-                            "source_file": "base_os.json",
+                            "source_file": "baseos.json",
                             "pulls": [
                                 {
                                     "source_key": "Base OS",
@@ -163,7 +163,7 @@ class TestValidatePolicyConfig(unittest.TestCase):
                 "openldap.json": {
                     "sources": [
                         {
-                            "source_file": "base_os.json",
+                            "source_file": "baseos.json",
                             "pulls": [
                                 {
                                     "source_key": "Base OS",
@@ -196,7 +196,7 @@ class TestValidatePolicyConfig(unittest.TestCase):
                 "openldap.json": {
                     "sources": [
                         {
-                            "source_file": "base_os.json",
+                            "source_file": "baseos.json",
                             "pulls": [
                                 {"source_key": "Base OS", "filter": {"type": "any_of"}}
                             ],
@@ -223,7 +223,7 @@ class TestValidatePolicyConfig(unittest.TestCase):
                 "openldap.json": {
                     "sources": [
                         {
-                            "source_file": "base_os.json",
+                            "source_file": "baseos.json",
                             "pulls": [
                                 {
                                     "source_key": "Base OS",
@@ -657,7 +657,7 @@ class TestGenerateConfigsFromPolicy(unittest.TestCase):
                     ]
                 }
             }
-            with open(os.path.join(input_dir, "x86_64", "rhel", "9.0", "base_os.json"), "w") as f:
+            with open(os.path.join(input_dir, "x86_64", "rhel", "9.0", "baseos.json"), "w") as f:
                 json.dump(source_data, f)
 
             # Create minimal policy
@@ -666,7 +666,7 @@ class TestGenerateConfigsFromPolicy(unittest.TestCase):
                 "targets": {
                     "output.json": {
                         "sources": [{
-                            "source_file": "base_os.json",
+                            "source_file": "baseos.json",
                             "pulls": [{"source_key": "Base OS", "target_key": "base_role"}]
                         }]
                     }
@@ -702,7 +702,7 @@ class TestGenerateConfigsFromPolicy(unittest.TestCase):
                     ]
                 }
             }
-            with open(os.path.join(input_dir, "x86_64", "rhel", "9.0", "base_os.json"), "w") as f:
+            with open(os.path.join(input_dir, "x86_64", "rhel", "9.0", "baseos.json"), "w") as f:
                 json.dump(source_data, f)
 
             policy = {
@@ -712,7 +712,7 @@ class TestGenerateConfigsFromPolicy(unittest.TestCase):
                         "transform": {"exclude_fields": ["architecture"]},
                         "sources": [
                             {
-                                "source_file": "base_os.json",
+                                "source_file": "baseos.json",
                                 "pulls": [
                                     {
                                         "source_key": "Base OS",

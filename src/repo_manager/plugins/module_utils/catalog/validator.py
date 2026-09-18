@@ -121,22 +121,22 @@ def _validate_business_rules(catalog):
                 'message': f"Functional layer '{layer_name}' has no components"
             })
         
-        # Check for exactly one base_os group in components
-        base_os_count = 0
+        # Check for exactly one baseos group in components
+        baseos_count = 0
         for comp_ref in components:
             comp_group = groups.get(comp_ref, {})
-            if comp_group.get('type') == 'base_os':
-                base_os_count += 1
+            if comp_group.get('type') == 'baseos':
+                baseos_count += 1
         
-        if base_os_count == 0:
+        if baseos_count == 0:
             issues.append({
                 'severity': 'error',
-                'message': f"Functional layer '{layer_name}' must have exactly one base_os group (found 0)"
+                'message': f"Functional layer '{layer_name}' must have exactly one baseos group (found 0)"
             })
-        elif base_os_count > 1:
+        elif baseos_count > 1:
             issues.append({
                 'severity': 'error',
-                'message': f"Functional layer '{layer_name}' must have exactly one base_os group (found {base_os_count})"
+                'message': f"Functional layer '{layer_name}' must have exactly one baseos group (found {baseos_count})"
             })
 
     # Check for duplicate entries in group components
@@ -151,18 +151,18 @@ def _validate_business_rules(catalog):
                 })
             seen.add(comp)
 
-    # Check base_os groups have os and os_version
+    # Check baseos groups have os and os_version
     for group_key, group in groups.items():
-        if group.get('type') == 'base_os':
+        if group.get('type') == 'baseos':
             if not group.get('os'):
                 issues.append({
                     'severity': 'error',
-                    'message': f"base_os group '{group_key}' missing 'os' field"
+                    'message': f"baseos group '{group_key}' missing 'os' field"
                 })
             if not group.get('os_version'):
                 issues.append({
                     'severity': 'error',
-                    'message': f"base_os group '{group_key}' missing 'os_version' field"
+                    'message': f"baseos group '{group_key}' missing 'os_version' field"
                 })
 
     # Check packages

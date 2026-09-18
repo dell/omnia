@@ -170,5 +170,5 @@ catalog_missing_fail_msg: >-
   catalog_file_path in orchestrator_config.yml.
 catalog_invalid_fail_msg: >-
   Invalid catalog at '{{ catalog_file_path }}'. The catalog must contain
-  catalog.groups, catalog.functionallayer, catalog.packages, and a base_os
+  catalog.groups, catalog.functionallayer, catalog.packages, and a baseos
   group with non-empty os and os_version values.

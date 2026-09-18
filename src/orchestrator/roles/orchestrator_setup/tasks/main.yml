@@ -488,7 +488,7 @@
       ansible.builtin.set_fact:
         _base_os_group: >-
           {{ catalog_data.catalog.groups | dict2items
-             | selectattr('value.type', 'equalto', 'base_os')
+             | selectattr('value.type', 'equalto', 'baseos')
              | map(attribute='value') | first | default({}) }}
 
     - name: Validate catalog base OS metadata

@@ -156,15 +156,15 @@ class TestSampleCatalogStructure:
         )
 
     def test_sample_has_baseos_group(self):
-        """Sample catalog must have at least one base_os group."""
+        """Sample catalog must have at least one baseos group."""
         with open(SAMPLE_CATALOG, "r", encoding="utf-8") as f:
             catalog = json.load(f)["catalog"]
         groups = catalog.get("groups", {})
         baseos = [
             name for name, data in groups.items()
-            if data.get("type") == "base_os"
+            if data.get("type") == "baseos"
         ]
-        assert len(baseos) > 0, "No base_os groups found in sample catalog"
+        assert len(baseos) > 0, "No baseos groups found in sample catalog"
 
     def test_sample_packages_have_sources(self):
         """Each package must have a sources array with architecture."""

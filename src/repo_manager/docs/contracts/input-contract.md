@@ -203,7 +203,7 @@ architectures and sources to synchronize.
     "groups": {
       "baseos_group": {
         "name": "baseos_group",
-        "type": "base_os",
+        "type": "baseos",
         "description": "Base OS packages",
         "components": ["bash"],
         "os": "rhel",

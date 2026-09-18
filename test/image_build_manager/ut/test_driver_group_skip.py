@@ -102,7 +102,7 @@ def minimal_catalog_with_drivers(tmp_path):
             "groups": {
                 "baseos_group_10.0": {
                     "name": "baseos_group_10.0",
-                    "type": "base_os",
+                    "type": "baseos",
                     "os_version": "10.0",
                     "os": "rhel",
                     "components": ["kernel", "systemd"],

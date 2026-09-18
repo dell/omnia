@@ -69,7 +69,7 @@ package_name, package_type, package_name, repo_name
 [defaults]
 arch=x86_64, os=rhel, os_version=10.0
 
-[baseos_group_10.0 | type=base_os, description=base os packages for rhel cluster nodes, os=rhel, os_version=10.0]
+[baseos_group_10.0 | type=baseos, description=base os packages for rhel cluster nodes, os=rhel, os_version=10.0]
 systemd, rpm, systemd, baseos
 systemd_udev, rpm, systemd-udev, baseos
 wget, rpm, wget, appstream

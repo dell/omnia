@@ -280,9 +280,9 @@ def cmd_transform(args):  # pylint: disable=too-many-locals,too-many-branches,to
     # Print group creation report
     print("\n── Group Creation ──")
     baseos_groups = [k for k, v in catalog_data['catalog']['groups'].items()
-                     if v['type'] == 'base_os']
+                     if v['type'] == 'baseos']
     other_groups = [k for k, v in catalog_data['catalog']['groups'].items()
-                    if v['type'] != 'base_os']
+                    if v['type'] != 'baseos']
     print(f"  BaseOS groups:          {len(baseos_groups)} "
           f"({', '.join(baseos_groups)})")
     print(f"  FunctionalLayer groups: {len(other_groups)}")

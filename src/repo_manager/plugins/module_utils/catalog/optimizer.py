@@ -69,7 +69,7 @@ def optimize(catalog: dict, threshold: int = 10) -> Tuple[dict, dict]:  # pylint
     all_refactored_groups = set()
     all_removed_groups = []
     count_before_refs = sum(len(g['components']) for g in cat['groups'].values()
-                            if g['type'] != 'base_os')
+                            if g['type'] != 'baseos')
 
     # Iteratively extract common packages
     while True:  # pylint: disable=too-many-nested-blocks
@@ -83,7 +83,7 @@ def optimize(catalog: dict, threshold: int = 10) -> Tuple[dict, dict]:  # pylint
                 if group_key in cat['groups']:
                     group = cat['groups'][group_key]
                     # Skip baseos and already-created shared groups
-                    if (group['type'] != 'base_os' and
+                    if (group['type'] != 'baseos' and
                             'common_shared_group' not in group_key):
                         non_baseos_group_keys.append(group_key)
                         if group_key not in group_to_layers:
@@ -193,7 +193,7 @@ def optimize(catalog: dict, threshold: int = 10) -> Tuple[dict, dict]:  # pylint
                 for comp in layer['components']:
                     # Check if this is a baseos group
                     is_baseos = False
-                    if comp in cat['groups'] and cat['groups'][comp]['type'] == 'base_os':
+                    if comp in cat['groups'] and cat['groups'][comp]['type'] == 'baseos':
                         is_baseos = True
 
                     new_components.append(comp)
@@ -206,7 +206,7 @@ def optimize(catalog: dict, threshold: int = 10) -> Tuple[dict, dict]:  # pylint
                         if next_idx < len(layer['components']):
                             next_comp = layer['components'][next_idx]
                             if (next_comp in cat['groups'] and
-                                    cat['groups'][next_comp]['type'] == 'base_os'):
+                                    cat['groups'][next_comp]['type'] == 'baseos'):
                                 next_is_baseos = True
 
                         # Insert after last baseos
@@ -249,7 +249,7 @@ def optimize(catalog: dict, threshold: int = 10) -> Tuple[dict, dict]:  # pylint
 
     # Build summary
     count_after_refs = sum(len(g['components']) for g in cat['groups'].values()
-                           if g['type'] != 'base_os')
+                           if g['type'] != 'baseos')
 
     reduction_pct = 0
     if count_before_refs > 0:

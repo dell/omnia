@@ -112,7 +112,7 @@
     "groups": {
       "baseos_group": {
         "name": "baseos_group",
-        "type": "base_os",
+        "type": "baseos",
         "os_version": "10.2",
         "os": "rhel",
         "description": "Base OS packages for RHEL 10.2 x86_64 cluster nodes",
