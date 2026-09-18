@@ -243,10 +243,11 @@ def _is_local_ip(ip: str) -> bool:
         return True
     try:
         result = subprocess.run(
-            ["hostname", "-I"],
+            ["ip", "-4", "addr", "show"],
             capture_output=True, text=True, timeout=5, check=False,
         )
-        return ip in result.stdout.strip().split()
+        ips = re.findall(r'\binet (\d+\.\d+\.\d+\.\d+)/', result.stdout)
+        return ip in ips
     except (OSError, subprocess.SubprocessError):
         return False
 
