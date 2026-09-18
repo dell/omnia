@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Build Stream GitLab Cleanup — Playbook Deployment.
+Build Stream GitLab Cleanup — Suite-owned playbook deployment.
 
 Runs cleanup/cleanup_gitlab.yml with -e standalone_mode=true to remove
 GitLab from the target host.  No --tags filter is applied so that all
