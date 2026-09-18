@@ -369,41 +369,43 @@ def validate_telemetry_config(
     bmc_group_data_path = idrac_configurations.get("bmc_group_data_path", "")
 
     if idrac_telemetry_support:
+        # Resolve default path if bmc_group_data_path is empty
+        # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv
         if not isinstance(bmc_group_data_path, str) or not bmc_group_data_path.strip():
-            errors.append(create_error_msg(
-                "idrac_telemetry_configurations.bmc_group_data_path",
-                bmc_group_data_path,
-                "bmc_group_data_path is required when "
-                "telemetry_sources.idrac.metrics_enabled is true. Provide the path "
-                "to an existing bmc_group_data.csv file."
-            ))
-            logger.error(
-                "bmc_group_data_path is empty while iDRAC telemetry is enabled"
+            # Use default path from orchestrator output
+            omnia_data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia").rstrip("/")
+            project_name = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+            configured_bmc_path = f"{omnia_data_path}/orchestrator/output/{project_name}/bmc_group_data.csv"
+            logger.info(
+                "bmc_group_data_path is empty, using default: %s", configured_bmc_path
             )
         else:
             configured_bmc_path = bmc_group_data_path.strip()
-            if os.path.isabs(configured_bmc_path):
-                resolved_bmc_path = configured_bmc_path
-            else:
-                resolved_bmc_path = os.path.join(
-                    os.path.dirname(input_file_path), configured_bmc_path
-                )
 
-            if not os.path.isfile(resolved_bmc_path):
-                errors.append(create_error_msg(
-                    "idrac_telemetry_configurations.bmc_group_data_path",
-                    bmc_group_data_path,
-                    f"BMC group data file not found at: {resolved_bmc_path}. "
-                    "Provide the path to an existing bmc_group_data.csv file."
-                ))
-                logger.error(
-                    "bmc_group_data_path does not reference an existing file: %s",
-                    resolved_bmc_path,
-                )
-            else:
-                logger.info(
-                    "bmc_group_data_path validated: %s", resolved_bmc_path
-                )
+        # Resolve relative paths from the directory containing telemetry_config.yml
+        if os.path.isabs(configured_bmc_path):
+            resolved_bmc_path = configured_bmc_path
+        else:
+            resolved_bmc_path = os.path.join(
+                os.path.dirname(input_file_path), configured_bmc_path
+            )
+
+        if not os.path.isfile(resolved_bmc_path):
+            errors.append(create_error_msg(
+                "idrac_telemetry_configurations.bmc_group_data_path",
+                bmc_group_data_path if bmc_group_data_path.strip() else "(default)",
+                f"BMC group data file not found at: {resolved_bmc_path}. "
+                "Provide the path to an existing bmc_group_data.csv file or ensure "
+                "the orchestrator has generated it at the default location."
+            ))
+            logger.error(
+                "bmc_group_data_path does not reference an existing file: %s",
+                resolved_bmc_path,
+            )
+        else:
+            logger.info(
+                "bmc_group_data_path validated: %s", resolved_bmc_path
+            )
 
     # Bridge feature flags
     vector_ldms = telemetry_bridges.get("vector_ldms", {})
