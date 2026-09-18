@@ -273,7 +273,7 @@ TEST_CASES: Dict[str, dict] = {
     # SMD/Metadata
     "k8s_smd_groups_registered": {
         "id": "TC_K8_024",
-        "title": "Verify K8s functional groups registered in SMD",
+        "title": "Verify K8s nodes registered in SMD",
     },
     "k8s_metadata_configured": {
         "id": "TC_K8_025",
@@ -376,78 +376,74 @@ TEST_CASES: Dict[str, dict] = {
     },
     "k8s_persistent_volumes": {
         "id": "TC_K8_048",
-        "title": "Verify Persistent Volumes are Bound with correct storage class",
+        "title": "Verify Persistent Volumes are Bound with NFS storage class",
     },
     "k8s_nfs_storage_class": {
         "id": "TC_K8_049",
         "title": "Verify NFS StorageClass is dynamic and properly configured",
     },
-    "k8s_telemetry_pvcs": {
-        "id": "TC_K8_050",
-        "title": "Verify telemetry PVCs are Bound with correct PV and size",
-    },
     # Workload Test
     "k8s_busybox_pod": {
-        "id": "TC_K8_051",
+        "id": "TC_K8_050",
         "title": "Deploy and verify basic BusyBox pod",
     },
     # Firewall Tests
     "k8s_firewall_ports_control_plane": {
-        "id": "TC_K8_052",
+        "id": "TC_K8_051",
         "title": "Verify firewall ports on control plane nodes match cloud-init",
     },
     "k8s_firewall_ports_workers": {
-        "id": "TC_K8_053",
+        "id": "TC_K8_052",
         "title": "Verify firewall ports on worker nodes match cloud-init",
     },
     # Systemd Target Tests
     "k8s_nfs_client_target": {
-        "id": "TC_K8_054",
+        "id": "TC_K8_053",
         "title": "Verify nfs-client.target is active on all K8s nodes",
     },
     # etcd Local Disk Tests
     "k8s_etcd_local_disk_enabled": {
-        "id": "TC_K8_057",
+        "id": "TC_K8_054",
         "title": "Verify etcd_on_local_disk is enabled in omnia_config.yml",
     },
     "k8s_etcd_boss_card_detection": {
-        "id": "TC_K8_058",
+        "id": "TC_K8_055",
         "title": "Verify Dell BOSS card detection",
     },
     "k8s_etcd_disk_partitioning": {
-        "id": "TC_K8_059",
+        "id": "TC_K8_056",
         "title": "Verify disk partitioning for etcd",
     },
     "k8s_etcd_filesystem_creation": {
-        "id": "TC_K8_060",
+        "id": "TC_K8_057",
         "title": "Verify filesystem creation on etcd partition",
     },
     "k8s_etcd_fstab_and_mount": {
-        "id": "TC_K8_061",
+        "id": "TC_K8_058",
         "title": "Verify fstab and mount for etcd",
     },
     "k8s_etcd_local_disk_config": {
-        "id": "TC_K8_062",
+        "id": "TC_K8_059",
         "title": "Verify etcd configuration to use local disk",
     },
     "k8s_etcd_fallback_disk_detection": {
-        "id": "TC_K8_063",
+        "id": "TC_K8_060",
         "title": "Verify fallback disk detection",
     },
     "k8s_etcd_first_boot_setup": {
-        "id": "TC_K8_064",
+        "id": "TC_K8_061",
         "title": "Verify first boot disk setup (etcd-disk-setup.sh)",
     },
     "k8s_etcd_ssd_disk_support": {
-        "id": "TC_K8_065",
+        "id": "TC_K8_062",
         "title": "Verify SSD disk support for etcd",
     },
     "k8s_etcd_hdd_disk_support": {
-        "id": "TC_K8_066",
+        "id": "TC_K8_063",
         "title": "Verify HDD disk support for etcd",
     },
     "k8s_etcd_nvme_disk_support": {
-        "id": "TC_K8_067",
+        "id": "TC_K8_064",
         "title": "Verify NVMe disk support for etcd",
     },
 }
