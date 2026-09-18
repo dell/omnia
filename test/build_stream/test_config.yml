@@ -128,7 +128,7 @@ allow_pipeline_cancel: false
 # GitLab catalog with uniquely identified content to trigger a new pipeline.
 # Required for build-pipeline exec/test. Build-pipeline verify reads the job_id
 # and does not load or upload a catalog.
-catalog_path: "10.0/slurm_x86_64_no_vast.json"
+catalog_path: "10.0/slurm_service_k8s_x86_64_no_vast.json"
 
 # Job ID from the most recent build pipeline run.
 # Always overwritten with the newly created job during build-pipeline

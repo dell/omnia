@@ -45,6 +45,13 @@ this command on the execution OIM after sourcing `/etc/omnia/omnia.env`:
 The BuildStream authentication username and password are required. The helper
 also generates the Argon2 registrar hash required by `/api/v1/auth/register`.
 
+The helper validates credential contents, not only file existence. If required
+fields are missing or empty, rerunning `--set-domain-creds` prompts only for
+those fields and preserves populated values, including runtime-managed OAuth
+clients. Populated credentials cannot be changed in place. To replace them,
+run a full BuildStream cleanup, configure fresh credentials, and then run
+`./omnia.sh -r build_stream` to redeploy the synchronized credentials.
+
 That command writes the encrypted pair below
 `$OMNIA_DATA_PATH/build_stream/input/$OMNIA_PROJECT_NAME/`:
 
@@ -88,16 +95,18 @@ are:
 
 | Scenario | Purpose | Suites |
 |---|---|---|
-| `buildstream_cleanup` | Remove and verify GitLab and BuildStream resources | `gitlab_cleanup`, `buildstream_cleanup` |
+| `buildstream_cleanup` | Run one explicitly selected cleanup operation | `gitlab_cleanup`, `buildstream_cleanup`, `cleanup_pipeline` |
 | `buildstream_install` | Install and verify GitLab and BuildStream services | `health`, `buildstream_install` |
-| `build_pipeline` | Trigger and verify the image build pipeline | `build_pipeline` |
-| `deploy_pipeline` | Deploy the image group mapped to `job_id`, restart, validate, and verify | `deploy_pipeline` |
+| `build_pipeline` | Trigger and verify the image build pipeline | `build_pipeline`, `manual` |
+| `deploy_pipeline` | Deploy the image group mapped to `job_id`, restart, validate, and verify | `deploy_pipeline`, `manual` |
 
 An untagged FVT command runs the `sanity` lifecycle in this order:
 `buildstream_install`, `build_pipeline`, then `deploy_pipeline`. For `test`,
 each scenario is executed and verified before the runner advances. The
 lifecycle stops at the first failure. Cleanup is excluded from untagged
-commands and runs only when `buildstream_cleanup` is explicitly selected.
+commands and requires exactly one explicit `buildstream_cleanup` suite. This
+prevents GitLab cleanup, BuildStream cleanup, and image cleanup from running
+together accidentally.
 The same lifecycle and explicit-only labels are displayed by both
 `./run_validation.sh --help` and
 `./run_validation.sh fvt_build_stream list`.
@@ -124,8 +133,17 @@ The same lifecycle and explicit-only labels are displayed by both
 # Deploy the unique image group mapped to mandatory job_id
 ./run_validation.sh fvt_build_stream deploy_pipeline test --marker sanity
 
-# Explicit destructive cleanup
-./run_validation.sh fvt_build_stream buildstream_cleanup test --marker sanity
+# Explicit GitLab cleanup
+./run_validation.sh fvt_build_stream buildstream_cleanup test \
+  --suite gitlab_cleanup --marker sanity
+
+# Explicit BuildStream service and data cleanup
+./run_validation.sh fvt_build_stream buildstream_cleanup test \
+  --suite buildstream_cleanup --marker sanity
+
+# Explicit image cleanup pipeline
+./run_validation.sh fvt_build_stream buildstream_cleanup test \
+  --suite cleanup_pipeline --marker sanity
 ```
 
 ## Recommended end-to-end run
@@ -138,8 +156,11 @@ when each command should create a separate report entry.
 cd test/build_stream
 source .venv/bin/activate
 
-# 1. Full GitLab and BuildStream cleanup plus cleanup verification
-./run_validation.sh fvt_build_stream buildstream_cleanup test --marker sanity
+# 1. Clean GitLab, then clean BuildStream services and data
+./run_validation.sh fvt_build_stream buildstream_cleanup test \
+  --suite gitlab_cleanup --marker sanity
+./run_validation.sh fvt_build_stream buildstream_cleanup test \
+  --suite buildstream_cleanup --marker sanity
 
 # 2. Install and verify GitLab, runner, API, DB, TLS, queue, and watcher
 ./run_validation.sh fvt_build_stream buildstream_install test --marker sanity
@@ -274,9 +295,9 @@ values.
 They also always load the catalog selected by `catalog_path` below
 `src/main/samples/catalogs/`, give its catalog identifier a unique value, and
 replace the canonical `catalog_rhel.json` in GitLab. For example,
-`catalog_path: "10.0/slurm_x86_64_no_vast.json"` selects that RHEL 10.0
-catalog. Only a pipeline created after that upload is accepted as the pipeline
-for the current execution.
+`catalog_path: "10.0/slurm_service_k8s_x86_64_no_vast.json"` selects the RHEL
+10.0 Slurm and Kubernetes catalog. Only a pipeline created after that upload
+is accepted as the pipeline for the current execution.
 
 Deploy requires `job_id` and resolves exactly one associated image group. It
 never falls back to the latest image.
