@@ -65,6 +65,7 @@ def skip_if_k8s_disabled(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(20)
 def test_k8s_node_labels(host):
     """TC_K8_022: Verify node labels match functional group roles."""
@@ -91,6 +92,7 @@ def test_k8s_node_labels(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(21)
 def test_k8s_node_taints(host):
     """TC_K8_023: Verify control plane nodes have correct taints."""
@@ -117,6 +119,7 @@ def test_k8s_node_taints(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(22)
 def test_k8s_apiserver_pod(host):
     """TC_K8_027: Verify kube-apiserver static pod is running."""
@@ -151,6 +154,7 @@ def test_k8s_apiserver_pod(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(23)
 def test_k8s_controller_manager_pod(host):
     """TC_K8_028: Verify kube-controller-manager static pod is running."""
@@ -185,6 +189,7 @@ def test_k8s_controller_manager_pod(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(24)
 def test_k8s_scheduler_pod(host):
     """TC_K8_029: Verify kube-scheduler static pod is running."""
@@ -219,6 +224,7 @@ def test_k8s_scheduler_pod(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(25)
 def test_k8s_cluster_info(host):
     """TC_K8_030: Verify kubectl cluster-info returns valid data."""
@@ -245,6 +251,7 @@ def test_k8s_cluster_info(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(26)
 def test_k8s_pod_create(host):
     """TC_K8_019: Verify pod creation and scheduling works."""
@@ -273,6 +280,7 @@ def test_k8s_pod_create(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(27)
 def test_k8s_dns_resolution(host):
     """TC_K8_020: Verify DNS resolution works inside pods."""
@@ -301,6 +309,7 @@ def test_k8s_dns_resolution(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(28)
 def test_k8s_service_create(host):
     """TC_K8_021: Verify Kubernetes service creation works."""
@@ -329,6 +338,7 @@ def test_k8s_service_create(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(29)
 def test_k8s_ldap_integration(host):
     """TC_K8_026: Verify OpenLDAP integration with Kubernetes."""

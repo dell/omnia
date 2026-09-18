@@ -24,6 +24,7 @@ from jsonschema import Draft7Validator
 import yaml
 
 from omnia_auto import get_project_name, load_test_config
+from .external_ldap_func import load_external_ldap_settings
 from ..vars.common_vars import (
     DATASET_NAME_PATTERN,
     DATASETS_DIR,
@@ -293,6 +294,11 @@ def validate_test_config() -> Dict[str, Any]:
     ):
         if field in config and not isinstance(config[field], bool):
             errors.append(f"'{field}' must be true or false")
+
+    try:
+        load_external_ldap_settings(config)
+    except ValueError as exc:
+        errors.append(str(exc))
 
     errors.extend(_validate_dataset(config))
 

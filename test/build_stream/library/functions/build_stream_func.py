@@ -24,7 +24,11 @@ from typing import Any, Dict
 
 from omnia_auto import read_remote_yaml, run_on_host
 
-from ._config_helpers import resolve_build_stream_input_path
+from ._config_helpers import (
+    resolve_build_stream_input_path,
+    resolve_omnia_path,
+    resolve_omnia_venv_path,
+)
 from .host_func import resolve_target_source_root
 
 from library.vars.common_vars import (
@@ -35,8 +39,6 @@ from library.vars.common_vars import (
     CMDS,
     EXPECTED_PLAYBOOK_ENTRIES,
     EXPECTED_TABLES,
-    NFS_QUEUE_DIR_DEFAULT,
-    OMNIA_VENV_PATH_DEFAULT,
     PLAYBOOK_PATHS_YML,
     POSTGRES_CONTAINER_NAME,
     POSTGRES_DB_NAME,
@@ -334,7 +336,7 @@ def check_omnia_venv(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, details, error.
     """
-    venv_path = OMNIA_VENV_PATH_DEFAULT
+    venv_path = resolve_omnia_venv_path(host)
     cmd = CMDS["venv_ansible_playbook"].format(venv_path=venv_path)
     cmd_result = run_on_host(host, cmd)
 
@@ -360,9 +362,9 @@ def check_bsm_tls_certificate(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, details, error.
     """
-    from library.vars.common_vars import BSM_TLS_CERT_PATH
-
-    cert_path = BSM_TLS_CERT_PATH
+    cert_path = resolve_omnia_path(
+        host, "build_stream_ssl", "ssl", "bs_cert.pem"
+    )
     cmd = CMDS["openssl_verify_cert"].format(cert_path=cert_path)
     cmd_result = run_on_host(host, cmd)
 
@@ -388,7 +390,7 @@ def check_nfs_queue_directory(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, path, details, error.
     """
-    queue_dir = NFS_QUEUE_DIR_DEFAULT
+    queue_dir = resolve_omnia_path(host, "playbook_queue")
     cmd = CMDS["dir_exists"].format(path=queue_dir)
     cmd_result = run_on_host(host, cmd)
 

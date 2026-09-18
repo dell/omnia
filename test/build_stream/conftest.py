@@ -26,6 +26,7 @@ Provides:
 
 import sys
 import os
+from datetime import datetime
 
 import pytest
 
@@ -339,22 +340,21 @@ def pytest_sessionstart(session):
                 module_name = part
                 break
 
-    report_id = os.environ.get("REPORT_ID")
+    configured_id = str(config.get("run_id") or "").strip()
+    run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.environ["RUN_ID"] = run_id
     base_name = str(
         config.get("report_name", "build_stream_test_report")
     )
     report_name = build_report_name(
-        domain_name="build_stream",
         base_name=base_name,
     )
     report = TestReport(
         module_name=module_name,
-        report_path=str(
-            config.get("report_path", "/opt/omnia/reports")
-        ),
+        report_path=os.path.expandvars(str(config["report_path"])),
         report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
-        report_id=report_id,
+        run_id=run_id,
     )
     set_current_report(report)
 

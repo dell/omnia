@@ -47,9 +47,9 @@
         ansible_user: root
       when: kube_vip_group is not defined
 
-    - name: Set slurm inventory file from cluster_inventory in telemetry_config
+    - name: Set slurm inventory file from resolved cluster_inventory_path
       ansible.builtin.set_fact:
-        slurm_inventory_file: "{{ hostvars['localhost']['telemetry_config'].cluster_inventory | default('') }}"
+        slurm_inventory_file: "{{ hostvars['localhost']['cluster_inventory_path'] | default('') }}"
       when: slurm_inventory_file is not defined
 
     - name: Check if slurm inventory file exists

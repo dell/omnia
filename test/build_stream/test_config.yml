@@ -53,7 +53,8 @@ oim_ssh_port: 22
 # The local omnia monorepo is synced (rsync) to clone_path on the target.
 # Playbook runs from <clone_path>/build_stream/
 #
-# clone_path:   Absolute path on the TARGET SERVER where the project code is synced.
+# clone_path:   Absolute path on the TARGET SERVER where the project code is
+#               synced.
 #               Only used in remote mode. In local mode, the playbook path is
 #               resolved automatically from the source tree.
 clone_path: "/omnia"
@@ -73,10 +74,8 @@ clone_path: "/omnia"
 #     input/build_stream_config.yml
 dataset: ""
 
-# Project name on the target server.
-# Must match OMNIA_PROJECT_NAME env var on the target (default: project_default).
-# Input read from: /opt/omnia/build_stream/input/<project_name>/
-project_name: "project_default"
+# The target project is always read from OMNIA_PROJECT_NAME on the execution
+# OIM. It is intentionally not duplicated in this test configuration.
 
 # =============================================================================
 # SYNC — BUILD STREAM INPUT
@@ -105,12 +104,12 @@ report_path: /opt/omnia/reports
 # No spaces allowed. Only letters, numbers, underscores, hyphens.
 report_name: build_stream_test_report
 
-# Custom report ID (optional).
-# When set, reports use this ID instead of a timestamp (YYYYMMDDHHmmSS).
+# Custom run ID (optional).
+# When set, reports use this ID instead of a timestamp (YYYYMMDD_HHMMSS).
 # This groups multiple scenario runs under the same report entry.
 # Leave empty to auto-generate from timestamp.
 # No spaces allowed. Only letters, numbers, underscores, hyphens.
-report_id: ""
+run_id: ""
 
 # =============================================================================
 # BUILD PIPELINE SETTINGS

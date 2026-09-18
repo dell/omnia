@@ -25,7 +25,7 @@ from testinfra.host import Host
 from library.functions import (
     TestLogger,
     run_on_host,
-    load_test_config,
+    resolve_target_input_project_path,
     check_slurm_config_integrity,
 )
 from library.messages.slurm_msgs import (
@@ -74,6 +74,7 @@ def test_custom_slurm_conf_structure(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(11)
 def test_extra_confs_handling(host: Host):
     """ORCH_FVT_SLURM_V046: Validate extra_confs handling in slurm_config.yml."""
@@ -84,9 +85,8 @@ def test_extra_confs_handling(host: Host):
 
     tl.check("Checking extra_confs configuration")
 
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    slurm_config_path = f"/opt/omnia/orchestrator/input/{project}/slurm_config.yml"
+    input_path = resolve_target_input_project_path(host)
+    slurm_config_path = f"{input_path}/slurm_config.yml"
 
     # Check if slurm_config.yml exists
     cmd = f"test -f {slurm_config_path} && echo exists || echo missing"
@@ -114,6 +114,7 @@ def test_extra_confs_handling(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(12)
 def test_custom_conf_files_exist(host: Host):
     """ORCH_FVT_SLURM_V050: Validate custom conf files exist if configured."""
@@ -124,9 +125,8 @@ def test_custom_conf_files_exist(host: Host):
 
     tl.check("Checking custom conf files")
 
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    slurm_config_path = f"/opt/omnia/orchestrator/input/{project}/slurm_config.yml"
+    input_path = resolve_target_input_project_path(host)
+    slurm_config_path = f"{input_path}/slurm_config.yml"
 
     # Check if slurm_config.yml exists and has extra_confs
     cmd = f"test -f {slurm_config_path} && echo exists || echo missing"
@@ -163,6 +163,7 @@ def test_custom_conf_files_exist(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(13)
 def test_custom_partition_config(host: Host):
     """ORCH_FVT_SLURM_V043: Validate custom partition configuration in slurm.conf."""
@@ -174,9 +175,8 @@ def test_custom_partition_config(host: Host):
     tl.check("Checking custom partition configuration")
 
     # Read PXE mapping to get control node IP
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -210,6 +210,7 @@ def test_custom_partition_config(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(14)
 def test_custom_gres_config(host: Host):
     """ORCH_FVT_SLURM_V044: Validate custom GRES (GPU) configuration in slurm.conf."""
@@ -221,9 +222,8 @@ def test_custom_gres_config(host: Host):
     tl.check("Checking custom GRES configuration")
 
     # Read PXE mapping to get control node IP
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -257,6 +257,7 @@ def test_custom_gres_config(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(15)
 def test_custom_node_config(host: Host):
     """ORCH_FVT_SLURM_V045: Validate custom node configuration in slurm.conf."""
@@ -268,9 +269,8 @@ def test_custom_node_config(host: Host):
     tl.check("Checking custom node configuration")
 
     # Read PXE mapping to get control node IP
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -302,6 +302,7 @@ def test_custom_node_config(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(16)
 def test_slurm_conf_merge_functionality(host: Host):
     """ORCH_FVT_SLURM_V047: Validate slurm_conf merge functionality."""
@@ -329,6 +330,7 @@ def test_slurm_conf_merge_functionality(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(17)
 def test_custom_scheduling_params(host: Host):
     """ORCH_FVT_SLURM_V048: Validate custom scheduling parameters in slurm.conf."""
@@ -340,9 +342,8 @@ def test_custom_scheduling_params(host: Host):
     tl.check("Checking custom scheduling parameters")
 
     # Read PXE mapping to get control node IP
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -381,6 +382,7 @@ def test_custom_scheduling_params(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(18)
 def test_slurm_conf_syntax_valid(host: Host):
     """ORCH_FVT_SLURM_V049: Validate slurm.conf syntax is valid."""
@@ -392,9 +394,8 @@ def test_slurm_conf_syntax_valid(host: Host):
     tl.check("Validating slurm.conf syntax")
 
     # Read PXE mapping to get control node IP
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -424,6 +425,7 @@ def test_slurm_conf_syntax_valid(host: Host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(19)
 def test_slurm_config_integrity(host: Host):
     """ORCH_FVT_SLURM_V051: Validate deployed slurm.conf matches input configuration."""

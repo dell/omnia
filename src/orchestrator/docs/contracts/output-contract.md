@@ -203,10 +203,10 @@ correlation remains `unknown`.
 
 | File | Purpose |
 |---|---|
-| `orchestrator_inventory.yaml` | Ansible inventory grouped by functional group, including administrative addresses and optional Kubernetes VIP data. |
+| `orchestrator_inventory.yml` | Ansible inventory grouped by functional group, including administrative addresses and optional Kubernetes VIP data. |
 | `bmc_group_data.csv` | BMC inventory exported with BMC address, group name, and parent-group data. |
 
-Telemetry may consume `orchestrator_inventory.yaml` through its
+Telemetry may consume `orchestrator_inventory.yml` through its
 `cluster_inventory` input. It does not consume the internal
 `functional_groups_config.yml` file.
 
@@ -268,5 +268,5 @@ cleanup. Use `--tags cleanup_credentials` for credential-only cleanup.
 |----------------|---------------|---------|
 | Compute nodes (PXE) | Boot Service parameters and Metadata Service data | Boot and configure nodes |
 | Orchestrator provisioning and validation roles | `functional_groups_config.yml`, category node files | Scope provisioning and validate registered nodes and images. |
-| `generate_inventories` | `functional_groups_config.yml`, PXE mapping data, SMD data | Publish `orchestrator_inventory.yaml` and `bmc_group_data.csv`. |
-| Telemetry | `orchestrator_inventory.yaml` when configured | Resolve the service Kubernetes VIP and source-node groups. |
+| `generate_inventories` | `functional_groups_config.yml`, PXE mapping data, SMD data | Publish `orchestrator_inventory.yml` and `bmc_group_data.csv`. |
+| Telemetry | `orchestrator_inventory.yml` when configured | Resolve the service Kubernetes VIP and source-node groups. |

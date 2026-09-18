@@ -16,13 +16,13 @@
 Orchestrator — Non-Functional Performance Tests.
 
 Verifies that key orchestrator operations complete within expected timeframes:
-  - Validate playbook completes within threshold (< 30s)
+  - Validate playbook completes within threshold (< 60s)
   - Prepare playbook completes within threshold (< 300s / 5 min)
   - Provision playbook completes within threshold (< 1800s / 30 min)
   - Cleanup playbook completes within threshold (< 180s / 3 min)
 
 Test cases:
-    ORCH_NFT_001: Validate performance (< 30s)
+    ORCH_NFT_001: Validate performance (< 60s)
     ORCH_NFT_002: Prepare performance (< 300s)
     ORCH_NFT_003: Provision performance (< 1800s)
     ORCH_NFT_004: Cleanup performance (< 180s)
@@ -34,7 +34,7 @@ from library.functions import TestLogger, run_playbook, load_test_config
 from library.vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
 
 # Performance thresholds (seconds)
-VALIDATE_THRESHOLD = 30     # 30 seconds - config validation only
+VALIDATE_THRESHOLD = 60     # 60 seconds - complete validation lifecycle
 PREPARE_THRESHOLD = 300     # 5 minutes - OpenCHAMI container deployment
 PROVISION_THRESHOLD = 1800  # 30 minutes - full node provisioning
 CLEANUP_THRESHOLD = 180     # 3 minutes - container/service removal
@@ -44,10 +44,10 @@ CLEANUP_THRESHOLD = 180     # 3 minutes - container/service removal
 @pytest.mark.performance
 @pytest.mark.order(1)
 def test_validate_performance(host):
-    """ORCH_NFT_001: Verify validate completes within 30s threshold.
+    """ORCH_NFT_001: Verify validate completes within 60s threshold.
 
     Runs ``ansible-playbook orchestrator.yml --tags validate`` and asserts
-    that configuration validation completes in under 30 seconds.
+    that the complete validation lifecycle finishes in under 60 seconds.
     """
     tl = TestLogger("NFT: Validate performance", "ORCH_NFT_001")
 

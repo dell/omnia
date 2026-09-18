@@ -59,13 +59,14 @@ readonly NC='\033[0m'
 readonly OMNIA_RELEASE="2.3.0.0"
 
 # Known domain directories (each must provide domain-init.sh)
+# Cleanup order: reverse of dependency (telemetry depends on orchestrator, orchestrator depends on discovery)
 readonly DOMAINS=(
-    "build_stream"
+    "telemetry"
+    "orchestrator"
     "discovery"
     "image_build_manager"
-    "orchestrator"
     "repo_manager"
-    "telemetry"
+    "build_stream"
     "utils"
 )
 
@@ -690,11 +691,13 @@ warn_stage_order() {
     local domain="$1"
     local project="${OMNIA_PROJECT_NAME:-project_default}"
     local data_path="${OMNIA_DATA_PATH:-/opt/omnia}"
+    local repo_manager_root="${REPO_MANAGER_DATA_PATH:-${data_path}/repo_manager}"
+    local image_build_manager_root="${IMAGE_BUILD_MANAGER_DATA_PATH:-${data_path}/image_build_manager}"
 
     case "$domain" in
         image_build_manager)
             # image_build_manager reads repo_status.yml from repo_manager
-            local repo_status="$data_path/repo_manager/output/$project/repo_status.yml"
+            local repo_status="${repo_manager_root}/output/${project}/repo_status.yml"
             if [ ! -f "$repo_status" ]; then
                 echo -e "${YELLOW}WARNING: repo_manager has not been run yet (no repo_status.yml found).${NC}"
                 echo -e "${YELLOW}  Recommended order: repo_manager -> image_build_manager -> orchestrator${NC}"
@@ -704,7 +707,7 @@ warn_stage_order() {
             ;;
         orchestrator)
             # orchestrator reads build_status.yml from image_build_manager
-            local build_status="$data_path/image_build_manager/output/$project/build_status.yml"
+            local build_status="${image_build_manager_root}/output/${project}/build_status.yml"
             if [ ! -f "$build_status" ]; then
                 echo -e "${YELLOW}WARNING: image_build_manager has not been run yet (no build_status.yml found).${NC}"
                 echo -e "${YELLOW}  Recommended order: repo_manager -> image_build_manager -> orchestrator${NC}"
@@ -1063,8 +1066,28 @@ validate_full_cleanup_state() {
         echo ""
         echo -e "${YELLOW}No files were removed. Run the matching domain cleanup first, for example:${NC}"
         echo "  ./omnia.sh --run <domain> --tags cleanup"
+        echo ""
+        echo -e "${YELLOW}For telemetry, include delete_sinks_volume=true to also remove log, input, and output directories:${NC}"
+        echo "  ./omnia.sh --run telemetry --tags cleanup -e delete_sinks_volume=true"
+        echo ""
+
+        # Check if telemetry blockers exist and add kube_vip hint
+        local has_telemetry_blockers=false
+        for blocker in "${blockers[@]}"; do
+            if [[ "$blocker" == *"/telemetry/"* ]]; then
+                has_telemetry_blockers=true
+                break
+            fi
+        done
+        if [ "$has_telemetry_blockers" = true ]; then
+            local orchestrator_root="${ORCHESTRATOR_DATA_PATH:-${OMNIA_DATA_PATH}/orchestrator}"
+            echo -e "${YELLOW}If telemetry cleanup skips due to missing kube_vip, ensure cluster_inventory is set in telemetry_config.yml:${NC}"
+            echo "  cluster_inventory: \"${orchestrator_root}/output/${OMNIA_PROJECT_NAME}/orchestrator_inventory.yml\""
+        fi
+        echo ""
         echo -e "${YELLOW}Log/output trees containing only empty directories and Build Stream initializer files are allowed.${NC}"
         echo -e "${YELLOW}Remove any intentionally retained paths reported above and retry.${NC}"
+        echo ""
         return 1
     fi
 }
@@ -1229,91 +1252,350 @@ cleanup_omnia() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Catalog Copy
+# Catalog Selection and Copy
 # ─────────────────────────────────────────────────────────────────────────────
+_catalog_sources() {
+    local default_catalog="${SCRIPT_DIR}/samples/catalog_rhel.json"
+    local variants_dir="${SCRIPT_DIR}/samples/catalogs"
+
+    [ -f "$default_catalog" ] && printf '%s\n' "$default_catalog"
+    if [ -d "$variants_dir" ]; then
+        find "$variants_dir" -type f -name '*.json' -print 2>/dev/null | sort
+    fi
+}
+
+_catalog_selector() {
+    local source="$1"
+
+    if [ "$source" = "${SCRIPT_DIR}/samples/catalog_rhel.json" ]; then
+        printf '%s' "default"
+    else
+        printf '%s' "${source#"${SCRIPT_DIR}/samples/catalogs/"}"
+    fi
+}
+
+_catalog_metadata() {
+    local source="$1"
+
+    if ! command -v python3 >/dev/null 2>&1; then
+        printf '%s\n' \
+            "$(basename "$source")" \
+            "Catalog description unavailable because python3 is not installed." \
+            "Catalog analysis unavailable because python3 is not installed."
+        return 0
+    fi
+
+    python3 - "$source" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+
+source = Path(sys.argv[1])
+
+
+def one_line(value, fallback):
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    return text or fallback
+
+
+try:
+    with source.open(encoding="utf-8") as stream:
+        document = json.load(stream)
+    catalog = document.get("catalog", {})
+    layers = catalog.get("functionallayer", [])
+    if not isinstance(layers, list):
+        layers = []
+
+    layer_names = [
+        str(layer.get("name", ""))
+        for layer in layers
+        if isinstance(layer, dict)
+    ]
+    components = [
+        str(component)
+        for layer in layers
+        if isinstance(layer, dict)
+        for component in layer.get("components", [])
+    ]
+    groups = catalog.get("groups", {})
+    group_names = list(groups) if isinstance(groups, dict) else []
+
+    workloads = []
+    if any(name.startswith("slurm_") for name in layer_names):
+        workloads.append("Slurm")
+    if any(
+        name.startswith(("service_kube_", "service_k8s_"))
+        for name in layer_names
+    ):
+        workloads.append("service Kubernetes")
+    if not workloads:
+        workloads.append("base OS only")
+
+    versions = {
+        (int(match.group(1)), int(match.group(2)))
+        for name in layer_names
+        for match in [re.search(r"_rhel_(\d+)_(\d+)(?:_|$)", name)]
+        if match
+    }
+    version_text = " + ".join(
+        f"{major}.{minor}" for major, minor in sorted(versions)
+    ) or "not detected"
+
+    architectures = [
+        architecture
+        for architecture in ("x86_64", "aarch64")
+        if any(architecture in name for name in layer_names)
+    ]
+    architecture_text = " + ".join(architectures) or "not detected"
+    vast_included = any(
+        "vast" in value.lower() for value in group_names + components
+    )
+
+    name = one_line(catalog.get("name"), source.name)
+    description = one_line(
+        catalog.get("description"), "No catalog description is defined."
+    )
+    analysis = " | ".join(
+        (
+            f"RHEL {version_text}",
+            f"Workloads: {' + '.join(workloads)}",
+            f"Architectures: {architecture_text}",
+            f"VAST client: {'included' if vast_included else 'not included'}",
+            f"Functional layers: {len(layers)}",
+        )
+    )
+except (AttributeError, OSError, ValueError, TypeError) as error:
+    name = source.name
+    description = one_line(
+        f"Unable to read catalog metadata: {error}",
+        "Unable to read catalog metadata.",
+    )
+    analysis = "Catalog analysis unavailable."
+
+print(name)
+print(description)
+print(analysis)
+PY
+}
+
+_print_catalog_details() {
+    local source="$1"
+    local prefix="${2:-  }"
+    local details=()
+    mapfile -t details < <(_catalog_metadata "$source")
+
+    printf '%sName:        %s\n' "$prefix" "${details[0]:-$(basename "$source")}"
+    printf '%sDescription: %s\n' "$prefix" "${details[1]:-No catalog description is defined.}"
+    printf '%sAnalysis:    %s\n' "$prefix" "${details[2]:-Catalog analysis unavailable.}"
+}
+
+list_catalogs() {
+    local sources=()
+    mapfile -t sources < <(_catalog_sources)
+
+    echo -e "${BLUE}================================================================================${NC}"
+    echo -e "${BLUE}               Bundled Catalogs${NC}"
+    echo -e "${BLUE}================================================================================${NC}"
+    echo ""
+
+    if [ "${#sources[@]}" -eq 0 ]; then
+        echo -e "${RED}ERROR: No bundled catalog JSON files were found under ${SCRIPT_DIR}/samples${NC}"
+        return 1
+    fi
+
+    local idx=0 source selector
+    for source in "${sources[@]}"; do
+        idx=$((idx + 1))
+        selector=$(_catalog_selector "$source")
+        printf '  %2d) %s\n' "$idx" "$selector"
+        _print_catalog_details "$source" "      "
+        printf '      Source:      %s\n\n' "$source"
+    done
+    echo -e "${DIM}Use the selector or number with: ./omnia.sh --select-catalog <selection>${NC}"
+}
+
+_resolve_catalog_source() {
+    local selection="$1"
+    local sources=()
+    mapfile -t sources < <(_catalog_sources)
+
+    if [[ "$selection" =~ ^[0-9]+$ ]]; then
+        if [ "$selection" -lt 1 ] || [ "$selection" -gt "${#sources[@]}" ]; then
+            return 1
+        fi
+        printf '%s' "${sources[$((selection - 1))]}"
+        return 0
+    fi
+
+    local source selector matched="" matches=0
+    for source in "${sources[@]}"; do
+        selector=$(_catalog_selector "$source")
+        if [ "$selection" = "$selector" ] || [ "$selection" = "$(basename "$source")" ]; then
+            matched="$source"
+            matches=$((matches + 1))
+        fi
+    done
+
+    if [ "$matches" -ne 1 ]; then
+        return 1
+    fi
+
+    printf '%s' "$matched"
+}
+
+_validate_catalog_json() {
+    local source="$1"
+
+    if command -v python3 >/dev/null 2>&1; then
+        python3 -m json.tool "$source" >/dev/null
+    elif command -v jq >/dev/null 2>&1; then
+        jq empty "$source" >/dev/null
+    else
+        echo -e "${YELLOW}WARNING: python3/jq not found; skipping JSON syntax validation.${NC}"
+    fi
+}
+
+select_catalog() {
+    local selection="${1:-}"
+    load_env
+
+    if [ -z "$selection" ]; then
+        list_catalogs
+        echo ""
+        echo -n "Select a catalog by number or name (q to cancel): "
+        if ! read -r selection; then
+            echo -e "${RED}ERROR: A catalog selection is required.${NC}"
+            return 1
+        fi
+    fi
+
+    case "$selection" in
+        q|Q|quit|cancel)
+            echo -e "${DIM}Catalog selection cancelled.${NC}"
+            return 0
+            ;;
+    esac
+
+    local catalog_source
+    if ! catalog_source=$(_resolve_catalog_source "$selection"); then
+        echo -e "${RED}ERROR: Unknown or ambiguous catalog selection: ${selection}${NC}"
+        echo -e "${YELLOW}Run './omnia.sh --list-catalogs' and use an exact selector.${NC}"
+        return 1
+    fi
+
+    local default_target="${OMNIA_DATA_PATH}/catalog/catalog_rhel.json"
+    local catalog_target="${CATALOG_FILE_PATH:-$default_target}"
+    local target_dir
+    target_dir=$(dirname "$catalog_target")
+
+    if [[ "$catalog_target" != /* ]] || [[ "$catalog_target" != *.json ]]; then
+        echo -e "${RED}ERROR: CATALOG_FILE_PATH must be an absolute .json path: ${catalog_target}${NC}"
+        return 1
+    fi
+    if [ -L "$catalog_target" ]; then
+        echo -e "${RED}ERROR: Refusing to replace a symbolic-link catalog target: ${catalog_target}${NC}"
+        return 1
+    fi
+    if [ -e "$catalog_target" ] && [ ! -f "$catalog_target" ]; then
+        echo -e "${RED}ERROR: Catalog target exists but is not a regular file: ${catalog_target}${NC}"
+        return 1
+    fi
+    if ! _validate_catalog_json "$catalog_source"; then
+        echo -e "${RED}ERROR: Selected catalog is not valid JSON: ${catalog_source}${NC}"
+        return 1
+    fi
+
+    echo -e "${BLUE}Selected catalog:${NC} $(_catalog_selector "$catalog_source")"
+    _print_catalog_details "$catalog_source" "  "
+    echo -e "${BLUE}Source:${NC}           ${catalog_source}"
+    echo -e "${BLUE}Active target:${NC}    ${catalog_target}"
+
+    mkdir -p "$target_dir"
+
+    if [ -f "$catalog_target" ] && cmp -s "$catalog_source" "$catalog_target"; then
+        echo -e "${GREEN}Catalog is already active: $(_catalog_selector "$catalog_source")${NC}"
+        echo -e "  ${GREEN}${catalog_target}${NC}"
+        return 0
+    fi
+
+    local backup_file=""
+    if [ -f "$catalog_target" ]; then
+        echo ""
+        echo -n "Replace the active catalog and keep a timestamped backup? [yes/no]: "
+        local answer
+        if ! read -r answer; then
+            echo -e "${RED}ERROR: Confirmation is required to replace the active catalog.${NC}"
+            return 1
+        fi
+        case "$answer" in
+            yes|YES|Yes|y|Y) ;;
+            *)
+                echo -e "${DIM}Catalog selection cancelled.${NC}"
+                return 0
+                ;;
+        esac
+
+        backup_file="${catalog_target}.backup.$(date -u +%Y%m%dT%H%M%S%NZ)"
+        cp -p -- "$catalog_target" "$backup_file"
+        echo -e "${GREEN}Backup:${NC}          ${backup_file}"
+    fi
+
+    local temporary_file
+    temporary_file=$(mktemp "${target_dir}/.omnia-catalog.XXXXXX")
+    if ! install -m 0644 "$catalog_source" "$temporary_file"; then
+        rm -f -- "$temporary_file"
+        return 1
+    fi
+    if ! mv -f -- "$temporary_file" "$catalog_target"; then
+        rm -f -- "$temporary_file"
+        return 1
+    fi
+
+    echo -e "${GREEN}Catalog selected and activated successfully.${NC}"
+    echo -e "  ${GREEN}CATALOG_FILE_PATH=${catalog_target}${NC}"
+    if command -v sha256sum >/dev/null 2>&1; then
+        echo -e "  ${DIM}SHA256: $(sha256sum "$catalog_target" | awk '{print $1}')${NC}"
+    fi
+}
+
 copy_catalog() {
     load_env
 
     local catalog_source="${SCRIPT_DIR}/samples/catalog_rhel.json"
-    local catalog_target_dir="${OMNIA_DATA_PATH}/catalog"
-    local catalog_target_file="${catalog_target_dir}/catalog_rhel.json"
-    local configured_catalog_file="${CATALOG_FILE_PATH:-$catalog_target_file}"
-    local configured_catalog_dir
-    configured_catalog_dir="$(dirname "$configured_catalog_file")"
+    local default_target="${OMNIA_DATA_PATH}/catalog/catalog_rhel.json"
+    local catalog_target="${CATALOG_FILE_PATH:-$default_target}"
+    local target_dir
+    target_dir=$(dirname "$catalog_target")
 
     echo -e "${BLUE}================================================================================${NC}"
-    echo -e "${BLUE}               Catalog Copy${NC}"
+    echo -e "${BLUE}               Catalog Setup${NC}"
     echo -e "${BLUE}================================================================================${NC}"
     echo ""
 
     if [ ! -f "$catalog_source" ]; then
         echo -e "${RED}ERROR: Catalog source not found: ${catalog_source}${NC}"
-        echo -e "${YELLOW}Expected at: src/main/samples/catalog_rhel.json${NC}"
-        exit 1
+        return 1
     fi
-
-    mkdir -p "$catalog_target_dir"
-
-    # Copy all sample/catalog files from src/main/samples/
-    local copied=0
-    for sample_file in "$SCRIPT_DIR"/samples/*.json "$SCRIPT_DIR"/samples/*.yml "$SCRIPT_DIR"/samples/*.yaml; do
-        if [ -f "$sample_file" ]; then
-            local filename
-            filename="$(basename "$sample_file")"
-            cp -f "$sample_file" "${catalog_target_dir}/${filename}"
-            echo -e "  ${GREEN}Copied: ${filename} -> ${catalog_target_dir}/${filename}${NC}"
-            copied=$((copied + 1))
-        fi
-    done
-
-    if [ "$copied" -eq 0 ]; then
-        echo -e "${YELLOW}No catalog/sample files found in ${SCRIPT_DIR}/samples/${NC}"
+    if [[ "$catalog_target" != /* ]] || [[ "$catalog_target" != *.json ]]; then
+        echo -e "${RED}ERROR: CATALOG_FILE_PATH must be an absolute .json path: ${catalog_target}${NC}"
         return 1
     fi
 
-    echo ""
-    echo -e "${GREEN}Catalog files copied to: ${catalog_target_dir}/${NC}"
-    echo -e "${GREEN}Configured catalog file:${NC}"
-    echo -e "  ${GREEN}CATALOG_FILE_PATH=${configured_catalog_file}${NC}"
-    echo -e "  ${DIM}The default catalog contains packages for both Slurm and service_k8s deployments.${NC}"
-    if [ "$configured_catalog_file" != "$catalog_target_file" ]; then
-        echo -e "  ${YELLOW}The configured path differs from the copied default (${catalog_target_file}).${NC}"
-        echo -e "  ${YELLOW}Copy the catalog you want to ${configured_catalog_file} before running catalog-based workflows.${NC}"
+    mkdir -p "$target_dir"
+    if [ -e "$catalog_target" ] || [ -L "$catalog_target" ]; then
+        echo -e "${GREEN}Preserving existing active catalog:${NC}"
+        echo -e "  ${GREEN}${catalog_target}${NC}"
+    else
+        install -m 0644 "$catalog_source" "$catalog_target"
+        echo -e "${GREEN}Installed default catalog:${NC}"
+        echo -e "  ${GREEN}${catalog_target}${NC}"
     fi
+
     echo ""
-    echo -e "${GREEN}Available catalog variants:${NC}"
-    echo -e "  ${GREEN}Source: ${SCRIPT_DIR}/samples/catalogs/<RHEL-version>/${NC}"
-    echo -e "  ${GREEN}Selection guide: ${SCRIPT_DIR}/samples/README.md${NC}"
-    echo -e "  ${DIM}RHEL versions: 10.0 and 10.2${NC}"
-    echo -e "  ${DIM}Workloads: Slurm only, service_k8s only, or combined${NC}"
-    echo -e "  ${DIM}Architectures: x86_64, aarch64, or mixed x86_64/aarch64${NC}"
-    echo -e "  ${DIM}Files ending in _no_vast.json exclude the VAST Data client.${NC}"
-    echo -e "  ${DIM}List every catalog: find \"${SCRIPT_DIR}/samples/catalogs\" -type f -name '*.json' | sort${NC}"
-    echo ""
-    echo -e "${YELLOW}Recommended for a small x86_64 Slurm test without VAST:${NC}"
-    echo -e "  ${YELLOW}Choose the command matching the RHEL version used to build the nodes.${NC}"
-    echo -e "  ${DIM}RHEL 10.0:${NC}"
-    printf '     cp "%s" \\\n' "${SCRIPT_DIR}/samples/catalogs/10.0/slurm_x86_64_no_vast.json"
-    echo -e "       \"${configured_catalog_file}\""
-    echo -e "  ${DIM}RHEL 10.2:${NC}"
-    printf '     cp "%s" \\\n' "${SCRIPT_DIR}/samples/catalogs/10.2/slurm_x86_64_no_vast.json"
-    echo -e "       \"${configured_catalog_file}\""
-    echo -e "  ${DIM}These Slurm-only catalogs exclude service_k8s, aarch64, and VAST content.${NC}"
-    echo -e "  ${DIM}They replace the active catalog in place, so no environment-file change is required.${NC}"
-    echo ""
-    echo -e "${YELLOW}To use a different catalog:${NC}"
-    echo -e "  ${YELLOW}1. Keep the current path and replace its contents:${NC}"
-    echo -e "     mkdir -p \"${configured_catalog_dir}\""
-    echo -e "     cp /path/to/catalog.json \"${configured_catalog_file}\""
-    echo ""
-    echo -e "  ${YELLOW}2. Or keep a separate filename and update the catalog path:${NC}"
-    echo -e "     cp /path/to/catalog.json \"${configured_catalog_dir}/custom_catalog.json\""
-    echo -e "     vi ${ACTIVE_ENV_FILE:-$SYSTEM_ENV_FILE}"
-    echo -e "     Set: CATALOG_FILE_PATH=${configured_catalog_dir}/custom_catalog.json"
-    echo -e "     source ${PROFILE_DROP_IN}"
-    echo ""
-    echo -e "  ${DIM}If you edit ${SCRIPT_DIR}/omnia.env instead of ${ACTIVE_ENV_FILE:-$SYSTEM_ENV_FILE},${NC}"
-    echo -e "  ${DIM}apply it with ./omnia.sh -s --force-env (this replaces the installed env file).${NC}"
+    echo -e "${DIM}List bundled variants: ./omnia.sh --list-catalogs${NC}"
+    echo -e "${DIM}Select or replace one: ./omnia.sh --select-catalog [selection]${NC}"
     echo ""
 }
 
@@ -1458,7 +1740,8 @@ USAGE:
 SETUP COMMANDS (run once, in order):
   --setup-venv, -s      Create/update the shared Python venv, then run all
                         domain-init.sh scripts (pip deps, Galaxy collections,
-                        log dirs, input file staging) and copy catalog files.
+                        log dirs, input file staging) and install the default
+                        catalog only when no active catalog exists.
   --init, -i [domain,...]
                         Re-run domain-init.sh scripts only (no venv rebuild).
                         Optionally specify comma-separated domains to init.
@@ -1484,7 +1767,17 @@ EXECUTION COMMANDS:
 
   --run, -r <domain> [--tags <tags>] [extra ansible args]
                         Activate venv and run the specified domain's playbook.
-                        Passes --tags and any extra args to ansible-playbook.
+                        Passes --tags, -e/--extra-vars, and any other arguments
+                        to ansible-playbook.
+
+CATALOG COMMANDS:
+  --list-catalogs       List bundled catalogs with descriptions and
+                        content-derived summaries.
+  --select-catalog [selection]
+                        Select a bundled catalog interactively, or provide its
+                        list number/name, then copy it atomically to
+                        CATALOG_FILE_PATH. Existing content is backed up after
+                        confirmation.
 
 RECOMMENDED EXECUTION ORDER:
   Domains should be run in this order (each reads the previous domain's output):
@@ -1506,7 +1799,7 @@ RECOMMENDED EXECUTION ORDER:
     orchestrator:        precheck validate credentials prepare deploy provision execute validate-deployment pxeboot cleanup cleanup_credentials upgrade rollback
     repo_manager:        precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos upgrade rollback catalog_generate catalog_add catalog_delete catalog_validate
     telemetry:           precheck validate validation prepare credentials execute deploy cleanup cleanup_kafka cleanup_victoria_metrics cleanup_victoria_logs cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria
-    utils:               precheck setup collect install_os backup_oim_logs cleanup cleanup_logs cleanup_install_os cleanup_backup_oim_logs upgrade rollback
+    utils:               precheck setup collect install_os backup_oim_logs slurm_config_backup slurm_config_cleanup slurm_config_rollback cleanup cleanup_logs cleanup_install_os cleanup_backup_oim_logs cleanup_slurm_config_backups upgrade rollback
 
   Without --tags, each playbook runs its full default flow. Tags marked with
   Ansible's "never" tag run only when explicitly selected. Domain playbooks
@@ -1550,7 +1843,9 @@ OPTIONS:
                         With --prepare-base: show which base domains and phases
                         would run. Does not initialize or prepare domains; other
                         setup steps still run when used with -s.
-  --skip-catalog        With -s: skip the automatic catalog copy.
+  --skip-catalog        With -s: skip installation of a missing default catalog.
+                        Setup preserves an existing active catalog; use
+                        --select-catalog to intentionally replace it.
   --skip-omnia-cli      With -s: skip installing omnia-cli and shared bash completion
                         to /usr/local/bin/ and /etc/bash_completion.d/.
   --skip-approval       With --cleanup: skip the confirmation prompt. Intended
@@ -1568,9 +1863,10 @@ DEPENDENCY CACHING:
 
 DIAGNOSTICS (see omnia-cli):
   omnia-cli status [--project <name>]         All domain statuses
-  omnia-cli repo-manager [--project <name>]   Repo manager details
-  omnia-cli image-build [--project <name>]    Image build details
+  omnia-cli repo_manager [--project <name>]   Repo manager details
+  omnia-cli image_build_manager [--project <name>] Image build details
   omnia-cli <domain> [--project <name>]       Any domain status
+  omnia-cli output <domain> [file]             List/view domain outputs
   omnia-cli version                           Version info
   omnia-cli help [<domain>]                   CLI help
 
@@ -1603,7 +1899,12 @@ EXAMPLES:
   vi /etc/omnia/omnia.env                      # Make environment changes after first setup
   ./omnia.sh -s --force-env                    # Explicitly replace system env from repository
   ./omnia.sh -s --deps-only                    # Installs env + venv + deps (skips input staging)
-  ./omnia.sh -s --skip-catalog                 # Setup without catalog copy
+  ./omnia.sh -s --skip-catalog                 # Do not install a missing default catalog
+
+  # Select the active catalog:
+  ./omnia.sh --list-catalogs
+  ./omnia.sh --select-catalog                   # Interactive selection
+  ./omnia.sh --select-catalog 10.0/slurm_x86_64_no_vast.json
 
   # Init specific domains (re-stage input files or reinstall deps):
   ./omnia.sh -i                                # All domains
@@ -1634,6 +1935,7 @@ EXAMPLES:
   ./omnia.sh --run image_build_manager --tags prepare
   ./omnia.sh -r repo_manager                   # Run the default Repo Manager flow
   ./omnia.sh -r telemetry                      # Run the default Telemetry flow
+  ./omnia.sh -r telemetry --tags cleanup -e delete_sinks_volume=true
 
   # Validate domain input:
   ./omnia.sh --run image_build_manager --tags validate
@@ -1651,7 +1953,8 @@ EXAMPLES:
 
   # Diagnostics:
   omnia-cli status               # All domains
-  omnia-cli repo-manager         # Repo manager details
+  omnia-cli repo_manager         # Repo manager details
+  omnia-cli output telemetry telemetry_status.yml
 EOF
 }
 
@@ -1668,6 +1971,7 @@ main() {
     local CLEANUP_SKIP_APPROVAL=false
     local SKIP_CATALOG=false
     local SKIP_OMNIA_CLI=false
+    local catalog_selection=""
     local command=""
     local init_domain_filter=""
     local run_domain_name=""
@@ -1708,6 +2012,18 @@ main() {
             --skip-omnia-cli)
                 SKIP_OMNIA_CLI=true
                 shift
+                ;;
+            --list-catalogs)
+                command="list-catalogs"
+                shift
+                ;;
+            --select-catalog)
+                command="select-catalog"
+                shift
+                if [ $# -gt 0 ] && [[ "$1" != --* ]]; then
+                    catalog_selection="$1"
+                    shift
+                fi
                 ;;
             --skip)
                 if [ $# -lt 2 ] || [[ "$2" == --* ]]; then
@@ -1826,13 +2142,18 @@ main() {
         echo -e "${YELLOW}Usage: $0 --cleanup [--all] --skip-approval${NC}"
         exit 1
     fi
+    if [ "$SKIP_CATALOG" = true ] && [ "$command" != "setup-venv" ]; then
+        echo -e "${RED}ERROR: --skip-catalog requires --setup-venv (-s)${NC}"
+        echo -e "${YELLOW}Use --list-catalogs or --select-catalog to manage the active catalog.${NC}"
+        exit 1
+    fi
 
     case "$command" in
         setup-venv)
             setup_venv
             init_domains ""
 
-            # Auto-copy catalog unless --skip-catalog
+            # Ensure an active catalog exists unless --skip-catalog.
             if [ "$SKIP_CATALOG" = false ]; then
                 copy_catalog
             fi
@@ -1877,6 +2198,12 @@ main() {
             ;;
         check-deps)
             check_deps
+            ;;
+        list-catalogs)
+            list_catalogs
+            ;;
+        select-catalog)
+            select_catalog "$catalog_selection"
             ;;
         cleanup)
             cleanup_omnia "$CLEANUP_ALL" "$CLEANUP_SKIP_APPROVAL"

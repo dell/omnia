@@ -579,6 +579,7 @@
     ansible_port: "{{ oim_host_port }}"
     ansible_connection: local
     groups: "{{ oim_host_group }}"
+  changed_when: false
   when:
     - oim_group | default(false) | bool
 

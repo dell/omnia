@@ -33,6 +33,17 @@ import sys
 _DESTRUCTIVE_TAGS = {"cleanup", "rollback"}
 
 
+def _runner_all_exec_tags(args, lifecycle_tags):
+    """Use broad verification only for Orchestrator's untagged verify."""
+    if (
+        len(args) >= 2
+        and args[0] == "fvt_orchestrator"
+        and args[1] == "verify"
+    ):
+        return []
+    return lifecycle_tags
+
+
 def _validate_destructive_opt_in(args):
     """Reject state-changing standalone flows without explicit opt-in."""
     if len(args) < 2 or args[0] != "fvt_orchestrator":
@@ -90,7 +101,9 @@ def main():
             "markers": MARKERS,
             "suites": SUITES,
             "exclude_tags": EXCLUDE_TAGS,
-            "all_exec_tags": ALL_EXEC_TAGS,
+            "all_exec_tags": _runner_all_exec_tags(
+                sys.argv[1:], ALL_EXEC_TAGS,
+            ),
             "all_exec_marker": ALL_EXEC_MARKER,
             "all_verify_exclude_markers": ALL_VERIFY_EXCLUDE_MARKERS,
             "required_suite_tags": REQUIRED_SUITE_TAGS,

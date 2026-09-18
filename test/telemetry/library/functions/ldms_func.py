@@ -35,8 +35,13 @@ from omnia_auto import (
 
 from .telemetry_func import (
     load_telemetry_config_from_target,
+    read_remote_env,
+    resolve_domain_data_path,
     run_on_kube_vip,
     _get_input_path,
+    ENV_OMNIA_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
+    DOMAIN_NAME,
 )
 from ..vars.common_vars import (
     CMDS,
@@ -164,6 +169,9 @@ def get_domain_name_from_config(host) -> str:
 def get_cluster_inventory_path(host) -> str:
     """Get the cluster_inventory path from telemetry_config.yml.
 
+    If cluster_inventory is empty, resolves to the default orchestrator output path:
+    $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
+
     Args:
         host: Testinfra host connection to the OIM.
 
@@ -178,7 +186,11 @@ def get_cluster_inventory_path(host) -> str:
     result = run_on_host(host, cmd)
     if result.rc == 0 and result.stdout.strip():
         return result.stdout.strip()
-    return ""
+    
+    # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
+    omnia_data_path = read_remote_env(host, ENV_OMNIA_DATA_PATH) or "/opt/omnia"
+    project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME) or "project_default"
+    return f"{omnia_data_path}/orchestrator/output/{project}/orchestrator_inventory.yml"
 
 
 def get_ldms_hostnames_from_inventory(host) -> Dict[str, Any]:

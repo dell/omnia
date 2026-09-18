@@ -240,6 +240,7 @@ def test_k8s_telemetry_pvcs(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(8)
 def test_k8s_busybox_pod(host):
     """TC_K8_051: Deploy and verify basic BusyBox pod."""
