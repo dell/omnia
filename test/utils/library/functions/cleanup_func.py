@@ -516,3 +516,77 @@ def check_setup_input_dir_exists(host, input_path):
         result["error"] = str(e)
 
     return result
+
+
+def check_utils_status_file_removed(host, output_path):
+    """Check if utils_status.yml file is removed after cleanup.
+
+    Args:
+        host: Testinfra host fixture.
+        output_path: Path to utils output directory.
+
+    Returns:
+        dict: {
+            "success": bool,
+            "path": str,
+            "exists": bool,
+            "error": str or None
+        }
+    """
+    status_file_path = f"{output_path}/utils_status.yml"
+    result = {
+        "success": True,
+        "path": status_file_path,
+        "exists": False,
+        "error": None,
+    }
+
+    try:
+        check_cmd = f"test -f {status_file_path} && echo 'exists' || echo 'removed'"
+        check_result = host.run(check_cmd)
+
+        result["exists"] = "exists" in check_result.stdout
+        result["success"] = not result["exists"]
+
+    except Exception as e:
+        result["success"] = False
+        result["error"] = str(e)
+
+    return result
+
+
+def check_install_os_status_file_removed(host, output_path):
+    """Check if install_os_status.yml file is removed after cleanup.
+
+    Args:
+        host: Testinfra host fixture.
+        output_path: Path to utils output directory.
+
+    Returns:
+        dict: {
+            "success": bool,
+            "path": str,
+            "exists": bool,
+            "error": str or None
+        }
+    """
+    status_file_path = f"{output_path}/install_os_status.yml"
+    result = {
+        "success": True,
+        "path": status_file_path,
+        "exists": False,
+        "error": None,
+    }
+
+    try:
+        check_cmd = f"test -f {status_file_path} && echo 'exists' || echo 'removed'"
+        check_result = host.run(check_cmd)
+
+        result["exists"] = "exists" in check_result.stdout
+        result["success"] = not result["exists"]
+
+    except Exception as e:
+        result["success"] = False
+        result["error"] = str(e)
+
+    return result
