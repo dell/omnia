@@ -76,7 +76,7 @@ from library.functions.resilience_func import (
     reboot_node_and_wait,
     verify_pods_after_reboot,
     verify_operator_recovery,
-    verify_pods_by_prefix,
+    delete_pods_by_prefix,
 )
 
 # Recovery timeouts (seconds)
@@ -681,19 +681,20 @@ def test_operator_pod_recovery(host):
     tl = TestLogger(tc["title"], tc["id"])
 
     # Check which operators are actually deployed (by checking if pods exist)
+    # We use delete_pods_by_prefix to list pods, but don't actually delete them
     operators = []
     
     # Check for VictoriaMetrics operator
-    vm_pods = verify_pods_by_prefix(host, "victoria-metrics-operator")
-    if vm_pods["success"] and vm_pods["count"] > 0:
+    vm_check = delete_pods_by_prefix(host, "victoria-metrics-operator")
+    if vm_check["count"] > 0:
         operators.append({
             "kind": "victoria_metrics",
             "name": "VictoriaMetrics Operator",
         })
     
     # Check for Strimzi operator
-    strimzi_pods = verify_pods_by_prefix(host, "strimzi-cluster-operator")
-    if strimzi_pods["success"] and strimzi_pods["count"] > 0:
+    strimzi_check = delete_pods_by_prefix(host, "strimzi-cluster-operator")
+    if strimzi_check["count"] > 0:
         operators.append({
             "kind": "strimzi",
             "name": "Strimzi Cluster Operator",
