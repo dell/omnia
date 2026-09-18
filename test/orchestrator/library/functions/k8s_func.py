@@ -1799,7 +1799,7 @@ def check_k8s_node_taints(host) -> Dict[str, Any]:
 # =============================================================================
 
 def check_k8s_smd_groups(host) -> Dict[str, Any]:
-    """Check if K8s functional groups are registered in SMD.
+    """Check if K8s nodes are registered in SMD State/Components.
 
     Args:
         host: Testinfra host connection
@@ -1824,43 +1824,58 @@ def check_k8s_smd_groups(host) -> Dict[str, Any]:
     port_result = run_on_host(host, port_cmd)
     port = port_result.stdout.strip() if port_result.rc == 0 and port_result.stdout.strip() else "8443"
     
-    # Check SMD for K8s groups
+    # Check SMD State/Components (public endpoint, no auth required)
     cmd = (
-        f"curl -sk https://{hostname}:{port}/hsm/v2/groups 2>&1"
+        f"curl -sk https://{hostname}:{port}/hsm/v2/State/Components 2>&1"
     )
     result = run_on_host(host, cmd)
 
     if result.rc != 0 or not result.stdout.strip():
         return {
             "success": False,
-            "details": f"Cannot query SMD groups (hostname: {hostname}, port: {port})",
+            "details": f"Cannot query SMD State/Components (hostname: {hostname}, port: {port})",
             "error": f"SMD API not reachable at https://{hostname}:{port}",
         }
 
-    # Check if authentication is required (indicates provisioning phase not completed)
-    if "missing bearer token" in result.stdout.lower() or "unauthorized" in result.stdout.lower():
+    # Check if we got a valid JSON response
+    import json
+    try:
+        components_data = json.loads(result.stdout)
+        components = components_data.get("Components", [])
+    except (json.JSONDecodeError, ValueError):
         return {
             "success": False,
-            "skipped": True,
-            "details": "SMD requires authentication - provisioning phase not completed",
-            "error": "SMD API requires JWT token. This test requires full provisioning to have been executed.",
+            "details": "Invalid JSON response from SMD",
+            "error": f"SMD returned invalid JSON: {result.stdout[:200]}",
         }
 
-    # Check for K8s-related groups
-    k8s_keywords = ["kube", "kubernetes", "service_kube"]
-    has_k8s = any(kw in result.stdout.lower() for kw in k8s_keywords)
-
-    if has_k8s:
+    if not components:
         return {
-            "success": True,
-            "details": "K8s functional groups found in SMD",
-            "error": "",
+            "success": False,
+            "details": "No components found in SMD",
+            "error": "SMD State/Components is empty - nodes may not be registered",
         }
+
+    # Check for K8s nodes (nodes with Type="Node")
+    k8s_nodes = [c for c in components if c.get("Type") == "Node"]
+    
+    if not k8s_nodes:
+        return {
+            "success": False,
+            "details": "No K8s nodes found in SMD State/Components",
+            "error": "K8s nodes may not have been registered during provisioning",
+        }
+
+    node_count = len(k8s_nodes)
+    node_ids = [n.get("ID", "unknown") for n in k8s_nodes[:5]]  # Show first 5
+    node_list = ", ".join(node_ids)
+    if node_count > 5:
+        node_list += f", ... ({node_count - 5} more)"
 
     return {
-        "success": False,
-        "details": "No K8s functional groups found in SMD",
-        "error": "K8s groups may not have been registered during provisioning",
+        "success": True,
+        "details": f"Found {node_count} K8s nodes in SMD: {node_list}",
+        "error": "",
     }
 
 
@@ -2159,16 +2174,18 @@ def _get_service_k8s_version(host) -> Optional[str]:
 
 
 def _is_powerscale_csi_configured(host) -> bool:
-    """Check if csi_driver_powerscale is in catalog."""
-    catalog = _get_software_config(host)
-    if not catalog:
+    """Check if PowerScale CSI is enabled in omnia_config.yml."""
+    project_path = _get_project_path(host)
+    omnia_config_path = f"{project_path}/omnia_config.yml"
+    
+    cmd = f"if [ -f {omnia_config_path} ]; then grep -E '^[[:space:]]*enable_powerscale_csi:' {omnia_config_path} | head -1 | awk '{{print $2}}' | tr -d '\"'; fi"
+    result = run_on_host(host, cmd)
+    
+    if result.rc != 0 or not result.stdout.strip():
         return False
-
-    packages = catalog.get("catalog", {}).get("packages", {})
-    return any(
-        isinstance(pkg_value, dict) and "powerscale" in pkg_value.get("name", "").lower()
-        for pkg_key, pkg_value in packages.items()
-    )
+    
+    # Check if the value is true (case-insensitive)
+    return result.stdout.strip().lower() in ["true", "yes", "1"]
 
 
 def check_kubectl_version(host) -> Dict[str, Any]:
@@ -3132,8 +3149,14 @@ def check_k8s_persistent_volumes(host) -> Dict[str, Any]:
     Returns:
         Dict with success, details, error, pv_count, issues
     """
-    # Note: Storage class validation is reserved for future enhancement
-    # Currently just checks PV status regardless of storage class type
+    # Skip if PowerScale CSI is configured (CSI test would handle this case)
+    if _is_powerscale_csi_configured(host):
+        return {
+            "success": True,
+            "skipped": True,
+            "details": "PowerScale CSI is configured - NFS PV check skipped (CSI test handles this)",
+            "error": "",
+        }
 
     cp_ip = _get_first_control_plane_ip(host)
     if not cp_ip:
@@ -3150,21 +3173,22 @@ def check_k8s_persistent_volumes(host) -> Dict[str, Any]:
     if result.rc != 0 or not result.stdout.strip():
         return {
             "success": True,
-            "details": "No Persistent Volumes found in the cluster",
+            "skipped": True,
+            "details": "No Persistent Volumes found in the cluster - PV binding check skipped",
             "error": "",
-            "pv_count": 0,
-            "issues": [],
         }
 
     lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
     issues = []
     checked = 0
+    expected_sc = "nfs-client"  # When PowerScale is not configured, expect nfs-client
 
     for line in lines:
         parts = line.split()
-        if len(parts) >= 5:
+        if len(parts) >= 6:
             pv_name = parts[0]
             status = parts[4]
+            storage_class = parts[5]
 
             # Skip Released PVs
             if status == "Released":
@@ -3173,11 +3197,13 @@ def check_k8s_persistent_volumes(host) -> Dict[str, Any]:
             checked += 1
             if status != "Bound":
                 issues.append(f"PV {pv_name}: not Bound (status={status})")
+            elif storage_class != expected_sc:
+                issues.append(f"PV {pv_name}: storage_class={storage_class} (expected {expected_sc})")
 
     if not issues:
         return {
             "success": True,
-            "details": f"All {checked} PV(s) are Bound",
+            "details": f"All {checked} PV(s) are Bound with storage class {expected_sc}",
             "error": "",
             "pv_count": checked,
             "issues": [],
@@ -3261,77 +3287,6 @@ def check_k8s_nfs_storage_class(host) -> Dict[str, Any]:
         "success": False,
         "details": f"NFS StorageClass validation failed: {'; '.join(issues)}",
         "error": "; ".join(issues),
-    }
-
-
-def check_k8s_telemetry_pvcs(host) -> Dict[str, Any]:
-    """Check if telemetry PVCs are Bound with the correct storage class.
-
-    Args:
-        host: Testinfra host connection
-
-    Returns:
-        Dict with success, details, error, pvc_count, issues
-    """
-    # Note: Storage class validation is reserved for future enhancement
-    cp_ip = _get_first_control_plane_ip(host)
-    if not cp_ip:
-        return {
-            "success": False,
-            "skipped": True,
-            "details": "No control plane nodes found",
-            "error": "No control plane nodes available",
-        }
-
-    # Check if telemetry namespace exists
-    ns_cmd = _ssh_cmd(cp_ip, "kubectl get ns telemetry 2>/dev/null")
-    ns_result = run_on_host(host, ns_cmd)
-    if ns_result.rc != 0:
-        return {
-            "success": True,
-            "skipped": True,
-            "details": "telemetry namespace not found - PVC check skipped",
-            "error": "",
-        }
-
-    cmd = _ssh_cmd(cp_ip, "kubectl get pvc -n telemetry --no-headers 2>/dev/null")
-    result = run_on_host(host, cmd)
-
-    if result.rc != 0 or not result.stdout.strip():
-        return {
-            "success": False,
-            "details": "No PVCs found in telemetry namespace",
-            "error": "telemetry PVCs missing",
-        }
-
-    lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
-    issues = []
-    pvc_count = 0
-
-    for line in lines:
-        parts = line.split()
-        if len(parts) >= 3:
-            pvc_count += 1
-            pvc_name = parts[0]
-            status = parts[1]
-            if status != "Bound":
-                issues.append(f"PVC {pvc_name}: status={status} (expected Bound)")
-
-    if not issues:
-        return {
-            "success": True,
-            "details": f"All {pvc_count} telemetry PVC(s) are Bound",
-            "error": "",
-            "pvc_count": pvc_count,
-            "issues": [],
-        }
-
-    return {
-        "success": False,
-        "details": f"{len(issues)}/{pvc_count} telemetry PVC(s) not Bound",
-        "error": "; ".join(issues),
-        "pvc_count": pvc_count,
-        "issues": issues,
     }
 
 

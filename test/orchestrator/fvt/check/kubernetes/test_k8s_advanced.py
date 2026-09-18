@@ -352,7 +352,7 @@ def test_k8s_ldap_integration(host):
     result = check_k8s_ldap_integration(host)
 
     if result.get("skipped"):
-        tl.passed("LDAP not configured - skipping", result["details"])
+        tl.skipped("LDAP not configured - skipping", result["details"])
         pytest.skip("LDAP integration not configured")
 
     if result["success"]:

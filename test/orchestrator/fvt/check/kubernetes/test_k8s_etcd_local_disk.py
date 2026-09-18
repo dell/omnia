@@ -18,14 +18,14 @@ Orchestrator Validate — etcd Local Disk Verification.
 TC_K8_057: Verify etcd_on_local_disk is enabled in omnia_config.yml
 TC_K8_058: Verify Dell BOSS card detection via PCI scan
 TC_K8_059: Verify disk partitioning for etcd data
-TC_K8_060: Verify filesystem creation on etcd partition
-TC_K8_061: Verify UUID-based fstab entry and active mount for /var/lib/etcd
-TC_K8_062: Verify etcd configuration to use local disk (not NFS)
-TC_K8_063: Verify fallback disk detection (non-BOSS disk)
-TC_K8_064: Verify first boot disk setup (etcd-disk-setup.sh)
-TC_K8_065: Verify SSD disk support for etcd
-TC_K8_066: Verify HDD disk support for etcd
-TC_K8_067: Verify NVMe disk support for etcd
+TC_K8_057: Verify filesystem creation on etcd partition
+TC_K8_058: Verify UUID-based fstab entry and active mount for /var/lib/etcd
+TC_K8_059: Verify etcd configuration to use local disk (not NFS)
+TC_K8_060: Verify fallback disk detection (non-BOSS disk)
+TC_K8_061: Verify first boot disk setup (etcd-disk-setup.sh)
+TC_K8_062: Verify SSD disk support for etcd
+TC_K8_063: Verify HDD disk support for etcd
+TC_K8_064: Verify NVMe disk support for etcd
 """
 
 import pytest
@@ -67,7 +67,7 @@ def _skip_if_etcd_local_disk_disabled(host):
 @pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_k8s_etcd_local_disk_enabled(host):
-    """TC_K8_057: Verify etcd_on_local_disk is enabled in omnia_config.yml."""
+    """TC_K8_054: Verify etcd_on_local_disk is enabled in omnia_config.yml."""
     _skip_if_k8s_disabled(host)
 
     tc = TC.get("k8s_etcd_local_disk_enabled", {
@@ -82,7 +82,7 @@ def test_k8s_etcd_local_disk_enabled(host):
     if result["enabled"]:
         tl.passed("etcd_on_local_disk is enabled", result["details"])
     else:
-        tl.passed("etcd_on_local_disk is disabled - skipping etcd local disk tests", result["details"])
+        tl.skipped("etcd_on_local_disk is disabled - skipping etcd local disk tests", result["details"])
         pytest.skip("etcd_on_local_disk is not enabled in omnia_config.yml")
 
 
@@ -91,7 +91,7 @@ def test_k8s_etcd_local_disk_enabled(host):
 @pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_k8s_etcd_boss_card_detection(host):
-    """TC_K8_058: Verify Dell BOSS card detection via PCI scan on control plane nodes."""
+    """TC_K8_055: Verify Dell BOSS card detection via PCI scan on control plane nodes."""
     _skip_if_k8s_disabled(host)
     _skip_if_etcd_local_disk_disabled(host)
 
@@ -108,8 +108,8 @@ def test_k8s_etcd_boss_card_detection(host):
         if result.get("boss_detected"):
             tl.passed("BOSS card detected on control plane nodes", result["details"])
         else:
-            tl.passed("BOSS card not detected on all nodes - fallback disk may be in use", result["details"])
-            pytest.skip("BOSS card not available in test environment - verify with TC_K8_063 fallback disk detection")
+            tl.skipped("BOSS card not detected on all nodes - fallback disk may be in use", result["details"])
+            pytest.skip("BOSS card not available in test environment - verify with TC_K8_060 fallback disk detection")
     else:
         tl.failed("BOSS card detection check failed", result["error"])
 
@@ -121,12 +121,12 @@ def test_k8s_etcd_boss_card_detection(host):
 @pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_k8s_etcd_disk_partitioning(host):
-    """TC_K8_059: Verify disk partitioning for etcd data."""
+    """TC_K8_056: Verify disk partitioning for etcd data."""
     _skip_if_k8s_disabled(host)
     _skip_if_etcd_local_disk_disabled(host)
 
     tc = TC.get("k8s_etcd_disk_partitioning", {
-        "id": "TC_K8_059",
+        "id": "TC_K8_056",
         "title": "Verify disk partitioning for etcd"
     })
     tl = TestLogger(tc["title"], tc["id"])
@@ -150,12 +150,12 @@ def test_k8s_etcd_disk_partitioning(host):
 @pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_k8s_etcd_filesystem_creation(host):
-    """TC_K8_060: Verify filesystem creation on etcd partition."""
+    """TC_K8_057: Verify filesystem creation on etcd partition."""
     _skip_if_k8s_disabled(host)
     _skip_if_etcd_local_disk_disabled(host)
 
     tc = TC.get("k8s_etcd_filesystem_creation", {
-        "id": "TC_K8_060",
+        "id": "TC_K8_057",
         "title": "Verify filesystem creation on etcd partition"
     })
     tl = TestLogger(tc["title"], tc["id"])
@@ -179,12 +179,12 @@ def test_k8s_etcd_filesystem_creation(host):
 @pytest.mark.buildstream
 @pytest.mark.order(5)
 def test_k8s_etcd_fstab_and_mount(host):
-    """TC_K8_061: Verify UUID-based fstab entry and active mount for /var/lib/etcd."""
+    """TC_K8_058: Verify UUID-based fstab entry and active mount for /var/lib/etcd."""
     _skip_if_k8s_disabled(host)
     _skip_if_etcd_local_disk_disabled(host)
 
     tc = TC.get("k8s_etcd_fstab_and_mount", {
-        "id": "TC_K8_061",
+        "id": "TC_K8_058",
         "title": "Verify fstab and mount for etcd"
     })
     tl = TestLogger(tc["title"], tc["id"])
@@ -213,12 +213,12 @@ def test_k8s_etcd_fstab_and_mount(host):
 @pytest.mark.buildstream
 @pytest.mark.order(6)
 def test_k8s_etcd_local_disk_config(host):
-    """TC_K8_062: Verify etcd configuration to use local disk."""
+    """TC_K8_059: Verify etcd configuration to use local disk."""
     _skip_if_k8s_disabled(host)
     _skip_if_etcd_local_disk_disabled(host)
 
     tc = TC.get("k8s_etcd_local_disk_config", {
-        "id": "TC_K8_062",
+        "id": "TC_K8_059",
         "title": "Verify etcd configuration to use local disk"
     })
     tl = TestLogger(tc["title"], tc["id"])
@@ -242,12 +242,12 @@ def test_k8s_etcd_local_disk_config(host):
 @pytest.mark.buildstream
 @pytest.mark.order(7)
 def test_k8s_etcd_fallback_disk_detection(host):
-    """TC_K8_063: Verify fallback disk detection (non-BOSS disk)."""
+    """TC_K8_060: Verify fallback disk detection (non-BOSS disk)."""
     _skip_if_k8s_disabled(host)
     _skip_if_etcd_local_disk_disabled(host)
 
     tc = TC.get("k8s_etcd_fallback_disk_detection", {
-        "id": "TC_K8_063",
+        "id": "TC_K8_060",
         "title": "Verify fallback disk detection"
     })
     tl = TestLogger(tc["title"], tc["id"])
@@ -272,12 +272,12 @@ def test_k8s_etcd_fallback_disk_detection(host):
 @pytest.mark.buildstream
 @pytest.mark.order(8)
 def test_k8s_etcd_first_boot_setup(host):
-    """TC_K8_064: Verify first boot disk setup (etcd-disk-setup.sh)."""
+    """TC_K8_061: Verify first boot disk setup (etcd-disk-setup.sh)."""
     _skip_if_k8s_disabled(host)
     _skip_if_etcd_local_disk_disabled(host)
 
     tc = TC.get("k8s_etcd_first_boot_setup", {
-        "id": "TC_K8_064",
+        "id": "TC_K8_061",
         "title": "Verify first boot disk setup (etcd-disk-setup.sh)"
     })
     tl = TestLogger(tc["title"], tc["id"])
@@ -301,12 +301,12 @@ def test_k8s_etcd_first_boot_setup(host):
 @pytest.mark.buildstream
 @pytest.mark.order(9)
 def test_k8s_etcd_ssd_disk_support(host):
-    """TC_K8_065: Verify SSD disk support for etcd."""
+    """TC_K8_062: Verify SSD disk support for etcd."""
     _skip_if_k8s_disabled(host)
     _skip_if_etcd_local_disk_disabled(host)
 
     tc = TC.get("k8s_etcd_ssd_disk_support", {
-        "id": "TC_K8_065",
+        "id": "TC_K8_062",
         "title": "Verify SSD disk support for etcd"
     })
     tl = TestLogger(tc["title"], tc["id"])
@@ -318,7 +318,7 @@ def test_k8s_etcd_ssd_disk_support(host):
         if result.get("ssd_detected"):
             tl.passed("SSD disk used for etcd on control plane nodes", result["details"])
         else:
-            tl.passed("SSD disk not used for etcd on any control plane node", result["details"])
+            tl.skipped("SSD disk not used for etcd on any control plane node", result["details"])
             pytest.skip("SSD disk not available for etcd on control plane nodes")
     else:
         tl.failed("SSD disk support check failed", result["error"])
@@ -331,12 +331,12 @@ def test_k8s_etcd_ssd_disk_support(host):
 @pytest.mark.buildstream
 @pytest.mark.order(10)
 def test_k8s_etcd_hdd_disk_support(host):
-    """TC_K8_066: Verify HDD disk support for etcd."""
+    """TC_K8_063: Verify HDD disk support for etcd."""
     _skip_if_k8s_disabled(host)
     _skip_if_etcd_local_disk_disabled(host)
 
     tc = TC.get("k8s_etcd_hdd_disk_support", {
-        "id": "TC_K8_066",
+        "id": "TC_K8_063",
         "title": "Verify HDD disk support for etcd"
     })
     tl = TestLogger(tc["title"], tc["id"])
@@ -348,7 +348,7 @@ def test_k8s_etcd_hdd_disk_support(host):
         if result.get("hdd_detected"):
             tl.passed("HDD disk used for etcd on control plane nodes", result["details"])
         else:
-            tl.passed("HDD disk not used for etcd on any control plane node", result["details"])
+            tl.skipped("HDD disk not used for etcd on any control plane node", result["details"])
             pytest.skip("HDD disk not available for etcd on control plane nodes")
     else:
         tl.failed("HDD disk support check failed", result["error"])
@@ -361,12 +361,12 @@ def test_k8s_etcd_hdd_disk_support(host):
 @pytest.mark.buildstream
 @pytest.mark.order(11)
 def test_k8s_etcd_nvme_disk_support(host):
-    """TC_K8_067: Verify NVMe disk support for etcd."""
+    """TC_K8_064: Verify NVMe disk support for etcd."""
     _skip_if_k8s_disabled(host)
     _skip_if_etcd_local_disk_disabled(host)
 
     tc = TC.get("k8s_etcd_nvme_disk_support", {
-        "id": "TC_K8_067",
+        "id": "TC_K8_064",
         "title": "Verify NVMe disk support for etcd"
     })
     tl = TestLogger(tc["title"], tc["id"])
@@ -378,7 +378,7 @@ def test_k8s_etcd_nvme_disk_support(host):
         if result.get("nvme_detected"):
             tl.passed("NVMe disk used for etcd on control plane nodes", result["details"])
         else:
-            tl.passed("NVMe disk not used for etcd on any control plane node", result["details"])
+            tl.skipped("NVMe disk not used for etcd on any control plane node", result["details"])
             pytest.skip("NVMe disk not available for etcd on control plane nodes")
     else:
         tl.failed("NVMe disk support check failed", result["error"])
