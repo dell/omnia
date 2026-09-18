@@ -26,6 +26,7 @@ Provides:
 import sys
 import os
 import re
+from datetime import datetime
 
 import pytest
 
@@ -198,10 +199,11 @@ def test_report():
     oim_ip = config.get("oim_server_ip", "")
     if not oim_ip:
         oim_ip = "localhost"
-    report_id = os.environ.get("REPORT_ID")
+    configured_id = str(config.get("run_id") or "").strip()
+    run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.environ["RUN_ID"] = run_id
     base_name = _category_report_base_name(config)
     report_name = build_report_name(
-        domain_name="repo_manager",
         base_name=base_name,
     )
     report = TestReport(
@@ -209,7 +211,7 @@ def test_report():
         report_path=report_path,
         report_name=report_name,
         server_ip=oim_ip,
-        report_id=report_id,
+        run_id=run_id,
     )
     set_current_report(report)
     yield report

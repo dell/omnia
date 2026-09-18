@@ -36,6 +36,7 @@ import json
 import os
 import re
 import smtplib
+import subprocess
 import time
 import traceback
 from email.mime.base import MIMEBase
@@ -65,6 +66,21 @@ domains = os.environ.get("DOMAINS", "default")
 test_mode = os.environ.get("TEST_MODE", "false").lower() == "true"
 cluster_name = os.environ.get("CLUSTER", os.environ.get("CLUSTER_NAME", ""))
 cluster_ip = os.environ.get("TARGET_IP", "")
+
+# Get the current commit ID of the omnia repository
+# Priority: CI_COMMIT_SHA (from GitLab CI) > git rev-parse HEAD (local) > unknown
+commit_id = os.environ.get("CI_COMMIT_SHA", "")
+if not commit_id:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        commit_id = result.stdout.strip()
+    except Exception:
+        commit_id = "unknown"
 
 # ---------------------------------------------------------------------------
 missing = []
@@ -460,6 +476,7 @@ html_body = f"""
     <p><strong>Pipeline Trigger Time:</strong> {trigger_time}</p>
     <p><strong>Pipeline URL:</strong>
         <a href="{pipeline_url}">{pipeline_url}</a></p>
+    <p><strong>Commit ID:</strong> {commit_id}</p>
 
     <h3>Stage Execution Summary</h3>
     {stage_table_html}

@@ -269,11 +269,12 @@ def is_logs_enabled(host, source_name):
 def is_sink_enabled(host, sink_name):
     """Check if a telemetry sink is implicitly enabled.
 
-    A sink is considered enabled if at least one source targets it.
+    A sink is considered enabled if at least one source targets it via
+    either metrics_enabled or logs_enabled collection.
 
     Args:
         host: Testinfra host connection to the OIM.
-        sink_name: Sink name (e.g. 'victoria_metrics', 'kafka').
+        sink_name: Sink name (e.g. 'victoria_metrics', 'victoria_logs', 'kafka').
 
     Returns:
         bool: True if at least one source targets this sink.
@@ -283,12 +284,54 @@ def is_sink_enabled(host, sink_name):
     for src_cfg in sources.values():
         if not isinstance(src_cfg, dict):
             continue
-        if not src_cfg.get("metrics_enabled", False):
+        # Check both metrics_enabled and logs_enabled sources
+        metrics_enabled = src_cfg.get("metrics_enabled", False)
+        logs_enabled = src_cfg.get("logs_enabled", False)
+        if not (metrics_enabled or logs_enabled):
             continue
         targets = src_cfg.get("collection_targets", [])
         if sink_name in targets:
             return True
     return False
+
+
+def is_sink_enabled_for_source(host, source_name, sink_name):
+    """Check if a specific source targets a specific sink.
+
+    Checks if the given source has the sink in its collection_targets
+    and is enabled (either metrics_enabled or logs_enabled).
+
+    Args:
+        host: Testinfra host connection to the OIM.
+        source_name: Source name (e.g. 'ome', 'sfm', 'vast', 'powerscale').
+        sink_name: Sink name (e.g. 'victoria_metrics', 'victoria_logs', 'kafka').
+
+    Returns:
+        bool: True if the source is enabled and targets this sink.
+    """
+    from ..vars.common_vars import SOURCE_SINK_MAPPING
+    
+    # Validate source and sink combination
+    if source_name not in SOURCE_SINK_MAPPING:
+        return False
+    if sink_name not in SOURCE_SINK_MAPPING.get(source_name, []):
+        return False
+    
+    config = load_telemetry_config_from_target(host)
+    sources = read_yaml_key(config, "telemetry_sources", default={})
+    src_cfg = sources.get(source_name, {})
+    
+    if not isinstance(src_cfg, dict):
+        return False
+    
+    # Check both metrics_enabled and logs_enabled for the specific source
+    metrics_enabled = src_cfg.get("metrics_enabled", False)
+    logs_enabled = src_cfg.get("logs_enabled", False)
+    if not (metrics_enabled or logs_enabled):
+        return False
+    
+    targets = src_cfg.get("collection_targets", [])
+    return sink_name in targets
 
 
 def check_target_connectivity(host):

@@ -16,7 +16,11 @@ from fvt.check.feature_helpers import (
 )
 
 
-pytestmark = [pytest.mark.apptainer, pytest.mark.functional]
+pytestmark = [
+    pytest.mark.apptainer,
+    pytest.mark.functional,
+    pytest.mark.buildstream,
+]
 
 
 @pytest.mark.order(40)

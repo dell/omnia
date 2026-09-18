@@ -41,6 +41,7 @@ def _skip_if_slurm_disabled(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_ssh_control_to_compute(host):
     """ORCH_FVT_SLURM_V016: Passwordless SSH from control to compute nodes."""
@@ -62,6 +63,7 @@ def test_ssh_control_to_compute(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_ssh_control_to_login(host):
     """ORCH_FVT_SLURM_V017: Passwordless SSH from control to login nodes."""
@@ -83,6 +85,7 @@ def test_ssh_control_to_login(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_ssh_control_to_login_compiler(host):
     """ORCH_FVT_SLURM_V018: Passwordless SSH from control to login compiler nodes."""
@@ -104,6 +107,7 @@ def test_ssh_control_to_login_compiler(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_ssh_compute_to_control(host):
     """ORCH_FVT_SLURM_V019: Passwordless SSH from compute to control nodes."""
@@ -125,6 +129,7 @@ def test_ssh_compute_to_control(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(5)
 def test_ssh_compute_to_login(host):
     """ORCH_FVT_SLURM_V020: Passwordless SSH from compute to login nodes."""
@@ -146,6 +151,7 @@ def test_ssh_compute_to_login(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(6)
 def test_ssh_compute_to_login_compiler(host):
     """ORCH_FVT_SLURM_V021: Passwordless SSH from compute to login compiler nodes."""
@@ -167,6 +173,7 @@ def test_ssh_compute_to_login_compiler(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(7)
 def test_ssh_login_to_control(host):
     """ORCH_FVT_SLURM_V022: Passwordless SSH from login to control nodes."""
@@ -188,6 +195,7 @@ def test_ssh_login_to_control(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(8)
 def test_ssh_login_to_compute(host):
     """ORCH_FVT_SLURM_V023: Passwordless SSH from login to compute nodes."""
@@ -209,6 +217,7 @@ def test_ssh_login_to_compute(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(9)
 def test_ssh_login_to_login_compiler(host):
     """ORCH_FVT_SLURM_V024: Passwordless SSH from login to login compiler nodes."""
@@ -230,6 +239,7 @@ def test_ssh_login_to_login_compiler(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(10)
 def test_ssh_login_compiler_to_control(host):
     """ORCH_FVT_SLURM_V025: Passwordless SSH from login compiler to control nodes."""
@@ -251,6 +261,7 @@ def test_ssh_login_compiler_to_control(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(11)
 def test_ssh_login_compiler_to_compute(host):
     """ORCH_FVT_SLURM_V026: Passwordless SSH from login compiler to compute nodes."""
@@ -272,6 +283,7 @@ def test_ssh_login_compiler_to_compute(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(12)
 def test_ssh_login_compiler_to_login(host):
     """ORCH_FVT_SLURM_V027: Passwordless SSH from login compiler to login nodes."""

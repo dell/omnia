@@ -21,7 +21,12 @@ from library.functions.slurm_func import (
 )
 
 
-pytestmark = [pytest.mark.slurm, pytest.mark.gpu, pytest.mark.functional]
+pytestmark = [
+    pytest.mark.slurm,
+    pytest.mark.gpu,
+    pytest.mark.functional,
+    pytest.mark.buildstream,
+]
 
 
 def _gpu_nodes(host):

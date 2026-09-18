@@ -97,6 +97,7 @@ def test_module_dependencies():
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_module_schema_validation():
     """ORCH_FVT_MODULES_V003: Test validate_orchestrator_config module schema validation."""
