@@ -27,6 +27,7 @@ Module-specific functions live in separate files:
 """
 
 import json
+import time
 import urllib.parse
 
 import yaml
@@ -56,6 +57,10 @@ from ..vars.common_vars import (
 
 # Module-level cache for kube_vip IP
 _kube_vip_ip_cache = None
+
+# Retry settings for iDRAC service tag discovery
+_IDRAC_VM_POLL_ATTEMPTS = 12
+_IDRAC_VM_POLL_INTERVAL_SECONDS = 10
 
 
 # -------------------------------------------------------------------------
@@ -585,20 +590,33 @@ def get_idrac_service_tags(host):
     Falls back to querying VictoriaMetrics for distinct ServiceTag labels
     on PowerEdge_* metrics.
 
+    Includes retry logic to wait for metrics to appear in VictoriaMetrics.
+
     Args:
         host: Testinfra host connection to the OIM.
 
     Returns:
         list: Service tag strings (e.g. ["ABCD123", "EFGH456"]).
     """
-    # Try querying VictoriaMetrics for distinct ServiceTag values
-    results = query_vm_instant(host, 'count by (ServiceTag) ({__name__=~"PowerEdge_.*"})')
-    tags = []
-    for item in results:
-        tag = item.get("metric", {}).get("ServiceTag", "")
-        if tag:
-            tags.append(tag)
-    return tags
+    # Query VictoriaMetrics for distinct ServiceTag values with retry logic
+    for attempt in range(_IDRAC_VM_POLL_ATTEMPTS):
+        results = query_vm_instant(host, 'count by (ServiceTag) ({__name__=~"PowerEdge_.*"})')
+        tags = []
+        for item in results:
+            tag = item.get("metric", {}).get("ServiceTag", "")
+            if tag:
+                tags.append(tag)
+        
+        if tags:
+            log(f"Found {len(tags)} iDRAC service tags on attempt {attempt + 1}/{_IDRAC_VM_POLL_ATTEMPTS}", "INFO")
+            return tags
+        
+        if attempt < _IDRAC_VM_POLL_ATTEMPTS - 1:
+            log(f"No iDRAC service tags found on attempt {attempt + 1}/{_IDRAC_VM_POLL_ATTEMPTS}, retrying in {_IDRAC_VM_POLL_INTERVAL_SECONDS}s", "INFO")
+            time.sleep(_IDRAC_VM_POLL_INTERVAL_SECONDS)
+    
+    log(f"No iDRAC service tags found after {_IDRAC_VM_POLL_ATTEMPTS} attempts", "WARN")
+    return []
 
 
 # -------------------------------------------------------------------------
