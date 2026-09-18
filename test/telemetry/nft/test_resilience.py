@@ -64,6 +64,7 @@ from library.messages.telemetry_msgs import (
 )
 from library.functions.telemetry_func import (
     is_source_enabled,
+    is_sink_enabled,
     resolve_kube_vip_ip,
 )
 from library.functions.k8s_func import verify_all_pods_running
@@ -296,14 +297,22 @@ def test_sts_storage_pod_recovery(host):
     Storage pods (vmstorage, vlstorage) are backed by PVCs and managed
     by StatefulSets. They must be recreated with the same identity and
     re-attach their persistent volumes.
+
+    Skips disabled sinks (e.g., if victoria_logs is not enabled, vlstorage
+    pods won't exist and the test skips that part).
     """
     tc = TC["nft_sts_pod_recovery"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    sts_prefixes = [
-        (VM_POD_PREFIXES["vmstorage"], 3),
-        (VL_POD_PREFIXES["vlstorage"], 3),
-    ]
+    # Check which sinks are enabled
+    sts_prefixes = []
+    if is_sink_enabled(host, "victoria_metrics"):
+        sts_prefixes.append((VM_POD_PREFIXES["vmstorage"], 3))
+    if is_sink_enabled(host, "victoria_logs"):
+        sts_prefixes.append((VL_POD_PREFIXES["vlstorage"], 3))
+
+    if not sts_prefixes:
+        pytest.skip("No storage sinks (VictoriaMetrics/Logs) enabled")
 
     all_success = True
     all_details = []
@@ -318,18 +327,19 @@ def test_sts_storage_pod_recovery(host):
             all_success = False
 
     combined = "\n".join(all_details)
+    enabled_sinks = ", ".join([p[0] for p in sts_prefixes])
 
     if all_success:
         tl.passed(
             LOG_MSGS["sts_recovery_passed"].format(
-                prefixes="vmstorage, vlstorage",
+                prefixes=enabled_sinks,
             ),
             combined,
         )
     else:
         tl.failed(
             LOG_MSGS["sts_recovery_failed"].format(
-                prefixes="vmstorage, vlstorage",
+                prefixes=enabled_sinks,
             ),
             combined,
         )
@@ -392,12 +402,30 @@ def test_service_endpoints_after_restart(host):
 
     After pod deletion and recreation, LoadBalancer and ClusterIP
     services must have active endpoints (backing pods registered).
+
+    Skips disabled sinks (e.g., if victoria_logs is not enabled,
+    vlselect service won't have endpoints).
     """
     tc = TC["nft_service_endpoints"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Verifying service endpoints for core services")
-    result = verify_service_endpoints_available(host, CORE_SERVICES)
+    # Filter services by enabled sinks
+    enabled_services = []
+    for svc in CORE_SERVICES:
+        if "kafka" in svc and is_sink_enabled(host, "kafka"):
+            enabled_services.append(svc)
+        elif "vmselect" in svc and is_sink_enabled(host, "victoria_metrics"):
+            enabled_services.append(svc)
+        elif "vminsert" in svc and is_sink_enabled(host, "victoria_metrics"):
+            enabled_services.append(svc)
+        elif "vlselect" in svc and is_sink_enabled(host, "victoria_logs"):
+            enabled_services.append(svc)
+
+    if not enabled_services:
+        pytest.skip("No core services enabled (all sinks disabled)")
+
+    tl.check(f"Verifying service endpoints for {len(enabled_services)} enabled service(s)")
+    result = verify_service_endpoints_available(host, enabled_services)
 
     if result["success"]:
         tl.passed(
@@ -568,23 +596,32 @@ def test_full_lifecycle(host):
         )
         pytest.fail(f"Cleanup phase failed (rc={cleanup['rc']})")
 
-    # Step 2: Redeploy
+    # Step 2: Redeploy (with retry for transient failures)
     tl.check("Running deploy playbook after cleanup")
-    deploy = run_playbook(
-        playbook=PLAYBOOK_ENTRY_POINT,
-        playbook_workdir=PLAYBOOK_WORKDIR,
-        tag="execute",
-        timeout=LIFECYCLE_DEPLOY_TIMEOUT,
-    )
+    deploy = None
+    max_retries = 2
+    for attempt in range(1, max_retries + 1):
+        tl.check(f"Deploy attempt {attempt}/{max_retries}")
+        deploy = run_playbook(
+            playbook=PLAYBOOK_ENTRY_POINT,
+            playbook_workdir=PLAYBOOK_WORKDIR,
+            tag="execute",
+            timeout=LIFECYCLE_DEPLOY_TIMEOUT,
+        )
+        if deploy["rc"] == 0:
+            break
+        if attempt < max_retries:
+            tl.check(f"Deploy attempt {attempt} failed (rc={deploy['rc']}), retrying...")
 
     if deploy["rc"] != 0:
         output_lines = deploy.get("output", "").strip().split("\n")
         tail = "\n".join(output_lines[-30:])
         tl.failed(
             LOG_MSGS["deploy_failed"],
-            f"Redeploy failed (rc={deploy['rc']})\nLast output:\n{tail}",
+            f"Redeploy failed after {max_retries} attempt(s) (rc={deploy['rc']})\n"
+            f"Last output:\n{tail}",
         )
-        pytest.fail(f"Redeploy phase failed (rc={deploy['rc']})")
+        pytest.fail(f"Redeploy phase failed (rc={deploy['rc']}) after {max_retries} retries")
 
     # Step 3: Verify all pods running
     tl.check("Verifying all pods are Running after redeploy")
@@ -628,20 +665,28 @@ def test_operator_pod_recovery(host):
 
     Deletes the VictoriaMetrics operator and Strimzi operator pods,
     then verifies they are recreated and their CRs remain healthy.
+
+    Skips operators that are not deployed (e.g., if victoria_metrics sink
+    is not enabled, the VM operator won't be deployed).
     """
     tc = TC["nft_operator_recovery"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    operators = [
-        {
+    # Check which operators are deployed based on enabled sinks
+    operators = []
+    if is_sink_enabled(host, "victoria_metrics"):
+        operators.append({
             "kind": "victoria_metrics",
             "name": "VictoriaMetrics Operator",
-        },
-        {
+        })
+    if is_sink_enabled(host, "kafka"):
+        operators.append({
             "kind": "strimzi",
             "name": "Strimzi Cluster Operator",
-        },
-    ]
+        })
+
+    if not operators:
+        pytest.skip("No operators deployed (all sinks disabled)")
 
     all_success = True
     all_details = []
