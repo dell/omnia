@@ -292,8 +292,8 @@ else:
 # Stage ordering per pipeline mode
 STAGE_ORDER_DEFAULT = [
     "initialization", "setup_environment",
-    "cleanup_repo_manager", "cleanup_image_build_manager",
-    "cleanup_orchestrator", "cleanup_telemetry", "cleanup_omnia",
+    "cleanup_telemetry", "cleanup_orchestrator",
+    "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_omnia",
     "setup_main", "test_main_installation",
     "repo_manager", "test_repo_manager",
     "image_build_manager", "test_image_build_manager",
@@ -311,8 +311,8 @@ STAGE_ORDER_DEPLOY = [
 ]
 STAGE_ORDER_CLEANUP = [
     "initialization", "setup_environment",
-    "cleanup_repo_manager", "cleanup_image_build_manager",
-    "cleanup_orchestrator", "cleanup_telemetry", "cleanup_omnia",
+    "cleanup_telemetry", "cleanup_orchestrator",
+    "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_omnia",
     "summary",
 ]
 
