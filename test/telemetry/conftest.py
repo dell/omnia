@@ -149,6 +149,9 @@ _TC_ID_MAP.update(
         "test_operator_pod_recovery": TEST_CASES["nft_operator_recovery"][
             "id"
         ],
+        "test_nft_final_cluster_state_warning": TEST_CASES[
+            "nft_final_warning"
+        ]["id"],
     }
 )
 

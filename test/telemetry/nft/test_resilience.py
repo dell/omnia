@@ -25,17 +25,22 @@ Verifies that the telemetry stack recovers gracefully from failures:
   - Full lifecycle (cleanup -> redeploy -> verify)
   - Operator pod recovery and CR reconciliation
 
+Execution order (110-119):
+  Runs AFTER deploy idempotency (105) and BEFORE cleanup tests (130+).
+  Cleanup is intentionally placed last because it deletes credentials
+  from the src flow — any deploy after cleanup would fail.
+
 Test cases:
-    TEL_NFT_018: Resilience setup deploy (deploy stack for resilience tests)
-    TEL_NFT_006: Sink pod deletion & recovery (Kafka broker)
-    TEL_NFT_007: Source pod deletion & recovery (enabled sources)
-    TEL_NFT_008: StatefulSet storage pod recovery (vmstorage/vlstorage)
-    TEL_NFT_009: PVC persistence after pod deletion
-    TEL_NFT_010: Service endpoint availability after pod restart
-    TEL_NFT_011: Data ingestion after sink restart
-    TEL_NFT_012: Node reboot recovery
-    TEL_NFT_013: Full lifecycle (cleanup -> redeploy -> verify)
-    TEL_NFT_014: Operator pod recovery
+    TEL_NFT_018: Resilience setup deploy (order 110)
+    TEL_NFT_006: Sink pod deletion & recovery (order 111)
+    TEL_NFT_007: Source pod deletion & recovery (order 112)
+    TEL_NFT_008: StatefulSet storage pod recovery (order 113)
+    TEL_NFT_009: PVC persistence after pod deletion (order 114)
+    TEL_NFT_010: Service endpoint availability (order 115)
+    TEL_NFT_011: Data ingestion after sink restart (order 116)
+    TEL_NFT_012: Node reboot recovery (order 117)
+    TEL_NFT_013: Full lifecycle (cleanup -> redeploy) (order 118)
+    TEL_NFT_014: Operator pod recovery (order 119)
 """
 
 import pytest
@@ -112,15 +117,15 @@ def _get_enabled_source_prefixes(host):
 
 @pytest.mark.nft
 @pytest.mark.resilience
-@pytest.mark.order(119)
+@pytest.mark.order(110)
 def test_resilience_setup_deploy(host):
     """TEL_NFT_018: Deploy telemetry stack before resilience tests.
 
     Ensures all telemetry components are deployed and pods are Running
-    before any pod-deletion or recovery tests begin.  Previous test
-    groups (performance, idempotency) may leave the namespace empty;
-    this step guarantees the resilience tests start from a known-good
-    deployed state — just like FVT deploy runs before verify tests.
+    before any pod-deletion or recovery tests begin.  Deploy
+    idempotency (order 105) leaves the stack deployed, but this step
+    acts as a safety net to guarantee a known-good state — just like
+    FVT deploy runs before verify tests.
     """
     tc = TC["nft_resilience_setup"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -184,7 +189,7 @@ def test_resilience_setup_deploy(host):
 
 @pytest.mark.nft
 @pytest.mark.resilience
-@pytest.mark.order(120)
+@pytest.mark.order(111)
 def test_sink_pod_deletion_recovery(host):
     """TEL_NFT_006: Delete Kafka broker pods and verify automatic recovery.
 
@@ -229,7 +234,7 @@ def test_sink_pod_deletion_recovery(host):
 
 @pytest.mark.nft
 @pytest.mark.resilience
-@pytest.mark.order(121)
+@pytest.mark.order(112)
 def test_source_pod_deletion_recovery(host):
     """TEL_NFT_007: Delete enabled source pods and verify recovery.
 
@@ -284,7 +289,7 @@ def test_source_pod_deletion_recovery(host):
 
 @pytest.mark.nft
 @pytest.mark.resilience
-@pytest.mark.order(122)
+@pytest.mark.order(113)
 def test_sts_storage_pod_recovery(host):
     """TEL_NFT_008: Delete VictoriaMetrics/Logs storage pods & verify recovery.
 
@@ -340,7 +345,7 @@ def test_sts_storage_pod_recovery(host):
 
 @pytest.mark.nft
 @pytest.mark.resilience
-@pytest.mark.order(123)
+@pytest.mark.order(114)
 def test_pvc_persistence_after_pod_deletion(host):
     """TEL_NFT_009: Verify all PVCs remain Bound after pod deletions.
 
@@ -381,7 +386,7 @@ def test_pvc_persistence_after_pod_deletion(host):
 
 @pytest.mark.nft
 @pytest.mark.resilience
-@pytest.mark.order(124)
+@pytest.mark.order(115)
 def test_service_endpoints_after_restart(host):
     """TEL_NFT_010: Verify core services have endpoints after pod restart.
 
@@ -420,7 +425,7 @@ def test_service_endpoints_after_restart(host):
 
 @pytest.mark.nft
 @pytest.mark.resilience
-@pytest.mark.order(125)
+@pytest.mark.order(116)
 def test_data_queryable_after_sink_restart(host):
     """TEL_NFT_011: Verify VictoriaMetrics data is queryable after restart.
 
@@ -463,7 +468,7 @@ def test_data_queryable_after_sink_restart(host):
 
 @pytest.mark.nft
 @pytest.mark.resilience
-@pytest.mark.order(126)
+@pytest.mark.order(117)
 def test_node_reboot_recovery(host):
     """TEL_NFT_012: Verify all pods recover after kube_vip node reboot.
 
@@ -535,7 +540,7 @@ def test_node_reboot_recovery(host):
 
 @pytest.mark.nft
 @pytest.mark.resilience
-@pytest.mark.order(127)
+@pytest.mark.order(118)
 def test_full_lifecycle(host):
     """TEL_NFT_013: Complete cleanup and redeployment cycle.
 
@@ -617,7 +622,7 @@ def test_full_lifecycle(host):
 
 @pytest.mark.nft
 @pytest.mark.resilience
-@pytest.mark.order(128)
+@pytest.mark.order(119)
 def test_operator_pod_recovery(host):
     """TEL_NFT_014: Delete operator pods and verify CR reconciliation.
 
