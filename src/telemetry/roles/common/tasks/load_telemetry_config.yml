@@ -163,17 +163,18 @@
     # Resolve repo_url default for offline mode from SYSTEM_ADMIN_NIC_IPV4
     # -----------------------------------------------------------------------
     # When install_mode is offline and repo_url is empty, auto-derive:
-    #   https://<SYSTEM_ADMIN_NIC_IPV4>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0
+    #   https://<SYSTEM_ADMIN_NIC_IPV4>:<pulp_port>/<pulp_base_path>/<pulp_cluster_arch>/<pulp_os_name>/<pulp_os_version>
+    # Pulp configuration is customizable via variables in roles/common/vars/main.yml
     - name: Resolve repo_url default for offline mode
       ansible.builtin.set_fact:
         _resolved_repo_url: >-
           {% set mode = _pkg_raw.install_mode | default('offline') -%}
           {% set url = _pkg_raw.repo_url | default('') -%}
           {% if url | length > 0 -%}
-          {{ url }}{%- elif mode == 'offline' -%}
+          {{ url | regex_replace('/$', '') }}{%- elif mode == 'offline' -%}
           {% set nic_ip = lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default(admin_nic_ip | default(''), true) -%}
           {% if nic_ip | length > 0 -%}
-          https://{{ nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0{%- endif -%}
+          https://{{ nic_ip }}:{{ pulp_port }}/{{ pulp_base_path }}/{{ pulp_cluster_arch }}/{{ pulp_os_name }}/{{ pulp_os_version }}{%- endif -%}
           {%- endif %}
       when: _pkg_raw is defined
 

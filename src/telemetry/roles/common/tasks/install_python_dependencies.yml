@@ -63,10 +63,10 @@
     repo_url: >-
       {% set url = _telemetry_packages_raw.repo_url | default('') -%}
       {% if url | length > 0 -%}
-      {{ url }}{%- elif _telemetry_packages_raw.install_mode | default('offline') == 'offline' -%}
+      {{ url | regex_replace('/$', '') }}{%- elif _telemetry_packages_raw.install_mode | default('offline') == 'offline' -%}
       {% set nic_ip = lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default(admin_nic_ip | default(''), true) -%}
       {% if nic_ip | length > 0 -%}
-      https://{{ nic_ip }}:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0{%- endif -%}
+      https://{{ nic_ip }}:{{ pulp_port }}/{{ pulp_base_path }}/{{ pulp_cluster_arch }}/{{ pulp_os_name }}/{{ pulp_os_version }}{%- endif -%}
       {%- else -%}
       {{ url }}{%- endif %}
     pip_modules: "{{ _telemetry_packages_raw.pip_modules | default({}) }}"

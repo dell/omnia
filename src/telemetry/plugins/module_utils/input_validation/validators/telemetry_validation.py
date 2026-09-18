@@ -67,6 +67,53 @@ def _validated_mount_path(value):
     return value
 
 
+def _validated_project_name(value):
+    """Return a safe project name, or an empty string when invalid.
+    
+    Prevents path traversal attacks by rejecting names containing:
+    - Path separators (/, \)
+    - Parent directory references (..)
+    - Null bytes or control characters
+    - Names must be 1-80 characters
+    - Must start with alphanumeric
+    """
+    if not isinstance(value, str) or not value:
+        return ""
+    if len(value) > 80:
+        return ""
+    # Must start with alphanumeric
+    if not value[0].isalnum():
+        return ""
+    # Reject path traversal sequences and separators
+    if any(seq in value for seq in ("..", "/", "\\", "\x00", "\r", "\n")):
+        return ""
+    # Only allow alphanumeric, underscore, hyphen, and dot
+    if not all(c.isalnum() or c in ("_", "-", ".") for c in value):
+        return ""
+    return value
+
+
+def _validated_data_path(value):
+    """Return a safe absolute data path, or an empty string when invalid.
+    
+    Prevents path traversal attacks by ensuring:
+    - Path is absolute (starts with /)
+    - No null bytes or control characters
+    - No path traversal sequences
+    """
+    if not isinstance(value, str) or not value:
+        return ""
+    # Must be absolute path
+    if not os.path.isabs(value):
+        return ""
+    # Reject control characters and path traversal
+    if any(char in value for char in ("\x00", "\r", "\n")):
+        return ""
+    if ".." in value:
+        return ""
+    return value
+
+
 def _inventory_kube_vip(inventory_data):
     """Return the inventory kube VIP and a safely shaped children mapping."""
     if not isinstance(inventory_data, dict):
@@ -1137,7 +1184,28 @@ def validate_telemetry_packages(
                     # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
                     omnia_data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia").rstrip("/")
                     project_name = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
-                    cluster_inv_path = f"{omnia_data_path}/orchestrator/output/{project_name}/orchestrator_inventory.yml"
+                    
+                    # Validate project name to prevent path traversal
+                    safe_project_name = _validated_project_name(project_name)
+                    if not safe_project_name:
+                        logger.warning(
+                            "OMNIA_PROJECT_NAME contains invalid characters: %s; "
+                            "using default 'project_default'",
+                            project_name,
+                        )
+                        safe_project_name = "project_default"
+                    
+                    # Validate OMNIA_DATA_PATH is absolute and safe
+                    safe_data_path = _validated_data_path(omnia_data_path)
+                    if not safe_data_path:
+                        logger.warning(
+                            "OMNIA_DATA_PATH is invalid or not absolute: %s; using /opt/omnia",
+                            omnia_data_path,
+                        )
+                        safe_data_path = "/opt/omnia"
+                    omnia_data_path = safe_data_path
+                    
+                    cluster_inv_path = f"{omnia_data_path}/orchestrator/output/{safe_project_name}/orchestrator_inventory.yml"
                     logger.info(
                         "cluster_inventory is empty; using default path: %s",
                         cluster_inv_path,
