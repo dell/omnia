@@ -21,6 +21,7 @@ and that required systemd targets (nfs-client.target) are active.
 
 import pytest
 
+from library.functions import TestLogger
 from library.functions.k8s_func import (
     check_k8s_firewall_ports_control_plane,
     check_k8s_firewall_ports_workers,
@@ -32,8 +33,6 @@ from library.messages import (
     K8S_TEST_ASSERT_MSGS as ASSERT,
 )
 
-from omnia_auto import log, get_last_tc_id
-
 
 # =============================================================================
 # Firewall Port Tests
@@ -44,25 +43,26 @@ from omnia_auto import log, get_last_tc_id
 @pytest.mark.sanity
 @pytest.mark.buildstream
 def test_k8s_firewall_ports_control_plane(host):
-    """TC_K8_052: Verify firewall ports on control plane nodes match cloud-init."""
+    """TC_K8_051: Verify firewall ports on control plane nodes match cloud-init."""
     tc = TEST_CASES["k8s_firewall_ports_control_plane"]
-    log(f"[{tc['id']}] {tc['title']}", "TEST")
+    tl = TestLogger(tc["title"], tc["id"])
 
+    tl.check("Checking firewall ports on control plane nodes")
     result = check_k8s_firewall_ports_control_plane(host)
-    log(result["details"], "OK" if result["success"] else "FAIL")
 
     if result.get("skipped"):
+        tl.skipped(result["details"], "")
         pytest.skip(result["details"])
 
     if result["success"]:
-        log(
+        tl.passed(
             LOG["firewall_ports_cp_ok"].format(
                 count=result.get("nodes_checked", 0)
             ),
-            "OK",
+            "",
         )
     else:
-        log(ASSERT["firewall_ports_cp_failed"], "FAIL")
+        tl.failed(LOG["firewall_ports_cp_failed"].format(error=result["error"]), result["error"])
 
     assert result["success"], (
         LOG["firewall_ports_cp_failed"].format(error=result["error"])
@@ -74,25 +74,26 @@ def test_k8s_firewall_ports_control_plane(host):
 @pytest.mark.sanity
 @pytest.mark.buildstream
 def test_k8s_firewall_ports_workers(host):
-    """TC_K8_053: Verify firewall ports on worker nodes match cloud-init."""
+    """TC_K8_052: Verify firewall ports on worker nodes match cloud-init."""
     tc = TEST_CASES["k8s_firewall_ports_workers"]
-    log(f"[{tc['id']}] {tc['title']}", "TEST")
+    tl = TestLogger(tc["title"], tc["id"])
 
+    tl.check("Checking firewall ports on worker nodes")
     result = check_k8s_firewall_ports_workers(host)
-    log(result["details"], "OK" if result["success"] else "FAIL")
 
     if result.get("skipped"):
+        tl.skipped(result["details"], "")
         pytest.skip(result["details"])
 
     if result["success"]:
-        log(
+        tl.passed(
             LOG["firewall_ports_workers_ok"].format(
                 count=result.get("nodes_checked", 0)
             ),
-            "OK",
+            "",
         )
     else:
-        log(ASSERT["firewall_ports_workers_failed"], "FAIL")
+        tl.failed(LOG["firewall_ports_workers_failed"].format(error=result["error"]), result["error"])
 
     assert result["success"], (
         LOG["firewall_ports_workers_failed"].format(error=result["error"])
@@ -108,25 +109,26 @@ def test_k8s_firewall_ports_workers(host):
 @pytest.mark.sanity
 @pytest.mark.buildstream
 def test_k8s_nfs_client_target(host):
-    """TC_K8_054: Verify nfs-client.target is active on all K8s nodes."""
+    """TC_K8_053: Verify nfs-client.target is active on all K8s nodes."""
     tc = TEST_CASES["k8s_nfs_client_target"]
-    log(f"[{tc['id']}] {tc['title']}", "TEST")
+    tl = TestLogger(tc["title"], tc["id"])
 
+    tl.check("Checking nfs-client.target on K8s nodes")
     result = check_k8s_nfs_client_target(host)
-    log(result["details"], "OK" if result["success"] else "FAIL")
 
     if result.get("skipped"):
+        tl.skipped(result["details"], "")
         pytest.skip(result["details"])
 
     if result["success"]:
-        log(
+        tl.passed(
             LOG["nfs_client_target_ok"].format(
                 count=result.get("nodes_checked", 0)
             ),
-            "OK",
+            "",
         )
     else:
-        log(ASSERT["nfs_client_target_failed"], "FAIL")
+        tl.failed(LOG["nfs_client_target_failed"].format(error=result["error"]), result["error"])
 
     assert result["success"], (
         LOG["nfs_client_target_failed"].format(error=result["error"])

@@ -91,8 +91,8 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "node_taints_failed": "Control plane node taints check failed: {error}",
 
     # SMD/Metadata
-    "smd_groups_ok": "K8s functional groups registered in SMD",
-    "smd_groups_failed": "K8s functional groups not found in SMD",
+    "smd_groups_ok": "K8s nodes registered in SMD",
+    "smd_groups_failed": "K8s nodes not found in SMD",
     "metadata_ok": "K8s metadata-service configuration exists",
     "metadata_failed": "K8s metadata-service configuration missing",
 
@@ -147,8 +147,6 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "persistent_volumes_failed": "PV issues found: {error}",
     "nfs_sc_ok": "NFS StorageClass is dynamic and properly configured",
     "nfs_sc_failed": "NFS StorageClass validation failed: {error}",
-    "telemetry_pvcs_ok": "All telemetry PVCs are Bound",
-    "telemetry_pvcs_failed": "Telemetry PVC issues: {error}",
 
     # Workload
     "busybox_pod_ok": "BusyBox pod deployed and reached Running state",
@@ -345,13 +343,13 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
     ),
     "smd_groups_missing": (
         "\n\u2554" + _BORDER + "\u2557\n"
-        "\u2551 K8S SMD GROUPS NOT REGISTERED\n"
+        "\u2551 K8S NODES NOT REGISTERED IN SMD\n"
         "\u2560" + _BORDER + "\u2563\n"
-        "\u2551 K8s functional groups not found in SMD.\n"
+        "\u2551 K8s nodes not found in SMD State/Components.\n"
         "\u2551\n"
         "\u2551 HOW TO FIX:\n"
-        "\u2551   1. Check SMD API: curl -sk https://$(hostname -f):8443/hsm/v2/groups\n"
-        "\u2551   2. Re-run provisioning: --tags provision_kubernetes\n"
+        "\u2551   1. Check SMD API: curl -sk https://$(hostname -f):8443/hsm/v2/State/Components\n"
+        "\u2551   2. Re-run provisioning: --tags provision\n"
         "\u2551   3. Check orchestrator logs for SMD registration errors\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
@@ -719,18 +717,6 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551   1. Check: kubectl get sc nfs-client -o yaml\n"
         "\u2551   2. Verify NFS provisioner is running\n"
         "\u2551   3. Re-run provisioning: --tags provision_kubernetes\n"
-        "\u255a" + _BORDER + "\u255d\n"
-    ),
-    "telemetry_pvcs_failed": (
-        "\n\u2554" + _BORDER + "\u2557\n"
-        "\u2551 TELEMETRY PVCS NOT BOUND\n"
-        "\u2560" + _BORDER + "\u2563\n"
-        "\u2551 Some telemetry PVCs are not in Bound state.\n"
-        "\u2551\n"
-        "\u2551 HOW TO FIX:\n"
-        "\u2551   1. Check: kubectl get pvc -n telemetry\n"
-        "\u2551   2. Verify storage provisioner is running\n"
-        "\u2551   3. Describe failing PVCs: kubectl describe pvc -n telemetry <name>\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
     "busybox_pod_failed": (
