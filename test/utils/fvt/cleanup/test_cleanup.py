@@ -31,6 +31,7 @@ from library.functions import (
     get_utils_output_path,
     check_all_logs_cleaned,
     check_all_install_os_cleaned,
+    check_utils_status_file_removed,
 )
 from library.vars import (
     TEST_CASES as TC,
@@ -149,4 +150,32 @@ def test_cleanup_all_install_os_cleaned(host):
         f"Install OS artifacts not fully cleaned: "
         f"temp_dir={result['temp_dir_cleaned']}, "
         f"nfs={result['nfs_cleaned']}"
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.cleanup
+@pytest.mark.order(3)
+def test_cleanup_status_file_removed(host):
+    """Verify utils_status.yml file is removed after cleanup."""
+    tc = TC["cleanup_status_file_removed"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    output_path = get_utils_output_path(host)
+    result = check_utils_status_file_removed(host, output_path)
+
+    # Report detailed status
+    tl.info("Status file cleanup status:")
+    tl.info(f"  Status file path: {result['path']}")
+    tl.info(f"  Status file removed: {'Yes' if result['success'] else 'No'}")
+
+    if result["success"]:
+        tl.passed("Utils status file removed")
+    else:
+        tl.failed(f"Status file still exists at {result['path']}")
+
+    assert result["success"], (
+        f"Utils status file not removed: "
+        f"path={result['path']}, "
+        f"exists={result['exists']}"
     )
