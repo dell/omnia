@@ -40,17 +40,18 @@ _state = PipelineState()
 
 
 @pytest.fixture(scope="session")
-def pipeline_state(host):
+def pipeline_state():
     """Session-scoped fixture that holds pipeline state.
 
     In verify-only mode (OMNIA_COMMAND_TYPE=verify), the trigger test
     is excluded by the ``-m 'not deploy'`` marker filter, so job_id
     would remain empty.  This fixture detects that situation and
-    reads job_id from test_config.yml (populated by a prior --test run).
+    reads job_id only from test_config.yml (populated by a prior --test run).
+    Verification never falls back to the latest database job.
     """
     if not _state.job_id:
         config = load_test_config()
-        config_job_id = config.get("job_id", "")
+        config_job_id = str(config.get("job_id", "") or "").strip()
 
         if config_job_id:
             _state.job_id = config_job_id
@@ -59,24 +60,10 @@ def pipeline_state(host):
                 f"{config_job_id[:8]}...",
                 "INFO",
             )
-        else:
-            # Fallback: try fetching latest job from DB
-            command_type = os.environ.get("OMNIA_COMMAND_TYPE", "")
-            if command_type == "verify":
-                from library.functions import get_latest_job
-                job = get_latest_job(host)
-                if job["success"] and job["job_id"]:
-                    _state.job_id = job["job_id"]
-                    log(
-                        f"Verify mode: auto-fetched latest job "
-                        f"{job['job_id'][:8]}... "
-                        f"(state={job['job_state']})",
-                        "INFO",
-                    )
-                else:
-                    log(
-                        f"Verify mode: no job found in database "
-                        f"({job.get('error', 'unknown error')})",
-                        "WARN",
-                    )
+        elif os.environ.get("OMNIA_COMMAND_TYPE", "") == "verify":
+            pytest.fail(
+                "build_pipeline requires job_id in test_config.yml; "
+                "run build_pipeline exec/test first or enter the job_id "
+                "manually"
+            )
     return _state
