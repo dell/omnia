@@ -61,19 +61,22 @@
 # Default mode stages (full cycle):
 #   1. initialization          -> Load cluster config, validate connectivity
 #   2. setup_environment       -> Clone repo, copy omnia.env, setup venv
-#   3. cleanup_repo_manager    -> repo_manager --tags cleanup
-#   4. cleanup_image_build     -> image_build_manager --tags cleanup
-#   5. cleanup_orchestrator    -> cleanup_orchestrator.yml standalone
-#   6. cleanup_omnia           -> omnia.sh --cleanup --all
-#   7. setup_main             -> Re-run omnia.sh -s to rebuild venv
-#   8. test_main_installation       -> Validate omnia setup via test framework
-#   9. repo_manager            -> Copy inputs, encrypt creds, run playbook
-#  10. test_repo_manager       -> Run repo_manager validation tests
-#  11. image_build_manager     -> Copy inputs, encrypt creds, run playbook
-#  12. test_image_build_manager -> Run image_build_manager validation tests
-#  13. orchestrator            -> Copy inputs, encrypt creds, run playbook
-#  14. test_orchestrator       -> Run orchestrator validation tests
-#  15. summary                 -> Pipeline report + email
+#   3. cleanup_telemetry       -> telemetry --tags cleanup
+#   4. cleanup_orchestrator    -> cleanup_orchestrator.yml standalone
+#   5. cleanup_image_build     -> image_build_manager --tags cleanup
+#   6. cleanup_repo_manager    -> repo_manager --tags cleanup
+#   7. cleanup_omnia           -> omnia.sh --cleanup --all
+#   8. setup_main             -> Re-run omnia.sh -s to rebuild venv
+#   9. test_main_installation       -> Validate omnia setup via test framework
+#  10. repo_manager            -> Copy inputs, encrypt creds, run playbook
+#  11. test_repo_manager       -> Run repo_manager validation tests
+#  12. image_build_manager     -> Copy inputs, encrypt creds, run playbook
+#  13. test_image_build_manager -> Run image_build_manager validation tests
+#  14. orchestrator            -> Copy inputs, encrypt creds, run playbook
+#  15. test_orchestrator       -> Run orchestrator validation tests
+#  16. telemetry              -> Copy inputs, encrypt creds, run playbook
+#  17. test_telemetry          -> Run telemetry validation tests
+#  18. summary                -> Pipeline report + email
 #
 # VENV GATE: Every domain stage resolves OMNIA_DATA_PATH from omnia.env
 #            on the target, then verifies that the venv and activate-omnia.sh
@@ -114,10 +117,10 @@ variables:
 stages:
   - initialization
   - setup_environment
-  - cleanup_repo_manager
-  - cleanup_image_build
-  - cleanup_orchestrator
   - cleanup_telemetry
+  - cleanup_orchestrator
+  - cleanup_image_build
+  - cleanup_repo_manager
   - cleanup_omnia
   - setup_main
   - test_main_installation
@@ -544,6 +547,9 @@ cleanup_repo_manager:
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /repo_manager/)'
       when: on_success
   needs:
+    - job: cleanup_image_build_manager
+      artifacts: true
+      optional: true
     - job: setup_environment
       artifacts: true
       optional: true
@@ -594,7 +600,7 @@ cleanup_image_build_manager:
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /image_build_manager/)'
       when: on_success
   needs:
-    - job: cleanup_repo_manager
+    - job: cleanup_orchestrator
       artifacts: true
       optional: true
     - job: setup_environment
@@ -647,7 +653,7 @@ cleanup_orchestrator:
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /orchestrator/)'
       when: on_success
   needs:
-    - job: cleanup_image_build_manager
+    - job: cleanup_telemetry
       artifacts: true
       optional: true
     - job: setup_environment
@@ -701,9 +707,6 @@ cleanup_telemetry:
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /telemetry/)'
       when: on_success
   needs:
-    - job: cleanup_orchestrator
-      artifacts: true
-      optional: true
     - job: setup_environment
       artifacts: true
       optional: true
@@ -731,7 +734,7 @@ cleanup_telemetry:
         $SSH_CMD $TARGET "
           source $OMNIA_DATA_PATH/activate-omnia.sh
           cd $OMNIA_INSTALL_PATH/src/telemetry/playbooks/
-          ansible-playbook telemetry.yml --tags cleanup $ANSIBLE_VERBOSITY
+          ansible-playbook telemetry.yml --tags cleanup -e delete_sinks_volume=true $ANSIBLE_VERBOSITY
         "
       fi
 
@@ -757,16 +760,16 @@ cleanup_omnia:
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && $DOMAINS == "default"'
       when: on_success
   needs:
-    - job: cleanup_repo_manager
-      artifacts: true
-      optional: true
-    - job: cleanup_image_build_manager
+    - job: cleanup_telemetry
       artifacts: true
       optional: true
     - job: cleanup_orchestrator
       artifacts: true
       optional: true
-    - job: cleanup_telemetry
+    - job: cleanup_image_build_manager
+      artifacts: true
+      optional: true
+    - job: cleanup_repo_manager
       artifacts: true
       optional: true
     - job: setup_environment
