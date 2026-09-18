@@ -451,7 +451,7 @@
     label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
   when:
-    - true
+    - not (_cleanup_preserve_sink_volumes | bool)
     - "'kafkanodepools.kafka.strimzi.io' in _kafka_api_resources.stdout_lines"
   failed_when: false
 
@@ -629,7 +629,7 @@
   loop: "{{ kafka_secret_resources }}"
   changed_when: false
   when:
-    - true or item != "kafka-cluster-id"
+    - not (_cleanup_preserve_sink_volumes | bool) or item != "kafka-cluster-id"
   failed_when: false
 
 - name: Kafka | Delete services
