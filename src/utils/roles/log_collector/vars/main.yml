@@ -12,12 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# OMNIA_DATA_PATH with fallback
+omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
 
-# Log collection workspace root on OIM
-log_root: /opt/omnia/collector_logs
+# Project name with fallback
+project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
 
-# PXE mapping file used to build dynamic node inventory
-pxe_mapping_file_path: "/opt/omnia/input/project_default/pxe_mapping_file.csv"
+# Input file paths
+collect_pxe_file: "{{ omnia_data_path }}/{{ domain_name }}/input/{{ project_name }}/collect_pxe.yml"
+
+# Output paths
+log_root: "{{ omnia_data_path }}/{{ domain_name }}/output/{{ project_name }}/collect"
+
+# Error messages
+error_msg_inventory_file_missing: "Node inventory file not found: {{ collect_pxe_file }}. Create this file with IP addresses under each functional group."
+
+# Domain name
+domain_name: "utils"
 
 # K8s master log paths
 k8s_master_log_dirs:

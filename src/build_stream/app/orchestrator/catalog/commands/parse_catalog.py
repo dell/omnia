@@ -15,43 +15,27 @@
 """ParseCatalog command DTO."""
 
 from dataclasses import dataclass
-from typing import ClassVar
 
-from core.jobs.value_objects import CorrelationId, JobId
+from core.jobs.value_objects import ClientId, CorrelationId, JobId
 
 
 @dataclass(frozen=True)
 class ParseCatalogCommand:
-    """Command to execute the parse-catalog stage.
+    """Command to trigger the parse-catalog stage.
+
+    Immutable command object representing the intent to execute the
+    parse-catalog stage for a given job. The catalog itself is not carried
+    in the command -- it reads the ``catalog_rhel.json`` already uploaded
+    for this job via ``PUT /api/v1/jobs/{job_id}/upload`` (the "upload"
+    stage), consistent with the rest of the Omnia 2.3+ domain-segregated
+    flow where the catalog is uploaded once and consumed directly.
 
     Attributes:
-        job_id: Job identifier (validated UUID).
+        job_id: Job identifier from URL path.
+        client_id: Client who owns this job (from auth).
         correlation_id: Request correlation identifier for tracing.
-        filename: Name of the uploaded catalog file.
-        content: Raw bytes of the uploaded catalog file.
     """
 
     job_id: JobId
+    client_id: ClientId
     correlation_id: CorrelationId
-    filename: str
-    content: bytes
-
-    FILENAME_MAX_LENGTH: ClassVar[int] = 255
-    MAX_CONTENT_SIZE: ClassVar[int] = 5 * 1024 * 1024  # 5 MB
-
-    def __post_init__(self) -> None:
-        """Validate command fields."""
-        if not self.filename or not self.filename.strip():
-            raise ValueError("filename cannot be empty")
-        if len(self.filename) > self.FILENAME_MAX_LENGTH:
-            raise ValueError(
-                f"filename must be <= {self.FILENAME_MAX_LENGTH} chars, "
-                f"got {len(self.filename)}"
-            )
-        if not self.content:
-            raise ValueError("content cannot be empty")
-        if len(self.content) > self.MAX_CONTENT_SIZE:
-            raise ValueError(
-                f"content size {len(self.content)} bytes exceeds maximum "
-                f"{self.MAX_CONTENT_SIZE} bytes"
-            )

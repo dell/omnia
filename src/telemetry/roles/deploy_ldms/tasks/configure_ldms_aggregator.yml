@@ -14,78 +14,45 @@
 ---
 
 # =============================================================================
-# Configure LDMS aggregator (nersc-ldms-aggr Helm chart)
+# Prepare LDMS aggregator authentication on a Slurm control node
 # =============================================================================
-# Prepares the LDMS aggregator Helm chart files on NFS share, including
-# machine config, host map, values.yaml, ldmsauth.conf, and munge key.
-# The aggregator runs as a StatefulSet in the telemetry namespace.
+# This task file only fetches current Munge authentication material from the
+# selected control node. Chart rendering, secret reconciliation, and the Helm
+# deployment run separately on kube_vip_group in deploy_ldms_aggregator_k8s.yml.
 # =============================================================================
 
-- name: Check if values.yaml already exists
+- name: Check if munge key exists
   ansible.builtin.stat:
-    path: "{{ ldms_share_path }}/nersc-ldms-aggr/values.yaml"
-  register: values_file_exists
+    path: "{{ munge_key_path }}"
+  register: munge_key_check
 
-- name: Copy LDMS aggregator Helm chart files
-  ansible.builtin.copy:
-    src: "{{ role_path }}/files/nersc-ldms-aggr"
-    dest: "{{ ldms_share_path }}"
-    mode: "{{ common_mode }}"
-  when: not values_file_exists.stat.exists
+- name: Validate current munge key on selected control node
+  ansible.builtin.assert:
+    that:
+      - munge_key_check.stat.exists | default(false)
+      - munge_key_check.stat.isreg | default(false)
+    fail_msg: >-
+      The munge key disappeared from {{ munge_key_path }} on the selected
+      Slurm control node. Refusing to reuse stale aggregator authentication.
 
-- name: Copy LDMS decompose.json
-  ansible.builtin.copy:
-    src: "{{ role_path }}/files/nersc-ldms-aggr/scripts/decomp.json"
-    dest: "{{ ldms_share_path }}/nersc-ldms-aggr/scripts/decomp.json"
-    mode: "{{ file_permissions_644 }}"
+- name: Fetch munge key from slurm control node
+  ansible.builtin.fetch:
+    src: "{{ munge_key_path }}"
+    dest: "/tmp/munge.key"
+    flat: true
 
-- name: Generate LDMS machine config
-  ansible.builtin.template:
-    src: "{{ role_path }}/templates/ldms/ldms_machine_config.json.j2"
-    dest: "{{ ldms_share_path }}/nersc-ldms-aggr/ldms_machine_config.json"
-    mode: "{{ file_permissions_644 }}"
+- name: Ensure ldms_sampler_password is available for aggregator
+  ansible.builtin.set_fact:
+    ldms_sampler_password: "{{ telemetry_credentials.ldms_sampler_password | default('') }}"
+  when:
+    - telemetry_credentials is defined
+    - telemetry_credentials.ldms_sampler_password is defined
+  no_log: true
 
-- name: Generate LDMS host map
-  ansible.builtin.template:
-    src: "{{ role_path }}/templates/ldms/host_map.slurm-cluster.json.j2"
-    dest: "{{ ldms_share_path }}/nersc-ldms-aggr/host_map.slurm-cluster.json"
-    mode: "{{ file_permissions_644 }}"
+- name: Set munge key check result for kube_vip tasks
+  ansible.builtin.set_fact:
+    munge_key_check_result: "{{ munge_key_check.stat.exists | default(false) }}"
 
-- name: Clean up previous build artifacts before make
-  ansible.builtin.file:
-    path: "{{ ldms_share_path }}/nersc-ldms-aggr/{{ item }}"
-    state: absent
-  failed_when: false
-  loop:
-    - out_dir
-    - manifest.yaml
-    - values.yaml
-
-- name: Run make command inside LDMS directory
-  ansible.builtin.shell: make clean all && make
-  changed_when: true
-  args:
-    chdir: "{{ ldms_share_path }}/nersc-ldms-aggr"
-
-- name: Render values.yaml
-  ansible.builtin.template:
-    src: "{{ role_path }}/templates/ldms/values.yaml.j2"
-    dest: "{{ ldms_share_path }}/nersc-ldms-aggr/values.yaml"
-    mode: "{{ file_permissions_644 }}"
-
-- name: Copy munge key from slurm config
-  ansible.builtin.copy:
-    src: "{{ slurm_config_path }}/munge.key"
-    dest: "{{ ldms_share_path }}/munge.key"
-    mode: "{{ file_permissions_400 }}"
-    remote_src: true
-
-- name: Render ldmsauth.conf to LDMS directory
-  ansible.builtin.template:
-    src: "{{ role_path }}/templates/ldms/ldmsauth.conf.j2"
-    dest: "{{ ldms_share_path }}/ldmsauth.conf"
-    mode: "{{ file_permissions_600 }}"
-
-- name: Log LDMS aggregator configuration complete
+- name: Log LDMS aggregator authentication preparation complete
   ansible.builtin.debug:
-    msg: "LDMS aggregator configuration rendered to {{ ldms_share_path }}/nersc-ldms-aggr/"
+    msg: "Munge key and credentials prepared from selected Slurm control node"

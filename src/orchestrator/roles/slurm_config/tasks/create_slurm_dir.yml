@@ -33,7 +33,8 @@
 - name: Set facts for slurm
   ansible.builtin.set_fact:
     nfs_storage_name: "{{ slurm_cluster[0].nfs_storage_name }}"
-    vast_storage_name: "{{ slurm_cluster[0].vast_storage_name | default(false) }}"
+    vast_storage_name: >-
+      {{ slurm_cluster[0].vast_storage_name | default('', true) | trim }}
 
 - name: Set vast storage name if not set
   ansible.builtin.set_fact:
@@ -54,7 +55,7 @@
 
 - name: Set facts for slurm
   ansible.builtin.set_fact:
-    cluster_name: "{{ slurm_cluster[0].cluster_name }}"
+    slurm_cluster_name: "{{ slurm_cluster[0].cluster_name }}"
     configs_input: "{{ slurm_cluster[0].config_sources | default({}) | dict2items | rejectattr('value', 'falsy') | list | items2dict }}"
     skip_merge: "{{ slurm_cluster[0].skip_merge | default(false) }}"
     slurm_config_path: "{{ share_path }}/{{ slurm_dir_name }}"
@@ -137,7 +138,7 @@
   ansible.builtin.copy:
     src: "{{ pulp_webserver_cert_path }}"
     dest: "{{ slurm_config_path }}/cert"
-    mode: "{{ file_mode }}"
+    mode: "{{ conf_file_mode }}"
   become: true
 
 - name: Set hpc_tools_path
@@ -170,6 +171,21 @@
             (compiler_login_list | default([])) +
             (login_list | default([])) }}"
 
+- name: Display munge key restart warnings
+  ansible.builtin.debug:
+    msg: >-
+      Munge key updated on NFS for {{ item.item }} ({{ ip_name_map[item.item] | default(item.item) }}).
+      Please restart munge service on {{ ip_name_map[item.item] | default(item.item) }}
+      followed by the dependent slurm services.
+    verbosity: 1
+  loop: "{{ munge_key_copy.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - item.changed | default(false)
+    - restart_slurm_services
+  no_log: "{{ _no_log }}"
+
 - name: Conf merge and write using slurm_conf module
   ansible.builtin.include_tasks: confs.yml
 
@@ -201,23 +217,23 @@
   ansible.builtin.debug:
     msg: "The slurm NFS path is {{ share_path }}/slurm"
 
-- name: NFS path for cloud init
+- name: NFS path for metadata-service
   ansible.builtin.set_fact:
-    cloud_init_nfs_path: "{{ nfs_server_path }}/slurm"
+    metadata_svc_nfs_path: "{{ nfs_server_path }}/slurm"
 
 - name: NFS path for controller trackfile
   ansible.builtin.set_fact:
     trackfile_nfs_path: "{{ nfs_server_path }}/ctld_track"
 
-- name: NFS path for cloud init
+- name: NFS path for metadata-service
   ansible.builtin.set_fact:
-    cloud_init_nfs_path_openldap: "{{ nfs_server_path }}/openldap"
+    metadata_svc_nfs_path_openldap: "{{ nfs_server_path }}/openldap"
   when: hostvars['localhost']['openldap_support']
 
-# This will be mounted for ucx, openmpi and ldms configurations on slurm nodes
-- name: NFS path for ucx, openmpi and ldms cloud init
+# This will be mounted for ucx and openmpi configurations on slurm nodes
+- name: NFS path for ucx and openmpi metadata-service
   ansible.builtin.set_fact:
-    cloud_init_slurm_nfs_path: "{{ nfs_server_path }}"
+    metadata_svc_slurm_nfs_path: "{{ nfs_server_path }}"
     client_mount_path: "{{ share_path }}"
 
 - name: Ensure SSH key directory exists on Slurm share

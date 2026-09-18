@@ -20,8 +20,12 @@ from .formatting_func import (
     Symbols,
     log,
     set_debug_mode,
+    set_verbose_mode,
     TestLogger,
     get_test_output,
+    get_last_tc_id,
+    get_last_detail_fields,
+    clear_test_context,
     add_session_result,
     get_session_results,
     clear_session_results,
@@ -34,12 +38,18 @@ from .host_func import (
     load_test_config,
     load_test_credentials,
     run_on_host,
+    run_ssh_command,
     is_local_execution,
     encrypt_test_credentials,
     connection_params,
     read_remote_env,
     ensure_remote_dir,
+    read_remote_yaml,
+    read_yaml_key,
+    resolve_domain_data_path,
     resolve_domain_input_path,
+    get_inventory_hosts,
+    get_inventory_host_var,
 )
 
 # --- Report ---
@@ -47,6 +57,8 @@ from .report_func import (
     TestReport,
     get_current_report,
     set_current_report,
+    build_report_name,
+    record_playbook_failure,
 )
 
 # --- Runner ---
@@ -54,3 +66,70 @@ from .runner_func import run_playbook
 
 # --- Sync ---
 from .sync_func import clone_repo, sync_files
+
+# --- Validation Runner ---
+from .validation_runner import ValidationRunner
+
+# --- Credential Management ---
+from .credential_func import (
+    ensure_vault_key,
+    is_vault_encrypted,
+    vault_encrypt,
+    vault_decrypt_to_dict,
+    read_credential_field,
+    read_all_fields,
+    write_credential_fields,
+    prompt_credential,
+    prompt_and_confirm,
+    prompt_fields_interactive,
+)
+
+__all__ = [
+    "Colors",
+    "Symbols",
+    "log",
+    "set_debug_mode",
+    "set_verbose_mode",
+    "TestLogger",
+    "get_test_output",
+    "get_last_tc_id",
+    "get_last_detail_fields",
+    "clear_test_context",
+    "add_session_result",
+    "get_session_results",
+    "clear_session_results",
+    "print_summary_table",
+    "get_testinfra_host",
+    "load_test_config",
+    "load_test_credentials",
+    "run_on_host",
+    "run_ssh_command",
+    "is_local_execution",
+    "encrypt_test_credentials",
+    "connection_params",
+    "read_remote_env",
+    "ensure_remote_dir",
+    "read_remote_yaml",
+    "read_yaml_key",
+    "resolve_domain_data_path",
+    "resolve_domain_input_path",
+    "get_inventory_hosts",
+    "get_inventory_host_var",
+    "TestReport",
+    "get_current_report",
+    "set_current_report",
+    "run_playbook",
+    "clone_repo",
+    "sync_files",
+    "ValidationRunner",
+    "ensure_vault_key",
+    "is_vault_encrypted",
+    "vault_encrypt",
+    "vault_decrypt_to_dict",
+    "read_credential_field",
+    "read_all_fields",
+    "write_credential_fields",
+    "prompt_credential",
+    "prompt_and_confirm",
+    "prompt_fields_interactive",
+]

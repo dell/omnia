@@ -12,30 +12,144 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: disable=import-error,no-name-in-module,too-many-branches,too-many-positional-arguments,too-many-arguments,too-many-locals
+# pylint:
+# disable=import-error,no-name-in-module,too-many-branches,too-many-positional-arguments,too-many-arguments,too-many-locals,too-many-statements,broad-exception-caught,broad-exception-raised
 """This module handles mirroring of container images in the local repository."""
 
 import re
-import json
 from multiprocessing import Lock
-from jinja2 import Template
 from ansible.module_utils.repo_manager.process_parallel import docker_password_cipher
-from ansible.module_utils.repo_manager.parse_and_download import execute_command, write_status_to_file
-from ansible.module_utils.repo_manager.user_image_utility import handle_user_image_registry
-from ansible.module_utils.repo_manager.config import pulp_container_commands
+from ansible.module_utils.repo_manager.parse_and_download import (
+    execute_command, write_status_to_file
+)
+from ansible.module_utils.repo_manager.user_image_utility import (
+    create_or_update_configured_remote,
+)
+from ansible.module_utils.repo_manager.registry_utils import (
+    get_image_path_for_registry,
+    is_public_registry,
+)
 from ansible.module_utils.repo_manager.container_repo_utils import (
     create_container_repository,
     extract_existing_tags,
     sync_container_repository,
+    remote_creation_lock,
     repository_creation_lock,
-    remote_creation_lock
 )
+from ansible.module_utils.repo_manager.pulp_commands import (
+    build_container_remote_command,
+    build_container_tags_href,
+    pulp_common_commands,
+    pulp_container_commands,
+)
+from ansible.module_utils.repo_manager.security_utils import (
+    render_catalog_placeholders,
+    validate_container_digest,
+    validate_container_policy,
+    validate_container_reference,
+    validate_container_tag,
+    validate_repository_id,
+    validate_repository_url,
+)
+from ansible.module_utils.repo_manager.tag_validator import validate_tag_via_pulp_sync
 
 file_lock = Lock()
 
 
-def create_container_remote_with_auth(remote_name, remote_url, package, policy_type,
-                                     tag, logger, docker_username, docker_secret_token):
+def _build_authenticated_remote_command(
+        action, remote_name, remote_url, package, policy_type, tags,
+        docker_username, docker_password):
+    """Build a Pulp container remote argv list without shell quoting."""
+    remote_name = validate_repository_id(remote_name)
+    remote_url = validate_repository_url(remote_url)
+    package = validate_container_reference(package)
+    policy_type = validate_container_policy(policy_type)
+    tags = [validate_container_tag(tag) for tag in tags]
+    return build_container_remote_command(
+        action,
+        name=remote_name,
+        url=remote_url,
+        upstream_name=package,
+        policy=policy_type,
+        include_tags=tags,
+        username=docker_username,
+        password=docker_password,
+    )
+
+
+def _image_already_synced(repository_name, tag, logger):
+    """
+    Check if a specific tag already exists in the Pulp repository AND distribution exists.
+
+    An image is only considered "already synced" if BOTH conditions are met:
+    1. The tag exists in the repository
+    2. The distribution exists (so the image can be pulled)
+
+    Args:
+        repository_name (str): Name of the Pulp repository.
+        tag (str): Specific tag to check.
+        logger: Logger instance.
+
+    Returns:
+        bool: True if the specific tag exists AND distribution exists, False otherwise.
+    """
+    try:
+        repository_name = validate_repository_id(repository_name)
+        if ":" in tag:
+            tag = validate_container_digest(tag)
+        else:
+            tag = validate_container_tag(tag)
+        # Check if repository has any content
+        cmd = pulp_container_commands["show_repository"] % repository_name
+        result = execute_command(cmd, logger, type_json=True)
+
+        if result and "stdout" in result:
+            repo_data = result["stdout"]
+            version_href = repo_data.get("latest_version_href")
+
+            # If repository has no content (version 0), tag doesn't exist
+            if not version_href or version_href.endswith("/versions/0/"):
+                return False
+
+            # Check if SPECIFIC tag exists in repository content
+            tags_cmd = pulp_common_commands["show_href"] % (
+                build_container_tags_href(version_href, tag)
+            )
+            tags_result = execute_command(tags_cmd, logger, type_json=True)
+
+            if tags_result and "stdout" in tags_result:
+                tags_data = tags_result["stdout"]
+                results = tags_data.get("results", [])
+
+                # Check if SPECIFIC tag exists
+                if len(results) > 0:
+                    # Tag exists, now check if distribution exists
+                    dist_cmd = pulp_container_commands["show_distribution"] % repository_name
+                    dist_result = execute_command(dist_cmd, logger, type_json=True)
+
+                    if not dist_result or "stdout" not in dist_result:
+                        logger.warning(
+                            f"Tag '{tag}' exists in repository {repository_name} but "
+                            f"distribution is missing. Image cannot be pulled - will re-sync."
+                        )
+                        return False
+
+                    logger.info(
+                        f"Tag '{tag}' already exists in repository {repository_name} "
+                        f"and distribution exists. Skipping sync."
+                    )
+                    return True
+
+        return False
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.warning("Unable to verify whether the container image is synchronized")
+        return False
+
+
+def create_container_remote_with_auth(
+    remote_name, remote_url, package, policy_type,
+    tag, logger, docker_username, docker_secret_token
+):
     """
     Create a container remote with authentication.
 
@@ -53,51 +167,59 @@ def create_container_remote_with_auth(remote_name, remote_url, package, policy_t
         docker_password (str): Docker password.
 
     Returns:
-        bool: True if the container remote was created or updated successfully, False otherwise.
+        bool: True if the container remote was created or updated successfully,
+              False otherwise.
     """
     try:
+        remote_name = validate_repository_id(remote_name)
+        remote_url = validate_repository_url(remote_url)
+        package = validate_container_reference(package)
+        policy_type = validate_container_policy(policy_type)
+        tag = validate_container_tag(tag)
         docker_password = docker_password_cipher.decrypt(
             docker_secret_token.encode("utf-8")
         ).decode("utf-8")
-        remote_exists = execute_command(pulp_container_commands["show_container_remote"] % remote_name, logger)
+        remote_exists = execute_command(
+            pulp_container_commands["show_remote"] % remote_name, logger
+        )
         if not remote_exists:
-            tags_json = json.dumps([tag])  # --> '["1.25.2-alpine"]'
-            create_command = pulp_container_commands["create_container_remote_auth"] % (
-            remote_name, remote_url, package, policy_type, tags_json, docker_username, docker_password)
+            create_command = _build_authenticated_remote_command(
+                "create", remote_name, remote_url, package, policy_type,
+                [tag], docker_username, docker_password
+            )
 
             result = execute_command(create_command, logger)
             if result:
                 logger.info(f"Remote '{remote_name}' created successfully with auth.")
                 return True
-            else:
-                logger.error(f"Failed to create remote '{remote_name}' with auth.")
-                return False
-        else:
-            logger.info(f"Remote '{remote_name}' already exists. Checking tags.")
-            existing_tags = extract_existing_tags(remote_name, logger)
-            if tag in existing_tags:
-                logger.info(f"Tag '{tag}' already exists. No update needed.")
-                return True
+            logger.error(f"Failed to create remote '{remote_name}' with auth.")
+            return False
 
-            new_tags = existing_tags + [tag]
-            tags_str = json.dumps(new_tags)
+        logger.info(f"Remote '{remote_name}' already exists. Checking tags.")
+        existing_tags = extract_existing_tags(remote_name, logger)
+        if tag in existing_tags:
+            logger.info(f"Tag '{tag}' already exists. No update needed.")
+            return True
 
-            update_command = pulp_container_commands["update_container_remote_auth"] % (
-                remote_name, remote_url, package, policy_type, tags_str,
-                docker_username, docker_password
+        new_tags = existing_tags + [tag]
+        update_command = _build_authenticated_remote_command(
+            "update", remote_name, remote_url, package, policy_type,
+            new_tags, docker_username, docker_password
+        )
+        result = execute_command(update_command, logger)
+        if result:
+            logger.info(
+                f"Remote '{remote_name}' updated successfully with auth and tags: {new_tags}"
             )
-            result = execute_command(update_command, logger)
-            if result:
-                logger.info(
-                    f"Remote '{remote_name}' updated successfully with auth and tags: {new_tags}"
-                )
-                return True
-            else:
-                logger.error(f"Failed to update remote '{remote_name}' with auth.")
-                return False
+            return True
+        logger.error(f"Failed to update remote '{remote_name}' with auth.")
+        return False
 
-    except Exception as error:
-        logger.error(f"Error in create/update remote '{remote_name}' with auth: {error}")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.error(
+            "Error while creating or updating authenticated remote '%s'.",
+            remote_name,
+        )
         return False
 
 
@@ -121,46 +243,55 @@ def create_container_remote(remote_name, remote_url, package, policy_type, tag, 
         bool: True if the remote was successfully created or updated, False otherwise.
     """
     try:
+        remote_name = validate_repository_id(remote_name)
+        remote_url = validate_repository_url(remote_url)
+        package = validate_container_reference(package)
+        policy_type = validate_container_policy(policy_type)
+        tag = validate_container_tag(tag)
         # Check if the remote exists
-        remote_exists = execute_command(pulp_container_commands["show_container_remote"] % remote_name, logger)
+        remote_exists = execute_command(
+            pulp_container_commands["show_remote"] % remote_name, logger
+        )
         if not remote_exists:
             # If remote does not exist, create it with the provided tag
-            command = pulp_container_commands["create_container_remote"] % (
-                remote_name, remote_url, package, policy_type, tag
+            command = build_container_remote_command(
+                "create", name=remote_name, url=remote_url,
+                upstream_name=package, policy=policy_type,
+                include_tags=[tag],
             )
             result = execute_command(command, logger)
             if result:
                 logger.info(f"Remote '{remote_name}' created successfully.")
                 return True
-            else:
-                logger.error(f"Failed to create remote '{remote_name}'.")
-                return False
-        else:
-            logger.info(f"Remote '{remote_name}' already exists. Updating include_tags.")
-            # Retrieve existing tags
-            existing_tags = extract_existing_tags(remote_name, logger)
-            # If the tag already exists, no update is needed
-            if tag in existing_tags:
-                logger.info(
-                    f"Tag '{tag}' already exists for remote '{remote_name}'. No update needed."
-                )
-                return True
-            # Append new tag and update
-            new_tags = existing_tags + [tag]
-            tags_json = json.dumps(new_tags)  # Ensuring proper JSON formatting
-            update_command = pulp_container_commands["update_container_remote"] % (
-                remote_name, remote_url, package, policy_type, tags_json
-            )
-            result = execute_command(update_command, logger)
-            if result:
-                logger.info(f"Remote '{remote_name}' updated successfully with tags: {new_tags}")
-                return True
-            else:
-                logger.error(f"Failed to update remote '{remote_name}'.")
-                return False
+            logger.error(f"Failed to create remote '{remote_name}'.")
+            return False
 
-    except Exception as error:
-        logger.error(f"Error in create/update remote '{remote_name}': {error}")
+        logger.info(f"Remote '{remote_name}' already exists. Updating include_tags.")
+        # Retrieve existing tags
+        existing_tags = extract_existing_tags(remote_name, logger)
+        # If the tag already exists, no update is needed
+        if tag in existing_tags:
+            logger.info(
+                f"Tag '{tag}' already exists for remote '{remote_name}'. No update needed."
+            )
+            return True
+        # Append new tag and update
+        new_tags = [validate_container_tag(value) for value in existing_tags]
+        new_tags.append(tag)
+        update_command = build_container_remote_command(
+            "update", name=remote_name, url=remote_url,
+            upstream_name=package, policy=policy_type,
+            include_tags=new_tags,
+        )
+        result = execute_command(update_command, logger)
+        if result:
+            logger.info(f"Remote '{remote_name}' updated successfully with tags: {new_tags}")
+            return True
+        logger.error(f"Failed to update remote '{remote_name}'.")
+        return False
+
+    except Exception:
+        logger.error("Failed to create or update the container remote")
         return False
 
 
@@ -178,19 +309,31 @@ def create_container_remote_digest(remote_name, remote_url, package, policy_type
         Exception: If there was an error creating or updating the remote.
     """
     try:
-        if not execute_command(pulp_container_commands["show_container_remote"] % (remote_name), logger):
-            command = pulp_container_commands["create_container_remote_for_digest"] % (remote_name, remote_url, package, policy_type)
+        remote_name = validate_repository_id(remote_name)
+        remote_url = validate_repository_url(remote_url)
+        package = validate_container_reference(package)
+        policy_type = validate_container_policy(policy_type)
+        if not execute_command(
+                pulp_container_commands["show_remote"] % remote_name,
+                logger):
+            command = build_container_remote_command(
+                "create", name=remote_name, url=remote_url,
+                upstream_name=package, policy=policy_type,
+            )
             result = execute_command(command, logger)
             logger.info(f"Remote created successfully: {remote_name}")
             return result
-        else:
-            logger.info(f"Remote {remote_name} already exists.")
-            command = pulp_container_commands["update_remote_for_digest"] % (remote_name, remote_url, package, policy_type)
-            result = execute_command(command, logger)
-            logger.info(f"Remote updated successfully: {remote_name}")
-            return True
-    except Exception as e:
-        logger.error(f"Failed to create remote {remote_name}. Error: {e}")
+
+        logger.info(f"Remote {remote_name} already exists.")
+        command = build_container_remote_command(
+            "update", name=remote_name, url=remote_url,
+            upstream_name=package, policy=policy_type,
+        )
+        result = execute_command(command, logger)
+        logger.info(f"Remote updated successfully: {remote_name}")
+        return True
+    except Exception:
+        logger.error("Failed to create the container remote")
         return False
 
 
@@ -204,6 +347,7 @@ def get_repo_url_and_content(package):
     Raises:
         ValueError: If the package prefix is not supported.
     """
+    package = validate_container_reference(package)
     patterns = {
         r"^(ghcr\.io)(:\d+)?(/.+)": "https://ghcr.io",
         r"^(docker\.io)(:\d+)?(/.+)": "https://registry-1.docker.io",
@@ -225,111 +369,281 @@ def get_repo_url_and_content(package):
             package_content = match.group(3).lstrip("/")
             return base_url, package_content
 
-    # fallback for private / IP-based registries
-    match = re.match(r"^(?P<registry>[^/]+)(?P<path>/.*)$", package)
-    if match:
-        return f"https://{match.group('registry')}", match.group("path").lstrip("/")
-
-    raise ValueError(f"Invalid package format: {package}")
+    raise ValueError("Unsupported public container registry")
 
 
-# def get_repo_url_and_content(package):
-#     """
-#     Get the repository URL and content from a given package.
-#     Parameters:
-#         package (str): The package to extract the URL and content from.
-#     Returns:
-#         tuple: A tuple containing the repository URL and content.
-#     Raises:
-#         ValueError: If the package prefix is not supported.
-#     """
-#     patterns = {
-#          r"^(ghcr\.io)(/.+)": "https://ghcr.io",
-#          r"^(docker\.io)(/.+)": "https://registry-1.docker.io",
-#          r"^(quay\.io)(/.+)": "https://quay.io",
-#          r"^(registry\.k8s\.io)(/.+)": "https://registry.k8s.io",
-#          r"^(nvcr\.io)(/.+)": "https://nvcr.io",
-#          r"^(public\.ecr\.aws)(/.+)": "https://public.ecr.aws",
-#          r"^(gcr\.io)(/.+)": "https://gcr.io"
-#     }
-#     for pattern, repo_url in patterns.items():
-#         match = re.match(pattern, package)
-#         if match:
-#             base_url = repo_url
-#             package_content = match.group(2).lstrip("/")  # Remove leading slash
-#             return base_url, package_content
+def _process_configured_registry_image(
+    package, version_variables, registry_context, policy_type, logger
+):
+    """Process one image from its exact catalog-mapped configured registry."""
+    package_reference = validate_container_reference(package["package"])
+    policy_type = validate_container_policy(policy_type)
+    source_registry = package["source_registry"]
+    package_content = get_image_path_for_registry(
+        package_reference, source_registry, registry_context
+    )
+    package_content = validate_container_reference(package_content)
+    # Keep the configuration key as the internal Pulp identity. The catalog
+    # exposes the real endpoint, while an endpoint change should reconcile the
+    # existing Pulp objects instead of creating duplicates.
+    internal_reference = f"{source_registry}/{package_content}"
+    repository_name = (
+        f"container_repo_{internal_reference.replace('/', '_').replace(':', '_')}"
+    )
+    remote_name = (
+        f"remote_{internal_reference.replace('/', '_').replace(':', '_')}"
+    )
+    repository_name = validate_repository_id(repository_name)
+    remote_name = validate_repository_id(remote_name)
+    package_identifier = package_reference
 
-#     raise ValueError(f"Unsupported package prefix for package: {package}")
+    tag_val = None
+    if "tag" in package:
+        tag_val = render_catalog_placeholders(
+            package["tag"], version_variables, "configured registry image tag"
+        )
+        tag_val = validate_container_tag(tag_val)
+        package_identifier += f":{package['tag']}"
+    elif "digest" in package:
+        tag_val = validate_container_digest(package["digest"])
+        package_identifier += f":{package['digest']}"
+
+    if "tag" in package:
+        tag_valid = validate_tag_via_pulp_sync(
+            image_name=package_reference,
+            tag=tag_val,
+            logger=logger,
+            pulp_container_commands=None,
+            execute_command=execute_command,
+            create_container_repository=create_container_repository,
+            get_repo_url_and_content=get_repo_url_and_content,
+            registry_context=registry_context,
+            package_content=package_content,
+            create_configured_remote=create_or_update_configured_remote,
+        )
+        if not tag_valid:
+            logger.error(
+                "SKIPPING: Tag '%s' does not exist upstream for %s.",
+                tag_val, package["package"]
+            )
+            return "Skipped-InvalidTag", package_identifier
+
+    with repository_creation_lock:
+        result = create_container_repository(repository_name, logger)
+    if result is False or (
+        isinstance(result, dict) and result.get("returncode", 1) != 0
+    ):
+        raise RuntimeError(f"Failed to create repository: {repository_name}")
+
+    # This lock is created before the worker pool and is therefore shared by
+    # worker processes. It prevents concurrent tag updates from losing tags.
+    with remote_creation_lock:
+        result = create_or_update_configured_remote(
+            remote_name,
+            registry_context,
+            package_content,
+            policy_type,
+            logger,
+            tag=tag_val if "tag" in package else None,
+        )
+        if not result:
+            raise RuntimeError(f"Failed to reconcile remote: {remote_name}")
+
+        if tag_val and _image_already_synced(repository_name, tag_val, logger):
+            logger.info("Image %s is already synchronized.", package_identifier)
+            return "Success", package_identifier
+
+        result = sync_container_repository(
+            repository_name,
+            remote_name,
+            package_content,
+            logger,
+            tag=tag_val if "tag" in package else None,
+        )
+        if result is False or (
+            isinstance(result, dict) and result.get("returncode", 1) != 0
+        ):
+            raise RuntimeError(f"Failed to sync repository: {repository_name}")
+
+    return "Success", package_identifier
+
 
 def process_image(package, status_file_path, version_variables,
-                 user_registries, docker_username, docker_secret_token, logger):
+                  registry_contexts, docker_username, docker_secret_token, logger):
     """
-    Process an image.
+    Thread-safe image processing with mandatory tag validation.
+
+    ENFORCEMENTS:
+    1. Tag validation is REQUIRED before remote creation
+    2. Invalid tags are REJECTED (no fail-open)
+    3. Remote-level locking prevents concurrent modifications
+    4. Strict validation infrastructure requirements
+
+    PRESERVED:
+    - Repository naming (podman pull compatible)
+    - Distribution naming
+    - Remote naming (single remote per image)
+    - Tag accumulation in remote
+
+    THREAD SAFETY:
+    - Operation lock on remote name ensures only one thread modifies a given remote
+    - Different remotes can be processed in parallel
+    - No rollback needed - validation gate prevents bad state
+
     Args:
         package (dict): The package to process.
         repo_store_path (str): The path to the repository store.
         status_file_path (str): The path to the status file.
         cluster_os_type (str): The type of the cluster operating system.
         cluster_os_version (str): The version of the cluster operating system.
-        user_registry_flag (bool): if image needs to be processed from user_registry
+        registry_contexts (dict): Configured registry contexts keyed by catalog registry.
         logger (Logger): The logger.
     Returns:
         str: "Success" if the image was processed successfully, "Failed" otherwise.
     """
-    logger.info("#" * 30 + f" {process_image.__name__} start " + "#" * 30)
+    logger.info(f"--- {process_image.__name__} START ---")
     status = "Success"
-    result =False
-    policy_type = "immediate"
-    base_url, package_content = get_repo_url_and_content(package['package'])
+    result = False
+
+    # Read container sync policy from config
+    from ansible.module_utils.repo_manager.repo_settings import (
+        _config, get_container_sync_policy
+    )
+    policy_type = get_container_sync_policy(_config)
+
     package_identifier = None
-
-    # Only check user registries for additional_packages
-    if user_registries and "additional_packages" in status_file_path:
-        result, package_identifier = handle_user_image_registry(
-            package,
-            package_content,
-            version_variables,
-            user_registries,
-            logger
-        )
-
-        if not result:
-            logger.info(f"Image {package['package']} will not be synced to Pulp.")
-            status = "Failed"
-            return status
-
-        else:
-            logger.info(f"Image {package['package']} synced to Pulp.")
-            status = "Success"
-            return status
+    tag_val = None
 
     try:
-        repo_name_prefix = "container_repo_"
-        repository_name = f"{repo_name_prefix}{package['package'].replace('/', '_').replace(':', '_')}"
-        remote_name = f"remote_{package['package'].replace('/', '_').replace(':', '_')}"
-        package_identifier = package['package']
+        package_reference = validate_container_reference(package.get("package"))
+    except (TypeError, ValueError, KeyError):
+        logger.error("Container image reference is invalid")
+        write_status_to_file(
+            status_file_path, "invalid-container-image",
+            package.get("type", "image"), "Failed", logger, file_lock
+        )
+        return "Failed"
 
-        # Create container repository
+    source_registry = package.get("source_registry", "")
+    registry_context = (registry_contexts or {}).get(source_registry)
+    if registry_context:
+        # Build full package identifier with tag/digest before try block
+        # so it's available for error reporting if exception occurs
+        package_identifier = package_reference
+        if "tag" in package:
+            package_identifier += f":{package['tag']}"
+        elif "digest" in package:
+            package_identifier += f":{package['digest']}"
+
+        try:
+            status, package_identifier = _process_configured_registry_image(
+                package, version_variables, registry_context, policy_type, logger
+            )
+        except Exception:  # pylint: disable=broad-exception-caught
+            status = "Failed"
+            logger.error(
+                "Failed to process configured registry image %s",
+                package_identifier,
+            )
+        write_status_to_file(
+            status_file_path, package_identifier, package["type"], status, logger, file_lock
+        )
+        logger.info(f"--- {process_image.__name__} END ---")
+        return status
+
+    if source_registry and not is_public_registry(source_registry):
+        status = "Failed"
+        package_identifier = package_reference
+        logger.error(
+            "Catalog registry '%s' has no configured registry context.", source_registry
+        )
+        write_status_to_file(
+            status_file_path, package_identifier, package["type"], status, logger, file_lock
+        )
+        return status
+
+    try:
+        base_url, package_content = get_repo_url_and_content(package_reference)
+        repo_name_prefix = "container_repo_"
+        safe_reference = package_reference.replace('/', '_').replace(':', '_')
+        repository_name = validate_repository_id(f"{repo_name_prefix}{safe_reference}")
+        remote_name = validate_repository_id(f"remote_{safe_reference}")
+        package_identifier = package_reference
+
+        # Reject unsupported catalog syntax before creating or changing any
+        # Pulp object. Configured-registry tags cross the same boundary in
+        # _process_configured_registry_image before its first Pulp operation.
+        if "tag" in package:
+            tag_val = validate_container_tag(
+                render_catalog_placeholders(
+                    package['tag'], version_variables, "public registry image tag"
+                )
+            )
+
+        # Create container repository first (must exist before idempotency check)
         with repository_creation_lock:
             result = create_container_repository(repository_name, logger)
         if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
-            raise Exception(f"Failed to create repository: {repository_name}")
+            raise RuntimeError(f"Failed to create repository: {repository_name}")
 
         # Process digest or tag
         if "digest" in package:
-            package_identifier += f":{package['digest']}"
-            result = create_container_remote_digest(
-                remote_name, base_url, package_content, policy_type, logger
-            )
-            if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
-                raise Exception(f"Failed to create remote digest: {remote_name}")
-
-        elif "tag" in package:
-            tag_template = Template(package['tag'])
-            tag_val = tag_template.render(**version_variables)
-            package_identifier += f":{package['tag']}"
+            tag_val = validate_container_digest(package['digest'])
+            package_identifier += f":{tag_val}"
 
             with remote_creation_lock:
+                # Check idempotency for digest
+                if _image_already_synced(repository_name, tag_val, logger):
+                    logger.info(f"Image {package_identifier} already synced. Skipping.")
+                    write_status_to_file(
+                        status_file_path, package_identifier, package['type'],
+                        "Success", logger, file_lock
+                    )
+                    return "Success"
+
+                result = create_container_remote_digest(
+                    remote_name, base_url, package_content, policy_type, logger
+                )
+                if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
+                    raise RuntimeError(f"Failed to create remote digest: {remote_name}")
+        elif "tag" in package:
+            package_identifier += f":{package['tag']}"
+
+            # ═══ STEP 1: Pre-validate tag ═══
+            logger.info(f"Validating tag '{tag_val}' for {package['package']}...")
+
+            tag_valid = validate_tag_via_pulp_sync(
+                image_name=package_reference,
+                tag=tag_val,
+                logger=logger,
+                pulp_container_commands=None,
+                execute_command=execute_command,
+                create_container_repository=create_container_repository,
+                get_repo_url_and_content=get_repo_url_and_content
+            )
+
+            if not tag_valid:
+                logger.error(
+                    f"SKIPPING: Tag '{tag_val}' does not exist upstream "
+                    f"for {package['package']}."
+                )
+                status = "Skipped-InvalidTag"
+                write_status_to_file(
+                    status_file_path, package_identifier, package['type'],
+                    status, logger, file_lock
+                )
+                return status
+
+            with remote_creation_lock:
+                # Check idempotency for tag
+                if _image_already_synced(repository_name, tag_val, logger):
+                    logger.info(f"Image {package_identifier} already synced. Skipping.")
+                    write_status_to_file(
+                        status_file_path, package_identifier, package['type'],
+                        "Success", logger, file_lock
+                    )
+                    return "Success"
+
                 if package['package'].startswith('docker.io/') and docker_username and docker_secret_token:
                     result = create_container_remote_with_auth(
                         remote_name, base_url, package_content, policy_type,
@@ -340,24 +654,24 @@ def process_image(package, status_file_path, version_variables,
                         remote_name, base_url, package_content, policy_type, tag_val, logger
                     )
 
-            if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
-                raise Exception(f"Failed to create remote: {remote_name}")
+                if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
+                    raise RuntimeError(f"Failed to create remote: {remote_name}")
 
-        # Sync and distribute
-        # Pass tag_val if it exists (for tag-based images), otherwise None (for digest-based images)
-        tag_to_pass = tag_val if "tag" in package else None
-        result = sync_container_repository(
-            repository_name, remote_name, package_content, logger, tag=tag_to_pass
-        )
-        if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
-            raise Exception(f"Failed to sync repository: {repository_name}")
+                # Sync and distribute (inside operation lock)
+                # Pass tag_val if it exists (for tag-based images), otherwise None (for digest-based images)
+                tag_to_pass = tag_val if "tag" in package else None
+                result = sync_container_repository(
+                    repository_name, remote_name, package_content, logger, tag=tag_to_pass
+                )
+                if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
+                    raise RuntimeError(f"Failed to sync repository: {repository_name}")
 
-    except Exception as e:
+    except Exception:
         status = "Failed"
-        logger.error(f"Failed to process image: {package_identifier}. Error: {e}")
+        logger.error("Failed to process the container image")
 
     write_status_to_file(
         status_file_path, package_identifier, package['type'], status, logger, file_lock
     )
-    logger.info("#" * 30 + f" {process_image.__name__} end " + "#" * 30)
+    logger.info(f"--- {process_image.__name__} END ---")
     return status

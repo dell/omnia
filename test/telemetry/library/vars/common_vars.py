@@ -1,0 +1,597 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Telemetry — Module-Specific Variables
+
+Constants, component names, and shell command templates for telemetry FVT.
+Paths are resolved from environment variables on the target host at runtime.
+"""
+
+import os
+import re
+
+# =============================================================================
+# DIRECTORY PATHS
+# =============================================================================
+
+# Module root: test/telemetry/ directory (where conftest.py lives)
+MODULE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)
+)))
+
+# Parent of module root: test/
+TEST_ROOT = os.path.dirname(MODULE_ROOT)
+
+# Omnia monorepo root: omnia/
+MONOREPO_ROOT = os.path.dirname(TEST_ROOT)
+
+# src/ paths - used when dataset is empty (default: use src/ directly)
+SRC_INPUT_DIR = os.path.join(
+    MONOREPO_ROOT, "src", "telemetry", "input",
+)
+
+# =============================================================================
+# DOMAIN IDENTITY
+# =============================================================================
+
+DOMAIN_NAME = "telemetry"
+
+# Environment variable names on the target host
+ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
+ENV_TELEMETRY_DATA_PATH = "TELEMETRY_DATA_PATH"
+ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
+
+# =============================================================================
+# INPUT FILE NAMES
+# =============================================================================
+
+TELEMETRY_CONFIG_FILE = "telemetry_config.yml"
+TELEMETRY_PACKAGES_FILE = "telemetry_packages.yml"
+
+# =============================================================================
+# PLAYBOOK CONFIGURATION
+# =============================================================================
+
+PLAYBOOK_ENTRY_POINT = "playbooks/telemetry.yml"
+PLAYBOOK_WORKDIR = "src/telemetry"
+
+# Valid playbook tags
+PLAYBOOK_TAGS = [
+    "precheck",
+    "validate",
+    "deploy",
+    "cleanup",
+    "upgrade",
+    "rollback",
+    "external_kafka",
+    "external_victoria",
+]
+
+# =============================================================================
+# K8S CONSTANTS
+# =============================================================================
+
+TELEMETRY_NAMESPACE = "telemetry"
+
+# =============================================================================
+# SINK COMPONENT NAMES
+# =============================================================================
+
+# VictoriaMetrics cluster pod prefixes
+VM_POD_PREFIXES = {
+    "vmstorage": "vmstorage",
+    "vminsert": "vminsert",
+    "vmselect": "vmselect",
+}
+
+# VictoriaMetrics agent
+VMAGENT_POD_PREFIX = "vmagent"
+
+# VictoriaLogs cluster pod prefixes
+VL_POD_PREFIXES = {
+    "vlstorage": "vlstorage",
+    "vlinsert": "vlinsert",
+    "vlselect": "vlselect",
+}
+
+# VictoriaLogs agent
+VLAGENT_POD_PREFIX = "vlagent"
+
+# Kafka pod prefixes (Strimzi naming)
+KAFKA_POD_PREFIXES = {
+    "broker": "kafka-broker",
+    "controller": "kafka-controller",
+}
+
+KAFKA_BRIDGE_PREFIX = "bridge-bridge"
+KAFKA_CR_NAME = "kafka"
+KAFKA_EXTERNAL_BOOTSTRAP_SVC = "kafka-kafka-external-bootstrap"
+
+# =============================================================================
+# SOURCE-TO-SINKS MAPPING
+# =============================================================================
+# Maps each telemetry source to the sinks it can target.
+# Used for source-specific sink enablement checks in tests.
+#
+# Format: source_name -> [list of possible sink names]
+# This allows tests to verify if a specific source targets a specific sink.
+
+SOURCE_SINK_MAPPING = {
+    "idrac": ["kafka", "victoria_metrics"],
+    "ldms": ["kafka"],
+    "powerscale": ["victoria_metrics", "victoria_logs"],
+    "ufm": ["victoria_metrics", "victoria_logs"],
+    "vast": ["victoria_metrics", "victoria_logs"],
+    "ome": ["kafka"],  # OME publishes to Kafka; Vector-OME bridge routes to Victoria
+    "sfm": ["victoria_metrics"],  # SFM uses Prometheus Remote Write to victoria_metrics
+}
+
+# =============================================================================
+# SOURCE COMPONENT NAMES
+# =============================================================================
+
+# iDRAC (from deploy_idrac_telemetry/vars/main.yml)
+IDRAC_POD_PREFIX = "idrac-telemetry"
+IDRAC_STS_NAME = "idrac-telemetry"
+IDRAC_SERVICE_NAME = "idrac-telemetry-service"
+IDRAC_CONTAINERS = [
+    "idrac-telemetry-receiver",
+    "kafka-pump",
+    "victoria-pump",
+    "mysqldb",
+    "activemq",
+]
+IDRAC_KAFKA_TOPIC = "idrac"
+
+# LDMS - see ldms_vars.py for all LDMS-specific constants
+# Kept here for backward compatibility
+from .ldms_vars import (  # noqa: F401, E402
+    LDMS_AGG_STS_NAME,
+    LDMS_STORE_NAME,
+    LDMS_KAFKA_TOPIC,
+    LDMS_FUNCTIONAL_GROUPS,
+    LDMS_SAMPLER_SERVICE,
+    LDMS_SAMPLER_CONF_PATH,
+)
+
+# LDMS Kafka verification behavior
+LDMS_KAFKA_LATEST_TIMEOUT_SECONDS = 90
+LDMS_KAFKA_EARLIEST_TIMEOUT_SECONDS = 60
+LDMS_KAFKA_CLOCK_SKEW_SECONDS = 10
+LDMS_KAFKA_LATEST_POLL_INTERVAL_SECONDS = 2
+LDMS_KAFKA_EARLIEST_POLL_INTERVAL_SECONDS = 0.3
+LDMS_KAFKA_OFFSET_LATEST = "latest"
+LDMS_KAFKA_OFFSET_EARLIEST = "earliest"
+LDMS_KAFKA_CONSUMER_GROUP_TEMPLATE = "ldms-{offset}-{suffix}"
+LDMS_KAFKA_CONSUMER_NAME_TEMPLATE = "{consumer_group}-consumer"
+
+# PowerScale (from deploy_powerscale/vars/main.yml)
+POWERSCALE_DEPLOY_NAME = "karavi-metrics-powerscale"
+POWERSCALE_OTEL_DEPLOY_NAME = "otel-collector"
+POWERSCALE_CSI_EXPORTER_DEPLOY_NAME = "csi-volume-exporter"
+POWERSCALE_CSI_DRIVER_DEPLOY_NAME = "isilon-controller"
+POWERSCALE_SECRET_NAME = "isilon-creds"
+# Karavi Observability metrics (from CSM Metrics PowerScale + OTEL Collector)
+POWERSCALE_KARAVI_METRICS = [
+    "karavi_topology_metrics",
+    "powerscale_cluster_cpu_use_rate",
+    "powerscale_cluster_disk_read_operation_rate",
+    "powerscale_cluster_disk_write_operation_rate",
+    "powerscale_cluster_disk_throughput_read_rate_megabytes_per_second",
+    "powerscale_cluster_disk_throughput_write_rate_megabytes_per_second",
+    "powerscale_cluster_total_capacity_terabytes",
+    "powerscale_cluster_remaining_capacity_terabytes",
+    "powerscale_cluster_used_capacity_percentage",
+]
+
+# CSI Volume Exporter metrics (from health monitor)
+POWERSCALE_CSI_EXPORTER_METRICS = [
+    "powerscale_volume_status",
+    "powerscale_volume_count",
+    "powerscale_volume_capacity_bytes",
+    "powerscale_volume_info",
+    "powerscale_volume_age_seconds",
+    "powerscale_pvc_status_phase",
+    "powerscale_pvc_requested_bytes",
+    "powerscale_pvc_count",
+    "powerscale_volume_health_abnormal",
+    "powerscale_volume_abnormal_events_total",
+    "powerscale_node_failure_events_total",
+    "powerscale_node_ready",
+    "powerscale_storageclass_info",
+    "powerscale_total_capacity_bytes",
+]
+
+# Combined expected metrics (for backward compatibility)
+POWERSCALE_EXPECTED_METRICS = POWERSCALE_KARAVI_METRICS
+
+# PowerScale syslog port (OneFS default)
+POWERSCALE_SYSLOG_PORT = 514
+
+# Telemetry config key paths (dot notation for read_yaml_key)
+CFG_KEY_PS_METRICS_ENABLED = "telemetry_sources.powerscale.metrics_enabled"
+CFG_KEY_PS_LOGS_ENABLED = "telemetry_sources.powerscale.logs_enabled"
+
+# K8s service names (for dynamic IP/port resolution)
+SVC_VMSELECT = "vmselect-victoria-cluster"
+SVC_VLSELECT = "vlselect-victoria-logs-cluster"
+SVC_VLAGENT = "vlagent-vlagent"
+
+# Default port names inside K8s service specs
+SVC_PORT_NAME_HTTP = "http"
+
+# Vector bridges
+VECTOR_LDMS_APP_NAME = "vector-ldms"
+VECTOR_OME_APP_NAME = "vector-ome"
+
+# VAST (from deploy_vast/vars/main.yml)
+VAST_SVC_NAME = "vast-external"
+VAST_VMSCRAPE_NAME = "vast-storage-metrics"
+# K8s Secret object name, not a credential value
+VAST_SECRET_NAME = "vast-telemetry-credentials"  # noqa: S105
+VAST_METRIC_SELECTOR = (
+    '{source_subsystem="vast",job="vast-storage-metrics",'
+    '__name__=~"vast_.+"}'
+)
+VAST_SCRAPE_HEALTH_QUERY = 'up{job="vast-storage-metrics"}'
+VAST_SCRAPE_SAMPLES_QUERY = (
+    'scrape_samples_scraped{job="vast-storage-metrics"}'
+)
+VAST_METRIC_FRESHNESS_SECONDS = 300
+VAST_MAX_METRICS_SHOWN = 5
+VAST_SYSLOG_PORT_NAME = "syslog"
+VAST_SYSLOG_PROTOCOL = "tcp"
+VAST_SYSLOG_REQUIRED_SETTINGS = {
+    "disable_actions": False,
+    "syslog_vms_audit": True,
+}
+VAST_CREDENTIALS_FILE = "telemetry_credentials.yml"
+VAST_CREDENTIALS_KEY_FILE = ".telemetry_credentials_key"
+VAST_CREDENTIAL_FIELDS = {
+    "username": "vast_username",
+    "password": "vast_password",
+}
+VAST_API_SCHEME = "https"
+VAST_API_PATHS = {
+    "token": "/api/token/",
+    "config_list": "/api/eventdefinitionconfigs/",
+    "config_detail": "/api/eventdefinitionconfigs/{config_id}/",
+    "config_test": "/api/eventdefinitionconfigs/{config_id}/test/",
+}
+VAST_API_TIMEOUT_SECONDS = 30
+VAST_API_LOGIN_STATUS = (200,)
+VAST_API_READ_STATUS = (200,)
+VAST_API_UPDATE_STATUS = (200,)
+VAST_API_TRIGGER_STATUS = (200,)
+VAST_AUTH_MODES = ("basic", "none")
+VAST_TLS_MODES = ("self_signed", "ca_signed")
+VAST_MAX_CREDENTIAL_FILE_BYTES = 64 * 1024
+VAST_MAX_KEY_FILE_BYTES = 4 * 1024
+VAST_MAX_CA_FILE_BYTES = 1024 * 1024
+VAST_MAX_STATE_FILE_BYTES = 4 * 1024
+VAST_LOG_APP_NAME = "vast_event"
+VAST_LOG_QUERY = f'app_name:="{VAST_LOG_APP_NAME}"'
+VAST_LOG_QUERY_LIMIT = 100
+VAST_MAX_LOG_EVENTS_SHOWN = 5
+VAST_LOG_FIELD_PREVIEW_LENGTH = 120
+VAST_LOG_POLL_ATTEMPTS = 18
+VAST_LOG_POLL_INTERVAL_SECONDS = 5
+VAST_LOG_CLOCK_SKEW_SECONDS = 15
+VAST_LOG_MAX_FUTURE_SKEW_SECONDS = 30
+VAST_TRIGGER_STATE_SCHEMA_VERSION = 1
+VAST_TRIGGER_STATE_SUBDIR = os.path.join("reports", "state")
+VAST_TRIGGER_STATE_FILE = "vast_syslog_{run_id}.json"
+VAST_TRIGGER_MAX_AGE_SECONDS = 3600
+VAST_REPORT_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$"
+VAST_QUERY_TIMEOUT_SECONDS = 30
+
+# Telemetry config key paths for VAST
+CFG_KEY_VAST_METRICS_ENABLED = "telemetry_sources.vast.metrics_enabled"
+CFG_KEY_VAST_LOGS_ENABLED = "telemetry_sources.vast.logs_enabled"
+CFG_KEY_VAST_COLLECTION_TARGETS = "telemetry_sources.vast.collection_targets"
+CFG_KEY_VAST_ENDPOINT = "vast_configuration.vast_endpoint"
+CFG_KEY_VAST_PORT = "vast_configuration.vast_metrics_port"
+CFG_KEY_VAST_AUTH_MODE = "vast_configuration.auth_mode"
+CFG_KEY_VAST_TLS_MODE = "vast_configuration.tls_mode"
+CFG_KEY_VAST_CA_CERT_PATH = "vast_configuration.vast_ca_cert_path"
+
+# Telemetry sources list
+TELEMETRY_SOURCES = [
+    "idrac", "ldms", "powerscale", "ufm",
+    "vast", "ome", "sfm",
+]
+
+# Telemetry sinks list
+TELEMETRY_SINKS = [
+    "victoria_metrics",
+    "victoria_logs",
+    "kafka",
+]
+
+# =============================================================================
+# CONFIG VALIDATION CONSTANTS
+# =============================================================================
+
+IPV4_PATTERN = re.compile(
+    r'^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}'
+    r'(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$'
+)
+
+REQUIRED_CONFIG_FIELDS = [
+    "clone_path",
+    "report_path",
+    "report_name",
+]
+
+REQUIRED_SRC_FILES = [
+    "telemetry_config.yml",
+    "telemetry_packages.yml",
+]
+
+# =============================================================================
+# CENTRALIZED SHELL COMMANDS
+# =============================================================================
+# All shell commands used by verification functions.
+# Use .format() with named placeholders to fill in runtime values.
+
+CMDS = {
+    # --- K8s / kubectl ---
+    "kubectl_get_pods_wide": (
+        "kubectl get pods -n {namespace} -o wide"
+    ),
+    "kubectl_get_pods_json_all": (
+        "kubectl get pods -n {namespace} -o json 2>/dev/null"
+    ),
+    "kubectl_get_pods": (
+        "kubectl get pods -n {namespace}"
+        " --no-headers"
+        " -o custom-columns='NAME:.metadata.name,STATUS:.status.phase'"
+    ),
+    "kubectl_get_pods_by_prefix": (
+        "kubectl get pods -n {namespace}"
+        " --no-headers"
+        " -o custom-columns='NAME:.metadata.name,STATUS:.status.phase'"
+        " | grep '^{prefix}'"
+    ),
+    "kubectl_get_pods_json_by_label": (
+        "kubectl get pods -n {namespace}"
+        " -l {label_selector}"
+        " -o json 2>/dev/null"
+    ),
+    "kubectl_get_deploy_selector": (
+        "kubectl get deploy {name} -n {namespace}"
+        " -o jsonpath='{{.spec.selector.matchLabels}}'"
+        " 2>/dev/null"
+    ),
+    "kubectl_get_pods_json_by_selector": (
+        "kubectl get pods -n {namespace}"
+        " -l '{label_selector}'"
+        " -o json 2>/dev/null"
+    ),
+    "kubectl_get_pod_count": (
+        "kubectl get pods -n {namespace}"
+        " --no-headers"
+        " | grep '^{prefix}' | wc -l"
+    ),
+    "kubectl_get_svc": (
+        "kubectl get svc -n {namespace}"
+        " --no-headers"
+        " -o custom-columns='NAME:.metadata.name'"
+    ),
+    "kubectl_get_nodes_ready": (
+        "kubectl get nodes --no-headers"
+        " -o custom-columns='NAME:.metadata.name,"
+        "READY:.status.conditions[-1].status'"
+    ),
+
+    # --- StatefulSet ---
+    "kubectl_get_sts_ready": (
+        "kubectl get statefulset {name} -n {namespace}"
+        " -o jsonpath='{{.status.readyReplicas}}' 2>/dev/null"
+    ),
+
+    # --- Deployment ---
+    "kubectl_get_deploy_ready": (
+        "kubectl get deployment {name} -n {namespace}"
+        " -o jsonpath='{{.status.readyReplicas}}' 2>/dev/null"
+    ),
+
+    # --- Pod containers ---
+    "kubectl_get_pod_containers": (
+        "kubectl get pod {pod_name} -n {namespace}"
+        " -o jsonpath='{{range .status.containerStatuses[*]}}"
+        "{{.name}}={{.ready}}{{\"\\n\"}}{{end}}'"
+        " 2>/dev/null"
+    ),
+
+    # --- Pod by label ---
+    "kubectl_get_pod_by_label": (
+        "kubectl get pods -n {namespace}"
+        " -l app={label}"
+        " -o jsonpath='{{.items[0].metadata.name}}'"
+        " 2>/dev/null"
+    ),
+
+    # --- Kafka ---
+    "kafka_wait_ready": (
+        "kubectl wait kafka/{kafka_cr} -n {namespace}"
+        " --for=condition=Ready --timeout=10s 2>/dev/null"
+        " && echo ready || echo not_ready"
+    ),
+    "kafka_get_topics_cr": (
+        "kubectl get kafkatopic -n {namespace}"
+        " --no-headers"
+        " -o custom-columns='NAME:.metadata.name' 2>/dev/null"
+    ),
+    "kafka_topic_ready": (
+        "kubectl get kafkatopic {topic} -n {namespace}"
+        " -o jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'"
+        " 2>/dev/null"
+    ),
+    "kubectl_get_kafka_ready_status": (
+        "kubectl get kafka kafka -n {namespace}"
+        " -o jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'"
+        " 2>/dev/null"
+    ),
+
+    # --- VictoriaMetrics ---
+    "kubectl_get_vmcluster_update_status": (
+        "kubectl get vmcluster -n {namespace}"
+        " -o jsonpath='{{.items[0].status.updateStatus}}' 2>/dev/null"
+    ),
+
+    # --- KafkaUser ---
+    "kubectl_get_kafkauser": (
+        "kubectl get kafkauser {name} -n {namespace}"
+        " --no-headers 2>/dev/null && echo exists || echo missing"
+    ),
+
+    # --- VictoriaPump ---
+    "victoriapump_container_running": (
+        "kubectl get pod {pod_name} -n {namespace}"
+        " -o jsonpath='{{.status.containerStatuses[?(@.name==\"victoria-pump\")].ready}}'"
+        " 2>/dev/null"
+    ),
+
+    # --- Files ---
+    "file_exists": "test -f {path} && echo exists",
+    "dir_exists": "test -d {path} && echo exists",
+    "cat_file": "cat {path} 2>/dev/null",
+
+    # --- Ansible / Playbook ---
+    "ansible_playbook": (
+        "cd {workdir} && ansible-playbook {playbook}"
+        " --tags {tag} -v 2>&1"
+    ),
+
+    # --- LDMS specific ---
+    "ldms_sampler_conf_exists": (
+        "test -f {share_path}/samplers/sampler.conf"
+        " && echo exists || echo missing"
+    ),
+
+    # --- Resolve kube_vip from orchestrator inventory ---
+    "read_kube_vip_ip": (
+        "python3 -c \""
+        "import yaml;"
+        "inv=yaml.safe_load(open('{inventory_path}'));"
+        "print(inv['all']['children']['kube_vip_group']"
+        "['hosts']['kube-vip']['ansible_host'])"
+        "\" 2>/dev/null"
+    ),
+
+    # --- Resolve telemetry config field ---
+    "read_telemetry_config_field": (
+        "python3 -c \""
+        "import yaml;"
+        "cfg=yaml.safe_load(open('{config_path}'));"
+        "print(cfg.get('{field}', ''))"
+        "\" 2>/dev/null"
+    ),
+
+    # --- PowerScale / isilon-creds secret ---
+    "kubectl_get_secret": (
+        "kubectl get secret {name} -n {namespace}"
+        " -o json 2>/dev/null"
+    ),
+    "kubectl_get_secret_data": (
+        "kubectl get secret {name} -n {namespace}"
+        " -o jsonpath='{{.data.{key}}}' 2>/dev/null"
+    ),
+
+    # --- VictoriaMetrics queries ---
+    "vm_query_metric_names": (
+        "curl -sk 'https://{vmselect_ip}:{vmselect_port}"
+        "/select/0/prometheus/api/v1/label/__name__/values'"
+    ),
+    "vm_query_instant": (
+        "curl -sk 'https://{vmselect_ip}:{vmselect_port}"
+        "/select/0/prometheus/api/v1/query?query={query}'"
+    ),
+    "vast_vm_query_instant": (
+        "curl -skf --max-time {timeout} 'https://{vmselect_ip}:{vmselect_port}"
+        "/select/0/prometheus/api/v1/query?query={query}'"
+    ),
+    # --- iDRAC VictoriaMetrics data ---
+    "vm_query_idrac_service_tag": (
+        "curl -sk --max-time 15"
+        " 'https://{vmselect_ip}:{vmselect_port}"
+        "/select/0/prometheus/api/v1/query?query={encoded_query}'"
+    ),
+
+    # --- VictoriaLogs queries ---
+    "vl_query_logs": (
+        "curl -sk 'https://{vlselect_ip}:{vlselect_port}"
+        "/select/logsql/query?query={query}&limit={limit}&start=-{range}'"
+    ),
+    "vast_vl_query_logs": (
+        "curl -skf --max-time {timeout} 'https://{vlselect_ip}:{vlselect_port}"
+        "/select/logsql/query?query={query}&limit={limit}&start={start}'"
+    ),
+
+    # --- Service external IP ---
+    "kubectl_get_svc_lb_ip": (
+        "kubectl get svc {name} -n {namespace}"
+        " -o jsonpath='{{.status.loadBalancer.ingress[0].ip}}'"
+        " 2>/dev/null"
+    ),
+    "kubectl_get_svc_json": (
+        "kubectl get svc {name} -n {namespace}"
+        " -o json 2>/dev/null"
+    ),
+    "kubectl_get_svc_port": (
+        "kubectl get svc {name} -n {namespace}"
+        " -o jsonpath='{{.spec.ports[?(@.name==\"{port_name}\")].port}}'"
+        " 2>/dev/null"
+    ),
+    "kubectl_get_svc_first_port": (
+        "kubectl get svc {name} -n {namespace}"
+        " -o jsonpath='{{.spec.ports[0].port}}'"
+        " 2>/dev/null"
+    ),
+
+    # --- PowerScale syslog config via SSH ---
+    "powerscale_syslog_view": (
+        "sshpass -p '{password}'"
+        " ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no"
+        " {user}@{host}"
+        " 'isi audit settings global view'"
+    ),
+    "powerscale_syslog_configure": (
+        "sshpass -p '{password}'"
+        " ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no"
+        " {user}@{host}"
+        " '{isi_cmd}'"
+    ),
+    "powerscale_get_privileges": "isi auth privileges",
+    "powerscale_get_privileges_password": (
+        "sshpass -p %s ssh -o StrictHostKeyChecking=accept-new"
+        " -o PubkeyAuthentication=no -o ConnectTimeout=10 -- %s %s"
+    ),
+
+    # --- Cleanup verification ---
+    "kubectl_count_resources": (
+        "kubectl get {resource} -n {namespace}"
+        " --no-headers --ignore-not-found 2>/dev/null | wc -l"
+    ),
+    "kubectl_get_pvc_count": (
+        "kubectl get pvc -n {namespace}"
+        " --no-headers --ignore-not-found 2>/dev/null | grep {prefix} | wc -l"
+    ),
+    "kubectl_get_ns": (
+        "kubectl get namespace {namespace}"
+        " --no-headers --ignore-not-found 2>/dev/null"
+    ),
+}

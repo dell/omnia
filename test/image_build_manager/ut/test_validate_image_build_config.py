@@ -16,6 +16,7 @@
 import json
 import pathlib
 
+import pytest
 import yaml
 
 
@@ -47,18 +48,18 @@ class TestImageBuildConfigSchema:
         assert "properties" in schema
         assert "type" in schema
 
-    def test_schema_has_functional_groups(self):
-        """Schema must define functional_groups property."""
+    def test_schema_has_functional_groups_source(self):
+        """Schema must define functional_groups_source property."""
         schema_file = SCHEMA_DIR / "image_build_config.json"
         with open(schema_file, "r", encoding="utf-8") as f:
             schema = json.load(f)
-        assert "functional_groups" in schema["properties"], (
-            "Schema missing 'functional_groups' property"
+        assert "functional_groups_source" in schema["properties"], (
+            "Schema missing 'functional_groups_source' property"
         )
 
     def test_config_has_required_fields(self, image_build_config):
         """image_build_config.yml must have required top-level fields."""
-        required = ["s3_configurations", "functional_groups"]
+        required = ["s3_configurations", "functional_groups_source"]
         for field in required:
             assert field in image_build_config, (
                 f"image_build_config.yml missing required field '{field}'"
@@ -71,22 +72,16 @@ class TestImageBuildConfigSchema:
             f"Invalid S3 provider: '{provider}'"
         )
 
-    def test_functional_groups_is_list(self, image_build_config):
-        """functional_groups must be a list."""
-        fg = image_build_config.get("functional_groups")
-        assert isinstance(fg, list), "functional_groups must be a list"
-
-    def test_functional_groups_have_names(self, image_build_config):
-        """Each functional group must have a 'name' field."""
-        for fg in image_build_config.get("functional_groups", []):
-            if isinstance(fg, dict):
-                assert "name" in fg, f"Functional group entry missing 'name': {fg}"
-            elif isinstance(fg, str):
-                assert len(fg) > 0, "Functional group name must not be empty"
+    def test_functional_groups_source_valid(self, image_build_config):
+        """functional_groups_source must be 'config' or 'catalog'."""
+        fgs = image_build_config.get("functional_groups_source")
+        assert fgs in ("config", "catalog"), (
+            f"Invalid functional_groups_source: '{fgs}'"
+        )
 
 
 class TestRepoStatus:
-    """Validate repo_status.yml structure."""
+    """Validate repo_status.yml structure (supports old and new formats)."""
 
     def test_has_overall_status(self, repo_status):
         """repo_status.yml must have overall_status."""
@@ -96,25 +91,40 @@ class TestRepoStatus:
         """repo_status.yml must have cluster_os_type."""
         assert "cluster_os_type" in repo_status
 
-    def test_has_cluster_os_version(self, repo_status):
-        """repo_status.yml must have cluster_os_version."""
-        assert "cluster_os_version" in repo_status
-
-    def test_has_rpm_repos(self, repo_status):
-        """repo_status.yml must have rpm_repos section."""
-        assert "rpm_repos" in repo_status
-        assert isinstance(repo_status["rpm_repos"], dict)
-
-    def test_rpm_repos_have_x86_64(self, repo_status):
-        """rpm_repos must include x86_64 section."""
-        assert "x86_64" in repo_status.get("rpm_repos", {}), (
-            "rpm_repos missing x86_64 section"
+    def test_has_repositories_or_rpm_repos(self, repo_status):
+        """repo_status.yml must have repositories (new) or rpm_repos (old)."""
+        has_repos = "repositories" in repo_status or "rpm_repos" in repo_status
+        assert has_repos, (
+            "repo_status.yml must have 'repositories' (new format) "
+            "or 'rpm_repos' (old format)"
         )
+
+    def test_repositories_have_x86_64(self, repo_status):
+        """Repositories must include x86_64 section."""
+        if "repositories" in repo_status:
+            # New format: repositories.{version}.{arch}
+            for version, arches in repo_status["repositories"].items():
+                if isinstance(arches, dict) and "x86_64" in arches:
+                    return
+            pytest.fail("repositories missing x86_64 section in any version")
+        elif "rpm_repos" in repo_status:
+            # Old format: rpm_repos.{arch}
+            assert "x86_64" in repo_status["rpm_repos"], (
+                "rpm_repos missing x86_64 section"
+            )
 
     def test_x86_64_has_baseos(self, repo_status):
         """x86_64 repos must include baseos."""
-        x86 = repo_status.get("rpm_repos", {}).get("x86_64", {})
-        assert "baseos" in x86, "x86_64 rpm_repos missing 'baseos'"
+        if "repositories" in repo_status:
+            for version, arches in repo_status["repositories"].items():
+                if isinstance(arches, dict):
+                    x86 = arches.get("x86_64", {})
+                    if "baseos" in x86:
+                        return
+            pytest.fail("repositories missing baseos for x86_64")
+        elif "rpm_repos" in repo_status:
+            x86 = repo_status.get("rpm_repos", {}).get("x86_64", {})
+            assert "baseos" in x86, "x86_64 rpm_repos missing 'baseos'"
 
 
 class TestInputFilesExist:
@@ -128,14 +138,9 @@ class TestInputFilesExist:
         """repo_status.yml must exist."""
         assert (repo_manager_output / "repo_status.yml").exists()
 
-    def test_functional_group_packages_exists(self, repo_manager_output):
-        """functional_group_packages.yml must exist (generated by dataset generator)."""
-        path = repo_manager_output / "functional_group_packages.yml"
-        if not path.exists():
-            pytest.skip(
-                "functional_group_packages.yml not in src/samples — "
-                "generated by dataset generator"
-            )
+    def test_package_groups_exists(self, input_dir):
+        """package_groups.yml must exist in input/ (functional group mapping)."""
+        assert (input_dir / "package_groups.yml").exists()
 
     def test_certs_dir_exists(self, repo_manager_output):
         """certs/ directory must exist (generated by dataset generator)."""

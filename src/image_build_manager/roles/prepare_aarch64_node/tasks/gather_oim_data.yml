@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# gather_oim_data.yml — Validate admin_aarch64 inventory and set OIM
+# network facts for the aarch64 build flow. Runs on localhost.
 
 # Inventory Validation
 - name: Fail if no inventory provided
@@ -29,16 +31,6 @@
     msg: "{{ admin_aarch64_count_error_msg }}"
   when: groups['admin_aarch64'] | length != 1
 
-# # Validate share option
-# - name: Set share option fact
-#   ansible.builtin.set_fact:
-#     omnia_share_option: "{{ hostvars['localhost']['omnia_share_option'] }}"
-
-# - name: Fail if share option is not NFS
-#   ansible.builtin.fail:
-#     msg: "{{ nfs_not_configured_msg }}"
-#   when: omnia_share_option != "NFS"
-
 # Set OIM PXE IP and hostname from localhost facts
 - name: Set OIM network facts
   ansible.builtin.set_fact:
@@ -49,8 +41,33 @@
          else hostvars['localhost']['host_name'] + '.' + hostvars['localhost']['domain_name'] }}
     cacheable: true
 
-- name: Create aarch64 directory if not exists
+- name: Ensure aarch64 openchami directory exists on localhost
   ansible.builtin.file:
     path: "{{ ochami_aarch_64_dir }}"
     state: directory
-    mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+    mode: "0755"
+
+# Pre-download regctl for aarch64 on OIM so it can be SCP'd to the aarch64 node
+- name: Ensure aarch64 staging directory exists on OIM
+  ansible.builtin.file:
+    path: "{{ regctl_oim_staging_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Check if regctl aarch64 binary already staged on OIM
+  ansible.builtin.stat:
+    path: "{{ regctl_oim_staging_path }}"
+  register: _regctl_oim_stat
+
+- name: Download regctl aarch64 binary to OIM staging directory
+  ansible.builtin.get_url:
+    url: "{{ regctl_download_url }}"
+    dest: "{{ regctl_oim_staging_path }}"
+    mode: "0755"
+    timeout: 120
+  register: _regctl_oim_download
+  retries: 3
+  delay: 10
+  until: _regctl_oim_download is succeeded
+  when: not _regctl_oim_stat.stat.exists
+  failed_when: false

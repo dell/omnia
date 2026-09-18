@@ -1,0 +1,24 @@
+---
+# boot-service config file
+
+# boot-service listen port
+port: 8081
+
+# Toggles enablement of legacy, BSS-compatible boot API (/boot/v1)
+enable_legacy_api: false
+
+# Enable token authentication (requires tokensmith_url)
+enable_auth: true
+tokensmith_url: 'http://tokensmith:8080'
+tokensmith_target_service: 'smd'
+
+# URL to inventory service for syncing node/BMC data
+hsm_url: 'http://smd:27779'
+hsm_sync_enabled: true
+
+# Persistent data storage
+data_dir: '/app/data'
+
+# Prometheus metrics
+enable_metrics: true
+metrics_port: 9090

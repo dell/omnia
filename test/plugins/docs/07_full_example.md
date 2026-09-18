@@ -10,8 +10,8 @@ your-module/
 ├── test/
 │   ├── conftest.py               # <-- this file
 │   ├── test_config.yml           # your config
-│   ├── test_creds.yml            # your credentials (auto-encrypted)
-│   ├── .test_creds.key           # vault key (auto-generated)
+│   ├── test_creds.yml            # encrypted during explicit session setup
+│   ├── .test_creds.key           # vault key created during encryption
 │   ├── datasets/
 │   │   └── data_set_01/
 │   │       └── input/            # input files synced to target
@@ -22,7 +22,8 @@ your-module/
 │   │   │   └── my_func.py        # your verification functions
 │   │   ├── vars/
 │   │   │   ├── __init__.py
-│   │   │   └── common_vars.py    # your constants
+│   │   │   ├── common_vars.py    # your constants
+│   │   │   └── test_case_vars.py # centralized IDs and titles
 │   │   └── messages/
 │   │       ├── __init__.py
 │   │       └── my_msgs.py        # your test/log messages
@@ -46,8 +47,11 @@ report_name: "my_test_report"
 ## `test_creds.yml`
 
 ```yaml
-oim_password: "my_ssh_password"
+oim_password: ""
 ```
+
+Populate and encrypt this field through the credential CLI described in
+`08_credentials.md`; do not store a plaintext secret in source control.
 
 ## `library/vars/common_vars.py`
 
@@ -57,7 +61,23 @@ PLAYBOOK_ENTRY_POINT = "image_build_manager.yml"
 PLAYBOOK_WORKDIR = "src/image_build_manager/playbooks"
 DOMAIN_NAME = "image_build_manager"
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
+ENV_IMAGE_BUILD_MANAGER_DATA_PATH = "IMAGE_BUILD_MANAGER_DATA_PATH"
 ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
+```
+
+## `library/vars/test_case_vars.py`
+
+```python
+TEST_CASES = {
+    "deploy_prepare": {
+        "id": "IMGBM_FVT_PREPARE_E001",
+        "title": "Run Image Build Manager prepare",
+    },
+    "containers_running": {
+        "id": "IMGBM_FVT_PREPARE_V001",
+        "title": "Verify prepare containers are running",
+    },
+}
 ```
 
 ## `library/functions/__init__.py`
@@ -67,6 +87,7 @@ ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
 from omnia_auto import (
     TestLogger,
     log,
+    set_verbose_mode,
     get_testinfra_host,
     load_test_config,
     run_on_host,
@@ -113,6 +134,7 @@ omnia_auto.configure(
     env_file="/etc/omnia/omnia.env",
     default_timeout=3600,
 )
+omnia_auto.set_verbose_mode(True)
 
 # ── 2. Import what you need ─────────────────────────────────────────
 from omnia_auto import (
@@ -126,6 +148,7 @@ from omnia_auto import (
     clone_repo,
     log,
     get_test_output,
+    get_last_tc_id,
     add_session_result,
     print_summary_table,
     TestReport,
@@ -136,6 +159,7 @@ from omnia_auto import (
 # ── 3. Your module's constants ──────────────────────────────────────
 from library.vars.common_vars import (
     DOMAIN_NAME,
+    ENV_IMAGE_BUILD_MANAGER_DATA_PATH,
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
 )
@@ -143,7 +167,7 @@ from library.vars.common_vars import (
 
 # ── 4. Session setup ────────────────────────────────────────────────
 def pytest_sessionstart(session):
-    # Encrypt credentials
+    # Ensure plaintext credentials are encrypted before test execution
     encrypt_test_credentials()
 
     config = load_test_config()
@@ -157,7 +181,8 @@ def pytest_sessionstart(session):
         dest=config.get("clone_path", "/root/omnia"),
         ip=conn["ip"],
         user=conn["user"],
-        password=conn["password"],
+        port=conn["port"],
+        auth_secret=conn["auth_secret"],
         ssh_opts=conn["ssh_opts"],
     )
     assert result["success"], result["error"]
@@ -165,7 +190,11 @@ def pytest_sessionstart(session):
 
     # Resolve remote input path from env vars on target
     remote_input = resolve_domain_input_path(
-        host, DOMAIN_NAME, ENV_OMNIA_DATA_PATH, ENV_OMNIA_PROJECT_NAME,
+        host,
+        DOMAIN_NAME,
+        ENV_OMNIA_DATA_PATH,
+        ENV_OMNIA_PROJECT_NAME,
+        domain_data_path_var=ENV_IMAGE_BUILD_MANAGER_DATA_PATH,
     )
     ensure_remote_dir(host, remote_input)
 
@@ -179,7 +208,8 @@ def pytest_sessionstart(session):
         dest=remote_input,
         ip=conn["ip"],
         user=conn["user"],
-        password=conn["password"],
+        port=conn["port"],
+        auth_secret=conn["auth_secret"],
         ssh_opts=conn["ssh_opts"],
     )
     assert result["success"], result["error"]
@@ -205,12 +235,14 @@ def pytest_runtest_makereport(item, call):
         status = "PASSED" if result.passed else (
             "SKIPPED" if result.skipped else "FAILED"
         )
+        tc_id = get_last_tc_id()
 
         # Add to HTML/JSON report
         report = get_current_report()
         if report:
             report.add_result({
                 "test_name": item.name,
+                "tc_id": tc_id,
                 "status": status,
                 "duration": getattr(result, "duration", 0),
                 "details": get_test_output(),
@@ -222,6 +254,7 @@ def pytest_runtest_makereport(item, call):
             test_name=item.name,
             status=status,
             duration=getattr(result, "duration", 0),
+            tc_id=tc_id,
         )
 
 
@@ -245,11 +278,13 @@ def host():
 ```python
 import pytest
 from library.functions import run_playbook, TestLogger
+from library.vars.test_case_vars import TEST_CASES as TC
 
 @pytest.mark.sanity
 def test_prepare_phase():
-    """TC_PR_001: Verify prepare phase completes."""
-    tl = TestLogger("Verify prepare phase", "TC_PR_001")
+    """Verify the prepare phase completes."""
+    tc = TC["deploy_prepare"]
+    tl = TestLogger(tc["title"], tc["id"])
 
     tl.check("Running prepare tag...")
     result = run_playbook(tag="prepare", timeout=1800)
@@ -264,8 +299,9 @@ def test_prepare_phase():
 
 @pytest.mark.sanity
 def test_containers_running(host):
-    """TC_PR_002: Verify expected containers are running."""
-    tl = TestLogger("Verify containers running", "TC_PR_002")
+    """Verify the expected containers are running."""
+    tc = TC["containers_running"]
+    tl = TestLogger(tc["title"], tc["id"])
 
     expected = ["minio-server", "registry"]
     result = host.run("podman ps --format '{{.Names}}'")
@@ -301,11 +337,11 @@ python3 -m pytest fvt/ -s -m sanity
 │  REPORT ID:   20260730143000                                       │
 └────────────────────────────────────────────────────────────────────┘
 
-  ▶ [TC_PR_001] Verify prepare phase
+  ▶ [IMGBM_FVT_PREPARE_E001] Run Image Build Manager prepare
   → Running prepare tag...
   ✔ PASS: Prepare completed in 45.2s
 
-  ▶ [TC_PR_002] Verify containers running
+  ▶ [IMGBM_FVT_PREPARE_V001] Verify prepare containers are running
   ✔ PASS: All 2 containers running
 
 ┌────────────────────────────────────────────────────────────────────┐
@@ -316,14 +352,14 @@ python3 -m pytest fvt/ -s -m sanity
 │  HTML: /opt/omnia/reports/test_report.html                          │
 └────────────────────────────────────────────────────────────────────┘
 
-=====================================================================================
+========================================================================================
   TEST EXECUTION SUMMARY
-=====================================================================================
-  TC ID        Test Name                                Status     Duration
-  ------------ ---------------------------------------- ---------- --------
-  TC_PR_001    test_prepare_phase                       PASSED       45.20s
-  TC_PR_002    test_containers_running                  PASSED        0.42s
-  ------------ ---------------------------------------- ---------- --------
+========================================================================================
+  TC ID                     Test Name                                Status     Duration
+  ------------------------- ---------------------------------------- ---------- --------
+  IMGBM_FVT_PREPARE_E001    test_prepare_phase                       PASSED       45.20s
+  IMGBM_FVT_PREPARE_V001  test_containers_running                  PASSED        0.42s
+  ------------------------- ---------------------------------------- ---------- --------
   2 passed, 0 failed, 0 skipped / 2 total (45.62s)
-=====================================================================================
+========================================================================================
 ```

@@ -1,0 +1,158 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# =============================================================================
+# Telemetry — Test Configuration
+# =============================================================================
+# Non-sensitive settings for FVT (Functional Verification Testing).
+#
+# Usage:
+#   - Set oim_server_ip to the target server where telemetry playbook runs.
+#   - Leave oim_server_ip empty to run tests locally on the same machine.
+#   - Configure sync options to push input files to the target server
+#     before running tests.
+#   - Sensitive OIM SSH and enabled OME/SFM appliance credentials go in
+#     test_creds.yml (auto-encrypted with Ansible Vault on first run).
+# =============================================================================
+
+---
+
+# =============================================================================
+# TARGET SERVER CONNECTION
+# =============================================================================
+# IP address of the server where telemetry playbook runs.
+# Leave empty for local mode (running directly on the target server).
+# Set to a remote IP to run all verification commands over SSH.
+#
+# When a remote IP is set, the framework will:
+#   1. Sync the local project code to clone_path on the target (rsync)
+#   2. Sync telemetry input files to the env-var-based input path
+#   3. Run all verification tests via SSH/Testinfra
+oim_server_ip: ""
+
+# SSH username for remote server (only needed for remote mode).
+oim_ssh_user: root
+
+# SSH port for remote server (only needed for remote mode).
+oim_ssh_port: 22
+
+# =============================================================================
+# PROJECT SYNC SETTINGS (remote execution)
+# =============================================================================
+# The local omnia monorepo is synced (rsync) to clone_path on the target.
+# Playbook runs from <clone_path>/src/telemetry/playbooks/
+#
+# clone_path:   Absolute path on the TARGET SERVER where the project code is synced.
+#               Only used in remote mode. In local mode, the playbook path is
+#               resolved automatically from the source tree.
+clone_path: "/root/monorepo/omnia"
+
+# =============================================================================
+# DATASET CONFIGURATION
+# =============================================================================
+# Controls where input files are loaded from for test execution.
+#
+# Default (empty):
+#   Uses files directly from the target server at:
+#     $TELEMETRY_DATA_PATH/input/$OMNIA_PROJECT_NAME/ when set, otherwise
+#     $OMNIA_DATA_PATH/telemetry/input/$OMNIA_PROJECT_NAME/
+#   This is the recommended mode -- always uses the deployed config.
+#
+# Custom dataset:
+#   Set to a folder name under test/telemetry/datasets/<name>/.
+#   Generate one with: cd datasets/generator && python generate_dataset.py <name> <profile>
+#   Each dataset folder must contain:
+#     input/telemetry_config.yml
+#     input/telemetry_storage_config.yml  (optional)
+#     input/telemetry_packages.yml
+dataset: ""
+
+# =============================================================================
+# SYNC — TELEMETRY INPUT
+# =============================================================================
+# When true, pushes the local dataset input/ files to the target server.
+# Syncs to <TELEMETRY_DATA_PATH>/input/<project_name>/ when set, otherwise
+# <OMNIA_DATA_PATH>/telemetry/input/<project_name>/.
+#
+# This ensures the target server has the correct telemetry_config.yml
+# and packages before running the playbook.
+sync_telemetry_input: false
+
+# =============================================================================
+# EXTERNAL APPLIANCE SETTINGS
+# =============================================================================
+# OME (OpenManage Enterprise) appliance IP for Kafka forwarder connectivity
+# tests. Leave empty to skip OME connectivity tests.
+# The OME REST API at /api/DataForwardingService/Forwarders is used to verify
+# the Kafka forwarding pipeline is connected.
+ome_ip: ""
+
+# When true, the OME test suite will:
+#   1. Run the external_kafka_connect playbook to extract TLS certs
+#   2. Verify ca.crt, user.crt, user.key exist
+#   3. Convert user.crt + user.key to user.pfx
+#   4. Upload certificates to OME via REST API
+#   5. Configure and test OME Kafka forwarder connectivity
+# When false, only the enabled Vector-OME bridge and KafkaUser checks run;
+# connectivity, certificate, Kafka data, and Victoria data tests are skipped.
+configure_ome: true
+
+# OME identifier string used in Kafka forwarder configuration.
+# This identifies the OME instance in Kafka messages.
+# Kafka bootstrap server is auto-discovered from K8s services.
+ome_identifier: "ome"
+
+# Force re-run of external_kafka playbook even if certs already exist.
+# When true, always runs the playbook to regenerate certificates.
+# When false (default), skips playbook if certs already exist.
+force_external_kafka_playbook: false
+
+# Force re-run of the external_victoria playbook and rotate the SFM certificate
+# import even if the exported connection details and target are already healthy.
+force_external_victoria_playbook: false
+
+# SFM (SmartFabric Manager) integration is opt-in. When enabled, the SFM
+# automation uses the API endpoint for observability configuration and the SSH
+# endpoint for host-side validation. Credentials are stored in test_creds.yml.
+configure_sfm: false
+
+# SFM API endpoint used to upload the VictoriaMetrics CA certificate and
+# configure Prometheus remote write.
+sfm_api_ip: ""
+sfm_api_port: 443
+
+# SFM SSH endpoint used for remote host and service checks.
+sfm_ssh_ip: ""
+sfm_ssh_port: 22
+
+# =============================================================================
+# REPORT CONFIGURATION
+# =============================================================================
+# Directory where test reports (JSON + HTML) are saved.
+# Can be:
+#   - An absolute path: /opt/omnia/reports
+# No spaces allowed in the path.
+report_path: /opt/omnia/reports
+
+# Base name for report files (without extension).
+# Generates: telemetry_test_report.json, telemetry_test_report.html
+# No spaces allowed. Only letters, numbers, underscores, hyphens.
+report_name: telemetry_test_report
+
+# Custom run ID (optional).
+# When set, reports use this ID instead of a timestamp (YYYYMMDD_HHMMSS).
+# This groups multiple scenario runs under the same report entry.
+# Leave empty to auto-generate from timestamp.
+# No spaces allowed. Only letters, numbers, underscores, hyphens.
+run_id: ""

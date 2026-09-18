@@ -3,4 +3,5 @@ __pycache__/
 *.pyc
 reports/
 .test_creds.key
+test_creds.yml
 *.egg-info/

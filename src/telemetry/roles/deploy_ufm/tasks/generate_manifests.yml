@@ -18,26 +18,26 @@
 # - ufm-telemetry-secret.yaml (K8s Secret with UFM credentials + optional CA cert)
 # - ufm-external-service.yaml (ExternalName/Endpoints service for UFM endpoint)
 
-- name: Create UFM deployments directory
-  ansible.builtin.file:
-    path: "{{ telemetry_deployments_dir }}/ufm"
-    state: directory
-    mode: '0755'
-
 - name: Render UFM telemetry manifests
   ansible.builtin.template:
     src: "{{ item.src }}"
-    dest: "{{ telemetry_deployments_dir }}/ufm/{{ item.dest }}"
+    dest: "{{ telemetry_deployments_dir }}/{{ item.dest }}"
     mode: '0644'
   loop:
     - src: "ufm-telemetry-secret.yaml.j2"
       dest: "ufm-telemetry-secret.yaml"
     - src: "ufm-external-service.yaml.j2"
       dest: "ufm-external-service.yaml"
-    - src: "kustomization.yaml.j2"
-      dest: "kustomization.yaml"
+
+- name: Apply UFM telemetry manifests
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/{{ item }}
+  loop:
+    - ufm-telemetry-secret.yaml
+    - ufm-external-service.yaml
+  changed_when: false
 
 - name: Display UFM manifest generation complete
   ansible.builtin.debug:
-    msg: "UFM telemetry manifests generated to {{ telemetry_deployments_dir }}/ufm/"
+    msg: "UFM telemetry manifests generated and applied"
     verbosity: 2

@@ -31,7 +31,7 @@ DOCUMENTATION = r'''
 ---
 module: base_image_package_collector
 short_description: Collect RPM packages for base image creation
-version_added: "3.0.0"
+version_added: "2.3.0"
 description:
   - Collects RPM package names from default_packages.json, additional_packages.json,
     and admin_debug_packages.json.

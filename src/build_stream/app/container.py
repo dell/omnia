@@ -96,15 +96,17 @@ def _create_artifact_store():
                 max_artifact_size_bytes=config.artifact_store.max_file_size_bytes,
             )
 
-        # Fall back to file store with default path
+        # Fall back to file store with default path derived from environment
+        _data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia")
         return FileArtifactStore(
-            base_path=Path("/opt/omnia/build_stream_root/artifacts"),
+            base_path=Path(_data_path) / "build_stream_root" / "artifacts",
             max_artifact_size_bytes=config.artifact_store.max_file_size_bytes,
         )
     except (FileNotFoundError, ValueError):
         # If config not found or invalid, use file store with defaults as fallback
+        _data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia")
         return FileArtifactStore(
-            base_path=Path("/opt/omnia/build_stream_root/artifacts"),
+            base_path=Path(_data_path) / "build_stream_root" / "artifacts",
             max_artifact_size_bytes=5242880,  # 5MB default
         )
 
@@ -307,13 +309,19 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         uuid_generator=uuid_generator,
     )
 
+    # --- Restart services ---
+    restart_queue_service = providers.Factory(
+        PlaybookQueueRequestService,
+        request_repo=playbook_queue_request_repository,
+    )
+
     create_restart_use_case = providers.Factory(
         CreateRestartUseCase,
         job_repo=job_repository,
         stage_repo=stage_repository,
         audit_repo=audit_repository,
-        queue_service=playbook_queue_request_service,
         uuid_generator=uuid_generator,
+        queue_service=restart_queue_service,
     )
 
     validate_use_case = providers.Factory(
@@ -460,8 +468,11 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     )
 
     # --- Result poller ---
-    # ResultPoller needs a shared session for image_group_repo and image_repo
-    # to ensure atomic transactions (flush ImageGroup, then insert Images in same session).
+    # ResultPoller needs a shared session for image_group_repo, image_repo,
+    # and artifact_metadata_repo to ensure atomic transactions when creating
+    # ImageGroup/Image records (flush ImageGroup, then insert Images in same session).
+    # The artifact_metadata_repo is used to load catalog metadata persisted by
+    # parse-catalog stage, so it must use the same session to avoid isolation issues.
     result_poller_session = providers.Singleton(SessionLocal)
     result_poller_image_group_repo = providers.Singleton(
         SqlImageGroupRepository, session=result_poller_session
@@ -469,7 +480,10 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     result_poller_image_repo = providers.Singleton(
         SqlImageRepository, session=result_poller_session
     )
-    
+    result_poller_artifact_metadata_repo = providers.Singleton(
+        SqlArtifactMetadataRepository, session=result_poller_session
+    )
+
     result_poller = providers.Singleton(
         ResultPoller,
         result_service=playbook_queue_result_service,
@@ -481,7 +495,7 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         image_group_repo=result_poller_image_group_repo,
         image_repo=result_poller_image_repo,
         artifact_store=artifact_store,
-        artifact_metadata_repo=artifact_metadata_repository,
+        artifact_metadata_repo=result_poller_artifact_metadata_repo,
     )
 
     create_job_use_case = providers.Factory(
@@ -538,13 +552,19 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         uuid_generator=uuid_generator,
     )
 
+    # --- Restart services ---
+    restart_queue_service = providers.Factory(
+        PlaybookQueueRequestService,
+        request_repo=playbook_queue_request_repository,
+    )
+
     create_restart_use_case = providers.Factory(
         CreateRestartUseCase,
         job_repo=job_repository,
         stage_repo=stage_repository,
         audit_repo=audit_repository,
-        queue_service=playbook_queue_request_service,
         uuid_generator=uuid_generator,
+        queue_service=restart_queue_service,
     )
 
     validate_use_case = providers.Factory(

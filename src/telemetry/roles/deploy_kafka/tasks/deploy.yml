@@ -97,6 +97,59 @@
   register: kafka_apply
   changed_when: "'created' in kafka_apply.stdout or 'configured' in kafka_apply.stdout"
 
+- name: Restore Kafka cluster ID for retained volumes
+  when: kafka_cluster_id_restore_required | default(false) | bool
+  block:
+    - name: Restore Kafka custom resource cluster ID
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - patch
+          - kafka
+          - kafka
+          - --namespace
+          - "{{ telemetry_namespace }}"
+          - --subresource=status
+          - --type=merge
+          - --patch
+          - '{"status":{"clusterId":"{{ kafka_preserved_cluster_id }}"}}'
+      changed_when: true
+      no_log: true
+
+    - name: Restore Kafka node pool cluster IDs
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - patch
+          - kafkanodepool
+          - "{{ item }}"
+          - --namespace
+          - "{{ telemetry_namespace }}"
+          - --subresource=status
+          - --type=merge
+          - --patch
+          - '{"status":{"clusterId":"{{ kafka_preserved_cluster_id }}"}}'
+      loop:
+        - controller
+        - broker
+      changed_when: true
+      no_log: true
+
+- name: Read Kafka reconciliation pause annotation
+  ansible.builtin.command: >
+    kubectl get kafka kafka -n {{ telemetry_namespace }}
+    --output=jsonpath='{.metadata.annotations.strimzi\.io/pause-reconciliation}'
+  register: kafka_reconciliation_pause
+  changed_when: false
+
+- name: Resume Kafka reconciliation
+  ansible.builtin.command: >
+    kubectl annotate kafka kafka -n {{ telemetry_namespace }}
+    strimzi.io/pause-reconciliation-
+  register: kafka_reconciliation_resume
+  changed_when: "'annotated' in kafka_reconciliation_resume.stdout"
+  when: kafka_reconciliation_pause.stdout | trim == 'true'
+
 # =============================================================================
 # Sink infrastructure resources — always deployed (user, bridge)
 # =============================================================================
@@ -122,6 +175,44 @@
   ansible.builtin.fail:
     msg: "{{ kafka_cluster_not_ready_msg }}"
   when: kafka_wait.rc != 0
+
+- name: Read active Kafka cluster ID
+  ansible.builtin.command: >
+    kubectl get kafkanodepool controller -n {{ telemetry_namespace }}
+    --output=jsonpath='{.status.clusterId}'
+  register: kafka_active_cluster_id
+  changed_when: false
+  retries: "{{ kafka_secret_wait_retries }}"
+  delay: "{{ kafka_secret_wait_delay }}"
+  until: kafka_active_cluster_id.stdout | trim | length > 0
+  no_log: true
+
+- name: Build Kafka cluster ID preservation secret
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - create
+      - secret
+      - generic
+      - "{{ kafka.cluster_id }}"
+      - --namespace
+      - "{{ telemetry_namespace }}"
+      - "--from-literal=cluster-id={{ kafka_active_cluster_id.stdout | trim }}"
+      - --dry-run=client
+      - --output=yaml
+  register: kafka_cluster_id_secret_manifest
+  changed_when: false
+  no_log: true
+
+- name: Save Kafka cluster ID for retained-volume redeployment
+  ansible.builtin.command: kubectl apply -f -
+  args:
+    stdin: "{{ kafka_cluster_id_secret_manifest.stdout }}"
+  register: kafka_cluster_id_secret_apply
+  changed_when: >-
+    'created' in kafka_cluster_id_secret_apply.stdout or
+    'configured' in kafka_cluster_id_secret_apply.stdout
+  no_log: true
 
 - name: Apply Kafka user manifest
   ansible.builtin.command: >
@@ -166,3 +257,16 @@
       loop: "{{ topic_files.files }}"
       register: topic_apply
       changed_when: "'created' in (topic_apply.stdout | default('')) or 'configured' in (topic_apply.stdout | default(''))"
+
+    - name: Wait for Kafka topics to be ready
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - wait
+          - --for=condition=Ready
+          - "--filename={{ item.path }}"
+          - "--timeout={{ kafka_deploy_timeout }}"
+      loop: "{{ topic_files.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      changed_when: false

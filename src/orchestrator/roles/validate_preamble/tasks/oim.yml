@@ -1,0 +1,35 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set oim_node_name on OIM host
+  ansible.builtin.set_fact:
+    oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
+  when: oim_node_name is not defined
+
+- name: Load OpenCHAMI configs_vars.yaml from OIM
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['omnia_data_path'] }}/openchami/configs_vars.yaml"
+  when: cluster_name is not defined
+
+- name: OpenCHAMI cluster authentication
+  ansible.builtin.include_role:
+    name: orchestrator_common
+    tasks_from: openchami_auth.yml
+
+- name: Configure S3 access for boot images
+  ansible.builtin.include_role:
+    name: orchestrator_common
+    tasks_from: configure_s3_access.yml
+  when: s3_configurations is not defined

@@ -1,0 +1,107 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Install Python Dependencies for Telemetry
+# =============================================================================
+# Generic task to install Python packages for telemetry components
+# Supports both online and offline installation modes based on telemetry_packages.yml
+#
+# Usage:
+#   - include_tasks: install_python_dependencies.yml
+#     vars:
+#       component: idrac
+#
+# Installation modes:
+#   - online:  Install from PyPI (pip install <package>==<version>)
+#   - offline: Install from a package-specific directory under <repo_url>/pip_module/
+#
+# Parameters:
+#   component: Component name to look up in telemetry_packages.yml (required)
+# =============================================================================
+
+- name: Validate component is provided
+  ansible.builtin.assert:
+    that:
+      - component is defined
+      - component | length > 0
+    fail_msg: "component variable must be provided (e.g., idrac, powerscale)"
+
+- name: Use telemetry_packages fact loaded by load_telemetry_config
+  ansible.builtin.set_fact:
+    _telemetry_packages_raw: "{{ telemetry_packages }}"
+  when:
+    - telemetry_packages is defined
+
+- name: Use telemetry_packages from localhost if not defined locally
+  ansible.builtin.set_fact:
+    _telemetry_packages_raw: "{{ hostvars['localhost']['telemetry_packages'] }}"
+  when:
+    - _telemetry_packages_raw is not defined
+    - hostvars['localhost']['telemetry_packages'] is defined
+
+- name: Fail if telemetry_packages is not available
+  ansible.builtin.fail:
+    msg: "telemetry_packages is not defined. Ensure load_telemetry_config task has been run before install_python_dependencies."
+  when: _telemetry_packages_raw is not defined
+
+- name: Set installation mode variables from loaded telemetry_packages
+  ansible.builtin.set_fact:
+    install_mode: "{{ _telemetry_packages_raw.install_mode | default('offline') }}"
+    repo_url: >-
+      {% set url = _telemetry_packages_raw.repo_url | default('') -%}
+      {% if url | length > 0 -%}
+      {{ url | regex_replace('/$', '') }}{%- elif _telemetry_packages_raw.install_mode | default('offline') == 'offline' -%}
+      {% set nic_ip = lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default(admin_nic_ip | default(''), true) -%}
+      {% if nic_ip | length > 0 -%}
+      https://{{ nic_ip }}:{{ pulp_port }}/{{ pulp_base_path }}/{{ pulp_cluster_arch }}/{{ pulp_os_name }}/{{ pulp_os_version }}{%- endif -%}
+      {%- else -%}
+      {{ url }}{%- endif %}
+    pip_modules: "{{ _telemetry_packages_raw.pip_modules | default({}) }}"
+
+- name: Validate repo_url is set for offline mode
+  ansible.builtin.assert:
+    that:
+      - repo_url | length > 0
+    fail_msg: >
+      repo_url must be set in telemetry_packages.yml when install_mode is 'offline',
+      or SYSTEM_ADMIN_NIC_IPV4 must be set to auto-derive the Pulp URL.
+  when: install_mode == "offline"
+
+- name: Build pip module URL from repo_url
+  ansible.builtin.set_fact:
+    pip_module_url: "{{ repo_url }}/pip_module/"
+  when: install_mode == "offline"
+
+- name: Get packages for component from telemetry_packages.yml
+  ansible.builtin.set_fact:
+    component_packages: "{{ pip_modules[component] | default({}) }}"
+
+- name: Validate component exists in pip_modules
+  ansible.builtin.assert:
+    that:
+      - component_packages | length > 0
+    fail_msg: "Component '{{ component }}' not found in telemetry_packages.yml pip_modules section"
+
+- name: Install Python packages for component
+  loop: "{{ component_packages | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  ansible.builtin.include_tasks: install_single_python_package.yml
+  vars:
+    package_name: "{{ item.key }}"
+    package_distribution_name: "{{ telemetry_pip_distribution_names[item.key] | default(item.key) }}"
+    package_version: "{{ item.value }}"
+    component_name: "{{ component }}"

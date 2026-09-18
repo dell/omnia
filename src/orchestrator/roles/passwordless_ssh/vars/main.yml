@@ -37,4 +37,4 @@ omnia_required_groups_from_nodes_yaml: >-
      | map(attribute='name')
      | list }}
 
-ssh_private_key_path: /root/.ssh/config
+oim_ssh_config_path: "{{ ansible_user_dir | default('/root') }}/.ssh/config"

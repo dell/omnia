@@ -15,10 +15,14 @@
 
 - name: Stage globals
   hosts: localhost
-  gather_facts: false
+  gather_facts: true
   tags:
     - setup
-    - always
+  pre_tasks:
+    - name: Record execution start time
+      ansible.builtin.set_fact:
+        utils_execution_start_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
   roles:
     - role: log_collector
       stage: setup
@@ -28,7 +32,6 @@
   gather_facts: false
   tags:
     - prepare
-    - always
   roles:
     - role: log_collector
       stage: prepare
@@ -39,7 +42,6 @@
   ignore_unreachable: true
   tags:
     - k8s
-    - always
   roles:
     - role: log_collector
       stage: k8s_master
@@ -50,7 +52,6 @@
   ignore_unreachable: true
   tags:
     - k8s
-    - always
   roles:
     - role: log_collector
       stage: k8s_worker
@@ -61,7 +62,6 @@
   ignore_unreachable: true
   tags:
     - slurm
-    - always
   roles:
     - role: log_collector
       stage: slurm_ctl
@@ -72,7 +72,6 @@
   ignore_unreachable: true
   tags:
     - slurm
-    - always
   roles:
     - role: log_collector
       stage: slurm_node
@@ -83,7 +82,6 @@
   ignore_unreachable: true
   tags:
     - slurm
-    - always
   roles:
     - role: log_collector
       stage: login_node
@@ -94,17 +92,27 @@
   ignore_unreachable: true
   tags:
     - slurm
-    - always
   roles:
     - role: log_collector
       stage: login_compiler_node
 
 - name: Bundle collected logs and publish summary
   hosts: localhost
-  gather_facts: false
+  gather_facts: true
   tags:
     - bundle
-    - always
   roles:
     - role: log_collector
       stage: bundle
+  post_tasks:
+    - name: Record execution end time
+      ansible.builtin.set_fact:
+        utils_execution_end_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
+
+    - name: Write execution status
+      ansible.builtin.include_role:
+        name: utils_status_writer
+      vars:
+        utils_domain_status: "{{ 'success' if ansible_failed_result is not defined else 'failure' }}"
+        utils_playbook_name: "collect.yml"

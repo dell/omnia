@@ -13,120 +13,122 @@
 # limitations under the License.
 
 ---
+# =============================================================================
+# prepare.yml - Parse node inventory and build dynamic host groups
+# =============================================================================
 
-- name: Read mapping file content
+- name: Check collect_pxe.yml exists
+  ansible.builtin.stat:
+    path: "{{ collect_pxe_file }}"
+  register: _collect_pxe_stat
+
+- name: Fail if collect_pxe.yml missing
+  ansible.builtin.fail:
+    msg: "{{ error_msg_inventory_file_missing }}"
+  when: not _collect_pxe_stat.stat.exists
+
+- name: Load node inventory from collect_pxe.yml
+  ansible.builtin.include_vars:
+    file: "{{ collect_pxe_file }}"
+    name: collect_pxe_data
+
+- name: Set node lists from YAML (functional groups with architecture)
   ansible.builtin.set_fact:
-    mapping_content: "{{ lookup('file', pxe_mapping_file_path) }}"
+    k8s_masters: "{{ collect_pxe_data.get('service_kube_control_plane_x86_64', []) | default([], true) }}"
+    k8s_workers: "{{ collect_pxe_data.get('service_kube_node_x86_64', []) | default([], true) }}"
+    slurm_controllers: "{{ collect_pxe_data.get('slurm_control_node_x86_64', []) | default([], true) }}"
+    slurm_nodes_x86: "{{ collect_pxe_data.get('slurm_node_x86_64', []) | default([], true) }}"
+    slurm_nodes_arm: "{{ collect_pxe_data.get('slurm_node_aarch64', []) | default([], true) }}"
+    login_nodes: "{{ collect_pxe_data.get('login_node_x86_64', []) | default([], true) }}"
+    login_compiler_nodes: "{{ collect_pxe_data.get('login_compiler_node_aarch64', []) | default([], true) }}"
 
-- name: Parse mapping CSV using shell
-  ansible.builtin.shell: |
-    python3 << 'EOF'
-    import csv
-    import json
-    entries = []
-    with open('{{ pxe_mapping_file_path }}', 'r') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            entries.append(row)
-    print(json.dumps(entries))
-    EOF
-  register: csv_parse_result
-  changed_when: false
-
-- name: Set mapping entries from parsed CSV
+- name: Combine slurm nodes from both architectures
   ansible.builtin.set_fact:
-    mapping_entries: "{{ csv_parse_result.stdout | from_json }}"
-
-- name: Build k8s masters list (functional groups starting with service_kube_control_plane)
-  ansible.builtin.set_fact:
-    k8s_masters: "{{ mapping_entries | selectattr('FUNCTIONAL_GROUP_NAME', 'search', '^service_kube_control_plane') | list }}"
-
-- name: Build k8s workers list (functional groups starting with service_kube_node)
-  ansible.builtin.set_fact:
-    k8s_workers: "{{ mapping_entries | selectattr('FUNCTIONAL_GROUP_NAME', 'search', '^service_kube_node') | list }}"
-
-- name: Build slurm controllers list (functional groups starting with slurm_control_node)
-  ansible.builtin.set_fact:
-    slurm_controllers: "{{ mapping_entries | selectattr('FUNCTIONAL_GROUP_NAME', 'search', '^slurm_control_node') | list }}"
-
-- name: Build slurm nodes list (functional groups starting with slurm_node)
-  ansible.builtin.set_fact:
-    slurm_nodes: "{{ mapping_entries | selectattr('FUNCTIONAL_GROUP_NAME', 'search', '^slurm_node') | list }}"
-
-- name: Build login nodes list (functional groups starting with login_node)
-  ansible.builtin.set_fact:
-    login_nodes: "{{ mapping_entries | selectattr('FUNCTIONAL_GROUP_NAME', 'search', '^login_node') | list }}"
-
-- name: Build login compiler nodes list (functional groups starting with login_compiler_node)
-  ansible.builtin.set_fact:
-    login_compiler_nodes: "{{ mapping_entries | selectattr('FUNCTIONAL_GROUP_NAME', 'search', '^login_compiler_node') | list }}"
+    slurm_nodes: "{{ (slurm_nodes_x86 | default([], true)) + (slurm_nodes_arm | default([], true)) }}"
 
 - name: Add dynamic hosts for k8s masters
   ansible.builtin.add_host:
-    name: "{{ item.HOSTNAME }}"
-    ansible_host: "{{ item.ADMIN_IP }}"
+    name: "k8s_master_{{ item | replace('.', '_') }}"
+    ansible_host: "{{ item }}"
     groups: k8s_masters
   loop: "{{ k8s_masters }}"
+  when: k8s_masters | length > 0
 
-- name: Print all k8s_masters hostnames
+- name: Print all k8s_masters
   ansible.builtin.debug:
-    msg: "K8s Masters Group - Hostname: {{ item.HOSTNAME }}, IP: {{ item.ADMIN_IP }}"
+    msg: "K8s Masters Group - IP: {{ item }}"
   loop: "{{ k8s_masters }}"
+  when: k8s_masters | length > 0
 
 - name: Add dynamic hosts for k8s workers
   ansible.builtin.add_host:
-    name: "{{ item.HOSTNAME }}"
-    ansible_host: "{{ item.ADMIN_IP }}"
+    name: "k8s_worker_{{ item | replace('.', '_') }}"
+    ansible_host: "{{ item }}"
     groups: k8s_workers
   loop: "{{ k8s_workers }}"
+  when: k8s_workers | length > 0
+
+- name: Print all k8s_workers
+  ansible.builtin.debug:
+    msg: "K8s Workers Group - IP: {{ item }}"
+  loop: "{{ k8s_workers }}"
+  when: k8s_workers | length > 0
 
 - name: Add dynamic hosts for slurm controllers
   ansible.builtin.add_host:
-    name: "{{ item.HOSTNAME }}"
-    ansible_host: "{{ item.ADMIN_IP }}"
+    name: "slurm_ctl_{{ item | replace('.', '_') }}"
+    ansible_host: "{{ item }}"
     groups: slurm_controllers
   loop: "{{ slurm_controllers }}"
+  when: slurm_controllers | length > 0
 
-- name: Print all slurm_controllers hostnames
+- name: Print all slurm_controllers
   ansible.builtin.debug:
-    msg: "Slurm Controllers Group - Hostname: {{ item.HOSTNAME }}, IP: {{ item.ADMIN_IP }}"
+    msg: "Slurm Controllers Group - IP: {{ item }}"
   loop: "{{ slurm_controllers }}"
+  when: slurm_controllers | length > 0
 
 - name: Add dynamic hosts for slurm nodes
   ansible.builtin.add_host:
-    name: "{{ item.HOSTNAME }}"
-    ansible_host: "{{ item.ADMIN_IP }}"
+    name: "slurm_node_{{ item | replace('.', '_') }}"
+    ansible_host: "{{ item }}"
     groups: slurm_nodes
   loop: "{{ slurm_nodes }}"
+  when: slurm_nodes | length > 0
 
-- name: Print all slurm_nodes hostnames
+- name: Print all slurm_nodes
   ansible.builtin.debug:
-    msg: "Slurm Nodes Group - Hostname: {{ item.HOSTNAME }}, IP: {{ item.ADMIN_IP }}"
+    msg: "Slurm Nodes Group - IP: {{ item }}"
   loop: "{{ slurm_nodes }}"
+  when: slurm_nodes | length > 0
 
 - name: Add dynamic hosts for login nodes
   ansible.builtin.add_host:
-    name: "{{ item.HOSTNAME }}"
-    ansible_host: "{{ item.ADMIN_IP }}"
+    name: "login_{{ item | replace('.', '_') }}"
+    ansible_host: "{{ item }}"
     groups: login_nodes
   loop: "{{ login_nodes }}"
+  when: login_nodes | length > 0
 
-- name: Print all login_nodes hostnames
+- name: Print all login_nodes
   ansible.builtin.debug:
-    msg: "Login Nodes Group - Hostname: {{ item.HOSTNAME }}, IP: {{ item.ADMIN_IP }}"
+    msg: "Login Nodes Group - IP: {{ item }}"
   loop: "{{ login_nodes }}"
+  when: login_nodes | length > 0
 
 - name: Add dynamic hosts for login compiler nodes
   ansible.builtin.add_host:
-    name: "{{ item.HOSTNAME }}"
-    ansible_host: "{{ item.ADMIN_IP }}"
+    name: "login_compiler_{{ item | replace('.', '_') }}"
+    ansible_host: "{{ item }}"
     groups: login_compiler_nodes
   loop: "{{ login_compiler_nodes }}"
+  when: login_compiler_nodes | length > 0
 
-- name: Print all login_compiler_nodes hostnames
+- name: Print all login_compiler_nodes
   ansible.builtin.debug:
-    msg: "Login Compiler Nodes Group - Hostname: {{ item.HOSTNAME }}, IP: {{ item.ADMIN_IP }}"
+    msg: "Login Compiler Nodes Group - IP: {{ item }}"
   loop: "{{ login_compiler_nodes }}"
+  when: login_compiler_nodes | length > 0
 
 - name: Ensure log directories exist on OIM
   ansible.builtin.file:

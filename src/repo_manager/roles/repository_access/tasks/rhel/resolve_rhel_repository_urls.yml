@@ -1,0 +1,349 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+---
+
+- name: Set catalog-selected repository context
+  ansible.builtin.set_fact:
+    subscription_status_flag: "{{ subscription_status | default(false) | bool }}"
+    archs: "{{ selected_architectures }}"
+    referenced_repos_by_arch: "{{ catalog_context.referenced_repositories }}"
+
+- name: Load Repo Manager repository configuration
+  ansible.builtin.include_vars:
+    file: "{{ local_repo_config_path }}"
+    name: local_config
+  no_log: true
+
+- name: Validate catalog version and architectures exist in repository configuration
+  ansible.builtin.assert:
+    that:
+      - cluster_os_version in (local_config.repositories | default({}))
+      - >-
+        arch_item in
+        (local_config.repositories.get(cluster_os_version, {}) | default({}))
+    fail_msg: "{{ repository_access_validate_catalog_version_and_architectures_exist_in_repository_configuration_msg }}"
+    quiet: true
+  loop: "{{ archs }}"
+  loop_control:
+    loop_var: arch_item
+
+- name: Initialize flattened repository configuration
+  ansible.builtin.set_fact:
+    configured_repos_by_arch: {}
+
+- name: Flatten configured repository sections for selected architectures
+  ansible.builtin.set_fact:
+    configured_repos_by_arch: >-
+      {{ configured_repos_by_arch | combine({arch_item: flattened_repos}) }}
+  vars:
+    arch_repos: >-
+      {{ local_config.repositories.get(cluster_os_version, {}).get(arch_item, {}) }}
+    top_level_repos: >-
+      {{ arch_repos | dict2items |
+         rejectattr('key', 'in', ['user_repos', 'additional_repos']) |
+         items2dict }}
+    flattened_repos: >-
+      {{ top_level_repos |
+         combine(arch_repos.get('user_repos', {}) | default({})) |
+         combine(arch_repos.get('additional_repos', {}) | default({})) }}
+  loop: "{{ archs }}"
+  loop_control:
+    loop_var: arch_item
+  no_log: true
+
+- name: Calculate repositories eligible for subscription discovery
+  ansible.builtin.set_fact:
+    subscription_allowed_repos_by_arch: >-
+      {%- set result = {} -%}
+      {%- set entitled = subscription_repository_ids | default([]) -%}
+      {%- set builtins = platform_profiles.rhel.subscription_repositories -%}
+      {%- for architecture in archs -%}
+        {%- set allowed = [] -%}
+        {%- for repo_name in referenced_repos_by_arch.get(architecture, []) -%}
+          {%- set standard_id = repo_name |
+                regex_replace('-eus-rpms$', '-rpms') -%}
+          {%- set eus_id = standard_id |
+                regex_replace('-rpms$', '-eus-rpms') -%}
+          {%- set counterpart_architecture =
+                'aarch64' if architecture == 'x86_64' else 'x86_64' -%}
+          {%- set counterpart_standard_id = standard_id |
+                replace('-' ~ architecture ~ '-',
+                        '-' ~ counterpart_architecture ~ '-') -%}
+          {%- set counterpart_eus_id = eus_id |
+                replace('-' ~ architecture ~ '-',
+                        '-' ~ counterpart_architecture ~ '-') -%}
+          {%- if repo_name in builtins or
+                 repo_name in entitled or standard_id in entitled or
+                 eus_id in entitled or
+                 counterpart_standard_id in entitled or
+                 counterpart_eus_id in entitled -%}
+            {%- set _ = allowed.append(repo_name) -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- set _ = result.update({architecture: allowed}) -%}
+      {%- endfor -%}
+      {{ result }}
+  no_log: true
+
+- name: Calculate repositories that require explicit URLs
+  ansible.builtin.set_fact:
+    invalid_explicit_repos_by_arch: >-
+      {%- set result = {} -%}
+      {%- for architecture in archs -%}
+        {%- set invalid = [] -%}
+        {%- set referenced = referenced_repos_by_arch.get(architecture, []) -%}
+        {%- set subscription_allowed = subscription_allowed_repos_by_arch.get(architecture, [])
+            if subscription_status_flag else [] -%}
+        {%- set configured = configured_repos_by_arch.get(architecture, {}) -%}
+        {%- for repo_name in referenced |
+              reject('in', subscription_allowed) | list -%}
+          {%- set repo_config = configured.get(repo_name, {}) -%}
+          {%- if repo_config is not mapping or
+                 (repo_config.get('url', '') | default('', true) | trim | length) == 0 -%}
+            {%- set _ = invalid.append(repo_name) -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- set _ = result.update({architecture: invalid}) -%}
+      {%- endfor -%}
+      {{ result }}
+
+- name: Build missing explicit repository summary
+  ansible.builtin.set_fact:
+    invalid_explicit_repo_summary: >-
+      {%- set result = [] -%}
+      {%- for architecture in archs -%}
+        {%- set missing = invalid_explicit_repos_by_arch.get(architecture, []) -%}
+        {%- if missing | length > 0 -%}
+          {%- set _ = result.append(
+            architecture ~ ': ' ~ (missing | join(', '))) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ result }}
+
+- name: Fail when a referenced repository has no explicit URL
+  ansible.builtin.fail:
+    msg: "{{ repository_access_fail_when_a_referenced_repository_has_no_explicit_url_msg }}"
+  when: invalid_explicit_repo_summary | length > 0
+
+- name: Calculate subscription repositories requiring discovery
+  ansible.builtin.set_fact:
+    subscription_discovery_repos_by_arch: >-
+      {%- set result = {} -%}
+      {%- for architecture in archs -%}
+        {%- set discovery = [] -%}
+        {%- set configured = configured_repos_by_arch.get(architecture, {}) -%}
+        {%- for repo_name in subscription_allowed_repos_by_arch.get(architecture, []) -%}
+          {%- set repo_config = configured.get(repo_name, {}) -%}
+          {%- if repo_config is not mapping or
+                 (repo_config.get('url', '') | default('', true) |
+                  trim | length) == 0 -%}
+            {%- set _ = discovery.append(repo_name) -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- set _ = result.update({architecture: discovery}) -%}
+      {%- endfor -%}
+      {{ result }}
+
+- name: Combine subscription repositories requiring discovery
+  ansible.builtin.set_fact:
+    subscription_discovery_repos: >-
+      {{ subscription_discovery_repos_by_arch.values() |
+         flatten | unique | list }}
+
+- name: Initialize subscription repository results
+  ansible.builtin.set_fact:
+    sub_rhel_x86_64_urls: []
+    sub_rhel_aarch64_urls: []
+    unresolved_subscription_repos_by_arch:
+      x86_64: []
+      aarch64: []
+
+- name: Resolve catalog-required repositories from the RHEL subscription
+  resolve_rhel_subscription_repositories:
+    repo_file: "{{ omnia_rhel_cert_dir }}/redhat.repo"
+    certificate_directory: "{{ omnia_rhel_cert_dir }}"
+    cluster_os_version: "{{ cluster_os_version }}"
+    architectures: "{{ archs }}"
+    repository_names_by_arch: "{{ subscription_discovery_repos_by_arch }}"
+    repository_configurations_by_arch: "{{ configured_repos_by_arch }}"
+    global_standard: "{{ local_config.standard | default(false) | bool }}"
+    global_policy: "{{ local_config.repo_config | default('partial') }}"
+    global_caching: "{{ local_config.caching_policy | default(true) | bool }}"
+    builtin_repositories: >-
+      {{ platform_profiles.rhel.subscription_repositories }}
+  register: resolved_subscription_repositories
+  changed_when: false
+  failed_when: false
+  no_log: true
+  when:
+    - subscription_status_flag
+    - subscription_discovery_repos | length > 0
+
+- name: Fail when the RHEL subscription inventory cannot be resolved
+  ansible.builtin.fail:
+    msg: >-
+      {{ repository_access_fail_when_subscription_inventory_cannot_be_resolved_msg }}
+  when:
+    - resolved_subscription_repositories is defined
+    - resolved_subscription_repositories.failed | default(false) | bool
+
+- name: Publish resolved RHEL subscription repository records
+  ansible.builtin.set_fact:
+    sub_rhel_x86_64_urls: >-
+      {{ resolved_subscription_repositories.repositories_by_arch.get('x86_64', []) }}
+    sub_rhel_aarch64_urls: >-
+      {{ resolved_subscription_repositories.repositories_by_arch.get('aarch64', []) }}
+    unresolved_subscription_repos_by_arch: >-
+      {{ resolved_subscription_repositories.unresolved_by_arch }}
+  when:
+    - resolved_subscription_repositories is defined
+    - not (resolved_subscription_repositories.skipped | default(false) | bool)
+    - not (resolved_subscription_repositories.failed | default(false) | bool)
+  no_log: true
+
+- name: Build unresolved subscription repository summary
+  ansible.builtin.set_fact:
+    unresolved_subscription_repo_summary: >-
+      {%- set result = [] -%}
+      {%- for architecture in archs -%}
+        {%- set missing = unresolved_subscription_repos_by_arch.get(
+          architecture, []) -%}
+        {%- if missing | length > 0 -%}
+          {%- set _ = result.append(
+            architecture ~ ': ' ~ (missing | join(', '))) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ result }}
+
+- name: Fail when subscription cannot provide a referenced repository
+  ansible.builtin.fail:
+    msg: >-
+      {{ repository_access_fail_when_subscription_cannot_provide_a_referenced_repository_msg }}
+  when: unresolved_subscription_repo_summary | length > 0
+
+- name: Build catalog repository metadata validation targets
+  ansible.builtin.set_fact:
+    resolved_repository_validation_targets: >-
+      {%- set result = [] -%}
+      {%- for architecture in archs -%}
+        {%- set configured = configured_repos_by_arch.get(architecture, {}) -%}
+        {%- for repo_name in referenced_repos_by_arch.get(architecture, []) -%}
+          {%- set repo_config = configured.get(repo_name, {}) -%}
+          {%- if repo_config is mapping and
+                 (repo_config.get('url', '') | default('', true) |
+                  trim | length) > 0 -%}
+            {%- set _ = result.append({
+              'architecture': architecture,
+              'name': repo_name,
+              'url': repo_config.get('url'),
+              'sslcacert': repo_config.get('sslcacert', ''),
+              'sslclientcert': repo_config.get('sslclientcert', ''),
+              'sslclientkey': repo_config.get('sslclientkey', '')
+            }) -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {%- for repo in sub_rhel_x86_64_urls + sub_rhel_aarch64_urls -%}
+        {%- set _ = result.append(repo) -%}
+      {%- endfor -%}
+      {{ result }}
+  when: subscription_status_flag
+  no_log: true
+
+- name: Verify resolved catalog repository metadata
+  ansible.builtin.uri:
+    url: "{{ item.url | regex_replace('/+$', '') }}/repodata/repomd.xml"
+    method: GET
+    status_code: 200
+    return_content: false
+    validate_certs: true
+    ca_path: "{{ item.sslcacert | default(omit, true) }}"
+    client_cert: "{{ item.sslclientcert | default(omit, true) }}"
+    client_key: "{{ item.sslclientkey | default(omit, true) }}"
+    timeout: 30
+  loop: "{{ resolved_repository_validation_targets | default([]) }}"
+  loop_control:
+    label: "{{ item.architecture }} / {{ item.name }}"
+  register: repository_metadata_validation_results
+  changed_when: false
+  failed_when: false
+  when: subscription_status_flag
+  no_log: true
+
+- name: Initialize repository metadata validation failures
+  ansible.builtin.set_fact:
+    repository_metadata_failures: []
+    repository_metadata_failure_message: ""
+  when: subscription_status_flag
+
+- name: Build sanitized repository metadata validation failures
+  ansible.builtin.set_fact:
+    repository_metadata_failures: >-
+      {{
+        repository_metadata_failures + [{
+          'architecture': repository_metadata_result.item.architecture,
+          'repository': repository_metadata_result.item.name,
+          'metadata': 'repodata/repomd.xml',
+          'status': repository_metadata_status | int,
+          'reason': repository_metadata_failure_reason
+        }]
+      }}
+  vars:
+    repository_metadata_status: >-
+      {{ repository_metadata_result.status | default(-1, true) | int }}
+    repository_metadata_failure_reason: >-
+      {{
+        'Metadata file was not found (HTTP 404).'
+        if (repository_metadata_status | int) == 404
+        else 'Repository metadata access was denied.'
+        if (repository_metadata_status | int) in [401, 403]
+        else 'Repository metadata request timed out.'
+        if (repository_metadata_status | int) in [408, 504]
+        else 'Metadata endpoint could not be reached or TLS validation failed.'
+        if (repository_metadata_status | int) <= 0
+        else 'Metadata endpoint returned HTTP ' ~
+          (repository_metadata_status | int | string) ~ '.'
+      }}
+  loop: "{{ repository_metadata_validation_results.results | default([]) }}"
+  loop_control:
+    loop_var: repository_metadata_result
+    label: "protected repository metadata result"
+  when:
+    - subscription_status_flag
+    - (repository_metadata_result.status | default(-1, true) | int) != 200
+  no_log: true
+
+- name: Preserve sanitized repository metadata failure message
+  ansible.builtin.set_fact:
+    repository_metadata_failure_message: >-
+      {{ repository_access_repository_metadata_validation_failed_msg }}
+  when:
+    - subscription_status_flag
+    - repository_metadata_failures | length > 0
+  no_log: true
+
+- name: Fail when repository metadata validation fails
+  ansible.builtin.fail:
+    msg: "{{ repository_metadata_failure_message }}"
+  when:
+    - subscription_status_flag
+    - repository_metadata_failures | length > 0
+
+- name: Publish repositories supplied by the RHEL subscription
+  ansible.builtin.set_fact:
+    sub_final_repo_urls:
+      x86_64: "{{ sub_rhel_x86_64_urls }}"
+      aarch64: "{{ sub_rhel_aarch64_urls }}"
+  no_log: true
+
+- name: Display selected repository configuration summary
+  ansible.builtin.debug:
+    msg:
+      os_version: "{{ cluster_os_version }}"
+      architectures: "{{ archs }}"
+      referenced_repositories: "{{ referenced_repos_by_arch }}"
+      subscription_repositories:
+        x86_64: "{{ sub_rhel_x86_64_urls | map(attribute='name') | list }}"
+        aarch64: "{{ sub_rhel_aarch64_urls | map(attribute='name') | list }}"

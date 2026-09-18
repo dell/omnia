@@ -39,17 +39,23 @@ def _get_container():
 def get_create_restart_use_case(
     db_session: Session = Depends(get_db_session),
 ) -> CreateRestartUseCase:
-    """Provide create restart use case with shared session in prod."""
+    """Provide create restart use case with shared session in prod.
+
+    The restart stage now submits ``orchestrator.yml --tags pxe_boot`` to
+    the NFS playbook queue instead of completing the stage immediately.
+    """
+    container = _get_container()
+    queue_service = container.playbook_queue_request_service()
+
     if _ENV == "prod":
-        container = _get_container()
         return CreateRestartUseCase(
             job_repo=_create_sql_job_repo(db_session),
             stage_repo=_create_sql_stage_repo(db_session),
             audit_repo=_create_sql_audit_repo(db_session),
-            queue_service=container.playbook_queue_request_service(),
             uuid_generator=container.uuid_generator(),
+            queue_service=queue_service,
         )
-    return _get_container().create_restart_use_case()
+    return container.create_restart_use_case()
 
 
 def get_restart_correlation_id(

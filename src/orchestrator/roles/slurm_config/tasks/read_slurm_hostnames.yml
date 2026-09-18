@@ -87,6 +87,7 @@
     msg: "{{ controller_empty_msg }}"
   when:
     - ctld_list | length == 0
+    - target_category | default('slurm') == 'slurm'
 
 - name: Extract slurm controller IP
   ansible.builtin.set_fact:

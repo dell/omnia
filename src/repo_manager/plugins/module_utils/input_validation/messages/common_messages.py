@@ -22,94 +22,60 @@ to any particular configuration file or domain.
 # GENERIC VALIDATION MESSAGES
 # =============================================================================
 
-MANDATORY_FIELD_FAIL_MSG = "must not be empty"
-FILE_PATH_FAIL_MSG = "path does not exist"
-
-# =============================================================================
-# GROUP AND ROLE MESSAGES
-# =============================================================================
-
-MAX_NUMBER_OF_ROLES_MSG = "A max of 100 roles can be supported."
-MIN_NUMBER_OF_GROUPS_MSG = "At least 1 group is required."
-MIN_NUMBER_OF_ROLES_MSG = "At least 1 role is required."
-MAX_NUMBER_OF_ROLES_PER_GROUP_MSG = "Groups can support a maximum of 5 roles."
-GRP_EXIST_MSG = "A valid group must be provided."
-GRP_ROLE_MSG = "Please associate this group with a role."
 INVALID_GROUP_NAME_MSG = "Groups must be defined in the form of grp<n> where n is 0-99."
-DUPLICATE_GROUP_NAME_MSG = "Duplicate group names are not allowed."
-NO_GROUPS_MSG = "Outer Group object was probably not defined."
-NO_ROLES_MSG = "Outer Role object was probably not defined."
-INVALID_ATTRIBUTES_ROLE_MSG = (
-    "Please provide valid attributes for the role, both 'name' and 'groups' are mandatory."
-)
 
 # =============================================================================
 # SWITCH MESSAGES
 # =============================================================================
 
-INVALID_SWITCH_IP_MSG = "Please provide a valid switch IPv4 address (example: 10.5.0.1)."
 INVALID_SWITCH_PORTS_MSG = "Please provide any port ranges as start-end (example: 0-15,4:4,51-53)."
-DUPLICATE_SWITCH_IP_PORT_MSG = "Please remove duplicate ports."
-SWITCH_DETAILS_INCOMPLETE_MSG = (
-    "If providing switch details, please provide both the IP and Ports fields."
-)
-SWITCH_DETAILS_NO_BMC_DETAILS_MSG = (
-    "If switch details are provided then bmc_detail's static_range must also be provided."
-)
 
 # =============================================================================
-# BMC MESSAGES
+# REPO MANAGER VALIDATION MESSAGES
 # =============================================================================
 
-BMC_STATIC_RANGE_INVALID_MSG = (
-    "Static range should be in the following format: IPv4Start-IPv4End (example: 10.5.0.1-10.5.0.200)."
+CERTIFICATE_FILE_NOT_FOUND_MSG = "Certificate file not found"
+KEY_FILE_NOT_FOUND_MSG = "Key file not found"
+NO_REQUIRED_REPO_URLS_MSG = "No required repo URLs found"
+DUPLICATE_REPO_NAME_IN_ARCH_MSG = "Duplicate repo name '{name}' in {arch}"
+PRIORITY_MUST_BE_INTEGER_MSG = "{repo_path}: priority must be integer"
+PRIORITY_MUST_BE_IN_RANGE_MSG = "{repo_path}: priority must be 1-100"
+ADDITIONAL_REPO_PRIORITY_CONFLICT_MSG = (
+    "{repo_path}: additional_repos are published as one Pulp repository and "
+    "must use one effective priority; found {priorities}"
 )
-OVERLAPPING_STATIC_RANGE = "bmc_detail's static_range is overlapping with other static ranges."
-
-# =============================================================================
-# PASSWORD MESSAGES
-# =============================================================================
-
-INVALID_PASSWORD_MSG = (
-    "Provided password is invalid. Password must meet the specified requirements: "
-    "should not be empty, must have a length of at least 8 characters, and should not "
-    "contain the following characters: '-', '\\', \"'\", or '\"'"
+MISSING_REPO_CONFIGURATION_MSG = (
+    "Catalog package references repository '{reponame}' for architecture(s) {archs}, "
+    "but this repository is not configured in repo_manager_config.yml under "
+    "repositories.{cluster_os_version}.{{arch}}. Please add the repository configuration."
+)
+MISSING_REPO_URL_MSG = (
+    "Catalog-selected repository '{reponame}' for architecture '{arch}' has no "
+    "usable URL in repositories.{cluster_os_version}.{arch}"
+)
+MISSING_ARCH_SOURCE_MSG = (
+    "Catalog-selected package '{package_name}' has no source for architecture "
+    "'{arch}' or an explicit 'noarch' source"
+)
+RPM_REPO_NEVER_POLICY_MSG = (
+    "Catalog package '{package_name}' uses packagetype 'rpm_repo' from repository "
+    "'{reponame}' for architecture '{arch}', but its effective repository policy "
+    "is 'never'. Select 'always' or 'partial' for an rpm_repo package."
 )
 
-BMC_PASSWORD_FAIL_MSG = (
-    "Incorrect bmc_password format. Password must meet the specified requirements: "
-    "should not be empty, must have a length of at least 3 characters, and should not "
-    "contain the following characters: '-', '\\', \"'\", or '\"'"
-)
 
-DOCKER_PASSWORD_FAIL_MSG = "Docker password must not be empty."
-
-
-def bmc_username_fail_msg(min_username_length, max_length):
-    """Returns a formatted message indicating bmc_username_fail_msg."""
-    return (
-        f"bmc_username length must be between {min_username_length} and "
-        f"{max_length} characters. Must not contain '-', '\\', \"'\", or '\"'"
-    )
 
 # =============================================================================
 # BOOLEAN VALIDATION
 # =============================================================================
 
 
-def boolean_fail_msg(value):
-    """Returns a formatted message indicating boolean_fail_msg."""
-    return f"{value} must be set to either true or false."
 
 # =============================================================================
 # TLS/CERTIFICATE MESSAGES
 # =============================================================================
 
 
-def tls_ext_fail_msg(valid_extensions):
-    """Returns a formatted message indicating tls_ext_fail_msg."""
-    extensions_list = ' or '.join(valid_extensions)
-    return f"should have {extensions_list} extension"
 
 # =============================================================================
 # LOG FORMATTING

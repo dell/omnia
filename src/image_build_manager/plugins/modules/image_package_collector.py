@@ -30,7 +30,7 @@ DOCUMENTATION = r'''
 ---
 module: image_package_collector
 short_description: Collect RPM packages per functional group for image builds
-version_added: "3.0.0"
+version_added: "2.3.0"
 description:
   - Iterates over requested functional groups and collects RPM packages
     from architecture-specific JSON config files.

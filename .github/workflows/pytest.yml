@@ -29,13 +29,13 @@ jobs:
         run: |
           git fetch origin ${{ github.base_ref }}
           # Get all changed Python files in build_stream directory
-          # (including root level)
+          # (including root level and test directory)
           CHANGED=$(git diff --name-only --diff-filter=d \
             origin/${{ github.base_ref }} HEAD | \
-            grep '^src/build_stream/.*\.py$' || true)
+            grep -E '^(src/build_stream/.*\.py|test/build_stream/.*\.py)$' || true)
 
           FILES=$(echo "$CHANGED" | xargs)
-          echo "Changed src/build_stream Python files: $FILES"
+          echo "Changed build_stream Python files: $FILES"
 
           # Debug: show all changed files for troubleshooting
           echo "All changed files in PR:"
@@ -59,23 +59,25 @@ jobs:
 
       - name: Run unit tests with coverage
         if: steps.changed-files.outputs.files != ''
-        working-directory: src/build_stream
+        working-directory: test/build_stream/nft
         run: |
-          python -m pytest tests/unit/ -v --tb=short \
+          python -m pytest unit/ -v --tb=short \
             --junitxml=test-results.xml \
-            --cov=. \
+            --cov=../../src/build_stream \
             --cov-report=xml:coverage.xml \
             --cov-report=term-missing \
-            -m unit
+            -m unit \
+            -c pytest.github.ini
 
       - name: Check coverage threshold
         if: steps.changed-files.outputs.files != ''
-        working-directory: src/build_stream
+        working-directory: test/build_stream/nft
         run: |
-          python -m pytest tests/unit/ \
-            --cov=. \
+          python -m pytest unit/ \
+            --cov=../../src/build_stream \
             --cov-fail-under=${COVERAGE_THRESHOLD} \
-            -m unit -q --no-header 2>&1 | tail -5
+            -m unit -q --no-header \
+            -c pytest.github.ini 2>&1 | tail -5
           echo "Coverage threshold check: ${COVERAGE_THRESHOLD}% minimum"
 
       - name: Upload test results
@@ -83,14 +85,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: src/build_stream/test-results.xml
+          path: test/build_stream/nft/test-results.xml
 
       - name: Upload coverage report
         if: steps.changed-files.outputs.files != '' && always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: src/build_stream/coverage.xml
+          path: test/build_stream/nft/coverage.xml
 
       - name: No build_stream files changed
         if: steps.changed-files.outputs.files == ''

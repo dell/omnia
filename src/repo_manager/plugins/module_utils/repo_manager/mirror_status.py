@@ -18,8 +18,6 @@ Mirror status management for multi-catalog repo_manager.
 
 Handles:
 - pulp_mirror_index.json: Global mirror index with composite key hashes
-- Per-catalog status JSON files
-- CSV status files with catalog_name column (group_status.csv, package_status.csv)
 - Incremental mirroring with hash-based change detection
 - Rerun filtering based on status
 
@@ -28,52 +26,134 @@ All catalog keys are expected in lowercase (identifier, name).
 
 import os
 import json
-import csv
+import tempfile
 from datetime import datetime, timezone
 
-from ansible.module_utils.repo_manager.config import ARCH_SUFFIXES
+MIRROR_INDEX_SCHEMA_VERSION = 2
 
 
 # ---------------------------------------------------------------------------
 # Mirror Index (pulp_mirror_index.json)
 # ---------------------------------------------------------------------------
 
+def _empty_mirror_index():
+    """Return empty mirror index structure."""
+    return {
+        "MirrorIndex": {
+            "schema_version": MIRROR_INDEX_SCHEMA_VERSION,
+            "timestamp": "",
+            "summary": {
+                "total_unique": 0,
+                "mirrored": 0,
+                "failed": 0,
+                "pending": 0
+            },
+            "packages": {}
+        }
+    }
+
+
+def migrate_mirror_index(mirror_data, global_index, logger):
+    """Migrate legacy name-keyed entries to composite-hash keys in memory.
+
+    Existing status is preserved when its stored hash matches the current
+    global package index.  Entries no longer present in the catalog are retained
+    under their stored hash so cleanup can still remove them.  Identities that
+    were previously collapsed by a name collision remain absent and are
+    naturally scheduled as new work by change detection.
+
+    Returns:
+        bool: ``True`` when the in-memory structure changed.
+    """
+    mirror_root = mirror_data.setdefault("MirrorIndex", {})
+    packages = mirror_root.setdefault("packages", {})
+    schema_version = mirror_root.get("schema_version", 1)
+
+    already_current = (
+        schema_version == MIRROR_INDEX_SCHEMA_VERSION
+        and all(key == entry.get("hash") and entry.get("package_name")
+                for key, entry in packages.items())
+    )
+    if already_current:
+        return False
+
+    global_by_hash = {
+        composite_hash: pkg_info
+        for arch_packages in global_index.values()
+        for composite_hash, pkg_info in arch_packages.items()
+    }
+    migrated = {}
+    for legacy_key, legacy_entry in packages.items():
+        if not isinstance(legacy_entry, dict):
+            logger.warning("Skipping malformed mirror-index entry '%s'", legacy_key)
+            continue
+
+        entry = dict(legacy_entry)
+        composite_hash = entry.get("hash", "")
+        current = global_by_hash.get(composite_hash)
+        if current:
+            entry.update({
+                "package_name": current["package_name"],
+                "type": current["type"],
+                "version": current["version"],
+                "arch": current["arch"],
+                "hash": composite_hash,
+                "source": current.get("group_name", entry.get("source", "")),
+                "repo_name": current.get("repo_name", ""),
+                "catalogs": sorted(set(
+                    entry.get("catalogs", []) + current.get("catalogs", [])
+                )),
+            })
+        else:
+            entry.setdefault("package_name", legacy_key)
+
+        # Legacy files produced by Repo Manager already contain a composite
+        # hash. Preserve unmatched/stale entries by that hash for cleanup.
+        identity_key = composite_hash or f"legacy:{legacy_key}"
+        migrated[identity_key] = entry
+
+    mirror_root["packages"] = migrated
+    mirror_root["schema_version"] = MIRROR_INDEX_SCHEMA_VERSION
+    logger.info(
+        "Migrated mirror index from schema %s to %s (%d entries)",
+        schema_version, MIRROR_INDEX_SCHEMA_VERSION, len(migrated)
+    )
+    return True
+
 def load_mirror_index(mirror_index_path, logger):
-    """Load the global mirror index from disk.
+    """Load the global mirror index from disk with corrupted JSON handling.
 
     Args:
         mirror_index_path (str): Path to pulp_mirror_index.json.
         logger: Logger instance.
 
     Returns:
-        dict: Mirror index data, or empty structure if file doesn't exist.
+        dict: Mirror index data, or empty structure if file doesn't exist or is corrupted.
     """
     if not os.path.isfile(mirror_index_path):
         logger.info("Mirror index not found at %s, starting fresh", mirror_index_path)
-        return {
-            "MirrorIndex": {
-                "timestamp": "",
-                "summary": {
-                    "total_unique": 0,
-                    "mirrored": 0,
-                    "failed": 0,
-                    "pending": 0
-                },
-                "packages": {}
-            }
-        }
+        return _empty_mirror_index()
 
-    with open(mirror_index_path, 'r', encoding='utf-8') as fh:
-        data = json.load(fh)
+    try:
+        with open(mirror_index_path, 'r', encoding='utf-8') as fh:
+            data = json.load(fh)
 
-    logger.info("Loaded mirror index from %s with %d packages",
-                mirror_index_path,
-                len(data.get("MirrorIndex", {}).get("packages", {})))
-    return data
+        logger.info("Loaded mirror index from %s with %d packages",
+                    mirror_index_path,
+                    len(data.get("MirrorIndex", {}).get("packages", {})))
+        return data
+    except (json.JSONDecodeError, ValueError):
+        logger.error("Mirror index file is corrupted")
+        logger.info("Starting fresh with empty mirror index")
+        return _empty_mirror_index()
+    except Exception:
+        logger.error("Unable to load the mirror index")
+        logger.info("Starting fresh with empty mirror index")
+        return _empty_mirror_index()
 
 
 def save_mirror_index(mirror_index_path, mirror_data, logger):
-    """Save the global mirror index to disk.
+    """Save the global mirror index to disk using atomic write.
 
     Args:
         mirror_index_path (str): Path to pulp_mirror_index.json.
@@ -83,6 +163,7 @@ def save_mirror_index(mirror_index_path, mirror_data, logger):
     os.makedirs(os.path.dirname(mirror_index_path), exist_ok=True)
 
     # Update timestamp
+    mirror_data["MirrorIndex"]["schema_version"] = MIRROR_INDEX_SCHEMA_VERSION
     mirror_data["MirrorIndex"]["timestamp"] = datetime.now(timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ")
 
@@ -96,8 +177,12 @@ def save_mirror_index(mirror_index_path, mirror_data, logger):
     }
     mirror_data["MirrorIndex"]["summary"] = summary
 
-    with open(mirror_index_path, 'w', encoding='utf-8') as fh:
+    # Atomic write: write to temp file then replace
+    # Use unique temp filename per process to avoid race conditions in parallel execution
+    temp_path = f"{mirror_index_path}.tmp.{os.getpid()}"
+    with open(temp_path, 'w', encoding='utf-8') as fh:
         json.dump(mirror_data, fh, indent=2)
+    os.replace(temp_path, mirror_index_path)
 
     logger.info("Saved mirror index to %s: %d packages (mirrored=%d, failed=%d, pending=%d)",
                 mirror_index_path, summary["total_unique"],
@@ -126,7 +211,7 @@ def save_global_package_index(global_index_path, global_index, logger):
     total_packages = 0
     for arch, packages in global_index.items():
         arch_packages = []
-        for composite_hash, pkg_info in packages.items():
+        for _composite_hash, pkg_info in packages.items():
             arch_packages.append({
                 "package_name": pkg_info["package_name"],
                 "type": pkg_info["type"],
@@ -146,8 +231,26 @@ def save_global_package_index(global_index_path, global_index, logger):
 
     output_data["GlobalPackageIndex"]["summary"]["total"] = total_packages
 
-    with open(global_index_path, 'w', encoding='utf-8') as fh:
-        json.dump(output_data, fh, indent=2, sort_keys=False)
+    existing_mode = (
+        os.stat(global_index_path).st_mode & 0o777
+        if os.path.exists(global_index_path) else None
+    )
+    descriptor, temporary_path = tempfile.mkstemp(
+        prefix=f".{os.path.basename(global_index_path)}.",
+        suffix=".tmp",
+        dir=os.path.dirname(global_index_path),
+    )
+    try:
+        with os.fdopen(descriptor, 'w', encoding='utf-8') as fh:
+            json.dump(output_data, fh, indent=2, sort_keys=False)
+            fh.flush()
+            os.fsync(fh.fileno())
+        if existing_mode is not None:
+            os.chmod(temporary_path, existing_mode)
+        os.replace(temporary_path, global_index_path)
+    finally:
+        if os.path.exists(temporary_path):
+            os.unlink(temporary_path)
 
     logger.info("Saved global package index to %s: %d total packages across %d architectures",
                 global_index_path, total_packages, len(global_index))
@@ -171,24 +274,37 @@ def update_mirror_index_entry(mirror_data, package_name, pkg_type, version, arch
         repo_name (str): Repository name where package is sourced from.
     """
     packages = mirror_data["MirrorIndex"].setdefault("packages", {})
+    if not composite_hash:
+        raise ValueError(
+            f"Composite hash is required for mirror-index entry '{package_name}'"
+        )
 
-    if package_name in packages:
+    if composite_hash in packages:
         # Update existing entry
-        entry = packages[package_name]
-        entry["hash"] = composite_hash
+        entry = packages[composite_hash]
+        entry.update({
+            "package_name": package_name,
+            "type": pkg_type,
+            "version": version,
+            "arch": arch,
+            "hash": composite_hash,
+            "source": source,
+            "repo_name": repo_name,
+        })
         entry["status"] = status
         if status == "mirrored":
-            entry["last_mirrored"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            entry["last_mirrored"] = datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
         entry["error"] = error
-        if repo_name:
-            entry["repo_name"] = repo_name
         # Merge catalogs
         existing_catalogs = set(entry.get("catalogs", []))
         existing_catalogs.update(catalogs)
         entry["catalogs"] = sorted(existing_catalogs)
     else:
         # Create new entry
-        packages[package_name] = {
+        packages[composite_hash] = {
+            "package_name": package_name,
             "type": pkg_type,
             "version": version,
             "arch": arch,
@@ -196,10 +312,44 @@ def update_mirror_index_entry(mirror_data, package_name, pkg_type, version, arch
             "source": source,
             "repo_name": repo_name,
             "status": status,
-            "last_mirrored": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if status == "mirrored" else "",
+            "last_mirrored": (
+                datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                if status == "mirrored" else ""
+            ),
             "catalogs": sorted(set(catalogs)),
             "error": error
         }
+
+
+def find_mirror_entry(mirror_data, package_name, pkg_type, arch):
+    """Find one exact mirror entry for a status.csv package identity.
+
+    Image rows include the tag in ``package_name`` while mirror entries keep the
+    image name and tag/version in separate fields.  Type and architecture
+    disambiguate identities such as ``papi`` being both an RPM and a tarball.
+
+    Returns:
+        tuple[str, dict] | tuple[None, None]: Composite key and entry.
+    """
+    packages = mirror_data.get("MirrorIndex", {}).get("packages", {})
+    candidates = []
+    for identity_key, entry in packages.items():
+        if entry.get("type") != pkg_type or entry.get("arch") != arch:
+            continue
+
+        entry_name = entry.get("package_name", "")
+        if pkg_type == "image":
+            version = entry.get("version", "")
+            display_name = f"{entry_name}:{version}" if version else entry_name
+            if package_name not in (entry_name, display_name):
+                continue
+        elif package_name != entry_name:
+            continue
+        candidates.append((identity_key, entry))
+
+    if len(candidates) == 1:
+        return candidates[0]
+    return None, None
 
 
 # ---------------------------------------------------------------------------
@@ -232,7 +382,7 @@ def detect_package_changes(global_index, mirror_data, arch, logger):
     arch_index = global_index.get(arch, {})
     for composite_hash, pkg_info in arch_index.items():
         pkg_name = pkg_info["package_name"]
-        existing = existing_packages.get(pkg_name)
+        existing = existing_packages.get(composite_hash)
 
         if existing is None:
             # New package - needs mirroring
@@ -289,246 +439,3 @@ def filter_tasks_for_processing(change_results, logger):
                 len(change_results["re_mirror"]),
                 len(change_results["retry"]))
     return to_process
-
-
-# ---------------------------------------------------------------------------
-# Per-Catalog Status Files
-# ---------------------------------------------------------------------------
-
-def load_catalog_status(status_path, logger):
-    """Load a per-catalog status JSON file.
-
-    Args:
-        status_path (str): Path to the catalog status JSON file.
-        logger: Logger instance.
-
-    Returns:
-        dict: Catalog status data or empty structure.
-    """
-    if not os.path.isfile(status_path):
-        return {
-            "MirrorStatus": {
-                "catalog": "",
-                "identifier": "",
-                "timestamp": "",
-                "summary": {"total": 0, "mirrored": 0, "failed": 0, "skipped": 0},
-                "packages": {}
-            }
-        }
-
-    with open(status_path, 'r', encoding='utf-8') as fh:
-        return json.load(fh)
-
-
-def save_catalog_status(status_path, catalog_status, logger):
-    """Save a per-catalog status JSON file.
-
-    Args:
-        status_path (str): Path to save the catalog status file.
-        catalog_status (dict): Catalog status data.
-        logger: Logger instance.
-    """
-    os.makedirs(os.path.dirname(status_path), exist_ok=True)
-
-    # Update timestamp
-    catalog_status["MirrorStatus"]["timestamp"] = datetime.now(timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%SZ")
-
-    # Update summary
-    packages = catalog_status["MirrorStatus"].get("packages", {})
-    catalog_status["MirrorStatus"]["summary"] = {
-        "total": len(packages),
-        "mirrored": sum(1 for p in packages.values() if p.get("status") == "mirrored"),
-        "failed": sum(1 for p in packages.values() if p.get("status") == "failed"),
-        "skipped": sum(1 for p in packages.values() if p.get("status") == "skipped"),
-    }
-
-    with open(status_path, 'w', encoding='utf-8') as fh:
-        json.dump(catalog_status, fh, indent=2)
-
-    logger.info("Saved catalog status to %s", status_path)
-
-
-def update_catalog_status_entry(catalog_status, package_name, pkg_type, version,
-                                 composite_hash, status, error=""):
-    """Update a package entry in a per-catalog status file.
-
-    Args:
-        catalog_status (dict): Catalog status data (modified in place).
-        package_name (str): Package name.
-        pkg_type (str): Package type.
-        version (str): Package version.
-        composite_hash (str): Composite key hash.
-        status (str): Status (mirrored/failed/skipped).
-        error (str): Error message if failed.
-    """
-    packages = catalog_status["MirrorStatus"].setdefault("packages", {})
-    packages[package_name] = {
-        "type": pkg_type,
-        "version": version,
-        "hash": composite_hash,
-        "status": status,
-        "last_mirrored": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if status == "mirrored" else "",
-        "error": error
-    }
-
-
-# ---------------------------------------------------------------------------
-# CSV Status Files
-# ---------------------------------------------------------------------------
-
-PACKAGE_STATUS_CSV_HEADER = "name,type,repo_name,status,catalog_name\n"
-GROUP_STATUS_CSV_HEADER = "name,status\n"
-
-
-def write_package_status_csv(csv_path, entries, logger):
-    """Write package status CSV file with catalog_name column.
-
-    Args:
-        csv_path (str): Path to the package_status.csv file.
-        entries (list[dict]): List of dicts with keys: name, type, repo_name, status, catalog_name.
-        logger: Logger instance.
-    """
-    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
-
-    with open(csv_path, 'w', encoding='utf-8', newline='') as fh:
-        fh.write(PACKAGE_STATUS_CSV_HEADER)
-        for entry in entries:
-            line = f"{entry.get('name', '')},{entry.get('type', '')}," \
-                   f"{entry.get('repo_name', '')},{entry.get('status', '')}," \
-                   f"{entry.get('catalog_name', '')}\n"
-            fh.write(line)
-
-    logger.info("Wrote package status CSV to %s with %d entries", csv_path, len(entries))
-
-
-def write_group_status_csv(csv_path, groups, logger):
-    """Write group status CSV file.
-
-    Args:
-        csv_path (str): Path to the group_status.csv file.
-        groups (list[dict]): List of dicts with keys: name, status.
-        logger: Logger instance.
-    """
-    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
-
-    with open(csv_path, 'w', encoding='utf-8', newline='') as fh:
-        fh.write(GROUP_STATUS_CSV_HEADER)
-        for group in groups:
-            fh.write(f"{group.get('name', '')},{group.get('status', '')}\n")
-
-    logger.info("Wrote group status CSV to %s with %d entries", csv_path, len(groups))
-
-
-# ---------------------------------------------------------------------------
-# Status File Generation (Post-Execution)
-# ---------------------------------------------------------------------------
-
-def generate_multi_catalog_status(global_index, mirror_data, catalogs,
-                                   status_base_dir, logger):
-    """Generate all status files after multi-catalog processing.
-
-    Creates:
-    - Updated pulp_mirror_index.json (already updated during processing)
-    - Per-catalog status JSON files
-    - Per-catalog CSV status files (group_status.csv, package_status.csv)
-
-    Args:
-        global_index (dict): Global package index.
-        mirror_data (dict): Mirror index data (already updated with results).
-        catalogs (list[dict]): List of loaded catalogs (lowercase keys).
-        status_base_dir (str): Base directory for status files.
-        logger: Logger instance.
-    """
-    existing_packages = mirror_data.get("MirrorIndex", {}).get("packages", {})
-
-    for catalog in catalogs:
-        catalog_id = catalog["identifier"]
-        catalog_name = catalog["name"]
-        catalog_file = catalog.get("_source_file", "")
-
-        # Create per-catalog status
-        catalog_status = {
-            "MirrorStatus": {
-                "catalog": catalog_file,
-                "identifier": catalog_id,
-                "timestamp": "",
-                "summary": {},
-                "packages": {}
-            }
-        }
-
-        # Populate packages for this catalog
-        for pkg_name, pkg_info in existing_packages.items():
-            if catalog_id in pkg_info.get("catalogs", []):
-                update_catalog_status_entry(
-                    catalog_status,
-                    pkg_name,
-                    pkg_info.get("type", ""),
-                    pkg_info.get("version", ""),
-                    pkg_info.get("hash", ""),
-                    pkg_info.get("status", "pending"),
-                    pkg_info.get("error", "")
-                )
-
-        # Save per-catalog status JSON
-        # Derive OS type from catalog identifier (e.g., "omnia-services-rhel-10-0" -> "rhel")
-        os_type = "rhel"  # default
-        for part in catalog_id.split("-"):
-            if part in ("rhel"):
-                os_type = part
-                break
-
-        catalog_status_dir = os.path.join(status_base_dir, "mirror_status", os_type)
-        catalog_status_file = os.path.join(
-            catalog_status_dir,
-            f"{catalog_id.replace('-', '_')}_catalog_status.json"
-        )
-        save_catalog_status(catalog_status_file, catalog_status, logger)
-
-        # Generate CSV status files per arch/group
-        for arch in ARCH_SUFFIXES:
-            arch_index = global_index.get(arch, {})
-            # Collect groups and their packages for this catalog
-            groups_packages = {}  # group_name -> list of pkg entries
-            for _hash, pkg_info in arch_index.items():
-                if catalog_id in pkg_info.get("catalogs", []):
-                    group = pkg_info["group_name"]
-                    if group not in groups_packages:
-                        groups_packages[group] = []
-                    pkg_name = pkg_info["package_name"]
-                    mirror_entry = existing_packages.get(pkg_name, {})
-                    groups_packages[group].append({
-                        "name": pkg_name,
-                        "type": pkg_info["type"],
-                        "repo_name": mirror_entry.get("source", ""),
-                        "status": "Success" if mirror_entry.get("status") == "mirrored" else "Failed",
-                        "catalog_name": catalog_name,
-                    })
-
-            if not groups_packages:
-                continue
-
-            # Sanitize catalog name for directory
-            catalog_dir_name = f"catalog_{catalog_name.replace(' ', '_').replace('-', '_').lower()}"
-            csv_base = os.path.join(status_base_dir, catalog_dir_name, arch)
-
-            # Write group_status.csv
-            group_entries = []
-            for group_name, pkgs in groups_packages.items():
-                all_success = all(p["status"] == "Success" for p in pkgs)
-                group_entries.append({
-                    "name": group_name,
-                    "status": "success" if all_success else "failed"
-                })
-            write_group_status_csv(
-                os.path.join(csv_base, "group_status.csv"),
-                group_entries, logger)
-
-            # Write per-group package_status.csv
-            for group_name, pkgs in groups_packages.items():
-                write_package_status_csv(
-                    os.path.join(csv_base, group_name, "package_status.csv"),
-                    pkgs, logger)
-
-    logger.info("Generated multi-catalog status files in %s", status_base_dir)

@@ -38,7 +38,7 @@ def validate_test_config() -> Dict[str, Any]:
     errors: List[str] = []
     warnings: List[str] = []
 
-    # clone_path: required for remote mode, optional for local mode
+    # clone_path: required for remote mode, ignored in local mode
     clone_path = config.get("clone_path", "")
     server_ip = config.get("oim_server_ip", "")
     if not clone_path:
@@ -47,11 +47,7 @@ def validate_test_config() -> Dict[str, Any]:
             errors.append(
                 "clone_path is required for remote mode (path to omnia repo on target)"
             )
-        else:
-            # Local mode: warn but don't error (test functions have default)
-            warnings.append(
-                "clone_path not set — using default '/root/omnia'"
-            )
+        # Local mode: clone_path is not needed (resolved from source tree)
     elif not clone_path.startswith("/"):
         errors.append(
             f"clone_path must be absolute: '{clone_path}'"
@@ -61,20 +57,6 @@ def validate_test_config() -> Dict[str, Any]:
     if not server_ip:
         warnings.append(
             "oim_server_ip is empty — running in local mode"
-        )
-
-    # omnia_data_path must start with /
-    data_path = config.get("omnia_data_path", "/opt/omnia")
-    if not data_path.startswith("/"):
-        errors.append(
-            f"omnia_data_path must be absolute: '{data_path}'"
-        )
-
-    # venv_path must start with /
-    venv_path = config.get("venv_path", "/opt/omnia/venv")
-    if not venv_path.startswith("/"):
-        errors.append(
-            f"venv_path must be absolute: '{venv_path}'"
         )
 
     return {

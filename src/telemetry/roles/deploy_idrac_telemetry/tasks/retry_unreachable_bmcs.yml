@@ -22,6 +22,7 @@
 
 - name: Validate unreachable BMCs from second worker node
   update_bmc_group_entry:
+    csv_path: "{{ bmc_group_data_filename }}"
     nodes: "{{ retry_bmc_ip_dict_list }}"
     bmc_username: "{{ telemetry_credentials.bmc_username }}"
     bmc_password: "{{ telemetry_credentials.bmc_password }}"

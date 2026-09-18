@@ -1,0 +1,37 @@
+# yamllint configuration for omnia.telemetry Galaxy collection
+# K8s manifest templates and Helm charts use Go/Jinja2 templating
+# that produces false-positive brace-spacing and line-length warnings.
+---
+extends: default
+
+rules:
+  # Jinja2 templates ({{ }}) and Go templates cause false positives
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+  # K8s manifests and inline Jinja2 expressions create long lines
+  line-length:
+    max: 300
+    allow-non-breakable-inline-mappings: true
+  # Ansible playbooks commonly use truthy values (yes/no, true/false)
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no']
+  # Comments may not always have a space after #
+  comments:
+    min-spaces-from-content: 1
+    require-starting-space: false
+  # Allow document start markers to be absent
+  document-start: disable
+  # Indentation — match Ansible conventions
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+
+ignore:
+  # Helm chart templates use Go templating — not valid YAML for linting
+  - "roles/deploy_ldms/files/nersc-ldms-aggr/"
+  # Sample files are user-facing and may not conform
+  - "samples/"

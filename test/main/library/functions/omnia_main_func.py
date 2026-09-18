@@ -21,14 +21,21 @@ installation, venv creation, domain initialization, and CLI behavior.
 All functions return a dict with keys: success, details, error.
 """
 
+import os
 import time
 from typing import Any, Dict, List
 
-from omnia_auto import load_test_config, run_on_host
-
+from omnia_auto import (
+    is_local_execution,
+    load_test_config,
+    read_remote_env,
+    run_on_host,
+)
 from ..vars.common_vars import (
     CMDS,
+    REPO_ROOT,
     OMNIA_SH_PATH,
+    OMNIA_ENV_PATH,
     OMNIA_CLI_PATH,
     OMNIA_RELEASE,
     SYSTEM_ENV_FILE,
@@ -36,8 +43,105 @@ from ..vars.common_vars import (
     BASE_DIRS,
     DOMAINS_WITH_INIT,
     OPTIONAL_ENV_VARS,
+    RUNTIME_PATH_ENV_VARS,
     OMNIA_CLI_HELP_SECTIONS,
 )
+
+
+# =============================================================================
+# CLONE PATH RESOLUTION
+# =============================================================================
+
+def _resolve_clone_path() -> str:
+    """Resolve the clone path for omnia.sh commands.
+
+    Matches the IBM pattern used in ``omnia_auto.run_playbook``:
+    - **Local mode**: Returns the local repo root (computed from the
+      source tree).  ``clone_path`` in test_config.yml is ignored
+      because it refers to a path on the *remote* server.
+    - **Remote mode**: Returns ``clone_path`` from test_config.yml
+      (the path where the project is synced on the target server).
+
+    Returns:
+        Absolute path to use as ``clone_path`` in shell commands.
+    """
+    if is_local_execution():
+        return REPO_ROOT
+    config = load_test_config()
+    clone_path = config.get("clone_path", "")
+    if not clone_path:
+        raise ValueError(
+            "'clone_path' must be set in test_config.yml "
+            "for remote execution (oim_server_ip is set)"
+        )
+    return clone_path
+
+
+def resolve_runtime_paths(host) -> Dict[str, str]:
+    """Resolve Omnia runtime paths from the target environment.
+
+    The installed environment is authoritative. During initial bootstrap,
+    before it exists, values are read from the source ``omnia.env``. Omnia's
+    production defaults are used only when neither file provides a value.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict containing ``data_path``, ``project_name``, and ``venv_path``.
+    """
+    source_env = f"{_resolve_clone_path()}/{OMNIA_ENV_PATH}"
+    resolved: Dict[str, str] = {}
+
+    for key, var_name in RUNTIME_PATH_ENV_VARS.items():
+        try:
+            value = read_remote_env(host, var_name, SYSTEM_ENV_FILE)
+        except ValueError:
+            try:
+                value = read_remote_env(host, var_name, source_env)
+            except ValueError:
+                value = OPTIONAL_ENV_VARS[var_name]
+        resolved[key] = value
+
+    return resolved
+
+
+# =============================================================================
+# VENV DETECTION
+# =============================================================================
+
+def is_running_from_omnia_venv(host=None) -> bool:
+    """Check if tests are running from the omnia production venv.
+
+    Compares the active VIRTUAL_ENV against ``OMNIA_VENV_PATH``. When they
+    match, destructive operations
+    like --setup-venv and --cleanup must be skipped because they would
+    destroy the interpreter that is currently executing the test suite.
+
+    Uses both os.path.realpath and normpath to handle symlinks and
+    trailing slashes consistently.
+
+    Returns:
+        True if the active venv IS the omnia production venv.
+        False if running from test/main/.venv or no venv is active.
+    """
+    active_venv = os.environ.get("VIRTUAL_ENV", "")
+    if not active_venv:
+        return False
+    if host is None:
+        omnia_venv = os.environ.get(
+            "OMNIA_VENV_PATH", OPTIONAL_ENV_VARS["OMNIA_VENV_PATH"]
+        )
+    else:
+        omnia_venv = resolve_runtime_paths(host)["venv_path"]
+
+    # Normalize both paths: resolve symlinks AND strip trailing slashes
+    active_norm = os.path.normpath(os.path.realpath(active_venv))
+    omnia_norm = os.path.normpath(os.path.realpath(omnia_venv))
+
+    # Also check if active venv starts with the omnia venv path
+    # (handles cases like /opt/omnia/venv vs /opt/omnia/venv/)
+    return active_norm == omnia_norm or active_norm.startswith(omnia_norm + os.sep)
 
 
 # =============================================================================
@@ -47,6 +151,9 @@ from ..vars.common_vars import (
 def run_omnia_cmd(host, cmd_key: str, **kwargs) -> Dict[str, Any]:
     """Run an omnia.sh command on the target host.
 
+    Uses ``_resolve_clone_path()`` so that local mode resolves paths
+    from the source tree and remote mode uses ``clone_path`` from config.
+
     Args:
         host: Testinfra host connection.
         cmd_key: Key into the CMDS dict.
@@ -55,12 +162,7 @@ def run_omnia_cmd(host, cmd_key: str, **kwargs) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, rc, output, duration, error.
     """
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
-    if not clone_path:
-        import os
-        clone_path = os.getcwd()
-    kwargs.setdefault("clone_path", clone_path)
+    kwargs.setdefault("clone_path", _resolve_clone_path())
     kwargs.setdefault("omnia_sh", OMNIA_SH_PATH)
 
     cmd = CMDS[cmd_key].format(**kwargs)
@@ -70,6 +172,7 @@ def run_omnia_cmd(host, cmd_key: str, **kwargs) -> Dict[str, Any]:
 
     return {
         "success": result.rc == 0,
+        "command": cmd,
         "rc": result.rc,
         "output": result.stdout.strip(),
         "duration": duration,
@@ -82,6 +185,9 @@ def run_omnia_cmd_expect_error(
 ) -> Dict[str, Any]:
     """Run an omnia.sh command expecting a non-zero exit code.
 
+    Uses ``_resolve_clone_path()`` so that local mode resolves paths
+    from the source tree and remote mode uses ``clone_path`` from config.
+
     Args:
         host: Testinfra host connection.
         cmd_key: Key into the CMDS dict.
@@ -90,12 +196,7 @@ def run_omnia_cmd_expect_error(
     Returns:
         Dict with keys: success (True if rc!=0), rc, output, error.
     """
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
-    if not clone_path:
-        import os
-        clone_path = os.getcwd()
-    kwargs.setdefault("clone_path", clone_path)
+    kwargs.setdefault("clone_path", _resolve_clone_path())
     kwargs.setdefault("omnia_sh", OMNIA_SH_PATH)
 
     cmd = CMDS[cmd_key].format(**kwargs)
@@ -103,9 +204,72 @@ def run_omnia_cmd_expect_error(
 
     return {
         "success": result.rc != 0,
+        "expected_error": True,
+        "command": cmd,
         "rc": result.rc,
         "output": result.stdout.strip(),
         "error": result.stderr.strip(),
+    }
+
+
+# =============================================================================
+# ENVIRONMENT VALIDATION (source-level)
+# =============================================================================
+
+def check_env_source_validation(host) -> Dict[str, Any]:
+    """Verify validate_env_source rejects a bad env file.
+
+    Creates a temp copy of omnia.env with SYSTEM_ADMIN_NIC_IPV4
+    blanked out, then calls validate_env_source on it.
+    Expects a non-zero exit code.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, details, error, rc.
+    """
+    clone_path = _resolve_clone_path()
+
+    omnia_sh = f"{clone_path}/{OMNIA_SH_PATH}"
+    omnia_env = f"{clone_path}/src/main/omnia.env"
+
+    # Create a temp env file with empty SYSTEM_ADMIN_NIC_IPV4, then source the
+    # guarded omnia.sh and call validate_env_source directly.
+    cmd = (
+        f"bash -c '"
+        f"tmp=$(mktemp); "
+        f"trap \"rm -f \\\"$tmp\\\"\" EXIT; "
+        f"sed \"s/^SYSTEM_ADMIN_NIC_IPV4=.*/SYSTEM_ADMIN_NIC_IPV4=/\" "
+        f"{omnia_env} > \"$tmp\"; "
+        f"source {omnia_sh}; set +e; "
+        f"validate_env_source \"$tmp\"; "
+        f"rc=$?; exit $rc"
+        f"' 2>&1"
+    )
+    result = run_on_host(host, cmd)
+
+    # validate_env_source should exit 1 for a blank IP
+    rejected = result.rc != 0
+
+    if rejected:
+        return {
+            "success": True,
+            "details": (
+                "validate_env_source correctly rejected "
+                "empty SYSTEM_ADMIN_NIC_IPV4"
+            ),
+            "error": "",
+            "rc": result.rc,
+        }
+    return {
+        "success": False,
+        "details": "",
+        "error": (
+            "validate_env_source accepted empty "
+            "SYSTEM_ADMIN_NIC_IPV4 (should have failed)"
+        ),
+        "rc": result.rc,
     }
 
 
@@ -215,8 +379,7 @@ def check_venv_created(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, details, error.
     """
-    config = load_test_config()
-    venv_path = config.get("venv_path", "/opt/omnia/venv")
+    venv_path = resolve_runtime_paths(host)["venv_path"]
 
     activate = f"{venv_path}/bin/activate"
     cmd = CMDS["file_exists"].format(path=activate)
@@ -244,8 +407,7 @@ def check_ansible_available(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, details, error.
     """
-    config = load_test_config()
-    venv_path = config.get("venv_path", "/opt/omnia/venv")
+    venv_path = resolve_runtime_paths(host)["venv_path"]
 
     cmd = CMDS["venv_ansible_version"].format(venv_path=venv_path)
     result = run_on_host(host, cmd)
@@ -277,10 +439,7 @@ def check_base_dirs_created(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, details, error, missing.
     """
-    config = load_test_config()
-    data_path = config.get(
-        "omnia_data_path", "/opt/omnia"
-    )
+    data_path = resolve_runtime_paths(host)["data_path"]
 
     missing: List[str] = []
     present: List[str] = []
@@ -318,10 +477,7 @@ def check_activate_helper(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, details, error.
     """
-    config = load_test_config()
-    data_path = config.get(
-        "omnia_data_path", "/opt/omnia"
-    )
+    data_path = resolve_runtime_paths(host)["data_path"]
     helper_path = f"{data_path}/activate-omnia.sh"
 
     cmd = CMDS["file_exists"].format(path=helper_path)
@@ -344,19 +500,24 @@ def check_activate_helper(host) -> Dict[str, Any]:
 # DOMAIN INIT VERIFICATION
 # =============================================================================
 
-def check_domain_log_dirs(host) -> Dict[str, Any]:
+def check_domain_log_dirs(
+    host, domains: List[str] = None
+) -> Dict[str, Any]:
     """Verify domain log directories created under /var/log/omnia/.
 
     Args:
         host: Testinfra host connection.
+        domains: Optional list of domains to check.
+                 Defaults to DOMAINS_WITH_INIT (all domains).
 
     Returns:
-        Dict with keys: success, details, error, missing.
+        Dict with keys: success, details, error, missing, found.
     """
     missing: List[str] = []
     present: List[str] = []
 
-    for domain in DOMAINS_WITH_INIT:
+    check_domains = domains if domains is not None else DOMAINS_WITH_INIT
+    for domain in check_domains:
         cmd = CMDS["domain_log_dir_exists"].format(domain=domain)
         result = run_on_host(host, cmd)
         log_dir = f"/var/log/omnia/{domain}"
@@ -371,12 +532,14 @@ def check_domain_log_dirs(host) -> Dict[str, Any]:
             "details": f"{len(present)} log directories present",
             "error": "",
             "missing": [],
+            "found": present,
         }
     return {
         "success": False,
         "details": f"{len(present)} present, {len(missing)} missing",
         "error": f"Missing: {', '.join(missing)}",
         "missing": missing,
+        "found": present,
     }
 
 
@@ -392,13 +555,9 @@ def check_domain_input_staged(
     Returns:
         Dict with keys: success, details, error.
     """
-    config = load_test_config()
-    data_path = config.get(
-        "omnia_data_path", "/opt/omnia"
-    )
-    project = config.get(
-        "project_name", "project_default"
-    )
+    runtime = resolve_runtime_paths(host)
+    data_path = runtime["data_path"]
+    project = runtime["project_name"]
 
     cmd = CMDS["domain_input_file_count"].format(
         data_path=data_path,
@@ -418,11 +577,66 @@ def check_domain_input_staged(
             "success": True,
             "details": f"{file_count} file(s) for {domain}",
             "error": "",
+            "file_count": file_count,
         }
     return {
         "success": False,
         "details": "",
         "error": f"No input files staged for {domain}",
+        "file_count": 0,
+    }
+
+
+def check_domain_output_dirs(
+    host,
+) -> Dict[str, Any]:
+    """Verify domain output directories created by domain-init.sh.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, details, error, missing.
+    """
+    runtime = resolve_runtime_paths(host)
+    data_path = runtime["data_path"]
+    project = runtime["project_name"]
+
+    missing: List[str] = []
+    present: List[str] = []
+
+    for domain in DOMAINS_WITH_INIT:
+        cmd = CMDS["domain_output_dir_exists"].format(
+            data_path=data_path,
+            domain=domain,
+            project=project,
+        )
+        result = run_on_host(host, cmd)
+        output_dir = (
+            f"{data_path}/{domain}/output/{project}"
+        )
+        if "exists" in result.stdout:
+            present.append(output_dir)
+        else:
+            missing.append(output_dir)
+
+    if not missing:
+        return {
+            "success": True,
+            "details": (
+                f"{len(present)} output directories present"
+            ),
+            "error": "",
+            "missing": [],
+        }
+    return {
+        "success": False,
+        "details": (
+            f"{len(present)} present, "
+            f"{len(missing)} missing"
+        ),
+        "error": f"Missing: {', '.join(missing)}",
+        "missing": missing,
     }
 
 
@@ -444,7 +658,7 @@ def check_help_output(host) -> Dict[str, Any]:
 
     expected_sections = [
         "USAGE:",
-        "SETUP COMMANDS:",
+        "SETUP COMMANDS",
         "EXECUTION COMMANDS:",
         "OPTIONS:",
         "DOMAINS:",
@@ -489,87 +703,6 @@ def check_error_contains(
 # VENV CONTENT VERIFICATION
 # =============================================================================
 
-def check_pip_packages(host) -> Dict[str, Any]:
-    """Verify expected pip packages installed in venv.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, details, error, missing.
-    """
-    config = load_test_config()
-    venv_path = config.get("venv_path", "/opt/omnia/venv")
-
-    cmd = CMDS["venv_pip_list"].format(venv_path=venv_path)
-    result = run_on_host(host, cmd)
-    output = result.stdout.lower()
-
-    expected_packages = [
-        "ansible-core",
-    ]
-
-    missing: List[str] = []
-    found: List[str] = []
-
-    for pkg in expected_packages:
-        if pkg.lower() in output:
-            found.append(pkg)
-        else:
-            missing.append(pkg)
-
-    if not missing:
-        return {
-            "success": True,
-            "details": ", ".join(found),
-            "error": "",
-            "missing": [],
-        }
-    return {
-        "success": False,
-        "details": f"{len(found)} found, {len(missing)} missing",
-        "error": f"Missing: {', '.join(missing)}",
-        "missing": missing,
-    }
-
-
-def check_galaxy_collections(host) -> Dict[str, Any]:
-    """Verify Galaxy collections installed in venv.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, details, error.
-    """
-    config = load_test_config()
-    venv_path = config.get("venv_path", "/opt/omnia/venv")
-
-    cmd = CMDS["venv_galaxy_list"].format(venv_path=venv_path)
-    result = run_on_host(host, cmd)
-    output = result.stdout.strip()
-
-    # Count collection lines (format: namespace.name  version)
-    lines = [
-        ln for ln in output.split("\n")
-        if ln.strip() and "." in ln.split()[0]
-        if not ln.startswith("#")
-    ]
-
-    if lines:
-        return {
-            "success": True,
-            "details": f"{len(lines)} collection(s)",
-            "error": "",
-        }
-    return {
-        "success": False,
-        "details": "",
-        "error": "No Galaxy collections found",
-    }
-
-
-# =============================================================================
 # OMNIA-CLI VERIFICATION
 # =============================================================================
 
@@ -577,6 +710,9 @@ def run_omnia_cli_cmd(
     host, cmd_key: str, **kwargs
 ) -> Dict[str, Any]:
     """Run an omnia-cli command on the target host.
+
+    Uses ``_resolve_clone_path()`` so that local mode resolves paths
+    from the source tree and remote mode uses ``clone_path`` from config.
 
     Args:
         host: Testinfra host connection.
@@ -586,12 +722,7 @@ def run_omnia_cli_cmd(
     Returns:
         Dict with keys: success, rc, output, error.
     """
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
-    if not clone_path:
-        import os
-        clone_path = os.getcwd()
-    kwargs.setdefault("clone_path", clone_path)
+    kwargs.setdefault("clone_path", _resolve_clone_path())
     kwargs.setdefault("omnia_cli", OMNIA_CLI_PATH)
 
     cmd = CMDS[cmd_key].format(**kwargs)
@@ -599,6 +730,7 @@ def run_omnia_cli_cmd(
 
     return {
         "success": result.rc == 0,
+        "command": cmd,
         "rc": result.rc,
         "output": result.stdout.strip(),
         "error": result.stderr.strip() if result.rc != 0 else "",
@@ -610,6 +742,9 @@ def run_omnia_cli_expect_error(
 ) -> Dict[str, Any]:
     """Run an omnia-cli command expecting a non-zero exit code.
 
+    Uses ``_resolve_clone_path()`` so that local mode resolves paths
+    from the source tree and remote mode uses ``clone_path`` from config.
+
     Args:
         host: Testinfra host connection.
         cmd_key: Key into the CMDS dict.
@@ -618,12 +753,7 @@ def run_omnia_cli_expect_error(
     Returns:
         Dict with keys: success (True if rc!=0), rc, output, error.
     """
-    config = load_test_config()
-    clone_path = config.get("clone_path", "")
-    if not clone_path:
-        import os
-        clone_path = os.getcwd()
-    kwargs.setdefault("clone_path", clone_path)
+    kwargs.setdefault("clone_path", _resolve_clone_path())
     kwargs.setdefault("omnia_cli", OMNIA_CLI_PATH)
 
     cmd = CMDS[cmd_key].format(**kwargs)
@@ -631,6 +761,8 @@ def run_omnia_cli_expect_error(
 
     return {
         "success": result.rc != 0,
+        "expected_error": True,
+        "command": cmd,
         "rc": result.rc,
         "output": result.stdout.strip(),
         "error": result.stderr.strip(),

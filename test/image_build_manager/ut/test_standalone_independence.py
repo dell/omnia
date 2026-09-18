@@ -19,7 +19,8 @@ import re
 import yaml
 
 
-SRC_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "src"
+# ut/test_standalone_... -> ut/ -> image_build_manager/ -> test/ -> repo_root/
+SRC_DIR = pathlib.Path(__file__).resolve().parents[3] / "src" / "image_build_manager"
 
 
 class TestNoExternalDependencies:
@@ -96,41 +97,38 @@ class TestRepoStructure:
     """Validate the expected standalone repository structure."""
 
     def test_input_dir_exists(self):
-        """input/project_default/ must exist."""
-        assert (SRC_DIR / "input" / "project_default").is_dir()
-
-    def test_repo_manager_output_dir_exists(self):
-        """repo_manager_output/ must exist."""
-        assert (SRC_DIR / "input" / "project_default" / "repo_manager_output").is_dir()
-
-    def test_certs_dir_exists(self):
-        """repo_manager_output/certs/ must exist."""
-        assert (SRC_DIR / "input" / "project_default" / "repo_manager_output" / "certs").is_dir()
-
-    def test_functional_group_packages_exists(self):
-        """functional_group_packages.yml must exist."""
-        assert (
-            SRC_DIR / "input" / "project_default" / "repo_manager_output"
-            / "functional_group_packages.yml"
-        ).exists()
+        """input/ directory must exist with config templates."""
+        assert (SRC_DIR / "input").is_dir()
 
     def test_image_build_config_exists(self):
-        """image_build_config.yml must exist."""
-        assert (SRC_DIR / "input" / "project_default" / "image_build_config.yml").exists()
+        """image_build_config.yml template must exist in input/."""
+        assert (SRC_DIR / "input" / "image_build_config.yml").exists()
 
-    def test_repo_status_exists(self):
-        """repo_status.yml must exist."""
+    def test_package_groups_exists(self):
+        """package_groups.yml template must exist in input/."""
+        assert (SRC_DIR / "input" / "package_groups.yml").exists()
+
+    def test_samples_dir_exists(self):
+        """samples/repo_manager_output/ must exist."""
+        assert (SRC_DIR / "samples" / "repo_manager_output").is_dir()
+
+    def test_sample_repo_status_exists(self):
+        """repo_status.yml sample must exist."""
         assert (
-            SRC_DIR / "input" / "project_default" / "repo_manager_output" / "repo_status.yml"
+            SRC_DIR / "samples" / "repo_manager_output" / "repo_status.yml"
         ).exists()
+
+    def test_package_groups_in_input(self):
+        """package_groups.yml must exist in input/ (functional group mapping)."""
+        assert (SRC_DIR / "input" / "package_groups.yml").exists()
 
     def test_ansible_cfg_exists(self):
         """ansible.cfg must exist."""
         assert (SRC_DIR / "ansible.cfg").exists()
 
     def test_main_playbook_exists(self):
-        """image_build_manager.yml must exist."""
-        assert (SRC_DIR / "image_build_manager.yml").exists()
+        """Main playbook must exist in playbooks/."""
+        assert (SRC_DIR / "playbooks" / "image_build_manager.yml").exists()
 
     def test_all_roles_have_tasks(self):
         """Every role directory must have tasks/main.yml."""

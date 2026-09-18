@@ -55,15 +55,26 @@ def _validate_aarch64_config(config_data, errors, logger=None):
 
     Rules:
     - If aarch64_inventory_host_ip is set, aarch64_ssh_user must also be set.
+    - aarch64_inventory_host_ip must not be a reserved address (loopback,
+      unspecified, or broadcast).
     - aarch64_inventory_host_ip format is already validated by L1 schema regex.
     """
     host_ip = config_data.get("aarch64_inventory_host_ip", "")
     ssh_user = config_data.get("aarch64_ssh_user", "")
 
-    if host_ip and not ssh_user:
-        errors.append(msg.AARCH64_SSH_USER_REQUIRED_MSG)
-        if logger:
-            logger.error(msg.AARCH64_SSH_USER_REQUIRED_MSG)
+    if host_ip and host_ip.strip():
+        # Check for reserved/unusable IPs
+        reserved_ips = {"127.0.0.1", "255.255.255.255"}
+        if host_ip.strip() in reserved_ips:
+            error = msg.aarch64_reserved_ip_msg(host_ip.strip())
+            errors.append(error)
+            if logger:
+                logger.error(error)
+
+        if not ssh_user:
+            errors.append(msg.AARCH64_SSH_USER_REQUIRED_MSG)
+            if logger:
+                logger.error(msg.AARCH64_SSH_USER_REQUIRED_MSG)
 
 
 def _validate_build_image_settings(config_data, errors, logger=None):

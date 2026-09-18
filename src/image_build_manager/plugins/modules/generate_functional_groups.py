@@ -16,7 +16,7 @@ DOCUMENTATION = r'''
 ---
 module: generate_functional_groups
 short_description: Generate functional_groups.yaml from a CSV mapping file
-version_added: "3.0.0"
+version_added: "2.3.0"
 description:
   - Parses a PXE mapping CSV file to extract groups and functional groups.
   - Reads omnia_config.yml to resolve cluster names for Kubernetes and Slurm.

@@ -1,0 +1,7 @@
+---
+base_url: "http://{{ cluster_boot_ip }}:8081/metadata-service"
+cluster_name: "{{ cluster_name }}"
+nid_length: {{ cluster_nidlength }}
+public_keys:
+- "{{ read_ssh_key.stdout }}"
+short_name: "{{ cluster_shortname }}"

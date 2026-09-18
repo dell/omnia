@@ -1,0 +1,21 @@
+# Ansible Vault credential files
+.test_creds.key
+test_creds.yml
+
+# Generated reports
+/reports/
+*.html
+*.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/

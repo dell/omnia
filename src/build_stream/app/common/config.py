@@ -15,6 +15,7 @@
 """Configuration loader for BuildStream."""
 
 import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -52,80 +53,115 @@ class BuildStreamConfig:
     file_store: Optional[FileStoreConfig]
 
 
+def _expand_env(value: str) -> str:
+    """Expand ``${VAR}`` and ``$VAR`` references in *value* using ``os.environ``.
+
+    This lets ``build_stream.ini`` use placeholders such as
+    ``${OMNIA_DATA_PATH}/build_stream_root`` so paths are not hardcoded.
+
+    If ``OMNIA_DATA_PATH`` is not already in the environment it is
+    temporarily injected with the standard default so that expansion
+    never produces a literal ``${OMNIA_DATA_PATH}`` in output paths.
+    """
+    if "OMNIA_DATA_PATH" not in os.environ:
+        os.environ["OMNIA_DATA_PATH"] = "/opt/omnia"
+    return os.path.expandvars(value)
+
+
+# Default path to build_stream.ini when BUILD_STREAM_CONFIG_PATH is not set.
+# The container always sets the env var; this fallback is for local dev only.
+_DEFAULT_INI_PATH = os.path.join(
+    os.getenv("OMNIA_DATA_PATH", "/opt/omnia"),
+    "build_stream", "build_stream.ini",
+)
+
+# Default base path derived from environment (used as fallback)
+_DEFAULT_BUILD_STREAM_ROOT = os.path.join(
+    os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream_root"
+)
+
+
 def load_config(config_path: Optional[str] = None) -> BuildStreamConfig:
     """Load BuildStream configuration from INI file.
-    
+
+    INI values may contain ``${VAR}`` references that are expanded from
+    the process environment (e.g. ``${OMNIA_DATA_PATH}``).
+
     Args:
         config_path: Path to configuration file. If None, uses BUILD_STREAM_CONFIG_PATH
                     environment variable or default path.
-    
+
     Returns:
         BuildStreamConfig instance.
-    
+
     Raises:
         FileNotFoundError: If config file not found.
         ValueError: If config is invalid.
     """
     if config_path is None:
-        config_path = os.getenv(
-            "BUILD_STREAM_CONFIG_PATH",
-            "/opt/omnia/windsurf/build_stream_venu_oim/build_stream/build_stream.ini"
-        )
-    
+        config_path = os.getenv("BUILD_STREAM_CONFIG_PATH", _DEFAULT_INI_PATH)
+
     config_file = Path(config_path)
     if not config_file.exists():
         raise FileNotFoundError(f"Configuration file not found: {config_file}")
-    
+
     parser = configparser.ConfigParser()
     parser.read(config_file)
-    
+
     if not parser.sections():
         raise ValueError(f"Empty configuration file: {config_file}")
-    
+
     # Parse paths config
     paths_section = "paths"
-    build_stream_base_path = parser.get(paths_section, "build_stream_base_path", fallback="/opt/omnia/build_stream_root")
-    
+    build_stream_base_path = _expand_env(
+        parser.get(paths_section, "build_stream_base_path",
+                   fallback=_DEFAULT_BUILD_STREAM_ROOT)
+    )
+
     paths = PathsConfig(
         build_stream_base_path=build_stream_base_path,
     )
-    
+
     # Parse artifact_store config
     artifact_store_section = "artifact_store"
     backend = parser.get(artifact_store_section, "backend", fallback="file_store")
-    
+
     # Parse optional size limits with defaults
     max_file_size_bytes = 5242880  # 5MB default
     max_archive_uncompressed_bytes = 52428800  # 50MB default
     max_archive_entries = 500  # default
-    
+
     if parser.has_option(artifact_store_section, "max_file_size_bytes"):
         max_file_size_bytes = parser.getint(artifact_store_section, "max_file_size_bytes")
-    
+
     if parser.has_option(artifact_store_section, "max_archive_uncompressed_bytes"):
         max_archive_uncompressed_bytes = parser.getint(artifact_store_section, "max_archive_uncompressed_bytes")
-    
+
     if parser.has_option(artifact_store_section, "max_archive_entries"):
         max_archive_entries = parser.getint(artifact_store_section, "max_archive_entries")
-    
+
     artifact_store = ArtifactStoreConfig(
         backend=backend,
-        working_dir=parser.get(artifact_store_section, "working_dir", fallback="/tmp/build_stream"),
+        working_dir=parser.get(
+            artifact_store_section,
+            "working_dir",
+            fallback=f"{tempfile.gettempdir()}/build_stream",
+        ),
         max_file_size_bytes=max_file_size_bytes,
         max_archive_uncompressed_bytes=max_archive_uncompressed_bytes,
         max_archive_entries=max_archive_entries,
     )
-    
+
     # Parse file_store config only if backend is file_store
     file_store = None
     if backend == "file_store":
         if parser.has_section("file_store") and parser.has_option("file_store", "base_path"):
             file_store = FileStoreConfig(
-                base_path=parser.get("file_store", "base_path")
+                base_path=_expand_env(parser.get("file_store", "base_path"))
             )
         else:
             raise ValueError("file_store section with base_path is required when backend=file_store")
-    
+
     return BuildStreamConfig(
         paths=paths,
         artifact_store=artifact_store,

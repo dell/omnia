@@ -39,8 +39,8 @@ file_perm_rw: "0644"
 # MinIO container settings
 minio_port: 9000
 minio_console_port: 9001
-minio_image: "quay.io/minio/minio:latest"
-minio_release_tag: "latest"
+minio_image: "docker.io/pgsty/minio"
+minio_release_tag: "RELEASE.2026-08-04T00-00-00Z"
 
 # Validation messages
 s3_secret_key_empty_fail_msg: >-

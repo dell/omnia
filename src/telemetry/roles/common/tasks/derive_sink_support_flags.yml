@@ -22,7 +22,6 @@
 # LEGACY VARIABLE MAPPINGS:
 #   ldms_support = telemetry_config.telemetry_sources.ldms.metrics_enabled
 #   idrac_telemetry_support = telemetry_config.telemetry_sources.idrac.metrics_enabled
-#   dcgm_support = telemetry_config.telemetry_sources.dcgm.metrics_enabled
 #   powerscale_configurations = merged dict of powerscale source flags + detailed config
 #
 # SINK SUPPORT FLAGS:
@@ -49,7 +48,6 @@
     idrac_telemetry_support: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
     powerscale_metrics_enabled: "{{ telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool }}"
     powerscale_log_enabled: "{{ telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool }}"
-    dcgm_support: "{{ telemetry_config.telemetry_sources.dcgm.metrics_enabled | default(true) | bool }}"
     ufm_telemetry_support: "{{ telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}"
     ufm_log_enabled: "{{ telemetry_config.telemetry_sources.ufm.logs_enabled | default(false) | bool }}"
     vast_telemetry_support: "{{ telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool }}"

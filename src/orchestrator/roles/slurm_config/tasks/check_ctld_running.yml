@@ -15,8 +15,8 @@
 - name: Check if remote host is reachable via SSH
   ansible.builtin.wait_for:
     host: "{{ ctld }}"
-    port: 22 # TODO: make it configurable
-    timeout: 10
+    port: 22
+    timeout: "{{ bulk_ssh_connect_timeout }}"
     state: started
   delegate_to: localhost
   register: ssh_check
@@ -54,7 +54,7 @@
       ansible.builtin.wait_for:
         host: "{{ host }}"
         port: 22
-        timeout: 10
+        timeout: "{{ bulk_ssh_connect_timeout }}"
         state: started
       delegate_to: localhost
       loop: "{{ ip_name_map.values() | list }}"
@@ -68,11 +68,24 @@
       ansible.builtin.set_fact:
         reachable_hosts: "{{ ip_map_ssh_check.results | rejectattr('failed', 'true') | map(attribute='host') | list }}"
 
-    - name: Update basics on reachable_hosts
-      ansible.builtin.include_tasks: update_hosts_munge.yml
-      loop: "{{ reachable_hosts }}"
-      loop_control:
-        loop_var: slurmhost_ip
+    # /etc/hosts update — skipped entirely when CoreDNS is enabled
+    - name: Bulk update /etc/hosts on all reachable hosts
+      bulk_update_hosts:
+        hosts: "{{ reachable_hosts }}"
+        ip_name_map: "{{ ip_name_map }}"
+        ssh_key_path: "{{ ssh_private_key_path }}"
+        nodes_to_remove: "{{ nodes_in_normal_not_in_cmpt | default([]) }}"
+        ssh_max_parallel: "{{ bulk_ssh_max_parallel }}"
+        ssh_connect_timeout: "{{ bulk_ssh_connect_timeout }}"
+      register: bulk_update_result
+      when: not (dns_enabled | default(false) | bool)
+
+    - name: Warn about failed hosts
+      ansible.builtin.debug:
+        msg: "Failed to update /etc/hosts on {{ bulk_update_result.hosts_failed | length }} host(s): {{ bulk_update_result.hosts_failed | join(', ') }}"
+      when:
+        - bulk_update_result is defined
+        - bulk_update_result.hosts_failed | default([]) | length > 0
 
     - name: Trigger the scontrol reconfigure
       ansible.builtin.command: scontrol reconfigure

@@ -11,7 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# pylint: disable=import-error,no-name-in-module,too-many-branches,too-many-statements
+# pylint:
+# disable=import-error,line-too-long,no-name-in-module,too-many-branches,too-many-statements,too-many-locals,too-many-nested-blocks
 
 """
 Multi-catalog resolver for repo_manager.
@@ -29,13 +30,31 @@ All catalog keys are normalized to lowercase during loading.
 import os
 import json
 import hashlib
-import logging
+import copy
 from collections import OrderedDict
 
-from ansible.module_utils.repo_manager.config import (
-    PACKAGE_TYPES,
-    ARCH_SUFFIXES,
+from ansible.module_utils.repo_manager.config import DEFAULT_OS_TYPE
+from ansible.module_utils.repo_manager.catalog_execution_context_resolver import (
+    parse_functional_layer_context,
+    resolve_catalog_execution_contexts,
 )
+from ansible.module_utils.repo_manager.platform_capability_registry import (
+    get_platform_capabilities,
+)
+from ansible.module_utils.repo_manager.package_backend_registry import (
+    get_package_backend,
+)
+from ansible.module_utils.repo_manager.software_utils import normalize_repo_name
+from ansible.module_utils.repo_manager.security_utils import (
+    ArtifactUrlValidationError,
+    parse_python_requirement,
+    validate_artifact_url,
+    validate_repository_url,
+)
+
+
+class CatalogResolutionError(ValueError):
+    """A catalog failure message that is safe to return through Ansible."""
 
 
 # ---------------------------------------------------------------------------
@@ -155,9 +174,16 @@ def load_catalog(catalog_file, logger):
             }
             # Preserve optional scalar fields
             for opt_field in ("tag", "version", "registry", "path", "url"):
-                upper_key = opt_field.capitalize()
-                val = pkg_val.get(upper_key) or pkg_val.get(opt_field)
+                possible_keys = [opt_field.capitalize(), opt_field]
+                if opt_field == "url":
+                    possible_keys = ["URL", "Url", "url", "URI", "Uri", "uri"]
+                val = next(
+                    (pkg_val[key] for key in possible_keys if pkg_val.get(key) is not None),
+                    None,
+                )
                 if val is not None:
+                    if opt_field == "url" and str(val).strip():
+                        val = validate_artifact_url(val)
                     normalized_pkg[opt_field] = val
 
             # Normalize Sources
@@ -172,12 +198,16 @@ def load_catalog(catalog_file, logger):
                         "version": ["Version", "version"],
                         "reponame": ["RepoName", "repoName", "reponame"],
                         "registry": ["Registry", "registry"],
-                        "url": ["URL", "url"]
+                        "url": ["URL", "Url", "url", "URI", "Uri", "uri"],
+                        "path": ["Path", "path"],
                     }
                     for norm_key, possible_keys in source_fields.items():
                         for key in possible_keys:
                             if key in source:
-                                normalized_source[norm_key] = source[key]
+                                value = source[key]
+                                if norm_key == "url" and str(value).strip():
+                                    value = validate_artifact_url(value)
+                                normalized_source[norm_key] = value
                                 break
                     normalized_sources.append(normalized_source)
                 normalized_pkg["sources"] = normalized_sources
@@ -203,15 +233,40 @@ def load_multiple_catalogs(catalog_path, logger):
     """
     catalog_files = discover_catalogs(catalog_path, logger)
     catalogs = []
+    failure_categories = set()
     for cf in catalog_files:
         try:
             catalog = load_catalog(cf, logger)
             catalogs.append(catalog)
-        except (ValueError, json.JSONDecodeError) as exc:
-            logger.error("Skipping invalid catalog %s: %s", cf, exc)
+        except json.JSONDecodeError:
+            failure_category = "malformed JSON"
+            failure_categories.add(failure_category)
+            logger.error(
+                "Skipping catalog %s: %s",
+                os.path.basename(cf), failure_category,
+            )
+        except ArtifactUrlValidationError:
+            failure_category = "invalid artifact URL"
+            failure_categories.add(failure_category)
+            logger.error(
+                "Skipping catalog %s: %s",
+                os.path.basename(cf), failure_category,
+            )
+        except ValueError:
+            failure_category = "invalid catalog structure"
+            failure_categories.add(failure_category)
+            logger.error(
+                "Skipping catalog %s: %s",
+                os.path.basename(cf), failure_category,
+            )
 
     if not catalogs:
-        raise ValueError(f"No valid catalogs found in: {catalog_path}")
+        failure_summary = ", ".join(sorted(failure_categories))
+        if not failure_summary:
+            failure_summary = "no valid catalog content"
+        raise CatalogResolutionError(
+            f"Selected catalog could not be loaded ({failure_summary})"
+        )
 
     logger.info("Successfully loaded %d catalog(s)", len(catalogs))
     return catalogs
@@ -241,7 +296,31 @@ def compute_composite_key_hash(package_name, package_type, version, arch):
 # Catalog Resolution: Groups -> Packages (lowercase keys)
 # ---------------------------------------------------------------------------
 
-def resolve_catalog_groups(catalog, arch, logger):
+def resolve_catalog_context(catalogs, logger):
+    """Resolve ordered execution contexts and referenced RPM repositories."""
+    context = resolve_catalog_execution_contexts(catalogs, logger)
+    platform_capabilities = get_platform_capabilities(context["os_type"])
+    get_package_backend(platform_capabilities["package_backend"])
+    context["platform_capabilities"] = platform_capabilities
+    for execution_context in context["execution_contexts"]:
+        execution_context["platform_capabilities"] = platform_capabilities
+        execution_context["referenced_repositories"] = (
+            collect_referenced_repositories(catalogs, execution_context, logger)
+        )
+
+    if len(context["execution_contexts"]) == 1:
+        context["referenced_repositories"] = context["execution_contexts"][0][
+            "referenced_repositories"
+        ]
+    else:
+        context["referenced_repositories_by_version"] = {
+            item["os_version"]: item["referenced_repositories"]
+            for item in context["execution_contexts"]
+        }
+    return context
+
+
+def resolve_catalog_groups(catalog, arch, logger, os_version=None):
     """Resolve functionallayer -> groups -> packages for a given architecture.
 
     This extracts the group names referenced by functional layers that match
@@ -255,18 +334,31 @@ def resolve_catalog_groups(catalog, arch, logger):
     Returns:
         dict: Mapping of group_name -> list of package entries.
     """
+    if os_version is None:
+        context = resolve_catalog_context([catalog], logger)
+        if len(context["execution_contexts"]) != 1:
+            raise ValueError(
+                "os_version is required when a catalog contains multiple versions"
+            )
+        os_version = context["execution_contexts"][0]["os_version"]
+
     groups = catalog.get("groups", {})
     packages = catalog.get("packages", {})
     functional_layers = catalog.get("functionallayer", [])
 
-    # Determine which groups apply to this architecture
-    relevant_groups = set()
+    # Determine which groups apply to this architecture. Preserve catalog order
+    # because global package deduplication intentionally uses first-wins.
+    relevant_groups = []
+    seen_groups = set()
     for fl in functional_layers:
         fl_name = fl.get("name", "")
-        # Match architecture by suffix in functional layer name
-        if arch in fl_name:
+        parsed_context = parse_functional_layer_context(fl_name)
+        if (parsed_context["architecture"] == arch and
+                parsed_context["os_version"] == str(os_version)):
             for component in fl.get("components", []):
-                relevant_groups.add(component)
+                if component not in seen_groups:
+                    relevant_groups.append(component)
+                    seen_groups.add(component)
 
     # If no functional layers matched, skip this architecture
     if not relevant_groups:
@@ -288,10 +380,12 @@ def resolve_catalog_groups(catalog, arch, logger):
                 # Package entry might be a dict or nested structure
                 if isinstance(pkg_entry, dict):
                     # Single package entry - prefer 'name' field over dict key
+                    pkg_entry = copy.deepcopy(pkg_entry)
                     pkg_entry.setdefault("package", pkg_entry.get("name", comp_name))
                     group_pkgs.append(pkg_entry)
                 elif isinstance(pkg_entry, list):
                     for p in pkg_entry:
+                        p = copy.deepcopy(p)
                         p.setdefault("package", p.get("name", comp_name))
                         group_pkgs.append(p)
         if group_pkgs:
@@ -302,11 +396,86 @@ def resolve_catalog_groups(catalog, arch, logger):
     return group_packages
 
 
+def _source_supports_version(source, os_version):
+    """Return whether a source is valid for the requested minor version."""
+    if os_version is None:
+        return True
+    source_versions = source.get("version")
+    if source_versions in (None, "", []):
+        return True
+    if not isinstance(source_versions, (list, tuple, set)):
+        source_versions = [source_versions]
+    return str(os_version) in {str(version) for version in source_versions}
+
+
+def select_package_source(package, arch, os_version=None):
+    """Return the source explicitly compatible with ``arch``.
+
+    Exact architecture entries take priority.  A ``noarch`` source is accepted
+    only when the catalog explicitly declares it; sources for another target
+    architecture are never used implicitly.
+    """
+    sources = package.get("sources", [])
+    if not isinstance(sources, list):
+        return None
+
+    for source in sources:
+        if (source.get("architecture") == arch and
+                _source_supports_version(source, os_version)):
+            return source
+    for source in sources:
+        if (source.get("architecture") == "noarch" and
+                _source_supports_version(source, os_version)):
+            return source
+    return None
+
+
+def collect_referenced_repositories(catalogs, catalog_context, logger):
+    """Return catalog-referenced RPM repository names per architecture.
+
+    Only packages selected by the resolved functional layers participate. The
+    result is deterministic and can be shared by validation and subscription
+    setup so both phases require exactly the same repositories.
+    """
+    if isinstance(catalogs, dict):
+        catalogs = [catalogs]
+
+    os_version = catalog_context["os_version"]
+    referenced = {
+        architecture: []
+        for architecture in catalog_context["architectures"]
+    }
+    seen = {architecture: set() for architecture in referenced}
+
+    for catalog in catalogs:
+        for architecture in catalog_context["architectures"]:
+            group_packages = resolve_catalog_groups(
+                catalog, architecture, logger, os_version=os_version
+            )
+            for packages in group_packages.values():
+                for package in packages:
+                    package_type = package.get(
+                        "type", package.get("packagetype", "rpm")
+                    )
+                    if package_type not in ("rpm", "rpm_list", "rpm_repo"):
+                        continue
+                    source = select_package_source(
+                        package, architecture, os_version=os_version
+                    )
+                    repo_name = (source or {}).get("reponame", "")
+                    if repo_name and repo_name not in seen[architecture]:
+                        referenced[architecture].append(repo_name)
+                        seen[architecture].add(repo_name)
+
+    logger.info("Catalog-referenced RPM repositories: %s", referenced)
+    return referenced
+
+
 # ---------------------------------------------------------------------------
 # Global Package Index & Deduplication
 # ---------------------------------------------------------------------------
 
-def build_global_package_index(catalogs, logger):
+def build_global_package_index(catalogs, logger, catalog_context=None):
     """Build a global package index with first-wins deduplication across catalogs.
 
     For each architecture, iterate through catalogs in discovery order. The first
@@ -337,18 +506,27 @@ def build_global_package_index(catalogs, logger):
             }
         }
     """
+    catalog_context = catalog_context or resolve_catalog_context(catalogs, logger)
+    if "os_version" not in catalog_context:
+        raise ValueError(
+            "A version-specific catalog_context is required when a catalog "
+            "contains multiple OS versions"
+        )
+    os_version = catalog_context["os_version"]
+    selected_architectures = catalog_context["architectures"]
     global_index = {}  # arch -> OrderedDict of hash -> info
     dedup_stats = {"total": 0, "unique": 0, "duplicates": 0, "dedup_list": {}}
 
     for catalog in catalogs:
         catalog_id = catalog["identifier"]
-        catalog_name = catalog["name"]
 
-        for arch in ARCH_SUFFIXES:
+        for arch in selected_architectures:
             if arch not in global_index:
                 global_index[arch] = OrderedDict()
 
-            group_packages = resolve_catalog_groups(catalog, arch, logger)
+            group_packages = resolve_catalog_groups(
+                catalog, arch, logger, os_version=os_version
+            )
 
             for group_name, pkg_list in group_packages.items():
                 for pkg in pkg_list:
@@ -358,44 +536,52 @@ def build_global_package_index(catalogs, logger):
                     pkg_version = pkg.get("version", pkg.get("tag", ""))
                     if pkg_version is None:
                         pkg_version = ""
+                    if pkg_type == "pip_module":
+                        _pip_name, _pip_version, pkg_name = (
+                            parse_python_requirement(pkg_name, pkg_version)
+                        )
+                        # The canonical requirement already contains the
+                        # Python version. Keep the composite version empty so
+                        # embedded and separately configured forms produce the
+                        # same mirror identity and existing embedded pins keep
+                        # their established hash.
+                        pkg_version = ""
+                        pkg["package"] = pkg_name
 
                     # Extract repo_name, url, and path from sources array for current arch
                     sources = pkg.get("sources", [])
                     repo_name = None
                     source_url = None
                     source_path = None
-                    if sources and isinstance(sources, list):
-                        # First try exact arch match
-                        for source in sources:
-                            source_arch = source.get("architecture", "")
-                            if source_arch == arch:
-                                repo_name = source.get("reponame", "")
-                                source_url = source.get("url", None)
-                                source_path = source.get("path", None)
-                                break
-                        # Fallback: for arch-independent types (tarball, iso, git),
-                        # use the first source if no arch-specific match found
-                        if source_url is None and source_path is None:
-                            fallback_types = ("tarball", "iso", "git")
-                            if pkg_type in fallback_types and sources:
-                                fallback = sources[0]
-                                repo_name = repo_name or fallback.get("reponame", "")
-                                source_url = fallback.get("url", None)
-                                source_path = fallback.get("path", None)
-                                if source_url or source_path:
-                                    logger.debug("Using fallback source for package '%s' on arch '%s'",
-                                                 pkg_name, arch)
+                    source_registry = None
+                    selected_source = select_package_source(
+                        pkg, arch, os_version=os_version
+                    )
+                    if sources and selected_source is None:
+                        raise ValueError(
+                            f"Catalog package '{pkg_name}' in group '{group_name}' "
+                            f"has no source for architecture '{arch}' or 'noarch' "
+                            f"compatible with {catalog_context['os_type']} {os_version}"
+                        )
+                    if selected_source:
+                        repo_name = selected_source.get("reponame", "")
+                        source_url = selected_source.get("url")
+                        source_path = selected_source.get("path")
+                        source_registry = selected_source.get("registry")
+                        pkg["selected_source"] = copy.deepcopy(selected_source)
 
                     # Promote repo_name to package definition
                     if repo_name:
                         pkg["repo_name"] = repo_name
+                    if source_registry:
+                        pkg["source_registry"] = source_registry
 
                     # Promote url/path from sources to package definition for tarball/iso types
-                    if source_url and "url" not in pkg:
+                    if source_url:
                         pkg["url"] = source_url
                         logger.debug("Promoted url from sources to package '%s' for arch '%s'",
                                      pkg_name, arch)
-                    if source_path and "path" not in pkg:
+                    if source_path:
                         pkg["path"] = source_path
                         logger.debug("Promoted path from sources to package '%s' for arch '%s'",
                                      pkg_name, arch)
@@ -441,7 +627,7 @@ def build_global_package_index(catalogs, logger):
             if dup_packages:
                 unique_dups = sorted(set(dup_packages))
                 logger.info("DEDUP summary for %s (%d duplicates): %s",
-                           arch, len(dup_packages), ", ".join(unique_dups))
+                            arch, len(dup_packages), ", ".join(unique_dups))
 
     return global_index
 
@@ -502,7 +688,9 @@ def build_tasklist_from_index(global_index, arch, logger):
 # Repo URL Extraction from New Config Format
 # ---------------------------------------------------------------------------
 
-def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_version, logger):
+def parse_repo_urls_from_config(
+        config_data, repo_config_policy, arch, os_version, logger,
+        global_caching_policy=True, referenced_repo_names=None):
     """Parse repository URLs from the new repo_manager_config.yml format.
 
     The new config has:
@@ -518,6 +706,9 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
         arch (str): Architecture to extract repos for.
         os_version (str): OS version key (e.g., "10.0").
         logger: Logger instance.
+        global_caching_policy (bool): Global caching policy from config (default: True).
+        referenced_repo_names (iterable): Optional catalog-selected repository
+            names. Repositories outside this set are ignored before URL parsing.
 
     Returns:
         list[dict]: List of parsed repo entries with url, gpgkey, name, policy, etc.
@@ -525,11 +716,16 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
     repositories = config_data.get("repositories", {})
     version_repos = repositories.get(os_version, {})
     arch_repos = version_repos.get(arch, {})
+    referenced_repos = (
+        set(referenced_repo_names) if referenced_repo_names is not None else None
+    )
 
     parsed = []
     for repo_name, repo_def in arch_repos.items():
-        if repo_name == "additional_repos":
-            # Additional repos handled separately
+        if repo_name in ("additional_repos", "user_repos"):
+            # Additional and user repos handled separately
+            continue
+        if referenced_repos is not None and repo_name not in referenced_repos:
             continue
         if not isinstance(repo_def, dict):
             continue
@@ -537,13 +733,15 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
         if not url:
             # Empty repo definition (e.g., subscription repos)
             continue
+        url = validate_repository_url(url)
 
         gpgkey = repo_def.get("gpgkey", "")
         policy = repo_def.get("policy", repo_config_policy)
-        caching = repo_def.get("caching", True)
+        caching = repo_def.get("caching", global_caching_policy)
         sslcacert = repo_def.get("sslcacert", "")
         sslclientkey = repo_def.get("sslclientkey", "")
         sslclientcert = repo_def.get("sslclientcert", "")
+        priority = repo_def.get("priority")
 
         parsed.append({
             "name": repo_name,
@@ -554,6 +752,7 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
             "sslcacert": sslcacert,
             "sslclientkey": sslclientkey,
             "sslclientcert": sslclientcert,
+            "priority": priority,
         })
 
     logger.info("Parsed %d repository entries for arch %s, version %s",
@@ -561,7 +760,11 @@ def parse_repo_urls_from_config(config_data, repo_config_policy, arch, os_versio
     return parsed
 
 
-def parse_additional_repos_from_config(config_data, repo_config_policy, arch, os_version, logger):
+def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
+                                       os_version, logger,
+                                       global_caching_policy=True,
+                                       os_type=None,
+                                       referenced_repo_names=None):
     """Parse additional_repos from the new repo_manager_config.yml format.
 
     Args:
@@ -570,6 +773,9 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch, os
         arch (str): Architecture.
         os_version (str): OS version key.
         logger: Logger instance.
+        global_caching_policy (bool): Global caching policy from config (default: True).
+        referenced_repo_names (iterable): Optional catalog-selected repository
+            names. Repositories outside this set are ignored before URL parsing.
 
     Returns:
         list[dict]: List of additional repo entries.
@@ -578,29 +784,107 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch, os
     version_repos = repositories.get(os_version, {})
     arch_repos = version_repos.get(arch, {})
     additional = arch_repos.get("additional_repos", {})
+    referenced_repos = (
+        set(referenced_repo_names) if referenced_repo_names is not None else None
+    )
 
     if not additional or not isinstance(additional, dict):
         return []
 
     parsed = []
     for repo_name, repo_def in additional.items():
+        if referenced_repos is not None and repo_name not in referenced_repos:
+            continue
         if not isinstance(repo_def, dict):
             continue
         url = repo_def.get("url", "")
         if not url:
             continue
+        url = validate_repository_url(url)
+
+        # Normalize repo name to standard format
+        normalized_name = normalize_repo_name(
+            repo_name, arch, os_type or DEFAULT_OS_TYPE, os_version
+        )
+
         parsed.append({
-            "name": repo_name,
+            "name": normalized_name,
+            "original_name": repo_name,  # Keep original for reference
             "url": url,
             "gpgkey": repo_def.get("gpgkey", ""),
             "policy": repo_def.get("policy", repo_config_policy),
-            "caching": repo_def.get("caching", True),
+            "caching": repo_def.get("caching", global_caching_policy),
             "sslcacert": repo_def.get("sslcacert", ""),
             "sslclientkey": repo_def.get("sslclientkey", ""),
             "sslclientcert": repo_def.get("sslclientcert", ""),
+            "priority": repo_def.get("priority"),
         })
 
     logger.info("Parsed %d additional repo entries for arch %s", len(parsed), arch)
+    return parsed
+
+
+def parse_user_repos_from_config(config_data, os_version, arch,
+                                 repo_config_policy, logger,
+                                 global_caching_policy=True,
+                                 os_type=None,
+                                 referenced_repo_names=None):
+    """Parse user custom repositories from repo_manager_config.yml user_repos section.
+
+    Args:
+        config_data: Parsed repo_manager_config.yml data
+        os_version: OS version (e.g., "10.0")
+        arch: Architecture (e.g., "x86_64")
+        repo_config_policy: Default repo policy from config
+        logger: Logger instance
+        global_caching_policy (bool): Global caching policy from config (default: True).
+        referenced_repo_names (iterable): Optional catalog-selected repository
+            names. Repositories outside this set are ignored before URL parsing.
+
+    Returns:
+        list: Parsed user repository entries
+    """
+    repositories = config_data.get("repositories", {})
+    version_repos = repositories.get(os_version, {})
+    arch_repos = version_repos.get(arch, {})
+    user_repos = arch_repos.get("user_repos", {})
+    referenced_repos = (
+        set(referenced_repo_names) if referenced_repo_names is not None else None
+    )
+
+    if not user_repos or not isinstance(user_repos, dict):
+        return []
+
+    parsed = []
+    for repo_name, repo_def in user_repos.items():
+        if referenced_repos is not None and repo_name not in referenced_repos:
+            continue
+        if not isinstance(repo_def, dict):
+            continue
+        url = repo_def.get("url", "")
+        if not url:
+            continue
+        url = validate_repository_url(url)
+
+        # Normalize repo name to standard format
+        normalized_name = normalize_repo_name(
+            repo_name, arch, os_type or DEFAULT_OS_TYPE, os_version
+        )
+
+        parsed.append({
+            "name": normalized_name,
+            "original_name": repo_name,  # Keep original for reference
+            "url": url,
+            "gpgkey": repo_def.get("gpgkey", ""),
+            "policy": repo_def.get("policy", repo_config_policy),
+            "caching": repo_def.get("caching", global_caching_policy),
+            "sslcacert": repo_def.get("sslcacert", ""),
+            "sslclientkey": repo_def.get("sslclientkey", ""),
+            "sslclientcert": repo_def.get("sslclientcert", ""),
+            "priority": repo_def.get("priority"),
+        })
+
+    logger.info("Parsed %d user repo entries for arch %s", len(parsed), arch)
     return parsed
 
 

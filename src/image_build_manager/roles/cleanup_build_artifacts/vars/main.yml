@@ -77,13 +77,17 @@ cleanup_services:
   - "registry.service"
 
 # ---------------------------------------------------------------------------
-# Domain data directory cleanup (empty dirs left after service cleanup)
+# Domain data directory cleanup
 # ---------------------------------------------------------------------------
 domain_data_cleanup_directories:
   - "{{ shared_path }}/s3"
   - "{{ shared_path }}/registry"
   - "{{ shared_path }}/oci"
   - "{{ shared_path }}/workdir"
+  - "{{ shared_path }}/openchami"
+
+# Keep the public runtime roots present but empty after a full domain cleanup.
+domain_data_preserved_directories:
   - "{{ shared_path }}/log"
   - "{{ shared_path }}/output"
 
@@ -96,6 +100,21 @@ image_build_log_base: "/var/log/omnia/image_build_manager"
 # s3cmd cleanup
 # ---------------------------------------------------------------------------
 s3cmd_config: "/root/.s3cfg"
+
+# ---------------------------------------------------------------------------
+# Image cleanup (cleanup_images tag)
+# ---------------------------------------------------------------------------
+# Pattern to match images for deletion.
+#   "*"           — delete ALL images (default when no pattern specified)
+#   "rhel-*"      — delete images matching the glob pattern
+#   "rhel-slurm_*" — delete only slurm functional group images
+cleanup_image_pattern: "{{ cleanup_image_pattern_override | default('*') }}"
+
+# S3 regex derived from glob pattern (for grep -E filtering)
+cleanup_image_s3_regex: "{{ cleanup_image_pattern | replace('*', '.*') | replace('?', '.') }}"
+
+# Registry regex derived from glob pattern (for Jinja match filter)
+cleanup_image_registry_regex: "{{ cleanup_image_pattern | replace('*', '.*') | replace('?', '.') }}"
 
 # ---------------------------------------------------------------------------
 # Retry settings
@@ -118,6 +137,24 @@ cleanup_completed_msg:
   - "  - omnia.target service entries (minio.service, registry.service)"
   - "  - s3cmd configuration"
   - "  - image_build_credentials.yml and vault key"
-  - "  - Domain data directories (s3, registry, oci, workdir, log, output)"
+  - "  - Domain data directories (s3, registry, oci, workdir, openchami)"
+  - "  - Runtime log and output directories (contents removed; empty roots preserved)"
   - "  - Ansible log files (/var/log/omnia/image_build_manager/)"
 minio_skip_msg: "S3 provider is '{{ s3_provider }}' — skipping MinIO cleanup (external S3)."
+
+# Image cleanup messages
+cleanup_images_summary_header: "=== Image Cleanup Summary ==="
+cleanup_images_approval_msg: "Approval required. You will be prompted to confirm."
+cleanup_images_skip_approval_msg: "skip_approval=true — proceeding without confirmation."
+cleanup_images_nothing_to_delete_msg: "No matching images found — no deletion required."
+cleanup_images_approval_prompt: >-
+  The above images will be PERMANENTLY DELETED. Type 'yes' to proceed or press Enter to abort
+cleanup_images_abort_msg: "Image cleanup aborted by user."
+cleanup_images_s3_done_msg: "S3 image cleanup complete (pattern: '{{ cleanup_image_pattern }}')."
+cleanup_images_s3_skip_msg: "s3cmd not available — skipping S3 image cleanup."
+cleanup_images_s3_not_initialized_msg: >-
+  S3 image cleanup is not applicable because s3cmd configuration is absent.
+cleanup_images_registry_done_msg: "Registry image cleanup complete (pattern: '{{ cleanup_image_pattern }}')."
+cleanup_images_registry_skip_msg: "regctl not available — skipping registry image cleanup."
+cleanup_images_registry_not_initialized_msg: >-
+  Registry image cleanup is not applicable because managed registry state is absent.

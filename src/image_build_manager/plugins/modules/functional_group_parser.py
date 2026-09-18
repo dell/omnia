@@ -7,7 +7,7 @@ DOCUMENTATION = r'''
 ---
 module: functional_group_parser
 short_description: Parse and normalize functional group input
-version_added: "3.0.0"
+version_added: "2.3.0"
 description:
   - Reads a YAML file containing functional group definitions.
   - Normalizes input that may be a list of strings, list of dicts with C(name) key,

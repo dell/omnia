@@ -425,7 +425,7 @@ playbook_paths:
   provision.yml: "/omnia/provision/provision.yml"
   local_repo.yml: "/omnia/local_repo/local_repo.yml"
   set_pxe_boot.yml: "/omnia/utils/set_pxe_boot.yml"
-  discovery.yml: "/omnia/discovery/discovery.yml"
+  discovery.yml: "/omnia/discovery/playbooks/discovery.yml"
   include_input_dir.yml: "/omnia/utils/include_input_dir.yml"
 ```
 
@@ -705,7 +705,7 @@ build_stream:
 
 - No breaking changes for users who don't use build_stream.
 - `build_stream_config.yml` is **required** — no legacy fallback.
-- Sub-playbooks work independently with standalone setup guards.
+- Sub-playbooks work independently with setup guards.
 - Container build is self-contained in `src/build_stream/containers/`.
 - Cleanup is fully domain-segregated — no impact on other domains.
 

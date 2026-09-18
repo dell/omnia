@@ -13,20 +13,127 @@
 # limitations under the License.
 
 # =============================================================================
-# Discovery — Batch Test Run Configuration
+# Test Run Configuration — Discovery
 # =============================================================================
-# Used by: run_validation.sh --config
-# Each scenario maps to a directory under fvt/.
+#
+# Configure which test categories to run, execution order, and marker filters.
+#
+# Usage:
+#   1. Edit this file to enable/disable scenarios and set markers
+#   2. Run: ./run_validation.sh --config
+#
+# -----------------------------------------------------------------------------
+# Category Structure
+# -----------------------------------------------------------------------------
+# Top-level categories match the run_validation.sh first argument:
+#
+#   fvt_discovery  — Functional Verification Tests (playbook tags)
+#   nft_discovery  — Non-Functional Tests (performance, idempotency)
+#   ut_discovery   — Unit Tests (offline validation)
+#
+# Common fields (FVT / NFT / UT):
+#   run:          true/false    - Whether to execute this entry
+#   command:      <string>      - exec, verify, or test (default: test)
+#   marker:       <expression>  - Marker filter (empty = all applicable tests)
+#
+# FVT-only fields (each entry maps to an Ansible playbook tag):
+#   suite:        <folder>      - FVT subfolder filter (empty = all suites)
+#   dataset:      <name>        - Override dataset from test_config.yml
+#                                 Must be a valid folder under datasets/
+#   sync_input:   true/false    - Override sync_discovery_input
+#
+# NFT / UT (top-level, no nested scenarios):
+#   Use command: "test". exec/verify are accepted aliases and run the same
+#   complete NFT/UT suite.
+#
+# -----------------------------------------------------------------------------
+# Marker Expression Syntax
+# -----------------------------------------------------------------------------
+#   Single:   "sanity"                  — tests with @pytest.mark.sanity
+#   OR:       "sanity,functional"       — tests with EITHER marker
+#   AND:      "sanity+functional"       — tests with BOTH markers
+#   Standard: "functional"              — tests with @pytest.mark.functional
+#
+# Available markers:
+#   Quality:       sanity, functional, regression
+#   Execution:     deploy
+#
+# -----------------------------------------------------------------------------
+# Available FVT Suites (subfolders under fvt/<tag>/)
+# -----------------------------------------------------------------------------
+#   validate:   status
+#   discovery:  output
+#
 # =============================================================================
 
 ---
-scenarios:
-  validate:
-    run: true
-    marker: "sanity"
-    suite: ""
 
-  discovery:
-    run: true
-    marker: ""
+# =============================================================================
+# Execution Options
+# =============================================================================
+# skip_on_failure: Stop the current suite on first test failure.
+#                  When false (default), all tests run regardless of failures.
+skip_on_failure: false
+
+# =============================================================================
+# FVT — Functional Verification Tests
+# =============================================================================
+fvt_discovery:
+  precheck:
+    run: false
+    command: "test"
     suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+  validate:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: true
+  credentials:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+  execute:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+  discovery:
+    run: false
+    command: "test"
+    suite: ""
+    marker: ""
+    dataset: ""
+    sync_input: true
+  cleanup:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+
+# =============================================================================
+# NFT — Non-Functional Tests
+# =============================================================================
+nft_discovery:
+  run: false
+  command: "test"
+  marker: ""
+
+# =============================================================================
+# UT — Unit Tests
+# =============================================================================
+ut_discovery:
+  run: false
+  command: "test"
+  marker: ""

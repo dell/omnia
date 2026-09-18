@@ -37,6 +37,7 @@ class DeployPlaybookRequest:
         timeout: Execution timeout configuration.
         submitted_at: Request submission timestamp.
         request_id: Unique request identifier.
+        tags: Ansible tags for selective playbook execution (e.g., "prepare,deploy").
     """
 
     job_id: str
@@ -47,6 +48,7 @@ class DeployPlaybookRequest:
     timeout: ExecutionTimeout
     submitted_at: str
     request_id: str
+    tags: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize request to dictionary for JSON file writing."""
@@ -59,6 +61,7 @@ class DeployPlaybookRequest:
             "timeout_minutes": self.timeout.minutes,
             "submitted_at": self.submitted_at,
             "request_id": self.request_id,
+            "tags": self.tags,
         }
 
     def generate_filename(self) -> str:

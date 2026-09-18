@@ -15,8 +15,8 @@ Contributions to Omnia are made through [Pull Requests (PRs)](https://help.githu
    * **Problem location:** In which file and at what line does this issue occur?
    * **Suggested resolution:** How do you intend to resolve the problem?
 2. **Create a personal fork:** All work on Omnia should be done in a [fork of the repository](https://help.github.com/en/github/getting-started-with-github/fork-a-repo). Only the maintiners are allowed to commit directly to the project repository.
-3. **Issue branch:** [Create a new branch](https://help.github.com/en/desktop/contributing-to-projects/creating-a-branch-for-your-work) on your fork of the repository. All contributions should be branched from `devel`. Use `git checkout devel; git checkout -b <new-branch-name>` to create the new branch.
-   * **Branch name:** The branch name should be based on the issue you are addressing. Use the following pattern to create your new branch name: issue-number, e.g., issue-1023.
+3. **Issue branch:** [Create a new branch](https://help.github.com/en/desktop/contributing-to-projects/creating-a-branch-for-your-work) from the repository's current default branch.
+   * **Branch name:** Use `feature/<story-or-er-id>-<short-name>` for feature work or `fix/<issue-short-name>` for defect fixes.
 4. **Commit changes to the issue branch:** It is important to commit your changes to the issue branch. Commit messages should be descriptive of the changes being made.
    * **Signing your commits:** All commits to Omnia need to be signed with the [Developer Certificate of Origin (DCO)](https://developercertificate.org/) in order to certify that the contributor has permission to contribute the code. In order to sign commits, use either the `--signoff` or `-s` option to `git commit`:
    ```
@@ -29,11 +29,12 @@ Contributions to Omnia are made through [Pull Requests (PRs)](https://help.githu
       * [Setting up your e-mail address](https://help.github.com/articles/setting-your-commit-email-address-in-git/)
    
 5. **Push the changes to your personal repo:** To be able to create a pull request, push the changes to origin: `git push origin <new-branch-name>`. Here I assume that `origin` is your personal repo, e.g., `lwilson/omnia.git`.
-6. **Create a pull request:** [Create a pull request](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request) with a title following this format Issue ###: Description (_i.e., Issue 1023: Reformat testutils_). It is important that you do a good job with the description to make the job of the code reviewer easier. A good description not only reduces review time, but also reduces the probability of a misunderstanding with the pull request.
-   * **Important:** When preparing a pull request it is important to stay up-to-date with the project repository. We recommend that you rebase against the upstream repo _frequently_. To do this, use the following commands:
+6. **Create a pull request:** [Create a pull request](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request) with a Conventional Commits title (`<type>(<scope>): <description>`) and complete every required section in `.github/pull_request_template.md`. It is important that you do a good job with the description to make the job of the code reviewer easier. A good description not only reduces review time, but also reduces the probability of a misunderstanding with the pull request.
+   * **Important:** Before committing or pushing, synchronize with the current default branch without rewriting history. For a `main` default branch, use:
    ```
-   git pull --rebase upstream devel #upstream is dellhpc/omnia
-   git push --force origin <pr-branch-name> #origin is your fork of the repository (e.g., <github_user_name>/omnia.git)
+   git fetch upstream
+   git merge upstream/main
+   git push origin <pr-branch-name>
    ```
    * **PR Description:** Be sure to fully describe the pull request. Ideally, your PR description will contain:
       1. A description of the main point (_e.g., why was this PR made?_),
@@ -42,9 +43,10 @@ Contributions to Omnia are made through [Pull Requests (PRs)](https://help.githu
       4. How to verify that the changes work correctly.
    
 ## Omnia Branches and Contribution Flow
-The diagram below describes the contribution flow. Omnia has two lifetime branches: `devel` and `release`. The `release` branch is reserved for releases and their associated tags. The `devel` branch is where all development work occurs. The `devel` branch is also the default branch for the project.
-
-![Omnia Branch Flowchart](docs/source/images/omnia-branch-structure.png "Flowchart of Omnia branches")
+Omnia development targets the repository's current default branch (`main`). Use
+short-lived feature or fix branches and merge changes through reviewed pull
+requests. Release branches and tags are maintained according to the applicable
+release plan.
 
 ## Developer Certificate of Origin
 Contributions to Omnia must be signed with the [Developer Certificate of Origin (DCO)](https://developercertificate.org/):

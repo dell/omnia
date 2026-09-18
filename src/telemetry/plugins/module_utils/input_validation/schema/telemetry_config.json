@@ -4,11 +4,10 @@
   "description": "Three-layer telemetry configuration: Sources → Bridges → Sinks, with source-specific configurations.",
   "type": "object",
   "properties": {
-    "kube_vip": {
+    "cluster_inventory": {
       "type": "string",
-      "minLength": 1,
-      "description": "Kubernetes control plane virtual IP address (IPv4). Required for all telemetry K8s operations.",
-      "errorMessage": "kube_vip is required and must be a non-empty IPv4 address (e.g., '10.0.0.1')."
+      "description": "Path to Ansible inventory file for telemetry deployment. Must contain kube_vip_group with the Kubernetes control plane VIP. Required for LDMS Slurm node discovery and K8s cluster validation. Leave empty to use the default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml",
+      "errorMessage": "cluster_inventory must be a valid file path string (leave empty to use the default orchestrator output path)."
     },
     "telemetry_sources": {
       "type": "object",
@@ -60,18 +59,6 @@
             }
           },
           "required": ["metrics_enabled", "collection_targets"]
-        },
-        "dcgm": {
-          "type": "object",
-          "description": "NVIDIA Data Center GPU Manager telemetry.",
-          "properties": {
-            "metrics_enabled": {
-              "type": "boolean",
-              "default": true,
-              "description": "Enable or disable NVIDIA DCGM (Data Center GPU Manager) on GPU compute nodes. When true, nvidia-dcgm.service is started during cloud-init provisioning. Default: true"
-            }
-          },
-          "required": ["metrics_enabled"]
         },
         "powerscale": {
           "type": "object",
@@ -187,7 +174,7 @@
           "required": ["metrics_enabled", "logs_enabled", "collection_targets"]
         }
       },
-      "required": ["idrac", "ldms", "dcgm", "powerscale", "ufm", "vast", "ome"]
+      "required": ["idrac", "ldms", "powerscale", "ufm", "vast", "ome"]
     },
     "telemetry_bridges": {
       "type": "object",
@@ -590,5 +577,5 @@
       "required": []
     }
   },
-  "required": ["kube_vip", "telemetry_sources", "telemetry_bridges", "telemetry_sinks", "ldms_configurations", "powerscale_configurations", "ufm_configuration", "vast_configuration"]
+  "required": ["cluster_inventory", "telemetry_sources", "telemetry_bridges", "telemetry_sinks", "ldms_configurations", "powerscale_configurations", "ufm_configuration", "vast_configuration"]
 }

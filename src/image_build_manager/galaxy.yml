@@ -1,7 +1,7 @@
 ---
 namespace: omnia
 name: image_build
-version: 3.0.0
+version: 2.3.0
 readme: README.md
 authors:
   - Dell Technologies <omnia-support@dell.com>

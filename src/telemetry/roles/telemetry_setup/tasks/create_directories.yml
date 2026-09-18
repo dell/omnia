@@ -15,17 +15,42 @@
 # =============================================================================
 # CREATE DIRECTORIES
 # =============================================================================
-# Creates required directories for telemetry operations.
+# Creates required runtime directories for telemetry operations.
+# Paths are derived from omnia.env by load_config.yml (runs before this).
 # =============================================================================
 
-- name: Ensure telemetry log directory exists
+- name: Ensure base omnia data directory exists
   ansible.builtin.file:
-    path: "{{ telemetry_log_dir }}"
+    path: "{{ omnia_data_path }}"
     state: directory
-    mode: "0755"
+    mode: '0755'
+  become: true
 
-- name: Ensure telemetry output directory exists
+- name: Ensure telemetry runtime directories exist
   ansible.builtin.file:
-    path: "{{ telemetry_output_dir }}"
+    path: "{{ item }}"
     state: directory
-    mode: "0755"
+    mode: '0755'
+  loop:
+    - "{{ telemetry_data_path }}"
+    - "{{ input_project_dir }}"
+    - "{{ output_project_dir }}"
+    - "{{ log_dir }}"
+    - "{{ telemetry_log_dir }}"
+  become: true
+
+- name: Validate runtime directories were created
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ omnia_data_path }}"
+    - "{{ telemetry_data_path }}"
+    - "{{ output_project_dir }}"
+    - "{{ log_dir }}"
+  register: _dir_checks
+
+- name: Fail if any required directory is missing
+  ansible.builtin.fail:
+    msg: "Required directory does not exist: {{ item.item }}"
+  when: not item.stat.exists
+  loop: "{{ _dir_checks.results }}"

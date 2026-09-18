@@ -32,7 +32,7 @@
   register: ns_result
   changed_when: "'created' in ns_result.stdout | default('')"
 
-- name: Check if VictoriaMetrics operator is already installed
+- name: Check if VictoriaMetrics operator is already installed (Helm release)
   ansible.builtin.command: >
     helm status victoria-metrics-operator -n {{ telemetry_namespace }}
   register: operator_check
@@ -50,10 +50,10 @@
         {{ victoria_operator_pkg }}
       changed_when: true
 
-    - name: Wait for VictoriaMetrics operator deployment
+    - name: Wait for VictoriaMetrics operator deployment (fresh install)
       ansible.builtin.command: >
         kubectl wait --for=condition=available --timeout={{ victoria_operator_wait_timeout }}
-        deployment/victoria-metrics-operator -n {{ telemetry_namespace }}
+        deployment -l app.kubernetes.io/name=victoria-metrics-operator -n {{ telemetry_namespace }}
       changed_when: false
 
     - name: Log operator auto-install
@@ -71,16 +71,10 @@
     - operator_check.rc != 0
     - victoria_operator_pkg is not defined
 
-- name: Skip operator install (already present)
-  ansible.builtin.debug:
-    msg: "{{ victoria_operator_skip_existing_msg }}"
-  when:
-    - operator_check.rc == 0
-
 - name: Wait for VictoriaMetrics operator deployment (existing)
   ansible.builtin.command: >
     kubectl wait --for=condition=available --timeout={{ victoria_operator_wait_timeout }}
-    deployment/victoria-metrics-operator -n {{ telemetry_namespace }}
+    deployment -l app.kubernetes.io/name=victoria-metrics-operator -n {{ telemetry_namespace }}
   changed_when: false
   register: vl_operator_wait
   failed_when: false
@@ -89,7 +83,9 @@
 - name: VictoriaMetrics operator not ready (VictoriaLogs)
   ansible.builtin.fail:
     msg: "{{ vl_operator_not_ready_msg }}"
-  when: operator_check.rc == 0 and vl_operator_wait.rc | default(0) != 0
+  when:
+    - operator_check.rc == 0
+    - vl_operator_wait.rc != 0
 
 - name: Wait for VictoriaLogs CRDs
   ansible.builtin.command: kubectl get crd {{ item }}

@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,18 +13,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Build catalog-scoped artifact and RPM task lists for parallel execution."""
+
 # pylint: disable=import-error,no-name-in-module,too-many-locals,too-many-statements
-#!/usr/bin/python
 
 import os
+import shutil
 from datetime import datetime
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
+from ansible.module_utils.repo_manager.security_utils import (
+    redact_sensitive_value,
+    validate_no_url_credentials,
+)
 from ansible.module_utils.repo_manager.software_utils import (
     transform_package_dict,
     remove_duplicates_from_trans,
     build_repo_name,
     resolve_pulp_policy,
+    resolve_repository_pulp_policy,
 )
 from ansible.module_utils.repo_manager.catalog_resolver import (
     load_repo_manager_config,
@@ -33,14 +41,24 @@ from ansible.module_utils.repo_manager.catalog_resolver import (
     build_global_package_index,
     parse_repo_urls_from_config,
     parse_additional_repos_from_config,
+    parse_user_repos_from_config,
+    resolve_catalog_context,
 )
+from ansible.module_utils.repo_manager.repo_settings import get_caching_policy
 from ansible.module_utils.repo_manager.mirror_status import (
     load_mirror_index,
     save_mirror_index,
     save_global_package_index,
     update_mirror_index_entry,
+    migrate_mirror_index,
     detect_package_changes,
     filter_tasks_for_processing,
+)
+from ansible.module_utils.repo_manager.config import (
+    LOG_DIR_DEFAULT,
+    MIRROR_INDEX_FILENAME,
+    MIRROR_STATUS_DIR,
+    REPO_MANAGER_CONFIG_PATH_DEFAULT,
 )
 
 DOCUMENTATION = r"""
@@ -84,14 +102,32 @@ task_count:
   returned: success
 """
 
-from ansible.module_utils.repo_manager.config import (
-    CSV_FILE_PATH_DEFAULT,
-    LOG_DIR_DEFAULT,
-    REPO_MANAGER_CONFIG_PATH_DEFAULT,
-    ARCH_SUFFIXES,
-    MIRROR_STATUS_DIR,
-    MIRROR_INDEX_FILENAME,
-)
+def packages_requiring_reconciliation(
+        change_results, configured_registry_names, rpm_policy_by_repo=None):
+    """Return mirrored packages whose external Pulp state must be revalidated."""
+    reconciliation_packages = []
+    rpm_policy_by_repo = rpm_policy_by_repo or {}
+    for package_info in change_results.get("skip", []):
+        package_type = package_info.get("type")
+        if package_type in ("rpm", "rpm_repo"):
+            repo_name = (
+                package_info.get("repo_name")
+                or package_info.get("definition", {}).get("repo_name", "")
+            )
+            if rpm_policy_by_repo.get(repo_name) == "on_demand":
+                # Reissue the DNF request so catalog-selected payloads remain
+                # retained after a policy transition or interrupted Pulp run.
+                reconciliation_packages.append(package_info)
+            continue
+
+        if (package_type == "image"
+                and package_info.get("definition", {}).get("source_registry")
+                in configured_registry_names):
+            # Reconcile rotated private-registry credentials, certificates,
+            # URLs, and policies even when the image identity is unchanged.
+            reconciliation_packages.append(package_info)
+
+    return reconciliation_packages
 
 
 def main():
@@ -103,19 +139,27 @@ def main():
     """
 
     module_args = {
-        "csv_file_path": {"type": "str", "required": False, "default": CSV_FILE_PATH_DEFAULT},
         "local_repo_config_path": {"type": "str", "required": False, "default": REPO_MANAGER_CONFIG_PATH_DEFAULT},
         "log_dir": {"type": "str", "required": False, "default": LOG_DIR_DEFAULT},
-        "key_path": {"type": "str", "required": True},
-        "sub_urls": {"type": "dict", "required": False, "default": {}}
+        "sub_urls": {"type": "dict", "required": False, "default": {}},
+        "cluster_os_type": {"type": "str", "required": True},
+        "cluster_os_version": {"type": "str", "required": True},
+        "architectures": {
+            "type": "list", "elements": "str", "required": True
+        },
+        "referenced_repositories": {
+            "type": "dict", "required": False, "default": None
+        },
     }
 
     module = AnsibleModule(argument_spec=module_args)
     log_dir = module.params["log_dir"]
-    csv_file_path = module.params["csv_file_path"]
     local_repo_config_path = module.params["local_repo_config_path"]
-    vault_key_path = module.params["key_path"]
     sub_urls = module.params["sub_urls"]
+    cluster_os_type = module.params["cluster_os_type"]
+    cluster_os_version = module.params["cluster_os_version"]
+    selected_architectures = module.params["architectures"]
+    referenced_repositories = module.params["referenced_repositories"]
     logger = setup_standard_logger(log_dir)
     start_time = datetime.now().strftime("%I:%M:%S %p")
     logger.info(f"Start execution time: {start_time}")
@@ -124,40 +168,61 @@ def main():
         config_dir = os.path.dirname(os.path.abspath(local_repo_config_path))
         config_data, _ = load_repo_manager_config(local_repo_config_path, logger)
         repo_config = get_repo_config_policy(config_data)
+        global_caching_policy = get_caching_policy(config_data)
 
         # Discover and load catalogs
         catalog_path = get_catalog_path(config_data, config_dir, logger)
         catalogs = load_multiple_catalogs(catalog_path, logger)
 
-        # Extract OS info from first catalog's identifier
-        first_catalog = catalogs[0]
-        catalog_id = first_catalog["identifier"]
-        cluster_os_type = "rhel"
-        cluster_os_version = "10.0"
-        parts = catalog_id.split("-")
-        for i, part in enumerate(parts):
-            if part in ("rhel"):
-                cluster_os_type = part
-                version_parts = []
-                for j in range(i + 1, min(i + 3, len(parts))):
-                    if parts[j].isdigit():
-                        version_parts.append(parts[j])
-                    else:
-                        break
-                if version_parts:
-                    cluster_os_version = ".".join(version_parts)
-                break
-
-        logger.info("Detected OS: %s %s from catalog identifier: %s",
-                    cluster_os_type, cluster_os_version, catalog_id)
+        resolved_context = resolve_catalog_context(catalogs, logger)
+        matching_contexts = [
+            context for context in resolved_context["execution_contexts"]
+            if context["os_type"] == cluster_os_type
+            and context["os_version"] == cluster_os_version
+        ]
+        if len(matching_contexts) != 1:
+            raise ValueError(
+                "Catalog context changed between setup and task preparation: "
+                f"expected {cluster_os_type} {cluster_os_version} "
+                f"{selected_architectures}, resolved "
+                f"{resolved_context['execution_contexts']}"
+            )
+        active_context = matching_contexts[0]
+        if selected_architectures != active_context["architectures"]:
+            raise ValueError(
+                "Catalog architectures changed between setup and task "
+                f"preparation: expected {selected_architectures}, resolved "
+                f"{active_context['architectures']}"
+            )
+        if referenced_repositories is None:
+            # Preserve direct module callers while the production role passes
+            # the setup-resolved map explicitly.
+            referenced_repositories = active_context[
+                "referenced_repositories"
+            ]
+        elif referenced_repositories != active_context["referenced_repositories"]:
+            raise ValueError(
+                "Catalog repository mapping changed between setup and task "
+                "preparation"
+            )
 
         # Build global package index with cross-catalog deduplication
-        global_index = build_global_package_index(catalogs, logger)
+        global_index = build_global_package_index(
+            catalogs, logger, catalog_context=active_context
+        )
 
         # Load mirror index for incremental mirroring
         mirror_index_dir = os.path.join(log_dir, MIRROR_STATUS_DIR)
         mirror_index_path = os.path.join(mirror_index_dir, MIRROR_INDEX_FILENAME)
         mirror_data = load_mirror_index(mirror_index_path, logger)
+        mirror_index_migrated = migrate_mirror_index(
+            mirror_data, global_index, logger
+        )
+        if mirror_index_migrated and os.path.isfile(mirror_index_path):
+            backup_path = f"{mirror_index_path}.schema-v1.bak"
+            if not os.path.exists(backup_path):
+                shutil.copy2(mirror_index_path, backup_path)
+                logger.info("Backed up legacy mirror index to %s", backup_path)
 
         # Save global package index to file for reference
         global_index_path = os.path.join(mirror_index_dir, "global_package_index.json")
@@ -167,7 +232,7 @@ def main():
         final_tasks_dict = {}
         sw_archs = []
 
-        for arch in ARCH_SUFFIXES:
+        for arch in selected_architectures:
             if arch not in global_index or not global_index[arch]:
                 logger.info("No packages found for arch %s, skipping", arch)
                 continue
@@ -178,6 +243,24 @@ def main():
             change_results = detect_package_changes(global_index, mirror_data, arch, logger)
             packages_to_process = filter_tasks_for_processing(change_results, logger)
 
+            rpm_policy_by_repo = {
+                repo_name: resolve_repository_pulp_policy(
+                    config_data, cluster_os_version, arch, repo_name, logger
+                )
+                for repo_name in referenced_repositories.get(arch, [])
+            }
+
+            configured_registry_names = set((config_data.get("registries") or {}).keys())
+            reconciliation_packages = packages_requiring_reconciliation(
+                change_results, configured_registry_names, rpm_policy_by_repo
+            )
+            if reconciliation_packages:
+                logger.info(
+                    "Reprocessing %d package(s) to reconcile external Pulp state",
+                    len(reconciliation_packages)
+                )
+                packages_to_process.extend(reconciliation_packages)
+
             if not packages_to_process:
                 logger.info("No packages to process for arch %s (all up-to-date)", arch)
                 continue
@@ -187,7 +270,7 @@ def main():
             for pkg_info in packages_to_process:
                 group_name = pkg_info["group_name"]
                 pkg_def = dict(pkg_info["definition"])
-                
+
                 # Normalize field names for parallel_tasks compatibility
                 if "type" not in pkg_def:
                     pkg_def["type"] = pkg_def.get("packagetype", "rpm")
@@ -197,9 +280,23 @@ def main():
                     pkg_def["version"] = pkg_def.get("tag", "")
                 # For tarballs/downloads, ensure url/path keys exist
                 # (already lowercase in catalog data)
-                
+
                 pkg_def["catalog_name"] = pkg_info["catalog_name"]
                 pkg_def["catalogs"] = pkg_info["catalogs"]
+
+                if pkg_def["type"] in ("rpm", "rpm_repo"):
+                    repo_name = (
+                        pkg_def.get("repo_name")
+                        or pkg_info.get("repo_name", "")
+                    )
+                    if repo_name not in rpm_policy_by_repo:
+                        rpm_policy_by_repo[repo_name] = (
+                            resolve_repository_pulp_policy(
+                                config_data, cluster_os_version, arch,
+                                repo_name, logger
+                            )
+                        )
+                    pkg_def["pulp_policy"] = rpm_policy_by_repo[repo_name]
 
                 if group_name not in tasks_by_group:
                     tasks_by_group[group_name] = []
@@ -215,7 +312,9 @@ def main():
         for arch in sw_archs:
             arch_index = global_index.get(arch, {})
             for composite_hash, pkg_info in arch_index.items():
-                existing_pkg = mirror_data.get("MirrorIndex", {}).get("packages", {}).get(pkg_info["package_name"])
+                existing_pkg = mirror_data.get(
+                    "MirrorIndex", {}
+                ).get("packages", {}).get(composite_hash)
                 if existing_pkg is None:
                     update_mirror_index_entry(
                         mirror_data, pkg_info["package_name"], pkg_info["type"],
@@ -227,13 +326,17 @@ def main():
 
         # Parse repository URLs from config
         local_config = []
+        explicitly_configured_repos = set()
         for arch in sw_archs:
+            referenced_repo_names = referenced_repositories.get(arch, [])
             repos = parse_repo_urls_from_config(config_data, repo_config, arch,
-                                                 cluster_os_version, logger)
+                                                 cluster_os_version, logger,
+                                                 global_caching_policy,
+                                                 referenced_repo_names)
             for repo in repos:
                 sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, repo["name"])
                 pulp_policy = resolve_pulp_policy(repo.get("policy", repo_config),
-                                                   repo.get("caching", True), logger)
+                                                   repo.get("caching", global_caching_policy), logger)
                 local_config.append({
                     "package": sw_name,
                     "url": repo["url"],
@@ -244,18 +347,29 @@ def main():
                     "client_cert": repo.get("sslclientcert", ""),
                     "policy": pulp_policy,
                     "sw_arch": arch,
+                    "priority": repo.get("priority"),
                 })
+                explicitly_configured_repos.add((arch, repo["name"]))
 
-        # Handle subscription URLs override
+        # Add subscription-discovered URLs only when a repository does not have
+        # an explicit configured URL. This makes a user-provided URL the highest
+        # priority and prevents duplicate Pulp entries for the same repository.
         if sub_urls:
             for arch in sw_archs:
                 if arch in sub_urls and sub_urls[arch]:
                     for url_entry in sub_urls[arch]:
                         name = url_entry.get("name", "unknown")
+                        if (arch, name) in explicitly_configured_repos:
+                            logger.info(
+                                "Using explicitly configured URL for repository %s (%s); "
+                                "skipping subscription-discovered URL",
+                                name, arch
+                            )
+                            continue
                         sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, name)
                         pulp_policy = resolve_pulp_policy(
                             url_entry.get("policy", repo_config),
-                            url_entry.get("caching", True), logger)
+                            url_entry.get("caching", global_caching_policy), logger)
                         local_config.append({
                             "package": sw_name,
                             "url": url_entry.get("url", ""),
@@ -266,30 +380,54 @@ def main():
                             "client_cert": url_entry.get("sslclientcert", ""),
                             "policy": pulp_policy,
                             "sw_arch": arch,
+                            "priority": url_entry.get("priority"),
                         })
 
         # Parse additional repos from config
         additional_repos_config = {}
         for arch in sw_archs:
             add_repos = parse_additional_repos_from_config(
-                config_data, repo_config, arch, cluster_os_version, logger)
+                config_data, repo_config, arch, cluster_os_version, logger,
+                global_caching_policy, os_type=cluster_os_type,
+                referenced_repo_names=referenced_repositories.get(arch, []))
             if add_repos:
                 additional_repos_config[arch] = add_repos
             else:
                 additional_repos_config[arch] = []
 
-        logger.info(f"Package processing completed: {final_tasks_dict}")
+        # Parse user repos from config
+        user_repos_config = {}
+        for arch in sw_archs:
+            user_repos = parse_user_repos_from_config(
+                config_data, cluster_os_version, arch, repo_config, logger,
+                global_caching_policy, os_type=cluster_os_type,
+                referenced_repo_names=referenced_repositories.get(arch, []))
+            if user_repos:
+                user_repos_config[arch] = user_repos
+            else:
+                user_repos_config[arch] = []
+
+        validate_no_url_credentials(final_tasks_dict)
+        logger.info(
+            "Package processing completed: %s",
+            redact_sensitive_value(final_tasks_dict),
+        )
         module.exit_json(
             changed=False,
             software_dict=final_tasks_dict,
             local_config=local_config,
             additional_repos_config=additional_repos_config,
+            user_repos_config=user_repos_config,
             sw_archs=sw_archs
         )
 
-    except Exception as e:
-        logger.error(f"Error occurred: {str(e)}")
-        module.fail_json(msg=str(e))
+    except Exception as error:
+        logger.error(
+            "Package task preparation failed (%s).", type(error).__name__
+        )
+        module.fail_json(
+            msg=f"Package task preparation failed ({type(error).__name__})."
+        )
 
 
 if __name__ == "__main__":

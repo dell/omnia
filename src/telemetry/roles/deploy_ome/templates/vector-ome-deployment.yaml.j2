@@ -26,8 +26,8 @@ spec:
         component: telemetry-bridge
         subsystem: ome
       annotations:
-        # Force pod restart on config change (Ansible deployment timestamp)
-        deployment.omnia/timestamp: "{{ ansible_date_time.iso8601 }}"
+        # Restart pods only when the Vector TOML config actually changes
+        configmap.omnia/checksum: "{{ lookup('template', 'vector-ome-config.toml.j2') | hash('sha256') }}"
     spec:
       terminationGracePeriodSeconds: 30
 
@@ -41,7 +41,7 @@ spec:
 
       containers:
       - name: {{ vector.ome.container_name }}
-        image: {{ vector.image }}
+        image: {{ vector.image | trim }}
         imagePullPolicy: IfNotPresent
         
         # Command: Vector with TOML config (Debian image binary path)

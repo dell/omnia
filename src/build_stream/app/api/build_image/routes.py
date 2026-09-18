@@ -15,9 +15,9 @@
 """FastAPI routes for build image stage operations."""
 
 from datetime import datetime, timezone
-from typing import Annotated
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 
 from api.build_image.dependencies import (
     get_create_build_image_use_case,
@@ -40,6 +40,7 @@ from core.build_image.exceptions import (
 from core.jobs.exceptions import (
     InvalidStateTransitionError,
     JobNotFoundError,
+    StageAlreadyCompletedError,
     StageNotFoundError,
     TerminalStateViolationError,
     UpstreamStageNotCompletedError,
@@ -69,7 +70,10 @@ def _build_error_response(
     response_model=CreateBuildImageResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Create build image",
-    description="Trigger the build-image stage for a job",
+    description="Trigger the build-image stage for a job. "
+                "Domain-segregated (Omnia 2.3+): Request body is optional. "
+                "When omitted, the image_build_manager.yml playbook reads the catalog "
+                "and builds all images for all architectures.",
     responses={
         202: {"description": "Stage accepted", "model": CreateBuildImageResponse},
         400: {"description": "Invalid request", "model": BuildImageErrorResponse},
@@ -81,13 +85,16 @@ def _build_error_response(
 )
 def create_build_image(
     job_id: str,
-    request_body: CreateBuildImageRequest,
+    request_body: Optional[CreateBuildImageRequest] = Body(None),
     token_data: Annotated[dict, Depends(verify_token)] = None,  # pylint: disable=unused-argument
     use_case: CreateBuildImageUseCase = Depends(get_create_build_image_use_case),
     correlation_id: CorrelationId = Depends(get_build_image_correlation_id),
     _: None = Depends(require_job_write),
 ) -> CreateBuildImageResponse:
     """Trigger the build-image stage for a job.
+
+    Domain-segregated (Omnia 2.3+): Accepts empty request body. The playbook
+    reads the catalog and builds all images for all architectures.
 
     Accepts the request synchronously and returns 202 Accepted.
     The playbook execution is handled by the NFS queue watcher service.
@@ -97,8 +104,8 @@ def create_build_image(
 
     log_secure_info(
         "info",
-        f"Create build image request: job_id={job_id}, arch={request_body.architecture}, "
-        f"image_key={request_body.image_key}, correlation_id={correlation_id.value}",
+        f"Create build image request: job_id={job_id}, "
+        f"correlation_id={correlation_id.value}",
         identifier=str(client_id.value),
         job_id=job_id,
     )
@@ -116,6 +123,10 @@ def create_build_image(
         ) from exc
 
     try:
+        # Handle None request_body (empty JSON body)
+        if request_body is None:
+            request_body = CreateBuildImageRequest()
+
         command = CreateBuildImageCommand(
             job_id=validated_job_id,
             client_id=client_id,
@@ -126,9 +137,7 @@ def create_build_image(
         )
         log_secure_info(
             "debug",
-            f"Build image executing: job_id={job_id}, arch={request_body.architecture}, "
-            f"image_key={request_body.image_key}, "
-            f"functional_groups={request_body.functional_groups}",
+            f"Build image executing: job_id={job_id}",
             job_id=job_id,
         )
         result = use_case.execute(command)
@@ -136,7 +145,6 @@ def create_build_image(
         log_secure_info(
             "info",
             f"Build image success: job_id={job_id}, "
-            f"arch={result.architecture}, image_key={result.image_key}, "
             f"stage={result.stage_name}, stage_status={result.status}, status=202",
             job_id=job_id,
             end_section=True,
@@ -207,6 +215,22 @@ def create_build_image(
             ).model_dump(),
         ) from exc
 
+    except StageAlreadyCompletedError as exc:
+        log_secure_info(
+            "warning",
+            f"Build image failed: job_id={job_id}, reason=stage_already_completed, status=409",
+            job_id=job_id,
+            end_section=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=_build_error_response(
+                "STAGE_ALREADY_COMPLETED",
+                exc.message,
+                correlation_id.value,
+            ).model_dump(),
+        ) from exc
+
     except TerminalStateViolationError as exc:
         log_secure_info(
             "warning",
@@ -214,82 +238,11 @@ def create_build_image(
             job_id=job_id,
             end_section=True,
         )
-        if exc.state == "FAILED":
-            message = f"Job {job_id} stage is in {exc.state} state and cannot be retried. Reset the stage using /stages/build-image/reset endpoint."
-        else:
-            message = f"Job {job_id} stage is in {exc.state} state and cannot be modified."
-
         raise HTTPException(
             status_code=status.HTTP_412_PRECONDITION_FAILED,
             detail=_build_error_response(
                 "TERMINAL_STATE_VIOLATION",
-                message,
-                correlation_id.value,
-            ).model_dump(),
-        ) from exc
-
-    except InvalidArchitectureError as exc:
-        log_secure_info(
-            "warning",
-            f"Build image failed: job_id={job_id}, reason=invalid_architecture, "
-            f"arch={request_body.architecture}, status=400",
-            job_id=job_id,
-            end_section=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=_build_error_response(
-                "INVALID_ARCHITECTURE",
-                exc.message,
-                correlation_id.value,
-            ).model_dump(),
-        ) from exc
-
-    except InvalidImageKeyError as exc:
-        log_secure_info(
-            "warning",
-            f"Build image failed: job_id={job_id}, reason=invalid_image_key, "
-            f"image_key={request_body.image_key}, status=400",
-            job_id=job_id,
-            end_section=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=_build_error_response(
-                "INVALID_IMAGE_KEY",
-                exc.message,
-                correlation_id.value,
-            ).model_dump(),
-        ) from exc
-
-    except InvalidFunctionalGroupsError as exc:
-        log_secure_info(
-            "warning",
-            f"Build image failed: job_id={job_id}, reason=invalid_functional_groups, status=400",
-            job_id=job_id,
-            end_section=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=_build_error_response(
-                "INVALID_FUNCTIONAL_GROUPS",
-                exc.message,
-                correlation_id.value,
-            ).model_dump(),
-        ) from exc
-
-    except InventoryHostMissingError as exc:
-        log_secure_info(
-            "warning",
-            f"Build image failed: job_id={job_id}, reason=inventory_host_missing, status=400",
-            job_id=job_id,
-            end_section=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=_build_error_response(
-                "INVENTORY_HOST_MISSING",
-                exc.message,
+                f"Job {job_id} stage is in {exc.state} state and cannot be modified.",
                 correlation_id.value,
             ).model_dump(),
         ) from exc
@@ -311,9 +264,11 @@ def create_build_image(
         ) from exc
 
     except Exception as exc:
+        error_detail = f"{type(exc).__name__}: {str(exc)}"
         log_secure_info(
             "error",
-            f"Build image failed: job_id={job_id}, reason=unexpected_error, status=500",
+            f"Build image failed: job_id={job_id}, reason=unexpected_error, "
+            f"error={error_detail}, status=500",
             job_id=job_id,
             exc_info=True,
             end_section=True,
@@ -322,7 +277,7 @@ def create_build_image(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=_build_error_response(
                 "INTERNAL_ERROR",
-                "An unexpected error occurred",
+                f"An unexpected error occurred: {error_detail}",
                 correlation_id.value,
             ).model_dump(),
         ) from exc

@@ -1,0 +1,428 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Deploy telemetry components
+# Usage: ansible-playbook telemetry.yml --tags deploy
+# This playbook orchestrates deployment of all enabled telemetry components
+#
+# Execution order:
+#   Phase 0: Prerequisites — load config, derive flags, resolve kube_vip
+#   Phase 1: Sink infrastructure (Kafka, VictoriaMetrics, VictoriaLogs)
+#   Phase 2: Source deployment (each source generates + applies its own manifests)
+#   Phase 3: Reconciliation (root kustomization + full-stack apply for consistency)
+#   Phase 4: Verification (pod readiness, status collection)
+
+# ── Phase 0: Prerequisites ───────────────────────────────────────────────────
+- name: "Phase 0 | Load telemetry prerequisites"
+  ansible.builtin.import_playbook: telemetry_prereq.yml
+  tags: deploy
+
+# ── Phase 1: Sink infrastructure ─────────────────────────────────────────────
+# Deploy Kafka, VictoriaMetrics, VictoriaLogs based on config-derived flags.
+- name: "Phase 1 | Build sinks list from derived flags"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Build sinks list from derived support flags
+      ansible.builtin.set_fact:
+        sinks_list: >-
+          {{
+            (['kafka'] if (kafka_support | default(false) | bool) else []) +
+            (['victoria_metrics'] if (victoria_metrics_support | default(false) | bool) else []) +
+            (['victoria_logs'] if (victoria_logs_support | default(false) | bool) else [])
+          }}
+        cacheable: true
+
+    - name: Display sinks to be deployed
+      ansible.builtin.debug:
+        msg: "Sinks to deploy: {{ sinks_list }}"
+  tags: deploy
+
+- name: "Phase 1 | Deploy telemetry sinks"
+  ansible.builtin.import_playbook: sinks/deploy_sinks.yml
+  vars:
+    sinks: "{{ hostvars['localhost']['sinks_list'] }}"
+  tags: deploy
+
+# ── Phase 1.5: Transfer credentials to kube_vip for source deployments ───────
+- name: "Phase 1.5 | Transfer credentials to kube_vip"
+  hosts: kube_vip_group
+  gather_facts: false
+  tasks:
+    - name: Set telemetry credentials from localhost
+      ansible.builtin.set_fact:
+        telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
+      no_log: true
+      when: hostvars['localhost']['telemetry_credentials'] is defined
+
+    - name: Transfer cluster_inv from localhost to remote host
+      ansible.builtin.set_fact:
+        cluster_inv: "{{ hostvars['localhost']['cluster_inv'] }}"
+      when:
+        - hostvars['localhost']['cluster_inv'] is defined
+  tags: deploy
+
+# ── Phase 2: Source deployment ──────────────────────────────────────────────
+# Each source: generates manifests and applies its own resources independently
+- name: "Phase 2 | Deploy iDRAC telemetry"
+  ansible.builtin.import_playbook: sources/deploy_idrac_telemetry.yml
+  tags: deploy
+  when: hostvars['localhost']['telemetry_config'].telemetry_sources.idrac.metrics_enabled | default(false) | bool
+
+- name: "Phase 2 | Deploy LDMS telemetry"
+  ansible.builtin.import_playbook: sources/deploy_ldms.yml
+  tags: deploy
+  when: hostvars['localhost']['telemetry_config'].telemetry_sources.ldms.metrics_enabled | default(false) | bool
+
+- name: "Phase 2 | Deploy PowerScale telemetry"
+  ansible.builtin.import_playbook: sources/deploy_powerscale.yml
+  tags: deploy
+  when: hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool
+
+- name: "Phase 2 | Deploy UFM telemetry"
+  ansible.builtin.import_playbook: sources/deploy_ufm.yml
+  tags: deploy
+  when: hostvars['localhost']['telemetry_config'].telemetry_sources.ufm.metrics_enabled | default(false) | bool
+
+- name: "Phase 2 | Deploy VAST telemetry"
+  ansible.builtin.import_playbook: sources/deploy_vast.yml
+  tags: deploy
+  when: hostvars['localhost']['telemetry_config'].telemetry_sources.vast.metrics_enabled | default(false) | bool
+
+- name: "Phase 2 | Deploy OME telemetry"
+  ansible.builtin.import_playbook: sources/deploy_ome.yml
+  tags: deploy
+  when: >-
+    hostvars['localhost']['telemetry_config'].telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool or
+    hostvars['localhost']['telemetry_config'].telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
+
+# ── Phase 3: Verification — check pod status and detect errors ───────────────
+- name: "Verify telemetry deployment"
+  hosts: kube_vip_group
+  gather_facts: false
+  any_errors_fatal: true
+  vars_files:
+    - ../../vars/telemetry_common.yml
+  tags: deploy
+  tasks:
+    - name: Collect pod status in telemetry namespace
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} --no-headers
+      register: telemetry_pods
+      changed_when: false
+
+    - name: Check for pods in error state
+      ansible.builtin.set_fact:
+        failed_pods: >-
+          {{ telemetry_pods.stdout_lines | default([])
+             | select('search', 'CrashLoopBackOff|Error|ImagePullBackOff|ErrImagePull|InvalidImageName|CreateContainerConfigError')
+             | list }}
+
+    - name: Display telemetry pod status
+      ansible.builtin.debug:
+        msg: "{{ telemetry_pods.stdout_lines | default(['No pods found']) }}"
+
+    - name: Fail if pods are in error state
+      ansible.builtin.fail:
+        msg: >-
+          Telemetry deployment verification failed. The following pods are in error state:
+          {{ failed_pods | join('\n') }}
+          Check pod logs with: kubectl logs -n {{ telemetry_namespace }} <pod-name>
+      when: failed_pods | length > 0
+
+# ── Phase 4: Collect deployment results ───────────────────────────────────────
+# Inspect cluster state to determine deployed/failed/skipped for each component
+- name: "Collect deployment results"
+  hosts: kube_vip_group
+  gather_facts: false
+  vars_files:
+    - ../../vars/telemetry_common.yml
+  tags: deploy
+  tasks:
+    # Load config for checking enabled flags
+    - name: Load telemetry config from localhost
+      ansible.builtin.set_fact:
+        _cfg: "{{ hostvars['localhost']['telemetry_config'] }}"
+
+    # -- Sink checks ----------------------------------------------------------
+    - name: Check Kafka pods
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} -l strimzi.io/cluster=kafka --no-headers
+      register: _kafka_pods
+      changed_when: false
+      failed_when: false
+      when: hostvars['localhost']['kafka_support'] | default(false) | bool
+
+    - name: Check VictoriaMetrics pods
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} -l app.kubernetes.io/name=vmstorage --no-headers
+      register: _vm_pods
+      changed_when: false
+      failed_when: false
+      when: hostvars['localhost']['victoria_metrics_support'] | default(false) | bool
+
+    - name: Check VictoriaLogs pods
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} -l app.kubernetes.io/name=vlstorage --no-headers
+      register: _vl_pods
+      changed_when: false
+      failed_when: false
+      when: hostvars['localhost']['victoria_logs_support'] | default(false) | bool
+
+    # -- Source checks --------------------------------------------------------
+    - name: Check iDRAC pods
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} -l app=idrac-telemetry --no-headers
+      register: _idrac_pods
+      changed_when: false
+      failed_when: false
+
+    - name: Check LDMS aggregator pod readiness
+      ansible.builtin.command: >
+        kubectl wait --for=condition=Ready pod
+        -n {{ telemetry_namespace }} -l app=nersc-ldms-aggr --timeout=1s
+      register: _ldms_aggregator_pods
+      changed_when: false
+      failed_when: false
+
+    - name: Check LDMS store pod readiness
+      ansible.builtin.command: >
+        kubectl wait --for=condition=Ready pod
+        -n {{ telemetry_namespace }} -l app=nersc-ldms-store --timeout=1s
+      register: _ldms_store_pods
+      changed_when: false
+      failed_when: false
+
+    - name: Check PowerScale pods (karavi-metrics-powerscale)
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} -l app.kubernetes.io/name=karavi-metrics-powerscale --no-headers
+      register: _powerscale_pods
+      changed_when: false
+      failed_when: false
+
+    - name: Check UFM service (ufm-external)
+      ansible.builtin.command: >
+        kubectl get svc -n {{ telemetry_namespace }} ufm-external --no-headers
+      register: _ufm_check
+      changed_when: false
+      failed_when: false
+
+    - name: Check VAST service (vast-external)
+      ansible.builtin.command: >
+        kubectl get svc -n {{ telemetry_namespace }} vast-external --no-headers
+      register: _vast_check
+      changed_when: false
+      failed_when: false
+
+    - name: Check Vector-OME pods
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} -l app=vector-ome --no-headers
+      register: _vector_ome_pods
+      changed_when: false
+      failed_when: false
+
+    - name: Check Vector-LDMS pods
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} -l app=vector-ldms --no-headers
+      register: _vector_ldms_pods
+      changed_when: false
+      failed_when: false
+
+    - name: Check VLAgent pods (for logs sinks)
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} -l app.kubernetes.io/name=vlagent --no-headers
+      register: _vlagent_pods
+      changed_when: false
+      failed_when: false
+
+    # -- Store results in hostvars for localhost to read ----------------------
+    - name: Store kubectl results as facts
+      ansible.builtin.set_fact:
+        _kv:
+          _kafka_pods: "{{ _kafka_pods }}"
+          _vm_pods: "{{ _vm_pods }}"
+          _vl_pods: "{{ _vl_pods }}"
+          _idrac_pods: "{{ _idrac_pods }}"
+          _ldms_aggregator_pods: "{{ _ldms_aggregator_pods }}"
+          _ldms_store_pods: "{{ _ldms_store_pods }}"
+          _powerscale_pods: "{{ _powerscale_pods }}"
+          _ufm_check: "{{ _ufm_check }}"
+          _vast_check: "{{ _vast_check }}"
+          _vector_ome_pods: "{{ _vector_ome_pods }}"
+          _vector_ldms_pods: "{{ _vector_ldms_pods }}"
+          _vlagent_pods: "{{ _vlagent_pods }}"
+        cacheable: true
+
+# ── Phase 4b: Set deployment result facts on localhost ────────────────────────
+- name: "Set deployment result facts"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../vars/telemetry_common.yml
+  tags: deploy
+  tasks:
+    - name: Resolve kube_vip host
+      ansible.builtin.set_fact:
+        _kube_vip_host: "{{ kube_vip | default('') }}"
+
+    - name: Get kubectl results from kube_vip
+      ansible.builtin.set_fact:
+        _kv: "{{ hostvars[_kube_vip_host]['_kv'] | default({}) }}"
+        _cfg: "{{ telemetry_config }}"
+      when: _kube_vip_host | length > 0
+
+    - name: Warn if kube_vip was unreachable
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: kube_vip host '{{ _kube_vip_host }}' was unreachable or did not
+          report deployment results. All components will be marked as 'failed'.
+      when: _kube_vip_host | length > 0 and (_kv | default({}) | length == 0)
+
+    - name: Set fallback config when kube_vip results are unavailable
+      ansible.builtin.set_fact:
+        _cfg: "{{ telemetry_config }}"
+      when: _cfg is not defined
+
+    # -- Sinks ----------------------------------------------------------------
+    - name: Set sink results
+      vars:
+        _kafka_requested: "{{ hostvars['localhost']['kafka_support'] | default(false) | bool }}"
+        _kafka_running: >-
+          {{ (_kv['_kafka_pods'].stdout_lines | default([])
+             | select('search', 'Running') | list | length) > 0 }}
+        _vm_requested: "{{ hostvars['localhost']['victoria_metrics_support'] | default(false) | bool }}"
+        _vm_running: >-
+          {{ (_kv['_vm_pods'].stdout_lines | default([])
+             | select('search', 'Running') | list | length) > 0 }}
+        _vl_requested: "{{ hostvars['localhost']['victoria_logs_support'] | default(false) | bool }}"
+        _vl_running: >-
+          {{ (_kv['_vl_pods'].stdout_lines | default([])
+             | select('search', 'Running') | list | length) > 0 }}
+      ansible.builtin.set_fact:
+        _deploy_result_kafka: >-
+          {{ 'skipped' if not (_kafka_requested | bool)
+             else ('deployed' if (_kafka_running | bool) else 'failed') }}
+        _deploy_result_victoria_metrics: >-
+          {{ 'skipped' if not (_vm_requested | bool)
+             else ('deployed' if (_vm_running | bool) else 'failed') }}
+        _deploy_result_victoria_logs: >-
+          {{ 'skipped' if not (_vl_requested | bool)
+             else ('deployed' if (_vl_running | bool) else 'failed') }}
+
+    # -- Sources (metrics only) -----------------------------------------------
+    - name: Set source metrics-only results
+      vars:
+        _idrac_on: "{{ _cfg.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+        _idrac_running: >-
+          {{ (_kv['_idrac_pods'].stdout_lines | default([])
+             | select('search', 'Running') | list | length) > 0 }}
+        _ldms_on: "{{ _cfg.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
+        _ldms_aggregator_running: "{{ _kv['_ldms_aggregator_pods'].rc | default(1) == 0 }}"
+        _ldms_store_running: "{{ _kv['_ldms_store_pods'].rc | default(1) == 0 }}"
+      ansible.builtin.set_fact:
+        _deploy_result_idrac_metrics: >-
+          {{ 'skipped' if not (_idrac_on | bool)
+             else ('deployed' if (_idrac_running | bool) else 'failed') }}
+        _deploy_result_ldms_metrics: >-
+          {{ 'skipped' if not (_ldms_on | bool)
+             else ('deployed' if ((_ldms_aggregator_running | bool)
+             and (_ldms_store_running | bool)) else 'failed') }}
+
+    # -- Sources (metrics + logs) ---------------------------------------------
+    - name: Set source metrics+logs results
+      vars:
+        _ps_m_on: "{{ _cfg.telemetry_sources.powerscale.metrics_enabled | default(false) | bool }}"
+        _ps_l_on: "{{ _cfg.telemetry_sources.powerscale.logs_enabled | default(false) | bool }}"
+        _ps_running: >-
+          {{ (_kv['_powerscale_pods'].stdout_lines | default([])
+             | select('search', 'Running') | list | length) > 0 }}
+        _vlagent_running: >-
+          {{ (_kv['_vlagent_pods'].stdout_lines | default([])
+             | select('search', 'Running') | list | length) > 0 }}
+        _ufm_m_on: "{{ _cfg.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}"
+        _ufm_l_on: "{{ _cfg.telemetry_sources.ufm.logs_enabled | default(false) | bool }}"
+        _ufm_ok: "{{ _kv['_ufm_check'].rc | default(1) == 0 }}"
+        _vast_m_on: "{{ _cfg.telemetry_sources.vast.metrics_enabled | default(false) | bool }}"
+        _vast_l_on: "{{ _cfg.telemetry_sources.vast.logs_enabled | default(false) | bool }}"
+        _ome_m_on: "{{ _cfg.telemetry_sources.ome.metrics_enabled | default(false) | bool }}"
+        _ome_l_on: "{{ _cfg.telemetry_sources.ome.logs_enabled | default(false) | bool }}"
+        _vome_running: >-
+          {{ (_kv['_vector_ome_pods'].stdout_lines | default([])
+             | select('search', 'Running') | list | length) > 0 }}
+      ansible.builtin.set_fact:
+        _deploy_result_powerscale_metrics: >-
+          {{ 'skipped' if not (_ps_m_on | bool)
+             else ('deployed' if (_ps_running | bool) else 'failed') }}
+        _deploy_result_powerscale_logs: >-
+          {{ 'skipped' if not (_ps_l_on | bool)
+             else ('deployed' if (_vlagent_running | bool) else 'failed') }}
+        _deploy_result_ufm_metrics: >-
+          {{ 'skipped' if not (_ufm_m_on | bool)
+             else ('deployed' if (_ufm_ok | bool) else 'failed') }}
+        _deploy_result_ufm_logs: >-
+          {{ 'skipped' if not (_ufm_l_on | bool)
+             else ('deployed' if (_vlagent_running | bool) else 'failed') }}
+        _deploy_result_vast_metrics: >-
+          {{ 'skipped' if not (_vast_m_on | bool) else 'deployed' }}
+        _deploy_result_vast_logs: >-
+          {{ 'skipped' if not (_vast_l_on | bool) else 'deployed' }}
+        _deploy_result_ome_metrics: >-
+          {{ 'skipped' if not (_ome_m_on | bool)
+             else ('deployed' if (_vome_running | bool) else 'failed') }}
+        _deploy_result_ome_logs: >-
+          {{ 'skipped' if not (_ome_l_on | bool)
+             else ('deployed' if (_vome_running | bool) else 'failed') }}
+
+    # -- Bridges --------------------------------------------------------------
+    # Bridge status depends on both bridge config AND source config
+    - name: Set bridge results
+      vars:
+        _vldms_bridge_on: >-
+          {{ _cfg.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool }}
+        _ldms_src_on: >-
+          {{ _cfg.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}
+        _vldms_running: >-
+          {{ (_kv['_vector_ldms_pods'].stdout_lines | default([])
+             | select('search', 'Running') | list | length) > 0 }}
+        _vome_m: >-
+          {{ _cfg.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool }}
+        _vome_l: >-
+          {{ _cfg.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool }}
+        _vome_running: >-
+          {{ (_kv['_vector_ome_pods'].stdout_lines | default([])
+             | select('search', 'Running') | list | length) > 0 }}
+      ansible.builtin.set_fact:
+        _deploy_result_vector_ldms: >-
+          {{ 'skipped' if not ((_vldms_bridge_on | bool) and (_ldms_src_on | bool))
+             else ('deployed' if (_vldms_running | bool) else 'failed') }}
+        _deploy_result_vector_ome: >-
+          {{ 'skipped' if not ((_vome_m | bool) or (_vome_l | bool))
+             else ('deployed' if (_vome_running | bool) else 'failed') }}
+
+# ── Phase 5: Write telemetry_status.yml ───────────────────────────────────────
+- name: "Write telemetry deployment status"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files:
+    - ../../vars/telemetry_common.yml
+  tags: deploy
+  tasks:
+    - name: Write telemetry_status.yml
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: write_telemetry_status

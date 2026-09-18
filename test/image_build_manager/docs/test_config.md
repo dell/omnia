@@ -15,8 +15,9 @@ Run tests directly on the machine where `image_build_manager` is deployed.
 oim_server_ip: ""    # Leave empty — tests run locally
 ```
 
-No SSH, no sync, no clone settings needed. The playbook must already be
-deployed on this machine.
+No SSH or clone setting is used, and project sync does not run. Optional input
+and repo-manager-output sync still run locally when their flags are enabled.
+Tests and playbooks use the current Omnia checkout.
 
 ### Remote Mode
 
@@ -26,6 +27,7 @@ Run tests against a remote OIM server over SSH.
 oim_server_ip: "<target_ip>"   # MANDATORY — target server IP
 oim_ssh_user: root              # SSH user (default: root)
 oim_ssh_port: 22                # SSH port (default: 22)
+clone_path: "/omnia"            # MANDATORY — absolute path on target
 ```
 
 ---
@@ -51,20 +53,30 @@ oim_ssh_port: 22                # SSH port (default: 22)
 
 | Field | Required | Description | Default |
 |-------|----------|-------------|---------|
-| `dataset` | No | Empty = input from target's `$OMNIA_DATA_PATH/image_build_manager/input/<project>/`. Set to a generated dataset name for custom inputs. | `""` |
-| `project_name` | No | Omnia project name on the target. Must match `OMNIA_PROJECT_NAME` env var. Used for input/output path resolution. | `"project_default"` |
+| `dataset` | No | Empty selects canonical `src/` files as optional sync sources. A name selects only that generated dataset's `input/` and `repo_manager_output/`. | `""` |
 
-**Empty dataset (`dataset: ""`)**: The playbook reads input from the target
-server at `$OMNIA_DATA_PATH/image_build_manager/input/<project_name>/`.
-Files must already exist on the target. This is the production behavior.
+**Empty dataset (`dataset: ""`)**: With sync disabled, the playbook reads the
+files already present under the target's effective Image Build Manager root at
+`input/<project>/`. The root is a non-empty `IMAGE_BUILD_MANAGER_DATA_PATH`,
+or `$OMNIA_DATA_PATH/image_build_manager` otherwise. With a sync option enabled,
+the corresponding canonical `src/image_build_manager` example is the local
+source.
 
 **Generated dataset (`dataset: "<name>"`)**: Create using the
 [dataset generator](../datasets/generator/README.md), then set the name here:
 
 ```bash
 cd datasets/generator/
-python generate_dataset.py <name> <profile>
+./generate_dataset.py profiles
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config
 ```
+
+Use `--profile image-builder-internet-config` for the same repository/package
+setup with Image Builder. The generator lists all eight explicit combinations.
+
+Setting the name does not itself copy files to the target. Enable the relevant
+sync option below for the scenario being executed.
 
 ### Sync Options
 
@@ -73,13 +85,36 @@ python generate_dataset.py <name> <profile>
 | `sync_image_build_input` | No | Push input files to target before tests | `false` |
 | `sync_output` | No | Push repo_manager_output to target | `false` |
 
-When `sync_image_build_input: true`, the framework syncs input files
-(from `src/` or the configured dataset) to the target server at
-`<OMNIA_DATA_PATH>/image_build_manager/input/<project_name>/`.
+When `sync_image_build_input: true`, a non-empty dataset name syncs only
+`datasets/<name>/input/`; an empty name syncs canonical
+`src/image_build_manager/input/`. The destination is
+`<effective Image Build Manager root>/input/<project_name>/` on the execution
+OIM. Credential files, keys, and backups are excluded.
 
-When `sync_output: true`, the framework syncs `repo_manager_output/`
-to the target. The remote path is derived from `repo_manager_output_path`
-in `image_build_config.yml`.
+When `sync_output: true`, a non-empty dataset name syncs only
+`datasets/<name>/repo_manager_output/`; an empty name syncs the canonical
+`src/image_build_manager/samples/repo_manager_output/` directory. The remote
+path is derived from `repo_manager_output_path` in `image_build_config.yml`.
+
+### Credentials
+
+`./setup_env.sh --set-creds` configures only the SSH password used to reach a
+remote OIM. S3/MinIO and optional ARM values use the separate encrypted domain
+credential store:
+
+```bash
+./setup_env.sh --set-domain-creds
+```
+
+Run that command from `test/image_build_manager` directly on the execution OIM.
+When non-empty, `IMAGE_BUILD_MANAGER_DATA_PATH` is the domain root; otherwise
+the root is `$OMNIA_DATA_PATH/image_build_manager`. `OMNIA_PROJECT_NAME` is
+required in both cases.
+For remote execution, SSH to the target OIM and run it there. The framework
+never syncs the encrypted credential file, vault key, or backups. Domain values
+are never read from `test_creds.yml` or copied from a dataset. Full cleanup
+removes the runtime credential pair, so configure it again before the next
+credential-dependent run.
 
 ### Report Settings
 
@@ -98,7 +133,6 @@ oim_server_ip: "<target_ip>"
 oim_ssh_user: root
 clone_path: "/omnia"
 dataset: ""
-project_name: "project_default"
 sync_image_build_input: false
 sync_output: false
 ```
@@ -110,9 +144,8 @@ oim_server_ip: "<target_ip>"
 oim_ssh_user: root
 clone_path: "/omnia"
 dataset: "my_dataset"
-project_name: "project_default"
 sync_image_build_input: true
-sync_output: false
+sync_output: true
 ```
 
 ## Example — Local Mode
@@ -146,7 +179,7 @@ Use the precheck scenario to validate the full environment:
 
 ```bash
 # Via test automation
-./run_validation.sh precheck verify --marker sanity
+./run_validation.sh fvt_image_build_manager precheck verify --marker sanity
 
 # Via playbook
 cd src/image_build_manager/playbooks

@@ -14,33 +14,73 @@
 ---
 
 # Step 0: Tag validation — reject unsupported or conflicting tags
-- name: Set omnia_run_tags from ansible_run_tags
+- name: Get provided tags (excluding 'always' and 'all')
   ansible.builtin.set_fact:
+    provided_tags: "{{ ansible_run_tags | difference(['always', 'all']) }}"
     omnia_run_tags: "{{ ansible_run_tags | default([]) | list }}"
     cacheable: true
 
-- name: Validate tags are supported
-  ansible.builtin.fail:
-    msg: >-
-      Unsupported tag '{{ item }}' specified.
-      Supported tags: {{ supported_tags | join(', ') }}
-  when:
-    - omnia_run_tags | length > 0
-    - "'all' not in omnia_run_tags"
-    - item not in supported_tags
-  loop: "{{ omnia_run_tags }}"
+- name: Resolve whether Discovery cleanup was requested
+  ansible.builtin.set_fact:
+    discovery_cleanup_requested: >-
+      {{ discovery_cleanup_mode | default(false) | bool or
+         (provided_tags | default([])
+          | intersect(['cleanup', 'cleanup_credentials'])
+          | length > 0) }}
+    cacheable: true
 
-- name: Validate no conflicting tag combinations
+- name: Identify invalid tags
+  ansible.builtin.set_fact:
+    invalid_tags: "{{ provided_tags | difference(supported_tags) }}"
+  when: provided_tags | length > 0
+
+- name: Fail if invalid tags are provided
   ansible.builtin.fail:
-    msg: >-
-      Conflicting tags specified: {{ item | join(' + ') }}.
-      These tags cannot be used together.
+    msg: "{{ tag_validation_fail_msg }}"
   when:
-    - omnia_run_tags | length > 0
-    - item | intersect(omnia_run_tags) | length == item | length
+    - provided_tags | length > 0
+    - invalid_tags | default([]) | length > 0
+
+- name: Check for invalid tag combinations
+  ansible.builtin.set_fact:
+    has_invalid_combination: true
+  when:
+    - provided_tags | length > 1
+    - item | difference(provided_tags) | length == 0
   loop: "{{ invalid_tag_combinations }}"
 
-# Step 1: Upgrade guard
+- name: Fail if invalid tag combination is detected
+  ansible.builtin.fail:
+    msg: "{{ tag_combination_fail_msg }}"
+  when: has_invalid_combination | default(false) | bool
+
+- name: Set skip_credentials flag for cleanup/validate/precheck tags
+  ansible.builtin.set_fact:
+    skip_discovery_credentials: true
+    cacheable: true
+  when:
+    - provided_tags | length > 0
+    - (provided_tags | intersect(skip_credential_tags)) | length > 0
+
+# Step 1: Resolve configuration from environment variables
+- name: Resolve configuration from environment
+  ansible.builtin.set_fact:
+    omnia_data_path: >-
+      {{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}
+    discovery_project_name: >-
+      {{ lookup('env', 'OMNIA_PROJECT_NAME')
+         | default(project_name | default('project_default'), true) }}
+    cacheable: true
+
+- name: Resolve Discovery data path
+  ansible.builtin.set_fact:
+    discovery_data_path: >-
+      {{ (lookup('env', 'DISCOVERY_DATA_PATH')
+          | default(omnia_data_path + '/discovery', true))
+         | ansible.builtin.normpath }}
+    cacheable: true
+
+# Step 2: Upgrade guard
 - name: Check upgrade lock file
   ansible.builtin.stat:
     path: "{{ upgrade_lock_file }}"
@@ -53,50 +93,103 @@
     - upgrade_lock.stat.exists
     - not (upgrade_mode | default(false) | bool)
 
-# Step 2: Set discovery domain paths
-- name: Set discovery project name
+- name: Set domain root directory
   ansible.builtin.set_fact:
-    discovery_project_name: "{{ project_name | default('project_default') }}"
+    _domain_root_dir: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}"
     cacheable: true
 
-- name: Set discovery input/output paths
+# Step 3: Set project directories using domain-scoped paths
+- name: Set Discovery project paths
   ansible.builtin.set_fact:
-    discovery_input_dir: "{{ omnia_input_dir }}/{{ discovery_project_name }}/discovery"
-    discovery_output_dir: "{{ omnia_output_dir }}/{{ discovery_project_name }}/discovery"
-    input_project_dir: "{{ omnia_input_dir }}/{{ discovery_project_name }}"
+    discovery_input_dir: >-
+      {{ discovery_data_path }}/input/{{ discovery_project_name }}
+    discovery_output_dir: >-
+      {{ discovery_data_path }}/output/{{ discovery_project_name }}
+    input_project_dir: >-
+      {{ discovery_data_path }}/input/{{ discovery_project_name }}
+    output_project_dir: >-
+      {{ discovery_data_path }}/output/{{ discovery_project_name }}
+    log_dir: >-
+      {{ discovery_data_path }}/log/{{ discovery_project_name }}
     cacheable: true
 
-# Step 3: Verify input directory
+# Step 4: Verify input directory — auto-copy from source if missing
 - name: Verify discovery input directory exists
   ansible.builtin.stat:
     path: "{{ discovery_input_dir }}"
   register: discovery_input_stat
+  when: not discovery_cleanup_requested | bool
 
-- name: Fail if discovery input directory does not exist
-  ansible.builtin.fail:
-    msg: >-
-      Discovery input directory '{{ discovery_input_dir }}' does not exist.
-      Please create it and populate with discovery_config.yml and network_spec.yml.
-  when: not discovery_input_stat.stat.exists
+- name: Auto-copy input files from source if runtime input dir is missing
+  when:
+    - not discovery_cleanup_requested | bool
+    - not discovery_input_stat.stat.exists
+  block:
+    - name: Check if source input directory exists
+      ansible.builtin.stat:
+        path: "{{ _domain_root_dir }}/input"
+      register: _source_dir_check
 
-# Step 4: Ensure output directory
-- name: Ensure discovery output directory exists
+    - name: Create runtime input directory
+      ansible.builtin.file:
+        path: "{{ discovery_input_dir }}"
+        state: directory
+        mode: '0755'
+      when: _source_dir_check.stat.exists
+
+    - name: Copy input files from source to runtime directory
+      ansible.builtin.command:
+        cmd: "cp -a {{ _domain_root_dir }}/input/. {{ discovery_input_dir }}/"
+      when: _source_dir_check.stat.exists
+      changed_when: true
+
+    - name: Fail if no input files available
+      ansible.builtin.fail:
+        msg: >-
+          Discovery input directory '{{ discovery_input_dir }}' does not exist
+          and no source input files found at '{{ _domain_root_dir }}/input/'.
+          Run domain-init.sh or manually create the directory with discovery_config.yml
+          and network_spec.yml.
+      when: not _source_dir_check.stat.exists
+
+# Step 5: Ensure output and runtime log directories
+- name: Ensure Discovery runtime directories exist
   ansible.builtin.file:
-    path: "{{ discovery_output_dir }}"
+    path: "{{ item }}"
     state: directory
     mode: '0755'
+  loop:
+    - "{{ discovery_output_dir }}"
+    - "{{ log_dir }}"
+  when: not discovery_cleanup_requested | bool
 
-# Step 5: Load discovery configuration
+# Step 6: Load discovery configuration
+- name: Check whether the Discovery configuration file exists
+  ansible.builtin.stat:
+    path: "{{ discovery_input_dir }}/{{ discovery_config_file }}"
+  register: discovery_config_file_status
+  when: not discovery_cleanup_requested | bool
+
+- name: Require the Discovery configuration file
+  ansible.builtin.assert:
+    that:
+      - discovery_config_file_status.stat.exists
+      - discovery_config_file_status.stat.isreg | default(false)
+    fail_msg: "{{ config_load_fail_msg }}"
+    quiet: true
+  when: not discovery_cleanup_requested | bool
+
 - name: Include discovery config file
   ansible.builtin.include_vars:
-    file: "{{ discovery_input_dir }}/discovery_config.yml"
-  failed_when: false
-
-- name: Set enable_bmc_discovery for credential utility
-  ansible.builtin.set_fact:
-    enable_bmc_discovery: "{{ true if (discovery_mechanism | default('')) == 'ome' else (enable_bmc_discovery | default(false) | bool) }}"
-    cacheable: true
+    file: "{{ discovery_input_dir }}/{{ discovery_config_file }}"
+  when: not discovery_cleanup_requested | bool
 
 # Step 7: Include common vars
 - name: Include common vars
   ansible.builtin.include_vars: "{{ role_path }}/../../vars/common_vars.yml"
+
+# Step 8: Mark setup as done (prevents re-run in imported sub-playbooks)
+- name: Mark discovery setup as complete
+  ansible.builtin.set_fact:
+    discovery_setup_done: true
+    cacheable: true

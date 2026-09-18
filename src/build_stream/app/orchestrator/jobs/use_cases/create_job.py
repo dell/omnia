@@ -52,7 +52,9 @@ class CreateJobUseCase:
     - Idempotency: Same idempotency key returns same result
     - Atomicity: All-or-nothing persistence (job + stages + idempotency record)
     - Audit trail: Emits JOB_CREATED event
-    - Initial stages: Creates all 5 stages in PENDING state
+    - Initial stages: Creates all 7 stages in PENDING state
+      (Omnia 2.3+: generate-input-files retired; parse-catalog reintroduced
+      in minimal form solely for the image_group_id uniqueness check)
 
     Attributes:
         job_repo: Job repository port.
@@ -239,22 +241,35 @@ class CreateJobUseCase:
     def _create_initial_stages(self, job_id: JobId) -> List[Stage]:
         """Create initial stages for the job.
 
-        Creates all 9 stages in PENDING state:
-        - PARSE_CATALOG
-        - GENERATE_INPUT_FILES
+        Creates active pipeline stages in PENDING state (Omnia 2.3+ domain-segregated):
+        - PARSE_CATALOG (reintroduced, minimal: image_group_id uniqueness check only)
         - CREATE_LOCAL_REPOSITORY
-        - UPDATE_LOCAL_REPOSITORY
-        - CREATE_IMAGE_REPOSITORY
-        - BUILD_IMAGE
-        - VALIDATE_IMAGE
+        - BUILD_IMAGE (unified, handles all architectures)
         - VALIDATE
         - RESTART
+        - UPLOAD
+        - DEPLOY
+
+        Deprecated stages (GENERATE_INPUT_FILES, BUILD_IMAGE_X86_64,
+        BUILD_IMAGE_AARCH64) are retained in StageType enum for backward compatibility
+        but are not created for new jobs.
 
         Returns:
             List of Stage entities in PENDING state.
         """
+        # Active stages for domain-segregated architecture
+        active_stages = [
+            StageType.PARSE_CATALOG,
+            StageType.CREATE_LOCAL_REPOSITORY,
+            StageType.BUILD_IMAGE,
+            StageType.VALIDATE,
+            StageType.RESTART,
+            StageType.UPLOAD,
+            StageType.DEPLOY,
+        ]
+        
         stages = []
-        for stage_type in StageType:
+        for stage_type in active_stages:
             stage = Stage(
                 job_id=job_id,
                 stage_name=StageName(stage_type.value),

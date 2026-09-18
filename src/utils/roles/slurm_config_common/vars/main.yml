@@ -1,0 +1,28 @@
+---
+# OMNIA_DATA_PATH / OMNIA_PROJECT_NAME with fallback (same pattern as oim_log_backup)
+omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+
+# Domain name for this role's own input/output paths
+domain_name: "utils"
+
+# Optional config file (path overrides + behavioral settings)
+slurm_config_util_config_file: "{{ omnia_data_path }}/{{ domain_name }}/input/{{ project_name }}/slurm_config_util_config.yml"
+
+# Default locations for the input files this utility reads
+default_omnia_config_path: "{{ omnia_data_path }}/utils/input/{{ project_name }}/omnia_config.yml"
+default_storage_config_path: "{{ omnia_data_path }}/utils/input/{{ project_name }}/storage_config.yml"
+default_pxe_mapping_path: "{{ omnia_data_path }}/utils/input/{{ project_name }}/nodes_slurm.yaml"  # YAML format; CSV also supported
+
+# Default backup destination (used when no override is supplied) - same
+# precedence pattern as backup_oim_logs
+slurm_backup_default_dir: "{{ omnia_data_path }}/{{ domain_name }}/output/{{ project_name }}/slurm_config_util"
+
+# Fixed local mountpoint used when a backup path resolves to an NFS export
+slurm_backup_nfs_mountpoint: "/tmp/omnia_slurm_config_util_nfs"  # nosec: B108 - fixed local mount, not a secret path
+
+# Directories that make up a Slurm controller's configuration
+slurm_config_directories:
+  - etc/slurm
+  - etc/munge
+  - etc/my.cnf.d

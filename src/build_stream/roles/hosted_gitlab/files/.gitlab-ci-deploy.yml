@@ -14,8 +14,8 @@
 #
 # BuildStream API Client -- GitLab CI/CD Deploy Pipeline
 #
-# Independent pipeline triggered when input/pxe_mapping_file.csv changes,
-# via manual trigger, or via API trigger.
+# Independent pipeline triggered when input/orchestrator/pxe_mapping_file.csv
+# changes, via manual trigger, or via API trigger.
 #
 # This pipeline:
 #   1. Queries the Images API for BUILT image groups (list_images stage)
@@ -32,13 +32,13 @@
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
-# Workflow rules -- pipeline runs on PXE mapping changes, manual, or API trigger
+# Workflow rules -- pipeline runs on orchestrator input changes, manual, or API trigger
 # ---------------------------------------------------------------------------
 workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "parent_pipeline"'
     - changes:
-        - input/pxe_mapping_file.csv
+        - input/orchestrator/pxe_mapping_file.csv
     - if: '$CI_PIPELINE_SOURCE == "web"'
     - if: '$CI_PIPELINE_SOURCE == "trigger" && $PIPELINE_TYPE == "deploy"'
     - if: '$CI_PIPELINE_SOURCE == "api" && $PIPELINE_TYPE == "deploy"'
@@ -52,6 +52,9 @@ variables:
   BSM_CERT_FILE: "/tmp/bsm_api_ca.crt"
   CURL_CONNECT_TIMEOUT: "15"
   CURL_MAX_TIME: "45"
+  # Defaults — overridden by omnia.env if present in the GitLab repo
+  OMNIA_DATA_PATH: "/opt/omnia"
+  OMNIA_PROJECT_NAME: "project_default"
 
 # ---------------------------------------------------------------------------
 # Stages

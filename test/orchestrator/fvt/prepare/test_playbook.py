@@ -15,7 +15,7 @@
 """
 Orchestrator Prepare — Deploy.
 
-TC_PR_000: Deploy orchestrator.yml --tags prepare
+ORCH_FVT_PREPARE_E001: Deploy orchestrator.yml --tags prepare
 """
 
 import pytest
@@ -30,11 +30,12 @@ from library.messages import (
 
 @pytest.mark.deploy
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(0)
 def test_deploy_prepare(host):
-    """TC_PR_000: Deploy orchestrator.yml --tags prepare."""
+    """ORCH_FVT_PREPARE_E001: Deploy orchestrator.yml --tags prepare."""
     tl = TestLogger(
-        TEST_NAMES["deploy_playbook"].format(tag="prepare"), "TC_PR_000"
+        TEST_NAMES["deploy_playbook"].format(tag="prepare"), "ORCH_FVT_PREPARE_E001"
     )
     result = run_playbook(tag="prepare")
 

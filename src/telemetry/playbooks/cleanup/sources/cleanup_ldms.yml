@@ -1,0 +1,65 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# LDMS Telemetry Cleanup
+# =============================================================================
+# Removes LDMS resources from:
+#   - Kubernetes (Helm releases, StatefulSets, services, secrets, Vector-LDMS bridge)
+#   - Legacy PVCs only when Delete_volume=true
+#   - Slurm compute, control, login, and login-compiler nodes
+#     (ldmsd sampler service and config files)
+#
+# Standalone usage:
+#   ansible-playbook cleanup/sources/cleanup_ldms.yml -e kube_vip=<VIP_IP>
+#
+# Via main cleanup (tag-based):
+#   ansible-playbook cleanup/cleanup.yml --tags cleanup_ldms
+# =============================================================================
+
+- name: "Cleanup LDMS Telemetry — Prepare Target"
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../../../vars/telemetry_common.yml
+  tasks:
+    - name: Load telemetry config
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: load_telemetry_config
+      when: telemetry_config is not defined
+
+    - name: Validate kube_vip is set
+      ansible.builtin.assert:
+        that:
+          - kube_vip is defined
+          - kube_vip | length > 0
+        fail_msg: >-
+          kube_vip is required for standalone LDMS cleanup.
+
+    - name: Add kube_vip to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ kube_vip }}"
+        groups: kube_vip_group
+        ansible_user: root
+
+- name: "Cleanup LDMS Telemetry — All Resources"
+  hosts: kube_vip_group
+  gather_facts: false
+  tasks:
+    - name: Run ldms cleanup (K8s + Slurm nodes via delegation)
+      ansible.builtin.include_role:
+        name: cleanup
+        tasks_from: ldms

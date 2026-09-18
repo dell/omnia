@@ -49,10 +49,9 @@ from core.deploy.services import DeployQueueService
 
 from orchestrator.deploy.commands.deploy_command import DeployCommand
 from orchestrator.deploy.dtos.deploy_response import DeployResponseDTO
-from core.common.playbook_registry import get_playbook_path
 
-PROVISION_PLAYBOOK_NAME = "provision.yml"
-_PROVISION_PLAYBOOK_PATH = get_playbook_path(PROVISION_PLAYBOOK_NAME) or "/omnia/provision/provision.yml"
+ORCHESTRATOR_PLAYBOOK_NAME = "orchestrator.yml"
+DEPLOY_PLAYBOOK_TAGS = "provision"
 DEFAULT_TIMEOUT_MINUTES = 60
 
 
@@ -65,7 +64,7 @@ class DeployUseCase:
     - ImageGroup guard checks (exists, ID match, status in retryable set)
     - ImageGroup status transition: any retryable status -> DEPLOYING
     - Stage record creation (IN_PROGRESS)
-    - NFS queue submission for provision playbook
+    - NFS queue submission for orchestrator playbook
     - Audit trail emission
 
     Note: Deploy is an intermediate stage. It does NOT mark the job as
@@ -173,38 +172,30 @@ class DeployUseCase:
             )
 
     def _enforce_stage_guard(self, command: DeployCommand) -> None:
-        """Enforce that at least one build-image stage has completed.
+        """Enforce that the unified build-image stage has completed.
 
-        The deploy stage requires that at least one of the build-image
-        stages (x86_64 or aarch64) has completed successfully.
+        The deploy stage requires that the build-image stage (unified,
+        domain-segregated) has completed successfully before deployment
+        can proceed.
         """
-        x86_stage_name = StageName(StageType.BUILD_IMAGE_X86_64.value)
-        aarch64_stage_name = StageName(StageType.BUILD_IMAGE_AARCH64.value)
-
-        x86_stage = self._stage_repo.find_by_job_and_name(
-            command.job_id, x86_stage_name
-        )
-        aarch64_stage = self._stage_repo.find_by_job_and_name(
-            command.job_id, aarch64_stage_name
+        build_stage_name = StageName(StageType.BUILD_IMAGE.value)
+        build_stage = self._stage_repo.find_by_job_and_name(
+            command.job_id, build_stage_name
         )
 
-        x86_completed = (
-            x86_stage is not None
-            and x86_stage.stage_state == StageState.COMPLETED
-        )
-        aarch64_completed = (
-            aarch64_stage is not None
-            and aarch64_stage.stage_state == StageState.COMPLETED
+        build_completed = (
+            build_stage is not None
+            and build_stage.stage_state == StageState.COMPLETED
         )
 
-        if not x86_completed and not aarch64_completed:
-            x86_state = x86_stage.stage_state.value if x86_stage else "NOT_FOUND"
-            aarch64_state = aarch64_stage.stage_state.value if aarch64_stage else "NOT_FOUND"
-
+        if not build_completed:
+            actual_state = (
+                build_stage.stage_state.value if build_stage else "NOT_FOUND"
+            )
             raise UpstreamStageNotCompletedError(
                 job_id=str(command.job_id),
-                required_stage="build-image-x86_64 or build-image-aarch64",
-                actual_state=f"x86_64: {x86_state}, aarch64: {aarch64_state}",
+                required_stage=StageType.BUILD_IMAGE.value,
+                actual_state=actual_state,
                 correlation_id=str(command.correlation_id),
             )
 
@@ -254,7 +245,7 @@ class DeployUseCase:
 
     def _create_request(self, command: DeployCommand, stage: Stage) -> DeployPlaybookRequest:
         """Create deploy playbook request entity."""
-        playbook_path = PlaybookPath(PROVISION_PLAYBOOK_NAME)
+        playbook_path = PlaybookPath(ORCHESTRATOR_PLAYBOOK_NAME)
 
         extra_vars_dict = {
             "job_id": str(command.job_id),
@@ -273,6 +264,7 @@ class DeployUseCase:
             timeout=ExecutionTimeout(DEFAULT_TIMEOUT_MINUTES),
             submitted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             request_id=str(self._uuid_generator.generate()),
+            tags=DEPLOY_PLAYBOOK_TAGS,
         )
 
     def _submit_to_queue(

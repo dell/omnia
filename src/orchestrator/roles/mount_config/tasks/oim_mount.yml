@@ -1,0 +1,106 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Initialize OIM mount selection
+  ansible.builtin.set_fact:
+    filter_slurm_nfs: []
+    filter_slurm_vast: []
+    filter_service_k8s_nfs: []
+    active_service_k8s_nfs: []
+    workload_storage_names: []
+    active_workload_storage_names: []
+    storage_to_be_mounted: []
+
+- name: Set Slurm NFS storage names
+  ansible.builtin.set_fact:
+    filter_slurm_nfs: >-
+      {{ omnia_config.slurm_cluster
+         | selectattr('nfs_storage_name', 'defined')
+         | map(attribute='nfs_storage_name')
+         | reject('equalto', '')
+         | list }}
+    filter_slurm_vast: >-
+      {{ omnia_config.slurm_cluster
+         | selectattr('vast_storage_name', 'defined')
+         | map(attribute='vast_storage_name')
+         | reject('equalto', '')
+         | list }}
+  when: "'slurm_cluster' in omnia_config"
+
+- name: Set Kubernetes NFS names
+  ansible.builtin.set_fact:
+    filter_service_k8s_nfs: >-
+      {{ omnia_config.service_k8s_cluster
+         | selectattr('nfs_storage_name', 'defined')
+         | map(attribute='nfs_storage_name')
+         | reject('equalto', '')
+         | list }}
+    active_service_k8s_nfs: >-
+      {{ omnia_config.service_k8s_cluster
+         | selectattr('deployment', 'defined')
+         | selectattr('deployment', 'sameas', true)
+         | selectattr('nfs_storage_name', 'defined')
+         | map(attribute='nfs_storage_name')
+         | reject('equalto', '')
+         | list }}
+  when: "'service_k8s_cluster' in omnia_config"
+
+- name: Identify workload-specific storage names
+  ansible.builtin.set_fact:
+    workload_storage_names: >-
+      {{ (filter_slurm_nfs
+          + filter_slurm_vast
+          + filter_service_k8s_nfs)
+         | unique
+         | list }}
+
+- name: Select Slurm storage names for the active workload
+  ansible.builtin.set_fact:
+    active_workload_storage_names: >-
+      {{ (filter_slurm_nfs + filter_slurm_vast)
+         | unique
+         | list }}
+  when: target_category | default('') == 'slurm'
+
+- name: Select Kubernetes storage names for the active workload
+  ansible.builtin.set_fact:
+    active_workload_storage_names: "{{ active_service_k8s_nfs }}"
+  when: target_category | default('') == 'kubernetes'
+
+- name: Select active workload storage for the OIM
+  ansible.builtin.set_fact:
+    storage_to_be_mounted: >-
+      {{ effective_mounts
+         | selectattr('name', 'in', active_workload_storage_names)
+         | list }}
+
+- name: Add independent storage explicitly configured for OIM mounting
+  ansible.builtin.set_fact:
+    storage_to_be_mounted: >-
+      {{ (storage_to_be_mounted
+          + (effective_mounts
+             | selectattr('mount_on_oim', 'defined')
+             | selectattr('mount_on_oim', 'equalto', true)
+             | rejectattr('name', 'in', workload_storage_names)
+             | list))
+         | unique(attribute='name')
+         | list }}
+
+- name: Install NFS client with bolt-on support
+  ansible.builtin.include_tasks: mount_on_oim.yml
+  loop: "{{ storage_to_be_mounted }}"
+  loop_control:
+    label: >-
+      {{ item.name
+         | default(item.mount_point | default('unnamed mount')) }}

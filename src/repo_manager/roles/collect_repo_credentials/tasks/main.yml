@@ -1,0 +1,239 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Load, reconcile, and atomically persist Pulp, Docker Hub, and configured
+# registry credentials. The canonical credential file is never decrypted in place.
+
+- name: Load lowercase registry configuration
+  ansible.builtin.include_vars:
+    file: "{{ repo_manager_config_file }}"
+    name: _repo_manager_config_data
+  no_log: true
+
+- name: Ensure credential directory exists
+  ansible.builtin.file:
+    path: "{{ repo_manager_credential_file.file_path | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Check credential file
+  ansible.builtin.stat:
+    path: "{{ repo_manager_credential_file.file_path }}"
+  register: _credential_file_stat
+
+- name: Check vault key
+  ansible.builtin.stat:
+    path: "{{ repo_manager_credential_file.vault_path }}"
+  register: _vault_key_stat
+
+- name: Read credential file header
+  ansible.builtin.command:
+    argv:
+      - head
+      - -n
+      - "1"
+      - "{{ repo_manager_credential_file.file_path }}"
+  register: _credential_file_head
+  changed_when: false
+  when: _credential_file_stat.stat.exists | bool
+
+- name: Fail when encrypted credentials have no vault key
+  ansible.builtin.fail:
+    msg: "{{ collect_repo_credentials_fail_when_encrypted_credentials_have_no_vault_key_msg }}"
+  when:
+    - _credential_file_stat.stat.exists | bool
+    - _credential_file_head.stdout | default('') is search('ANSIBLE_VAULT')
+    - not _vault_key_stat.stat.exists | bool
+
+- name: Create vault key when missing
+  ansible.builtin.lineinfile:
+    path: "{{ repo_manager_credential_file.vault_path }}"
+    line: "{{ lookup('password', '/dev/null chars=ascii_letters length=32') }}"
+    mode: "0600"
+    owner: root
+    create: true
+  when: not _vault_key_stat.stat.exists | bool
+  no_log: true
+
+- name: Load existing credential document without decrypting it in place
+  vault_handler:
+    file_path: "{{ repo_manager_credential_file.file_path }}"
+    vault_key: "{{ repo_manager_credential_file.vault_path }}"
+    mode: view
+  register: _stored_credential_result
+  when: _credential_file_stat.stat.exists | bool
+  no_log: true
+
+- name: Initialize stored credential document
+  ansible.builtin.set_fact:
+    _stored_credentials: "{{ _stored_credential_result.data | default({}, true) }}"
+  no_log: true
+
+- name: Resolve stored and command-line Pulp credentials
+  ansible.builtin.set_fact:
+    pulp_username: >-
+      {{ pulp_username if (pulp_username is defined and pulp_username | string | length > 0)
+         else _stored_credentials.get('pulp_username', 'admin') }}
+    pulp_password: >-
+      {{ pulp_password if (pulp_password is defined and pulp_password | string | length > 0)
+         else _stored_credentials.get('pulp_password', '') }}
+  no_log: true
+
+- name: Prompt for mandatory Pulp password
+  when: pulp_password | string | length == 0 or pulp_password == 'CHANGE_THIS_PASSWORD'
+  block:
+    - name: Enter Pulp password
+      ansible.builtin.pause:
+        prompt: "Enter pulp_password"
+        echo: false
+      register: _pulp_password_input
+      no_log: true
+
+    - name: Confirm Pulp password
+      ansible.builtin.pause:
+        prompt: "Confirm pulp_password"
+        echo: false
+      register: _pulp_password_confirmation
+      no_log: true
+
+    - name: Validate Pulp password
+      ansible.builtin.assert:
+        that:
+          - _pulp_password_input.user_input | string | length > 0
+          - _pulp_password_input.user_input == _pulp_password_confirmation.user_input
+        fail_msg: "{{ collect_repo_credentials_validate_pulp_password_msg }}"
+        quiet: true
+      no_log: true
+
+    - name: Use entered Pulp password
+      ansible.builtin.set_fact:
+        pulp_password: "{{ _pulp_password_input.user_input }}"
+      no_log: true
+
+- name: Determine whether Docker Hub credentials were already initialized
+  ansible.builtin.set_fact:
+    _docker_credentials_initialized: >-
+      {{
+        (
+          'docker_username' in _stored_credentials and
+          'docker_password' in _stored_credentials
+        ) or (
+          docker_username is defined and docker_password is defined
+        )
+      }}
+  no_log: true
+
+- name: Resolve initial Docker Hub credentials
+  ansible.builtin.set_fact:
+    docker_username: >-
+      {%- set supplied = docker_username | default('', true) -%}
+      {%- set stored = _stored_credentials.get('docker_username', '') |
+         default('', true) -%}
+      {{- supplied if (supplied | string | trim | length > 0) else stored -}}
+    docker_password: >-
+      {%- set supplied = docker_password | default('', true) -%}
+      {%- set stored = _stored_credentials.get('docker_password', '') |
+         default('', true) -%}
+      {{- supplied if (supplied | string | trim | length > 0) else stored -}}
+  no_log: true
+
+- name: Reconcile Docker Hub credentials
+  ansible.builtin.include_tasks: process_docker_credentials.yml
+
+- name: Validate canonical Docker credential values
+  ansible.builtin.assert:
+    that:
+      - docker_username is string
+      - docker_password is string
+      - >-
+        (docker_username | length == 0 and docker_password | length == 0) or
+        (docker_username | length > 0 and docker_password | length > 0)
+    fail_msg: "{{ collect_repo_credentials_validate_canonical_docker_credential_values_msg }}"
+    quiet: true
+  no_log: true
+
+- name: Initialize configured registry credentials
+  ansible.builtin.set_fact:
+    _registry_credentials_working: >-
+      {{ _stored_credentials.get('registry_credentials', {})
+         if _stored_credentials.get('registry_credentials', {}) is mapping else {} }}
+  no_log: true
+
+- name: Build basic-auth registry requirements
+  ansible.builtin.set_fact:
+    _registry_requirements: "{{ _registry_requirements_yaml | from_yaml }}"
+  vars:
+    _registry_requirements_yaml: >-
+      {% set requirements = [] %}
+      {% for registry_name, registry_config in (_repo_manager_config_data.registries | default({}) or {}).items() %}
+      {% set auth = registry_config.auth | default({}) %}
+      {% if auth.type | default('none') == 'basic' %}
+      {% set _ = requirements.append({
+        'registry_name': registry_name,
+        'vault_path': auth.credentials.vault_path,
+        'origin': {
+          'scheme': registry_config.base_url |
+            ansible.builtin.urlsplit('scheme') | lower,
+          'host': registry_config.base_url |
+            ansible.builtin.urlsplit('hostname') | lower,
+          'port': registry_config.port | int
+        }
+      }) %}
+      {% endif %}
+      {% endfor %}
+      {{ requirements | to_json }}
+  no_log: true
+
+- name: Reconcile configured registry credentials
+  ansible.builtin.include_tasks: process_registry_credential.yml
+  loop: "{{ _registry_requirements }}"
+  loop_control:
+    loop_var: registry_config
+    label: "{{ registry_config.registry_name }}"
+
+- name: Assemble credential document
+  ansible.builtin.set_fact:
+    _credentials_to_save: >-
+      {{ _stored_credentials | combine({
+           'pulp_username': pulp_username,
+           'pulp_password': pulp_password,
+           'docker_username': docker_username,
+           'docker_password': docker_password,
+           'registry_credentials': _registry_credentials_working
+         }, recursive=True) }}
+  no_log: true
+
+- name: Save and encrypt credentials atomically
+  vault_handler:
+    file_path: "{{ repo_manager_credential_file.file_path }}"
+    vault_key: "{{ repo_manager_credential_file.vault_path }}"
+    mode: write
+    data: "{{ _credentials_to_save }}"
+  no_log: true
+
+- name: Enforce credential file permissions
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: root
+    mode: "0600"
+  loop:
+    - "{{ repo_manager_credential_file.file_path }}"
+    - "{{ repo_manager_credential_file.vault_path }}"
+  no_log: true
+
+- name: Report credential readiness
+  ansible.builtin.debug:
+    msg: >-
+      Repo manager credentials are encrypted and ready; configured basic-auth
+      registries={{ _registry_requirements | map(attribute='registry_name') | list }}.

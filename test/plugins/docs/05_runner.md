@@ -1,6 +1,6 @@
 # Runner — `run_playbook()`
 
-**Source file:** `src/omnia_auto/functions/runner_func.py`
+**Source file:** `omnia_auto/functions/runner_func.py`
 
 ## What is this?
 
@@ -18,7 +18,7 @@ the process is killed.
 | Parameter | Type | Required? | What to give | Example |
 |-----------|------|-----------|--------------|---------|
 | `playbook` | `str` | **Yes** | The playbook **filename** (not a full path — just the file name). | `"image_build_manager.yml"` |
-| `playbook_workdir` | `str` | **Yes** | The subdirectory **under `clone_path`** where the playbook file lives. The full path becomes `<clone_path>/<playbook_workdir>/<playbook>`. | `"src/image_build_manager/playbooks"` |
+| `playbook_workdir` | `str` | **Yes** | Playbook directory relative to the Omnia repository root. Local execution uses configured `repository_root` or derives it from `module_root`; remote execution resolves it under `clone_path`. | `"src/image_build_manager/playbooks"` |
 | `tag` | `str` or `list` or `None` | No | Ansible tag(s) to run. Pass a single string for one tag, a list for multiple tags, or `None` to run all tasks. | `"prepare"` or `["prepare", "build"]` |
 | `extra_vars` | `dict` | No | Extra variables passed as `ansible-playbook -e key=value`. | `{"target_arch": "x86_64"}` |
 | `verbosity` | `int` | No | Ansible verbosity level (0-4). `0` = quiet, `4` = maximum debug. If not given, uses `configure(default_verbosity=...)` or `1`. | `2` |
@@ -28,9 +28,15 @@ the process is killed.
 ### How the full playbook path is built
 
 ```
-clone_path (from test_config.yml, default: /root/omnia)
-  └── playbook_workdir (you pass this)
-        └── playbook (you pass this)
+Local execution:
+  configure(repository_root=...), or root derived from module_root
+    └── playbook_workdir
+          └── playbook
+
+Remote execution:
+  clone_path from test_config.yml (required)
+    └── playbook_workdir
+          └── playbook
 
 Example:
   /root/omnia / src/image_build_manager/playbooks / image_build_manager.yml
@@ -63,18 +69,22 @@ A `dict` with these keys:
 ### Prerequisite
 
 1. `configure()` — for module root, config, credentials.
-2. Your `test_config.yml` must have `oim_server_ip` (and optionally `clone_path`).
+2. For remote execution, `test_config.yml` must provide `oim_server_ip`,
+   `oim_ssh_user`, and `clone_path`.
 3. Your `test_creds.yml` must have `oim_password` (if SSH with password).
-4. `ansible-playbook` must be installed on the machine running the tests (or the target).
+4. `ansible-playbook` must be installed locally for local execution and on
+   the target host for remote execution.
 
 ### How it works internally
 
 1. Reads config and credentials from `configure()` settings.
-2. Builds the `ansible-playbook` command with tags, extra vars, verbosity.
-3. If remote: wraps the command in `ssh` (or `sshpass + ssh`).
-4. Runs via `subprocess.Popen` with live line-by-line output streaming.
-5. A `threading.Timer` enforces the timeout.
-6. Returns a result dict.
+2. Sources configured `env_file` (default `/etc/omnia/omnia.env`) and activates
+   the path named by configured `venv_env_var` (default `OMNIA_VENV_PATH`).
+3. Builds the `ansible-playbook` command with tags, extra vars, and verbosity.
+4. If remote: wraps the command in `ssh` (or `sshpass + ssh`).
+5. Runs via `subprocess.Popen` with live line-by-line output streaming.
+6. A `threading.Timer` enforces the timeout.
+7. Returns a result dict.
 
 ### Recommended pattern: consumer wrapper
 

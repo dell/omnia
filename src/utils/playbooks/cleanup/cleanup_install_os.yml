@@ -1,0 +1,129 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =========================================================================
+# Standalone cleanup playbook for OS installation artifacts
+# This playbook is ONLY invoked via utils.yml with cleanup tags
+# =========================================================================
+
+- name: Cleanup OS installation artifacts
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  pre_tasks:
+    - name: Record execution start time
+      ansible.builtin.set_fact:
+        utils_execution_start_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
+  tasks:
+    - name: Set OMNIA_DATA_PATH fact
+      ansible.builtin.set_fact:
+        omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+        project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+
+    - name: Set input directory path
+      ansible.builtin.set_fact:
+        input_project_dir: "{{ omnia_data_path }}/utils/input/{{ project_name }}"
+
+    - name: Remove temporary ISO directory
+      ansible.builtin.file:
+        path: /tmp/install_os
+        state: absent
+
+    - name: Check if temporary NFS mount exists
+      ansible.builtin.command: mountpoint -q /tmp/install_os_nfs
+      register: nfs_mount_check
+      changed_when: false
+      failed_when: false
+
+    - name: Unmount temporary NFS mount
+      ansible.builtin.command: umount /tmp/install_os_nfs
+      when: nfs_mount_check.rc == 0
+      changed_when: true
+      failed_when: false
+
+    - name: Remove temporary NFS mount point
+      ansible.builtin.file:
+        path: /tmp/install_os_nfs
+        state: absent
+
+    - name: Check if install_os credentials file exists
+      ansible.builtin.stat:
+        path: "{{ input_project_dir }}/install_os_credentials.yml"
+      register: credentials_stat
+
+    - name: Check if vault key file exists
+      ansible.builtin.stat:
+        path: "{{ input_project_dir }}/.install_os_credentials_key"
+      register: vault_key_stat
+
+    - name: Resolve credential cleanup mode
+      ansible.builtin.set_fact:
+        cleanup_credentials: >-
+          {{ false
+             if cleanup_credentials is defined and
+                cleanup_credentials | string | trim | lower in ['false', 'no', '0']
+             else true }}
+
+    - name: Display credential cleanup mode
+      ansible.builtin.debug:
+        msg: "Credential cleanup: {{ 'Enabled - removing credential files' if (cleanup_credentials | bool) else 'Disabled - preserving credentials' }}"
+
+    - name: Remove install_os credential file
+      ansible.builtin.file:
+        path: "{{ input_project_dir }}/install_os_credentials.yml"
+        state: absent
+      when:
+        - cleanup_credentials | bool
+        - credentials_stat.stat.exists
+
+    - name: Remove install_os vault key file
+      ansible.builtin.file:
+        path: "{{ input_project_dir }}/.install_os_credentials_key"
+        state: absent
+      when:
+        - cleanup_credentials | bool
+        - vault_key_stat.stat.exists
+
+    - name: Display OS installation cleanup summary
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "OS Installation Cleanup Complete"
+          - "=========================================="
+          - "Temporary ISO directory removed: /tmp/install_os"
+          - "Temporary NFS mount removed: /tmp/install_os_nfs"
+          - >-
+            Credentials: {{ 'Preserved by cleanup_credentials=false'
+            if not (cleanup_credentials | bool)
+            else 'Removed'
+            if (credentials_stat.stat.exists or vault_key_stat.stat.exists)
+            else 'Not present' }}
+          - "=========================================="
+
+    - name: Remove utils status file
+      ansible.builtin.file:
+        path: "{{ omnia_data_path }}/utils/output/{{ project_name }}/utils_status.yml"
+        state: absent
+
+    - name: Remove install_os status file
+      ansible.builtin.file:
+        path: "{{ omnia_data_path }}/utils/output/{{ project_name }}/install_os_status.yml"
+        state: absent
+  post_tasks:
+    - name: Record execution end time
+      ansible.builtin.set_fact:
+        utils_execution_end_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true

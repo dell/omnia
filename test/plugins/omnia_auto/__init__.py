@@ -36,9 +36,11 @@ __version__ = "1.0.0"
 # --- Central config ---
 from .vars.common_vars import (
     configure,
+    configured,
     get_setting,
     init_module_root,
     get_module_root,
+    reset_configuration,
 )
 
 # --- Formatting ---
@@ -47,9 +49,12 @@ from .functions.formatting_func import (
     Symbols,
     log,
     set_debug_mode,
+    set_verbose_mode,
     TestLogger,
     get_test_output,
     get_last_tc_id,
+    get_last_detail_fields,
+    clear_test_context,
     add_session_result,
     get_session_results,
     clear_session_results,
@@ -62,12 +67,18 @@ from .functions.host_func import (
     load_test_config,
     load_test_credentials,
     run_on_host,
+    run_ssh_command,
     is_local_execution,
     encrypt_test_credentials,
     connection_params,
     read_remote_env,
     ensure_remote_dir,
+    read_remote_yaml,
+    read_yaml_key,
+    resolve_domain_data_path,
     resolve_domain_input_path,
+    get_inventory_hosts,
+    get_inventory_host_var,
 )
 
 # --- Report ---
@@ -75,6 +86,8 @@ from .functions.report_func import (
     TestReport,
     get_current_report,
     set_current_report,
+    build_report_name,
+    record_playbook_failure,
 )
 
 # --- Runner ---
@@ -83,21 +96,50 @@ from .functions.runner_func import run_playbook
 # --- Sync ---
 from .functions.sync_func import clone_repo, sync_files
 
+# --- Validation Runner ---
+from .functions.validation_runner import ValidationRunner
+
+# --- Credential Management ---
+from .functions.credential_func import (
+    ensure_vault_key,
+    is_vault_encrypted,
+    vault_encrypt,
+    vault_decrypt_to_dict,
+    read_credential_field,
+    read_all_fields,
+    write_credential_fields,
+    prompt_credential,
+    prompt_and_confirm,
+    prompt_fields_interactive,
+)
+
+# --- Credential Vars ---
+from .vars.credential_vars import (
+    get_data_path,
+    get_project_name,
+    get_domain_input_path,
+)
+
 __all__ = [
     "__version__",
     # Config
     "configure",
+    "configured",
     "get_setting",
     "init_module_root",
     "get_module_root",
+    "reset_configuration",
     # Formatting
     "Colors",
     "Symbols",
     "log",
     "set_debug_mode",
+    "set_verbose_mode",
     "TestLogger",
     "get_test_output",
     "get_last_tc_id",
+    "get_last_detail_fields",
+    "clear_test_context",
     "add_session_result",
     "get_session_results",
     "clear_session_results",
@@ -107,19 +149,44 @@ __all__ = [
     "load_test_config",
     "load_test_credentials",
     "run_on_host",
+    "run_ssh_command",
     "is_local_execution",
     "encrypt_test_credentials",
     "connection_params",
     "read_remote_env",
     "ensure_remote_dir",
+    "read_remote_yaml",
+    "read_yaml_key",
+    "resolve_domain_data_path",
     "resolve_domain_input_path",
+    "get_inventory_hosts",
+    "get_inventory_host_var",
     # Report
     "TestReport",
     "get_current_report",
     "set_current_report",
+    "build_report_name",
+    "record_playbook_failure",
     # Runner
     "run_playbook",
     # Sync
     "clone_repo",
     "sync_files",
+    # Validation Runner
+    "ValidationRunner",
+    # Credential Management
+    "ensure_vault_key",
+    "is_vault_encrypted",
+    "vault_encrypt",
+    "vault_decrypt_to_dict",
+    "read_credential_field",
+    "read_all_fields",
+    "write_credential_fields",
+    "prompt_credential",
+    "prompt_and_confirm",
+    "prompt_fields_interactive",
+    # Credential Vars
+    "get_data_path",
+    "get_project_name",
+    "get_domain_input_path",
 ]

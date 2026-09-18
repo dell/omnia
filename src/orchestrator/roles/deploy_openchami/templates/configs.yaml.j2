@@ -1,5 +1,5 @@
 cluster_name: "{{ oim_node_name }}"
-cluster_domain: "{{ domain_name }}"
+cluster_domain: "{{ domain_name | regex_replace('^' + oim_node_name + '\\.', '') }}"
 cluster_boot_ip: "{{ admin_nic_ip }}"
 cluster_boot_interface: "{{ admin_nic }}"
 coredhcp_dhcp_pool: "{{ network_data.admin_network.dynamic_range | split('-') | first }} {{ network_data.admin_network.dynamic_range | split('-') | last }}"

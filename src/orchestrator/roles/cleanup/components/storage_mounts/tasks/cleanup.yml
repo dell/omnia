@@ -1,0 +1,165 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Storage Mounts Cleanup for OIM Node
+# Context-aware cleanup based on which component triggered it
+# Fetches mount paths from actual storage_config.yml
+
+- name: Load Storage Mounts component configuration
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/components/storage_mounts/vars/component_spec.yml"
+  tags: storage_mounts
+
+- name: Check storage configuration for mount cleanup
+  ansible.builtin.stat:
+    path: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/storage_config.yml"
+  register: cleanup_storage_mounts_config_file
+  tags: storage_mounts
+
+- name: Validate storage configuration is available for mount cleanup
+  ansible.builtin.assert:
+    that:
+      - cleanup_storage_mounts_config_file.stat.exists
+    fail_msg: "storage_config.yml not found. Cannot determine mounts to clean."
+  tags: storage_mounts
+
+- name: Load storage configuration from storage_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/storage_config.yml"
+    name: cleanup_storage_config
+  tags: storage_mounts
+
+- name: Load Omnia configuration for component storage references
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/omnia_config.yml"
+    name: cleanup_storage_omnia_config
+  tags: storage_mounts
+
+- name: Collect storage names referenced by each component
+  ansible.builtin.set_fact:
+    cleanup_slurm_storage_names: >-
+      {{ ((cleanup_storage_omnia_config.slurm_cluster | default([])
+           | map(attribute='nfs_storage_name') | select('defined') | list)
+          + (cleanup_storage_omnia_config.slurm_cluster | default([])
+             | map(attribute='vast_storage_name') | select('defined')
+             | map('default', '', true) | map('trim')
+             | reject('equalto', '') | list)) | unique | list }}
+    cleanup_k8s_storage_names: >-
+      {{ cleanup_storage_omnia_config.service_k8s_cluster | default([])
+         | map(attribute='nfs_storage_name') | select('defined')
+         | reject('equalto', '') | unique | list }}
+  tags: storage_mounts
+
+- name: Select storage references required for this cleanup
+  ansible.builtin.set_fact:
+    cleanup_referenced_storage_names: >-
+      {{ (cleanup_slurm_storage_names
+          if trigger_component | default('direct_call') == 'slurm'
+          else cleanup_k8s_storage_names
+          if trigger_component | default('direct_call') == 'k8s'
+          else cleanup_slurm_storage_names + cleanup_k8s_storage_names)
+         | unique | list }}
+  tags: storage_mounts
+
+- name: Validate component storage references for cleanup
+  ansible.builtin.assert:
+    that:
+      - cleanup_storage_matches | length == 1
+      - cleanup_storage_matches[0].source | default('') | length > 0
+      - cleanup_storage_matches[0].mount_point | default('') | length > 0
+      - cleanup_storage_matches[0].mount_point is match('^/')
+    fail_msg: >-
+      Component cleanup cannot safely resolve omnia_config.yml storage
+      reference '{{ cleanup_storage_name }}' to exactly one complete mount
+      entry with an absolute mount_point in storage_config.yml.
+  loop: "{{ cleanup_referenced_storage_names }}"
+  loop_control:
+    loop_var: cleanup_storage_name
+    label: "{{ cleanup_storage_name }}"
+  vars:
+    cleanup_storage_matches: >-
+      {{ cleanup_storage_config.mounts | default([])
+         | selectattr('name', 'equalto', cleanup_storage_name) | list }}
+  tags: storage_mounts
+
+- name: Categorize mounts by configured component references
+  ansible.builtin.set_fact:
+    cleanup_all_orchestrator_mounts: >-
+      {{ cleanup_storage_config.mounts | default([])
+         | map(attribute='mount_point') | select('defined') | list }}
+    cleanup_slurm_mounts: >-
+      {{ cleanup_storage_config.mounts | default([])
+         | selectattr('name', 'in', cleanup_slurm_storage_names)
+         | map(attribute='mount_point') | list }}
+    cleanup_k8s_mounts: >-
+      {{ cleanup_storage_config.mounts | default([])
+         | selectattr('name', 'in', cleanup_k8s_storage_names)
+         | map(attribute='mount_point') | list }}
+  tags: storage_mounts
+
+- name: Fail if storage config has no mounts
+  ansible.builtin.fail:
+    msg: "storage_config.yml has no mounts. Cannot determine mounts to clean."
+  when: cleanup_storage_config.mounts | default([]) | length == 0
+  tags: storage_mounts
+
+- name: Determine which mounts to clean based on context
+  ansible.builtin.set_fact:
+    cleanup_mounts_to_clean: >-
+      {{ cleanup_all_orchestrator_mounts
+         if trigger_component is not defined or trigger_component == 'direct_call'
+         else cleanup_slurm_mounts if trigger_component == 'slurm'
+         else cleanup_k8s_mounts if trigger_component == 'k8s'
+         else cleanup_all_orchestrator_mounts }}
+  tags: storage_mounts
+
+- name: Display Storage Mounts cleanup start
+  ansible.builtin.debug:
+    msg: "Starting Storage Mounts cleanup operations (triggered by: {{ trigger_component | default('direct call') }})"
+  tags: storage_mounts
+
+- name: Display mounts to be cleaned
+  ansible.builtin.debug:
+    msg: "Mounts to clean: {{ cleanup_mounts_to_clean | join(', ') }}"
+  tags: storage_mounts
+
+- name: Unmount and remove orchestrator-deployed NFS mounts
+  tags: storage_mounts
+  when: storage_mounts_config.unmount_nfs | default(false) | bool
+  block:
+    - name: Unmount orchestrator-deployed NFS mounts
+      ansible.posix.mount:
+        path: "{{ item }}"
+        state: unmounted
+      loop: "{{ cleanup_mounts_to_clean }}"
+      register: cleanup_unmount_results
+      tags: storage_mounts
+
+    - name: Remove orchestrator-deployed NFS mounts from fstab
+      ansible.posix.mount:
+        path: "{{ item }}"
+        state: absent_from_fstab
+      loop: "{{ cleanup_mounts_to_clean }}"
+      when: storage_mounts_config.cleanup_fstab | default(false) | bool
+      tags: storage_mounts
+
+- name: Display Storage Mounts cleanup completion
+  ansible.builtin.debug:
+    msg: |
+      Storage Mounts cleanup operations completed:
+      - Orchestrator-deployed mounts unmounted: {{ storage_mounts_config.unmount_nfs | default(false) | bool }}
+      - Orchestrator-deployed mounts removed from fstab: {{ storage_mounts_config.cleanup_fstab | default(false) | bool }}
+      - Mounts cleaned: {{ cleanup_mounts_to_clean | join(', ') }}"
+  tags: storage_mounts

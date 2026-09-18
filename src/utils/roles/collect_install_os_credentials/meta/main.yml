@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  role_name: collect_install_os_credentials
+  namespace: omnia
+  author: Dell Technologies Omnia Team
+  description: Self-contained credential collection for OS installation operations
+  company: Dell Technologies
+
+  license: Apache-2.0
+
+  min_ansible_version: "2.20"
+
+  platforms:
+    - name: EL
+      versions:
+        - "10"
+
+  galaxy_tags:
+    - hpc
+    - dell
+    - idrac
+    - credentials
+    - osinstall
+
+dependencies: []

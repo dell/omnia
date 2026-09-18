@@ -15,68 +15,347 @@
 # limitations under the License.
 
 # =============================================================================
-# domain-init.sh — Initialize discovery domain runtime directories and inputs
+# domain-init.sh — Initialize discovery domain runtime environment
 # =============================================================================
 #
-# Copies:
-#   1. input/ config templates → <OMNIA_DATA_PATH>/discovery/input/<project>/
+# Performs first-time domain setup:
+#   1. Installs Python pip packages from requirements.txt
+#   2. Installs Ansible Galaxy collections from requirements.yml
+#   3. Creates Ansible log directory:  /var/log/omnia/discovery/
+#   4. Copies input files from source tree to runtime data path
+#
+# Source (flat):   src/discovery/input/
+# Destination:     <DISCOVERY_DATA_PATH>/input/<project>/
+# Default:         <OMNIA_DATA_PATH>/discovery/input/<project>/
+#
+# The source input/ directory contains template config files without any
+# project subdirectory.  The project directory (e.g. project_default) is
+# created ONLY at the runtime destination on the NFS share.
 #
 # Usage:
-#   ./domain-init.sh
-#   ./domain-init.sh --force
-#   OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=prod ./domain-init.sh
+#   ./domain-init.sh                       # Uses env vars (must be exported)
+#   ./domain-init.sh --force               # Overwrite without prompting
+#   ./domain-init.sh --cleanup             # Non-interactive initializer cleanup
+#   ./domain-init.sh --deps-only           # Install deps only, skip input staging
+#   DISCOVERY_DATA_PATH=/data/discovery OMNIA_PROJECT_NAME=prod ./domain-init.sh
 #
-# Called automatically by: omnia.sh --setup-venv
+# Called automatically by: omnia.sh --init  or  omnia.sh --setup-venv
+#
+# Manual alternative (if not using this script):
+#   sudo mkdir -p /var/log/omnia/discovery
+#   mkdir -p /opt/omnia/discovery/input/project_default
+#   cp -a input/*.yml /opt/omnia/discovery/input/project_default/
 # =============================================================================
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 readonly DOMAIN_NAME="discovery"
 
-# --- Resolve environment variables ---
-OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
-OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
-FORCE="${1:-}"
+# Color definitions
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[0;33m'
+readonly RED='\033[0;31m'
+readonly NC='\033[0m'
 
-readonly INPUT_SRC="${SCRIPT_DIR}/input"
-readonly INPUT_DST="${OMNIA_DATA_PATH}/input/${OMNIA_PROJECT_NAME}"
-readonly LOG_DIR="/var/log/omnia/${DOMAIN_NAME}"
+FORCE_OVERWRITE=false
+DEPS_ONLY=false
+FORCE_DEPS=false
+CLEANUP_MODE=false
 
-# --- Functions ---
-log() { echo "[${DOMAIN_NAME}] $*"; }
-
-ensure_dir() {
-    if [[ ! -d "$1" ]]; then
-        mkdir -p "$1"
-        log "Created directory: $1"
-    fi
-}
-
-copy_if_missing() {
-    local src="$1" dst="$2"
-    if [[ ! -f "$dst" ]] || [[ "$FORCE" == "--force" ]]; then
-        cp "$src" "$dst"
-        log "Copied: $(basename "$src") → $dst"
-    else
-        log "Skipped (exists): $(basename "$dst")"
-    fi
-}
-
-# --- Main ---
-log "Setting up ${DOMAIN_NAME} domain..."
-
-# Create required directories
-ensure_dir "$INPUT_DST"
-ensure_dir "$LOG_DIR"
-
-# Copy input templates (only if not already present)
-if [[ -d "$INPUT_SRC" ]]; then
-    for f in "$INPUT_SRC"/*; do
-        [[ -f "$f" ]] && copy_if_missing "$f" "${INPUT_DST}/$(basename "$f")"
+# ─────────────────────────────────────────────────────────────────────────────
+# Parse arguments
+# ─────────────────────────────────────────────────────────────────────────────
+_parse_args() {
+    for arg in "$@"; do
+        case "$arg" in
+            --force|-f) FORCE_OVERWRITE=true ;;
+            --deps-only) DEPS_ONLY=true ;;
+            --force-deps) FORCE_DEPS=true ;;
+            --cleanup) CLEANUP_MODE=true ;;
+            --help|-h)
+                echo "Usage: $0 [--force|-f] [--deps-only] [--force-deps] [--cleanup]"
+                echo "  --force, -f     Overwrite existing files without prompting"
+                echo "  --deps-only     Skip input file staging (only install deps)"
+                echo "  --force-deps    Bypass dep cache and force reinstall of pip/Galaxy deps"
+                echo "  --cleanup       Non-interactively remove initializer-owned input and log paths"
+                exit 0
+                ;;
+            *)
+                echo -e "${RED}Unknown argument: $arg${NC}" >&2
+                echo "Usage: $0 [--force|-f] [--deps-only] [--force-deps] [--cleanup]" >&2
+                exit 1
+                ;;
+        esac
     done
-else
-    log "No input/ directory found — skipping input copy"
-fi
 
-log "Domain setup complete."
+    if [ "$CLEANUP_MODE" = true ] && { [ "$FORCE_OVERWRITE" = true ] || [ "$DEPS_ONLY" = true ] || [ "$FORCE_DEPS" = true ]; }; then
+        echo -e "${RED}[${DOMAIN_NAME}] ERROR: --cleanup must be used by itself.${NC}" >&2
+        echo "Usage: $0 --cleanup" >&2
+        exit 1
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Read env vars (must be exported before running)
+# ─────────────────────────────────────────────────────────────────────────────
+_load_env() {
+    OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+    DISCOVERY_DATA_PATH="${DISCOVERY_DATA_PATH:-${OMNIA_DATA_PATH}/${DOMAIN_NAME}}"
+    OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
+    DOMAIN_INIT_LOG_ROOT="${DOMAIN_INIT_LOG_ROOT:-/var/log/omnia}"
+}
+
+cleanup_initializer_artifacts() {
+    local configured_data_path="${DISCOVERY_DATA_PATH%/}"
+    local configured_log_root="${DOMAIN_INIT_LOG_ROOT%/}"
+    local data_root
+    data_root="$(realpath -m -- "$DISCOVERY_DATA_PATH")"
+    local logical_data_root
+    logical_data_root="$(realpath -ms -- "$DISCOVERY_DATA_PATH")"
+    local log_root
+    log_root="$(realpath -m -- "$DOMAIN_INIT_LOG_ROOT")"
+    local logical_log_root
+    logical_log_root="$(realpath -ms -- "$DOMAIN_INIT_LOG_ROOT")"
+    local domain_data_dir="${data_root}"
+    local cleanup_paths=("${domain_data_dir}/input" "${domain_data_dir}/log" "${log_root}/${DOMAIN_NAME}")
+    case "$data_root" in
+        ""|/|/boot|/dev|/etc|/home|/media|/mnt|/opt|/proc|/root|/run|/srv|/sys|/tmp|/usr|/var)
+            echo -e "${RED}[${DOMAIN_NAME}] Refusing cleanup for unsafe DISCOVERY_DATA_PATH: ${DISCOVERY_DATA_PATH}${NC}" >&2
+            return 1 ;;
+    esac
+    case "$log_root" in
+        ""|/|/boot|/dev|/etc|/home|/media|/mnt|/opt|/proc|/root|/run|/srv|/sys|/tmp|/usr|/var)
+            echo -e "${RED}[${DOMAIN_NAME}] Refusing cleanup for unsafe log root: ${DOMAIN_INIT_LOG_ROOT}${NC}" >&2
+            return 1 ;;
+    esac
+    if [ -L "$configured_data_path" ] || [ -L "$configured_log_root" ] ||
+       [ "$data_root" != "$logical_data_root" ] || [ "$log_root" != "$logical_log_root" ]; then
+        echo -e "${RED}[${DOMAIN_NAME}] Refusing cleanup because a configured cleanup root is a symbolic link.${NC}" >&2
+        return 1
+    fi
+    if [ -L "$domain_data_dir" ] || { [ -e "$domain_data_dir" ] && [ ! -d "$domain_data_dir" ]; }; then
+        echo -e "${RED}[${DOMAIN_NAME}] Refusing cleanup because the domain data path is not a regular directory: ${domain_data_dir}${NC}" >&2
+        return 1
+    fi
+    echo -e "${GREEN}[${DOMAIN_NAME}] Cleaning initializer-owned artifacts...${NC}"
+    local path
+    for path in "${cleanup_paths[@]}"; do
+        if [ -e "$path" ] || [ -L "$path" ]; then
+            rm -rf -- "$path"
+            echo -e "  ${GREEN}[${DOMAIN_NAME}] Removed: ${path}${NC}"
+        fi
+    done
+    rmdir "$domain_data_dir" 2>/dev/null || true
+    echo -e "${GREEN}[${DOMAIN_NAME}] Initializer cleanup complete. Deployed resources and domain output were not changed.${NC}"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Check if destination has existing files and prompt user
+# Returns 0 if safe to proceed, 1 if user declined
+# ─────────────────────────────────────────────────────────────────────────────
+_check_existing_files() {
+    local dest_dir="$1"
+
+    # No destination — safe to proceed
+    [ -d "$dest_dir" ] || return 0
+
+    local existing_count
+    existing_count=$(find "$dest_dir" -type f 2>/dev/null | wc -l)
+    [ "$existing_count" -gt 0 ] || return 0
+
+    # Files exist — check if force mode
+    if [ "$FORCE_OVERWRITE" = true ]; then
+        echo -e "  ${YELLOW}[${DOMAIN_NAME}] Overwriting ${existing_count} existing file(s) in ${dest_dir} (--force)${NC}"
+        return 0
+    fi
+
+    # Interactive prompt
+    echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: ${existing_count} file(s) already exist in ${dest_dir}${NC}"
+    echo -e "  ${YELLOW}Existing files may contain user customizations that will be overwritten.${NC}"
+
+    # List files that would be overwritten
+    local src_dir="$SCRIPT_DIR/input"
+    local overwrite_list
+    overwrite_list=$(cd "$src_dir" && find . -type f | sed 's|^\./||' | sort)
+    for f in $overwrite_list; do
+        if [ -f "$dest_dir/$f" ]; then
+            echo -e "    ${YELLOW}→ $f (exists — will be overwritten)${NC}"
+        fi
+    done
+
+    # Non-interactive check (piped input, cron, etc.)
+    if [ ! -t 0 ]; then
+        echo -e "  ${RED}[${DOMAIN_NAME}] Non-interactive mode — skipping overwrite. Use --force to override.${NC}"
+        return 1
+    fi
+
+    echo -en "  ${YELLOW}Overwrite existing files for project '${OMNIA_PROJECT_NAME}'? [y/N]: ${NC}"
+    read -r response
+    case "$response" in
+        [yY]|[yY][eE][sS]) return 0 ;;
+        *)
+            echo -e "  ${YELLOW}[${DOMAIN_NAME}] Skipped project '${OMNIA_PROJECT_NAME}' — no files overwritten${NC}"
+            return 1
+            ;;
+    esac
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Copy flat input/ files to the runtime project directory
+# Source:  src/<domain>/input/            (flat — no project subdirectory)
+# Dest:   <DISCOVERY_DATA_PATH>/input/<project>/
+# ─────────────────────────────────────────────────────────────────────────────
+copy_input_files() {
+    local src_dir="$SCRIPT_DIR/input"
+    local dest_dir="${DISCOVERY_DATA_PATH}/input/${OMNIA_PROJECT_NAME}"
+
+    if [ ! -d "$src_dir" ]; then
+        echo -e "  ${YELLOW}[${DOMAIN_NAME}] No input directory at ${src_dir} — skipping${NC}"
+        return 0
+    fi
+
+    # Check that source has files (ignore subdirectories)
+    local src_count
+    src_count=$(find "$src_dir" -maxdepth 1 -type f 2>/dev/null | wc -l)
+    if [ "$src_count" -eq 0 ]; then
+        echo -e "  ${YELLOW}[${DOMAIN_NAME}] No input files in ${src_dir} — skipping${NC}"
+        return 0
+    fi
+
+    # Check for existing files and prompt if needed
+    if ! _check_existing_files "$dest_dir"; then
+        return 0
+    fi
+
+    mkdir -p "$dest_dir"
+
+    # Use rsync if available (preserves permissions, only copies changed files)
+    if command -v rsync >/dev/null 2>&1; then
+        rsync -a --update "$src_dir/" "$dest_dir/" --exclude='.*'
+    else
+        cp -a "$src_dir"/. "$dest_dir/"
+    fi
+
+    local count
+    count=$(find "$dest_dir" -type f | wc -l)
+    echo -e "  ${GREEN}[${DOMAIN_NAME}] Copied ${count} file(s) → ${dest_dir}${NC}"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Create runtime data directories (output + log) and Ansible log directory
+# ─────────────────────────────────────────────────────────────────────────────
+create_runtime_directories() {
+    local output_dir="${DISCOVERY_DATA_PATH}/output/${OMNIA_PROJECT_NAME}"
+    local runtime_log_dir="${DISCOVERY_DATA_PATH}/log/${OMNIA_PROJECT_NAME}"
+    local ansible_log_dir="/var/log/omnia/${DOMAIN_NAME}"
+
+    for dir in "$output_dir" "$runtime_log_dir" "$ansible_log_dir"; do
+        if [ ! -d "$dir" ]; then
+            mkdir -p "$dir"
+            echo -e "  ${GREEN}[${DOMAIN_NAME}] Created directory: ${dir}${NC}"
+        fi
+    done
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Install domain-specific pip + Galaxy dependencies
+# Expects the shared Omnia venv to be activated before calling this script.
+# ─────────────────────────────────────────────────────────────────────────────
+_checksum_file() {
+    if command -v md5sum >/dev/null 2>&1; then
+        md5sum "$1" | awk '{print $1}'
+    elif command -v md5 >/dev/null 2>&1; then
+        md5 -q "$1"
+    else
+        echo "no-md5"
+    fi
+}
+
+_deps_cache_dir() {
+    local cache_dir="${OMNIA_DATA_PATH}/.data/deps-cache"
+    mkdir -p "$cache_dir"
+    echo "$cache_dir"
+}
+
+install_dependencies() {
+    local req_txt="$SCRIPT_DIR/requirements.txt"
+    local req_yml="$SCRIPT_DIR/requirements.yml"
+    local cache_dir
+    cache_dir="$(_deps_cache_dir)"
+
+    if [ -f "$req_txt" ]; then
+        if command -v pip >/dev/null 2>&1; then
+            local pip_hash pip_cache_file
+            pip_hash="$(_checksum_file "$req_txt")"
+            pip_cache_file="${cache_dir}/${DOMAIN_NAME}.pip.md5"
+
+            if [ "$FORCE_DEPS" = false ] && [ -f "$pip_cache_file" ] && [ "$(cat "$pip_cache_file")" = "$pip_hash" ]; then
+                echo -e "  ${GREEN}[${DOMAIN_NAME}] pip deps unchanged (cached) — skipped${NC}"
+            else
+                echo -e "  ${GREEN}[${DOMAIN_NAME}] Installing pip packages ...${NC}"
+                if pip install -r "$req_txt" --quiet; then
+                    echo "$pip_hash" > "$pip_cache_file"
+                else
+                    echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: pip install failed — continuing${NC}"
+                fi
+            fi
+        else
+            echo -e "  ${YELLOW}[${DOMAIN_NAME}] pip not found (venv not activated?) — skipping pip install${NC}"
+        fi
+    fi
+
+    if [ -f "$req_yml" ]; then
+        if command -v ansible-galaxy >/dev/null 2>&1; then
+            local galaxy_hash galaxy_cache_file
+            galaxy_hash="$(_checksum_file "$req_yml")"
+            galaxy_cache_file="${cache_dir}/${DOMAIN_NAME}.galaxy.md5"
+
+            if [ "$FORCE_DEPS" = false ] && [ -f "$galaxy_cache_file" ] && [ "$(cat "$galaxy_cache_file")" = "$galaxy_hash" ]; then
+                echo -e "  ${GREEN}[${DOMAIN_NAME}] Galaxy deps unchanged (cached) — skipped${NC}"
+            else
+                echo -e "  ${GREEN}[${DOMAIN_NAME}] Installing Galaxy collections ...${NC}"
+                if ansible-galaxy collection install -r "$req_yml" --force 2>&1 | tail -1; then
+                    echo "$galaxy_hash" > "$galaxy_cache_file"
+                else
+                    echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: Galaxy install failed — continuing${NC}"
+                fi
+            fi
+        else
+            echo -e "  ${YELLOW}[${DOMAIN_NAME}] ansible-galaxy not found — skipping Galaxy install${NC}"
+        fi
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main
+# ─────────────────────────────────────────────────────────────────────────────
+main() {
+    _parse_args "$@"
+    _load_env
+
+    if [ "$CLEANUP_MODE" = true ]; then
+        cleanup_initializer_artifacts
+        return 0
+    fi
+
+    echo -e "${GREEN}[${DOMAIN_NAME}] Initializing domain...${NC}"
+
+    # 1. Install domain-specific dependencies
+    install_dependencies
+
+    # 2. Create runtime directories (output, log, ansible log)
+    create_runtime_directories
+
+    # 3. Copy flat input files to the runtime project directory (skip if --deps-only)
+    if [ "$DEPS_ONLY" = false ]; then
+        copy_input_files
+    else
+        echo -e "  ${YELLOW}[${DOMAIN_NAME}] Skipping input file staging (--deps-only)${NC}"
+    fi
+
+    echo -e "${GREEN}[${DOMAIN_NAME}] Domain initialization complete.${NC}"
+}
+
+main "$@"

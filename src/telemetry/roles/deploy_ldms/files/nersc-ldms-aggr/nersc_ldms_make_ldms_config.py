@@ -1,5 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 Create ldmsd config files and parameters from host map files.
 """
@@ -123,6 +137,10 @@ class LdmsdManager:  # pylint: disable=too-many-instance-attributes
                 node_list = json.load(fh)
             split = ldmsd_conf.get("agg_count", 1)
             midpoint = len(node_list) // split
+            # Handle empty node list or zero midpoint
+            if len(node_list) == 0 or midpoint == 0:
+                logging.warning("Empty node list or zero midpoint, skipping aggregator config generation for %s", ldmsd_name)
+                continue
             for index, sub_list in enumerate(self.split_list(node_list, midpoint)):
                 sub_host_map_file = host_map_file.replace(".json", f"-{index}.json")
                 with open(sub_host_map_file, 'w', encoding='utf-8') as fh:
@@ -187,9 +205,16 @@ class LdmsdManager:  # pylint: disable=too-many-instance-attributes
 
             store_pod_index = 0
             host_map_file = ldmsd_conf["host_map_file"]
+            # Skip store config if no aggregators were configured (empty node list)
+            if ldmsd_name not in self.env or 'agg' not in self.env[ldmsd_name] or len(self.env[ldmsd_name]['agg']) == 0:
+                logging.warning("No aggregators configured for %s, skipping store config generation", ldmsd_name)
+                continue
             for agg_index in range(len(self.env[ldmsd_name]['agg'])):
-                with open(host_map_file.replace(".json", f"-{agg_index}.json"),
-                          encoding='utf-8') as fh:
+                split_host_map_file = host_map_file.replace(".json", f"-{agg_index}.json")
+                if not os.path.exists(split_host_map_file):
+                    logging.warning("Split host map file %s does not exist, skipping", split_host_map_file)
+                    continue
+                with open(split_host_map_file, encoding='utf-8') as fh:
                     node_list = json.load(fh)
                 nid_names = [x['hostname'] for x in node_list]
                 split = ldmsd_conf.get("store_split", 99999999)
@@ -563,6 +588,8 @@ class LdmsdManager:  # pylint: disable=too-many-instance-attributes
             f"strgp_add name=kafka regex=.* plugin=store_avro_kafka "
             f"container=kafka-kafka-bootstrap.{self.namespace}.svc.cluster.local:9093 "
             "decomposition=/ldms_bin/decomp.json",
+            # strgp_prdcr_add tells the storage policy which producers to store data from
+            "strgp_prdcr_add name=kafka regex=prdcr.*",
             "strgp_start name=kafka"
         ])
         with open(out_file, 'w', encoding='utf-8') as fh:

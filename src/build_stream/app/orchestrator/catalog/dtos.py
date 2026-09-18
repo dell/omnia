@@ -15,26 +15,27 @@
 """Response DTOs for catalog orchestrator use cases."""
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 from core.artifacts.value_objects import ArtifactRef
 
 
 @dataclass
 class ParseCatalogResult:
-    """Result DTO for ParseCatalogUseCase."""
+    """Result DTO for ParseCatalogUseCase.
+
+    Kept intentionally minimal (Omnia 2.3+ reintroduction): the stage's
+    only job today is the image_group_id uniqueness check, so the result
+    only carries what callers need to confirm that outcome. Root JSON
+    generation and catalog-metadata artifact storage are handled elsewhere
+    (create-local-repository / build-image) and are not duplicated here.
+    """
 
     job_id: str
     stage_state: str
     message: str
-    catalog_ref: ArtifactRef
-    root_jsons_ref: ArtifactRef
-    root_json_count: int
-    arch_os_combinations: List[Tuple[str, str, str]]
+    image_group_id: str
     completed_at: str  # ISO 8601
-    image_group_id: str = ""
-    roles: List[str] = field(default_factory=list)
-    role_images: Dict[str, str] = field(default_factory=dict)
 
 
 @dataclass

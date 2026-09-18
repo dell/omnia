@@ -15,18 +15,16 @@
 """
 Omnia Main — Messages
 
-Test names, log messages, and assertion messages for all FVT tests.
+Log and assertion messages for all FVT tests.
 """
 
 from .omnia_main_msgs import (
-    TEST_NAMES,
     TEST_LOG_MSGS,
     TEST_ASSERT_MSGS,
     OMNIA_MAIN_MSGS,
 )
 
 __all__ = [
-    "TEST_NAMES",
     "TEST_LOG_MSGS",
     "TEST_ASSERT_MSGS",
     "OMNIA_MAIN_MSGS",

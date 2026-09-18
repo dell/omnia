@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -36,6 +36,14 @@
   delegate_to: "{{ aarch64_build_host }}"
   connection: ssh
 
+- name: Ensure OIM cache directory exists
+  ansible.builtin.file:
+    path: "{{ image_build_log_dir }}"
+    state: directory
+    mode: "{{ dir_permissions_755 }}"
+  delegate_to: localhost
+  connection: local
+
 - name: Render aarch64 base image build config
   ansible.builtin.template:
     src: "{{ openchami_base_image_config_template }}"
@@ -45,9 +53,15 @@
   connection: ssh
 
 # --- Base image cache check ---
+# Hash includes packages + repo config + build engine so that repository
+# changes and build-engine switches both trigger the required rebuild.
 - name: Compute base image package hash
   ansible.builtin.set_fact:
-    _base_pkg_hash: "{{ base_image_packages | sort | join(',') | hash('sha256') }}"
+    _base_pkg_hash: >-
+      {{ ((base_image_packages | sort | join(','))
+         ~ '|repos:' ~ _repo_config_hash
+         ~ '|image_build_type:' ~ _image_build_type)
+         | hash('sha256') }}
 
 - name: Set base image hash file path
   ansible.builtin.set_fact:
@@ -58,8 +72,8 @@
     src: "{{ _base_hash_file }}"
   register: _prev_base_hash
   failed_when: false
-  delegate_to: "{{ aarch64_build_host }}"
-  connection: ssh
+  delegate_to: localhost
+  connection: local
 
 - name: Determine if base image rebuild is needed
   ansible.builtin.set_fact:
@@ -114,8 +128,8 @@
         content: "{{ _base_pkg_hash }}"
         dest: "{{ _base_hash_file }}"
         mode: "{{ dir_permissions_644 }}"
-      delegate_to: "{{ aarch64_build_host }}"
-      connection: ssh
+      delegate_to: localhost
+      connection: local
 
 # --- Registry verification ---
 - name: Verify the aarch64 base osimage in registry
@@ -134,6 +148,24 @@
   when: >-
     (host_name + '/' + rhel_arch_base_image_name) not in
     verify_base_osimage.stdout_lines
+
+- name: Verify aarch64 base image has tags in registry
+  ansible.builtin.shell: |
+    /usr/local/bin/regctl tag ls \
+      {{ registry_host }}:5000/{{ host_name }}/{{ rhel_arch_base_image_name }} \
+      2>/dev/null
+  delegate_to: "{{ aarch64_build_host }}"
+  connection: ssh
+  changed_when: false
+  failed_when: false
+  register: _base_tag_check
+
+- name: Fail if aarch64 base image has no tags
+  ansible.builtin.fail:
+    msg: >-
+      Base image {{ host_name }}/{{ rhel_arch_base_image_name }} exists in registry
+      but has no tags. Check log: {{ image_build__base_image_log_path }}
+  when: _base_tag_check.stdout_lines | default([]) | length == 0
 
 - name: Display verified aarch64 base osimage
   ansible.builtin.debug:

@@ -1,0 +1,181 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# =============================================================================
+# Build Stream — Test Configuration
+# =============================================================================
+# Non-sensitive settings for FVT (Functional Verification Testing).
+#
+# Usage:
+#   - Set oim_server_ip to the target server where build_stream runs.
+#   - Leave oim_server_ip empty to run tests locally on the same machine.
+#   - Configure sync options to push input files to the target server
+#     before running tests.
+#   - Sensitive credentials (SSH password) go in test_creds.yml
+#     (auto-encrypted with Ansible Vault on first run).
+# =============================================================================
+
+---
+
+# =============================================================================
+# TARGET SERVER CONNECTION
+# =============================================================================
+# IP address of the server where build_stream playbook runs.
+# Leave empty for local mode (running directly on the target server).
+# Set to a remote IP to run all verification commands over SSH.
+#
+# When a remote IP is set, the framework will:
+#   1. Sync the local project code to clone_path on the target (rsync)
+#   2. Optionally sync build_stream input files to the target
+#   3. Run all verification tests via SSH/Testinfra
+oim_server_ip: ""
+
+# SSH username for remote server (only needed for remote mode).
+oim_ssh_user: root
+
+# SSH port for remote server (only needed for remote mode).
+oim_ssh_port: 22
+
+# =============================================================================
+# PROJECT SYNC SETTINGS (remote execution)
+# =============================================================================
+# The local omnia monorepo is synced (rsync) to clone_path on the target.
+# Playbook runs from <clone_path>/build_stream/
+#
+# clone_path:   Absolute path on the TARGET SERVER where the project code is
+#               synced.
+#               Only used in remote mode. In local mode, the playbook path is
+#               resolved automatically from the source tree.
+clone_path: "/omnia"
+
+# =============================================================================
+# DATASET CONFIGURATION
+# =============================================================================
+# Controls where input files are loaded from for test execution.
+#
+# Default (empty):
+#   Leaves target input unchanged when sync_build_stream_input is false.
+#   When input sync is enabled, src/build_stream/input/ is the source.
+#
+# Custom dataset:
+#   Set to a folder name under test/build_stream/datasets/<name>/.
+#   Each dataset folder must contain:
+#     input/build_stream_config.yml
+dataset: ""
+
+# The target project is always read from OMNIA_PROJECT_NAME on the execution
+# OIM. It is intentionally not duplicated in this test configuration.
+
+# =============================================================================
+# SYNC — BUILD STREAM INPUT
+# =============================================================================
+# When true, pushes the local dataset input/ files to the target server.
+# A configured dataset uses datasets/<dataset>/input/. An empty dataset uses
+# src/build_stream/input/. Credentials and vault keys are always excluded.
+# Destination is resolved from OMNIA_DATA_PATH and OMNIA_PROJECT_NAME on OIM.
+#
+# This ensures the target server has the correct build_stream_config.yml
+# before running the playbook.
+sync_build_stream_input: false
+
+# =============================================================================
+# REPORT CONFIGURATION
+# =============================================================================
+# Directory where test reports (JSON + HTML) are saved.
+# Can be:
+#   - A folder name (relative to test/): reports
+#   - An absolute path: /var/reports/build_stream
+# No spaces allowed in the path.
+report_path: /opt/omnia/reports
+
+# Base name for report files (without extension).
+# Generates: build_stream_test_report.json, build_stream_test_report.html
+# No spaces allowed. Only letters, numbers, underscores, hyphens.
+report_name: build_stream_test_report
+
+# Custom run ID (optional).
+# When set, reports use this ID instead of a timestamp (YYYYMMDD_HHMMSS).
+# This groups multiple scenario runs under the same report entry.
+# Leave empty to auto-generate from timestamp.
+# No spaces allowed. Only letters, numbers, underscores, hyphens.
+run_id: ""
+
+# =============================================================================
+# BUILD PIPELINE SETTINGS
+# =============================================================================
+# Controls for build pipeline automation tests (auto-trigger and manual).
+
+# When true, automation auto-cancels running/pending pipelines before
+# triggering a new one. When false, the test fails with instructions
+# to cancel manually in GitLab.
+allow_pipeline_cancel: false
+
+# Catalog path to use for the build pipeline trigger. The value is relative to
+# src/main/samples/catalogs/ so the user can select any supported release and
+# workload without changing the automation code.
+# Build-pipeline exec/test always uploads this file and replaces the existing
+# GitLab catalog with uniquely identified content to trigger a new pipeline.
+# Required for build-pipeline exec/test. Build-pipeline verify reads the job_id
+# and does not load or upload a catalog.
+catalog_path: "10.0/slurm_x86_64_no_vast.json"
+
+# Job ID from the most recent build pipeline run.
+# Always overwritten with the newly created job during build-pipeline
+# exec/test. Verify mode only reads this value and never changes it.
+# Must be set manually before running --verify if no prior --test was run.
+# Format: UUID (e.g. 019bf590-1234-7890-abcd-ef1234567890)
+job_id: ""
+
+# Deploy pipeline always resolves the image group and prior GitLab pipeline
+# from job_id. It never falls back to the latest image.
+
+# =============================================================================
+# NON-FUNCTIONAL TEST SAFETY CONTROLS
+# =============================================================================
+# Disruptive NFTs are disabled by default and operate only on the pipeline/job
+# created by the NFT session. Enable only the specific operation being tested.
+
+# Allows the resilience NFT to create a GitLab pipeline, cancel that exact
+# test-created pipeline, and verify that a replacement pipeline creates a new
+# BSM job. This is equivalent to selecting Cancel for that pipeline in GitLab.
+nft_allow_pipeline_cancel: false
+
+# Allows the resilience NFT to restart omnia_build_stream.service and verify
+# that the BSM API recovers and the configured/test-created job remains
+# accessible after the restart.
+nft_allow_service_restart: false
+
+# Allows the resilience NFT to restart omnia_build_stream.service while the
+# configured/test-created BSM job is active, then verify that its job identity
+# and stage records are preserved without duplication.
+nft_allow_active_stage_restart: false
+
+# Allows the resilience NFT to stop playbook-watcher.service while a request
+# for the test-created job is queued, restart the service, and verify that the
+# watcher recovers and claims that exact request.
+nft_allow_watcher_restart: false
+
+# Allows security NFTs to create one disposable, audit-labelled BSM job and
+# submit invalid path-traversal and oversized-file uploads. These tests verify
+# that rejected uploads leave no file or stage-state changes.
+nft_allow_security_mutation: false
+
+# Maximum time, in seconds, to wait for a service restart, GitLab cancellation,
+# queue transition, or other recovery condition used by resilience NFTs.
+nft_recovery_timeout_seconds: 120
+
+# Maximum time, in seconds, for each NFT-triggered GitLab pipeline to initialize
+# and create its BSM job. This includes time for GitLab to release a runner
+# after cancellation before starting the replacement pipeline.
+nft_pipeline_timeout_seconds: 300

@@ -37,8 +37,10 @@ POWERSCALE_CSI_DRIVER_MISSING_MSG = (
     "PowerScale telemetry requires the CSI driver for PowerScale to be configured."
 )
 POWERSCALE_SERVICE_CLUSTER_MISSING_MSG = (
-    "service cluster is not defined in functional_groups_config.yml. "
-    "PowerScale telemetry requires a service cluster."
+    "service cluster is not found in orchestrator_inventory. "
+    "PowerScale telemetry requires a service cluster with at least one "
+    "service_kube_control_plane node and one service_kube_node. "
+    "Ensure orchestrator_inventory contains these groups with at least one host each."
 )
 POWERSCALE_CONFIGURATIONS_MISSING_MSG = (
     "powerscale_configurations section is required in telemetry_config.yml when "
@@ -81,6 +83,16 @@ POWERSCALE_OTEL_COLLECTOR_IMAGE_MISSING_MSG = (
     "OTEL Collector image is required in CSM Observability "
     "values.yaml (path specified in telemetry_config.yml)."
 )
+POWERSCALE_IMAGE_VERSION_MISMATCH_MSG = (
+    "PowerScale image version mismatch detected in offline mode. "
+    "Ensure these images match telemetry_packages.yml and are present in Pulp registry."
+)
+def powerscale_image_version_mismatch_msg(mismatched_images):
+    """Returns error message when CSM values.yaml image version doesn't match telemetry_packages.yml."""
+    return (
+        f"{POWERSCALE_IMAGE_VERSION_MISMATCH_MSG} "
+        f"{', '.join(mismatched_images)}"
+    )
 ADDITIONAL_METRIC_ENDPOINTS_URL_EMPTY_MSG = (
     "Each additional_metric_remote_write_endpoint in "
     "telemetry_config.yml must have a non-empty 'url' field."
@@ -94,17 +106,17 @@ ADDITIONAL_LOG_ENDPOINTS_URL_EMPTY_MSG = (
 ADDITIONAL_LOG_ENDPOINTS_URL_INVALID_MSG = (
     "URL in telemetry_config.yml must start with 'http://' or 'https://'."
 )
-def powerscale_image_version_mismatch_msg(image_name, values_image, service_k8s_image):
-    """Returns error message when CSM values.yaml image version doesn't match service_k8s (versioned)."""
+POWERSCALE_IMAGE_VERSION_MISMATCH_MSG = (
+    "PowerScale image version mismatch detected in offline mode. "
+    "Ensure these images match telemetry_packages.yml and are present in Pulp registry."
+)
+def powerscale_image_version_mismatch_msg(mismatched_images):
+    """Returns error message when CSM values.yaml image version doesn't match telemetry_packages.yml."""
     return (
-        f"Image version mismatch for '{image_name}': "
-        f"CSM Observability values.yaml has '{values_image}' "
-        f"but service_k8s (versioned) has "
-        f"'{service_k8s_image}'. "
-        f"Please update service_k8s (versioned) to match the "
-        f"values.yaml version and re-run local_repo.yml to "
-        f"mirror the correct image to Pulp."
+        f"{POWERSCALE_IMAGE_VERSION_MISMATCH_MSG} "
+        f"{', '.join(mismatched_images)}"
     )
+
 # pylint: enable=invalid-name
 
 def boolean_fail_msg(value):
@@ -119,27 +131,32 @@ def get_footer():
     """Returns a formatted footer string for execution logs."""
     return f"{'#' * 30} END EXECUTION {'#' * 30}"
 
-# kube_vip validation messages (telemetry standalone design)
-KUBE_VIP_REQUIRED_MSG = (
-    "kube_vip is required in telemetry_config.yml. "
-    "Set 'kube_vip: <IP_ADDRESS>' to the Kubernetes control plane virtual IP address. "
-    "All K8s tasks (kubectl, helm) execute on this host via SSH."
-)
+# kube_vip validation messages (extracted from cluster_inventory)
 KUBE_VIP_INVALID_IPV4_MSG = (
-    "kube_vip must be a valid IPv4 address with each octet in the range 0-255 "
-    "(e.g., '10.0.0.1'). Update the kube_vip value in telemetry_config.yml."
+    "kube_vip extracted from cluster_inventory must be a valid IPv4 address "
+    "with each octet in the range 0-255 (e.g., '10.0.0.1'). "
+    "Check the kube_vip_group.hosts entry in your cluster_inventory file."
 )
 KUBE_VIP_SSH_UNREACHABLE_MSG = (
-    "kube_vip is not reachable via SSH. "
+    "kube_vip (from cluster_inventory) is not reachable via SSH. "
     "Ensure the Kubernetes control plane VIP is online and SSH access is configured "
     "from this host before running telemetry operations."
 )
 
 # telemetry_packages.yml validation messages
-CLUSTER_MOUNT_REQUIRED_MSG = (
-    "cluster_mount is required in telemetry_packages.yml and must be a non-empty path. "
+K8S_CLUSTER_MOUNT_REQUIRED_MSG = (
+    "k8s_cluster_mount is required in telemetry_packages.yml and must be a non-empty path. "
     "Provide the local NFS mount point on the Kubernetes cluster where telemetry packages "
     "will be staged (e.g., '/opt/omnia/k8s_mount')."
+)
+K8S_CLUSTER_MOUNT_INVALID_MSG = (
+    "k8s_cluster_mount must be an absolute path without NUL or newline "
+    "characters (e.g., '/opt/omnia/k8s_mount')."
+)
+SLURM_CLUSTER_MOUNT_REQUIRED_MSG = (
+    "slurm_cluster_mount is required in telemetry_packages.yml and must be a non-empty path. "
+    "Provide the local NFS mount point on the Slurm cluster where LDMS configuration and data "
+    "will be stored (e.g., '/share_omnia')."
 )
 REGISTRY_HOST_FORMAT_MSG = (
     "telemetry_registry.host must be in format 'IP:port' or 'hostname:port' "
@@ -157,19 +174,20 @@ PACKAGE_URL_INVALID_MSG = (
     "Package URL in telemetry_packages.yml must start with 'http://' or 'https://'. "
     "Provide the full download URL from the Pulp repository or external source."
 )
-CLUSTER_MOUNT_PATH_NOT_FOUND_ON_KUBE_VIP_MSG = (
-    "cluster_mount path does not exist on kube_vip host. "
+K8S_CLUSTER_MOUNT_PATH_NOT_FOUND_ON_KUBE_VIP_MSG = (
+    "k8s_cluster_mount path does not exist on kube_vip host. "
     "Ensure the NFS mount point exists on the Kubernetes "
     "cluster before running telemetry deployment. "
     "Create the directory or verify the NFS mount is active."
 )
-CLUSTER_MOUNT_KUBE_VIP_NOT_FOUND_MSG = (
-    "Cannot validate cluster_mount path existence: kube_vip "
-    "is not defined in telemetry_config.yml. "
-    "Set kube_vip in telemetry_config.yml first."
+K8S_CLUSTER_MOUNT_KUBE_VIP_NOT_FOUND_MSG = (
+    "Cannot validate k8s_cluster_mount path existence: kube_vip "
+    "could not be extracted from cluster_inventory. "
+    "Ensure cluster_inventory in telemetry_config.yml points to a valid inventory file "
+    "with kube_vip_group.hosts defined containing the Kubernetes control plane VIP."
 )
-CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG = (
-    "Failed to verify cluster_mount path on kube_vip via SSH. "
+K8S_CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG = (
+    "Failed to verify k8s_cluster_mount path on kube_vip via SSH. "
     "Ensure SSH access to kube_vip is configured and the host is reachable."
 )
 
@@ -177,7 +195,7 @@ CLUSTER_MOUNT_SSH_CHECK_FAILED_MSG = (
 KAFKA_STORAGE_REQUIRED_MSG = (
     "kafka_storage section is required in telemetry_storage_config.yml "
     "when kafka is in collection_targets for any telemetry source "
-    "(idrac, ldms). Please configure kafka_storage with kafka and "
+    "(iDRAC, LDMS, or OME). Please configure kafka_storage with kafka and "
     "entity_operator.user_operator resource configurations."
 )
 

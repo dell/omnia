@@ -22,6 +22,7 @@ import pytest
 
 from library.functions import TestLogger, check_s3_buckets
 from library.vars import TEST_CASES as TC
+from library.vars.common_vars import S3_EXPECTED_BUCKETS
 from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
@@ -37,9 +38,14 @@ def test_s3_buckets_after_prepare(host):
     result = check_s3_buckets(host)
 
     if result["success"]:
-        tl.passed(
+        fields = [("Required buckets", len(S3_EXPECTED_BUCKETS))]
+        fields.extend(
+            (f"Bucket {index}", bucket)
+            for index, bucket in enumerate(result["found"], 1)
+        )
+        tl.passed_fields(
             LOG["s3_buckets_ok"].format(count=len(result["found"])),
-            result["details"],
+            fields,
         )
     else:
         tl.failed(

@@ -1,0 +1,97 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# precheck_build_stream — Main task file
+#
+# Verifies that repo_manager and image_build_manager have completed
+# prepare-base by checking:
+#   1. Required containers are running (pulp, minio-server, registry)
+#   2. Credential files exist
+
+# =========================================================================
+# Step 1: Check required containers are running
+# =========================================================================
+- name: Check required containers are running
+  ansible.builtin.command: "podman ps --filter name={{ item.name }} --format '{{ '{{' }}.Names{{ '}}' }}'"
+  register: _container_checks
+  changed_when: false
+  failed_when: false
+  loop: "{{ required_containers }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Identify running and missing containers
+  ansible.builtin.set_fact:
+    _running: >-
+      {{ _container_checks.results
+         | rejectattr('stdout', 'equalto', '')
+         | map(attribute='item') | map(attribute='name') | list }}
+    _missing: >-
+      {{ _container_checks.results
+         | selectattr('stdout', 'equalto', '')
+         | map(attribute='item') | map(attribute='name') | list }}
+
+# =========================================================================
+# Step 2: Check credential files exist
+# =========================================================================
+- name: Check credential files exist
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  register: _cred_checks
+  loop: "{{ required_credential_files }}"
+  loop_control:
+    label: "{{ item.domain }}"
+
+- name: Identify missing credentials
+  ansible.builtin.set_fact:
+    _creds_missing: >-
+      {{ _cred_checks.results
+         | selectattr('stat.exists', 'equalto', false)
+         | map(attribute='item') | map(attribute='domain') | list }}
+
+# =========================================================================
+# Step 3: Summary
+# =========================================================================
+- name: Determine overall result
+  ansible.builtin.set_fact:
+    _precheck_pass: >-
+      {{ (_missing | length == 0)
+         and (_creds_missing | length == 0) }}
+
+- name: Precheck summary
+  ansible.builtin.debug:
+    msg:
+      - "============================================"
+      - "  BUILD_STREAM PRECHECK SUMMARY"
+      - "============================================"
+      - "  --- containers ---"
+      - "  pulp:             {{ ('pulp' in _running) | ternary('RUNNING', 'NOT RUNNING') }}"
+      - "  minio-server:     {{ ('minio-server' in _running) | ternary('RUNNING', 'NOT RUNNING') }}"
+      - "  registry:         {{ ('registry' in _running) | ternary('RUNNING', 'NOT RUNNING') }}"
+      - ""
+      - "  --- credentials ---"
+      - "  repo_manager:     {{ ('repo_manager' not in _creds_missing) | ternary('present', 'MISSING') }}"
+      - "  image_build_mgr:  {{ ('image_build_manager' not in _creds_missing) | ternary('present', 'MISSING') }}"
+      - ""
+      - "  RESULT: {{ _precheck_pass | bool | ternary('PASS', 'FAIL — run omnia.sh --prepare-base first') }}"
+      - "============================================"
+
+- name: Fail if precheck did not pass
+  ansible.builtin.fail:
+    msg: >-
+      build_stream precheck failed.
+      Missing containers: {{ _missing | default([]) | join(', ') }}.
+      Missing credentials: {{ _creds_missing | default([]) | join(', ') }}.
+      Run 'omnia.sh --prepare-base' to fix.
+  when: not (_precheck_pass | bool)

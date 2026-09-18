@@ -1,6 +1,6 @@
 # Formatting & Logging — `Colors`, `Symbols`, `TestLogger`, `log()`, session summary
 
-**Source file:** `src/omnia_auto/functions/formatting_func.py`
+**Source file:** `omnia_auto/functions/formatting_func.py`
 
 ## What is this?
 
@@ -87,7 +87,10 @@ Print a timestamped, color-coded log line.
 
 None — works standalone.
 
-**Note:** `DEBUG` messages are hidden by default.  Call `set_debug_mode(True)` to show them.
+`INFO` and `DEBUG` messages are hidden by default. Call
+`set_verbose_mode(True)` (or set a non-empty `OMNIA_VERBOSE` environment
+variable before import) to show `INFO`; call `set_debug_mode(True)` to show
+`DEBUG`. `WARN`, `ERROR`, and `OK` always display.
 
 ### Output format
 
@@ -101,13 +104,28 @@ None — works standalone.
 ### Example
 
 ```python
-from omnia_auto import log
+from omnia_auto import log, set_verbose_mode
 
+set_verbose_mode(True)
 log("Starting file sync", "INFO")
 log("Sync complete", "OK")
 log("Retrying in 5s", "WARN")
 log("Connection refused", "ERROR")
 log("Variable dump: x=42", "DEBUG")  # hidden unless debug mode is on
+```
+
+---
+
+## `set_verbose_mode(enabled: bool)`
+
+Enable or disable `INFO` output globally. This does not affect `DEBUG`, which
+is controlled independently by `set_debug_mode()`.
+
+```python
+from omnia_auto import log, set_verbose_mode
+
+set_verbose_mode(True)
+log("This INFO message is visible")
 ```
 
 ---
@@ -153,7 +171,7 @@ This is the main way your test functions produce output.
 | Parameter | Type | Required? | What to give | Example |
 |-----------|------|-----------|--------------|---------|
 | `test_name` | `str` | **Yes** | A human-readable name for the test. This is displayed as the test header. | `"Verify containers running"` |
-| `tc_id` | `str` | No | A test case ID like `TC_BD_002`. If provided, it appears in brackets before the test name. | `"TC_BD_002"` |
+| `tc_id` | `str` | No | A test case ID like `IMGBM_FVT_BUILD_V006`. If provided, it appears in brackets before the test name. | `"IMGBM_FVT_BUILD_V006"` |
 
 ### Methods
 
@@ -164,7 +182,16 @@ This is the main way your test functions produce output.
 | `tl.passed(message, details=None)` | Prints a green ✔ PASS line | When a check passes. `details` is an optional multi-line string shown below the pass line. |
 | `tl.failed(message, details=None)` | Prints a red ✘ FAIL line | When a check fails. `details` is optional. |
 | `tl.skipped(message, details=None)` | Prints a yellow ↷ SKIP line | When a check is skipped. `details` is optional. |
+| `tl.passed_fields(message, fields)` | Prints a green ✔ PASS line followed by colored key/value fields | When named values make the result easier to understand. |
+| `tl.failed_fields(message, fields)` | Prints a red ✘ FAIL line followed by colored key/value fields | When a failure needs named diagnostic values. |
+| `tl.skipped_fields(message, fields)` | Prints a yellow ↷ SKIP line followed by colored key/value fields | When a skip needs its prerequisites or current configuration shown. |
 | `tl.get_output()` | Returns all captured output as a single string | When you need to store the output (e.g., for the test report) |
+
+The `fields` argument accepts a dictionary or an ordered iterable of
+`(key, value)` pairs. In the terminal, keys are cyan and values are bright
+white when color is supported. Reports store the same fields as structured
+data and render them with report-theme colors. Keys and values are escaped
+before HTML rendering.
 
 ### Prerequisite
 
@@ -176,7 +203,7 @@ None — works standalone.  But typically used inside a `pytest` test function.
 from omnia_auto import TestLogger
 
 def test_s3_images(host):
-    tl = TestLogger("Verify S3 images pushed", "TC_BD_002")
+    tl = TestLogger("Verify S3 images pushed", "IMGBM_FVT_BUILD_V006")
 
     tl.check("Checking S3 bucket for images...")
     # ... run some verification logic ...
@@ -191,10 +218,25 @@ def test_s3_images(host):
     output = tl.get_output()
 ```
 
+For named result values, use the structured fields API instead of manually
+adding ANSI color codes:
+
+```python
+tl.passed_fields(
+    "Registry naming is valid",
+    {
+        "Artifact store": "OCI registry",
+        "Architecture": "x86_64",
+        "Required suffix": "-imgth",
+        "Matching current artifacts": 5,
+    },
+)
+```
+
 ### Terminal output
 
 ```
-  ▶ [TC_BD_002] Verify S3 images pushed
+  ▶ [IMGBM_FVT_BUILD_V006] Verify S3 images pushed
   → Checking S3 bucket for images...
   ✔ PASS: All images pushed to S3 for 2 functional groups
     │   - slurm_node_x86_64
@@ -223,6 +265,14 @@ A `TestLogger` must have been created and used first.
 
 ---
 
+## `clear_test_context()`
+
+Clears output, test-case ID, and structured fields retained by the previous
+`TestLogger`. Call it at the start of each pytest test protocol so an early
+skip cannot inherit another test's output.
+
+---
+
 ## `add_session_result(test_name, status, duration, tc_id="")`
 
 Accumulate a test result for the end-of-session summary table.
@@ -236,7 +286,7 @@ so that every test result is recorded.
 | `test_name` | `str` | **Yes** | The test function name (e.g., `test_s3_images`). | `"test_s3_images_x86_64"` |
 | `status` | `str` | **Yes** | One of: `"PASSED"`, `"FAILED"`, `"SKIPPED"`. | `"PASSED"` |
 | `duration` | `float` | **Yes** | How long the test took, in seconds. | `1.58` |
-| `tc_id` | `str` | No | Test case ID. | `"TC_BD_002"` |
+| `tc_id` | `str` | No | Test case ID. | `"IMGBM_FVT_BUILD_V006"` |
 
 ### Prerequisite
 
@@ -306,13 +356,13 @@ def pytest_sessionfinish(session, exitstatus):
 =====================================================================================
   TEST EXECUTION SUMMARY
 =====================================================================================
-  TC ID        Test Name                                Status     Duration
-  ------------ ---------------------------------------- ---------- --------
-  TC_BD_002    test_s3_images_x86_64                    PASSED        1.58s
-  TC_BD_003    test_s3_images_aarch64                   SKIPPED       0.85s
-  TC_BD_004    test_registry_images_x86_64              PASSED        1.46s
-  TC_BD_005    test_build_status                        PASSED        0.31s
-  ------------ ---------------------------------------- ---------- --------
+  TC ID                  Test Name                                Status     Duration
+  ---------------------- ---------------------------------------- ---------- --------
+  IMGBM_FVT_BUILD_V006 test_s3_images_x86_64                    PASSED        1.58s
+  IMGBM_FVT_BUILD_V007 test_s3_images_aarch64                   SKIPPED       0.85s
+  IMGBM_FVT_BUILD_V008 test_registry_images_x86_64              PASSED        1.46s
+  IMGBM_FVT_BUILD_V010 test_build_status                        PASSED        0.31s
+  ---------------------- ---------------------------------------- ---------- --------
   3 passed, 0 failed, 1 skipped / 4 total (4.20s)
 =====================================================================================
 ```
@@ -326,6 +376,7 @@ def pytest_sessionfinish(session, exitstatus):
 | `Colors` | None |
 | `Symbols` | None |
 | `log()` | None |
+| `set_verbose_mode()` | None |
 | `set_debug_mode()` | None |
 | `TestLogger()` | None |
 | `get_test_output()` | A `TestLogger` must exist |

@@ -6,9 +6,11 @@ Requires=network-online.target
 [Container]
 ContainerName=registry
 HostName=registry
-Image=docker.io/library/registry:{{ registry_tag }}
+Image={{ registry_image }}:{{ registry_tag }}
 Volume={{ data_oci_dir }}:/var/lib/registry:Z
 PublishPort=5000:5000
+
+Environment=REGISTRY_STORAGE_DELETE_ENABLED=true
 
 [Service]
 TimeoutStartSec=0

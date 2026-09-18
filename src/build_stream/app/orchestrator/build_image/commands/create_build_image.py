@@ -27,18 +27,22 @@ class CreateBuildImageCommand:
     Immutable command object representing the intent to execute
     the build-image stage for a given job.
 
+    Domain-segregated (Omnia 2.3+): architecture, image_key, and functional_groups
+    are optional. When omitted, the image_build_manager.yml playbook reads the
+    catalog directly and builds all images for all architectures.
+
     Attributes:
         job_id: Job identifier from URL path.
         client_id: Client who owns this job (from auth).
         correlation_id: Request correlation identifier for tracing.
-        architecture: Target architecture (x86_64 or aarch64).
-        image_key: Image identifier key.
-        functional_groups: List of functional groups to build.
+        architecture: Optional target architecture (legacy, read from catalog if omitted).
+        image_key: Optional image identifier key (legacy, read from catalog if omitted).
+        functional_groups: Optional list of functional groups (legacy, read from catalog if omitted).
     """
 
     job_id: JobId
     client_id: ClientId
     correlation_id: CorrelationId
-    architecture: str
-    image_key: str
-    functional_groups: List[str]
+    architecture: Optional[str] = None
+    image_key: Optional[str] = None
+    functional_groups: Optional[List[str]] = None

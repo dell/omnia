@@ -11,102 +11,198 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Central JSON Schema and L2 validation dispatch for Orchestrator."""
 
-"""
-Orchestrator validation engine — runs L1 (schema) and L2 (logic) validation.
+from __future__ import annotations
 
-Provides the central ``run_validation()`` dispatcher that loads config files,
-applies JSON schema checks, then runs semantic validators.
-"""
+from logging import Logger
+from typing import Any
 
-import csv
-import ipaddress
-import json
-import os
+from jsonschema import FormatChecker
+from jsonschema.exceptions import SchemaError
+from jsonschema.validators import validator_for
 
-import yaml
-
-from ..messages.orchestrator_messages import VALIDATOR_EXCEPTION_MSG
-
-
-# ── Utility helpers ──────────────────────────────────────────────────────────
-
-def read_csv_rows(path):
-    """Read CSV file, return (header, rows) with stripped values."""
-    with open(path, "r", encoding="utf-8") as f:
-        reader = csv.reader(f)
-        header = [h.strip().upper() for h in next(reader)]
-        rows = []
-        for row in reader:
-            rows.append([c.strip() for c in row])
-    return header, rows
+from ..messages import orchestrator_messages as msg
+from ..validators import (
+    additional_cloud_init_validator,
+    high_availability_validator,
+    network_spec_validator,
+    omnia_config_validator,
+    orchestrator_config_validator,
+    pxe_mapping_validator,
+    security_config_validator,
+    storage_config_validator,
+)
 
 
-def col_index(header, name):
-    """Return column index for *name* or -1 if not found."""
-    name_upper = name.upper()
-    for i, h in enumerate(header):
-        if h == name_upper:
-            return i
-    return -1
+def _schema_error_path(file_label: str, validation_error: Any) -> str:
+    """Return a readable dotted path for a JSON Schema validation error."""
+    path = ".".join(str(part) for part in validation_error.absolute_path)
+    return f"{file_label}.{path}" if path else file_label
 
 
-def is_valid_ipv4(addr):
-    """Quick check for valid IPv4 address."""
-    try:
-        ip = ipaddress.ip_address(addr)
-        return ip.version == 4
-    except ValueError:
-        return False
-
-
-def ip_in_subnet(ip_str, network_str, prefix_len):
-    """Check if an IP is in a given subnet."""
-    try:
-        network = ipaddress.ip_network(f"{network_str}/{prefix_len}", strict=False)
-        return ipaddress.ip_address(ip_str) in network
-    except ValueError:
-        return False
-
-
-def load_yaml_file(path):
-    """Safely load a YAML file, return parsed data or None."""
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f)
-    except (yaml.YAMLError, IOError, OSError):
-        return None
-
-
-def load_json_schema(schema_path):
-    """Load a JSON schema file, return parsed data or None."""
-    try:
-        with open(schema_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError, OSError):
-        return None
-
-
-def run_validation(config_file, config_data, validators, logger=None):
-    """
-    Run a list of validator functions against config data.
+def schema(
+    data: Any,
+    schema_definition: dict[str, Any],
+    file_label: str,
+    logger: Logger,
+) -> list[str]:
+    """Validate parsed input against its declared JSON Schema.
 
     Args:
-        config_file (str): Name of the config file being validated.
-        config_data (dict): Parsed configuration data.
-        validators (list): List of callables with signature (data, errors, logger).
-        logger: Optional logger instance.
+        data: Parsed YAML or JSON content.
+        schema_definition: JSON Schema document.
+        file_label: User-facing source filename.
+        logger: Validation logger.
 
     Returns:
-        list: Collected error message strings (empty if valid).
+        JSON Schema errors, or an empty list for valid input.
     """
-    errors = []
-    for validator_fn in validators:
-        try:
-            validator_fn(config_data, errors, logger)
-        except Exception as e:
-            msg = VALIDATOR_EXCEPTION_MSG.format(config_file, validator_fn.__name__, e)
-            errors.append(msg)
-            if logger:
-                logger.error(errors[-1])
+    errors: list[str] = []
+    try:
+        validator_class = validator_for(schema_definition)
+        validator_class.check_schema(schema_definition)
+    except SchemaError as exc:
+        error = msg.invalid_schema_msg(file_label, exc.message)
+        errors.append(error)
+        logger.error(error)
+        return errors
+
+    validator = validator_class(
+        schema_definition,
+        format_checker=FormatChecker(),
+    )
+    validation_errors = sorted(
+        validator.iter_errors(data),
+        key=lambda item: [str(part) for part in item.absolute_path],
+    )
+    for validation_error in validation_errors:
+        path = _schema_error_path(file_label, validation_error)
+        error = msg.schema_validation_msg(path, validation_error.message)
+        errors.append(error)
+        logger.error(error)
     return errors
+
+
+def logic(
+    config_data: dict[str, Any],
+    input_project_dir: str,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Dispatch Orchestrator configuration L2 validation.
+
+    Args:
+        config_data: Parsed ``orchestrator_config.yml`` data.
+        input_project_dir: Current project input directory.
+        logger: Optional validation logger.
+
+    Returns:
+        L2 validation errors.
+    """
+    return orchestrator_config_validator.validate(
+        config_data, input_project_dir, logger
+    )
+
+
+def logic_network(
+    network_data: dict[str, Any], logger: Logger | None = None
+) -> list[str]:
+    """Dispatch network specification L2 validation.
+
+    Args:
+        network_data: Parsed ``network_spec.yml`` data.
+        logger: Optional validation logger.
+
+    Returns:
+        L2 validation errors.
+    """
+    return network_spec_validator.validate(network_data, logger)
+
+
+def logic_omnia(
+    config_data: Any,
+    input_project_dir: str,
+    logger: Logger | None = None,
+    file_statuses: dict[str, bool] | None = None,
+    auxiliary_errors: list[str] | None = None,
+) -> list[str]:
+    """Dispatch ``omnia_config.yml`` L2 validation.
+
+    Args:
+        config_data: Parsed ``omnia_config.yml`` data.
+        input_project_dir: Current project input directory.
+        logger: Optional validation logger.
+
+    Returns:
+        L2 validation errors.
+    """
+    return omnia_config_validator.validate(
+        config_data,
+        input_project_dir,
+        logger,
+        file_statuses,
+        auxiliary_errors,
+    )
+
+
+def logic_pxe_mapping(
+    config_data: dict[str, Any],
+    input_project_dir: str,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Dispatch PXE mapping L2 validation."""
+    return pxe_mapping_validator.validate(
+        config_data, input_project_dir, logger
+    )
+
+
+def logic_additional_cloud_init(
+    config_data: dict[str, Any],
+    input_project_dir: str,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Dispatch additional cloud-init L2 validation."""
+    return additional_cloud_init_validator.validate(
+        config_data, input_project_dir, logger
+    )
+
+
+def logic_high_availability(
+    config_data: Any,
+    input_project_dir: str,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Dispatch Kubernetes high-availability L2 validation."""
+    return high_availability_validator.validate(
+        config_data, input_project_dir, logger
+    )
+
+
+def logic_security(
+    config_data: Any,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Dispatch ``security_config.yml`` L2 validation."""
+    return security_config_validator.validate(config_data, logger)
+
+
+def logic_storage(
+    config_data: Any,
+    orchestrator_data: dict[str, Any],
+    omnia_data: dict[str, Any],
+    input_project_dir: str,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Dispatch ``storage_config.yml`` L2 validation."""
+    return storage_config_validator.validate(
+        config_data,
+        orchestrator_data,
+        omnia_data,
+        input_project_dir,
+        logger,
+    )
+
+
+def high_availability_applicable(input_project_dir: str) -> bool:
+    """Return whether high-availability input applies to this project."""
+    return high_availability_validator.is_applicable(input_project_dir)

@@ -58,6 +58,7 @@ DOMAIN_NAME = "image_build_manager"
 
 # Environment variable names on the target host
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
+ENV_IMAGE_BUILD_MANAGER_DATA_PATH = "IMAGE_BUILD_MANAGER_DATA_PATH"
 ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
 
 # =============================================================================
@@ -82,6 +83,7 @@ PLAYBOOK_TAGS = [
     "prepare",
     "build",
     "cleanup",
+    "cleanup_images",
     "upgrade",
     "rollback",
 ]
@@ -89,8 +91,15 @@ PLAYBOOK_TAGS = [
 # =============================================================================
 # SHARED PATH DEFAULTS (runtime output on target host)
 # =============================================================================
+# Derived from OMNIA_DATA_PATH env var when available; falls back for dev boxes.
 
-SHARED_PATH = "/opt/omnia/image_build_manager"
+SHARED_PATH = (
+    os.environ.get(ENV_IMAGE_BUILD_MANAGER_DATA_PATH)
+    or os.path.join(
+        os.environ.get(ENV_OMNIA_DATA_PATH, "/opt/omnia"),
+        DOMAIN_NAME,
+    )
+).rstrip("/")
 
 # =============================================================================
 # CONTAINER NAMES
@@ -139,24 +148,21 @@ PLAYBOOK_CMD = (
     "ansible-playbook image_build_manager.yml"
 )
 
-# Image artifact types in S3 (per functional group)
-IMAGE_TYPES = ["initramfs", "vmlinuz", "rhel"]
-
-# Image type display names for S3 verification output
-IMAGE_TYPE_DISPLAY = {
-    "initramfs": "initramfs",
-    "vmlinuz": "vmlinuz",
-    "rhel": "rootfs",
-}
-
 # Functional group packages filename
 FG_PACKAGES_FILENAME = "functional_group_packages.yml"
+
+# Package groups config filename (config-mode fallback)
+PACKAGE_GROUPS_FILENAME = "package_groups.yml"
+
+# Catalog file env var (catalog mode — on target host)
+ENV_CATALOG_FILE_PATH = "CATALOG_FILE_PATH"
 
 # =============================================================================
 # SQUASHFS / IMAGE VERIFICATION PATHS
 # =============================================================================
 
-# Temp directory for downloading and mounting S3 images
+# Base prefixes for collision-safe image verification workspaces.
+# A unique token is appended for every verifier invocation.
 IMAGE_VERIFY_TEMP_IMAGE = "/tmp/ibm_test_image"  # nosec B108
 IMAGE_VERIFY_TEMP_MOUNT = "/tmp/ibm_test_mount"  # nosec B108
 
@@ -165,6 +171,12 @@ SQUASHFS_PACKAGE = "squashfs-tools"
 
 # S3 bucket for boot images
 S3_BOOT_IMAGES_BUCKET = "s3://boot-images"
+
+# Image engine identifiers and their collision-safe artifact suffixes.
+IMAGE_BUILD_TYPE_SUFFIXES = {
+    "image-builder": "-imgbld",
+    "image-thrillhouse": "-imgth",
+}
 
 # =============================================================================
 # CONFIG VALIDATION CONSTANTS
@@ -178,8 +190,6 @@ IPV4_PATTERN = re.compile(
 
 # Required fields in test_config.yml
 REQUIRED_CONFIG_FIELDS = [
-    "project_name",
-    "clone_path",
     "report_path",
     "report_name",
 ]
@@ -187,7 +197,6 @@ REQUIRED_CONFIG_FIELDS = [
 # Required files inside a dataset directory (when dataset is set)
 REQUIRED_DATASET_FILES = [
     "input/image_build_config.yml",
-    "input/image_build_credentials.yml",
 ]
 
 # Required files in src/ (when dataset is empty — default mode)
@@ -304,6 +313,13 @@ CMDS = {
     # --- Registry (regctl) ---
     "regctl_repo_ls": (
         "regctl repo ls --limit 500 {registry} 2>/dev/null"
+    ),
+    "regctl_tag_ls": (
+        "regctl tag ls {registry}/{repo} 2>/dev/null"
+    ),
+    # --- S3 (recursive list) ---
+    "s3cmd_ls_recursive": (
+        "s3cmd ls -Hr {bucket} 2>/dev/null"
     ),
     # --- Registry (curl, scheme-agnostic) ---
     "curl_registry_catalog_scheme": (

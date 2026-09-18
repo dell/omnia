@@ -13,23 +13,9 @@
 #  limitations under the License.
 ---
 
-- name: Load software_config.json
-  ansible.builtin.include_vars:
-    file: "{{ software_config_file_path }}"
-    name: software_config
-  delegate_to: localhost
-  run_once: true
-
-- name: Set dynamic additional_json_path
-  ansible.builtin.set_fact:
-    additional_json_path: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/additional_packages.json" # noqa: yaml[line-length]
-  delegate_to: localhost
-  run_once: true
-
-- name: Collect additional container images from additional_packages.json
+- name: Collect container images from catalog
   additional_images_collector:
-    additional_json_path: "{{ additional_json_path }}"
-    software_config_path: "{{ software_config_file_path }}"
+    catalog_file_path: "{{ hostvars['localhost']['catalog_file_path'] }}"
   delegate_to: localhost
   run_once: true
   register: additional_images_output
@@ -43,11 +29,14 @@
     var: additional_images_dict
     verbosity: 2
 
-- name: Read local_repo_config.yml
-  ansible.builtin.include_vars:
-    file: "{{ local_repo_config_path }}"
-    name: local_repo_config
-
-- name: Set fact for user_registry
+- name: Initialize user_registry list
   ansible.builtin.set_fact:
-    user_registry: "{{ local_repo_config.user_registry | default([]) }}"
+    user_registry: []
+
+- name: Build user_registry from repo_status.yml registries
+  ansible.builtin.set_fact:
+    user_registry: "{{ user_registry + [{'host': item.value.host}] }}"
+  loop: "{{ hostvars['localhost']['registries'] | default({}) | dict2items }}"
+  when:
+    - item.value.host is defined
+    - item.value.host | length > 0

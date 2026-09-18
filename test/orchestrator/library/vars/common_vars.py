@@ -23,6 +23,7 @@ Only module-specific constants remain here.
 """
 
 import os
+import re
 from typing import Dict, List
 
 # Module root: test/<domain>/ directory (where conftest.py lives)
@@ -33,12 +34,49 @@ MODULE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
 # From vars/ -> library/ -> test/ -> repo root
 REPO_ROOT = os.path.dirname(MODULE_ROOT)
 
+# Omnia monorepo root: omnia/
+MONOREPO_ROOT = os.path.dirname(REPO_ROOT)
+
+# src/ paths — used for module/role/playbook testing
+SRC_ORCHESTRATOR_DIR = os.path.join(
+    MONOREPO_ROOT, "src", "orchestrator"
+)
+SRC_INPUT_DIR = os.path.join(SRC_ORCHESTRATOR_DIR, "input")
+SRC_REPO_OUTPUT_DIR = os.path.join(
+    SRC_ORCHESTRATOR_DIR, "samples", "repo_manager_output"
+)
+SRC_IMAGE_BUILD_OUTPUT_DIR = os.path.join(
+    SRC_ORCHESTRATOR_DIR, "samples", "image_build_manager_output"
+)
+DATASETS_DIR = os.path.join(MODULE_ROOT, "datasets")
+SCHEMA_DIR = os.path.join(
+    SRC_ORCHESTRATOR_DIR,
+    "plugins",
+    "module_utils",
+    "orchestrator_validation",
+    "schema",
+)
+
+DATASET_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+REQUIRED_DATASET_INPUT_FILES: List[str] = [
+    "orchestrator_config.yml",
+    "network_spec.yml",
+]
+REQUIRED_REPO_OUTPUT_FILES: List[str] = ["repo_status.yml"]
+REQUIRED_IMAGE_BUILD_OUTPUT_FILES: List[str] = ["build_status.yml"]
+
+# =============================================================================
+# DOMAIN IDENTITY
+# =============================================================================
+
 # Domain name used for remote path resolution
 DOMAIN_NAME = "orchestrator"
 
 # Environment variable names on the target host
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
+ENV_ORCHESTRATOR_DATA_PATH = "ORCHESTRATOR_DATA_PATH"
 ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
+ENV_CATALOG_FILE_PATH = "CATALOG_FILE_PATH"
 
 # Domain config files (inside the domain input directory)
 ORCHESTRATOR_CONFIG_FILE = "orchestrator_config.yml"
@@ -50,58 +88,85 @@ HA_CONFIG_FILE = "high_availability_config.yml"
 
 # Playbook entry point
 PLAYBOOK_ENTRY_POINT = "orchestrator.yml"
-PLAYBOOK_WORKDIR = "src/orchestrator"
+PLAYBOOK_WORKDIR = "src/orchestrator/playbooks"
 
 # Valid playbook tags (mapped to sub-playbooks)
 PLAYBOOK_TAGS: List[str] = [
-    "prepare",
+    "always",
+    "precheck",
     "validate",
     "credentials",
-    "deploy_openchami",
-    "provision_kubernetes",
-    "provision_slurm",
-    "provision_os",
-    "provision_custom",
+    "prepare",
+    "deploy",
+    "provision",
+    "execute",
+    "validate-deployment",
+    "pxeboot",
     "cleanup",
+    "cleanup_credentials",
     "upgrade",
     "rollback",
+    "never",
 ]
 
 # =============================================================================
-# Domain-specific paths
+# SHARED PATH DEFAULTS (runtime output on target host)
 # =============================================================================
-SHARED_PATH = "/opt/omnia/orchestrator"
-INPUT_PATH_TEMPLATE = "/opt/omnia/input/{project}/orchestrator"
-OUTPUT_PATH_TEMPLATE = "/opt/omnia/output/{project}/orchestrator"
-REPO_MANAGER_OUTPUT_TEMPLATE = (
-    "/opt/omnia/repo_manager/output/{project}/repo_status.yml"
-)
+# Derived from ORCHESTRATOR_DATA_PATH or OMNIA_DATA_PATH env var when available;
+# falls back to /opt/omnia for standard deployments.
+
+SHARED_PATH = (
+    os.environ.get(ENV_ORCHESTRATOR_DATA_PATH)
+    or os.path.join(
+        os.environ.get(ENV_OMNIA_DATA_PATH, "/opt/omnia"),
+        DOMAIN_NAME,
+    )
+).rstrip("/")
+
+# Path templates using {shared_path} and {project} placeholders
+INPUT_PATH_TEMPLATE = "{shared_path}/input/{{project}}"
+OUTPUT_PATH_TEMPLATE = "{shared_path}/output/{{project}}"
+
+# Cross-domain path templates (repo_manager and image_build_manager)
+_OMNIA_BASE_PATH = os.environ.get(ENV_OMNIA_DATA_PATH, "/opt/omnia")
+REPO_MANAGER_OUTPUT_TEMPLATE = _OMNIA_BASE_PATH + "/repo_manager/output/{project}/repo_status.yml"
+IMAGE_BUILD_MANAGER_OUTPUT_TEMPLATE = _OMNIA_BASE_PATH + "/image_build_manager/output/{project}/build_status.yml"
+
+# Catalog file path template (resolved at runtime)
+# Priority: CATALOG_FILE_PATH env var > orchestrator_config.yml > default
+CATALOG_FILE_PATH_TEMPLATE = "{{omnia_base}}/catalog/catalog_rhel_x86_64.json"
 
 # Credentials
-CREDENTIALS_FILE_NAME = "omnia_config_credentials.yml"
-CREDENTIALS_KEY_NAME = ".omnia_config_credentials_key"
+CREDENTIALS_FILE_NAME = "orchestrator_credentials.yml"
+CREDENTIALS_KEY_NAME = ".orchestrator_credentials_key"
 
 # =============================================================================
-# OpenCHAMI containers
+# OpenCHAMI containers (fabrica-based architecture via Quadlet)
 # =============================================================================
 OPENCHAMI_CONTAINERS: List[str] = [
-    "openchami-smd",
-    "openchami-bss",
-    "openchami-cloud-init",
-    "openchami-postgres",
+    "smd",
+    "boot-service",
+    "metadata-service",
+    "postgres",
+    "tokensmith",
+    "step-ca",
+    "haproxy",
+    "coresmd-coredns",
+    "coresmd-coredhcp",
 ]
 
-# Systemd services managed by orchestrator
+# Systemd target managed by orchestrator (fabrica Quadlet)
 SYSTEMD_SERVICES: List[str] = [
-    "openchami.service",
+    "openchami.target",
 ]
 
-# Firewall ports
+# Firewall ports (from deploy_openchami vars)
 FIREWALL_PORTS: List[str] = [
     "8443/tcp",
     "8081/tcp",
-    "8082/tcp",
-    "8084/tcp",
+    "5432/tcp",
+    "27778/tcp",
+    "27779/tcp",
 ]
 
 # =============================================================================
@@ -168,8 +233,10 @@ CMDS: Dict[str, str] = {
 
     # --- Network ---
     "ping_check": "ping -c 1 -W 2 {host} 2>/dev/null",
+    "hostname_fqdn": "hostname -f 2>/dev/null",
     "curl_check": (
-        "curl -sk --connect-timeout 5 https://{host}:{port} 2>/dev/null"
+        "curl -sk --fail --connect-timeout 5"
+        " https://{host}:{port}{path} 2>/dev/null"
     ),
 
     # --- YAML ---
@@ -187,8 +254,71 @@ CMDS: Dict[str, str] = {
     "kubectl_get_pods": (
         "kubectl get pods -A -o wide 2>/dev/null"
     ),
+    "kubectl_get_system_pods": (
+        "kubectl get pods -n kube-system -o wide 2>/dev/null"
+    ),
+    "kubectl_cluster_info": "kubectl cluster-info 2>/dev/null",
+    "kubectl_get_nodes_labels": (
+        "kubectl get nodes --show-labels --no-headers 2>/dev/null"
+    ),
+    "kubectl_describe_nodes": "kubectl describe nodes 2>/dev/null",
+    "kubectl_get_control_plane_nodes": (
+        "kubectl get nodes --no-headers -l node-role.kubernetes.io/control-plane 2>/dev/null"
+    ),
+    "kubectl_get_etcd_pods": (
+        "kubectl get pods -n kube-system -l component=etcd --no-headers 2>/dev/null"
+    ),
+    "kubectl_get_coredns_pods": (
+        "kubectl get pods -n kube-system --no-headers 2>/dev/null | grep coredns"
+    ),
+    "kubectl_get_kube_proxy_pods": (
+        "kubectl get pods -n kube-system --no-headers 2>/dev/null | grep kube-proxy"
+    ),
+    "kubectl_get_component_pods": (
+        "kubectl get pods -n kube-system --no-headers 2>/dev/null | grep {component}"
+    ),
+    "kubectl_get_pods_namespace": (
+        "kubectl get pods -n {namespace} --no-headers 2>/dev/null"
+    ),
+    "kubectl_run_pod": (
+        "kubectl run {pod_name} --image={image} --restart=Never "
+        "-- sh -c '{command}' 2>&1"
+    ),
+    "kubectl_delete_pod": (
+        "kubectl delete pod {pod_name} -n {namespace} --ignore-not-found 2>/dev/null"
+    ),
+    "kubectl_get_pod_status": (
+        "kubectl get pod {pod_name} -n {namespace} --no-headers "
+        "-o custom-columns=STATUS:.status.phase 2>/dev/null"
+    ),
+    "kubectl_get_componentstatus": (
+        "kubectl get componentstatus 2>/dev/null"
+    ),
+    "kubectl_get_pv": "kubectl get pv 2>/dev/null",
+    "kubectl_get_pvc": "kubectl get pvc -n {namespace} 2>/dev/null",
+    "kubectl_get_sc": "kubectl get sc 2>/dev/null",
+    "kubectl_get_pods_all": (
+        "kubectl get pods -A --no-headers 2>/dev/null"
+    ),
+    "kubectl_version": "kubectl version --client 2>/dev/null",
+    "kubeadm_version": "kubeadm version 2>/dev/null",
+    "crio_version": "crio --version 2>/dev/null",
+    "systemctl_is_active_service": (
+        "systemctl is-active {service} 2>/dev/null"
+    ),
+    "ssh_hostname": (
+        "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "
+        "root@{host} hostname 2>/dev/null"
+    ),
+    "ssh_cmd": (
+        "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 "
+        "root@{host} {command} 2>/dev/null"
+    ),
+    "firewall_list_all": "firewall-cmd --list-all 2>/dev/null",
 
     # --- Slurm ---
     "sinfo": "sinfo -N -l 2>/dev/null",
     "scontrol_show_nodes": "scontrol show nodes 2>/dev/null",
+    "scontrol_ping": "scontrol ping 2>/dev/null",
+    "sbatch_test_only": "sbatch --wrap='sleep 1' --test-only 2>/dev/null",
 }

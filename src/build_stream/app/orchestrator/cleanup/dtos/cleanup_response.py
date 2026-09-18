@@ -24,11 +24,19 @@ class CleanupResult:
     Attributes:
         job_id: Job identifier (string).
         image_group_id: Image Group identifier (string).
-        status: Final status (always ``CLEANED`` on success).
+        status: ``CLEANING`` when the cleanup playbook was submitted and
+            S3 deletion is still in progress asynchronously (the common
+            case), or ``CLEANED`` when cleanup completed synchronously
+            (e.g. no queue service configured). Callers should poll
+            ``GET /api/v1/images`` until the image group's status becomes
+            ``CLEANED`` to confirm S3 images were actually removed.
         cleanup_type: ``manual`` for API-initiated, ``auto`` for cron.
         s3_objects_deleted: Total S3 objects removed across all images.
+            Always ``0`` at submission time since deletion is asynchronous;
+            not currently back-filled once the playbook completes.
         nfs_files_deleted: Total NFS artifact files removed.
-        cleaned_at: ISO 8601 UTC timestamp.
+        cleaned_at: ISO 8601 UTC timestamp (submission time, not
+            necessarily when S3 deletion actually completed).
     """
 
     job_id: str

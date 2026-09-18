@@ -1,0 +1,100 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Mark Kafka cleanup as attempted
+  ansible.builtin.set_fact:
+    _cleanup_active_component: kafka
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'kafka': 'attempted'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: hostvars['localhost']['_cleanup_all'] | bool
+
+- name: Cleanup Kafka (full cleanup only)
+  ansible.builtin.include_tasks: kafka.yml
+  when: hostvars['localhost']['_cleanup_all'] | bool
+
+- name: Mark Kafka cleanup as cleaned
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'kafka': 'cleaned'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: hostvars['localhost']['_cleanup_all'] | bool
+
+- name: Mark VictoriaMetrics cleanup as attempted
+  ansible.builtin.set_fact:
+    _cleanup_active_component: victoria_metrics
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'victoria_metrics': 'attempted'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: hostvars['localhost']['_cleanup_all'] | bool
+
+- name: Cleanup VictoriaMetrics (full cleanup only)
+  ansible.builtin.include_tasks: victoria_metrics.yml
+  vars:
+    _cleanup_defer_victoria_operator: true
+  when: hostvars['localhost']['_cleanup_all'] | bool
+
+- name: Mark VictoriaMetrics cleanup as cleaned
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'victoria_metrics': 'cleaned'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: hostvars['localhost']['_cleanup_all'] | bool
+
+- name: Mark VictoriaLogs cleanup as attempted
+  ansible.builtin.set_fact:
+    _cleanup_active_component: victoria_logs
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'victoria_logs': 'attempted'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: hostvars['localhost']['_cleanup_all'] | bool
+
+- name: Cleanup VictoriaLogs (full cleanup only)
+  ansible.builtin.include_tasks: victoria_logs.yml
+  when: hostvars['localhost']['_cleanup_all'] | bool
+
+- name: Mark VictoriaLogs cleanup as cleaned
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'victoria_logs': 'cleaned'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: hostvars['localhost']['_cleanup_all'] | bool

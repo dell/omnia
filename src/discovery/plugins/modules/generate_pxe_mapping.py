@@ -57,10 +57,10 @@ options:
         type: int
         default: 1
     hostname_padding:
-        description: Number of digits for hostname padding
+        description: Number of digits for hostname padding (must be 3 for orchestrator NID support: nid000-nid999)
         required: false
         type: int
-        default: 5
+        default: 3
     ib_subnet:
         description: InfiniBand subnet (e.g. 192.168.2.0) used to derive IB_IP from BMC IP last two octets
         required: false
@@ -84,7 +84,7 @@ EXAMPLES = r'''
     group_name: "grp0"
     hostname_prefix: "nid"
     hostname_start: 1
-    hostname_padding: 5
+    hostname_padding: 3
     ib_subnet: "192.168.2.0"
 '''
 
@@ -194,7 +194,7 @@ def main():
         "group_name": {"type": "str", "required": False, "default": "grp0"},
         "hostname_prefix": {"type": "str", "required": False, "default": "nid"},
         "hostname_start": {"type": "int", "required": False, "default": 1},
-        "hostname_padding": {"type": "int", "required": False, "default": 5},
+        "hostname_padding": {"type": "int", "required": False, "default": 3},
         "ib_subnet": {"type": "str", "required": False, "default": ""},
         "admin_subnet": {"type": "str", "required": False, "default": ""}
     }

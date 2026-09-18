@@ -1,0 +1,96 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# OpenLDAP Post-Cleanup Task
+# Verifies cleanup success and updates component state
+
+- name: Set role path
+  ansible.builtin.set_fact:
+    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
+
+- name: Load OpenLDAP component configuration
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/components/openldap/vars/component_spec.yml"
+
+- name: Display OpenLDAP post-cleanup validation
+  ansible.builtin.debug:
+    msg: "Starting OpenLDAP post-cleanup validation"
+
+- name: Verify OpenLDAP service is stopped
+  ansible.builtin.systemd:
+    name: "{{ openldap_config.service_name }}"
+  register: service_check
+  failed_when: false
+
+- name: Check service verification results
+  ansible.builtin.set_fact:
+    service_stopped: "{{ service_check.status.ActiveState == 'inactive' or service_check.status.ActiveState == 'unknown' }}"
+
+- name: Verify OpenLDAP container is removed
+  ansible.builtin.shell: |
+    set -o pipefail
+    podman ps -a --filter "name={{ openldap_config.container_name }}" --format "{{ '{{' }}.Names{{ '}}' }}"
+  register: container_check
+  failed_when: false
+  changed_when: false
+
+- name: Check container verification results
+  ansible.builtin.set_fact:
+    container_removed: "{{ container_check.stdout_lines | length == 0 }}"
+
+- name: Verify OpenLDAP Quadlet is removed
+  ansible.builtin.stat:
+    path: "{{ openldap_config.quadlet_file }}"
+  register: quadlet_check
+  failed_when: false
+
+- name: Check Quadlet verification results
+  ansible.builtin.set_fact:
+    quadlet_removed: "{{ not quadlet_check.stat.exists }}"
+
+- name: Verify OpenLDAP data directory is removed
+  ansible.builtin.stat:
+    path: "{{ openldap_config.base_dir }}"
+  register: data_check
+  failed_when: false
+
+- name: Check data verification results
+  ansible.builtin.set_fact:
+    data_removed: "{{ not data_check.stat.exists }}"
+
+- name: Display post-cleanup verification results
+  ansible.builtin.debug:
+    msg: |
+      OpenLDAP Post-Cleanup Verification Results:
+      ==========================================
+      Service Stopped: {{ service_stopped | bool }}
+      Container Removed: {{ container_removed | bool }}
+      Quadlet Removed: {{ quadlet_removed | bool }}
+      Data Removed: {{ data_removed | bool }}
+
+      Overall Status: {{ 'SUCCESS' if (service_stopped and container_removed and quadlet_removed and data_removed) else 'PARTIAL' }}
+
+- name: Update component state
+  ansible.builtin.set_fact:
+    component_verification:
+      service_stopped: "{{ service_stopped }}"
+      container_removed: "{{ container_removed }}"
+      quadlet_removed: "{{ quadlet_removed }}"
+      data_removed: "{{ data_removed }}"
+      overall_status: "{{ 'success' if (service_stopped and container_removed and quadlet_removed and data_removed) else 'partial' }}"
+
+- name: Generate cleanup report
+  ansible.builtin.debug:
+    msg: "OpenLDAP cleanup verification completed with status: {{ component_verification.overall_status }}"

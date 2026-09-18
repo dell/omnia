@@ -14,7 +14,7 @@
 ---
 - name: Read upgrade_manifest
   ansible.builtin.include_vars:
-    file: "/opt/omnia/.data/upgrade_manifest.yml"
+    file: "{{ hostvars['localhost']['omnia_data_path'] }}/.data/upgrade_manifest.yml"
     name: upgrade_manifest
   register: upgrade_manifest_result
   ignore_errors: true

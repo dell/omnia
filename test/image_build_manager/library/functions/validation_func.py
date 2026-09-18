@@ -95,8 +95,6 @@ def _validate_dataset(dataset: str) -> List[str]:
     return errors
 
 
-
-
 def validate_test_config() -> Dict[str, Any]:
     """Validate test_config.yml.
 
@@ -157,13 +155,6 @@ def validate_test_config() -> Dict[str, Any]:
     )
     errors.extend(_validate_dataset(dataset))
 
-    # --- Clone path ---
-    clone_path = config["clone_path"]
-    if not os.path.isabs(clone_path):
-        errors.append(
-            f"clone_path must be absolute: {clone_path}"
-        )
-
     # --- Report path ---
     report_path = config["report_path"]
     if " " in str(report_path):
@@ -178,7 +169,21 @@ def validate_test_config() -> Dict[str, Any]:
         )
 
     # --- Remote mode checks ---
+    # test_config.yml defines local mode with an empty oim_server_ip.  Keep
+    # validation self-contained by using the config already loaded above.
     if oim_ip:
+        raw_clone_path = config.get("clone_path")
+        if (
+            not isinstance(raw_clone_path, str)
+            or not raw_clone_path.strip()
+        ):
+            errors.append(
+                "clone_path required for remote execution"
+            )
+        elif not os.path.isabs(raw_clone_path.strip()):
+            errors.append(
+                f"clone_path must be absolute: {raw_clone_path.strip()}"
+            )
         if "oim_ssh_user" not in config:
             errors.append(
                 "oim_ssh_user required when oim_server_ip is set"

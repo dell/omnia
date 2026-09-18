@@ -1,0 +1,79 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# precheck_environment - Main task file
+#
+# Validates environment prerequisites before running any utils playbook.
+# This role runs AFTER utils_setup (tags: always), so env var facts are loaded.
+#
+# Responsibilities:
+#   1. omnia.sh setup completed (system env file exists)
+#   2. Full system cross-validation via validate_system_environment module
+#      (hostname -s, hostname -d, hostname -I, data path)
+#   3. Print precheck summary
+
+# =========================================================================
+# Step 1: Verify omnia.sh has been run (system env file exists)
+# =========================================================================
+- name: Check if omnia.env is installed system-wide
+  ansible.builtin.stat:
+    path: "{{ system_env_file }}"
+  register: _omnia_env_check
+
+- name: Warn if omnia.env is not installed system-wide
+  ansible.builtin.debug:
+    msg: "{{ precheck_omnia_env_not_installed_msg }}"
+  when: not _omnia_env_check.stat.exists
+
+# =========================================================================
+# Step 2: Cross-validate system environment via module
+# =========================================================================
+# The module checks: hostname -s vs SYSTEM_HOSTNAME,
+# hostname -d vs SYSTEM_DOMAIN_NAME, IP on NIC, data path exists.
+- name: Cross-validate system environment
+  validate_system_environment:
+    required_vars: []
+    validate_hostname: true
+    validate_domain: true
+    validate_ip: true
+    validate_paths: true
+  register: _sys_validation
+
+# =========================================================================
+# Step 3: Print precheck summary
+# =========================================================================
+- name: Build per-check summary lines
+  ansible.builtin.set_fact:
+    _check_lines: >-
+      {{ _sys_validation.checks | default([]) |
+         map(attribute='message') | list }}
+
+- name: Precheck summary
+  ansible.builtin.debug:
+    msg:
+      - "============================================"
+      - "  UTILS PRECHECK SUMMARY"
+      - "============================================"
+      - "  omnia.env installed:    {{ _omnia_env_check.stat.exists | ternary('YES', 'NO (warning)') }}"
+      - "  SYSTEM_ADMIN_NIC_IPV4:  {{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('(not set)') }}"
+      - "  SYSTEM_HOSTNAME:        {{ lookup('env', 'SYSTEM_HOSTNAME') | default('(not set)') }}"
+      - "  SYSTEM_DOMAIN_NAME:     {{ lookup('env', 'SYSTEM_DOMAIN_NAME') | default('(not set)') }}"
+      - "  OMNIA_DATA_PATH:        {{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia') }}"
+      - "  OMNIA_PROJECT_NAME:     {{ lookup('env', 'OMNIA_PROJECT_NAME') | default('default') }}"
+      - "  OMNIA_VERSION:          {{ lookup('env', 'OMNIA_VERSION') | default('(not set)') }}"
+      - "  --- Module checks ---"
+      - "{{ _check_lines | join('\n  ') }}"
+      - "============================================"
+      - "  Result: PASS"
+      - "============================================"

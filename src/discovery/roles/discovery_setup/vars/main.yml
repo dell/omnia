@@ -14,30 +14,82 @@
 ---
 
 # --- Upgrade guard ---
-upgrade_lock_file: /opt/omnia/.data/upgrade_in_progress.lock
+upgrade_lock_file: "{{ omnia_data_path }}/.data/upgrade_in_progress.lock"
 upgrade_in_progress_msg: >-
   Upgrade is not completed fully.
-  Please run upgrade.yml to complete upgrade before running any other playbook using the below command:
+  Please run upgrade.yml to complete upgrade before running any other playbook
+  using the command below:
   "ansible-playbook /omnia/src/playbooks/upgrade/upgrade.yml"
-  If you don't require input files to be migrated, reconfigure the default input files, remove the lock file using the following command
-  "rm /opt/omnia/.data/upgrade_in_progress.lock" and then proceed.
+  If you don't require input files to be migrated, reconfigure the default
+  input files and remove the lock file using the following command:
+  "rm {{ upgrade_lock_file }}" and then proceed.
 
 # --- Base paths ---
-omnia_input_dir: /opt/omnia/input
-omnia_output_dir: /opt/omnia/output
+# Domain-scoped paths: <DISCOVERY_DATA_PATH>/input/<project>/
+# DISCOVERY_DATA_PATH falls back to <OMNIA_DATA_PATH>/discovery.
 
 # --- Tag validation ---
 supported_tags:
-  - discovery
+  - precheck
   - validate
+  - credentials
+  - prepare
+  - execute
   - cleanup
+  - cleanup_credentials
+  - upgrade
+  - rollback
 
 skip_credential_tags:
+  - precheck
   - cleanup
+  - cleanup_credentials
   - validate
 
 invalid_tag_combinations:
-  - [discovery, cleanup]
+  - [execute, cleanup]
+  - [prepare, cleanup]
+  - [execute, cleanup_credentials]
+  - [prepare, cleanup_credentials]
+  - [prepare, upgrade]
+  - [execute, upgrade]
+  - [cleanup, upgrade]
+  - [cleanup_credentials, upgrade]
+  - [prepare, rollback]
+  - [execute, rollback]
+  - [cleanup, rollback]
+  - [cleanup_credentials, rollback]
+  - [upgrade, rollback]
+  - [precheck, prepare]
+  - [precheck, execute]
+  - [precheck, cleanup]
+  - [precheck, cleanup_credentials]
+  - [precheck, upgrade]
+  - [precheck, rollback]
+  - [credentials, prepare]
+  - [credentials, execute]
+  - [credentials, cleanup]
+  - [credentials, cleanup_credentials]
+  - [credentials, upgrade]
+  - [credentials, rollback]
+  - [credentials, precheck]
+  - [validate, cleanup]
+  - [validate, cleanup_credentials]
+
+# --- Tag validation messages ---
+tag_validation_fail_msg: |
+  Invalid tag usage detected.
+  Supported tags: {{ supported_tags | join(', ') }}
+  Invalid tags provided: {{ invalid_tags | join(', ') }}
+  Please use only supported tags.
+tag_combination_fail_msg: |
+  Invalid tag combination detected: {{ ansible_run_tags | join(', ') }}
+  The following tag combinations are not allowed:
+  {% for combo in invalid_tag_combinations %}
+  - {{ combo | join(' + ') }}
+  {% endfor %}
+  Use one tag at a time. cleanup + cleanup_credentials is the only supported
+  two-tag combination.
 
 # Discovery setup defaults
 default_project_name: "project_default"
@@ -48,6 +100,7 @@ network_spec_file: "network_spec.yml"
 input_dir_missing_msg: >-
   Discovery input directory does not exist.
   Please create it and populate with discovery_config.yml and network_spec.yml.
-config_load_fail_msg: >-
-  Failed to load discovery configuration.
-  Please verify discovery_config.yml syntax.
+config_load_fail_msg: |-
+  Discovery configuration file is missing or is not a regular file.
+  Configuration file: {{ discovery_input_dir }}/{{ discovery_config_file }}
+  Action: Restore discovery_config.yml and verify its YAML syntax.

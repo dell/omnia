@@ -27,7 +27,3 @@ orchestrator_validation_fail_msg: >-
 orchestrator_config_missing_msg: >-
   orchestrator_config.yml not found at {{ input_dir }}/orchestrator_config.yml.
   Please create this file before running orchestrator.
-
-software_config_syntax_fail_msg: >-
-  Failed. Syntax errors present in software_config.json.
-  Fix errors and re-run playbook again.

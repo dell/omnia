@@ -25,8 +25,8 @@ hostname_prefix: "nid"
 # Starting hostname number
 hostname_start_number: 1
 
-# Hostname padding (e.g., 5 digits = nid00001)
-hostname_padding: 5
+# Hostname padding (e.g., 3 digits = nid001, must be 3 for orchestrator NID support: nid000-nid999)
+hostname_padding: 3
 
 # OME device type for servers
 ome_server_device_type: 1000

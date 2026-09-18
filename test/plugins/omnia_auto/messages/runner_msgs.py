@@ -56,7 +56,7 @@ RUNNER_ASSERT_MSGS: Dict[str, str] = {
         "    3. SSH to target and check running ansible processes"
     ),
     "sshpass_missing": (
-        "sshpass is not installed. Required for SSH password auth.\n"
+        "sshpass is not installed. Required for SSH credential auth.\n"
         "\n"
         "  HOW TO FIX:\n"
         "    Install: dnf install -y sshpass (RHEL)"

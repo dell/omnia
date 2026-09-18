@@ -28,6 +28,26 @@
   changed_when: false
   failed_when: false
 
+- name: Apply vmagent-vector Deployment (metrics write-buffer)
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/vector/vmagent-vector-deployment.yaml
+  register: vmagent_vector_deploy_result
+  changed_when: "'configured' in vmagent_vector_deploy_result.stdout or 'created' in vmagent_vector_deploy_result.stdout"
+
+- name: Apply vmagent-vector Service
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/vector/vmagent-vector-service.yaml
+  register: vmagent_vector_svc_result
+  changed_when: "'configured' in vmagent_vector_svc_result.stdout or 'created' in vmagent_vector_svc_result.stdout"
+
+- name: Wait for vmagent-vector deployment rollout
+  ansible.builtin.command: >
+    kubectl rollout status deployment/vmagent-vector
+    -n {{ telemetry_namespace }}
+    --timeout={{ ldms_deploy_timeout }}
+  register: vmagent_vector_rollout
+  changed_when: false
+
 - name: Apply Vector-LDMS ConfigMap
   ansible.builtin.command: >
     kubectl apply -f {{ telemetry_deployments_dir }}/vector/vector-ldms-configmap.yaml

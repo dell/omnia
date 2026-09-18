@@ -22,4 +22,4 @@
   ansible.builtin.file:
     path: "{{ repo_manager_log_dir }}"
     state: directory
-    mode: "0755"
+    mode: "0700"

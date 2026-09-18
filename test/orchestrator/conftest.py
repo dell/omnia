@@ -13,11 +13,11 @@
 # limitations under the License.
 
 """
-Pytest configuration for orchestrator FVT.
+Pytest configuration for orchestrator FVT and NFT.
 
 Provides:
-- host fixture (testinfra connection to target)
-- Custom markers: sanity, functional, deploy
+- host fixture (testinfra connection to OIM target)
+- Custom markers: sanity, functional, deploy, slurm, nft, performance, idempotency, security, negative
 - Marker expression: '+' for AND, ',' for OR
 - Test ordering via @pytest.mark.order(n)
 - Credential auto-encryption
@@ -26,6 +26,8 @@ Provides:
 
 import sys
 import os
+import re
+from datetime import datetime
 
 import pytest
 
@@ -33,8 +35,40 @@ _TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TEST_DIR not in sys.path:
     sys.path.insert(0, _TEST_DIR)
 
+# Match the runtime contract used by newer domain test frameworks. Explicit
+# shell values win; otherwise load the target Omnia environment before any
+# path resolver or playbook wrapper is imported.
+_OMNIA_ENV_FILE = "/etc/omnia/omnia.env"
+if os.path.exists(_OMNIA_ENV_FILE):
+    try:
+        with open(_OMNIA_ENV_FILE, "r", encoding="utf-8") as _env_file:
+            for _line in _env_file:
+                _line = _line.strip()
+                if not _line or _line.startswith("#") or "=" not in _line:
+                    continue
+                _key, _value = _line.split("=", 1)
+                _key = _key.strip()
+                _value = _value.strip()
+                if (
+                    len(_value) >= 2
+                    and _value[0] == _value[-1]
+                    and _value[0] in {"'", '"'}
+                ):
+                    _value = _value[1:-1]
+                _value = re.sub(
+                    r"\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)",
+                    lambda match: os.environ.get(
+                        match.group(1) or match.group(2), match.group(0)
+                    ),
+                    _value,
+                )
+                if _key and _key not in os.environ:
+                    os.environ[_key] = _value
+    except OSError:
+        pass
+
 # --- Initialize omnia_auto BEFORE any imports that use it ---
-import omnia_auto
+import omnia_auto  # noqa: E402
 omnia_auto.configure(
     module_root=_TEST_DIR,
     config_file="test_config.yml",
@@ -43,7 +77,7 @@ omnia_auto.configure(
 )
 
 # --- Common functions from omnia_auto ---
-from omnia_auto import (
+from omnia_auto import (  # noqa: E402
     get_testinfra_host,
     is_local_execution,
     load_test_config,
@@ -51,25 +85,35 @@ from omnia_auto import (
     set_current_report,
     get_current_report,
     get_test_output,
+    get_last_tc_id,
     encrypt_test_credentials,
+    build_report_name,
     log,
+    set_verbose_mode,
     add_session_result,
     print_summary_table,
 )
 
 # --- Module-specific functions ---
-from library.functions.host_func import (
+from library.functions.host_func import (  # noqa: E402
     sync_project_to_remote,
     sync_orchestrator_input,
     sync_repo_manager_output,
+    sync_image_build_manager_output,
 )
-from library.functions.validation_func import (
+from library.functions.validation_func import (  # noqa: E402
     validate_all,
     ConfigValidationError,
+)
+from library.functions.project_func import (  # noqa: E402
+    resolve_project_name,
 )
 
 
 # =============================================================================
+# CUSTOM CLI OPTIONS
+# =============================================================================
+
 def pytest_addoption(parser):
     """Add --marker option for custom marker expression filtering."""
     parser.addoption(
@@ -85,8 +129,14 @@ def pytest_addoption(parser):
 
 
 # =============================================================================
+# MARKER REGISTRATION
+# =============================================================================
+
 def pytest_configure(config):
-    """Register custom markers."""
+    """Register custom markers and set verbose mode."""
+    # Enable verbose logging when pytest -v is used or OMNIA_VERBOSE is set
+    if config.option.verbose > 0 or os.environ.get("OMNIA_VERBOSE"):
+        set_verbose_mode(True)
     config.addinivalue_line(
         "filterwarnings", "ignore::pytest.PytestCollectionWarning"
     )
@@ -94,24 +144,37 @@ def pytest_configure(config):
         "order(n)": "Specify test execution order (lower first)",
         "sanity": "Baseline verification (must-pass)",
         "functional": "Functional verification",
-        "regression": "Regression tests",
-        "deploy": "Playbook deployment tests",
+        "deploy": "Playbook deployment tests (requires full environment)",
+        "slurm": "Slurm-specific tests (requires Slurm enabled)",
+        "kubernetes": "Kubernetes-specific tests (requires Kubernetes enabled)",
+        "nft": "Non-functional tests (performance, idempotency, security)",
+        "performance": "Performance and timing tests",
+        "idempotency": "Idempotency",
+        "security": "Security and permission tests",
+        "negative": "Negative test cases for error scenarios",
+        "buildstream": "BuildStream pipeline validation (post-provision sanity)",
+        "destructive": "Explicit opt-in state-changing or cleanup tests",
+        "additional_cloud_init": "Additional cloud-init feature tests",
+        "hpc_benchmarks": "HPC benchmark staging and execution tests",
+        "apptainer": "Apptainer installation and workload tests",
+        "gpu": "GPU, CUDA, GRES, and DCGM tests",
+        "openldap": "OpenLDAP service, endpoint, TLS, and data tests",
+        "storage": "Shared storage configuration and runtime tests",
+        "vast": "VAST NFS, client, and RDMA tests",
+        "powervault": "PowerVault iSCSI and multipath tests",
+        "recovery": "Retry, recovery, and interrupted-run tests",
+        "unit": "Deterministic unit and source-contract tests",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
 
 
 # =============================================================================
+# MARKER EXPRESSION FILTERING
+# =============================================================================
+
 def _parse_marker_expression(expr):
-    """Parse marker expression into (mode, marker_list).
-
-    '+' => AND (all markers must be present)
-    ',' => OR  (any marker must be present)
-    Single marker => exact match
-
-    Returns:
-        Tuple of ('and'|'or'|'single', list_of_markers)
-    """
+    """Parse marker expression into (mode, marker_list)."""
     expr = expr.strip()
     if not expr:
         return ("none", [])
@@ -128,44 +191,70 @@ def _item_has_marker(item, marker_name):
 
 
 def pytest_collection_modifyitems(session, config, items):
-    """Filter by --marker expression and sort by order marker."""
+    """Filter markers, apply safe defaults, and sort by order marker."""
     marker_expr = config.getoption("--marker", default="")
     mode, markers = _parse_marker_expression(marker_expr)
+    command_type = os.environ.get("OMNIA_COMMAND_TYPE", "")
+    selected_tag = os.environ.get("OMNIA_DEPLOY_TAG", "")
 
-    if mode != "none" and markers:
-        filtered = []
+    # Only apply auto-skips if no marker expression is provided
+    if mode == "none":
         for item in items:
-            if mode == "and":
-                if all(_item_has_marker(item, m) for m in markers):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=(
-                            f"Missing marker(s) for AND expression: "
-                            f"{'+'.join(markers)}"
-                        )
-                    ))
-                    filtered.append(item)
+            if _item_has_marker(item, "deploy") and command_type != "exec":
+                item.add_marker(pytest.mark.skip(
+                    "Deploy tests run only during the runner exec phase"
+                ))
+            if _item_has_marker(item, "nft") and command_type != "nft":
+                item.add_marker(pytest.mark.skip(
+                    "NFT tests run only through nft_orchestrator"
+                ))
+            if _item_has_marker(item, "negative") and selected_tag != "negative":
+                item.add_marker(pytest.mark.skip(
+                    "Negative tests require the explicit negative tag"
+                ))
+    else:
+        # When marker is specified, only apply the marker filtering.  A
+        # BuildStream validation is a focused post-provision health report;
+        # unrelated Orchestrator cases must be deselected instead of being
+        # reported as skipped.
+        filtered = []
+        deselected = []
+        for item in items:
+            # The runner already scopes execution to ``-m deploy``.  A feature
+            # marker belongs to the verification cases and must not silently
+            # skip the lifecycle trigger that creates the state under test.
+            if command_type == "exec" and _item_has_marker(item, "deploy"):
+                match = True
+            elif mode == "and":
+                match = all(_item_has_marker(item, m) for m in markers)
             elif mode == "or":
-                if any(_item_has_marker(item, m) for m in markers):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=(
-                            f"No matching marker for OR expression: "
-                            f"{','.join(markers)}"
-                        )
-                    ))
-                    filtered.append(item)
-            elif mode == "single":
-                if _item_has_marker(item, markers[0]):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=f"Missing marker: {markers[0]}"
-                    ))
-                    filtered.append(item)
+                match = any(_item_has_marker(item, m) for m in markers)
+            else:
+                match = _item_has_marker(item, markers[0])
+
+            if not match:
+                if "buildstream" in markers:
+                    deselected.append(item)
+                    continue
+                reason = (
+                    f"Marker filter: "
+                    f"{'+'.join(markers) if mode == 'and' else ','.join(markers)}"
+                )
+                item.add_marker(pytest.mark.skip(reason=reason))
+            filtered.append(item)
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
         items[:] = filtered
+
+    # Destructive tests always require an explicit opt-in, even when another
+    # marker (for example ``nft`` or ``sanity``) was selected.  This prevents
+    # broad marker runs from tearing down an installed environment.
+    if "destructive" not in markers:
+        for item in items:
+            if _item_has_marker(item, "destructive"):
+                item.add_marker(pytest.mark.skip(
+                    "Destructive tests require --marker destructive"
+                ))
 
     def _get_order(item):
         marker = item.get_closest_marker("order")
@@ -177,8 +266,36 @@ def pytest_collection_modifyitems(session, config, items):
 
 
 # =============================================================================
+# SESSION STARTUP
+# =============================================================================
+
+def _apply_dataset_overrides(config):
+    """Apply dataset/sync overrides from environment variables."""
+    ds_override = os.environ.get("OMNIA_DATASET_OVERRIDE", "")
+    if ds_override:
+        log(f"Dataset override: {config.get('dataset')} -> {ds_override}", "INFO")
+        config["dataset"] = ds_override
+
+    si_override = os.environ.get("OMNIA_SYNC_INPUT_OVERRIDE", "")
+    if si_override:
+        config["sync_orchestrator_input"] = si_override.lower() == "true"
+
+    so_override = os.environ.get("OMNIA_SYNC_OUTPUT_OVERRIDE", "")
+    if so_override:
+        config["sync_repo_manager_output"] = so_override.lower() == "true"
+
+    sio_override = os.environ.get("OMNIA_SYNC_IMAGE_OUTPUT_OVERRIDE", "")
+    if sio_override:
+        config["sync_image_build_manager_output"] = (
+            sio_override.lower() == "true"
+        )
+
+    return config
+
+
 def pytest_sessionstart(session):
-    """Session startup: validate config, encrypt credentials, clone repo, sync files, init report."""
+    """Session startup: validate, encrypt, clone, sync, init report."""
+    # Validate config first
     try:
         result = validate_all()
         for warn in result.get("warnings", []):
@@ -193,64 +310,94 @@ def pytest_sessionstart(session):
         pass
 
     config = load_test_config()
+    config = _apply_dataset_overrides(config)
+    os.environ["OMNIA_PROJECT_NAME"] = resolve_project_name(config)
+
     host = get_testinfra_host()
 
-    if not is_local_execution():
+    if not is_local_execution() and os.environ.get("OMNIA_COMMAND_TYPE") == "exec":
         sync_result = sync_project_to_remote(host)
         if sync_result["success"]:
             log(sync_result["details"], "OK")
         else:
-            log(f"Project sync failed: {sync_result['error']}", "WARN")
+            pytest.exit(
+                f"Project sync failed: {sync_result['error']}", returncode=1
+            )
 
     if config.get("sync_orchestrator_input", False):
-        sync_result = sync_orchestrator_input(host)
+        sync_result = sync_orchestrator_input(host, config)
         if sync_result["success"]:
             log(sync_result["details"], "OK")
         else:
-            log(
-                f"Input sync failed: {sync_result['error']}",
-                "ERROR",
+            pytest.exit(
+                f"Input sync failed: {sync_result['error']}", returncode=1
             )
 
     if config.get("sync_repo_manager_output", False):
-        out_result = sync_repo_manager_output(host)
+        out_result = sync_repo_manager_output(host, config)
         if out_result["success"]:
             log(out_result["details"], "OK")
         else:
-            log(
-                f"Output sync failed: {out_result['error']}",
-                "WARN",
+            pytest.exit(
+                f"Output sync failed: {out_result['error']}", returncode=1
+            )
+
+    if config.get("sync_image_build_manager_output", False):
+        image_result = sync_image_build_manager_output(host, config)
+        if image_result["success"]:
+            log(image_result["details"], "OK")
+        else:
+            pytest.exit(
+                "Image build output sync failed: "
+                f"{image_result['error']}",
+                returncode=1,
             )
 
     # Initialize test report
     valid_scenarios = {
-        "orchestrator", "validate", "prepare",
-        "provision", "cleanup",
+        "orchestrator", "precheck", "validate", "prepare", "deploy",
+        "provision", "execute", "pxeboot", "check", "cleanup",
+        "rollback", "nft", "negative", "playbooks", "slurm",
+        "kubernetes",
     }
     module_name = "orchestrator"
     test_paths = session.config.args if hasattr(session.config, 'args') else []
-    for p in test_paths:
-        for part in p.replace("\\", "/").split("/"):
+    for path in test_paths:
+        for part in path.replace("\\", "/").split("/"):
             if part in valid_scenarios:
                 module_name = part
                 break
 
-    report_id = os.environ.get("REPORT_ID")
+    configured_id = str(config.get("run_id") or "").strip()
+    run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.environ["RUN_ID"] = run_id
+    base_name = str(config.get("report_name", "orchestrator_test_report"))
+    report_name = build_report_name(
+        base_name=base_name,
+    )
+    report_path = str(config.get("report_path", "/opt/omnia/reports"))
+    # Only override to local reports for unit tests, not for local FVT execution
+    if os.environ.get("OMNIA_COMMAND_TYPE") == "ut":
+        report_path = os.path.join(_TEST_DIR, "reports")
     report = TestReport(
         module_name=module_name,
-        report_path=str(config.get("report_path", "/opt/omnia/reports")),
-        report_name=str(config.get("report_name", "orchestrator_test_report")),
+        report_path=report_path,
+        report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
-        report_id=report_id,
+        run_id=run_id,
     )
     set_current_report(report)
 
 
-def pytest_sessionfinish(session, exitstatus):
-    """Save report and print summary table after all tests complete."""
+@pytest.hookimpl(trylast=True)
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Print report saved box and summary table AFTER pytest failure output."""
     report = get_current_report()
     if report and report.results:
-        report.save()
+        try:
+            report.save()
+        except (OSError, IOError) as exc:
+            log(f"Report save failed: {exc}", "WARN")
 
     print_summary_table()
 
@@ -290,10 +437,17 @@ def pytest_runtest_makereport(item, call):
             + f"SKIPPED: {skip_reason}"
         )
 
-    tc_id = ""
     doc = getattr(item.obj, "__doc__", "") or ""
-    if doc.strip().startswith("TC_"):
-        tc_id = doc.strip().split(":", 1)[0].strip()
+    tc_id = ""
+    doc_id = re.match(
+        r"(ORCH_(?:FVT_[A-Z0-9_]+_[EV]\d{3}|NFT_\d{3}|UT_\d{3})"
+        r"|TC_K8_\d{3})\s*:",
+        doc.strip(),
+    )
+    if doc_id:
+        tc_id = doc_id.group(1)
+    if not tc_id:
+        tc_id = get_last_tc_id()
 
     add_session_result(
         test_name=item.name,
@@ -305,6 +459,7 @@ def pytest_runtest_makereport(item, call):
     report = get_current_report()
     if report:
         report.add_result({
+            "tc_id": tc_id,
             "test_name": item.name,
             "status": status,
             "duration": getattr(result, "duration", 0),
@@ -314,19 +469,25 @@ def pytest_runtest_makereport(item, call):
 
 
 # =============================================================================
+# SUPPRESS PYTEST DOT OUTPUT (TestLogger already provides detail)
+# =============================================================================
+
 def pytest_report_teststatus(report, config):
     """Replace pytest's default . s F characters with empty strings."""
     if report.when == "call":
         if report.passed:
             return "passed", "", ""
-        elif report.failed:
+        if report.failed:
             return "failed", "", ""
     if report.skipped:
         return "skipped", "", ""
 
 
 # =============================================================================
+# HOST FIXTURE
+# =============================================================================
+
 @pytest.fixture(scope="session")
 def host():
-    """Testinfra host connected to the target server."""
+    """Testinfra host connected to the OIM target server."""
     return get_testinfra_host()

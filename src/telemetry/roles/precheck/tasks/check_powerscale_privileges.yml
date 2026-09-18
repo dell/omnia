@@ -1,0 +1,200 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Check PowerScale user privileges for telemetry collection
+# This task checks if the CSI user has required privileges for metrics and log collection
+
+- name: Set PowerScale privilege check facts
+  ansible.builtin.set_fact:
+    ps_metrics_enabled: "{{ hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool }}"
+    ps_logs_enabled: "{{ hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.logs_enabled | default(false) | bool }}"
+
+- name: Get PowerScale endpoint from isilon-creds secret
+  ansible.builtin.command: >
+    kubectl get secret isilon-creds -n {{ isilon_namespace }} -o jsonpath='{.data.config}'
+  register: ps_secret_data
+  changed_when: false
+  failed_when: false
+  when:
+    - ps_metrics_enabled | bool or ps_logs_enabled | bool
+
+- name: Decode and parse isilon-creds secret
+  ansible.builtin.set_fact:
+    ps_secret_decoded: "{{ ps_secret_data.stdout | b64decode | from_yaml }}"
+  when:
+    - ps_secret_data is defined
+    - ps_secret_data.rc is defined
+    - ps_secret_data.rc == 0
+    - ps_secret_data.stdout is defined
+
+- name: Extract PowerScale endpoint and credentials
+  ansible.builtin.set_fact:
+    powerscale_endpoint: "{{ ps_secret_decoded.isilonClusters[0].endpoint | default('') }}"
+    ps_check_username: "{{ ps_secret_decoded.isilonClusters[0].username | default('') }}"
+    ps_check_password: "{{ ps_secret_decoded.isilonClusters[0].password | default('') }}"
+  when:
+    - ps_secret_decoded is defined
+    - ps_secret_decoded.isilonClusters is defined
+    - ps_secret_decoded.isilonClusters | length > 0
+
+- name: Check if PowerScale is accessible for privilege check
+  ansible.builtin.command: >
+    sshpass -p '{{ ps_check_password }}' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no
+    -o ConnectTimeout=10 {{ ps_check_username }}@{{ powerscale_endpoint }} "isi auth privileges"
+  register: ps_privilege_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+  when:
+    - ps_metrics_enabled | bool or ps_logs_enabled | bool
+    - powerscale_endpoint is defined
+    - powerscale_endpoint | length > 0
+    - ps_check_username is defined
+    - ps_check_username | length > 0
+    - ps_check_password is defined
+    - ps_check_password | length > 0
+
+- name: Parse available privileges from PowerScale
+  ansible.builtin.set_fact:
+    ps_available_privileges: "{{ ps_privilege_check.stdout_lines | select('search', 'ISI_PRIV_') | list }}"
+  when:
+    - ps_privilege_check is defined
+    - ps_privilege_check.rc is defined
+    - ps_privilege_check.rc == 0
+    - ps_privilege_check.stdout is defined
+
+- name: Check for missing metrics privileges
+  ansible.builtin.set_fact:
+    ps_missing_metrics_privileges: >-
+      {{ ps_required_metrics_privileges | difference(ps_available_privileges | default([])) }}
+  when:
+    - ps_metrics_enabled | bool
+    - ps_available_privileges is defined
+
+- name: Check for missing log privileges
+  ansible.builtin.set_fact:
+    ps_missing_log_privileges: >-
+      {{ ps_required_log_privileges | difference(ps_available_privileges | default([])) }}
+  when:
+    - ps_logs_enabled | bool
+    - ps_available_privileges is defined
+
+- name: Display metrics privilege warning
+  ansible.builtin.pause:
+    seconds: 10
+    prompt: |
+      ╔══════════════════════════════════════════════════════════════════════════╗
+      ║              POWERSCALE METRICS PRIVILEGE WARNING                       ║
+      ╚══════════════════════════════════════════════════════════════════════════╝
+
+      WARNING: The PowerScale user '{{ ps_check_username }}' is missing required privileges
+      for metrics collection.
+
+      Missing Privileges:
+      {% for priv in ps_missing_metrics_privileges %}
+      - {{ priv }}
+      {% endfor %}
+
+      Required Privileges for Metrics Collection:
+      - ISI_PRIV_LOGIN_PAPI (Read Only)
+      - ISI_PRIV_NFS (Read Write)
+      - ISI_PRIV_QUOTA (Read Write)
+      - ISI_PRIV_SNAPSHOT (Read Write)
+      - ISI_PRIV_IFS_RESTORE (Read Only)
+      - ISI_PRIV_NS_IFS_ACCESS (Read Only)
+      - ISI_PRIV_IFS_BACKUP (Read Only)
+      - ISI_PRIV_AUTH_ZONES (Read Only)
+      - ISI_PRIV_SYNCIQ (Read Write)
+      - ISI_PRIV_STATISTICS (Read Only)
+
+      Impact: Metrics collection may fail or return incomplete data.
+
+      To fix: Grant the missing privileges to user '{{ ps_check_username }}' on PowerScale.
+      Example: isi auth users modify {{ ps_check_username }} --add-group admin
+
+      ╔══════════════════════════════════════════════════════════════════════════╗
+      Press Enter to continue (waiting 10 seconds)...
+  when:
+    - ps_metrics_enabled | bool
+    - ps_missing_metrics_privileges is defined
+    - ps_missing_metrics_privileges | length > 0
+
+- name: Display log privilege warning
+  ansible.builtin.pause:
+    seconds: 10
+    prompt: |
+      ╔══════════════════════════════════════════════════════════════════════════╗
+      ║              POWERSCALE LOG COLLECTION PRIVILEGE WARNING                   ║
+      ╚══════════════════════════════════════════════════════════════════════════╝
+
+      WARNING: The PowerScale user '{{ ps_check_username }}' is missing required privileges
+      for log collection (syslog configuration).
+
+      Missing Privileges:
+      {% for priv in ps_missing_log_privileges %}
+      - {{ priv }}
+      {% endfor %}
+
+      Required Privileges for Log Collection:
+      - ISI_PRIV_AUDIT (Required for syslog configuration and log forwarding)
+
+      Impact: Syslog configuration will fail and logs will not be forwarded to VictoriaLogs.
+
+      To fix: Grant the audit privilege to user '{{ ps_check_username }}' on PowerScale.
+      Example: isi auth users modify {{ ps_check_username }} --add-group admin
+
+      ╔══════════════════════════════════════════════════════════════════════════╗
+      Press Enter to continue (waiting 10 seconds)...
+  when:
+    - ps_logs_enabled | bool
+    - ps_missing_log_privileges is defined
+    - ps_missing_log_privileges | length > 0
+
+- name: Display privilege check success
+  ansible.builtin.debug:
+    msg: "PowerScale privilege check passed. User '{{ ps_check_username }}' has all required privileges."
+  when:
+    - (ps_metrics_enabled | bool or ps_logs_enabled | bool)
+    - ps_privilege_check is defined
+    - ps_privilege_check.rc is defined
+    - ps_privilege_check.rc == 0
+    - (ps_missing_metrics_privileges | default([]) | length == 0)
+    - (ps_missing_log_privileges | default([]) | length == 0)
+
+- name: Display privilege check skipped
+  ansible.builtin.debug:
+    msg:
+      - "PowerScale privilege check skipped (SSH not available from kube_vip)"
+      - ""
+      - "WARNING: Please ensure the PowerScale user has the following required privileges:"
+      - ""
+      - "For metrics collection:"
+      - "  - ISI_PRIV_LOGIN_PAPI"
+      - "  - ISI_PRIV_NFS"
+      - "  - ISI_PRIV_QUOTA"
+      - "  - ISI_PRIV_SNAPSHOT"
+      - "  - ISI_PRIV_IFS_RESTORE"
+      - "  - ISI_PRIV_NS_IFS_ACCESS"
+      - "  - ISI_PRIV_IFS_BACKUP"
+      - "  - ISI_PRIV_AUTH_ZONES"
+      - "  - ISI_PRIV_SYNCIQ"
+      - "  - ISI_PRIV_STATISTICS"
+      - ""
+      - "For log collection:"
+      - "  - ISI_PRIV_AUDIT"
+      - ""
+      - "Privileges will be validated during deployment via PowerScale API."
+  when:
+    - ps_privilege_check is not defined or (ps_privilege_check.rc is defined and ps_privilege_check.rc != 0) or ps_available_privileges is not defined

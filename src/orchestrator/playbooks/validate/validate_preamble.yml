@@ -1,0 +1,48 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Validate Preamble — Load standalone prerequisites for validation
+# =================================================================
+# The role is split by execution host so the preamble logic has one source.
+# This playbook preserves the required setup -> localhost -> OIM order.
+
+- name: Setup orchestrator environment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  roles:
+    - role: orchestrator_setup
+      vars:
+        openchami_vars_support: true
+        oim_group: true
+        orchestrator_initialize_state: false
+
+- name: Populate standalone prerequisites on localhost
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: validate_preamble
+
+- name: Load cluster configuration and authenticate
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tasks:
+    - name: Load OIM validation prerequisites
+      ansible.builtin.include_role:
+        name: validate_preamble
+        tasks_from: oim.yml

@@ -12,25 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""FastAPI routes for ParseCatalog API."""
+"""FastAPI routes for the (reintroduced, minimal) ParseCatalog stage.
 
+Reintroduced in Omnia 2.3+ solely to catch the image_group_id
+1:1-with-job uniqueness violation before create-local-repository/
+build-image run (see orchestrator.catalog.use_cases.parse_catalog for
+the full rationale). No file is uploaded here -- it reads the catalog
+already uploaded via ``PUT /jobs/{job_id}/upload``.
+"""
+
+from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from api.dependencies import require_catalog_read, verify_token, mark_stage_as_failed, get_db_session
-from api.parse_catalog.dependencies import get_parse_catalog_use_case
-from api.parse_catalog.schemas import ErrorResponse, ParseCatalogResponse, ParseCatalogStatus
-from api.parse_catalog.service import (
-    InvalidFileFormatError,
-    InvalidJSONError,
-    ParseCatalogService,
-)
-from core.catalog.exceptions import (
-    CatalogParseError,
-    InvalidCatalogFormatError,
-)
+from api.dependencies import get_correlation_id, require_job_write, verify_token
 from api.logging_utils import log_secure_info
+from api.parse_catalog.dependencies import get_parse_catalog_use_case
+from api.parse_catalog.schemas import ParseCatalogErrorResponse, ParseCatalogResponse
+from core.catalog.exceptions import CatalogNotUploadedError, InvalidCatalogFormatError
 from core.image_group.exceptions import DuplicateImageGroupError
 from core.jobs.exceptions import (
     InvalidStateTransitionError,
@@ -38,235 +38,213 @@ from core.jobs.exceptions import (
     StageAlreadyCompletedError,
     TerminalStateViolationError,
 )
+from core.jobs.value_objects import ClientId, CorrelationId, JobId
+from orchestrator.catalog.commands.parse_catalog import ParseCatalogCommand
+from orchestrator.catalog.use_cases.parse_catalog import ParseCatalogUseCase
 
 router = APIRouter(prefix="/jobs", tags=["Catalog Parsing"])
+
+
+def _build_error_response(
+    error_code: str, message: str, correlation_id: str
+) -> ParseCatalogErrorResponse:
+    return ParseCatalogErrorResponse(
+        error=error_code,
+        message=message,
+        correlation_id=correlation_id,
+        timestamp=datetime.now(timezone.utc).isoformat() + "Z",
+    )
 
 
 @router.post(
     "/{job_id}/stages/parse-catalog",
     response_model=ParseCatalogResponse,
     status_code=status.HTTP_200_OK,
-    summary="Parse a catalog file",
-    description="Upload a catalog JSON file to parse and generate output files.",
+    summary="Trigger parse-catalog stage",
+    description=(
+        "Reads the catalog already uploaded for this job (via PUT "
+        "/jobs/{job_id}/upload) and checks that its image_group_id isn't "
+        "already owned by another job's ImageGroup, before any "
+        "create-local-repository/build-image cycles run. This is a "
+        "synchronous, in-request check -- no playbook is invoked."
+    ),
     responses={
-        200: {
-            "description": "Catalog parsed successfully",
-            "model": ParseCatalogResponse,
-        },
-        400: {
-            "description": "Invalid request (bad file format or JSON)",
-            "model": ErrorResponse,
-        },
-        401: {
-            "description": "Unauthorized (missing or invalid token)",
-            "model": ErrorResponse,
-        },
-        403: {
-            "description": "Forbidden (insufficient scope)",
-            "model": ErrorResponse,
-        },
-        422: {
-            "description": "Validation error",
-            "model": ErrorResponse,
-        },
-        500: {
-            "description": "Internal server error during processing",
-            "model": ErrorResponse,
-        },
+        200: {"description": "Catalog parsed; image_group_id is unique", "model": ParseCatalogResponse},
+        400: {"description": "Invalid request", "model": ParseCatalogErrorResponse},
+        401: {"description": "Unauthorized", "model": ParseCatalogErrorResponse},
+        404: {"description": "Job not found", "model": ParseCatalogErrorResponse},
+        409: {"description": "State conflict or duplicate image_group_id", "model": ParseCatalogErrorResponse},
+        412: {"description": "Precondition failed (job terminal or catalog not uploaded)", "model": ParseCatalogErrorResponse},
+        500: {"description": "Internal error", "model": ParseCatalogErrorResponse},
     },
 )
-async def parse_catalog(
+def parse_catalog(
     job_id: str,
-    file: UploadFile = File(..., description="The catalog JSON file to parse"),
     token_data: Annotated[dict, Depends(verify_token)] = None,  # pylint: disable=unused-argument
-    scope_data: Annotated[dict, Depends(require_catalog_read)] = None,  # pylint: disable=unused-argument
-    parse_catalog_use_case = Depends(get_parse_catalog_use_case),
-    db_session = Depends(get_db_session),
+    use_case: ParseCatalogUseCase = Depends(get_parse_catalog_use_case),
+    correlation_id: CorrelationId = Depends(get_correlation_id),
+    _: None = Depends(require_job_write),
 ) -> ParseCatalogResponse:
-    """Parse a catalog from an uploaded JSON file.
+    """Trigger the parse-catalog stage for a job.
 
-    This endpoint accepts a catalog JSON file, validates its format and content,
-    then processes it to generate the required output files. Requires a valid
-    JWT token and 'catalog:read' scope.
-
-    Args:
-        job_id: The job identifier for the parsing operation.
-        file: The uploaded JSON file containing catalog data.
-        token_data: Validated token data from JWT (injected by dependency).
-        scope_data: Token data with validated scope (injected by dependency).
-
-    Returns:
-        ParseCatalogResponse with status and message.
-
-    Raises:
-        HTTPException: With appropriate status code on failure.
+    Synchronous: the uniqueness check completes within the request, so
+    this returns 200 OK (not 202) on success.
     """
+    client_id = ClientId(token_data["client_id"])
+
+    log_secure_info(
+        "info",
+        f"Parse-catalog request: job_id={job_id}, correlation_id={correlation_id.value}",
+        identifier=str(client_id.value),
+        job_id=job_id,
+    )
+
     try:
-        contents = await file.read()
+        validated_job_id = JobId(job_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_build_error_response(
+                "INVALID_JOB_ID",
+                f"Invalid job_id format: {job_id}",
+                correlation_id.value,
+            ).model_dump(),
+        ) from exc
+
+    try:
+        command = ParseCatalogCommand(
+            job_id=validated_job_id,
+            client_id=client_id,
+            correlation_id=correlation_id,
+        )
+        result = use_case.execute(command)
+
         log_secure_info(
             "info",
-            f"Parse-catalog request: job_id={job_id}, "
-            f"filename={file.filename}, size_bytes={len(contents)}",
-            job_id=job_id,
-        )
-
-        # Create service with injected use case
-        service = ParseCatalogService(parse_catalog_use_case=parse_catalog_use_case)
-
-        result = await service.parse_catalog(
-            filename=file.filename or "unknown.json",
-            contents=contents,
-            job_id=job_id,  # Pass job_id to service
-        )
-
-        log_secure_info(
-            "info",
-            f"Parse-catalog success: job_id={job_id}, status=200",
+            f"Parse-catalog success: job_id={job_id}, "
+            f"image_group_id={result.image_group_id}, status=200",
             job_id=job_id,
             end_section=True,
         )
-        response_data = {
-            "status": ParseCatalogStatus.SUCCESS.value,
-            "message": result.message,
-        }
-        return response_data
 
-    except ValueError as e:
-        # Handle job_id format validation errors
-        error_msg = str(e)
-        if "Invalid UUID format" in error_msg or "Invalid job_id format" in error_msg:
-            log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=invalid_job_id, status=400", job_id=job_id, end_section=True)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "error_code": "VALIDATION_ERROR",
-                    "message": f"Invalid job_id format: {job_id}",
-                    "correlation_id": "test-correlation-id"
-                },
-            ) from e
+        return ParseCatalogResponse(
+            job_id=result.job_id,
+            stage="parse-catalog",
+            status=result.stage_state,
+            image_group_id=result.image_group_id,
+            message=result.message,
+            correlation_id=correlation_id.value,
+        )
 
-        # Re-raise other ValueError as internal error
-        log_secure_info("error", f"Parse-catalog failed: job_id={job_id}, reason=unexpected_value_error, status=500", job_id=job_id, exc_info=True, end_section=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error_code": "INTERNAL_ERROR",
-                "message": "An unexpected error occurred",
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except JobNotFoundError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=job_not_found, status=404", job_id=job_id, end_section=True)
+    except JobNotFoundError as exc:
+        log_secure_info(
+            "warning",
+            f"Parse-catalog failed: job_id={job_id}, reason=job_not_found, status=404",
+            job_id=job_id,
+            end_section=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error_code": "JOB_NOT_FOUND",
-                "message": f"Job not found: {job_id}",
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
+            detail=_build_error_response(
+                "JOB_NOT_FOUND", exc.message, correlation_id.value
+            ).model_dump(),
+        ) from exc
 
-    except TerminalStateViolationError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=terminal_state, status=412", job_id=job_id, end_section=True)
+    except StageAlreadyCompletedError as exc:
+        log_secure_info(
+            "warning",
+            f"Parse-catalog failed: job_id={job_id}, reason=stage_already_completed, status=409",
+            job_id=job_id,
+            end_section=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=_build_error_response(
+                "STAGE_ALREADY_COMPLETED", exc.message, correlation_id.value
+            ).model_dump(),
+        ) from exc
+
+    except InvalidStateTransitionError as exc:
+        log_secure_info(
+            "warning",
+            f"Parse-catalog failed: job_id={job_id}, reason=invalid_state_transition, status=409",
+            job_id=job_id,
+            end_section=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=_build_error_response(
+                "INVALID_STATE_TRANSITION", exc.message, correlation_id.value
+            ).model_dump(),
+        ) from exc
+
+    except DuplicateImageGroupError as exc:
+        log_secure_info(
+            "warning",
+            f"Parse-catalog failed: job_id={job_id}, reason=duplicate_image_group_id, status=409",
+            job_id=job_id,
+            end_section=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=_build_error_response(
+                "DUPLICATE_IMAGE_GROUP_ID", str(exc), correlation_id.value
+            ).model_dump(),
+        ) from exc
+
+    except TerminalStateViolationError as exc:
+        log_secure_info(
+            "warning",
+            f"Parse-catalog failed: job_id={job_id}, reason=terminal_state_violation, status=412",
+            job_id=job_id,
+            end_section=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_412_PRECONDITION_FAILED,
-            detail={
-                "error_code": "PRECONDITION_FAILED",
-                "message": f"Job is in terminal state: {job_id}",
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
+            detail=_build_error_response(
+                "PRECONDITION_FAILED", exc.message, correlation_id.value
+            ).model_dump(),
+        ) from exc
 
-    except StageAlreadyCompletedError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=stage_already_completed, status=409", job_id=job_id, end_section=True)
+    except CatalogNotUploadedError as exc:
+        log_secure_info(
+            "warning",
+            f"Parse-catalog failed: job_id={job_id}, reason=catalog_not_uploaded, status=412",
+            job_id=job_id,
+            end_section=True,
+        )
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "error_code": "STAGE_ALREADY_COMPLETED",
-                "message": f"Parse catalog stage already completed for job: {job_id}",
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
+            status_code=status.HTTP_412_PRECONDITION_FAILED,
+            detail=_build_error_response(
+                "CATALOG_NOT_UPLOADED", exc.message, correlation_id.value
+            ).model_dump(),
+        ) from exc
 
-    except InvalidStateTransitionError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=invalid_state_transition, status=409", job_id=job_id, end_section=True)
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "error_code": "INVALID_STATE_TRANSITION",
-                "message": str(e),
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except InvalidFileFormatError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=invalid_file_format, status=400", job_id=job_id, end_section=True)
-        # Mark stage as failed since validation failed at API layer
-        mark_stage_as_failed(job_id, "parse-catalog", "INVALID_FILE_FORMAT", str(e), db_session)
+    except InvalidCatalogFormatError as exc:
+        log_secure_info(
+            "warning",
+            f"Parse-catalog failed: job_id={job_id}, reason=invalid_catalog_format, status=400",
+            job_id=job_id,
+            end_section=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error_code": "INVALID_FILE_FORMAT",
-                "message": str(e),
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
+            detail=_build_error_response(
+                "INVALID_CATALOG_FORMAT", exc.message, correlation_id.value
+            ).model_dump(),
+        ) from exc
 
-    except InvalidJSONError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=invalid_json, status=400", job_id=job_id, end_section=True)
-        # Mark stage as failed since validation failed at API layer
-        mark_stage_as_failed(job_id, "parse-catalog", "INVALID_JSON", str(e), db_session)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error_code": "INVALID_JSON",
-                "message": str(e),
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except DuplicateImageGroupError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=duplicate_image_group, status=409", job_id=job_id, end_section=True)
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "error_code": "DUPLICATE_IMAGE_GROUP",
-                "message": str(e),
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except InvalidCatalogFormatError as e:
-        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=invalid_catalog_format, status=400", job_id=job_id, end_section=True)
-        mark_stage_as_failed(job_id, "parse-catalog", "INVALID_CATALOG_FORMAT", str(e), db_session)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error_code": "INVALID_CATALOG_FORMAT",
-                "message": str(e),
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except CatalogParseError as e:
-        log_secure_info("error", f"Parse-catalog failed: job_id={job_id}, reason=catalog_parse_error, status=500", job_id=job_id, end_section=True)
+    except Exception as exc:
+        log_secure_info(
+            "error",
+            f"Parse-catalog failed: job_id={job_id}, reason=unexpected_error, status=500",
+            job_id=job_id,
+            exc_info=True,
+            end_section=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error_code": "CATALOG_PARSE_ERROR",
-                "message": str(e),
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
-
-    except Exception as e:
-        log_secure_info("error", f"Parse-catalog failed: job_id={job_id}, reason=unexpected_error, status=500", job_id=job_id, exc_info=True, end_section=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error_code": "INTERNAL_ERROR",
-                "message": "An unexpected error occurred",
-                "correlation_id": "test-correlation-id"
-            },
-        ) from e
+            detail=_build_error_response(
+                "INTERNAL_ERROR", "An unexpected error occurred", correlation_id.value
+            ).model_dump(),
+        ) from exc

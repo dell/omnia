@@ -23,6 +23,15 @@
       {{ gitlab_runner_helper_image_registry }}:{{ gitlab_runner_helper_arch
         }}-{{ gitlab_runner_image | regex_search('v[0-9]+\.[0-9]+\.[0-9]+') | default(gitlab_runner_helper_image_version) }}
 
+- name: Remove ALL existing GitLab runner images (any version) before deployment
+  ansible.builtin.shell: |
+    set -o pipefail
+    podman images --format '{{ '{{.Repository}}:{{.Tag}}' }}' | \
+      grep -E 'gitlab-runner|gitlab-runner-helper' | \
+      xargs -r podman rmi -f 2>/dev/null || true
+  changed_when: false
+  failed_when: false
+
 - name: Check if runner container is currently running
   containers.podman.podman_container_info:
     name: "{{ gitlab_runner_container_name }}"

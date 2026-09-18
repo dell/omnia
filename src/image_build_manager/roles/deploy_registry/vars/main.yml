@@ -21,8 +21,8 @@ data_oci_dir: "{{ shared_path }}/oci/data"
 # Registry container settings
 registry_port: 5000
 registry_storage_dir: "{{ shared_path }}/registry/data"
-registry_image: "docker.io/library/registry:2"
-registry_tag: "2"
+registry_image: "docker.io/library/registry"
+registry_tag: "3.1.1"
 
 # Retry and delay settings
 max_retries: 10

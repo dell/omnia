@@ -1,0 +1,111 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# setup_ssh.yml — Establish passwordless SSH from OIM (localhost) to aarch64 node.
+# Called from a localhost play in build_image_aarch64.yml BEFORE the
+# hosts: admin_aarch64 play, so that Ansible can connect to the remote node.
+#
+# Flow:
+#   1. Generate SSH keypair if missing
+#   2. Add aarch64 host to known_hosts
+#   3. Check if passwordless SSH already works
+#   4. If not, run ssh-copy-id with the credential password
+#   5. Verify passwordless SSH works
+
+# =========================================================================
+# Phase 1: Ensure SSH keypair exists on OIM
+# =========================================================================
+
+- name: Check if SSH keypair exists
+  ansible.builtin.stat:
+    path: /root/.ssh/id_rsa
+  register: _ssh_key_stat
+
+- name: Generate SSH keypair
+  when: not _ssh_key_stat.stat.exists
+  ansible.builtin.command:
+    cmd: ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ""
+    creates: /root/.ssh/id_rsa
+  register: _ssh_keygen
+  changed_when: _ssh_keygen.rc == 0
+
+# =========================================================================
+# Phase 2: Add aarch64 host to known_hosts
+# =========================================================================
+
+- name: Add aarch64 host to known_hosts
+  ansible.builtin.known_hosts:
+    name: "{{ aarch64_inventory_host_ip }}"
+    key: "{{ lookup('pipe', 'ssh-keyscan -H ' + aarch64_inventory_host_ip) }}"
+
+# =========================================================================
+# Phase 3: Check if passwordless SSH already works
+# =========================================================================
+
+- name: Check if passwordless SSH is already enabled
+  ansible.builtin.command: >-
+    ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no
+    {{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }} 'echo OK'
+  register: _ssh_check
+  changed_when: false
+  failed_when: false
+
+- name: Set SSH passwordless status
+  ansible.builtin.set_fact:
+    aarch64_ssh_passwordless: "{{ (_ssh_check.rc | default(1) == 0) | bool }}"
+    cacheable: true
+
+# =========================================================================
+# Phase 4: Setup passwordless SSH via ssh-copy-id (if needed)
+# =========================================================================
+
+- name: Setup passwordless SSH via ssh-copy-id
+  when: not (aarch64_ssh_passwordless | bool)
+  ansible.builtin.expect:
+    command: >-
+      ssh-copy-id -o StrictHostKeyChecking=no
+      -i /root/.ssh/id_rsa.pub
+      {{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }}
+    responses:
+      "(?i)password:": "{{ aarch64_ssh_password | default('') }}"
+  no_log: true
+  register: _ssh_copy_id_result
+  failed_when: false
+
+# =========================================================================
+# Phase 5: Verify passwordless SSH works
+# =========================================================================
+
+- name: Verify passwordless SSH is working
+  when: not (aarch64_ssh_passwordless | bool)
+  ansible.builtin.command: >-
+    ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no
+    {{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }} 'echo OK'
+  register: _ssh_verify
+  changed_when: false
+  failed_when: false
+
+- name: Fail if SSH setup failed
+  when:
+    - not (aarch64_ssh_passwordless | bool)
+    - _ssh_verify.rc | default(1) != 0
+  ansible.builtin.fail:
+    msg: "{{ ssh_setup_fail_msg }}"
+
+- name: Display SSH status
+  ansible.builtin.debug:
+    msg: >-
+      SSH to {{ aarch64_inventory_host_ip }}:
+      {{ 'already configured (passwordless)' if (aarch64_ssh_passwordless | bool)
+         else 'configured via ssh-copy-id' }}

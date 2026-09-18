@@ -23,7 +23,10 @@ import os
 # PATH CONFIGURATION
 # =============================================================================
 
-VALIDATION_LOG_PATH = "/opt/omnia/image_build_manager/log/"
+VALIDATION_LOG_PATH = os.path.join(
+    os.environ.get("OMNIA_DATA_PATH", "/opt/omnia"),
+    "image_build_manager", "log"
+)
 
 # =============================================================================
 # FILE CONFIGURATION

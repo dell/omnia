@@ -1,0 +1,155 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# discovery.yml -- Top-level entry point for the discovery domain.
+# Discovers BMC endpoints via OME and generates PXE mapping files.
+#
+# Inputs:  <DISCOVERY_DATA_PATH>/input/<project>/
+#   - discovery_config.yml
+#   - network_spec.yml
+#
+# Outputs: <DISCOVERY_DATA_PATH>/output/<project>/
+#   - bmc_pxe_mapping_file.csv
+#   - bmc_discovery_report.csv
+#
+# Usage (run ONE tag at a time -- no comma-separated tags):
+#   cd src/discovery/playbooks
+#   ansible-playbook discovery.yml                                 # Default: validate + credentials + execute (OME)
+#   ansible-playbook discovery.yml --tags precheck
+#                                                                  # Data-path and OME endpoint precheck
+#   ansible-playbook discovery.yml --tags validate                 # Validate config only (no credentials)
+#   ansible-playbook discovery.yml --tags credentials              # Load or collect missing OME credentials only
+#   ansible-playbook discovery.yml --tags prepare                  # Prepare discovery environment (placeholder)
+#   ansible-playbook discovery.yml --tags execute                  # Run OME discovery
+#   ansible-playbook discovery.yml --tags cleanup                  # Cleanup outputs and credentials
+#   ansible-playbook discovery.yml --tags cleanup \
+#     -e cleanup_credentials=false                                 # Preserve credentials
+#   ansible-playbook discovery.yml --tags cleanup_credentials      # Cleanup credentials only
+#   ansible-playbook discovery.yml --tags upgrade                  # Upgrade flow (placeholder)
+#   ansible-playbook discovery.yml --tags rollback                 # Rollback flow (placeholder)
+#
+# Tags (pick one; cleanup + cleanup_credentials is the only supported pair):
+#   (none)       -- Default flow: always + validate + credentials + execute (OME)
+#   precheck     -- Validate the data path and OME TCP/443 reachability
+#   validate     -- Validate discovery_config.yml input (skips credentials)
+#   credentials  -- Load or collect missing OME credentials only (no execution)
+#   prepare      -- Prepare discovery environment (placeholder -- future release)
+#   execute      -- Run BMC discovery via OME (with credentials)
+#   cleanup      -- Cleanup discovery outputs and credentials
+#   cleanup_credentials -- Cleanup Discovery credentials only
+#   upgrade      -- Upgrade flow (placeholder -- future release)
+#   rollback     -- Rollback flow (placeholder -- future release)
+#
+# Tag Validation:
+#   - Invalid tags will fail with error message
+#   - Invalid combinations (e.g., execute + cleanup) will fail
+#   - precheck, cleanup, cleanup_credentials, and validate skip credential prompting
+#
+# Internal steps (always):
+#   Step 0: Setup -- load env vars (omnia.env), validate host, check prereqs
+#   Step 1: Input validation (schema + logic)
+#   Step 2: Credential collection (skipped for precheck/cleanup/cleanup_credentials/validate tags)
+
+# =========================================================================
+# Step 0: Setup -- load config, validate host, check prereqs
+# =========================================================================
+- name: Setup discovery environment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  roles:
+    - discovery_setup
+
+# =========================================================================
+# Step 1: Input validation (schema + logic) -- skipped for precheck/cleanup
+# =========================================================================
+- name: Validate discovery input configuration
+  ansible.builtin.import_playbook: validate/validate_discovery.yml
+  when: >-
+    (hostvars['localhost']['provided_tags'] | default([])
+    | intersect(['precheck', 'cleanup', 'cleanup_credentials'])
+    | length) == 0
+  tags:
+    - always
+    - validate
+
+# =========================================================================
+# Step 2: Credential collection (skipped for cleanup/validate/precheck)
+# =========================================================================
+- name: Create and update credential config files
+  ansible.builtin.import_playbook: credentials/discovery_credentials.yml
+  when: not (skip_discovery_credentials | default(false) | bool)
+  tags: always
+
+# =========================================================================
+# FLOW: precheck -- Prerequisite validation (opt-in only)
+# =========================================================================
+- name: Precheck discovery environment
+  ansible.builtin.import_playbook: precheck/precheck_discovery.yml
+  tags:
+    - never
+    - precheck
+
+# =========================================================================
+# FLOW: credentials -- Standalone credential collection
+# =========================================================================
+# No dedicated play needed -- the 'always'-tagged credential step (Step 2)
+# fires automatically because 'credentials' is not in skip_credential_tags.
+# Running --tags credentials only triggers: setup + validate + credential prompt.
+
+# =========================================================================
+# FLOW: prepare -- Prepare discovery environment (opt-in only)
+# =========================================================================
+- name: Prepare discovery environment
+  ansible.builtin.import_playbook: prepare/prepare_discovery.yml
+  tags:
+    - never
+    - prepare
+
+# =========================================================================
+# FLOW: execute -- Run BMC discovery via OME (default + opt-in)
+# =========================================================================
+- name: Execute BMC Discovery via OME
+  ansible.builtin.import_playbook: execute/execute_discovery.yml
+  tags:
+    - execute
+
+# =========================================================================
+# FLOW: cleanup -- Remove discovery outputs and credentials (opt-in only)
+# =========================================================================
+- name: Cleanup discovery
+  ansible.builtin.import_playbook: cleanup/cleanup_discovery.yml
+  tags:
+    - never
+    - cleanup
+    - cleanup_credentials
+
+# =========================================================================
+# FLOW: upgrade -- Upgrade flow placeholder (opt-in only)
+# =========================================================================
+- name: Upgrade discovery
+  ansible.builtin.import_playbook: upgrade/upgrade_discovery.yml
+  tags:
+    - never
+    - upgrade
+
+# =========================================================================
+# FLOW: rollback -- Rollback flow placeholder (opt-in only)
+# =========================================================================
+- name: Rollback discovery
+  ansible.builtin.import_playbook: rollback/rollback_discovery.yml
+  tags:
+    - never
+    - rollback

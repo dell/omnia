@@ -1,0 +1,15 @@
+# Utils Domain Test Requirements
+# Install with: pip install -r requirements.txt
+
+# Core test framework
+pytest>=9.0.0
+pytest-testinfra>=10.0.0
+
+# YAML parsing
+PyYAML>=6.0
+
+# Ansible for playbook execution
+ansible-core>=2.15.0
+
+# Local omnia-auto plugin (install from test/plugins/dist/)
+# Run: pip install ../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl

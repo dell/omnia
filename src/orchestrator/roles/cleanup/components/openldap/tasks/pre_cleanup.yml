@@ -1,0 +1,91 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# OpenLDAP Pre-Cleanup Task
+# Validates prerequisites and creates cleanup checkpoint
+
+- name: Set role path
+  ansible.builtin.set_fact:
+    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
+
+- name: Load OpenLDAP component configuration
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/components/openldap/vars/component_spec.yml"
+
+- name: Display OpenLDAP pre-cleanup information
+  ansible.builtin.debug:
+    msg: |
+      OpenLDAP Pre-Cleanup Validation
+      ================================
+      Component: {{ component_spec.name }}
+      Version: {{ component_spec.version }}
+      Criticality: {{ component_metadata.criticality }}
+      Estimated Duration: {{ component_metadata.estimated_duration }}
+      User Impact: {{ component_metadata.user_impact }}
+
+- name: Check if OpenLDAP is deployed
+  ansible.builtin.stat:
+    path: "{{ openldap_config.base_dir }}"
+  register: openldap_deployed
+  failed_when: false
+
+- name: Skip OpenLDAP cleanup if not deployed
+  ansible.builtin.debug:
+    msg: "OpenLDAP not deployed - skipping cleanup"
+  when: not openldap_deployed.stat.exists
+  register: openldap_skip
+
+- name: Fail if OpenLDAP not deployed and cleanup is required
+  ansible.builtin.fail:
+    msg: "OpenLDAP not deployed - cannot cleanup"
+  when: not openldap_deployed.stat.exists and component_config.requires_confirmation | default(false) | bool
+
+- name: Check OpenLDAP service status
+  ansible.builtin.systemd:
+    name: "{{ openldap_config.service_name }}"
+  register: openldap_service
+  failed_when: false
+
+- name: Display OpenLDAP service status
+  ansible.builtin.debug:
+    msg: "Service {{ openldap_config.service_name }} status: {{ openldap_service.status.ActiveState }}"
+
+- name: Check OpenLDAP container
+  ansible.builtin.shell: |
+    set -o pipefail
+    podman ps -a --filter "name={{ openldap_config.container_name }}" --format "{{ '{{' }}.Names{{ '}}' }}"
+  register: openldap_container
+  failed_when: false
+  changed_when: false
+
+- name: Display OpenLDAP container
+  ansible.builtin.debug:
+    msg: "OpenLDAP container: {{ openldap_container.stdout_lines | join(', ') if openldap_container.stdout_lines else 'None' }}"
+
+- name: Create cleanup checkpoint
+  ansible.builtin.copy:
+    content: |
+      checkpoint_time: {{ ansible_date_time.iso8601 }}
+      component: openldap
+      service_running: {{ openldap_service.status.ActiveState == 'active' }}
+      container_running: {{ openldap_container.stdout_lines | length > 0 }}
+      config_exists: {{ openldap_deployed.stat.exists }}
+    dest: "{{ component_state_path }}"
+    mode: '0600'
+  when: not global_settings.dry_run | default(false) | bool
+
+- name: Log pre-cleanup state
+  ansible.builtin.debug:
+    msg: "OpenLDAP pre-cleanup checkpoint created at {{ component_state_path }}"

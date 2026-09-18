@@ -27,10 +27,11 @@
 #   SOURCES (Collectors) → BRIDGES (Vector) → SINKS (Storage)
 #
 # SECTIONS:
-#   1. Telemetry Sources    : Data collectors (iDRAC, LDMS, DCGM, PowerScale, UFM, VAST)
-#   2. Telemetry Bridges    : Data routers (Vector pipelines)
-#   3. Telemetry Sinks      : Storage backends (victoria_metrics, victoria_logs, Kafka)
-#   4. Source Configurations: Detailed settings per source (PowerScale, LDMS, UFM, VAST)
+#   1. Cluster Inventory    : Path to Ansible inventory for telemetry deployment
+#   2. Telemetry Sources    : Data collectors (iDRAC, LDMS, PowerScale, UFM, VAST, OME)
+#   3. Telemetry Bridges    : Data routers (Vector pipelines)
+#   4. Telemetry Sinks      : Storage backends (victoria_metrics, victoria_logs, Kafka)
+#   5. Source Configurations: Detailed settings per source (PowerScale, LDMS, UFM, VAST)
 #
 # ============================================================================
 # STORAGE REQUIREMENTS SUMMARY
@@ -71,12 +72,32 @@
 # ============================================================================
 
 # ============================================================================
+# CLUSTER INVENTORY
+# ============================================================================
+# Path to the Ansible inventory file used for telemetry deployment.
+# This inventory defines all cluster nodes including:
+#   - kube_vip_group: Kubernetes control plane VIP
+#   - service_kube_control_plane_*: Kubernetes control plane nodes
+#   - service_kube_node_*: Kubernetes worker nodes
+#   - slurm_control_node: Slurm controller nodes (required for LDMS)
+#   - slurm_node: Slurm compute nodes (required for LDMS)
+#   - slurm_login_node: Slurm login nodes (optional for LDMS)
+#   - slurm_login_compiler_node: Slurm login compiler nodes (optional for LDMS)
+#
+# Required format: Ansible YAML inventory
+# Default (when empty): $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
+#   Where OMNIA_DATA_PATH defaults to /opt/omnia and OMNIA_PROJECT_NAME defaults to project_default
+# Example:
+#   /opt/omnia/orchestrator/output/project_default/orchestrator_inventory.yml
+cluster_inventory: ""
+
+# ============================================================================
 # TELEMETRY SOURCES (Data Collectors)
 # ============================================================================
 # Each source can be independently enabled/disabled.
 # Sources produce telemetry data that flows through bridges to sinks.
 #
-# Supported sources: idrac, ldms, dcgm, powerscale, ufm, vast, ome
+# Supported sources: idrac, ldms, powerscale, ufm, vast, ome
 
 telemetry_sources:
 
@@ -94,7 +115,9 @@ telemetry_sources:
 
     # Collection targets define where iDRAC data is sent BEFORE Vector processing
     # Supported values: "victoria_metrics", "kafka"
+    # At least one target is required when iDRAC telemetry is enabled
     # Multiple targets: ["victoria_metrics", "kafka"]
+    # Single target: ["kafka"] or ["victoria_metrics"]
     # Default: ["victoria_metrics", "kafka"]
     collection_targets:
       - "victoria_metrics"
@@ -117,16 +140,6 @@ telemetry_sources:
       - "kafka"
 
   # --------------------------------------------------------------------------
-  # DCGM — NVIDIA Data Center GPU Manager
-  # --------------------------------------------------------------------------
-  # Collects: GPU temperature, utilization, memory, ECC errors, power
-  # Requires: NVIDIA GPU driver installed on compute nodes
-  dcgm:
-    # Enable or disable DCGM metrics collection
-    # Default: true
-    metrics_enabled: true
-
-  # --------------------------------------------------------------------------
   # PowerScale — Dell PowerScale (OneFS) storage telemetry
   # --------------------------------------------------------------------------
   # Collects: Storage metrics from Dell PowerScale clusters
@@ -142,6 +155,11 @@ telemetry_sources:
     logs_enabled: true
 
     # PowerScale uses vmagent(shared) (no Kafka, no Vector)
+    # victoria_metrics is required if metrics_enabled: true
+    # victoria_logs is required if logs_enabled: true
+    # Supported values: "victoria_metrics", "victoria_logs"
+    # Multiple targets: ["victoria_metrics", "victoria_logs"]
+    # Single target: ["victoria_metrics"] (if only metrics) or ["victoria_logs"] (if only logs)
     collection_targets:
       - "victoria_metrics"
       - "victoria_logs"
@@ -165,6 +183,11 @@ telemetry_sources:
     logs_enabled: false
 
     # UFM uses vmagent(shared) for metrics and VLAgent for logs
+    # victoria_metrics is required if metrics_enabled: true
+    # victoria_logs is required if logs_enabled: true
+    # Supported values: "victoria_metrics", "victoria_logs"
+    # Multiple targets: ["victoria_metrics", "victoria_logs"]
+    # Single target: ["victoria_metrics"] (if only metrics) or ["victoria_logs"] (if only logs)
     collection_targets:
       - "victoria_metrics"
       - "victoria_logs"
@@ -188,6 +211,11 @@ telemetry_sources:
     logs_enabled: false
 
     # VAST uses vmagent(shared) for metrics and VLAgent for logs
+    # victoria_metrics is required if metrics_enabled: true
+    # victoria_logs is required if logs_enabled: true
+    # Supported values: "victoria_metrics", "victoria_logs"
+    # Multiple targets: ["victoria_metrics", "victoria_logs"]
+    # Single target: ["victoria_metrics"] (if only metrics) or ["victoria_logs"] (if only logs)
     collection_targets:
       - "victoria_metrics"
       - "victoria_logs"
@@ -346,7 +374,7 @@ telemetry_sinks:
 
     # Topic partitions per source (auto-created for enabled sources targeting kafka)
     # Only sources with kafka in collection_targets get topics.
-    # Topic name = source name (e.g., "idrac", "ldms")
+    # Topic name = source name (for example, "idrac" or "ldms")
     topic_partitions:
       idrac: 1
       ldms: 2
@@ -362,24 +390,15 @@ telemetry_sinks:
 # --------------------------------------------------------------------------
 # Storage configuration for iDRAC telemetry MySQL database
 idrac_telemetry_configurations:
-  # Path to BMC inventory CSV file for iDRAC telemetry
-  # Required when telemetry_sources.idrac.metrics_enabled is true
-  # Example: "/opt/omnia/input/bmc_group_data.csv"
+  # Path to BMC inventory CSV file for iDRAC telemetry.
+  # Default (when empty): $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv
+  #   Where OMNIA_DATA_PATH defaults to /opt/omnia and OMNIA_PROJECT_NAME defaults to project_default
+  #   This file is generated by the orchestrator during provisioning.
+  # Example: "/opt/omnia/orchestrator/output/project_default/bmc_group_data.csv"
   bmc_group_data_path: ""
 
   # MySQL database storage for iDRAC telemetry
   mysqldb_storage: "1Gi"
-
-  # iDRAC (BMC) IP addresses for OIM servers
-  # Required when iDRAC telemetry is enabled and telemetry data needs to be collected from OIM servers
-  # Supports multiple OIM servers (OIM1, OIM2, etc.)
-  # Example:
-  #   oim_bmc_ips:
-  #     oim1: "192.168.1.100"
-  #     oim2: "192.168.1.101"
-  oim_bmc_ips:
-    oim1: ""
-    oim2: ""
 
 # --------------------------------------------------------------------------
 # LDMS Configuration
@@ -490,7 +509,7 @@ ufm_configuration:
 
   # Authentication mode for UFM Prometheus endpoint
   # Accepted values: "basic", "none"
-  # - basic: Use ufm_username/ufm_password from omnia_config_credentials.yml
+  # - basic: Use ufm_username/ufm_password from telemetry_credentials.yml
   # - none: No authentication (UFM endpoint is open)
   # Default: "basic"
   auth_mode: "basic"
@@ -545,7 +564,7 @@ vast_configuration:
 
   # Authentication mode for VAST Prometheus endpoint
   # Accepted values: "basic", "none"
-  # - basic: Use vast_username/vast_password from omnia_config_credentials.yml
+  # - basic: Use vast_username/vast_password from telemetry_credentials.yml
   # - none: No authentication (VAST endpoint is open)
   # Default: "basic"
   auth_mode: "basic"

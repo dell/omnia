@@ -1,0 +1,204 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Utils Domain — Functions Package.
+
+Re-exports all functions from omnia_auto and domain-specific modules.
+Test files should import from this package, not directly from omnia_auto.
+"""
+
+# --- Common functions from omnia_auto ---
+from omnia_auto import (
+    TestLogger,
+    Colors,
+    Symbols,
+    log,
+    load_test_config,
+    load_test_credentials,
+    get_testinfra_host,
+    run_on_host,
+    is_local_execution,
+    read_remote_env,
+    run_playbook as _run_playbook,
+)
+
+# --- Domain-specific functions ---
+from .utils_func import (
+    check_target_connectivity,
+    check_env_var,
+    check_file_exists,
+    check_dir_exists,
+    read_remote_file,
+    validate_yaml_file,
+    validate_collect_pxe_file,
+    find_log_bundle,
+    validate_metadata_file,
+    validate_tar_contents,
+    validate_bundle_log_files,
+    get_hostname,
+    check_admin_ip_assigned,
+    validate_install_os_config,
+    validate_install_os_credentials,
+    find_custom_iso,
+    verify_iso_checksum,
+    verify_kickstart_in_iso,
+)
+
+from .host_func import (
+    sync_project_to_remote,
+    sync_utils_input,
+    sync_install_os_credentials,
+    get_utils_input_path,
+    get_utils_output_path,
+    get_backup_oim_logs_output_path,
+    get_backup_oim_logs_config_path,
+    get_slurm_config_util_output_path,
+    get_slurm_config_util_config_path,
+)
+
+from .validation_func import (
+    validate_all,
+    ConfigValidationError,
+)
+
+from .cleanup_func import (
+    check_old_log_bundles_removed,
+    check_empty_log_dirs_removed,
+    check_temp_log_dirs_cleaned,
+    check_install_os_temp_dir_removed,
+    check_install_os_nfs_unmounted,
+    check_install_os_credentials_removed,
+    check_all_logs_cleaned,
+    check_all_install_os_cleaned,
+    check_setup_output_dir_exists,
+    check_setup_input_dir_exists,
+    check_utils_status_file_removed,
+    check_install_os_status_file_removed,
+)
+
+from .backup_func import (
+    validate_backup_config,
+    validate_backup_metadata_file,
+    check_backup_workspace_removed,
+)
+
+from .slurm_config_util_func import (
+    find_latest_backup_run_dir,
+    validate_slurm_backup_metadata_file,
+    check_backup_directories_present,
+    check_slurm_config_dir_removed,
+    check_backup_workspace_run_dirs_removed,
+)
+
+# --- Domain-specific vars ---
+from ..vars.common_vars import (
+    PLAYBOOK_COLLECT,
+    PLAYBOOK_INSTALL_OS,
+    PLAYBOOK_BACKUP_OIM_LOGS,
+    PLAYBOOK_SLURM_CONFIG_UTIL,
+    PLAYBOOK_CLEANUP_SLURM_CONFIG_BACKUPS,
+    PLAYBOOK_WORKDIR,
+)
+
+
+def run_playbook(playbook=None, tag=None, **kwargs):
+    """Run an Ansible playbook with domain-specific defaults.
+
+    The playbook uses OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from the
+    target's environment (sourced from /etc/omnia/omnia.env).
+
+    Args:
+        playbook: Playbook filename (default: collect.yml).
+        tag: Playbook tag to run.
+        **kwargs: Additional arguments passed to omnia_auto.run_playbook().
+
+    Returns:
+        dict: {"success": bool, "rc": int, "duration": str, "output": str, "error": str}
+    """
+    return _run_playbook(
+        playbook=playbook or PLAYBOOK_COLLECT,
+        playbook_workdir=kwargs.pop("playbook_workdir", PLAYBOOK_WORKDIR),
+        tag=tag,
+        **kwargs,
+    )
+
+
+__all__ = [
+    # omnia_auto exports
+    "TestLogger",
+    "Colors",
+    "Symbols",
+    "log",
+    "load_test_config",
+    "load_test_credentials",
+    "get_testinfra_host",
+    "run_on_host",
+    "is_local_execution",
+    "read_remote_env",
+    "run_playbook",
+    # Domain functions
+    "check_target_connectivity",
+    "check_env_var",
+    "check_file_exists",
+    "check_dir_exists",
+    "read_remote_file",
+    "validate_yaml_file",
+    "validate_collect_pxe_file",
+    "find_log_bundle",
+    "validate_metadata_file",
+    "validate_tar_contents",
+    "validate_bundle_log_files",
+    "get_hostname",
+    "check_admin_ip_assigned",
+    "validate_install_os_config",
+    "validate_install_os_credentials",
+    "find_custom_iso",
+    "verify_iso_checksum",
+    "verify_kickstart_in_iso",
+    "sync_project_to_remote",
+    "sync_utils_input",
+    "sync_install_os_credentials",
+    "get_utils_input_path",
+    "get_utils_output_path",
+    "get_backup_oim_logs_output_path",
+    "get_backup_oim_logs_config_path",
+    "get_slurm_config_util_output_path",
+    "get_slurm_config_util_config_path",
+    "validate_all",
+    "ConfigValidationError",
+    # Cleanup functions
+    "check_old_log_bundles_removed",
+    "check_empty_log_dirs_removed",
+    "check_temp_log_dirs_cleaned",
+    "check_install_os_temp_dir_removed",
+    "check_install_os_nfs_unmounted",
+    "check_install_os_credentials_removed",
+    "check_all_logs_cleaned",
+    "check_all_install_os_cleaned",
+    "check_setup_output_dir_exists",
+    "check_setup_input_dir_exists",
+    "check_utils_status_file_removed",
+    "check_install_os_status_file_removed",
+    # OIM log backup functions
+    "validate_backup_config",
+    "validate_backup_metadata_file",
+    "check_backup_workspace_removed",
+    # Slurm config util functions
+    "find_latest_backup_run_dir",
+    "validate_slurm_backup_metadata_file",
+    "check_backup_directories_present",
+    "check_slurm_config_dir_removed",
+    "check_backup_workspace_run_dirs_removed",
+]

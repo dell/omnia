@@ -12,22 +12,54 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Register nodes in SMD for the target category.
+# Add nodes from the target category to SMD.
 # Extracted from configure_ochami/tasks/orchestration_mapping_nodes.yml.
-# Uses per-category nodes YAML and upsert semantics (no --overwrite).
+# Global stale-data cleanup is performed once by provision_preamble.yml. This
+# file must remain additive so later categories cannot remove earlier ones.
+
+- name: Check if openchami configs_vars.yaml exists
+  ansible.builtin.stat:
+    path: "{{ openchami_config_vars_path }}"
+  register: _openchami_config_stat
+
+- name: Fail with clear message if configs_vars.yaml is missing
+  ansible.builtin.fail:
+    msg: >-
+      OpenCHAMI configuration file not found: {{ openchami_config_vars_path }}.
+      This file is generated during the deploy stage. Run the orchestrator
+      deploy stage first: ansible-playbook orchestrator.yml --tags deploy
+  when: not _openchami_config_stat.stat.exists
 
 - name: Include openchami vars
   ansible.builtin.include_vars: "{{ openchami_config_vars_path }}"
 
+# Preserve the OpenCHAMI API identity at set_fact level so unrelated role
+# variables cannot shadow the shared service endpoint.
+- name: Pin openchami cluster_name at set_fact level
+  ansible.builtin.set_fact:
+    cluster_name: "{{ lookup('file', openchami_config_vars_path) | from_yaml | json_query('cluster_name') }}"
+    cluster_domain: "{{ lookup('file', openchami_config_vars_path) | from_yaml | json_query('cluster_domain') }}"
+
+- name: Ensure read_mapping_file is available
+  ansible.builtin.set_fact:
+    read_mapping_file: "{{ hostvars['localhost']['read_mapping_file'] }}"
+  when: hostvars['localhost']['read_mapping_file'] is defined
+
+- name: Re-read mapping file if not available
+  community.general.read_csv:
+    path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
+    key: ADMIN_MAC
+  register: _mapping_file_result
+  when: hostvars['localhost']['read_mapping_file'] is not defined
+
+- name: Set read_mapping_file from re-read result
+  ansible.builtin.set_fact:
+    read_mapping_file: "{{ _mapping_file_result }}"
+  when: hostvars['localhost']['read_mapping_file'] is not defined
+
 - name: Create ochami nodes directory
   ansible.builtin.file:
     path: "{{ nodes_dir }}"
-    state: directory
-    mode: "{{ dir_permissions_755 }}"
-
-- name: Create telemetry directory
-  ansible.builtin.file:
-    path: "{{ telemetry_share_path }}"
     state: directory
     mode: "{{ dir_permissions_755 }}"
 
@@ -48,45 +80,77 @@
   ansible.builtin.set_fact:
     target_fg_names: "{{ target_functional_groups | map(attribute='name') | list }}"
 
+- name: Compute filtered nodes for {{ target_category }}
+  ansible.builtin.set_fact:
+    _category_nodes: >-
+      {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
+         | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', target_fg_names)
+         | map(attribute='value')
+         | sort(attribute='XNAME')
+         | list }}
+
+- name: Reset stale OpenCHAMI data for {{ target_category }}
+  ansible.builtin.include_tasks: delete_smd_endpoints.yml
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
 - name: Generate per-category nodes YAML ({{ target_category }})
   ansible.builtin.template:
     src: "{{ openchami_nodes_template }}"
     dest: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
     mode: "{{ file_permissions_644 }}"
   vars:
-    nodes: >-
-      {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
-         | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', target_fg_names)
-         | list }}
+    mapping_nodes: "{{ _category_nodes }}"
+  delegate_to: localhost
 
-- name: Delete stale SMD endpoints (for clean re-registration)
-  ansible.builtin.include_tasks: delete_smd_endpoints.yml
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-
-- name: Restart cloud-init-server to refresh node instance data
+- name: Restart metadata-service to refresh node instance data
   ansible.builtin.systemd:
-    name: cloud-init-server
+    name: metadata-service
     state: restarted
     daemon_reload: true
 
-- name: Verify cloud-init-server is running
+- name: Verify metadata-service is running
   ansible.builtin.systemd:
-    name: cloud-init-server
+    name: metadata-service
     state: started
-  register: cloud_init_server_status
+  register: metadata_svc_server_status
   retries: "{{ service_retries }}"
   delay: "{{ service_retry_interval }}"
-  until: cloud_init_server_status is success
+  until: metadata_svc_server_status is success
 
-- name: Verify cloud-init-server is reachable
+- name: Restart HAProxy to pick up new metadata-service container IP
+  ansible.builtin.systemd:
+    name: haproxy
+    state: restarted
+
+- name: Verify HAProxy is running
+  ansible.builtin.systemd:
+    name: haproxy
+    state: started
+  register: haproxy_status
+  retries: 5
+  delay: 3
+  until: haproxy_status is success
+
+- name: Wait for metadata-service readiness
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/health"
+    method: GET
+    status_code: 200
+    validate_certs: false
+  register: metadata_svc_health_status
+  retries: "{{ service_retries }}"
+  delay: "{{ service_retry_interval }}"
+  until: metadata_svc_health_status.status == 200
+
+- name: Verify metadata-service readiness fallback
   block:
-    - name: Wait for cloud-init-server readiness
-      ansible.builtin.command: /usr/bin/ochami cloud-init service status
-      register: cloud_init_status
-      retries: "{{ service_retries }}"
-      delay: "{{ service_retry_interval }}"
-      until: cloud_init_status.rc == 0
-      changed_when: false
+    - name: Final metadata-service readiness check
+      ansible.builtin.uri:
+        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/health"
+        method: GET
+        status_code: 200
+        validate_certs: false
+      register: metadata_svc_final_check
   rescue:
     - name: Restart openchami.target to recover container networking
       ansible.builtin.systemd:
@@ -103,19 +167,22 @@
       delay: "{{ service_retry_interval }}"
       until: openchami_target_recovery is success
 
-    - name: Retry cloud-init-server readiness check
-      ansible.builtin.command: /usr/bin/ochami cloud-init service status
-      register: cloud_init_status
+    - name: Retry metadata-service readiness check
+      ansible.builtin.uri:
+        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/health"
+        method: GET
+        status_code: 200
+        validate_certs: false
+      register: metadata_svc_health_status
       retries: "{{ service_retries }}"
       delay: "{{ service_retry_interval }}"
-      until: cloud_init_status.rc == 0
+      until: metadata_svc_health_status.status == 200
       failed_when: false
-      changed_when: false
 
-    - name: Fail if cloud-init-server is still not reachable
+    - name: Fail if metadata-service is still not reachable
       ansible.builtin.fail:
-        msg: "{{ cloud_init_failed_msg }}"
-      when: cloud_init_status.rc != 0
+        msg: "{{ metadata_svc_failed_msg }}"
+      when: metadata_svc_health_status.status | default(0) != 200
 
 - name: Verify openchami.target is up
   ansible.builtin.systemd:
@@ -133,12 +200,42 @@
     - openchami_target_status is defined
     - openchami_target_status is not success
 
-- name: Discover nodes in SMD (upsert, no --overwrite)
+- name: Refresh access token before SMD discovery
+  ansible.builtin.command: sudo bash -lc 'gen_access_token'
+  register: refreshed_token_result
+  changed_when: false
+  failed_when: false
+  retries: 3
+  delay: 5
+  until: refreshed_token_result.rc == 0 and refreshed_token_result.stdout not in ["", "null"]
+
+- name: Update ochami_env with refreshed token
+  ansible.builtin.set_fact:
+    ochami_env: "{{ {(oim_node_name | upper) + '_ACCESS_TOKEN': refreshed_token_result.stdout} }}"
+  when: refreshed_token_result.rc == 0
+
+- name: Remove obsolete node-registration SMD group
+  ansible.builtin.uri:
+    url: >-
+      https://{{ cluster_name }}.{{ cluster_domain
+      }}:8443/hsm/v2/groups/node_registration
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200, 404]
+    validate_certs: false
+  no_log: true
+  when:
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+    - refreshed_token_result.rc == 0
+
+- name: Discover nodes in SMD (upsert with --overwrite)
   block:
     - name: Register nodes in SMD for target category
       ansible.builtin.command: >
-        /usr/bin/ochami discover static -f yaml
+        /usr/bin/ochami discover static --overwrite -f yaml
         -d @"{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
+      environment: "{{ ochami_env }}"
       register: openchami_orchestration
       changed_when: openchami_orchestration.rc == 0
       failed_when: openchami_orchestration.rc != 0
@@ -167,10 +264,25 @@
       until: smd_api_ready.rc == 0
       changed_when: false
 
+    - name: Refresh access token before retry
+      ansible.builtin.command: sudo bash -lc 'gen_access_token'
+      register: retry_token_result
+      changed_when: false
+      failed_when: false
+      retries: 3
+      delay: 5
+      until: retry_token_result.rc == 0 and retry_token_result.stdout not in ["", "null"]
+
+    - name: Update ochami_env with refreshed token for retry
+      ansible.builtin.set_fact:
+        ochami_env: "{{ {(oim_node_name | upper) + '_ACCESS_TOKEN': retry_token_result.stdout} }}"
+      when: retry_token_result.rc == 0
+
     - name: Retry SMD node discovery
       ansible.builtin.command: >
-        /usr/bin/ochami discover static -f yaml
+        /usr/bin/ochami discover static --overwrite -f yaml
         -d @"{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
+      environment: "{{ ochami_env }}"
       register: openchami_orchestration
       changed_when: openchami_orchestration.rc == 0
       failed_when: openchami_orchestration.rc != 0
@@ -183,12 +295,21 @@
         msg: "{{ ochami_discovery_failed_msg }}"
       when: openchami_orchestration.rc != 0
 
-- name: Verify nodes registered in SMD
+- name: Wait until target nodes are registered in SMD
   ansible.builtin.shell: |
     set -o pipefail && \
-    /usr/bin/ochami smd component get | jq '.Components[] | select(.Type == "Node")'
-  changed_when: true
+    /usr/bin/ochami smd component get \
+    | jq -r '.Components[] | select(.Type == "Node") | .ID'
+  changed_when: false
   register: openchami_smd_status
+  retries: "{{ service_retries }}"
+  delay: "{{ service_retry_interval }}"
+  until:
+    - openchami_smd_status.rc == 0
+    - >-
+      _category_nodes | map(attribute='XNAME') | list
+      | difference(openchami_smd_status.stdout_lines | default([]))
+      | length == 0
 
 - name: Display SMD status
   ansible.builtin.debug:
@@ -201,20 +322,41 @@
     dest: "{{ nodes_dir }}/hostname_{{ target_category }}.yaml"
     mode: "{{ file_permissions_644 }}"
   vars:
-    nodes: >-
-      {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
-         | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', target_fg_names)
-         | list }}
+    mapping_nodes: "{{ _category_nodes }}"
 
-- name: Configure hostnames in cloud-init
-  ansible.builtin.command: >
-    /usr/bin/ochami cloud-init node set -f yaml
-    -d @"{{ nodes_dir }}/hostname_{{ target_category }}.yaml"
-  changed_when: true
+- name: Load hostname YAML for metadata-service
+  ansible.builtin.slurp:
+    src: "{{ nodes_dir }}/hostname_{{ target_category }}.yaml"
+  register: hostname_yaml_raw
 
-- name: Create cloud-init groups dict for target FGs
+- name: Parse hostname entries
   ansible.builtin.set_fact:
-    cloud_init_groups_dict: "{{ cloud_init_groups_dict | default({}) | combine({item: {}}) }}"
+    hostname_entries: "{{ hostname_yaml_raw.content | b64decode | from_yaml }}"
+
+- name: Configure hostnames in metadata-service
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/instanceinfos"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      metadata:
+        name: "{{ item.id }}"
+      spec:
+        instance_id: "{{ item.id }}"
+        hostname: "{{ item['local-hostname'] }}"
+        local_hostname: "{{ item['local-hostname'] }}"
+    status_code: [200, 201, 409]
+    validate_certs: false
+  loop: "{{ hostname_entries }}"
+  loop_control:
+    label: "{{ item.id }}"
+
+- name: Create metadata-service groups dict for target FGs
+  ansible.builtin.set_fact:
+    metadata_svc_groups_dict: "{{ metadata_svc_groups_dict | default({}) | combine({item: {}}) }}"
   with_items: "{{ target_fg_names }}"
 
 - name: Create SMD groups for each target functional group
@@ -223,8 +365,15 @@
   loop_control:
     loop_var: fg_name
 
-- name: Create common SMD groups (ssh, chrony, phone_home)
+- name: Accumulate registered functional group names across categories
+  ansible.builtin.set_fact:
+    registered_fg_names: >-
+      {{ ((registered_fg_names | default([])) + target_fg_names) | unique | list }}
+
+- name: Create common SMD groups (ssh and chrony)
   ansible.builtin.include_tasks: create_smd_group_common.yml
-  loop: "{{ common_cloud_init_groups }}"
+  loop: "{{ common_metadata_svc_groups }}"
   loop_control:
-    loop_var: common_group_name
+    loop_var: common_group_item
+  vars:
+    common_group_name: "{{ common_group_item }}"

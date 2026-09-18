@@ -12,23 +12,23 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-# Process swap configurations from storage_config.yml and add to cloud_init_groups_dict
+# Process swap configurations from storage_config.yml and add to metadata_svc_groups_dict
 # Swap entries are converted to cloud-init swap module format: {filename, size, maxsize}
 
 - name: Process swap configurations
   when: swap is defined and swap | length > 0
   block:
-    - name: Initialize swap entries in cloud_init_groups_dict for all functional groups
+    - name: Initialize swap entries in metadata_svc_groups_dict for all functional groups
       ansible.builtin.set_fact:
-        cloud_init_groups_dict: >-
+        metadata_svc_groups_dict: >-
           {{
-            cloud_init_groups_dict | combine({
-              item: (cloud_init_groups_dict[item] | default({}) | combine({
+            metadata_svc_groups_dict | combine({
+              item: (metadata_svc_groups_dict[item] | default({}) | combine({
                 'swap': {}
               }, recursive=True))
             }, recursive=True)
           }}
-      loop: "{{ cloud_init_groups_dict.keys() | list }}"
+      loop: "{{ metadata_svc_groups_dict.keys() | list }}"
       loop_control:
         label: "{{ item }}"
 
@@ -39,6 +39,6 @@
         loop_var: swap_item
         label: "{{ swap_item.filename | default('unnamed') }}"
 
-    - name: Debug cloud_init_groups_dict swap entries
+    - name: Debug metadata_svc_groups_dict swap entries
       ansible.builtin.debug:
-        msg: "Swap configuration added to cloud_init_groups_dict"
+        msg: "Swap configuration added to metadata_svc_groups_dict"

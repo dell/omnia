@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for functional_group_packages.yml structure and content."""
+"""Tests for package_groups.yml (functional group mapping) structure and content."""
 
 import re
 
@@ -113,16 +113,15 @@ class TestFunctionalGroupPackagesContent:
 class TestConfigConsistency:
     """Validate consistency between config files."""
 
-    def test_enabled_groups_exist_in_mapping(
-        self, image_build_config, functional_group_packages
+    def test_functional_groups_have_arch_suffix_in_mapping(
+        self, functional_group_packages
     ):
-        """Every enabled functional group in config must exist in the mapping file."""
-        if "functional_groups" not in image_build_config:
-            return
+        """All functional groups in mapping must have valid arch suffix."""
         mapping_groups = functional_group_packages.get("functional_groups", {})
-        for fg in image_build_config["functional_groups"]:
-            fg_name = fg["name"] if isinstance(fg, dict) else fg
-            assert fg_name in mapping_groups, (
-                f"Functional group '{fg_name}' is enabled in image_build_config.yml "
-                f"but not found in functional_group_packages.yml"
+        for group_name in mapping_groups:
+            assert any(
+                group_name.endswith(suffix) for suffix in VALID_ARCH_SUFFIXES
+            ), (
+                f"Functional group '{group_name}' in functional_group_packages.yml "
+                f"must end with one of {VALID_ARCH_SUFFIXES}"
             )

@@ -16,15 +16,21 @@
 # This output file is consumed by the provision domain for BSS template
 # rendering (S3 paths for kernel, initrd, image per functional group).
 #
-# Expected build_completed_images structure (populated by image_creation role):
+# Expected build_completed_images structure (populated by main.yml):
 #   { "x86_64": [
 #       { "functional_group": "slurm_control_node_x86_64",
-#         "kernel": "boot-images/efi-images/.../vmlinuz",
-#         "initrd": "boot-images/efi-images/.../initramfs.img",
-#         "image": "boot-images/.../rhel-..." }
+#         "kernel": "boot-images/efi-images/.../vmlinuz-6.12.0-55.94.1.el10_0.x86_64",
+#         "initrd": "boot-images/efi-images/.../initramfs-6.12.0-55.94.1.el10_0.x86_64.img",
+#         "image": "boot-images/.../rhel-.../rhel10.0-rhel-...-imgbld-10.0" }
 #     ],
 #     "aarch64": [ ... ]
 #   }
+# NOTE: All artifact filenames (kernel, initrd, rootfs image) are discovered
+# via s3cmd ls after each build (see main.yml "Discover actual S3 artifact
+# filenames").  This ensures build_status.yml references the exact S3 object
+# keys, not assumed generic names.
+# The status also records image_build_type so consumers validate the artifact
+# layout that produced this manifest, even if the input is changed later.
 
 - name: Set output paths
   ansible.builtin.set_fact:
@@ -48,6 +54,9 @@
     mode: "0644"
   vars:
     build_completed_images: "{{ hostvars['localhost']['build_completed_images'] | default({}) }}"
+    status_image_build_type: >-
+      {{ hostvars['localhost']['image_build_type']
+         | default('image-thrillhouse') }}
 
 - name: Build versioned output path
   ansible.builtin.set_fact:
@@ -60,6 +69,9 @@
     mode: "0644"
   vars:
     build_completed_images: "{{ hostvars['localhost']['build_completed_images'] | default({}) }}"
+    status_image_build_type: >-
+      {{ hostvars['localhost']['image_build_type']
+         | default('image-thrillhouse') }}
 
 - name: Display build status output locations
   ansible.builtin.debug:

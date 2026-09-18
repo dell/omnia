@@ -34,6 +34,11 @@ import os
 import csv
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.repo_manager.standard_logger import (
+    SecureFileHandler,
+    secure_log_file,
+)
+
 DOCUMENTATION = r"""
 ---
 module: validate_input
@@ -43,19 +48,33 @@ description:
   - It performs comprehensive validation of repo_manager configuration.
 version_added: "1.0.0"
 options:
-    config_path:
-      description: Path to configuration file
+    omnia_base_dir:
+      description: Omnia data directory
       required: true
       type: str
-    schema_path:
-      description: Path to JSON schema file
-      required: false
+    project_name:
+      description: Project input directory name
+      required: true
       type: str
-    strict:
-      description: Enable strict validation mode
+    tag_names:
+      description: Operation tags selecting input contracts
+      required: true
+      type: list
+      elements: str
+    subscription_enabled:
+      description: Shared repository subscription decision
       required: false
       type: bool
-      default: True
+    subscription_repository_ids:
+      description: Repo IDs discovered by the shared RHSM inventory check
+      required: false
+      type: list
+      elements: str
+    catalog_execution_contexts:
+      description: Ordered catalog contexts resolved by Repo Manager setup
+      required: false
+      type: list
+      elements: dict
 
 author:
   - Dell Technologies (@dell)
@@ -64,7 +83,7 @@ author:
 EXAMPLES = r"""
 - name: Validate repo_manager configuration
   validate_input:
-    config_path: /opt/omnia/input/repo_manager_config.yml
+    config_path: "{{ omnia_base }}/input/repo_manager_config.yml"
     strict: true
   register: validation_result
 """
@@ -112,11 +131,11 @@ def validate_csv_structure(csv_file_path, logger=None):
             reader = csv.reader(f)
             try:
                 header = next(reader)
-            except StopIteration:
+            except StopIteration as exc:
                 error_msg = f"CSV ERROR: Empty file - {csv_file_path}"
                 if logger:
                     logger.error(error_msg)
-                raise ValueError(error_msg)
+                raise ValueError(error_msg) from exc
 
             expected_columns = len(header)
             line_num = 2
@@ -144,7 +163,7 @@ def validate_csv_structure(csv_file_path, logger=None):
         error_msg = f"CSV validation error: {str(e)}"
         if logger:
             logger.error(error_msg)
-        raise ValueError(error_msg)
+        raise ValueError(error_msg) from e
 
 
 def createlogger(project_name, log_dir, tag_name=None):
@@ -165,11 +184,13 @@ def createlogger(project_name, log_dir, tag_name=None):
         log_filename = f"validation_omnia_{project_name}.log"
 
     log_file_path = os.path.join(log_dir, log_filename)
-    logging.basicConfig(
-        filename=log_file_path,
-        format="%(asctime)s %(message)s",
-        filemode="w"
-    )
+    root_logger = logging.getLogger()
+    if root_logger.handlers:
+        secure_log_file(log_file_path)
+    else:
+        file_handler = SecureFileHandler(log_file_path, mode="w")
+        file_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+        root_logger.addHandler(file_handler)
     logger = logging.getLogger(tag_name if tag_name else project_name)
     logger.setLevel(logging.DEBUG)
     return logger
@@ -192,6 +213,15 @@ def main():
         "tag_names": {"type": "list", "required": True},
         "module_utils_path": {"type": "str"},
         "csv_file_path": {"type": "str", "required": False},
+        "subscription_enabled": {"type": "bool", "required": False},
+        "subscription_repository_ids": {
+            "type": "list", "elements": "str", "required": False,
+            "default": [],
+        },
+        "catalog_execution_contexts": {
+            "type": "list", "elements": "dict", "required": False,
+            "default": [],
+        },
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
@@ -203,10 +233,12 @@ def main():
     tag_names = module.params["tag_names"]
     csv_file_path = module.params.get("csv_file_path", "")
 
-    # Set base directory environment variable before importing config modules
-    if "REPO_MANAGER_BASE_DIR" not in os.environ:
-        os.environ["REPO_MANAGER_BASE_DIR"] = os.path.dirname(os.path.normpath(omnia_base_dir))
-
+    # Set runtime environment before importing path-dependent module utilities.
+    # REPO_MANAGER_BASE_DIR is the source checkout and must not be derived from
+    # the runtime data directory.
+    os.environ.setdefault("OMNIA_DATA_PATH", omnia_base_dir)
+    if input_project_dir:
+        os.environ.setdefault("REPO_MANAGER_INPUT_PROJECT_DIR", input_project_dir)
     # Import modules after setting environment variable
     # pylint: disable=no-name-in-module,E0401
     global config, file_utils, validation_engine, msg
@@ -246,13 +278,6 @@ def main():
 
     input_files = file_utils.files_recursively(omnia_base_dir + "/" + project_name, extensions['json'])
     input_files = input_files + file_utils.files_recursively(omnia_base_dir + "/" + project_name, extensions['yml'])
-    
-    # Also search for catalog files in the catalog directory (from OMNIA_DATA_PATH)
-    omnia_data_path = os.environ.get('OMNIA_DATA_PATH', '/opt/omnia')
-    catalog_dir = os.path.join(omnia_data_path, 'catalog')
-    if os.path.exists(catalog_dir):
-        catalog_files = file_utils.files_recursively(catalog_dir, extensions['json'])
-        input_files = input_files + catalog_files
 
     input_file_dict = {file_utils.file_name_from_path(file_path): file_path for file_path in input_files}
 
@@ -301,21 +326,35 @@ def main():
                 logger.info("Skipping gitlab_config.yml validation (build_stream disabled)")
                 continue
 
-            # Special handling for catalog files - they're in a different directory
-            # Catalog path comes from OMNIA_DATA_PATH environment variable
-            if input_file_path is None and name == "catalog_rhel.json":
-                omnia_data_path = os.environ.get('OMNIA_DATA_PATH', '/opt/omnia')
-                catalog_dir = os.path.join(omnia_data_path, 'catalog')
-                catalog_file_path = os.path.join(catalog_dir, name)
-                if os.path.exists(catalog_file_path):
-                    input_file_path = catalog_file_path
-                    logger.info(f"Found catalog file at: {catalog_file_path}")
-                else:
+            # The inventory entry identifies the internal schema only. The
+            # catalog input itself can have any basename and must be selected
+            # exclusively through CATALOG_FILE_PATH.
+            if name == config.files["catalog_config"]:
+                catalog_file_path = config.CATALOG_FILE_PATH
+                if not catalog_file_path:
+                    error_message = "CATALOG_FILE_PATH environment variable is not set."
+                    logger.error(error_message)
+                    module.fail_json(msg=error_message)
+
+                catalog_file_path = os.path.normpath(catalog_file_path)
+                if os.path.splitext(catalog_file_path)[1] != extensions['json']:
                     error_message = (
-                        f"{fname} file not found in catalog directory: {catalog_dir}"
+                        "CATALOG_FILE_PATH must reference a .json file: "
+                        f"{catalog_file_path}"
                     )
                     logger.error(error_message)
                     module.fail_json(msg=error_message)
+
+                if not os.path.isfile(catalog_file_path):
+                    error_message = (
+                        "Catalog file configured by CATALOG_FILE_PATH was not "
+                        f"found or is not a regular file: {catalog_file_path}"
+                    )
+                    logger.error(error_message)
+                    module.fail_json(msg=error_message)
+
+                input_file_path = catalog_file_path
+                logger.info("Using catalog from CATALOG_FILE_PATH: %s", input_file_path)
             elif input_file_path is None:
                 error_message = (
                     f"{fname} file not found in directory: {omnia_base_dir}/{project_name}"

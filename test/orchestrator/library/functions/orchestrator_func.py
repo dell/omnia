@@ -19,28 +19,33 @@ All verification functions return a dict with keys:
   success (bool), details (str), error (str), and optionally skipped (bool).
 """
 
+import re
 from typing import Any, Dict, List
 
-from omnia_auto import load_test_config, run_on_host
+from omnia_auto import (
+    load_test_config,
+    resolve_domain_data_path,
+    run_on_host,
+)
 from ..vars.common_vars import (
     CMDS,
     ORCHESTRATOR_CONFIG_FILE,
     OMNIA_CONFIG_FILE,
     NETWORK_SPEC_FILE,
     CREDENTIALS_FILE_NAME,
-    INPUT_PATH_TEMPLATE,
-    REPO_MANAGER_OUTPUT_TEMPLATE,
     OPENCHAMI_CONTAINERS,
     SYSTEMD_SERVICES,
     FIREWALL_PORTS,
 )
+from .project_func import (
+    resolve_target_input_project_path,
+    resolve_target_project_name,
+)
 
 
-def _get_input_path() -> str:
-    """Return the orchestrator input path for the configured project."""
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    return INPUT_PATH_TEMPLATE.format(project=project)
+def _get_input_path(host) -> str:
+    """Return the target Orchestrator input path."""
+    return resolve_target_input_project_path(host)
 
 
 def check_input_config_exists(host) -> Dict[str, Any]:
@@ -52,7 +57,7 @@ def check_input_config_exists(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     path = f"{input_path}/{ORCHESTRATOR_CONFIG_FILE}"
     cmd = CMDS["file_exists"].format(path=path)
     result = run_on_host(host, cmd)
@@ -78,7 +83,7 @@ def check_omnia_config_exists(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     path = f"{input_path}/{OMNIA_CONFIG_FILE}"
     cmd = CMDS["file_exists"].format(path=path)
     result = run_on_host(host, cmd)
@@ -104,7 +109,7 @@ def check_network_spec_exists(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     path = f"{input_path}/{NETWORK_SPEC_FILE}"
     cmd = CMDS["file_exists"].format(path=path)
     result = run_on_host(host, cmd)
@@ -130,9 +135,8 @@ def check_credentials_present(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    cred_path = f"/opt/omnia/input/{project}/{CREDENTIALS_FILE_NAME}"
+    input_path = _get_input_path(host)
+    cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
     cmd = CMDS["file_exists"].format(path=cred_path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:
@@ -157,9 +161,14 @@ def check_repo_status_exists(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    path = REPO_MANAGER_OUTPUT_TEMPLATE.format(project=project)
+    repo_root = resolve_domain_data_path(
+        host,
+        "repo_manager",
+        "OMNIA_DATA_PATH",
+        domain_data_path_var="REPO_MANAGER_DATA_PATH",
+    )
+    project = resolve_target_project_name(host)
+    path = f"{repo_root}/output/{project}/repo_status.yml"
     cmd = CMDS["file_exists"].format(path=path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:
@@ -232,7 +241,7 @@ def check_openchami_containers(host) -> Dict[str, Any]:
 
 
 def check_services_active(host) -> Dict[str, Any]:
-    """Verify systemd services are active.
+    """Verify systemd services/targets are active.
 
     Args:
         host: Testinfra host connection.
@@ -244,19 +253,20 @@ def check_services_active(host) -> Dict[str, Any]:
     for service in SYSTEMD_SERVICES:
         cmd = CMDS["systemctl_is_active"].format(service=service)
         result = run_on_host(host, cmd)
-        if result.rc != 0 or "active" not in result.stdout:
+        stdout = result.stdout.strip() if result.stdout else ""
+        if result.rc != 0 or stdout != "active":
             inactive.append(service)
 
     if not inactive:
         return {
             "success": True,
-            "details": f"All {len(SYSTEMD_SERVICES)} services active",
+            "details": f"All {len(SYSTEMD_SERVICES)} services/targets active",
             "error": "",
         }
     return {
         "success": False,
         "details": f"Inactive: {inactive}",
-        "error": f"{len(inactive)} service(s) not active",
+        "error": f"{len(inactive)} service(s)/target(s) not active",
     }
 
 
@@ -269,17 +279,47 @@ def check_openchami_api_reachable(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    cmd = CMDS["curl_check"].format(host="localhost", port=8443)
+    hostname_result = run_on_host(host, CMDS["hostname_fqdn"])
+    fqdn = hostname_result.stdout.strip()
+    if (
+        hostname_result.rc != 0
+        or not fqdn
+        or re.fullmatch(r"[A-Za-z0-9.-]+", fqdn) is None
+    ):
+        return {
+            "success": False,
+            "details": "Unable to resolve the OIM fully qualified hostname",
+            "error": "OpenCHAMI API hostname could not be determined",
+        }
+
+    readiness_path = "/hsm/v2/service/ready"
+    
+    # Get the haproxy port dynamically
+    port_cmd = "ss -tlnp 2>/dev/null | grep haproxy | grep -oE ':[0-9]+' | head -1 | tr -d ':'"
+    port_result = run_on_host(host, port_cmd)
+    port = port_result.stdout.strip() if port_result.rc == 0 and port_result.stdout.strip() else "8443"
+    
+    cmd = CMDS["curl_check"].format(
+        host=fqdn,
+        port=port,
+        path=readiness_path,
+    )
     result = run_on_host(host, cmd)
     if result.rc == 0:
         return {
             "success": True,
-            "details": "OpenCHAMI API reachable on port 8443",
+            "details": (
+                f"OpenCHAMI API readiness endpoint is reachable at "
+                f"https://{fqdn}:{port}{readiness_path}"
+            ),
             "error": "",
         }
     return {
         "success": False,
-        "details": "curl to localhost:8443 failed",
+        "details": (
+            f"curl to https://{fqdn}:{port}{readiness_path} failed "
+            f"with rc={result.rc}"
+        ),
         "error": "OpenCHAMI API not reachable",
     }
 

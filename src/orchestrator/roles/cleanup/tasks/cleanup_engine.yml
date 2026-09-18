@@ -1,0 +1,56 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Canonical cleanup engine. Each component is attempted even if an earlier
+# component fails. Failures are aggregated and raised after the final summary.
+- name: Validate canonical cleanup inputs
+  ansible.builtin.assert:
+    that:
+      - cleanup_components is defined
+      - cleanup_execution_order is defined
+      - cleanup_execution_order | length > 0
+    fail_msg: "Invalid cleanup configuration or empty execution order"
+
+- name: Initialize cleanup results
+  ansible.builtin.set_fact:
+    cleanup_results: {}
+    cleanup_failures: []
+
+- name: Execute cleanup for each component
+  ansible.builtin.include_tasks: execute_component_cleanup.yml
+  loop: "{{ cleanup_execution_order }}"
+  loop_control:
+    loop_var: component_name
+
+- name: Display cleanup summary
+  ansible.builtin.debug:
+    msg:
+      status: >-
+        {{ 'SUCCESS' if cleanup_failures | length == 0 else 'PARTIAL' }}
+      components:
+        selected: "{{ cleanup_execution_order | length }}"
+        passed: >-
+          {{ cleanup_execution_order | length - cleanup_failures | length }}
+        failed: "{{ cleanup_failures | length }}"
+      results: "{{ cleanup_results }}"
+
+- name: Fail when cleanup is incomplete
+  ansible.builtin.fail:
+    msg: |-
+      Orchestrator cleanup completed with {{ cleanup_failures | length }} failed component(s):
+      {% for failure in cleanup_failures %}
+      - {{ failure.component }}: {{ failure.error }}
+      {% endfor %}
+  when: cleanup_failures | length > 0

@@ -19,7 +19,7 @@ This module provides a shared ResultPoller that can be used by all stage APIs
 queue and update stage states accordingly.
 
 Enhanced (S1-4 Part B): On build-image success, creates ImageGroup (BUILT)
-and Image records from catalog metadata persisted during parse-catalog.
+and Image records from catalog metadata persisted during create-local-repository.
 """
 
 import json
@@ -58,7 +58,7 @@ from core.localrepo.services import PlaybookQueueResultService
 # ``images.image_name``. The CleanUp API reads this column verbatim
 # and passes it directly to ``s3cmd del --recursive --force``.
 DEFAULT_S3_BUCKET_URI = "s3://boot-images"
-DEFAULT_NFS_ARTIFACT_BASE = "/opt/omnia/build_stream_root"
+DEFAULT_NFS_ARTIFACT_BASE = os.path.join(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream_root")
 
 
 def _discover_s3_image_paths(
@@ -81,38 +81,40 @@ def _discover_s3_image_paths(
         Example: {"slurm_node": ["s3://boot-images/efi-images/slurm_node/...", 
                                   "s3://boot-images/slurm_node/..."]}
     """
-    import subprocess  # pylint: disable=import-outside-toplevel
+    import subprocess  # nosec B404 - subprocess used safely with list args
 
     bucket = (bucket_uri or DEFAULT_S3_BUCKET_URI).rstrip("/")
     role_to_paths = {role: [] for role in role_names}
 
     try:
-        # Run s3cmd ls -Hr and grep for job_id in one command
-        # This filters at subprocess level instead of in Python
-        cmd = f"s3cmd ls -Hr {bucket} | grep {job_id}"
-        result = subprocess.run(
-            cmd,
-            shell=True,
+        # Run s3cmd ls -Hr using safe subprocess with list args (Checkmarx-safe)
+        # Filter for job_id in Python instead of using shell pipe
+        result = subprocess.run(  # nosec B602,B603,B607 - using list args, no shell, full path to s3cmd
+            ["/usr/bin/s3cmd", "ls", "-Hr", bucket],
             capture_output=True,
             text=True,
             timeout=60,
             check=False,
         )
 
-        if result.returncode not in [0, 1]:  # 0=found, 1=not found (grep exit code)
+        if result.returncode != 0:
             log_secure_info(
                 "warning",
                 f"s3cmd ls failed for bucket {bucket}: {result.stderr}",
             )
             return role_to_paths
 
-        # Parse grep output
+        # Filter output for job_id in Python (safer than shell pipe)
         # s3cmd ls output format: "DATE SIZE s3://bucket/role/path/file.img"
         # Extract directory paths from file paths
         discovered_paths = set()
         for line in result.stdout.splitlines():
             line = line.strip()
             if not line:
+                continue
+            
+            # Filter for job_id (replaces grep filter)
+            if job_id not in line:
                 continue
 
             # Extract S3 file path from line (last column)
@@ -274,6 +276,16 @@ class ResultPoller:
         Args:
             result: Playbook execution result from NFS queue.
         """
+        # "cleanup" (image_build_manager.yml --tags cleanup_images) is not
+        # a pipeline Stage -- it's a one-off hard-delete request submitted
+        # by CleanupJobUseCase with no corresponding Stage row. Handle it
+        # separately before the generic Stage-based dispatch below, since
+        # StageName(result.stage_name) would raise for "cleanup" (not a
+        # member of the canonical StageType set).
+        if result.stage_name == "cleanup":
+            self._on_cleanup_result(result)
+            return
+
         try:
             # Find stage
             stage_name = StageName(result.stage_name)
@@ -314,7 +326,8 @@ class ResultPoller:
                     job_id=str(result.job_id),
                 )
 
-                # S1-4 Part B: On build-image success, create ImageGroup + Images
+                # S1-4: On build-image success, create ImageGroup + Images
+                # (catalog metadata is now persisted by parse-catalog stage)
                 if self._is_build_image_stage(result.stage_name):
                     self._on_build_image_success(result)
 
@@ -443,7 +456,7 @@ class ResultPoller:
             )
 
     # ------------------------------------------------------------------
-    # S1-4 Part B: Build-image completion — ImageGroup/Image creation
+    # S1-4: Build-image completion — ImageGroup/Image creation
     # ------------------------------------------------------------------
 
     @staticmethod
@@ -458,9 +471,9 @@ class ResultPoller:
     def _on_build_image_success(self, result: PlaybookResult) -> None:
         """Create ImageGroup (BUILT) and Image records on build-image success.
 
-        Loads catalog metadata persisted by parse-catalog, creates the
-        ImageGroup with status BUILT, and inserts Image records for each
-        constituent role.
+        Loads catalog metadata persisted by the create-local-repository
+        completion callback, creates the ImageGroup with status BUILT,
+        and inserts Image records for each constituent role.
 
         Args:
             result: Playbook execution result from NFS queue.
@@ -585,10 +598,13 @@ class ResultPoller:
             )
 
     def _load_catalog_metadata(self, job_id) -> dict:
-        """Load catalog metadata artifact persisted by parse-catalog.
+        """Load catalog metadata artifact persisted by parse-catalog stage.
 
         Retrieves the catalog-metadata artifact from the artifact store
         to get image_group_id and role-to-image mappings.
+
+        In Omnia 2.3+, catalog metadata is stored by the parse-catalog stage
+        which validates the catalog and extracts image_group_id, roles, etc.
 
         Args:
             job_id: Job identifier.
@@ -670,6 +686,150 @@ class ResultPoller:
                 f"success for job={result.job_id}: {exc}",
                 job_id=str(result.job_id),
                 exc_info=True,
+            )
+
+    # ------------------------------------------------------------------
+    # CleanUp Job: finalize ImageGroup/Job once the cleanup playbook
+    # (image_build_manager.yml --tags cleanup_images) reports back.
+    # ------------------------------------------------------------------
+
+    def _on_cleanup_result(self, result: PlaybookResult) -> None:
+        """Finalize a hard-delete cleanup once the playbook reports back.
+
+        CleanupJobUseCase submits the cleanup playbook and immediately
+        moves the ImageGroup to the non-terminal ``CLEANING`` state
+        (see orchestrator.cleanup.use_cases.cleanup_job). This callback
+        performs the actual ``CLEANING`` -> ``CLEANED`` transition (and
+        Job tombstoning) only once the playbook confirms the S3/registry
+        images were actually deleted.
+
+        Args:
+            result: Playbook execution result from NFS queue.
+        """
+        if self._image_group_repo is None:
+            log_secure_info(
+                "warning",
+                f"Cleanup result: no image_group_repo configured; cannot "
+                f"finalize job_id={result.job_id}",
+                job_id=str(result.job_id),
+            )
+            return
+
+        try:
+            image_group = self._image_group_repo.find_by_job_id(
+                JobId(result.job_id)
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "error",
+                f"Cleanup result: failed to look up ImageGroup for "
+                f"job_id={result.job_id}: {exc}",
+                job_id=str(result.job_id),
+                exc_info=True,
+            )
+            return
+
+        if image_group is None:
+            log_secure_info(
+                "warning",
+                f"Cleanup result: no ImageGroup found for "
+                f"job_id={result.job_id}; nothing to finalize",
+                job_id=str(result.job_id),
+            )
+            return
+
+        current_status = (
+            image_group.status.value
+            if hasattr(image_group.status, "value")
+            else str(image_group.status)
+        )
+        if current_status != ImageGroupStatus.CLEANING.value:
+            log_secure_info(
+                "info",
+                f"Cleanup result: ImageGroup for job_id={result.job_id} is "
+                f"in status={current_status} (not CLEANING); skipping "
+                f"(already finalized or handled elsewhere)",
+                job_id=str(result.job_id),
+            )
+            return
+
+        if result.status == "success":
+            self._image_group_repo.update_status(
+                image_group_id=image_group.id,
+                new_status=ImageGroupStatus.CLEANED,
+            )
+            try:
+                job = self._job_repo.find_by_id(JobId(result.job_id))
+                if job is not None:
+                    job.tombstone()
+                    self._job_repo.save(job)
+            except Exception as exc:  # pylint: disable=broad-except
+                log_secure_info(
+                    "warning",
+                    f"Cleanup result: failed to tombstone job "
+                    f"job_id={result.job_id}: {exc}",
+                    job_id=str(result.job_id),
+                )
+            log_secure_info(
+                "info",
+                f"Cleanup completed: job_id={result.job_id} finalized to "
+                f"CLEANED (image_group={image_group.id})",
+                job_id=str(result.job_id),
+            )
+            event_type = "JOB_CLEANED"
+        else:
+            # Transition to CLEANUP_FAILED (terminal state) since the playbook failed.
+            # This prevents indefinite polling and allows the user to see the failure.
+            # Manual intervention or registry configuration fix is required to retry.
+            self._image_group_repo.update_status(
+                image_group_id=image_group.id,
+                new_status=ImageGroupStatus.CLEANUP_FAILED,
+            )
+            log_secure_info(
+                "warning",
+                f"Cleanup playbook failed for job_id={result.job_id}: "
+                f"error_code={result.error_code}, "
+                f"error_summary={result.error_summary}. ImageGroup transitioned "
+                f"to CLEANUP_FAILED (terminal state). Manual intervention required.",
+                job_id=str(result.job_id),
+            )
+            event_type = "JOB_CLEANUP_FAILED"
+
+        if hasattr(self._image_group_repo, "session"):
+            try:
+                self._image_group_repo.session.commit()
+            except Exception:  # pylint: disable=broad-except
+                # nosec B110 - Best-effort commit, failure is logged separately
+                pass
+
+        try:
+            event = AuditEvent(
+                event_id=str(self._uuid_generator.generate()),
+                job_id=result.job_id,
+                event_type=event_type,
+                correlation_id=(
+                    str(result.correlation_id)
+                    if getattr(result, "correlation_id", None)
+                    else str(self._uuid_generator.generate())
+                ),
+                client_id=result.job_id,
+                timestamp=datetime.now(timezone.utc),
+                details={
+                    "image_group_id": str(image_group.id),
+                    "status": result.status,
+                    "error_code": result.error_code,
+                    "error_summary": result.error_summary,
+                },
+            )
+            self._audit_repo.save(event)
+            if hasattr(self._audit_repo, "session"):
+                self._audit_repo.session.commit()
+        except Exception:  # pylint: disable=broad-except
+            log_secure_info(
+                "warning",
+                f"Failed to record cleanup-result audit event for "
+                f"job_id={result.job_id}",
+                job_id=str(result.job_id),
             )
 
     # ------------------------------------------------------------------
@@ -827,14 +987,14 @@ class ResultPoller:
             "test_summary": result.test_summary or {"total": 0, "passed": 0, "failed": 0, "skipped": 0, "errors": 0},
             "duration_seconds": result.duration_seconds,
             "artifact_dir": artifact_dir,
-            "log_path": str(Path(artifact_dir) / "molecule_output.log") if artifact_dir else "",
+            "log_path": str(Path(artifact_dir) / "validate_output.log") if artifact_dir else "",
             "report_path": str(Path(artifact_dir) / "test_report.json") if artifact_dir else "",
             "correlation_id": str(result.request_id),
         }
         if outcome == "FAILED":
             detail["error_message"] = (
                 result.error_summary
-                or f"Molecule exited with code {result.exit_code}"
+                or f"Test validation exited with code {result.exit_code}"
             )
         return detail
 

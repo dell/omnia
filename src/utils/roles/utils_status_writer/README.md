@@ -1,77 +1,52 @@
 # utils_status_writer
 
-Writes domain execution status and results to the status file contract.
+Writes and validates the project-scoped status contract for Utils playbooks.
 
-## Description
+## Output
 
-This role records the execution status, results, and any errors/warnings from utils domain playbooks. It implements the status file contract required for integration with `omnia.sh` orchestration framework.
+```text
+$OMNIA_DATA_PATH/utils/output/$OMNIA_PROJECT_NAME/utils_status.yml
+```
 
-## Requirements
+The file contains `utility`, `overall_status`, `playbook`, `version`, start/end
+timestamps, and optional role results, errors, and warnings. After writing, the
+role verifies that the file exists, is readable YAML, and includes required
+fields.
 
-- Write access to `${OMNIA_DATA_PATH}/utils/` directory
-- Execution context from parent playbook
-
-## Role Variables
-
-Available variables are listed below, along with default values (see `defaults/main.yml`):
+## Variables
 
 ```yaml
-# Status information
-utils_domain_status: "success"  # success, failure, in_progress
+utils_domain_status: "success"
 utils_playbook_name: ""
 utils_execution_start_time: ""
 utils_execution_end_time: ""
-
-# Results tracking
 utils_role_results: []
 utils_execution_errors: []
 utils_execution_warnings: []
-
-# Status file location
-utils_status_file_path: "{{ omnia_data_path }}/utils/utils_status.yml"
+omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+omnia_project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+utils_status_file_path: "{{ omnia_data_path }}/utils/output/{{ omnia_project_name }}/utils_status.yml"
 ```
+
+## Usage
+
+```yaml
+- name: Write execution status
+  ansible.builtin.include_role:
+    name: utils_status_writer
+  vars:
+    utils_domain_status: "success"
+    utils_playbook_name: "collect.yml"
+```
+
+The caller should set execution timestamps before invoking the role. The
+`utils.yml`, collection, OS-install, cleanup, and OIM-backup flows already do
+this.
 
 ## Dependencies
 
 None.
 
-## Example Playbook
-
-```yaml
-- hosts: localhost
-  connection: local
-  gather_facts: true
-  pre_tasks:
-    - name: Record playbook start time
-      ansible.builtin.set_fact:
-        utils_execution_start_time: "{{ ansible_date_time.iso8601 }}"
-
-  roles:
-    - role: some_utility_role
-
-  post_tasks:
-    - name: Record playbook end time
-      ansible.builtin.set_fact:
-        utils_execution_end_time: "{{ ansible_date_time.iso8601 }}"
-
-    - name: Write execution status
-      ansible.builtin.include_role:
-        name: utils_status_writer
-      vars:
-        utils_domain_status: "{{ 'success' if not ansible_failed_result else 'failure' }}"
-        utils_playbook_name: "collect.yml"
-```
-
-## Tasks
-
-- `main.yml` - Main orchestration
-- `write_status_file.yml` - Write status file in YAML format
-- `validate_status_file.yml` - Validate status file structure
-
 ## License
 
-Apache 2.0
-
-## Author Information
-
-Dell Technologies Omnia Team
+Apache License, Version 2.0

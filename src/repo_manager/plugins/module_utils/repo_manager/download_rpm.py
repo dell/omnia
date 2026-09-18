@@ -15,21 +15,106 @@
 # pylint: disable=import-error,no-name-in-module,too-many-positional-arguments,too-many-arguments
 """This module handles downloading RPM files for local repository"""
 
-import subprocess
-import os
 import glob
-from pathlib import Path
-from ansible.module_utils.repo_manager.config import (
-    DNF_COMMANDS,
-    DNF_INFO_COMMANDS
-)
+import os
+import subprocess
+import time
+from collections import OrderedDict
 from multiprocessing import Lock
-from ansible.module_utils.repo_manager.parse_and_download import write_status_to_file, _prefix_repo_name_with_arch
+from pathlib import Path
+
+from ansible.module_utils.repo_manager.config import PULP_DISTRIBUTION_ROOT_PARTS
+from ansible.module_utils.repo_manager.dnf_package_manager import (
+    build_dnf_download_command,
+    build_dnf_info_command,
+    validate_dnf_architecture,
+)
+from ansible.module_utils.repo_manager.rpm_package_processor import (
+    catalog_rpm_type,
+    partition_rpm_work,
+)
+from ansible.module_utils.repo_manager.pulp_commands import pulp_rpm_commands
+from ansible.module_utils.repo_manager.parse_and_download import (
+    _prefix_repo_name_with_arch,
+    write_status_to_file,
+)
 
 file_lock = Lock()
 
+# Per-repository locks for RPM operations
+_rpm_repository_locks = {}
+_rpm_locks_lock = Lock()
+
+
 # Cache for repo existence checks to avoid repeated Pulp API calls
 _repo_exists_cache = {}
+
+
+# A Pulp content worker can restart briefly while DNF is refreshing repository
+# metadata. Keep this retry local to DNF execution so genuine catalog or package
+# errors continue to fail without delay.
+DNF_TRANSIENT_RETRY_ATTEMPTS = 3
+DNF_TRANSIENT_RETRY_DELAY_SECONDS = 30
+
+_DNF_TRANSIENT_ERROR_MARKERS = (
+    "failed to download metadata for repo",
+    "cannot download repomd.xml",
+    "all mirrors were tried",
+    "connection refused",
+    "connection reset by peer",
+    "operation timed out",
+    "timeout was reached",
+    "service unavailable",
+    "bad gateway",
+    "gateway timeout",
+)
+
+_DNF_NON_RETRYABLE_ERROR_MARKERS = (
+    "no match for argument",
+    "unable to find a match",
+    "no package",
+    "checksum",
+    "digest mismatch",
+    "gpg check failed",
+)
+
+
+def _is_transient_dnf_failure(result):
+    """Return whether a failed DNF result indicates temporary unavailability."""
+    if result.returncode == 0:
+        return False
+
+    output = f"{result.stdout or ''}\n{result.stderr or ''}".lower()
+    if any(marker in output for marker in _DNF_NON_RETRYABLE_ERROR_MARKERS):
+        return False
+    return any(marker in output for marker in _DNF_TRANSIENT_ERROR_MARKERS)
+
+
+def _run_dnf_command(command, logger):
+    """Run DNF and retry only temporary repository-service failures."""
+    result = None
+    for attempt in range(1, DNF_TRANSIENT_RETRY_ATTEMPTS + 1):
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            shell=False,
+            text=True,
+        )
+        if not _is_transient_dnf_failure(result):
+            return result
+
+        if attempt < DNF_TRANSIENT_RETRY_ATTEMPTS:
+            logger.warning(
+                "DNF repository metadata is temporarily unavailable; "
+                "retrying in %d seconds (attempt %d/%d).",
+                DNF_TRANSIENT_RETRY_DELAY_SECONDS,
+                attempt + 1,
+                DNF_TRANSIENT_RETRY_ATTEMPTS,
+            )
+            time.sleep(DNF_TRANSIENT_RETRY_DELAY_SECONDS)
+
+    return result
 
 
 def _check_repo_exists_in_pulp(repo_name, logger):
@@ -49,7 +134,7 @@ def _check_repo_exists_in_pulp(repo_name, logger):
 
     try:
         result = subprocess.run(
-            ['pulp', 'rpm', 'repository', 'show', '--name', repo_name],
+            pulp_rpm_commands["show_repository"] % repo_name,
             capture_output=True, text=True, check=False
         )
         exists = result.returncode == 0
@@ -57,8 +142,8 @@ def _check_repo_exists_in_pulp(repo_name, logger):
         if not exists:
             logger.warning(f"Repository '{repo_name}' does not exist in Pulp")
         return exists
-    except Exception as e:
-        logger.error(f"Error checking repository existence: {e}")
+    except Exception:
+        logger.error("Unable to check whether the RPM repository exists")
         _repo_exists_cache[repo_name] = False
         return False
 
@@ -94,8 +179,274 @@ def _check_rpm_downloaded(rpm_directory, pkg_name):
     return False
 
 
+def _catalog_repo_priority_option(pkg_name, repo_mapping, status_file_path, logger):
+    """Prefer the package's catalog-mapped Pulp repo while resolving dependencies."""
+    repo_name = repo_mapping.get(pkg_name, "")
+    if not repo_name:
+        return None
+    prefixed_repo_name = _prefix_repo_name_with_arch(
+        repo_name, status_file_path, logger
+    )
+    return f"--setopt={prefixed_repo_name}.priority=1"
+
+
+def _group_rpms_by_catalog_repo(rpm_list, repo_mapping, status_file_path, logger):
+    """Group packages so every DNF invocation has one preferred source repo."""
+    grouped = OrderedDict()
+    for pkg_name in rpm_list:
+        priority_option = _catalog_repo_priority_option(
+            pkg_name, repo_mapping, status_file_path, logger
+        )
+        grouped.setdefault(priority_option, []).append(pkg_name)
+    return grouped
+
+
+def _build_dnf_download_command(
+        arch_key, repo_store_path, rpm_directory, packages, os_type,
+        os_version,
+        preferred_repo_option=None):
+    """Compatibility wrapper around the DNF package-manager implementation."""
+    return build_dnf_download_command(
+        repo_store_path, os_type, os_version, arch_key, rpm_directory,
+        packages, preferred_repo_option
+    )
+
+
+def _validated_dnf_architecture(architecture):
+    """Compatibility wrapper for callers and existing tests."""
+    return validate_dnf_architecture(architecture)
+
+
+def _catalog_package_type(package_name, rpm_type_mapping):
+    """Compatibility wrapper for callers and existing tests."""
+    return catalog_rpm_type(package_name, rpm_type_mapping)
+
+
+def _write_rpm_status(status_file_path, package_name, status, logger,
+                      repo_mapping, rpm_type_mapping):
+    """Write status using the package's original catalog identity."""
+    write_status_to_file(
+        status_file_path,
+        package_name,
+        _catalog_package_type(package_name, rpm_type_mapping),
+        status,
+        logger,
+        file_lock,
+        repo_mapping.get(package_name, ""),
+    )
+
+
+def _download_rpm_packages(
+        rpm_list, repo_store_path, status_file_path, cluster_os_type,
+        cluster_os_version, arc, logger, repo_mapping, rpm_type_mapping,
+        require_mapped_repo=False):
+    """Download requested RPMs and dependencies through architecture-scoped Pulp repos."""
+    sw_json_name = Path(status_file_path).parent.name
+    rpm_directory = os.path.join(
+        repo_store_path, *PULP_DISTRIBUTION_ROOT_PARTS, arc.lower(),
+        cluster_os_type, cluster_os_version, 'rpm', sw_json_name
+    )
+    logger.info("rpm_dir %s", rpm_directory)
+    os.makedirs(rpm_directory, exist_ok=True)
+
+    arch_key = _validated_dnf_architecture(arc)
+    download_candidates = []
+    failed = []
+
+    for pkg in rpm_list:
+        pkg_repo_name = repo_mapping.get(pkg, "")
+        if require_mapped_repo and not pkg_repo_name:
+            failed.append(pkg)
+            _write_rpm_status(
+                status_file_path, pkg, "Failed", logger,
+                repo_mapping, rpm_type_mapping
+            )
+            logger.error(
+                "Package '%s' cannot be downloaded because its catalog source "
+                "does not define repo_name", pkg
+            )
+            continue
+
+        if require_mapped_repo:
+            prefixed_repo_name = _prefix_repo_name_with_arch(
+                pkg_repo_name, status_file_path, logger
+            )
+            if not _check_repo_exists_in_pulp(prefixed_repo_name, logger):
+                failed.append(pkg)
+                _write_rpm_status(
+                    status_file_path, pkg, "Failed", logger,
+                    repo_mapping, rpm_type_mapping
+                )
+                logger.error(
+                    "Package '%s' cannot be downloaded because repository '%s' "
+                    "does not exist in Pulp", pkg, prefixed_repo_name
+                )
+                continue
+
+        download_candidates.append(pkg)
+
+    command_results = {}
+    grouped_rpms = _group_rpms_by_catalog_repo(
+        download_candidates, repo_mapping, status_file_path, logger
+    )
+    for preferred_repo_option, repo_rpms in grouped_rpms.items():
+        dnf_download_command = _build_dnf_download_command(
+            arch_key, repo_store_path, rpm_directory, repo_rpms,
+            cluster_os_type, cluster_os_version, preferred_repo_option
+        )
+        logger.info("Executing command: %s", " ".join(dnf_download_command))
+        result = _run_dnf_command(dnf_download_command, logger)
+        logger.info("Return code: %s", result.returncode)
+        if result.returncode != 0 and result.stderr and result.stderr.strip():
+            logger.error("STDERR: %s", result.stderr.strip())
+        logger.debug("STDOUT:\n%s", result.stdout)
+        logger.debug("STDERR:\n%s", result.stderr)
+        for pkg in repo_rpms:
+            command_results[pkg] = result
+
+    downloaded = []
+    retry_packages = []
+    for pkg in download_candidates:
+        pkg_result = command_results[pkg]
+        stderr_lines = (pkg_result.stderr or "").splitlines()
+        pkg_not_found = any(
+            pkg in line and (
+                "No match for argument" in line
+                or "No package" in line
+                or "not found" in line.lower()
+            )
+            for line in stderr_lines
+        )
+        if _check_rpm_downloaded(rpm_directory, pkg) and not pkg_not_found:
+            downloaded.append(pkg)
+            _write_rpm_status(
+                status_file_path, pkg, "Success", logger,
+                repo_mapping, rpm_type_mapping
+            )
+            logger.info("Package '%s' downloaded successfully.", pkg)
+        else:
+            retry_packages.append(pkg)
+            if pkg_not_found:
+                logger.warning(
+                    "Package '%s' not found in configured repositories", pkg
+                )
+
+    if retry_packages:
+        logger.warning("Retrying failed packages individually: %s", retry_packages)
+    for pkg in retry_packages:
+        preferred_repo_option = _catalog_repo_priority_option(
+            pkg, repo_mapping, status_file_path, logger
+        )
+        command = _build_dnf_download_command(
+            arch_key, repo_store_path, rpm_directory, [pkg],
+            cluster_os_type, cluster_os_version, preferred_repo_option
+        )
+        logger.info("Executing command: %s", " ".join(command))
+        retry_result = _run_dnf_command(command, logger)
+        logger.info("Return code: %s", retry_result.returncode)
+        if (retry_result.returncode != 0 and retry_result.stderr
+                and retry_result.stderr.strip()):
+            logger.error("STDERR: %s", retry_result.stderr.strip())
+
+        retry_stderr = (retry_result.stderr or "").lower()
+        pkg_invalid = any(error in retry_stderr for error in (
+            "no match for argument", "no package", "not found",
+            "unable to find a match"
+        ))
+        if (retry_result.returncode == 0
+                and _check_rpm_downloaded(rpm_directory, pkg)):
+            downloaded.append(pkg)
+            _write_rpm_status(
+                status_file_path, pkg, "Success", logger,
+                repo_mapping, rpm_type_mapping
+            )
+            logger.info("Package '%s' downloaded successfully on retry.", pkg)
+        else:
+            failed.append(pkg)
+            _write_rpm_status(
+                status_file_path, pkg, "Failed", logger,
+                repo_mapping, rpm_type_mapping
+            )
+            if pkg_invalid:
+                logger.error(
+                    "Package '%s' does not exist in configured repositories.", pkg
+                )
+            else:
+                logger.error("Package '%s' still failed after retry.", pkg)
+
+    return downloaded, failed
+
+
+def _validate_rpm_packages(
+        rpm_list, repo_store_path, status_file_path, cluster_os_type,
+        cluster_os_version, arc, logger,
+        repo_mapping, rpm_type_mapping):
+    """Validate ordinary partial-policy RPMs without downloading their payloads."""
+    arch_key = _validated_dnf_architecture(arc)
+    valid_packages = []
+    invalid_packages = []
+
+    for pkg in rpm_list:
+        pkg_repo_name = repo_mapping.get(pkg, "")
+        if not pkg_repo_name:
+            invalid_packages.append(pkg)
+            _write_rpm_status(
+                status_file_path, pkg, "Failed", logger,
+                repo_mapping, rpm_type_mapping
+            )
+            logger.error(
+                "Package '%s' cannot be validated because its catalog source "
+                "does not define repo_name", pkg
+            )
+            continue
+
+        prefixed_repo_name = _prefix_repo_name_with_arch(
+            pkg_repo_name, status_file_path, logger
+        )
+        if not _check_repo_exists_in_pulp(prefixed_repo_name, logger):
+            invalid_packages.append(pkg)
+            _write_rpm_status(
+                status_file_path, pkg, "Failed", logger,
+                repo_mapping, rpm_type_mapping
+            )
+            logger.error(
+                "Package '%s' skipped - repository '%s' does not exist in Pulp. "
+                "Please sync the repository first.", pkg, prefixed_repo_name
+            )
+            continue
+
+        dnf_info_command = build_dnf_info_command(
+            repo_store_path, cluster_os_type, cluster_os_version, arch_key,
+            prefixed_repo_name, pkg
+        )
+        logger.info("Executing command: %s", " ".join(dnf_info_command))
+        result = _run_dnf_command(dnf_info_command, logger)
+        logger.info("Return code: %s", result.returncode)
+        if result.returncode != 0 and result.stderr and result.stderr.strip():
+            logger.error("STDERR: %s", result.stderr.strip())
+        if result.returncode == 0:
+            valid_packages.append(pkg)
+            _write_rpm_status(
+                status_file_path, pkg, "Success", logger,
+                repo_mapping, rpm_type_mapping
+            )
+            logger.info("Package '%s' validated successfully", pkg)
+        else:
+            invalid_packages.append(pkg)
+            _write_rpm_status(
+                status_file_path, pkg, "Failed", logger,
+                repo_mapping, rpm_type_mapping
+            )
+            logger.error(
+                "Package '%s' validation failed. Package may not exist in "
+                "repository '%s'.", pkg, prefixed_repo_name
+            )
+
+    return valid_packages, invalid_packages
+
+
 def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
-               cluster_os_version, repo_config_value, arc, logger):
+                cluster_os_version, repo_config_value, arc, logger):
     """
         Downloads RPMs using DNF based on repo configuration, retries failures,
         writes status to file, and returns overall status: Success, Partial, or Failed.
@@ -105,7 +456,7 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
             status_file_path (str): CSV path to record RPM download status.
             cluster_os_type (str): OS type (e.g., "rhel").
             cluster_os_version (str): OS version (e.g., "9.2").
-            repo_config_value (str): Repo mode: "always", "partial"
+            repo_config_value (str): Global fallback mode for legacy RPM tasks.
             arc (str): Architecture ("x86_64" or "aarch64").
             logger (Logger): Logger instance.
 
@@ -113,202 +464,67 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
             str: "Success", "Partial", or "Failed".
     """
 
-    logger.info("#" * 30 + f" {process_rpm.__name__} start " + "#" * 30)
+    logger.info(f"--- {process_rpm.__name__} START ---")
+    status = "Failed"
 
     try:
-        # Get repo_mapping for individual RPM repo names
         repo_mapping = package.get("repo_mapping", {})
+        rpm_type_mapping = package.get("rpm_type_mapping", {})
+        rpm_policy_mapping = package.get("rpm_policy_mapping", {})
+        rpm_list = list(dict.fromkeys(package["rpm_list"]))
+        logger.info("%s - List of rpms is %s", package["package"], rpm_list)
 
-        if repo_config_value == "always":
-            rpm_list = list(set(package["rpm_list"]))
-            logger.info(f"{package['package']} - List of rpms is {rpm_list}")
-
-            sw_json_name = Path(status_file_path).parent.name
-            logger.info(f"Software rpms : {sw_json_name}")
-
-            rpm_directory = os.path.join(
-                repo_store_path, 'offline_repo',
-                'cluster', arc.lower(), cluster_os_type, cluster_os_version, 'rpm', sw_json_name
+        download_packages, validation_packages, require_mapped_repo = (
+            partition_rpm_work(
+                rpm_list, rpm_type_mapping, repo_config_value,
+                rpm_policy_mapping
             )
-            logger.info(f"rpm_dir {rpm_directory}")
-            os.makedirs(rpm_directory, exist_ok=True)
+        )
+        logger.info(
+            "Effective RPM policies: downloading %d package(s) with dependencies "
+            "and validating %d package(s) with dnf info",
+            len(download_packages), len(validation_packages)
+        )
 
-            arch_key = "x86_64" if arc.lower() in ("x86_64") else "aarch64"
-
-           # First try to download all at once
-            dnf_download_command = (
-                DNF_COMMANDS[arch_key]
-                + [f"--destdir={rpm_directory}"]
-                + rpm_list
+        successful_packages = []
+        failed_packages = []
+        if download_packages:
+            downloaded, download_failed = _download_rpm_packages(
+                download_packages, repo_store_path, status_file_path,
+                cluster_os_type, cluster_os_version, arc, logger,
+                repo_mapping, rpm_type_mapping, require_mapped_repo
             )
+            successful_packages.extend(downloaded)
+            failed_packages.extend(download_failed)
 
-            result = subprocess.run(
-                dnf_download_command,
-                check=False,
-                capture_output=True,
-                text=True
+        if validation_packages:
+            validated, validation_failed = _validate_rpm_packages(
+                validation_packages, repo_store_path, status_file_path,
+                cluster_os_type, cluster_os_version, arc, logger,
+                repo_mapping, rpm_type_mapping
             )
-            logger.info(f"Return code {result.returncode}")
-            logger.debug(f"STDOUT:\n{result.stdout}")
-            logger.debug(f"STDERR:\n{result.stderr}")
+            successful_packages.extend(validated)
+            failed_packages.extend(validation_failed)
 
-            stderr_lines = result.stderr.splitlines()
-
-            downloaded = []
-            failed = []
-
-            # Detect successes/failures from combined run
-            # Use filesystem check instead of parsing output (works with both DNF4 and DNF5)
-            for pkg in rpm_list:
-                # Get repo_name for this specific RPM from mapping
-                pkg_repo_name = repo_mapping.get(pkg, "")
-
-                # Check if package was downloaded by looking for the RPM file
-                pkg_downloaded = _check_rpm_downloaded(rpm_directory, pkg)
-
-                # Also check for "No match for argument" or "No package" errors in stderr
-                pkg_not_found = False
-                for line in stderr_lines:
-                    if pkg in line and ("No match for argument" in line or
-                                       "No package" in line or
-                                       "not found" in line.lower()):
-                        pkg_not_found = True
-                        break
-
-                if pkg_downloaded and not pkg_not_found:
-                    downloaded.append(pkg)
-                    write_status_to_file(status_file_path, pkg, "rpm", "Success", logger, file_lock, pkg_repo_name)
-                    logger.info(f"Package '{pkg}' downloaded successfully.")
-                else:
-                    failed.append(pkg)
-                    if pkg_not_found:
-                        logger.warning(f"Package '{pkg}' not found in configured repositories")
-
-            # Retry failed ones individually
-            if failed:
-                logger.warning(f"Retrying failed packages individually: {failed}")
-                for pkg in failed[:]:
-                    cmd = DNF_COMMANDS[arch_key] + [f'--destdir={rpm_directory}', pkg]
-                    retry_res = subprocess.run(cmd, check=False, capture_output=True, text=True)
-                    # Get repo_name for this specific RPM from mapping
-                    pkg_repo_name = repo_mapping.get(pkg, "")
-
-                    # Check for package not found errors
-                    retry_stderr = retry_res.stderr.lower()
-                    pkg_invalid = any(err in retry_stderr for err in [
-                        "no match for argument",
-                        "no package",
-                        "not found",
-                        "unable to find a match"
-                    ])
-
-                    # Check if RPM file exists after retry (works with both DNF4 and DNF5)
-                    if retry_res.returncode == 0 and _check_rpm_downloaded(rpm_directory, pkg):
-                        downloaded.append(pkg)
-                        failed.remove(pkg)
-                        write_status_to_file(status_file_path, pkg, "rpm", "Success", logger, file_lock, pkg_repo_name)
-                        logger.info(f"Package '{pkg}' downloaded successfully on retry.")
-                    else:
-                        write_status_to_file(status_file_path, pkg, "rpm", "Failed", logger, file_lock, pkg_repo_name)
-                        if pkg_invalid:
-                            logger.error(f"Package '{pkg}' does not exist in configured repositories.")
-                        else:
-                            logger.error(f"Package '{pkg}' still failed after retry.")
-
-            # Determine final status
-            if not failed:
-                status = "Success"
-            elif downloaded:
-                status = "Partial"
-            else:
-                status = "Failed"
-
+        if not failed_packages and len(successful_packages) == len(rpm_list):
+            status = "Success"
+        elif successful_packages:
+            status = "Partial"
         else:
-            logger.info("RPM won't be downloaded when repo_config is partial or never")
-            logger.info("Validating package availability using dnf info...")
+            status = "Failed"
 
-            arch_key = "x86_64" if arc.lower() in ("x86_64") else "aarch64"
-            valid_packages = []
-            invalid_packages = []
-
-            for pkg in package["rpm_list"]:
-                # Get repo_name for this specific RPM from mapping
-                pkg_repo_name = repo_mapping.get(pkg, "")
-
-                # Validate package using dnf info with specific repo only
-                if pkg_repo_name:
-                    # Apply architecture prefixing if needed
-                    prefixed_repo_name = _prefix_repo_name_with_arch(pkg_repo_name, status_file_path, logger)
-
-                    # Check if repo exists in Pulp before attempting validation
-                    if not _check_repo_exists_in_pulp(prefixed_repo_name, logger):
-                        invalid_packages.append(pkg)
-                        write_status_to_file(
-                            status_file_path, pkg, "rpm", "Failed",
-                            logger, file_lock, pkg_repo_name
-                        )
-                        logger.error(
-                            f"Package '{pkg}' skipped - repository '{prefixed_repo_name}' "
-                            f"does not exist in Pulp. Please sync the repository first."
-                        )
-                        continue
-
-                    dnf_info_command = DNF_INFO_COMMANDS[arch_key] + [
-                        f"--repo={prefixed_repo_name}",  # Search specific repo from JSON
-                        pkg
-                    ]
-                else:
-                    # Skip validation if no specific repo is defined
-                    logger.warning(f"No repo_name defined for package '{pkg}', skipping validation")
-                    continue
-                result = subprocess.run(
-                    dnf_info_command,
-                    check=False,
-                    capture_output=True,
-                    text=True
-                )
-                if result.returncode == 0:
-                    # Package exists and is available
-                    valid_packages.append(pkg)
-                    write_status_to_file(
-                        status_file_path, pkg, "rpm", "Success",
-                        logger, file_lock, pkg_repo_name
-                    )
-                    logger.info(f"Package '{pkg}' validated successfully")
-                else:
-                    # Package not found or invalid
-                    invalid_packages.append(pkg)
-                    write_status_to_file(
-                        status_file_path, pkg, "rpm", "Failed",
-                        logger, file_lock, pkg_repo_name
-                    )
-                    logger.error(
-                        f"Package '{pkg}' validation failed. "
-                        f"Package may not exist in repository '{prefixed_repo_name}'."
-                    )
-
-            # Determine final status based on validation results
-            if not invalid_packages:
-                status = "Success"
-            elif valid_packages:
-                status = "Partial"
-            else:
-                status = "Failed"
-
-            logger.info(
-                f"Validation complete - Valid: {len(valid_packages)}, "
-                f"Invalid: {len(invalid_packages)}"
-            )
-
-    except Exception as e:
-        logger.error(f"Exception occurred: {e}")
+    except Exception:
+        logger.error("RPM package processing failed")
         status = "Failed"
+        repo_mapping = package.get("repo_mapping", {})
+        rpm_type_mapping = package.get("rpm_type_mapping", {})
         for pkg in package.get("rpm_list", []):
-            # Get repo_name for this specific RPM from mapping
-            pkg_repo_name = repo_mapping.get(pkg, "")
-            write_status_to_file(status_file_path, pkg, "rpm", "Failed", logger, file_lock, pkg_repo_name)
+            _write_rpm_status(
+                status_file_path, pkg, "Failed", logger,
+                repo_mapping, rpm_type_mapping
+            )
 
     finally:
         logger.info(f"Overall status for {package['package']}: {status}")
-        logger.info("#" * 30 + f" {process_rpm.__name__} end " + "#" * 30)
+        logger.info(f"--- {process_rpm.__name__} END ---")
     return status

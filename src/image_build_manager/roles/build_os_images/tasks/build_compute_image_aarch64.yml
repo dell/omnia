@@ -51,7 +51,7 @@
         mode: "{{ dir_permissions_644 }}"
       vars:
         _layer_rhel_tag: "{{ item.value.os_version | default(rhel_tag, true) }}"
-        rhel_base_compute_image_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix }}"
+        rhel_base_compute_image_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix }}{{ _build_type_suffix }}"
         rhel_tag: "{{ _layer_rhel_tag }}"
         group_name: "{{ item.key }}"
         compute_packages: "{{ item.value.packages }}"
@@ -63,12 +63,19 @@
       connection: ssh
 
     # --- Compute image cache check ---
+    # Include the build engine so switching between image-builder and
+    # image-thrillhouse triggers the required rebuild.
     - name: Compute per-group package hashes
       ansible.builtin.set_fact:
         _compute_pkg_hashes: >-
           {% set result = {} -%}
           {% for fg_name, fg_data in compute_images_dict.items() -%}
-            {% set _ = result.update({fg_name: (fg_data.packages | sort | join(',') | hash('sha256'))}) -%}
+            {% set cache_input = (fg_data.packages | sort | join(','))
+              ~ '|repos:' ~ _repo_config_hash
+              ~ '|image_build_type:' ~ _image_build_type -%}
+            {% set _ = result.update({
+              fg_name: cache_input | hash('sha256')
+            }) -%}
           {% endfor -%}
           {{ result }}
 
@@ -129,7 +136,7 @@
     # Backup rootfs (boot-images/{group}/{image_name}/)
     - name: Backup aarch64 compute rootfs images in S3
       vars:
-        _img_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}"
+        _img_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }}"
         _s3_bucket: "{{ s3_configurations.bucket | default('boot-images') }}"
         _s3_src: "s3://{{ _s3_bucket }}/{{ item.key }}/{{ _img_name }}/"
         _s3_dst: "s3://{{ _s3_bucket }}/{{ item.key }}/{{ _img_name }}_prev/"
@@ -149,7 +156,7 @@
     # Backup kernel+initrd (efi-images/{group}/{image_name}/)
     - name: Backup aarch64 compute EFI images in S3
       vars:
-        _img_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}"
+        _img_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }}"
         _s3_bucket: "{{ s3_configurations.bucket | default('boot-images') }}"
         _s3_src: "s3://{{ _s3_bucket }}/efi-images/{{ item.key }}/{{ _img_name }}/"
         _s3_dst: "s3://{{ _s3_bucket }}/efi-images/{{ item.key }}/{{ _img_name }}_prev/"
@@ -190,7 +197,7 @@
             item.value.os_version | default(rhel_tag, true) }}.yaml:{{ _config_mount_path }}:z
             {{ ochami_image | join(' ') }}
             {{ ochami_base_command | join(' ') }}
-          log_path: "{{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log"
+          log_path: "{{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix }}{{ _build_type_suffix }}_compute_image.log"
       loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
       loop_control:
         loop_var: item
@@ -250,16 +257,79 @@
       ansible.builtin.debug:
         msg: "{{ verify_compute_osimages.stdout_lines }}"
 
+    # Registry verification uses prefix matching to handle catalog ID changes.
+    # When a build is cached (packages unchanged), old images remain in the
+    # registry with the previous catalog suffix. Exact-name matching would
+    # fail because compute_image_suffix reflects the *current* catalog ID.
+    # Prefix match: host_name/rhel-{group_key}_omnia_{version}  covers any suffix.
     - name: Verify each aarch64 compute image exists in registry
       ansible.builtin.fail:
         msg: >-
-          Compute image not found in registry:
-          {{ host_name }}/rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}.
-          Check log: {{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix | default('') }}_compute_image.log
+          Compute image not found in registry for group {{ item.key }}.
+          Expected prefix: {{ host_name }}/rhel-{{ item.key }}{{ omnia_suffix }}.
+          Registry repos: {{ verify_compute_osimages.stdout_lines | default([]) }}.
+          Check logs: ls {{ image_build_log_dir }}/{{ item.key }}*_compute_image.log
       when: >-
-        (host_name + '/rhel-' + item.key + omnia_suffix + (compute_image_suffix | default('')))
-        not in verify_compute_osimages.stdout_lines
+        verify_compute_osimages.stdout_lines | default([])
+        | select('match', '^' + host_name + '/rhel-' + item.key + omnia_suffix + '.*' + _build_type_suffix + '$')
+        | list | length == 0
       loop: "{{ compute_images_dict | dict2items }}"
       loop_control:
         loop_var: item
         label: "{{ item.key }}"
+
+    - name: Verify aarch64 compute images have tags in registry
+      ansible.builtin.shell: |
+        /usr/local/bin/regctl tag ls \
+          {{ registry_host }}:5000/{{ host_name }}/rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }} \
+          2>/dev/null
+      delegate_to: "{{ aarch64_build_host }}"
+      connection: ssh
+      changed_when: false
+      failed_when: false
+      register: _compute_tag_check
+      loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
+      loop_control:
+        loop_var: item
+        label: "{{ item.key }}"
+
+    - name: Fail if aarch64 compute image has no tags
+      ansible.builtin.fail:
+        msg: >-
+          Compute image {{ host_name }}/rhel-{{ item.item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }}
+          exists in registry but has no tags.
+          Check logs: ls {{ image_build_log_dir }}/{{ item.item.key }}*_compute_image.log
+      when: item.stdout_lines | default([]) | length == 0
+      loop: "{{ _compute_tag_check.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+
+    # --- S3 verification (runs on localhost where s3cmd is installed) ---
+    - name: Verify aarch64 compute images exist in S3
+      ansible.builtin.shell: |
+        set -o pipefail
+        s3cmd ls -r \
+          s3://{{ s3_configurations.bucket | default('boot-images') }}/{{ item.key }}/ \
+          2>/dev/null | grep -c 'rhel-{{ item.key }}' || echo 0
+      args:
+        executable: /bin/bash
+      delegate_to: localhost
+      connection: local
+      changed_when: false
+      failed_when: false
+      register: _compute_s3_check
+      loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
+      loop_control:
+        loop_var: item
+        label: "{{ item.key }}"
+
+    - name: Fail if aarch64 compute image not in S3
+      ansible.builtin.fail:
+        msg: >-
+          Compute image for group {{ item.item.key }} not found in
+          s3://{{ s3_configurations.bucket | default('boot-images') }}/{{ item.item.key }}/.
+          Check logs: ls {{ image_build_log_dir }}/{{ item.item.key }}*_compute_image.log
+      when: (item.stdout | default('0') | trim | int) == 0
+      loop: "{{ _compute_s3_check.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.key }}"

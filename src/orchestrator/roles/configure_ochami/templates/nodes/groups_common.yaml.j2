@@ -1,6 +1,6 @@
 - label: {{ common_group_name }}
   members:
     ids:
-{% for item in nodes | sort(attribute='value.XNAME') %}
+{% for item in common_group_nodes | sort(attribute='value.XNAME') %}
       - {{ item.value.XNAME }}
 {% endfor %}

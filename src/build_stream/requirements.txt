@@ -1,33 +1,23 @@
-# Core dependencies for Build Stream API
-# Install with: pip install -r requirements.txt
+# =============================================================================
+# Build Stream — Python Requirements
+# =============================================================================
+# Install into the shared Omnia venv:
+#   ./src/main/omnia.sh --setup-venv
+# Or manually:
+#   pip install -r requirements.txt
+#
+# NOTE: FastAPI / web-service dependencies (fastapi, uvicorn, sqlalchemy,
+#       alembic, etc.) are managed separately via pyproject.toml + uv.lock
+#       in containers/omnia_build_stream/ and installed into the container
+#       image at build time. Only shared-venv dependencies needed by
+#       Ansible playbooks, custom modules, and the playbook watcher are
+#       listed here.
+# =============================================================================
 
-# Web framework
-fastapi>=0.104.0
-uvicorn>=0.24.0
-pydantic>=2.5.0
+# --- Core Ansible ---
+ansible-core>=2.20
 
-# Authentication
-PyJWT>=2.8.0
+# --- Python Libraries ---
+PyYAML>=6.0.3
+jsonschema>=4.17
 cryptography>=48.0.0
-argon2-cffi>=23.1.0
-
-# Dependency injection
-dependency-injector>=4.41.0
-
-# Vault integration
-pyyaml>=6.0.0
-ansible>=8.0.0
-
-# Form data handling
-python-multipart>=0.0.6
-
-# HTTP client
-httpx>=0.25.0
-
-# JSON Schema validation
-jsonschema>=4.20.0
-
-# Database
-sqlalchemy>=2.0.0
-psycopg2-binary>=2.9.0
-alembic>=1.13.0

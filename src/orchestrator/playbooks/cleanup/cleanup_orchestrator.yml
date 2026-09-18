@@ -1,0 +1,85 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Component-level orchestrator cleanup — run this playbook directly when you
+# want to clean specific components. It is deliberately NOT imported by
+# orchestrator.yml; orchestrator.yml imports cleanup_full.yml instead, which
+# exposes only the 'cleanup' and 'cleanup_credentials' tags.
+#
+# USAGE:
+#   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml
+#       No tags: cleans every enabled component, including credentials.
+#   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml \
+#       -e cleanup_credentials=false
+#       No tags: cleans every other enabled component and preserves credentials.
+#   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags slurm
+#   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags k8s
+#   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags openchami
+#   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags openldap
+#   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags storage_mounts
+#   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags artifacts
+#   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags cleanup_credentials
+#
+# STORAGE ORDERING:
+#   Slurm and K8s remove shared data while its NFS mount is available, then
+#   invoke scoped storage-mount cleanup. This prevents premature unmounting.
+#
+# AVAILABLE COMPONENTS:
+#   openchami      - OpenCHAMI services, containers, configuration, artifacts
+#   openldap       - OpenLDAP container, Quadlet units, and data
+#   slurm          - Slurm configuration and NFS directories
+#   k8s            - K8s configuration and NFS directories
+#   storage_mounts - NFS storage mount unmounting and fstab cleanup
+#   artifacts      - Orchestrator artifacts and state files
+#   credentials    - Credential files (default in full cleanup; directly selectable)
+#
+# ENVIRONMENT:
+#   DRY_RUN=true        Report intended actions without changing anything
+#   SKIP_APPROVAL=true  Skip interactive confirmation prompts
+
+- name: Orchestrator Cleanup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    skip_approval: "{{ lookup('env', 'SKIP_APPROVAL') | default('false', true) | bool }}"
+    dry_run: "{{ lookup('env', 'DRY_RUN') | default('false', true) | bool }}"
+
+  tasks:
+    # 'apply' is required: tags on include_tasks are not inherited by the
+    # included tasks, so without it a tagged run includes the file but skips
+    # everything in it.
+    - name: Run orchestrator cleanup
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/tasks/prepare_and_select.yml"
+        apply:
+          tags:
+            - cleanup
+            - cleanup_credentials
+            - openchami
+            - openldap
+            - slurm
+            - k8s
+            - storage_mounts
+            - artifacts
+      tags:
+        - cleanup
+        - cleanup_credentials
+        - openchami
+        - openldap
+        - slurm
+        - k8s
+        - storage_mounts
+        - artifacts

@@ -1,49 +1,65 @@
 # slurm_config_rollback
 
-Rollback Slurm configuration files from previous backups.
+Restores a previous Slurm configuration backup and reconfigures the running
+Slurm controller.
 
 ## Description
 
-This role restores Slurm configuration files from timestamped backups created by the slurm_config_backup role. It supports selective rollback of specific configuration files and validation of restored configurations.
-
-## Requirements
-
-- Previous backups created by slurm_config_backup role
-- Administrative privileges for Slurm configuration modification
-- Slurm services should be stopped during rollback
+Includes `slurm_config_common` to resolve the controller and backup
+destination, lists available backups (latest first), validates backup
+integrity (`slurm.conf`, `slurmdbd.conf`, `cgroup.conf`, `gres.conf`,
+`munge.key`), optionally creates a safety backup, restores the config
+directories, detects and remounts any stale NFS mounts on the controller
+(`/etc/slurm`, `/etc/munge`, `/etc/my.cnf.d`) caused by directory recreation
+during restore (using `ansible.posix.mount` with `state: remount`), fixes file
+permissions on the controller (`slurmdbd.conf`: `0600`, `munge.key`: `0400`),
+restarts `slurmdbd` if its config changed, and runs `scontrol reconfigure`.
 
 ## Role Variables
 
-Available variables are listed below, along with default values (see `defaults/main.yml`):
+Role-local (see `defaults/main.yml`):
 
 ```yaml
-# Rollback configuration
-backup_dir: "/opt/omnia/backups/slurm"
-rollback_timestamp: ""  # Specific backup to restore (latest if empty)
-validate_after_rollback: true
-
-# Service management
-restart_slurm_services: true
-stop_services_before_rollback: true
-service_restart_delay: 30
+# Optional: pre-set to skip the interactive prompts (e.g. for automation)
+backup_choice_input: "1"                  # index into the displayed backup list
+continue_missing_confs_input: "y"
+continue_missing_munge_key_input: "y"
+continue_missing_input: "y"
+pre_rollback_backup_choice_input: "y"
 ```
+
+Shared (see `slurm_config_common`):
+
+```yaml
+rollback_backup_list_limit: 20            # max backups shown (latest first)
+```
+
+## Failure Handling
+
+- Fails fast if the selected backup is missing `slurm.conf`.
+- Warns (with continue prompt) for other missing files/directories.
+- If a controller NFS mount is still stale after the automatic remount
+  attempt, the task fails with guidance to remount manually and re-run.
+- If `slurmctld` is not running, or `scontrol reconfigure` fails, the task
+  fails with recovery guidance — the on-disk restore has already completed.
 
 ## Dependencies
 
-- Requires backups created by `slurm_config_backup` role
+- `slurm_config_common` (included automatically)
+- `slurm_config_backup` (included conditionally, for the pre-rollback safety backup)
 
 ## Example Playbook
 
 ```yaml
-- hosts: slurm_controllers
-  become: true
+- hosts: localhost
+  gather_facts: true
   roles:
     - role: slurm_config_rollback
-      vars:
-        backup_dir: "/opt/omnia/backups/slurm"
-        rollback_timestamp: "2026-08-03_14-30-15"
-        validate_after_rollback: true
-        restart_slurm_services: true
+```
+
+```bash
+cd src/utils
+ansible-playbook playbooks/slurm_config_util/slurm_config_util.yml --tags slurm_config_rollback
 ```
 
 ## License

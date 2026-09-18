@@ -14,14 +14,14 @@
 ---
 namespace: omnia
 name: telemetry
-version: 3.0.0
+version: 2.3.0
 readme: README.md
 authors:
   - Dell Technologies <omnia-support@dell.com>
 description: >-
   Dell Omnia Telemetry — deploys and manages a telemetry stack for HPC and AI
   clusters. Supports VictoriaMetrics, VictoriaLogs, Kafka (Strimzi), LDMS,
-  iDRAC, DCGM, UFM, OME, PowerScale, PowerVault, VAST, SFM, and Skyway
+  iDRAC, UFM, OME, PowerScale, and VAST
   telemetry sources with tag-based deployment and cleanup.
 license:
   - Apache-2.0

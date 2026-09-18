@@ -46,6 +46,14 @@
     mode: "0644"
     force: true
 
+- name: Render MySQL credentials secret
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/telemetry_secret_creation.yaml.j2"
+    dest: "{{ telemetry_deployments_dir }}/idrac/telemetry_secret_creation.yaml"
+    mode: "0600"
+    force: true
+  no_log: true
+
 - name: Render iDRAC kustomization
   ansible.builtin.template:
     src: "{{ role_path }}/templates/kustomization.yaml.j2"

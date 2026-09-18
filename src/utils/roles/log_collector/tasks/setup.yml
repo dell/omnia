@@ -14,12 +14,32 @@
 
 ---
 
+# Load environment variables
+- name: Resolve configuration from environment
+  ansible.builtin.set_fact:
+    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+    project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+    cacheable: true
+
+# Derive paths from environment
+- name: Set domain paths
+  ansible.builtin.set_fact:
+    input_project_dir: "{{ omnia_data_path }}/{{ domain_name }}/input/{{ project_name }}"
+    output_project_dir: "{{ omnia_data_path }}/{{ domain_name }}/output/{{ project_name }}"
+    cacheable: true
+
+# Set log collection paths
+- name: Set log collection workspace
+  ansible.builtin.set_fact:
+    log_root: "{{ output_project_dir }}/collect"
+    collect_pxe_file: "{{ input_project_dir }}/collect_pxe.yml"
+    cacheable: true
+
 - name: Set timestamp (IST)
   run_once: true
   ansible.builtin.set_fact:
     log_ts: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y%m%dT%H%M%S') }}"
     missing_source_warnings: []
-    log_root: "{{ log_root }}"
     k8s_master_log_dirs: "{{ k8s_master_log_dirs }}"
     k8s_master_log_files: "{{ k8s_master_log_files }}"
     k8s_worker_log_files: "{{ k8s_worker_log_files }}"

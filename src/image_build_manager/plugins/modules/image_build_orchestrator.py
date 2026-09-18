@@ -26,6 +26,7 @@ that provides:
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -160,13 +161,22 @@ def _run_build(
         if log_dir:
             os.makedirs(log_dir, exist_ok=True)
 
+        # Tokenize the command with shlex (POSIX shell quoting rules) and
+        # execute the resulting argument vector directly — no shell is
+        # invoked. This avoids passing a raw string to "bash -c", which
+        # would let any shell metacharacter in a templated value (image
+        # names, mount paths, credentials) be interpreted by the shell
+        # instead of treated as literal argument text (command/argument
+        # injection).
+        argv = shlex.split(cmd)
         with open(log_path, "w", encoding="utf-8") as log_file:
             proc = subprocess.run(
-                ["bash", "-c", cmd],
+                argv,
                 stdout=log_file,
                 stderr=subprocess.STDOUT,
                 timeout=timeout,
                 check=False,
+                shell=False,
             )
             result["return_code"] = proc.returncode
             if proc.returncode == 0:
@@ -190,6 +200,10 @@ def _run_build(
             f"Log: {log_path}\n"
             f"--- Last {LOG_TAIL_LINES} lines ---\n{log_tail}"
         )
+    except ValueError as exc:
+        # Raised by shlex.split() on malformed quoting in cmd.
+        result["status"] = "failed"
+        result["error"] = f"Failed to parse build command for '{name}': {exc}"
     except OSError as exc:
         result["status"] = "failed"
         result["error"] = f"Failed to execute build '{name}': {exc}"

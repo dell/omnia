@@ -1,0 +1,29 @@
+# {{ ansible_managed }}
+# bootstrap.ldif — Initial LDAP directory entries for omnia_auth
+
+# Create the base domain entry
+dn: {{ ldap_search_base }}
+objectClass: top
+objectClass: dcObject
+objectClass: organization
+o: {{ domain_name }}
+{% for dc in ldap_search_base.split(',') %}
+{% if loop.first %}
+{{ dc | regex_replace('^dc=', 'dc: ') }}
+{% endif %}
+{% endfor %}
+
+# Create the admin entry
+dn: cn={{ openldap_db_username }},{{ ldap_search_base }}
+objectClass: organizationalRole
+cn: {{ openldap_db_username }}
+
+# Create People OU for user accounts
+dn: ou=People,{{ ldap_search_base }}
+objectClass: organizationalUnit
+ou: People
+
+# Create Group OU for group entries
+dn: ou=Group,{{ ldap_search_base }}
+objectClass: organizationalUnit
+ou: Group

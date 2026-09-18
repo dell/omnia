@@ -1,0 +1,146 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Write telemetry_status.yml to the output project directory
+# ============================================================================
+# Writes a single authoritative status file after deployment completes.
+# External component status values: deployed, failed, skipped
+# The writer also accepts legacy internal "passed" values during migration.
+#
+# Expected to run on localhost after all deployment tasks complete.
+# Deployment results are collected from hostvars set during Phase 4.
+
+- name: Set output paths
+  ansible.builtin.set_fact:
+    _output_base: "{{ output_project_dir | default((telemetry_data_path | default(omnia_data_path | default('/opt/omnia') + '/telemetry')) + '/output/' + (project_name | default(lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true)))) }}"  # noqa: yaml[line-length]
+
+- name: Ensure output directory exists
+  ansible.builtin.file:
+    path: "{{ _output_base }}"
+    state: directory
+    mode: "0755"
+
+- name: Normalize unreachable deployment nodes
+  ansible.builtin.set_fact:
+    _deploy_unreachable_nodes:
+      ldms: >-
+        {{
+          ((_deploy_unreachable_nodes | default({})).ldms | default([]))
+          | unique | sort
+        }}
+
+# -- Aggregate deployment results from Phase 4 hostvars ----------------------
+- name: Aggregate sink deployment results
+  ansible.builtin.set_fact:
+    _sink_results:
+      kafka: "{{ hostvars['localhost']['_deploy_result_kafka'] | default('skipped') }}"
+      victoria_metrics: "{{ hostvars['localhost']['_deploy_result_victoria_metrics'] | default('skipped') }}"
+      victoria_logs: "{{ hostvars['localhost']['_deploy_result_victoria_logs'] | default('skipped') }}"
+
+- name: Aggregate source deployment results
+  ansible.builtin.set_fact:
+    _source_results:
+      idrac_metrics: "{{ hostvars['localhost']['_deploy_result_idrac_metrics'] | default('skipped') }}"
+      ldms_metrics: "{{ hostvars['localhost']['_deploy_result_ldms_metrics'] | default('skipped') }}"
+      powerscale_metrics: "{{ hostvars['localhost']['_deploy_result_powerscale_metrics'] | default('skipped') }}"
+      powerscale_logs: "{{ hostvars['localhost']['_deploy_result_powerscale_logs'] | default('skipped') }}"
+      ufm_metrics: "{{ hostvars['localhost']['_deploy_result_ufm_metrics'] | default('skipped') }}"
+      ufm_logs: "{{ hostvars['localhost']['_deploy_result_ufm_logs'] | default('skipped') }}"
+      vast_metrics: "{{ hostvars['localhost']['_deploy_result_vast_metrics'] | default('skipped') }}"
+      vast_logs: "{{ hostvars['localhost']['_deploy_result_vast_logs'] | default('skipped') }}"
+      ome_metrics: "{{ hostvars['localhost']['_deploy_result_ome_metrics'] | default('skipped') }}"
+      ome_logs: "{{ hostvars['localhost']['_deploy_result_ome_logs'] | default('skipped') }}"
+
+- name: Aggregate bridge deployment results
+  ansible.builtin.set_fact:
+    _bridge_results:
+      vector_ldms: "{{ hostvars['localhost']['_deploy_result_vector_ldms'] | default('skipped') }}"
+      vector_ome: "{{ hostvars['localhost']['_deploy_result_vector_ome'] | default('skipped') }}"
+
+# -- Determine overall deployment status -------------------------------------
+- name: Determine overall deployment status
+  vars:
+    _all_results: >-
+      {{ [_sink_results.kafka, _sink_results.victoria_metrics, _sink_results.victoria_logs]
+         + [_source_results.idrac_metrics, _source_results.ldms_metrics]
+         + [_source_results.powerscale_metrics, _source_results.powerscale_logs]
+         + [_source_results.ufm_metrics, _source_results.ufm_logs]
+         + [_source_results.vast_metrics, _source_results.vast_logs]
+         + [_source_results.ome_metrics, _source_results.ome_logs]
+         + [_bridge_results.vector_ldms, _bridge_results.vector_ome] }}
+    _has_failed: "{{ 'failed' in _all_results }}"
+    _has_deployed: "{{ 'deployed' in _all_results or 'passed' in _all_results }}"
+  ansible.builtin.set_fact:
+    _deployment_status: >-
+      {% if _has_failed %}failed{%- elif _has_deployed %}passed{%- else %}skipped{% endif %}
+
+# -- Write the template ------------------------------------------------------
+- name: Write telemetry_status.yml
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/telemetry_status.yml.j2"
+    dest: "{{ _output_base }}/telemetry_status.yml"
+    mode: "0644"
+
+# -- Display summary ---------------------------------------------------------
+- name: Display telemetry deployment status
+  ansible.builtin.debug:
+    msg: "{{ _status_lines }}"
+  vars:
+    _status_lines:
+      - "======================================================"
+      - "Telemetry Deployment Status: {{ _deployment_status | upper | trim }}"
+      - "======================================================"
+      - "Output: {{ _output_base }}/telemetry_status.yml"
+      - ""
+      - "Sinks:"
+      - "  kafka:             {{ _sink_results.kafka }}"
+      - "  victoria_metrics:  {{ _sink_results.victoria_metrics }}"
+      - "  victoria_logs:     {{ _sink_results.victoria_logs }}"
+      - ""
+      - "Sources:"
+      - "  idrac:             metrics={{ _source_results.idrac_metrics }}"
+      - "  ldms:              metrics={{ _source_results.ldms_metrics }}"
+      - "  powerscale:        metrics={{ _source_results.powerscale_metrics }}, logs={{ _source_results.powerscale_logs }}"
+      - "  ufm:               metrics={{ _source_results.ufm_metrics }}, logs={{ _source_results.ufm_logs }}"
+      - "  vast:              metrics={{ _source_results.vast_metrics }}, logs={{ _source_results.vast_logs }}"
+      - "  ome:               metrics={{ _source_results.ome_metrics }}, logs={{ _source_results.ome_logs }}"
+      - ""
+      - "Bridges:"
+      - "  vector_ldms:       {{ _bridge_results.vector_ldms }}"
+      - "  vector_ome:        {{ _bridge_results.vector_ome }}"
+      - ""
+      - >-
+        Unreachable deployment nodes (non-fatal):
+        {{ _deploy_unreachable_nodes.ldms | length }}
+      - >-
+        LDMS sampler nodes skipped:
+        {{
+          _deploy_unreachable_nodes.ldms | join(', ')
+          if _deploy_unreachable_nodes.ldms | length > 0
+          else 'none'
+        }}
+      - "======================================================"
+
+- name: Fail playbook if deployment has failures
+  ansible.builtin.fail:
+    msg: >-
+      Telemetry deployment completed with failures.
+      Review the status summary above and check
+      {{ _status_path }}/telemetry_status.yml for details.
+  vars:
+    _default_base: "{{ telemetry_data_path | default(omnia_data_path | default('/opt/omnia') + '/telemetry') }}"
+    _output_dir: "{{ _default_base + '/output/' + (project_name | default(lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true))) }}"
+    _status_path: "{{ output_project_dir | default(_output_dir) }}"
+  when: _deployment_status | trim == 'failed'

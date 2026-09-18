@@ -16,5 +16,5 @@
 Validate — Status suite.
 
 Verify image_build_config.yml exists on target
-Verify credentials file is synced to target
+Verify credentials file is configured on the execution OIM
 """

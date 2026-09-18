@@ -1,0 +1,49 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# A component failure is rescued so remaining selected components still run.
+# The canonical engine raises the aggregate failure after every component has
+# been attempted.
+- name: Clean {{ component_name }}
+  block:
+    - name: Execute cleanup for {{ component_name }}
+      ansible.builtin.include_tasks: >-
+        {{ role_path }}/components/{{ component_name }}/tasks/cleanup.yml
+
+    - name: Record successful cleanup for {{ component_name }}
+      ansible.builtin.set_fact:
+        cleanup_results: >-
+          {{ cleanup_results | combine({
+               component_name: {'status': 'success', 'error': ''}
+             }) }}
+  rescue:
+    - name: Record failed cleanup for {{ component_name }}
+      vars:
+        cleanup_error_message: >-
+          {{ (ansible_failed_result | default({})).msg
+             | default('Component cleanup task failed', true) }}
+      ansible.builtin.set_fact:
+        cleanup_results: >-
+          {{ cleanup_results | combine({
+               component_name: {
+                 'status': 'failed',
+                 'error': cleanup_error_message
+               }
+             }) }}
+        cleanup_failures: >-
+          {{ cleanup_failures + [{
+               'component': component_name,
+               'error': cleanup_error_message
+             }] }}

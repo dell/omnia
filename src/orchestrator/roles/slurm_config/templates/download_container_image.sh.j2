@@ -5,6 +5,7 @@
 # Downloads from Pulp mirror only (no internet fallback)
 # Usage: download_container_image.sh
 
+set -o pipefail
 LOGFILE="/var/log/container_image_download.log"
 exec > >(tee -a "$LOGFILE") 2>&1
 
@@ -12,7 +13,12 @@ exec > >(tee -a "$LOGFILE") 2>&1
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTAINER_IMAGE_LIST="${SCRIPT_DIR}/container_image.list"
 DOWNLOAD_DIR="/hpc_tools/container_images"
-PULP_SERVER="{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['localhost']['pulp_port'] | default(2225) }}"
+PULP_SERVER="{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
+
+# Temporary/work directory for Apptainer pull
+# By default, use the same location as DOWNLOAD_DIR
+# Edit this value if Apptainer temp files need to go elsewhere
+TMP_DIR="/hpc_tools/container_images"
 
 echo "===== Starting Container Image Download Script (Pulp Only) ====="
 echo "[INFO] Timestamp: $(date)"
@@ -36,8 +42,14 @@ fi
 
 # Navigate to download directory
 mkdir -p "$DOWNLOAD_DIR"
+mkdir -p "$TMP_DIR"
+
+# Point Apptainer temp and cache to the user-provided tmp_dir
+export APPTAINER_TMPDIR="$TMP_DIR"
+export APPTAINER_CACHEDIR="$TMP_DIR"
 
 echo "[INFO] Download directory: $DOWNLOAD_DIR"
+echo "[INFO] Apptainer temp directory: $TMP_DIR"
 
 if [ ! -d "$DOWNLOAD_DIR" ]; then
     echo "[ERROR] Download directory does not exist: $DOWNLOAD_DIR"
@@ -123,7 +135,7 @@ while IFS= read -r line || [ -n "$line" ]; do
         echo "[INFO] Starting pull (this may take several minutes for large images)..."
 
         # Use timeout to prevent hanging (30 minutes)
-        timeout 1800 apptainer pull --disable-cache --name "$CONTAINER_IMAGE" --dir "$DOWNLOAD_DIR" --tmpdir "$DOWNLOAD_DIR" "$PULP_IMAGE" 2>&1 | tee -a /var/log/apptainer_pull.log
+        timeout 1800 apptainer pull --disable-cache --name "$CONTAINER_IMAGE" --dir "$DOWNLOAD_DIR" --tmpdir "$TMP_DIR" "$PULP_IMAGE" 2>&1 | tee -a /var/log/apptainer_pull.log
         PULL_EXIT_CODE=$?
 
         # Check the actual exit code from timeout command

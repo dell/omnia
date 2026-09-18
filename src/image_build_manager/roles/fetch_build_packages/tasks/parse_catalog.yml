@@ -43,6 +43,13 @@
     cacheable: true
   when: _catalog_result.cluster_os_version | default('') | length > 0
 
+- name: Log skipped driver groups
+  ansible.builtin.debug:
+    msg: >-
+      Skipping driver groups (installed post-boot, not in OS image):
+      {{ _catalog_result.skipped_driver_groups | join(', ') }}
+  when: (_catalog_result.skipped_driver_groups | default([]) | length) > 0
+
 - name: Debug catalog resolution
   ansible.builtin.debug:
     msg: >-
@@ -50,5 +57,6 @@
       {{ _catalog_result.layer_count }} layers for {{ build_arch }},
       {{ base_image_packages | length }} base packages,
       {{ compute_images_dict | length }} compute groups,
-      os_versions={{ cluster_os_versions | default([]) }}
+      os_versions={{ cluster_os_versions | default([]) }},
+      skipped_driver_groups={{ _catalog_result.skipped_driver_groups | default([]) | length }}
     verbosity: 1

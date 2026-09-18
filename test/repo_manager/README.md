@@ -1,0 +1,224 @@
+# Repo Manager — Test Automation
+
+Deterministic unit tests, functional verification tests (FVT), and explicit
+destructive cleanup verification for the `repo_manager` domain.
+
+## Prerequisites
+
+- Python 3.12+
+- `omnia-auto` wheel (from `test/plugins/dist/`)
+- Access to a target server with Pulp configured (for live tests)
+
+## Setup
+
+```bash
+source setup_env.sh            # One-time: create .venv, install deps
+vi test_config.yml             # Set oim_server_ip, dataset, etc.
+```
+
+Named datasets are validated before any target synchronization. Generate or
+check deterministic datasets with:
+
+```bash
+cd datasets/generator
+python generate_dataset.py create my_dataset --profile defaults
+python generate_dataset.py my_dataset defaults --check
+```
+
+Generated datasets include provenance and artifact hashes. Repo Manager
+credentials are intentionally excluded and remain encrypted on the target.
+
+## Running Tests
+
+```bash
+# Show help
+./run_validation.sh --help
+
+# Validate inputs exist on target
+./run_validation.sh fvt_repo_manager precheck test --marker sanity
+
+# Run deterministic source-contract tests (no live Pulp required)
+./run_validation.sh ut_repo_manager test
+
+# Deploy Pulp and verify
+./run_validation.sh fvt_repo_manager prepare test
+
+# Download and sync repositories
+./run_validation.sh fvt_repo_manager execute test
+
+# Generate repo_status.yml
+./run_validation.sh fvt_repo_manager status test
+
+# Run the complete non-destructive lifecycle and its verification
+./run_validation.sh fvt_repo_manager test
+
+# Run cleanup and verify removal
+./run_validation.sh fvt_repo_manager cleanup test --marker destructive
+
+# Selectively remove one disposable exact RPM repository
+REPO_MANAGER_TEST_CLEANUP_REPO=x86_64_rhel_10.0_test_repo \
+  ./run_validation.sh fvt_repo_manager cleanup_repos test --marker destructive
+
+# List available scenarios
+./run_validation.sh fvt_repo_manager list
+
+# Batch run from config
+./run_validation.sh --config
+```
+
+## Scenarios
+
+| Scenario | Description |
+|----------|-------------|
+| `precheck` | Run environment/input prechecks and verify their inputs |
+| `prepare` | Deploy Pulp server and verify container/services |
+| `execute` | Download and sync repositories |
+| `status` | Generate and verify repo_status.yml |
+| `cleanup` | Cleanup Pulp server and verify removal |
+| `cleanup_repos` | Explicitly selected exact repository cleanup and state invalidation |
+| `policy` | Test repository policy configurations |
+| `user_registry` | Test user registry configuration and validation |
+| `negative` | Test error scenarios |
+| `catalog` | Run one explicitly selected catalog operation suite |
+
+The FVT commands have fixed meanings:
+
+- `exec`: run only the scenario's `deploy`-marked playbook trigger.
+- `verify`: run only its non-deploy verification tests.
+- `test`: run `exec` and then `verify`; verification is skipped when execution fails.
+
+An untagged `test` runs `precheck`, `prepare`, `execute`, and `status` in
+order, then verifies the non-destructive scenarios. Cleanup, negative, and
+catalog operations require explicit selection, and aggregate verification
+filters co-located `negative` or `destructive` tests. Policy and negative
+scenarios are verification-only. Catalog lifecycle commands require an exact
+suite, for example `catalog test --suite validate`.
+
+## Test Cases
+
+See the authoritative test-case registries:
+
+- [fvt/README.md](fvt/README.md) -- FVT test-case registry (117 tests)
+- [nft/README.md](nft/README.md) -- NFT test-case registry (5 tests)
+- [ut/README.md](ut/README.md) -- UT test-case registry (141 tests)
+- [docs/TEST_CASES.md](docs/TEST_CASES.md) -- Consolidated summary
+
+## Directory Structure
+
+```
+test/repo_manager/
+├── _run.py                    # ValidationRunner entry point
+├── setup_env.sh               # Environment setup
+├── run_validation.sh           # CLI runner (delegates to _run.py)
+├── conftest.py                 # Pytest hooks, fixtures, report generation
+├── test_config.yml             # Target server and sync settings
+├── test_creds.yml              # SSH credentials (Ansible Vault)
+├── test_run_config.yml         # Batch execution config
+├── requirements.txt            # Python dependencies
+├── ut/                         # Deterministic source-contract tests
+├── nft/                        # Non-Functional Tests (idempotency, performance, security)
+│
+├── docs/                       # Configuration documentation
+│   ├── test_config.md
+│   ├── test_creds.md
+│   └── test_run_config.md
+│
+├── datasets/                   # Test input datasets
+│   ├── data_set_01/
+│   │   ├── input/              # repo_manager_config, endpoint config
+│   │   ├── dataset_manifest.yml # Deterministic provenance and hashes
+│   │   └── README.md
+│   ├── generator/               # Dataset generation tools
+│   │   ├── generate_dataset.py # Generator script
+│   │   ├── profiles/           # Variable profiles (defaults, rhel10, minimal)
+│   │   ├── templates/          # Jinja2 templates
+│   │   └── README.md
+│   └── README.md               # Dataset usage guide
+│
+├── library/                    # Reusable automation library
+│   ├── functions/              # Test helper functions
+│   │   ├── repo_manager_func.py # Core repo_manager functions
+│   │   └── __init__.py
+│   ├── vars/                   # Constants, paths, commands
+│   │   ├── common_vars.py      # Common variables and paths
+│   │   ├── domain_vars.py      # Domain-specific variables
+│   │   └── __init__.py
+│   └── messages/               # Test names, log/assert messages
+│       ├── repo_manager_msgs.py
+│       └── __init__.py
+│
+└── fvt/                        # Functional Verification Tests
+    ├── precheck/               # Precheck scenario
+    │   └── test_status.py
+    ├── prepare/                 # Prepare scenario
+    │   └── test_status.py
+    ├── execute/                 # Execute scenario
+    │   └── test_status.py
+    ├── status/                  # Status scenario
+    │   └── test_status.py
+    ├── cleanup/                 # Cleanup scenario
+    │   └── test_status.py
+    ├── cleanup_repos/           # Exact selective cleanup scenario
+    │   └── test_status.py
+    ├── catalog/                  # Explicit catalog operation suites
+    │   ├── add/
+    │   ├── delete/
+    │   ├── generate/
+    │   ├── negative/
+    │   └── validate/
+    ├── policy/                  # Policy tests
+    │   ├── test_integration_pulp_policies.py
+    │   ├── test_partial_override.py
+    │   ├── test_policy_combinations.py
+    │   ├── test_priority_order.py
+    │   ├── test_pulp_mode.py
+    │   └── test_repo_types.py
+    ├── user_registry/           # User Registry tests
+    │   ├── test_user_registry_validation.py
+    │   └── test_user_registry_negative.py
+    └── negative/                # Negative test scenarios
+        └── error_scenarios/
+            └── test_error_scenarios.py
+```
+
+## Test Categories
+
+The test framework is organized into several categories:
+
+| Category | Description | Test Count |
+|----------|-------------|------------|
+| **Precheck Tests** | Verify input files and configurations | 5 |
+| **Prepare Tests** | Deploy Pulp server and verify | 10 |
+| **Execute Tests** | Download and sync repositories | 15 |
+| **Status Tests** | Generate and verify repo_status.yml | 3 |
+| **Cleanup Tests** | Cleanup Pulp server | 4 |
+| **Selective Cleanup Tests** | Exact repository cleanup and state verification | 4 |
+| **Policy Tests** | Test repository policies | 21 |
+| **User Registry Tests** | Test user registry configuration and validation | 15 |
+| **Negative Tests** | Test error scenarios | 10 |
+| **Catalog Tests** | Catalog generate, add, delete, validate, and negative | 30 |
+| **Unit/Contract Tests** | Source state machines, cleanup, status and command safety | 141 |
+| **Non-Functional Tests** | Idempotency, performance, and security | 5 |
+| | **Total** | **263** |
+
+## Test Markers
+
+Tests can be filtered using pytest markers:
+
+- `sanity`: Quick sanity tests
+- `functional`: Functional verification
+- `positive`: Positive test cases
+- `negative`: Negative test cases
+- `destructive`: Explicit opt-in cleanup tests
+- `deploy`: Playbook deployment tests
+- `x86_64`: x86_64 architecture tests
+- `aarch64`: aarch64 architecture tests
+- `nft`: Non-functional tests
+- `performance`: Performance tests
+- `idempotency`: Idempotency tests
+- `security`: Security tests
+
+## Using the omnia-auto Pip Package
+
+This module uses the [omnia-auto](../plugins) package for all common test utilities
+(TestLogger, run_playbook, sync_files, ValidationRunner, etc.).

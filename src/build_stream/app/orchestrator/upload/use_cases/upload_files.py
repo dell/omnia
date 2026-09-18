@@ -15,12 +15,11 @@
 """Upload files use case implementation."""
 
 import hashlib
+import os
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
-
-import yaml
 
 from api.logging_utils import log_secure_info
 from common.config import BuildStreamConfig, load_config
@@ -44,27 +43,92 @@ from orchestrator.upload.results.upload_files import (
 from orchestrator.upload.exceptions import InvalidFilenameError, FileSizeExceededError
 
 
-# Shared input directory path for playbook consumption
-# This matches the path used by NfsInputRepository and expected by Omnia playbooks
-DEFAULT_PLAYBOOK_INPUT_DIR = "/opt/omnia/input/project_default/"
+# Base data path and project name — read from environment (sourced from omnia.env).
+# Every derived path below uses these instead of hardcoding /opt/omnia.
+_OMNIA_DATA_PATH = os.getenv("OMNIA_DATA_PATH", "/opt/omnia")
+_OMNIA_PROJECT_NAME = os.getenv("OMNIA_PROJECT_NAME", "project_default")
 
-# Restart state directory where the playbook reads failed_nodes.json for retry logic
-RESTART_STATE_DIR = "/opt/omnia/build_stream_root/restart_state"
+# Shared input directory path for playbook consumption (legacy flat path).
+# Used by provision and other non-domain-segregated playbooks.
+DEFAULT_PLAYBOOK_INPUT_DIR = os.path.join(
+    _OMNIA_DATA_PATH, "input", _OMNIA_PROJECT_NAME, ""
+)
+
+# Restart state directory where the playbook reads failed_nodes.json for retry logic.
+# Derived from NFS_ARTIFACT_BASE (set in container env) or OMNIA_DATA_PATH.
+RESTART_STATE_DIR = os.path.join(
+    os.getenv("NFS_ARTIFACT_BASE", os.path.join(_OMNIA_DATA_PATH, "build_stream_root")),
+    "restart_state",
+)
+
+# System-wide Omnia environment file path
+OMNIA_ENV_SYSTEM_PATH = "/etc/omnia/omnia.env"
+
+# Catalog directory (OMNIA_DATA_PATH/catalog/)
+CATALOG_DIR = os.path.join(_OMNIA_DATA_PATH, "catalog")
+
+# Domain-segregated input directories
+# Each domain's playbook reads from: <OMNIA_DATA_PATH>/<domain>/input/<project>/
+DOMAIN_INPUT_DIRS = {
+    "repo_manager": os.path.join(
+        _OMNIA_DATA_PATH, "repo_manager", "input", _OMNIA_PROJECT_NAME
+    ),
+    "image_build_manager": os.path.join(
+        _OMNIA_DATA_PATH, "image_build_manager", "input", _OMNIA_PROJECT_NAME
+    ),
+    "orchestrator": os.path.join(
+        _OMNIA_DATA_PATH, "orchestrator", "input", _OMNIA_PROJECT_NAME
+    ),
+}
+
+# Maps each config file to its owning domain.
+# Files not listed here use the legacy flat DEFAULT_PLAYBOOK_INPUT_DIR.
+DOMAIN_FILE_ROUTING = {
+    # repo_manager domain
+    "repo_manager_config.yml": "repo_manager",
+    "repo_manager_endpoint_config.yml": "repo_manager",
+    # image_build_manager domain
+    "image_build_config.yml": "image_build_manager",
+    "package_groups.yml": "image_build_manager",
+    # orchestrator domain
+    "orchestrator_config.yml": "orchestrator",
+    "additional_cloud_init.yml": "orchestrator",
+    "omnia_config.yml": "orchestrator",
+    "network_spec.yml": "orchestrator",
+    "security_config.yml": "orchestrator",
+    "storage_config.yml": "orchestrator",
+    "high_availability_config.yml": "orchestrator",
+    "pxe_mapping_file.csv": "orchestrator",
+    "set_pxe_boot_config.yml": "orchestrator",
+}
 
 # Whitelist of allowed configuration files
 ALLOWED_CONFIG_FILES = {
+    # Legacy / shared files
     "local_repo_config.yml",
-    "network_spec.yml",
     "provision_config.yml",
-    "pxe_mapping_file.csv",
-    "storage_config.yml",
     "telemetry_config.yml",
     "telemetry_storage_config.yml",
-    "security_config.yml",
-    "high_availability_config.yml",
-    "omnia_config.yml",
     "build_stream_config.yml",
     "failed_nodes.json",
+    "catalog_rhel.json",
+    "omnia.env",
+    # repo_manager domain
+    "repo_manager_config.yml",
+    "repo_manager_endpoint_config.yml",
+    # image_build_manager domain
+    "image_build_config.yml",
+    "package_groups.yml",
+    # orchestrator domain
+    "orchestrator_config.yml",
+    "additional_cloud_init.yml",
+    "omnia_config.yml",
+    "network_spec.yml",
+    "security_config.yml",
+    "storage_config.yml",
+    "high_availability_config.yml",
+    "pxe_mapping_file.csv",
+    "set_pxe_boot_config.yml",
 }
 
 
@@ -305,19 +369,31 @@ class UploadFilesUseCase:
             # Store in ArtifactStore only for changed files
             self._store_in_artifact_store(job_id, filename, content)
 
-        # Always write to both NFS locations (job-scoped and shared)
-        self._write_to_nfs_job_directory(job_id, filename, content)
+        # failed_nodes.json is playbook output in the artifact directory.  On
+        # retry, only refresh its job-specific restart-state copy below.
+        if filename != "failed_nodes.json":
+            self._write_to_nfs_job_directory(job_id, filename, content)
 
-        # For failed_nodes.json, ONLY write to job-specific restart_state directory
-        # DO NOT write to shared input directory (not needed for this file)
+        # Route files to their correct destinations
         if filename == "failed_nodes.json":
+            # ONLY write to job-specific restart_state directory
             self._write_to_restart_state_directory(str(job_id), filename, content)
-        elif filename == "pxe_mapping_file.csv":
-            # pxe_mapping_file.csv destination is configurable via
-            # provision_config.yml -> pxe_mapping_file_path.  Resolve the
-            # target directory from that config; fall back to the default.
-            pxe_dir = self._resolve_pxe_mapping_dir()
-            self._write_to_directory(pxe_dir, filename, content)
+        elif filename == "catalog_rhel.json":
+            # Write to catalog directory (OMNIA_DATA_PATH/catalog/)
+            self._write_to_directory(Path(CATALOG_DIR), filename, content)
+            log_secure_info('info', f"Catalog file written to {CATALOG_DIR}/{filename}")
+        elif filename == "omnia.env":
+            # Write to system-wide location (/etc/omnia/omnia.env)
+            self._write_omnia_env(content)
+        elif filename in DOMAIN_FILE_ROUTING:
+            # Domain-segregated file — write to the owning domain's input dir
+            domain = DOMAIN_FILE_ROUTING[filename]
+            domain_dir = DOMAIN_INPUT_DIRS[domain]
+            self._write_to_directory(Path(domain_dir), filename, content)
+            log_secure_info(
+                'info',
+                f"Domain file written: {domain}/{filename} -> {domain_dir}/{filename}",
+            )
         else:
             self._write_to_shared_input_directory(filename, content)
 
@@ -377,13 +453,15 @@ class UploadFilesUseCase:
     def _write_to_nfs_job_directory(self, job_id, filename: str, content: bytes):
         """Write file to job-scoped NFS directory.
 
+        Path: ``{file_store.base_path}/{job_id}/{filename}``
+
         Args:
             job_id: Job identifier.
             filename: Filename.
             content: File content.
         """
         base_path = Path(self._config.file_store.base_path)
-        target_dir = base_path / str(job_id) / "artifacts"
+        target_dir = base_path / str(job_id)
         target_dir.mkdir(parents=True, exist_ok=True)
 
         target_file = target_dir / filename
@@ -414,46 +492,13 @@ class UploadFilesUseCase:
         target_file.write_bytes(content)
         log_secure_info('debug', f"Wrote to directory: {target_file}")
 
-    @staticmethod
-    def _resolve_pxe_mapping_dir() -> Path:
-        """Resolve the target directory for pxe_mapping_file.csv.
 
-        Reads ``pxe_mapping_file_path`` from the already-uploaded
-        ``provision_config.yml`` in the default shared input directory.
-        If the key is present, its parent directory is used; otherwise
-        the default shared input directory is returned.
-
-        Returns:
-            Directory ``Path`` where ``pxe_mapping_file.csv`` should be written.
-        """
-        provision_config_path = Path(DEFAULT_PLAYBOOK_INPUT_DIR) / "provision_config.yml"
-        if provision_config_path.exists():
-            try:
-                with open(provision_config_path, "r", encoding="utf-8") as fh:
-                    config = yaml.safe_load(fh)
-                if isinstance(config, dict):
-                    pxe_path = config.get("pxe_mapping_file_path")
-                    if pxe_path:
-                        resolved = Path(str(pxe_path)).parent
-                        log_secure_info(
-                            'info',
-                            f"Resolved pxe_mapping_file.csv directory from "
-                            f"provision_config.yml: {resolved}",
-                        )
-                        return resolved
-            except (yaml.YAMLError, OSError) as exc:
-                log_secure_info(
-                    'warning',
-                    f"Failed to read provision_config.yml for "
-                    f"pxe_mapping_file_path: {exc}",
-                )
-        return Path(DEFAULT_PLAYBOOK_INPUT_DIR)
 
     def _write_to_restart_state_directory(self, job_id: str, filename: str, content: bytes):
         """Write file to job-specific restart_state directory for playbook consumption.
 
         The set_pxe_boot.yml Play 1.5 reads failed_nodes.json from
-        /opt/omnia/build_stream_root/restart_state/{job_id}/ for the retry logic.
+        ``{RESTART_STATE_DIR}/{job_id}/`` for the retry logic.
         When the GitLab pipeline uploads failed_nodes.json via PUT /upload,
         it must also land in this job-specific directory.
 
@@ -473,6 +518,28 @@ class UploadFilesUseCase:
         target_file.write_bytes(content)
 
         log_secure_info('debug', f"Wrote {filename} to job-specific restart_state directory: {target_file}")
+
+    @staticmethod
+    def _write_omnia_env(content: bytes):
+        """Write omnia.env to the system-wide location.
+
+        Copies the uploaded omnia.env to /etc/omnia/omnia.env so that
+        services on the OIM host (playbook watcher, venv sessions) pick
+        up environment variables like CATALOG_FILE_PATH.
+
+        Args:
+            content: File content bytes.
+        """
+        env_dir = Path(OMNIA_ENV_SYSTEM_PATH).parent
+        env_dir.mkdir(parents=True, exist_ok=True)
+
+        env_path = Path(OMNIA_ENV_SYSTEM_PATH)
+        env_path.write_bytes(content)
+
+        log_secure_info(
+            'info',
+            f"omnia.env written to {OMNIA_ENV_SYSTEM_PATH}"
+        )
 
     def _generate_id(self) -> str:
         """Generate unique identifier for artifact record.
@@ -650,5 +717,3 @@ class UploadFilesUseCase:
             details=details,
         )
         self._audit_repo.save(event)
-     
-    

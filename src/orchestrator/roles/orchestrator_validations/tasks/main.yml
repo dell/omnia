@@ -13,27 +13,16 @@
 # limitations under the License.
 ---
 
-- name: Set_fact for omnia_config_credentials.yml variables
+- name: Set facts for orchestrator_credentials.yml variables
   ansible.builtin.set_fact:
     provision_password: "{{ hostvars['localhost']['provision_password'] }}"
     bmc_username: "{{ hostvars['localhost']['bmc_username'] }}"
     bmc_password: "{{ hostvars['localhost']['bmc_password'] }}"
   no_log: true
-
-- name: Load OIM metadata
-  ansible.builtin.set_fact:
-    oim_metadata: "{{ lookup('file', oim_metadata_file_path) | from_yaml }}"
-
-- name: Set upgrade_enabled flag from metadata
-  ansible.builtin.set_fact:
-    upgrade_enabled: false
-
-- name: Set upgrade_enabled flag from metadata
-  ansible.builtin.set_fact:
-    upgrade_enabled: true
   when:
-    - oim_metadata.upgrade_backup_dir is defined
-    - oim_metadata.upgrade_backup_dir | length > 0
+    - hostvars['localhost']['provision_password'] is defined
+    - hostvars['localhost']['bmc_username'] is defined
+    - hostvars['localhost']['bmc_password'] is defined
 
 - name: Include orchestrator inputs
   ansible.builtin.include_tasks: include_inputs.yml
@@ -49,5 +38,9 @@
   ansible.builtin.include_tasks: validate_mapping_file.yml
   when: mapping_file_status
 
+- name: Validate NFS storage configuration
+  ansible.builtin.include_tasks: validate_storage_config.yml
+
 - name: Update hosts file
   ansible.builtin.include_tasks: update_hosts.yml
+  when: "'precheck' not in (hostvars['localhost']['omnia_run_tags'] | default([]))"

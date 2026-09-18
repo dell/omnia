@@ -57,7 +57,7 @@
         compute_images_dict: >-
           {% set result = {} -%}
           {% for fg_name, fg_data in (_fg_pkg_mapping.functional_groups | default({})).items() -%}
-            {% if fg_name.endswith('_' + build_arch) -%}
+            {% if fg_name.endswith('_' + build_arch) and 'driver_group' not in fg_name -%}
               {% set pkgs = fg_data.packages | default([]) -%}
               {% if pkgs | length > 0 -%}
                 {% set _ = result.update({
@@ -74,12 +74,27 @@
         _skipped_empty_groups: >-
           {% set skipped = [] -%}
           {% for fg_name, fg_data in (_fg_pkg_mapping.functional_groups | default({})).items() -%}
-            {% if fg_name.endswith('_' + build_arch) and (fg_data.packages | default([]) | length) == 0 -%}
+            {% if fg_name.endswith('_' + build_arch) and 'driver_group' not in fg_name and (fg_data.packages | default([]) | length) == 0 -%}
+              {% set _ = skipped.append(fg_name) -%}
+            {% endif -%}
+          {% endfor -%}
+          {{ skipped }}
+        _skipped_driver_groups: >-
+          {% set skipped = [] -%}
+          {% for fg_name in (_fg_pkg_mapping.functional_groups | default({})).keys() -%}
+            {% if 'driver_group' in fg_name -%}
               {% set _ = skipped.append(fg_name) -%}
             {% endif -%}
           {% endfor -%}
           {{ skipped }}
         cacheable: true
+
+    - name: Log skipped driver groups (config mode)
+      ansible.builtin.debug:
+        msg: >-
+          Skipping driver groups (installed post-boot, not in OS image):
+          {{ _skipped_driver_groups | join(', ') }}
+      when: (_skipped_driver_groups | default([]) | length) > 0
 
     - name: Warn about skipped groups with empty packages
       ansible.builtin.debug:

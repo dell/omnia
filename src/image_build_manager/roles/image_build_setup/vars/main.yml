@@ -31,16 +31,25 @@ file_permissions_400: "0400"
 supported_tags:
   - precheck
   - validate
+  - credentials
   - prepare
   - execute
   - build
   - cleanup
+  - cleanup_images
   - upgrade
   - rollback
 skip_credential_tags:
   - precheck
   - cleanup
+  - cleanup_images
   - validate
+# Tags that require repo_status.yml (build-related operations)
+build_related_tags:
+  - build
+  - execute
+  - x86_64
+  - aarch64
 invalid_tag_combinations:
   - [prepare, cleanup]
   - [build, cleanup]
@@ -54,16 +63,31 @@ invalid_tag_combinations:
   - [execute, rollback]
   - [cleanup, rollback]
   - [upgrade, rollback]
+  - [prepare, cleanup_images]
+  - [build, cleanup_images]
+  - [execute, cleanup_images]
+  - [cleanup, cleanup_images]
+  - [upgrade, cleanup_images]
+  - [rollback, cleanup_images]
   - [precheck, prepare]
   - [precheck, build]
   - [precheck, execute]
   - [precheck, cleanup]
+  - [precheck, cleanup_images]
   - [precheck, upgrade]
   - [precheck, rollback]
+  - [credentials, prepare]
+  - [credentials, build]
+  - [credentials, execute]
+  - [credentials, cleanup]
+  - [credentials, cleanup_images]
+  - [credentials, upgrade]
+  - [credentials, rollback]
+  - [credentials, precheck]
 # --- Tag validation messages ---
 tag_validation_fail_msg: |
   Invalid tag usage detected.
-  Supported tags: {{ supported_tags | join(', ') }}
+  Supported tags: {{ effective_supported_tags | default(supported_tags) | join(', ') }}
   Invalid tags provided: {{ invalid_tags | join(', ') }}
   Please use only supported tags.
 tag_combination_fail_msg: |
@@ -97,6 +121,10 @@ package_groups_not_found_fail_msg: >-
   This file defines the RPM packages for each functional group in config mode.
   Create this file manually or switch to catalog mode by setting
   functional_groups_source to 'catalog' in image_build_config.yml.
+catalog_env_not_set_fail_msg: >-
+  CATALOG_FILE_PATH environment variable is not set.
+  When functional_groups_source is 'catalog', set CATALOG_FILE_PATH
+  in omnia.env (e.g., {{ omnia_data_path }}/catalog/catalog_rhel.json).
 catalog_not_found_fail_msg: >-
   Catalog file not found at {{ catalog_file | default('unknown') }}.
   When functional_groups_source is 'catalog', the catalog JSON must exist.
@@ -114,3 +142,7 @@ repo_status_missing_section_fail_msg: >-
 image_build_config_not_found_fail_msg: >-
   image_build_config.yml not found at {{ input_project_dir }}/image_build_config.yml.
   This file is required. See docs/contracts/input-contract.md for the expected format.
+repo_url_unreachable_fail_msg: >-
+  One or more repo URLs from repo_status.yml are unreachable.
+  Unreachable URLs: {{ _unreachable_repos | default([]) | join(', ') }}.
+  Verify that repo_manager is running and the repo URLs are accessible from this host.

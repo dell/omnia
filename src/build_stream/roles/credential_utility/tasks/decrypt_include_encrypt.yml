@@ -14,7 +14,8 @@
 ---
 
 # Decrypt, include variables, and re-encrypt credential files
-# Domain-specific copy for build_stream — no external vars dependency
+# Used by cleanup playbooks to load credentials into global namespace.
+# Also loads into build_stream_loaded_creds dict for prompt checks.
 
 - name: Validate required parameters
   ansible.builtin.fail:
@@ -43,10 +44,19 @@
       changed_when: false
       failed_when: false
 
-    - name: Include unencrypted file directly
-      ansible.builtin.include_vars: "{{ credential_file_path }}"
-      no_log: true
+    - name: Load unencrypted file
       when: is_encrypted.rc != 0
+      block:
+        - name: Include unencrypted file into global namespace
+          ansible.builtin.include_vars:
+            file: "{{ credential_file_path }}"
+          no_log: true
+
+        - name: Include unencrypted file into namespaced dict
+          ansible.builtin.include_vars:
+            file: "{{ credential_file_path }}"
+            name: build_stream_loaded_creds
+          no_log: true
 
     - name: Process encrypted file
       when: is_encrypted.rc == 0
@@ -68,8 +78,16 @@
           register: decrypt_result
           changed_when: false
 
-        - name: Include decrypted variables
-          ansible.builtin.include_vars: "{{ credential_file_path }}"
+        - name: Include decrypted variables into global namespace
+          ansible.builtin.include_vars:
+            file: "{{ credential_file_path }}"
+          no_log: true
+          when: decrypt_result is succeeded
+
+        - name: Include decrypted variables into namespaced dict
+          ansible.builtin.include_vars:
+            file: "{{ credential_file_path }}"
+            name: build_stream_loaded_creds
           no_log: true
           when: decrypt_result is succeeded
 

@@ -2,12 +2,12 @@
 # Ansible Galaxy collections required by omnia.utils
 collections:
   - name: ansible.utils
-    version: ">=4.1.0"
+    version: "5.1.1"
   - name: containers.podman
-    version: ">=1.12.0"
+    version: "1.16.2"
   - name: community.crypto
-    version: ">=2.21.0"
+    version: "2.23.0"
   - name: community.general
-    version: ">=9.4.0"
+    version: "10.3.0"
   - name: dellemc.openmanage
     version: ">=10.0.3"

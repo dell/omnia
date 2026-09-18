@@ -12,26 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Ansible module for executing tasks in parallel with thread pool.
+
+This module handles:
+- Parallel execution of repository synchronization tasks
+- Thread pool management with configurable concurrency
+- Task result aggregation and reporting
+- Error handling and timeout management
+"""
+
 #!/usr/bin/python
-# pylint: disable=import-error,no-name-in-module
+# pylint: disable=import-error,no-name-in-module,too-many-branches,too-many-statements,too-many-locals,too-many-return-statements,too-many-arguments,wrong-import-order,wrong-import-position,too-many-nested-blocks,unused-variable
 import os
 import re
+from collections import defaultdict
 from datetime import datetime
 from prettytable import PrettyTable
-from collections import defaultdict
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager.process_parallel import execute_parallel, log_table_output
 from ansible.module_utils.repo_manager.download_common import (
     build_task_repo_name,
     build_content_base_dir,
-    process_manifest,
-    process_tarball,
-    process_git,
-    process_shell,
-    process_ansible_galaxy_collection,
-    process_iso,
-    process_pip,
-    process_rpm_file
+)
+from ansible.module_utils.repo_manager.artifact_processor_registry import (
+    get_artifact_processor,
 )
 
 DOCUMENTATION = r"""
@@ -47,11 +52,16 @@ options:
       description: List of tasks to execute
       required: true
       type: list
-    max_workers:
+    nthreads:
       description: Maximum number of parallel workers
       required: false
       type: int
-      default: 4
+      default: 1
+    dnf_max_concurrent_commands:
+      description: Maximum number of RPM tasks allowed to use DNF concurrently
+      required: false
+      type: int
+      default: 1
     timeout:
       description: Timeout per task in seconds
       required: false
@@ -66,7 +76,8 @@ EXAMPLES = r"""
 - name: Execute parallel sync tasks
   parallel_tasks:
     tasks: "{{ sync_tasks }}"
-    max_workers: 4
+    nthreads: 4
+    dnf_max_concurrent_commands: 1
     timeout: 7200
   register: parallel_result
 """
@@ -85,9 +96,11 @@ success_count:
   type: int
   returned: always
 """
-from ansible.module_utils.repo_manager.download_image import process_image
-from ansible.module_utils.repo_manager.download_rpm import process_rpm
 from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
+from ansible.module_utils.repo_manager.security_utils import (
+    redact_sensitive_value,
+    validate_no_url_credentials,
+)
 from ansible.module_utils.repo_manager.software_utils import (
     load_json,
     set_version_variables,
@@ -101,6 +114,7 @@ from ansible.module_utils.repo_manager.catalog_resolver import (
 from ansible.module_utils.repo_manager.config import (
     DEFAULT_NTHREADS,
     DEFAULT_TIMEOUT,
+    DNF_MAX_CONCURRENT_COMMANDS,
     LOG_DIR_DEFAULT,
     DEFAULT_LOG_FILE,
     DEFAULT_SLOG_FILE,
@@ -183,9 +197,30 @@ def update_status_csv(csv_dir, software, overall_status, slogger):
     slogger.info(f"Successfully updated status CSV at {status_file}")
 
 
+def initialize_package_status_file(csv_file_path):
+    """Create or repair the package status file before workers start."""
+    os.makedirs(csv_file_path, exist_ok=True)
+    status_file = os.path.join(csv_file_path, DEFAULT_STATUS_FILENAME)
+
+    if not os.path.exists(status_file) or os.stat(status_file).st_size == 0:
+        with open(status_file, "w", encoding="utf-8") as file:
+            file.write(STATUS_CSV_HEADER)
+        return status_file
+
+    with open(status_file, "r", encoding="utf-8") as file:
+        lines = file.readlines()
+
+    if lines and lines[0].strip() != STATUS_CSV_HEADER.strip():
+        with open(status_file, "w", encoding="utf-8") as file:
+            file.write(STATUS_CSV_HEADER)
+            file.writelines(lines)
+
+    return status_file
+
+
 def determine_function(
     task, repo_store_path, csv_file_path, user_data, version_variables, arc,
-    user_registries, docker_username, docker_secret_token
+    registry_contexts, docker_username, docker_secret_token
 ):
     """
     Determines the appropriate function and its arguments to process a given task.
@@ -206,27 +241,12 @@ def determine_function(
         RuntimeError: If an error occurs while determining the function.
     """
     try:
-        # Ensure the CSV directory exists.
-        os.makedirs(csv_file_path, exist_ok=True)
         cluster_os_type = user_data['cluster_os_type']
         cluster_os_version = user_data['cluster_os_version']
         repo_config_value = user_data.get("repo_config")
 
         # Construct the status file path using DEFAULT_STATUS_FILENAME.
         status_file = os.path.join(csv_file_path, DEFAULT_STATUS_FILENAME)
-
-        # Ensure file exists with valid header
-        if not os.path.exists(status_file) or os.stat(status_file).st_size == 0:
-            with open(status_file, 'w', encoding="utf-8") as file:
-                file.write(STATUS_CSV_HEADER)
-        else:
-            with open(status_file, 'r', encoding="utf-8") as file:
-                lines = file.readlines()
-                if lines and lines[0].strip() != STATUS_CSV_HEADER.strip():
-                    # Header missing or invalid - prepend header to existing data
-                    with open(status_file, 'w', encoding="utf-8") as wfile:
-                        wfile.write(STATUS_CSV_HEADER)
-                        wfile.writelines(lines)
 
         task_type = task.get("type")
 
@@ -242,57 +262,61 @@ def determine_function(
             )
 
         if task_type == "manifest":
-            return process_manifest, [
+            return get_artifact_processor(task_type), [
                 task, status_file, content_base_dir, repo_name
             ]
         if task_type == "git":
-            return process_git, [
+            return get_artifact_processor(task_type), [
                 task, status_file, content_base_dir, repo_name
             ]
         if task_type == "tarball":
-            return process_tarball, [
+            return get_artifact_processor(task_type), [
                 task, status_file, version_variables,
                 content_base_dir, repo_name
             ]
         if task_type == "shell":
-            return process_shell, [
+            return get_artifact_processor(task_type), [
                 task, status_file, content_base_dir, repo_name
             ]
         if task_type == "ansible_galaxy_collection":
-            return process_ansible_galaxy_collection, [
+            return get_artifact_processor(task_type), [
                 task, status_file, content_base_dir, repo_name
             ]
         if task_type == "iso":
-            return process_iso, [
+            return get_artifact_processor(task_type), [
                 task, status_file, version_variables,
                 content_base_dir, repo_name
             ]
         if task_type == "pip_module":
-            return process_pip, [
+            return get_artifact_processor(task_type), [
                 task, status_file, content_base_dir, repo_name,
                 cluster_os_type, cluster_os_version, arc
             ]
         if task_type == "image":
-            return process_image, [
-                task, status_file, version_variables, user_registries,
+            return get_artifact_processor(task_type), [
+                task, status_file, version_variables, registry_contexts,
                 docker_username, docker_secret_token
             ]
         if task_type == "rpm_file":
-            return process_rpm_file, [
+            return get_artifact_processor(task_type), [
                 task, status_file, content_base_dir, repo_name
             ]
         if task_type in ("rpm", "rpm_repo"):
-            return process_rpm, [
+            return get_artifact_processor(task_type), [
                 task, repo_store_path, status_file, cluster_os_type,
                 cluster_os_version, repo_config_value, arc
             ]
 
         raise ValueError(f"Unknown task type: {task_type}")
-    except Exception as e:
-        raise RuntimeError(f"Failed to determine function for task: {str(e)}")
+    except Exception as error:
+        raise RuntimeError(
+            "Failed to determine the artifact processor for this task"
+        ) from error
 
 
-def generate_pretty_table(task_results, total_duration, overall_status, slogger):
+def generate_pretty_table(
+        task_results, total_duration, overall_status, slogger,
+        architecture=None, software=None):
     """
     Generates a pretty table with the task results, total duration, and overall status.
 
@@ -315,9 +339,19 @@ def generate_pretty_table(task_results, total_duration, overall_status, slogger)
         slogger.info(f"Received {len(task_results)} task results for table generation")
 
         table = PrettyTable(["Task", "Status", "LogFile"])
+        if architecture and software:
+            software_label = (
+                ", ".join(software)
+                if isinstance(software, list) else str(software)
+            )
+            table.title = f"{architecture} / {software_label}"
         for result in task_results:
             # Handle missing keys gracefully
-            package = result.get("package", result.get("task", {}).get("package", result.get("task", {}).get("Name", "unknown")))
+            task_data = result.get("task", {})
+            package = result.get(
+                "package",
+                task_data.get("package", task_data.get("Name", "unknown"))
+            )
             status = result.get("status", "UNKNOWN")
             logname = result.get("logname", "N/A")
             table.add_row([package, status, logname])
@@ -326,9 +360,9 @@ def generate_pretty_table(task_results, total_duration, overall_status, slogger)
         slogger.info("Task results table generated successfully")
         return table.get_string()
 
-    except Exception as e:
-        slogger.error(f"Error occurred while generating pretty table: {e}")
-        return f"Error: {e}"
+    except Exception:
+        slogger.error("Error occurred while generating the package-status table")
+        return "Error: unable to generate the package-status table"
 
 
 def generate_software_status_table(status_dict, slogger):
@@ -370,9 +404,9 @@ def generate_software_status_table(status_dict, slogger):
         slogger.info("Software status table generation completed successfully")
         return "\n\n".join(tables)
 
-    except Exception as e:
-        slogger.error(f"Error occurred while generating software status table: {e}")
-        return f"Error: {e}"
+    except Exception:
+        slogger.error("Error occurred while generating the software-status table")
+        return "Error: unable to generate the software-status table"
 
 
 def main():
@@ -423,6 +457,10 @@ def main():
     module_args = {
         "tasks": {"type": "list", "required": True},
         "nthreads": {"type": "int", "required": False, "default": DEFAULT_NTHREADS},
+        "dnf_max_concurrent_commands": {
+            "type": "int", "required": False,
+            "default": DNF_MAX_CONCURRENT_COMMANDS
+        },
         "timeout": {"type": "int", "required": False, "default": DEFAULT_TIMEOUT},
         "log_dir": {"type": "str", "required": False, "default": LOG_DIR_DEFAULT},
         "log_file": {"type": "str", "required": False, "default": DEFAULT_LOG_FILE},
@@ -431,8 +469,8 @@ def main():
         "repo_store_path": {"type": "str", "required": False, "default": DEFAULT_REPO_STORE_PATH},
         "software": {"type": "list", "elements": "str", "required": True},
         "user_json_file": {"type": "str", "required": False, "default": ""},
-        "cluster_os_type": {"type": "str", "required": False, "default": "rhel"},
-        "cluster_os_version": {"type": "str", "required": False, "default": "10.0"},
+        "cluster_os_type": {"type": "str", "required": False},
+        "cluster_os_version": {"type": "str", "required": False},
         "repo_config_policy": {"type": "str", "required": False, "default": "partial"},
         "show_softwares_status": {"type": "bool", "required": False, "default": False},
         "overall_status_dict": {"type": "dict", "required": True},
@@ -452,7 +490,12 @@ def main():
     }
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
     tasks = module.params["tasks"]
+    try:
+        validate_no_url_credentials(tasks)
+    except ValueError:
+        module.fail_json(msg="Task list contains a credential-bearing URL.")
     nthreads = module.params["nthreads"]
+    dnf_max_concurrent_commands = module.params["dnf_max_concurrent_commands"]
     log_dir = module.params["log_dir"]
     log_file = module.params["log_file"]
     slog_file = module.params["slog_file"]
@@ -477,8 +520,11 @@ def main():
     start_time = datetime.now()
     formatted_start_time = start_time.strftime("%I:%M:%S %p")
     slogger.info(f"Start execution time: {formatted_start_time}")
-    slogger.info(f"Task list: {tasks}")
+    slogger.info("Task list: %s", redact_sensitive_value(tasks))
     slogger.info(f"Number of threads: {nthreads}")
+    slogger.info(
+        "Maximum concurrent DNF commands: %d", dnf_max_concurrent_commands
+    )
     slogger.info(f"Timeout: {timeout}")
     slogger.info(f"overall_status_dict: {overall_status_dict}")
     slogger.info(f"show_softwares_status: {show_softwares_status}")
@@ -489,11 +535,24 @@ def main():
         status_table = generate_software_status_table(overall_status_dict, slogger)
         module.exit_json(changed=False, msg=status_table)
 
+    if not 1 <= nthreads <= 5:
+        module.fail_json(msg="nthreads must be between 1 and 5")
+    if not 1 <= dnf_max_concurrent_commands <= 5:
+        module.fail_json(msg="dnf_max_concurrent_commands must be between 1 and 5")
+
     try:
         # Build user_data from catalog config and module params.
-        cluster_os_type = module.params.get("cluster_os_type", "rhel")
-        cluster_os_version = module.params.get("cluster_os_version", "10.0")
+        cluster_os_type = module.params.get("cluster_os_type")
+        cluster_os_version = module.params.get("cluster_os_version")
         repo_config_policy = module.params.get("repo_config_policy", "partial")
+
+        if not cluster_os_type or not cluster_os_version or not arc:
+            module.fail_json(
+                msg=(
+                    "cluster_os_type, cluster_os_version and arch are required "
+                    "for package execution"
+                )
+            )
 
         if user_json_file and os.path.isfile(user_json_file):
             user_data = load_json(user_json_file)
@@ -516,15 +575,15 @@ def main():
                 # Build softwares list from catalog Groups for version variable extraction
                 for catalog in catalogs:
                     for group_name, group_def in catalog.get("groups", {}).items():
-                        sw_entry = {"name": group_name, "arch": [arc] if arc else ["x86_64"]}
+                        sw_entry = {"name": group_name, "arch": [arc]}
                         # Extract version if available in group definition
                         if isinstance(group_def, dict) and group_def.get("version"):
                             sw_entry["version"] = group_def["version"]
                         user_data["softwares"].append(sw_entry)
-            except Exception as catalog_err:
-                slogger.warning(f"Could not load catalog for version variables: {catalog_err}")
+            except Exception:
+                slogger.warning("Could not load catalog for version variables.")
 
-        subgroup_dict, software_names = get_subgroup_dict(user_data, slogger)
+        _, software_names = get_subgroup_dict(user_data, slogger)
         version_variables = set_version_variables(
             user_data, software_names, cluster_os_version, slogger
         )
@@ -538,11 +597,14 @@ def main():
         #         msg=f"Unable to generate local_repo key at path: {user_reg_key_path}"
         #     )
 
+        initialize_package_status_file(csv_file_path)
+
         overall_status, task_results = execute_parallel(
             tasks, determine_function, nthreads, repo_store_path, csv_file_path,
             log_dir, user_data, version_variables, arc, slogger,
             local_repo_config_path, omnia_credentials_yaml_path,
-            omnia_credentials_vault_path, timeout
+            omnia_credentials_vault_path, timeout,
+            dnf_max_concurrent_commands=dnf_max_concurrent_commands
         )
 
         # if not is_encrypted(user_reg_cred_input):
@@ -556,9 +618,12 @@ def main():
 
         slogger.info(f"End execution time: {formatted_end_time}")
         slogger.info(f"Total execution time: {total_duration}")
-        slogger.info(f"Task results: {task_results}")
+        slogger.info("Task results: %s", redact_sensitive_value(task_results))
 
-        table_output = generate_pretty_table(task_results, total_duration, overall_status, slogger)
+        table_output = generate_pretty_table(
+            task_results, total_duration, overall_status, slogger,
+            architecture=arc, software=software
+        )
         log_table_output(table_output, log_file)
         result["total_duration"] = total_duration
         result["task_results"] = task_results
@@ -570,7 +635,7 @@ def main():
         if overall_status == "SUCCESS":
             result["overall_status"] = "SUCCESS"
             result["changed"] = True
-            slogger.info(f"Result: {result}")
+            slogger.info("Result: %s", redact_sensitive_value(result))
             module.exit_json(**result)
         elif overall_status == "PARTIAL":
             result["overall_status"] = "PARTIAL"
@@ -579,16 +644,16 @@ def main():
             result["overall_status"] = "FAILURE"
             module.exit_json(msg="Some tasks failed", **result)
 
-    except RuntimeError as e:
-        slogger.error(f"Execution failed: {str(e)}")
-        module.fail_json(msg=f"Error during execution: {str(e)}", **result)
+    except RuntimeError:
+        slogger.error("Repo Manager task execution failed.")
+        module.fail_json(msg="Error during task execution.", **result)
 
-    except Exception as e:
+    except Exception:
         result["table_output"] = (
             table_output if "table_output" in locals() else "No table generated."
         )
-        slogger.error(f"Execution failed: {str(e)}")
-        module.fail_json(msg=f"Error during execution: {str(e)}", **result)
+        slogger.error("Repo Manager task execution failed.")
+        module.fail_json(msg="Error during task execution.", **result)
 
 
 if __name__ == "__main__":

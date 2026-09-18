@@ -29,10 +29,10 @@ gitlab_hosted_prereq_packages:
   - podman-docker
 
 # Runner container
-gitlab_runner_image: "docker.io/gitlab/gitlab-runner:v18.8.0"
+gitlab_runner_image: "docker.io/gitlab/gitlab-runner:v19.2.0"
 gitlab_runner_default_image: "docker.io/library/alpine:3.23.3"
 gitlab_runner_helper_image_registry: "registry.gitlab.com/gitlab-org/gitlab-runner/gitlab-runner-helper"
-gitlab_runner_helper_image_version: "v18.8.0"
+gitlab_runner_helper_image_version: "v19.2.0"
 gitlab_runner_container_name: "gitlab-runner"
 gitlab_runner_service_name: "gitlab-runner"
 gitlab_runner_systemd_service_file: "/etc/systemd/system/gitlab-runner.service"

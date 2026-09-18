@@ -49,7 +49,7 @@ class ValidateRequest:
     test_suite: str = ""
     timeout_minutes: int = 120
     artifact_dir: str = ""
-    config_path: str = "/opt/omnia/automation/omnia_test_config.yml"
+    config_path: str = ""  # Required field - set by use case
     correlation_id: str = ""
     submitted_at: str = ""
     attempt: int = 1

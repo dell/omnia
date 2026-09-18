@@ -28,6 +28,7 @@ from library.functions import (
     check_container_running,
     check_s3_buckets,
 )
+from library.vars import TEST_CASES as TC
 from library.vars.common_vars import (
     PLAYBOOK_ENTRY_POINT,
     MINIO_CONTAINER,
@@ -39,11 +40,13 @@ from library.vars.common_vars import (
 @pytest.mark.order(1)
 def test_prepare_idempotent(host):
     """Verify running prepare twice does not recreate containers."""
-    tl = TestLogger("NFT: Prepare idempotency", "NFT_004")
+    tc = TC["prepare_idempotent"]
+    tl = TestLogger(tc["title"], tc["id"])
 
     # First run
     result1 = run_playbook(
-        playbook=PLAYBOOK_ENTRY_POINT, tag="prepare",
+        playbook=PLAYBOOK_ENTRY_POINT,
+        tag="prepare",
     )
     if not result1["success"]:
         tl.failed(f"First prepare failed (rc={result1['rc']})")
@@ -55,7 +58,8 @@ def test_prepare_idempotent(host):
 
     # Second run
     result2 = run_playbook(
-        playbook=PLAYBOOK_ENTRY_POINT, tag="prepare",
+        playbook=PLAYBOOK_ENTRY_POINT,
+        tag="prepare",
     )
 
     # Check containers after second run
@@ -65,6 +69,8 @@ def test_prepare_idempotent(host):
 
     all_ok = (
         result2["success"]
+        and minio1["success"]
+        and reg1["success"]
         and minio2["success"]
         and reg2["success"]
         and buckets["success"]
@@ -81,14 +87,16 @@ def test_prepare_idempotent(host):
         tl.failed(
             f"Prepare not idempotent. "
             f"rc={result2.get('rc')}, "
-            f"minio={minio2['success']}, "
-            f"registry={reg2['success']}, "
+            f"minio_run1={minio1['success']}, "
+            f"registry_run1={reg1['success']}, "
+            f"minio_run2={minio2['success']}, "
+            f"registry_run2={reg2['success']}, "
             f"buckets={buckets['success']}"
         )
 
-    assert result2["success"], (
-        f"Second prepare run failed (rc={result2['rc']})"
-    )
+    assert result2["success"], f"Second prepare run failed (rc={result2['rc']})"
+    assert minio1["success"], "MinIO container not running after first run"
+    assert reg1["success"], "Registry container not running after first run"
     assert minio2["success"], "MinIO container not running after second run"
     assert reg2["success"], "Registry container not running after second run"
     assert buckets["success"], "S3 buckets missing after second run"

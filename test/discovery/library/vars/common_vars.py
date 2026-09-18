@@ -46,24 +46,30 @@ NETWORK_SPEC_FILE = "network_spec.yml"
 
 # Playbook entry point (relative to the domain source)
 PLAYBOOK_ENTRY_POINT = "discovery.yml"
-PLAYBOOK_WORKDIR = "src/discovery"
+PLAYBOOK_WORKDIR = "src/discovery/playbooks"
 
 # Valid playbook tags
 PLAYBOOK_TAGS: List[str] = [
+    "precheck",
     "validate",
-    "discover",
+    "credentials",
+    "prepare",
+    "execute",
+    "cleanup",
+    "upgrade",
+    "rollback",
 ]
 
 # =============================================================================
 # Domain-specific paths
 # =============================================================================
 SHARED_PATH = "/opt/omnia/discovery"
-INPUT_PATH_TEMPLATE = "/opt/omnia/input/{project}/discovery"
-OUTPUT_PATH_TEMPLATE = "/opt/omnia/output/{project}/discovery"
+INPUT_PATH_TEMPLATE = "/opt/omnia/discovery/input/{project}"
+OUTPUT_PATH_TEMPLATE = "/opt/omnia/discovery/output/{project}"
 
 # Credentials
-CREDENTIALS_FILE_NAME = "omnia_config_credentials.yml"
-CREDENTIALS_KEY_NAME = ".omnia_config_credentials_key"
+CREDENTIALS_FILE_NAME = "discovery_credentials.yml"
+CREDENTIALS_KEY_NAME = ".discovery_credentials_key"
 
 # Output file patterns
 PXE_MAPPING_PATTERN = "bmc_pxe_mapping_file*.csv"

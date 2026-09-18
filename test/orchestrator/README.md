@@ -1,104 +1,97 @@
-# Orchestrator — Test Automation
+# Orchestrator test automation
 
-Functional Verification Tests (FVT) for the `omnia.orchestrator` Ansible collection.
-
-## Prerequisites
-
-- Python 3.12+
-- `omnia-auto` wheel (from `test/plugins/dist/`)
-- Access to an OIM server with OpenCHAMI configured (for live tests)
-- Provisioned nodes (for provision scenario tests)
+This module provides functional (FVT), non-functional (NFT), and deterministic
+unit/contract tests for `src/orchestrator` using the shared `omnia-auto`
+runner.
 
 ## Setup
 
 ```bash
-bash setup_env.sh            # One-time: create .venv, install deps
+cd test/orchestrator
+./setup_env.sh --venv
 source .venv/bin/activate
-vi test_config.yml           # Set oim_server_ip, dataset, etc.
 ```
 
-## Running Tests
+Configure the target in `test_config.yml`. Leave `oim_server_ip` empty only
+when running directly on the OIM.
+
+### LDAP-backed Slurm login verification
+
+The optional setup utility follows the external-directory flow from
+`dell/omnia-containers` branch `automation-v2.2.0.0`: it deploys or reuses a
+Bitnami OpenLDAP directory, creates a POSIX user/group, validates a generated
+`meta` proxy `slapd.conf`, and restarts `omnia_auth`. It never changes
+`src/orchestrator`, public product inputs, or `orchestrator_credentials.yml`.
+Normal pytest and runner commands remain read-only.
+
+Enable and configure `external_ldap` in `test_config.yml`, then run:
+
+    ./setup_env.sh --set-ldap-test-creds
+    .venv/bin/python3 utility/create_ldap_user.py
+    ./run_validation.sh fvt_orchestrator prepare verify --marker openldap
+    ./run_validation.sh fvt_orchestrator check verify --suite slurm
+
+Use `utility/create_ldap_user.py --recreate` only when the configured test
+container and its named volume may be deleted. Without that flag, setup is
+reconciling: an existing account is preserved and its password is updated to
+match encrypted `test_creds.yml`. To create a different user, update the LDAP
+test credentials and assign unused `uid_number`/`gid_number` values in
+`test_config.yml`, then rerun the utility without `--recreate`; the existing
+directory and its earlier accounts remain intact.
+
+ORCH_FVT_SLURM_V035 submits a temporary job as that LDAP identity, verifies
+password-based SSH to the allocated compute node while the job is active, and
+always cancels the access-window job. ORCH_FVT_SLURM_V036 verifies job
+submission as the same LDAP identity.
+
+## Slurm flow aligned with PR #5220
+
+Kubernetes and Slurm use the same two-part structure:
+
+| Platform | Deployment | Verification |
+|---|---|---|
+| Kubernetes | `fvt/provision/kubernetes/` | `fvt/check/kubernetes/` |
+| Slurm | `fvt/provision/slurm/` | `fvt/check/slurm/` |
+
+Generate the dataset supplied by PR #5220, deploy once, then verify the
+complete recursive Slurm suite:
 
 ```bash
-# Show help
-run_validation --help
-
-# Validate inputs exist on target
-run_validation validate verify --marker sanity
-
-# Deploy prepare and verify OpenCHAMI containers
-run_validation prepare test
-
-# Verify only OpenCHAMI containers (no playbook)
-run_validation prepare verify --suite openchami
-
-# Run cleanup and verify removal
-run_validation cleanup test
-
-# Run all scenarios
-run_validation all test
-
-# Batch run from config
-run_validation --config
+cd datasets/generator
+./generate_dataset.py slurm_only slurm_only
+cd ../..
+./run_validation.sh fvt_orchestrator provision exec --suite slurm
+./run_validation.sh fvt_orchestrator check verify --suite slurm
 ```
 
-## Scenarios
+`check/slurm` includes core Slurm, additional cloud-init, HPC benchmarks,
+Apptainer, GPU, platform/network/source contracts, VAST, and PowerVault.
+Feature-specific filters are also available, for example:
 
-| Scenario | Description |
-|----------|-------------|
-| `validate` | Verify input files (orchestrator_config.yml, omnia_config.yml, etc.) |
-| `prepare` | Deploy OpenCHAMI + verify containers and API |
-| `provision` | Full provisioning (K8s, Slurm, OS nodes) |
-| `cleanup` | Cleanup + verify container/service removal |
-| `orchestrator` | Full end-to-end (all phases) |
-
-## Test Cases
-
-See [fvt/TEST_CASES.md](fvt/TEST_CASES.md) for the complete test case registry.
-
-## Directory Structure
-
-```
-test/orchestrator/
-├── setup_env.sh               # Environment setup
-├── run_validation.sh           # CLI runner
-├── conftest.py                 # Pytest hooks, fixtures, report generation
-├── test_config.yml             # Target server and sync settings
-├── test_creds.yml              # SSH credentials (Ansible Vault)
-├── test_run_config.yml         # Batch execution config
-├── requirements.txt            # Python dependencies
-│
-├── docs/                       # Configuration documentation
-│   ├── test_config.md
-│   ├── test_creds.md
-│   └── test_run_config.md
-│
-├── datasets/                   # Test input datasets
-│   └── data_set_01/
-│       ├── input/              # orchestrator_config, network_spec
-│       └── repo_manager_output/# repo_status.yml
-│
-├── library/                    # Reusable automation library
-│   ├── functions/              # orchestrator_func, host_func, validation_func
-│   ├── vars/                   # Constants, paths, commands (common_vars)
-│   └── messages/               # Test names, log/assert messages
-│
-└── fvt/                        # Functional Verification Tests
-    ├── TEST_CASES.md
-    ├── validate/               # Validate scenario
-    │   └── status/
-    │       └── test_status.py
-    ├── prepare/                # Prepare scenario
-    │   └── openchami/
-    │       └── test_openchami.py
-    ├── provision/              # Provision scenario
-    │   └── test_playbook.py
-    └── cleanup/                # Cleanup scenario
-        └── status/
-            └── test_status.py
+```bash
+./run_validation.sh fvt_orchestrator check verify --suite slurm --marker hpc_benchmarks
+./run_validation.sh fvt_orchestrator check verify --suite slurm --marker apptainer
+./run_validation.sh fvt_orchestrator check verify --suite slurm --marker storage
 ```
 
-## Using the omnia-auto Pip Package
+`test` means execute and then verify the selected lifecycle scope. Platform
+deployment and post-deployment checks are intentionally separate, matching
+the Kubernetes layout in PR #5220.
 
-This module uses the [omnia-auto](../plugins) package for all common test utilities
-(TestLogger, run_playbook, sync_files, etc.).
+## Other commands
+
+```bash
+./run_validation.sh fvt_orchestrator list
+./run_validation.sh fvt_orchestrator playbooks verify
+./run_validation.sh fvt_orchestrator negative verify --marker negative
+./run_validation.sh nft_orchestrator test --marker nft
+./run_validation.sh ut_orchestrator test --marker unit
+./run_validation.sh --config
+```
+
+State-changing cleanup, PXE boot, rollback, and storage I/O checks require an
+explicit `--marker destructive` run.
+
+Reports are written to `reports/` in local/unit mode or to the configured
+`report_path` for a remote target. See [`docs/TEST_CASES.md`](docs/TEST_CASES.md)
+for the live inventory and naming convention.

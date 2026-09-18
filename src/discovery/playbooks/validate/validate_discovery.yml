@@ -1,0 +1,38 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Validate Discovery -- Standalone input validation
+# Can be run standalone or imported by discovery.yml
+#
+# When imported from discovery.yml (discovery_setup_done=true), setup is skipped.
+
+# Standalone: run discovery_setup
+- name: Standalone setup for validation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Run discovery_setup role (standalone only)
+      ansible.builtin.include_role:
+        name: discovery_setup
+      when: not (discovery_setup_done | default(false) | bool)
+
+- name: Validate discovery input configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: validate_discovery_input
+      when: not config_file_status | default(false) | bool

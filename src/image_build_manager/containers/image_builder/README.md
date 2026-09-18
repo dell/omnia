@@ -1,7 +1,7 @@
 # Image Builder Container
 
 Container image used by the `image_build_manager` to build OS images via
-[OpenCHAMI image-build](https://github.com/OpenCHAMI/image-build).
+[OpenCHAMI image-builder](https://github.com/OpenCHAMI/image-builder).
 
 ## Base Image
 
@@ -9,9 +9,9 @@ Container image used by the `image_build_manager` to build OS images via
 
 ## Contents
 
-- **Go** (compiled from source) for building `buildah` and `image-build`
+- **Go toolchain** — downloaded for compiling Buildah
 - **Buildah** — OCI image builder (built from source with `btrfs` support)
-- **OpenCHAMI image-build** — disk image generator
+- **OpenCHAMI image-builder** — Python disk-image generator
 - **Python 3.12** — for Ansible and helper scripts
 - Ansible + boto3 + cryptography (see `requirements.txt`)
 
@@ -24,25 +24,32 @@ Container image used by the `image_build_manager` to build OS images via
 
 ## Building
 
-The container is built by `containers/build_images.sh` during the
-`prepare` phase of the image_build_manager playbook. You do not
-normally need to build it manually.
+The runtime playbooks do not build this image during `prepare`. They pull the
+published image from the repository manager first and then its configured
+upstream registry. `containers/build_images.sh` is a developer utility for
+building and publishing the image sources.
 
-**Manual build** (for development):
+**Development build** (requires network access to clone OpenCHAMI sources):
 
 ```bash
 cd src/image_build_manager/containers
-podman build -t image-builder:dev -f image_builder/Containerfile.el10 image_builder/
+./build_images.sh
 ```
+
+The Containerfile's build context must contain the cloned OpenCHAMI
+`image-builder` `src/` tree, so invoking `podman build` directly against the
+checked-in `image_builder/` directory is insufficient.
 
 ## Usage
 
-The playbook launches this container via Podman to execute `image-build`
-commands. The container is run with:
+When `image_build_type: "image-builder"` is selected, the playbook launches
+the architecture-specific image via Podman to execute `image-build` commands.
+The `image-thrillhouse` engine uses a different upstream image. The
+image-builder container is run with:
 
-- Pulp TLS certificate mounted at `/etc/pki/ca-trust/source/anchors/`
+- Pulp TLS certificate mounted at `/etc/pki/ca-trust/source/anchors/` when configured
 - Build config YAML mounted at `/home/builder/config.yaml`
-- Privileged mode for rootless image assembly
+- root user and privileged container access for image assembly
 
 See `roles/build_os_images/` for the Ansible tasks that invoke this container.
 

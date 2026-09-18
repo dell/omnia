@@ -1,0 +1,111 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# sync_gitlab_files.yml — Push new/updated CI and input files to GitLab
+#
+# Lightweight playbook that only syncs files to the existing GitLab
+# repository.  Unlike setup_gitlab.yml (which does full deployment),
+# this skips GitLab installation, project creation, runner setup, etc.
+#
+# Usage (from src/build_stream/):
+#   ansible-playbook playbooks/build/sync_gitlab_files.yml
+#
+# Prerequisites:
+#   - GitLab must already be deployed via setup_gitlab.yml
+#   - build_stream_config.yml must contain valid gitlab_host
+#   - /root/.gitlab_root_token must exist on the GitLab host
+
+- name: Set_fact for fetch omnia config credentials
+  hosts: localhost
+  connection: local
+  tags: always
+  tasks:
+    - name: Set dynamic run tags including 'gitlab'
+      when: omnia_run_tags is not defined
+      ansible.builtin.set_fact:
+        omnia_run_tags: "{{ ['build_stream', 'gitlab'] }}"
+        cacheable: true
+
+- name: Build Stream setup (input dirs + OIM group)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  roles:
+    - role: ../../roles/build_stream_setup
+      vars:
+        create_oim_group: true
+      when: not build_stream_setup_done | default(false) | bool
+
+- name: Prepare GitLab host credentials from provision secrets
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Prerequisite checks
+      ansible.builtin.include_role:
+        name: hosted_gitlab
+        tasks_from: prereq_checks.yml
+
+- name: Sync CI/CD and input files to GitLab repository
+  hosts: gitlab_server
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Load hosted_gitlab role variables
+      ansible.builtin.include_vars:
+        file: "{{ role_path_prefix }}/vars/main.yml"
+      vars:
+        role_path_prefix: "{{ playbook_dir }}/../../roles/hosted_gitlab"
+
+    - name: Set GitLab external URL
+      ansible.builtin.set_fact:
+        gitlab_external_url_computed: "https://{{ gitlab_host }}{% if gitlab_https_port != 443 %}:{{ gitlab_https_port }}{% endif %}"
+
+    - name: Read GitLab root token
+      ansible.builtin.slurp:
+        src: "{{ gitlab_root_token_file_path }}"
+      register: _gitlab_token_raw
+      no_log: true
+
+    - name: Set GitLab root token fact
+      ansible.builtin.set_fact:
+        gitlab_root_token: "{{ _gitlab_token_raw.content | b64decode | trim }}"
+      no_log: true
+
+    - name: Search for project by name
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects?search={{ gitlab_project_name }}"
+        method: GET
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        validate_certs: false
+        status_code: [200]
+      register: project_search
+      no_log: true
+
+    - name: Set project ID
+      ansible.builtin.set_fact:
+        gitlab_project_id: "{{ project_search.json[0].id | string }}"
+      when: project_search.json | length > 0
+
+    - name: Fail when project not found
+      ansible.builtin.fail:
+        msg: "GitLab project '{{ gitlab_project_name }}' not found. Run setup_gitlab.yml first."
+      when: project_search.json | length == 0
+
+    - name: Push CI/CD files and input files to repository
+      ansible.builtin.include_role:
+        name: hosted_gitlab
+        tasks_from: push_ci_files.yml

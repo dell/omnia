@@ -1,0 +1,396 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# external_victoria_connect — Fetch Victoria connection details for external clients
+#
+# This role runs on kube_vip to extract:
+#   - VictoriaMetrics vminsert/vmselect LoadBalancer endpoints
+#   - VictoriaLogs vlinsert/vlselect LoadBalancer endpoints
+#   - VLAgent syslog LoadBalancer endpoint (for PowerScale)
+#   - TLS CA certificate (if TLS is enabled)
+#   - SFM Prometheus remote-write integration instructions
+#   - PowerScale syslog forwarding commands
+#
+# Output: {{ victoria_output_dir }}/
+#           ├── ca.crt  (if TLS enabled)
+#           └── external_victoria_connect_details.yml
+# =============================================================================
+
+- name: Validate kube_vip connectivity
+  block:
+    - name: Wait for kube_vip connection
+      ansible.builtin.wait_for_connection:
+        timeout: 30
+  rescue:
+    - name: Fail when kube_vip is not reachable
+      ansible.builtin.fail:
+        msg: "{{ victoria_err_kube_vip_unreachable }}"
+
+- name: Check kubectl availability
+  ansible.builtin.command: kubectl version --client=true
+  register: _kubectl_check
+  changed_when: false
+  failed_when: _kubectl_check.rc != 0
+
+- name: Clean output directory for fresh export
+  ansible.builtin.file:
+    path: "{{ victoria_output_dir }}"
+    state: absent
+  delegate_to: localhost
+  connection: local
+  run_once: true
+
+# =============================================================================
+# Validate VictoriaMetrics cluster health
+# =============================================================================
+
+- name: Get VictoriaMetrics pod status (vminsert, vmselect, vmstorage)
+  ansible.builtin.command: >-
+    kubectl get pods -n {{ victoria_namespace }}
+    -l 'app.kubernetes.io/instance=victoria-cluster'
+    -o json
+  register: _vm_pods_json
+  changed_when: false
+  failed_when: _vm_pods_json.rc != 0
+
+- name: Parse VictoriaMetrics pod data
+  ansible.builtin.set_fact:
+    _vm_pod_items: "{{ (_vm_pods_json.stdout | from_json)['items'] | default([]) }}"
+
+- name: Fail if no VictoriaMetrics pods found
+  ansible.builtin.fail:
+    msg: "{{ victoria_err_no_vm_pods }}"
+  when: (_vm_pod_items | length) == 0
+
+- name: Fail if VictoriaMetrics pods are not Running
+  ansible.builtin.fail:
+    msg: "{{ victoria_err_vm_pods_not_running }}"
+  when: >-
+    (_vm_pod_items
+    | selectattr('status.phase', 'ne', 'Running')
+    | list | length) > 0
+
+- name: Capture VictoriaMetrics pod status (wide)
+  ansible.builtin.command: >-
+    kubectl get pods -n {{ victoria_namespace }}
+    -l 'app.kubernetes.io/instance=victoria-cluster'
+    -o wide
+  register: _vm_pod_status_wide
+  changed_when: false
+
+# =============================================================================
+# Extract VictoriaMetrics external endpoints
+# =============================================================================
+
+- name: Get vminsert LoadBalancer external IP
+  ansible.builtin.command: >-
+    kubectl get svc {{ vm_vminsert_service }} -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: _vminsert_lb_ip
+  changed_when: false
+  failed_when: _vminsert_lb_ip.rc != 0
+
+- name: Set vminsert external endpoint
+  ansible.builtin.set_fact:
+    _vminsert_ip: "{{ _vminsert_lb_ip.stdout | trim }}"
+
+- name: Fail when vminsert external IP is not available
+  ansible.builtin.fail:
+    msg: "{{ victoria_err_vminsert_ip_missing }}"
+  when: _vminsert_ip | trim | length == 0
+
+- name: Get vmselect LoadBalancer external IP
+  ansible.builtin.command: >-
+    kubectl get svc {{ vm_vmselect_service }} -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: _vmselect_lb_ip
+  changed_when: false
+  failed_when: _vmselect_lb_ip.rc != 0
+
+- name: Set vmselect external endpoint
+  ansible.builtin.set_fact:
+    _vmselect_ip: "{{ _vmselect_lb_ip.stdout | trim }}"
+
+- name: Fail when vmselect external IP is not available
+  ansible.builtin.fail:
+    msg: "{{ victoria_err_vmselect_ip_missing }}"
+  when: _vmselect_ip | trim | length == 0
+
+# =============================================================================
+# Determine protocol (HTTP vs HTTPS)
+# =============================================================================
+
+- name: Check if VictoriaMetrics TLS secret exists
+  ansible.builtin.command: >-
+    kubectl get secret {{ victoria_tls_secret }} -n {{ victoria_namespace }}
+    -o name
+  register: _vm_tls_check
+  changed_when: false
+  failed_when: false
+
+- name: Set TLS availability flag
+  ansible.builtin.set_fact:
+    _vm_tls_enabled: "{{ _vm_tls_check.rc == 0 }}"
+
+- name: Set protocol based on TLS
+  ansible.builtin.set_fact:
+    _vm_scheme: "{{ 'https' if _vm_tls_enabled | bool else 'http' }}"
+
+# =============================================================================
+# Extract TLS certificate (if enabled)
+# =============================================================================
+
+- name: Extract TLS CA certificate
+  when: _vm_tls_enabled | bool
+  block:
+    - name: Read Victoria TLS CA certificate from K8s secret
+      ansible.builtin.command: >-
+        kubectl get secret {{ victoria_tls_secret }} -n {{ victoria_namespace }}
+        -o jsonpath='{.data.ca\.crt}'
+      register: _victoria_ca_b64
+      changed_when: false
+      failed_when: _victoria_ca_b64.rc != 0 or (_victoria_ca_b64.stdout | trim | length == 0)
+      no_log: true
+
+    - name: Ensure output directory exists (for cert)
+      ansible.builtin.file:
+        path: "{{ victoria_output_dir }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      connection: local
+      run_once: true
+
+    - name: Write CA certificate file
+      ansible.builtin.copy:
+        content: "{{ _victoria_ca_b64.stdout | b64decode }}"
+        dest: "{{ victoria_output_dir }}/ca.crt"
+        mode: "0600"
+      delegate_to: localhost
+      connection: local
+      run_once: true
+      no_log: true
+
+# =============================================================================
+# Extract VictoriaLogs external endpoints
+# =============================================================================
+
+- name: Check if vlinsert service exists
+  ansible.builtin.command: >-
+    kubectl get svc {{ vl_vlinsert_service }} -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: _vlinsert_lb_ip
+  changed_when: false
+  failed_when: false
+
+- name: Set VictoriaLogs availability
+  ansible.builtin.set_fact:
+    _vl_available: "{{ _vlinsert_lb_ip.rc == 0 and (_vlinsert_lb_ip.stdout | trim | length > 0) }}"
+    _vlinsert_ip: "{{ _vlinsert_lb_ip.stdout | trim | default('') }}"
+
+- name: Get vlselect LoadBalancer external IP
+  ansible.builtin.command: >-
+    kubectl get svc {{ vl_vlselect_service }} -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: _vlselect_lb_ip
+  changed_when: false
+  failed_when: false
+  when: _vl_available | bool
+
+- name: Set vlselect endpoint
+  ansible.builtin.set_fact:
+    _vlselect_ip: "{{ _vlselect_lb_ip.stdout | trim | default('') }}"
+  when: _vl_available | bool
+
+# =============================================================================
+# Extract VLAgent syslog endpoint
+# =============================================================================
+
+- name: Get VLAgent LoadBalancer external IP
+  ansible.builtin.command: >-
+    kubectl get svc {{ vl_vlagent_service }} -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: _vlagent_lb_ip
+  changed_when: false
+  failed_when: false
+
+- name: Set VLAgent availability
+  ansible.builtin.set_fact:
+    _vlagent_available: "{{ _vlagent_lb_ip.rc == 0 and (_vlagent_lb_ip.stdout | trim | length > 0) }}"
+    _vlagent_ip: "{{ _vlagent_lb_ip.stdout | trim | default('') }}"
+
+# =============================================================================
+# Build connection details
+# =============================================================================
+
+- name: Build VictoriaMetrics connection details
+  ansible.builtin.set_fact:
+    _vm_details:
+      deployment_mode: "cluster"
+      namespace: "{{ victoria_namespace }}"
+      base_url: "{{ _vm_scheme }}://{{ _vminsert_ip }}:{{ vm_vminsert_port }}"
+      endpoints:
+        vminsert:
+          host: "{{ _vminsert_ip }}"
+          port: "{{ vm_vminsert_port }}"
+          write_endpoint: "{{ _vm_scheme }}://{{ _vminsert_ip }}:{{ vm_vminsert_port }}/insert/0/prometheus/api/v1/write"
+        vmselect:
+          host: "{{ _vmselect_ip }}"
+          port: "{{ vm_vmselect_port }}"
+          query_endpoint: "{{ _vm_scheme }}://{{ _vmselect_ip }}:{{ vm_vmselect_port }}/select/0/prometheus/api/v1/query"
+          ui_url: "{{ _vm_scheme }}://{{ _vmselect_ip }}:{{ vm_vmselect_port }}/select/0/vmui"
+      tls:
+        ca_crt: "{{ (victoria_output_dir ~ '/ca.crt') if (_vm_tls_enabled | bool) else 'N/A (TLS disabled)' }}"
+      pod_status: "{{ _vm_pod_status_wide.stdout }}"
+      notes:
+        sfm:
+          ssh_note: "SSH to the SFM IP with admin credentials."
+          ui_navigation: "{{ sfm_ui_navigation }}"
+          remote_write_enable_value: "{{ sfm_remote_write_enable_value }}"
+          remote_write_message_version: "{{ sfm_remote_write_message_version }}"
+          remote_write_target_name: "{{ sfm_remote_write_target_name }}"
+          vminsert_write_url: >-
+            {{ _vm_scheme }}://vminsert-victoria-cluster.{{ victoria_namespace }}.svc.cluster.local:{{ vm_vminsert_port }}/insert/0/prometheus/api/v1/write
+          tls_server_cert_file_name: "{{ sfm_tls_server_cert_file_name }}"
+          tls_server_cert_file_path: "{{ victoria_cert_dir_remote }}/ca.crt"
+          hosts_entry: "echo {{ _vminsert_ip }} vminsert-victoria-cluster.{{ victoria_namespace }}.svc.cluster.local >> /etc/hosts"
+          hosts_entry_vmselect: "echo {{ _vmselect_ip }} vmselect-victoria-cluster.{{ victoria_namespace }}.svc.cluster.local >> /etc/hosts"
+          hosts_restart_note: "Repeat /etc/hosts update if the SFM pod restarts."
+          hosts_scope_note: "/etc/hosts update is required only inside the SFM Prometheus pod (not on the SFM server host)."
+          pod_shell_command_example: "kubectl exec -it sfm-prometheus-deployment-xxxxx-xx -n sfm-1 -- /bin/sh"
+
+- name: Build VictoriaLogs connection details
+  ansible.builtin.set_fact:
+    _vl_details:
+      available: "{{ _vl_available | bool }}"
+      endpoints:
+        vlinsert:
+          host: "{{ _vlinsert_ip | default('') }}"
+          port: "{{ vl_vlinsert_port }}"
+          write_endpoint: "http://{{ _vlinsert_ip }}:{{ vl_vlinsert_port }}/insert/jsonline"
+        vlselect:
+          host: "{{ _vlselect_ip | default('') }}"
+          port: "{{ vl_vlselect_port }}"
+          query_endpoint: "http://{{ _vlselect_ip | default('') }}:{{ vl_vlselect_port }}/select/logsql/query"
+          ui_url: "http://{{ _vlselect_ip | default('') }}:{{ vl_vlselect_port }}/select/vmui"
+      namespace: "{{ victoria_namespace }}"
+  when: _vl_available | bool
+
+- name: Build VLAgent connection details
+  ansible.builtin.set_fact:
+    _vlagent_details:
+      available: "{{ _vlagent_available | bool }}"
+      host: "{{ _vlagent_ip | default('') }}"
+      namespace: "{{ victoria_namespace }}"
+      syslog_endpoint: "{{ _vlagent_ip }}:{{ vl_vlagent_syslog_port }}"
+      syslog_port: "{{ vl_vlagent_syslog_port }}"
+  when: _vlagent_available | bool
+
+- name: Build PowerScale syslog commands
+  ansible.builtin.set_fact:
+    _powerscale_details:
+      syslog_target: "{{ _vlagent_ip }}:{{ vl_vlagent_syslog_port }}"
+      isi_audit_commands:
+        - >-
+          isi audit settings global modify --config-syslog-enabled=yes
+          --config-syslog-tls-enabled=0
+          --config-syslog-servers={{ _vlagent_ip }}:{{ vl_vlagent_syslog_port }}
+        - >-
+          isi audit settings global modify --protocol-syslog-enabled=yes
+          --protocol-syslog-tls-enabled=0
+          --protocol-syslog-servers={{ _vlagent_ip }}:{{ vl_vlagent_syslog_port }}
+        - >-
+          isi audit settings global modify --system-syslog-enabled=yes
+          --system-syslog-tls-enabled=0
+          --system-syslog-servers={{ _vlagent_ip }}:{{ vl_vlagent_syslog_port }}
+        - "isi audit settings modify --syslog-forwarding-enabled=yes"
+        - "isi audit settings global view"
+  when: _vlagent_available | bool
+
+# =============================================================================
+# Write output files
+# =============================================================================
+
+- name: Ensure output directory exists
+  ansible.builtin.file:
+    path: "{{ victoria_output_dir }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+  connection: local
+  run_once: true
+
+- name: Assemble full connection details
+  ansible.builtin.set_fact:
+    _victoria_connect_details:
+      victoria_metrics: "{{ _vm_details }}"
+      victoria_logs: "{{ _vl_details | default({'available': false}) }}"
+      vlagent: "{{ _vlagent_details | default({'available': false}) }}"
+      powerscale: "{{ _powerscale_details | default({}) }}"
+
+- name: Write connection details to file
+  ansible.builtin.copy:
+    content: "{{ _victoria_connect_details | to_nice_yaml }}"
+    dest: "{{ victoria_output_file }}"
+    mode: "0644"
+  delegate_to: localhost
+  connection: local
+  run_once: true
+
+- name: Display Victoria connection details
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        [
+          '══════════════════════════════════════════════════════════════',
+          'Victoria External Connection Details',
+          '══════════════════════════════════════════════════════════════',
+          '',
+          'Connection details written to: ' ~ victoria_output_file,
+          '',
+          '[VICTORIA METRICS]',
+          '  vminsert (write): ' ~ _vm_scheme ~ '://' ~ _vminsert_ip ~ ':' ~ vm_vminsert_port ~ '/insert/0/prometheus/api/v1/write',
+          '  vmselect (query): ' ~ _vm_scheme ~ '://' ~ _vmselect_ip ~ ':' ~ vm_vmselect_port ~ '/select/0/prometheus/api/v1/query',
+          '  vmui:             ' ~ _vm_scheme ~ '://' ~ _vmselect_ip ~ ':' ~ vm_vmselect_port ~ '/select/0/vmui',
+          '',
+          '[VICTORIA LOGS]' ~ (' (available)' if (_vl_available | bool) else ' (not deployed)'),
+          '  vlinsert (write): ' ~
+            ('http://' ~ _vlinsert_ip ~ ':' ~ vl_vlinsert_port ~ '/insert/jsonline' if (_vl_available | bool) else 'N/A'),
+          '  vlselect (query): ' ~
+            ('http://' ~ (_vlselect_ip | default('')) ~ ':' ~ vl_vlselect_port ~ '/select/logsql/query' if (_vl_available | bool) else 'N/A'),
+          '',
+          '[VLAGENT SYSLOG]' ~ (' (available)' if (_vlagent_available | bool) else ' (not deployed)'),
+          '  syslog target:    ' ~ ((_vlagent_ip ~ ':' ~ vl_vlagent_syslog_port) if (_vlagent_available | bool) else 'N/A'),
+          '',
+          '[SFM INTEGRATION]',
+          '  1. SSH to SFM host',
+          '  2. Navigate to: ' ~ sfm_ui_navigation,
+          '  3. Enable Prometheus Remote Write: ' ~ sfm_remote_write_enable_value,
+          '  4. Set target URL (inside SFM pod):',
+          '     ' ~ _vm_scheme ~ '://vminsert-victoria-cluster.' ~ victoria_namespace ~
+            '.svc.cluster.local:' ~ vm_vminsert_port ~ '/insert/0/prometheus/api/v1/write',
+          '  5. Add /etc/hosts entry inside SFM Prometheus pod:',
+          '     echo ' ~ _vminsert_ip ~ ' vminsert-victoria-cluster.' ~ victoria_namespace ~ '.svc.cluster.local >> /etc/hosts',
+          '',
+          '[POWERSCALE SYSLOG]' ~ (' (VLAgent available)' if (_vlagent_available | bool) else ' (VLAgent not deployed)'),
+          '  Run the isi audit commands from the connection details file.',
+          '',
+          '══════════════════════════════════════════════════════════════'
+        ]
+      }}
+  delegate_to: localhost
+  connection: local
+  run_once: true

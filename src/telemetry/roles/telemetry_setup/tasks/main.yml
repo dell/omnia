@@ -15,23 +15,42 @@
 # =============================================================================
 # TELEMETRY SETUP ROLE - MAIN ENTRY POINT
 # =============================================================================
-# This role handles initial setup tasks for telemetry:
-# - Create log and output directories
-# - Load telemetry configuration
-# - Display usage information
-# - Set guard fact
+# Self-contained setup for telemetry — matches image_build_setup pattern.
+#
+# Task files:
+#   load_config.yml       — Step 1: Read omnia.env vars, derive paths, auto-copy inputs
+#   create_directories.yml — Step 2: Create runtime directories
+#   display_usage.yml     — Step 3: Display usage information
+#   main.yml (this file)  — Step 4: Set guard fact
 # =============================================================================
 
-- name: Create directories
-  ansible.builtin.include_tasks: create_directories.yml
-
-- name: Load telemetry configuration
+- name: Load configuration from environment (omnia.env)
   ansible.builtin.include_tasks: load_config.yml
+
+- name: Validate system environment
+  validate_system_environment:
+    required_vars:
+      - OMNIA_DATA_PATH
+    validate_hostname: false
+    validate_domain: false
+    validate_ip: false
+    validate_paths: true
+  register: _env_check
+  ignore_errors: true
+
+- name: Warn if environment validation failed
+  ansible.builtin.debug:
+    msg: "WARNING: System environment validation issues — {{ _env_check.msg | default('unknown') }}"
+  when: _env_check is failed
+
+- name: Create runtime directories
+  ansible.builtin.include_tasks: create_directories.yml
+  when: not (telemetry_cleanup_context | default(false) | bool)
 
 - name: Display usage information
   ansible.builtin.include_tasks: display_usage.yml
 
-- name: Set setup guard fact
+- name: Set telemetry setup guard fact
   ansible.builtin.set_fact:
     telemetry_setup_done: true
     cacheable: true

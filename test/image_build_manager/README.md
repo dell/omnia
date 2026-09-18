@@ -1,9 +1,9 @@
 # Image Build Manager — Test Automation
 
-Functional Verification Testing (FVT) for the `image_build_manager` domain
-inside the **omnia monorepo**. Validates playbook deployment, container
-infrastructure (MinIO + Registry), S3 storage, container registry, build
-output, and image package contents.
+Functional, non-functional, and unit-test automation for the
+`image_build_manager` domain inside the **omnia monorepo**. It validates
+playbook deployment, container infrastructure (MinIO + Registry), S3 storage,
+container registry, build output, and image package contents.
 
 Uses the **`omnia-auto`** package (from `test/plugins/`) for common test
 utilities (host connection, playbook runner, report generation, formatting).
@@ -24,8 +24,8 @@ Before running tests, the target server must have the omnia environment
 configured. This is done via `omnia.sh` in `src/main/`:
 
 ```bash
-# On the target server:
-cd <omnia_repo>/src/main/
+# On the target server (replace /path/to/omnia with the checkout path):
+cd /path/to/omnia/src/main/
 vi omnia.env                  # Set SYSTEM_ADMIN_NIC_IPV4 at minimum
 ./omnia.sh --setup-venv       # Installs env vars system-wide + creates venv
 ```
@@ -39,11 +39,16 @@ on every login shell (via `/etc/profile.d/omnia-env.sh`):
 | `SYSTEM_HOSTNAME` | **Yes** | `oim` | Short hostname — must match `hostname -s` output |
 | `SYSTEM_DOMAIN_NAME` | **Yes** | `omnia.cluster` | Domain name — validated against `hostname -d` |
 | `OMNIA_DATA_PATH` | **Yes** | `/opt/omnia` | Root data directory for all Omnia data |
+| `IMAGE_BUILD_MANAGER_DATA_PATH` | No | `$OMNIA_DATA_PATH/image_build_manager` | Optional Image Build Manager data-root override |
 | `OMNIA_PROJECT_NAME` | **Yes** | `project_default` | Project name for input/output paths |
 | `OMNIA_VERSION` | **Yes** | — | Omnia release version |
 
 The test framework reads these from the target at runtime (sourcing
-`/etc/omnia/omnia.env`) to resolve input sync paths and playbook parameters.
+`/etc/omnia/omnia.env`) to resolve OIM-side input paths and playbook parameters.
+The effective Image Build Manager root is `IMAGE_BUILD_MANAGER_DATA_PATH` when
+that variable is non-empty; otherwise it is
+`$OMNIA_DATA_PATH/image_build_manager`. The aarch64 node does not need to run
+`omnia.sh` or define either variable locally.
 
 ---
 
@@ -53,103 +58,381 @@ The test framework reads these from the target at runtime (sourcing
 # Step 1 — Enter the test directory
 cd omnia/test/image_build_manager/
 
-# Step 2 — Configure the target server
-vi test_config.yml       # Set oim_server_ip for remote mode
+# Step 2 — Select local or remote execution in test_config.yml
+vi test_config.yml       # See "Execution Modes" below
 
 # Step 3 — Run setup (choose one install mode)
-bash setup_env.sh                    # Baremetal (default) or active venv
-bash setup_env.sh --venv             # Create .venv/ and install there
-bash setup_env.sh --venv --force     # Recreate .venv/ from scratch
+./setup_env.sh                    # Baremetal (default) or active venv
+./setup_env.sh --force            # Force-reinstall every requirement
+./setup_env.sh --venv             # Create .venv/ and install there
+./setup_env.sh --venv --force     # Recreate .venv/ and reinstall requirements
 
-# Step 4 — Set SSH password (required for remote mode)
-bash setup_env.sh --set-password     # Interactive prompt (2× confirmation)
-bash setup_env.sh --password 'pass'  # Non-interactive
+# Step 4 — Set SSH credentials (optional; for remote mode)
+./setup_env.sh --set-creds        # Interactive prompt (2x confirmation)
+approved-secret-provider | ./setup_env.sh --creds-stdin  # Non-interactive
+
+# Step 4b — On the execution OIM, set domain credentials (S3 + aarch64)
+# For remote mode, run this from test/image_build_manager on the target OIM.
+./setup_env.sh --set-domain-creds  # Interactive prompt for S3 access/secret + aarch64
 
 # Step 5 — Activate environment (if using --venv mode)
 source .venv/bin/activate            # For --venv mode
-source .run_validation_rc            # For baremetal mode (tab completion)
+# No extra sourcing needed for baremetal
 
 # Step 6 — (Optional) Generate a dataset for custom input
 cd datasets/generator/
-python generate_dataset.py my_dataset defaults
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config
 cd ../..
 # Set: dataset: "my_dataset" in test_config.yml
-# Or leave dataset: "" to use input from target's $OMNIA_DATA_PATH
+# Enable sync_image_build_input/sync_output when the dataset should be copied
+# Leave dataset: "" and sync disabled to keep the target's existing input
+# (with sync enabled, an empty name uses the canonical src/ examples)
 
 # Step 7 — Run tests
-./run_validation.sh prepare verify --marker sanity
+./run_validation.sh fvt_image_build_manager precheck test
 ```
 
 ### Setup Modes
 
 | Mode | Command | Description |
 |------|---------|-------------|
-| Baremetal | `bash setup_env.sh` | Installs via `pip --user` into system Python |
-| Active venv | `bash setup_env.sh` | Auto-detects active venv, installs there |
-| New venv | `bash setup_env.sh --venv` | Creates `.venv/` and installs inside |
-| Force recreate | `bash setup_env.sh --venv --force` | Deletes existing `.venv/` first |
+| Baremetal | `./setup_env.sh` | Installs via `pip --user` into system Python |
+| Active venv | `./setup_env.sh` | Auto-detects active venv, installs there |
+| Force reinstall | `./setup_env.sh --force` | Reinstalls every package from `requirements.txt` in the selected environment |
+| New venv | `./setup_env.sh --venv` | Creates `.venv/` and installs inside |
+| Force recreate | `./setup_env.sh --venv --force` | Recreates `.venv/` and reinstalls every requirement |
 
 ### Credential Management
 
-Credentials are required for remote mode (`oim_server_ip` set in `test_config.yml`).
-The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Vault.
+Two separate credential stores are managed by `setup_env.sh`:
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `test_creds.yml` | Local (this directory) | SSH credentials for remote test execution |
+| `.test_creds.key` | Local (this directory) | Vault key for `test_creds.yml` (auto-created) |
+| `image_build_credentials.yml` | Effective Image Build Manager root `/input/$OMNIA_PROJECT_NAME/` on the execution OIM | S3 + aarch64 domain credentials |
+| `.image_build_credentials_key` | Same execution-OIM directory as above | Vault key for domain credentials |
+
+The two YAML credential files are encrypted with Ansible Vault. Their private
+vault-key files remain mode `0600`. SSH artifacts stay in this gitignored test
+directory. Domain artifacts stay under the effective Image Build Manager root
+on the execution OIM.
+The framework never copies or syncs the domain credential YAML, its vault key,
+or backups.
+
+From `test/image_build_manager` on the execution OIM, run
+`./setup_env.sh --set-domain-creds` with that OIM's
+`IMAGE_BUILD_MANAGER_DATA_PATH` override or `OMNIA_DATA_PATH` fallback, plus
+`OMNIA_PROJECT_NAME`. In local mode, the execution OIM is the current machine.
+In remote mode, SSH to the target OIM and run the command there.
+
+#### SSH Credentials (OIM server access)
 
 | Flag | Description |
 |------|-------------|
-| `--set-password` | Interactive prompt (asks twice). If password exists, asks yes/no to update. |
-| `--update-password` | Force-update existing password (no confirmation prompt). |
-| `--password PWD` | Non-interactive. Overwrites any existing credentials. |
+| `--set-creds` | Create SSH password credentials interactively (two entries). If the file exists, asks whether to update it. |
+| `--update-creds` | Update an existing SSH password. Skips the overwrite question but still prompts twice; fails if the file does not exist. |
+| `--creds-stdin` | Read `oim_password` from standard input; other fields are preserved. |
 
-> **Note**: All credential flags require `oim_server_ip` to be set in `test_config.yml`.
+SSH password credentials are optional when key-based SSH already works. Set
+`oim_ssh_user` in `test_config.yml`; `setup_env.sh` does not create or configure
+SSH private keys.
+
+#### Domain Credentials (S3 / aarch64)
+
+The image build playbook (`image_build_manager.yml`) requires access to S3/MinIO
+for image storage and optionally to a remote aarch64 host. These credentials are
+stored in a separate file (`image_build_credentials.yml`) at
+`$IMAGE_BUILD_MANAGER_DATA_PATH/input/$OMNIA_PROJECT_NAME/` when the override
+is non-empty, otherwise at
+`$OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME/`.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `s3_access_id` | PowerScale only | PowerScale S3 access key ID; it may be empty for MinIO. |
+| `s3_secret_key` | Yes | MinIO password or PowerScale S3 secret key (minimum 8 characters). |
+| `aarch64_ssh_password` | When ARM host is set | Required when `aarch64_inventory_host_ip` is non-empty; otherwise leave it empty. |
+
+| Flag | Description |
+|------|-------------|
+| `--set-domain-creds` | Interactive prompt for S3 access ID, secret, and aarch64. |
+| `--update-domain-creds` | Update an existing valid domain credential store. |
+| `--domain-creds-stdin` | Read a JSON object with `s3_access_id`, `s3_secret_key`, and `aarch64_ssh_password` from standard input. |
+
+> **Note**: `--set-creds` and `--set-domain-creds` are independent — run each separately:
+> ```bash
+> ./setup_env.sh --set-creds          # SSH creds (saved locally)
+> ./setup_env.sh --set-domain-creds   # Run on execution OIM; saved under its effective domain root
+> ```
+> Existing fields not updated by a given flag are **preserved**.
 
 ---
 
 ## Running Tests
 
+Run from inside the `test/image_build_manager/` directory:
+
 ```
-./run_validation.sh <scenario> <command> [options]
-./run_validation.sh --config          # Batch run from test_run_config.yml
-./run_validation.sh list              # List available scenarios
-./run_validation.sh --help            # Full usage
+./run_validation.sh fvt_image_build_manager <command>             # No-tag behavior described below
+./run_validation.sh fvt_image_build_manager <tag> <command>        # Specific tag
+./run_validation.sh fvt_image_build_manager list                   # List available tags
+./run_validation.sh nft_image_build_manager <command>              # NFT tests
+./run_validation.sh ut_image_build_manager <command>               # Unit tests
+./run_validation.sh --config                                       # Batch from test_run_config.yml
+./run_validation.sh --help                                         # Full help
 ```
+
+### Categories
+
+| Category | Description |
+|----------|-------------|
+| `fvt_image_build_manager` | Functional Verification Tests (playbook tags) |
+| `nft_image_build_manager` | Non-Functional Tests (performance, idempotency) |
+| `ut_image_build_manager` | Unit Tests (offline validation) |
 
 ### Commands
 
+For FVT runs, use `test` for the normal end-to-end scenario flow:
+
 | Command | Description |
 |---------|-------------|
-| `deploy` | Run the Ansible playbook only |
+| `exec` | Run the Ansible playbook only |
 | `verify` | Run verification tests only (no playbook) |
-| `test` | Full flow: deploy + verify |
+| `test` | Full flow: exec + verify |
 
-### Scenarios
+Use `exec` or `verify` separately only when intentionally running one phase.
+Marker and suite filters are most useful with `verify` when rerunning focused
+checks against an environment that has already been deployed.
 
-| Scenario | Playbook Tag | What It Tests |
-|----------|-------------|---------------|
+NFT and UT accept the same command names for CLI consistency, but all three
+names run their complete pytest suite; use `test` as the conventional form.
+
+For FVT with no tag, `verify` runs verification for precheck, validate,
+prepare, and build (excluding both cleanup flows). No-tag `exec` runs the
+playbook's default full-stack flow, and no-tag `test` runs that deployment
+followed by the same non-cleanup verification set. Verification is grouped in
+the lifecycle order `precheck` → `validate` → `prepare` → `build`; each phase
+is grouped by its documented suites, and each suite then follows its existing
+`@pytest.mark.order(n)` values.
+
+The build verification suites run in dependency order:
+`aarch64` → `s3` → `registry` → `naming` → `image_verification`. This places
+ARM-host readiness and tooling checks before artifact and package validation.
+
+### FVT Tags
+
+| Tag | Playbook Tag | What It Tests |
+|-----|-------------|---------------|
 | `precheck` | `--tags precheck` | Env vars, hostname, IP, connectivity, omnia.sh setup |
-| `image_build_manager` | *(default: prepare + build)* | Full end-to-end |
-| `validate` | `--tags validate` | Input config and credentials present |
+| `validate` | `--tags validate` | Configuration, credentials, package/catalog input, effective `repo_ssl_verify`, and template wiring; does not consume `repo_status.yml` |
 | `prepare` | `--tags prepare` | MinIO, registry, systemd, S3 buckets |
-| `build` | `--tags build` | S3 images, registry images, build_status |
-| `cleanup` | `--tags cleanup` | All artifacts removed |
+| `build` | `--tags build` | Build-only repo-status contract validation, S3 images, registry images, build_status, and **naming convention** |
+| `cleanup` | `--tags cleanup` | Remove local MinIO/registry data and services, build output/logs, MinIO s3cmd config, and domain credentials; external PowerScale storage and s3cmd config are retained |
+| `cleanup_images` | `--tags cleanup_images` | Delete S3 + registry images |
+| *(none)* | *(no tag)* | Full end-to-end (prepare + build) |
+
+#### Build-type naming convention (within `build` tag)
+
+Both `image-builder` and `image-thrillhouse` produce artifacts with distinct
+suffixes (`-imgbld` / `-imgth`). The naming tests confirm that at least one
+artifact for the recorded build type carries the expected suffix. Artifacts
+from another build type are allowed to coexist and are reported, not rejected.
+
+Every new `build_status.yml` records the `image_build_type` that produced its
+artifact paths. Build verification uses that recorded value for engine-specific
+S3 and naming checks, so changing the input configuration after a build does
+not cause the previous manifest to be interpreted with the wrong layout. The
+current input still defines the functional groups expected by the test. A
+legacy manifest without the field is accepted only when one engine can be
+inferred unambiguously from `-imgbld` or `-imgth` artifact directories.
+
+```bash
+# Run only naming convention tests
+./run_validation.sh fvt_image_build_manager build verify --suite naming
+./run_validation.sh fvt_image_build_manager build verify --suite naming --marker x86_64+sanity
+```
 
 ### Options
 
 | Option | Description |
 |--------|-------------|
-| `--suite <name>` | Filter by subfolder (`container`, `s3`, `registry`) |
-| `--marker <expr>` | Filter by marker (`sanity`, `x86_64`, `x86_64+sanity`) |
-| `--debug` | Full debug output (pytest -vvs) |
+| `--suite <name>` | FVT only: filter by an existing tag subfolder (`connectivity`, `status`, `container`, `s3`, `registry`, `naming`, `aarch64`, `image_verification`, `cleanup`, or `cleanup_images`) |
+| `--marker <expr>` | Filter by pytest marker expression |
 | `-v, --verbose` | Increase pytest verbosity |
+| `--debug` | Full debug output (pytest `-vvs`) |
 
-### Typical Workflow
+Use only a suite that belongs to the selected tag. The current runner falls
+back to the entire tag when the suite directory does not exist.
+
+### Marker Expressions
+
+| Syntax | Example | Meaning |
+|--------|---------|---------|
+| Single | `--marker x86_64` | Tests with `@pytest.mark.x86_64` |
+| OR (`,`) | `--marker x86_64,aarch64` | Tests with EITHER marker |
+| AND (`+`) | `--marker x86_64+sanity` | Tests with BOTH markers |
+| Standard | `--marker sanity` | Tests with `@pytest.mark.sanity` |
+
+Available markers: `sanity`, `x86_64`, `aarch64`, `functional`, `deploy`
+
+Use either AND or OR in one expression; do not mix `+` and `,`.
+
+### Examples
 
 ```bash
-./run_validation.sh precheck verify --marker sanity             # 0. Precheck environment
-./run_validation.sh cleanup test                                # 1. Clean previous state
-./run_validation.sh validate test                               # 2. Validate inputs
-./run_validation.sh prepare test                                # 3. Prepare infrastructure
-./run_validation.sh build test --marker x86_64                  # 4. Build images
-./run_validation.sh image_build_manager verify --marker sanity  # 5. Full verification
+# FVT: recommended full build flow (deploy + verify)
+./run_validation.sh fvt_image_build_manager build test
+
+# Optional focused verification reruns against the deployed build
+./run_validation.sh fvt_image_build_manager build verify --marker x86_64+sanity
+./run_validation.sh fvt_image_build_manager build verify --suite registry
+./run_validation.sh fvt_image_build_manager build verify --suite naming
+./run_validation.sh fvt_image_build_manager list
+
+# NFT
+./run_validation.sh nft_image_build_manager test
+
+# UT
+./run_validation.sh ut_image_build_manager test
+
+# Config-driven batch
+./run_validation.sh --config
+```
+
+### Recommended Functional Workflow (default MinIO backend)
+
+```bash
+./run_validation.sh fvt_image_build_manager precheck test               # 0. Run precheck + verify environment
+./run_validation.sh fvt_image_build_manager validate test               # 1. Validate inputs
+./run_validation.sh fvt_image_build_manager prepare test                # 2. Prepare infrastructure
+./run_validation.sh fvt_image_build_manager build test                  # 3. Build + verify
+./run_validation.sh fvt_image_build_manager verify --marker sanity      # 4. Full sanity verification
+./run_validation.sh fvt_image_build_manager cleanup_images test         # 5. Delete images; keep infrastructure
+./run_validation.sh fvt_image_build_manager cleanup test                # 6. Remove infrastructure + verify cleanup
+```
+
+`cleanup_images` and `cleanup` are separate FVT tags. When validating both,
+run `cleanup_images` first: it removes built S3 and registry images while the
+storage services remain available. Run `cleanup` last to remove the local
+MinIO/registry deployment, build output, configuration, and domain credentials.
+
+For PowerScale, see the [full cleanup](#full-cleanup) caveat before using
+`cleanup test`.
+
+NFT is an independent destructive flow, not the cleanup phase of the FVT
+workflow. A full NFT run measures prepare, build, and cleanup performance and
+checks repeated prepare execution. Its final timed cleanup removes the deployed
+environment and domain credentials, so restore credentials before any later
+playbook run by rerunning `./setup_env.sh --set-domain-creds` on the execution
+OIM.
+
+### Complete Commands by Flow
+
+#### Complete FVT Lifecycle (both cleanup tags, default MinIO backend)
+
+```bash
+./run_validation.sh fvt_image_build_manager precheck test       # Precheck tag + environment verification
+./run_validation.sh fvt_image_build_manager validate test        # Validate + verify
+./run_validation.sh fvt_image_build_manager prepare test         # Prepare + verify
+./run_validation.sh fvt_image_build_manager build test           # Build + verify (all configured architectures)
+./run_validation.sh fvt_image_build_manager cleanup_images test  # Delete S3/registry images + verify
+./run_validation.sh fvt_image_build_manager cleanup test         # Full cleanup + verify
+```
+
+#### Non-Functional Flow (includes timed cleanup)
+
+```bash
+./run_validation.sh fvt_image_build_manager precheck verify      # Check target prerequisites
+./run_validation.sh fvt_image_build_manager validate verify      # Check existing inputs and credentials
+./run_validation.sh nft_image_build_manager test                 # Prepare/build timing, repeated prepare, cleanup timing
+```
+
+The NFT suite performs its own prepare, build, and cleanup playbook runs. It
+does not run the FVT cleanup verification cases. Run
+`./run_validation.sh fvt_image_build_manager cleanup verify` immediately
+after NFT when those assertions are required; the cleanup playbook has already
+run.
+
+#### Build and x86_64 Verification
+
+The build deployment uses `--tags build` and therefore targets every configured
+architecture. Run the complete build flow first, then optionally rerun only the
+x86_64 sanity checks.
+
+```bash
+./run_validation.sh fvt_image_build_manager build test
+./run_validation.sh fvt_image_build_manager build verify --marker x86_64+sanity
+```
+
+#### Build and AArch64 Verification
+
+The complete build flow builds every configured architecture. The second
+command is an optional focused verification rerun.
+
+```bash
+./run_validation.sh fvt_image_build_manager build test
+./run_validation.sh fvt_image_build_manager build verify --marker aarch64+sanity
+```
+
+#### Naming Convention Tests
+
+```bash
+./run_validation.sh fvt_image_build_manager build verify --suite naming
+```
+
+#### Cleanup Images (delete all)
+
+```bash
+./run_validation.sh fvt_image_build_manager cleanup_images test
+```
+
+The runner supplies `skip_approval=true` and uses the playbook's default `*`
+pattern, so this command deletes all built S3 and registry images. It retains
+the MinIO/registry infrastructure and the S3 buckets.
+
+#### Full Cleanup
+
+```bash
+./run_validation.sh fvt_image_build_manager cleanup test
+```
+
+This runs the `cleanup` playbook tag, which also removes build logs and domain
+credentials. The post-cleanup FVT cases verify local MinIO/registry services
+and data, listening ports, S3 state, s3cmd configuration, build output, and
+registry state. They also verify that the credential file and vault key were
+removed without reading or displaying their contents.
+
+With PowerScale, the product intentionally retains the external buckets and
+`/root/.s3cfg`. The MinIO-specific `IMGBM_FVT_CLEANUP_V004` and
+`IMGBM_FVT_CLEANUP_V005` cases detect PowerScale and skip while the remaining
+cleanup postconditions continue to run.
+
+#### Unit Tests
+
+```bash
+./run_validation.sh ut_image_build_manager test                  # Recommended form
+./run_validation.sh ut_image_build_manager verify                # Equivalent UT alias
+```
+
+#### Verify Only (no playbook execution)
+
+```bash
+./run_validation.sh fvt_image_build_manager precheck verify
+./run_validation.sh fvt_image_build_manager prepare verify
+./run_validation.sh fvt_image_build_manager build verify
+./run_validation.sh fvt_image_build_manager cleanup_images verify
+./run_validation.sh fvt_image_build_manager cleanup verify
+```
+
+The cleanup `verify` commands only inspect the current target state; they do
+not delete anything. Use the corresponding `test` command to execute the
+cleanup tag before verification.
+
+#### Config-Driven Batch Run
+
+```bash
+./run_validation.sh --config                                     # Runs enabled flows from test_run_config.yml
 ```
 
 ---
@@ -159,32 +442,122 @@ The SSH password is saved to `test_creds.yml` and auto-encrypted with Ansible Va
 | File | Purpose | Git Status |
 |------|---------|------------|
 | `test_config.yml` | Target server IP, sync settings, dataset, report options | Tracked |
-| `test_creds.yml` | SSH password (auto-encrypted with Ansible Vault) | **Gitignored** |
-| `.test_creds.key` | Vault encryption key (auto-generated) | **Gitignored** |
-| `test_run_config.yml` | Batch execution: scenario order, markers, suites | Tracked |
+| `test_creds.yml` | SSH creds (created by `--set-creds`, auto-encrypted) | **Gitignored** |
+| `.test_creds.key` | Vault key for `test_creds.yml` (auto-created) | **Gitignored** |
+| `test_run_config.yml` | Batch execution: enabled flows, commands, markers, suites, and sync overrides | Tracked |
 
 ### Key Settings in `test_config.yml`
 
 | Setting | Required | Default | Description |
 |---------|----------|---------|-------------|
 | `oim_server_ip` | No | `""` (local) | Target server IP. Leave empty for local mode. |
-| `clone_path` | Remote only | `/omnia` | Path on the **target server** where project code is synced. In local mode, the playbook path is resolved automatically from the source tree. |
-| `venv_path` | No | `""` | Python venv path on target. If set, activated before `ansible-playbook`. Leave empty to use system-wide ansible. |
-| `dataset` | No | `""` | Empty = input from target's `$OMNIA_DATA_PATH/image_build_manager/input/<project>/`. Set to a generated dataset name for custom inputs. |
-| `project_name` | No | `project_default` | Project name for input/output paths on target. |
+| `clone_path` | Remote only | `/omnia` | Non-empty absolute path on the target where project code is synced. Ignored in local mode. |
+| `dataset` | No | `""` | Selects local sync sources. Empty uses `src/image_build_manager/input/` and `src/image_build_manager/samples/repo_manager_output/`; a name uses only `datasets/<name>/input/` and `datasets/<name>/repo_manager_output/`. Nothing is copied unless its sync flag is enabled. |
+
+### Batch Runs with `test_run_config.yml`
+
+Use `./run_validation.sh --config` to run the entries enabled in
+`test_run_config.yml`. See [the complete batch configuration
+reference](docs/test_run_config.md) for the schema and examples.
+
+The top-level sections are `fvt_image_build_manager`,
+`nft_image_build_manager`, and `ut_image_build_manager`. FVT tags run in their
+YAML mapping order; NFT runs after all FVT entries, followed by UT. The tracked
+sequence is `precheck`, `validate`, `prepare`, `build`, `cleanup_images`, then
+`cleanup`, which keeps image-only cleanup ahead of full infrastructure cleanup.
+
+Each FVT tag supports these fields:
+
+| Field | Meaning |
+|-------|---------|
+| `run` | Enable or skip the tag. All tracked entries default to `false`. |
+| `command` | `exec`, `verify`, or `test`; use `test` for deploy + verify. |
+| `suite` | Verification subfolder; empty runs the complete tag. |
+| `marker` | Single, AND (`+`), or OR (`,`) expression applied to the selected pytest phase(s). |
+| `dataset` | Non-empty per-tag dataset override; empty inherits `test_config.yml`. |
+| `sync_input` | Explicit per-tag override for `sync_image_build_input`. |
+| `sync_output` | Explicit per-tag override for `sync_output`. |
+
+For `command: "test"`, the marker applies to both playbook execution and
+verification. Use `marker: ""` to run every applicable case, or
+`marker: "sanity"` for the sanity lifecycle; an architecture-only marker such
+as `x86_64` does not select the deploy test.
+Suite filtering affects verification only. If a named suite directory is not
+present under the selected tag, the current runner falls back to the complete
+tag, so verify suite names with `./run_validation.sh fvt_image_build_manager
+list` before a destructive run.
+
+The optional top-level `dataset_override`, `sync_input_override`, and
+`sync_output_override` values take precedence over per-FVT settings. These
+overrides apply to FVT entries only; NFT and UT use `test_config.yml` directly.
+
+The batch runner attempts every enabled entry even when an earlier entry fails,
+then returns non-zero if any entry failed. The image build manager batch file
+does not define a skip-after-failure setting.
+
+Run NFT separately from a complete FVT cleanup batch. FVT `cleanup` removes the
+domain credentials that the later NFT build would require.
 
 ### Execution Modes
 
-- **Local mode** (`oim_server_ip: ""`): Tests run on the current machine.
-- **Remote mode** (`oim_server_ip: "<IP>"`): Tests run against a remote server via SSH.
+#### Local mode
+
+Use local mode when the tests and playbook run from the current Omnia checkout:
+
+```yaml
+oim_server_ip: ""
+```
+
+`clone_path` is not required or read in local mode. The framework resolves the
+repository root from `test/image_build_manager/` and uses the current source
+tree for playbook execution and source-template verification.
+
+#### Remote mode
+
+Use remote mode when verification commands and the playbook run on another
+server:
+
+```yaml
+oim_server_ip: "<target-ip>"
+oim_ssh_user: root
+clone_path: "/omnia"
+```
+
+In remote mode, `clone_path` is required and must be a non-empty absolute path
+on the target server. The framework syncs the local Omnia checkout there and
+runs the playbook from
+`<clone_path>/src/image_build_manager/playbooks/`.
 
 ### How Sync Works (Remote Mode)
 
-On session startup the framework performs:
+Project sync runs only for remote execution. In local mode, no project sync
+occurs; tests and source-template checks use the current Omnia checkout, and
+`clone_path` is ignored.
 
-1. **Project sync** — rsyncs the local omnia monorepo to `clone_path` on the target
-2. **Input sync** — reads `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from the target's `/etc/omnia/omnia.env`, creates the target directory if needed, then syncs input files to `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/`
-3. **Repo manager output sync** (optional) — syncs repo_manager_output to the target's repo_manager output directory
+Input and repo-manager-output sync are independent of project sync. When their
+respective flags are enabled, those optional sync operations also run in local
+mode, copying into paths resolved on the current machine.
+
+In remote mode, session startup performs:
+
+1. **Project sync** — stages and rsyncs the local Omnia working tree to the
+   target's absolute `clone_path`; local credentials, vault keys, VCS metadata,
+   virtual environments, and caches are excluded
+2. **Input sync** (only when `sync_image_build_input: true`) — reads
+   `IMAGE_BUILD_MANAGER_DATA_PATH`, `OMNIA_DATA_PATH`, and
+   `OMNIA_PROJECT_NAME` from the target's `/etc/omnia/omnia.env` and creates
+   the target directory if needed. The component path wins when non-empty;
+   otherwise the root is `$OMNIA_DATA_PATH/image_build_manager`. A
+   non-empty `dataset` syncs only `datasets/<name>/input/`; an empty name syncs
+   canonical `src/image_build_manager/input/`. Credential files, keys, and
+   backups are excluded.
+3. **Repo manager output sync** (only when `sync_output: true`) — uses
+   `datasets/<name>/repo_manager_output/` for a named dataset or
+   `src/image_build_manager/samples/repo_manager_output/` when the name is
+   empty, then syncs it to the target Repo Manager output directory.
+
+Domain credentials are never part of session sync. Configure them directly on
+the execution OIM with `./setup_env.sh --set-domain-creds`.
 
 ### Input Files
 
@@ -193,11 +566,12 @@ On session startup the framework performs:
 When `dataset` is empty, the playbook reads input files from the **target server** at:
 
 ```
-$OMNIA_DATA_PATH/image_build_manager/input/<project_name>/
+${IMAGE_BUILD_MANAGER_DATA_PATH:-$OMNIA_DATA_PATH/image_build_manager}/input/<project_name>/
 ```
 
-No input files are synced from the local machine. Files must already exist on the
-target (placed by `omnia.sh` setup or a prior deployment). This is the **production behavior**.
+With `sync_image_build_input: false`, no input files are synced from the local
+machine. Files must already exist on the target (placed by `omnia.sh` setup or a
+prior deployment). This is the **production behavior**.
 
 When `sync_image_build_input: true` AND `dataset: ""`, the framework syncs from
 `src/image_build_manager/input/` to the target path as a development convenience.
@@ -210,32 +584,55 @@ then set `dataset: "<name>"` in `test_config.yml`:
 ```bash
 cd datasets/generator/
 
-# Generate from a profile
-python generate_dataset.py my_dataset defaults
+# Inspect profiles and generate the recommended independent dataset
+./generate_dataset.py profiles
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config
 
-# Generate with overrides
-python generate_dataset.py my_dataset defaults --var s3_provider=powerscale
+# Select Image Builder with the same internet/config topology
+./generate_dataset.py create my_image_builder \
+  --profile image-builder-internet-config
 
-# Copy directly from src/ (quick bootstrap)
-python generate_dataset.py my_dataset --from-src
+# Generate an offline dataset with one real host applied to every repo URL
+./generate_dataset.py create my_offline \
+  --profile image-thrillhouse-offline-config \
+  --repo-host repo.company.internal
 
-# List available profiles
-python generate_dataset.py --list-profiles
+# Preview without publishing
+./generate_dataset.py create my_dataset \
+  --profile image-thrillhouse-internet-config --dry-run
+
+# Use canonical source values without a profile patch
+./generate_dataset.py create my_snapshot --from-src
+
+# Inspect all inline customer-edit markers after generation
+grep -R -n 'REPLACE WITH REAL VALUE' \
+  ../my_dataset/input/ ../my_dataset/repo_manager_output/
 ```
 
-The generated dataset contains all required input files:
+Replace `repo.company.internal` with the real Repo Manager hostname or IP
+reachable from the execution environment.
+
+The generator publishes these five files:
 
 | File | Location |
 |------|----------|
 | `image_build_config.yml` | `datasets/<name>/input/` |
-| `image_build_credentials.yml` | `datasets/<name>/input/` |
+| `package_groups.yml` | `datasets/<name>/input/` |
 | `repo_status.yml` | `datasets/<name>/repo_manager_output/` |
+| `dataset_manifest.yml` | `datasets/<name>/` |
+| `README.md` | `datasets/<name>/` |
+
+Credentials are never generated in a dataset or synced by the framework. From
+`test/image_build_manager` on the execution OIM, configure the separate
+encrypted runtime pair with `./setup_env.sh --set-domain-creds`.
 
 ---
 
 ## Reports
 
-Generated in the configured `report_path` (default `/opt/omnia/reports`):
+Generated in the configured `report_path` (tracked default
+`/opt/omnia/reports`):
 
 | File | Format |
 |------|--------|
@@ -246,16 +643,44 @@ Generated in the configured `report_path` (default `/opt/omnia/reports`):
 
 ## Test Cases
 
-See [`fvt/TEST_CASES.md`](fvt/TEST_CASES.md) for the complete test case registry.
+See [`fvt/README.md`](fvt/README.md) for the authoritative registry. Its tables
+list every stable test-case ID in effective execution order and explain both
+the validation performed and the condition required to pass.
 
-| Scenario | Prefix | Count |
-|----------|--------|-------|
-| image_build_manager | TC_IB_ | 13 |
-| precheck | TC_PC_ | 3 |
-| validate | TC_VL_ | 3 |
-| prepare | TC_PR_ | 8 |
-| build | TC_BD_ | 6 |
-| cleanup | TC_CL_ | 8 |
+FVT IDs follow `IMGBM_FVT_<PHASE>_<TYPE><SEQ>`. `E` cases run playbooks;
+`V` cases inspect postconditions.
+
+NFT IDs use `IMGBM_NFT_<SEQ>`. UT IDs use `IMGBM_UT_<SEQ>` and are resolved from
+the complete pytest node ID through the centralized registry in
+`library/vars/ut_test_case_vars.py`. See [`ut/README.md`](ut/README.md) for
+the UT ID ranges and maintenance rule.
+
+| Phase | Execution IDs | Verification IDs | FVT count |
+|-------|---------------|------------------|-----------|
+| precheck | `IMGBM_FVT_PRECHECK_E001` | `IMGBM_FVT_PRECHECK_V001`–`005` | 6 |
+| validate | `IMGBM_FVT_VALIDATE_E001` | `IMGBM_FVT_VALIDATE_V001`–`004` | 5 |
+| prepare | `IMGBM_FVT_PREPARE_E001` | `IMGBM_FVT_PREPARE_V001`–`007` | 8 |
+| build | `IMGBM_FVT_BUILD_E001` | `IMGBM_FVT_BUILD_V001`–`019` | 20 |
+| cleanup_images | `IMGBM_FVT_CLEANUP_IMAGES_E001` | `IMGBM_FVT_CLEANUP_IMAGES_V001`–`002` | 3 |
+| cleanup | `IMGBM_FVT_CLEANUP_E001` | `IMGBM_FVT_CLEANUP_V001`–`008` | 9 |
+| full-stack alternate | `IMGBM_FVT_FULL_E001` | — | 1 reportable ID |
+| nft | `IMGBM_NFT_001`–`004` | — | 4 |
+| ut | `IMGBM_UT_001`–`099` | — | 99 |
+| **Reportable IDs** | | | **155** |
+
+There are 154 physical test functions (51 FVT, 4 NFT, and 99 UT).
+`IMGBM_FVT_FULL_E001` is the alternate full-stack ID emitted by the same build deploy
+function that reports `IMGBM_FVT_BUILD_E001` for a tagged build.
+
+### Build-type suffix checks (IMGBM_FVT_BUILD_V013 – IMGBM_FVT_BUILD_V017)
+
+| Test | Build type | Checks |
+|------|-----------|--------|
+| IMGBM_FVT_BUILD_V013 | image-builder | At least one x86_64 registry repository ends with `-imgbld` |
+| IMGBM_FVT_BUILD_V014 | image-builder | At least one x86_64 S3 path includes `-imgbld` |
+| IMGBM_FVT_BUILD_V015 | image-thrillhouse | At least one x86_64 registry repository ends with `-imgth` |
+| IMGBM_FVT_BUILD_V016 | image-thrillhouse | At least one x86_64 S3 path includes `-imgth` |
+| IMGBM_FVT_BUILD_V017 | both | Every x86_64 registry/S3 artifact has exactly one engine suffix, full names are unique, and the build-status engine has at least one artifact |
 
 ---
 
@@ -263,11 +688,12 @@ See [`fvt/TEST_CASES.md`](fvt/TEST_CASES.md) for the complete test case registry
 
 ```
 test/image_build_manager/
-├── setup_env.sh                 # Environment setup (--venv, --set-password, etc.)
-├── run_validation.sh            # CLI runner
+├── setup_env.sh                 # Environment setup (--venv, --force, credentials)
+├── run_validation.sh            # Shell entry point (delegates to _run.py)
+├── _run.py                      # Python entry point (loads domain vars, creates runner)
 ├── conftest.py                  # Pytest hooks, fixtures, report generation
 ├── test_config.yml              # Target server and sync settings
-├── test_creds.yml               # SSH credentials (Ansible Vault, gitignored)
+├── test_creds.yml               # SSH credentials (auto-encrypted, gitignored)
 ├── test_run_config.yml          # Batch execution config
 ├── requirements.txt             # Python dependencies
 │
@@ -284,28 +710,43 @@ test/image_build_manager/
 │
 ├── library/                     # Reusable automation library
 │   ├── functions/               # host_func, build_image_func, validation_func
-│   ├── vars/                    # Constants, paths, commands (common_vars)
+│   ├── vars/                    # Constants, paths, commands (common_vars, domain_vars)
 │   └── messages/                # Test names, log/assert messages
 │
-└── fvt/                         # Functional Verification Tests
-    ├── TEST_CASES.md
-    ├── image_build_manager/     # Full end-to-end
-    │   ├── container/
-    │   ├── s3/
-    │   ├── registry/
-    │   └── image_verification/
-    ├── precheck/                # Precheck tag (env + connectivity)
-    │   └── connectivity/
-    ├── validate/                # Validate tag
-    │   └── status/
-    ├── prepare/                 # Prepare tag
-    │   ├── container/
-    │   └── s3/
-    ├── build/                   # Build tag
-    │   ├── s3/
-    │   └── registry/
-    └── cleanup/                 # Cleanup tag
-        └── cleanup/
+├── fvt/                         # Functional Verification Tests
+│   ├── README.md                # Test case registry (authoritative)
+│   ├── precheck/                # Precheck tag (env + connectivity)
+│   │   └── connectivity/
+│   ├── validate/                # Validate tag
+│   │   └── status/
+│   ├── prepare/                 # Prepare tag
+│   │   ├── container/
+│   │   └── s3/
+│   ├── build/                   # Build tag
+│   │   ├── aarch64/             # AArch64 infrastructure checks (IMGBM_FVT_BUILD_V001–005)
+│   │   ├── s3/
+│   │   ├── registry/
+│   │   ├── naming/              # Naming convention tests (IMGBM_FVT_BUILD_V013–017)
+│   │   └── image_verification/  # Package verification (IMGBM_FVT_BUILD_V018–019)
+│   ├── cleanup/                 # Cleanup tag
+│   │   └── cleanup/
+│   └── cleanup_images/          # Cleanup images tag
+│       └── cleanup_images/
+│
+├── nft/                         # Non-Functional Tests
+│   ├── README.md                # NFT documentation (thresholds, execution)
+│   ├── test_performance.py      # Performance threshold tests (IMGBM_NFT_001–IMGBM_NFT_003)
+│   └── test_idempotency.py      # Idempotency tests (IMGBM_NFT_004)
+│
+└── ut/                          # Unit Tests
+    ├── README.md                   # UT ID ranges and execution
+    ├── conftest.py
+    ├── test_catalog_validation.py
+    ├── test_driver_group_skip.py
+    ├── test_functional_group_packages.py
+    ├── test_input_validation_schema.py  # IMGBM_UT_074–099
+    ├── test_standalone_independence.py
+    └── test_validate_image_build_config.py
 ```
 
 ---
@@ -321,7 +762,7 @@ automation utilities.  The package provides:
 | **Config** | `configure()`, `load_test_config()`, `load_test_credentials()`, `get_setting()` |
 | **Host** | `get_testinfra_host()`, `is_local_execution()`, `run_on_host()`, `connection_params()` |
 | **Remote utils** | `read_remote_env()`, `ensure_remote_dir()`, `resolve_domain_input_path()` |
-| **Sync** | `sync_files()`, `clone_repo()` |
+| **Sync** | `sync_files()` |
 | **Runner** | `run_playbook()` — wrapped with module-specific playbook/workdir |
 | **Formatting** | `TestLogger`, `Colors`, `Symbols`, `log()`, `add_session_result()`, `print_summary_table()` |
 | **Report** | `TestReport`, `set_current_report()`, `get_current_report()` |
@@ -344,15 +785,19 @@ def run_playbook(tag=None, **kwargs):
     )
 ```
 
-**Step 3 — Test files** call the wrapper without needing to know the playbook details:
+**Step 3 — Test files** call the wrapper with the explicit playbook constant.
+Test metadata and messages remain centralized as required by
+[`test_automation.md`](../../docs/code-style/test_automation.md):
 
 ```python
-from library.functions import run_playbook, TestLogger
+from library.functions import run_playbook
+from library.vars.common_vars import PLAYBOOK_ENTRY_POINT
 
-def test_prepare_phase():
-    tl = TestLogger("Verify prepare phase", "TC_PR_001")
-    result = run_playbook(tag="prepare", timeout=1800)
-    assert result["success"], result["error"]
+result = run_playbook(
+    playbook=PLAYBOOK_ENTRY_POINT,
+    tag="prepare",
+    timeout=1800,
+)
 ```
 
 For the full `omnia-auto` API reference, see the package's
@@ -364,10 +809,10 @@ For the full `omnia-auto` API reference, see the package's
 
 | Area | Old (multi-repo) | New (monorepo) |
 |------|-------------------|----------------|
-| **Code delivery** | `git clone` on target | `rsync` project to target |
+| **Code delivery** | `git clone` on target | Current checkout locally; `rsync` to `clone_path` remotely |
 | **Config source** | `config.yml` in dataset | Environment variables on target (`omnia.env`) |
 | **Env var setup** | N/A | `omnia.sh -s` installs to `/etc/omnia/omnia.env` |
-| **Input sync dest** | `<clone_path>/src/input/<project>/` | `<OMNIA_DATA_PATH>/image_build_manager/input/<project>/` |
+| **Input sync dest** | `<clone_path>/src/input/<project>/` | `<effective Image Build Manager root>/input/<project>/` |
 | **Playbook workdir** | `src/` | `src/image_build_manager/playbooks/` |
 | **Common utilities** | Inline library | `omnia-auto` pip package |
 | **Dir creation** | Manual | Auto-created by framework before sync |

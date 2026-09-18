@@ -13,6 +13,7 @@
 # limitations under the License.
 ---
 
+# Step 1: Create the local OIM inventory group.
 - name: Create container group
   hosts: localhost
   connection: local

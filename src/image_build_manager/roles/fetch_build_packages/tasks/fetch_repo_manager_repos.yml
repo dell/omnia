@@ -15,19 +15,38 @@
 # Resolve RPM repo URLs for image creation templates.
 # Priority: repo_manager output (repo_status.yml) > direct repo manager CLI query.
 
+- name: Select repo_manager output for platform {{ build_arch ~ ' ' ~ rhel_tag }}
+  ansible.builtin.set_fact:
+    _all_repo_manager_repos: >-
+      {{ hostvars['localhost']['repo_manager_repos_' + build_arch] | default([]) }}
+    _matching_repo_manager_repos: >-
+      {{ hostvars['localhost']['repo_manager_repos_' + build_arch]
+         | default([])
+         | selectattr('os_version', 'equalto', rhel_tag | string)
+         | list }}
+
 - name: Use repo_manager output for repos (preferred) - {{ build_arch }}
-  when: hostvars['localhost']['repo_manager_repos_' + build_arch] | default([]) | length > 0
+  when: _matching_repo_manager_repos | length > 0
   block:
     - name: Set rhel_arch_repos from repo_manager output
       ansible.builtin.set_fact:
-        rhel_arch_repos: "{{ hostvars['localhost']['repo_manager_repos_' + build_arch] }}"
+        rhel_arch_repos: "{{ _matching_repo_manager_repos }}"
 
     - name: Display repo source
       ansible.builtin.debug:
         msg: "Using {{ rhel_arch_repos | length }} repos from repo_manager output for {{ build_arch }}"
 
-- name: Fallback — fetch pulp endpoints directly for {{ build_arch }}
-  when: hostvars['localhost']['repo_manager_repos_' + build_arch] | default([]) | length == 0
+- name: Fail when repo_status has no repositories for the selected platform
+  ansible.builtin.fail:
+    msg: >-
+      repo_status.yml has no repositories for {{ build_arch }} RHEL {{ rhel_tag }}.
+      Available Repo Manager versions: {{ repo_manager_os_versions | default([]) | join(', ') }}.
+  when:
+    - _all_repo_manager_repos | length > 0
+    - _matching_repo_manager_repos | length == 0
+
+- name: Fallback — fetch Pulp endpoints directly for platform {{ build_arch ~ ' ' ~ rhel_tag }}
+  when: _all_repo_manager_repos | length == 0
   block:
     - name: Fetch pulp endpoints for {{ build_arch }}
       ansible.builtin.command: >
@@ -39,8 +58,14 @@
       ansible.builtin.set_fact:
         pulp_arch_distributions: >-
           {{ pulp_endpoints.stdout | from_json
-            | selectattr('name', 'match', '^' + build_arch)
+            | selectattr('name', 'match', '^' + build_arch + '_rhel_' + (rhel_tag | string) + '_')
             | list }}
+
+    - name: Fail when Pulp has no matching fallback distributions
+      ansible.builtin.fail:
+        msg: >-
+          Pulp has no RPM distributions for {{ build_arch }} RHEL {{ rhel_tag }}.
+      when: pulp_arch_distributions | length == 0
 
     - name: Build rhel_repos list from pulp_arch_distributions
       ansible.builtin.set_fact:

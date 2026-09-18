@@ -1,0 +1,489 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Configure metadata-service for a single functional group.
+# Extracted from configure_ochami/tasks/configure_metadata_svc_group.yml.
+# Called in a loop with fg_name set by the caller.
+# Uses delete-then-set for idempotency.
+
+# Validate repo_status configuration is available - needed for node configuration
+- name: Load repository configuration messages
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../orchestrator_common/vars/s3_config_messages.yml"
+  run_once: true
+
+- name: Validate repo_manager configuration is available for node configuration
+  ansible.builtin.assert:
+    that:
+      - hostvars['localhost']['pulp_cert_path'] | default('') | length > 0
+      - hostvars['localhost']['pulp_port'] is defined
+      - hostvars['localhost']['cluster_os_type'] | default('') | length > 0
+    fail_msg: "{{ repo_config_not_available_msg }}"
+
+- name: Include vars from slurm defaults
+  ansible.builtin.include_vars: "{{ default_file_path }}"
+
+- name: Include vars from slurm_config role
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../slurm_config/vars/main.yml"
+  failed_when: false
+
+# Re-load openchami configs_vars to restore cluster_name / cluster_domain
+# which slurm_config/vars/main.yml clobbers with its own cluster_name.
+- name: Reload openchami cluster vars after slurm_config include
+  ansible.builtin.include_vars: "{{ openchami_config_vars_path }}"
+
+- name: Include vars from configure_ochami role
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../configure_ochami/vars/main.yml"
+  failed_when: false
+
+- name: Initialize apply_config from slurm defaults
+  ansible.builtin.set_fact:
+    apply_config: "{{ __default_config }}"
+  when: apply_config is not defined
+
+- name: Initialize slurm_conf_dict from defaults
+  ansible.builtin.set_fact:
+    slurm_conf_dict: "{{ __default_config.slurm }}"
+  when: slurm_conf_dict is not defined
+
+- name: Read slurm hostnames to set ip_name_map
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/../slurm_config/tasks/read_slurm_hostnames.yml"
+  vars:
+    # Keep the category-specific path local to this include. A host fact would
+    # leak from Kubernetes metadata processing into the later Slurm role.
+    nodes_yaml: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
+
+- name: Load storage config for NFS paths
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/storage_config.yml"
+  failed_when: false
+
+- name: Load omnia config for slurm_cluster settings
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/omnia_config.yml"
+  failed_when: false
+
+- name: Resolve Slurm storage references for metadata configuration
+  ansible.builtin.set_fact:
+    metadata_slurm_nfs_storage_name: >-
+      {{ (slurm_cluster | default([]) | first | default({})).nfs_storage_name
+         | default('') }}
+    metadata_slurm_vast_storage_name: >-
+      {{ ((slurm_cluster | default([]) | first | default({})).vast_storage_name
+          | default('', true) | trim)
+         | default((slurm_cluster | default([]) | first | default({})).nfs_storage_name
+                   | default('') | trim, true) }}
+  when: target_category | default('') == 'slurm'
+
+- name: Select Slurm storage entries for metadata configuration
+  ansible.builtin.set_fact:
+    metadata_slurm_nfs_storage_matches: >-
+      {{ mounts | default([])
+         | selectattr('name', 'equalto', metadata_slurm_nfs_storage_name) | list }}
+    metadata_slurm_vast_storage_matches: >-
+      {{ mounts | default([])
+         | selectattr('name', 'equalto', metadata_slurm_vast_storage_name) | list }}
+  when: target_category | default('') == 'slurm'
+
+- name: Validate Slurm metadata storage contract
+  ansible.builtin.assert:
+    that:
+      - metadata_slurm_nfs_storage_name | length > 0
+      - metadata_slurm_nfs_storage_matches | length == 1
+      - metadata_slurm_nfs_storage_matches[0].source | default('') | length > 0
+      - metadata_slurm_nfs_storage_matches[0].mount_point | default('') | length > 0
+      - metadata_slurm_nfs_storage_matches[0].mount_point is match('^/')
+      - metadata_slurm_vast_storage_name | length > 0
+      - metadata_slurm_vast_storage_matches | length == 1
+      - metadata_slurm_vast_storage_matches[0].source | default('') | length > 0
+      - metadata_slurm_vast_storage_matches[0].mount_point | default('') | length > 0
+      - metadata_slurm_vast_storage_matches[0].mount_point is match('^/')
+    fail_msg: >-
+      Slurm metadata configuration cannot resolve nfs_storage_name
+      '{{ metadata_slurm_nfs_storage_name }}' and vast_storage_name
+      '{{ metadata_slurm_vast_storage_name }}' to exactly one complete entry
+      each in storage_config.yml.
+  when: target_category | default('') == 'slurm'
+
+- name: Set Slurm metadata storage paths
+  ansible.builtin.set_fact:
+    nfs_server_path: "{{ metadata_slurm_nfs_storage_matches[0].source }}"
+    share_path: "{{ metadata_slurm_nfs_storage_matches[0].mount_point }}"
+    vast_mount_point: "{{ metadata_slurm_vast_storage_matches[0].mount_point }}"
+    metadata_svc_nfs_path: "{{ metadata_slurm_nfs_storage_matches[0].source }}/slurm"
+    trackfile_nfs_path: "{{ metadata_slurm_nfs_storage_matches[0].source }}/ctld_track"
+    metadata_svc_nfs_path_openldap: "{{ metadata_slurm_nfs_storage_matches[0].source }}/openldap"
+    metadata_svc_slurm_nfs_path: "{{ metadata_slurm_nfs_storage_matches[0].source }}"
+    client_mount_path: "{{ metadata_slurm_nfs_storage_matches[0].mount_point }}"
+  when: target_category | default('') == 'slurm'
+
+- name: Set default effective directories for slurm paths
+  ansible.builtin.set_fact:
+    slurm_ctld_log_dir_effective: "{{ slurm_ctld_log_dir_effective | default('/var/log/slurm') }}"
+    slurmdbd_log_dir_effective: "{{ slurmdbd_log_dir_effective | default('/var/log/slurm') }}"
+    slurm_ctld_pid_dir_effective: "{{ slurm_ctld_pid_dir_effective | default('/var/run') }}"
+    slurmdbd_pid_dir_effective: "{{ slurmdbd_pid_dir_effective | default('/var/run') }}"
+    slurm_state_save_location_effective: "{{ slurm_state_save_location_effective | default('/var/spool/slurmctld') }}"
+    slurm_sched_log_dir_effective: "{{ slurm_sched_log_dir_effective | default('') }}"
+    slurm_slurmd_log_dir_effective: "{{ slurm_slurmd_log_dir_effective | default('/var/log/slurm') }}"
+    slurm_slurmd_spool_dir_effective: "{{ slurm_slurmd_spool_dir_effective | default('/var/spool/slurmd') }}"
+    slurm_slurmd_pid_dir_effective: "{{ slurm_slurmd_pid_dir_effective | default('/var/run') }}"
+    slurm_epilog_dirs_all: "{{ slurm_epilog_dirs_all | default(['/etc/slurm/epilog.d']) }}"
+    slurm_epilog_custom_paths: "{{ slurm_epilog_custom_paths | default([]) }}"
+    slurm_epilog_paths_all: "{{ slurm_epilog_paths_all | default(['/etc/slurm/epilog.d/logout_user.sh']) }}"
+    slurm_prolog_custom_paths: "{{ slurm_prolog_custom_paths | default([]) }}"
+    slurm_prolog_dirs_all: "{{ slurm_prolog_dirs_all | default([]) }}"
+    slurm_prolog_paths_all: "{{ slurm_prolog_paths_all | default([]) }}"
+    slurm_plugin_dir_effective: "{{ slurm_plugin_dir_effective | default('/usr/lib64/slurm') }}"
+    slurm_epilog_dir_effective: "{{ slurm_epilog_dir_effective | default('/etc/slurm/epilog.d') }}"
+    slurm_prolog_dir_effective: "{{ slurm_prolog_dir_effective | default('') }}"
+    file_mode: "{{ file_mode | default('0644') }}"
+    file_mode_400: "{{ file_mode_400 | default('0400') }}"
+    file_mode_600: "{{ file_mode_600 | default('0600') }}"
+    file_mode_755: "{{ file_mode_755 | default('0755') }}"
+    openldap_dir_name: "{{ openldap_dir_name | default('openldap') }}"
+    ldap_ssl_port: "{{ ldap_ssl_port | default(636) }}"
+    ldap_starttls_port: "{{ ldap_starttls_port | default(389) }}"
+    connection_type: "{{ (hostvars['localhost']['ldap_connection_type'] | default('TLS')) | lower }}"
+    ldap_search_base: >-
+      {{ (hostvars['localhost']['domain_name'] | default('')).split('.')
+      | select | map('regex_replace', '^', 'dc=') | join(',') }}
+    ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] | default('') }}"
+    password: "{{ hostvars['localhost']['openldap_db_password'] | default('') }}"
+    ldap_default_bind_dn: >-
+      cn={{ hostvars['localhost']['openldap_db_username'] | default('admin') }},{{
+      (hostvars['localhost']['domain_name'] | default('')).split('.')
+      | select | map('regex_replace', '^', 'dc=') | join(',') }}
+
+# ---- K8s-specific variable setup for metadata-service templates ----
+# These variables are normally set by the k8s_config bolt-on, but the
+# metadata-service templates need them during provision_common which
+# runs before k8s_config.  Guard all tasks with target_category check.
+
+- name: Load high availability config for kube_vip
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/high_availability_config.yml"
+  failed_when: false
+  when: target_category | default('') == 'kubernetes'
+
+- name: Load orchestrator_config for dns_enabled
+  when:
+    - target_category | default('') == 'kubernetes'
+    - dns_enabled is not defined
+  block:
+    - name: Read orchestrator_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/orchestrator_config.yml"
+        name: _orch_config_ms
+
+    - name: Set dns_enabled fact
+      ansible.builtin.set_fact:
+        dns_enabled: "{{ _orch_config_ms.dns_enabled | default(false) | bool }}"
+
+- name: Select deployed service Kubernetes configuration
+  ansible.builtin.set_fact:
+    metadata_service_k8s_cluster: >-
+      {{ service_k8s_cluster | default([])
+         | selectattr('deployment', 'defined')
+         | selectattr('deployment', 'sameas', true)
+         | first
+         | default(service_k8s_cluster | default([]) | first | default({})) }}
+  when: target_category | default('') == 'kubernetes'
+
+- name: Set K8s facts from omnia_config and HA config
+  ansible.builtin.set_fact:
+    kube_vip: "{{ service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
+    service_k8s_version: "{{ hostvars['localhost']['service_k8s_version'] }}"
+    k8s_pod_network_cidr: "{{ metadata_service_k8s_cluster.k8s_pod_network_cidr }}"
+    k8s_service_addresses: "{{ metadata_service_k8s_cluster.k8s_service_addresses }}"
+    pod_external_ip_range: "{{ metadata_service_k8s_cluster.pod_external_ip_range }}"
+    k8s_crio_storage_size: "{{ metadata_service_k8s_cluster.k8s_crio_storage_size }}"
+    etcd_on_local_disk: "{{ metadata_service_k8s_cluster.etcd_on_local_disk | default(false) }}"
+    admin_netmask_bits: "{{ hostvars['localhost']['admin_netmask_bits'] }}"
+    pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['localhost']['pulp_port'] | default(2225) }}"
+    pulp_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
+    dns: "{{ hostvars['localhost']['dns'] | default([]) }}"
+    offline_pip_module_path: "{{ hostvars['localhost']['offline_pip_module_path'] | default('') }}"
+  when: target_category | default('') == 'kubernetes'
+
+- name: Select K8s storage entry for metadata configuration
+  ansible.builtin.set_fact:
+    metadata_k8s_storage_name: "{{ metadata_service_k8s_cluster.nfs_storage_name }}"
+    metadata_k8s_storage_matches: >-
+      {{ mounts | default([])
+         | selectattr('name', 'equalto', metadata_service_k8s_cluster.nfs_storage_name)
+         | list }}
+  when: target_category | default('') == 'kubernetes'
+
+- name: Validate K8s metadata storage contract
+  ansible.builtin.assert:
+    that:
+      - metadata_k8s_storage_name | length > 0
+      - metadata_k8s_storage_matches | length == 1
+      - metadata_k8s_storage_matches[0].mount_point | default('') | length > 0
+      - metadata_k8s_storage_matches[0].mount_point is match('^/')
+      - metadata_k8s_storage_matches[0].source | default('') | length > 0
+    fail_msg: >-
+      K8s metadata configuration cannot resolve nfs_storage_name
+      '{{ metadata_k8s_storage_name }}' to exactly one complete entry in
+      storage_config.yml.
+  when: target_category | default('') == 'kubernetes'
+
+- name: Set K8s NFS paths from resolved storage entry
+  ansible.builtin.set_fact:
+    k8s_client_mount_path: "{{ metadata_k8s_storage_matches[0].mount_point }}"
+    k8s_nfs_server_path: "{{ metadata_k8s_storage_matches[0].source }}"
+  when: target_category | default('') == 'kubernetes'
+
+- name: Load K8s packages JSON for template variables
+  when: target_category | default('') == 'kubernetes'
+  block:
+    - name: Set k8s_packages_file path
+      ansible.builtin.set_fact:
+        _k8s_packages_file: >-
+          {{ input_project_dir }}/config/x86_64/{{
+          hostvars['localhost']['cluster_os_type'] }}/{{
+          hostvars['localhost']['cluster_os_version']
+          }}/service_k8s_v{{ service_k8s_version }}.json
+
+    - name: Check if K8s packages JSON exists
+      ansible.builtin.stat:
+        path: "{{ _k8s_packages_file }}"
+      register: _k8s_pkg_stat
+      delegate_to: localhost
+
+    - name: Load K8s packages JSON (when file exists)
+      ansible.builtin.set_fact:
+        _k8s_packages_json: "{{ lookup('file', _k8s_packages_file) | from_json }}"
+      when: _k8s_pkg_stat.stat.exists
+
+    - name: Set K8s package names from JSON
+      ansible.builtin.set_fact:
+        calico_package: >-
+          {{ _k8s_packages_json['service_kube_control_plane_first']['cluster']
+          | selectattr('type', 'equalto', 'manifest')
+          | selectattr('package', 'search', 'calico')
+          | map(attribute='package')
+          | join }}
+        metallb_package: >-
+          {{ _k8s_packages_json['service_kube_control_plane_first']['cluster']
+          | selectattr('type', 'equalto', 'manifest')
+          | selectattr('package', 'search', 'metallb-native')
+          | map(attribute='package')
+          | join }}
+        nfs_subdir_external_provisioner_pkg: >-
+          {{ _k8s_packages_json['service_kube_control_plane_first']['cluster']
+          | selectattr('type', 'equalto', 'tarball')
+          | selectattr('package', 'search', 'nfs-subdir-external-provisioner')
+          | map(attribute='package')
+          | join }}
+        multus_package: >-
+          {{ _k8s_packages_json['service_kube_control_plane_first']['cluster']
+          | selectattr('type', 'equalto', 'manifest')
+          | selectattr('package', 'search', 'multus-daemonset-thick')
+          | map(attribute='package')
+          | join }}
+      when: _k8s_pkg_stat.stat.exists
+
+    - name: Extract K8s package names from catalog (fallback)
+      ansible.builtin.set_fact:
+        calico_package: >-
+          {{ hostvars['localhost']['catalog_data'].catalog.packages.values()
+             | selectattr('packagetype', 'defined')
+             | selectattr('packagetype', 'equalto', 'manifest')
+             | selectattr('name', 'search', '^calico-v')
+             | map(attribute='name') | first | default('calico') }}
+        metallb_package: >-
+          {{ hostvars['localhost']['catalog_data'].catalog.packages.values()
+             | selectattr('packagetype', 'defined')
+             | selectattr('packagetype', 'equalto', 'manifest')
+             | selectattr('name', 'search', '^metallb-native')
+             | map(attribute='name') | first | default('metallb-native') }}
+        nfs_subdir_external_provisioner_pkg: >-
+          {{ hostvars['localhost']['catalog_data'].catalog.packages.values()
+             | selectattr('packagetype', 'defined')
+             | selectattr('packagetype', 'equalto', 'tarball')
+             | selectattr('name', 'search', 'nfs-subdir-external-provisioner')
+             | map(attribute='name') | first | default('nfs-subdir-external-provisioner') }}
+        multus_package: >-
+          {{ hostvars['localhost']['catalog_data'].catalog.packages.values()
+             | selectattr('packagetype', 'defined')
+             | selectattr('packagetype', 'equalto', 'manifest')
+             | selectattr('name', 'search', 'multus-daemonset')
+             | map(attribute='name') | first | default('multus-daemonset-thick') }}
+      when: not _k8s_pkg_stat.stat.exists
+
+# ---- End K8s-specific variable setup ----
+
+- name: Set functional_group_name for template compatibility
+  ansible.builtin.set_fact:
+    functional_group_name: "{{ fg_name }}"
+
+# Strip only the catalog OS/version segment for template lookup. The rendered
+# destination and every OpenCHAMI identity continue to use the versioned FG.
+- name: Derive template base name from fg_name
+  ansible.builtin.set_fact:
+    _ms_template_base: >-
+      {{ (fg_name
+          | regex_replace(functional_group_os_version_regex, '_'))
+         if (fg_name is match(functional_group_versioned_role_regex))
+         else fg_name }}
+
+- name: Build metadata-service template candidates for {{ fg_name }}
+  ansible.builtin.set_fact:
+    _ms_template_candidates: >-
+      {{ [ochami_template_dir ~ '/metadata_svc/ms-group-'
+          ~ _ms_template_base ~ '.yaml.j2']
+         + ([ochami_template_dir
+             ~ '/metadata_svc/ms-group-default_x86_64.yaml.j2']
+            if (target_category | default('')) == 'custom' else []) }}
+
+- name: Load metadata-service group template - {{ fg_name }}
+  block:
+    - name: Render metadata-service group template - {{ fg_name }}
+      ansible.builtin.template:
+        src: >-
+          {{ lookup('ansible.builtin.first_found',
+                    _ms_template_candidates) }}
+        dest: "{{ metadata_svc_dir }}/ms-group-{{ fg_name }}.yaml"
+        mode: "{{ file_permissions_644 }}"
+      vars:
+        connection_type: "{{ (hostvars['localhost']['ldap_connection_type'] | default('TLS')) | lower }}"
+        ldap_search_base: >-
+          {{ (hostvars['localhost']['domain_name'] | default('')).split('.')
+          | select | map('regex_replace', '^', 'dc=') | join(',') }}
+        ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] | default('') }}"
+        password: "{{ hostvars['localhost']['openldap_db_password'] | default('') }}"
+        ldap_default_bind_dn: >-
+          cn={{ hostvars['localhost']['openldap_db_username'] | default('admin') }},{{
+          (hostvars['localhost']['domain_name'] | default('')).split('.')
+          | select | map('regex_replace', '^', 'dc=') | join(',') }}
+  rescue:
+    - name: Failed to load metadata-service group template
+      ansible.builtin.fail:
+        msg: "{{ ms_group_load_fail_msg }}"
+
+- name: Load rendered FG group YAML - {{ fg_name }}
+  ansible.builtin.slurp:
+    src: "{{ metadata_svc_dir }}/ms-group-{{ fg_name }}.yaml"
+  register: ms_fg_group_raw
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Parse FG group entries - {{ fg_name }}
+  ansible.builtin.set_fact:
+    ms_fg_group_entries: "{{ ms_fg_group_raw.content | b64decode | from_yaml }}"
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Initialize metadata-service bodies for {{ fg_name }}
+  ansible.builtin.set_fact:
+    _ms_fg_bodies: []
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Build metadata-service group body for FG entries - {{ fg_name }}
+  ansible.builtin.set_fact:
+    _ms_fg_bodies: >-
+      {{ _ms_fg_bodies | default([]) + [{
+        'metadata': {'name': entry.name},
+        'spec': ({'description': entry.description | default(''),
+                   'template': entry.file.content | default('')}
+                  | combine(
+                    {'metaData': dict(
+                       entry['meta-data'].keys() | list
+                       | zip(entry['meta-data'].values() | map('to_json') | list)
+                     )}
+                    if entry['meta-data'] is defined and entry['meta-data'] | length > 0
+                    else {}
+                  ))
+      }] }}
+  loop: "{{ ms_fg_group_entries | default([]) }}"
+  loop_control:
+    loop_var: entry
+    label: "{{ entry.name }}"
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Fetch existing metadata-service groups for delete-before-set - {{ fg_name }}
+  block:
+    - name: Fetch existing metadata-service groups
+      ansible.builtin.uri:
+        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+        status_code: [200]
+        validate_certs: false
+        return_content: true
+      register: _existing_fg_groups
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+      no_log: true
+  rescue:
+    - name: Fail with metadata-service API error
+      ansible.builtin.fail:
+        msg: "{{ metadata_service_api_fail_msg }}"
+
+- name: Delete existing metadata-service group entries for {{ fg_name }}
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups/{{ item.metadata.uid }}"
+    method: DELETE
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200, 204, 404]
+    validate_certs: false
+  loop: >-
+    {{ _existing_fg_groups.json | default([])
+       | selectattr('metadata.name', 'in', _ms_fg_bodies | default([]) | map(attribute='metadata.name') | list)
+       | list }}
+  loop_control:
+    label: "{{ item.metadata.name | default(item.metadata.uid) }}"
+  when:
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+    - _existing_fg_groups.json | default([]) | length > 0
+
+- name: Set metadata-service group configuration for functional group (via metadata-service API)  # noqa: name[template]
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Content-Type: "application/json"
+    body_format: json
+    body: "{{ item }}"
+    status_code: [200, 201]
+    validate_certs: false
+  loop: "{{ _ms_fg_bodies | default([]) }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Verify metadata-service group configuration - {{ fg_name }}
+  ansible.builtin.uri:
+    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+    status_code: [200]
+    validate_certs: false
+    return_content: true
+  register: ms_group_output
+  no_log: true
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Verify metadata-service group output - {{ fg_name }}
+  ansible.builtin.debug:
+    msg: "{{ ms_group_output.json | default([]) | selectattr('metadata.name', 'equalto', fg_name) | list }}"
+    verbosity: 2
+  no_log: true
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)

@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -39,11 +39,17 @@
     mode: "{{ dir_permissions_644 }}"
 
 # --- Base image cache check ---
-# Compute a hash of base_image_packages to detect changes.
-# If the hash matches the previous build, skip the rebuild.
+# Compute a hash of base_image_packages + repo config + build engine.
+# If the hash matches the previous build, skip the rebuild. Including the
+# engine ensures switching between image-builder and image-thrillhouse triggers
+# the required base-image rebuild.
 - name: Compute base image package hash
   ansible.builtin.set_fact:
-    _base_pkg_hash: "{{ base_image_packages | sort | join(',') | hash('sha256') }}"
+    _base_pkg_hash: >-
+      {{ ((base_image_packages | sort | join(','))
+         ~ '|repos:' ~ _repo_config_hash
+         ~ '|image_build_type:' ~ _image_build_type)
+         | hash('sha256') }}
 
 - name: Set base image hash file path
   ansible.builtin.set_fact:
@@ -120,6 +126,22 @@
       Failed to build base osimage {{ host_name }}/{{ rhel_arch_base_image_name }}.
       Check log: {{ image_build__base_image_log_path }}
   when: (host_name + '/' + rhel_arch_base_image_name) not in verify_base_osimage.stdout_lines
+
+- name: Verify x86_64 base image has tags in registry
+  ansible.builtin.shell: |
+    /usr/local/bin/regctl tag ls \
+      {{ registry_host }}:5000/{{ host_name }}/{{ rhel_arch_base_image_name }} \
+      2>/dev/null
+  changed_when: false
+  failed_when: false
+  register: _base_tag_check
+
+- name: Fail if x86_64 base image has no tags
+  ansible.builtin.fail:
+    msg: >-
+      Base image {{ host_name }}/{{ rhel_arch_base_image_name }} exists in registry
+      but has no tags. Check log: {{ image_build__base_image_log_path }}
+  when: _base_tag_check.stdout_lines | default([]) | length == 0
 
 - name: Display verified x86_64 base osimage
   ansible.builtin.debug:

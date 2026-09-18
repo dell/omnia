@@ -58,6 +58,10 @@ EXAMPLES = r'''
 - name: Configure iDRAC telemetry
   include_tasks: configure_idrac.yml
   when: "'idrac_telemetry' in telemetry_status.telemetry_status_list"
+
+- name: Configure UFM telemetry
+  include_tasks: configure_ufm.yml
+  when: "'ufm_telemetry' in telemetry_status.telemetry_status_list"
 '''
 
 RETURN = r'''
@@ -66,7 +70,7 @@ telemetry_status_list:
     type: list
     elements: str
     returned: always
-    sample: ["idrac_telemetry", "ufm_telemetry", "ufm_logs"]
+    sample: ["idrac_telemetry", "ufm_telemetry", "ufm_logs", "vast_telemetry"]
 
 changed:
     description: Whether the module made any changes (always false for this read-only module)

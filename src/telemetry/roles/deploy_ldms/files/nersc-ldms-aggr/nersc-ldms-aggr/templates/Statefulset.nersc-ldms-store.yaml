@@ -3,6 +3,8 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  labels:
+    app: nersc-ldms-store
   name: nersc-ldms-store-{{ .name }}
   namespace: {{ $.Values.namespace }}
 spec:
@@ -97,4 +99,3 @@ spec:
 {{ toYaml $.Values.authVolOption | nindent 8 }}
 {{- end }}
 {{- end }}
-

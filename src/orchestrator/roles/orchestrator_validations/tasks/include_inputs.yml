@@ -13,13 +13,19 @@
 # limitations under the License.
 ---
 
-- name: Include {{ item.path }}
+- name: Check if input file exists  # noqa: name[template]
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  register: _input_file_stat
+
+- name: Include input file if it exists  # noqa: name[template]
+  when: _input_file_stat.stat.exists
   block:
-    - name: Include {{ item.path }}
+    - name: Load input vars from file  # noqa: name[template]
       ansible.builtin.include_vars: "{{ item.path }}"
       register: include_input
       tags: init
   rescue:
-    - name: Failed to include {{ item.path }}
+    - name: Fail on input file syntax error  # noqa: name[template]
       ansible.builtin.fail:
         msg: "{{ input_syntax_fail_msg }} Error: {{ include_input.message }}"

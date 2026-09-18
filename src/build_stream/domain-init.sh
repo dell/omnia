@@ -22,27 +22,15 @@
 #   1. Installs Python pip packages from requirements.txt
 #   2. Installs Ansible Galaxy collections from requirements.yml
 #   3. Creates Ansible log directory:  /var/log/omnia/build_stream/
-#   4. Copies app/ source code to NFS runtime data path
-#   5. Copies input files from source tree to runtime data path
-#
-# Source:      src/build_stream/app/   -> <OMNIA_DATA_PATH>/build_stream/
-#              src/build_stream/input/ -> <OMNIA_DATA_PATH>/build_stream/input/<project>/
-#
-# The container mounts <OMNIA_DATA_PATH> at /opt/omnia and reads code from NFS.
-# This eliminates the need to bake app code into the container image.
+#   4. Copies app source code, input files, and examples to NFS
 #
 # Usage:
-#   ./domain-init.sh                        # Uses env vars (must be exported)
-#   ./domain-init.sh --force                # Overwrite without prompting
-#   OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=build_stream ./domain-init.sh
+#   ./domain-init.sh                       # Uses env vars (must be exported)
+#   ./domain-init.sh --force               # Overwrite without prompting
+#   ./domain-init.sh --deps-only           # Install deps only, skip input/app staging
+#   ./domain-init.sh --cleanup             # Non-interactive initializer cleanup
+#   OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=prod ./domain-init.sh
 #
-# Called automatically by: omnia.sh --setup-venv
-#
-# Manual alternative (if not using this script):
-#   sudo mkdir -p /var/log/omnia/build_stream
-#   chmod 755 /var/log/omnia/build_stream
-#   cp -a app/ <OMNIA_DATA_PATH>/build_stream/
-#   cp -a input/build_stream/ <OMNIA_DATA_PATH>/build_stream/input/build_stream/
 # =============================================================================
 
 set -euo pipefail
@@ -58,6 +46,8 @@ readonly NC='\033[0m'
 
 FORCE_OVERWRITE=false
 DEPS_ONLY=false
+FORCE_DEPS=false
+CLEANUP_MODE=false
 
 # ---------------------------------------------------------------------------
 # Parse arguments
@@ -67,19 +57,29 @@ _parse_args() {
         case "$arg" in
             --force|-f) FORCE_OVERWRITE=true ;;
             --deps-only) DEPS_ONLY=true ;;
+            --force-deps) FORCE_DEPS=true ;;
+            --cleanup) CLEANUP_MODE=true ;;
             --help|-h)
-                echo "Usage: $0 [--force|-f] [--deps-only]"
+                echo "Usage: $0 [--force|-f] [--deps-only] [--force-deps] [--cleanup]"
                 echo "  --force, -f     Overwrite existing files without prompting"
-                echo "  --deps-only     Skip input file staging (only install deps)"
+                echo "  --deps-only     Skip input/app file staging (only install deps)"
+                echo "  --force-deps    Bypass dep cache and force reinstall of pip/Galaxy deps"
+                echo "  --cleanup       Non-interactively remove initializer-owned input and log paths"
                 exit 0
                 ;;
             *)
                 echo -e "${RED}Unknown argument: $arg${NC}" >&2
-                echo "Usage: $0 [--force|-f] [--deps-only]" >&2
+                echo "Usage: $0 [--force|-f] [--deps-only] [--force-deps] [--cleanup]" >&2
                 exit 1
                 ;;
         esac
     done
+
+    if [ "$CLEANUP_MODE" = true ] && { [ "$FORCE_OVERWRITE" = true ] || [ "$DEPS_ONLY" = true ] || [ "$FORCE_DEPS" = true ]; }; then
+        echo -e "${RED}[${DOMAIN_NAME}] ERROR: --cleanup must be used by itself.${NC}" >&2
+        echo "Usage: $0 --cleanup" >&2
+        exit 1
+    fi
 }
 
 # ---------------------------------------------------------------------------
@@ -87,15 +87,69 @@ _parse_args() {
 # ---------------------------------------------------------------------------
 _load_env() {
     OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
-    OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-build_stream}"
+    OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
+    DOMAIN_INIT_LOG_ROOT="${DOMAIN_INIT_LOG_ROOT:-/var/log/omnia}"
+}
+
+cleanup_initializer_artifacts() {
+    local configured_data_path="${OMNIA_DATA_PATH%/}"
+    local configured_log_root="${DOMAIN_INIT_LOG_ROOT%/}"
+    local data_root
+    data_root="$(realpath -m -- "$OMNIA_DATA_PATH")"
+    local logical_data_root
+    logical_data_root="$(realpath -ms -- "$OMNIA_DATA_PATH")"
+    local log_root
+    log_root="$(realpath -m -- "$DOMAIN_INIT_LOG_ROOT")"
+    local logical_log_root
+    logical_log_root="$(realpath -ms -- "$DOMAIN_INIT_LOG_ROOT")"
+    local domain_data_dir="${data_root}/${DOMAIN_NAME}"
+    local cleanup_paths=(
+        "${domain_data_dir}/input"
+        "${domain_data_dir}/log"
+        "${log_root}/${DOMAIN_NAME}"
+    )
+
+    case "$data_root" in
+        ""|/|/boot|/dev|/etc|/home|/media|/mnt|/opt|/proc|/root|/run|/srv|/sys|/tmp|/usr|/var)
+            echo -e "${RED}[${DOMAIN_NAME}] Refusing cleanup for unsafe OMNIA_DATA_PATH: ${OMNIA_DATA_PATH}${NC}" >&2
+            return 1
+            ;;
+    esac
+    case "$log_root" in
+        ""|/|/boot|/dev|/etc|/home|/media|/mnt|/opt|/proc|/root|/run|/srv|/sys|/tmp|/usr|/var)
+            echo -e "${RED}[${DOMAIN_NAME}] Refusing cleanup for unsafe log root: ${DOMAIN_INIT_LOG_ROOT}${NC}" >&2
+            return 1 ;;
+    esac
+    if [ -L "$configured_data_path" ] || [ -L "$configured_log_root" ] ||
+       [ "$data_root" != "$logical_data_root" ] || [ "$log_root" != "$logical_log_root" ]; then
+        echo -e "${RED}[${DOMAIN_NAME}] Refusing cleanup because a configured cleanup root is a symbolic link.${NC}" >&2
+        return 1
+    fi
+    if [ -L "$domain_data_dir" ] || { [ -e "$domain_data_dir" ] && [ ! -d "$domain_data_dir" ]; }; then
+        echo -e "${RED}[${DOMAIN_NAME}] Refusing cleanup because the domain data path is not a regular directory: ${domain_data_dir}${NC}" >&2
+        return 1
+    fi
+
+    echo -e "${GREEN}[${DOMAIN_NAME}] Cleaning initializer-owned artifacts...${NC}"
+    local path
+    for path in "${cleanup_paths[@]}"; do
+        if [ -e "$path" ] || [ -L "$path" ]; then
+            rm -rf -- "$path"
+            echo -e "  ${GREEN}[${DOMAIN_NAME}] Removed: ${path}${NC}"
+        fi
+    done
+    rmdir "$domain_data_dir" 2>/dev/null || true
+    echo -e "${GREEN}[${DOMAIN_NAME}] Initializer cleanup complete. Deployed resources and domain output were not changed.${NC}"
 }
 
 # ---------------------------------------------------------------------------
 # Check if destination has existing files and prompt user
+# Accepts optional second arg: source_dir (for listing overwritable files)
 # Returns 0 if safe to proceed, 1 if user declined
 # ---------------------------------------------------------------------------
 _check_existing_files() {
     local dest_dir="$1"
+    local source_dir="${2:-$SCRIPT_DIR/input}"
 
     # No destination — safe to proceed
     [ -d "$dest_dir" ] || return 0
@@ -114,15 +168,17 @@ _check_existing_files() {
     echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: ${existing_count} file(s) already exist in ${dest_dir}${NC}"
     echo -e "  ${YELLOW}Existing files may contain user customizations that will be overwritten.${NC}"
 
-    # List files that would be overwritten
-    local src_dir="$SCRIPT_DIR/input"
-    local overwrite_list
-    overwrite_list=$(cd "$src_dir" && find . -type f | sed 's|^\./||' | sort)
-    for f in $overwrite_list; do
-        if [ -f "$dest_dir/$f" ]; then
-            echo -e "    ${YELLOW}→ $f (exists — will be overwritten)${NC}"
-        fi
-    done
+    # List files that would be overwritten (use source_dir if provided)
+    if [ -d "$source_dir" ]; then
+        local overwrite_list
+        overwrite_list=$(cd "$source_dir" && find . -type f | sed 's|^\./||' | sort)
+        while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            if [ -f "$dest_dir/$f" ]; then
+                echo -e "    ${YELLOW}→ $f (exists — will be overwritten)${NC}"
+            fi
+        done <<< "$overwrite_list"
+    fi
 
     # Non-interactive check (piped input, cron, etc.)
     if [ ! -t 0 ]; then
@@ -135,26 +191,26 @@ _check_existing_files() {
     case "$response" in
         [yY]|[yY][eE][sS]) return 0 ;;
         *)
-            echo -e "  ${YELLOW}[${DOMAIN_NAME}] Skipped project '${OMNIA_PROJECT_NAME}' — no files overwritten${NC}"
+            echo -e "  ${YELLOW}[${DOMAIN_NAME}] Skipped — no files overwritten${NC}"
             return 1
             ;;
     esac
 }
 
 # ---------------------------------------------------------------------------
-# Create Ansible log directory under /var/log/omnia/
-# ansible.cfg log_path points here — Ansible cannot create parent dirs.
-# All ansible.cfg log files are flat (no subfolders).
+# Create runtime data directories (output + log) and Ansible log directory
 # ---------------------------------------------------------------------------
-create_log_directory() {
-    local log_dir="/var/log/omnia/${DOMAIN_NAME}"
-    if [ ! -d "$log_dir" ]; then
-        mkdir -p "$log_dir"
-        chmod 755 "$log_dir"
-        echo -e "  ${GREEN}[${DOMAIN_NAME}] Created Ansible log directory: ${log_dir}${NC}"
-    else
-        echo -e "  ${GREEN}[${DOMAIN_NAME}] Ansible log directory exists: ${log_dir}${NC}"
-    fi
+create_runtime_directories() {
+    local output_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/output/${OMNIA_PROJECT_NAME}"
+    local runtime_log_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/log/${OMNIA_PROJECT_NAME}"
+    local ansible_log_dir="/var/log/omnia/${DOMAIN_NAME}"
+
+    for dir in "$output_dir" "$runtime_log_dir" "$ansible_log_dir"; do
+        if [ ! -d "$dir" ]; then
+            mkdir -p "$dir"
+            echo -e "  ${GREEN}[${DOMAIN_NAME}] Created directory: ${dir}${NC}"
+        fi
+    done
 }
 
 # ---------------------------------------------------------------------------
@@ -169,7 +225,7 @@ copy_app_source() {
         return 1
     fi
 
-    if ! _check_existing_files "$dest_dir" "app source"; then
+    if ! _check_existing_files "$dest_dir" "$src_dir"; then
         return 0
     fi
 
@@ -209,8 +265,7 @@ copy_input_files() {
         return 0
     fi
 
-    # Check for existing files and prompt if needed
-    if ! _check_existing_files "$dest_dir"; then
+    if ! _check_existing_files "$dest_dir" "$src_dir"; then
         return 0
     fi
 
@@ -257,26 +312,66 @@ copy_examples() {
 # Install domain-specific pip + Galaxy dependencies
 # Expects the shared Omnia venv to be activated before calling this script.
 # ---------------------------------------------------------------------------
+_checksum_file() {
+    if command -v md5sum >/dev/null 2>&1; then
+        md5sum "$1" | awk '{print $1}'
+    elif command -v md5 >/dev/null 2>&1; then
+        md5 -q "$1"
+    else
+        echo "no-md5"
+    fi
+}
+
+_deps_cache_dir() {
+    local cache_dir="${OMNIA_DATA_PATH}/.data/deps-cache"
+    mkdir -p "$cache_dir"
+    echo "$cache_dir"
+}
+
 install_dependencies() {
     local req_txt="$SCRIPT_DIR/requirements.txt"
     local req_yml="$SCRIPT_DIR/requirements.yml"
+    local cache_dir
+    cache_dir="$(_deps_cache_dir)"
 
+    # pip packages
     if [ -f "$req_txt" ]; then
         if command -v pip >/dev/null 2>&1; then
-            echo -e "  ${GREEN}[${DOMAIN_NAME}] Installing pip packages ...${NC}"
-            if ! pip install -r "$req_txt" --quiet; then
-                echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: pip install failed — continuing${NC}"
+            local pip_hash pip_cache_file
+            pip_hash="$(_checksum_file "$req_txt")"
+            pip_cache_file="${cache_dir}/${DOMAIN_NAME}.pip.md5"
+
+            if [ "$FORCE_DEPS" = false ] && [ -f "$pip_cache_file" ] && [ "$(cat "$pip_cache_file")" = "$pip_hash" ]; then
+                echo -e "  ${GREEN}[${DOMAIN_NAME}] pip deps unchanged (cached) — skipped${NC}"
+            else
+                echo -e "  ${GREEN}[${DOMAIN_NAME}] Installing pip packages ...${NC}"
+                if pip install -r "$req_txt" --quiet; then
+                    echo "$pip_hash" > "$pip_cache_file"
+                else
+                    echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: pip install failed — continuing${NC}"
+                fi
             fi
         else
             echo -e "  ${YELLOW}[${DOMAIN_NAME}] pip not found (venv not activated?) — skipping pip install${NC}"
         fi
     fi
 
+    # Galaxy collections
     if [ -f "$req_yml" ]; then
         if command -v ansible-galaxy >/dev/null 2>&1; then
-            echo -e "  ${GREEN}[${DOMAIN_NAME}] Installing Galaxy collections ...${NC}"
-            if ! ansible-galaxy collection install -r "$req_yml" --force --quiet; then
-                echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: Galaxy install failed — continuing${NC}"
+            local galaxy_hash galaxy_cache_file
+            galaxy_hash="$(_checksum_file "$req_yml")"
+            galaxy_cache_file="${cache_dir}/${DOMAIN_NAME}.galaxy.md5"
+
+            if [ "$FORCE_DEPS" = false ] && [ -f "$galaxy_cache_file" ] && [ "$(cat "$galaxy_cache_file")" = "$galaxy_hash" ]; then
+                echo -e "  ${GREEN}[${DOMAIN_NAME}] Galaxy deps unchanged (cached) — skipped${NC}"
+            else
+                echo -e "  ${GREEN}[${DOMAIN_NAME}] Installing Galaxy collections ...${NC}"
+                if ansible-galaxy collection install -r "$req_yml" --force 2>&1 | tail -1; then
+                    echo "$galaxy_hash" > "$galaxy_cache_file"
+                else
+                    echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: Galaxy install failed — continuing${NC}"
+                fi
             fi
         else
             echo -e "  ${YELLOW}[${DOMAIN_NAME}] ansible-galaxy not found — skipping Galaxy install${NC}"
@@ -291,19 +386,22 @@ main() {
     _parse_args "$@"
     _load_env
 
+    if [ "$CLEANUP_MODE" = true ]; then
+        cleanup_initializer_artifacts
+        return 0
+    fi
+
     echo -e "${GREEN}[${DOMAIN_NAME}] Initializing domain...${NC}"
 
-    # 1. Install domain-specific dependencies
+    # 1. Install domain-specific dependencies (always)
     install_dependencies
 
-    # 2. Create Ansible log directory (ansible.cfg log_path)
-    create_log_directory
+    # 2. Create runtime directories (output, log, ansible log)
+    create_runtime_directories
 
-    # 3. Copy app source code to NFS
-    copy_app_source
-
-    # 4. Copy input files from flat input/ to input/<project>/ (skip if --deps-only)
+    # 3. Copy app source + input files + examples (skip ALL if --deps-only)
     if [ "$DEPS_ONLY" = false ]; then
+        copy_app_source
         copy_input_files
         copy_examples
     else

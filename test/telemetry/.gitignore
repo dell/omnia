@@ -1,0 +1,20 @@
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Test reports
+reports/
+
+# Credentials (auto-generated, NEVER commit)
+.test_creds.key
+test_creds.yml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
