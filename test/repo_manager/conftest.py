@@ -26,7 +26,7 @@ Provides:
 import sys
 import os
 import re
-import uuid
+from datetime import datetime
 
 import pytest
 
@@ -199,8 +199,10 @@ def test_report():
     oim_ip = config.get("oim_server_ip", "")
     if not oim_ip:
         oim_ip = "localhost"
-    report_id = str(uuid.uuid4())[:8]
-    base_name = _category_report_base_name(config)
+    configured_id = str(config.get("run_id") or "").strip()
+    run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.environ["RUN_ID"] = run_id
+    base_name = str(config.get("report_name", "repo_manager_test_report"))
     report_name = build_report_name(
         base_name=base_name,
     )
@@ -209,23 +211,10 @@ def test_report():
         report_path=report_path,
         report_name=report_name,
         server_ip=oim_ip,
-        report_id=report_id,
+        run_id=run_id,
     )
     set_current_report(report)
     yield report
-
-
-def _category_report_base_name(config):
-    """Return an isolated local report name for FVT, NFT, or UT."""
-    configured_name = str(
-        config.get("report_name", "repo_manager_test_report")
-    )
-    command_type = os.environ.get("OMNIA_COMMAND_TYPE", "").lower()
-    category = command_type if command_type in {"nft", "ut"} else "fvt"
-    if configured_name.endswith("_test_report"):
-        prefix = configured_name.removesuffix("_test_report")
-        return f"{prefix}_{category}_report"
-    return f"{configured_name}_{category}"
 
 
 # =============================================================================

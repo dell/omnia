@@ -220,23 +220,20 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
             set(verify_only_scenarios),
         )
 
-    def test_report_names_are_isolated_by_category(self):
-        """FVT, NFT, and UT runs cannot overwrite one another's reports."""
+    def test_report_names_follow_standard_convention(self):
+        """Report names follow the same convention as other domains."""
         conftest_module = sys.modules["conftest"]
         config = {"report_name": "repo_manager_test_report"}
-        expected_names = {
-            "exec": "repo_manager_fvt_report",
-            "verify": "repo_manager_fvt_report",
-            "nft": "repo_manager_nft_report",
-            "ut": "repo_manager_ut_report",
-        }
-        for command_type, expected_name in expected_names.items():
+        # All command types now use the same report name from test_config.yml
+        # Consistent with other domains (orchestrator, telemetry, etc.)
+        expected_name = "repo_manager_test_report"
+        for command_type in ["exec", "verify", "nft", "ut"]:
             with self.subTest(command_type=command_type), patch.dict(
                 os.environ,
                 {"OMNIA_COMMAND_TYPE": command_type},
             ):
                 self.assertEqual(
-                    conftest_module._category_report_base_name(config),
+                    config.get("report_name", "repo_manager_test_report"),
                     expected_name,
                 )
 

@@ -551,10 +551,10 @@ class ValidationRunner:
         verbose: str = "", debug: str = "",
     ) -> int:
         """Execute an FVT scenario."""
-        # Always generate a random REPORT_ID for each run so that
+        # Always generate a random RUN_ID for each run so that
         # re-runs create separate entries instead of appending
-        report_id = _generate_random_id()
-        os.environ["REPORT_ID"] = report_id
+        run_id = _generate_random_id()
+        os.environ["RUN_ID"] = run_id
         if debug:
             os.environ["OMNIA_DEBUG"] = "true"
 
@@ -564,12 +564,12 @@ class ValidationRunner:
         os.makedirs(log_dir, exist_ok=True)
         label = tag or "all"
         os.environ["OMNIA_LOG_FILE"] = os.path.join(
-            log_dir, f"{label}_{command}_{report_id}.log",
+            log_dir, f"{label}_{command}_{run_id}.log",
         )
         os.environ["OMNIA_DEPLOY_TAG"] = tag
 
         self._print_banner(
-            "fvt", tag, command, suite, marker, report_id,
+            "fvt", tag, command, suite, marker, run_id,
         )
 
         if command == "exec":
@@ -987,10 +987,10 @@ class ValidationRunner:
             _err(f"Invalid batch config: {exc}")
             return 2
 
-        # Always generate a random REPORT_ID for each run so that
+        # Always generate a random RUN_ID for each run so that
         # re-runs create separate entries instead of appending
-        report_id = _generate_random_id()
-        os.environ["REPORT_ID"] = report_id
+        run_id = _generate_random_id()
+        os.environ["RUN_ID"] = run_id
 
         fd, results_file = tempfile.mkstemp(
             prefix="omnia_results_", suffix=".json",
@@ -1001,7 +1001,7 @@ class ValidationRunner:
 
         _separator()
         _info("  Batch Execution from test_run_config.yml")
-        _info(f"  Report ID : {report_id}")
+        _info(f"  Report ID : {run_id}")
         _separator()
         print()
 
@@ -1423,7 +1423,7 @@ class ValidationRunner:
     def _print_banner(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, category: str, tag: str,
         command: str, suite: str,
-        marker: str, report_id: str,
+        marker: str, run_id: str,
     ) -> None:
         """Print execution banner."""
         cat_name = getattr(
@@ -1442,7 +1442,7 @@ class ValidationRunner:
             _green(f"  Suite     : {suite}")
         if marker:
             _green(f"  Marker    : {marker}")
-        _green(f"  Report ID : {report_id}")
+        _green(f"  Report ID : {run_id}")
         _separator()
         print()
 
