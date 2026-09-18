@@ -16,6 +16,7 @@
 Telemetry -- Non-Functional Resilience Tests.
 
 Verifies that the telemetry stack recovers gracefully from failures:
+  - Setup deploy to ensure the stack is running before resilience tests
   - Pod deletion and automatic recreation by controllers
   - PVC persistence after pod restarts
   - Service endpoint availability after pod recreation
@@ -25,6 +26,7 @@ Verifies that the telemetry stack recovers gracefully from failures:
   - Operator pod recovery and CR reconciliation
 
 Test cases:
+    TEL_NFT_018: Resilience setup deploy (deploy stack for resilience tests)
     TEL_NFT_006: Sink pod deletion & recovery (Kafka broker)
     TEL_NFT_007: Source pod deletion & recovery (enabled sources)
     TEL_NFT_008: StatefulSet storage pod recovery (vmstorage/vlstorage)
@@ -102,6 +104,78 @@ def _get_enabled_source_prefixes(host):
     if is_source_enabled(host, "ome"):
         prefixes.append(VECTOR_OME_APP_NAME)
     return prefixes
+
+
+# =========================================================================
+# TEL_NFT_018: Resilience Setup Deploy
+# =========================================================================
+
+@pytest.mark.nft
+@pytest.mark.resilience
+@pytest.mark.order(119)
+def test_resilience_setup_deploy(host):
+    """TEL_NFT_018: Deploy telemetry stack before resilience tests.
+
+    Ensures all telemetry components are deployed and pods are Running
+    before any pod-deletion or recovery tests begin.  Previous test
+    groups (performance, idempotency) may leave the namespace empty;
+    this step guarantees the resilience tests start from a known-good
+    deployed state — just like FVT deploy runs before verify tests.
+    """
+    tc = TC["nft_resilience_setup"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Deploying telemetry stack for resilience tests")
+    result = run_playbook(
+        playbook=PLAYBOOK_ENTRY_POINT,
+        playbook_workdir=PLAYBOOK_WORKDIR,
+        tag="execute",
+        timeout=LIFECYCLE_DEPLOY_TIMEOUT,
+    )
+
+    if result["rc"] != 0:
+        output_lines = result.get("output", "").strip().split("\n")
+        tail = "\n".join(output_lines[-30:])
+        tl.failed(
+            LOG_MSGS["deploy_failed"],
+            f"Resilience setup deploy failed (rc={result['rc']}). "
+            f"All subsequent resilience tests require a deployed stack.\n"
+            f"Last output:\n{tail}",
+        )
+        pytest.fail(
+            f"Resilience setup deploy failed (rc={result['rc']}). "
+            f"Cannot run resilience tests without a deployed stack."
+        )
+
+    # Verify all pods are Running after deploy
+    tl.check("Verifying all pods are Running after setup deploy")
+    pod_result = verify_all_pods_running(host)
+
+    if pod_result["success"]:
+        tl.passed(
+            LOG_MSGS["all_pods_running"].format(
+                total=pod_result["total_pods"],
+            ),
+            f"Deploy: rc={result['rc']} ({result.get('duration', 'N/A')}s)\n"
+            f"Pods: {pod_result['running_count']}/{pod_result['total_pods']} Running",
+        )
+    else:
+        not_running = [p["name"] for p in pod_result.get("not_running_pods", [])]
+        tl.failed(
+            LOG_MSGS["some_pods_not_running"].format(
+                not_running=pod_result["not_running_count"],
+                total=pod_result["total_pods"],
+            ),
+            f"Not running: {', '.join(not_running[:10])}",
+        )
+
+    assert result["rc"] == 0, (
+        f"Resilience setup deploy failed (rc={result['rc']})"
+    )
+    assert pod_result["success"], (
+        f"After setup deploy: {pod_result['not_running_count']}/"
+        f"{pod_result['total_pods']} pods not Running"
+    )
 
 
 # =========================================================================

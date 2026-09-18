@@ -534,6 +534,10 @@ TEST_CASES = {
         "title": "Verify PVCs preserved after idempotent cleanup",
     },
     # -- NFT: Resilience -----------------------------------------------------
+    "nft_resilience_setup": {
+        "id": "TEL_NFT_018",
+        "title": "Resilience setup deploy (deploy stack for resilience tests)",
+    },
     "nft_sink_pod_recovery": {
         "id": "TEL_NFT_006",
         "title": "Sink pod deletion & recovery (Kafka broker)",
@@ -628,7 +632,7 @@ LEGACY_ID_MAP = {
         f"TC_CL_{sequence:03d}": f"TEL_FVT_CLEANUP_V{sequence + 1:03d}"
         for sequence in range(5, 14)
     },
-    **{f"NFT_TL_{sequence:03d}": f"TEL_NFT_{sequence:03d}" for sequence in range(1, 15)},
+    **{f"NFT_TL_{sequence:03d}": f"TEL_NFT_{sequence:03d}" for sequence in range(1, 19)},
 }
 
 # These three IDs were reused by both UFM and OME. Preserve both destinations

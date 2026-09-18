@@ -123,6 +123,9 @@ _TC_ID_MAP.update(
         "test_validate_performance": TEST_CASES["nft_validate_perf"]["id"],
         "test_deploy_performance": TEST_CASES["nft_deploy_perf"]["id"],
         "test_cleanup_performance": TEST_CASES["nft_cleanup_perf"]["id"],
+        "test_resilience_setup_deploy": TEST_CASES[
+            "nft_resilience_setup"
+        ]["id"],
         "test_sink_pod_deletion_recovery": TEST_CASES[
             "nft_sink_pod_recovery"
         ]["id"],
