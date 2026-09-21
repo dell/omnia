@@ -13,6 +13,10 @@
 # limitations under the License.
 """Semantic validation for the repo_status.yml consumer contract."""
 
+from ansible.module_utils.input_validation.messages import (  # pylint: disable=E0401
+    image_build_messages as msg,
+)
+
 
 SUPPORTED_ARCHITECTURES = ("x86_64", "aarch64")
 
@@ -41,14 +45,11 @@ def validate(repo_status_data, logger=None):
     errors = []
 
     if repo_status_data.get("overall_status") != "success":
-        errors.append("repo_status.yml: overall_status must be 'success'.")
+        errors.append(msg.REPO_STATUS_UNSUCCESSFUL_MSG)
 
     repositories = repo_status_data.get("repositories", {})
     if not _has_repository_url(repositories):
-        errors.append(
-            "repo_status.yml: repositories must contain at least one non-empty "
-            "x86_64 or aarch64 repository URL."
-        )
+        errors.append(msg.REPO_STATUS_REPOSITORIES_REQUIRED_MSG)
 
     if logger:
         for error in errors:
