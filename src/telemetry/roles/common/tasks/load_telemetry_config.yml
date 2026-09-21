@@ -85,13 +85,7 @@
     - name: Notify - cluster_inventory using default path
       ansible.builtin.pause:
         seconds: 10
-        prompt: |
-          ⚠️  cluster_inventory is empty in telemetry_config.yml
-          
-          Constructing default path:
-          {{ _cluster_inv_path }}
-          
-          Proceeding in 10 seconds... (Press Ctrl+C to cancel)
+        prompt: "\033[33m⚠️  cluster_inventory is empty in telemetry_config.yml\n\nConstructing default path:\n{{ _cluster_inv_path }}\n\nProceeding in 10 seconds... (Press Ctrl+C to cancel)\033[0m"
       when: telemetry_config.cluster_inventory | default('') | length == 0
 
     - name: Expose resolved cluster inventory path for downstream consumers
@@ -208,17 +202,11 @@
     - name: Notify - repo_url using default path
       ansible.builtin.pause:
         seconds: 10
-        prompt: |
-          ⚠️  repo_url is empty in telemetry_packages.yml
-          
-          Constructing default path from SYSTEM_ADMIN_NIC_IPV4:
-          {{ _resolved_repo_url }}
-          
-          Proceeding in 10 seconds... (Press Ctrl+C to cancel)
+        prompt: "\033[33m⚠️  repo_url is empty in telemetry_packages.yml\n\nConstructing default path from SYSTEM_ADMIN_NIC_IPV4:\n{{ _resolved_repo_url | default('') }}\n\nProceeding in 10 seconds... (Press Ctrl+C to cancel)\033[0m"
       when:
         - _pkg_raw is defined
         - (_pkg_raw.repo_url | default('')) | length == 0
-        - (_resolved_repo_url | default('')) | length > 0
+        - (_resolved_repo_url | default('')) | string | length > 0
 
     # -----------------------------------------------------------------------
     # Validate repo_url is set for offline mode
@@ -229,22 +217,22 @@
       ansible.builtin.fail:
         msg: |
           repo_url is required for offline mode but not provided.
-          
+
           Current state:
           - install_mode: {{ _pkg_raw.install_mode | default('offline') }}
           - repo_url in telemetry_packages.yml: "{{ _pkg_raw.repo_url | default('') }}"
           - SYSTEM_ADMIN_NIC_IPV4 environment variable: {{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('NOT SET', true) }}
           - admin_nic_ip variable: {{ admin_nic_ip | default('NOT SET') }}
-          
+
           Solution:
           1. Set SYSTEM_ADMIN_NIC_IPV4 environment variable to the Pulp server IP:
              export SYSTEM_ADMIN_NIC_IPV4=<pulp_server_ip>
              ansible-playbook telemetry.yml --tags execute
-          
+
           2. OR explicitly set repo_url in telemetry_packages.yml:
              install_mode: "offline"
              repo_url: "https://<pulp_server_ip>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0"
-          
+
           3. OR set admin_nic_ip in roles/common/vars/main.yml:
              admin_nic_ip: "<pulp_server_ip>"
       when:
