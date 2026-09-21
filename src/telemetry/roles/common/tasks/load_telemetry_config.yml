@@ -220,6 +220,7 @@
         - _resolved_repo_url is defined
         - _resolved_repo_url | string
         - _resolved_repo_url | length > 0
+        - _resolved_repo_url != ""
 
     # -----------------------------------------------------------------------
     # Validate repo_url is set for offline mode
