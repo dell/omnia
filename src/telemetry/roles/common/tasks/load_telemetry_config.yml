@@ -217,7 +217,6 @@
       when:
         - _pkg_raw is defined
         - (_pkg_raw.repo_url | default('')) | length == 0
-        - _resolved_repo_url is defined and _resolved_repo_url
         - (_resolved_repo_url | default('')) | length > 0
 
     # -----------------------------------------------------------------------
