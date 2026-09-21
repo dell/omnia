@@ -140,6 +140,8 @@ if os.path.exists(TEST_REPORTS_PATH):
                 # Extract domain from filename using multiple patterns
                 filename = os.path.basename(json_file)
                 domain = None
+                
+                # Try exact patterns first (most specific)
                 for d in domain_order:
                     if (
                         f"_{d}_report" in filename
@@ -149,14 +151,18 @@ if os.path.exists(TEST_REPORTS_PATH):
                     ):
                         domain = d
                         break
+                
+                # If no match, try substring matching (less specific)
                 if not domain:
-                    # Try to match domain name anywhere in filename (substring)
                     for d in domain_order:
                         if d in filename:
                             domain = d
                             break
+                
+                # If still no match, skip this file (don't create "unknown" entries)
                 if not domain:
-                    domain = "unknown"
+                    print(f"  WARNING: Could not determine domain for {filename}, skipping")
+                    continue
 
                 print(f"  Processing report: {filename} -> domain: {domain}")
 
@@ -232,25 +238,14 @@ if os.path.exists(TEST_REPORTS_PATH):
                 total_failed += failed
                 total_skipped += skipped
 
-            # Build per-domain table
+            # Build per-domain table - show all domains in order, even if no tests
             domain_rows = ""
             for domain in domain_order:
-                if domain in domain_summaries:
-                    ds = domain_summaries[domain]
-                    bg = "#f8f9fa" if domain_order.index(domain) % 2 == 0 else "#ffffff"
-                    domain_rows += f"""\
+                # Use actual data if available, otherwise show 0s
+                ds = domain_summaries.get(domain, {"passed": 0, "failed": 0, "skipped": 0})
+                bg = "#f8f9fa" if domain_order.index(domain) % 2 == 0 else "#ffffff"
+                domain_rows += f"""\
         <tr style="background-color: {bg};">
-            <td style="border: 1px solid #ddd; padding: 8px;">{domain}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; color: green;">{ds['passed']}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; color: red;">{ds['failed']}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; color: orange;">{ds['skipped']}</td>
-        </tr>"""
-            # Include any domains not in the standard order (e.g. "unknown")
-            for domain in sorted(domain_summaries.keys()):
-                if domain not in domain_order:
-                    ds = domain_summaries[domain]
-                    domain_rows += f"""\
-        <tr style="background-color: #f8f9fa;">
             <td style="border: 1px solid #ddd; padding: 8px;">{domain}</td>
             <td style="border: 1px solid #ddd; padding: 8px; color: green;">{ds['passed']}</td>
             <td style="border: 1px solid #ddd; padding: 8px; color: red;">{ds['failed']}</td>
