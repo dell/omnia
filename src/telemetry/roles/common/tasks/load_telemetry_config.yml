@@ -217,7 +217,9 @@
       when:
         - _pkg_raw is defined
         - (_pkg_raw.repo_url | default('')) | length == 0
-        - (_resolved_repo_url | default('')) | string | length > 0
+        - _resolved_repo_url is defined
+        - _resolved_repo_url | string
+        - _resolved_repo_url | length > 0
 
     # -----------------------------------------------------------------------
     # Validate repo_url is set for offline mode
