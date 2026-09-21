@@ -82,6 +82,18 @@
           }}/orchestrator_inventory.yml{%- endif %}
         cacheable: true
 
+    - name: Notify - cluster_inventory using default path
+      ansible.builtin.pause:
+        seconds: 10
+        prompt: |
+          ⚠️  cluster_inventory is empty in telemetry_config.yml
+          
+          Constructing default path:
+          {{ _cluster_inv_path }}
+          
+          Proceeding in 10 seconds... (Press Ctrl+C to cancel)
+      when: telemetry_config.cluster_inventory | default('') | length == 0
+
     - name: Expose resolved cluster inventory path for downstream consumers
       ansible.builtin.set_fact:
         cluster_inventory_path: "{{ _cluster_inv_path }}"
@@ -165,6 +177,15 @@
     # When install_mode is offline and repo_url is empty, auto-derive:
     #   https://<SYSTEM_ADMIN_NIC_IPV4>:<pulp_port>/<pulp_base_path>/<pulp_cluster_arch>/<pulp_os_name>/<pulp_os_version>
     # Pulp configuration is customizable via variables in roles/common/vars/main.yml
+    - name: Debug - Check input for repo_url resolution
+      ansible.builtin.debug:
+        msg: |
+          install_mode: {{ _pkg_raw.install_mode | default('offline') }}
+          repo_url (from config): {{ _pkg_raw.repo_url | default('') }}
+          SYSTEM_ADMIN_NIC_IPV4 (env): {{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('NOT SET', true) }}
+          admin_nic_ip (var): {{ admin_nic_ip | default('NOT SET') }}
+      when: _pkg_raw is defined
+
     - name: Resolve repo_url default for offline mode
       ansible.builtin.set_fact:
         _resolved_repo_url: >-
@@ -177,6 +198,59 @@
           https://{{ nic_ip }}:{{ pulp_port }}/{{ pulp_base_path }}/{{ pulp_cluster_arch }}/{{ pulp_os_name }}/{{ pulp_os_version }}{%- endif -%}
           {%- endif %}
       when: _pkg_raw is defined
+
+    - name: Debug - Show resolved repo_url
+      ansible.builtin.debug:
+        msg: |
+          _resolved_repo_url: "{{ _resolved_repo_url | default('EMPTY', true) }}"
+      when: _pkg_raw is defined
+
+    - name: Notify - repo_url using default path
+      ansible.builtin.pause:
+        seconds: 10
+        prompt: |
+          ⚠️  repo_url is empty in telemetry_packages.yml
+          
+          Constructing default path from SYSTEM_ADMIN_NIC_IPV4:
+          {{ _resolved_repo_url }}
+          
+          Proceeding in 10 seconds... (Press Ctrl+C to cancel)
+      when:
+        - _pkg_raw is defined
+        - (_pkg_raw.repo_url | default('')) | length == 0
+        - (_resolved_repo_url | default('')) | length > 0
+
+    # -----------------------------------------------------------------------
+    # Validate repo_url is set for offline mode
+    # -----------------------------------------------------------------------
+    # In offline mode, repo_url must be provided either explicitly or
+    # auto-derived from SYSTEM_ADMIN_NIC_IPV4. Fail if neither is available.
+    - name: Validate repo_url for offline mode
+      ansible.builtin.fail:
+        msg: |
+          repo_url is required for offline mode but not provided.
+          
+          Current state:
+          - install_mode: {{ _pkg_raw.install_mode | default('offline') }}
+          - repo_url in telemetry_packages.yml: "{{ _pkg_raw.repo_url | default('') }}"
+          - SYSTEM_ADMIN_NIC_IPV4 environment variable: {{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('NOT SET', true) }}
+          - admin_nic_ip variable: {{ admin_nic_ip | default('NOT SET') }}
+          
+          Solution:
+          1. Set SYSTEM_ADMIN_NIC_IPV4 environment variable to the Pulp server IP:
+             export SYSTEM_ADMIN_NIC_IPV4=<pulp_server_ip>
+             ansible-playbook telemetry.yml --tags execute
+          
+          2. OR explicitly set repo_url in telemetry_packages.yml:
+             install_mode: "offline"
+             repo_url: "https://<pulp_server_ip>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0"
+          
+          3. OR set admin_nic_ip in roles/common/vars/main.yml:
+             admin_nic_ip: "<pulp_server_ip>"
+      when:
+        - _pkg_raw is defined
+        - (_pkg_raw.install_mode | default('offline')) == 'offline'
+        - (_resolved_repo_url | default('')) | length == 0
 
     # -----------------------------------------------------------------------
     # Resolve telemetry_packages URLs from repo_url + package catalog

@@ -391,21 +391,45 @@ def validate_telemetry_config(
             )
 
         if not os.path.isfile(resolved_bmc_path):
+            error_detail = (
+                f"BMC group data file not found at: {resolved_bmc_path}\n\n"
+                f"Solution:\n"
+                f"1. Run the orchestrator to generate bmc_group_data.csv:\n"
+                f"   ansible-playbook orchestrator.yml --tags execute\n"
+                f"   This will create the file at the default location:\n"
+                f"   /opt/omnia/orchestrator/output/project_default/bmc_group_data.csv\n\n"
+                f"2. OR provide the correct path in telemetry_config.yml:\n"
+                f"   idrac_telemetry_configurations:\n"
+                f"     bmc_group_data_path: \"/path/to/your/bmc_group_data.csv\"\n\n"
+                f"3. OR set OMNIA_DATA_PATH and OMNIA_PROJECT_NAME environment variables:\n"
+                f"   export OMNIA_DATA_PATH=/opt/omnia\n"
+                f"   export OMNIA_PROJECT_NAME=project_default\n"
+                f"   Then ensure the orchestrator has generated the file at:\n"
+                f"   $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv"
+            )
             errors.append(create_error_msg(
                 "idrac_telemetry_configurations.bmc_group_data_path",
                 bmc_group_data_path if bmc_group_data_path.strip() else "(default)",
-                f"BMC group data file not found at: {resolved_bmc_path}. "
-                "Provide the path to an existing bmc_group_data.csv file or ensure "
-                "the orchestrator has generated it at the default location."
+                error_detail
             ))
             logger.error(
-                "bmc_group_data_path does not reference an existing file: %s",
+                "bmc_group_data_path does not reference an existing file: %s\n%s",
                 resolved_bmc_path,
+                error_detail,
             )
         else:
-            logger.info(
-                "bmc_group_data_path validated: %s", resolved_bmc_path
-            )
+            # Log when using default path
+            if not bmc_group_data_path.strip():
+                logger.warning(
+                    "⚠️  bmc_group_data_path is empty in telemetry_config.yml\n"
+                    "Using default path: %s\n"
+                    "Proceeding with deployment...",
+                    resolved_bmc_path
+                )
+            else:
+                logger.info(
+                    "bmc_group_data_path validated: %s", resolved_bmc_path
+                )
 
     # Bridge feature flags
     vector_ldms = telemetry_bridges.get("vector_ldms", {})
