@@ -402,8 +402,6 @@ def validate_telemetry_config(
                 f"   idrac_telemetry_configurations:\n"
                 f"     bmc_group_data_path: \"/path/to/your/bmc_group_data.csv\"\n\n"
                 f"3. OR set OMNIA_DATA_PATH and OMNIA_PROJECT_NAME environment variables:\n"
-                f"   export OMNIA_DATA_PATH=/opt/omnia\n"
-                f"   export OMNIA_PROJECT_NAME=project_default\n"
                 f"   Then ensure the orchestrator has generated the file at:\n"
                 f"   $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv"
             )
