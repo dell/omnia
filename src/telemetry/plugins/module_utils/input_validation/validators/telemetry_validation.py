@@ -421,9 +421,9 @@ def validate_telemetry_config(
             # Log when using default path
             if not bmc_group_data_path.strip():
                 logger.warning(
-                    "\033[33m⚠️  bmc_group_data_path is empty in telemetry_config.yml\n"
+                    "⚠️  bmc_group_data_path is empty in telemetry_config.yml\n"
                     "Using default path: %s\n"
-                    "Proceeding with deployment...\033[0m",
+                    "Proceeding with deployment...",
                     resolved_bmc_path
                 )
             else:

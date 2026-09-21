@@ -83,9 +83,21 @@
         cacheable: true
 
     - name: Notify - cluster_inventory using default path
-      ansible.builtin.pause:
-        seconds: 10
-        prompt: "\033[33m⚠️  cluster_inventory is empty in telemetry_config.yml\n\nConstructing default path:\n{{ _cluster_inv_path }}\n\nProceeding in 10 seconds... (Press Ctrl+C to cancel)\033[0m"
+      block:
+        - name: Display warning in yellow
+          ansible.builtin.debug:
+            msg: "⚠️  cluster_inventory is empty in telemetry_config.yml"
+          vars:
+            ansible_debug_color: "yellow"
+
+        - name: Display resolved path
+          ansible.builtin.debug:
+            msg: "Constructing default path: {{ _cluster_inv_path }}"
+
+        - name: Pause for user confirmation
+          ansible.builtin.pause:
+            seconds: 10
+            prompt: "Proceeding in 10 seconds... (Press Ctrl+C to cancel)"
       when: telemetry_config.cluster_inventory | default('') | length == 0
 
     - name: Expose resolved cluster inventory path for downstream consumers
@@ -171,15 +183,6 @@
     # When install_mode is offline and repo_url is empty, auto-derive:
     #   https://<SYSTEM_ADMIN_NIC_IPV4>:<pulp_port>/<pulp_base_path>/<pulp_cluster_arch>/<pulp_os_name>/<pulp_os_version>
     # Pulp configuration is customizable via variables in roles/common/vars/main.yml
-    - name: Debug - Check input for repo_url resolution
-      ansible.builtin.debug:
-        msg: |
-          install_mode: {{ _pkg_raw.install_mode | default('offline') }}
-          repo_url (from config): {{ _pkg_raw.repo_url | default('') }}
-          SYSTEM_ADMIN_NIC_IPV4 (env): {{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('NOT SET', true) }}
-          admin_nic_ip (var): {{ admin_nic_ip | default('NOT SET') }}
-      when: _pkg_raw is defined
-
     - name: Resolve repo_url default for offline mode
       ansible.builtin.set_fact:
         _resolved_repo_url: >-
@@ -193,16 +196,22 @@
           {%- endif %}
       when: _pkg_raw is defined
 
-    - name: Debug - Show resolved repo_url
-      ansible.builtin.debug:
-        msg: |
-          _resolved_repo_url: "{{ _resolved_repo_url | default('EMPTY', true) }}"
-      when: _pkg_raw is defined
-
     - name: Notify - repo_url using default path
-      ansible.builtin.pause:
-        seconds: 10
-        prompt: "\033[33m⚠️  repo_url is empty in telemetry_packages.yml\n\nConstructing default path from SYSTEM_ADMIN_NIC_IPV4:\n{{ _resolved_repo_url | default('') }}\n\nProceeding in 10 seconds... (Press Ctrl+C to cancel)\033[0m"
+      block:
+        - name: Display warning in yellow
+          ansible.builtin.debug:
+            msg: "⚠️  repo_url is empty in telemetry_packages.yml"
+          vars:
+            ansible_debug_color: "yellow"
+
+        - name: Display resolved path
+          ansible.builtin.debug:
+            msg: "Constructing default path from SYSTEM_ADMIN_NIC_IPV4: {{ _resolved_repo_url }}"
+
+        - name: Pause for user confirmation
+          ansible.builtin.pause:
+            seconds: 10
+            prompt: "Proceeding in 10 seconds... (Press Ctrl+C to cancel)"
       when:
         - _pkg_raw is defined
         - (_pkg_raw.repo_url | default('')) | length == 0
