@@ -200,6 +200,14 @@
 
     - name: Notify - repo_url using default path
       block:
+        - name: Set default repo_url for display
+          ansible.builtin.set_fact:
+            _default_repo_url: >-
+              {% set nic_ip = lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default(admin_nic_ip | default(''), true) -%}
+              {% if nic_ip | length > 0 -%}
+              https://{{ nic_ip }}:{{ pulp_port }}/{{ pulp_base_path }}/{{ pulp_cluster_arch }}/{{ pulp_os_name }}/{{ pulp_os_version }}
+              {%- endif %}
+
         - name: Display warning
           ansible.builtin.debug:
             msg: "⚠️  repo_url is empty in telemetry_packages.yml"
@@ -208,7 +216,7 @@
 
         - name: Display resolved path
           ansible.builtin.debug:
-            msg: "Constructing default path from SYSTEM_ADMIN_NIC_IPV4: {{ _resolved_repo_url | trim }}"
+            msg: "Constructing default path from SYSTEM_ADMIN_NIC_IPV4: {{ _default_repo_url | trim }}"
 
         - name: Pause for user confirmation
           ansible.builtin.pause:
@@ -217,9 +225,7 @@
       when:
         - _pkg_raw is defined
         - (_pkg_raw.repo_url | default('')) | length == 0
-        - _resolved_repo_url is defined
-        - _resolved_repo_url is not none
-        - (_resolved_repo_url | trim | length) > 0
+        - (_pkg_raw.install_mode | default('offline')) == 'offline'
 
     # -----------------------------------------------------------------------
     # Validate repo_url is set for offline mode
