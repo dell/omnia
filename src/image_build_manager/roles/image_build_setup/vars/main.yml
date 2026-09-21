@@ -43,6 +43,7 @@ skip_credential_tags:
   - precheck
   - cleanup
   - cleanup_images
+  - cleanup_credentials
   - validate
 # Tags that require repo_status.yml (build-related operations)
 build_related_tags:

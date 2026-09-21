@@ -77,13 +77,13 @@ cd src/main
 sudo ./omnia.sh --run image_build_manager --tags cleanup
 ```
 
-The standalone cleanup playbook supports `--skip-tags credentials` only when
-credentials must intentionally be retained. `domain-init.sh --cleanup` is a
-non-interactive initializer helper that removes only staged input and domain log
-paths; it does not remove services or build outputs. After every domain cleanup
-tag has completed, `sudo ./omnia.sh --cleanup --all` performs the guarded global
-reset. Both global cleanup modes prompt for `yes`; trusted automation can add
-`--skip-approval`.
+The standalone cleanup playbook supports `--skip-tags cleanup_credentials`
+only when credentials must intentionally be retained. `domain-init.sh --cleanup`
+is a non-interactive initializer helper that removes only staged input and
+domain log paths; it does not remove services or build outputs. After every
+domain cleanup tag has completed, `sudo ./omnia.sh --cleanup --all` performs the
+guarded global reset. Both global cleanup modes prompt for `yes`; trusted
+automation can add `--skip-approval`.
 
 ### Image Cleanup (`cleanup_images`)
 
