@@ -225,7 +225,6 @@
       when:
         - _pkg_raw is defined
         - (_pkg_raw.repo_url | default('')) | length == 0
-        - (_pkg_raw.install_mode | default('offline')) == 'offline'
 
     # -----------------------------------------------------------------------
     # Validate repo_url is set for offline mode
