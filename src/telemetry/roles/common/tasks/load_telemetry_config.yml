@@ -84,7 +84,7 @@
 
     - name: Notify - cluster_inventory using default path
       block:
-        - name: Display warning in yellow
+        - name: Display warning
           ansible.builtin.debug:
             msg: "⚠️  cluster_inventory is empty in telemetry_config.yml"
           vars:
@@ -189,16 +189,18 @@
           {% set mode = _pkg_raw.install_mode | default('offline') -%}
           {% set url = _pkg_raw.repo_url | default('') -%}
           {% if url | length > 0 -%}
-          {{ url | regex_replace('/$', '') }}{%- elif mode == 'offline' -%}
+          {{ url | regex_replace('/$', '') }}
+          {%- elif mode == 'offline' -%}
           {% set nic_ip = lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default(admin_nic_ip | default(''), true) -%}
           {% if nic_ip | length > 0 -%}
-          https://{{ nic_ip }}:{{ pulp_port }}/{{ pulp_base_path }}/{{ pulp_cluster_arch }}/{{ pulp_os_name }}/{{ pulp_os_version }}{%- endif -%}
+          https://{{ nic_ip }}:{{ pulp_port }}/{{ pulp_base_path }}/{{ pulp_cluster_arch }}/{{ pulp_os_name }}/{{ pulp_os_version }}
+          {%- endif -%}
           {%- endif %}
       when: _pkg_raw is defined
 
     - name: Notify - repo_url using default path
       block:
-        - name: Display warning in yellow
+        - name: Display warning
           ansible.builtin.debug:
             msg: "⚠️  repo_url is empty in telemetry_packages.yml"
           vars:
