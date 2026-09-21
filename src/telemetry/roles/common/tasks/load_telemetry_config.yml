@@ -205,19 +205,21 @@
             msg: "⚠️  repo_url is empty in telemetry_packages.yml"
           vars:
             ansible_debug_color: "yellow"
+          when: _resolved_repo_url is defined and _resolved_repo_url != ""
 
         - name: Display resolved path
           ansible.builtin.debug:
             msg: "Constructing default path from SYSTEM_ADMIN_NIC_IPV4: {{ _resolved_repo_url }}"
+          when: _resolved_repo_url is defined and _resolved_repo_url != ""
 
         - name: Pause for user confirmation
           ansible.builtin.pause:
             seconds: 10
             prompt: "Proceeding in 10 seconds... (Press Ctrl+C to cancel)"
+          when: _resolved_repo_url is defined and _resolved_repo_url != ""
       when:
         - _pkg_raw is defined
         - (_pkg_raw.repo_url | default('')) | length == 0
-        - (_resolved_repo_url | default('')) | length > 0
 
     # -----------------------------------------------------------------------
     # Validate repo_url is set for offline mode
