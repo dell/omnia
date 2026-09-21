@@ -118,6 +118,13 @@
     - ../../vars/telemetry_common.yml
   tags: deploy
   tasks:
+    - name: Wait for pods to stabilize (allow transient errors to recover)
+      ansible.builtin.command: >
+        kubectl wait --for=condition=ready pods -n {{ telemetry_namespace }} --timeout=60s --all
+      register: pod_wait
+      failed_when: false
+      ignore_errors: true
+
     - name: Collect pod status in telemetry namespace
       ansible.builtin.command: >
         kubectl get pods -n {{ telemetry_namespace }} --no-headers
