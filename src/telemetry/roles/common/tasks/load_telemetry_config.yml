@@ -83,6 +83,7 @@
         cacheable: true
 
     - name: Notify - cluster_inventory using default path
+      when: telemetry_config.cluster_inventory | default('') | length == 0
       block:
         - name: Display warning
           ansible.builtin.debug:
@@ -98,7 +99,6 @@
           ansible.builtin.pause:
             seconds: 10
             prompt: "Proceeding in 10 seconds... (Press Ctrl+C to cancel)"
-      when: telemetry_config.cluster_inventory | default('') | length == 0
 
     - name: Expose resolved cluster inventory path for downstream consumers
       ansible.builtin.set_fact:
@@ -189,24 +189,24 @@
           {% set mode = _pkg_raw.install_mode | default('offline') -%}
           {% set url = _pkg_raw.repo_url | default('') -%}
           {% if url | length > 0 -%}
-          {{ url | regex_replace('/$', '') }}
-          {%- elif mode == 'offline' -%}
+          {{ url | regex_replace('/$', '') }}{%- elif mode == 'offline' -%}
           {% set nic_ip = lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default(admin_nic_ip | default(''), true) -%}
           {% if nic_ip | length > 0 -%}
-          https://{{ nic_ip }}:{{ pulp_port }}/{{ pulp_base_path }}/{{ pulp_cluster_arch }}/{{ pulp_os_name }}/{{ pulp_os_version }}
-          {%- endif -%}
+          https://{{ nic_ip }}:{{ pulp_port }}/{{ pulp_base_path }}/{{ pulp_cluster_arch }}/{{ pulp_os_name }}/{{ pulp_os_version }}{%- endif -%}
           {%- endif %}
       when: _pkg_raw is defined
 
     - name: Notify - repo_url using default path
+      when:
+        - _pkg_raw is defined
+        - (_pkg_raw.repo_url | default('')) | length == 0
       block:
         - name: Set default repo_url for display
           ansible.builtin.set_fact:
             _default_repo_url: >-
               {% set nic_ip = lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default(admin_nic_ip | default(''), true) -%}
               {% if nic_ip | length > 0 -%}
-              https://{{ nic_ip }}:{{ pulp_port }}/{{ pulp_base_path }}/{{ pulp_cluster_arch }}/{{ pulp_os_name }}/{{ pulp_os_version }}
-              {%- endif %}
+              https://{{ nic_ip }}:{{ pulp_port }}/{{ pulp_base_path }}/{{ pulp_cluster_arch }}/{{ pulp_os_name }}/{{ pulp_os_version }}{%- endif %}
 
         - name: Display warning
           ansible.builtin.debug:
@@ -222,9 +222,6 @@
           ansible.builtin.pause:
             seconds: 10
             prompt: "Proceeding in 10 seconds... (Press Ctrl+C to cancel)"
-      when:
-        - _pkg_raw is defined
-        - (_pkg_raw.repo_url | default('')) | length == 0
 
     # -----------------------------------------------------------------------
     # Validate repo_url is set for offline mode
