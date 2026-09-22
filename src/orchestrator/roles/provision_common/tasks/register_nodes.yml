@@ -211,7 +211,7 @@
 
 - name: Update ochami_env with refreshed token
   ansible.builtin.set_fact:
-    ochami_env: "{{ {(oim_node_name | upper) + '_ACCESS_TOKEN': refreshed_token_result.stdout} }}"
+    ochami_env: "{{ {cluster_env_key: refreshed_token_result.stdout} }}"
   when: refreshed_token_result.rc == 0
 
 - name: Remove obsolete node-registration SMD group
@@ -221,7 +221,7 @@
       }}:8443/hsm/v2/groups/node_registration
     method: DELETE
     headers:
-      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
     status_code: [200, 404]
     validate_certs: false
   no_log: true
@@ -275,7 +275,7 @@
 
     - name: Update ochami_env with refreshed token for retry
       ansible.builtin.set_fact:
-        ochami_env: "{{ {(oim_node_name | upper) + '_ACCESS_TOKEN': retry_token_result.stdout} }}"
+        ochami_env: "{{ {cluster_env_key: retry_token_result.stdout} }}"
       when: retry_token_result.rc == 0
 
     - name: Retry SMD node discovery
@@ -338,7 +338,7 @@
     url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/instanceinfos"
     method: POST
     headers:
-      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
       Content-Type: "application/json"
     body_format: json
     body:
