@@ -64,33 +64,51 @@
     _cleanup_delete_sinks_volume: >-
       {{ Delete_sinks_volume | default(delete_sinks_volume | default(false)) | bool }}
 
+- name: Validate persistent volume cleanup option
+  vars:
+    _cleanup_boolean_values:
+      - "true"
+      - "false"
+      - "yes"
+      - "no"
+      - "1"
+      - "0"
+  ansible.builtin.assert:
+    that:
+      - >-
+        Delete_sinks_volume is not defined
+        or (Delete_sinks_volume | string | lower) in _cleanup_boolean_values
+      - >-
+        delete_sinks_volume is not defined
+        or (delete_sinks_volume | string | lower) in _cleanup_boolean_values
+      - >-
+        Delete_sinks_volume is not defined
+        or delete_sinks_volume is not defined
+        or (Delete_sinks_volume | bool) == (delete_sinks_volume | bool)
+    fail_msg: >-
+      Set only one matching boolean value for Delete_sinks_volume or delete_sinks_volume.
+      Accepted values are true, false, yes, no, 1, and 0.
+
+- name: Reject misspelled sink volume option
+  ansible.builtin.assert:
+    that:
+      - Delete_sinks_volumes is not defined
+      - delete_sinks_volumes is not defined
+    fail_msg: "{{ cleanup_invalid_sink_volume_option_msg }}"
+
+- name: Reject sink volume option for granular cleanup
+  ansible.builtin.assert:
+    that:
+      - >-
+        (_cleanup_all | bool)
+        or (
+          Delete_sinks_volume is not defined
+          and delete_sinks_volume is not defined
+        )
+    fail_msg: "{{ cleanup_granular_sink_volume_option_fail_msg }}"
+
 - name: Prepare telemetry cleanup
   block:
-    - name: Validate persistent volume cleanup option
-      vars:
-        _cleanup_boolean_values:
-          - "true"
-          - "false"
-          - "yes"
-          - "no"
-          - "1"
-          - "0"
-      ansible.builtin.assert:
-        that:
-          - >-
-            Delete_sinks_volume is not defined
-            or (Delete_sinks_volume | string | lower) in _cleanup_boolean_values
-          - >-
-            delete_sinks_volume is not defined
-            or (delete_sinks_volume | string | lower) in _cleanup_boolean_values
-          - >-
-            Delete_sinks_volume is not defined
-            or delete_sinks_volume is not defined
-            or (Delete_sinks_volume | bool) == (delete_sinks_volume | bool)
-        fail_msg: >-
-          Set only one matching boolean value for Delete_sinks_volume or delete_sinks_volume.
-          Accepted values are true, false, yes, no, 1, and 0.
-
     # Remove local credentials after local option validation but before a
     # configuration or remote prerequisite can fail. Component cleanup uses
     # deployed Kubernetes resources, not this stored credential file.

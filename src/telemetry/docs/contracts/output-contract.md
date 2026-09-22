@@ -106,7 +106,7 @@ fatal.
 - Telemetry workloads, services, and component custom resources, except the
   Kafka identity resources retained in preservation mode
 - Helm releases (Strimzi, VictoriaMetrics operator, cert-manager)
-- Source component PVCs (iDRAC, LDMS, PowerScale, etc.) are always deleted
+- Source component PVCs (currently iDRAC and PowerScale) are always deleted
 - Sink component PVCs (Kafka, VictoriaMetrics, VictoriaLogs) only when `Delete_sinks_volume=true` or `delete_sinks_volume=true`; otherwise PVCs are preserved
 - `telemetry_status.yml` is NOT removed (preserves last-known state)
 
@@ -127,7 +127,7 @@ volumes:
   status: "preserved"
   components:
     idrac: "preserved"
-    ldms: "preserved"
+    ldms: "skipped"
     ome: "skipped"
     powerscale: "preserved"
     ufm: "skipped"
@@ -159,8 +159,8 @@ unreachable Kubernetes VIP remain fatal.
 LDMS sampler cleanup always closes the configured sampler firewall port and
 removes the generated `{{ slurm_cluster_mount }}/telemetry/ldms/samplers`
 configuration subtree from reachable Slurm nodes. These operations are not
-controlled by `Delete_volume`; persistent Kafka, VictoriaMetrics, and legacy
-LDMS PVC data continues to follow the volume setting.
+controlled by `Delete_volume`; persistent Kafka and VictoriaMetrics data continues to follow the volume
+setting.
 
 Reusing the preserved iDRAC database claim requires the same MySQL credentials.
 The existing claim also keeps its current requested size unless it is resized separately.

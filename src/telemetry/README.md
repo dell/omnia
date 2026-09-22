@@ -69,10 +69,10 @@ ansible-playbook playbooks/telemetry.yml
 
 | Tag | Default? | Description |
 |-----|----------|-------------|
-| _(none)_ | Yes | Default flow: setup + validate + deploy |
-| `precheck` | No | Validate K8s prerequisites (kube_vip, nodes, pods) |
+| _(none)_ | Yes | Default flow: setup + validate + precheck + deploy |
+| `precheck` | No | Run K8s and enabled Slurm prerequisite checks without deploying |
 | `validate` | Yes | L1 schema + L2 logic validation of all input files |
-| `deploy` / `execute` | Yes | Deploy sinks + sources + kustomize apply |
+| `deploy` / `execute` | Yes | Precheck, then deploy sinks + sources + kustomize apply |
 | `cleanup` | No | Remove telemetry runtime resources; delete source volumes, preserve sink volumes by default |
 | `upgrade` | No | Upgrade telemetry (placeholder) |
 | `rollback` | No | Rollback telemetry (placeholder) |
@@ -91,8 +91,10 @@ ansible-playbook playbooks/telemetry.yml
 | `cleanup_ufm` | UFM InfiniBand telemetry |
 | `cleanup_vast` | VAST storage telemetry |
 
-**Tag safety**: `cleanup`, `precheck`, `upgrade`, `rollback` use Ansible's `never`
-tag — they NEVER execute unless explicitly requested with `--tags`.
+**Tag safety**: `cleanup`, `upgrade`, and `rollback` use Ansible's `never` tag;
+they never execute unless explicitly requested with `--tags`. `precheck` runs
+automatically for the default, `deploy`, and `execute` flows, and can also be
+requested alone for a check-only run.
 
 ### Credential and Global Cleanup
 

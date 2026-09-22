@@ -34,9 +34,12 @@ playbooks/telemetry.yml (entry point)
   |    - Auto-copy input files from source if runtime dir is missing
   |    - Create runtime directories
   |
-  |  DEFAULT FLOW (no tags = validate + deploy):
+  |  DEFAULT FLOW (no tags = validate + precheck + deploy):
   |
   +-- validate/validation.yml          [tag: validate]      L1 + L2 validation
+  +-- precheck/precheck.yml            [tags: precheck, deploy, execute]
+  |     +-- K8s API, nodes, control plane, workers, and pod health
+  |     +-- Slurm nodes and services when LDMS is enabled
   +-- deploy/deploy.yml                [tag: deploy]
   |     +-- telemetry_prereq.yml       Phase 0: config, flags, kube_vip
   |     +-- sinks/deploy_sinks.yml     Phase 1: Kafka, VM, VL
@@ -46,7 +49,6 @@ playbooks/telemetry.yml (entry point)
   |
   |  OPT-IN FLOWS (require explicit --tags):
   |
-  +-- precheck/precheck.yml            [tag: precheck]      K8s readiness
   +-- cleanup/cleanup.yml              [tag: cleanup]       Runtime removal
   |     +-- Delete_volume=false        Preserve PVCs + Kafka identity (default)
   |     +-- Delete_volume=true         Delete PVCs + Kafka identity
@@ -59,9 +61,11 @@ playbooks/telemetry.yml (entry point)
 
 ### Tag Safety
 
-Opt-in flows (`precheck`, `cleanup`, `upgrade`, `rollback`) use Ansible's
-`never` tag — they **never** execute unless explicitly requested with `--tags`.
-Running `telemetry.yml` without tags is always safe: setup + validate + deploy.
+Opt-in recovery/destructive flows (`cleanup`, `upgrade`, `rollback`) use
+Ansible's `never` tag and execute only when explicitly requested. Precheck is a
+mandatory gate for the default, `deploy`, and `execute` flows; `--tags precheck`
+runs the same checks without deploying. Validation-only, cleanup, rollback, and
+utility-only flows intentionally do not require the cluster to be fully healthy.
 
 ## Environment Configuration (omnia.env)
 
