@@ -54,6 +54,13 @@ class JobModel(Base):
     client_name = Column(String(128), nullable=True)
     job_state = Column(String(20), nullable=False, index=True)
 
+    # Catalog versioning (ER-BSM-002)
+    composite_image_group_id = Column(String(256), nullable=True, index=True)
+    catalog_identifier = Column(String(128), nullable=True)
+    catalog_version = Column(String(20), nullable=True)
+    catalog_schema_version = Column(Integer, nullable=True)
+    build_execution_mode = Column(String(20), nullable=True, default="differential")
+
     # Pipeline phase (nullable — NULL for direct invocation)
     pipeline_phase = Column(String(10), nullable=True)
 
@@ -237,15 +244,14 @@ class ImageGroupModel(Base):
     Tracks the lifecycle of built images independently of transient Job states.
     Enforces a 1:1 mapping between Job and ImageGroup via UNIQUE constraint on job_id.
 
-    The primary key 'id' is the ImageGroupID extracted from the catalog JSON
-    during parse-catalog (not a UUID — it is a human-readable identifier like
-    'omnia-cluster-v1.2').
+    The primary key 'id' is the composite ImageGroupID: ``identifier-vVersion``
+    (e.g. 'omnia-slurm-rhel-10-0-x86-64-aarch64-v1.0').
     """
 
     __tablename__ = "image_groups"
 
-    # Primary key — ImageGroupID from catalog (NOT a UUID)
-    id = Column(String(128), primary_key=True, nullable=False)
+    # Primary key — composite ImageGroupID from catalog (NOT a UUID)
+    id = Column(String(256), primary_key=True, nullable=False)
 
     # Foreign key to jobs table — UNIQUE enforces 1:1 mapping
     job_id = Column(
@@ -256,8 +262,17 @@ class ImageGroupModel(Base):
         index=True,
     )
 
+    # Catalog versioning (ER-BSM-002)
+    catalog_identifier = Column(String(128), nullable=True)
+    catalog_version = Column(String(20), nullable=True)
+    catalog_schema_version = Column(Integer, nullable=True)
+
     # Business attributes
     status = Column(String(20), nullable=False, default="BUILT", index=True)
+
+    # Retention fields (ER-BSM-002 — used by Story 4)
+    deploy_count = Column(Integer, nullable=False, default=0)
+    is_protected = Column(Boolean, nullable=False, default=False)
 
     # Timestamps
     created_at = Column(
@@ -266,6 +281,7 @@ class ImageGroupModel(Base):
     updated_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    last_deployed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     job = relationship("JobModel", back_populates="image_group", uselist=False)
@@ -280,9 +296,10 @@ class ImageGroupModel(Base):
     __table_args__ = (
         Index("idx_image_groups_job_id", "job_id", unique=True),
         Index("idx_image_groups_status", "status"),
+        Index("idx_image_groups_catalog_identifier", "catalog_identifier"),
         CheckConstraint(
             "status IN ('BUILT', 'DEPLOYING', 'DEPLOYED', 'RESTARTING', "
-            "'RESTARTED', 'VALIDATING', 'PASSED', 'FAILED', 'CLEANED')",
+            "'RESTARTED', 'VALIDATING', 'PASSED', 'FAILED', 'CLEANING', 'CLEANED', 'CLEANUP_FAILED')",
             name="ck_image_groups_status",
         ),
     )
@@ -314,6 +331,7 @@ class ImageModel(Base):
     # Business attributes
     role = Column(String(128), nullable=False)
     image_name = Column(String(512), nullable=False)
+    manifest_path = Column(String(512), nullable=True)
 
     # Timestamps
     created_at = Column(

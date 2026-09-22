@@ -33,17 +33,28 @@ class ImageGroup:
     UNIQUE constraint on job_id.
 
     Attributes:
-        id: Catalog ImageGroupID (human-readable, not UUID).
+        id: Composite ImageGroupID (``identifier-vVersion``).
         job_id: Associated job (1:1 mapping).
         status: Current lifecycle status.
+        catalog_identifier: Catalog identifier string.
+        catalog_version: Catalog version string.
+        catalog_schema_version: Structural schema version (integer).
+        deploy_count: Number of times this image group has been deployed.
+        is_protected: Whether this image group is protected from retention.
         images: Constituent images within this group.
         created_at: Creation timestamp.
         updated_at: Last modification timestamp.
+        last_deployed_at: Timestamp of last deployment.
     """
 
     id: ImageGroupId
     job_id: JobId
     status: ImageGroupStatus
+    catalog_identifier: Optional[str] = None
+    catalog_version: Optional[str] = None
+    catalog_schema_version: Optional[int] = None
+    deploy_count: int = 0
+    is_protected: bool = False
     images: List["Image"] = field(default_factory=list)
     created_at: datetime = field(
         default_factory=lambda: datetime.now(timezone.utc)
@@ -51,6 +62,7 @@ class ImageGroup:
     updated_at: datetime = field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
+    last_deployed_at: Optional[datetime] = None
 
     def transition_status(self, new_status: ImageGroupStatus) -> None:
         """Transition to a new status and update timestamp.
@@ -74,6 +86,7 @@ class Image:
         image_group_id: FK to parent ImageGroup.
         role: Functional role name (e.g., slurm_node).
         image_name: Generated image file name (e.g., slurm_node.img).
+        manifest_path: Path to the sidecar JSON manifest (optional).
         created_at: Creation timestamp.
     """
 
@@ -81,6 +94,7 @@ class Image:
     image_group_id: str
     role: str
     image_name: str
+    manifest_path: Optional[str] = None
     created_at: datetime = field(
         default_factory=lambda: datetime.now(timezone.utc)
     )

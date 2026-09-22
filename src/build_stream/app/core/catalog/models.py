@@ -80,10 +80,21 @@ class Catalog:
 
     Holds raw layer sections and the resolved package objects used by
     generator and adapter components.
+
+    Attributes:
+        name: Catalog display name.
+        version: Catalog version for package-level updates (e.g. "1.0").
+        schema_version: Structural schema version (integer, 2 for Omnia 2.3).
+        identifier: Human-readable catalog identifier
+            (e.g. "omnia-slurm-rhel-10-0-x86-64-aarch64").
+        composite_id: Composite identity: ``identifier-vVersion``
+            (e.g. "omnia-slurm-rhel-10-0-x86-64-aarch64-v1.0").
     """
 
     name: str
     version: str
+    schema_version: int
+    identifier: str
     functional_layer: List[dict]
     base_os: List[dict]
     infrastructure: List[dict]
@@ -93,3 +104,8 @@ class Catalog:
     os_packages: List[OsPackage]
     infrastructure_packages: List[InfrastructurePackage]
     miscellaneous: List[str]
+
+    @property
+    def composite_id(self) -> str:
+        """Return composite identity: ``identifier-vVersion``."""
+        return f"{self.identifier}-v{self.version}"
