@@ -1,0 +1,43 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# The OME inventory client uses the standard HTTPS endpoint and does not accept
+# a configurable port. Keep the precheck aligned with that runtime contract.
+discovery_ome_https_port: 443
+
+discovery_ome_config_path: >-
+  {{ (discovery_input_dir ~ '/discovery_config.yml')
+     if discovery_input_dir is defined
+     else 'discovery_config.yml' }}
+
+discovery_ome_ip_required_msg: |-
+  OME endpoint configuration is incomplete.
+  Required value: ome_ip
+  Configuration file: {{ discovery_ome_config_path }}
+  Action: Set ome_ip to the reachable OME appliance IPv4 address.
+
+discovery_ome_connectivity_failure_msg: |-
+  OME endpoint connectivity check failed.
+  Endpoint: {{ ome_ip | default('not configured') | trim }}:{{ discovery_ome_https_port }}
+  Timeout: {{ discovery_ome_connectivity_timeout }} seconds
+  Details: {{ discovery_ome_connectivity_result.msg | default('TCP connection was not established') }}
+  Configuration file: {{ discovery_ome_config_path }}
+  Action: Verify the OME appliance state, IP address, routing, and firewall access from the OIM host.
+
+discovery_ome_connectivity_success_status: >-
+  reachable ({{ ome_ip | trim }}:{{ discovery_ome_https_port }})
+
+discovery_ome_connectivity_success_msg: >-
+  OME endpoint connectivity check PASSED: {{ ome_ip | trim }}:{{ discovery_ome_https_port }}

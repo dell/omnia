@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,6 +15,11 @@
 
 - name: Run OME discovery pipeline
   block:
+    - name: Verify OME HTTPS endpoint connectivity
+      ansible.builtin.include_role:
+        name: discovery_common
+        tasks_from: check_ome_connectivity.yml
+
     - name: Include OME credential handling
       ansible.builtin.include_tasks: get_ome_credentials.yml
 
@@ -31,11 +36,13 @@
       ansible.builtin.copy:
         content: |
           overall_status: "success"
-          discovery_mechanism: "{{ discovery_mechanism | default('ome') }}"
+          discovery_mechanism: "ome"
           bmc_pxe_mapping_file: "{{ pxe_mapping_output_file | default('') }}"
           servers_discovered: {{ discovered_servers | default([]) | length }}
           timestamp: "{{ ansible_date_time.iso8601 | default('unknown') }}"
-        dest: "{{ discovery_output_dir | default('/opt/omnia/output/project_default/discovery') }}/discovery_status.yml"
+        dest: >-
+          {{ output_project_dir
+             | default(discovery_output_dir) }}/discovery_status.yml
         mode: '0644'
 
   rescue:
@@ -43,13 +50,15 @@
       ansible.builtin.copy:
         content: |
           overall_status: "failed"
-          discovery_mechanism: "{{ discovery_mechanism | default('ome') }}"
+          discovery_mechanism: "ome"
           bmc_pxe_mapping_file: "{{ pxe_mapping_output_file | default('') }}"
           servers_discovered: {{ discovered_servers | default([]) | length }}
           failed_task: "{{ ansible_failed_task.name | default('unknown') }}"
           failure_reason: "{{ ansible_failed_result.msg | default('unknown error') }}"
           timestamp: "{{ ansible_date_time.iso8601 | default('unknown') }}"
-        dest: "{{ discovery_output_dir | default('/opt/omnia/output/project_default/discovery') }}/discovery_status.yml"
+        dest: >-
+          {{ output_project_dir
+             | default(discovery_output_dir) }}/discovery_status.yml
         mode: '0644'
 
     - name: Re-raise the original failure

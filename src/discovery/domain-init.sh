@@ -25,7 +25,8 @@
 #   4. Copies input files from source tree to runtime data path
 #
 # Source (flat):   src/discovery/input/
-# Destination:     <OMNIA_DATA_PATH>/discovery/input/<project>/
+# Destination:     <DISCOVERY_DATA_PATH>/input/<project>/
+# Default:         <OMNIA_DATA_PATH>/discovery/input/<project>/
 #
 # The source input/ directory contains template config files without any
 # project subdirectory.  The project directory (e.g. project_default) is
@@ -36,7 +37,7 @@
 #   ./domain-init.sh --force               # Overwrite without prompting
 #   ./domain-init.sh --cleanup             # Non-interactive initializer cleanup
 #   ./domain-init.sh --deps-only           # Install deps only, skip input staging
-#   OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=prod ./domain-init.sh
+#   DISCOVERY_DATA_PATH=/data/discovery OMNIA_PROJECT_NAME=prod ./domain-init.sh
 #
 # Called automatically by: omnia.sh --init  or  omnia.sh --setup-venv
 #
@@ -48,7 +49,8 @@
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 readonly DOMAIN_NAME="discovery"
 
 # Color definitions
@@ -100,26 +102,27 @@ _parse_args() {
 # ─────────────────────────────────────────────────────────────────────────────
 _load_env() {
     OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+    DISCOVERY_DATA_PATH="${DISCOVERY_DATA_PATH:-${OMNIA_DATA_PATH}/${DOMAIN_NAME}}"
     OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
     DOMAIN_INIT_LOG_ROOT="${DOMAIN_INIT_LOG_ROOT:-/var/log/omnia}"
 }
 
 cleanup_initializer_artifacts() {
-    local configured_data_path="${OMNIA_DATA_PATH%/}"
+    local configured_data_path="${DISCOVERY_DATA_PATH%/}"
     local configured_log_root="${DOMAIN_INIT_LOG_ROOT%/}"
     local data_root
-    data_root="$(realpath -m -- "$OMNIA_DATA_PATH")"
+    data_root="$(realpath -m -- "$DISCOVERY_DATA_PATH")"
     local logical_data_root
-    logical_data_root="$(realpath -ms -- "$OMNIA_DATA_PATH")"
+    logical_data_root="$(realpath -ms -- "$DISCOVERY_DATA_PATH")"
     local log_root
     log_root="$(realpath -m -- "$DOMAIN_INIT_LOG_ROOT")"
     local logical_log_root
     logical_log_root="$(realpath -ms -- "$DOMAIN_INIT_LOG_ROOT")"
-    local domain_data_dir="${data_root}/${DOMAIN_NAME}"
+    local domain_data_dir="${data_root}"
     local cleanup_paths=("${domain_data_dir}/input" "${domain_data_dir}/log" "${log_root}/${DOMAIN_NAME}")
     case "$data_root" in
         ""|/|/boot|/dev|/etc|/home|/media|/mnt|/opt|/proc|/root|/run|/srv|/sys|/tmp|/usr|/var)
-            echo -e "${RED}[${DOMAIN_NAME}] Refusing cleanup for unsafe OMNIA_DATA_PATH: ${OMNIA_DATA_PATH}${NC}" >&2
+            echo -e "${RED}[${DOMAIN_NAME}] Refusing cleanup for unsafe DISCOVERY_DATA_PATH: ${DISCOVERY_DATA_PATH}${NC}" >&2
             return 1 ;;
     esac
     case "$log_root" in
@@ -202,11 +205,11 @@ _check_existing_files() {
 # ─────────────────────────────────────────────────────────────────────────────
 # Copy flat input/ files to the runtime project directory
 # Source:  src/<domain>/input/            (flat — no project subdirectory)
-# Dest:   <OMNIA_DATA_PATH>/<domain>/input/<project>/
+# Dest:   <DISCOVERY_DATA_PATH>/input/<project>/
 # ─────────────────────────────────────────────────────────────────────────────
 copy_input_files() {
     local src_dir="$SCRIPT_DIR/input"
-    local dest_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/input/${OMNIA_PROJECT_NAME}"
+    local dest_dir="${DISCOVERY_DATA_PATH}/input/${OMNIA_PROJECT_NAME}"
 
     if [ ! -d "$src_dir" ]; then
         echo -e "  ${YELLOW}[${DOMAIN_NAME}] No input directory at ${src_dir} — skipping${NC}"
@@ -244,8 +247,8 @@ copy_input_files() {
 # Create runtime data directories (output + log) and Ansible log directory
 # ─────────────────────────────────────────────────────────────────────────────
 create_runtime_directories() {
-    local output_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/output/${OMNIA_PROJECT_NAME}"
-    local runtime_log_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/log/${OMNIA_PROJECT_NAME}"
+    local output_dir="${DISCOVERY_DATA_PATH}/output/${OMNIA_PROJECT_NAME}"
+    local runtime_log_dir="${DISCOVERY_DATA_PATH}/log/${OMNIA_PROJECT_NAME}"
     local ansible_log_dir="/var/log/omnia/${DOMAIN_NAME}"
 
     for dir in "$output_dir" "$runtime_log_dir" "$ansible_log_dir"; do

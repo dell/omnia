@@ -156,8 +156,6 @@ BUILD_STREAM_REQUIRED_CREDS: List[str] = [
 
 GITLAB_API_VERSION = "v4"
 GITLAB_ROOT_TOKEN_FILE = "/root/.gitlab_root_token"
-GITLAB_SSH_PRIVATE_KEY = "/root/.ssh/omnia_gitlab"
-
 GITLAB_RUNNER_CONTAINER = "gitlab-runner"
 
 GITLAB_SERVICES: List[str] = [
@@ -408,11 +406,12 @@ CMDS: Dict[str, str] = {
     ),
 
     # --- SSH to GitLab ---
-    "ssh_to_gitlab": (
-        "ssh -i {identity_file} -o IdentitiesOnly=yes"
+    "ssh_to_gitlab_password": (
+        "SSHPASS={ssh_password} sshpass -e ssh -o IdentitiesOnly=no"
         " -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
-        " -o BatchMode=yes"
-        " root@{gitlab_host} '{cmd}' 2>/dev/null"
+        " -o PreferredAuthentications=password"
+        " -o PubkeyAuthentication=no -o BatchMode=no"
+        " {gitlab_user}@{gitlab_host} '{cmd}' 2>/dev/null"
     ),
 
     # --- GitLab rails commands ---

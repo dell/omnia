@@ -336,6 +336,72 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "title": "Build pipeline final result",
     },
 
+    # --- Manual build pipeline (manual marker; opt-in) ---
+    "manual_trigger_build_pipeline": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_E001",
+        "title": "Trigger build pipeline using PIPELINE_TYPE=build",
+    },
+    "manual_build_stage_upload_monitor": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V001",
+        "title": "Monitor upload stage until completion",
+    },
+    "manual_build_stage_upload_db_verify": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V002",
+        "title": "Verify upload stage status in database",
+    },
+    "manual_build_stage_parse_catalog_monitor": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V003",
+        "title": "Monitor parse-catalog stage until completion",
+    },
+    "manual_build_stage_parse_catalog_db_verify": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V004",
+        "title": "Verify parse-catalog stage status in database",
+    },
+    "manual_build_stage_create_local_repository_monitor": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V007",
+        "title": "Monitor create-local-repository stage until completion",
+    },
+    "manual_build_stage_create_local_repository_db_verify": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V008",
+        "title": "Verify create-local-repository stage in database",
+    },
+    "manual_build_stage_build_image_x86_64_monitor": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V009",
+        "title": "Monitor build-image-x86_64 stage until completion",
+    },
+    "manual_build_stage_build_image_x86_64_db_verify": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V010",
+        "title": "Verify build-image-x86_64 stage in database",
+    },
+    "manual_build_stage_build_image_aarch64_monitor": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V011",
+        "title": "Monitor optional build-image-aarch64 stage",
+    },
+    "manual_build_stage_build_image_aarch64_db_verify": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V012",
+        "title": "Verify optional build-image-aarch64 stage in database",
+    },
+    "manual_build_image_groups_created": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V013",
+        "title": "Verify image groups were created for the job",
+    },
+    "manual_build_images_created": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V014",
+        "title": "Verify images were created for the job",
+    },
+    "manual_build_registry_images": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V015",
+        "title": "Verify container images exist in registry for all roles",
+    },
+    "manual_build_s3_boot_images": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V016",
+        "title": "Verify S3 boot images exist for all roles",
+    },
+    "manual_build_pipeline_result": {
+        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V017",
+        "title": "Summarize manual build pipeline result",
+    },
+
     # =================================================================
     # SECTION E: Deploy Pipeline
     # =================================================================
@@ -379,6 +445,66 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     "deploy_pipeline_summary": {
         "id": "BSM_FVT_DEPLOY_PIPELINE_V009",
         "title": "Verify deploy pipeline summary passed",
+    },
+
+    # --- Manual deploy pipeline (manual marker; opt-in) ---
+    "manual_trigger_deploy_pipeline": {
+        "id": "BSM_FVT_DEPLOY_PIPELINE_MANUAL_E001",
+        "title": "Trigger deploy pipeline using PIPELINE_TYPE=deploy",
+    },
+    "manual_deploy_stage_deploy_monitor": {
+        "id": "BSM_FVT_DEPLOY_PIPELINE_MANUAL_V001",
+        "title": "Monitor deploy stage until completion",
+    },
+    "manual_deploy_stage_deploy_db_verify": {
+        "id": "BSM_FVT_DEPLOY_PIPELINE_MANUAL_V002",
+        "title": "Verify deploy stage status in database",
+    },
+    "manual_deploy_stage_restart_monitor": {
+        "id": "BSM_FVT_DEPLOY_PIPELINE_MANUAL_V003",
+        "title": "Monitor restart stage until completion",
+    },
+    "manual_deploy_stage_restart_db_verify": {
+        "id": "BSM_FVT_DEPLOY_PIPELINE_MANUAL_V004",
+        "title": "Verify restart stage status in database",
+    },
+    "manual_deploy_stage_validate_monitor": {
+        "id": "BSM_FVT_DEPLOY_PIPELINE_MANUAL_V005",
+        "title": "Monitor validate stage until completion",
+    },
+    "manual_deploy_stage_validate_db_verify": {
+        "id": "BSM_FVT_DEPLOY_PIPELINE_MANUAL_V006",
+        "title": "Verify validate stage status in database",
+    },
+
+    # --- Cleanup pipeline (sanity marker; explicit suite only) ---
+    "cleanup_gitlab_server_running": {
+        "id": "BSM_FVT_CLEANUP_PIPELINE_V001",
+        "title": "Verify GitLab server is running and accessible",
+    },
+    "cleanup_gitlab_runner_running": {
+        "id": "BSM_FVT_CLEANUP_PIPELINE_V002",
+        "title": "Verify GitLab runner container is running",
+    },
+    "cleanup_image_groups_for_cleanup": {
+        "id": "BSM_FVT_CLEANUP_PIPELINE_V003",
+        "title": "Verify image groups exist that can be cleaned up",
+    },
+    "cleanup_trigger_cleanup_pipeline": {
+        "id": "BSM_FVT_CLEANUP_PIPELINE_E001",
+        "title": "Trigger cleanup pipeline with PIPELINE_TYPE=cleanup",
+    },
+    "cleanup_image_groups_cleaned": {
+        "id": "BSM_FVT_CLEANUP_PIPELINE_V004",
+        "title": "Verify image groups have CLEANED status after cleanup",
+    },
+    "cleanup_s3_images_deleted": {
+        "id": "BSM_FVT_CLEANUP_PIPELINE_V005",
+        "title": "Verify S3 boot images are deleted after cleanup",
+    },
+    "cleanup_registry_images_deleted": {
+        "id": "BSM_FVT_CLEANUP_PIPELINE_V006",
+        "title": "Verify registry images are deleted after cleanup",
     },
 
     # =================================================================

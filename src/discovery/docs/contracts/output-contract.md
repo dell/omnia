@@ -1,8 +1,11 @@
 # Discovery — Output Contract
 
-> **Last Updated**: Sep 9, 2026 | **Domain**: `discovery`
+> **Last Updated**: Sep 16, 2026 | **Domain**: `discovery`
 
 This document defines all output artifacts produced by the `discovery` domain.
+
+`DISCOVERY_DATA_PATH` defaults to `$OMNIA_DATA_PATH/discovery` when the
+component override is unset or empty.
 
 ---
 
@@ -10,7 +13,7 @@ This document defines all output artifacts produced by the `discovery` domain.
 
 **Purpose**: Maps discovered servers to PXE boot parameters for orchestrator consumption.
 
-**Location**: `$OMNIA_DATA_PATH/discovery/output/<project_name>/bmc_pxe_mapping_file_<timestamp>.csv`
+**Location**: `$DISCOVERY_DATA_PATH/output/<project_name>/bmc_pxe_mapping_file_<timestamp>.csv`
 
 **Producer**: `ome_discovery` role → `generate_pxe_mapping` module
 
@@ -29,7 +32,6 @@ This document defines all output artifacts produced by the `discovery` domain.
 | `ADMIN_IP` | string | Admin IP (derived from admin_subnet + BMC IP) |
 | `BMC_MAC` | string | BMC/iDRAC MAC address |
 | `BMC_IP` | string | BMC/iDRAC IP address |
-| `BMC_HOSTNAME` | string | BMC hostname |
 | `IB_NIC_NAME` | string | InfiniBand NIC FQDD (if present) |
 | `IB_IP` | string | InfiniBand IP (derived from ib_subnet + BMC IP) |
 
@@ -43,7 +45,7 @@ A symlink `bmc_pxe_mapping_file.csv` always points to the latest timestamped fil
 
 **Purpose**: NIC link status report for operator review. Not consumed programmatically.
 
-**Location**: `$OMNIA_DATA_PATH/discovery/output/<project_name>/bmc_discovery_report_<timestamp>.csv`
+**Location**: `$DISCOVERY_DATA_PATH/output/<project_name>/bmc_discovery_report_<timestamp>.csv`
 
 **Producer**: `ome_discovery` role → `generate_discovery_report` module
 
@@ -61,7 +63,7 @@ A symlink `bmc_pxe_mapping_file.csv` always points to the latest timestamped fil
 **Purpose**: Records the latest Discovery execution outcome, mechanism, output
 mapping path, discovered-server count, and failure details when applicable.
 
-**Location**: `$OMNIA_DATA_PATH/discovery/output/<project_name>/discovery_status.yml`
+**Location**: `$DISCOVERY_DATA_PATH/output/<project_name>/discovery_status.yml`
 
 **Producer**: `ome_discovery` role
 
@@ -75,8 +77,11 @@ mapping path, discovered-server count, and failure details when applicable.
 Discovery Output                              Orchestrator Input
 ──────────────────                             ──────────────────
 bmc_pxe_mapping_file_<ts>.csv ──(manual copy)──► pxe_mapping_file.csv
-                                                 $OMNIA_DATA_PATH/orchestrator/input/<project>/
+                                                 $ORCHESTRATOR_DATA_PATH/input/<project>/
 ```
+
+`ORCHESTRATOR_DATA_PATH` defaults to `$OMNIA_DATA_PATH/orchestrator` when its
+component override is unset or empty.
 
 The mapping file must be **manually reviewed and copied** to the orchestrator
 input directory. This deliberate handoff ensures operators can review/edit

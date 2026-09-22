@@ -13,13 +13,12 @@
 # limitations under the License.
 ---
 # BuildStream Manager Configuration
-omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
-restart_state_dir: "{{ omnia_data_path }}/build_stream_root/restart_state"
-input_dir: "{{ hostvars['localhost']['input_project_dir'] | default(omnia_data_path + '/input/project_default') }}"
+restart_state_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/build_stream_root/restart_state"
+input_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 bsm_enabled: "{{ enable_build_stream | default(false) | bool }}"
 
 # Orchestrator output directory — source of failed_nodes.json written by pxeboot.yml
-orchestrator_output_dir_bsm: "{{ hostvars['localhost']['orchestrator_output_dir'] | default(omnia_data_path + '/orchestrator/output/project_default') }}"
+orchestrator_output_dir_bsm: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
 
 # GitLab Configuration
 gitlab_miscellaneous_dir: "miscellaneous"

@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,22 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-- name: Verify OME is reachable
-  block:
-    - name: Wait for OME HTTPS port
-      ansible.builtin.wait_for:
-        host: "{{ ome_ip }}"
-        port: 443
-        timeout: 30
-      register: ome_reachability
-  rescue:
-    - name: Fail with actionable message when OME is unreachable
-      ansible.builtin.fail:
-        msg: >-
-          Unable to reach OME at {{ ome_ip }}:443 within 30 seconds.
-          Please verify that ome_ip in {{ discovery_input_dir }}/discovery_config.yml
-          is correct and that the OME appliance is powered on and network-accessible.
 
 - name: Collect OME server inventory
   ome_server_inventory:

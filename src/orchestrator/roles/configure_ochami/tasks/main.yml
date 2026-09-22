@@ -59,7 +59,9 @@
 
     - name: Create SMD groups for per-FG additional metadata-service
       ansible.builtin.include_tasks: create_groups_additional_fg.yml
-      with_items: "{{ additional_metadata_svc_fg_names | default([]) }}"
+      with_items: >-
+        {{ additional_metadata_svc_effective_fg_names
+           | default(additional_metadata_svc_fg_names | default([])) }}
       when: additional_metadata_svc_groups_enabled | default(false) | bool
 
     - name: Configure boot-service and metadata-service

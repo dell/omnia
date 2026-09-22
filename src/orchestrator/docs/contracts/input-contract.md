@@ -24,7 +24,6 @@ When `ORCHESTRATOR_DATA_PATH` is unset, it resolves to
 | `language` | string | Yes | `"en_US.UTF-8"` | Supported locale for provisioned nodes |
 | `default_lease_time` | string or int | Yes | `86400` | Positive DHCP lease time in seconds |
 | `dns_enabled` | bool | No | `false` | Enable CoreDNS configuration |
-| `kernel_version_override` | string | No | `""` | Specific kernel version for boot images |
 | `additional_cloud_init_config_file` | string | No | `""` | Extra cloud-init config path |
 | `boot_kernel_params` | string | No | `""` | Additional kernel command-line parameters applied to every functional group |
 | `catalog_file_path` | string | No | `$CATALOG_FILE_PATH`, then `$OMNIA_DATA_PATH/catalog/catalog_rhel.json` | Catalog JSON path override |
@@ -129,6 +128,13 @@ may place a `service_kube_node` and its Slurm nodes in the same `GROUP_NAME`.
 **Reference sample**:
 `src/orchestrator/samples/image_build_manager_output/build_status.yml`.
 Image Build Manager's generated file remains authoritative.
+
+For every functional group, Orchestrator uses the `kernel`, `initrd`, and
+`image` paths in this file as one atomic boot-artifact set. There is no
+separate kernel-version override in `orchestrator_config.yml`. To upgrade a
+kernel, rebuild the affected functional-group image with Image Build Manager
+so that it publishes the new paths to `build_status.yml`, then rerun the
+Orchestrator provision flow.
 
 ### Structure
 

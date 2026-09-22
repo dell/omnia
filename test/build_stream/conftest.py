@@ -71,6 +71,18 @@ from library.functions.validation_func import (  # noqa: E402
     validate_all,
     ConfigValidationError,
 )
+from library.functions.build_stream_func import (  # noqa: E402
+    check_build_stream_enabled,
+    check_build_stream_health,
+    check_postgres_tables,
+)
+from library.functions.gitlab_func import (  # noqa: E402
+    check_gitlab_runner_container,
+    check_gitlab_url_accessible,
+)
+from library.functions.pipeline_func import (  # noqa: E402
+    check_server_credentials,
+)
 from library.vars import TEST_CASES  # noqa: E402
 
 _FVT_SCENARIO_ORDER = {
@@ -129,6 +141,7 @@ def pytest_configure(config):
     markers = {
         "order(n)": "Specify test execution order (lower first)",
         "sanity": "Baseline verification (must-pass)",
+        "manual": "Manually-triggered pipeline verification",
         "deploy": "Playbook deployment tests",
         "nft": "BuildStream non-functional test",
         "resilience": "Service and pipeline recovery test",
@@ -397,7 +410,18 @@ def pytest_runtest_makereport(item, call):
     # Prefer the stable function-name registry. TestLogger state is process
     # global and can otherwise leak the preceding ID into a marker-filtered
     # test that was skipped before its logger was constructed.
-    tc_id = _TC_ID_MAP.get(item.name, "") or get_last_tc_id()
+    # Cleanup-pipeline coverage keeps the historical function names (for example
+    # ``test_gitlab_server_running``), which also exist in the installation
+    # health suite. Prefer the cleanup-pipeline registry entry for that suite
+    # so reports retain the correct test-case ID.
+    cleanup_key = f"cleanup_{item.name.removeprefix('test_')}"
+    cleanup_tc_id = TEST_CASES.get(cleanup_key, {}).get("id", "")
+    in_cleanup_pipeline = "cleanup_pipeline" in item.nodeid.replace("\\", "/").split("/")
+    tc_id = (
+        cleanup_tc_id
+        if in_cleanup_pipeline and cleanup_tc_id
+        else _TC_ID_MAP.get(item.name, "") or get_last_tc_id()
+    )
 
     # Accumulate for summary table (shared via omnia_auto)
     add_session_result(
@@ -447,3 +471,26 @@ def pytest_report_teststatus(report, config):
 def host():
     """Testinfra host connected to the target server."""
     return get_testinfra_host()
+
+
+@pytest.fixture(scope="session")
+def manual_pipeline_prerequisites(host):
+    """Fail closed unless the installed BuildStream stack is operational."""
+    checks = (
+        ("BuildStream enabled", check_build_stream_enabled(host)),
+        ("BuildStream API healthy", check_build_stream_health(host)),
+        ("PostgreSQL schema ready", check_postgres_tables(host)),
+        ("GitLab accessible", check_gitlab_url_accessible(host)),
+        ("GitLab runner running", check_gitlab_runner_container(host)),
+        ("BuildStream credentials configured", check_server_credentials(host)),
+    )
+    failures = [
+        f"{name}: {result.get('error') or result.get('details') or 'failed'}"
+        for name, result in checks
+        if not result.get("success")
+    ]
+    assert not failures, (
+        "BuildStream installation prerequisite check failed:\n- "
+        + "\n- ".join(failures)
+    )
+    return [name for name, _result in checks]

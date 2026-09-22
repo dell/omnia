@@ -28,6 +28,17 @@ from library.messages.repo_manager_msgs import (
 )
 
 
+# The aggregate used for uploaded ``additional_repos`` is a local Pulp
+# repository. It is intentionally published without an RPM remote, so remote
+# policy assertions do not apply to it.
+LOCAL_ONLY_REPOSITORIES = {"repo_manager-additional"}
+
+
+def _remote_backed_repos(repo_names):
+    """Return deployed repositories that are expected to own a Pulp remote."""
+    return [name for name in repo_names if name not in LOCAL_ONLY_REPOSITORIES]
+
+
 @pytest.mark.sanity
 @pytest.mark.positive
 @pytest.mark.order(17)
@@ -43,7 +54,7 @@ def test_pulp_remote_policy_matches_config(host: Host):
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.fail("Cannot verify without deployed repositories")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = _remote_backed_repos(repos_result["repos"])
 
     # Test with first configured repo
     if not configured_repos:
@@ -81,7 +92,7 @@ def test_pulp_remote_policy_immediate_mode(host: Host):
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.fail("Cannot verify without deployed repositories")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = _remote_backed_repos(repos_result["repos"])
 
     # Find a repo with always+false configuration
     found_repo = None
@@ -139,7 +150,7 @@ def test_pulp_remote_policy_on_demand_mode(host: Host):
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.fail("Cannot verify without deployed repositories")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = _remote_backed_repos(repos_result["repos"])
 
     # Find a repo with partial+true configuration
     found_repo = None
@@ -198,7 +209,7 @@ def test_multiple_repos_policy_resolution(host: Host):
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.fail("Cannot verify without deployed repositories")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = _remote_backed_repos(repos_result["repos"])
 
     # Test multiple repos with different policy configurations
     results = []

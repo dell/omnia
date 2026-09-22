@@ -18,6 +18,8 @@ Orchestrator Cleanup — Deploy.
 ORCH_FVT_CLEANUP_E001: Deploy orchestrator.yml --tags cleanup
 """
 
+import re
+
 import pytest
 
 from library.functions import TestLogger, run_playbook
@@ -56,4 +58,22 @@ def test_deploy_cleanup(host):
     assert result["success"], ASSERT["playbook_failed"].format(
         playbook="orchestrator.yml", tag="cleanup",
         rc=result["rc"], duration=result["duration"],
+    )
+
+    rerun = run_playbook(tag="cleanup")
+    assert rerun["success"], ASSERT["playbook_failed"].format(
+        playbook="orchestrator.yml", tag="cleanup (idempotency rerun)",
+        rc=rerun["rc"], duration=rerun["duration"],
+    )
+
+    recap = re.search(
+        r"localhost\s+:.*changed=(\d+).*failed=(\d+)",
+        rerun.get("output", ""),
+    )
+    assert recap is not None, "Cleanup rerun did not contain a localhost play recap"
+    assert int(recap.group(1)) == 0, (
+        f"Cleanup rerun was not idempotent: changed={recap.group(1)}"
+    )
+    assert int(recap.group(2)) == 0, (
+        f"Cleanup rerun failed: failed={recap.group(2)}"
     )

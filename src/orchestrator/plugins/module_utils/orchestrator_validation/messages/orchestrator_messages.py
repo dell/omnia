@@ -100,15 +100,6 @@ def lease_time_invalid_msg(value: Any) -> str:
     )
 
 
-def kernel_version_format_msg(value: Any) -> str:
-    """Return the invalid kernel-version error message."""
-    return (
-        "orchestrator_config: 'kernel_version_override' value "
-        f"'{value}' does not match expected format X.Y.Z-<suffix> "
-        "(e.g. 5.14.0-427.13.1.el9_4.x86_64)."
-    )
-
-
 def s3_endpoint_required_msg(provider: str) -> str:
     """Return the missing S3 endpoint error message."""
     return (

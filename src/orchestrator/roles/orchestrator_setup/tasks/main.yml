@@ -294,8 +294,6 @@
       {{ _orch_config.language | default('') }}
     dns_enabled: >-
       {{ _orch_config.dns_enabled | default(false) | bool }}
-    kernel_version_override: >-
-      {{ _orch_config.kernel_version_override | default('') }}
     nvidia_driver_version_x86_64: >-
       {{ _configured_slurm_cluster.nvidia_driver_version_x86_64
          | default('580.159.04', true) }}
@@ -581,6 +579,7 @@
     ansible_port: "{{ oim_host_port }}"
     ansible_connection: local
     groups: "{{ oim_host_group }}"
+  changed_when: false
   when:
     - oim_group | default(false) | bool
 

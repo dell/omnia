@@ -60,6 +60,7 @@
       ldms: []
     _cleanup_verification_attempted: false
     _cleanup_volume_verification_failed: false
+    _cleanup_kube_vip_unavailable: false
     _cleanup_delete_sinks_volume: >-
       {{ Delete_sinks_volume | default(delete_sinks_volume | default(false)) | bool }}
 
@@ -102,21 +103,34 @@
         name: common
         tasks_from: load_telemetry_config
 
-    - name: Validate kube_vip is set
-      ansible.builtin.assert:
-        that:
-          - kube_vip is defined
-          - kube_vip | length > 0
-        fail_msg: >
-          kube_vip is required. Add 'kube_vip: <VIP_IP>' to telemetry_config.yml.
+    - name: Check if kube_vip is available for telemetry cleanup
+      ansible.builtin.set_fact:
+        _cleanup_kube_vip_unavailable: true
+        _cleanup_abort: true
+      when: >-
+        kube_vip is not defined
+        or kube_vip | default('') | trim | length == 0
+
+    - name: Display warning when kube_vip is not available
+      ansible.builtin.pause:
+        prompt: |
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          [WARNING] kube_vip is not available.
+          Telemetry cleanup will be skipped as telemetry is not installed
+          or the cluster inventory has not been configured.
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        seconds: 10
+      when: _cleanup_kube_vip_unavailable | default(false) | bool
 
     - name: Add kube_vip to in-memory inventory
       ansible.builtin.add_host:
         name: "{{ kube_vip }}"
         groups: kube_vip_group
         ansible_user: root
+      when: not (_cleanup_kube_vip_unavailable | default(false) | bool)
 
     - name: Map configured telemetry capabilities
+      when: not (_cleanup_kube_vip_unavailable | default(false) | bool)
       ansible.builtin.set_fact:
         _cleanup_enabled:
           idrac_metrics: >-
@@ -157,6 +171,8 @@
           }}
       ansible.builtin.set_fact:
         _cleanup_abort: true
+        _cleanup_kube_vip_unavailable: >-
+          {{ kube_vip is not defined or kube_vip | default('') | trim | length == 0 }}
         _cleanup_failures: >-
           {{
             _cleanup_failures
@@ -168,3 +184,15 @@
                 'message': (_cleanup_failure_message | string)[:1000]
               }]
           }}
+
+    - name: Display warning when prerequisite failure is due to missing kube_vip
+      ansible.builtin.pause:
+        prompt: |
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          [WARNING] kube_vip is not available.
+          Telemetry cleanup will be skipped as telemetry is not installed
+          or the cluster inventory has not been configured.
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          Press Enter to continue or wait 10 seconds...
+        seconds: 10
+      when: _cleanup_kube_vip_unavailable | default(false) | bool

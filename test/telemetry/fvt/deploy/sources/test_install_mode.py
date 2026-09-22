@@ -39,6 +39,8 @@ Test cases:
     TEL_FVT_DEPLOY_V115: Verify PowerScale deployment succeeded in current mode
 """
 
+import shlex
+
 import pytest
 import yaml
 
@@ -106,6 +108,21 @@ def _get_repo_url(host):
     except yaml.YAMLError:
         return None
     return data.get("repo_url")
+
+
+def _get_k8s_cluster_mount(host):
+    """Read the shared Kubernetes mount used by telemetry deployment."""
+    input_path = _get_input_path(host)
+    file_path = f"{input_path}/{TELEMETRY_PACKAGES_FILE}"
+    cmd = CMDS["cat_file"].format(path=file_path)
+    result = run_on_host(host, cmd)
+    if result.rc != 0 or not result.stdout.strip():
+        return "/opt/omnia/k8s_mount"
+    try:
+        data = yaml.safe_load(result.stdout) or {}
+    except yaml.YAMLError:
+        return "/opt/omnia/k8s_mount"
+    return str(data.get("k8s_cluster_mount") or "/opt/omnia/k8s_mount")
 
 
 def _skip_if_idrac_disabled(host):
@@ -319,10 +336,16 @@ def test_powerscale_dependencies(host):
     tl = TestLogger(tc["title"], tc["id"])
 
     install_mode = _get_install_mode(host) or "unknown"
+    k8s_cluster_mount = _get_k8s_cluster_mount(host).rstrip("/")
+    dependency_root = (
+        f"{k8s_cluster_mount}/telemetry/karavi-observability"
+    )
+    tl.check(f"Using k8s_cluster_mount path: {k8s_cluster_mount}")
 
     if install_mode == "online":
         tl.check("Checking karavi-observability git clone")
-        cmd = "ls -la /opt/omnia/k8s_mount/telemetry/karavi-observability/karavi-observability/.git 2>/dev/null"
+        repo_path = f"{dependency_root}/karavi-observability/.git"
+        cmd = f"test -d {shlex.quote(repo_path)}"
         result = run_on_kube_vip(host, cmd)
 
         if result.rc == 0:
@@ -339,7 +362,8 @@ def test_powerscale_dependencies(host):
             pytest.fail("karavi-observability git repo not found")
 
         tl.check("Checking helm-charts git clone")
-        cmd = "ls -la /opt/omnia/k8s_mount/telemetry/karavi-observability/helm-charts/.git 2>/dev/null"
+        repo_path = f"{dependency_root}/helm-charts/.git"
+        cmd = f"test -d {shlex.quote(repo_path)}"
         result = run_on_kube_vip(host, cmd)
 
         if result.rc == 0:
@@ -356,25 +380,40 @@ def test_powerscale_dependencies(host):
             pytest.fail("helm-charts git repo not found")
     else:
         # Offline mode: verify Pulp-based artifacts exist
-        tl.check("Checking PowerScale helm chart available from local repo")
-        cmd = "ls /opt/omnia/k8s_mount/telemetry/karavi-observability/ 2>/dev/null"
+        tl.check("Checking extracted PowerScale dependencies from local repo")
+        dependency_paths = [
+            f"{dependency_root}/karavi-observability",
+            f"{dependency_root}/helm-charts/charts/karavi-observability",
+        ]
+        cmd = (
+            f"test -d {shlex.quote(dependency_paths[0])} -a -d "
+            f"{shlex.quote(dependency_paths[1])}"
+        )
         result = run_on_kube_vip(host, cmd)
 
-        if result.rc == 0 and result.stdout.strip():
+        if result.rc == 0:
+            details = (
+                "Extracted dependencies found: "
+                + ", ".join(dependency_paths)
+            )
             tl.passed(
                 LOG_MSGS["deployment_success"].format(
                     component=f"PowerScale dependencies ({install_mode} mode)"
                 ),
-                f"Files found in karavi-observability directory",
+                details,
             )
         else:
+            details = (
+                "Missing one or more extracted dependencies: "
+                + ", ".join(dependency_paths)
+            )
             tl.failed(
                 LOG_MSGS["deployment_failed"].format(
-                    component=f"PowerScale dependencies ({install_mode} mode)"
+                    details=details,
                 ),
-                "",
+                details,
             )
-            pytest.fail("PowerScale dependencies not found")
+            pytest.fail(details)
 
 
 # =========================================================================

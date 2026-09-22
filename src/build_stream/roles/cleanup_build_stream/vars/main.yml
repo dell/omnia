@@ -28,7 +28,7 @@ playbook_watcher_service_file: "/etc/systemd/system/playbook_watcher.service"
 # ── NFS cleanup directories ────────────────────────────────────────
 # NOTE: Do NOT delete the input directory - it contains user configuration
 # that must persist across cleanup/redeploy cycles (similar to image_build_manager).
-omnia_nfs_share: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}"
+omnia_nfs_share: "{{ hostvars['localhost']['oim_shared_path'] }}"
 build_stream_cleanup_directory:
   - "{{ omnia_nfs_share }}/build_stream/log"
   - "{{ omnia_nfs_share }}/build_stream/playbook_queue"
@@ -47,9 +47,7 @@ automation_venv_dir: "{{ automation_base_dir }}/.venv"
 automation_config_file: "{{ automation_base_dir }}/omnia_test_config.yml"
 
 # ── Credential cleanup ─────────────────────────────────────────────
-_bs_input_dir: >-
-  {{ hostvars['localhost']['input_project_dir']
-     | default(omnia_nfs_share ~ '/build_stream/input/project_default') }}
+_bs_input_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 bs_credential_config: "{{ _bs_input_dir }}/build_stream_credentials.yml"
 bs_credential_config_key: "{{ _bs_input_dir }}/.build_stream_credentials_key"
 bs_oauth_credential_config: "{{ _bs_input_dir }}/build_stream_oauth_credentials.yml"

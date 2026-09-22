@@ -88,6 +88,54 @@ BuildStream service and data cleanup. Verification then checks both areas.
 
 ## Execution
 
+## Manual pipeline tests
+
+The API-triggered build and deploy cases are available under the `manual`
+marker and the `manual` suite. They do not carry the `sanity` marker and are
+therefore excluded from the default lifecycle. First confirm that BuildStream
+installation sanity passes. Set `catalog_path` in `test_config.yml`; manual
+build stages that catalog with `[skip ci]`, triggers only through
+`PIPELINE_TYPE=build`, and overwrites `job_id` with the newly created job.
+Manual deploy uses that exact `job_id` and triggers with
+`PIPELINE_TYPE=deploy`.
+
+```bash
+# Required prerequisite
+./run_validation.sh fvt_build_stream buildstream_install verify --marker sanity
+
+# Manual build: trigger only, verify only, or both
+./run_validation.sh fvt_build_stream build_pipeline exec \
+  --suite manual --marker manual
+./run_validation.sh fvt_build_stream build_pipeline verify \
+  --suite manual --marker manual
+./run_validation.sh fvt_build_stream build_pipeline test \
+  --suite manual --marker manual
+
+# Manual deploy: trigger only, verify only, or both
+./run_validation.sh fvt_build_stream deploy_pipeline exec \
+  --suite manual --marker manual
+./run_validation.sh fvt_build_stream deploy_pipeline verify \
+  --suite manual --marker manual
+./run_validation.sh fvt_build_stream deploy_pipeline test \
+  --suite manual --marker manual
+```
+
+`generate-input-files` is retained as an explicit compatibility case but is
+skipped on 2.3 because that stage was retired.
+
+## Cleanup pipeline sanity suite
+
+The API-triggered cleanup pipeline is an explicit sanity suite. It is not part
+of the default lifecycle because it deletes the selected image group's S3 and
+registry artifacts. The seven ordered cases check GitLab prerequisites, select
+the image group for the configured `job_id`, trigger `PIPELINE_TYPE=cleanup`,
+and verify database, S3, and registry cleanup in the same pytest session.
+
+```bash
+./run_validation.sh fvt_build_stream buildstream_cleanup verify \
+  --suite cleanup_pipeline --marker sanity
+```
+
 ```bash
 # Setup
 bash setup_env.sh

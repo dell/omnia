@@ -147,7 +147,7 @@ cleanup:
           while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
             POLL_HTTP_CODE=$(curl -s -o images_poll_response.json -w "%{http_code}" \
               --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
-              -X GET "${BSM_API_URL}/api/v1/images?include_all=true" \
+              -X GET "${BSM_API_URL}/api/v1/images?status=CLEANED&limit=1000" \
               -H "Authorization: Bearer ${ACCESS_TOKEN}" \
               --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
 

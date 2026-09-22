@@ -270,11 +270,18 @@ def test_idrac_mysql_data(host):
     details_lines = []
     pods_missing = 0
     for pr in result.get("pod_results", []):
-        icon = "\u2713" if pr["has_data"] else "\u2717"
+        pod_ok = pr["has_data"] or pr.get("expected_idle", False)
+        icon = "\u2713" if pod_ok else "\u2717"
         if pr.get("error"):
             details_lines.append(
                 f"  {icon} {pr['pod_name']}: MySQL query failed: "
                 f"{pr['error']}"
+            )
+        elif pr.get("expected_idle"):
+            details_lines.append(
+                f"  {icon} {pr['pod_name']}: expected idle; all "
+                f"{len(pr.get('assigned_ips', []))} assigned BMC(s) "
+                "are unsupported"
             )
         else:
             details_lines.append(
@@ -288,7 +295,7 @@ def test_idrac_mysql_data(host):
                 details_lines.append(
                     f"      ... and {len(pr['mysql_ips']) - 5} more"
                 )
-        if not pr["has_data"]:
+        if not pod_ok:
             pods_missing += 1
     details = "\n".join(details_lines)
 
@@ -329,10 +336,19 @@ def test_idrac_receiver_collecting(host):
     details_lines = []
     not_collecting = 0
     for pr in result.get("pod_results", []):
-        icon = "\u2713" if pr["collecting"] else "\u2717"
-        details_lines.append(
-            f"  {icon} {pr['pod_name']}: {pr['report_count']} report(s)"
-        )
+        pod_ok = pr["collecting"] or pr.get("expected_idle", False)
+        icon = "\u2713" if pod_ok else "\u2717"
+        if pr.get("expected_idle"):
+            details_lines.append(
+                f"  {icon} {pr['pod_name']}: expected idle; all "
+                f"{len(pr.get('assigned_ips', []))} assigned BMC(s) "
+                "are unsupported"
+            )
+        else:
+            details_lines.append(
+                f"  {icon} {pr['pod_name']}: "
+                f"{pr['report_count']} report(s)"
+            )
         if pr["sample_reports"]:
             for report in pr["sample_reports"]:
                 details_lines.append(f"      - {report}")
@@ -340,7 +356,7 @@ def test_idrac_receiver_collecting(host):
             details_lines.append(
                 f"      ServiceTags: {', '.join(pr['service_tags'])}"
             )
-        if not pr["collecting"]:
+        if not pod_ok:
             not_collecting += 1
     details = "\n".join(details_lines)
 
@@ -525,15 +541,19 @@ def test_idrac_vm_data(host):
     tc = TC["idrac_vm_data"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    # Get activated service tags
-    tl.check("Discovering activated iDRAC service tags")
+    # Discover service tags from the metrics that this test is responsible for
+    # validating.  An empty result means the deployed iDRAC pipeline has not
+    # delivered queryable telemetry, so it must fail rather than be hidden as
+    # an environment-based skip.
+    tl.check("Discovering iDRAC service tags in VictoriaMetrics")
     service_tags = get_idrac_service_tags(host)
     if not service_tags:
-        tl.skipped(
-            "No activated iDRAC service tags found",
-            "Test skipped - no telemetry activation to verify",
+        failure = (
+            "No iDRAC PowerEdge metrics with a ServiceTag label were found "
+            "in VictoriaMetrics"
         )
-        pytest.skip("No activated iDRAC service tags found")
+        tl.failed(LOG_MSGS["idrac_vm_data_missing"].format(count=0), failure)
+        pytest.fail(failure)
 
     tl.check(f"Querying VictoriaMetrics for {len(service_tags)} service tag(s)")
     result = verify_idrac_vm_data(host, service_tags)
@@ -544,7 +564,7 @@ def test_idrac_vm_data(host):
 
     # Build details
     details_lines = [
-        f"VictoriaMetrics: http://{result.get('vmselect_ip')}:{result.get('vmselect_port')}",
+        f"VictoriaMetrics: https://{result.get('vmselect_ip')}:{result.get('vmselect_port')}",
         f"Activated service tags: {service_tags}",
         "",
         "Service tag verification:",

@@ -11,8 +11,8 @@ All other files in the Discovery input directory are always preserved.
 ## Requirements
 
 - Ansible 2.14 or later
-- `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` exported when their defaults are
-  not used
+- `OMNIA_DATA_PATH`, optional `DISCOVERY_DATA_PATH`, and
+  `OMNIA_PROJECT_NAME` exported when their defaults are not used
 
 ## Role Variables
 

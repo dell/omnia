@@ -86,6 +86,7 @@
       ansible.builtin.file:
         path: "{{ openldap_config.quadlet_file | default('/etc/containers/systemd/omnia_auth.container') }}"
         state: absent
+      register: cleanup_openldap_quadlet_removal
       when: "'remove_quadlet' in openldap_config.cleanup_operations"
       tags: openldap
 
@@ -95,7 +96,9 @@
     - name: Reload systemd
       ansible.builtin.systemd:
         daemon_reload: true
-      when: "'reload_systemd' in openldap_config.cleanup_operations"
+      when:
+        - "'reload_systemd' in openldap_config.cleanup_operations"
+        - cleanup_openldap_quadlet_removal is changed
       tags: openldap
 
 - name: Remove OpenLDAP data and configuration

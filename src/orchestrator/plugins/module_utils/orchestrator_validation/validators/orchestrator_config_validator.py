@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import re
 from logging import Logger
 from typing import Any
 
@@ -44,19 +43,6 @@ def _validate_default_lease_time(
             raise ValueError("non-positive lease time")
     except (TypeError, ValueError):
         record_error(errors, logger, msg.lease_time_invalid_msg(lease_time))
-
-
-def _validate_kernel_version_override(
-    config_data: dict[str, Any], errors: list[str], logger: Logger | None
-) -> None:
-    """Validate the optional kernel-version override format."""
-    kernel_version = config_data.get("kernel_version_override", "")
-    if kernel_version and not re.match(
-        r"^[0-9]+\.[0-9]+\.[0-9]+-.+$", str(kernel_version)
-    ):
-        record_error(
-            errors, logger, msg.kernel_version_format_msg(kernel_version)
-        )
 
 
 def _validate_s3_config(
@@ -92,6 +78,5 @@ def validate(
     errors: list[str] = []
     _validate_language(config_data, errors, logger)
     _validate_default_lease_time(config_data, errors, logger)
-    _validate_kernel_version_override(config_data, errors, logger)
     _validate_s3_config(config_data, errors, logger)
     return errors
