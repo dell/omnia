@@ -845,10 +845,11 @@ def generate_cluster_variables(cluster_name):
 
 
 def update_gitlab_ci_yml_with_clusters(clusters):
-    """Update .gitlab-ci.yml to add trigger jobs for additional clusters.
+    """Replace the trigger jobs section in .gitlab-ci.yml with jobs for the specified clusters.
 
-    Keeps cluster1 in YAML, adds cluster2+ dynamically.
-    Adds both cluster deployment and utils trigger jobs.
+    Generates trigger jobs for ONLY the clusters in the list.
+    Replaces the entire trigger section — no hardcoded cluster1,
+    no appending, no duplicates.
     """
     script_dir = Path(__file__).resolve().parent
     gitlab_ci_path = script_dir / ".gitlab-ci.yml"
@@ -860,67 +861,69 @@ def update_gitlab_ci_yml_with_clusters(clusters):
     with open(gitlab_ci_path, 'r') as f:
         content = f.read()
 
-    # Update cluster1 trigger job to include UTILS_ENABLE rule if not present
-    if "if: '$UTILS_ENABLE == \"true\"'" not in content:
-        print("  Adding UTILS_ENABLE rule to cluster1 trigger job...")
-        # Find the rules section in cluster1 trigger job
-        cluster1_rules_start = content.find("trigger_cluster_cluster1:")
-        cluster1_rules_section = content.find("rules:", cluster1_rules_start)
-        if cluster1_rules_section != -1:
-            # Insert UTILS_ENABLE rule before existing rules
-            rules_insertion = cluster1_rules_section + len("rules:")
-            content = content[:rules_insertion] + "\n    - if: '$UTILS_ENABLE == \"true\"'\n      when: never" + content[rules_insertion:]
-
-    # Find the insertion point (after cluster1 trigger job)
-    marker = "trigger_cluster_cluster1:"
-    if marker not in content:
-        print("WARNING: Could not find trigger_cluster_cluster1 in .gitlab-ci.yml")
-        return False
-
-    # Find the end of cluster1 trigger job (look for next section or EOF)
-    cluster1_start = content.find(marker)
-    cluster1_end = content.find("\n\n", cluster1_start)
-    if cluster1_end == -1:
-        cluster1_end = len(content)
-
-    # Generate trigger jobs for additional clusters (cluster2+)
-    additional_jobs = ""
-    for cluster in clusters:
-        if cluster.lower() != "cluster1":
-            additional_jobs += "\n" + generate_cluster_trigger_job(cluster)
-
-    # Find the utils section insertion point (after cluster1_utils trigger job)
-    utils_marker = "trigger_cluster_cluster1_utils:"
-    if utils_marker in content:
-        utils_start = content.find(utils_marker)
-        utils_end = content.find("\n\n", utils_start)
-        if utils_end == -1:
-            utils_end = len(content)
-
-        # Generate utils trigger jobs for additional clusters (cluster2+)
-        additional_utils_jobs = ""
-        for cluster in clusters:
-            if cluster.lower() != "cluster1":
-                additional_utils_jobs += "\n" + generate_cluster_utils_trigger_job(cluster)
-
-        if additional_utils_jobs:
-            # Insert after cluster1_utils job
-            content = content[:utils_end] + additional_utils_jobs + content[utils_end:]
+    # Find the start of the trigger jobs section.
+    # Look for the comment block that precedes the first trigger job.
+    trigger_marker = "# Child pipeline trigger"
+    marker_pos = content.find(trigger_marker)
+    if marker_pos != -1:
+        # Back up to the start of the comment block (the "# ---..." line above)
+        line_start = content.rfind("\n", 0, marker_pos)
+        # Find the separator line before the comment
+        separator = content.rfind("# ------", 0, marker_pos)
+        if separator != -1:
+            # Include the blank line before the separator
+            cut_pos = content.rfind("\n", 0, separator)
+            if cut_pos != -1:
+                cut_pos += 1  # keep the newline, cut after it
+            else:
+                cut_pos = separator
+        else:
+            cut_pos = line_start + 1 if line_start != -1 else marker_pos
     else:
-        # If utils section doesn't exist, add it after cluster jobs
-        print("WARNING: Could not find trigger_cluster_cluster1_utils in .gitlab-ci.yml")
-        print("  Utils trigger jobs will not be added. Please ensure .gitlab-ci.yml has utils support.")
+        # Fallback: find the first trigger_cluster_ job definition
+        first_trigger = content.find("\ntrigger_cluster_")
+        if first_trigger != -1:
+            cut_pos = first_trigger + 1  # skip the leading newline
+        else:
+            # No trigger section found — append at end
+            cut_pos = len(content)
 
-    if additional_jobs:
-        # Insert after cluster1 job
-        content = content[:cluster1_end] + additional_jobs + content[cluster1_end:]
+    # Keep everything before the trigger section
+    header = content[:cut_pos].rstrip("\n") + "\n\n"
 
-        with open(gitlab_ci_path, 'w') as f:
-            f.write(content)
+    # Generate cluster deployment trigger jobs
+    cluster_jobs = (
+        "# ---------------------------------------------------------------------------\n"
+        "# Child pipeline trigger — one per cluster.\n"
+        "# Each cluster triggers its own pipeline completely independently.\n"
+        "# If one cluster fails, it does NOT affect the others.\n"
+        "#\n"
+        f"# Auto-generated by setup_gitlab_project.py for clusters: {', '.join(clusters)}\n"
+        "# ---------------------------------------------------------------------------\n"
+    )
+    for cluster in clusters:
+        cluster_jobs += generate_cluster_trigger_job(cluster)
 
-        print(f"  Updated .gitlab-ci.yml with trigger jobs for: {', '.join([c for c in clusters if c.lower() != 'cluster1'])}")
-        return True
+    # Generate utils trigger jobs
+    utils_jobs = (
+        "\n# ---------------------------------------------------------------------------\n"
+        "# Utils Pipeline — Multi-Cluster Support\n"
+        "# ---------------------------------------------------------------------------\n"
+        "# Triggered when UTILS_ENABLE=true to run utils operations\n"
+        "# (log collection, install_os, etc.).\n"
+        "# Each cluster runs its own utils pipeline independently.\n"
+        "# If UTILS_ENABLE=true, the cluster pipeline is skipped.\n"
+        "# ---------------------------------------------------------------------------\n"
+    )
+    for cluster in clusters:
+        utils_jobs += generate_cluster_utils_trigger_job(cluster)
 
+    # Write the updated file
+    new_content = header + cluster_jobs + utils_jobs
+    with open(gitlab_ci_path, 'w') as f:
+        f.write(new_content)
+
+    print(f"  Generated trigger jobs for clusters: {', '.join(clusters)}")
     return True
 
 
@@ -999,6 +1002,11 @@ def cmd_create(args, client):
 
     project_id = project["id"]
 
+    # Update .gitlab-ci.yml with trigger jobs for the specified clusters BEFORE committing.
+    # This replaces the entire trigger section so only the requested clusters are present.
+    print("\nUpdating .gitlab-ci.yml with cluster trigger jobs...")
+    update_gitlab_ci_yml_with_clusters(cluster_names)
+
     # Collect files
     print("\nCollecting files...")
     pipeline_files = collect_pipeline_files()
@@ -1054,11 +1062,6 @@ def cmd_create(args, client):
         print(f"    {f}")
     if len(file_list) > 20:
         print(f"    ... and {len(file_list) - 20} more")
-
-    # Update .gitlab-ci.yml with additional cluster trigger jobs
-    if len(cluster_names) > 1:
-        print("\nUpdating .gitlab-ci.yml with additional cluster jobs...")
-        update_gitlab_ci_yml_with_clusters(cluster_names)
 
     # Configure CI/CD variables
     print("\n" + "=" * 60)
@@ -1237,13 +1240,6 @@ def cmd_update(args, client):
                 actions.append(client.build_file_action(project_id, local_path, repo_path))
             print(f"  Test files refreshed for clusters: {', '.join(cluster_names)} ({len(test_files)} files)")
 
-    print(f"  Committing {len(actions)} file updates...")
-    client.commit_files(
-        project_id, actions,
-        "Update pipeline and input files\n\nAuto-committed by setup_gitlab_project.py --update"
-    )
-    print(f"  {len(actions)} files updated successfully")
-
     # Get cluster names for variable updates
     update_clusters = cluster_names if cluster_names else []
     if not update_clusters:
@@ -1256,10 +1252,23 @@ def cmd_update(args, client):
         except Exception:
             pass
 
-    # Update .gitlab-ci.yml if clusters changed
-    if update_clusters and len(update_clusters) > 1:
+    # Update .gitlab-ci.yml with trigger jobs for the specified clusters BEFORE committing.
+    # This replaces the entire trigger section so only the requested clusters are present.
+    if update_clusters:
         print("\nUpdating .gitlab-ci.yml with cluster trigger jobs...")
         update_gitlab_ci_yml_with_clusters(update_clusters)
+        # Add the updated .gitlab-ci.yml to the commit actions
+        gitlab_ci_path = Path(__file__).resolve().parent / ".gitlab-ci.yml"
+        if gitlab_ci_path.exists():
+            actions.append(client.build_file_action(project_id, str(gitlab_ci_path), ".gitlab-ci.yml"))
+            print(f"  Updated .gitlab-ci.yml will be committed")
+
+    print(f"  Committing {len(actions)} file updates...")
+    client.commit_files(
+        project_id, actions,
+        "Update pipeline and input files\n\nAuto-committed by setup_gitlab_project.py --update"
+    )
+    print(f"  {len(actions)} files updated successfully")
 
     # Apply CI/CD variables from config file or --update-vars
     if args.config:
