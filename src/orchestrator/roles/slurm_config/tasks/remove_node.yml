@@ -22,6 +22,17 @@
   register: ssh_check
   ignore_errors: true
 
+- name: Validate node names before removal
+  ansible.builtin.assert:
+    that:
+      - item is match('^[a-zA-Z][a-zA-Z0-9-]{0,253}$')
+    fail_msg: "Node name '{{ item }}' contains invalid characters. Allowed: letters, digits, hyphens."
+    quiet: true
+  loop: "{{ nodes_in_normal_not_in_cmpt }}"
+  when:
+    - nodes_in_normal_not_in_cmpt is defined
+    - nodes_in_normal_not_in_cmpt | length > 0
+
 - name: Drain and remove nodes if any
   ansible.builtin.include_tasks: drain_and_remove_node.yml
   loop: "{{ nodes_in_normal_not_in_cmpt }}"
@@ -98,12 +109,13 @@
 
 # TODO: This should be done by orchestrator_validations role - idempotency
 - name: Remove entries for removed nodes from /etc/hosts
-  ansible.builtin.shell: |
-    set -o pipefail
-    sed -i -E '/[[:space:]]({{ nodes_in_normal_not_in_cmpt | join("|") }})$/d' {{ hosts_file_path }}
+  ansible.builtin.lineinfile:
+    path: "{{ hosts_file_path }}"
+    regexp: "^\\S+\\s+{{ item }}$"
+    state: absent
+    unsafe_writes: true
+  loop: "{{ nodes_in_normal_not_in_cmpt }}"
   when:
     - nodes_in_normal_not_in_cmpt is defined
     - nodes_in_normal_not_in_cmpt | length > 0
-  changed_when: true
-  failed_when: false
   delegate_to: localhost

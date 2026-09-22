@@ -13,7 +13,12 @@
 # limitations under the License.
 ---
 - name: Check if node exists in Slurm cluster
-  ansible.builtin.command: scontrol show node {{ node_to_remove }}
+  ansible.builtin.command:
+    argv:
+      - scontrol
+      - show
+      - node
+      - "{{ node_to_remove }}"
   register: node_exists_check
   failed_when: false
   ignore_unreachable: true
@@ -34,30 +39,45 @@
   ignore_unreachable: true
   block:
     - name: Get current job count on node
-      ansible.builtin.shell:
-        cmd: |
-          set -o pipefail
-          squeue -w {{ node_to_remove }} -h | wc -l
-      register: current_jobs
+      ansible.builtin.command:
+        argv:
+          - squeue
+          - -w
+          - "{{ node_to_remove }}"
+          - -h
+          - --format=%i
+      register: current_jobs_raw
       changed_when: false
       delegate_to: "{{ ctld_list[0] }}"
 
+    - name: Count running jobs
+      ansible.builtin.set_fact:
+        current_jobs_count: "{{ current_jobs_raw.stdout_lines | length }}"
+
     - name: Display job information
       ansible.builtin.debug:
-        msg: "Node {{ node_to_remove }} currently has {{ current_jobs.stdout }} running job(s)"
+        msg: "Node {{ node_to_remove }} currently has {{ current_jobs_count }} running job(s)"
 
     - name: Force cancel jobs on the node to be removed from cluster
-      ansible.builtin.command: scancel -f -w {{ node_to_remove }} # Safe does not fail if no jobs are running
+      ansible.builtin.command:
+        argv:
+          - scancel
+          - -f
+          - -w
+          - "{{ node_to_remove }}"
       changed_when: true
       register: scancel_result
       failed_when: scancel_result.rc != 0
       delegate_to: "{{ ctld_list[0] }}"
 
     - name: Set node to DOWN state
-      ansible.builtin.command: >
-        scontrol update NodeName={{ node_to_remove }}
-        State=DOWN
-        Reason="Node removed from cluster via OMNIA orchestrator.yml"
+      ansible.builtin.command:
+        argv:
+          - scontrol
+          - update
+          - "NodeName={{ node_to_remove }}"
+          - State=DOWN
+          - "Reason=Node removed from cluster via OMNIA orchestrator.yml"
       changed_when: true
       failed_when: false
       delegate_to: "{{ ctld_list[0] }}"
