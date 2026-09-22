@@ -27,7 +27,8 @@
   ansible.builtin.template:
     src: "{{ ci_group_common_template }}"
     dest: "{{ ci_group_common_dest }}"
-    mode: "{{ file_permissions_644 }}"
+    mode: "{{ file_permissions_600 }}"
+  no_log: true
 
 - name: Set ci group configuration - common
   ansible.builtin.command: /usr/bin/ochami cloud-init group set -f yaml -d @{{ ci_group_common_dest }}

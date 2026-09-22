@@ -35,7 +35,8 @@
       ansible.builtin.template:
         src: "metadata_svc/ms-group-{{ _ms_template_base }}.yaml.j2"
         dest: "{{ metadata_svc_dir }}/ms-group-{{ functional_group_name }}.yaml"
-        mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+        mode: "{{ hostvars['localhost']['file_permissions_600'] }}"
+      no_log: true
   rescue:
     - name: Failed to load metadata-service group template
       ansible.builtin.fail:
