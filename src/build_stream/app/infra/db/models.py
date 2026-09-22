@@ -18,6 +18,8 @@ ORM models are infrastructure-only and never exposed outside this layer.
 Domain ↔ ORM conversion is handled by mappers in mappers.py.
 """
 
+# pylint: disable=line-too-long
+
 # Third-party imports
 from sqlalchemy import (
     Boolean,
@@ -37,7 +39,7 @@ from sqlalchemy.orm import declarative_base, relationship
 Base = declarative_base()
 
 
-class JobModel(Base):
+class JobModel(Base):  # pylint: disable=too-few-public-methods
     """ORM model for jobs table.
 
     Maps to Job domain entity via JobMapper.
@@ -98,7 +100,7 @@ class JobModel(Base):
     )
 
 
-class StageModel(Base):
+class StageModel(Base):  # pylint: disable=too-few-public-methods
     """ORM model for job_stages table.
 
     Maps to Stage domain entity via StageMapper.
@@ -147,7 +149,7 @@ class StageModel(Base):
     )
 
 
-class IdempotencyKeyModel(Base):
+class IdempotencyKeyModel(Base):  # pylint: disable=too-few-public-methods
     """ORM model for idempotency_keys table.
 
     Maps to IdempotencyRecord domain entity via IdempotencyRecordMapper.
@@ -174,7 +176,7 @@ class IdempotencyKeyModel(Base):
     )
 
 
-class AuditEventModel(Base):
+class AuditEventModel(Base):  # pylint: disable=too-few-public-methods
     """ORM model for audit_events table.
 
     Maps to AuditEvent domain entity via AuditEventMapper.
@@ -218,7 +220,12 @@ class ArtifactMetadata(Base):
     id = Column(String(36), primary_key=True, nullable=False)
 
     # Foreign key to jobs table
-    job_id = Column(String(36), ForeignKey("jobs.job_id", ondelete="CASCADE"), nullable=False, index=True)
+    job_id = Column(
+        String(36),
+        ForeignKey("jobs.job_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # Business attributes
     stage_name = Column(String(50), nullable=False)
@@ -229,7 +236,11 @@ class ArtifactMetadata(Base):
     tags = Column(JSONB, nullable=True)
 
     # Timestamp
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),  # pylint: disable=not-callable
+        nullable=False,
+    )
 
     # Composite indexes
     __table_args__ = (
@@ -238,7 +249,7 @@ class ArtifactMetadata(Base):
     )
 
 
-class ImageGroupModel(Base):
+class ImageGroupModel(Base):  # pylint: disable=too-few-public-methods
     """ORM model for image_groups table.
 
     Tracks the lifecycle of built images independently of transient Job states.
@@ -276,10 +287,14 @@ class ImageGroupModel(Base):
 
     # Timestamps
     created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),  # pylint: disable=not-callable
+        nullable=False,
     )
     updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),  # pylint: disable=not-callable
+        nullable=False,
     )
     last_deployed_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -299,13 +314,14 @@ class ImageGroupModel(Base):
         Index("idx_image_groups_catalog_identifier", "catalog_identifier"),
         CheckConstraint(
             "status IN ('BUILT', 'DEPLOYING', 'DEPLOYED', 'RESTARTING', "
-            "'RESTARTED', 'VALIDATING', 'PASSED', 'FAILED', 'CLEANING', 'CLEANED', 'CLEANUP_FAILED')",
+            "'RESTARTED', 'VALIDATING', 'PASSED', 'FAILED', 'CLEANING', "
+            "'CLEANED', 'CLEANUP_FAILED')",
             name="ck_image_groups_status",
         ),
     )
 
 
-class ImageModel(Base):
+class ImageModel(Base):  # pylint: disable=too-few-public-methods
     """ORM model for images table.
 
     Stores constituent images within an Image Group, identified by
@@ -335,7 +351,9 @@ class ImageModel(Base):
 
     # Timestamps
     created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),  # pylint: disable=not-callable
+        nullable=False,
     )
 
     # Relationships
