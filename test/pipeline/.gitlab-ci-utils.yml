@@ -238,7 +238,8 @@ initialization:
         fi
       fi
 
-      python3 -c "from datetime import datetime; open('pipeline_time.env', 'w').write(f'PIPELINE_TRIGGER_TIME={datetime.now().strftime(\"%Y-%m-%d_%H-%M-%S\")}\n')"
+      python3 -c "from datetime import datetime; open('pipeline_time.env', 'w').write(
+        f'PIPELINE_TRIGGER_TIME={datetime.now().strftime(\"%Y-%m-%d_%H-%M-%S\")}\n')"
       cat target.env
       cat pipeline_time.env
       echo "Initialization complete"
@@ -386,13 +387,6 @@ setup_environment:
     - echo "========================================================"
     - echo "  Environment setup completed for cluster $CLUSTER"
     - echo "========================================================"
-  artifacts:
-    paths:
-      - target.env
-      - pipeline_time.env
-      - pipeline_job_status/
-    when: always
-    expire_in: 30 days
 
 # ========================  INSTALL OS  ======================================
 # Runs utils.yml with --tags install_os to install OS on target nodes
@@ -739,10 +733,10 @@ test_utils:
     - |
       TEST_SRC="$CI_PROJECT_DIR/clusters/$CLUSTER/inputs/test/utils"
       TEST_DST="$OMNIA_INSTALL_PATH/test/utils"
-      
+
       # Create test directory on target
       $SSH_CMD $TARGET "mkdir -p $TEST_DST"
-      
+
       # Copy test configuration files
       for f in test_config.yml test_run_config.yml; do
         if [ -f "$TEST_SRC/$f" ]; then
@@ -752,7 +746,7 @@ test_utils:
           echo "  WARNING: $f not found in pipeline — using defaults"
         fi
       done
-      
+
       # Copy entire test input directory if it exists (for additional test data)
       if [ -d "$TEST_SRC" ]; then
         # Copy all files recursively, excluding config files already copied
@@ -933,7 +927,7 @@ summary:
       import yaml
 
       cluster = os.environ.get("CLUSTER", "cluster1")
-      
+
       # Default report_name for utils
       default_report_names = {
         "utils": "utils_test_report",
@@ -941,7 +935,7 @@ summary:
 
       report_paths = {}
       report_names = {}
-      
+
       config_path = f"clusters/{cluster}/inputs/test/utils/test_config.yml"
       try:
         with open(config_path, encoding="utf-8") as f:
@@ -977,7 +971,7 @@ summary:
       echo "Fetching test reports from target..."
       LOCAL_REPORTS_PATH="pipeline_reports/test_reports/$CI_JOB_ID"
       mkdir -p "$LOCAL_REPORTS_PATH"
-      
+
       REMOTE_PATH=$(python3 -c "import json; print(json.load(open('pipeline_reports/report_paths.json')).get('utils', '/opt/omnia/reports'))")
       REPORT_BASE_NAME=$(python3 -c "import json; d=json.load(open('pipeline_reports/report_names.json')); print(d.get('utils','utils_test_report'))")
       echo "  Domain: utils, Remote path: $REMOTE_PATH, Report name: $REPORT_BASE_NAME"
