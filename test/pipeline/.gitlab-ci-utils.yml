@@ -59,6 +59,7 @@ variables:
   SSH_CONNECT_TIMEOUT: "30"
   PIPELINE_VERSION: "3.0"
   UTILS_MODE: "default_logs"
+  TEST_UTILS_CMD: "./run_validation.sh fvt_utils verify"
   TEST_MODE: "false"
   DRY_RUN: "false"
   VERBOSE: "false"
@@ -796,7 +797,7 @@ test_utils:
           cd $OMNIA_INSTALL_PATH/test/utils
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
-            ./run_validation.sh fvt_utils verify
+            $TEST_UTILS_CMD
           else
             echo 'WARNING: run_validation.sh not found — skipping tests'
           fi

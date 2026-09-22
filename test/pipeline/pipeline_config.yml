@@ -30,6 +30,21 @@ global:
   # Example: "cluster1,cluster2,cluster3"
   clusters: "cluster1"
 
+  # ---- Utils Pipeline Control (Optional) ----
+  # Enable utils pipeline mode instead of the standard domain deployment pipeline.
+  # When "true", each cluster triggers .gitlab-ci-utils.yml for log collection,
+  # install_os, or OIM log backup operations.
+  # Default: "false"
+  utils_enable: "false"
+
+  # Utils mode (which utils operations to run when utils_enable is "true"):
+  #   "default_logs"    = Run log collection (cluster + OIM)
+  #   "install_os"      = Run install_os only
+  #   "collect"         = Run cluster log collection only
+  #   "backup_oim_logs" = Run OIM log backup only
+  # Default: "default_logs"
+  utils_mode: "default_logs"
+
   # ---- Email Notifications (Optional) ----
   # Configure email alerts when pipeline stages complete or fail.
   # Leave all fields empty to disable email notifications.
@@ -144,21 +159,6 @@ cluster1:
     # Default: "false"
     verbose: "false"
 
-    # Utils pipeline mode (utils domain pipeline)
-    # When "true", runs the utils domain pipeline instead of main pipeline
-    # When "false", runs the standard multi-domain pipeline (repo_manager, image_build_manager, etc.)
-    # Default: "false"
-    utils_enable: "false"
-
-    # Utils mode (which utils operations to run when utils_enable is enabled)
-    # Controls which utils operations are executed during utils pipeline:
-    #   "default_logs" = Run log collection (cluster + OIM) — default behavior
-    #   "install_os"   = Run install_os only
-    #   "collect"      = Run cluster log collection only
-    #   "backup_oim_logs" = Run OIM log backup only
-    # Default: "default_logs"
-    utils_mode: "default_logs"
-
     # Stages to skip (comma-separated list)
     # Useful for disabling specific domains or stages without modifying config
     # Valid values:
@@ -199,6 +199,10 @@ cluster1:
   #   "./run_validation.sh fvt_repo_manager verify --marker sanity"    = Run only sanity tests
   #   "./run_validation.sh fvt_repo_manager verify --marker functional" = Run only functional tests
   test_commands:
+    # Main Omnia test command
+    # Used in the main/test stage for cross-domain validation
+    test_main: "./run_validation.sh fvt_main verify"
+
     # Repo Manager test command
     repo_manager: "./run_validation.sh fvt_repo_manager verify"
 
@@ -210,3 +214,6 @@ cluster1:
 
     # Telemetry test command
     telemetry: "./run_validation.sh fvt_telemetry verify"
+
+    # Utils test command
+    utils: "./run_validation.sh fvt_utils verify"

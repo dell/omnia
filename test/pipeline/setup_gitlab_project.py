@@ -282,6 +282,12 @@ def load_pipeline_config(config_path):
     if email_cfg.get("smtp_port"):
         variables["SMTP_PORT"] = email_cfg["smtp_port"]
 
+    # -- Global utils configuration
+    if global_cfg.get("utils_enable") is not None:
+        variables["UTILS_ENABLE"] = str(global_cfg["utils_enable"])
+    if global_cfg.get("utils_mode") is not None:
+        variables["UTILS_MODE"] = str(global_cfg["utils_mode"])
+
     for cluster in cluster_names:
         cluster_cfg = cfg.get(cluster)
         if not cluster_cfg:
@@ -352,6 +358,7 @@ def load_pipeline_config(config_path):
             "image_build_manager": "TEST_IMAGE_BUILD_MANAGER_CMD",
             "orchestrator": "TEST_ORCHESTRATOR_CMD",
             "telemetry": "TEST_TELEMETRY_CMD",
+            "utils": "TEST_UTILS_CMD",
         }
         for cfg_key, var_suffix in test_cmd_map.items():
             val = test_cmds.get(cfg_key)
@@ -717,6 +724,7 @@ def collect_pipeline_files():
     for name, repo_name in [
         (".gitlab-ci.yml", ".gitlab-ci.yml"),
         (".gitlab-ci-cluster.yml", ".gitlab-ci-cluster.yml"),
+        (".gitlab-ci-utils.yml", ".gitlab-ci-utils.yml"),
         ("send_email.py", "send_email.py"),
         ("pipeline_config.yml", "pipeline_config.yml"),
     ]:
@@ -766,7 +774,40 @@ def generate_cluster_trigger_job(cluster_name):
     SKIP_STAGES: "${{{upper_prefix}_SKIP_STAGES}}"
   allow_failure: true
   rules:
+    - if: '$UTILS_ENABLE == "true"'
+      when: never
     - if: '$CLUSTERS =~ /{prefix}/'
+      when: on_success
+"""
+
+
+def generate_cluster_utils_trigger_job(cluster_name):
+    """Generate a utils trigger job for a cluster in .gitlab-ci.yml format."""
+    prefix = cluster_name.lower()
+    upper_prefix = cluster_name.upper()
+    return f"""trigger_cluster_{prefix}_utils:
+  stage: trigger
+  trigger:
+    include:
+      - local: .gitlab-ci-utils.yml
+    strategy: depend
+  variables:
+    CLUSTER: "{prefix}"
+    OMNIA_REPO: "${{{upper_prefix}_OMNIA_REPO}}"
+    OMNIA_BRANCH: "${{{upper_prefix}_OMNIA_BRANCH}}"
+    OMNIA_INSTALL_PATH: "${{{upper_prefix}_OMNIA_INSTALL_PATH}}"
+    BAO_SERVER_URL: "${{{upper_prefix}_BAO_SERVER_URL}}"
+    BAO_AUTH_ROLE: "${{{upper_prefix}_BAO_AUTH_ROLE}}"
+    BAO_DATA_PATH: "${{{upper_prefix}_BAO_DATA_PATH}}"
+    UTILS_MODE: "$UTILS_MODE"
+    UTILS_ENABLE: "$UTILS_ENABLE"
+    TEST_UTILS_CMD: "${{{upper_prefix}_TEST_UTILS_CMD}}"
+    TEST_MODE: "${{{upper_prefix}_TEST_MODE}}"
+    VERBOSE: "${{{upper_prefix}_VERBOSE}}"
+    DRY_RUN: "${{{upper_prefix}_DRY_RUN}}"
+  allow_failure: true
+  rules:
+    - if: '$UTILS_ENABLE == "true" && $CLUSTERS =~ /{prefix}/'
       when: on_success
 """
 
@@ -777,6 +818,9 @@ def generate_cluster_variables(cluster_name):
     return f"""  {upper_prefix}_OMNIA_REPO: ""
   {upper_prefix}_OMNIA_BRANCH: ""
   {upper_prefix}_OMNIA_INSTALL_PATH: ""
+  {upper_prefix}_TARGET_IP: ""
+  {upper_prefix}_TARGET_USER: ""
+  {upper_prefix}_TARGET_PASS: ""
   {upper_prefix}_BAO_SERVER_URL: ""
   {upper_prefix}_BAO_AUTH_ROLE: ""
   {upper_prefix}_BAO_DATA_PATH: ""
@@ -795,53 +839,88 @@ def generate_cluster_variables(cluster_name):
   {upper_prefix}_TEST_IMAGE_BUILD_MANAGER_CMD: "./run_validation.sh fvt_image_build_manager verify"
   {upper_prefix}_TEST_ORCHESTRATOR_CMD: "./run_validation.sh fvt_orchestrator verify"
   {upper_prefix}_TEST_TELEMETRY_CMD: "./run_validation.sh fvt_telemetry verify"
+  {upper_prefix}_TEST_UTILS_CMD: "./run_validation.sh fvt_utils verify"
   {upper_prefix}_SKIP_STAGES: ""
 """
 
 
 def update_gitlab_ci_yml_with_clusters(clusters):
     """Update .gitlab-ci.yml to add trigger jobs for additional clusters.
-    
+
     Keeps cluster1 in YAML, adds cluster2+ dynamically.
+    Adds both cluster deployment and utils trigger jobs.
     """
     script_dir = Path(__file__).resolve().parent
     gitlab_ci_path = script_dir / ".gitlab-ci.yml"
-    
+
     if not gitlab_ci_path.exists():
         print(f"WARNING: {gitlab_ci_path} not found. Skipping YAML update.")
         return False
-    
+
     with open(gitlab_ci_path, 'r') as f:
         content = f.read()
-    
+
+    # Update cluster1 trigger job to include UTILS_ENABLE rule if not present
+    if "if: '$UTILS_ENABLE == \"true\"'" not in content:
+        print("  Adding UTILS_ENABLE rule to cluster1 trigger job...")
+        # Find the rules section in cluster1 trigger job
+        cluster1_rules_start = content.find("trigger_cluster_cluster1:")
+        cluster1_rules_section = content.find("rules:", cluster1_rules_start)
+        if cluster1_rules_section != -1:
+            # Insert UTILS_ENABLE rule before existing rules
+            rules_insertion = cluster1_rules_section + len("rules:")
+            content = content[:rules_insertion] + "\n    - if: '$UTILS_ENABLE == \"true\"'\n      when: never" + content[rules_insertion:]
+
     # Find the insertion point (after cluster1 trigger job)
     marker = "trigger_cluster_cluster1:"
     if marker not in content:
         print("WARNING: Could not find trigger_cluster_cluster1 in .gitlab-ci.yml")
         return False
-    
+
     # Find the end of cluster1 trigger job (look for next section or EOF)
     cluster1_start = content.find(marker)
     cluster1_end = content.find("\n\n", cluster1_start)
     if cluster1_end == -1:
         cluster1_end = len(content)
-    
+
     # Generate trigger jobs for additional clusters (cluster2+)
     additional_jobs = ""
     for cluster in clusters:
         if cluster.lower() != "cluster1":
             additional_jobs += "\n" + generate_cluster_trigger_job(cluster)
-    
+
+    # Find the utils section insertion point (after cluster1_utils trigger job)
+    utils_marker = "trigger_cluster_cluster1_utils:"
+    if utils_marker in content:
+        utils_start = content.find(utils_marker)
+        utils_end = content.find("\n\n", utils_start)
+        if utils_end == -1:
+            utils_end = len(content)
+
+        # Generate utils trigger jobs for additional clusters (cluster2+)
+        additional_utils_jobs = ""
+        for cluster in clusters:
+            if cluster.lower() != "cluster1":
+                additional_utils_jobs += "\n" + generate_cluster_utils_trigger_job(cluster)
+
+        if additional_utils_jobs:
+            # Insert after cluster1_utils job
+            content = content[:utils_end] + additional_utils_jobs + content[utils_end:]
+    else:
+        # If utils section doesn't exist, add it after cluster jobs
+        print("WARNING: Could not find trigger_cluster_cluster1_utils in .gitlab-ci.yml")
+        print("  Utils trigger jobs will not be added. Please ensure .gitlab-ci.yml has utils support.")
+
     if additional_jobs:
         # Insert after cluster1 job
-        new_content = content[:cluster1_end] + additional_jobs + content[cluster1_end:]
-        
+        content = content[:cluster1_end] + additional_jobs + content[cluster1_end:]
+
         with open(gitlab_ci_path, 'w') as f:
-            f.write(new_content)
-        
+            f.write(content)
+
         print(f"  Updated .gitlab-ci.yml with trigger jobs for: {', '.join([c for c in clusters if c.lower() != 'cluster1'])}")
         return True
-    
+
     return True
 
 
@@ -1029,6 +1108,7 @@ def cmd_create(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
+            ("UTILS_ENABLE", "false"),
             ("UTILS_MODE", "default_logs"),
         ]
         for key, default_val in global_keys:
@@ -1037,16 +1117,21 @@ def cmd_create(args, client):
 
         # Cluster-level configuration variables
         per_cluster_keys = [
+            ("OMNIA_REPO", ""),
+            ("OMNIA_BRANCH", ""),
+            ("OMNIA_INSTALL_PATH", ""),
             ("TARGET_IP", ""),
             ("TARGET_USER", "root"),
             ("TARGET_PASS", ""),
+            ("BAO_SERVER_URL", ""),
+            ("BAO_AUTH_ROLE", ""),
+            ("BAO_DATA_PATH", ""),
             ("PIPELINE_MODE", "default"),
             ("DOMAINS", "default"),
             ("ENABLE_SETUP", "false"),
             ("TEST_MODE", "false"),
             ("DRY_RUN", "false"),
             ("VERBOSE", "false"),
-            ("UTILS_ENABLE", "false"),
             ("REPO_MANAGER_TAGS", ""),
             ("IMAGE_BUILD_MANAGER_TAGS", ""),
             ("ORCHESTRATOR_TAGS", ""),
@@ -1056,6 +1141,7 @@ def cmd_create(args, client):
             ("TEST_IMAGE_BUILD_MANAGER_CMD", "./run_validation.sh fvt_image_build_manager verify"),
             ("TEST_ORCHESTRATOR_CMD", "./run_validation.sh fvt_orchestrator verify"),
             ("TEST_TELEMETRY_CMD", "./run_validation.sh fvt_telemetry verify"),
+            ("TEST_UTILS_CMD", "./run_validation.sh fvt_utils verify"),
             ("SKIP_STAGES", ""),
         ]
         for cluster in cluster_names:
@@ -1190,6 +1276,7 @@ def cmd_update(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
+            ("UTILS_ENABLE", "false"),
             ("UTILS_MODE", "default_logs"),
         ]
         for key, default_val in global_keys:
@@ -1198,16 +1285,21 @@ def cmd_update(args, client):
 
         # Cluster-level configuration variables
         per_cluster_keys = [
+            ("OMNIA_REPO", ""),
+            ("OMNIA_BRANCH", ""),
+            ("OMNIA_INSTALL_PATH", ""),
             ("TARGET_IP", ""),
             ("TARGET_USER", "root"),
             ("TARGET_PASS", ""),
+            ("BAO_SERVER_URL", ""),
+            ("BAO_AUTH_ROLE", ""),
+            ("BAO_DATA_PATH", ""),
             ("PIPELINE_MODE", "default"),
             ("DOMAINS", "default"),
             ("ENABLE_SETUP", "false"),
             ("TEST_MODE", "false"),
             ("DRY_RUN", "false"),
             ("VERBOSE", "false"),
-            ("UTILS_ENABLE", "false"),
             ("REPO_MANAGER_TAGS", ""),
             ("IMAGE_BUILD_MANAGER_TAGS", ""),
             ("ORCHESTRATOR_TAGS", ""),
@@ -1217,6 +1309,7 @@ def cmd_update(args, client):
             ("TEST_IMAGE_BUILD_MANAGER_CMD", "./run_validation.sh fvt_image_build_manager verify"),
             ("TEST_ORCHESTRATOR_CMD", "./run_validation.sh fvt_orchestrator verify"),
             ("TEST_TELEMETRY_CMD", "./run_validation.sh fvt_telemetry verify"),
+            ("TEST_UTILS_CMD", "./run_validation.sh fvt_utils verify"),
             ("SKIP_STAGES", ""),
         ]
         for cluster in update_clusters:

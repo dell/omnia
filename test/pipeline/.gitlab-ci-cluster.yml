@@ -2206,7 +2206,6 @@ summary:
         "telemetry": "telemetry_test_report",
         "build_stream": "build_stream_test_report",
         "discovery": "discovery_test_report",
-        "utils": "utils_test_report",
       }
 
       report_paths = {}
@@ -2348,6 +2347,9 @@ summary:
     - export CLUSTER="${CLUSTER}"
     - export CLUSTER_NAME="${CLUSTER_NAME}"
     - export TARGET_IP="${TARGET_IP}"
+    - export TARGET_USER="${TARGET_USER}"
+    - export TARGET_PASS="${TARGET_PASS}"
+    - export OMNIA_INSTALL_PATH="${OMNIA_INSTALL_PATH}"
 
     - echo "Sending email notification..."
     - python3 send_email.py || echo "Email notification failed (non-fatal)"
