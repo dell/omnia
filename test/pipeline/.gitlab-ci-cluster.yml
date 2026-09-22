@@ -2348,6 +2348,10 @@ summary:
     - export CLUSTER="${CLUSTER}"
     - export CLUSTER_NAME="${CLUSTER_NAME}"
     - export TARGET_IP="${TARGET_IP}"
+    - export TARGET_USER="${TARGET_USER}"
+    - export TARGET_PASS="${TARGET_PASS}"
+    - export OMNIA_INSTALL_PATH="${OMNIA_INSTALL_PATH}"
+    - export LOG_COLLECTION="${LOG_COLLECTION}"
 
     - echo "Sending email notification..."
     - python3 send_email.py || echo "Email notification failed (non-fatal)"
