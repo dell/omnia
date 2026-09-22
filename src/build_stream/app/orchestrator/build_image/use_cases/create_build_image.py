@@ -736,9 +736,16 @@ class CreateBuildImageUseCase:
         playbook_name = full_path.split("/")[-1]
         playbook_path = PlaybookPath(playbook_name)
 
+        # Resolve build_execution_mode from the Job entity
+        build_execution_mode = "differential"
+        job = self._job_repo.find_by_id(command.job_id)
+        if job and job.build_execution_mode:
+            build_execution_mode = job.build_execution_mode
+
         # Only pass job_id - playbook reads catalog for everything else
         extra_vars_dict = {
             "job_id": str(command.job_id),
+            "build_execution_mode": build_execution_mode,
         }
         extra_vars = ExtraVars(extra_vars_dict)
 

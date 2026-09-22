@@ -2,6 +2,7 @@
   "catalog": {
     "name": "Omnia Slurm + Kubernetes Catalog - RHEL 10.0 x86_64 and aarch64",
     "version": "1.0",
+    "schema_version": 2,
     "identifier": "omnia-slurm-k8s-rhel-10-0-x86-64-aarch64",
     "description": "Full mixed deployment catalog for RHEL 10.0: x86_64 (Slurm control, login, K8s control-plane, K8s node) and aarch64 (Slurm node, login-compiler)",
     "functionallayer": [

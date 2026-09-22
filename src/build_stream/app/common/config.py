@@ -51,6 +51,7 @@ class BuildStreamConfig:
     paths: PathsConfig
     artifact_store: ArtifactStoreConfig
     file_store: Optional[FileStoreConfig]
+    build_execution_mode: str = "differential"
 
 
 def _expand_env(value: str) -> str:
@@ -162,8 +163,19 @@ def load_config(config_path: Optional[str] = None) -> BuildStreamConfig:
         else:
             raise ValueError("file_store section with base_path is required when backend=file_store")
 
+    # Parse build execution mode (ER-BSM-002)
+    build_section = "build"
+    build_execution_mode = "differential"
+    if parser.has_section(build_section):
+        raw_mode = parser.get(
+            build_section, "execution_mode", fallback="differential"
+        ).strip().lower()
+        if raw_mode in ("differential", "lockstep"):
+            build_execution_mode = raw_mode
+
     return BuildStreamConfig(
         paths=paths,
         artifact_store=artifact_store,
         file_store=file_store,
+        build_execution_mode=build_execution_mode,
     )
