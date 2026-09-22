@@ -188,43 +188,6 @@ trigger_cluster_cluster1:
     - if: '$CLUSTERS =~ /cluster1/'
       when: on_success
 
-trigger_cluster_automation_cluster:
-  stage: trigger
-  trigger:
-    include:
-      - local: .gitlab-ci-cluster.yml
-    strategy: depend
-  variables:
-    CLUSTER: "automation_cluster"
-    OMNIA_REPO: "$AUTOMATION_CLUSTER_OMNIA_REPO"
-    OMNIA_BRANCH: "$AUTOMATION_CLUSTER_OMNIA_BRANCH"
-    OMNIA_INSTALL_PATH: "$AUTOMATION_CLUSTER_OMNIA_INSTALL_PATH"
-    BAO_SERVER_URL: "$AUTOMATION_CLUSTER_BAO_SERVER_URL"
-    BAO_AUTH_ROLE: "$AUTOMATION_CLUSTER_BAO_AUTH_ROLE"
-    BAO_DATA_PATH: "$AUTOMATION_CLUSTER_BAO_DATA_PATH"
-    PIPELINE_MODE: "$AUTOMATION_CLUSTER_PIPELINE_MODE"
-    DOMAINS: "$AUTOMATION_CLUSTER_DOMAINS"
-    ENABLE_SETUP: "$AUTOMATION_CLUSTER_ENABLE_SETUP"
-    TEST_MODE: "$AUTOMATION_CLUSTER_TEST_MODE"
-    DRY_RUN: "$AUTOMATION_CLUSTER_DRY_RUN"
-    VERBOSE: "$AUTOMATION_CLUSTER_VERBOSE"
-    REPO_MANAGER_TAGS: "$AUTOMATION_CLUSTER_REPO_MANAGER_TAGS"
-    IMAGE_BUILD_MANAGER_TAGS: "$AUTOMATION_CLUSTER_IMAGE_BUILD_MANAGER_TAGS"
-    ORCHESTRATOR_TAGS: "$AUTOMATION_CLUSTER_ORCHESTRATOR_TAGS"
-    TELEMETRY_TAGS: "$AUTOMATION_CLUSTER_TELEMETRY_TAGS"
-    TEST_MAIN_CMD: "$AUTOMATION_CLUSTER_TEST_MAIN_CMD"
-    TEST_REPO_MANAGER_CMD: "$AUTOMATION_CLUSTER_TEST_REPO_MANAGER_CMD"
-    TEST_IMAGE_BUILD_MANAGER_CMD: "$AUTOMATION_CLUSTER_TEST_IMAGE_BUILD_MANAGER_CMD"
-    TEST_ORCHESTRATOR_CMD: "$AUTOMATION_CLUSTER_TEST_ORCHESTRATOR_CMD"
-    TEST_TELEMETRY_CMD: "$AUTOMATION_CLUSTER_TEST_TELEMETRY_CMD"
-    SKIP_STAGES: "$AUTOMATION_CLUSTER_SKIP_STAGES"
-  allow_failure: true
-  rules:
-    - if: '$UTILS_ENABLE == "true"'
-      when: never
-    - if: '$CLUSTERS =~ /automation_cluster/'
-      when: on_success
-
 # ---------------------------------------------------------------------------
 # Utils Pipeline — Multi-Cluster Support
 # ---------------------------------------------------------------------------
@@ -254,28 +217,4 @@ trigger_cluster_cluster1_utils:
   allow_failure: true
   rules:
     - if: '$UTILS_ENABLE == "true" && $CLUSTERS =~ /cluster1/'
-      when: on_success
-
-trigger_cluster_automation_cluster_utils:
-  stage: trigger
-  trigger:
-    include:
-      - local: .gitlab-ci-utils.yml
-    strategy: depend
-  variables:
-    CLUSTER: "automation_cluster"
-    OMNIA_REPO: "$AUTOMATION_CLUSTER_OMNIA_REPO"
-    OMNIA_BRANCH: "$AUTOMATION_CLUSTER_OMNIA_BRANCH"
-    OMNIA_INSTALL_PATH: "$AUTOMATION_CLUSTER_OMNIA_INSTALL_PATH"
-    UTILS_MODE: "$UTILS_MODE"
-    UTILS_ENABLE: "$UTILS_ENABLE"
-    TEST_MODE: "$AUTOMATION_CLUSTER_TEST_MODE"
-    VERBOSE: "$AUTOMATION_CLUSTER_VERBOSE"
-    DRY_RUN: "$AUTOMATION_CLUSTER_DRY_RUN"
-    BAO_SERVER_URL: "$AUTOMATION_CLUSTER_BAO_SERVER_URL"
-    BAO_AUTH_ROLE: "$AUTOMATION_CLUSTER_BAO_AUTH_ROLE"
-    BAO_DATA_PATH: "$AUTOMATION_CLUSTER_BAO_DATA_PATH"
-  allow_failure: true
-  rules:
-    - if: '$UTILS_ENABLE == "true" && $CLUSTERS =~ /automation_cluster/'
       when: on_success
