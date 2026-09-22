@@ -27,6 +27,9 @@ vi test_config.yml             # Set oim_server_ip, dataset, etc.
 # Validate inputs exist on target
 ./run_validation.sh fvt_discovery validate verify --marker sanity
 
+# Run the Discovery prerequisite precheck
+./run_validation.sh fvt_discovery precheck test --marker sanity
+
 # Full discovery run + verify outputs
 ./run_validation.sh fvt_discovery discovery test
 
@@ -56,8 +59,12 @@ vi test_config.yml             # Set oim_server_ip, dataset, etc.
 
 | Scenario | Description |
 |----------|-------------|
+| `precheck` | Validate the data path and OME TCP/443 reachability |
 | `validate` | Verify input files (discovery_config.yml, network_spec.yml) |
+| `credentials` | Create or update encrypted OME credentials |
+| `execute` | Run the tagged OME discovery flow and verify outputs |
 | `discovery` | Full end-to-end: deploy discovery.yml + verify outputs |
+| `cleanup` | Run cleanup and verify output/credential behavior |
 
 See [fvt/TEST_CASES.md](fvt/TEST_CASES.md) for the complete FVT test case registry.
 

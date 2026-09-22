@@ -59,13 +59,14 @@ readonly NC='\033[0m'
 readonly OMNIA_RELEASE="2.3.0.0"
 
 # Known domain directories (each must provide domain-init.sh)
+# Cleanup order: reverse of dependency (telemetry depends on orchestrator, orchestrator depends on discovery)
 readonly DOMAINS=(
-    "build_stream"
+    "telemetry"
+    "orchestrator"
     "discovery"
     "image_build_manager"
-    "orchestrator"
     "repo_manager"
-    "telemetry"
+    "build_stream"
     "utils"
 )
 
@@ -1063,8 +1064,27 @@ validate_full_cleanup_state() {
         echo ""
         echo -e "${YELLOW}No files were removed. Run the matching domain cleanup first, for example:${NC}"
         echo "  ./omnia.sh --run <domain> --tags cleanup"
+        echo ""
+        echo -e "${YELLOW}For telemetry, include delete_sinks_volume=true to also remove log, input, and output directories:${NC}"
+        echo "  ./omnia.sh --run telemetry --tags cleanup -e delete_sinks_volume=true"
+        echo ""
+
+        # Check if telemetry blockers exist and add kube_vip hint
+        local has_telemetry_blockers=false
+        for blocker in "${blockers[@]}"; do
+            if [[ "$blocker" == *"/telemetry/"* ]]; then
+                has_telemetry_blockers=true
+                break
+            fi
+        done
+        if [ "$has_telemetry_blockers" = true ]; then
+            echo -e "${YELLOW}If telemetry cleanup skips due to missing kube_vip, ensure cluster_inventory is set in telemetry_config.yml:${NC}"
+            echo "  cluster_inventory: \"${OMNIA_DATA_PATH}/orchestrator/output/${OMNIA_PROJECT_NAME}/orchestrator_inventory.yaml\""
+        fi
+        echo ""
         echo -e "${YELLOW}Log/output trees containing only empty directories and Build Stream initializer files are allowed.${NC}"
         echo -e "${YELLOW}Remove any intentionally retained paths reported above and retry.${NC}"
+        echo ""
         return 1
     fi
 }
@@ -1501,7 +1521,7 @@ RECOMMENDED EXECUTION ORDER:
 
   Public tags by domain (use --tags <tag> to select a stage):
     build_stream:        precheck validate credentials prepare execute build cleanup upgrade rollback
-    discovery:           precheck validate credentials prepare execute discovery cleanup cleanup_credentials upgrade rollback
+    discovery:           precheck validate credentials prepare execute cleanup cleanup_credentials upgrade rollback
     image_build_manager: precheck validate credentials prepare execute build cleanup cleanup_images upgrade rollback
     orchestrator:        precheck validate credentials prepare deploy provision execute validate-deployment pxeboot cleanup cleanup_credentials upgrade rollback
     repo_manager:        precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos upgrade rollback catalog_generate catalog_add catalog_delete catalog_validate

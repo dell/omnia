@@ -896,17 +896,16 @@ def test_ome_kafka_topics(host):
 #   reported independently of the others.
 # =========================================================================
 
-def _verify_topic_data(host, tc_key, topic, channel):
+def _verify_topic_data(host, test_log, topic, channel):
     """Run the OME Kafka data check for a single topic.
 
     Args:
         host: Testinfra host connection to the OIM.
-        tc_key: Key into TEST_CASES for the topic under test.
+        test_log: TestLogger owned by the public test function.
         topic: Canonical Kafka topic name to consume from.
         channel: OME source channel required by the topic.
     """
-    tc = TC[tc_key]
-    tl = TestLogger(tc["title"], tc["id"])
+    tl = test_log
     context = _skip_if_ome_source_disabled(
         host, channel, test_log=tl,
     )
@@ -1071,8 +1070,10 @@ def _build_ome_entry_lines(entry):
 @pytest.mark.order(88)
 def test_ome_telemetry_data(host):
     """Verify OME telemetry metrics reach the ome.telemetry Kafka topic."""
+    tc = TC["ome_telemetry_data"]
+    tl = TestLogger(tc["title"], tc["id"])
     _verify_topic_data(
-        host, "ome_telemetry_data", "ome.telemetry", "metrics",
+        host, tl, "ome.telemetry", "metrics",
     )
 
 
@@ -1082,8 +1083,10 @@ def test_ome_telemetry_data(host):
 @pytest.mark.order(89)
 def test_ome_inventory_data(host):
     """Verify OME inventory data reaches the ome.inventory Kafka topic."""
+    tc = TC["ome_inventory_data"]
+    tl = TestLogger(tc["title"], tc["id"])
     _verify_topic_data(
-        host, "ome_inventory_data", "ome.inventory", "metrics",
+        host, tl, "ome.inventory", "metrics",
     )
 
 
@@ -1093,7 +1096,9 @@ def test_ome_inventory_data(host):
 @pytest.mark.order(90)
 def test_ome_alerts_data(host):
     """Verify OME alerts reach the ome.alerts Kafka topic."""
-    _verify_topic_data(host, "ome_alerts_data", "ome.alerts", "logs")
+    tc = TC["ome_alerts_data"]
+    tl = TestLogger(tc["title"], tc["id"])
+    _verify_topic_data(host, tl, "ome.alerts", "logs")
 
 
 @pytest.mark.source
@@ -1102,7 +1107,9 @@ def test_ome_alerts_data(host):
 @pytest.mark.order(91)
 def test_ome_health_data(host):
     """Verify OME health data reaches the ome.health Kafka topic."""
-    _verify_topic_data(host, "ome_health_data", "ome.health", "metrics")
+    tc = TC["ome_health_data"]
+    tl = TestLogger(tc["title"], tc["id"])
+    _verify_topic_data(host, tl, "ome.health", "metrics")
 
 
 @pytest.mark.source
@@ -1111,7 +1118,9 @@ def test_ome_health_data(host):
 @pytest.mark.order(92)
 def test_ome_auditlogs_data(host):
     """Verify OME audit logs reach the ome.auditlogs Kafka topic."""
-    _verify_topic_data(host, "ome_auditlogs_data", "ome.auditlogs", "logs")
+    tc = TC["ome_auditlogs_data"]
+    tl = TestLogger(tc["title"], tc["id"])
+    _verify_topic_data(host, tl, "ome.auditlogs", "logs")
 
 
 # =========================================================================
@@ -1120,10 +1129,9 @@ def test_ome_auditlogs_data(host):
 #   validated independently and every discovered metric is reported.
 # =========================================================================
 
-def _verify_victoria_metric_topic(host, tc_key, topic):
+def _verify_victoria_metric_topic(host, test_log, topic):
     """Run the OME VictoriaMetrics check for one metric-bearing topic."""
-    tc = TC[tc_key]
-    tl = TestLogger(tc["title"], tc["id"])
+    tl = test_log
     _skip_if_ome_source_disabled(host, "metrics", test_log=tl)
     _skip_if_ome_bridge_disabled(host, "metrics", test_log=tl)
     _skip_if_configure_ome_false(tl)
@@ -1166,8 +1174,10 @@ def _verify_victoria_metric_topic(host, tc_key, topic):
 @pytest.mark.order(93)
 def test_ome_telemetry_metrics_in_victoria(host):
     """Verify ome.telemetry metrics and timestamps in VictoriaMetrics."""
+    tc = TC["ome_telemetry_metrics_in_vm"]
+    tl = TestLogger(tc["title"], tc["id"])
     _verify_victoria_metric_topic(
-        host, "ome_telemetry_metrics_in_vm", "ome.telemetry",
+        host, tl, "ome.telemetry",
     )
 
 
@@ -1177,8 +1187,10 @@ def test_ome_telemetry_metrics_in_victoria(host):
 @pytest.mark.order(94)
 def test_ome_inventory_metrics_in_victoria(host):
     """Verify ome.inventory metrics and timestamps in VictoriaMetrics."""
+    tc = TC["ome_inventory_metrics_in_vm"]
+    tl = TestLogger(tc["title"], tc["id"])
     _verify_victoria_metric_topic(
-        host, "ome_inventory_metrics_in_vm", "ome.inventory",
+        host, tl, "ome.inventory",
     )
 
 
@@ -1188,8 +1200,10 @@ def test_ome_inventory_metrics_in_victoria(host):
 @pytest.mark.order(95)
 def test_ome_health_metrics_in_victoria(host):
     """Verify ome.health metrics and timestamps in VictoriaMetrics."""
+    tc = TC["ome_health_metrics_in_vm"]
+    tl = TestLogger(tc["title"], tc["id"])
     _verify_victoria_metric_topic(
-        host, "ome_health_metrics_in_vm", "ome.health",
+        host, tl, "ome.health",
     )
 
 
@@ -1198,10 +1212,9 @@ def test_ome_health_metrics_in_victoria(host):
 #   OME alerts and auditlogs are event-driven and validated independently.
 # =========================================================================
 
-def _verify_victoria_log_topic(host, tc_key, topic):
+def _verify_victoria_log_topic(host, test_log, topic):
     """Run the OME VictoriaLogs check for one log-bearing topic."""
-    tc = TC[tc_key]
-    tl = TestLogger(tc["title"], tc["id"])
+    tl = test_log
     _skip_if_ome_source_disabled(host, "logs", test_log=tl)
     _skip_if_ome_bridge_disabled(host, "logs", test_log=tl)
     _skip_if_configure_ome_false(tl)
@@ -1244,7 +1257,9 @@ def _verify_victoria_log_topic(host, tc_key, topic):
 @pytest.mark.order(96)
 def test_ome_alerts_logs_in_victoria(host):
     """Verify ome.alerts entries and timestamps in VictoriaLogs."""
-    _verify_victoria_log_topic(host, "ome_alerts_logs_in_vl", "ome.alerts")
+    tc = TC["ome_alerts_logs_in_vl"]
+    tl = TestLogger(tc["title"], tc["id"])
+    _verify_victoria_log_topic(host, tl, "ome.alerts")
 
 
 @pytest.mark.source
@@ -1253,6 +1268,8 @@ def test_ome_alerts_logs_in_victoria(host):
 @pytest.mark.order(97)
 def test_ome_auditlogs_logs_in_victoria(host):
     """Verify ome.auditlogs entries and timestamps in VictoriaLogs."""
+    tc = TC["ome_auditlogs_logs_in_vl"]
+    tl = TestLogger(tc["title"], tc["id"])
     _verify_victoria_log_topic(
-        host, "ome_auditlogs_logs_in_vl", "ome.auditlogs",
+        host, tl, "ome.auditlogs",
     )

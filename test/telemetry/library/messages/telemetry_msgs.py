@@ -403,6 +403,12 @@ TEST_ASSERT_MSGS = {
         "  1. kubectl get pods -n telemetry\n"
         "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
     ),
+    "cleanup_topics_remaining": (
+        "{count} Kafka topic(s) still present after cleanup\n"
+        "HOW TO FIX:\n"
+        "  1. kubectl get kafkatopic -n telemetry\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+    ),
 
     # Cleanup - Sources
     "idrac_not_cleaned": (
@@ -752,7 +758,7 @@ TEST_ASSERT_MSGS = {
         "  1. Check LDMS sampler running on compute nodes: systemctl status ldmsd\n"
         "  2. Check LDMS aggregator logs: kubectl logs nersc-ldms-aggr-0 -n telemetry\n"
         "  3. Check LDMS store logs: kubectl logs nersc-ldms-store-0 -n telemetry\n"
-        "  4. Verify Kafka ldms topic has data: curl http://<bridge>:8080/topics\n"
+        "  4. Verify Kafka ldms topic has data: curl -k https://<bridge>:8080/topics\n"
     ),
     "ldms_plugins_missing": (
         "LDMS plugins missing for host {hostname}: {plugins}\n"

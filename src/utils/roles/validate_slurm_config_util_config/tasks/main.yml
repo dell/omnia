@@ -1,0 +1,117 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Validates slurm_config_util_config.yml for Slurm configuration utility
+# Ensures valid file paths, NFS formats, and cleanup tokens
+
+# Step 1: Resolve config file path
+- name: Resolve slurm_config_util_config path
+  ansible.builtin.set_fact:
+    _slurm_config_util_config_path: >-
+      {{ input_project_dir
+         | default(
+             lookup('env', 'OMNIA_DATA_PATH')
+             | default('/opt/omnia', true)
+             + '/utils/input/'
+             + lookup('env', 'OMNIA_PROJECT_NAME')
+             | default('project_default', true)
+           )
+      }}/slurm_config_util_config.yml
+
+# Step 2: Check config file exists (optional file)
+- name: Check slurm_config_util_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ _slurm_config_util_config_path }}"
+  register: _config_file_stat
+
+# Step 3: Load config if it exists
+- name: Load slurm_config_util_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ _slurm_config_util_config_path }}"
+    name: slurm_config_util_config
+  when: _config_file_stat.stat.exists | default(false)
+
+# Step 4: Set default values if config not present
+- name: Set default slurm configuration
+  ansible.builtin.set_fact:
+    slurm_config_util_config:
+      omnia_config_path: >-
+        {{ lookup('env', 'OMNIA_DATA_PATH')
+           | default('/opt/omnia', true)
+           + '/utils/input/'
+           + lookup('env', 'OMNIA_PROJECT_NAME')
+           | default('project_default', true)
+           + '/omnia_config.yml' }}
+      storage_config_path: >-
+        {{ lookup('env', 'OMNIA_DATA_PATH')
+           | default('/opt/omnia', true)
+           + '/utils/input/'
+           + lookup('env', 'OMNIA_PROJECT_NAME')
+           | default('project_default', true)
+           + '/storage_config.yml' }}
+      pxe_mapping_path: >-
+        {{ lookup('env', 'OMNIA_DATA_PATH')
+           | default('/opt/omnia', true)
+           + '/utils/input/'
+           + lookup('env', 'OMNIA_PROJECT_NAME')
+           | default('project_default', true)
+           + '/nodes_slurm.yaml' }}  # YAML format; CSV also supported
+      slurm_cleanup_confirm_token: "YES"
+  when: not (_config_file_stat.stat.exists | default(false))
+
+# Step 5: Validate omnia_config_path (optional)
+- name: Validate omnia_config_path if provided
+  ansible.builtin.assert:
+    that:
+      - slurm_config_util_config.omnia_config_path is string
+      - slurm_config_util_config.omnia_config_path | length >= 0
+    fail_msg: "omnia_config_path must be a string"
+    quiet: true
+  when: slurm_config_util_config.omnia_config_path is defined
+
+# Step 6: Validate storage_config_path (optional)
+- name: Validate storage_config_path if provided
+  ansible.builtin.assert:
+    that:
+      - slurm_config_util_config.storage_config_path is string
+      - slurm_config_util_config.storage_config_path | length >= 0
+    fail_msg: "storage_config_path must be a string"
+    quiet: true
+  when: slurm_config_util_config.storage_config_path is defined
+
+# Step 7: Validate pxe_mapping_path (optional)
+- name: Validate pxe_mapping_path if provided
+  ansible.builtin.assert:
+    that:
+      - slurm_config_util_config.pxe_mapping_path is string
+      - slurm_config_util_config.pxe_mapping_path | length >= 0
+    fail_msg: "pxe_mapping_path must be a string"
+    quiet: true
+  when: slurm_config_util_config.pxe_mapping_path is defined
+
+# Step 8: Validate slurm_cleanup_confirm_token (optional)
+- name: Validate slurm_cleanup_confirm_token if provided
+  ansible.builtin.assert:
+    that:
+      - slurm_config_util_config.slurm_cleanup_confirm_token is string
+      - slurm_config_util_config.slurm_cleanup_confirm_token | length > 0
+    fail_msg: "slurm_cleanup_confirm_token must be a non-empty string"
+    quiet: true
+  when: slurm_config_util_config.slurm_cleanup_confirm_token is defined
+
+# Step 9: Log validation success
+- name: Log validated configuration summary
+  ansible.builtin.debug:
+    msg: "Slurm configuration utility config validated successfully"

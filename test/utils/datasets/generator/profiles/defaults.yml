@@ -62,3 +62,28 @@ force_reinstall: false
 ssh_verify_enabled: true
 ssh_verify_retries: 60
 ssh_verify_delay: 30
+
+# --- Backup OIM Logs Configuration ---
+# Domains to include in the backup (empty list means all domains)
+domains: []
+# Optional backup destination override
+backup_path: ""
+
+# --- Slurm Config Util Configuration ---
+# Input file overrides
+omnia_config_path: ""
+storage_config_path: ""
+pxe_mapping_path: ""
+# NFS share directory names
+slurm_share_dir_name: "slurm"
+slurm_backups_dir_name: "slurm_backups"
+# Specific NFS storage name
+nfs_storage_name: ""
+# Backup destination override
+slurm_backup_path: ""
+# Backup directory base name
+backup_base_name: "slurm_config"
+# Behavioral settings
+slurm_cleanup_confirm_token: "YES"
+# Maximum number of backups shown during rollback
+rollback_backup_list_limit: 20

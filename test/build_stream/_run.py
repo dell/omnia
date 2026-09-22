@@ -70,6 +70,7 @@ def main():
         EXCLUDE_TAGS,
         ALL_EXEC_TAGS,
         ALL_EXEC_MARKER,
+        SUITE_EXEC_OWNERS,
     )
     from omnia_auto.functions.validation_runner import ValidationRunner
 
@@ -83,6 +84,7 @@ def main():
             "exclude_tags": EXCLUDE_TAGS,
             "all_exec_tags": ALL_EXEC_TAGS,
             "all_exec_marker": ALL_EXEC_MARKER,
+            "suite_exec_owners": SUITE_EXEC_OWNERS,
             "enable_ut": ENABLE_UT,
         },
     )

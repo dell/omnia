@@ -57,6 +57,7 @@ ALL_EXEC_MARKER: str = "sanity"
 
 MARKERS: List[str] = [
     "sanity",
+    "manual",
     "deploy",
     "nft",
     "resilience",
@@ -70,9 +71,21 @@ MARKERS: List[str] = [
 
 SUITES: Dict[str, List[str]] = {
     "buildstream_install": ["health", "buildstream_install"],
-    "buildstream_cleanup": ["gitlab_cleanup", "buildstream_cleanup"],
-    "build_pipeline": ["build_pipeline"],
-    "deploy_pipeline": ["deploy_pipeline"],
+    "buildstream_cleanup": [
+        "gitlab_cleanup",
+        "buildstream_cleanup",
+        "cleanup_pipeline",
+    ],
+    "build_pipeline": ["build_pipeline", "manual"],
+    "deploy_pipeline": ["deploy_pipeline", "manual"],
+}
+
+# Explicit manual execution owns its trigger. This prevents the normal sanity
+# trigger at the tag root from being collected and reported as skipped.
+SUITE_EXEC_OWNERS: Dict[str, List[str]] = {
+    "build_pipeline": ["manual"],
+    "deploy_pipeline": ["manual"],
+    "buildstream_cleanup": ["cleanup_pipeline"],
 }
 
 # =====================================================================

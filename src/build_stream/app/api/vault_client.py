@@ -18,6 +18,7 @@ from api.logging_utils import log_secure_info
 import os
 import subprocess
 import tempfile
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import yaml
@@ -59,13 +60,20 @@ class VaultClient:  # pylint: disable=too-few-public-methods
         self.vault_password_file = vault_password_file or os.getenv(
             "ANSIBLE_VAULT_PASSWORD_FILE", "/etc/omnia/.vault_pass"
         )
+        default_credentials_path = str(
+            Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
+            / "build_stream"
+            / "input"
+            / os.getenv("OMNIA_PROJECT_NAME", "project_default")
+            / "build_stream_credentials.yml"
+        )
         self.oauth_clients_vault_path = oauth_clients_vault_path or os.getenv(
             "OAUTH_CLIENTS_VAULT_PATH",
-            "/etc/omnia/input/project_default/build_stream_oauth_credentials.yml"
+            default_credentials_path,
         )
         self.auth_config_vault_path = auth_config_vault_path or os.getenv(
             "AUTH_CONFIG_VAULT_PATH",
-            "/etc/omnia/input/project_default/build_stream_oauth_credentials.yml"
+            default_credentials_path,
         )
 
     _ALLOWED_VAULT_COMMANDS = frozenset({"view", "encrypt", "decrypt"})

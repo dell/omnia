@@ -87,7 +87,7 @@ _parse_args() {
 # ---------------------------------------------------------------------------
 _load_env() {
     OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
-    OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-build_stream}"
+    OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
     DOMAIN_INIT_LOG_ROOT="${DOMAIN_INIT_LOG_ROOT:-/var/log/omnia}"
 }
 

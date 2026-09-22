@@ -113,6 +113,13 @@
     - _ssh_wait is failed
 
 # ── Step 6: Verify installed OS ─────────────────────────────────────────
+# Both key-based and password-based SSH access are verified independently
+# (irrespective of each other's outcome). The overall check succeeds if
+# either method works; a warning is logged for whichever method failed.
+# ssh_private_key_path is the private-key counterpart of ssh_public_key_path
+# (the key injected into the kickstart via ks_ssh_public_key) — it is required
+# so the key-based check uses that exact key rather than whatever key
+# ~/.ssh/config or ssh-agent would pick by default.
 - name: Verify passwordless SSH access with injected key
   ansible.builtin.command:
     cmd: >-
@@ -120,6 +127,7 @@
       -o ConnectTimeout=10
       -o BatchMode=yes
       -o PasswordAuthentication=no
+      -o IdentityFile={{ ssh_private_key_path }}
       root@{{ target_admin_ip }}
       'hostname'
   register: _ssh_key_verify
@@ -131,21 +139,70 @@
     - ssh_verify_enabled | default(true) | bool
   delegate_to: localhost
 
-- name: Fail if passwordless SSH is not working
-  ansible.builtin.fail:
+- name: Verify SSH access with root password
+  ansible.builtin.command:
+    cmd: >-
+      sshpass -p '{{ hostvars['localhost']['os_root_password'] | default('') }}'
+      ssh -o StrictHostKeyChecking=no
+      -o ConnectTimeout=10
+      -o PreferredAuthentications=password
+      -o PubkeyAuthentication=no
+      root@{{ target_admin_ip }}
+      'hostname'
+  register: _ssh_password_verify
+  changed_when: false
+  failed_when: false
+  no_log: true
+  when:
+    - target_admin_ip | default('') | length > 0
+    - ssh_verify_enabled | default(true) | bool
+    - hostvars['localhost']['os_root_password'] | default('') | length > 0
+  delegate_to: localhost
+
+- name: Warn if passwordless SSH key access failed
+  ansible.builtin.debug:
     msg: "{{ passwordless_ssh_fail_msg }}"
   when:
     - ssh_verify_enabled | default(true) | bool
     - _ssh_key_verify is defined
     - _ssh_key_verify.rc | default(1) != 0
 
-- name: Verify installed OS details
+- name: Warn if root password SSH access failed
+  ansible.builtin.debug:
+    msg: "{{ ssh_password_fail_msg }}"
+  when:
+    - ssh_verify_enabled | default(true) | bool
+    - _ssh_password_verify is defined
+    - _ssh_password_verify.rc | default(1) != 0
+
+- name: Fail if both SSH key and password authentication fail
+  ansible.builtin.fail:
+    msg: >-
+      SSH access failed. Neither passwordless SSH (with {{ ssh_private_key_path }})
+      nor password authentication succeeded. Verify the injected SSH key or root password.
+  when:
+    - ssh_verify_enabled | default(true) | bool
+    - _ssh_key_verify is defined
+    - _ssh_key_verify.rc | default(1) != 0
+    - _ssh_password_verify.rc | default(1) != 0
+
+- name: Verify installed OS details (prefer key auth, fall back to password auth)
   ansible.builtin.command:
     cmd: >-
+      {% if _ssh_key_verify.rc | default(1) == 0 %}
       ssh -o StrictHostKeyChecking=no
       -o ConnectTimeout=10
       -o BatchMode=yes
+      -o IdentityFile={{ ssh_private_key_path }}
       root@{{ target_admin_ip }}
+      {% else %}
+      sshpass -p '{{ hostvars['localhost']['os_root_password'] | default('') }}'
+      ssh -o StrictHostKeyChecking=no
+      -o ConnectTimeout=10
+      -o PreferredAuthentications=password
+      -o PubkeyAuthentication=no
+      root@{{ target_admin_ip }}
+      {% endif %}
       'hostname && cat /etc/redhat-release && cat /root/.ks-complete 2>/dev/null || echo "Kickstart marker not found"'
   register: _os_verify
   no_log: true
@@ -154,6 +211,7 @@
   when:
     - target_admin_ip | default('') | length > 0
     - ssh_verify_enabled | default(true) | bool
+    - (_ssh_key_verify.rc | default(1) == 0) or (_ssh_password_verify.rc | default(1) == 0)
   delegate_to: localhost
 
 - name: Log OS installation result

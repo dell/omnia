@@ -62,7 +62,25 @@
     - provided_tags | length > 0
     - (provided_tags | intersect(skip_credential_tags)) | length > 0
 
-# Step 1: Upgrade guard
+# Step 1: Resolve configuration from environment variables
+- name: Resolve configuration from environment
+  ansible.builtin.set_fact:
+    omnia_data_path: >-
+      {{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}
+    discovery_project_name: >-
+      {{ lookup('env', 'OMNIA_PROJECT_NAME')
+         | default(project_name | default('project_default'), true) }}
+    cacheable: true
+
+- name: Resolve Discovery data path
+  ansible.builtin.set_fact:
+    discovery_data_path: >-
+      {{ (lookup('env', 'DISCOVERY_DATA_PATH')
+          | default(omnia_data_path + '/discovery', true))
+         | ansible.builtin.normpath }}
+    cacheable: true
+
+# Step 2: Upgrade guard
 - name: Check upgrade lock file
   ansible.builtin.stat:
     path: "{{ upgrade_lock_file }}"
@@ -75,24 +93,24 @@
     - upgrade_lock.stat.exists
     - not (upgrade_mode | default(false) | bool)
 
-# Step 2: Resolve configuration from environment variables
-- name: Resolve configuration from environment
-  ansible.builtin.set_fact:
-    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
-    discovery_project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default(project_name | default('project_default'), true) }}"
-    cacheable: true
-
 - name: Set domain root directory
   ansible.builtin.set_fact:
     _domain_root_dir: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}"
     cacheable: true
 
-# Step 3: Set input/output dirs using domain-scoped paths
-- name: Set discovery input/output paths
+# Step 3: Set project directories using domain-scoped paths
+- name: Set Discovery project paths
   ansible.builtin.set_fact:
-    discovery_input_dir: "{{ omnia_data_path }}/discovery/input/{{ discovery_project_name }}"
-    discovery_output_dir: "{{ omnia_data_path }}/discovery/output/{{ discovery_project_name }}"
-    input_project_dir: "{{ omnia_data_path }}/discovery/input/{{ discovery_project_name }}"
+    discovery_input_dir: >-
+      {{ discovery_data_path }}/input/{{ discovery_project_name }}
+    discovery_output_dir: >-
+      {{ discovery_data_path }}/output/{{ discovery_project_name }}
+    input_project_dir: >-
+      {{ discovery_data_path }}/input/{{ discovery_project_name }}
+    output_project_dir: >-
+      {{ discovery_data_path }}/output/{{ discovery_project_name }}
+    log_dir: >-
+      {{ discovery_data_path }}/log/{{ discovery_project_name }}
     cacheable: true
 
 # Step 4: Verify input directory — auto-copy from source if missing
@@ -134,25 +152,37 @@
           and network_spec.yml.
       when: not _source_dir_check.stat.exists
 
-# Step 5: Ensure output directory
-- name: Ensure discovery output directory exists
+# Step 5: Ensure output and runtime log directories
+- name: Ensure Discovery runtime directories exist
   ansible.builtin.file:
-    path: "{{ discovery_output_dir }}"
+    path: "{{ item }}"
     state: directory
     mode: '0755'
+  loop:
+    - "{{ discovery_output_dir }}"
+    - "{{ log_dir }}"
   when: not discovery_cleanup_requested | bool
 
 # Step 6: Load discovery configuration
-- name: Include discovery config file
-  ansible.builtin.include_vars:
-    file: "{{ discovery_input_dir }}/discovery_config.yml"
-  failed_when: false
+- name: Check whether the Discovery configuration file exists
+  ansible.builtin.stat:
+    path: "{{ discovery_input_dir }}/{{ discovery_config_file }}"
+  register: discovery_config_file_status
   when: not discovery_cleanup_requested | bool
 
-- name: Set enable_bmc_discovery for credential utility
-  ansible.builtin.set_fact:
-    enable_bmc_discovery: "{{ true if (discovery_mechanism | default('')) == 'ome' else (enable_bmc_discovery | default(false) | bool) }}"
-    cacheable: true
+- name: Require the Discovery configuration file
+  ansible.builtin.assert:
+    that:
+      - discovery_config_file_status.stat.exists
+      - discovery_config_file_status.stat.isreg | default(false)
+    fail_msg: "{{ config_load_fail_msg }}"
+    quiet: true
+  when: not discovery_cleanup_requested | bool
+
+- name: Include discovery config file
+  ansible.builtin.include_vars:
+    file: "{{ discovery_input_dir }}/{{ discovery_config_file }}"
+  when: not discovery_cleanup_requested | bool
 
 # Step 7: Include common vars
 - name: Include common vars

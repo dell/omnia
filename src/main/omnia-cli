@@ -163,7 +163,7 @@ declare -A INPUT_FILE_DESCRIPTIONS=(
     [orchestrator/additional_cloud_init.yml]="Optional custom write_files/runcmd content; used only when its path is set in orchestrator_config.yml."
     [orchestrator/set_pxe_boot_config.yml]="Optional PXE/node-registration timing and restart overrides; built-in defaults apply when absent."
     [orchestrator/orchestrator_credentials.yml]="Created and Vault-encrypted by the orchestrator run for node, BMC, and service secrets."
-    [discovery/discovery_config.yml]="Review enable_bmc_discovery and provide a reachable OME IPv4 address for OME discovery."
+    [discovery/discovery_config.yml]="Provide a reachable OME IPv4 address for server discovery."
     [discovery/network_spec.yml]="Replace all sample values with the customer admin and optional InfiniBand networks; primary_oim_admin_ip must equal SYSTEM_ADMIN_NIC_IPV4."
     [discovery/discovery_credentials.yml]="Created and Vault-encrypted by the discovery run when OME authentication is required."
     [telemetry/telemetry_config.yml]="Set the generated cluster inventory path and review every enabled source, target, sink, bridge, and PowerScale option."
@@ -495,7 +495,7 @@ _show_domain_input_notes() {
             else
                 echo "    - Set network_spec.yml primary_oim_admin_ip equal to SYSTEM_ADMIN_NIC_IPV4 from omnia.env."
             fi
-            echo "    - If OME discovery is enabled, confirm OME reachability."
+            echo "    - Confirm that the OME appliance is reachable from the OIM host."
             echo "    - Run: omnia.sh --run discovery"
             echo "      The domain run creates or updates encrypted credentials when required."
             ;;

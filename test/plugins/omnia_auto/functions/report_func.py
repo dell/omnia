@@ -54,27 +54,36 @@ _ANSI_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 # ── Report Naming ────────────────────────────────────────────────────────────
 
-def build_report_name(domain_name: str, base_name: str = "") -> str:
+def build_report_name(domain_name: str, base_name: str = "", report_id: Optional[str] = None) -> str:
     """Build pipeline-aware report filename.
 
     When running in GitLab CI (CI_PIPELINE_ID is set):
-        ``YYYYMMDD_HHMMSS_<pipeline_id>_<domain>_report``
+        - If report_id is provided or set in env: ``<report_id>_<domain>_report``
+        - Otherwise: ``YYYYMMDD_HHMMSS_<pipeline_id>_<domain>_report``
 
     When running locally:
         ``<base_name>`` or ``<domain>_report``
 
-    Same pipeline_id overwrites its report; different IDs create
+    Same report_id overwrites its report; different IDs create
     separate files.
 
     Args:
         domain_name: Domain identifier (e.g. ``repo_manager``).
         base_name: Fallback name for local runs.
+        report_id: Optional report ID (overrides environment variable).
 
     Returns:
         Report base filename without extension.
     """
+    if report_id is None:
+        report_id = os.environ.get("REPORT_ID")
     pipeline_id = os.environ.get("CI_PIPELINE_ID")
-    if pipeline_id:
+    
+    if report_id:
+        # Use REPORT_ID if set (ensures consistent naming within a pipeline run)
+        return f"{report_id}_{domain_name}_report"
+    elif pipeline_id:
+        # Fallback to timestamp + pipeline_id for CI runs without REPORT_ID
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"{ts}_{pipeline_id}_{domain_name}_report"
     return base_name or f"{domain_name}_report"

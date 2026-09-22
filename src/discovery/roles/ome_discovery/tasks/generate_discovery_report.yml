@@ -21,7 +21,9 @@
 
 - name: Set timestamped discovery report output file path
   ansible.builtin.set_fact:
-    discovery_report_output_file: "{{ discovery_output_dir }}/bmc_discovery_report_{{ pxe_mapping_timestamp }}.csv"
+    discovery_report_output_file: >-
+      {{ discovery_output_dir }}/bmc_discovery_report_{{
+      pxe_mapping_timestamp }}.csv
 
 - name: Generate BMC discovery report
   generate_discovery_report:
@@ -29,14 +31,65 @@
     output_file: "{{ discovery_report_output_file }}"
   register: discovery_report_result
 
-- name: Load build_stream_config to check if build_stream is enabled
-  ansible.builtin.include_vars:
-    file: "{{ input_project_dir | default(playbook_dir + '/../input') }}/build_stream_config.yml"
-    name: build_stream_config_data
-  failed_when: false
+- name: Resolve downstream domain paths for completion guidance
+  ansible.builtin.set_fact:
+    discovery_orchestrator_data_path: >-
+      {{ lookup('ansible.builtin.env', 'ORCHESTRATOR_DATA_PATH')
+         | default(
+             (omnia_data_path | regex_replace('/+$', '')) ~ '/orchestrator',
+             true
+           )
+         | regex_replace('/+$', '') }}
+    discovery_build_stream_data_path: >-
+      {{ lookup('ansible.builtin.env', 'BUILD_STREAM_DATA_PATH')
+         | default(
+             (omnia_data_path | regex_replace('/+$', '')) ~ '/build_stream',
+             true
+           )
+         | regex_replace('/+$', '') }}
+    discovery_build_stream_enabled: false
+    discovery_build_stream_config_load_failed: false
+
+- name: Check whether the BuildStream configuration exists
+  ansible.builtin.stat:
+    path: >-
+      {{ discovery_build_stream_data_path }}/input/{{ discovery_project_name
+      }}/build_stream_config.yml
+  register: discovery_build_stream_config_stat
+
+- name: Load BuildStream configuration when available
+  when: discovery_build_stream_config_stat.stat.exists
+  block:
+    - name: Read BuildStream configuration
+      ansible.builtin.include_vars:
+        file: >-
+          {{ discovery_build_stream_data_path }}/input/{{ discovery_project_name
+          }}/build_stream_config.yml
+        name: discovery_build_stream_config
+  rescue:
+    - name: Mark BuildStream configuration as unreadable
+      ansible.builtin.set_fact:
+        discovery_build_stream_config_load_failed: true
+
+    - name: Warn that BuildStream completion mode could not be determined
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Could not read BuildStream configuration at
+          {{ discovery_build_stream_data_path }}/input/{{
+          discovery_project_name }}/build_stream_config.yml.
+          Showing the local Orchestrator handoff instructions.
+
+- name: Enable BuildStream completion guidance when configured
+  ansible.builtin.set_fact:
+    discovery_build_stream_enabled: true
+  when:
+    - not discovery_build_stream_config_load_failed | bool
+    - discovery_build_stream_config is defined
+    - discovery_build_stream_config is mapping
+    - discovery_build_stream_config.enable_build_stream | default(false) | bool
 
 - name: Display discovery completion message (without BuildStream)
-  when: not (build_stream_config_data.enable_build_stream | default(false) | bool)
+  when: not discovery_build_stream_enabled | bool
   ansible.builtin.debug:
     msg:
       - "============================================================"
@@ -44,7 +97,9 @@
       - "============================================================"
       - "BMC PXE mapping file generated: {{ pxe_mapping_output_file }}"
       - "BMC discovery report generated: {{ discovery_report_output_file }}"
-      - "  (Lists link status of BMC, Ethernet, and InfiniBand NICs for each server)"
+      - >-
+        {{ 2 * ' ' }}(Lists link status of BMC, Ethernet, and InfiniBand
+        NICs for each server)
       - "Total servers discovered: {{ discovered_servers | length }}"
       - ""
       - "Output directory: {{ discovery_output_dir }}"
@@ -58,18 +113,20 @@
       - ""
       - "3. Update HOSTNAME, FUNCTIONAL_GROUP_NAME, GROUP_NAME as needed."
       - ""
-      - "4. Copy the mapping file to orchestrator input directory:"
-      - "     cp {{ pxe_mapping_output_file }} /opt/omnia/orchestrator/input/{{ discovery_project_name }}/pxe_mapping_file.csv"
+      - "4. Copy the reviewed mapping file to the Orchestrator project input:"
+      - >-
+        {{ 5 * ' ' }}cp {{ pxe_mapping_output_file }}
+        {{ discovery_orchestrator_data_path }}/input/{{ discovery_project_name
+        }}/pxe_mapping_file.csv
       - ""
-      - "5. If fresh installation of Omnia, Run:"
-      - "     ansible-playbook prepare_oim/prepare_oim.yml"
+      - "5. Review the remaining Orchestrator inputs."
       - ""
-      - "   Then run orchestrator:"
-      - "     cd orchestrator/playbooks && ansible-playbook orchestrator.yml"
+      - "6. Run Orchestrator from the Omnia source root:"
+      - "     ./src/main/omnia.sh --run orchestrator"
       - "============================================================"
 
 - name: Display discovery completion message (with BuildStream)
-  when: build_stream_config_data.enable_build_stream | default(false) | bool
+  when: discovery_build_stream_enabled | bool
   ansible.builtin.debug:
     msg:
       - "============================================================"
@@ -77,7 +134,9 @@
       - "============================================================"
       - "BMC PXE mapping file generated: {{ pxe_mapping_output_file }}"
       - "BMC discovery report generated: {{ discovery_report_output_file }}"
-      - "  (Lists link status of BMC, Ethernet, and InfiniBand NICs for each server)"
+      - >-
+        {{ 2 * ' ' }}(Lists link status of BMC, Ethernet, and InfiniBand
+        NICs for each server)
       - "Total servers discovered: {{ discovered_servers | length }}"
       - ""
       - "Output directory: {{ discovery_output_dir }}"
@@ -91,12 +150,29 @@
       - ""
       - "3. Update HOSTNAME, FUNCTIONAL_GROUP_NAME, GROUP_NAME as needed."
       - ""
-      - "4. If GitLab server is not yet up, copy the generated file to"
-      - "     /opt/omnia/orchestrator/input/{{ discovery_project_name }}/pxe_mapping_file.csv"
+      - "4. Choose the applicable deployment workflow:"
       - ""
-      - "5. If the GitLab server is up and running, copy the file to"
-      - "     input/pxe_mapping_file.csv in the GitLab project and commit the changes"
-      - "     after building the images using the build pipeline. Committing the PXE mapping"
-      - "     file will automatically trigger the deploy pipeline and deploy the images on"
-      - "     the nodes listed in the newly committed PXE mapping file."
+      - "   A. First-time BuildStream setup (GitLab is not deployed):"
+      - >-
+        {{ 6 * ' ' }}cp {{ pxe_mapping_output_file }}
+        {{ discovery_orchestrator_data_path }}/input/{{ discovery_project_name
+        }}/pxe_mapping_file.csv
+      - >-
+        {{ 6 * ' ' }}Review the remaining BuildStream and Orchestrator
+        project inputs.
+      - "      If the base infrastructure is not prepared, run:"
+      - "        ./src/main/omnia.sh --prepare-base"
+      - "      Then deploy BuildStream and GitLab:"
+      - "        ./src/main/omnia.sh --run build_stream"
+      - ""
+      - "   B. BuildStream GitLab workflow (GitLab is available):"
+      - "      Update and commit the reviewed mapping in the GitLab project as:"
+      - "        input/orchestrator/pxe_mapping_file.csv"
+      - "      Verify the required images are available before committing."
+      - ""
+      - "   After the mapping is synchronized or committed:"
+      - "      - The deploy pipeline starts automatically."
+      - "      - Select the built image group in GitLab."
+      - "      - Start the manual deploy job."
+      - "      - Restart and validation stages then run automatically."
       - "============================================================"

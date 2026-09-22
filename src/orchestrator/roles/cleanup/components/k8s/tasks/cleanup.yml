@@ -94,17 +94,36 @@
 - name: Determine how the K8s shared filesystem is reachable
   ansible.builtin.set_fact:
     cleanup_k8s_share_mounted: >-
-      {{ cleanup_k8s_mount_point in (lookup('file', '/proc/mounts').splitlines()
-      | map('regex_replace', '^\S+\s+(\S+)\s+.*$', '\1') | list) }}
+      {{ (cleanup_k8s_nfs_source ~ ' ' ~ cleanup_k8s_mount_point)
+         in (lookup('file', '/proc/mounts').splitlines()
+         | map('regex_replace', '^(\S+)\s+(\S+)\s+.*$', '\1 \2')
+         | list) }}
+    cleanup_k8s_nfs_server: >-
+      {{ cleanup_k8s_nfs_source.split(':')[0]
+         if ':' in cleanup_k8s_nfs_source else '' }}
     cleanup_k8s_export_path: >-
       {{ cleanup_k8s_nfs_source.split(':')[1]
          if ':' in cleanup_k8s_nfs_source else '' }}
   tags: k8s
 
+- name: Read local OIM addresses for K8s export detection
+  ansible.builtin.command:
+    cmd: hostname --all-ip-addresses
+  register: cleanup_k8s_local_addresses
+  changed_when: false
+  tags: k8s
+
 - name: Determine whether this OIM exports the K8s share
   ansible.builtin.set_fact:
     cleanup_k8s_export_is_local: >-
-      {{ cleanup_k8s_export_path | length > 0
+      {{ cleanup_k8s_nfs_server in
+         ((['localhost', '127.0.0.1', '::1',
+            inventory_hostname | default(''), ansible_host | default(''),
+            host_name | default(''), oim_node_name | default(''),
+            ansible_hostname | default(''), ansible_fqdn | default('')]
+           + (cleanup_k8s_local_addresses.stdout | default('')).split())
+          | reject('equalto', '') | unique | list)
+      and cleanup_k8s_export_path | length > 0
       and cleanup_k8s_export_path in ((cleanup_k8s_exports_raw.content | default('') | b64decode).splitlines()
       | reject('match', '^\s*(#|$)') | map('regex_replace', '^\s*(\S+).*$', '\1') | list) }}
   tags: k8s
