@@ -144,6 +144,21 @@ cluster1:
     # Default: "false"
     verbose: "false"
 
+    # Utils pipeline mode (utils domain pipeline)
+    # When "true", runs the utils domain pipeline instead of main pipeline
+    # When "false", runs the standard multi-domain pipeline (repo_manager, image_build_manager, etc.)
+    # Default: "false"
+    utils_enable: "false"
+
+    # Utils mode (which utils operations to run when utils_enable is enabled)
+    # Controls which utils operations are executed during utils pipeline:
+    #   "default_logs" = Run log collection (cluster + OIM) — default behavior
+    #   "install_os"   = Run install_os only
+    #   "collect"      = Run cluster log collection only
+    #   "backup_oim_logs" = Run OIM log backup only
+    # Default: "default_logs"
+    utils_mode: "default_logs"
+
     # Stages to skip (comma-separated list)
     # Useful for disabling specific domains or stages without modifying config
     # Valid values:

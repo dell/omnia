@@ -1029,6 +1029,7 @@ def cmd_create(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
+            ("UTILS_MODE", "default_logs"),
         ]
         for key, default_val in global_keys:
             status = client.set_variable(project_id, key, default_val)
@@ -1045,6 +1046,7 @@ def cmd_create(args, client):
             ("TEST_MODE", "false"),
             ("DRY_RUN", "false"),
             ("VERBOSE", "false"),
+            ("UTILS_ENABLE", "false"),
             ("REPO_MANAGER_TAGS", ""),
             ("IMAGE_BUILD_MANAGER_TAGS", ""),
             ("ORCHESTRATOR_TAGS", ""),
@@ -1188,6 +1190,7 @@ def cmd_update(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
+            ("UTILS_MODE", "default_logs"),
         ]
         for key, default_val in global_keys:
             status = client.set_variable(project_id, key, default_val)
@@ -1204,6 +1207,7 @@ def cmd_update(args, client):
             ("TEST_MODE", "false"),
             ("DRY_RUN", "false"),
             ("VERBOSE", "false"),
+            ("UTILS_ENABLE", "false"),
             ("REPO_MANAGER_TAGS", ""),
             ("IMAGE_BUILD_MANAGER_TAGS", ""),
             ("ORCHESTRATOR_TAGS", ""),
