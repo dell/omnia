@@ -377,3 +377,12 @@ gitlab_deployment_complete_msg:
   - "IMPORTANT: For any new GitLab reconfiguration, run cleanup_gitlab.yml before running gitlab.yml"
   - ""
   - "============================================"
+
+# Input validation messages
+gitlab_host_invalid_format_msg: >-
+  gitlab_host in build_stream_config.yml contains invalid characters or template syntax.
+  Value must be a valid hostname containing only alphanumeric characters, dots, and hyphens.
+
+gitlab_config_invalid_format_msg: >-
+  build_stream_config.yml contains invalid values or template syntax.
+  Ensure gitlab_host and gitlab_project_name contain only valid characters.

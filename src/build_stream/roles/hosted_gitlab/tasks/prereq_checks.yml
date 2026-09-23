@@ -29,6 +29,23 @@
     file: "{{ input_project_dir }}/build_stream_config.yml"
   run_once: true
 
+- name: Check gitlab_host for Jinja template injection patterns
+  ansible.builtin.set_fact:
+    _gitlab_host_has_jinja: "{{ (gitlab_host | default('')) is search('\\{\\{|\\{%|\\{#') }}"
+  run_once: true
+
+- name: Validate gitlab_host contains no Jinja template syntax
+  ansible.builtin.assert:
+    that:
+      - gitlab_host is defined
+      - gitlab_host is string
+      - gitlab_host | length > 0
+      - not _gitlab_host_has_jinja
+      - gitlab_host is regex('^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$')
+    fail_msg: "{{ gitlab_host_invalid_format_msg }}"
+    quiet: true
+  run_once: true
+
 - name: Ensure gitlab_host is provided in build_stream_config.yml
   ansible.builtin.assert:
     that:

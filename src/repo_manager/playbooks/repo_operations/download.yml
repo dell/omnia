@@ -113,11 +113,52 @@
       when: repo_manager_metadata_support | default(false) | bool
       failed_when: false
 
+    - name: Check oim_metadata for Jinja template injection patterns
+      ansible.builtin.set_fact:
+        _oim_metadata_has_jinja: >-
+          {{ oim_shared_path_from_metadata | dict2items
+             | selectattr('value', 'search', '\{\{|\{%|\{#')
+             | list | length > 0 }}
+      when:
+        - oim_shared_path_from_metadata is defined
+        - oim_shared_path_from_metadata is mapping
+
+    - name: Validate oim_metadata contains no Jinja template syntax
+      ansible.builtin.assert:
+        that:
+          - not (_oim_metadata_has_jinja | default(false) | bool)
+        fail_msg: "{{ oim_metadata_invalid_format_msg }}"
+        quiet: true
+      when:
+        - oim_shared_path_from_metadata is defined
+        - oim_shared_path_from_metadata is mapping
+
     - name: Load repo_manager_config.yml
       ansible.builtin.include_vars:
         file: "{{ repo_manager_config_file }}"
         name: repo_manager_config
       no_log: true
+
+    - name: Check repo_manager_config for Jinja template injection patterns
+      ansible.builtin.set_fact:
+        _repo_config_has_jinja: >-
+          {{ repo_manager_config | dict2items
+             | selectattr('value', 'search', '\{\{|\{%|\{#')
+             | list | length > 0 }}
+      when:
+        - repo_manager_config is defined
+        - repo_manager_config is mapping
+      no_log: true
+
+    - name: Validate repo_manager_config contains no Jinja template syntax
+      ansible.builtin.assert:
+        that:
+          - not (_repo_config_has_jinja | default(false) | bool)
+        fail_msg: "{{ repo_manager_config_invalid_format_msg }}"
+        quiet: true
+      when:
+        - repo_manager_config is defined
+        - repo_manager_config is mapping
 
     - name: Resolve cluster OS details from catalog functional layers
       ansible.builtin.include_role:
