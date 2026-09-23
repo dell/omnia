@@ -23,11 +23,93 @@
     msg: "{{ build_stream_nfs_path_error_msg }}"
   when: not build_stream_stat.stat.exists
 
-- name: Create playbook_queue directory
+- name: Create playbook queue directories
   ansible.builtin.file:
-    path: "{{ oim_shared_path }}/build_stream/playbook_queue"
+    path: "{{ item }}"
     state: directory
-    mode: "{{ build_stream_dir_mode }}"
+    mode: "{{ build_stream_queue_dir_mode }}"
+  loop:
+    - "{{ build_stream_queue_base }}"
+    - "{{ build_stream_queue_base }}/requests"
+    - "{{ build_stream_queue_base }}/results"
+    - "{{ build_stream_queue_base }}/processing"
+    - "{{ build_stream_queue_base }}/archive"
+    - "{{ build_stream_queue_base }}/archive/requests"
+    - "{{ build_stream_queue_base }}/archive/results"
+
+- name: Check for an existing queue authentication key
+  ansible.builtin.stat:
+    path: "{{ build_stream_queue_auth_key }}"
+  register: queue_auth_key_stat
+
+- name: Check authenticated queue is drained before transition
+  ansible.builtin.find:
+    paths:
+      - "{{ build_stream_queue_base }}/requests"
+      - "{{ build_stream_queue_base }}/processing"
+      - "{{ build_stream_queue_base }}/results"
+    patterns: "*.json"
+    file_type: file
+    recurse: false
+  register: queue_transition_files
+  when: not queue_auth_key_stat.stat.exists
+
+- name: Refuse mixed unsigned and authenticated queue deployment
+  ansible.builtin.fail:
+    msg: >-
+      Build Stream queue contains pending request, processing, or result files.
+      Complete or explicitly cancel existing jobs before enabling authenticated
+      queue messages. Unsigned files cannot be migrated safely.
+  when:
+    - not queue_auth_key_stat.stat.exists
+    - queue_transition_files.matched | default(0) | int > 0
+
+- name: Create queue authentication directory
+  ansible.builtin.file:
+    path: "{{ build_stream_queue_auth_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ build_stream_private_dir_mode }}"
+
+- name: Generate playbook queue authentication key
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/openssl
+      - rand
+      - -out
+      - "{{ build_stream_queue_auth_key }}"
+      - "32"
+    creates: "{{ build_stream_queue_auth_key }}"
+  no_log: true
+
+- name: Restrict playbook queue authentication key permissions
+  ansible.builtin.file:
+    path: "{{ build_stream_queue_auth_key }}"
+    state: file
+    owner: root
+    group: root
+    mode: "{{ build_stream_secret_file_mode }}"
+
+- name: Create root-owned replay state directory
+  ansible.builtin.file:
+    path: "{{ build_stream_queue_replay_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ build_stream_private_dir_mode }}"
+
+- name: Create API queue state directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ build_stream_private_dir_mode }}"
+  loop:
+    - "{{ build_stream_queue_api_state_dir }}"
+    - "{{ build_stream_queue_api_state_dir }}/pending"
+    - "{{ build_stream_queue_api_state_dir }}/consumed"
 
 - name: Deploy playbook watcher systemd unit
   ansible.builtin.template:
@@ -39,20 +121,3 @@
 
 - name: Apply systemd reload for watcher
   ansible.builtin.meta: flush_handlers
-
-- name: Restart and enable playbook watcher service
-  ansible.builtin.systemd_service:
-    name: "{{ watcher_service_name }}"
-    enabled: true
-    state: restarted
-
-- name: Check watcher service status
-  ansible.builtin.command: "systemctl status {{ watcher_service_name | regex_replace('\\.service$', '') }} --no-pager"
-  register: watcher_status
-  changed_when: false
-
-- name: Show recent watcher logs
-  ansible.builtin.command: "journalctl -u {{ watcher_service_name | regex_replace('\\.service$', '') }} -n 10 --no-pager"
-  when: watcher_status.rc == 0
-  register: watcher_logs
-  changed_when: false

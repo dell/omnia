@@ -183,7 +183,9 @@ class TestPlaybookQueueResultService:
 
         assert count == 0
         callback.assert_not_called()
-        repo.archive_result.assert_not_called()
+        repo.quarantine_result.assert_called_once_with(
+            Path("/results/bad.json")
+        )
 
     def test_poll_results_empty_queue(self):
         """Empty queue should return 0 processed."""

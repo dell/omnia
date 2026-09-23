@@ -189,11 +189,12 @@ class PlaybookQueueResultService:
                     f"Processed result for job {result.job_id}",
                     str(result.request_id),
                 )
-            except (ValueError, KeyError) as exc:
+            except (ValueError, KeyError):
                 log_secure_info(
                     "error",
                     "Failed to parse result file",
                 )
+                self._result_repo.quarantine_result(result_path)
             except Exception as exc:  # pylint: disable=broad-except
                 log_secure_info(
                     "error",
@@ -201,5 +202,3 @@ class PlaybookQueueResultService:
                 )
 
         return processed_count
-
-

@@ -12,27 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""NFS-based implementation of PlaybookQueueRequestRepository."""
+"""Authenticated NFS implementation of PlaybookQueueRequestRepository."""
 
-import json
 import os
-import stat
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import Final
+from typing import Optional
 
 from api.logging_utils import log_secure_info
+from common.queue_auth import load_auth_key, write_signed_payload
+from common.queue_state import PendingRequestStore
 from core.localrepo.entities import PlaybookRequest
 from core.localrepo.exceptions import QueueUnavailableError
 
 
-DEFAULT_QUEUE_BASE = str(
-    Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia")) / "playbook_queue"
+DEFAULT_QUEUE_BASE = os.getenv(
+    "PLAYBOOK_QUEUE_BASE",
+    str(Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia")) / "playbook_queue"),
 )
 REQUEST_DIR_NAME = "requests"
-FILE_PERMISSIONS = stat.S_IRUSR | stat.S_IWUSR  # 600
 
 
 class NfsPlaybookQueueRequestRepository:
@@ -42,7 +39,12 @@ class NfsPlaybookQueueRequestRepository:
     for consumption by the OIM Core watcher service.
     """
 
-    def __init__(self, queue_base_path: str = DEFAULT_QUEUE_BASE) -> None:
+    def __init__(
+        self,
+        queue_base_path: str = DEFAULT_QUEUE_BASE,
+        auth_key: Optional[bytes] = None,
+        pending_state_path: Optional[str] = None,
+    ) -> None:
         """Initialize repository with queue base path.
 
         Args:
@@ -50,6 +52,23 @@ class NfsPlaybookQueueRequestRepository:
         """
         self._queue_base = Path(queue_base_path)
         self._requests_dir = self._queue_base / REQUEST_DIR_NAME
+        self._auth_key = auth_key
+        self._pending_state_path = pending_state_path
+        self._pending_store = None
+
+    def _get_auth_key(self) -> bytes:
+        """Load the host-managed queue key only when the queue is used."""
+        if self._auth_key is None:
+            self._auth_key = load_auth_key()
+        return self._auth_key
+
+    def _get_pending_store(self) -> PendingRequestStore:
+        """Return the trusted host-local active-request registry."""
+        if self._pending_store is None:
+            self._pending_store = PendingRequestStore(
+                self._get_auth_key(), self._pending_state_path
+            )
+        return self._pending_store
 
     def write_request(self, request: PlaybookRequest) -> Path:
         """Write a playbook request file to the requests directory.
@@ -74,10 +93,14 @@ class NfsPlaybookQueueRequestRepository:
 
         try:
             request_data = request.to_dict()
-            with open(file_path, "w", encoding="utf-8") as request_file:
-                json.dump(request_data, request_file, indent=2)
-
-            os.chmod(file_path, FILE_PERMISSIONS)
+            request_data.setdefault("command_type", "ansible-playbook")
+            self._get_pending_store().register_request(request_data)
+            write_signed_payload(
+                file_path,
+                request_data,
+                self._get_auth_key(),
+                purpose="request",
+            )
 
             log_secure_info(
                 "info",
@@ -86,7 +109,7 @@ class NfsPlaybookQueueRequestRepository:
             )
             return file_path
 
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             log_secure_info(
                 "error",
                 "Failed to write request file",

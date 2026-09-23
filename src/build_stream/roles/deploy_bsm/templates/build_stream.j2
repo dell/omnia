@@ -54,9 +54,14 @@ Environment=JWT_PRIVATE_KEY_PATH="{{ build_stream_container_omnia_path }}/build_
 Environment=JWT_PUBLIC_KEY_PATH="{{ build_stream_container_omnia_path }}/build_stream_root/api/.auth/keys/jwt_public.pem"
 Environment=BUILD_STREAM_CONFIG_PATH="{{ build_stream_container_omnia_path }}/build_stream/build_stream.ini"
 Environment=NFS_ARTIFACT_BASE={{ build_stream_container_omnia_path }}/build_stream_root
+Environment=PLAYBOOK_QUEUE_BASE={{ build_stream_container_queue_base }}
+Environment=PLAYBOOK_QUEUE_AUTH_KEY_FILE={{ build_stream_container_queue_auth_key }}
+Environment=PLAYBOOK_QUEUE_API_STATE_DIR={{ build_stream_container_queue_api_state_dir }}
 
 # Volume mounts (NFS shared path)
 Volume={{ omnia_path }}:{{ build_stream_container_omnia_path }}{{ selinux_option }}
+Volume={{ build_stream_queue_auth_key }}:{{ build_stream_container_queue_auth_key }}:ro{{ selinux_option | regex_replace('^:', ',') }}
+Volume={{ build_stream_queue_api_state_dir }}:{{ build_stream_container_queue_api_state_dir }}:rw{{ selinux_option | regex_replace('^:', ',') }}
 Volume={{ build_stream_ssl_dir }}:/etc/ssl/omnia:ro{{ selinux_option | regex_replace('^:', ',') }}
 
 [Service]

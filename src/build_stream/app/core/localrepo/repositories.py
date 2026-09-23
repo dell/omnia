@@ -83,6 +83,14 @@ class PlaybookQueueResultRepository(Protocol):
         """
         ...
 
+    def quarantine_result(self, result_path: Path) -> None:
+        """Move an invalid result out of the live queue.
+
+        Args:
+            result_path: Path to the rejected result file.
+        """
+        ...
+
     def is_available(self) -> bool:
         """Check if the result queue directory is accessible.
 
