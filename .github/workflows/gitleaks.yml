@@ -32,7 +32,6 @@ jobs:
             detect \
             --source /repo \
             --config /repo/.github/workflows/.gitleaks.toml \
-            --log-opts="origin/${{ github.base_ref }}..${{ github.sha }}" \
             --redact \
             --exit-code 1 \
             --verbose
