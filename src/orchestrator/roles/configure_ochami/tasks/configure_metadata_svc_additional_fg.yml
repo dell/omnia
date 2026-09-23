@@ -26,7 +26,8 @@
   ansible.builtin.template:
     src: "{{ ms_group_additional_template }}"
     dest: "{{ _ms_fg_dest }}"
-    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+    mode: "{{ hostvars['localhost']['file_permissions_600'] }}"
+  no_log: true
   vars:
     ms_additional_group_name: "{{ _ms_fg_group_name }}"
     ms_additional_data: "{{ _ms_fg_data }}"

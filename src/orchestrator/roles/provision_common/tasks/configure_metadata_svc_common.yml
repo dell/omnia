@@ -19,7 +19,8 @@
   ansible.builtin.template:
     src: "{{ ms_group_common_template }}"
     dest: "{{ ms_group_common_dest }}"
-    mode: "{{ file_permissions_644 }}"
+    mode: "{{ file_permissions_600 }}"
+  no_log: true
 
 - name: Load rendered common group YAML
   ansible.builtin.slurp:

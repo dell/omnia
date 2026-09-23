@@ -199,6 +199,7 @@
     - name: Notify - repo_url using default path
       when:
         - _pkg_raw is defined
+        - (_pkg_raw.install_mode | default('offline')) == 'offline'
         - (_pkg_raw.repo_url | default('')) | length == 0
       block:
         - name: Set default repo_url for display
