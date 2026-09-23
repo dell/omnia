@@ -21,7 +21,8 @@
   ansible.builtin.template:
     src: "{{ ms_group_additional_template }}"
     dest: "{{ metadata_svc_dir }}/ms-group-{{ additional_metadata_svc_common_group_name }}.yaml"
-    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+    mode: "{{ hostvars['localhost']['file_permissions_600'] }}"
+  no_log: true
   vars:
     ms_additional_group_name: "{{ additional_metadata_svc_common_group_name }}"
     ms_additional_data: "{{ additional_metadata_svc_common_data }}"

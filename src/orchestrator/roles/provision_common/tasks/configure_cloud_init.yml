@@ -38,7 +38,8 @@
       ansible.builtin.template:
         src: "{{ ochami_template_dir }}/cloud_init/ci-group-{{ fg_name }}.yaml.j2"
         dest: "{{ cloud_init_dir }}/ci-group-{{ fg_name }}.yaml"
-        mode: "{{ file_permissions_644 }}"
+        mode: "{{ file_permissions_600 }}"
+      no_log: true
   rescue:
     - name: Failed to load ci group template
       ansible.builtin.fail:
