@@ -133,6 +133,14 @@ gitlab_api_token_files:
   - "/root/.gitlab_root_token"
 
 # Debug messages
+gitlab_cleanup_credentials_unavailable_msg: >-
+  GitLab cleanup is already complete or its SSH credentials are unavailable;
+  skipping remote GitLab cleanup and continuing with local BuildStream cleanup.
+
+gitlab_cleanup_credentials_unusable_msg: >-
+  BuildStream credentials are incomplete or cannot be decrypted; skipping
+  remote GitLab cleanup and continuing with local BuildStream cleanup.
+
 gitlab_cleanup_complete_msg:
   - "============================================"
   - "GitLab Cleanup Complete"
