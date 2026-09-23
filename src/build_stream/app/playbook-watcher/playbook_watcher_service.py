@@ -1000,6 +1000,27 @@ def move_log_to_job_directory(
     return new_log_path
 
 
+def extract_dictionary_hits(log_file_path: Path) -> List[Dict[str, str]]:
+    """Extract unique image dictionary reuse events from an Ansible log."""
+    try:
+        log_content = log_file_path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+
+    matches = re.findall(
+        r"DICTIONARY_HIT\s+functional_group=([^\s\"']+)\s+"
+        r"image_group_id=([^\s\"']+)",
+        log_content,
+    )
+    return [
+        {
+            "functional_group": functional_group,
+            "image_group_id": image_group_id,
+        }
+        for functional_group, image_group_id in dict.fromkeys(matches)
+    ]
+
+
 def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     """Execute Ansible playbook directly on the host via the shared venv.
 
@@ -1209,6 +1230,15 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "duration_seconds": int(duration_seconds),
             "timestamp": completed_at.isoformat(),
         }
+
+        if (
+            stage_name
+            in {"build-image", "build-image-x86_64", "build-image-aarch64"}
+            and log_file_path.exists()
+        ):
+            dictionary_hits = extract_dictionary_hits(log_file_path)
+            if dictionary_hits:
+                result_data["dictionary_hits"] = dictionary_hits
 
         # Add error details if failed
         if status == "failed":

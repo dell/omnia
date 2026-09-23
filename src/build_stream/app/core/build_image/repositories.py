@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
 
-from core.build_image.value_objects import Architecture, InventoryHost
+from core.build_image.value_objects import InventoryHost
 
 
 class BuildStreamConfigRepository(ABC):
@@ -37,10 +37,19 @@ class BuildStreamConfigRepository(ABC):
         Raises:
             ConfigFileError: If config file cannot be read.
         """
-        ...
+        raise NotImplementedError
+
+    def get_build_execution_mode(self, job_id: str) -> str:
+        """Return the configured catalog build strategy.
+
+        The concrete repository overrides this method. Keeping a safe default
+        preserves compatibility for alternate repository implementations.
+        """
+        del job_id
+        return "differential"
 
 
-class BuildImageInventoryRepository(ABC):
+class BuildImageInventoryRepository(ABC):  # pylint: disable=too-few-public-methods
     """Repository for creating and managing inventory files for aarch64 builds."""
 
     @abstractmethod
@@ -57,4 +66,4 @@ class BuildImageInventoryRepository(ABC):
         Raises:
             IOError: If inventory file cannot be created.
         """
-        ...
+        raise NotImplementedError

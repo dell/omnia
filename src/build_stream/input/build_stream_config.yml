@@ -42,6 +42,12 @@ build_stream_host_ip: ""
 # Default: 8010
 build_stream_port: 8010
 
+# Image build execution strategy for every BuildStream trigger type.
+# differential: reuse catalog-mode dictionary hits and rebuild only misses.
+# lockstep:     bypass the dictionary and rebuild every functional group.
+# Default: "differential"
+build_execution_mode: "differential"
+
 # ==========================================================================
 # Section 2 — GitLab Settings
 #   Source: gitlab_config.yml

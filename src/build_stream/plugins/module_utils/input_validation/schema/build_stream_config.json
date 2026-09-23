@@ -19,6 +19,11 @@
             "maximum": 65535,
             "description": "BuildStream API server port"
         },
+        "build_execution_mode": {
+            "type": "string",
+            "enum": ["differential", "lockstep"],
+            "description": "Catalog build strategy: dictionary-aware differential or full lockstep rebuild"
+        },
         "gitlab_host": {
             "type": "string",
             "description": "Target host IPv4 address for GitLab deployment"

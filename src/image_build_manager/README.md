@@ -134,7 +134,7 @@ reported and that side of cleanup is skipped.
 
 | File | Location | Description |
 |------|----------|-------------|
-| `build_status.yml` | `output/<project>/` | Producing image engine and per-group S3 artifact paths for provisioning |
+| `build_status.yml` | Catalog: `output/<project>/<catalog-id>-v<version>/`; config: `output/<project>/` | Producing image engine and per-group S3 artifact paths for provisioning. Catalog mode also writes a project-level latest compatibility copy during migration. |
 
 See `samples/` for example input and output files.
 
@@ -275,6 +275,24 @@ Example groups from a typical catalog:
 | `service_kube_control_plane_rhel_10_0_x86_64` | |
 | `service_kube_node_rhel_10_0_x86_64` | |
 
+### Image Reuse and S3 Backup Behavior
+
+| Package source | `backup_s3_images` | Reuse behavior | `_prev` backup |
+|----------------|--------------------|----------------|----------------|
+| `catalog` | `false` | Global dictionary lookup | No |
+| `catalog` | `true` | Global dictionary lookup | No |
+| `config` | `false` | Per-group last-hash cache | No |
+| `config` | `true` | Per-group last-hash cache | Rebuilt groups only |
+
+Catalog-mode lookups are shared across BuildStream and direct catalog-driven
+builds. A hit is reused only when its recorded kernel, initrd, and rootfs S3
+objects still exist. Missing artifacts turn the hit into a rebuild. A successful
+catalog build atomically updates `image_group_dictionary.json`; `force_rebuild`
+bypasses lookup and replaces the matching dictionary entries after validation.
+For BuildStream runs, `build_execution_mode: differential` supplies
+`force_rebuild: false`, while `lockstep` supplies `force_rebuild: true` for the
+same catalog flow. Direct catalog runs continue to use `build_image.force_rebuild`.
+
 ---
 
 ## Runtime Paths
@@ -286,7 +304,10 @@ The domain path defaults to `$OMNIA_DATA_PATH/image_build_manager`:
 ```
 /opt/omnia/image_build_manager/
 +-- input/<project>/          Staged input files
-+-- output/<project>/         build_status.yml
++-- output/<project>/         latest build_status.yml compatibility copy,
+|                            image_group_dictionary.json
+|   +-- <catalog-id>-v<version>/
+|       +-- build_status.yml catalog-version contract
 +-- log/<project>/            Domain runtime logs (validation, build)
 +-- s3/                       MinIO data
 +-- registry/                 OCI registry storage

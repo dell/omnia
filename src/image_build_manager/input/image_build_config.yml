@@ -71,7 +71,9 @@ image_build_type: "image-thrillhouse"
 #   max_parallel     — Max concurrent image builds. 0 = unlimited.
 #   build_timeout    — Per-build timeout in seconds.
 #   force_rebuild    — Bypass package hash cache.
-#   backup_s3_images — Copy S3 artifacts to *_prev before rebuild.
+#   backup_s3_images — In config mode, copy rebuilt S3 artifacts to *_prev.
+#                      Catalog mode uses the global dictionary and ignores this
+#                      flag for backup behavior.
 #   repo_ssl_verify  — SSL + GPG check on RPM repos. Set false for self-signed certs.
 build_image:
   max_parallel: 0

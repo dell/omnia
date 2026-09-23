@@ -59,6 +59,10 @@ class BuildImageConfigService:
             )
         return inventory_host
 
+    def get_execution_mode(self, job_id: str) -> str:
+        """Return the validated BuildStream build execution mode."""
+        return self._config_repo.get_build_execution_mode(job_id)
+
 
 class BuildImageQueueService:
     """Service for build image queue operations."""

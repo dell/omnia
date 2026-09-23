@@ -42,23 +42,39 @@
 - name: Configure registry host and regctl TLS
   ansible.builtin.include_tasks: configure_registry.yml
 
-- name: Compute image tag suffix from source and job_id
+- name: Compute image tag suffix inputs
   ansible.builtin.set_fact:
     _pkg_source: "{{ hostvars['localhost']['functional_groups_source'] | default('config') }}"
     _catalog_id: "{{ hostvars['localhost']['catalog_identifier'] | default('', true) }}"
+    _catalog_version: "{{ hostvars['localhost']['catalog_version'] | default('', true) }}"
+    _catalog_schema_version: "{{ hostvars['localhost']['catalog_schema_version'] | default('', true) }}"
     _job_id: "{{ hostvars['localhost']['job_id'] | default('', true) }}"
     base_image_suffix: ""
     compute_image_suffix: ""
     aarch64_build_host: "{{ groups['admin_aarch64'][0] }}"
 
+- name: Set catalog image group identifier
+  ansible.builtin.set_fact:
+    _catalog_image_group_id: >-
+      {{ _catalog_id ~ ('-v' ~ _catalog_version
+         if (_catalog_version | length) > 0 else '') }}
+  when: _pkg_source == 'catalog'
+
+- name: Report catalog build execution strategy
+  ansible.builtin.debug:
+    msg: >-
+      Catalog build execution mode={{ build_execution_mode | default('direct') }};
+      force_rebuild={{ force_rebuild | bool }}.
+  when: _pkg_source == 'catalog'
+
 - name: Build image tag suffix
   ansible.builtin.set_fact:
     _image_tag_suffix: >-
       {%- set parts = [] -%}
-      {%- if _pkg_source == 'catalog' and (_catalog_id | default('', true) | length) > 0 -%}
-        {%- set _ = parts.append(_catalog_id) -%}
-      {%- endif -%}
-      {%- if (_job_id | default('', true) | length) > 0 -%}
+      {%- if _pkg_source == 'catalog'
+             and (_catalog_image_group_id | default('', true) | length) > 0 -%}
+        {%- set _ = parts.append(_catalog_image_group_id) -%}
+      {%- elif (_job_id | default('', true) | length) > 0 -%}
         {%- set _ = parts.append(_job_id) -%}
       {%- endif -%}
       {{ ('_' + parts | join('_')) if parts | length > 0 else '' }}

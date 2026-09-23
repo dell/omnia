@@ -726,7 +726,7 @@ class CreateBuildImageUseCase:
     def _build_unified_playbook_request(
         self, command: CreateBuildImageCommand
     ) -> BuildImageRequest:
-        """Create unified playbook request with job_id only."""
+        """Create a unified catalog playbook request."""
         # Use image_build_manager.yml playbook
         full_path = get_playbook_path("image_build_manager.yml")
         if full_path is None:
