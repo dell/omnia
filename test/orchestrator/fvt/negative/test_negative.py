@@ -40,21 +40,18 @@ from library.functions import (
     check_network_spec_exists,
     check_credentials_present,
     run_on_host,
-    load_test_config,
+    resolve_target_input_project_path,
 )
 from library.vars.common_vars import (
     ORCHESTRATOR_CONFIG_FILE,
     NETWORK_SPEC_FILE,
     CREDENTIALS_FILE_NAME,
-    INPUT_PATH_TEMPLATE,
 )
 
 
-def _get_input_path() -> str:
-    """Return the orchestrator input path for the configured project."""
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    return INPUT_PATH_TEMPLATE.format(project=project)
+def _get_input_path(host) -> str:
+    """Return the target Orchestrator input path."""
+    return resolve_target_input_project_path(host)
 
 
 @pytest.mark.negative
@@ -68,7 +65,7 @@ def test_deploy_fails_missing_orchestrator_config(host):
     tl = TestLogger("Negative: Missing orchestrator_config.yml", "ORCH_FVT_NEGATIVE_V013")
 
     # Check if orchestrator_config.yml exists
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     config_path = f"{input_path}/{ORCHESTRATOR_CONFIG_FILE}"
     
     result = run_on_host(host, f"test -f {config_path} && echo 'exists' || echo 'missing'")
@@ -96,7 +93,7 @@ def test_deploy_fails_missing_network_spec(host):
     """
     tl = TestLogger("Negative: Missing network_spec.yml", "ORCH_FVT_NEGATIVE_V014")
 
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     network_path = f"{input_path}/{NETWORK_SPEC_FILE}"
     
     result = run_on_host(host, f"test -f {network_path} && echo 'exists' || echo 'missing'")
@@ -147,7 +144,7 @@ def test_deploy_fails_invalid_yaml_syntax(host):
     """
     tl = TestLogger("Negative: Invalid YAML syntax detection", "ORCH_FVT_NEGATIVE_V016")
 
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     config_path = f"{input_path}/{ORCHESTRATOR_CONFIG_FILE}"
     
     # Check if file exists first

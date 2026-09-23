@@ -7,7 +7,9 @@
 
 import ast
 from collections import defaultdict
+from pathlib import Path
 import re
+import runpy
 
 import pytest
 import yaml
@@ -58,6 +60,24 @@ def _has_marker(function, marker):
         and decorator.value.attr == "mark"
         for decorator in function.decorator_list
     )
+
+
+def _module_markers(tree):
+    """Return marker names inherited through a module-level pytestmark."""
+    markers = set()
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(getattr(target, "id", "") == "pytestmark" for target in node.targets):
+            continue
+        markers.update(
+            child.attr
+            for child in ast.walk(node.value)
+            if isinstance(child, ast.Attribute)
+            and isinstance(child.value, ast.Attribute)
+            and child.value.attr == "mark"
+        )
+    return markers
 
 
 def _has_deploy_test(path):
@@ -143,6 +163,34 @@ def test_marker_registry_and_batch_filters_cannot_drift():
     assert selected <= configured
 
 
+def test_sanity_and_functional_checks_are_available_to_buildstream():
+    """ORCH_UT_125: BuildStream can run every basic Orchestrator check."""
+    missing = []
+    check_root = TEST_ROOT / "fvt" / "check"
+    for test_file in check_root.rglob("test_*.py"):
+        tree = ast.parse(test_file.read_text(encoding="utf-8"))
+        module_markers = _module_markers(tree)
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if not node.name.startswith("test_"):
+                continue
+            is_basic = (
+                "sanity" in module_markers
+                or "functional" in module_markers
+                or _has_marker(node, "sanity")
+                or _has_marker(node, "functional")
+            )
+            has_buildstream = (
+                "buildstream" in module_markers
+                or _has_marker(node, "buildstream")
+            )
+            if is_basic and not has_buildstream:
+                missing.append(f"{test_file.relative_to(TEST_ROOT)}::{node.name}")
+
+    assert missing == [], "Missing buildstream marker:\n" + "\n".join(missing)
+
+
 def test_every_batch_full_flow_has_one_deploy_owner():
     """ORCH_UT_041: Every configured test flow has a deployment trigger."""
     for tag, scenario in _batch_config()["fvt_orchestrator"].items():
@@ -182,6 +230,57 @@ def test_untagged_lifecycle_is_explicit_and_non_destructive():
     assert set(lifecycle).isdisjoint(_literal_assignment("EXCLUDE_TAGS"))
     for tag in lifecycle:
         assert _has_deploy_test(TEST_ROOT / "fvt" / tag), tag
+
+
+def test_untagged_verify_collects_every_safe_fvt_tag(monkeypatch):
+    """ORCH_UT_106: Plain verify runs all safe checks without a sanity filter."""
+    lifecycle = _literal_assignment("ALL_EXEC_TAGS")
+    entrypoint = runpy.run_path(str(TEST_ROOT / "_run.py"))
+    select_tags = entrypoint["_runner_all_exec_tags"]
+    verify_tags = select_tags(
+        ["fvt_orchestrator", "verify"], lifecycle,
+    )
+    assert verify_tags == []
+    assert select_tags(
+        ["fvt_orchestrator", "verify", "--marker", "functional"],
+        lifecycle,
+    ) == []
+    assert select_tags(["fvt_orchestrator", "test"], lifecycle) == lifecycle
+    assert select_tags(
+        ["fvt_orchestrator", "check", "verify"], lifecycle,
+    ) == lifecycle
+    runner = ValidationRunner(
+        domain="orchestrator",
+        script_dir=str(TEST_ROOT),
+        domain_config={
+            "tags": _literal_assignment("FVT_TAGS"),
+            "markers": _literal_assignment("MARKERS"),
+            "suites": _literal_assignment("SUITES"),
+            "exclude_tags": _literal_assignment("EXCLUDE_TAGS"),
+            "all_exec_tags": verify_tags,
+            "all_exec_marker": _literal_assignment("ALL_EXEC_MARKER"),
+            "all_verify_exclude_markers": _literal_assignment(
+                "ALL_VERIFY_EXCLUDE_MARKERS"
+            ),
+        },
+    )
+    calls = []
+    monkeypatch.setattr(
+        runner,
+        "_invoke_pytest_with_summary",
+        lambda paths, marker_args, verbose: (
+            calls.append((paths, marker_args, verbose)) or 0
+        ),
+    )
+
+    assert runner._run_verify("", "", "", "") == 0
+    assert len(calls) == 1
+    paths, marker_args, _ = calls[0]
+    expected = set(_literal_assignment("FVT_TAGS")) - set(
+        _literal_assignment("EXCLUDE_TAGS")
+    )
+    assert {Path(path).name for path in paths} == expected
+    assert marker_args == "-m 'not deploy and not negative and not destructive'"
 
 
 def test_verify_only_tags_have_no_deploy_tests():

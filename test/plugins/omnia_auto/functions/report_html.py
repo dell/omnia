@@ -162,7 +162,7 @@ def generate_html(data: Dict[str, Any]) -> str:
             server_info_list.append(_redact_sensitive(server_ip))
 
         for run in server_data.get("runs", []):
-            run_id = run.get("report_id", "unknown")
+            run_id = run.get("run_id", "unknown")
             modules = run.get("modules", [])
             if not modules and "results" in run:
                 modules = [{
@@ -286,7 +286,7 @@ def generate_html(data: Dict[str, Any]) -> str:
         run_sections_html = ""
         for run_id in sorted(tests_by_run.keys()):
             run_tests = tests_by_run[run_id]
-            run_id_short = run_id[-8:] if len(run_id) > 8 else run_id
+            run_id_short = run_id
             run_section_id = f"run-{suite_name.replace(' ', '_').replace('/', '_')}-{run_id_short}"
 
             # Per-run statistics

@@ -79,6 +79,7 @@ def skip_if_not_applicable(result):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(20)
 def test_slurmctld_on_control_nodes(host):
     """ORCH_FVT_SLURM_V028: Verify slurmctld active on all control nodes."""
@@ -107,6 +108,7 @@ def test_slurmctld_on_control_nodes(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(21)
 def test_slurmd_on_compute_nodes(host):
     """ORCH_FVT_SLURM_V029: Verify slurmd active on all compute nodes."""
@@ -135,6 +137,7 @@ def test_slurmd_on_compute_nodes(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(22)
 def test_munge_on_required_nodes(host):
     """ORCH_FVT_SLURM_V030: Verify munge active on all required nodes."""
@@ -163,6 +166,7 @@ def test_munge_on_required_nodes(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(23)
 def test_srun_execution(host):
     """ORCH_FVT_SLURM_V031: Verify srun job execution."""
@@ -189,6 +193,7 @@ def test_srun_execution(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(24)
 def test_sbatch_job_submission(host):
     """ORCH_FVT_SLURM_V032: Verify sbatch job submission and execution."""
@@ -218,6 +223,7 @@ def test_sbatch_job_submission(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(25)
 def test_job_queueing(host):
     """ORCH_FVT_SLURM_V033: Verify job queuing mechanism."""
@@ -244,6 +250,7 @@ def test_job_queueing(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(26)
 def test_drain_undrain_nodes(host):
     """ORCH_FVT_SLURM_V034: Verify drain and undrain functionality."""
@@ -270,6 +277,7 @@ def test_drain_undrain_nodes(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(27)
 def test_ldap_user_login(host):
     """ORCH_FVT_SLURM_V035: Verify LDAP user login to login nodes."""
@@ -296,6 +304,7 @@ def test_ldap_user_login(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(28)
 def test_ldap_job_submission(host):
     """ORCH_FVT_SLURM_V036: Verify LDAP user job submission."""
@@ -322,6 +331,7 @@ def test_ldap_job_submission(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(29)
 def test_gpu_available(host):
     """ORCH_FVT_SLURM_V037: Verify GPU resources available in SLURM."""
@@ -348,6 +358,7 @@ def test_gpu_available(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(30)
 def test_gpu_job_execution(host):
     """ORCH_FVT_SLURM_V038: Verify GPU job execution."""
@@ -377,6 +388,7 @@ def test_gpu_job_execution(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(31)
 def test_infiniband_available(host):
     """ORCH_FVT_SLURM_V039: Verify InfiniBand available on compute nodes."""
@@ -403,6 +415,7 @@ def test_infiniband_available(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(32)
 def test_mpi_available(host):
     """ORCH_FVT_SLURM_V040: Verify MPI available on login compiler nodes."""
@@ -429,6 +442,7 @@ def test_mpi_available(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(33)
 def test_mpi_job_execution(host):
     """ORCH_FVT_SLURM_V041: Verify MPI job execution."""

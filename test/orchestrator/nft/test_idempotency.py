@@ -40,13 +40,38 @@ from library.functions import (
 from library.vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
 
 
-def _changed_count(result):
-    """Return the total changed count from the final Ansible recap."""
+_NON_PERSISTENT_CHANGE_PREFIXES = (
+    "orchestrator_setup : Create OIM host group",
+)
+
+
+def _persistent_changed_count(result):
+    """Return recap changes excluding allowlisted in-memory inventory updates."""
+    output = result.get("output", "")
     counts = [int(value) for value in re.findall(
-        r"\bchanged=(\d+)\b", result.get("output", "")
+        r"\bchanged=(\d+)\b", output
     )]
     assert counts, "Ansible output did not contain a changed= recap"
-    return sum(counts)
+
+    non_persistent_changes = 0
+    current_task = ""
+    for line in output.splitlines():
+        task_match = re.search(r"TASK \[(.+?)\]", line)
+        if task_match:
+            current_task = task_match.group(1)
+            continue
+        if (
+            re.search(r"\bchanged: \[[^]]+\]", line)
+            and any(
+                current_task.startswith(prefix)
+                for prefix in _NON_PERSISTENT_CHANGE_PREFIXES
+            )
+        ):
+            non_persistent_changes += 1
+
+    total_changes = sum(counts)
+    assert non_persistent_changes <= total_changes
+    return total_changes - non_persistent_changes
 
 
 @pytest.mark.nft
@@ -118,7 +143,7 @@ def test_prepare_idempotent(host):
     assert result2["success"], (
         f"Second prepare run failed (rc={result2['rc']})"
     )
-    assert _changed_count(result2) == 0, (
+    assert _persistent_changed_count(result2) == 0, (
         "Second prepare run reported changed tasks"
     )
     assert containers2["success"], "OpenCHAMI containers not running after second run"
@@ -175,7 +200,7 @@ def test_validate_idempotent(host):
     assert result2["success"], (
         f"Second validate run failed (rc={result2['rc']})"
     )
-    assert _changed_count(result2) == 0, (
+    assert _persistent_changed_count(result2) == 0, (
         "Second validate run reported changed tasks"
     )
 
@@ -254,7 +279,7 @@ def test_cleanup_idempotent(host):
     assert result2["success"], (
         f"Second cleanup run failed (rc={result2['rc']})"
     )
-    assert _changed_count(result2) == 0, (
+    assert _persistent_changed_count(result2) == 0, (
         "Second cleanup run reported changed tasks"
     )
     assert containers2["success"], "Containers not removed after second run"

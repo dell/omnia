@@ -350,20 +350,66 @@ fi
 
 echo "SUCCESS: FINAL IP ASSIGNMENT: Successfully assigned $IB_IP/$NETMASK_BITS to IB interface $IB_INTERFACE"
 
-# Configure DNS for InfiniBand network
+# Configure DNS for InfiniBand network. The functional-group cloud-init
+# templates protect resolv.conf with the immutable bit, so update the resolved
+# target atomically and restore that protection on both success and failure.
+{% set ib_dns_servers = hostvars['localhost']['ib_network_dns'] | default([], true) %}
+{% if ib_dns_servers | length > 0 %}
 if [ -n "$IB_IP" ]; then
     echo "INFO: DNS CONFIGURATION: Configuring DNS for InfiniBand interface"
 
-    # Add VAST DNS servers (completely safe - handles empty arrays)
-    {% for dns_server in hostvars['localhost']['ib_network_dns'] %}
-    echo "DEBUG: DNS CONFIGURATION: Adding DNS server {{ dns_server }}"
-    echo "nameserver {{ dns_server }}" >> /etc/resolv.conf
+    resolv_target=$(readlink -f /etc/resolv.conf 2>/dev/null || true)
+    [ -n "$resolv_target" ] || resolv_target=/etc/resolv.conf
+    if [ ! -f "$resolv_target" ]; then
+        echo "ERROR: DNS CONFIGURATION: Resolver file $resolv_target does not exist" >&2
+        exit 1
+    fi
+
+    resolv_tmp=$(mktemp "$(dirname "$resolv_target")/.resolv.conf.XXXXXX")
+    cleanup_resolver_update() {
+        resolver_rc=$?
+        rm -f -- "$resolv_tmp"
+        if command -v chattr >/dev/null 2>&1; then
+            chattr +i "$resolv_target" || true
+        fi
+        trap - EXIT
+        exit "$resolver_rc"
+    }
+    trap cleanup_resolver_update EXIT
+
+    cp --preserve=mode,ownership -- "$resolv_target" "$resolv_tmp"
+    if command -v chcon >/dev/null 2>&1; then
+        chcon --reference="$resolv_target" "$resolv_tmp" 2>/dev/null || true
+    fi
+
+    {% for dns_server in ib_dns_servers %}
+    if ! grep -Fqx "nameserver {{ dns_server }}" "$resolv_tmp"; then
+        echo "DEBUG: DNS CONFIGURATION: Adding DNS server {{ dns_server }}"
+        printf '%s\n' "nameserver {{ dns_server }}" >> "$resolv_tmp"
+    else
+        echo "INFO: DNS CONFIGURATION: DNS server {{ dns_server }} is already present"
+    fi
     {% endfor %}
 
+    if command -v chattr >/dev/null 2>&1; then
+        chattr -i "$resolv_target" || true
+    fi
+    mv -f -- "$resolv_tmp" "$resolv_target"
+    if command -v restorecon >/dev/null 2>&1; then
+        restorecon "$resolv_target" >/dev/null 2>&1 || true
+    fi
+    if command -v chattr >/dev/null 2>&1; then
+        chattr +i "$resolv_target" || true
+    fi
+
+    trap - EXIT
     echo "SUCCESS: DNS CONFIGURATION: DNS configuration completed for IB network"
 else
     echo "INFO: DNS CONFIGURATION: No DNS configuration needed (IB IP is empty)"
 fi
+{% else %}
+echo "INFO: DNS CONFIGURATION: No InfiniBand DNS servers are configured"
+{% endif %}
 
 echo "=== IB NETWORK CONFIGURATION COMPLETED SUCCESSFULLY ==="
 echo "SUMMARY: IB interface $IB_INTERFACE configured with IP $IB_IP/$NETMASK_BITS"

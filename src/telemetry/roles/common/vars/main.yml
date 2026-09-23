@@ -31,12 +31,24 @@ telemetry_packages_file: "{{ input_project_dir }}/telemetry_packages.yml"
 
 # Cluster inventory file (specified in telemetry_config.yml as cluster_inventory)
 # This file contains both Kubernetes and Slurm inventory from orchestrator
-# User should specify the path in telemetry_config.yml, e.g.:
-#   cluster_inventory: "{{ omnia_data_path }}/telemetry/input/{{ project_name | default('project_default') }}/orchestrator_inventory.yml"
+# Set it to the Orchestrator output file for the active project:
+#   <omnia_data_path>/orchestrator/output/<project>/orchestrator_inventory.yml
 
 # Verification timeouts (shared defaults)
 deploy_timeout: "600s"
 verify_timeout: "300s"
+
+# =============================================================================
+# Pulp Repository Configuration (for offline mode)
+# =============================================================================
+# These variables define the structure of the Pulp repository URL when
+# repo_url is auto-derived from SYSTEM_ADMIN_NIC_IPV4 in offline mode.
+# Customize these if your Pulp repository uses different paths or versions.
+pulp_port: "2225"
+pulp_base_path: "pulp/content/offline_repo"
+pulp_cluster_arch: "cluster/x86_64"
+pulp_os_name: "rhel"
+pulp_os_version: "10.0"
 
 # =============================================================================
 # Python dependency installation

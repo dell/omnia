@@ -381,6 +381,10 @@ def verify_data_queryable_after_restart(host, query="up", min_results=1):
 def reboot_node_and_wait(host, node_ip, wait_timeout=600, poll_interval=15):
     """Reboot a K8s node via SSH and wait for it to come back.
 
+    Uses ``ServerAliveInterval`` and ``ServerAliveCountMax`` to prevent
+    the SSH session from hanging when the remote node reboots before the
+    connection cleanly closes.
+
     Args:
         host: Testinfra host (OIM).
         node_ip: IP of the node to reboot.
@@ -390,17 +394,32 @@ def reboot_node_and_wait(host, node_ip, wait_timeout=600, poll_interval=15):
     Returns:
         dict with keys: success, elapsed, error.
     """
-    from omnia_auto import run_on_host
+    from omnia_auto import run_on_host, log
 
     # Trigger reboot (async, returns immediately)
+    # ServerAliveInterval/CountMax ensure SSH won't hang if the
+    # remote side drops mid-reboot.
     reboot_cmd = (
-        f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "
+        f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 "
+        f"-o ServerAliveInterval=5 -o ServerAliveCountMax=3 "
         f"root@{node_ip} 'nohup reboot &>/dev/null &' 2>&1 || true"
     )
+    log(f"Sending reboot command to {node_ip}", "INFO")
     run_on_host(host, reboot_cmd)
 
-    # Wait for node to go down
+    # Wait for node to go down (give it time to actually start rebooting)
     time.sleep(30)
+
+    # Confirm node went down (SSH should fail)
+    down_cmd = (
+        f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "
+        f"-o BatchMode=yes root@{node_ip} 'echo up' 2>/dev/null"
+    )
+    down_result = run_on_host(host, down_cmd)
+    if down_result.rc == 0 and "up" in down_result.stdout:
+        # Node hasn't gone down yet, wait a bit more
+        log(f"Node {node_ip} still reachable after 30s, waiting longer", "INFO")
+        time.sleep(30)
 
     # Wait for node to come back
     start = time.time()
@@ -412,6 +431,10 @@ def reboot_node_and_wait(host, node_ip, wait_timeout=600, poll_interval=15):
         )
         result = run_on_host(host, ping_cmd)
         if result.rc == 0 and "ok" in result.stdout:
+            # Node is back, wait for kubelet to stabilize
+            log(f"Node {node_ip} is back after {elapsed:.0f}s, "
+                f"waiting for kubelet to stabilize", "INFO")
+            time.sleep(15)
             return {
                 "success": True,
                 "elapsed": round(elapsed, 1),
@@ -429,16 +452,22 @@ def reboot_node_and_wait(host, node_ip, wait_timeout=600, poll_interval=15):
 
 
 def verify_pods_after_reboot(host, timeout=600, poll_interval=15,
-                             namespace=None):
+                             namespace=None, no_pods_grace=120):
     """Verify all telemetry pods return to Running after node reboot.
 
-    Waits for all pods to reach Running/Ready state.
+    Waits for all pods to reach Running/Ready state.  If *no* pods
+    appear in the namespace within ``no_pods_grace`` seconds, the
+    function returns early with a failure instead of polling the full
+    ``timeout`` — this prevents the test from hanging when nothing is
+    deployed.
 
     Args:
         host: Testinfra host (OIM).
         timeout: Max seconds to wait for pods.
         poll_interval: Seconds between checks.
         namespace: K8s namespace (default: telemetry).
+        no_pods_grace: Seconds to wait for at least one pod to appear
+            before giving up early (default: 120).
 
     Returns:
         dict with keys: success, total_pods, running_count,
@@ -478,6 +507,21 @@ def verify_pods_after_reboot(host, timeout=600, poll_interval=15,
                 "not_running_count": 0,
                 "elapsed": round(elapsed, 1),
                 "details": f"All {total} pods Running after {elapsed:.0f}s",
+            }
+
+        # Early exit: no pods appeared within the grace period
+        if total == 0 and elapsed >= no_pods_grace:
+            return {
+                "success": False,
+                "total_pods": 0,
+                "running_count": 0,
+                "not_running_count": 0,
+                "elapsed": round(elapsed, 1),
+                "details": (
+                    f"No pods found in namespace '{ns}' after "
+                    f"{no_pods_grace}s grace period. "
+                    f"Is the telemetry stack deployed?"
+                ),
             }
 
         if elapsed >= timeout:

@@ -87,6 +87,7 @@ from .telemetry_func import (
     _get_svc_endpoint,
     get_vlselect_endpoint,
     get_vmselect_endpoint,
+    is_sink_enabled_for_source,
     load_telemetry_config_from_target,
     run_on_kube_vip,
 )
@@ -557,10 +558,10 @@ def _vast_api_context(host, config, staging_dir):
 
 def _trigger_state_path(create_directory=False):
     """Resolve the safe per-run VAST trigger-state path."""
-    report_id = os.environ.get("REPORT_ID", "").strip()
-    if not re.fullmatch(VAST_REPORT_ID_PATTERN, report_id):
+    run_id = os.environ.get("RUN_ID", "").strip()
+    if not re.fullmatch(VAST_REPORT_ID_PATTERN, run_id):
         raise VastApiError(
-            "REPORT_ID is missing or invalid; use run_validation.sh so the "
+            "RUN_ID is missing or invalid; use run_validation.sh so the "
             "VAST trigger and verification share one run identifier"
         )
     state_dir = os.path.join(MODULE_ROOT, VAST_TRIGGER_STATE_SUBDIR)
@@ -570,7 +571,7 @@ def _trigger_state_path(create_directory=False):
     elif os.path.islink(state_dir):
         raise VastApiError("VAST trigger-state directory must not be a symlink")
     return os.path.join(
-        state_dir, VAST_TRIGGER_STATE_FILE.format(report_id=report_id),
+        state_dir, VAST_TRIGGER_STATE_FILE.format(run_id=run_id),
     )
 
 
@@ -898,6 +899,15 @@ def _vast_log_details(entries, trigger_epoch, query_start, attempt):
 
 def verify_fresh_vast_test_event(host):
     """Verify the VAST test event from this run reached VictoriaLogs."""
+    # Skip if VAST source does not target victoria_logs sink
+    if not is_sink_enabled_for_source(host, "vast", "victoria_logs"):
+        return _result(
+            True,
+            details={"reason": "VAST source does not target VictoriaLogs sink"},
+            skipped=True,
+            count=0,
+        )
+    
     try:
         trigger_epoch, state_path = _validated_trigger_state(host)
     except _VastTriggerStateUnavailable as exc:

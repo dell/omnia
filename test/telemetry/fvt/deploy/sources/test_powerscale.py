@@ -56,6 +56,7 @@ from library.functions.k8s_func import verify_deploy_pods_detail
 from library.functions.telemetry_func import (
     is_source_enabled,
     is_logs_enabled,
+    is_sink_enabled_for_source,
 )
 from library.functions.powerscale_func import (
     decode_isilon_creds,
@@ -308,6 +309,10 @@ def test_powerscale_secret_valid(host):
 def test_powerscale_metrics_in_vm(host):
     """Verify PowerScale metrics in VictoriaMetrics."""
     _skip_if_powerscale_disabled(host)
+    # Skip if PowerScale does not target VictoriaMetrics sink
+    if not is_sink_enabled_for_source(host, "powerscale", "victoria_metrics"):
+        pytest.skip("PowerScale source does not target VictoriaMetrics sink")
+    
     tc = TC["powerscale_metrics_in_vm"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -494,6 +499,9 @@ def test_powerscale_logs_in_vl(host):
     _skip_if_powerscale_disabled(host)
     if not is_logs_enabled(host, "powerscale"):
         pytest.skip("PowerScale logs not enabled in config")
+    # Skip if PowerScale does not target VictoriaLogs sink
+    if not is_sink_enabled_for_source(host, "powerscale", "victoria_logs"):
+        pytest.skip("PowerScale source does not target VictoriaLogs sink")
 
     tc = TC["powerscale_logs_in_vl"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -599,6 +607,10 @@ def test_powerscale_feature_flags(host):
 def test_powerscale_health_metrics(host):
     """Verify PowerScale health metrics."""
     _skip_if_powerscale_disabled(host)
+    # Skip if PowerScale does not target VictoriaMetrics sink
+    if not is_sink_enabled_for_source(host, "powerscale", "victoria_metrics"):
+        pytest.skip("PowerScale source does not target VictoriaMetrics sink")
+    
     tc = TC["powerscale_health_metrics"]
     tl = TestLogger(tc["title"], tc["id"])
 

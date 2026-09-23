@@ -24,11 +24,6 @@ jobs:
           fetch-depth: 0
 
       - name: Run Gitleaks scan
-        # TODO: Make blocking by removing "continue-on-error: true"
-        # and adding "Scan for secrets" as a required status check
-        # in branch protection rules.
-        # Tracking: <issue/ticket number>
-        continue-on-error: true    # ← non-blocking
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/repo" \

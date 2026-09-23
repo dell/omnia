@@ -26,6 +26,7 @@ Provides:
 
 import sys
 import os
+from datetime import datetime
 
 import pytest
 
@@ -188,39 +189,28 @@ def pytest_collection_modifyitems(session, config, items):
     mode, markers = _parse_marker_expression(marker_expr)
 
     if mode != "none" and markers:
-        filtered = []
+        selected = []
+        deselected = []
         for item in items:
             if mode == "and":
-                if all(_item_has_marker(item, m) for m in markers):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=(
-                            f"Missing marker(s) for AND expression: "
-                            f"{'+'.join(markers)}"
-                        )
-                    ))
-                    filtered.append(item)
+                matches = all(
+                    _item_has_marker(item, marker) for marker in markers
+                )
             elif mode == "or":
-                if any(_item_has_marker(item, m) for m in markers):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=(
-                            f"No matching marker for OR expression: "
-                            f"{','.join(markers)}"
-                        )
-                    ))
-                    filtered.append(item)
-            elif mode == "single":
-                if _item_has_marker(item, markers[0]):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=f"Missing marker: {markers[0]}"
-                    ))
-                    filtered.append(item)
-        items[:] = filtered
+                matches = any(
+                    _item_has_marker(item, marker) for marker in markers
+                )
+            else:
+                matches = _item_has_marker(item, markers[0])
+
+            if matches:
+                selected.append(item)
+            else:
+                deselected.append(item)
+
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
+        items[:] = selected
 
     def _get_order(item):
         marker = item.get_closest_marker("order")
@@ -339,12 +329,13 @@ def pytest_sessionstart(session):
                 module_name = part
                 break
 
-    report_id = os.environ.get("REPORT_ID")
+    configured_id = str(config.get("run_id") or "").strip()
+    run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.environ["RUN_ID"] = run_id
     base_name = str(
         config.get("report_name", "build_stream_test_report")
     )
     report_name = build_report_name(
-        domain_name="build_stream",
         base_name=base_name,
     )
     report = TestReport(
@@ -352,7 +343,7 @@ def pytest_sessionstart(session):
         report_path=os.path.expandvars(str(config["report_path"])),
         report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
-        report_id=report_id,
+        run_id=run_id,
     )
     set_current_report(report)
 

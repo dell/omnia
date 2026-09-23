@@ -25,6 +25,7 @@ Provides:
 
 import sys
 import os
+from datetime import datetime
 
 import pytest
 
@@ -224,10 +225,11 @@ def pytest_sessionstart(session):
         else "main_fvt"
     )
 
-    report_id = os.environ.get("REPORT_ID")
+    configured_id = str(config.get("run_id") or "").strip()
+    run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.environ["RUN_ID"] = run_id
     base_name = str(config.get("report_name", "test_report"))
     report_name = build_report_name(
-        domain_name="main",
         base_name=base_name,
         report_id=report_id,
     )
@@ -240,7 +242,7 @@ def pytest_sessionstart(session):
         server_ip=str(
             config.get("oim_server_ip", "localhost")
         ),
-        report_id=report_id,
+        run_id=run_id,
     )
     set_current_report(report)
 

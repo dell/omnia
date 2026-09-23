@@ -140,7 +140,39 @@ backup or cleanup.
 
 ---
 
-## 5. Environment Variables
+## 5. slurm_config_util_config.yml
+
+**Purpose**: Optional path, storage, backup, and interaction overrides for the
+Slurm configuration backup, cleanup, and rollback utilities.
+
+**Source template**: `src/utils/input/slurm_config_util_config.yml`
+
+**Required by**: The file itself is optional. Slurm utility flows still require
+the referenced producer-owned artifacts; their paths may come from this file,
+direct extra variables, or the current legacy runtime fallbacks.
+
+| Field | Type | Default / behavior |
+|-------|------|--------------------|
+| `omnia_config_path` | string | Set to the producer-owned Orchestrator `omnia_config.yml`; empty retains the legacy Utils runtime fallback |
+| `storage_config_path` | string | Set to the producer-owned Orchestrator `storage_config.yml`; empty retains the legacy Utils runtime fallback |
+| `pxe_mapping_path` | string | Set to producer-generated `nodes_slurm.yaml` or `pxe_mapping_file.csv`; empty retains the legacy Utils runtime fallback, and `.csv` selects CSV parsing |
+| `slurm_share_dir_name` | string | `slurm` |
+| `slurm_backups_dir_name` | string | `slurm_backups` |
+| `nfs_storage_name` | string | Empty uses the storage name selected by the Slurm cluster input |
+| `slurm_backup_path` | string | Empty uses `OMNIA_BACKUP_PATH`, then the project output path |
+| `backup_base_name` | string | `slurm_config` |
+| `slurm_cleanup_confirm_token` | string | `YES` |
+| `rollback_backup_list_limit` | integer | `20` |
+
+The referenced `omnia_config.yml`, `storage_config.yml`, `nodes_slurm.yaml`,
+and `pxe_mapping_file.csv` files are not Utils-owned input templates. Point the
+fields above to the artifacts produced and maintained by Orchestrator or
+OpenCHAMI; `omnia-cli edit utils` intentionally does not list them as Utils
+inputs.
+
+---
+
+## 6. Environment Variables
 
 Environment is normally installed by `src/main/omnia.sh` and sourced from
 `/etc/profile.d/omnia-env.sh` before direct playbook execution.
@@ -157,7 +189,7 @@ Environment is normally installed by `src/main/omnia.sh` and sourced from
 
 ---
 
-## 6. Direct Extra Variables
+## 7. Direct Extra Variables
 
 | Variable | Flow | Default | Description |
 |----------|------|---------|-------------|
