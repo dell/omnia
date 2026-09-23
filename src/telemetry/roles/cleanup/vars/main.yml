@@ -21,7 +21,7 @@
 telemetry_namespace: "telemetry"
 # Preserve sink volumes (Kafka, VictoriaMetrics, VictoriaLogs) unless the user explicitly requests deletion.
 # Both -e delete_sinks_volume=true and -e Delete_sinks_volume=true are accepted.
-# Source volumes (iDRAC, LDMS, PowerScale, etc.) are always deleted.
+# Source volumes (currently iDRAC and PowerScale) are always deleted.
 _cleanup_delete_sinks_volume_enabled: >-
   {{
     (hostvars['localhost'] | default({}))['_cleanup_delete_sinks_volume']
@@ -30,6 +30,13 @@ _cleanup_delete_sinks_volume_enabled: >-
   }}
 _cleanup_preserve_sink_volumes: >-
   {{ not (_cleanup_delete_sinks_volume_enabled | bool) }}
+cleanup_granular_sink_volume_option_fail_msg: >-
+  delete_sinks_volume is not supported with telemetry granular cleanup
+  tags because sink PVCs are shared. Remove this extra variable, or use
+  --tags cleanup when deleting sink volumes.
+cleanup_invalid_sink_volume_option_msg: >-
+  delete_sinks_volumes is not a supported telemetry variable. Use the singular
+  name delete_sinks_volume with --tags cleanup.
 cleanup_resource_grace_period: 0
 cleanup_post_delete_pause: 5
 cleanup_helm_timeout: "5m"
@@ -244,7 +251,6 @@ ldms_secret_resources:
   - { type: "secret", name: "nersc-munge-key" }
 
 ldms_configmap_label: "app=nersc-ldms"
-ldms_pvc_label: "app=nersc-ldms"
 ldms_pod_labels:
   - "app=nersc-ldms-aggr"
   - "app=nersc-ldms-store"

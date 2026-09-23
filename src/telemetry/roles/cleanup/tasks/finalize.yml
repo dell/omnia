@@ -132,6 +132,14 @@
           }}
         _pvc_status_display: >-
           {{ _cleanup_volume_status | default('preserved') }}
+        _sink_volume_status_display: >-
+          {% if not (_cleanup_all | default(false) | bool) %}
+          SKIPPED - granular cleanup does not select shared sinks
+          {% elif _cleanup_delete_sinks_volume | default(false) | bool %}
+          deleted
+          {% else %}
+          preserved
+          {% endif %}
       ansible.builtin.debug:
         msg:
           - "======================================================"
@@ -140,9 +148,9 @@
           - "Target Host: {{ kube_vip_host }}"
           - ""
           - "Remaining pods:     {{ _pod_count }}"
-          - >-
-            Namespace PVCs: {{ _pvc_count }}
-            (selected component volume cleanup: {{ _pvc_status_display }})
+          - "Namespace PVCs: {{ _pvc_count }}"
+          - "Selected component volumes: {{ _pvc_status_display }}"
+          - "Shared sink volumes: {{ _sink_volume_status_display | trim }}"
           - "Remaining services: {{ _svc_count }}"
           - "Remaining workloads: {{ _workload_count }}"
           - "Remaining Helm releases: {{ _helm_release_display }}"
@@ -155,6 +163,22 @@
         - _kube_hostvars.remaining_pvcs is defined
         - _kube_hostvars.remaining_svcs is defined
 
+    - name: Explain shared sink volume preservation for granular cleanup
+      ansible.builtin.debug:
+        msg:
+          - "Shared sink volume cleanup: SKIPPED"
+          - >-
+            Reason: {{ ansible_run_tags | reject('equalto', 'always') | join(', ') }}
+            is a granular component cleanup and does not select the shared Kafka,
+            VictoriaMetrics, or VictoriaLogs sinks. These sinks may still be used
+            by other telemetry sources.
+          - >-
+            To remove all telemetry components and shared sink volumes, run:
+            ./omnia.sh --run telemetry --tags cleanup -e Delete_sinks_volume=true
+      when:
+        - not (_cleanup_all | default(false) | bool)
+        - _cleanup_status != 'failed'
+
     - name: Fail telemetry cleanup after status is written
       vars:
         _failed_components: >-
@@ -166,10 +190,10 @@
       when: _cleanup_status == 'failed'
 
     # -----------------------------------------------------------------------
-    # Remove telemetry log, input, and output directories when
-    # delete_sinks_volume is true. These tasks run only after a successful
-    # cleanup — if cleanup failed above, execution stops at the fail task
-    # and directories are preserved so the user can inspect input values.
+    # Remove telemetry log, input, and output directories only after a full
+    # cleanup when delete_sinks_volume is true. These tasks run only after a
+    # successful cleanup. If cleanup failed above, execution stops at the fail
+    # task and directories are preserved so the user can inspect input values.
     # -----------------------------------------------------------------------
     - name: Set telemetry data path for directory cleanup
       ansible.builtin.set_fact:
@@ -185,7 +209,9 @@
         - "{{ _cleanup_telemetry_data_path }}/log"
         - "{{ _cleanup_telemetry_data_path }}/input"
         - "{{ _cleanup_telemetry_data_path }}/output"
-      when: _cleanup_delete_sinks_volume | default(false) | bool
+      when:
+        - _cleanup_all | default(false) | bool
+        - _cleanup_delete_sinks_volume | default(false) | bool
 
     - name: Remove stray telemetry artifacts from data path
       ansible.builtin.file:

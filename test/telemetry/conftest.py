@@ -232,7 +232,7 @@ def pytest_addoption(parser):
             "Control sink (Kafka, VictoriaMetrics, VictoriaLogs) PVC/volume deletion during cleanup. "
             "When 'true', cleanup deletes all PVCs including sink volumes. "
             "When 'false' or omitted (default), sink PVCs are preserved. "
-            "Source volumes (iDRAC, LDMS, PowerScale, etc.) are always deleted. "
+            "Source volumes (currently iDRAC and PowerScale) are always deleted. "
             "Also accepts DELETE_SINKS_VOLUME environment variable."
         ),
     )

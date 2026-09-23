@@ -156,11 +156,8 @@
           'skipped' if _cleanup_components.idrac == 'skipped'
           else ('cleaned' if _cleanup_components.idrac == 'cleaned' else 'failed')
         }}
-      ldms: >-
-        {{
-          'skipped' if _cleanup_components.ldms == 'skipped'
-          else ('cleaned' if _cleanup_components.ldms == 'cleaned' else 'failed')
-        }}
+      # LDMS has no persistent volume; no volume cleanup is applicable.
+      ldms: skipped
       ome: skipped
       powerscale: >-
         {{

@@ -440,7 +440,7 @@ def verify_no_pvcs_remaining(host, namespace=None) -> Dict[str, Any]:
 def verify_source_pvcs_deleted(host, namespace=None) -> Dict[str, Any]:
     """Verify source PVCs are deleted after cleanup (always expected).
 
-    Source PVCs (iDRAC, LDMS, PowerScale, UFM, VAST) should always be
+    Source PVCs (currently iDRAC and PowerScale) should always be
     deleted regardless of the delete_volume flag. This function
     verifies that no source PVCs remain.
 
@@ -457,7 +457,7 @@ def verify_source_pvcs_deleted(host, namespace=None) -> Dict[str, Any]:
     # Check for source PVCs (should always be deleted)
     source_pvc_count = 0
     source_pvc_details = []
-    for prefix in ["mysqldb", "ldms", "powerscale", "ufm", "vast"]:
+    for prefix in ["mysqldb", "powerscale"]:
         cmd = CMDS["kubectl_get_pvc_count"].format(namespace=ns, prefix=prefix)
         result = run_on_kube_vip(host, cmd)
         if result.rc == 0:
@@ -547,7 +547,7 @@ def verify_pvcs_preserved(host, namespace=None) -> Dict[str, Any]:
 
     When cleanup runs without ``delete_volume=true``, Kafka and VictoriaMetrics/VictoriaLogs
     persistent volume claims must be retained so that data survives a redeploy.
-    Other source volumes (iDRAC, LDMS, PowerScale, UFM, VAST) are always deleted.
+    Other source volumes (currently iDRAC and PowerScale) are always deleted.
 
     This function succeeds when:
       - Kafka and VictoriaMetrics/VictoriaLogs PVCs exist (preserved)
@@ -573,7 +573,7 @@ def verify_pvcs_preserved(host, namespace=None) -> Dict[str, Any]:
 
     # Check for source PVCs (should be deleted)
     source_pvc_count = 0
-    for prefix in ["mysqldb", "ldms", "powerscale", "ufm", "vast"]:
+    for prefix in ["mysqldb", "powerscale"]:
         cmd = CMDS["kubectl_get_pvc_count"].format(namespace=ns, prefix=prefix)
         result = run_on_kube_vip(host, cmd)
         if result.rc == 0:

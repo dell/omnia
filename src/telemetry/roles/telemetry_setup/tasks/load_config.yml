@@ -92,7 +92,7 @@
   ansible.builtin.set_fact:
     telemetry_data_path: "{{ _telemetry_data_path }}"
     input_project_dir: "{{ _telemetry_data_path }}/input/{{ project_name }}"
-    input_source_dir: "{{ _domain_root_dir }}/input/{{ project_name }}"
+    input_source_dir: "{{ _domain_root_dir }}/input"
     output_project_dir: "{{ _telemetry_data_path }}/output/{{ project_name }}"
     log_dir: "{{ _telemetry_data_path }}/log/{{ project_name }}"
     telemetry_log_dir: "/var/log/omnia/telemetry"
@@ -100,28 +100,36 @@
     cacheable: true
 
 # --- Verify and auto-copy input files ---
-- name: Verify project input directory exists
+- name: Check whether runtime telemetry configuration exists
   ansible.builtin.stat:
-    path: "{{ input_project_dir }}"
-  register: _project_dir_check
+    path: "{{ input_project_dir }}/telemetry_config.yml"
+  register: _runtime_config_check
   when: not (telemetry_cleanup_context | bool)
 
-- name: Auto-copy input files from source if runtime input dir is missing
+- name: Restore missing runtime input files from source defaults
   when:
     - not (telemetry_cleanup_context | bool)
-    - not _project_dir_check.stat.exists
+    - not _runtime_config_check.stat.exists
   block:
     - name: Check if source input directory exists
       ansible.builtin.stat:
         path: "{{ input_source_dir }}"
       register: _source_dir_check
 
+    - name: Ensure runtime input directory exists
+      ansible.builtin.file:
+        path: "{{ input_project_dir }}"
+        state: directory
+        mode: '0755'
+      become: true
+      when: _source_dir_check.stat.exists
+
     - name: Copy input files from source to runtime directory
       when: _source_dir_check.stat.exists
       ansible.builtin.command:
-        cmd: "cp -a {{ input_source_dir }}/. {{ input_project_dir }}/"
+        cmd: "cp -an {{ input_source_dir }}/. {{ input_project_dir }}/"
       args:
-        creates: "{{ input_project_dir }}"
+        creates: "{{ input_project_dir }}/telemetry_config.yml"
       become: true
 
     - name: Create runtime input directory if no source available
