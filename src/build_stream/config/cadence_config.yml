@@ -1,0 +1,51 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ============================================================================
+# Cadence Polling Configuration — Build Stream Domain
+# ============================================================================
+#
+# Controls periodic cadence builds that automatically sync packages from
+# upstream repositories, bump the cadence catalog version, and trigger
+# the unified build+deploy pipeline.
+#
+# ER Reference: ER-BSM-002 — AC-008, AC-009, AC-015
+#
+# Deployment:
+#   This file is deployed to ${OMNIA_DATA_PATH}/build_stream/cadence_config.yml
+#   by the build_stream domain-init.sh script. The playbook-watcher service
+#   reads it at startup.
+#
+# Environment variable override:
+#   CADENCE_CONFIG_PATH=/path/to/cadence_config.yml
+# ============================================================================
+
+cadence:
+  # Enable or disable cadence polling (default: false)
+  # Set to true to activate periodic builds
+  enabled: false
+
+  # Polling interval in seconds (default: 86400 = 24 hours)
+  # Minimum recommended: 3600 (1 hour)
+  # The watcher will sleep for this duration between cadence cycles
+  interval_seconds: 86400
+
+  # Name of the cadence catalog file in the GitLab repository
+  # This file is version-bumped and pushed on each successful sync
+  catalog_filename: "cadence_catalog_rhel.json"
+
+  # Path to the local GitLab repository clone on the OIM host
+  # The playbook-watcher uses this path for git operations
+  # (commit and push of the updated cadence catalog)
+  gitlab_repo_path: ""
