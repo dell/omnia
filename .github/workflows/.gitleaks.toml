@@ -19,6 +19,9 @@ useDefault = true
     '''yarn\.lock$''',
     '''poetry\.lock$''',
     '''\.css\.map$''',
+    '''test/build_stream/library/functions/gitlab_func.py''',
+    '''test/build_stream/library/functions/pipeline_func.py''',
+    '''test/repo_manager/ut/test_dataset_contract.py''',
   ]
 
   regexTarget = "match"
@@ -134,6 +137,12 @@ useDefault = true
     # 11. Certificate references (not secrets)
     # ------------------------------------------------------------------
     '''(?i)secret:.*-(cert|ca-cert)''',
+
+    # ------------------------------------------------------------------
+    # 12. Build Stream test credentials (ER-BSM-002)
+    # ------------------------------------------------------------------
+    '''REDACTED\.get\("gitlab_ssh_password''',
+    '''password: plaintext''',
   ]
 
 # ==========================  CUSTOM RULES  =================================
