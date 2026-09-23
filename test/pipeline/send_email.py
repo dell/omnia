@@ -66,21 +66,48 @@ domains = os.environ.get("DOMAINS", "default")
 test_mode = os.environ.get("TEST_MODE", "false").lower() == "true"
 cluster_name = os.environ.get("CLUSTER", os.environ.get("CLUSTER_NAME", ""))
 cluster_ip = os.environ.get("TARGET_IP", "")
+utils_enable = os.environ.get("UTILS_ENABLE", "false").lower() == "true"
+utils_mode = os.environ.get("UTILS_MODE", "default_logs")
+target_user = os.environ.get("TARGET_USER", "")
+target_pass = os.environ.get("TARGET_PASS", "")
+omnia_install_path = os.environ.get("OMNIA_INSTALL_PATH", "")
 
-# Get the current commit ID of the omnia repository
-# Priority: CI_COMMIT_SHA (from GitLab CI) > git rev-parse HEAD (local) > unknown
-commit_id = os.environ.get("CI_COMMIT_SHA", "")
-if not commit_id:
+# Get the actual commit ID from the cloned repo on target server
+# SSH into target server and run: cd $OMNIA_INSTALL_PATH && git rev-parse HEAD
+commit_id = "unknown"
+print(f"Attempting to get commit ID from target server: {cluster_ip}")
+print(f"Install path: {omnia_install_path}")
+
+if cluster_ip and target_user and target_pass and omnia_install_path:
     try:
+        # Use sshpass to SSH into target and get commit ID
+        ssh_cmd = [
+            "sshpass", "-p", target_pass,
+            "ssh", "-o", "StrictHostKeyChecking=no",
+            f"{target_user}@{cluster_ip}",
+            f"cd {omnia_install_path} && git rev-parse HEAD"
+        ]
         result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
+            ssh_cmd,
             capture_output=True,
             text=True,
-            check=True
+            timeout=30
         )
-        commit_id = result.stdout.strip()
-    except Exception:
-        commit_id = "unknown"
+        if result.returncode == 0:
+            commit_id = result.stdout.strip()
+            print(f"✓ Successfully retrieved commit ID from target server: {commit_id}")
+        else:
+            print(f"✗ SSH command failed: {result.stderr}")
+    except Exception as e:
+        print(f"✗ Error connecting to target server: {e}")
+else:
+    print(f"Missing required variables for SSH connection:")
+    print(f"  TARGET_IP: {cluster_ip}")
+    print(f"  TARGET_USER: {target_user}")
+    print(f"  TARGET_PASS: {'***' if target_pass else 'NOT SET'}")
+    print(f"  OMNIA_INSTALL_PATH: {omnia_install_path}")
+
+print(f"Final commit ID: {commit_id}")
 
 # ---------------------------------------------------------------------------
 missing = []
@@ -140,6 +167,8 @@ if os.path.exists(TEST_REPORTS_PATH):
                 # Extract domain from filename using multiple patterns
                 filename = os.path.basename(json_file)
                 domain = None
+                
+                # Try exact patterns first (most specific)
                 for d in domain_order:
                     if (
                         f"_{d}_report" in filename
@@ -149,14 +178,18 @@ if os.path.exists(TEST_REPORTS_PATH):
                     ):
                         domain = d
                         break
+                
+                # If no match, try substring matching (less specific)
                 if not domain:
-                    # Try to match domain name anywhere in filename (substring)
                     for d in domain_order:
                         if d in filename:
                             domain = d
                             break
+                
+                # If still no match, skip this file (don't create "unknown" entries)
                 if not domain:
-                    domain = "unknown"
+                    print(f"  WARNING: Could not determine domain for {filename}, skipping")
+                    continue
 
                 print(f"  Processing report: {filename} -> domain: {domain}")
 
@@ -232,25 +265,14 @@ if os.path.exists(TEST_REPORTS_PATH):
                 total_failed += failed
                 total_skipped += skipped
 
-            # Build per-domain table
+            # Build per-domain table - show all domains in order, even if no tests
             domain_rows = ""
             for domain in domain_order:
-                if domain in domain_summaries:
-                    ds = domain_summaries[domain]
-                    bg = "#f8f9fa" if domain_order.index(domain) % 2 == 0 else "#ffffff"
-                    domain_rows += f"""\
+                # Use actual data if available, otherwise show 0s
+                ds = domain_summaries.get(domain, {"passed": 0, "failed": 0, "skipped": 0})
+                bg = "#f8f9fa" if domain_order.index(domain) % 2 == 0 else "#ffffff"
+                domain_rows += f"""\
         <tr style="background-color: {bg};">
-            <td style="border: 1px solid #ddd; padding: 8px;">{domain}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; color: green;">{ds['passed']}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; color: red;">{ds['failed']}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; color: orange;">{ds['skipped']}</td>
-        </tr>"""
-            # Include any domains not in the standard order (e.g. "unknown")
-            for domain in sorted(domain_summaries.keys()):
-                if domain not in domain_order:
-                    ds = domain_summaries[domain]
-                    domain_rows += f"""\
-        <tr style="background-color: #f8f9fa;">
             <td style="border: 1px solid #ddd; padding: 8px;">{domain}</td>
             <td style="border: 1px solid #ddd; padding: 8px; color: green;">{ds['passed']}</td>
             <td style="border: 1px solid #ddd; padding: 8px; color: red;">{ds['failed']}</td>
@@ -315,6 +337,13 @@ STAGE_ORDER_CLEANUP = [
     "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_omnia",
     "summary",
 ]
+# Stage ordering for UTILS_ENABLE (utils pipeline)
+STAGE_ORDER_UTILS = [
+    "initialization", "setup_environment",
+    "install_os", "log_collection_cluster", "log_collection_oim",
+    "test_utils",
+    "summary",
+]
 
 STATUS_STYLES = {
     "success": {"color": "#28a745", "label": "PASSED"},
@@ -345,8 +374,12 @@ def load_job_statuses():
         return {}
 
 
-def pick_stage_order(mode, selected_domains, include_tests, job_statuses):
+def pick_stage_order(mode, selected_domains, include_tests, job_statuses, is_utils_pipeline=False):
     """Return stages applicable to the selected mode and domains."""
+    if is_utils_pipeline:
+        # Use utils pipeline stages when UTILS_ENABLE is true
+        return STAGE_ORDER_UTILS
+    
     order = {
         "cleanup": STAGE_ORDER_CLEANUP,
         "deploy": STAGE_ORDER_DEPLOY,
@@ -374,10 +407,10 @@ def pick_stage_order(mode, selected_domains, include_tests, job_statuses):
     return applicable
 
 
-def build_stage_table_html(job_statuses, mode, selected_domains, include_tests):
+def build_stage_table_html(job_statuses, mode, selected_domains, include_tests, is_utils_pipeline=False):
     """Build an HTML table showing each applicable stage and its status."""
     stage_order = pick_stage_order(
-        mode, selected_domains, include_tests, job_statuses
+        mode, selected_domains, include_tests, job_statuses, is_utils_pipeline
     )
     rows = []
     has_failure = False
@@ -421,7 +454,7 @@ def build_stage_table_html(job_statuses, mode, selected_domains, include_tests):
 # Load job statuses and build table
 job_statuses = load_job_statuses()
 stage_table_html, has_failure, failed_stage = build_stage_table_html(
-    job_statuses, pipeline_mode, domains, test_mode
+    job_statuses, pipeline_mode, domains, test_mode, utils_enable
 )
 
 if not job_statuses:

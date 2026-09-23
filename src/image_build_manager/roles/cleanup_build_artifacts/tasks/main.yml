@@ -36,7 +36,7 @@
 
 - name: Cleanup image_build_manager credentials
   ansible.builtin.import_tasks: cleanup_credentials.yml
-  tags: credentials
+  tags: cleanup_credentials
 
 - name: Cleanup domain data directories
   ansible.builtin.import_tasks: cleanup_domain_data.yml

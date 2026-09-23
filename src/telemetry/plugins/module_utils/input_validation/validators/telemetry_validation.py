@@ -360,6 +360,75 @@ def validate_telemetry_config(
     idrac_telemetry_support = idrac_source.get("metrics_enabled", False)
     idrac_collection_targets = idrac_source.get("collection_targets", [])
 
+    # iDRAC inventory is mandatory only when iDRAC telemetry is enabled.
+    # Resolve relative paths from the directory containing telemetry_config.yml,
+    # which is also where the default project input files are stored.
+    idrac_configurations = data.get("idrac_telemetry_configurations", {})
+    if not isinstance(idrac_configurations, dict):
+        idrac_configurations = {}
+    bmc_group_data_path = idrac_configurations.get("bmc_group_data_path", "")
+
+    if idrac_telemetry_support:
+        # Resolve default path if bmc_group_data_path is empty
+        # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv
+        if not isinstance(bmc_group_data_path, str) or not bmc_group_data_path.strip():
+            # Use default path from orchestrator output
+            omnia_data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia").rstrip("/")
+            project_name = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+            configured_bmc_path = f"{omnia_data_path}/orchestrator/output/{project_name}/bmc_group_data.csv"
+            logger.info(
+                "bmc_group_data_path is empty, using default: %s", configured_bmc_path
+            )
+        else:
+            configured_bmc_path = bmc_group_data_path.strip()
+
+        # Resolve relative paths from the directory containing telemetry_config.yml
+        if os.path.isabs(configured_bmc_path):
+            resolved_bmc_path = configured_bmc_path
+        else:
+            resolved_bmc_path = os.path.join(
+                os.path.dirname(input_file_path), configured_bmc_path
+            )
+
+        if not os.path.isfile(resolved_bmc_path):
+            error_detail = (
+                f"BMC group data file not found at: {resolved_bmc_path}\n\n"
+                f"Solution:\n"
+                f"1. Run the orchestrator to generate bmc_group_data.csv:\n"
+                f"   ansible-playbook orchestrator.yml --tags execute\n"
+                f"   This will create the file at the default location:\n"
+                f"   /opt/omnia/orchestrator/output/project_default/bmc_group_data.csv\n\n"
+                f"2. OR provide the correct path in telemetry_config.yml:\n"
+                f"   idrac_telemetry_configurations:\n"
+                f"     bmc_group_data_path: \"/path/to/your/bmc_group_data.csv\"\n\n"
+                f"3. OR set OMNIA_DATA_PATH and OMNIA_PROJECT_NAME environment variables:\n"
+                f"   Then ensure the orchestrator has generated the file at:\n"
+                f"   $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv"
+            )
+            errors.append(create_error_msg(
+                "idrac_telemetry_configurations.bmc_group_data_path",
+                bmc_group_data_path if bmc_group_data_path.strip() else "(default)",
+                error_detail
+            ))
+            logger.error(
+                "bmc_group_data_path does not reference an existing file: %s\n%s",
+                resolved_bmc_path,
+                error_detail,
+            )
+        else:
+            # Log when using default path
+            if not bmc_group_data_path.strip():
+                logger.warning(
+                    "⚠️  bmc_group_data_path is empty in telemetry_config.yml\n"
+                    "Using default path: %s\n"
+                    "Proceeding with deployment...",
+                    resolved_bmc_path
+                )
+            else:
+                logger.info(
+                    "bmc_group_data_path validated: %s", resolved_bmc_path
+                )
+
     # Bridge feature flags
     vector_ldms = telemetry_bridges.get("vector_ldms", {})
     vector_ome = telemetry_bridges.get("vector_ome", {})

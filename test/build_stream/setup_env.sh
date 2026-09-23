@@ -35,9 +35,9 @@
 #   --creds-stdin        Read a non-interactive SSH password from stdin.
 #
 # DOMAIN CREDENTIALS:
-#   --set-domain-creds     Interactive prompt for BuildStream credentials.
-#   --update-domain-creds  Force-update domain credentials.
-#   --domain-creds-stdin Read a non-interactive JSON object from stdin.
+#   --set-domain-creds     Create credentials or fill only missing fields.
+#   --update-domain-creds  Rejected; populated fields cannot be changed here.
+#   --domain-creds-stdin   Create/fill missing fields from JSON on stdin.
 #
 # Usage:
 #   ./setup_env.sh                        # Baremetal or active venv
@@ -163,9 +163,13 @@ DOMAIN CREDENTIALS (build_stream_credentials.yml)
           postgres_user, postgres_password.
   For remote execution, run this command on the target OIM server.
 
-  --set-domain-creds     Interactive prompt for all domain fields.
-  --update-domain-creds  Update an existing valid domain credential store.
-  --domain-creds-stdin   Read a JSON object from standard input. Example:
+  --set-domain-creds     Create a credential store, or prompt only for fields
+                         that are missing or empty. Existing values are kept.
+  --update-domain-creds  Populated credentials cannot be changed in place.
+                         Perform a full Build Stream cleanup first.
+  --domain-creds-stdin   Create a store or fill only missing fields from JSON.
+                         A partial-store payload must contain only its missing
+                         fields. Example:
     credential-json-provider | ./setup_env.sh --domain-creds-stdin
 
 OTHER OPTIONS
@@ -518,11 +522,316 @@ _ssh_credentials_are_set() {
         "$CREDS_FILE" "$CREDS_KEY" oim_password
 }
 
-_domain_credentials_are_set() {
-    _credential_fields_are_set \
-        "$(_domain_creds_path)" "$(_domain_creds_key_path)" \
-        gitlab_root_password gitlab_ssh_password
+DOMAIN_CREDENTIAL_FIELDS=(
+    gitlab_root_password
+    gitlab_ssh_password
+    build_stream_auth_username
+    build_stream_auth_password
+    postgres_user
+    postgres_password
+)
+DOMAIN_STORED_FIELDS=(
+    "${DOMAIN_CREDENTIAL_FIELDS[@]}"
+    build_stream_auth_password_hash
+)
+
+_domain_credential_file_is_encrypted() {
+    local _path; _path=$(_domain_creds_path)
+    [ -f "$_path" ] \
+        && IFS= read -r _header < "$_path" \
+        && [[ "$_header" == \$ANSIBLE_VAULT\;* ]]
 }
+
+_domain_vault() (
+    umask 077
+    local _ansible_tmp
+    _ansible_tmp=$(mktemp -d "${TMPDIR:-/tmp}/bsm-ansible.XXXXXX")
+    trap 'rm -rf -- "$_ansible_tmp"' EXIT
+    ANSIBLE_LOCAL_TEMP="$_ansible_tmp" ansible-vault "$@"
+)
+
+_domain_credentials_plaintext() {
+    local _path; _path=$(_domain_creds_path)
+    local _key;  _key=$(_domain_creds_key_path)
+
+    [ -f "$_path" ] || return 1
+    if _domain_credential_file_is_encrypted; then
+        [ -f "$_key" ] || return 1
+        _domain_vault view "$_path" --vault-password-file "$_key"
+    else
+        cat -- "$_path"
+    fi
+}
+
+# Print only field names that are absent, empty, or not scalar strings. Secret
+# values never leave the pipe and nested runtime data such as oauth_clients is
+# deliberately ignored.
+_domain_missing_fields() {
+    _domain_credentials_plaintext | "$PYTHON_CMD" -c '
+import sys
+import yaml
+
+loaded = yaml.safe_load(sys.stdin.read()) or {}
+if not isinstance(loaded, dict):
+    raise SystemExit("Build Stream credential content must be a YAML mapping")
+for field in sys.argv[1:]:
+    value = loaded.get(field)
+    if not isinstance(value, str) or not value.strip():
+        print(field)
+' "$@"
+}
+
+_domain_credentials_are_set() {
+    local _missing
+    [ -f "$(_domain_creds_path)" ] \
+        && [ -f "$(_domain_creds_key_path)" ] \
+        && _domain_credential_file_is_encrypted \
+        && _missing=$(_domain_missing_fields "${DOMAIN_STORED_FIELDS[@]}" 2>/dev/null) \
+        && [ -z "$_missing" ]
+}
+
+_domain_credential_store_exists() {
+    local _path; _path=$(_domain_creds_path)
+    local _key;  _key=$(_domain_creds_key_path)
+    [ -e "$_path" ] || [ -L "$_path" ] \
+        || [ -e "$_key" ] || [ -L "$_key" ]
+}
+
+_print_domain_credentials_immutable() {
+    local _path; _path=$(_domain_creds_path)
+    ok "Build Stream domain credentials are already configured: $_path"
+    warn "Populated Build Stream domain credentials cannot be changed in place."
+    warn "To use different credentials, first run a full Build Stream cleanup:"
+    warn "  ./omnia.sh -r build_stream --tags cleanup"
+    warn "Then create fresh credentials and redeploy Build Stream."
+}
+
+_print_build_stream_redeploy_required() {
+    warn "Running the following command is mandatory after credential setup:"
+    warn "  ./omnia.sh -r build_stream"
+}
+
+_write_plaintext_domain_field() {
+    local _path="$1"
+    local _field="$2"
+    "$PYTHON_CMD" -c '
+import os
+import sys
+import yaml
+
+path, field = sys.argv[1:]
+value = sys.stdin.read()
+if value.endswith("\n"):
+    value = value[:-1]
+    if value.endswith("\r"):
+        value = value[:-1]
+if not value.strip():
+    raise SystemExit(f"{field} cannot be empty")
+if field == "build_stream_auth_password" and len(value) < 8:
+    raise SystemExit("build_stream_auth_password must contain at least 8 characters")
+with open(path, encoding="utf-8") as stream:
+    data = yaml.safe_load(stream) or {}
+if not isinstance(data, dict):
+    raise SystemExit("Build Stream credential content must be a YAML mapping")
+data[field] = value
+with open(path, "w", encoding="utf-8") as stream:
+    yaml.safe_dump(data, stream, default_flow_style=False, sort_keys=False)
+os.chmod(path, 0o600)
+' "$_path" "$_field"
+}
+
+_write_plaintext_domain_auth_hash() {
+    local _path="$1"
+    "$PYTHON_CMD" -c '
+import os
+import sys
+import yaml
+from argon2 import PasswordHasher, Type
+
+path = sys.argv[1]
+with open(path, encoding="utf-8") as stream:
+    data = yaml.safe_load(stream) or {}
+password = data.get("build_stream_auth_password", "")
+if not isinstance(password, str) or not password:
+    raise SystemExit("build_stream_auth_password is required to generate its hash")
+hasher = PasswordHasher(
+    time_cost=3,
+    memory_cost=65536,
+    parallelism=4,
+    hash_len=32,
+    salt_len=16,
+    type=Type.ID,
+)
+data["build_stream_auth_password_hash"] = hasher.hash(password)
+with open(path, "w", encoding="utf-8") as stream:
+    yaml.safe_dump(data, stream, default_flow_style=False, sort_keys=False)
+os.chmod(path, 0o600)
+' "$_path"
+}
+
+_domain_field_label() {
+    case "$1" in
+        gitlab_root_password) echo "GitLab Root Password" ;;
+        gitlab_ssh_password) echo "GitLab SSH Password" ;;
+        build_stream_auth_username) echo "BuildStream Auth Username" ;;
+        build_stream_auth_password) echo "BuildStream Auth Password" ;;
+        postgres_user) echo "Postgres Username" ;;
+        postgres_password) echo "Postgres Password" ;;
+        *) return 1 ;;
+    esac
+}
+
+_prepare_domain_work_file() {
+    local _work_path="$1"
+    local _path; _path=$(_domain_creds_path)
+    local _key;  _key=$(_domain_creds_key_path)
+
+    if [ ! -e "$_path" ]; then
+        : > "$_work_path"
+    elif _domain_credential_file_is_encrypted; then
+        [ -f "$_key" ] || fail "Vault key is missing for encrypted credentials: $_key"
+        _domain_vault view "$_path" --vault-password-file "$_key" > "$_work_path"
+    else
+        cp -- "$_path" "$_work_path"
+    fi
+    chmod 0600 "$_work_path"
+}
+
+_install_domain_work_file() {
+    local _work_path="$1"
+    local _path; _path=$(_domain_creds_path)
+    local _key;  _key=$(_domain_creds_key_path)
+
+    _credential_cli ensure-key --key-path "$_key" >/dev/null
+    _domain_vault encrypt "$_work_path" --vault-password-file "$_key" >/dev/null
+    chmod 0600 "$_work_path" "$_key"
+    mv -f -- "$_work_path" "$_path"
+}
+
+_fill_missing_domain_credentials_interactive() (
+    set -euo pipefail
+    local _missing="$1"
+    local _path; _path=$(_domain_creds_path)
+    local _dir;  _dir=$(_resolve_domain_creds_dir)
+    local _work=""
+    local _field _label _value
+
+    mkdir -p "$_dir"
+    _work=$(mktemp "${_dir}/.build_stream_credentials.setup.XXXXXX")
+    trap '[ -z "$_work" ] || rm -f -- "$_work"' EXIT
+    _prepare_domain_work_file "$_work"
+
+    while IFS= read -r _field; do
+        [ -n "$_field" ] || continue
+        [ "$_field" != "build_stream_auth_password_hash" ] || continue
+        _label=$(_domain_field_label "$_field")
+        case "$_field" in
+            build_stream_auth_username|postgres_user)
+                while true; do
+                    IFS= read -r -p "  ${_label}: " _value </dev/tty
+                    if [ -n "${_value//[[:space:]]/}" ]; then
+                        printf '%s' "$_value" \
+                            | _write_plaintext_domain_field "$_work" "$_field"
+                        unset _value
+                        break
+                    fi
+                    warn "${_label} cannot be empty."
+                done
+                ;;
+            *)
+                _credential_cli prompt-and-confirm --message "$_label" </dev/tty \
+                    | _write_plaintext_domain_field "$_work" "$_field"
+                ;;
+        esac
+    done <<< "$_missing"
+
+    if printf '%s\n' "$_missing" \
+        | grep -Eq '^(build_stream_auth_password|build_stream_auth_password_hash)$'; then
+        _write_plaintext_domain_auth_hash "$_work"
+        ok "BuildStream authentication password hash generated"
+    fi
+
+    _install_domain_work_file "$_work"
+    _work=""
+    ok "Missing domain credentials were added; existing values were preserved: $_path"
+)
+
+_fill_missing_domain_credentials_stdin() (
+    set -euo pipefail
+    local _dir; _dir=$(_resolve_domain_creds_dir)
+    local _path; _path=$(_domain_creds_path)
+    local _work=""
+
+    mkdir -p "$_dir"
+    _work=$(mktemp "${_dir}/.build_stream_credentials.setup.XXXXXX")
+    trap '[ -z "$_work" ] || rm -f -- "$_work"' EXIT
+    _prepare_domain_work_file "$_work"
+
+    "$PYTHON_CMD" -c '
+import json
+import os
+import sys
+import yaml
+from argon2 import PasswordHasher, Type
+
+path = sys.argv[1]
+allowed = set(sys.argv[2:])
+payload_bytes = sys.stdin.buffer.read(65537)
+if len(payload_bytes) > 65536:
+    raise SystemExit("Credential input exceeds 65536 bytes")
+try:
+    payload = json.loads(payload_bytes.decode("utf-8"))
+except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+    raise SystemExit("Credential input must be valid UTF-8 JSON") from exc
+if not isinstance(payload, dict):
+    raise SystemExit("Credential input must be a JSON object")
+with open(path, encoding="utf-8") as stream:
+    data = yaml.safe_load(stream) or {}
+if not isinstance(data, dict):
+    raise SystemExit("Build Stream credential content must be a YAML mapping")
+missing = {
+    field for field in allowed
+    if not isinstance(data.get(field), str) or not data[field].strip()
+}
+unknown = set(payload) - allowed
+if unknown:
+    raise SystemExit("Unknown credential fields: " + ", ".join(sorted(unknown)))
+protected = set(payload) - missing
+if protected:
+    raise SystemExit(
+        "Populated credential fields cannot be changed: "
+        + ", ".join(sorted(protected))
+    )
+omitted = missing - set(payload)
+if omitted:
+    raise SystemExit("Missing required credential fields: " + ", ".join(sorted(omitted)))
+for field, value in payload.items():
+    if not isinstance(value, str) or not value.strip():
+        raise SystemExit(f"{field} must contain a non-empty string")
+    if field == "build_stream_auth_password" and len(value) < 8:
+        raise SystemExit("build_stream_auth_password must contain at least 8 characters")
+    data[field] = value
+if "build_stream_auth_password" in missing or not data.get("build_stream_auth_password_hash"):
+    hasher = PasswordHasher(
+        time_cost=3,
+        memory_cost=65536,
+        parallelism=4,
+        hash_len=32,
+        salt_len=16,
+        type=Type.ID,
+    )
+    data["build_stream_auth_password_hash"] = hasher.hash(
+        data["build_stream_auth_password"]
+    )
+with open(path, "w", encoding="utf-8") as stream:
+    yaml.safe_dump(data, stream, default_flow_style=False, sort_keys=False)
+os.chmod(path, 0o600)
+' "$_work" "${DOMAIN_CREDENTIAL_FIELDS[@]}"
+
+    _install_domain_work_file "$_work"
+    _work=""
+    ok "Missing domain credentials were added; existing values were preserved: $_path"
+)
 
 # Ask yes/no
 _ask_yes_no() {
@@ -573,55 +882,113 @@ fi
 # Domain credential dispatch
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Domain credentials are shared with the deployed BuildStream service. The
+# service adds runtime-owned OAuth clients to this store, while PostgreSQL uses
+# its initial password for the persistent data volume. Updating only the file
+# would create inconsistent service, database, and GitLab credentials.
+if [ "$UPDATE_DOMAIN_CREDS" = true ]; then
+    if _domain_credential_store_exists; then
+        _print_domain_credentials_immutable
+        fail "In-place Build Stream domain credential updates are not supported."
+    fi
+    fail "No domain credential store exists. Use --set-domain-creds."
+fi
+
+if [ "$SET_DOMAIN_CREDS" = true ] \
+    || [ "$DOMAIN_CREDS_FROM_STDIN" = true ]; then
+    _domain_path=$(_domain_creds_path)
+    _domain_key=$(_domain_creds_key_path)
+
+    if [ -L "$_domain_path" ] || [ -L "$_domain_key" ]; then
+        fail "Credential files must not be symbolic links."
+    fi
+    if [ -e "$_domain_path" ] && [ ! -f "$_domain_path" ]; then
+        fail "Credential path is not a regular file: $_domain_path"
+    fi
+    if [ -e "$_domain_key" ] && [ ! -f "$_domain_key" ]; then
+        fail "Vault key path is not a regular file: $_domain_key"
+    fi
+
+    if [ -f "$_domain_path" ]; then
+        if _domain_credential_file_is_encrypted && [ ! -f "$_domain_key" ]; then
+            fail "Vault key is missing for encrypted credentials: $_domain_key"
+        fi
+        if ! _missing_domain_fields=$( \
+            _domain_missing_fields "${DOMAIN_STORED_FIELDS[@]}"
+        ); then
+            fail "Unable to inspect the existing credential store. Check its Vault key."
+        fi
+
+        if [ -z "$_missing_domain_fields" ] \
+            && _domain_credential_file_is_encrypted; then
+            _print_domain_credentials_immutable
+        else
+            if [ -n "$_missing_domain_fields" ]; then
+                warn "Only the following missing credential fields will be added:"
+                while IFS= read -r _missing_field; do
+                    [ -z "$_missing_field" ] || warn "  $_missing_field"
+                done <<< "$_missing_domain_fields"
+            else
+                warn "Credential values are complete, but the file must be Vault-encrypted."
+            fi
+
+            _missing_user_fields=$(printf '%s\n' "$_missing_domain_fields" \
+                | grep -Fvx 'build_stream_auth_password_hash' || true)
+            if [ -z "$_missing_user_fields" ]; then
+                # A plaintext-but-complete store only needs encryption, while
+                # a missing derived hash can be regenerated from the existing
+                # password. Neither case requires new credential input.
+                _fill_missing_domain_credentials_interactive \
+                    "$_missing_domain_fields"
+            elif [ "$SET_DOMAIN_CREDS" = true ]; then
+                _fill_missing_domain_credentials_interactive \
+                    "$_missing_domain_fields"
+            else
+                info "Reading only missing domain credentials from standard input"
+                _fill_missing_domain_credentials_stdin
+            fi
+            _print_build_stream_redeploy_required
+        fi
+        SET_DOMAIN_CREDS=false
+        DOMAIN_CREDS_FROM_STDIN=false
+    fi
+fi
+
 # Domain credential field spec (JSON for prompt-fields CLI)
 DOMAIN_CRED_SPEC='[
   {"field":"gitlab_root_password","label":"GitLab Root Password","group":"GitLab Credentials","secret":true,"confirm":true},
   {"field":"gitlab_ssh_password","label":"GitLab SSH Password","secret":true,"confirm":true},
   {"field":"build_stream_auth_username","label":"BuildStream Auth Username","group":"BuildStream Manager Credentials","secret":false},
   {"field":"build_stream_auth_password","label":"BuildStream Auth Password","secret":true,"confirm":true},
-  {"field":"postgres_user","label":"Postgres Username","group":"Postgres Credentials","secret":false,"optional":true},
-  {"field":"postgres_password","label":"Postgres Password","secret":true,"confirm":true,"optional":true}
+  {"field":"postgres_user","label":"Postgres Username","group":"Postgres Credentials","secret":false},
+  {"field":"postgres_password","label":"Postgres Password","secret":true,"confirm":true}
 ]'
 
 if [ "$DOMAIN_CREDS_FROM_STDIN" = true ]; then
     info "Reading domain credentials from standard input"
     _write_domain_creds_stdin
     _write_domain_auth_password_hash
+    _print_build_stream_redeploy_required
 
-elif [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
+elif [ "$SET_DOMAIN_CREDS" = true ]; then
     _domain_path=$(_domain_creds_path)
     _domain_key=$(_domain_creds_key_path)
 
-    if [ "$UPDATE_DOMAIN_CREDS" = true ] \
-        && ! _domain_credentials_are_set; then
-        fail "No valid domain credentials found. Use --set-domain-creds first."
-    fi
+    echo ""
+    echo -e "  ${CYAN}Build Stream credentials — GitLab, BSM, and Postgres${NC}"
 
-    if [ "$SET_DOMAIN_CREDS" = true ] && _domain_credentials_are_set; then
-        warn "Domain credentials already exist: $_domain_path"
-        if ! _ask_yes_no "  Do you want to update domain credentials?"; then
-            ok "Domain credential update skipped."
-            SET_DOMAIN_CREDS=false
-        fi
-    fi
+    # Use the prompt-fields CLI to handle the one-time credential setup.
+    mkdir -p "$(_resolve_domain_creds_dir)"
+    _credential_cli prompt-fields \
+        --creds-path "$_domain_path" \
+        --key-path "$_domain_key" \
+        --spec "$DOMAIN_CRED_SPEC" --require-complete </dev/tty
 
-    if [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
-        echo ""
-        echo -e "  ${CYAN}Build Stream credentials — GitLab, BSM, and Postgres${NC}"
-        echo -e "  ${CYAN}Press Enter to keep existing value.${NC}"
+    _write_domain_auth_password_hash
 
-        # Use the prompt-fields CLI to handle all prompting
-        mkdir -p "$(_resolve_domain_creds_dir)"
-        _credential_cli prompt-fields \
-            --creds-path "$_domain_path" \
-            --key-path "$_domain_key" \
-            --spec "$DOMAIN_CRED_SPEC" --require-complete </dev/tty
-
-        _write_domain_auth_password_hash
-
-        echo ""
-        ok "Domain credentials saved: $_domain_path (encrypted)"
-    fi
+    echo ""
+    ok "Domain credentials saved: $_domain_path (encrypted)"
+    _print_build_stream_redeploy_required
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -695,10 +1062,12 @@ echo "    2. Build Stream domain credentials (current machine):"
 if ! _domain_environment_is_set; then
     echo "       Status unavailable: source /etc/omnia/omnia.env on the execution OIM"
 elif _domain_credentials_are_set; then
-    echo "       $(_domain_creds_path) is readable and contains required fields"
-    echo "       To update:  ./setup_env.sh --update-domain-creds"
+    echo "       $(_domain_creds_path) contains every required credential"
+    echo "       Populated values cannot be changed in place"
+    echo "       To replace them: run full Build Stream cleanup, configure fresh"
+    echo "       credentials, then run ./omnia.sh -r build_stream"
 else
-    echo "       Not set. Create with: ./setup_env.sh --set-domain-creds"
+    echo "       Missing or incomplete. Run: ./setup_env.sh --set-domain-creds"
 fi
 echo ""
 echo "================================================================="

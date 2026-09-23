@@ -410,6 +410,11 @@ setup_environment:
   needs:
     - job: initialization
       artifacts: true
+  artifacts:
+    paths:
+      - actual_commit_sha.txt
+      - pipeline_job_status/
+    when: always
   script:
     - echo "========================================================"
     - echo "  Setting up Omnia environment on cluster $CLUSTER"
@@ -441,6 +446,13 @@ setup_environment:
     - echo "  Branch - $OMNIA_BRANCH"
     - echo "  Path   - $OMNIA_INSTALL_PATH"
     - $SSH_CMD $TARGET "cd $(dirname $OMNIA_INSTALL_PATH) && git clone -b $OMNIA_BRANCH $OMNIA_REPO $(basename $OMNIA_INSTALL_PATH)"
+
+    # Step 4a: Capture the actual commit SHA from the cloned repo
+    - echo "Step 4a - Capturing actual commit SHA from cloned repo"
+    - |
+      ACTUAL_COMMIT_SHA=$($SSH_CMD $TARGET "cd $OMNIA_INSTALL_PATH && git rev-parse HEAD" | tail -1)
+      echo "  Actual Commit SHA: $ACTUAL_COMMIT_SHA"
+      echo "$ACTUAL_COMMIT_SHA" > actual_commit_sha.txt
 
     # Step 5: Copy cluster-specific omnia.env to the cloned repo (if it exists)
     - echo "Step 5 - Copying cluster-specific omnia.env to target omnia repo"
@@ -2067,6 +2079,14 @@ summary:
     - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
     - TARGET="$TARGET_USER@$TARGET_IP"
     - mkdir -p pipeline_reports
+    # Read the actual commit SHA from the cloned repo
+    - |
+      if [ ! -f actual_commit_sha.txt ]; then
+        echo "ERROR: actual_commit_sha.txt not found - commit SHA was not captured from cloned repo"
+        exit 1
+      fi
+      ACTUAL_COMMIT_SHA=$(cat actual_commit_sha.txt)
+      echo "Using actual commit SHA from cloned repo: $ACTUAL_COMMIT_SHA"
 
     # Generate summary report based on PIPELINE_MODE
     - |
@@ -2128,7 +2148,7 @@ summary:
       Pipeline URL:     $CI_PIPELINE_URL
       Project:          $CI_PROJECT_NAME
       Branch:           $CI_COMMIT_REF_NAME
-      Commit SHA:       $CI_COMMIT_SHA
+      Commit SHA:       $ACTUAL_COMMIT_SHA
       Trigger Time:     $PIPELINE_TRIGGER_TIME
       TEST_MODE:        $TEST_MODE
       DRY_RUN:          $DRY_RUN
@@ -2186,7 +2206,6 @@ summary:
         "telemetry": "telemetry_test_report",
         "build_stream": "build_stream_test_report",
         "discovery": "discovery_test_report",
-        "utils": "utils_test_report",
       }
 
       report_paths = {}
@@ -2328,6 +2347,9 @@ summary:
     - export CLUSTER="${CLUSTER}"
     - export CLUSTER_NAME="${CLUSTER_NAME}"
     - export TARGET_IP="${TARGET_IP}"
+    - export TARGET_USER="${TARGET_USER}"
+    - export TARGET_PASS="${TARGET_PASS}"
+    - export OMNIA_INSTALL_PATH="${OMNIA_INSTALL_PATH}"
 
     - echo "Sending email notification..."
     - python3 send_email.py || echo "Email notification failed (non-fatal)"
