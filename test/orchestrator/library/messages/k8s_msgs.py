@@ -91,8 +91,8 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "node_taints_failed": "Control plane node taints check failed: {error}",
 
     # SMD/Metadata
-    "smd_groups_ok": "K8s functional groups registered in SMD",
-    "smd_groups_failed": "K8s functional groups not found in SMD",
+    "smd_groups_ok": "K8s nodes registered in SMD",
+    "smd_groups_failed": "K8s nodes not found in SMD",
     "metadata_ok": "K8s metadata-service configuration exists",
     "metadata_failed": "K8s metadata-service configuration missing",
 
@@ -147,8 +147,6 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "persistent_volumes_failed": "PV issues found: {error}",
     "nfs_sc_ok": "NFS StorageClass is dynamic and properly configured",
     "nfs_sc_failed": "NFS StorageClass validation failed: {error}",
-    "telemetry_pvcs_ok": "All telemetry PVCs are Bound",
-    "telemetry_pvcs_failed": "Telemetry PVC issues: {error}",
 
     # Workload
     "busybox_pod_ok": "BusyBox pod deployed and reached Running state",
@@ -163,6 +161,30 @@ TEST_LOG_MSGS: Dict[str, str] = {
     # Systemd Targets
     "nfs_client_target_ok": "nfs-client.target active on all {count} K8s node(s)",
     "nfs_client_target_failed": "nfs-client.target not active on some nodes: {error}",
+
+    # etcd Local Disk
+    "etcd_local_disk_enabled_ok": "etcd_on_local_disk is enabled in omnia_config.yml",
+    "etcd_local_disk_enabled_failed": "etcd_on_local_disk is not enabled in omnia_config.yml",
+    "boss_card_detected_ok": "BOSS card detected on control plane nodes",
+    "boss_card_detection_failed": "BOSS card detection failed",
+    "etcd_partition_ok": "Etcd partition found on control plane nodes",
+    "etcd_partition_failed": "Etcd partition not found on control plane nodes",
+    "etcd_filesystem_ok": "Ext4 filesystem found on etcd partition",
+    "etcd_filesystem_failed": "Ext4 filesystem not found on etcd partition",
+    "etcd_fstab_mount_ok": "fstab entry exists and mount is active for etcd",
+    "etcd_fstab_mount_failed": "fstab entry or mount issue for etcd",
+    "etcd_local_disk_config_ok": "etcd is using local disk (not NFS)",
+    "etcd_local_disk_config_failed": "etcd is not using local disk (using NFS)",
+    "fallback_disk_detected_ok": "Fallback disk detected for etcd",
+    "fallback_disk_detection_failed": "Fallback disk detection failed",
+    "etcd_first_boot_setup_ok": "etcd-disk-setup.sh script exists and was executed",
+    "etcd_first_boot_setup_failed": "etcd-disk-setup.sh script or log missing",
+    "ssd_disk_support_ok": "SSD disk detected for etcd",
+    "ssd_disk_support_failed": "SSD disk support check failed",
+    "hdd_disk_support_ok": "HDD disk detected for etcd",
+    "hdd_disk_support_failed": "HDD disk support check failed",
+    "nvme_disk_support_ok": "NVMe disk detected for etcd",
+    "nvme_disk_support_failed": "NVMe disk support check failed",
 }
 
 # =============================================================================
@@ -321,13 +343,13 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
     ),
     "smd_groups_missing": (
         "\n\u2554" + _BORDER + "\u2557\n"
-        "\u2551 K8S SMD GROUPS NOT REGISTERED\n"
+        "\u2551 K8S NODES NOT REGISTERED IN SMD\n"
         "\u2560" + _BORDER + "\u2563\n"
-        "\u2551 K8s functional groups not found in SMD.\n"
+        "\u2551 K8s nodes not found in SMD State/Components.\n"
         "\u2551\n"
         "\u2551 HOW TO FIX:\n"
-        "\u2551   1. Check SMD API: curl -sk https://$(hostname -f):8443/hsm/v2/groups\n"
-        "\u2551   2. Re-run provisioning: --tags provision_kubernetes\n"
+        "\u2551   1. Check SMD API: curl -sk https://$(hostname -f):8443/hsm/v2/State/Components\n"
+        "\u2551   2. Re-run provisioning: --tags provision\n"
         "\u2551   3. Check orchestrator logs for SMD registration errors\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
@@ -697,18 +719,6 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551   3. Re-run provisioning: --tags provision_kubernetes\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
-    "telemetry_pvcs_failed": (
-        "\n\u2554" + _BORDER + "\u2557\n"
-        "\u2551 TELEMETRY PVCS NOT BOUND\n"
-        "\u2560" + _BORDER + "\u2563\n"
-        "\u2551 Some telemetry PVCs are not in Bound state.\n"
-        "\u2551\n"
-        "\u2551 HOW TO FIX:\n"
-        "\u2551   1. Check: kubectl get pvc -n telemetry\n"
-        "\u2551   2. Verify storage provisioner is running\n"
-        "\u2551   3. Describe failing PVCs: kubectl describe pvc -n telemetry <name>\n"
-        "\u255a" + _BORDER + "\u255d\n"
-    ),
     "busybox_pod_failed": (
         "\n\u2554" + _BORDER + "\u2557\n"
         "\u2551 BUSYBOX POD DEPLOYMENT FAILED\n"
@@ -761,4 +771,27 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551   4. Check NFS server reachability\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
+    # etcd Local Disk Messages
+    "etcd_local_disk_enabled_ok": "etcd_on_local_disk is enabled in omnia_config.yml",
+    "etcd_local_disk_enabled_failed": "etcd_on_local_disk is not enabled in omnia_config.yml",
+    "boss_card_detected_ok": "BOSS card detected on control plane nodes",
+    "boss_card_detection_failed": "BOSS card detection failed",
+    "etcd_partition_ok": "Etcd partition found on control plane nodes",
+    "etcd_partition_failed": "Etcd partition not found on control plane nodes",
+    "etcd_filesystem_ok": "Ext4 filesystem found on etcd partition",
+    "etcd_filesystem_failed": "Ext4 filesystem not found on etcd partition",
+    "etcd_fstab_mount_ok": "fstab entry exists and mount is active for etcd",
+    "etcd_fstab_mount_failed": "fstab entry or mount issue for etcd",
+    "etcd_local_disk_config_ok": "etcd is using local disk (not NFS)",
+    "etcd_local_disk_config_failed": "etcd is not using local disk (using NFS)",
+    "fallback_disk_detected_ok": "Fallback disk detected for etcd",
+    "fallback_disk_detection_failed": "Fallback disk detection failed",
+    "etcd_first_boot_setup_ok": "etcd-disk-setup.sh script exists and was executed",
+    "etcd_first_boot_setup_failed": "etcd-disk-setup.sh script or log missing",
+    "ssd_disk_support_ok": "SSD disk detected for etcd",
+    "ssd_disk_support_failed": "SSD disk support check failed",
+    "hdd_disk_support_ok": "HDD disk detected for etcd",
+    "hdd_disk_support_failed": "HDD disk support check failed",
+    "nvme_disk_support_ok": "NVMe disk detected for etcd",
+    "nvme_disk_support_failed": "NVMe disk support check failed",
 }

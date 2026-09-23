@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-BuildStream Domain Cleanup — Playbook Deployment.
+BuildStream Domain Cleanup — Suite-owned playbook deployment.
 
 Runs cleanup_build_stream.yml with -e standalone_mode=true to clean up
 the entire BuildStream domain (containers, services, directories,
@@ -28,7 +28,6 @@ import pytest
 
 from library.functions import TestLogger, run_playbook
 from library.vars import TEST_CASES as TC
-from library.vars.common_vars import PLAYBOOK_ENTRY_POINT
 from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,

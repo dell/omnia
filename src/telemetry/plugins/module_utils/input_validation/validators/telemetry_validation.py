@@ -67,6 +67,53 @@ def _validated_mount_path(value):
     return value
 
 
+def _validated_project_name(value):
+    """Return a safe project name, or an empty string when invalid.
+    
+    Prevents path traversal attacks by rejecting names containing:
+    - Path separators (/, \)
+    - Parent directory references (..)
+    - Null bytes or control characters
+    - Names must be 1-80 characters
+    - Must start with alphanumeric
+    """
+    if not isinstance(value, str) or not value:
+        return ""
+    if len(value) > 80:
+        return ""
+    # Must start with alphanumeric
+    if not value[0].isalnum():
+        return ""
+    # Reject path traversal sequences and separators
+    if any(seq in value for seq in ("..", "/", "\\", "\x00", "\r", "\n")):
+        return ""
+    # Only allow alphanumeric, underscore, hyphen, and dot
+    if not all(c.isalnum() or c in ("_", "-", ".") for c in value):
+        return ""
+    return value
+
+
+def _validated_data_path(value):
+    """Return a safe absolute data path, or an empty string when invalid.
+    
+    Prevents path traversal attacks by ensuring:
+    - Path is absolute (starts with /)
+    - No null bytes or control characters
+    - No path traversal sequences
+    """
+    if not isinstance(value, str) or not value:
+        return ""
+    # Must be absolute path
+    if not os.path.isabs(value):
+        return ""
+    # Reject control characters and path traversal
+    if any(char in value for char in ("\x00", "\r", "\n")):
+        return ""
+    if ".." in value:
+        return ""
+    return value
+
+
 def _inventory_kube_vip(inventory_data):
     """Return the inventory kube VIP and a safely shaped children mapping."""
     if not isinstance(inventory_data, dict):
@@ -143,6 +190,8 @@ def validate_telemetry_config(
 
     # =========================================================================
     # L2: Validate cluster_inventory — file existence under telemetry input dir
+    # Empty value is allowed — the playbook will resolve a default path:
+    #   $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
     # =========================================================================
     cluster_inventory = data.get("cluster_inventory", "")
     if cluster_inventory:
@@ -189,13 +238,11 @@ def validate_telemetry_config(
             # (e.g., /opt/omnia/orchestrator/orchestrator.yml) - no directory restriction
             logger.info(f"cluster_inventory validated: {cluster_inv_full_path}")
     else:
-        errors.append(create_error_msg(
-            "cluster_inventory",
-            "",
-            "cluster_inventory is required. Provide the path to the Ansible inventory file "
-            "(e.g., '/omnia/src/telemetry/input/orchestrator_inventory.yml' or 'orchestrator_inventory.yml')"
-        ))
-        logger.error("cluster_inventory is empty or not provided")
+        # Empty cluster_inventory is allowed — playbook resolves default from
+        # $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
+        logger.info(
+            "cluster_inventory is empty — playbook will use default orchestrator output path"
+        )
 
     # =========================================================================
     # L2: Validate kube_vip — extracted from cluster_inventory file
@@ -312,6 +359,75 @@ def validate_telemetry_config(
 
     idrac_telemetry_support = idrac_source.get("metrics_enabled", False)
     idrac_collection_targets = idrac_source.get("collection_targets", [])
+
+    # iDRAC inventory is mandatory only when iDRAC telemetry is enabled.
+    # Resolve relative paths from the directory containing telemetry_config.yml,
+    # which is also where the default project input files are stored.
+    idrac_configurations = data.get("idrac_telemetry_configurations", {})
+    if not isinstance(idrac_configurations, dict):
+        idrac_configurations = {}
+    bmc_group_data_path = idrac_configurations.get("bmc_group_data_path", "")
+
+    if idrac_telemetry_support:
+        # Resolve default path if bmc_group_data_path is empty
+        # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv
+        if not isinstance(bmc_group_data_path, str) or not bmc_group_data_path.strip():
+            # Use default path from orchestrator output
+            omnia_data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia").rstrip("/")
+            project_name = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+            configured_bmc_path = f"{omnia_data_path}/orchestrator/output/{project_name}/bmc_group_data.csv"
+            logger.info(
+                "bmc_group_data_path is empty, using default: %s", configured_bmc_path
+            )
+        else:
+            configured_bmc_path = bmc_group_data_path.strip()
+
+        # Resolve relative paths from the directory containing telemetry_config.yml
+        if os.path.isabs(configured_bmc_path):
+            resolved_bmc_path = configured_bmc_path
+        else:
+            resolved_bmc_path = os.path.join(
+                os.path.dirname(input_file_path), configured_bmc_path
+            )
+
+        if not os.path.isfile(resolved_bmc_path):
+            error_detail = (
+                f"BMC group data file not found at: {resolved_bmc_path}\n\n"
+                f"Solution:\n"
+                f"1. Run the orchestrator to generate bmc_group_data.csv:\n"
+                f"   ansible-playbook orchestrator.yml --tags execute\n"
+                f"   This will create the file at the default location:\n"
+                f"   /opt/omnia/orchestrator/output/project_default/bmc_group_data.csv\n\n"
+                f"2. OR provide the correct path in telemetry_config.yml:\n"
+                f"   idrac_telemetry_configurations:\n"
+                f"     bmc_group_data_path: \"/path/to/your/bmc_group_data.csv\"\n\n"
+                f"3. OR set OMNIA_DATA_PATH and OMNIA_PROJECT_NAME environment variables:\n"
+                f"   Then ensure the orchestrator has generated the file at:\n"
+                f"   $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv"
+            )
+            errors.append(create_error_msg(
+                "idrac_telemetry_configurations.bmc_group_data_path",
+                bmc_group_data_path if bmc_group_data_path.strip() else "(default)",
+                error_detail
+            ))
+            logger.error(
+                "bmc_group_data_path does not reference an existing file: %s\n%s",
+                resolved_bmc_path,
+                error_detail,
+            )
+        else:
+            # Log when using default path
+            if not bmc_group_data_path.strip():
+                logger.warning(
+                    "⚠️  bmc_group_data_path is empty in telemetry_config.yml\n"
+                    "Using default path: %s\n"
+                    "Proceeding with deployment...",
+                    resolved_bmc_path
+                )
+            else:
+                logger.info(
+                    "bmc_group_data_path validated: %s", resolved_bmc_path
+                )
 
     # Bridge feature flags
     vector_ldms = telemetry_bridges.get("vector_ldms", {})
@@ -1126,15 +1242,51 @@ def validate_telemetry_packages(
                     telemetry_config.get("cluster_inventory", "")
                     if isinstance(telemetry_config, dict) else ""
                 )
+                
+                # Resolve cluster_inventory path: use configured value or default
+                cluster_inv_path = None
+                if isinstance(cluster_inventory, str) and cluster_inventory.strip():
+                    # Configured value
+                    cluster_inv_path = cluster_inventory.strip()
+                else:
+                    # Empty or not set: use default orchestrator output path
+                    # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
+                    omnia_data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia").rstrip("/")
+                    project_name = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+                    
+                    # Validate project name to prevent path traversal
+                    safe_project_name = _validated_project_name(project_name)
+                    if not safe_project_name:
+                        logger.warning(
+                            "OMNIA_PROJECT_NAME contains invalid characters: %s; "
+                            "using default 'project_default'",
+                            project_name,
+                        )
+                        safe_project_name = "project_default"
+                    
+                    # Validate OMNIA_DATA_PATH is absolute and safe
+                    safe_data_path = _validated_data_path(omnia_data_path)
+                    if not safe_data_path:
+                        logger.warning(
+                            "OMNIA_DATA_PATH is invalid or not absolute: %s; using /opt/omnia",
+                            omnia_data_path,
+                        )
+                        safe_data_path = "/opt/omnia"
+                    omnia_data_path = safe_data_path
+                    
+                    cluster_inv_path = f"{omnia_data_path}/orchestrator/output/{safe_project_name}/orchestrator_inventory.yml"
+                    logger.info(
+                        "cluster_inventory is empty; using default path: %s",
+                        cluster_inv_path,
+                    )
+                
                 if (
                     (
                         not isinstance(kube_vip, str)
                         or not kube_vip.strip()
                     )
-                    and isinstance(cluster_inventory, str)
-                    and cluster_inventory.strip()
+                    and cluster_inv_path
                 ):
-                    cluster_inv_path = cluster_inventory.strip()
                     if not os.path.isabs(cluster_inv_path):
                         cluster_inv_full_path = os.path.join(
                             input_dir, cluster_inv_path,
@@ -1314,7 +1466,8 @@ def validate_telemetry_packages(
         logger.info(f"install_mode validation PASSED: {install_mode}")
 
     # =========================================================================
-    # Validate repo_url (required for offline mode)
+    # Validate repo_url (optional for offline mode — auto-derived from
+    # SYSTEM_ADMIN_NIC_IPV4 when empty)
     # =========================================================================
     repo_url = data.get("repo_url", "")
     if install_mode == "offline":
@@ -1328,7 +1481,11 @@ def validate_telemetry_packages(
             else:
                 logger.info(f"repo_url validation PASSED: {repo_url}")
         else:
-            logger.warning("repo_url is empty in offline mode — package downloads may fail")
+            logger.info(
+                "repo_url is empty in offline mode — will auto-derive from "
+                "SYSTEM_ADMIN_NIC_IPV4 at runtime: "
+                "https://<SYSTEM_ADMIN_NIC_IPV4>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0"
+            )
 
     # =========================================================================
     # Validate container_registry format (when provided)

@@ -45,6 +45,7 @@ from library.functions import (
     get_vast_endpoint_from_config,
     is_logs_enabled,
     is_source_enabled,
+    is_sink_enabled_for_source,
     verify_vast_credentials_secret,
     verify_vast_external_service,
     verify_fresh_vast_test_event,
@@ -270,6 +271,10 @@ def test_vast_credentials_secret(host):
 def test_vast_metrics_in_vm(host):
     """Verify VAST storage metrics in VictoriaMetrics."""
     _skip_if_vast_metrics_disabled(host)
+    # Skip if VAST does not target VictoriaMetrics sink
+    if not is_sink_enabled_for_source(host, "vast", "victoria_metrics"):
+        pytest.skip("VAST source does not target VictoriaMetrics sink")
+    
     tc = TC["vast_metrics_in_vm"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -366,6 +371,9 @@ def test_vast_syslog_configuration(host):
 def test_vast_test_event_in_victoria_logs(host):
     """Verify the VAST test event from this run reached VictoriaLogs."""
     _skip_if_vast_logs_disabled(host)
+    # Skip if VAST does not target VictoriaLogs sink
+    if not is_sink_enabled_for_source(host, "vast", "victoria_logs"):
+        pytest.skip("VAST source does not target VictoriaLogs sink")
 
     tc = TC["vast_test_event_in_victoria_logs"]
     tl = TestLogger(tc["title"], tc["id"])
