@@ -19,6 +19,34 @@
   delegate_to: localhost
   run_once: true
 
+- name: Check build_stream_config for Jinja template injection patterns
+  ansible.builtin.set_fact:
+    _gitlab_host_has_jinja: "{{ (gitlab_host | default('')) is search('\\{\\{|\\{%|\\{#') }}"
+    _gitlab_project_has_jinja: "{{ (gitlab_project_name | default('')) is search('\\{\\{|\\{%|\\{#') }}"
+    _gitlab_branch_has_jinja: "{{ (gitlab_default_branch | default('')) is search('\\{\\{|\\{%|\\{#') }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Validate build_stream_config contains no Jinja template syntax
+  ansible.builtin.assert:
+    that:
+      - gitlab_host is defined
+      - gitlab_host is string
+      - gitlab_host | length > 0
+      - not _gitlab_host_has_jinja
+      - gitlab_host is regex('^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$')
+      - gitlab_https_port is defined
+      - gitlab_https_port | int > 0
+      - gitlab_https_port | int <= 65535
+      - gitlab_project_name is defined
+      - not _gitlab_project_has_jinja
+      - gitlab_default_branch is defined
+      - not _gitlab_branch_has_jinja
+    fail_msg: "{{ gitlab_config_invalid_format_msg }}"
+    quiet: true
+  delegate_to: localhost
+  run_once: true
+
 - name: Set external URL
   ansible.builtin.set_fact:
     gitlab_external_url_computed: "https://{{ gitlab_host }}{% if gitlab_https_port != 443 %}:{{ gitlab_https_port }}{% endif %}"

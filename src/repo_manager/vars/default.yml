@@ -487,3 +487,12 @@ validate_config_fail_if_repo_manager_config_yml_is_missing_msg: |
   repo_manager_config.yml not found.
   File: {{ repo_manager_config_file }}
   Please create the configuration file.
+
+# Input validation messages
+oim_metadata_invalid_format_msg: >-
+  oim_metadata.yml contains invalid template syntax.
+  Remove any template delimiters from the configuration file.
+
+repo_manager_config_invalid_format_msg: >-
+  repo_manager_config.yml contains invalid template syntax.
+  Remove any template delimiters from the configuration file.

@@ -26,6 +26,28 @@
   failed_when: false
   tags: always
 
+- name: Check oim_metadata for Jinja template injection patterns
+  ansible.builtin.set_fact:
+    _oim_metadata_has_jinja: >-
+      {{ oim_shared_path_from_metadata | dict2items
+         | selectattr('value', 'search', '\{\{|\{%|\{#')
+         | list | length > 0 }}
+  when:
+    - oim_shared_path_from_metadata is defined
+    - oim_shared_path_from_metadata is mapping
+  tags: always
+
+- name: Validate oim_metadata contains no Jinja template syntax
+  ansible.builtin.assert:
+    that:
+      - not (_oim_metadata_has_jinja | default(false) | bool)
+    fail_msg: "{{ oim_metadata_invalid_format_msg }}"
+    quiet: true
+  when:
+    - oim_shared_path_from_metadata is defined
+    - oim_shared_path_from_metadata is mapping
+  tags: always
+
 - name: Initialize SELinux policy
   ansible.builtin.set_fact:
     selinux_option: >-

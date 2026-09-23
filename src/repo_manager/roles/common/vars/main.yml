@@ -47,3 +47,8 @@ common_validate_docker_credentials_before_podman_login_msg: >-
 common_podman_login_check_msg: >-
   {{ podman_login_fail_msg }} Podman returned exit code
   {{ podman_login_output.rc }}.
+
+# Input validation messages
+oim_metadata_invalid_format_msg: >-
+  oim_metadata.yml contains invalid template syntax.
+  Remove any template delimiters from the configuration file.
