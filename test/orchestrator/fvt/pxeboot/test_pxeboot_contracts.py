@@ -13,16 +13,17 @@ import posixpath
 import pytest
 import yaml
 
-from library.functions import load_test_config, run_on_host
+from library.functions import (
+    resolve_target_input_project_path,
+    resolve_target_output_project_path,
+    run_on_host,
+)
 
 
-def _paths():
-    config = load_test_config()
-    shared = config.get("shared_path", "/opt/omnia/orchestrator").rstrip("/")
-    project = config.get("project_name", "project_default")
+def _paths(host):
     return (
-        posixpath.join(shared, "input", project),
-        posixpath.join(shared, "output", project),
+        resolve_target_input_project_path(host),
+        resolve_target_output_project_path(host),
     )
 
 
@@ -42,7 +43,7 @@ def _yaml(host, path):
 
 
 def _require_pxe_enabled(host):
-    input_dir, _ = _paths()
+    input_dir, _ = _paths(host)
     config = _yaml(host, posixpath.join(input_dir, "orchestrator_config.yml"))
     enabled = config.get("enable_pxe_boot", True)
     assert isinstance(enabled, bool), "enable_pxe_boot must be boolean"
@@ -52,7 +53,7 @@ def _require_pxe_enabled(host):
 
 def _mapping(host):
     _require_pxe_enabled(host)
-    input_dir, _ = _paths()
+    input_dir, _ = _paths(host)
     content = _read(host, posixpath.join(input_dir, "pxe_mapping_file.csv"))
     rows = list(csv.DictReader(StringIO(content)))
     assert rows, "pxe_mapping_file.csv must contain at least one node"
@@ -74,7 +75,7 @@ def _assert_count_contract(data, label):
 def test_set_pxe_boot_config_exists_or_defaults_apply(host):
     """ORCH_FVT_PXEBOOT_V022: Optional PXE settings exist or defaults apply."""
     _require_pxe_enabled(host)
-    input_dir, _ = _paths()
+    input_dir, _ = _paths(host)
     custom = host.file(posixpath.join(input_dir, "set_pxe_boot_config.yml"))
     if not custom.exists:
         pytest.skip("Optional set_pxe_boot_config.yml is absent; defaults apply")
@@ -87,7 +88,7 @@ def test_set_pxe_boot_config_exists_or_defaults_apply(host):
 def test_bmc_credential_artifacts_exist(host):
     """ORCH_FVT_PXEBOOT_V023: Enabled PXE has encrypted credential artifacts."""
     _require_pxe_enabled(host)
-    input_dir, _ = _paths()
+    input_dir, _ = _paths(host)
     for filename in ("orchestrator_credentials.yml", ".orchestrator_credentials_key"):
         credential = host.file(posixpath.join(input_dir, filename))
         assert credential.is_file and credential.size > 0, filename
@@ -98,7 +99,7 @@ def test_bmc_credential_artifacts_exist(host):
 def test_bmc_credential_permissions(host):
     """ORCH_FVT_PXEBOOT_V024: BMC credentials are inaccessible to other users."""
     _require_pxe_enabled(host)
-    input_dir, _ = _paths()
+    input_dir, _ = _paths(host)
     for filename in ("orchestrator_credentials.yml", ".orchestrator_credentials_key"):
         credential = host.file(posixpath.join(input_dir, filename))
         assert credential.is_file, filename
@@ -130,7 +131,7 @@ def test_idrac_redfish_endpoints_reachable(host):
 def test_pxeboot_status_output_exists(host):
     """ORCH_FVT_PXEBOOT_V026: PXE execution writes pxeboot_status.yml."""
     _require_pxe_enabled(host)
-    _, output_dir = _paths()
+    _, output_dir = _paths(host)
     assert host.file(posixpath.join(output_dir, "pxeboot_status.yml")).is_file
 
 
@@ -139,7 +140,7 @@ def test_pxeboot_status_output_exists(host):
 def test_pxeboot_status_output_format(host):
     """ORCH_FVT_PXEBOOT_V027: PXE status represents selected nodes consistently."""
     _require_pxe_enabled(host)
-    _, output_dir = _paths()
+    _, output_dir = _paths(host)
     data = _yaml(host, posixpath.join(output_dir, "pxeboot_status.yml"))
     assert data.get("schema_version") == "1.0"
     assert data.get("phase") == "pxeboot"

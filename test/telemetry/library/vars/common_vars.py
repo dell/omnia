@@ -120,6 +120,25 @@ KAFKA_CR_NAME = "kafka"
 KAFKA_EXTERNAL_BOOTSTRAP_SVC = "kafka-kafka-external-bootstrap"
 
 # =============================================================================
+# SOURCE-TO-SINKS MAPPING
+# =============================================================================
+# Maps each telemetry source to the sinks it can target.
+# Used for source-specific sink enablement checks in tests.
+#
+# Format: source_name -> [list of possible sink names]
+# This allows tests to verify if a specific source targets a specific sink.
+
+SOURCE_SINK_MAPPING = {
+    "idrac": ["kafka", "victoria_metrics"],
+    "ldms": ["kafka"],
+    "powerscale": ["victoria_metrics", "victoria_logs"],
+    "ufm": ["victoria_metrics", "victoria_logs"],
+    "vast": ["victoria_metrics", "victoria_logs"],
+    "ome": ["kafka"],  # OME publishes to Kafka; Vector-OME bridge routes to Victoria
+    "sfm": ["victoria_metrics"],  # SFM uses Prometheus Remote Write to victoria_metrics
+}
+
+# =============================================================================
 # SOURCE COMPONENT NAMES
 # =============================================================================
 
@@ -273,7 +292,7 @@ VAST_LOG_CLOCK_SKEW_SECONDS = 15
 VAST_LOG_MAX_FUTURE_SKEW_SECONDS = 30
 VAST_TRIGGER_STATE_SCHEMA_VERSION = 1
 VAST_TRIGGER_STATE_SUBDIR = os.path.join("reports", "state")
-VAST_TRIGGER_STATE_FILE = "vast_syslog_{report_id}.json"
+VAST_TRIGGER_STATE_FILE = "vast_syslog_{run_id}.json"
 VAST_TRIGGER_MAX_AGE_SECONDS = 3600
 VAST_REPORT_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$"
 VAST_QUERY_TIMEOUT_SECONDS = 30

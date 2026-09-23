@@ -22,6 +22,15 @@ Other FVT areas remain available at their lifecycle paths: `precheck`,
 `rollback`. Source-contract tests are in `playbooks` and invalid-input tests
 are in `negative`.
 
+OpenLDAP prepare verification is feature-gated by deployed Orchestrator state.
+The LDAP-backed Slurm tests use credentials stored only in encrypted
+test_creds.yml. V013-V016 verify the optional external directory, validated
+meta-proxy `slapd.conf`, POSIX user bind, and public-config secret boundary.
+LDAP state and proxy configuration are reconciled only by the explicit
+`utility/create_ldap_user.py` setup command, never as a pytest side effect.
+The setup does not modify Orchestrator source, public product inputs, or
+orchestrator_credentials.yml.
+
 ## ID convention
 
 - Non-Kubernetes FVT: `ORCH_FVT_<AREA>_E###` for execution and
@@ -44,7 +53,7 @@ cd test/orchestrator
 python3 -m pytest fvt --collect-only -q
 ```
 
-At this revision, pytest collects 273 FVT cases, 11 NFT cases, and 143 unit
+At this revision, pytest collects 273 FVT cases, 11 NFT cases, and 186 unit
 test invocations. Parameterized tests account for the difference between
 function count and collected-case count.
 

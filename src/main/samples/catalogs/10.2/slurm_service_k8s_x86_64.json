@@ -147,7 +147,9 @@
           "wget",
           "cloud_init",
           "glibc_langpack_en",
-          "gedit"
+          "gedit",
+          "ghcr_io/openchami/image_thrillhouse",
+          "docker_io/dellhpcomniaaisolution/image_build_el10"
         ]
       },
       "admin_debug_group": {
@@ -220,14 +222,6 @@
           "omsdk==1_2_518",
           "prettytable==3_14_0",
           "nvcr.io/nvidia/hpc-benchmarks"
-        ]
-      },
-      "image_thrillhouse_group": {
-        "name": "image_thrillhouse_group",
-        "type": "group",
-        "description": "Thrillhouse container for image builds",
-        "components": [
-          "ghcr_io/openchami/image_thrillhouse"
         ]
       },
       "slurm_custom_group": {
@@ -569,14 +563,6 @@
           "cuda_toolkit",
           "datacenter_gpu_manager",
           "nvhpc"
-        ]
-      },
-      "image_builder_x86_64_group": {
-        "name": "image_builder_x86_64_group",
-        "type": "group",
-        "description": "Image Builder container for x86_64 image builds",
-        "components": [
-          "docker_io/dellhpcomniaaisolution/image_build_el10"
         ]
       }
     },

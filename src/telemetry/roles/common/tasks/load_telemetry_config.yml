@@ -37,6 +37,7 @@
         k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] | default('/opt/omnia/k8s_mount') }}"
         slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] | default('/share_omnia') }}"
         kube_vip: "{{ hostvars['localhost']['kube_vip'] | default('') }}"
+        cluster_inventory_path: "{{ hostvars['localhost']['cluster_inventory_path'] | default('') }}"
 
 - name: Load configs from files when not cached
   when: not (configs_already_loaded | bool)
@@ -76,9 +77,33 @@
         _cluster_inv_path: >-
           {% if telemetry_config.cluster_inventory | default('') | length > 0 -%}
           {{ telemetry_config.cluster_inventory }}{%- else -%}
-          {{ omnia_data_path | default('/opt/omnia') }}/orchestrator/output/{{
-            project_name | default('project_default')
-          }}/orchestrator_inventory.yaml{%- endif %}
+          {{ omnia_data_path | default('/opt/omnia', true) | regex_replace('/$', '') }}/orchestrator/output/{{
+            project_name | default('project_default', true)
+          }}/orchestrator_inventory.yml{%- endif %}
+        cacheable: true
+
+    - name: Notify - cluster_inventory using default path
+      when: telemetry_config.cluster_inventory | default('') | length == 0
+      block:
+        - name: Display warning
+          ansible.builtin.debug:
+            msg: "⚠️  cluster_inventory is empty in telemetry_config.yml"
+          vars:
+            ansible_debug_color: "yellow"
+
+        - name: Display resolved path
+          ansible.builtin.debug:
+            msg: "Constructing default path: {{ _cluster_inv_path }}"
+
+        - name: Pause for user confirmation
+          ansible.builtin.pause:
+            seconds: 10
+            prompt: "Proceeding in 10 seconds... (Press Ctrl+C to cancel)"
+
+    - name: Expose resolved cluster inventory path for downstream consumers
+      ansible.builtin.set_fact:
+        cluster_inventory_path: "{{ _cluster_inv_path }}"
+        cacheable: true
 
     - name: Check if cluster inventory file exists (from telemetry_config)
       ansible.builtin.stat:
@@ -153,6 +178,84 @@
       when: _pkg_raw is defined
 
     # -----------------------------------------------------------------------
+    # Resolve repo_url default for offline mode from SYSTEM_ADMIN_NIC_IPV4
+    # -----------------------------------------------------------------------
+    # When install_mode is offline and repo_url is empty, auto-derive:
+    #   https://<SYSTEM_ADMIN_NIC_IPV4>:<pulp_port>/<pulp_base_path>/<pulp_cluster_arch>/<pulp_os_name>/<pulp_os_version>
+    # Pulp configuration is customizable via variables in roles/common/vars/main.yml
+    - name: Resolve repo_url default for offline mode
+      ansible.builtin.set_fact:
+        _resolved_repo_url: >-
+          {% set mode = _pkg_raw.install_mode | default('offline') -%}
+          {% set url = _pkg_raw.repo_url | default('') -%}
+          {% if url | length > 0 -%}
+          {{ url | regex_replace('/$', '') }}{%- elif mode == 'offline' -%}
+          {% set nic_ip = lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default(admin_nic_ip | default(''), true) -%}
+          {% if nic_ip | length > 0 -%}
+          https://{{ nic_ip }}:{{ pulp_port }}/{{ pulp_base_path }}/{{ pulp_cluster_arch }}/{{ pulp_os_name }}/{{ pulp_os_version }}{%- endif -%}
+          {%- endif %}
+      when: _pkg_raw is defined
+
+    - name: Notify - repo_url using default path
+      when:
+        - _pkg_raw is defined
+        - (_pkg_raw.repo_url | default('')) | length == 0
+      block:
+        - name: Set default repo_url for display
+          ansible.builtin.set_fact:
+            _default_repo_url: >-
+              {% set nic_ip = lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default(admin_nic_ip | default(''), true) -%}
+              {% if nic_ip | length > 0 -%}
+              https://{{ nic_ip }}:{{ pulp_port }}/{{ pulp_base_path }}/{{ pulp_cluster_arch }}/{{ pulp_os_name }}/{{ pulp_os_version }}{%- endif %}
+
+        - name: Display warning
+          ansible.builtin.debug:
+            msg: "⚠️  repo_url is empty in telemetry_packages.yml"
+          vars:
+            ansible_debug_color: "yellow"
+
+        - name: Display resolved path
+          ansible.builtin.debug:
+            msg: "Constructing default path from SYSTEM_ADMIN_NIC_IPV4: {{ _default_repo_url | trim }}"
+
+        - name: Pause for user confirmation
+          ansible.builtin.pause:
+            seconds: 10
+            prompt: "Proceeding in 10 seconds... (Press Ctrl+C to cancel)"
+
+    # -----------------------------------------------------------------------
+    # Validate repo_url is set for offline mode
+    # -----------------------------------------------------------------------
+    # In offline mode, repo_url must be provided either explicitly or
+    # auto-derived from SYSTEM_ADMIN_NIC_IPV4. Fail if neither is available.
+    - name: Validate repo_url for offline mode
+      ansible.builtin.fail:
+        msg: |
+          repo_url is required for offline mode but not provided.
+
+          Current state:
+          - install_mode: {{ _pkg_raw.install_mode | default('offline') }}
+          - repo_url in telemetry_packages.yml: "{{ _pkg_raw.repo_url | default('') }}"
+          - SYSTEM_ADMIN_NIC_IPV4 environment variable: {{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('NOT SET', true) }}
+          - admin_nic_ip variable: {{ admin_nic_ip | default('NOT SET') }}
+
+          Solution:
+          1. Set SYSTEM_ADMIN_NIC_IPV4 environment variable to the Pulp server IP:
+             export SYSTEM_ADMIN_NIC_IPV4=<pulp_server_ip>
+             ansible-playbook telemetry.yml --tags execute
+
+          2. OR explicitly set repo_url in telemetry_packages.yml:
+             install_mode: "offline"
+             repo_url: "https://<pulp_server_ip>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0"
+
+          3. OR set admin_nic_ip in roles/common/vars/main.yml:
+             admin_nic_ip: "<pulp_server_ip>"
+      when:
+        - _pkg_raw is defined
+        - (_pkg_raw.install_mode | default('offline')) == 'offline'
+        - (_resolved_repo_url | default('')) | length == 0
+
+    # -----------------------------------------------------------------------
     # Resolve telemetry_packages URLs from repo_url + package catalog
     # -----------------------------------------------------------------------
     # The new telemetry_packages.yml provides repo_url (Pulp base) and a
@@ -161,7 +264,7 @@
     - name: Resolve package URLs from repo_url and catalog
       vars:
         _mode: "{{ _pkg_raw.install_mode | default('offline') }}"
-        _base: "{{ _pkg_raw.repo_url | default('') }}"
+        _base: "{{ _resolved_repo_url | default(_pkg_raw.repo_url | default('')) }}"
         _hc: "{{ _pkg_raw.helm_charts | default({}) }}"
         _gr: "{{ _pkg_raw.git_repos | default({}) }}"
       ansible.builtin.set_fact:

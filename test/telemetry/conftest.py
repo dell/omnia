@@ -26,6 +26,7 @@ Provides:
 
 import sys
 import os
+from datetime import datetime
 
 import pytest
 
@@ -122,6 +123,9 @@ _TC_ID_MAP.update(
         "test_validate_performance": TEST_CASES["nft_validate_perf"]["id"],
         "test_deploy_performance": TEST_CASES["nft_deploy_perf"]["id"],
         "test_cleanup_performance": TEST_CASES["nft_cleanup_perf"]["id"],
+        "test_resilience_setup_deploy": TEST_CASES[
+            "nft_resilience_setup"
+        ]["id"],
         "test_sink_pod_deletion_recovery": TEST_CASES[
             "nft_sink_pod_recovery"
         ]["id"],
@@ -145,6 +149,9 @@ _TC_ID_MAP.update(
         "test_operator_pod_recovery": TEST_CASES["nft_operator_recovery"][
             "id"
         ],
+        "test_nft_final_cluster_state_warning": TEST_CASES[
+            "nft_final_warning"
+        ]["id"],
     }
 )
 
@@ -445,10 +452,11 @@ def pytest_sessionstart(session):
                 module_name = part
                 break
 
-    report_id = os.environ.get("REPORT_ID")
+    configured_id = str(config.get("run_id") or "").strip()
+    run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.environ["RUN_ID"] = run_id
     base_name = str(config.get("report_name", "telemetry_test_report"))
     report_name = build_report_name(
-        domain_name="telemetry",
         base_name=base_name,
     )
     report = TestReport(
@@ -456,7 +464,7 @@ def pytest_sessionstart(session):
         report_path=str(config.get("report_path", "/opt/omnia/reports")),
         report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
-        report_id=report_id,
+        run_id=run_id,
     )
     set_current_report(report)
 

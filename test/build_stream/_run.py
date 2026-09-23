@@ -48,18 +48,41 @@ def _load_configured_report_id(script_dir):
     return ""
 
 
+def _manual_pipeline_help_requested(args):
+    """Return whether this invocation prints BuildStream FVT help."""
+    if not args or args[0] in {"help", "--help", "-h"}:
+        return True
+    return (
+        args[0] == "fvt_build_stream"
+        and (len(args) == 1 or args[1] in {"help", "--help"})
+    )
+
+
+def _print_manual_pipeline_help():
+    """Print the BuildStream-specific manual pipeline workflow."""
+    print("BUILDSTREAM MANUAL PIPELINES (RUN IN ORDER)")
+    print("  1. Verify the installed BuildStream stack:")
+    print(
+        "     ./run_validation.sh fvt_build_stream "
+        "buildstream_install verify --marker sanity"
+    )
+    print("  2. Trigger and verify a new manual build:")
+    print(
+        "     ./run_validation.sh fvt_build_stream build_pipeline test "
+        "--suite manual --marker manual"
+    )
+    print("  3. Deploy the exact job_id created by the manual build:")
+    print(
+        "     ./run_validation.sh fvt_build_stream deploy_pipeline test "
+        "--suite manual --marker manual"
+    )
+    print()
+
+
 def main():
     """Load domain config and run ValidationRunner."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, script_dir)
-
-    # ValidationRunner already preserves REPORT_ID across lifecycle stages.
-    # Seed it from test_config.yml so separate cleanup and lifecycle commands
-    # can intentionally append to one report.
-    if not os.environ.get("REPORT_ID"):
-        configured_report_id = _load_configured_report_id(script_dir)
-        if configured_report_id:
-            os.environ["REPORT_ID"] = configured_report_id
 
     from library.vars.domain_vars import (
         DOMAIN_NAME,
@@ -71,6 +94,7 @@ def main():
         ALL_EXEC_TAGS,
         ALL_EXEC_MARKER,
         SUITE_EXEC_OWNERS,
+        REQUIRED_SUITE_TAGS,
     )
     from omnia_auto.functions.validation_runner import ValidationRunner
 
@@ -85,10 +109,15 @@ def main():
             "all_exec_tags": ALL_EXEC_TAGS,
             "all_exec_marker": ALL_EXEC_MARKER,
             "suite_exec_owners": SUITE_EXEC_OWNERS,
+            "required_suite_tags": REQUIRED_SUITE_TAGS,
             "enable_ut": ENABLE_UT,
         },
     )
-    sys.exit(runner.main(sys.argv[1:]))
+    args = sys.argv[1:]
+    result = runner.main(args)
+    if result == 0 and _manual_pipeline_help_requested(args):
+        _print_manual_pipeline_help()
+    sys.exit(result)
 
 
 if __name__ == "__main__":

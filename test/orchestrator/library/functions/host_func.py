@@ -25,19 +25,22 @@ from typing import Any, Dict
 
 from omnia_auto import (
     connection_params,
-    load_test_config,
     get_module_root,
+    load_test_config,
+    resolve_domain_data_path,
     sync_files,
 )
 from ..vars.common_vars import (
     DATASET_NAME_PATTERN,
     DATASETS_DIR,
-    IMAGE_BUILD_MANAGER_OUTPUT_TEMPLATE,
-    INPUT_PATH_TEMPLATE,
-    REPO_MANAGER_OUTPUT_TEMPLATE,
     SRC_IMAGE_BUILD_OUTPUT_DIR,
     SRC_INPUT_DIR,
     SRC_REPO_OUTPUT_DIR,
+)
+
+from .project_func import (
+    resolve_target_input_project_path,
+    resolve_target_project_name,
 )
 
 
@@ -133,11 +136,10 @@ def sync_orchestrator_input(_host, config=None) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     config = config or load_test_config()
-    project = config.get("project_name", "project_default")
     conn = connection_params()
 
     local_input = _resolve_dataset_subdir(config, "input", SRC_INPUT_DIR)
-    remote_input = INPUT_PATH_TEMPLATE.format(project=project)
+    remote_input = resolve_target_input_project_path(_host)
 
     try:
         _reject_symlinks(local_input)
@@ -176,15 +178,20 @@ def sync_repo_manager_output(_host, config=None) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     config = config or load_test_config()
-    project = config.get("project_name", "project_default")
     conn = connection_params()
 
     local_output = _resolve_dataset_subdir(
         config, "repo_manager_output", SRC_REPO_OUTPUT_DIR
     )
-    remote_path = REPO_MANAGER_OUTPUT_TEMPLATE.format(project=project)
-    # Sync directory containing repo_status.yml
-    remote_dir = os.path.dirname(remote_path)
+    repo_root = resolve_domain_data_path(
+        _host,
+        "repo_manager",
+        "OMNIA_DATA_PATH",
+        domain_data_path_var="REPO_MANAGER_DATA_PATH",
+    )
+    remote_dir = os.path.join(
+        repo_root, "output", resolve_target_project_name(_host)
+    )
 
     try:
         _reject_symlinks(local_output)
@@ -210,7 +217,6 @@ def sync_repo_manager_output(_host, config=None) -> Dict[str, Any]:
 def sync_image_build_manager_output(_host, config=None) -> Dict[str, Any]:
     """Sync the image-builder ``build_status.yml`` handoff to the target."""
     config = config or load_test_config()
-    project = config.get("project_name", "project_default")
     conn = connection_params()
 
     local_output = _resolve_dataset_subdir(
@@ -218,8 +224,15 @@ def sync_image_build_manager_output(_host, config=None) -> Dict[str, Any]:
         "image_build_manager_output",
         SRC_IMAGE_BUILD_OUTPUT_DIR,
     )
-    remote_path = IMAGE_BUILD_MANAGER_OUTPUT_TEMPLATE.format(project=project)
-    remote_dir = os.path.dirname(remote_path)
+    image_root = resolve_domain_data_path(
+        _host,
+        "image_build_manager",
+        "OMNIA_DATA_PATH",
+        domain_data_path_var="IMAGE_BUILD_MANAGER_DATA_PATH",
+    )
+    remote_dir = os.path.join(
+        image_root, "output", resolve_target_project_name(_host)
+    )
 
     try:
         _reject_symlinks(local_output)

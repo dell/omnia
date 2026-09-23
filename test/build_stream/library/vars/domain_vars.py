@@ -85,8 +85,17 @@ SUITES: Dict[str, List[str]] = {
 SUITE_EXEC_OWNERS: Dict[str, List[str]] = {
     "build_pipeline": ["manual"],
     "deploy_pipeline": ["manual"],
-    "buildstream_cleanup": ["cleanup_pipeline"],
+    "buildstream_cleanup": [
+        "gitlab_cleanup",
+        "buildstream_cleanup",
+        "cleanup_pipeline",
+    ],
 }
+
+# Cleanup operations are destructive and have different targets. Require the
+# caller to select exactly one suite so GitLab cleanup, BuildStream cleanup,
+# and image cleanup-pipeline execution can never be mixed accidentally.
+REQUIRED_SUITE_TAGS: List[str] = ["buildstream_cleanup"]
 
 # =====================================================================
 # Tags excluded from "all" verify (run only when explicit)

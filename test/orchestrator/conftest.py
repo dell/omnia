@@ -27,12 +27,45 @@ Provides:
 import sys
 import os
 import re
+from datetime import datetime
 
 import pytest
 
 _TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TEST_DIR not in sys.path:
     sys.path.insert(0, _TEST_DIR)
+
+# Match the runtime contract used by newer domain test frameworks. Explicit
+# shell values win; otherwise load the target Omnia environment before any
+# path resolver or playbook wrapper is imported.
+_OMNIA_ENV_FILE = "/etc/omnia/omnia.env"
+if os.path.exists(_OMNIA_ENV_FILE):
+    try:
+        with open(_OMNIA_ENV_FILE, "r", encoding="utf-8") as _env_file:
+            for _line in _env_file:
+                _line = _line.strip()
+                if not _line or _line.startswith("#") or "=" not in _line:
+                    continue
+                _key, _value = _line.split("=", 1)
+                _key = _key.strip()
+                _value = _value.strip()
+                if (
+                    len(_value) >= 2
+                    and _value[0] == _value[-1]
+                    and _value[0] in {"'", '"'}
+                ):
+                    _value = _value[1:-1]
+                _value = re.sub(
+                    r"\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)",
+                    lambda match: os.environ.get(
+                        match.group(1) or match.group(2), match.group(0)
+                    ),
+                    _value,
+                )
+                if _key and _key not in os.environ:
+                    os.environ[_key] = _value
+    except OSError:
+        pass
 
 # --- Initialize omnia_auto BEFORE any imports that use it ---
 import omnia_auto  # noqa: E402
@@ -71,6 +104,9 @@ from library.functions.host_func import (  # noqa: E402
 from library.functions.validation_func import (  # noqa: E402
     validate_all,
     ConfigValidationError,
+)
+from library.functions.project_func import (  # noqa: E402
+    resolve_project_name,
 )
 
 
@@ -177,8 +213,12 @@ def pytest_collection_modifyitems(session, config, items):
                     "Negative tests require the explicit negative tag"
                 ))
     else:
-        # When marker is specified, only apply the marker filtering
+        # When marker is specified, only apply the marker filtering.  A
+        # BuildStream validation is a focused post-provision health report;
+        # unrelated Orchestrator cases must be deselected instead of being
+        # reported as skipped.
         filtered = []
+        deselected = []
         for item in items:
             # The runner already scopes execution to ``-m deploy``.  A feature
             # marker belongs to the verification cases and must not silently
@@ -193,12 +233,17 @@ def pytest_collection_modifyitems(session, config, items):
                 match = _item_has_marker(item, markers[0])
 
             if not match:
+                if "buildstream" in markers:
+                    deselected.append(item)
+                    continue
                 reason = (
                     f"Marker filter: "
                     f"{'+'.join(markers) if mode == 'and' else ','.join(markers)}"
                 )
                 item.add_marker(pytest.mark.skip(reason=reason))
             filtered.append(item)
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
         items[:] = filtered
 
     # Destructive tests always require an explicit opt-in, even when another
@@ -266,6 +311,7 @@ def pytest_sessionstart(session):
 
     config = load_test_config()
     config = _apply_dataset_overrides(config)
+    os.environ["OMNIA_PROJECT_NAME"] = resolve_project_name(config)
 
     host = get_testinfra_host()
 
@@ -322,10 +368,11 @@ def pytest_sessionstart(session):
                 module_name = part
                 break
 
-    report_id = os.environ.get("REPORT_ID")
+    configured_id = str(config.get("run_id") or "").strip()
+    run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.environ["RUN_ID"] = run_id
     base_name = str(config.get("report_name", "orchestrator_test_report"))
     report_name = build_report_name(
-        domain_name="orchestrator",
         base_name=base_name,
     )
     report_path = str(config.get("report_path", "/opt/omnia/reports"))
@@ -337,7 +384,7 @@ def pytest_sessionstart(session):
         report_path=report_path,
         report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
-        report_id=report_id,
+        run_id=run_id,
     )
     set_current_report(report)
 

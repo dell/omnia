@@ -106,13 +106,13 @@ def test_k8s_chronyd_running(host):
 @pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_k8s_kubectl_version(host):
-    """TC_K8_033: Verify kubectl version matches software config."""
+    """TC_K8_033: Verify kubectl version matches catalog."""
     _skip_if_k8s_disabled(host)
 
     tc = TC["k8s_kubectl_version"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Checking kubectl version against software_config.json")
+    tl.check("Checking kubectl version against catalog")
     result = check_kubectl_version(host)
 
     if result.get("skipped"):

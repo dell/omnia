@@ -1028,7 +1028,7 @@ invalid_tag_combinations:
 |------|----------|
 | `functional_groups_config.yml` | Internal (provisioning) |
 | `orchestrator_state.yml` | Internal (support flags for standalone runs) |
-| `orchestrator_inventory.yaml` | External (Ansible inventory) |
+| `orchestrator_inventory.yml` | External (Ansible inventory) |
 | `bmc_group_data.csv` | External (BMC operations) |
 | `provisioning_report.yml` | External (audit/review) |
 | SMD state (in OpenCHAMI) | OpenCHAMI services |

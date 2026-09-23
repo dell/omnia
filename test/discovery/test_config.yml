@@ -47,5 +47,5 @@ report_path: /opt/omnia/reports
 # Report file name (no spaces, only letters/numbers/underscores/hyphens)
 report_name: discovery_test_report
 
-# Report ID (auto-generated if empty)
-report_id: ""
+# Run ID (auto-generated if empty)
+run_id: ""
