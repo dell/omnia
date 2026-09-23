@@ -61,7 +61,6 @@ class JobModel(Base):  # pylint: disable=too-few-public-methods
     catalog_identifier = Column(String(128), nullable=True)
     catalog_version = Column(String(20), nullable=True)
     catalog_schema_version = Column(Integer, nullable=True)
-    build_execution_mode = Column(String(20), nullable=True, default="differential")
 
     # Pipeline phase (nullable — NULL for direct invocation)
     pipeline_phase = Column(String(10), nullable=True)

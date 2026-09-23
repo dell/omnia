@@ -22,7 +22,7 @@
 
 ER-BSM-002 Phase 1: Schema migration.
   - jobs: composite_image_group_id, catalog_identifier, catalog_version,
-          catalog_schema_version, build_execution_mode
+          catalog_schema_version
   - image_groups: catalog_identifier, catalog_version, catalog_schema_version,
                   deploy_count, is_protected, last_deployed_at; widen id to 256
   - images: manifest_path
@@ -63,15 +63,6 @@ def upgrade() -> None:
     op.add_column(
         "jobs",
         sa.Column("catalog_schema_version", sa.Integer(), nullable=True),
-    )
-    op.add_column(
-        "jobs",
-        sa.Column(
-            "build_execution_mode",
-            sa.String(20),
-            nullable=True,
-            server_default="differential",
-        ),
     )
     op.create_index(
         "ix_jobs_composite_image_group_id",
@@ -137,7 +128,6 @@ def downgrade() -> None:
 
     # --- jobs table ---
     op.drop_index("ix_jobs_composite_image_group_id", table_name="jobs")
-    op.drop_column("jobs", "build_execution_mode")
     op.drop_column("jobs", "catalog_schema_version")
     op.drop_column("jobs", "catalog_version")
     op.drop_column("jobs", "catalog_identifier")

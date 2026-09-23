@@ -46,7 +46,12 @@ from api.logging_utils import log_secure_info
 from core.artifacts.entities import ArtifactRecord
 from core.artifacts.interfaces import ArtifactMetadataRepository, ArtifactStore
 from core.artifacts.value_objects import ArtifactKind, StoreHint
-from core.catalog.exceptions import CatalogNotUploadedError, InvalidCatalogFormatError
+from core.catalog.exceptions import (
+    CatalogNotUploadedError,
+    InvalidCatalogFormatError,
+    UnsupportedSchemaVersionError,
+)
+from core.catalog.parser import SUPPORTED_SCHEMA_VERSIONS
 from core.image_group.exceptions import DuplicateImageGroupError
 from core.image_group.repositories import ImageGroupRepository
 from core.image_group.value_objects import ImageGroupId
@@ -122,18 +127,25 @@ class ParseCatalogUseCase:
             self._mark_stage_started(job, stage, command)
 
             catalog_data = self._load_uploaded_catalog(command.job_id)
-            image_group_id = self._extract_image_group_id(catalog_data)
-            self._check_image_group_uniqueness(image_group_id)
-            
-            # Persist catalog metadata for build-image stage
+
+            # Extract catalog metadata first so the composite ID is
+            # available for the uniqueness check (ER-BSM-002).
             catalog_metadata = self._extract_catalog_metadata(catalog_data)
+
+            # Duplicate detection must use the composite ID because
+            # image_groups.id stores ``identifier-vVersion``.
+            composite_id = ImageGroupId(
+                catalog_metadata["composite_image_group_id"]
+            )
+            self._check_image_group_uniqueness(composite_id)
+
             self._persist_catalog_metadata(command.job_id, catalog_metadata)
 
             # Populate job with catalog versioning data (ER-BSM-002)
             self._update_job_catalog_metadata(job, catalog_metadata)
 
             self._mark_stage_completed(stage, command)
-            return self._build_success_result(command, image_group_id)
+            return self._build_success_result(command, composite_id)
         except Exception as exc:
             self._mark_stage_failed(stage, command, exc)
             raise
@@ -261,12 +273,12 @@ class ParseCatalogUseCase:
             ) from exc
 
     def _extract_image_group_id(self, catalog_data: dict) -> ImageGroupId:
-        """Extract ImageGroupID from catalog Identifier field.
+        """Extract raw Identifier from catalog for validation purposes.
 
-        Uses the ``Identifier`` field as the canonical ImageGroupID for
-        backward compatibility. The composite identity (``Identifier-vVersion``)
-        is built separately in ``_extract_catalog_metadata`` and stored on
-        the Job entity for downstream stages.
+        NOTE: This returns the *raw* identifier, not the composite ID.
+        For uniqueness checks, use the composite ID from
+        ``_extract_catalog_metadata`` instead, since ``image_groups.id``
+        stores ``identifier-vVersion``.
 
         Supports both PascalCase (``Catalog``/``Identifier``) and lowercase
         (``catalog``/``identifier``) keys for consistency with how
@@ -356,6 +368,14 @@ class ParseCatalogUseCase:
         schema_version = cat.get(
             "SchemaVersion", cat.get("schema_version", 1)
         )
+
+        # Validate schema version against supported set (ER-BSM-002).
+        if schema_version not in SUPPORTED_SCHEMA_VERSIONS:
+            raise UnsupportedSchemaVersionError(
+                schema_version=schema_version,
+                supported=SUPPORTED_SCHEMA_VERSIONS,
+            )
+
         composite_id = f"{raw_identifier}-v{catalog_version}"
 
         layers = cat.get("FunctionalLayer", cat.get("functionallayer", []))
@@ -445,8 +465,14 @@ class ParseCatalogUseCase:
         """Populate the Job entity with catalog versioning fields.
 
         Called after successful parse-catalog so that downstream stages
-        (build-image, deploy, cleanup) can access composite identity and
-        build execution mode from the Job itself.
+        (build-image, deploy, cleanup) can access composite identity
+        from the Job itself.
+
+        NOTE: The actual ImageGroup record (with composite ID and catalog
+        fields) is created by the ResultPoller when the build-image
+        playbook completes successfully. This use case only stores the
+        metadata on the Job so it is available before the build finishes.
+        ResultPoller changes are maintained separately from this PR.
 
         Uses setattr for safety since these fields were added in ER-BSM-002
         and may not exist on all Job subclasses.

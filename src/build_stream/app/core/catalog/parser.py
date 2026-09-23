@@ -69,6 +69,13 @@ def ParseCatalog(file_path: str, schema_path: str = _DEFAULT_SCHEMA_PATH) -> Cat
             f"defaulting to schema_version=1 (legacy)"
         )
 
+    # Validate schema version is in the supported set (ER-BSM-002).
+    if schema_version not in SUPPORTED_SCHEMA_VERSIONS:
+        raise UnsupportedSchemaVersionError(
+            schema_version=schema_version,
+            supported=SUPPORTED_SCHEMA_VERSIONS,
+        )
+
     identifier = data.get("Identifier", "")
 
     functional_packages = [

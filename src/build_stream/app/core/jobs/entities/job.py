@@ -41,7 +41,6 @@ class Job:
             "omnia-slurm-rhel-10-0-x86-64-aarch64").
         catalog_version: Catalog version (e.g. "1.0").
         catalog_schema_version: Structural schema version (integer).
-        build_execution_mode: "differential" or "lockstep".
         created_at: Job creation timestamp.
         updated_at: Last modification timestamp.
         version: Optimistic locking version.
@@ -57,7 +56,6 @@ class Job:
     catalog_identifier: Optional[str] = None
     catalog_version: Optional[str] = None
     catalog_schema_version: Optional[int] = None
-    build_execution_mode: Optional[str] = "differential"
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     version: int = 1

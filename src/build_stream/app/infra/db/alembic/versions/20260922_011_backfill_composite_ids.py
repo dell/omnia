@@ -62,30 +62,61 @@ def upgrade() -> None:
         )
     )
 
-    # Backfill jobs from their linked image_group.
+    # Convert image_groups.id to composite form (identifier-vVersion).
+    # Must also update images.image_group_id FK to keep referential
+    # integrity. Drop and re-add the FK to allow the PK update.
     conn.execute(
         sa.text(
             """
-            UPDATE jobs
-            SET composite_image_group_id = ig.id || '-v1.0',
-                catalog_identifier = ig.id,
-                catalog_version = '1.0',
-                catalog_schema_version = 2,
-                build_execution_mode = COALESCE(build_execution_mode, 'differential')
-            FROM image_groups ig
-            WHERE ig.job_id = jobs.job_id
-              AND jobs.composite_image_group_id IS NULL
+            ALTER TABLE images
+                DROP CONSTRAINT IF EXISTS images_image_group_id_fkey
             """
         )
     )
 
-    # Set default build_execution_mode for jobs without an image group.
+    conn.execute(
+        sa.text(
+            """
+            UPDATE images
+            SET image_group_id = image_group_id || '-v1.0'
+            WHERE image_group_id NOT LIKE '%-v%'
+            """
+        )
+    )
+
+    conn.execute(
+        sa.text(
+            """
+            UPDATE image_groups
+            SET id = id || '-v1.0'
+            WHERE id NOT LIKE '%-v%'
+            """
+        )
+    )
+
+    conn.execute(
+        sa.text(
+            """
+            ALTER TABLE images
+                ADD CONSTRAINT images_image_group_id_fkey
+                FOREIGN KEY (image_group_id)
+                REFERENCES image_groups(id) ON DELETE CASCADE
+            """
+        )
+    )
+
+    # Backfill jobs from their linked image_group (now composite).
     conn.execute(
         sa.text(
             """
             UPDATE jobs
-            SET build_execution_mode = 'differential'
-            WHERE build_execution_mode IS NULL
+            SET composite_image_group_id = ig.id,
+                catalog_identifier = ig.catalog_identifier,
+                catalog_version = '1.0',
+                catalog_schema_version = 2
+            FROM image_groups ig
+            WHERE ig.job_id = jobs.job_id
+              AND jobs.composite_image_group_id IS NULL
             """
         )
     )
@@ -103,6 +134,47 @@ def downgrade() -> None:
                 catalog_identifier = NULL,
                 catalog_version = NULL,
                 catalog_schema_version = NULL
+            """
+        )
+    )
+
+    # Revert image_groups.id from composite form back to raw identifier.
+    conn.execute(
+        sa.text(
+            """
+            ALTER TABLE images
+                DROP CONSTRAINT IF EXISTS images_image_group_id_fkey
+            """
+        )
+    )
+
+    conn.execute(
+        sa.text(
+            """
+            UPDATE images
+            SET image_group_id = regexp_replace(image_group_id, '-v[^-]+$', '')
+            WHERE image_group_id LIKE '%-v%'
+            """
+        )
+    )
+
+    conn.execute(
+        sa.text(
+            """
+            UPDATE image_groups
+            SET id = catalog_identifier
+            WHERE catalog_identifier IS NOT NULL
+            """
+        )
+    )
+
+    conn.execute(
+        sa.text(
+            """
+            ALTER TABLE images
+                ADD CONSTRAINT images_image_group_id_fkey
+                FOREIGN KEY (image_group_id)
+                REFERENCES image_groups(id) ON DELETE CASCADE
             """
         )
     )

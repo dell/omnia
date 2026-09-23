@@ -216,7 +216,6 @@
       "required": [
         "Name",
         "Version",
-        "SchemaVersion",
         "Identifier",
         "FunctionalLayer",
         "BaseOS",
